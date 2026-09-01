@@ -73,9 +73,13 @@ export function NavigationDrawer(): ReactElement {
   // boot, which was before React drew anything: `#drawer` was static markup
   // then. E-002 is unchanged — it is still the frame's gesture, still closing
   // through `window.__closeLayers` so a swipe and a scrim tap share one path.
-  useLayoutEffect(() => {
-    installDrawerDismissGesture();
-  }, []);
+  // THE CLEANUP IS THE POINT, not tidiness: an effect that installs listeners
+  // and returns nothing leaks a set on every remount, and `React.StrictMode` —
+  // on, in `shell.tsx` — double-invokes it besides.
+  //
+  // It does NOT explain B-278: the double acknowledgement that led here survived
+  // this cleanup, measured, so that entry stays open on its own.
+  useLayoutEffect(() => installDrawerDismissGesture(), []);
 
   // REGISTERED ON THE LADDER, for as long as this layer is mounted.
   useEffect(

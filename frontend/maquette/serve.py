@@ -261,7 +261,7 @@ def missing_page() -> bytes:
     texts = served_texts()["missing"]
     return (
         '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
         f"<title>{texts['title']}</title></head><body "
         'style="font:16px system-ui;max-width:34em;margin:12vh auto;padding:0 1.5em">'
         f"<h1>{texts['heading']}</h1><p>{texts['body']}</p>"
@@ -293,7 +293,7 @@ def build_failure(error: str) -> bytes:
         return diagnostic_page(f"{error}\n\n{unreadable}")
     return (
         '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
         f"<title>{texts['title']}</title></head><body "
         'style="font:16px system-ui;max-width:44em;margin:12vh auto;padding:0 1.5em">'
         f"<h1>{texts['heading']}</h1><p>{texts['body']}"
@@ -317,7 +317,7 @@ def diagnostic_page(error: str) -> bytes:
     """
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
         "<title>Design host: copy unreadable</title></head><body "
         'style="font:16px system-ui;max-width:44em;margin:12vh auto;padding:0 1.5em">'
         "<h1>The design host cannot read its own copy</h1><p>The pages this "
@@ -459,7 +459,7 @@ def login_page(refused: bool) -> bytes:
 """
     return (
         '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
         f"<title>{served_texts()['login']['title']}</title>"
         f"{pwa_head(DESIGN_ROOT)}"
         "<style>"

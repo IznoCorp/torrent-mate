@@ -203,7 +203,37 @@ window.__screens = {
   mediaSheet: (title: string) => {
     const ids = window.__referentiel.addressIdsFor(title.normalize("NFC"));
     if (!ids) return window.__screens.resolution();
-    go({ to: "/media/$provider/$id", params: ids });
+    // THE PANEL LEAVES INSIDE THE COMMIT, so the transition captures it OPEN
+    // and its departure has something to draw.
+    //
+    // The engine used to close the panel and wait 260ms before opening the
+    // screen, because an open panel sits above a screen and opening the screen
+    // underneath left it invisible. The transition answers that without a
+    // delay: the panel's old snapshot slides down over the arriving screen,
+    // which is the gesture the delay was standing in for.
+    //
+    // CLOSED WITHOUT UNWINDING — `close(true)`. The panel's history entry is
+    // NOT popped here, because the media screen is pushed on top of it.
+    //
+    // WHAT BACK DOES, MEASURED RATHER THAN PROMISED, because an earlier version
+    // of this comment promised the opposite and was wrong on the day it was
+    // written: Back from the media screen lands on the LIST, with the panel
+    // shut. The entry is left standing, the ladder's own handler steps over it,
+    // and the reader crosses two entries for one gesture — the same place the
+    // sibling actions reach by popping first and pushing after.
+    //
+    // So the OUTCOME matches its siblings and the mechanism does not, and that
+    // difference is filed rather than left for the next reader to discover:
+    // whether a layer closed inside a navigation's commit should keep its entry
+    // is the ladder's arbitration, and it belongs with the ladder's own
+    // handler. Nothing here counts the pops on the way back; that rule belongs
+    // with the arbitration.
+    go(
+      { to: "/media/$provider/$id", params: ids },
+      () => {
+        if (window.__panel.isOpen()) window.__panel.close(true);
+      },
+    );
   },
   // The legacy `openReleases`'s own first line, transplanted here rather than
   // into the component: `state.relatedTitle` is what the `data-take`

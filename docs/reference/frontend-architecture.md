@@ -475,6 +475,17 @@ before, 167 after, all on `shell/sheet-content`, in both cases
 The oracle is still not widened: **a child node that carries a function is covered by a named rule**,
 exactly as a pseudo-element is, and the two surfaces above are held by none today (B-252).
 
+**A RULE may read pixels; the ORACLE never does — amended by the steward's L12 audit, 2026-09-01.**
+L12's R118 (`frontend/maquette/harness/chrome_pixels.py`) samples the tab bar's own box
+mid-transition against the same box settled, with a control, and refuses a drift — the defect it
+holds (a bar painted UNDER a transition group, drift 52 of 255) exists only in the pixels the
+transition layer paints, so no geometry-and-style reading can hold that surface. That is not the
+comparison this decision refuses: the L01 measurement is between TWO RUNS of an unmodified page,
+where 8 to 15 states diverge by noise; R118 compares ONE region with ITSELF at two moments of ONE
+run. The line stays where it was — the oracle is not widened, screenshots are not a
+non-regression instrument — and a rule that needs a pixel says why in its own file, carries a
+control, and is bounded like B-277 on the side it can still lie on.
+
 ### D9 — What a library is adopted for, and where motion lives
 
 **Two rules, and between them they settle every "should we use library X" question without
@@ -504,9 +515,9 @@ reasoning is kept so the alternatives are not proposed again as if new.
 | A JS animation library for **one interruptible spring** that follows a finger and settles | **allowed, scoped** | CSS cannot express interruptible pointer-driven physics. One component, never a transition strategy |
 | A gesture library **replacing** the press/drag/scroll arbitration | **refuse — unless a candidate meets rule 2's « exactly »** | the hard part is two things a general library does not know: a long press and a drag are opposite cases for the compositor, and the click a long press causes is swallowed by its POINT (§ 4, L12). A library that carries both, maintained and proven, is a candidate to propose; one that solves the plumbing only does not meet « exactly » (rule 2, as reversed 2026-08-31) |
 | A gesture library for a **new** gesture needing velocity, inertia or multi-pointer maths | **preferred, scoped** | a proven library beats writing that maths here (rule 2, as reversed) — candidates proposed, the operator chooses |
-| A **list virtualiser** for the library's 1 861 titles (P24, L12) | **candidates to propose** | rule 2 asks first whether a reliable, maintained, proven library windows a list exactly as this one needs it — and rule 1 adds HEADLESS: a candidate shipping its own markup or CSS moves drawing out of the stylesheet, and is refused whatever rule 2 says (the L12 wave's reading, 2026-08-31); L12 surveys the candidates (their criteria written beside each) and adopts the one the operator names — hand-written windowing only if none qualifies |
+| A **list virtualiser** for the library's 1 861 titles (P24, L12) | **adopted: `@tanstack/react-virtual`** (operator, 2026-08-31 — « Ok pour @tanstack/react-virtual », relayed in writing) | **DECIDED, not a proposal.** Three candidates were surveyed with their registry facts: `@tanstack/react-virtual` 3.14.10, `react-virtuoso` 4.18.12, `react-window` 2.3.0. All three MIT, all maintained, all released within six weeks — **solves-exactly, maintained and proven separate none of them.** RULE 1 DOES, and it is untouched by the reversal of rule 2: `react-virtuoso` renders its own scroller and `react-window` writes inline styles onto every child, both moving drawing out of the stylesheet and out of the design reference. `@tanstack/react-virtual` is HEADLESS — the registry's own description — so it returns measurements and renders nothing. Secondary, and not decisive: 55 KB against 237 and 211, and its family already ships three packages here. **Used in its FIXED-SIZE mode**: both list modes were measured uniform (tiles 203.34375 px, cards 126 px), the two heights the gallery first showed being skeletons. L12 wraps it in `ui/virtual-rows.tsx` so the dependency has one call site |
 | **Haptics** | **refuse the capability, build the seam** | the target platform exposes no public API; the workarounds ride an implementation detail that has already been tightened once. One `feedback()` call site all gestures pass through, visual today — so adopting it later changes one file |
-| **`onTouchStart` for pressed states** | **refuse** | it lights the pressed state when the finger is starting a SCROLL, so a list flickers as it is scrolled. `:active` is cancelled by the browser when the gesture becomes a scroll, which is the wanted behaviour, for free |
+| **`onTouchStart` for pressed states** | **refuse** | it lights the pressed state when the finger is starting a SCROLL, so a list flickers as it is scrolled. `:active` is cancelled by the browser when the gesture becomes a scroll, which is the wanted behaviour, for free. **What this row refuses is a mark on the RAW pointerdown.** The press acknowledgement the operator chose on 2026-08-31 (L12) is placed by the ARBITRATION once its settle has ruled a scroll out and released when the panel arrives — a fact about the gesture, not the surface — and R113 holds that a flick starting on a tile is never acknowledged. Amended by the steward's L12 audit, 2026-09-01: written before that gesture existed, the row read, unamended, as refusing it |
 | **`@media (hover: hover)`** to keep hover off touch | **adopt** | the sticky-hover problem is real; this is its declarative remedy |
 
 ### D10 — The dying engine's CSS is a bounded residue with a date of death
@@ -1244,8 +1255,15 @@ phrase and the lot's bar.
 them. D9 governs every library question in this lot; its verdict table is the answer, not a
 starting point for a new argument.
 
-**Transitions.** Declared, through the platform's own view transitions — including the shared
-element that carries a poster from a card into its sheet. Not scripted.
+**Transitions.** Declared, through the platform's own view transitions. Not scripted.
+
+**The shared element that carried a poster from a card into its sheet was BUILT AND WITHDRAWN**
+(operator, 2026-08-31): he watched it on his own phone and declined it. What ships instead is
+transition A, which shares nothing — the arriving fanart fades while the body rises — on the
+reasoning `MODEL.md`'s P6 row already carried: there is nothing honest to share between a 2:3
+poster and a wide banner, and morphing one into the other is an animation pretending two pictures
+are one. The sentence is kept in this form, rather than deleted, so no later reader takes the
+absence for an oversight.
 
 **Gestures.** The press / drag / scroll arbitration already written here is kept and moved, not
 replaced. It encodes two things a general library does not know: a long press and a drag are
@@ -1296,7 +1314,7 @@ may assume.** It depends on L15 now: a view transition between the drawer, a dia
 needs each of them to be a component, and they are engine markup until L15. The arbitration moves
 to `lib/` here; **each surface's USE of it moves with its producer in L19**, so this lot converts
 the vocabulary and the React surfaces (the sheet's drag, the screens) and leaves the deck's and
-the rows' engine-side callers to L19. Its properties are **P5, P6, P11, P17, P20 and P24** of
+the rows' engine-side callers to L19. Its properties are **P5, P11, P16, P17, P20, P24, P25, P26 and P29** of
 `MODEL.md` § 3; **B-234** (no `interactive-widget` on the viewport meta, so the keyboard resizes
 the viewport by default) is its. The interaction budget is a device-only protocol, written and
 dated — not a gate (`MODEL.md` § 3.1).
@@ -1351,6 +1369,14 @@ page's DOM nodes, so a write between `pointerdown` and `click` destroys the tap.
 surfaces — a page whose nodes keep identity across a store write — and the four files this lot
 decomposes are where two of them live; L19 owes the same for the producers it moves.
 
+**It also owns B-283** (2026-08-31, from L12's review): while the media sheet's read is in flight,
+the screen prints its UNKNOWN parts as ANSWERS — « aucun synopsis », « aucune distribution », « pas
+de bande-annonce », seasons « unknown » — assertions about data that has not arrived, which §13
+refuses. The maquette cannot exhibit it: its placeholder is the engine's COMPLETE sheet, so no
+field is ever missing during priming, and the real backend's projection carries `{t, f}`. The
+repair is a line in `features/media/media-screen.tsx`, one of the four files this lot decomposes
+and that no earlier wave may extend — which is why L12 filed it rather than fixing it.
+
 **Done when.** No file under `frontend/maquette/design/src` is at or over 400 non-blank lines with
 the sole exception of the dying engine's two, `engine/legacy.js` and `engine/states.js`, which
 L13 removes; no component is written out twice; every extraction is proved by the oracle, whose
@@ -1391,6 +1417,11 @@ moved into its feature keeps its nodes across a store write, so a tap between `p
 `click` survives — held by R100's `isSameNode` shape on the producer's surface. And the producer half
 of **B-249**: the 260 ms `setTimeout` beside `data-mediasheet` that R103 measures and PRINTS is
 removed with the producer that carries it, and R103 then REFUSES the gap instead of printing it.
+**That one is already discharged, and the line is kept saying so rather than deleted** (L12,
+2026-08-31): the `data-mediasheet` branch lost its close-and-wait entirely — the panel now leaves
+inside the navigation's own commit, which is what the delay was standing in for — so what L19
+inherits here is the SHAPE, at the other `setTimeout(…, 260)` sites the delegation still holds, not
+this one.
 
 **Done when.** `grep -c "panel\.open(" legacy.js` reads 0; the inventory command lists only the
 harness panel; the fixture families that fed the producers are gone (D5's bracket-match method
@@ -1511,7 +1542,9 @@ no path of its own left.
 
 **Objective.** What did not die by subtraction, measured by L10-ter on 2026-08-29 rather than
 listed from memory: the ladder's HANDLER (`onEngineBack`, `unwindLayer`, `hideLayers`,
-`__closeLayers` — `MODEL.md` § 2 Part 4, to `app/layers.ts`), the document-level delegation's
+`__closeLayers` and **`switchPageFromLayer`**, which is the one B-275 and B-290 both name as their
+cause — it REPLACES a layer's entry rather than pushing over it — `MODEL.md` § 2 Part 4, to
+`app/layers.ts`), the document-level delegation's
 FRAME verbs, the boot handshake (`__startEngine`), the engine-side seams (`__address`, `__bridge`,
 `__panel`, `__screens`, `__store`), the dead `#screen` layer with its three readers and the
 mount-node placement that rests on it (B-232), `refonte.html` and R72's renegotiation,
@@ -1528,6 +1561,23 @@ owns them; this lot inherits only what L19 measures it could not remove.
 harness's driving seams (`__go`, `__states`, `__queries`, `__relay`, `__mocks`) live in a harness
 module and die at switchover with `harness.css`; the suite is green at unchanged hold counts; the
 oracle is green.
+
+**Carried here by L12, 2026-09-01 — B-290, the ladder's two shapes.** A layer closed inside a
+navigation's commit keeps its history entry, so Back from a media screen opened that way crosses TWO
+entries where every sibling action crosses one. The outcome is the same and the mechanism is not,
+and a ladder with two shapes for one gesture is a ladder nobody can reason about. **Done when** the
+arbitration is written, the two shapes are one, and a rule COUNTS the entries crossed on the way
+back — the five ladder rules count entries going FORWARD and none counts pops.
+
+**Carried here by L12, 2026-08-31 — the panel's RETURN, and B-275.** Arriving at a media screen
+from an open panel is drawn: the panel is captured leaving and its snapshot slides down
+(`::view-transition-old(leaving-panel)`). The mirror is not, and cannot be from outside this lot.
+Back lands on the list with the panel shut — measured on 2026-09-01 — so
+`::view-transition-new(leaving-panel)` had no subject and was removed rather than left waiting.
+Reopening a panel on a backward step is the ladder's HANDLER, named at the head of this lot, and
+the panel's own history entry is what decides it. **Done when** Back from a media screen reopens
+the panel over the list (§16, B-275) and the reverse of `panel-down` is written with a rule that
+falls when it does not play.
 
 **Carried here by L09, 2026-08-28 — the sixty fixture families it could not kill.** L09's « Done
 when » says each surface's share of the fixture dies with it (D5). Twenty-one families died and
@@ -1561,6 +1611,37 @@ adversarial review. This holds for a two-line documentation fix as much as for a
 behaviour on purpose, confirm the rule falls and names the right defect, restore. A rule that
 never bit proves nothing. A rule must cover the path actually walked: cold load, real finger,
 real browser menu.
+
+**The instruments' own debts, and who takes them (2026-08-31).** A register entry naming no lot is
+B-253's species: the plan is where a lot's obligations live, so a defect nobody's lot names is a
+defect nobody schedules. **The harness and the repository's guards belong to no lot** — every wave
+uses them and none owns them — so their debts are named here, with one rule that decides them:
+**the next wave that touches the tool takes its debt**, in the same pull request, and says so in
+its report.
+
+- **B-269** — five corpus floors in `served_copy.py` calibrated by hand, one figure per corpus.
+- **B-272's open form** — nothing RE-TAKES a floor, so every floor in the repository drifts under a
+  green guard until somebody measures it. The compositor manifest's floors were re-taken in L12;
+  the mechanism that would keep them true does not exist.
+- **B-273** — `scripts/mutate.sh` cannot judge a GUARD: it decides by reading journal `FAIL` lines,
+  which a guard in `scripts/` never prints, so it answers « no hold fell » whatever the guard says
+  and whatever its exit code. Two arms were rewritten on that false reading before it was found. It
+  also exits SILENTLY when a mutation breaks the build, which reads the same way.
+- **B-276** — a delay set by hand in an instrument outlives the drawn duration it was set against.
+  Three rules were repaired for it in L12 alone; the species stays open because nothing refuses the
+  next one.
+- **B-277** — `exits.py`'s frame-count control flakes under the suite's parallel load.
+- **B-278** — the drawer's dismiss acknowledges itself twice, unexplained, with the decisive
+  experiment written down in the entry.
+- **B-287** — 263 maquette/harness comments (326 with docstrings) name a date, a lot or a phase,
+  against the rule in `CLAUDE.md` § Language, and nothing counts them. The arm's shape is already
+  in this repository twice: a per-file baseline that refuses the count going up.
+- **B-291** — `scripts/harness-hold-counts.py --record` produces a reference nobody can tell from
+  a good one, two ways: a `taken_at_commit` no guard checks (L12's gesture left it naming a
+  squashed-away commit), and a baseline written over a rule that FAILED (`"failed": 1` in the
+  totals, the count the rule printed while falling, and a zero exit). The form: refuse a pointer
+  that is not an ancestor of `main`, as `oracle.py --check` refuses a dangling one, and refuse to
+  write when `failed > 0`.
 
 **The gate.** Before every wave's closing commit: `make lint` at zero errors, `make test` with no
 failure and **no error** (an error means collection crashed and everything after it was skipped),
@@ -1621,6 +1702,15 @@ to the machine that took them — the same unmodified tree reads differently on 
 `--check` refuses to compare across a mismatch and the oracle is never wired into CI. An agent
 working anywhere but that machine can establish that a wave *claims* the rendering held, and how,
 but cannot certify it. Plan the wave knowing the certification happens where the oracle runs.
+
+**TWO references carry a commit pointer, and both are re-recorded after the squash** — the
+oracle's `baseCommit` and the hold-count baseline's `taken_at_commit`
+(`frontend/maquette/hold-counts-baseline.json`). This paragraph named only the first, and L12's
+post-merge gesture applied it to the letter and left the second naming the head of the branch the
+squash erased (B-291, found by the wave in the hour after its merge, re-recorded by the steward's
+audit at `b4b75a67a`). Nothing reads that pointer, which is why it could die in silence; until
+`harness-hold-counts.py` refuses a pointer that is not an ancestor of `main`, the gesture checks it
+by hand: `git merge-base --is-ancestor $(python3 -c "import json;print(json.load(open('frontend/maquette/hold-counts-baseline.json'))['taken_at_commit'])") origin/main`.
 
 **And re-record the reference after the squash merge.** The reference names the commit it
 measured; squashing replaces that commit, so on a fresh clone the pointer names nothing and
@@ -1723,6 +1813,7 @@ met before it fires rather than after.
 | Renaming needs a parser, not a regex | **L02, L07** | the same short name means different things in different scopes; a global replace preserves behaviour while lying about meaning |
 | A failed command is not a no-op | **all** | it is an edit that did not happen, and the next read is evidence rather than scenery |
 | A derivation must not read back its own output | **L06** | a size computed against the median of what it sets returns its own answer |
+| An entry animation replays AFTER the transition that already drew it | **L12** | CSS animations on a tree mounted under `startViewTransition` do not START until it ENDS — rendering is frozen for the capture — so an element-side entry replays over a snapshot showing the final state. Appear, flash, reappear. `:active-view-transition` cannot guard it: by the time the animation starts the transition is over and the selector no longer matches. **An entry has ONE OWNER**, and on a surface reached by a transition that owner is the transition |
 
 **The oracle's silence over a BEHAVIOUR wave is evidence of nothing — a wave that writes
 behaviour is held by rules or by nobody.** Measured at L11: no divergence over 2 958 measurements

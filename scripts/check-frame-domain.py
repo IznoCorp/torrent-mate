@@ -157,6 +157,18 @@ def strip_comments(source: str) -> str:
                 continue
             if character == quote:
                 quote = None
+            # A `'` OR `"` STRING CANNOT CONTAIN A RAW NEWLINE, and that is the
+            # language's rule rather than a tolerance. Reaching one means the
+            # quote was never a string opener — which happens on every REGEX
+            # LITERAL holding a quote, and this file's own
+            # `/url\(["']?(.+?)["']?\)/` is one. The scanner opened a string
+            # there and stayed in it for thirty lines: `//` is not a comment
+            # inside a string, so every comment it passed was emitted as code
+            # and its words were counted. Measured on 2026-09-01, that is two
+            # `media` in a comment reported as domain words in the frame, and
+            # the guard went RED over prose. Only a backtick spans lines.
+            elif character == "\n" and quote != "`":
+                quote = None
             index += 1
             continue
         if character in "\"'`":

@@ -13,6 +13,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
 import { toEngineShapeEntry } from "../../engine/engine-shape";
+import { useMediaReference } from "./reference";
 
 /** One sheet, as the layer composes it. */
 export type MediaSheetPayload = Record<string, unknown>;
@@ -31,8 +32,35 @@ export type MediaSeasons = {
  * @returns The query.
  */
 export function useMediaSheet(provider: string, identifier: string) {
+  // OPTIMISTIC PRIMING — « A généralisée + amorçage optimiste » (operator,
+  // 2026-08-31), which is the optimistic-answer property's discipline applied to an ARRIVAL: the screen
+  // opens with what the tap already knows, in real content, on the first frame.
+  // A dead tap becomes impossible by construction rather than by being fast.
+  //
+  // THE MECHANISM IS NOT THE ONE SUGGESTED, AND THE DIFFERENCE IS A FACT RATHER
+  // THAN A PREFERENCE. The relay proposed seeding from the list's query cache,
+  // « ces faits sont déjà dans le cache de requêtes de la liste ». They are not:
+  // a `LibraryRow` is `{ t, f }` — a title and a folder — and the year, the type
+  // and the poster the tapped card DISPLAYED come from the engine's own
+  // projection, keyed by title. So the priming reads THAT, which is literally
+  // the source the card drew from, and therefore literally what the tap knows.
+  // (The operator invited a better mechanism if one was seen: this is it.)
+  //
+  // `placeholderData`, not `initialData`: initial data is written INTO the cache
+  // and would be indistinguishable from a served answer forever after — a
+  // screen that never enriched would look identical to one that did. Placeholder
+  // data stays outside the cache and is flagged `isPlaceholderData`, which is
+  // what lets a rule tell PRIMED content from SERVED content. A rule that cannot
+  // is green on a screen that never enriches.
+  const reference = useMediaReference();
   return useQuery({
     queryKey: ["/api/media", provider, identifier],
+    placeholderData: () => {
+      const title = reference.titleForProviderId(provider, identifier);
+      if (!title) return undefined;
+      return (reference.sheetFor(title) ?? undefined) as
+        MediaSheetPayload | undefined;
+    },
     queryFn: async () => {
       const answered = await read<MediaSheetPayload | null>(
         `/api/media/${encodeURIComponent(provider)}/${encodeURIComponent(identifier)}`);

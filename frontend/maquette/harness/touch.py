@@ -23,8 +23,15 @@ import asyncio
 from common import Journal
 from playwright.async_api import async_playwright
 
-# The prototype's own long-press delay; a probe shorter than it proves nothing.
-PRESS_MS = 480
+# HOW LONG A PRESS TAKES IS READ FROM THE PAGE, never typed here. A probe
+# shorter than the delay proves nothing, and a probe holding a number the design
+# has since moved proves nothing either — it stays green because the press never
+# arms, which is the failure that looks exactly like success (B-276). Two rules
+# were repaired for this; this was the third instance.
+PRESS_MILLISECONDS_READER = "()=>window.__gestures.press.milliseconds"
+
+# The margin the hold waits ON TOP of whatever the page answers.
+PRESS_MARGIN_MILLISECONDS = 240
 
 # The phone's OWN long press — select, copy, save — cannot be outrun by a
 # listener, and no synthetic input raises it. It is therefore asserted on the
@@ -197,7 +204,15 @@ async def main():
         without_panel, with_selection, fired = [], [], []
         for name, state_, sel in press_surfaces:
             await pg.evaluate("(s)=>window.__go(s)", state_)
-            await pg.wait_for_timeout(420)
+            # LONG ENOUGH FOR THE SHEET'S OWN CLOSE, which is 450ms since L12
+            # drew the panel's rise on `--duration-4` (operator, 2026-08-31).
+            # This waited 420 — calibrated by hand to the 200/300ms the layer
+            # used to take — so the next surface's press landed while the
+            # previous sheet was still closing and was swallowed. Two of the
+            # five surfaces failed, and in isolation both opened perfectly:
+            # a hand-set delay that outlives the duration it was set against is
+            # B-269's species in an instrument rather than in a guard.
+            await pg.wait_for_timeout(700)
             # The recorded act carries the ANCHOR beside the class: the
             # assertion below asks whether a sheet action fired, and a class
             # name is not what identifies one any more.
@@ -327,7 +342,18 @@ async def main():
         # surface a tap opens it too, so anything measured after the lift cannot
         # tell a press from a tap.
         await pg.evaluate("()=>closeSheet()")
-        await pg.wait_for_timeout(340)
+        # LONG ENOUGH FOR THE SCRIM TO GO, which is 450ms since L12 drew the
+        # panel's rise on `--duration-4` — and the scrim's `visibility` is
+        # transitioned with that DELAY, so at 340ms it was still visible and
+        # still hit-testable OVER the poster this hold then presses. The press
+        # never reached the poster and the panel never opened.
+        #
+        # SECOND INSTANCE OF ONE SPECIES in this rule alone: a delay set by hand
+        # against a duration that later changed. The other was the 420ms between
+        # press surfaces. Neither was wrong when written; both outlived the
+        # number they were written against, which is B-269's shape in an
+        # instrument.
+        await pg.wait_for_timeout(700)
         check("the panel starts closed", not await pg.evaluate(
             "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
         target = await pg.evaluate("""()=>{
@@ -343,7 +369,8 @@ async def main():
             await cdp.send("Input.dispatchTouchEvent",
                            {"type": "touchStart",
                             "touchPoints": [{"x": target["x"], "y": target["y"], "id": 1}]})
-            await pg.wait_for_timeout(PRESS_MS + 240)
+            press_milliseconds = await pg.evaluate(PRESS_MILLISECONDS_READER)
+            await pg.wait_for_timeout(press_milliseconds + PRESS_MARGIN_MILLISECONDS)
             during = await pg.evaluate(
                 "()=>document.querySelector('#sheet').hasAttribute('data-open')")
             await cdp.send("Input.dispatchTouchEvent",

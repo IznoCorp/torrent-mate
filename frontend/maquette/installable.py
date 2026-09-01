@@ -178,7 +178,7 @@ def offline_page(texts: Callable[[], dict]) -> bytes:
     words = texts()["offline"]
     return (
         '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
         f"<title>{words['title']}</title>"
         "<style>html,body{margin:0;height:100%;display:grid;place-items:center;"
         "background:#0b0b0d;color:#ededf0;font-family:system-ui,sans-serif;"

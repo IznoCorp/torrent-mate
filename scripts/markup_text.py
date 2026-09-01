@@ -71,8 +71,18 @@ HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
 # their kind are emitted from a COMPUTED expression, which names no
 # literal for the arm to compare. Those are addresses, and an address is
 # not this list's business.
+# THE STATE ATTRIBUTES JOINED IN L12, and they are contracts of the same
+# shape: a name the markup emits, a `dataset.X` or a selector that reads it,
+# and a rule that taps it. `data-pressing`, `data-feedback` and `data-arrival`
+# are written by the gesture modules and read by the stylesheet; `data-lanes`
+# and `data-virtualised` are the window's own report. Left out of this list they
+# were held by the 20-minute tier alone, so a rename on one end reached `main`
+# whenever the wave gate ran after it — which is exactly the interval this list
+# exists to shorten.
 NAMING_ATTRIBUTES = ("data-part", "data-region", "data-tone",
-                     "data-action", "data-side")
+                     "data-action", "data-side",
+                     "data-pressing", "data-feedback", "data-arrival",
+                     "data-virtualised", "data-lanes")
 
 
 def parse_failures(paths: Iterable[Path]) -> list[tuple[Path, int, str]]:

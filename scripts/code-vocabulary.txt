@@ -75,6 +75,7 @@ appearance
 appearances
 applied
 apply
+arbitration
 arm
 armed
 arr
@@ -86,6 +87,7 @@ as
 ask
 asked
 at
+attached
 attempt
 attempts
 attribute
@@ -94,6 +96,7 @@ audio
 audios
 authentication
 avatar
+axis
 back
 background
 backoff
@@ -138,11 +141,14 @@ calls
 cancel
 candidate
 candidates
+cap
 caps
 caption
 card
 cards
+carried
 carries
+carrying
 cases
 cast
 cat
@@ -181,6 +187,7 @@ cold
 collapse
 collation
 color
+columns
 coming
 commit
 common
@@ -218,10 +225,12 @@ cur
 current
 cursor
 cutoff
+damping
 danger
 data
 database
 date
+dead
 deadline
 decision
 decisions
@@ -285,6 +294,7 @@ door
 dot
 down
 drag
+draw
 drawer
 drawing
 draws
@@ -295,6 +305,7 @@ duration
 dx
 each
 ease
+edge
 edited
 element
 emit
@@ -335,6 +346,7 @@ failure
 fallback
 families
 fast
+feedback
 fetch
 fetching
 field
@@ -351,6 +363,7 @@ final
 find
 finger
 finish
+finished
 first
 fkind
 flight
@@ -361,6 +374,7 @@ focus
 folder
 follow
 followed
+following
 follows
 followsheet
 follq
@@ -384,6 +398,7 @@ from
 frozen
 full
 future
+gap
 gaps
 gate
 gauche
@@ -494,6 +509,7 @@ lab
 label
 labels
 landed
+lanes
 large
 last
 latency
@@ -601,6 +617,7 @@ named
 names
 nav
 navgo
+navigated
 navigation
 nb
 needed
@@ -647,6 +664,7 @@ opener
 opening
 operation
 option
+options
 order
 ordered
 origin
@@ -680,6 +698,7 @@ parents
 parsed
 part
 passer
+passively
 password
 patch
 path
@@ -700,6 +719,7 @@ pilot
 ping
 pipe
 pipeline
+pixels
 platform
 play
 point
@@ -718,6 +738,7 @@ precision
 presence
 present
 press
+pressing
 previous
 primary
 problem
@@ -725,12 +746,14 @@ profile
 progress
 projection
 projections
+properties
 proposer
 protocol
 prov
 provider
 ptr
 publish
+pull
 push
 put
 pwa
@@ -750,6 +773,7 @@ rank
 ratifies
 ratify
 raw
+react
 read
 ready
 real
@@ -770,6 +794,7 @@ ref
 reference
 refill
 refresh
+refreshing
 refusal
 refuse
 refused
@@ -858,6 +883,7 @@ screenshots
 scrim
 scripted
 scroll
+scroller
 scrollport
 seam
 seams
@@ -897,6 +923,7 @@ settled
 shadow
 shape
 shaped
+shared
 sheet
 sheetgrab
 sheetin
@@ -938,6 +965,8 @@ sort
 sorted
 source
 space
+spacer
+spacers
 spacing
 splash
 src
@@ -969,6 +998,7 @@ strip
 strong
 structure
 stuck
+style
 subject
 subjects
 submit
@@ -1049,9 +1079,11 @@ topic
 topics
 total
 tracking
+tracks
 trailer
 transact
 transaction
+transition
 travelled
 trim
 tuples
@@ -1091,6 +1123,12 @@ version
 via
 view
 viewport
+virtual
+# TWO SPELLINGS ON PURPOSE, and neither is a slip: `virtualised` is ours and
+# `virtualizer` is `@tanstack/react-virtual`'s own export (`useVirtualizer`),
+# which cannot be renamed. A reader tidying one of them away breaks a build.
+virtualised
+virtualizer
 visible
 vsw
 waiters
@@ -1115,6 +1153,7 @@ window
 wired
 wiring
 with
+within
 without
 wording
 wordmark
