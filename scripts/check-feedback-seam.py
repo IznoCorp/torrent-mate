@@ -65,6 +65,7 @@ GESTURES = {
     "the long press": "lib/press-arbitration.ts",
     "the drawer's dismiss swipe": "app/drawer-gesture.ts",
     "the sheet's dismiss drag": "ui/sheet.tsx",
+    "the pull to refresh": "lib/pull-gesture.ts",
 }
 
 # A reading that finds fewer than this has stopped reading, whatever it says
@@ -73,6 +74,38 @@ CORPUS_FLOOR = 100
 
 SUFFIXES = {".ts", ".tsx", ".js", ".jsx"}
 SKIP = {"node_modules", "dist", "__pycache__"}
+
+
+# COMMENTS ARE STRIPPED BEFORE ANYTHING IS MATCHED, and this guard shipped
+# without it while its twin `check-poster-box.py` did the same thing for the
+# same reason on the same day.
+#
+# `press-arbitration.ts` carries the sentence « the interface passes through
+# `feedback()` » in a comment above the real call. Delete the CALL and keep the
+# sentence, and this guard read « 3 of 3 gestures passing » and exited 0 — the
+# repository's own named trap, which the compositor guard paid for when five of
+# thirteen `touch-action` sites turned out to be prose, two of them the sentence
+# naming that guard.
+#
+# Blanked rather than removed, so a reported line number still points at the
+# line the code is on.
+BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
+LINE_COMMENT = re.compile(r"//[^\n]*")
+
+
+def without_comments(body: str) -> str:
+    """Blanks every comment, keeping the line structure.
+
+    Args:
+        body: A source file's text.
+
+    Returns:
+        The same text with comment bodies replaced by spaces.
+    """
+    blanked = BLOCK_COMMENT.sub(
+        lambda found: re.sub(r"[^\n]", " ", found.group(0)), body)
+    return LINE_COMMENT.sub(
+        lambda found: " " * len(found.group(0)), blanked)
 
 
 def sources() -> list[pathlib.Path]:
@@ -108,7 +141,8 @@ def main() -> int:
 
     declaring = []
     for path in files:
-        body = path.read_text(encoding="utf-8", errors="replace")
+        body = without_comments(
+            path.read_text(encoding="utf-8", errors="replace"))
         if DECLARATION.search(body):
             declaring.append(str(path.relative_to(DESIGN)))
 
@@ -132,9 +166,10 @@ def main() -> int:
                   "file has moved is a gesture this guard stopped reading — "
                   "move the entry with it.", file=sys.stderr)
             continue
-        body = path.read_text(encoding="utf-8", errors="replace")
-        # The call, not the import: importing the name and never calling it is
-        # exactly the silence this holds against.
+        body = without_comments(path.read_text(encoding="utf-8", errors="replace"))
+        # The call, not the import, and not a COMMENT. Importing the name and
+        # never calling it is the silence this holds against — and so is talking
+        # about it.
         if re.search(r"\bfeedback\s*\(", body):
             passing += 1
             continue

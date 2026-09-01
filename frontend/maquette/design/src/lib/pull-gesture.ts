@@ -32,6 +32,8 @@
 // its axis mid-travel would flicker between scrolling and pulling on any
 // diagonal movement, which is most of them.
 
+import { feedback } from "./feedback";
+
 /** How far the finger must travel before the gesture commits to an axis. */
 const AXIS_DECISION_PIXELS = 8;
 
@@ -179,7 +181,20 @@ export function installPullGesture(options: PullGestureOptions): PullGesture {
     // change tab or lens and fired by accident constantly — every horizontal
     // component of a vertical scroll, every aborted row swipe.
     if (finished.axis !== "y") return;
-    options.onRelease(lastDeltaY > 0 && travelled >= PULL_ARM_PIXELS);
+    const armed = lastDeltaY > 0 && travelled >= PULL_ARM_PIXELS;
+    // THROUGH THE SEAM, like every other gesture — one call site, so haptics
+    // are one file's change the day the platform allows them (D9). This gesture
+    // was the one that never joined it: `check-feedback-seam` named the press,
+    // the drawer and the sheet, and « one call site ALL gestures pass through »
+    // was false from the day the guard shipped.
+    //
+    // NO ELEMENT, and that is the honest form rather than an omission: the
+    // pull's visible acknowledgement is the indicator the surface draws, and a
+    // second mark on the scrollport would be a second answer to one gesture —
+    // the same reasoning the press records at its own call. What crosses here
+    // is the haptic half.
+    if (armed) feedback("commit");
+    options.onRelease(armed);
     travelled = 0;
     lastDeltaY = 0;
   }
