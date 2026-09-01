@@ -99,6 +99,17 @@ export type PullGesture = {
 export function installPullGesture(options: PullGestureOptions): PullGesture {
   const { port } = options;
   let pull: PullInFlight | null = null;
+
+  // The same driving surface the press arbitration publishes, for the same
+  // reason: a rule that re-types 44 is a second source of truth.
+  window.__gestures = {
+    ...(window.__gestures ?? {}),
+    pull: {
+      armPixels: PULL_ARM_PIXELS,
+      capPixels: PULL_CAP_PIXELS,
+      damping: PULL_DAMPING,
+    },
+  };
   // How far the pull has actually come, damped and capped. The release reads
   // it rather than recomputing from the finger: one arithmetic, one place.
   let travelled = 0;

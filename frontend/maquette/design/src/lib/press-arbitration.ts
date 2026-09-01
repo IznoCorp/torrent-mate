@@ -132,11 +132,38 @@ export type PressArbitration = {
  * Returns:
  *     A live view of the arbitration's state, for a driving surface to publish.
  */
+declare global {
+  interface Window {
+    /**
+     * The gesture vocabulary's own numbers, for whatever drives them.
+     *
+     * PUBLISHED SO A RULE DOES NOT RE-TYPE THEM. R112's docstring said the
+     * tolerance was « reused through the far side of the same seam rather than
+     * re-typed » — and the rule re-typed 12, 44 and 480 anyway, three second
+     * sources of truth that go stale in silence the day one of these moves.
+     * Found by an adversarial pass over this wave's own instruments, one commit
+     * after the wave NAMED that species (B-276).
+     *
+     * It is a driving surface, like `window.press` and `window.__mocks`, not a
+     * bridge: nothing in the application reads it.
+     */
+    __gestures?: Record<string, Record<string, number>>;
+  }
+}
+
 export function installPressArbitration(
   options: PressArbitrationOptions,
 ): PressArbitration {
   let press: PressInFlight | null = null;
   let swallowClick: Point | null = null;
+
+  window.__gestures = {
+    ...(window.__gestures ?? {}),
+    press: {
+      milliseconds: PRESS_MILLISECONDS,
+      tolerancePixels: PRESS_TOLERANCE_PIXELS,
+    },
+  };
 
   function cancelPress(): void {
     if (!press) return;

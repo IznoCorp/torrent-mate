@@ -69,12 +69,16 @@ the one where the timer always fires — and it is the path on which the swallow
 
 WHAT THIS RULE DOES NOT READ, said rather than left to be found:
 
-  - IT DOES NOT PROVE THE TOLERANCE'S VALUE. 12px is the arbitration's own
-    constant, reused here through the far side of the same seam rather than
-    re-typed: a rule that hard-copies a number is a second source of truth that
-    goes stale silently, which is a shape this repository has already paid for.
-    Whether 12 is the right number for a thumb is a finger's answer, not a
-    script's.
+  - IT DOES NOT PROVE THE TOLERANCE'S VALUE. Whether 12 is the right number for
+    a thumb is a finger's answer, not a script's.
+
+    AND THIS PARAGRAPH USED TO CLAIM MORE THAN THE FILE DID. It said the
+    constant was « reused through the far side of the same seam rather than
+    re-typed » while the file re-typed 44 and 480 a hundred lines below — a
+    docstring asserting the discipline its own code broke, written in the same
+    hour. Found by an adversarial pass over this wave's instruments, one commit
+    after the wave named that species (B-276). The numbers are READ now, from
+    `window.__gestures`, which the vocabulary publishes for whatever drives it.
   - IT DOES NOT PROVE `pointercancel` HANDLING BY THE COMPOSITOR. It drives a
     drift the compositor is free to claim; whether it does is the device's
     answer. What is held is the arbitration's own decision.
@@ -185,7 +189,8 @@ async def hold_the_tolerance(journal, browser):
         await context.close()
         return
 
-    hold = 480 + PRESS_HOLD_MARGIN
+    hold = await page.evaluate(
+        "()=>window.__gestures.press.milliseconds") + PRESS_HOLD_MARGIN
     # The control: a thumb's own drift, well inside the tolerance. This must
     # OPEN — without it the negative below would pass on a broken press.
     await drive_press(page, box["x"], box["y"], 5, hold)
@@ -240,8 +245,9 @@ async def hold_the_swallow_is_by_point(journal, browser):
     # already gone, so a probe fired then decides nothing. Holding the finger
     # down is the only moment at which the mark is set and unclaimed, and it is
     # how R55 reaches the same instant.
-    await drive_press(page, box["x"], box["y"], 5, 480 + PRESS_HOLD_MARGIN,
-                      lift=False)
+    hold = await page.evaluate(
+        "()=>window.__gestures.press.milliseconds") + PRESS_HOLD_MARGIN
+    await drive_press(page, box["x"], box["y"], 5, hold, lift=False)
     await page.wait_for_timeout(120)
     marked = await page.evaluate("()=>!!window.swallowClick")
     journal.check("the press left its swallow mark set",
@@ -301,7 +307,9 @@ async def hold_the_mouse_press(journal, browser):
         return
     await page.mouse.move(box["x"], box["y"])
     await page.mouse.down()
-    await page.wait_for_timeout(480 + PRESS_HOLD_MARGIN)
+    await page.wait_for_timeout(
+        await page.evaluate("()=>window.__gestures.press.milliseconds")
+        + PRESS_HOLD_MARGIN)
     await page.mouse.up()
     await page.wait_for_timeout(160)
     journal.check("under a real mouse, a held press opens the panel",
@@ -361,8 +369,12 @@ SHORT_PULL = 60
 # Past it: 160 * 0.45 = 72, the cap, which is above 44.
 LONG_PULL = 160
 
-# The gesture's own arming distance, read here as geometry.
-PULL_ARM_PIXELS = 44
+# READ FROM THE PAGE, NEVER RE-TYPED — `window.__gestures` is what the
+# vocabulary publishes for whatever drives it. This file said, in its own
+# docstring, that a rule which hard-copies a number is a second source of truth
+# that goes stale silently, and then hard-copied 44, 16 and 480. Found by an
+# adversarial pass over this wave's own instruments, one commit after the wave
+# NAMED that species (B-276).
 
 
 async def drive_pull(page, port, distance):
@@ -429,6 +441,11 @@ async def hold_the_pull_threshold(journal, browser):
         "()=>{const e=document.querySelector('#port');"
         "const r=e.getBoundingClientRect();"
         "return {x:r.x, y:r.y, width:r.width};}")
+    arming = await page.evaluate("()=>window.__gestures.pull.armPixels")
+    journal.check("the pull gesture publishes its arming distance",
+                  isinstance(arming, (int, float)) and arming > 0,
+                  f"read {arming!r} — the rule would have to re-type it, which "
+                  "is the second source of truth B-276 names")
 
     # THE CONTROL FIRST. Without it the negative below passes just as well over
     # a pull-to-refresh that is simply broken.
@@ -442,7 +459,7 @@ async def hold_the_pull_threshold(journal, browser):
     spun = await page.evaluate(
         "()=>document.querySelector('#ptr').getBoundingClientRect().height")
     journal.check("a pull past the arming distance refreshes",
-                  spun >= PULL_ARM_PIXELS,
+                  spun >= arming,
                   f"the indicator stood at {spun}px — the control for the hold "
                   "below")
     await page.evaluate("()=>window.__reposPTR()")
@@ -455,8 +472,8 @@ async def hold_the_pull_threshold(journal, browser):
     journal.check(
         f"a pull of {SHORT_PULL}px — short of the arming distance — refreshes "
         "NOTHING",
-        reading < PULL_ARM_PIXELS,
-        f"the indicator stood at {reading}px, at or past the {PULL_ARM_PIXELS}px "
+        reading < arming,
+        f"the indicator stood at {reading}px, at or past the {arming}px "
         "arming distance: the threshold is not applied, so every downward flick "
         "the scrollport sees refreshes")
     await page.evaluate("()=>window.__reposPTR()")
@@ -474,7 +491,7 @@ async def hold_the_pull_threshold(journal, browser):
         "()=>document.querySelector('#ptr').getBoundingClientRect().height")
     journal.check(
         "a pull dragged back UP past its start refreshes NOTHING",
-        reading < PULL_ARM_PIXELS,
+        reading < arming,
         f"the indicator stood at {reading}px — the release read the deepest "
         "point the finger reached and not where it ended")
     await page.evaluate("()=>window.__reposPTR()")

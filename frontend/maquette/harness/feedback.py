@@ -40,17 +40,15 @@ from playwright.async_api import async_playwright
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import PHONE, PROTOTYPE, Journal
 
-# The press fires at 480ms and the mark lives 200ms, so the read must land
-# between 480 and 680. Held at 540 — sixty milliseconds past the timer, well
-# inside the window.
+# HOW LONG PAST THE PRESS TO READ. The press delay itself is READ from
+# `window.__gestures`, never re-typed — the mark lives 200ms after the timer
+# fires, so the read must land inside that window.
 #
 # THE FIRST VERSION HELD 740 AND READ NOTHING, which is this rule's own docstring
-# warning come true in the rule that carries it: 480 + 200 = 680, so the mark had
-# already expired and the read measured an absence exactly as a broken seam
-# would. It failed loudly rather than passing, which is the only reason it was
-# cheap — a read placed the other side of a window it was too EARLY for would
-# have passed and proved nothing.
-PRESS_HOLD = 540
+# warning come true in the rule that carries it: the mark had already expired and
+# the read measured an absence exactly as a broken seam would. It failed loudly
+# rather than passing, which is the only reason it was cheap.
+PRESS_READ_MARGIN = 60
 
 # The mark's lifetime is 200ms. Every read must land inside it.
 MARK_WINDOW = 200
@@ -112,11 +110,13 @@ async def press_and_read(page, box):
       }).observe(document.documentElement, {subtree: true, attributes: true,
                                             attributeFilter: ['data-feedback']});
     }""")
+    hold = await page.evaluate(
+        "()=>window.__gestures.press.milliseconds") + PRESS_READ_MARGIN
     session = await page.context.new_cdp_session(page)
     x, y = box["x"], box["y"]
     await session.send("Input.dispatchTouchEvent", {
         "type": "touchStart", "touchPoints": [{"x": x, "y": y, "id": 1}]})
-    for _ in range(int(PRESS_HOLD / 60)):
+    for _ in range(int(hold / 60)):
         await session.send("Input.dispatchTouchEvent", {
             "type": "touchMove", "touchPoints": [{"x": x + 2, "y": y + 2, "id": 1}]})
         await page.wait_for_timeout(60)

@@ -44,10 +44,11 @@ ROW = '[data-part="card"]'
 # window has certainly moved.
 SCROLL_DISTANCE = 900
 
-# One row plus its gap. The two margins are compared against it rather than
-# against a fixed pixel count: what makes a shift a DEFECT is that it costs a
-# whole row of safety, and the row's height is the list's own number.
-ONE_LINE = 134
+# MEASURED FROM THE RENDERED LIST, never re-typed. What makes a shift a DEFECT
+# is that it costs a whole row of safety, so the comparison is against a row's
+# real height — and a row's height is declared in
+# `features/library/reference.ts`, which would make a number typed here a second
+# source of truth that goes stale the day the card is redrawn (B-276).
 
 
 async def rendered(page):
@@ -149,6 +150,18 @@ async def hold(journal):
         # caught it — the oracle measures at rest at scrollTop 0, where the
         # shift is zero by construction. What was lost is two thirds of the
         # safety margin ABOVE, and it is the top a scroll-up eats first.
+        one_line = await page.evaluate(
+            "(row)=>{const first=document.querySelector(row);"
+            " if(!first) return 0;"
+            " const box=first.getBoundingClientRect();"
+            " const parent=getComputedStyle(first.parentElement);"
+            " return box.height + (parseFloat(parent.rowGap || parent.gap) || 0);}",
+            ROW)
+        journal.check(
+            "a row's height is measured, not typed into this rule",
+            one_line > 20,
+            f"read {one_line} — the comparison below would need a number typed "
+            "here, which is the second source of truth B-276 names")
         margins = await page.evaluate(
             "(row)=>{"
             "const port = document.querySelector('#port');"
@@ -161,7 +174,7 @@ async def hold(journal):
         journal.check(
             "the window is CENTRED on the viewport, not shifted down the list",
             margins is not None
-            and abs(margins["above"] - margins["below"]) < ONE_LINE,
+            and abs(margins["above"] - margins["below"]) < one_line,
             f"{margins} — a difference of more than one row means the "
             "virtualiser was told the wrong origin, and the smaller side is "
             "margin the reader loses on a fast scroll")
