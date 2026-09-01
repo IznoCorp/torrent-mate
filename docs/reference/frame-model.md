@@ -6,7 +6,7 @@ defined. This is the definition. It is documentary and structural: **no renderin
 here**, because the rendering of every part below is already validated by the operator (mission of
 2026-08-19) and unchanged. What was missing was not an image but a model — which part exists,
 where it lives under invariant 10, what it owns, what it must never know, and **who draws it
-today**, which `SURVEY.md` measured.
+today**, which `docs/reference/frame-survey.md` measured.
 
 **How to read a part.** Each carries five lines: *what it is* · *where it lives* (the directory
 invariant 10 assigns, and the file) · *what it owns* · *what it never knows* · *today → target*,

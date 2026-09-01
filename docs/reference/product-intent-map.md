@@ -14,7 +14,7 @@ half inside `partly`, and a row that says `served` names the proof that says so.
 first version found two `served` rows resting on a print statement and on a rule about PM2
 processes** — the arm cannot see that, only a reader can, so every amendment of this file is read
 against the proof it names. **The operator amends this file; an agent proposes** — and **ratified it as written on 2026-08-30** (Q7), with the §20 re-reading applied in the same pull request. The arm that
-reads it is specified in `docs/features/maquette-l10-ter/MODEL.md` § 4 and built by L15.
+reads it is specified in `docs/reference/frame-model.md` § 4 and built by L15.
 
 **The vocabulary of the `Verdict` column**, and the arm refuses any other word:
 

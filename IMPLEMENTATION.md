@@ -79,8 +79,8 @@ repository.
 their own waves.
 
 **Next action**: **L15 — The frame** is the next lot, and nothing is open on it: no design, no
-plan, no branch. A wave opens with both — its design starts from `docs/features/maquette-l10-ter/MODEL.md`
-§ 2 (Parts 5, 6, 7, 9) and its inventory from `SURVEY.md` § 1.2. L10's design and plan are ARCHIVED —
+plan, no branch. A wave opens with both — its design starts from `docs/reference/frame-model.md`
+§ 2 (Parts 5, 6, 7, 9) and its inventory from `docs/reference/frame-survey.md` § 1.2. L10's design and plan are ARCHIVED —
 `docs/archive/features/maquette-l10/` — in the post-merge move, which is where B-083 put it.
 ⚠ **This paragraph named L10 while L10 was landing, which is B-152's own shape a second time.** The
 entry it carries says a fact that exists twice goes stale in one of the two copies; this file holds

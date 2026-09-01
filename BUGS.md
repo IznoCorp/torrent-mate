@@ -301,7 +301,7 @@ when the defect comes back.
 | B-239 | `CLAUDE.md` announced 24 frame properties where the model it points at holds 30 | by audit | `fixed #524` |
 | B-240 | `CLAUDE.md` announced 25 engine French words where the file it points at holds 24 | by audit | `fixed #524` |
 | B-241 | `IMPLEMENTATION.md`'s « Next » row said « once L10-ter merges » and « L14 stays last » after both had changed | by audit | `fixed #527` |
-| B-242 | `MODEL.md` P14 says 78 named states where 87 are driven | by audit | `fixed #527` |
+| B-242 | `docs/reference/frame-model.md` P14 says 78 named states where 87 are driven | by audit | `fixed #527` |
 | B-243 | Three small drifts in the directives: nineteen guards for twenty, an archived path cited live, « twenty times » for twenty-four | by audit | `fixed #527` |
 | B-244 | A contracts-tier guard whose subject only the `docs` filter names runs in no job | by L15 | `fixed #528` |
 | B-245 | The pre-paint appearance script compares against the French spellings the engine stopped writing | by L15 | `fixed #528` |
@@ -330,7 +330,7 @@ when the defect comes back.
 | B-268 | R104 lives in the file it measures, and has been defeated twice by exactly that | by audit | `open` |
 | B-269 | Five corpus floors in `served_copy.py` are calibrated by hand, one figure per corpus | by audit | `open` |
 | B-270 | Two harness journals are labelled « R80 » — `attrs.py`'s has no number of its own | by audit | `open` |
-| B-271 | `MODEL.md` cited `index.html:241` for `#ptr`; that line is the skip link's comment and the node is at `:255` | by L12 | `fixed #540` |
+| B-271 | `docs/reference/frame-model.md` cited `index.html:241` for `#ptr`; that line is the skip link's comment and the node is at `:255` | by L12 | `fixed #540` |
 | B-272 | The compositor guard's floors carried slack while its own note claimed they had none — 3 `touch-action` sites were deletable under a green guard | by L12 | `fixed #540` |
 | B-273 | `scripts/mutate.sh` cannot judge a GUARD, and says « no hold fell » either way — and it exits SILENTLY when a mutation breaks the build | by L12 | `open` |
 | B-274 | `page_host.py`'s state-alias arm read DOCSTRINGS as code — English prose ending « … state. » before an assignment matched it | by L12 | `fixed #540` |
@@ -831,7 +831,7 @@ schedule, so they will drift again the next time a wave adds surfaces.
 
 ---
 
-**B-271 — `MODEL.md` cited `index.html:241` for `#ptr`, and that line holds the skip link.**
+**B-271 — `docs/reference/frame-model.md` cited `index.html:241` for `#ptr`, and that line holds the skip link.**
 Part 8 assigns pull-to-refresh to L12 and located it at `index.html:241`. That line is inside the
 comment explaining the skip link's `tabindex="-1"`. The citation was not wrong when it was
 written — it drifted — which is exactly L15's paid shape (« cited line numbers past the end of the
@@ -1243,7 +1243,7 @@ literals are folded before the search now. What it still cannot see is stated in
 rather than left to be discovered: a value composed at RUNTIME. No reader of source text can, and a
 guard claiming otherwise would claim more than it does.
 
-**The inventory this closes.** `SURVEY.md` § 1.1's command listed nineteen sites when this wave
+**The inventory this closes.** `docs/reference/frame-survey.md` § 1.1's command listed nineteen sites when this wave
 opened, one of which « draws nothing at all » — this one. It lists **nine** now: seven of the
 Découvrir feed (L19's) and two of the harness panel, which ships nowhere.
 
@@ -4455,7 +4455,7 @@ against the node as it stands, which is what makes that gesture feasible today.
 
 <sub>`sed -n '448,454p' frontend/maquette/design/index.html` · `grep -rn '#drawer' frontend/maquette/design/src/app/` · `grep -in 'drawer' docs/reference/frontend-architecture.md`</sub>
 
-> **PLACED, 2026-08-29 (L10-ter).** Both are the frame's chrome and both convert in **L15 — The frame**, inserted before L11 in `frontend-architecture.md` § 4. The survey widened the finding: the engine draws no page and no screen, and what it still draws is six frame surfaces, one feed and every panel producer (B-236). The two size-counting instruments are named in `MODEL.md` § 4 as what the clause map's arm must not repeat.
+> **PLACED, 2026-08-29 (L10-ter).** Both are the frame's chrome and both convert in **L15 — The frame**, inserted before L11 in `frontend-architecture.md` § 4. The survey widened the finding: the engine draws no page and no screen, and what it still draws is six frame surfaces, one feed and every panel producer (B-236). The two size-counting instruments are named in `docs/reference/frame-model.md` § 4 as what the clause map's arm must not repeat.
 
 **B-221 — a wave merged leaving its own status as the literal placeholder `fixed #NNN`.**
 Found by `check-bug-register.py --arm status-vocabulary` on its first run, against `main` at
@@ -5287,7 +5287,7 @@ The L10-ter brief re-derived its figure with `grep -n "\.innerHTML = " legacy.js
 **12**; the count had already moved from nine to twelve inside one day. `legacy.js:8943` writes
 `select("#toastmsg").innerHTML =` with its value on the NEXT line, so a pattern demanding a space
 after the `=` cannot see it. A count that depends on where a line breaks changes when a formatter
-runs. The survey's command (`docs/features/maquette-l10-ter/SURVEY.md` § 1.1) reads every way a
+runs. The survey's command (`docs/reference/frame-survey.md` § 1.1) reads every way a
 script puts markup into the document and counts **19** sites — and says in the same breath what
 it does NOT read: descriptors (`panel.open`, 10 producers, all the engine's) and toggles.
 **B-085's species, and the phase's own figure for the « Guards green » table is 1.** Closed by
@@ -5329,7 +5329,7 @@ meta is the rule.
 `nav.innerHTML` (`7802`) — so every page switch, every store bump and every cache landing
 (`app/engine-redraw.ts` calls `render()` on each query that has data) replaces the four tab
 buttons with four new nodes. A persistent chrome is the first property of « as close to a mobile
-application as possible » (`MODEL.md` § 3, P2) and it is false: focus on a tab is lost across a
+application as possible » (`docs/reference/frame-model.md` § 3, P2) and it is false: focus on a tab is lost across a
 redraw, `aria-current` is rewritten rather than moved, and a view transition (L12) would see four
 elements disappear and four appear. Invisible to the oracle by construction — a rectangle and
 nineteen properties do not carry node identity. **L15's**; the rule holds `isSameNode` across a
@@ -5365,7 +5365,7 @@ relative to it. Machinery nobody can justify, kept because nobody measured it (D
 beneath it sets `data-theme="light"` before first paint when the operator chose « clair » or the
 system prefers light — and the meta stays dark, so an installed light-theme application shows a
 dark status bar over a light page. Two metas with a `media` attribute, or one the appearance
-module rewrites, is the fix; **L15's**, with the appearance logic (`MODEL.md` § 2 Part 9), and the
+module rewrites, is the fix; **L15's**, with the appearance logic (`docs/reference/frame-model.md` § 2 Part 9), and the
 rule reads the meta under both themes (P21).
 
 <sub>`grep -n "theme-color" frontend/maquette/design/index.html`</sub>
@@ -5429,7 +5429,7 @@ tree is an accumulation, not a list: 48 (dialog) · 50 (bar) · 51 (selection ba
 install) · 60 (popover, harness panel, login) · 70 (splash). Invisible to the oracle (a rectangle
 does not carry a stacking order) and to the accessibility tier (`inert` is on the background, and
 the bar is in it — so the bar is inert AND painted on top). **L15's**, with the dialog's conversion:
-one ranked list, in `MODEL.md` § 2 Part 6, and a rule that reads `elementFromPoint` over the bar
+one ranked list, in `docs/reference/frame-model.md` § 2 Part 6, and a rule that reads `elementFromPoint` over the bar
 while a dialog is open.
 
 <sub>`grep -n "z-index" frontend/maquette/design/src/styles/legacy.css` · `grep -n "z-\[\|z-[0-9]" frontend/maquette/design/index.html`</sub>
@@ -5488,7 +5488,7 @@ not the anchoring**: the sheet keeps rising from the screen's bottom edge and pa
 while a bottom layer is open the tab bar is not seen. The padding that reserved the bar's height
 goes with the overlap it compensated; the dialog, at 56 since B-237, is the precedent. Interaction
 does not change: `app/focus.ts` marks `#nav` `inert` while a layer is open, and B-237 measured
-that its buttons were never hit-testable over one. Inherent to the template: `MODEL.md` Part 7
+that its buttons were never hit-testable over one. Inherent to the template: `docs/reference/frame-model.md` Part 7
 carries the paragraph and § 3 carries it as **P31**, with its instrument. L15's, in its own
 behaviour commit: the oracle WILL move on the sheet's open states, and each divergence is accepted
 under this entry's name. **The steward first wrote the opposite** — « the bar is the floor, the
@@ -5532,7 +5532,7 @@ figures nobody re-ran. Each now carries its command or its living path.
 
 ---
 
-**B-242 — `MODEL.md` P14 says 78 named states where 87 are driven.**
+**B-242 — `docs/reference/frame-model.md` P14 says 78 named states where 87 are driven.**
 P14's instrument column reads « axe 1.4.4 on every named state (`window.__states()`, 78 today) ».
 `oracle-reference.json` holds one `measurements` key per state — **87** — and the accessibility
 tier prints « 87 states » in every run recorded in this register since L10. The figure was cited
@@ -5574,23 +5574,23 @@ twenty-four now.
 ---
 
 **B-239 — the index announced twenty-four properties and the document it points at holds thirty.**
-`CLAUDE.md`'s reference table gained a row for `MODEL.md` on 2026-08-29 reading « the 24
-mobile-application properties ». `MODEL.md` § 3 holds **P1 to P30**.
+`CLAUDE.md`'s reference table gained a row for `docs/reference/frame-model.md` on 2026-08-29 reading « the 24
+mobile-application properties ». `docs/reference/frame-model.md` § 3 holds **P1 to P30**.
 
-**It was not drift.** `MODEL.md` carried thirty in the same commit — `d3892d18`, #521 — that wrote
+**It was not drift.** `docs/reference/frame-model.md` carried thirty in the same commit — `d3892d18`, #521 — that wrote
 the index row saying twenty-four. The figure was wrong the moment it was written, by the wave that
 wrote both files, and the session report to the operator said thirty correctly. **The error survived
 only where it would be read first**: the binding index every agent opens before anything else.
 
 **Two things it is NOT, and both were checked before this entry was written.** « Thirteen parts » in
-the same row is right — `MODEL.md` § 2 runs Part 1 to Part 13, plus one heading that says it is not
+the same row is right — `docs/reference/frame-model.md` § 2 runs Part 1 to Part 13, plus one heading that says it is not
 a part, and counting `###` headings gives fourteen. And the suite's « 71 rules » was NOT touched:
 the hold-count baseline's top-level keys are metadata, so a count taken from it is a miscount, and
 the authoritative figure comes from running `run.sh` — which needs a browser this office does not
 have. **A figure that cannot be re-derived is left alone and said so**, which is the other half of
 the rule that produced this entry.
 
-<sub>`grep -c '^| P[0-9]' docs/features/maquette-l10-ter/MODEL.md` · `git show d3892d18:docs/features/maquette-l10-ter/MODEL.md | grep -c '^| P[0-9]'`</sub>
+<sub>`grep -c '^| P[0-9]' docs/reference/frame-model.md` · `git show d3892d18:docs/features/maquette-l10-ter/MODEL.md | grep -c '^| P[0-9]'`</sub>
 
 > **Corrected with a second stale sentence found in the same sweep.** § 1 of the plan still read
 > « invariant 10 has been binding since L09 and its subject — the frame — has never been modelled »,
@@ -5901,7 +5901,7 @@ the operator's reading, not this steward's.
 
 <sub>`python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print(sum(1 for p in d['paths'].values() for v in p if v in ('get','post','put','patch','delete')))"` · `sed -n '492,517p' docs/reference/product-intent.md` · `docs/reference/frontend-backend-demands.md` § 4</sub>
 
-> **THE MAPPING IS WRITTEN, 2026-08-29 (L10-ter).** `docs/reference/product-intent-map.md` — one row per DOIT and NE-DOIT-PAS clause, a verdict from a five-word vocabulary, a proof or an owning lot. Three rows read `to draw` (L16, L17, L18), eleven `partly` with an owed half (L19, L20), and the § 4 list of unused operations has a verdict for every operation a clause names — fourteen of the twenty-four. The arm is specified in `MODEL.md` § 4 and built by **L15**; this entry closes when it runs.
+> **THE MAPPING IS WRITTEN, 2026-08-29 (L10-ter).** `docs/reference/product-intent-map.md` — one row per DOIT and NE-DOIT-PAS clause, a verdict from a five-word vocabulary, a proof or an owning lot. Three rows read `to draw` (L16, L17, L18), eleven `partly` with an owed half (L19, L20), and the § 4 list of unused operations has a verdict for every operation a clause names — fourteen of the twenty-four. The arm is specified in `docs/reference/frame-model.md` § 4 and built by **L15**; this entry closes when it runs.
 
 **B-143 — the constitution gained a section, and nothing in the plan answers it.**
 The operator dictated **§17 — Comptes, droits et identité Plex** on 2026-08-26: the application

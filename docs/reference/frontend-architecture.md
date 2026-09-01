@@ -73,17 +73,17 @@ re-cut or replaced. **It is not a lot**: it writes no code, nothing schedules it
 selection rule must not reach it. **Where and when its findings are converted is the phase's own to
 decide**, and it may amend this file's lots and their order under § 7.1. Invariant 10 had been
 binding since L09 with its subject — the frame — never modelled; **that was the debt, and this
-phase paid it**: the frame is modelled in thirteen parts in `MODEL.md` § 2, as the paragraph below
+phase paid it**: the frame is modelled in thirteen parts in `docs/reference/frame-model.md` § 2, as the paragraph below
 records. Its definition and its agent's brief are `docs/features/maquette-l10-ter/`.
 
-**It RAN on 2026-08-29, and this is what it decided** — its products are `SURVEY.md`, `MODEL.md`,
+**It RAN on 2026-08-29, and this is what it decided** — its products are `docs/reference/frame-survey.md`, `docs/reference/frame-model.md`,
 `QUESTIONS.md` under that folder and `docs/reference/product-intent-map.md`; the lots below are
 the conversion. **The engine draws no page** (`PAGES_OF()` has eight entries, all `shellOwned`,
 none with a `render`) and no screen (`#screen` is opened by nothing); what it still owns is **the
 frame's chrome** — tab bar, drawer, dialog, toast, the selection slot, the popover layer — **the
 entry** (splash, login, install, appearance), **the ladder's handler**, **all ten bottom-panel
 producers** (zero on the React side), the Découvrir feed, and the 71 verbs of its click delegation.
-Six of those are the frame; the frame is modelled in thirteen parts in `MODEL.md` § 2; and the
+Six of those are the frame; the frame is modelled in thirteen parts in `docs/reference/frame-model.md` § 2; and the
 plan changes in five places: **L15 — the frame** is inserted before L11, because an offline shell
 (L11) caches the chrome and the chrome must be the product's before it is cached, and a transition
 between two layers (L12) needs both layers to be components; **L19 — the producers** is inserted
@@ -110,7 +110,7 @@ The measurement that scheduled them stays here as the record of what existed on 
 | **§17 — accounts, rights and Plex identity** | one role, one account, `GET /api/auth/me` saying nothing of rights | **a model, then surfaces.** None of the 53 declared operations concerns another user, a role or a permission. And one requirement on existing code: the read-only role must be ABSORBED by the rights model, never sit beside it — two authorisation paths is NE-DOIT-PAS-7 |
 
 **Why they sit where they sit.** §17 and §19 need new screens, and a screen is the template
-L10-ter defined (`MODEL.md` § 1: four kinds of surface, one table, a slot and a verb per layer).
+L10-ter defined (`docs/reference/frame-model.md` § 1: four kinds of surface, one table, a slot and a verb per layer).
 Placing them before the template exists is drawing them twice — so they follow L15; and placing
 them before the sheets' producers have a React template (L19) would draw §18's per-tracker panel
 in the engine's style, so they follow L19 too. The order §18 → §19 → §17 stands — cheapest first,
@@ -136,7 +136,7 @@ mapping from each DOIT clause to the surface that serves it, and **a mapping is 
 not a grep** — so L10-ter wrote it: `docs/reference/product-intent-map.md`, one row per DOIT and
 NE-DOIT-PAS clause, a verdict, a proof or an owning lot — three rows `to draw`, five more with a
 « to draw » half. The arm that reads it is specified in
-`MODEL.md` § 4 and **built by L15**, the first lot after the phase — a phase forbidden to write a
+`docs/reference/frame-model.md` § 4 and **built by L15**, the first lot after the phase — a phase forbidden to write a
 guard does not write one, and a wave's arm gets a wave's adversarial review.
 
 **Also named here and deliberately unscheduled — the SEMANTIC SCROLL INDEX** (operator,
@@ -396,7 +396,7 @@ in pieces, each with the oracle green.
 
 **Measured again on 2026-08-29, at L10-ter, and the subtraction has a shape nobody had drawn.**
 The engine draws no page and no screen any more; it still draws the FRAME (tab bar, drawer,
-dialog, toast — `SURVEY.md` § 1.2) and still PRODUCES every sheet's content (ten `panel.open`
+dialog, toast — `docs/reference/frame-survey.md` § 1.2) and still PRODUCES every sheet's content (ten `panel.open`
 producers, zero on the React side) — which is why sixty fixture families outlived L09: their
 readers are producers, not markup. « Surface by surface » therefore has two more passes to make,
 and they are lots: **L15** for the frame's chrome and entry, **L19** for the producers. What stays
@@ -411,7 +411,7 @@ a back unwinds the layers). `openScreen` went with them, having lost every calle
 named states remain the harness's own driving seam and belong to L13. The
 delegation and the boot are L13's, which is the last lot of the engine's death. **`/login` and
 the splash were on this list until 2026-08-29 and are L15's now** — they are the frame's entry
-(`MODEL.md` § 2 Part 9), and §17 redraws the gate, which cannot happen while it is engine code.
+(`docs/reference/frame-model.md` § 2 Part 9), and §17 redraws the gate, which cannot happen while it is engine code.
 
 ### D6 — Accessibility is a lot, not a side effect
 
@@ -667,7 +667,7 @@ not asserted here, and a wave that assumes either answer is doing what B-101 rec
     invariant is unarmed) is worth arming now that there is something for an arm to refuse.
     Recorded here so the next wave decides it rather than inheriting it.
 
-    **Its subject is MODELLED since 2026-08-29** — `docs/features/maquette-l10-ter/MODEL.md`
+    **Its subject is MODELLED since 2026-08-29** — `docs/reference/frame-model.md`
     § 2, thirteen parts, each saying where it lives under this invariant, what it owns and what it
     never knows. The invariant was binding for three lots before its subject had a definition;
     that debt is paid, and a fourteenth part is a hole in the model, said so in the wave that
@@ -1150,8 +1150,8 @@ loss are handled visibly; no polling remains where an event exists.
 
 **Objective.** The engine draws nothing of the frame, and the template exists: one navigation
 table, four kinds of surface, a slot and a verb for every layer. Declared by L10-ter on
-2026-08-29 — `docs/features/maquette-l10-ter/MODEL.md` is its design, part by part, and
-`SURVEY.md` § 1.2 is its inventory. It is numbered after L14 and placed before L11 because
+2026-08-29 — `docs/reference/frame-model.md` is its design, part by part, and
+`docs/reference/frame-survey.md` § 1.2 is its inventory. It is numbered after L14 and placed before L11 because
 **this file's order decides, not the number** (§ 5), and renumbering moves citations (B-103).
 
 **Why before L11 and L12, measured.** L11's offline shell CACHES the chrome, and the chrome is the
@@ -1161,7 +1161,7 @@ layers needs both layers to be components; the drawer and the dialog are engine 
 
 **What it converts** — six surfaces, the entry, and the table:
 
-| Part (`MODEL.md` § 2) | What moves | From | To |
+| Part (`docs/reference/frame-model.md` § 2) | What moves | From | To |
 | --- | --- | --- | --- |
 | 5 — the table | `PAGES_OF` and `NAVIGATION` (engine), `PAGES` (page host), `PAGE_PATHS` (addresses) — **four copies of one fact** | the engine, twice | **one** `app/navigation.ts`: id · path · component · label key · icon · group · in the bar · action button · `badge()` — invariant 10's third exception, and the engine holds no copy |
 | 6 — the chrome | the tab bar (`renderNav`, rebuilt on every `render()` — B-231), the drawer's chrome, the FAB's toggle, the selection **slot** | engine `innerHTML` | `app/tab-bar.tsx`, `app/drawer.tsx`, `app/action-button.tsx`, `app/bottom-slot.tsx`; the library's selection bar becomes its own component portalled into the slot |
@@ -1189,7 +1189,7 @@ the drawer alone, at every width, and not frozen**; a rail is drawn only if real
 pixel differently: the rendering of every part is validated (mission of 2026-08-19).
 
 **It builds B-142's instrument.** The map is `docs/reference/product-intent-map.md`; the arm is
-`MODEL.md` § 4 — it refuses a clause with no row, a row naming a surface absent from the tree, a
+`docs/reference/frame-model.md` § 4 — it refuses a clause with no row, a row naming a surface absent from the tree, a
 « to draw » row naming no lot, a « served » row naming no proof; it prints one line per clause and
 never a count alone; it runs in the contracts tier, over the `docs` filter, and its mutation is
 seen red before it merges.
@@ -1198,11 +1198,11 @@ seen red before it merges.
 `lib/` for nothing new. The table is the exception the invariant names; a badge is a FUNCTION the
 row points at, exported by the feature, so the frame names the feature once and its counters never.
 
-**Done when.** The inventory command (`SURVEY.md` § 1.1) lists only the Découvrir feed, the
+**Done when.** The inventory command (`docs/reference/frame-survey.md` § 1.1) lists only the Découvrir feed, the
 popover's content and the harness panel — nothing of the frame; `#nav`, `#drawer`, `#dlg` and
 `#toast` are React-rendered at their ids; one navigation table, and `grep -n "PAGES_OF\|NAVIGATION"
 legacy.js` lists the seam's read sites only — no declaration of either; P1, P2, P3's dialog rung, P14's landmine and P21
-(`MODEL.md` § 3) are each held by a rule seen to bite; the B-142 arm is in the contracts tier with
+(`docs/reference/frame-model.md` § 3) are each held by a rule seen to bite; the B-142 arm is in the contracts tier with
 its mutation; the oracle is green at every step or its divergences are accepted with reasons; the
 hold counts are unchanged; the accessibility tier reads zero over every named state.
 
@@ -1217,7 +1217,7 @@ handler its links deserve.
 
 **Re-read against the model by L10-ter (2026-08-29): UNCHANGED in objective, RE-CUT in its
 dependencies and its proof.** It now depends on L15, for the reason written there. Its design is
-`MODEL.md` § 2 Part 13 — what the worker caches (the shell: document, bundles, icons, fonts; never
+`docs/reference/frame-model.md` § 2 Part 13 — what the worker caches (the shell: document, bundles, icons, fonts; never
 `/api/*` nor the stream), the update discipline production already proved (`web-ui.md` § PWA:
 `registerType: 'prompt'`, a check on load, on visibility and every 15 minutes, one reload) — **with
 the signal and the ORDER changed by L11**: `/build.json` against a build identity baked into the
@@ -1225,7 +1225,7 @@ bundle, never `/api/version`, because the mock layer answers only the contract a
 could not fail; and the reload following `controllerchange` rather than the poll, because
 `registration.update()` resolves when a worker begins installing and reading `waiting` straight
 after it swaps nothing (B-262), and a queue that holds opaque envelopes a feature's
-`queries.ts` enqueues. Its « Done when » is made measurable by **P7, P8 and P9** of `MODEL.md`
+`queries.ts` enqueues. Its « Done when » is made measurable by **P7, P8 and P9** of `docs/reference/frame-model.md`
 § 3, and the entry points it names are the operator's **Q4** (`QUESTIONS.md`): `share_target`
 landing on `/add`, `launch_handler`, `handle_links` — recommended all three, decided by nobody yet.
 **Done when.** The application opens and reads offline (P7); a mutation issued offline departs on
@@ -1260,7 +1260,7 @@ starting point for a new argument.
 **The shared element that carried a poster from a card into its sheet was BUILT AND WITHDRAWN**
 (operator, 2026-08-31): he watched it on his own phone and declined it. What ships instead is
 transition A, which shares nothing — the arriving fanart fades while the body rises — on the
-reasoning `MODEL.md`'s P6 row already carried: there is nothing honest to share between a 2:3
+reasoning `docs/reference/frame-model.md`'s P6 row already carried: there is nothing honest to share between a 2:3
 poster and a wide banner, and morphing one into the other is an animation pretending two pictures
 are one. The sentence is kept in this form, rather than deleted, so no later reader takes the
 absence for an oversight.
@@ -1288,7 +1288,7 @@ today. It is what makes haptics a one-file change if the platform ever allows th
 **Mobile geometry.** Safe areas, dynamic viewport units, contained overscroll, no accidental zoom
 on focus. **The focus-zoom half is PAID and held — measured on 2026-08-31, not read.** L07 (#494,
 2026-08-25) put every field on `text-6` = 16 px, and R83 (`harness/type_scale.py`) refuses a focused
-field under 16 px: `MODEL.md` P13 reads true. This paragraph carried, until the steward's L11 audit,
+field under 16 px: `docs/reference/frame-model.md` P13 reads true. This paragraph carried, until the steward's L11 audit,
 three field sizes (13, 14 and 12 px) and a command reading `refonte.html` — which has held no style
 rule since L07 — so it was stale six days before L11 opened, and the wave that paid the debt did not
 correct the plan that still charged it (§ 7.1's duty). What the episode taught still stands:
@@ -1315,9 +1315,9 @@ needs each of them to be a component, and they are engine markup until L15. The 
 to `lib/` here; **each surface's USE of it moves with its producer in L19**, so this lot converts
 the vocabulary and the React surfaces (the sheet's drag, the screens) and leaves the deck's and
 the rows' engine-side callers to L19. Its properties are **P5, P11, P16, P17, P20, P24, P25, P26 and P29** of
-`MODEL.md` § 3; **B-234** (no `interactive-widget` on the viewport meta, so the keyboard resizes
+`docs/reference/frame-model.md` § 3; **B-234** (no `interactive-widget` on the viewport meta, so the keyboard resizes
 the viewport by default) is its. The interaction budget is a device-only protocol, written and
-dated — not a gate (`MODEL.md` § 3.1).
+dated — not a gate (`docs/reference/frame-model.md` § 3.1).
 **Done when.** Every transition is declared rather than scripted, the one named spring excepted;
 every gesture is proved against a real pointer stream **and** against a real mouse; reduced motion
 is defined for each of them (the reduced-motion invariant); the feedback seam has exactly one call site; no
@@ -1543,7 +1543,7 @@ no path of its own left.
 **Objective.** What did not die by subtraction, measured by L10-ter on 2026-08-29 rather than
 listed from memory: the ladder's HANDLER (`onEngineBack`, `unwindLayer`, `hideLayers`,
 `__closeLayers` and **`switchPageFromLayer`**, which is the one B-275 and B-290 both name as their
-cause — it REPLACES a layer's entry rather than pushing over it — `MODEL.md` § 2 Part 4, to
+cause — it REPLACES a layer's entry rather than pushing over it — `docs/reference/frame-model.md` § 2 Part 4, to
 `app/layers.ts`), the document-level delegation's
 FRAME verbs, the boot handshake (`__startEngine`), the engine-side seams (`__address`, `__bridge`,
 `__panel`, `__screens`, `__store`), the dead `#screen` layer with its three readers and the
