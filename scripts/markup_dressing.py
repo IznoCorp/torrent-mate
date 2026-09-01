@@ -200,7 +200,7 @@ BARE_ALLOWED = {
     ("ui/state-surfaces.tsx", "button"): (
         1, "the error surface's retry, painted by `.surferr button` "
            "(legacy.css:445) until L13"),
-    ("features/acquisition/page.tsx", "button"): (
+    ("features/acquisition/discover-tab.tsx", "button"): (
         1, "the « connect TMDB » action, inside the same `surfaceError()` and "
            "painted by the same `.surferr button` until L13"),
     ("features/acquisition/add-screen.tsx", "button"): (
