@@ -45,10 +45,15 @@ TILE = '[data-part="tile"]'
 # written against both measurements rather than chosen for comfort.
 DRIFT_CEILING = 6.0
 
-# Where in the transition to look. The arrival runs 450ms; 200 is inside it with
-# room either side. The flight is established on BOTH sides of the capture, so a
+# Where in the transition to look. The arrival runs 450ms, and this is read
+# EARLY inside it rather than in the middle: what has to fit after the read is a
+# SCREENSHOT, which is not instantaneous and which stretches with the machine's
+# load. At 200 the capture had 250ms of crossing left and straddled the end in a
+# parallel recording run; at 120 it has 330. Reading earlier costs nothing —
+# the bar is either painted under the arriving screen for the whole crossing or
+# it is not. The flight is established on BOTH sides of the capture, so a
 # sample taken after the transition ended cannot decide the verdict.
-MID_TRANSITION_MILLISECONDS = 200
+MID_TRANSITION_MILLISECONDS = 120
 
 
 def average_colour(png: bytes) -> list[float]:
@@ -157,7 +162,8 @@ async def hold(journal):
         # Read on BOTH sides of the capture, because a screenshot is not
         # instantaneous and a transition that ended between the flag and the
         # shutter would leave the same false reading.
-        # RETRIED, because the capture races the transition's end under load.
+        # RETRIED SIX TIMES, because the capture races the transition's end
+        # under load.
         # A screenshot is not instantaneous; on a loaded runner it can outlast
         # the 450ms crossing, and then the flag reads True before and False
         # after — the rule falls for the machine's reasons rather than the
@@ -167,7 +173,7 @@ async def hold(journal):
         # arrival, and only a straddle EVERY time is a violation.
         crossing = None
         crossing_before = crossing_after = None
-        for attempt in range(3):
+        for attempt in range(6):
             if attempt:
                 await page.go_back()
                 await page.wait_for_timeout(900)
@@ -186,7 +192,7 @@ async def hold(journal):
             "the mid-flight read is taken WHILE a transition crosses",
             crossing is not None,
             f"`:active-view-transition` read {crossing_before} before the "
-            f"capture and {crossing_after} after it, on three arrivals — the "
+            f"capture and {crossing_after} after it, on six arrivals — the "
             "sample below is of a settled bar, and comparing two settled bars "
             "proves nothing about how one is painted under an arriving screen")
         if crossing is None:

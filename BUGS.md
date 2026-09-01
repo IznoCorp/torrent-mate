@@ -647,10 +647,13 @@ reader needs to know which way each instrument can still be wrong.
   « was the arming window sampled at all » hold beside it exists to refuse that silently passing.
 - **R118's mid-flight capture.** A screenshot is not instantaneous and can outlast the 450 ms
   crossing on a loaded runner, so the flight flag read true before the capture and false after.
-  Repaired by retrying three arrivals rather than by dropping the second read — a sample taken after
-  the end is exactly the vacuity that hold exists to refuse. **Which way it can still be wrong**:
-  three straddles in a row on a very slow runner report a violation where the page is correct, which
-  is loud and in the safe direction.
+  Repaired by retrying rather than by dropping the second read — a sample taken after the end is
+  exactly the vacuity that hold exists to refuse. **Three retries was not enough**: the post-merge
+  recording run, which launches eight rules at a time, straddled all three. Two things changed
+  together — the read moved from 200 ms into the crossing to 120, which leaves 330 ms for the
+  capture instead of 250, and the retries went to six. **Which way it can still be wrong**: six
+  straddles in a row on a very slow runner report a violation where the page is correct, which is
+  loud and in the safe direction.
 
 <sub>`frontend/maquette/harness/run.sh` (2 falls in 3) against `python3 frontend/maquette/harness/exits.py` (green, twice)</sub>
 
