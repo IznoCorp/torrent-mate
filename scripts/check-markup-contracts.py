@@ -612,6 +612,106 @@ def check_named_values() -> int:
 
 
 
+# Blanked rather than removed, so a reported line number still points at the
+# line the selector is actually on — and blanked at all because the compositor
+# guard paid for reading its own prose as evidence.
+CSS_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
+
+
+def check_named_attributes_have_all_their_ends() -> int:
+    """Arm 3b: a naming attribute NAMED in one corpus must be named in the others.
+
+    ARM 3 HOLDS SELECTIONS BY VALUE and cannot reach a state attribute, whose
+    contract is its NAME. `data-arrival`, `data-virtualised` and `data-lanes`
+    were added to the naming list and NOTHING moved: renaming
+    `[data-arrival="faded"]` in the stylesheet, or `data-virtualised=` in the
+    component that emits it, left every arm green — measured by mutation on the
+    day the names were added, which is the only reason it is known.
+
+    The contract has three ends: the source that writes the name, the stylesheet
+    that draws on it, and the rule that reads it. This arm compares the ends that
+    exist:
+
+      * a `[data-X…]` selector in a stylesheet whose attribute is a naming one
+        must be named by the design SOURCES — as a literal or as `dataset.x`;
+      * a `dataset.x` read in the harness, for a naming attribute, must be named
+        by the design sources too.
+
+    Either way the refusal is the same sentence: a name with one end is a
+    drawing, or a rule, that measures nothing.
+
+    Returns:
+        1 when a name has an end the sources do not carry, 0 otherwise.
+    """
+    sources = [path for path in emission_files() if path.suffix != ".css"]
+    stylesheets = sorted(SOURCES.rglob("*.css"))
+    rules = harness_files()
+    if not sources or not stylesheets or not rules:
+        print("check-markup-contracts: one of the three corpora is empty, so "
+              "« no violation » would mean nothing", file=sys.stderr)
+        return 1
+
+    written = "\n".join(path.read_text(encoding="utf-8") for path in sources)
+
+    def named_in_sources(attribute: str) -> bool:
+        """Whether the design sources name this attribute, either spelling."""
+        property_name = re.sub(r"-(\w)", lambda m: m.group(1).upper(),
+                               attribute.removeprefix("data-"))
+        return (attribute in written
+                or f"dataset.{property_name}" in written)
+
+    violations = 0
+    checked = 0
+    for path in stylesheets:
+        if str(path).endswith("harness.css"):
+            continue
+        body = CSS_COMMENT.sub(" ", path.read_text(encoding="utf-8"))
+        for attribute in NAMING_ATTRIBUTES:
+            for match in re.finditer(r"\[" + re.escape(attribute) + r"[\]=~^$*|]",
+                                     body):
+                checked += 1
+                if named_in_sources(attribute):
+                    continue
+                line = body.count("\n", 0, match.start()) + 1
+                violations += 1
+                print(f"  {path.relative_to(ROOT)}:{line}: the stylesheet draws "
+                      f"on `{attribute}` and no design source writes that name. "
+                      "A drawing keyed on a name nothing emits draws nothing, "
+                      "and no other arm can see it: arm 3 holds selections by "
+                      "VALUE, and a state attribute's contract is its NAME.",
+                      file=sys.stderr)
+
+    for path in rules:
+        body = COMMENT.sub(" ", path.read_text(encoding="utf-8"))
+        for attribute in NAMING_ATTRIBUTES:
+            property_name = re.sub(r"-(\w)", lambda m: m.group(1).upper(),
+                                   attribute.removeprefix("data-"))
+            for match in re.finditer(r"dataset(?:\?)?\.\b" + property_name + r"\b",
+                                     body):
+                checked += 1
+                if named_in_sources(attribute):
+                    continue
+                line = body.count("\n", 0, match.start()) + 1
+                violations += 1
+                print(f"  {path.relative_to(ROOT)}:{line}: the rule reads "
+                      f"`{attribute}` and no design source writes that name. A "
+                      "rule reading a name nothing emits reads `undefined`, "
+                      "which is not a failure anywhere.", file=sys.stderr)
+
+    if violations:
+        print(f"\ncheck-markup-contracts: {violations} naming attribute(s) with "
+              "an end the design sources do not carry. A name has three ends — "
+              "what writes it, what draws on it, what reads it — and they move "
+              "in one step or the interface half-works in a way no single file "
+              "reveals.", file=sys.stderr)
+        return 1
+
+    print(f"check-markup-contracts: {checked} naming-attribute END(s) read "
+          f"across {len(stylesheets)} stylesheet(s) and {len(rules)} rule "
+          "file(s), every one named by a design source.")
+    return 0
+
+
 def check_harness_parses() -> int:
     """The precondition: refuses a rule file the Python parser refuses.
 
@@ -701,6 +801,8 @@ def main(argv: list[str] | None = None) -> int:
     if check_anchor_debt():
         rc = 1
     if check_named_values():
+        rc = 1
+    if check_named_attributes_have_all_their_ends():
         rc = 1
     if check_state_attributes():
         rc = 1
