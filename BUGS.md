@@ -293,7 +293,7 @@ when the defect comes back.
 | B-231 | The tab bar is rebuilt from scratch on every render | by survey | `fixed #528` |
 | B-232 | Two dead layers: the page-render branch and `#screen` | by survey | `open` |
 | B-233 | `theme-color` is a constant while the document paints light | by survey | `fixed #528` |
-| B-234 | The viewport meta declares no `interactive-widget` | by survey | `open` |
+| B-234 | The viewport meta declares no `interactive-widget` | by survey | `fixed #540` |
 | B-235 | No desktop navigation exists beyond the drawer | by survey | `open` |
 | B-236 | Every bottom-panel producer is the engine's — L19's since 2026-08-29 | by survey | `open` |
 | B-237 | The confirmation dialog paints under the tab bar | by review | `fixed #528` |
@@ -311,7 +311,7 @@ when the defect comes back.
 | B-249 | The screen flashes when a sheet action closes the sheet AND opens a page | 1× | `open` |
 | B-250 | `check-live-relay`'s stale-figure arm cannot tell a register citation from a frozen count | by L15 | `fixed #528` |
 | B-251 | A file under `docs/` that no commit force-added is invisible to `git add -A`, to `git status` and to every gate | 1× | `fixed #532` |
-| B-252 | The oracle reads a region's node and never its children; two L15 surfaces are held by no rule | by audit | `fixing` |
+| B-252 | The oracle reads a region's node and never its children; two L15 surfaces are held by no rule | by audit | `fixed #540` |
 | B-253 | B-247 was reassigned to L14 and L19 by the wave that left it, and the plan named it in neither | by audit | `fixed #532` |
 | B-254 | Two figures written by hand: the Makefile's « 83 states x 33 regions » and CLAUDE.md's guard count | by audit | `fixed #532` |
 | B-255 | `check-frontend-boundaries.py` is back at 952 lines, 48 from the hard ceiling it was cut away from | by audit | `open` |
@@ -330,14 +330,22 @@ when the defect comes back.
 | B-268 | R104 lives in the file it measures, and has been defeated twice by exactly that | by audit | `open` |
 | B-269 | Five corpus floors in `served_copy.py` are calibrated by hand, one figure per corpus | by audit | `open` |
 | B-270 | Two harness journals are labelled « R80 » — `attrs.py`'s has no number of its own | by audit | `open` |
-| B-271 | `MODEL.md` cited `index.html:241` for `#ptr`; that line is the skip link's comment and the node is at `:255` | by L12 | `fixing` |
-| B-272 | The compositor guard's floors carried slack while its own note claimed they had none — 3 `touch-action` sites were deletable under a green guard | by L12 | `fixing` |
+| B-271 | `MODEL.md` cited `index.html:241` for `#ptr`; that line is the skip link's comment and the node is at `:255` | by L12 | `fixed #540` |
+| B-272 | The compositor guard's floors carried slack while its own note claimed they had none — 3 `touch-action` sites were deletable under a green guard | by L12 | `fixed #540` |
 | B-273 | `scripts/mutate.sh` exits SILENTLY when a mutation breaks the build — no rule runs, and it does not say so | by L12 | `open` |
-| B-274 | `page_host.py`'s state-alias arm read DOCSTRINGS as code — English prose ending « … state. » before an assignment matched it | by L12 | `fixing` |
+| B-274 | `page_host.py`'s state-alias arm read DOCSTRINGS as code — English prose ending « … state. » before an assignment matched it | by L12 | `fixed #540` |
 | B-275 | Back from a media screen opened via « Voir la fiche » does NOT reopen the panel — §16's mirror cannot play | by L12 bench | `open` |
 | B-276 | A delay set by hand in an INSTRUMENT outlives the drawn duration it was set against — twice in one rule | by L12 | `open` |
 | B-277 | `exits.py`'s frame-count CONTROL flakes under the suite's parallel load — 2 falls in 3 runs, green alone | by L12 | `open` |
 | B-278 | The drawer's dismiss acknowledges itself TWICE — two marks, same millisecond, both with no previous value; unexplained | by L12 review | `open` |
+| B-279 | Twelve contracts-tier guards run in NO CI job when a pull request edits only the guard — the filter names their subjects, never their own file | by L12 review | `fixed #540` |
+| B-280 | Transition A-extended had no subject: the engine closed the panel 260 ms before the capture, so `old(leaving-panel)` never existed | by L12 review | `fixed #540` |
+| B-281 | The media body's arrival had TWO owners — `@starting-style` applies to the whole screen, which is inserted inside the transition's callback | by L12 review | `fixed #540` |
+| B-282 | The fanart's entry faded the element that CARRIES the placeholder, so the muted block and the melt blinked with it | by L12 review | `fixed #540` |
+| B-283 | During priming, the media screen prints its UNKNOWN parts as answers — « aucun synopsis », « aucune distribution » — about data in flight (§13) | by L12 review | `open` |
+| B-284 | A pull cancelled by a mouse or a stylus was FORGOTTEN rather than released — the indicator hung open, armed | by L12 review | `fixed #540` |
+| B-285 | `go()` discarded the router's promise, so the NEW snapshot is captured before the route has committed | by L12 review | `fixed #540` |
+| B-286 | A hero whose picture changes UNDER it — media to media — was never followed again, and the new fanart snapped in | by L12 review | `fixed #540` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -366,6 +374,110 @@ nobody can name or a mark nobody can account for. Both matter the day haptics ma
 something. **The remaining candidate I did not test is a node REPLACED between the two marks** — a
 re-render giving a fresh `#drawer` that is also marked — which would explain both `null` oldValues
 and the single node count.
+
+**B-279 — twelve contracts-tier guards run in no CI job when a pull request edits only the guard.**
+`harness-contracts` is the only job that runs them, and it gates every step on the `maquette`
+filter, which names their SUBJECTS and not their own files. `scripts/**` belongs to `python`, whose
+jobs do not run them: CI never runs `make check` as such — it splits into `lint`, `test` and
+`guards`. So the shape every repair to a guard takes ran the guard nowhere. B-244's third
+recurrence, and the reason the two existing holds stayed green is that both read a guard's subject:
+the third question — is the guard ITSELF named? — had never been asked. Fixed by naming the CLASS
+(`scripts/check-*.py`) rather than the instances, because the instance list went stale three times,
+and by a hold that computes, per guard, whether any job running it is ungated or gated on a filter
+naming it.
+
+<sub>`python3 -m pytest tests/scripts/test_ci_filter_covers_the_guards.py -q` → 66 passed; remove
+the glob and 11 fall</sub>
+
+**B-280 — transition A-extended had no subject.**
+« Voir la fiche » is reached from an open panel. The engine closed the panel and waited 260 ms
+before opening the screen, so by the time the transition captured the old state
+`#sheet[data-open]` matched nothing and `::view-transition-old(leaving-panel)` never existed. The
+whole drawing painted nothing for a day, and every hold in R115 passed because every one of them
+reads the ROOT transition, which happens either way. A view transition captures the old state at
+the next rendering update rather than at the call, so no ordering of two statements in one task
+fixes it: the dismissal belongs inside the commit, which is what `go()`'s `during` is for. The
+reverse animation was removed rather than left waiting — Back lands on the list with the panel
+shut, measured — and reopening a panel on a backward step is **L13's**, with B-275.
+
+<sub>panel open on `lib-grid`, click `[data-mediasheet]`, sample
+`getAnimations().map(a => a.effect.pseudoElement)` → `::view-transition-old(leaving-panel)`
+present</sub>
+
+**B-281 — the media body's arrival had two owners.**
+The blocks carry an element-side entry from an `@starting-style`, on the argument that an element
+already present when the screen mounted never has a starting style. The whole screen is inserted
+INSIDE the view transition's callback, so every block has one on the arrival itself: measured at
+16 ms intervals, `opacity` and `translate` ran from 0 and 16 px in the very frames `body-rise` was
+lifting the same snapshot 24 px. Forty pixels and a double fade, in the drawing whose own heading
+is « one entry, one owner ». The transition is silenced while the page's own is running rather than
+the rule being scoped away — scoping leaves `translate: none` for the arrival and `0 0` afterwards,
+a second owner one frame later, which the new hold caught on its first run.
+
+<sub>sample the first child of `[data-region="screen-media/body"]` at 16 ms across an arrival →
+one owner, `body-rise`</sub>
+
+**B-282 — the fanart's entry faded the element that carries the placeholder.**
+`[data-arrival="faded"]` animated the hero background element from opacity zero. That element IS
+the placeholder: `bg-muted` is its background colour and the melt is its `::after`. At the moment
+the picture decoded, the muted block and the melt vanished for a frame and came back with the
+image — appear, flash, reappear, in miniature, inside the rule written to remove that shape from
+the hero. The faded branch held `min < 1.0`, which a flash satisfies as well as a fade. A
+`::before` the placeholder's colour covers the picture and fades out now; the element never changes
+opacity. It also answers the case nobody had measured — a file decoding DURING the 450 ms
+transition, which the fixture produces on a LAN.
+
+<sub>sample the element's opacity and its `::before`'s across a faded arrival → element 1
+throughout, cover 1 → 0</sub>
+
+**B-283 — during priming, the media screen prints its unknown parts as answers.**
+Decision (6) of this wave says « skeletons reduced to the unknown parts ». The screen has no
+skeleton at all: while the sheet's read is in flight, a missing field prints
+`screens.media.synopsisUnknown`, `castUnknown`, `noTrailer` and « unknown » seasons — assertions
+about data still in flight, which §13 refuses. **The maquette cannot exhibit it**, and that is why
+nothing saw it: the placeholder is the engine's COMPLETE `sheetFor(title)`, so no field is ever
+missing during priming — measured, the body holds 8 children at 120 ms and 8 at 2 400 ms. The real
+backend's projection carries `{t, f}`.
+
+**Owner: L14.** The repair is a line in `features/media/media-screen.tsx`, one of the four files
+L14 owns and this lot may not extend — which is also why it is filed rather than fixed.
+
+<sub>`grep -c "Unknown\|noTrailer" frontend/maquette/design/src/features/media/media-screen.tsx`;
+drive with a partial placeholder and read `[data-part="no-info"]` while `status === "pending"`</sub>
+
+**B-284 — a pull cancelled by a mouse or a stylus was forgotten rather than released.**
+`pointercancel` is ignored for a FINGER on purpose: the browser claims the pan one move in while
+the touch stream carrying the gesture keeps running. For a mouse or a stylus there is no such
+stream and a cancel is the platform taking the pointer away for good. The module cleared its three
+variables and told the surface nothing, so the indicator hung at the height the cancelled pull left
+it, armed, transition suppressed, until some later gesture moved it. The engine called its release
+there — which is why « carried over verbatim » was not true — and nothing drove a mouse cancel, so
+nothing saw it.
+
+<sub>`frontend/maquette/harness/press.py` → « a cancelled mouse pull puts the indicator BACK »;
+its mutation reads `{'height': 72, 'armed': True}`</sub>
+
+**B-285 — `go()` discarded the router's promise.**
+A view transition captures the NEW state when the callback's returned promise settles. Discarded,
+the capture happens at the next rendering opportunity whether or not the route has committed — so
+the day a route has a loader or a lazy component, the arrival animates the departing page, and
+every hold in R115 stays green because they all read the OLD side. Correct today only by the
+absence of loaders, which is not a property anybody is holding.
+
+<sub>wrap `document.startViewTransition` and read whether the callback returned a thenable → true;
+`void navigated` makes both preferences fall</sub>
+
+**B-286 — a hero whose picture changes under it was never followed again.**
+The media screen leads to other media — a suggestion, a related title — the route's params change
+and the SAME element stays mounted with a new `background-image`. `artwork-arrival` returned early
+on `data-arrival` being set at all, and its observer watched added nodes only. So the stale mark
+stayed, no entry played, and the new fanart snapped in — on the navigation most likely to happen
+twice in a row. It follows by SOURCE now, clears the mark before re-marking (an attribute re-set to
+its own value restarts no animation), and a decode landing after the picture moved on marks
+nothing.
+
+<sub>media → media on the last `[data-mediasheet]`: same node, background changed,
+`data-arrival` written again</sub>
 
 **The disposer is kept** and is not offered as the fix: an effect that installs listeners and returns
 nothing leaks a set on every remount, which is true independently.
@@ -3680,8 +3792,8 @@ absence of a row can mean either.
 | L15 (the frame) | **12** | **All twelve found by asking the question, none by a gate going red** — and eleven of them are in instruments this wave was writing, which is L09's reading arriving a fifth time. **B-246**, the version arm of the guard that holds the « In flight » row, defeated by markdown emphasis while every row of that table writes its pull request in bold — and its no-version branch exited 0 in SILENCE, so « this wave declares no version » and « I could not parse one » were the same line: none. **B-244**, the CI-filter hold asking « is this path named by ANY filter? » where the question is « by the filter that GATES THE JOB »; its two earlier cases were both fixed by adding to `maquette`, so the two questions had never yet had different answers — asked properly it goes red over **seven** guards, every one of them running in no job for a pull request touching only its own subject. **`boundaries_addressing`'s bracket search**, which found the empty pair of a TYPED declaration (`readonly NavigationRow[]`) and read an empty array — loud only because the caller has a « reads to nothing » branch at all. **R100's P1 hold, twice**: `performance.getEntriesByType("navigation").length` holds one entry PER DOCUMENT, so a full navigation makes a new document where the count is one again and the assertion cannot come out the other way; its replacement counted `framenavigated`, which fires for a `pushState` too — 63 over the 87 states with the property holding perfectly. **The tab bar's badge subscribed to NOTHING**: `acquisitionBadge()` reads the query cache synchronously and a synchronous read is not a subscription, so a badge showed the previous scenario's count until an unrelated store write redrew it — caught by `audit2.py`'s R16, an existing rule, and the reason it never bit before is that the engine's bar was rebuilt by `render()`, which the cache's redraw hook calls. **R101's B-237 hold, three times**: the named delete states raise dialogs of 184–660 and 142–702 against a bar at 787–844, so they DO NOT TOUCH and a hit-test of the dialog's own rectangle passed at 48 exactly as at 56; `inert` takes an element out of hit-testing as well as out of the focus order, so with the background inert `elementFromPoint` answered the dialog either way; and its selection-bar hold asserted over a bar that `lib-delete-multiple` does not put on screen. **R101's popover clamp** read the FIRST and LAST cell of a matrix that wraps, so both readings exercised the same edge and it reported the same placement twice. **B-250**, the stale-figure arm treating a hyphen as a separator, so `B-154` is a match the day the corpus reaches that size — and it then caught the first draft of its own repair saying « the corpus reached 154 files ». **`check-viewport-directives`'s split-literal blind spot**, found by the mutation that wrote `"maximum" + "-scale=1"`: the shape L07's split-class hold had. |
 | L15, after the three adversarial reviews | **15** | Three reviewers on a wave whose every tier was green — the full suite at 75 rules, `--a11y` at 0, `make check` at 0, and the oracle at its 167 enumerated divergences. **Thirteen of the fifteen are in the wave's own instruments, and two are the ORACLE's blind spot read from the product side.** `page_host.py` held « every page in the table has an owner » by comparing `window.__pages()` against `window.__shellPages` — TWO EXPRESSIONS OVER THE SAME ARRAY, a tautology that could only fail by the seam being absent; it now drives every page and asks `#view` whether the host put anything in it. `page_host.py` again: its `#view` write detector read `view\.innerHTML\s*=` and nothing else, so `getElementById("view").innerHTML =`, `replaceChildren`, `append`, `insertAdjacentHTML` and any local alias passed — **and its own control was a literal written in the same file to match its own pattern**, a constant expression this very file warns against two hundred lines above; the control now splices two lines into a COPY of the engine and re-runs the same search. `stacking.py` PRINTED the confirmation's rank and the bar's and compared neither, holding only that they share a parent; and its message hold hit-tested inside the toast's own centre, which is true by construction — a message moved to `bottom-0 z-[60]`, squarely over the bar, would have passed it. `appearance.py` chose ONE appearance and reloaded once, leaving the pre-paint script's other two branches testing words nothing writes: the « repair applied to one branch of an `if` » shape, at the level of the walk. `exits.py` (R103) measured TWO layers of five, and the three it did not read — the message, the drawer, the confirmation — all still had B-249's defect. `boundaries_addressing.py`'s page hold said NOTHING when the navigation table's file is absent, so moving it to `app/navigation/index.ts` would have taken both directions away in silence. `persistence.py`'s focus hold read `dataset.page`, a `closest('#nav')` and « not body » — every one of which a REPLACEMENT node satisfies, in the rule written to catch replaced nodes, whose own header names `isSameNode` as the only question that separates them; and its one-document hold counted `load` events while a bfcache restore brings the sentinel back intact and fires `pageshow`. `selection.py` held its caption by digit SUBSTRING: « 0 sur 15 sélectionnés » satisfies a hold on « 1 », on the one surface whose job is to say how many things are about to be destroyed. `check-intent-map.py` gave `served, unproved` no obligation — the only verdict of five owing nothing — so rewriting fourteen `partly` rows to it empties the ledger and the guard prints « 0 violation »; and a named proof FILE was never checked to exist. `check-viewport-directives.py` read `frontend/maquette` without its `.py` files, leaving every harness rule outside the guard written to keep those two directives out of the tree. **And the two on the product side are the oracle's own limit, which is that it measures REGION ROOTS**: `.dlg p`'s `color` was one of four declarations and three were restated, so a confirmation's explanatory sentence read at full heading weight and the oracle — which does measure `color`, on `#dlg` — saw nothing; and `selectionAction` carried `bg-transparent` in its BASE with `bg-danger-fill` on the `danger` branch, two utilities of equal specificity where Tailwind emits colour alphabetically, so `transparent` always follows `danger-fill` and the destructive button rendered transparent with white text — **white on white under `data-theme="light"`, contrast 1.00** — while the light-theme audit stayed at exactly 166 before the repair and after it, which says the ratchet was not what was holding that surface |
 | L11 (offline and the PWA) | **5 by the wave, 13 by four readers** | **The wave's own five were all found by MUTATING its rules, and two are the same rule going green twice over a shell that was not there.** R105 passed with the document deliberately dropped from the precache — the page had been loaded twice, so Chrome's DISK cache answered the reload after the server was gone. With the browser cache turned off it passed AGAIN: on the harness host `/offline.html` has no file behind it, the fallback folds it onto the document, and the worker's LAST-RESORT entry was a full copy of the prototype. **The consequence held while the mechanism was gone**, which is the difference between a rule and a coincidence. **R107 was silent about the client's half of « at least once »**: with the network up, an envelope forgotten BEFORE its request answered and one forgotten after are indistinguishable, so a client promising at MOST once passed eleven green holds. **R109 passed with the standalone check deleted from the application**, because in a desktop context the banner never appears anyway — « not offered » was « never offered ». And **B-258**, a Makefile announcing nine rules where `run.sh` held twelve. *(The wave first counted six here and included R105 CRASHING rather than naming its defect. A crash is RED; B-085 is « green because of what it does not read », so counting it inflated the figure in the flattering direction. It is repaired below instead.)* **THEN FOUR ADVERSARIAL READERS ON THE GREEN GATE RETURNED SOME FORTY MORE**, and the shape is L15's arriving on a wave that wrote BEHAVIOUR rather than conversions: the instruments were sound and the SUBJECT was not. A security regression — the cached shell outlived the session (B-261). An update discipline that reloaded without ever swapping the worker, and then never swapped again (B-262). A queue a refused replay jammed forever, over an optimistic write the server had rejected (B-263). **B-256 still open** through the two tools most likely to run beside a suite, one of them the tool that recorded this wave's own baseline. **R104 reading three substrings and never the comparison** — two survived on the assignment line alone. **`_code_of` stripping `#` and not docstrings**, so its own arm was satisfiable by moving an assertion's sentence into a docstring. **Five properties recorded as `false` that the wave had made true**, § 7.1's duty skipped. And **the coverage figures the register published as B-256's proof were stale the day they were written** — « 75 of 75 » was 79, in the entry that closes the finding about readings nobody can trust. **RECOUNTED BY THE STEWARD (2026-08-31): the readers' share of THIS table is 13, not « 40+ ».** The ~40, 13 and 7 of the four rounds are PRODUCT defects and belong to the rounds, not to this table, whose species is an instrument green over what it does not read. The thirteen, each named in this cell or in the archived report: B-256 left open through `mutate.sh` and `harness-hold-counts.py` · R104's three substrings · `_code_of` blind to docstrings · R104 satisfied by its own source · R111's queue hold that never queued · the corpus floors aimed at the loud corpora · `mutate.sh`'s lock leaked on the `set -e` path its comment claimed · the address pairing matching one end · R104 holding the wrong half after the repair · `_code_of` eating real code under two negative holds with no floor · the `INT` handler resuming past the released lock (B-256 re-opened) · round three's two repairs shipped with no regression hold · `mutate.sh`'s restore not idempotent under a comment asserting it. Excluded, and said so: the five stale `false` properties and the stale « 75 of 75 » — directive drift (B-243's species), not an instrument reading. **And the archived `REPORT.md` still opens its count with « Six for this wave »**: the cut to five and that sentence entered in the SAME squash (`39363e1d`) — B-239's shape, wrong the moment it was written — and the MECHANISM is on record (the wave's author, 2026-08-31): the report's correction was two `str.replace` calls whose patterns matched nothing, in an edit script where every OTHER change carried an `assert old in s` and those two did not, so they were silent no-ops reported as done — « une commande en échec est une édition qui n'a pas eu lieu », inside the very correction fixing figures nobody had compared. The archive stays frozen and this cell is the living correction. |
-| **Total** | **151** | 130 by the waves through L11's own five, plus the four readers' 13 recounted above — at 2026-08-31, after L10-bis, its review, L10-ter's survey and its review, **L15 with its own review**, and **L11 with FOUR readers**. **L11's FIVE are the mutation half of the curve, and they say what mutation IS good for**: every one was found by breaking the wave's own rules on purpose, and two of them are the same rule going green twice over a shell that was not there. A rule can hold a CONSEQUENCE while the mechanism it names is gone, and only a mutation asks. **What mutation could not reach is the other forty**: four readers on that same green gate found a security regression, an update discipline that never swapped the worker, and a queue a refused replay jammed forever — none of them a defect the author had thought to break. The ratio is this table's oldest argument, arriving on a wave that wrote BEHAVIOUR rather than conversions: 5 by mutation, some 40 by reading. **And a second round on the REPAIRS found thirteen more, then a third found seven** — the two later rounds are where the sharpest findings are, not the first. Round two: the repair for a jammed queue had made a refused mutation vanish SILENTLY instead, and its classifier destroyed the operator's action on a 503, a 429 and a 401 — the very outage the queue exists for. Round three: that repair's own replacement still treated **401 as final**, so an expired session destroyed every queued mutation one after another when a re-login would have saved them all; and the notice's button said « Réessayer maintenant » while doing something else, because its name, its words and its action were written as three ladders that tested their conditions in different orders. **Each round's worst finding was in the previous round's repair**, and none of the three was found by a gate. |
-| **L12** (#540, this wave) | **15** | itemised below, one named unit per line with the proof that establishes it — the count follows the itemisation rather than the itemisation following a number |
+| **Total** | **173** | 130 by the waves through L11's own five, plus the four readers' 13 recounted above — at 2026-08-31, after L10-bis, its review, L10-ter's survey and its review, **L15 with its own review**, and **L11 with FOUR readers**. **L11's FIVE are the mutation half of the curve, and they say what mutation IS good for**: every one was found by breaking the wave's own rules on purpose, and two of them are the same rule going green twice over a shell that was not there. A rule can hold a CONSEQUENCE while the mechanism it names is gone, and only a mutation asks. **What mutation could not reach is the other forty**: four readers on that same green gate found a security regression, an update discipline that never swapped the worker, and a queue a refused replay jammed forever — none of them a defect the author had thought to break. The ratio is this table's oldest argument, arriving on a wave that wrote BEHAVIOUR rather than conversions: 5 by mutation, some 40 by reading. **And a second round on the REPAIRS found thirteen more, then a third found seven** — the two later rounds are where the sharpest findings are, not the first. Round two: the repair for a jammed queue had made a refused mutation vanish SILENTLY instead, and its classifier destroyed the operator's action on a 503, a 429 and a 401 — the very outage the queue exists for. Round three: that repair's own replacement still treated **401 as final**, so an expired session destroyed every queued mutation one after another when a re-login would have saved them all; and the notice's button said « Réessayer maintenant » while doing something else, because its name, its words and its action were written as three ladders that tested their conditions in different orders. **Each round's worst finding was in the previous round's repair**, and none of the three was found by a gate. **L12 adds 30 — 143 + 30 = 173 — and the addition is the itemisation's, not a counter's.** For two days this cell read 151 while the itemisation read 15 and `main` read 143, because the figure had been incremented ONCE PER REGISTER ENTRY FILED as B-271 to B-278 landed: 144, 145, … 151. Four of those eight entries are not units of this species at all, and the itemisation moved 6 → 14 → 15 without the total moving with it. A total that tracks a different quantity from the table under it is the drift this whole page is about, and it took an adversarial reader to do the subtraction. |
+| **L12** (#540, this wave) | **30** | itemised below, one named unit per line with the proof that establishes it — the count follows the itemisation rather than the itemisation following a number. **Fifteen before the adversarial review and fifteen more from it**, which is this table's oldest reading arriving again: the sharpest findings are in the round that reads the previous round's work, and thirteen of the second fifteen are in instruments this wave had already repaired once |
 
 ### L12's fifteen, itemised
 
@@ -3707,11 +3819,49 @@ R112's tolerance hold had TWO independent causes of vacuity and had been counted
 | 14 | **THE SHARPEST** — R115 held that the bar had a `::view-transition-group` of its own, which was TRUE, while its own stated principle « the hold is the GROUP, not a pixel » was what blinded it. The operator saw the defect and the steward filmed it one commit after the rule was written for it | **R118** (`harness/chrome_pixels.py`); its mutation reproduces the filmed defect at drift 51.9 of 255 against the steward's 52.1 |
 | 15 | **B-276** — hand-set delays in an INSTRUMENT outlived the durations they were set against, twice in one rule (420 ms and 340 ms in `touch.py`) | register entry B-276; both repaired, the species left open |
 
-**A probe that truncated its own evidence** — eight rows read of ten running, which reported a defect
-that was NOT there — is recorded in the R115 commit and is deliberately NOT counted here: this table
-counts instruments that were green over a defect, and that one was red over its absence. It is the
-mirror, worth knowing and not the same thing.
+### The criterion, stated once — and it admits both signs
 
+**The species is an instrument whose READING does not decide what it claims to decide.** Not « green
+over a defect » alone: a reader who trusts a printed verdict is misled in either direction, and the
+cost of a false red — a defect report about code that was correct, and the re-architecture it nearly
+bought — is not smaller than the cost of a false green.
+
+**This was written the other way and the table already contradicted it.** The paragraph here said the
+count admits only instruments green over a defect, and excluded the probe that truncated its own
+evidence on that ground — while unit 2 (**B-274**, an arm that read DOCSTRINGS as code and accused a
+rule that mutates nothing) is described in this very table as « B-085 with its sign REVERSED », and
+unit 3 is a guard that printed « 0 violation(s) » while exiting 1. Two red cases in, one red case
+out, one criterion. An adversarial reader applied the stated criterion and got 13 or 16, never 15.
+
+So the criterion is the broad one, it is written here rather than inferred, and the probe is unit 16
+below.
+
+
+### The fifteen the adversarial review found, itemised the same way
+
+**Four independent readers on a wave whose every tier was green** — 86 rules, `--a11y` at 0,
+`make check` at zero, the oracle at 2 958 with no divergence. **Thirteen of the fifteen are in
+instruments this wave had already repaired once**, which is the reading the L11 row states and the
+L15 row states before it: the round that reads the previous round's work is where the sharp findings
+are.
+
+| # | The unit | What establishes it |
+| ---: | --- | --- |
+| 16 | **The probe that truncated its own evidence** — eight rows read of ten running, which reported a defect that was not there and nearly bought a re-architecture | recorded in the R115 commit; admitted by the criterion above, which is the correction |
+| 17 | R115's priming hold was green with `placeholderData` DELETED — it read the hero's TITLE, which `media-screen.tsx` derives from the route and draws whether or not anything primed, and `status === 'pending'`, which is true with or without priming | commit `fix(maquette-l12): the priming hold reads what only priming supplies`; the hold reads the meta line while the cache is empty |
+| 18 | `hold_one_entry_one_owner` only ever took the `faded` branch — every exercise opened a fresh context, so the fanart was never cached; the branch written for the operator's flash had never executed once, and the branch that did run was green over a second entry animation, because a second entry also dips | commit `fix(maquette-l12): both branches are driven`; the warm branch pre-decodes the file in the same context |
+| 19 | `check-feedback-seam.py` counted its own PROSE — the sentences describing the seam satisfied the floor the seam was supposed to meet | commit repairing the guard; comments stripped before counting |
+| 20 | **B-279** — twelve contracts-tier guards run in no CI job when a pull request edits only the guard; the two existing holds both read a guard's SUBJECT, so the third question had never been asked | register entry B-279; the new hold falls over 11 of the 12 with the glob removed |
+| 21 | R113's release hold read a node the panel's redraw had REPLACED — a brand-new tile is never pressed, so the hold answered « released » whatever the gesture did | commit `fix(maquette-l12): the press holds read the delay they wait on, and the node they pressed`; mutation reads `replaced: True` |
+| 22 | R112's mouse hold laid 740 ms BY HAND against a press delay of 480 the design draws — B-276's species inside the file whose docstring says it removed that species | same commit; the mutation raises the delay to 900 and deletes the tolerance, and the hold still bites |
+| 23 | R118 never established that a transition was CROSSING when its « in flight » sample was taken — delete `startViewTransition` and the two reads are two settled bars, drift 0.0, green over a transition that does not happen | commit `fix(maquette-l12): the two runtime probes establish the condition they measure`; reads `:active-view-transition` on both sides of the capture |
+| 24 | R114 never established that a poster LANDED — an image that never arrives never pushes anything, so a broken fixture reads exactly like success | same commit; counts decoded posters across its own release |
+| 25 | R114's « a poster box has its height » read the whole TILE, which carries a title and a subtitle under the picture: it held with the poster box deleted outright | commit `fix(maquette-l12): a cancelled pull is released…`; the mutation deleting `aspect-ratio` now fells it |
+| 26 | `touch.py` was the THIRD rule re-typing the press delay, in a wave that had already repaired two for it | same commit; reads `window.__gestures.press`, and a delay moved to 700 no longer fells it |
+| 27 | R113 asserted a mark landed SOMEWHERE in the document — `feedback("commit", document.body)` satisfied every hold | same commit; the mark's target is held, and the mutation reads `tag: 'body'` |
+| 28 | **The repair for B-281 created a second owner one frame later** — scoping the rule away with `:not(:active-view-transition)` leaves `translate: none` for the arrival and `0 0` afterwards, a real transition starting the moment the selector begins to match | caught by the hold written for B-281, on its first run; the transition is silenced rather than the rule |
+| 29 | The faded branch's `min < 1.0` is satisfied by a FLASH exactly as by a fade, which is how **B-282** sat under it | register entry B-282; the hold now samples the cover and the element separately |
+| 30 | « The media body's arrival is drawn » passed with `animation: body-rise …` DELETED — every view-transition pseudo-element gets the browser's own cross-fade by default, so « something animates here » is true either way | found by mutating the drawing the hold was written for; the hold reads the animation's NAME, and the mutation now reports `-ua-view-transition-fade-in` |
 
 **The nine the correction wave found, since a wave that counts itself has to name its own.** The
 figure is large because the count is honest, not because the wave was worse: four of the nine are
@@ -4993,7 +5143,19 @@ positioned against it sits behind the keys. `index.html:13` declares
 `width=device-width,initial-scale=1` and nothing else. **L12's**; a static read of the meta is
 the rule, and the rendered behaviour is device-only, like the safe areas.
 
-<sub>`grep -c "interactive-widget" frontend/maquette/design/index.html` → 0</sub>
+> **Closed by L12 (#540).** `index.html:20` declares
+> `width=device-width,initial-scale=1,interactive-widget=resizes-content`, and the static read is
+> a rule rather than a reading: `scripts/check-viewport-directives.py` REQUIRES that directive and
+> refuses a viewport meta without it, across every host the maquette serves. The rendered
+> behaviour stays device-only, like the safe areas — what is held here is the declaration, which
+> is the only half a machine can see.
+>
+> The row said `open` for two days while `IMPLEMENTATION.md`, the pull request's body, the wave's
+> report and its closing phase all said closed — four writings against one, and the register is
+> the one that counts. Found by the adversarial review, not by a gate: `check-bug-register`
+> printed « 0 closed by this branch » and nothing compares that against the prose.
+
+<sub>`grep -c "interactive-widget" frontend/maquette/design/index.html` → 1</sub>
 
 **B-235 — no desktop navigation exists beyond the drawer.**
 `#nav` is `md:hidden` (`index.html:448`) and no rail exists anywhere under `design/src` — at
