@@ -362,12 +362,21 @@ async def hold_the_mouse_tolerance(journal, browser):
 # and a gesture with no threshold at all passes every hold it has, refreshing on
 # every downward flick the scrollport ever sees.
 
-# Comfortably short of the 44px arming distance once the 0.45 damping is applied
-# (60 * 0.45 = 27), and long enough to claim the vertical axis at 8px.
-SHORT_PULL = 60
-
-# Past it: 160 * 0.45 = 72, the cap, which is above 44.
-LONG_PULL = 160
+# THE DRIVE DISTANCES ARE DERIVED FROM THE PUBLISHED NUMBERS, not typed — which
+# is what makes the publish itself checkable.
+#
+# Round 1 had this rule READ the arming distance instead of re-typing it, and
+# round 2 asked the next question: can a WRONG publish pass? It could. With the
+# distances typed, a publish reporting a value far BELOW the real one left both
+# holds green — the short pull still failed to arm the real gesture, and
+# `0 < 1` is true. The number was read and never confronted with the behaviour
+# it describes.
+#
+# Deriving the drives from it closes that: a publish that disagrees with the
+# gesture produces a pull the gesture treats the other way round, and the holds
+# fall. The margins are in the DAMPED domain, either side of the arming
+# distance, so they follow it wherever it moves.
+DAMPED_MARGIN_PIXELS = 8
 
 # READ FROM THE PAGE, NEVER RE-TYPED — `window.__gestures` is what the
 # vocabulary publishes for whatever drives it. This file said, in its own
@@ -441,15 +450,22 @@ async def hold_the_pull_threshold(journal, browser):
         "()=>{const e=document.querySelector('#port');"
         "const r=e.getBoundingClientRect();"
         "return {x:r.x, y:r.y, width:r.width};}")
-    arming = await page.evaluate("()=>window.__gestures.pull.armPixels")
+    pull_numbers = await page.evaluate("()=>window.__gestures.pull")
+    arming = pull_numbers["armPixels"]
+    damping = pull_numbers["damping"]
+    # In the finger's own domain: what the gesture must travel for the pull to
+    # land just under and just over its arming distance.
+    short_pull = round((arming - DAMPED_MARGIN_PIXELS) / damping)
+    long_pull = round((arming + DAMPED_MARGIN_PIXELS) / damping)
     journal.check("the pull gesture publishes its arming distance",
-                  isinstance(arming, (int, float)) and arming > 0,
+                  isinstance(arming, (int, float)) and arming > 0
+                  and isinstance(damping, (int, float)) and 0 < damping <= 1,
                   f"read {arming!r} — the rule would have to re-type it, which "
                   "is the second source of truth B-276 names")
 
     # THE CONTROL FIRST. Without it the negative below passes just as well over
     # a pull-to-refresh that is simply broken.
-    await drive_pull(page, port, LONG_PULL)
+    await drive_pull(page, port, long_pull)
     await page.wait_for_timeout(220)
     # READ AS GEOMETRY, NOT AS A CLASS NAME. D4: a rule anchors on `data-*` or
     # on what the element measurably IS, never on a style class — a class-name
@@ -465,12 +481,12 @@ async def hold_the_pull_threshold(journal, browser):
     await page.evaluate("()=>window.__reposPTR()")
     await page.wait_for_timeout(120)
 
-    await drive_pull(page, port, SHORT_PULL)
+    await drive_pull(page, port, short_pull)
     await page.wait_for_timeout(220)
     reading = await page.evaluate(
         "()=>document.querySelector('#ptr').getBoundingClientRect().height")
     journal.check(
-        f"a pull of {SHORT_PULL}px — short of the arming distance — refreshes "
+        f"a pull of {short_pull}px — short of the arming distance — refreshes "
         "NOTHING",
         reading < arming,
         f"the indicator stood at {reading}px, at or past the {arming}px "
@@ -485,7 +501,7 @@ async def hold_the_pull_threshold(journal, browser):
     # clearing it — so a release read on that number alone refreshes after a
     # pull the reader visibly abandoned. The engine checked the FINAL direction
     # beside the armed state; this holds that it still does.
-    await drive_pull_and_back(page, port, LONG_PULL)
+    await drive_pull_and_back(page, port, long_pull)
     await page.wait_for_timeout(220)
     reading = await page.evaluate(
         "()=>document.querySelector('#ptr').getBoundingClientRect().height")

@@ -184,21 +184,33 @@ export function installDrawerDismissGesture(): () => void {
   //
   // The accumulation is the durable half: every mount of the drawer added a set
   // of listeners that nothing removed.
+  // TWO OPTION OBJECTS, NOT ONE, and the difference is a change I nearly made
+  // by accident. The touch listeners were `{ passive: true }`; the FOUR POINTER
+  // listeners carried no options at all, which means passive: FALSE. A single
+  // shared object gave all eight `passive: true` and silently took
+  // `preventDefault` away from the pointer path — and this file's own comment
+  // records that the author had considered `preventDefault` and found it
+  // unnecessary TODAY, which is not the same as never.
+  //
+  // Nothing calls it now, so nothing broke; a repair that quietly forecloses an
+  // option is still a repair that changed something nobody asked it to. Found
+  // in the adversarial round that followed the one which added the controller.
   const listeners = new AbortController();
-  const attached = { passive: true, signal: listeners.signal };
+  const passively = { passive: true, signal: listeners.signal };
+  const attached = { signal: listeners.signal };
 
   drawer.addEventListener("touchstart", (event: TouchEvent) => {
     // Two fingers are not this gesture, and reading the first of them would
     // make a pinch look like a swipe.
     if (event.touches.length !== 1) { end(true); return; }
     begin(event.touches[0].clientX);
-  }, attached);
+  }, passively);
   drawer.addEventListener("touchmove", (event: TouchEvent) => {
     if (event.touches.length !== 1) return;
     advance(event.touches[0].clientX);
-  }, attached);
-  drawer.addEventListener("touchend", () => end(false), attached);
-  drawer.addEventListener("touchcancel", () => end(true), attached);
+  }, passively);
+  drawer.addEventListener("touchend", () => end(false), passively);
+  drawer.addEventListener("touchcancel", () => end(true), passively);
 
   // EVERYTHING ELSE. A mouse and a pen are never cancelled by a compositor
   // deciding it wants to scroll, so the pointer path serves them unchanged —
