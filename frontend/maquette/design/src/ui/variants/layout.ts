@@ -142,8 +142,14 @@ export const bottomSheet = cva(
     variants: {
       open: {
         true: "open [transform:none] visible transition-[transform]",
+        // B-249's idiom: `visibility` is delayed by the SLIDE'S OWN LENGTH, so
+        // the layer stays hit-testable until it has finished leaving and the
+        // screen behind it does not flash. The delay was 300ms while the step
+        // three lines above moved to `--duration-4` — 450 — so the sheet went
+        // `invisible` 150ms before it had finished sliding, which is the cut
+        // the idiom exists to prevent, in the wave that lengthened the step.
         false: "[transform:translateY(100%)] invisible "
-          + "transition-[transform,visibility] [transition-delay:0s,300ms]",
+          + "transition-[transform,visibility] [transition-delay:0s,450ms]",
       },
     },
     defaultVariants: { open: false },
