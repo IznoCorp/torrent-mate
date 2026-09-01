@@ -38,6 +38,15 @@ WHAT IT DOES NOT READ, said before what it does:
   - The store bump is `window.__store.touch()` — the same call every engine
     action ends in. A bump made another way is not a different case; that is
     the one door.
+  - Hold (f) reads a PAGE's own nodes — cards, tiles, rows, buttons, pills,
+    images, key-value rows — on seven named states, and NOT the containers
+    the dying engine fills on Découvrir (`#sugitems`, the deck): those are
+    the producers' half of the same defect and belong to the lot that moves
+    the producers. Nor a write that legitimately redraws — entering selection
+    mode, a sort, a delete: the bump driven is `touch()`, which changes no
+    row. And not `features/maintenance/page.tsx`, where the defect was first
+    seen: it is held by nobody yet and this hold says so rather than reading
+    a surface the repair did not reach.
 """
 import asyncio
 import sys
@@ -55,6 +64,42 @@ from playwright.async_api import async_playwright
 CAPTURE = """() => {
   window.__persistenceProbe = [...document.querySelectorAll('#nav button')];
   return window.__persistenceProbe.length;
+}"""
+
+# (f) THE PAGE'S OWN NODES — B-247's surface half. A store write between
+# `pointerdown` and `click` replaced a page's DOM nodes and the tap was lost:
+# no event, no error. The chrome was held (b, c); a page's rows had the same
+# property and nothing read it. Two mechanisms, both repaired in the surfaces:
+# React 19 assigns `innerHTML` on the prop OBJECT's identity, so every inline
+# `{ __html }` recreated its children on every render (B-295, `ui/markup.tsx`);
+# and the library's window was keyed on the store's version, so every bump
+# emptied it. The states below cover the two acquisition tabs React draws,
+# the library in both modes, and the two screens this lot cut; a floor on the
+# nodes captured keeps a state that draws nothing from passing as kept.
+PAGE_STATES = (
+    ("acq-now-loaded", 10), ("acq-follows-list", 10), ("acq-follows-grid", 10),
+    ("lib-list", 10), ("lib-grid", 10), ("mediasheet-series", 10), ("arr-resolution", 10),
+)
+PAGE_SELECTOR = (
+    '#view [data-part="card"], #view [data-part="tile"], #view button, '
+    '#view [data-part="pill"], #view img, '
+    '[data-part="screen"][data-open] button, '
+    '[data-part="screen"][data-open] [data-part="episode/row"], '
+    '[data-part="screen"][data-open] [data-part="card"], '
+    '[data-part="screen"][data-open] [data-part="key-value"], '
+    '[data-part="screen"][data-open] img'
+)
+PAGE_CAPTURE = """(selector) => {
+  window.__pageProbe = [...document.querySelectorAll(selector)];
+  return window.__pageProbe.length;
+}"""
+PAGE_SAME = """(selector) => {
+  const before = window.__pageProbe || [];
+  const now = [...document.querySelectorAll(selector)];
+  const same = before.filter((node, at) => node.isSameNode(now[at])).length;
+  return { before: before.length, now: now.length, same,
+           lost: before.filter((node) => !node.isConnected).slice(0, 3).map(
+             (node) => (node.dataset && node.dataset.part) || node.tagName) };
 }"""
 
 SAME = """() => {
@@ -245,6 +290,25 @@ async def main():
             str(undo))
         await page.evaluate("()=>window.__toast.hide()")
         await page.wait_for_timeout(200)
+
+        # (f) THE PAGE'S OWN NODES, across the same bump, on every surface the
+        # lot that repaired them cut. `isSameNode` by position, as (b) does: a
+        # replacement node satisfies every other question.
+        for state, floor in PAGE_STATES:
+            await page.evaluate("(id)=>window.__go(id)", state)
+            await page.evaluate("()=>window.__mocks?.quiet()")
+            await page.wait_for_timeout(300)
+            captured = await page.evaluate(PAGE_CAPTURE, PAGE_SELECTOR)
+            await page.evaluate("()=>window.__store.touch()")
+            await page.wait_for_timeout(250)
+            kept = await page.evaluate(PAGE_SAME, PAGE_SELECTOR)
+            journal.check(
+                f"on {state}, the page's own nodes are the SAME nodes after a "
+                "store bump (B-247, B-295)",
+                captured >= floor and kept["now"] == captured
+                and kept["same"] == captured,
+                f"{captured} captured (floor {floor}), {kept['now']} after, "
+                f"{kept['same']} same; lost: {kept['lost']}")
 
         # (e) THE POSITIVE CONTROL FOR (a), and it comes LAST because it
         # destroys the document every hold above measures. One real navigation:
