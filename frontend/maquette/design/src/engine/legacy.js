@@ -8115,7 +8115,6 @@ import { icons } from "../app/icons";
     },
     onPress: openPanel,
   });
-  const { cancelPress, followPress } = pressArbitration;
 
   /* User menu.
      One entry today — signing out — and the shape that will hold the rest: this
@@ -32714,7 +32713,7 @@ Object.assign(window, {
   TRIS, URGENCY, VIA_LABEL, actionLeave, actionPause,
   actionTake, actionResolve, actionRetirer, actionFollow,
   actionDelete, addVerb, showSignIn, showStartup,
-  showInstallation, cancelPress, applyState, advanceDeck,
+  showInstallation, applyState, advanceDeck,
   baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
   closeDlg, closeHarness, closeScreen, closeSheet, coverLoading,
   dateFR, decisionPending, deckCardHTML, deckHTML,
@@ -32737,7 +32736,7 @@ Object.assign(window, {
   richText, seasonsOf, sheetSeasonsHTML, secHTML, secInner, seedWorld,
   select, sheetFor, titleForProviderId, addressIdsFor, skelCards, skelCardsInner, skelTiles, sortLabel,
   stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
-  sugTileHTML, sugVerb, followPress, onEngineBack,
+  sugTileHTML, sugVerb, onEngineBack,
   surfErr, surfErrInner, svgIcon, swipeHTML, tileHTML, toast, toastUndo,
   allSettings, trailerIds, displayedValue,
   rawValue, typedValue, view,
@@ -32745,7 +32744,6 @@ Object.assign(window, {
 
 // Read live, because the engine reassigns each of these.
 Object.defineProperties(window, {
-  press: { get: () => pressArbitration.press, configurable: true },
   cardDrag: { get: () => cardDrag, configurable: true },
   openCard: { get: () => openCard, configurable: true },
   openCardDx: { get: () => openCardDx, configurable: true },

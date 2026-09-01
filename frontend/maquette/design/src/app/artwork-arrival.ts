@@ -46,6 +46,13 @@ function urlWithin(backgroundImage: string): string | null {
   return found ? found[1] : null;
 }
 
+// WHICH FILE EACH HERO IS CURRENTLY FOLLOWING.
+//
+// Kept beside the node rather than on it: a `data-*` attribute is a contract
+// with three ends, and nothing but this module has any business reading which
+// URL was last watched. A WeakMap also lets the entry go when the node does.
+const followed = new WeakMap<HTMLElement, string>();
+
 /**
  * Marks one hero background once its file has been decoded.
  *
@@ -53,9 +60,26 @@ function urlWithin(backgroundImage: string): string | null {
  *     node: The element carrying the `background-image`.
  */
 function follow(node: HTMLElement): void {
-  if (node.dataset.arrival) return;
   const source = urlWithin(getComputedStyle(node).backgroundImage);
   if (!source) return;
+  // THE SAME NODE, A DIFFERENT FILE — the case the first version could not see.
+  // It returned early on `data-arrival` being set at all, so a hero whose
+  // picture CHANGED under it was never followed again. That is not a
+  // hypothetical path: the media screen leads to other media (a suggestion, a
+  // related title), the route's params change, React re-renders the SAME
+  // element with a new `background-image`, and the stale mark stayed. The new
+  // file then snapped in with no entry at all, which is the defect this whole
+  // module exists to remove — on the one navigation most likely to happen twice
+  // in a row.
+  //
+  // Compared by SOURCE rather than by presence, so a re-render that changes
+  // nothing still costs nothing.
+  if (followed.get(node) === source) return;
+  followed.set(node, source);
+  // The mark is cleared first: an attribute re-set to the value it already
+  // holds restarts no animation, so a hero going from one faded arrival to the
+  // next would appear without one.
+  delete node.dataset.arrival;
 
   const image = new Image();
   image.src = source;
@@ -76,6 +100,11 @@ function follow(node: HTMLElement): void {
   }
 
   const settle = () => {
+    // A DECODE THAT LANDS AFTER THE PICTURE MOVED ON MARKS NOTHING. Two
+    // navigations in quick succession leave two decodes in flight, and the
+    // slower one would otherwise mark the newer hero as having faded in a file
+    // it is not showing.
+    if (followed.get(node) !== source) return;
     node.dataset.arrival = ARTWORK_ARRIVAL.faded;
   };
   // `decode()` is the contract the lot's Done-when asks for; `onload` is the
@@ -106,6 +135,18 @@ export function installArtworkArrival(): void {
   // whole-document observer is the defect rather than the instrument.
   new MutationObserver((records) => {
     for (const record of records) {
+      // A HERO WHOSE PICTURE CHANGES IN PLACE. The background is an inline
+      // style, so the change arrives as an attribute mutation on a node that
+      // was never added — invisible to a childList-only observer. The filter
+      // keeps the cost where the childList branch already put it: one attribute
+      // name, and a `matches` before anything else runs.
+      if (record.type === "attributes") {
+        const target = record.target;
+        if (target instanceof HTMLElement && target.matches(HERO_BACKGROUND)) {
+          follow(target);
+        }
+        continue;
+      }
       for (const added of record.addedNodes) {
         if (!(added instanceof Element)) continue;
         if (added.matches(HERO_BACKGROUND)) {
@@ -115,5 +156,10 @@ export function installArtworkArrival(): void {
         added.querySelectorAll<HTMLElement>(HERO_BACKGROUND).forEach(follow);
       }
     }
-  }).observe(document.documentElement, { subtree: true, childList: true });
+  }).observe(document.documentElement, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ["style"],
+  });
 }

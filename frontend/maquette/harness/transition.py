@@ -260,6 +260,12 @@ async def hold_under(journal, browser, motion):
 # ANCHORED ON `data-part`, NEVER ON THE CLASS (D4). A selector held in a
 # variable dies the day the class is removed exactly like one written in a
 # call, and `check-markup-contracts` refuses both at a hard zero.
+ARRIVING_BACKGROUND_READ = """()=>{
+  const hero = document.querySelector('[data-part="hero/background"]');
+  return {arrival: hero ? (hero.dataset.arrival || '') : '',
+          background: hero ? hero.style.backgroundImage : ''};
+}"""
+
 ARRIVING_BACKGROUND = '[data-part="hero/background"]'
 
 
@@ -629,6 +635,86 @@ async def hold_the_panel_departs(journal, browser):
     await context.close()
 
 
+async def hold_a_hero_that_changes_picture(journal, browser):
+    """Navigates media to media and reads whether the hero is followed again.
+
+    THE MEDIA SCREEN LEADS TO OTHER MEDIA — a suggestion, a related title — and
+    the route's params change while the SAME element stays mounted with a new
+    `background-image`. The first version of `artwork-arrival` returned early on
+    `data-arrival` being set at all, and its observer watched added nodes only,
+    so nothing followed the second picture: the stale mark stayed, no entry
+    played, and the new fanart snapped in. On the one navigation most likely to
+    happen twice in a row.
+
+    Args:
+        journal: The rule's journal.
+        browser: A launched Playwright browser.
+    """
+    context, page = await open_page_with(browser, "no-preference")
+    await page.evaluate("(s)=>window.__go(s)", FROM_STATE)
+    await page.wait_for_timeout(600)
+    await page.click(TILE)
+    await page.wait_for_timeout(1500)
+
+    first = await page.evaluate(ARRIVING_BACKGROUND_READ)
+    journal.check(
+        "the media screen is reached with a hero that carries a picture",
+        bool(first["background"]) and bool(first["arrival"]),
+        f"read {first} — without a first arrival there is no second one to "
+        "compare against")
+    if not (first["background"] and first["arrival"]):
+        await context.close()
+        return
+
+    # EVERY WRITE OF THE MARK, counted across the second navigation. Its VALUE
+    # cannot decide this: two faded arrivals in a row read `faded` both times,
+    # so a stale mark and a fresh one are the same string. What separates them
+    # is whether anything wrote it.
+    await page.evaluate("""()=>{
+      window.__hero = document.querySelector('[data-part="hero/background"]');
+      window.__arrivalWrites = 0;
+      new MutationObserver((records) => {
+        window.__arrivalWrites += records.length;
+      }).observe(window.__hero, {attributes: true,
+                                 attributeFilter: ['data-arrival']});
+    }""")
+    clicked = await page.evaluate("""()=>{
+      const all = [...document.querySelectorAll('[data-mediasheet]')];
+      const node = all[all.length - 1];
+      if (!node) return null;
+      node.click();
+      return node.getAttribute('data-mediasheet');
+    }""")
+    journal.check(
+        "and it offers a way to ANOTHER medium",
+        bool(clicked),
+        "no `[data-mediasheet]` on the media screen — the navigation this hold "
+        "measures cannot be driven")
+    if not clicked:
+        await context.close()
+        return
+    await page.wait_for_timeout(1600)
+
+    second = await page.evaluate(ARRIVING_BACKGROUND_READ)
+    same_node = await page.evaluate(
+        "()=>window.__hero === document.querySelector('[data-part=\"hero/background\"]')")
+    writes = await page.evaluate("()=>window.__arrivalWrites")
+
+    journal.check(
+        "the second medium reuses the SAME hero element with a NEW picture",
+        same_node and second["background"] != first["background"],
+        f"same node {same_node}, {first['background']} then "
+        f"{second['background']} — this hold exists for a picture that changes "
+        "UNDER a mounted element, and that is not what was driven")
+    journal.check(
+        "and the mark is WRITTEN AGAIN, so the new picture gets an entry",
+        writes >= 1,
+        f"{writes} write(s) of `data-arrival` across the navigation — the mark "
+        "left over from the previous medium was kept, so the arriving fanart "
+        "plays no entry and snaps in")
+    await context.close()
+
+
 async def hold(journal):
     """Drives the page switch under both motion preferences."""
     errors = []
@@ -641,6 +727,7 @@ async def hold(journal):
         await hold_the_priming(journal, browser)
         await hold_the_chrome_stays_in_front(journal, browser)
         await hold_the_panel_departs(journal, browser)
+        await hold_a_hero_that_changes_picture(journal, browser)
         await browser.close()
     journal.summary(errors)
 

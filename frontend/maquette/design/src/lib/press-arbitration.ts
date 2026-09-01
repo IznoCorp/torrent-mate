@@ -154,8 +154,8 @@ declare global {
      * Found by an adversarial pass over this wave's own instruments, one commit
      * after the wave NAMED that species (B-276).
      *
-     * It is a driving surface, like `window.press` and `window.__mocks`, not a
-     * bridge: nothing in the application reads it.
+     * It is a driving surface, like `window.swallowClick` and
+     * `window.__mocks`, not a bridge: nothing in the application reads it.
      */
     __gestures?: Record<string, Record<string, number>>;
   }
