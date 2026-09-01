@@ -348,6 +348,7 @@ when the defect comes back.
 | B-286 | A hero whose picture changes UNDER it — media to media — was never followed again, and the new fanart snapped in | by L12 review | `fixed #540` |
 | B-287 | 266 maquette/harness comments name a date, a lot or a phase — the rule against it has no arm, so nothing counts them | by L12 review | `open` |
 | B-288 | The media screen's priming matches a title by PREFIX, so a medium whose title prefixes another opens with the other one's poster and year | by L12 review | `open` |
+| B-289 | `check-frame-domain`'s comment scanner opens a phantom string on a REGEX LITERAL holding a quote, and counts every comment after it as code | by L12 | `fixed #540` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -376,6 +377,26 @@ nobody can name or a mark nobody can account for. Both matter the day haptics ma
 something. **The remaining candidate I did not test is a node REPLACED between the two marks** — a
 re-render giving a fresh `#drawer` that is also marked — which would explain both `null` oldValues
 and the single node count.
+
+**B-289 — the frame-domain guard's comment scanner opens a phantom string on a regex literal.**
+It scans rather than substitutes, deliberately — a `//` inside a string is not a comment — and the
+quote branch runs BEFORE the comment branch. So a regex literal holding a quote opens a string the
+scanner never closes: `app/artwork-arrival.ts`'s own `/url\(["']?(.+?)["']?\)/` opened one and the
+scanner stayed inside it for thirty lines, emitting every comment it passed as code. Two `media` in
+a sentence about the media screen were counted as domain words in the frame, and the guard went RED
+over prose — the invariant it holds is about identifiers.
+
+**A false red, and this register counts it**: the criterion above admits both signs, because a
+reader who trusts a printed verdict is misled either way. This one cost an hour and nearly a
+ceiling raise, which is the expensive half — the ceiling would then have blessed two words that
+were never there.
+
+**The fix is the language's own rule** rather than a regex-literal parser: a `'` or `"` string
+cannot contain a raw newline, so reaching one means the quote was never an opener. Only a backtick
+spans lines.
+
+<sub>`python3 scripts/check-frame-domain.py` → `app/ 129` (131 before, over 9 060 identifier words
+against 9 192 — the difference is the prose it was reading)</sub>
 
 **B-287 — the rule that maquette comments carry no date, lot or phase has no arm.**
 `CLAUDE.md` § Language: « Maquette/harness comments carry no reference to a session, a phase or a
