@@ -4,7 +4,7 @@
 of the product it is allowed to describe, where it lives because of that, in which language it is
 written, and what happens to it on the day the next version reaches production. It was dictated
 by the operator on 2026-08-31, at the close of a reflection that changed nothing before it was
-finished, and the move that first applied it is `docs/features/docs-cleanup/DESIGN.md` (a wave's
+finished, and the move that first applied it is `docs/features/docs-cleanup/DESIGN.md@81ad0492` (a wave's
 design; once merged it is read from history, § 2 says how).
 
 **Why it exists.** The maquette is the NEXT version of the application and it REPLACES the shipped
@@ -35,7 +35,7 @@ switched off tomorrow, would this sentence still be true? » A document whose se
 about the shipped engine's modules, its web routes, its CLI, its deploy topology or its operator
 manual is the present. A document whose sentences are about TMDB's pagination or how a golden
 file is regenerated is knowledge, even when it was written for the present. The first application
-of the criterion, file by file, is `docs/features/docs-cleanup/DESIGN.md` § 2; a later reader who
+of the criterion, file by file, is `docs/features/docs-cleanup/DESIGN.md@81ad0492` § 2; a later reader who
 finds a file on the wrong side moves it, under § 7.1 of the plan, and says why.
 
 **The present is frozen, and « frozen » means this.** No file is born under `docs/production/`
@@ -75,7 +75,7 @@ ambiguous.
 
 **The universal key.** Every path that ever lived under `docs/archive/`, `docs/superpowers/` and
 `docs/analysis/` existed at the commit the move was cut from, named in
-`docs/features/docs-cleanup/DESIGN.md` § 4 and in the move's own pull request. A reader who meets
+`docs/features/docs-cleanup/DESIGN.md@81ad0492` § 4 and in the move's own pull request. A reader who meets
 a bare `docs/archive/…` path in a document that was not rewritten — a production document, an old
 commit message, a review comment — reads it with `git show <that sha>:<path>`, and when in doubt,
 `git log --all --oneline -- <path>` lists every commit that touched it.
