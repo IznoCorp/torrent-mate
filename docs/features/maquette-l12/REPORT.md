@@ -50,7 +50,12 @@ their engine-side callers stay for L19, by the brief's own boundary.
 
 ---
 
-## 3. The first fifteen instruments that could not fail
+## 3. The first fifteen instruments that could not fail — six of them here
+
+**The other eight are in § 6c and § 6e**, where they were written as they were found; only the
+count moved to this heading. They are all itemised together, one line each with what establishes
+them, in `BUGS.md` § « L12's fifteen, itemised » — that table is the list, and this section is the
+six the wave stopped to explain.
 
 **Every one was found by mutation or by another guard. None by reading.** That is the only reason
 they were cheap.
@@ -439,7 +444,7 @@ count** — the ones in the pull request's body and in `IMPLEMENTATION.md` say t
 | --- | --- |
 | `run.sh` full suite | **86 rules + 25 guards, no violation** |
 | `run.sh --a11y` | 87 states, 0 violations; light-theme debt **at its ceiling of 166**, unmoved |
-| `harness-hold-counts.py --compare` | **6 rules ROSE, none fell** — `chrome_pixels` 3→4, `feedback` 14→18, `poster` 4→5, `press` 12→14, `transition` 16→36, `virtual` 7→12 |
+| `harness-hold-counts.py --compare` | **10 rules ROSE across the two rounds, none fell** — round one: `chrome_pixels` 3→4, `feedback` 14→18, `poster` 4→5, `press` 12→14, `transition` 16→36, `virtual` 7→12; round two: `feedback` 18→22, `press` 14→15, `transition` 36→39, `virtual` 12→17 |
 | `make check` | **10 983 passed, 4 skipped, 2 xfailed, 0 failed, 0 errors** |
 | oracle | **2 958 measurements, no divergence**, reference at `39363e1d` |
 
@@ -452,8 +457,10 @@ here is the one from before the adversarial round, so the six movements above ar
 of them a rise, each named. The baseline is re-recorded at the close so the NEXT wave compares
 against this one.
 
-**Register 270 → 289 rows**: B-271 to B-289 filed; **twelve closed by this branch**, B-234 and
-B-252 among them. **B-085 recounted at THIRTY** — fifteen by the wave and fifteen by the
+**Register 270 → 290 rows**: B-271 to B-290 filed; **thirteen closed by this branch**, B-234 and
+B-252 among them. *(This line read « twelve » for a day: B-289 was filed after the sentence was
+written and the count was copied forward — the counter drift the two paragraphs above describe, in
+the paragraph describing it.)* **B-085 recounted at THIRTY** — fifteen by the wave and fifteen by the
 adversarial review — each a line in `BUGS.md` with what establishes it, and the criterion that
 decides them written there for the first time.
 
