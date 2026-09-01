@@ -335,7 +335,6 @@ GRANDFATHERED = {
     "features/acquisition/page.tsx": "L14 — decomposition (L07 converted the surface, L09 did not shrink it)",
     "features/library/page.tsx": "L14 — decomposition (L07 converted the surface, L09 did not shrink it)",
     "features/media/media-screen.tsx": "L14 — decomposition (L07 converted the surface, L09 did not shrink it)",
-    "features/arrivals/resolution-screen.tsx": "L14 — decomposition (L07 converted the surface, L09 did not shrink it)",
 }
 
 # A LABEL IS HELD AGAINST TWO DOCUMENTS, because since 2026-08-28 the answer
