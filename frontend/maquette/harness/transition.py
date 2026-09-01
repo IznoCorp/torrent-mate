@@ -331,13 +331,27 @@ PRIMING_DELAY_MILLISECONDS = 1200
 MEDIA_TITLE = '[data-part="hero/title"]'
 
 READ_PRIMING = """()=>{
+  // THE SHEET'S OWN QUERY, not the seasons one beside it: both keys begin
+  // '/api/media', and `find` took whichever came first.
   const sheet = window.__queries.getQueryCache().getAll()
-    .find((query) => query.queryKey[0] === '/api/media');
-  const heading = document.querySelector('[data-part="hero/title"]');
+    .find((query) => query.queryKey[0] === '/api/media'
+                     && query.queryKey.length === 3);
+  // THE META LINE, NOT THE TITLE. The title is derived from the ROUTE
+  // (`titleForProviderId`) and is drawn whether or not anything primed the
+  // query — reading it left this hold green with `placeholderData` DELETED,
+  // which is the trap its own comment says it refuses. The year and the type
+  // come from the sheet payload, and only priming puts them on screen before
+  // the read lands.
+  const meta = document.querySelector('[data-part="hero/content"] p');
   return {
-    title: ((heading && heading.textContent) || '').trim(),
-    placeholder: !!(sheet && sheet.state.status === 'pending'),
-    fetched: !!(sheet && sheet.state.data !== undefined),
+    meta: ((meta && meta.textContent) || '').trim(),
+    // THE CACHE IS EMPTY UNTIL THE READ LANDS. `state.status === 'pending'`
+    // said only that a read was outstanding, which is true with or without
+    // priming; placeholder data lives on the observer and never in
+    // `query.state`. What separates them is that the cache holds NOTHING while
+    // the screen already shows the facts.
+    cacheEmpty: !!sheet && sheet.state.data === undefined,
+    served: !!sheet && sheet.state.data !== undefined,
   };
 }"""
 
@@ -364,10 +378,14 @@ async def hold_the_priming(journal, browser):
 
     early = await page.evaluate(READ_PRIMING)
     journal.check(
-        "the media screen opens with REAL content while its read is in flight",
-        len(early["title"]) > 2 and early["placeholder"],
-        f"read {early} — the tap lands on nothing until the network answers, "
-        "which is the dead tap §12 refuses")
+        "the media screen opens with PRIMED facts while its read is in flight",
+        early["cacheEmpty"] and len(early["meta"]) > 2
+        and "inconnu" not in early["meta"].lower(),
+        f"read {early} — the screen must show the facts the tap already knew. "
+        "« Métadonnées inconnues » is the screen's OWN empty case and is what a "
+        "screen with no priming draws, so a length check alone passes over "
+        "exactly the defect this hold exists for. The cache being empty is what "
+        "makes this the PRIMED reading rather than a served one.")
 
     await page.wait_for_timeout(PRIMING_DELAY_MILLISECONDS + 900)
     late = await page.evaluate(READ_PRIMING)
@@ -376,7 +394,7 @@ async def hold_the_priming(journal, browser):
     # screen that primes and never enriches.
     journal.check(
         "and the read LANDS afterwards — primed is not the end state",
-        late["fetched"] and not late["placeholder"],
+        late["served"],
         f"read {late} — the screen shows primed content and never replaces it, "
         "which this hold would otherwise call success")
     await context.close()
