@@ -656,12 +656,44 @@
    transition finished over a hero with no picture in it, and this fade IS that
    picture's entry.
 
-   It is a TRANSITION rather than an animation on purpose: a transition has no
-   effect on an element that never changes state, so a hero marked `immediate`
-   is left alone without needing a rule to say so. */
+   WHAT FADES IS A COVER OVER THE PICTURE, NOT THE ELEMENT THAT HOLDS IT — and
+   the difference is a defect, not a preference.
+
+   This element IS the placeholder: `bg-muted` is its background colour and the
+   melt gradient is its `::after`. Fading the ELEMENT from zero therefore takes
+   the placeholder and the gradient with it — at the moment the picture decodes,
+   the muted block and the melt vanish for a frame and come back with the image.
+   Appear, flash, reappear, in miniature, in the rule written to remove that very
+   shape from the hero.
+
+   So a `::before` the colour of the placeholder covers the picture and fades
+   OUT. The element never changes opacity, the melt never blinks, and the
+   picture is revealed from the placeholder rather than the whole hero being
+   revealed from nothing.
+
+   IT ALSO ANSWERS THE CASE NOBODY MEASURED: a file that decodes DURING the
+   450ms transition. A CSS animation on a tree mounted under
+   `startViewTransition` does not start until the transition ends, so an
+   element-side fade from zero blanks the hero one frame AFTER a snapshot that
+   showed it. A cover starting from the placeholder colour is continuous with
+   that snapshot, which showed the placeholder.
+
+   `forwards`, because the cover must stay gone. A hero re-marked for a new
+   picture (media to media) has the attribute removed first, which takes the
+   pseudo-element and its animation with it. */
 @media (prefers-reduced-motion: no-preference) {
-  [data-part="hero/background"][data-arrival="faded"] {
-    animation: banner-in var(--duration-4) var(--ease-standard);
+  [data-part="hero/background"][data-arrival="faded"]::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--color-muted);
+    animation: banner-cover var(--duration-4) var(--ease-standard) forwards;
+  }
+}
+
+@keyframes banner-cover {
+  to {
+    opacity: 0;
   }
 }
 

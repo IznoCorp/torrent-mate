@@ -316,15 +316,27 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
             await context.close()
             return
 
+    # TWO SAMPLES PER FRAME, and they answer two different questions. The
+    # ELEMENT's opacity must never move: it carries the placeholder colour and
+    # the melt gradient, so anything fading IT blinks both. The COVER's opacity
+    # is the picture's entry — a `::before` the placeholder's colour, fading
+    # out, revealing the file underneath.
     await page.evaluate(
-        "(sel)=>{window.__samples=[];window.__sampler=setInterval(()=>{"
+        "(sel)=>{window.__samples=[];window.__cover=[];"
+        "window.__sampler=setInterval(()=>{"
         " const node=document.querySelector(sel);"
-        " if(node) window.__samples.push(Number(getComputedStyle(node).opacity));"
+        " if(!node) return;"
+        " window.__samples.push(Number(getComputedStyle(node).opacity));"
+        " const cover=getComputedStyle(node, '::before');"
+        " window.__cover.push(cover.content === 'none'"
+        "   ? null : Number(cover.opacity));"
         "},16);}", ARRIVING_BACKGROUND)
     await page.click(TILE)
     await page.wait_for_timeout(1600)
     samples = await page.evaluate(
         "()=>{clearInterval(window.__sampler);return window.__samples;}")
+    cover = [value for value in await page.evaluate("()=>window.__cover")
+             if value is not None]
 
     journal.check(
         f"the arriving background is sampled at all ({'warm' if warmed else 'cold'})",
@@ -362,9 +374,18 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
     else:
         journal.check(
             "a hero whose file arrived LATE fades in rather than snapping",
-            min(samples) < 1.0,
-            f"opacity never left {min(samples)} on a picture that arrived after "
-            "the transition: it appeared in one frame")
+            bool(cover) and min(cover) < 0.5 and max(cover) > 0.9,
+            f"the cover ran {max(cover) if cover else None} to "
+            f"{min(cover) if cover else None} over {len(cover)} sample(s) — "
+            "a picture that arrived after the transition appeared in one frame")
+        journal.check(
+            "and the ELEMENT itself never dips — the placeholder and the melt "
+            "stay",
+            min(samples) >= 1.0,
+            f"opacity fell to {min(samples)} on the element that CARRIES the "
+            "placeholder colour and the melt gradient: fading it takes both "
+            "away for a frame and brings them back with the image, which is "
+            "the flash this rule exists to refuse, in miniature")
         journal.check(
             "and it fades ONCE — one entry, one owner",
             descents <= 1,
