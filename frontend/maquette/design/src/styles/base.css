@@ -683,18 +683,22 @@
    the reader is leaving. It carries its own name and its OLD snapshot slides
    DOWN — its natural closing gesture — while transition A plays underneath.
 
-   AND BACK PLAYS THE MIRROR, which §16 requires anyway: Back returns to the
-   previous arrival, so it reopens the panel over the list. The same rule reads
-   both directions because the old snapshot on the way out is the new one on the
-   way back, and the pair of keyframes below is what makes the return the
-   reverse of the departure rather than a second, unrelated animation. */
+   ONLY THE DEPARTURE IS DRAWN HERE, and the reverse that used to sit beside it
+   was removed rather than left waiting for a subject. `::view-transition-new`
+   would draw the panel RETURNING, which needs Back to reopen it over the list;
+   measured on 2026-09-01, Back lands on the list with the panel shut, so that
+   half animated nothing. Reopening the panel on a backward step is the ladder's
+   own handler, which this lot does not touch — L13 owns it, and the return
+   animation is written the day the return exists.
+
+   FOR THE DEPARTURE TO EXIST AT ALL the panel has to be captured OPEN, which is
+   why the seam closes it inside the navigation's commit (`lib/navigate.ts`'s
+   `during`). Closed before the call — which is what the engine did, then waited
+   260ms — the snapshot holds an already-shut panel and this rule paints
+   nothing. It painted nothing for a day. */
 @media (prefers-reduced-motion: no-preference) {
   ::view-transition-old(leaving-panel) {
     animation: panel-down var(--duration-4) var(--ease-standard);
-  }
-
-  ::view-transition-new(leaving-panel) {
-    animation: panel-down var(--duration-4) var(--ease-standard) reverse;
   }
 }
 
@@ -715,7 +719,6 @@
   ::view-transition-group(screen-body),
   ::view-transition-group(leaving-panel),
   ::view-transition-old(leaving-panel),
-  ::view-transition-new(leaving-panel),
   ::view-transition-new(screen-banner),
   ::view-transition-new(screen-body) {
     animation: none;

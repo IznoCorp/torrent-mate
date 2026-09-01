@@ -58,21 +58,44 @@ export function installNavigation(boundRouter: Router, boundHistory: RouterHisto
  * Args:
  *     target: The address, its path params, its search params, and whether it
  *         replaces the current entry rather than pushing one.
+ *     during: Work to run inside the transition's commit, before the address
+ *         changes — for whatever must be captured departing rather than
+ *         already gone.
 
  * Raises:
  *     Error: When called before the shell's boot has handed the router over.
  *         Silence here would swallow a navigation and leave the interface on a
  *         page the URL no longer describes.
  */
-export function go(target: {
-  to: string;
-  params?: Record<string, string>;
-  search?: Record<string, unknown>;
-  replace?: boolean;
-}): void {
+export function go(
+  target: {
+    to: string;
+    params?: Record<string, string>;
+    search?: Record<string, unknown>;
+    replace?: boolean;
+  },
+  // WORK THAT BELONGS TO THE SAME COMMIT, and the reason it cannot be done by
+  // the caller before or after the call.
+  //
+  // A view transition captures the OLD state at the next rendering update after
+  // `startViewTransition` — not synchronously at the call. So a caller that
+  // dismisses something and then navigates has already dismissed it by the time
+  // the snapshot is taken, and the departing thing is captured in its dismissed
+  // state, or not captured at all. That is not a hypothesis: the panel's
+  // departure animation had no subject for exactly this reason, and doing the
+  // dismissal AFTER the call does not help either — the snapshot lands between
+  // the two statements, and no timeout can be written that is reliably on the
+  // right side of a frame boundary without being a number somebody guessed.
+  //
+  // Inside the commit the ordering is not a race: the old state is whatever was
+  // on screen when the transition started, the new state is what this callback
+  // leaves behind, and both are facts rather than timings.
+  during?: () => void,
+): void {
   if (!router || !history)
     throw new Error("navigate: go() called before installNavigation()");
   const commit = () => {
+    during?.();
     void router!.navigate({
       to: target.to,
       params: target.params,

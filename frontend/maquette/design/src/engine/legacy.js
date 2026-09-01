@@ -10081,19 +10081,10 @@ import { icons } from "../app/icons";
       return;
     }
     if (closest.dataset.mediasheet) {
-      // An open sheet sits ABOVE a screen (z-47 against z-45):
-      // opening the sheet without closing it left the sheet invisible below.
-      // The delay lets the sheet finish leaving before the screen enters.
-      const mediaSheet = closest.dataset.mediasheet;
-      // Asked of the shell, not read off the DOM: the layer is the shell's,
-      // and its store answers truthfully in the middle of this task.
-      const layer = panel.isOpen();
-      if (layer) {
-        panel.close();
-        setTimeout(() => screens.mediaSheet(mediaSheet), 260);
-      } else {
-        screens.mediaSheet(mediaSheet);
-      }
+      // The seam closes the layer inside the navigation's own commit, so an
+      // open sheet no longer needs closing here and no longer needs a delay to
+      // finish leaving: its departure is drawn by the transition.
+      screens.mediaSheet(closest.dataset.mediasheet);
       return;
     }
     if (closest.dataset.act === "resolve") {

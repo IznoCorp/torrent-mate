@@ -203,7 +203,27 @@ window.__screens = {
   mediaSheet: (title: string) => {
     const ids = window.__referentiel.addressIdsFor(title.normalize("NFC"));
     if (!ids) return window.__screens.resolution();
-    go({ to: "/media/$provider/$id", params: ids });
+    // THE PANEL LEAVES INSIDE THE COMMIT, so the transition captures it OPEN
+    // and its departure has something to draw.
+    //
+    // The engine used to close the panel and wait 260ms before opening the
+    // screen, because an open panel sits above a screen and opening the screen
+    // underneath left it invisible. The transition answers that without a
+    // delay: the panel's old snapshot slides down over the arriving screen,
+    // which is the gesture the delay was standing in for.
+    //
+    // CLOSED WITHOUT UNWINDING — `close(true)`. The panel's history entry is
+    // NOT popped, because the media screen is pushed ON TOP of it: Back then
+    // returns to the panel over the list, which is what §16 asks for and what
+    // the reversed departure animation is drawn for. The old shape popped the
+    // panel's entry and pushed the screen's, so Back landed on the bare list
+    // and the return animation had nothing to return to.
+    go(
+      { to: "/media/$provider/$id", params: ids },
+      () => {
+        if (window.__panel.isOpen()) window.__panel.close(true);
+      },
+    );
   },
   // The legacy `openReleases`'s own first line, transplanted here rather than
   // into the component: `state.relatedTitle` is what the `data-take`

@@ -522,6 +522,92 @@ async def hold_the_chrome_stays_in_front(journal, browser):
     await context.close()
 
 
+async def hold_the_panel_departs(journal, browser):
+    """Arrives at the media screen FROM AN OPEN PANEL and reads the departure.
+
+    THE ANIMATION THIS READS PAINTED NOTHING FOR A DAY, under a green rule set.
+    « Voir la fiche » is reached from an open panel, and the engine closed the
+    panel and waited 260ms before opening the screen — so by the time the
+    transition captured the old state there was no open panel to capture,
+    `#sheet[data-open]` matched nothing, and `::view-transition-old(leaving-panel)`
+    never existed. Every hold in this file passed: they all read the ROOT
+    transition, which happens either way.
+
+    A view transition captures the old state at the next rendering update, not
+    at the call, so no ordering of two statements in one task fixes this — the
+    dismissal belongs INSIDE the commit, and that is what `go()`'s `during`
+    exists for.
+
+    Args:
+        journal: The rule's journal.
+        browser: A launched Playwright browser.
+    """
+    context, page = await open_page_with(browser, "no-preference")
+    await page.evaluate("(s)=>window.__go(s)", FROM_STATE)
+    await page.wait_for_timeout(600)
+
+    # The panel is opened the way a reader opens it — a long press on a tile.
+    box = await page.evaluate(
+        "(sel)=>{const node=document.querySelector(sel);"
+        " const r=node.getBoundingClientRect();"
+        " return {x:r.x + r.width/2, y:r.y + r.height/2};}", TILE)
+    session = await page.context.new_cdp_session(page)
+    await session.send("Input.dispatchTouchEvent", {
+        "type": "touchStart", "touchPoints": [{"x": box["x"], "y": box["y"], "id": 1}]})
+    await page.wait_for_timeout(700)
+    await session.send("Input.dispatchTouchEvent",
+                       {"type": "touchEnd", "touchPoints": []})
+    await page.wait_for_timeout(600)
+
+    opened = await page.evaluate(
+        "()=>{const node=document.querySelector('#sheet');"
+        " return {open: !!node && node.hasAttribute('data-open'),"
+        "         name: node ? getComputedStyle(node).viewTransitionName : null};}")
+    journal.check(
+        "a long press opens the panel, and the open panel is NAMED",
+        opened["open"] and opened["name"] == "leaving-panel",
+        f"read {opened} — with no open panel there is no departure to drive, "
+        "and with no name on it there is nothing for the stylesheet to animate")
+    leave = await page.query_selector('#sheet [data-mediasheet]')
+    journal.check(
+        "and the panel offers the way onto the media screen",
+        leave is not None,
+        "no `[data-mediasheet]` control inside the open panel — the arrival "
+        "this hold measures cannot be driven")
+    if not (opened["open"] and leave):
+        await context.close()
+        return
+
+    await page.evaluate("""()=>{
+      window.__seen = new Set();
+      window.__watch = setInterval(() => {
+        for (const animation of document.getAnimations()) {
+          const pseudo = animation.effect && animation.effect.pseudoElement;
+          if (pseudo && pseudo.includes('view-transition')) window.__seen.add(pseudo);
+        }
+      }, 8);
+    }""")
+    await leave.click()
+    await page.wait_for_timeout(1200)
+    seen = await page.evaluate(
+        "()=>{clearInterval(window.__watch); return [...window.__seen];}")
+
+    journal.check(
+        "the panel is captured LEAVING, so its departure has something to draw",
+        any("old(leaving-panel)" in name for name in seen),
+        f"pseudo-elements seen: {sorted(seen)} — no "
+        "`::view-transition-old(leaving-panel)`. The panel was already shut "
+        "when the old state was captured, so the departure animates nothing "
+        "and the reader sees the panel vanish under an arriving screen")
+    journal.check(
+        "and the screen it arrives at is drawn in the same transition",
+        any("screen-banner" in name or "screen-body" in name for name in seen),
+        f"pseudo-elements seen: {sorted(seen)} — the arrival's own parts are "
+        "absent, so the departure above is being read across some other "
+        "transition than the one this hold drives")
+    await context.close()
+
+
 async def hold(journal):
     """Drives the page switch under both motion preferences."""
     errors = []
@@ -533,6 +619,7 @@ async def hold(journal):
         await hold_one_entry_one_owner(journal, browser, warmed=True)
         await hold_the_priming(journal, browser)
         await hold_the_chrome_stays_in_front(journal, browser)
+        await hold_the_panel_departs(journal, browser)
         await browser.close()
     journal.summary(errors)
 
