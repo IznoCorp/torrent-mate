@@ -332,7 +332,7 @@ when the defect comes back.
 | B-270 | Two harness journals are labelled « R80 » — `attrs.py`'s has no number of its own | by audit | `open` |
 | B-271 | `MODEL.md` cited `index.html:241` for `#ptr`; that line is the skip link's comment and the node is at `:255` | by L12 | `fixed #540` |
 | B-272 | The compositor guard's floors carried slack while its own note claimed they had none — 3 `touch-action` sites were deletable under a green guard | by L12 | `fixed #540` |
-| B-273 | `scripts/mutate.sh` exits SILENTLY when a mutation breaks the build — no rule runs, and it does not say so | by L12 | `open` |
+| B-273 | `scripts/mutate.sh` cannot judge a GUARD, and says « no hold fell » either way — and it exits SILENTLY when a mutation breaks the build | by L12 | `open` |
 | B-274 | `page_host.py`'s state-alias arm read DOCSTRINGS as code — English prose ending « … state. » before an assignment matched it | by L12 | `fixed #540` |
 | B-275 | Back from a media screen opened via « Voir la fiche » does NOT reopen the panel — §16's mirror cannot play | by L12 bench | `open` |
 | B-276 | A delay set by hand in an INSTRUMENT outlives the drawn duration it was set against — twice in one rule | by L12 | `open` |
@@ -605,7 +605,16 @@ genuine `state.page = 1` planted inside a driver string still falls.
 
 ---
 
-**B-273 — `scripts/mutate.sh` is silent when a mutation breaks the build.**
+**B-273 — `scripts/mutate.sh` cannot judge a guard, and is silent when a mutation breaks the build.**
+
+**The second half, found 2026-09-01 and it is the sharper one.** The script reports « no hold
+fell » for a GUARD under mutation *whatever the guard says*: it decides by reading journal `FAIL`
+lines, and a guard in `scripts/` prints violations and exits 1 without ever printing one. Three
+mutations aimed at `check-markup-contracts.py` were reported as caught by nothing while the guard
+was in fact naming the defect and exiting 1 — and the first two of those were believed, and led to
+the arm being rewritten twice on a false reading. **A verdict that is the same whatever happened is
+not a verdict**, which is this register's own subject applied to the tool the register's proofs are
+made with. Until it reads exit codes as well as journals, a guard's mutation is run by hand.
 It mutates, runs `npm run build`, then `served_copy.py --publish`. When the mutation
 breaks the build — renaming an exported symbol its importers still name, which is an
 ORDINARY mutation to want — the publish fails, `set -e` exits the script, and the trap
