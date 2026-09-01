@@ -333,14 +333,25 @@ async def hold_the_press_acknowledgement(journal, browser, motion):
     # in the suite and passed alone, which is B-277's species arriving in the
     # rule this repair touched. A moment cannot drift out of a series that
     # records its own moments.
-    samples = []
-    for _ in range(13):
-        await session.send("Input.dispatchTouchEvent", {
-            "type": "touchMove", "touchPoints": [{"x": x + 2, "y": y + 2, "id": 1}]})
-        await page.wait_for_timeout(50)
-        samples.append(await page.evaluate(READ_TILE))
     press_delay = await page.evaluate(
         "()=>window.__gestures.press.milliseconds")
+    # SAMPLED AS FAST AS THE ROUND TRIP ALLOWS, and until the press delay is
+    # PAST — a count of samples at a chosen cadence is a bet on how fast the
+    # machine is, and this rule lost that bet twice: at a flat 50ms cadence one
+    # recording run put no reading inside the 120ms settle, and a denser opening
+    # then put none inside the arming window instead, because under eight
+    # parallel rules the whole cadence stretches. Neither was a defect in the
+    # page. A loop that stops when the gesture's own clock says so covers both
+    # windows at whatever speed the machine runs.
+    samples = []
+    for _ in range(60):
+        await session.send("Input.dispatchTouchEvent", {
+            "type": "touchMove", "touchPoints": [{"x": x + 2, "y": y + 2, "id": 1}]})
+        await page.wait_for_timeout(16)
+        reading = await page.evaluate(READ_TILE)
+        samples.append(reading)
+        if reading["at"] is not None and reading["at"] > press_delay + 120:
+            break
     # A MARGIN ON BOTH BOUNDARIES, and the asymmetry that had one on the arming
     # window and none on the settle is what made this rule fall in the suite and
     # pass alone. A reading whose own moment sits within a frame of a boundary
@@ -353,9 +364,18 @@ async def hold_the_press_acknowledgement(journal, browser, motion):
     arming_window = [reading for reading in samples
                      if reading["at"] is not None
                      and settle + 40 < reading["at"] < press_delay - 40]
+    # THE PRECONDITION IS ITS OWN HOLD, so a run that sampled nothing inside the
+    # settle says THAT rather than accusing the code of marking early — the two
+    # readings are different findings and were one sentence.
+    journal.check(
+        f"under `{motion}`, the settle window WAS sampled",
+        bool(before_settle),
+        f"no reading landed inside the {settle}ms settle over "
+        f"{[None if r['at'] is None else round(r['at']) for r in samples]} — "
+        "the hold below would then read an absence")
     journal.check(
         f"under `{motion}`, the tile is NOT marked before the settle passes",
-        bool(before_settle) and not any(r["mark"] for r in before_settle),
+        not any(r["mark"] for r in before_settle),
         f"read {before_settle} strictly inside a {settle}ms settle — the mark "
         "is placed "
         "on `pointerdown` after all, which lights every flick that begins on a "
