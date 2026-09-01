@@ -299,7 +299,7 @@ async def hold_the_gallery_keeps_its_ORDER(journal, browser):
     await page.wait_for_timeout(900)
 
     read_order = """()=>[...document.querySelectorAll(
-      '#libitems > [data-part=\"tile\"]')].map(
+      '#libitems > [data-part="tile"]')].map(
         (tile) => Number(tile.dataset.tile))"""
 
     session = await page.context.new_cdp_session(page)
