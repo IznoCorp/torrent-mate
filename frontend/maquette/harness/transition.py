@@ -242,67 +242,110 @@ async def hold_under(journal, browser, motion):
 ARRIVING_BACKGROUND = '[data-part="hero/background"]'
 
 
-async def hold_one_entry_one_owner(journal, browser):
-    """Samples the arriving hero's opacity and refuses a dip."""
+async def hold_one_entry_one_owner(journal, browser, warmed):
+    """Samples the arriving hero's opacity and refuses the wrong kind of entry.
+
+    Args:
+        journal: The rule's journal.
+        browser: A launched Playwright browser.
+        warmed: Whether to put the fanart in the cache BEFORE arriving, which is
+            what makes the `immediate` branch reachable at all.
+
+    BOTH BRANCHES ARE DRIVEN, and until the adversarial review neither was
+    chosen: every exercise opened a fresh context, the gallery shows posters and
+    not the fanart, so the file was never cached and `data-arrival` read `faded`
+    EVERY time. The branch written for the operator's flash — a hero the
+    transition already carried, which must not dip — had never executed once,
+    and the branch that did execute was green over a second entry animation
+    because a second entry also dips.
+    """
     context, page = await open_page_with(browser, "no-preference")
     await page.evaluate("(s)=>window.__go(s)", FROM_STATE)
     await page.wait_for_timeout(600)
+
+    if warmed:
+        # THE FANART IS PUT IN THE CACHE BEFORE THE ARRIVAL. Its URL is the one
+        # the media screen will paint, read from the fixture the same way the
+        # screen reads it, and fetched in THIS context so the browser holds it.
+        warmed_source = await page.evaluate("""async ()=>{
+          const reference = window.__referentiel;
+          const title = reference.titleForProviderId('tmdb', '1284465');
+          const sheet = title ? reference.sheetFor(title) : null;
+          const source = (window.HERO_IMAGES || {})[title]
+            || (sheet && sheet.hero) || null;
+          if (!source) return null;
+          const image = new Image();
+          image.src = source;
+          try { await image.decode(); } catch (error) { return null; }
+          return source;
+        }""")
+        journal.check(
+            "the fanart can be warmed, so the `immediate` branch is reachable",
+            bool(warmed_source),
+            "no hero source found to pre-load — without it every run takes the "
+            "`faded` branch and the hold written for the operator's flash never "
+            "executes")
+        if not warmed_source:
+            await context.close()
+            return
+
     await page.evaluate(
         "(sel)=>{window.__samples=[];window.__sampler=setInterval(()=>{"
         " const node=document.querySelector(sel);"
         " if(node) window.__samples.push(Number(getComputedStyle(node).opacity));"
-        "},25);}", ARRIVING_BACKGROUND)
+        "},16);}", ARRIVING_BACKGROUND)
     await page.click(TILE)
-    await page.wait_for_timeout(1400)
+    await page.wait_for_timeout(1600)
     samples = await page.evaluate(
         "()=>{clearInterval(window.__sampler);return window.__samples;}")
 
     journal.check(
-        "the arriving background is sampled at all",
+        f"the arriving background is sampled at all ({'warm' if warmed else 'cold'})",
         len(samples) > 10,
-        f"{len(samples)} sample(s) — with too few, the hold below decides "
+        f"{len(samples)} sample(s) — with too few, the holds below decide "
         "nothing")
     if len(samples) <= 10:
         await context.close()
         return
-    # THE SUBJECT OF THIS HOLD CHANGED WITH « A GÉNÉRALISÉE », and it is
-    # re-scoped rather than deleted.
-    #
-    # It was written when the hero had no entry of its own, and « never dips »
-    # was simply right. The operator has since decided that the fanart FADES IN
-    # when its file decodes — so a dip is now the design when the picture
-    # arrives late, and refusing one outright would refuse the feature.
-    #
-    # What survives is the rule that produced it: ONE ENTRY, ONE OWNER. A hero
-    # marked `immediate` was already carried by the transition and must not dip;
-    # one marked `faded` owns its own entry and must. The mark is read rather
-    # than assumed, and a hero carrying NEITHER mark is a failure of its own —
-    # that is the module having stopped running, which would make both branches
-    # unreachable.
+
     arrival = await page.evaluate(
         "(sel)=>{const node=document.querySelector(sel);"
         " return node ? (node.dataset.arrival || '') : '';}",
         ARRIVING_BACKGROUND)
     journal.check(
-        "the arriving background says how it got here",
-        arrival in ("immediate", "faded"),
-        f"data-arrival is {arrival!r} — the module that marks it is not running, "
-        "and the hold below would decide nothing")
+        f"the arrival is the one this exercise drove ({'warm' if warmed else 'cold'})",
+        arrival == ("immediate" if warmed else "faded"),
+        f"data-arrival is {arrival!r} where {'immediate' if warmed else 'faded'} "
+        "was driven — the branch below is not the branch this exercise exists "
+        "to reach")
+
+    # HOW MANY TIMES THE PICTURE GOES AWAY, not merely whether it ever does.
+    # « min < 1 » is true of one fade and of two, so it was green over a second
+    # entry animation replaying after the transition — the hero's flash exactly.
+    descents = sum(
+        1 for index in range(1, len(samples))
+        if samples[index - 1] >= 1.0 > samples[index])
     if arrival == "immediate":
         journal.check(
             "a hero the transition already carried does NOT dip — one owner",
             min(samples) >= 1.0,
             f"opacity fell to {min(samples)} on a picture that was already "
             "there: a second entry replayed over the transition's own, which is "
-            "the flash")
+            "the flash the operator saw")
     else:
         journal.check(
             "a hero whose file arrived LATE fades in rather than snapping",
             min(samples) < 1.0,
             f"opacity never left {min(samples)} on a picture that arrived after "
-            "the transition: it appeared in one frame, which is the pop « A "
-            "généralisée » exists to remove")
+            "the transition: it appeared in one frame")
+        journal.check(
+            "and it fades ONCE — one entry, one owner",
+            descents <= 1,
+            f"{descents} descents from full opacity: the picture goes away more "
+            "than once, which is a second entry animation replaying over the "
+            "first")
     await context.close()
+
 
 
 
@@ -486,7 +529,8 @@ async def hold(journal):
         browser = await play.chromium.launch(channel="chrome")
         await hold_under(journal, browser, "no-preference")
         await hold_under(journal, browser, "reduce")
-        await hold_one_entry_one_owner(journal, browser)
+        await hold_one_entry_one_owner(journal, browser, warmed=False)
+        await hold_one_entry_one_owner(journal, browser, warmed=True)
         await hold_the_priming(journal, browser)
         await hold_the_chrome_stays_in_front(journal, browser)
         await browser.close()
