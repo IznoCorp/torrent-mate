@@ -137,7 +137,7 @@ Invariant 10 governs every placement: an arbitration is **vocabulary**; what sta
 | **P11** `100dvh`, contained overscroll | `styles/base.css` | behaviour |
 | **P17** `interactive-widget=resizes-content` (**B-234**) | `design/index.html` viewport meta | behaviour |
 | **P5** declared page transition | `app/navigation.ts` (the `startViewTransition` wrap) + `styles/base.css` (`::view-transition-*`) | behaviour |
-| **P6** shared element (poster card → sheet) | the poster's variants + the sheet's | behaviour |
+| ~~**P6** shared element (poster card → sheet)~~ — **BUILT (`5f24d829`) AND WITHDRAWN BY THE OPERATOR (`a6be3a6e`), 2026-08-31.** `grep -rn "carried-poster" frontend/maquette` → 0. Transition A replaces it and shares nothing | — | withdrawn |
 | **P20** reduced motion per transition | `styles/base.css`, beside each transition it governs | behaviour |
 | **the press/drag/scroll arbitration** | `lib/press-arbitration.ts` — **moved**, not replaced (D9 rule 2) | conversion |
 | **pull-to-refresh** (`#ptr`, engine-driven at the time this table was written; `index.html:258` — the line was cited as `:241`, which is the skip link's comment, and that is **B-271**) | the gesture vocabulary in `lib/` (`MODEL.md` Part 8 assigns it here) | conversion |

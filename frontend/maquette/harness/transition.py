@@ -58,7 +58,9 @@ from common import PHONE, PROTOTYPE, Journal
 #
 # What DOES route through `go()` is every screen and sheet arrival — the media
 # sheet, the quality screen, the resolution screen. Those are the transitions
-# this lot declares, and the shared element of phase 10 is one of them.
+# this lot declares. A carried poster was one of them for two days and is not:
+# it was built, the operator watched it and withdrew it, and the name it used
+# is in no file now.
 #
 # Driven from the gallery, tapping a tile: / -> /media/tmdb/<id>.
 FROM_STATE = "lib-grid"

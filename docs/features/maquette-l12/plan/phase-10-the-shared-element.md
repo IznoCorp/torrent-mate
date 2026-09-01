@@ -1,9 +1,32 @@
 # Phase 10 — The shared element
 
-**Kind: BEHAVIOUR.** **Owns P6** — a shared element survives navigation: the poster carries a
-`view-transition-name` on the card **and** on the sheet.
+**Kind: BEHAVIOUR.** **Owned P6.**
 
-**Depends on phase 9.**
+---
+
+## ⚑ CLOSED — BUILT, THEN WITHDRAWN BY THE OPERATOR (2026-08-31)
+
+**This phase shipped nothing, and that is its outcome rather than its failure.**
+
+The blockage below was answered, the carry was built (`5f24d829`), the operator watched it on his
+own phone and **withdrew it** (`a6be3a6e`). `grep -rn "carried-poster" frontend/maquette` reads 0
+at HEAD; the rule that would have held it went with the drawing, and the transition baseline moved
+18 → 10 in that commit.
+
+**What ships in its place** is transition A, phase 11's: the arriving fanart fades while the body
+rises, sharing nothing. The reasoning is the one `MODEL.md`'s P6 row already carried before the
+build — there is nothing honest to share between a 2:3 poster and a wide banner, and morphing one
+into the other is an animation pretending two pictures are one.
+
+**P6 is therefore not « to build ».** It is a property the operator looked at and declined, and
+`MODEL.md` says so in those words, dated. A later wave that reads this file must not re-propose it
+as unfinished work.
+
+**Why the whole record below is kept rather than deleted.** § 7.1: an argument that lost is kept
+above its replacement, because the next reader's first question is « was this considered? ». What
+follows is the state of this phase on the morning of 2026-08-31, before the answer arrived.
+
+---
 
 ## ⚠ BLOCKED — an anomaly, measured 2026-08-31, awaiting the operator
 

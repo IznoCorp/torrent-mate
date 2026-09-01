@@ -1244,8 +1244,15 @@ phrase and the lot's bar.
 them. D9 governs every library question in this lot; its verdict table is the answer, not a
 starting point for a new argument.
 
-**Transitions.** Declared, through the platform's own view transitions — including the shared
-element that carries a poster from a card into its sheet. Not scripted.
+**Transitions.** Declared, through the platform's own view transitions. Not scripted.
+
+**The shared element that carried a poster from a card into its sheet was BUILT AND WITHDRAWN**
+(operator, 2026-08-31): he watched it on his own phone and declined it. What ships instead is
+transition A, which shares nothing — the arriving fanart fades while the body rises — on the
+reasoning `MODEL.md`'s P6 row already carried: there is nothing honest to share between a 2:3
+poster and a wide banner, and morphing one into the other is an animation pretending two pictures
+are one. The sentence is kept in this form, rather than deleted, so no later reader takes the
+absence for an oversight.
 
 **Gestures.** The press / drag / scroll arbitration already written here is kept and moved, not
 replaced. It encodes two things a general library does not know: a long press and a drag are
@@ -1296,7 +1303,7 @@ may assume.** It depends on L15 now: a view transition between the drawer, a dia
 needs each of them to be a component, and they are engine markup until L15. The arbitration moves
 to `lib/` here; **each surface's USE of it moves with its producer in L19**, so this lot converts
 the vocabulary and the React surfaces (the sheet's drag, the screens) and leaves the deck's and
-the rows' engine-side callers to L19. Its properties are **P5, P6, P11, P17, P20 and P24** of
+the rows' engine-side callers to L19. Its properties are **P5, P11, P16, P17, P20, P24, P25, P26 and P29** of
 `MODEL.md` § 3; **B-234** (no `interactive-widget` on the viewport meta, so the keyboard resizes
 the viewport by default) is its. The interaction budget is a device-only protocol, written and
 dated — not a gate (`MODEL.md` § 3.1).
