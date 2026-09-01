@@ -10,7 +10,7 @@
 // Repeating it on the one lot whose SUBJECT is the transport would leave this
 // lot with no proof at all.
 //
-// IT OBEYS `docs/reference/web-ui.md` § WebSocket Protocol TO THE LETTER, and
+// IT OBEYS `docs/production/web-ui.md` § WebSocket Protocol TO THE LETTER, and
 // two clauses of it carry weight rather than detail:
 //
 //   ACCEPT, THEN VALIDATE, THEN CLOSE `4401`. A real server accepts the socket

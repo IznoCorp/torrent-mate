@@ -7,7 +7,7 @@ Layout:
 
 - ``db`` — connection, PRAGMAs, ``indexer_lock``, migration applier.
 - ``schema`` — typed ``MediaItemRow`` / ``MediaFileRow`` / etc. dataclasses
-  and the JSON-shape Pydantic models (see ``docs/reference/indexer-json-shapes.md``
+  and the JSON-shape Pydantic models (see ``docs/production/indexer-json-shapes.md``
   for the runtime payload contracts; the Pydantic classes are mostly
   documentation today).
 - ``migrations/`` — ``*.sql`` schema versions, applied in order by ``apply_migrations``.

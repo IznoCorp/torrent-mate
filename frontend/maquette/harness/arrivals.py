@@ -36,7 +36,7 @@ from playwright.async_api import async_playwright
 
 LIBRARY = pathlib.Path(os.path.expanduser("~/dev/PersonalScraper/.data/library.db"))
 
-# The engine's steps, in `DEFAULT_STEPS` execution order (docs/reference/
+# The engine's steps, in `DEFAULT_STEPS` execution order (docs/production/
 # commands.md § Pipeline). Written here rather than read from the prototype:
 # a rule that takes its expectation from what it measures agrees with anything.
 ENGINE_STEPS = ["ingest", "sort", "clean", "scrape", "cleanup",

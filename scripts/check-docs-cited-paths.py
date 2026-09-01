@@ -285,12 +285,12 @@ def arm_cited_paths() -> int:
 
 
 def main() -> int:
-    """Run the arm and report.
+    """Run the arms and report.
 
     Returns:
         1 when anything was refused, 0 otherwise.
     """
-    violations = arm_cited_paths()
+    violations = arm_cited_paths() + arm_production_manifest()
     print(f"check-docs-cited-paths: "
           f"{'clean' if not violations else f'{violations} violation(s)'}")
     return 1 if violations else 0

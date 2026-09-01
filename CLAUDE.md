@@ -13,8 +13,8 @@ Package name: `personalscraper`. CLI entry points: `torrentmate` (public command
 
 All storage paths, staging layout (`001-MOVIES/`, `002-TVSHOWS/`, …) and category names are
 config-driven, never hardcoded; `personalscraper init-config` seeds `config/` from
-`config.example/`. Layout: `docs/reference/config-overlay-layout.md`. Module map:
-`docs/reference/architecture.md`.
+`config.example/`. Layout: `docs/production/config-overlay-layout.md`. Module map:
+`docs/production/architecture.md`.
 
 ## Setup (per clone)
 
@@ -320,11 +320,11 @@ Three checkouts share `library.db`, `.data/` and the storage disks: **dev** = `~
 (feature branches, no PM2 daemons) · **prod** = `~/deploy/torrentmate` (tracks `main`, `torrentmate-web`
 on 8710) · **staging** = `~/staging/torrentmate` (tracks `staging`, 8711, read-only role → 403 on
 writes). Canonical config lives at `~/.torrentmate/config`, outside every working tree. Full topology
-and deploy runbook: `docs/reference/web-ui.md`.
+and deploy runbook: `docs/production/web-ui.md`.
 
 - **NEVER start a local server on 8710/8711** (Caddy routes `tm.`/`tm-staging.` there) — test the frontend via `tm-staging.iznogoudatall.xyz`.
 
-Invariants enforced by tests (do not regress; details in `docs/reference/web-ui.md` + `maintenance.md`):
+Invariants enforced by tests (do not regress; details in `docs/production/web-ui.md` + `maintenance.md`):
 
 - Every mutating web endpoint is staging-guarded (`require_not_staging`) and typed (Pydantic `response_model` → OpenAPI → `schema.d.ts`; any route change ⇒ `make openapi` + commit the regenerated files).
 - The web auth perimeter is the **single** `guarded_api` dependency (web-ui.md §6) — never add per-route `Depends(require_session)`.
@@ -426,33 +426,33 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 
 | When working on... | Read |
 | --- | --- |
-| CLI commands, pipeline invocation, scheduling (PM2 crons), make targets | `docs/reference/commands.md` |
-| Disks, NTFS/macFUSE, rsync flags, disk space rules, move rules details | `docs/reference/storage.md` |
-| Directory layout, module map, shared utilities, dependencies, api/ contracts (HttpTransport, Protocols) | `docs/reference/architecture.md` |
+| CLI commands, pipeline invocation, scheduling (PM2 crons), make targets | `docs/production/commands.md` |
+| Disks, NTFS/macFUSE, rsync flags, disk space rules, move rules details | `docs/production/storage.md` |
+| Directory layout, module map, shared utilities, dependencies, api/ contracts (HttpTransport, Protocols) | `docs/production/architecture.md` |
 | Movie/TV folder naming, episode patterns, filename sanitization | `docs/reference/naming.md` |
 | Code names — the no-abbreviation rule, its blacklist, exemptions and ratchet | `docs/reference/code-naming.md` |
 | Unit tests, E2E, roundtrip, golden files, test markers, timeouts, feature map | `docs/reference/testing.md` |
-| TMDB/TVDB APIs, NFO invariants, artwork, ffprobe language codes | `docs/reference/scraping.md` |
+| TMDB/TVDB APIs, NFO invariants, artwork, ffprobe language codes | `docs/production/scraping.md` |
 | rapidfuzz, tenacity, structlog, rich, guessit gotchas | `docs/reference/libraries.md` |
-| Circuit breaker, fast-skip, dispatch/verify internals, idempotence | `docs/reference/pipeline-internals.md` |
-| EventBus internals, event catalog, subscriber recipes, AppContext boundary rule, ContextVar pattern | `docs/reference/event-bus.md` |
-| Logging conventions, event-name style, structlog vs CLI vs typer channels | `docs/reference/logging.md` |
-| Trailer discovery, download, state, CLI, Plex-conformant placement | `docs/reference/trailers.md` |
-| Media indexer DB, scanner modes, query parser, outbox, cron setup, failure recovery | `docs/reference/indexer.md` |
-| JSON column shapes (artwork_json, payload_json, stats_json) — Pydantic models and examples | `docs/reference/indexer-json-shapes.md` |
-| Cross-provider IDs flow, ratings JSON, backfill mode, capability protocols | `docs/reference/external-ids-flow.md` |
+| Circuit breaker, fast-skip, dispatch/verify internals, idempotence | `docs/production/pipeline-internals.md` |
+| EventBus internals, event catalog, subscriber recipes, AppContext boundary rule, ContextVar pattern | `docs/production/event-bus.md` |
+| Logging conventions, event-name style, structlog vs CLI vs typer channels | `docs/production/logging.md` |
+| Trailer discovery, download, state, CLI, Plex-conformant placement | `docs/production/trailers.md` |
+| Media indexer DB, scanner modes, query parser, outbox, cron setup, failure recovery | `docs/production/indexer.md` |
+| JSON column shapes (artwork_json, payload_json, stats_json) — Pydantic models and examples | `docs/production/indexer-json-shapes.md` |
+| Cross-provider IDs flow, ratings JSON, backfill mode, capability protocols | `docs/production/external-ids-flow.md` |
 | Any provider or client — TMDB/TVDB/OMDB/Trakt, qBittorrent/Transmission, C411/Tr4ker + Torznab, Telegram/healthchecks | `docs/reference/<provider>-api.md` |
 | Plex refresh after dispatch (X-Plex-Token, partial scan, longest-prefix section, fail-soft) | `docs/reference/plex-api.md` |
 | Provider naming — `ProviderName` Enum (transport) vs `RegistryProviderName` NewType (registry) | `docs/archive/features/registry/DESIGN.md` §5.3 |
-| Insights layer — analytics, reporting, recommendations over the indexer DB | `docs/reference/insights.md` |
-| Maintenance ops — disk cleaning, targeted re-scrape repairs, web-UI action catalog + runner | `docs/reference/maintenance.md` |
+| Insights layer — analytics, reporting, recommendations over the indexer DB | `docs/production/insights.md` |
+| Maintenance ops — disk cleaning, targeted re-scrape repairs, web-UI action catalog + runner | `docs/production/maintenance.md` |
 | ffprobe stream extraction, codec/language → Kodi NFO mapping | `docs/reference/ffprobe-api.md` |
-| Config split layout, JSON5 overlay composition, per-file key ownership | `docs/reference/config-overlay-layout.md` |
+| Config split layout, JSON5 overlay composition, per-file key ownership | `docs/production/config-overlay-layout.md` |
 | Config home relocation — canonical location, migration runbook | `docs/archive/features/config-home/DESIGN.md` |
 | Feature lifecycle — ACCEPTANCE format, phase gates, implement:\* flow, KanbanMate claim | `docs/reference/feature-lifecycle.md` |
-| Module-size budget tracking, BLOCK-threshold promise status | `docs/reference/promises.md` |
-| Post-merge operator checklist (DB schema, config/CLI migrations, ACC re-exercise) | `docs/reference/runbook-post-merge.md` |
-| TorrentMate web UI — architecture, auth, WS protocol, Redis relay, PWA, deploy runbook, REST conventions | `docs/reference/web-ui.md` |
+| Module-size budget tracking, BLOCK-threshold promise status | `docs/production/promises.md` |
+| Post-merge operator checklist (DB schema, config/CLI migrations, ACC re-exercise) | `docs/production/runbook-post-merge.md` |
+| TorrentMate web UI — architecture, auth, WS protocol, Redis relay, PWA, deploy runbook, REST conventions | `docs/production/web-ui.md` |
 | **Product intent — the product constitution (BINDING): §1–§15 + DOIT/NE-DOIT-PAS + §méthode** | `docs/reference/product-intent.md` |
 | **Maquette — the VISUAL reference of the web UI (BINDING): it is modified BEFORE the code** | `frontend/maquette/README.md` |
 | **Frontend architecture — what the maquette must BECOME, and in what order (BINDING)** | `docs/reference/frontend-architecture.md` |

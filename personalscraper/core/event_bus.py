@@ -11,7 +11,7 @@ Single substrate for cross-component asynchronous communication:
 - ``event_to_envelope`` / ``event_from_envelope`` + class registry
   (auto-populated via ``Event.__init_subclass__``, module-path filtered).
 
-See ``docs/reference/event-bus.md`` for the public API.
+See ``docs/production/event-bus.md`` for the public API.
 """
 
 from __future__ import annotations

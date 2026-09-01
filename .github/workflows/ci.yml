@@ -141,6 +141,15 @@ jobs:
               - 'scripts/code-abbreviations-allowed.txt'
               - 'scripts/code-abbreviations-baseline.json'
               - 'scripts/frame-domain-baseline.json'
+              # `check-docs-cited-paths.py`'s production arm reads the frozen
+              # present and the manifest it is held to; its history arm reads
+              # the three trees that must stay out of the index — named here so
+              # a pull request that re-adds one runs the guard that refuses it.
+              - "docs/production/**"
+              - "scripts/production-docs-manifest.json"
+              - "docs/archive/**"
+              - "docs/superpowers/**"
+              - "docs/analysis/**"
               # `check-live-relay.py`'s map-completeness arm reads the event
               # bus's own registry, which is Python.
               - 'personalscraper/**'
