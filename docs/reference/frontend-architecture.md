@@ -1351,6 +1351,14 @@ page's DOM nodes, so a write between `pointerdown` and `click` destroys the tap.
 surfaces — a page whose nodes keep identity across a store write — and the four files this lot
 decomposes are where two of them live; L19 owes the same for the producers it moves.
 
+**It also owns B-283** (2026-08-31, from L12's review): while the media sheet's read is in flight,
+the screen prints its UNKNOWN parts as ANSWERS — « aucun synopsis », « aucune distribution », « pas
+de bande-annonce », seasons « unknown » — assertions about data that has not arrived, which §13
+refuses. The maquette cannot exhibit it: its placeholder is the engine's COMPLETE sheet, so no
+field is ever missing during priming, and the real backend's projection carries `{t, f}`. The
+repair is a line in `features/media/media-screen.tsx`, one of the four files this lot decomposes
+and that no earlier wave may extend — which is why L12 filed it rather than fixing it.
+
 **Done when.** No file under `frontend/maquette/design/src` is at or over 400 non-blank lines with
 the sole exception of the dying engine's two, `engine/legacy.js` and `engine/states.js`, which
 L13 removes; no component is written out twice; every extraction is proved by the oracle, whose
@@ -1391,6 +1399,11 @@ moved into its feature keeps its nodes across a store write, so a tap between `p
 `click` survives — held by R100's `isSameNode` shape on the producer's surface. And the producer half
 of **B-249**: the 260 ms `setTimeout` beside `data-mediasheet` that R103 measures and PRINTS is
 removed with the producer that carries it, and R103 then REFUSES the gap instead of printing it.
+**That one is already discharged, and the line is kept saying so rather than deleted** (L12,
+2026-08-31): the `data-mediasheet` branch lost its close-and-wait entirely — the panel now leaves
+inside the navigation's own commit, which is what the delay was standing in for — so what L19
+inherits here is the SHAPE, at the other `setTimeout(…, 260)` sites the delegation still holds, not
+this one.
 
 **Done when.** `grep -c "panel\.open(" legacy.js` reads 0; the inventory command lists only the
 harness panel; the fixture families that fed the producers are gone (D5's bracket-match method
@@ -1529,6 +1542,16 @@ harness's driving seams (`__go`, `__states`, `__queries`, `__relay`, `__mocks`) 
 module and die at switchover with `harness.css`; the suite is green at unchanged hold counts; the
 oracle is green.
 
+**Carried here by L12, 2026-08-31 — the panel's RETURN, and B-275.** Arriving at a media screen
+from an open panel is drawn: the panel is captured leaving and its snapshot slides down
+(`::view-transition-old(leaving-panel)`). The mirror is not, and cannot be from outside this lot.
+Back lands on the list with the panel shut — measured on 2026-09-01 — so
+`::view-transition-new(leaving-panel)` had no subject and was removed rather than left waiting.
+Reopening a panel on a backward step is the ladder's HANDLER, named at the head of this lot, and
+the panel's own history entry is what decides it. **Done when** Back from a media screen reopens
+the panel over the list (§16, B-275) and the reverse of `panel-down` is written with a rule that
+falls when it does not play.
+
 **Carried here by L09, 2026-08-28 — the sixty fixture families it could not kill.** L09's « Done
 when » says each surface's share of the fixture dies with it (D5). Twenty-one families died and
 `legacy.js` lost 1 814 lines; **sixty remain**, and they belong to surfaces the ENGINE still draws —
@@ -1561,6 +1584,26 @@ adversarial review. This holds for a two-line documentation fix as much as for a
 behaviour on purpose, confirm the rule falls and names the right defect, restore. A rule that
 never bit proves nothing. A rule must cover the path actually walked: cold load, real finger,
 real browser menu.
+
+**The instruments' own debts, and who takes them (2026-08-31).** A register entry naming no lot is
+B-253's species: the plan is where a lot's obligations live, so a defect nobody's lot names is a
+defect nobody schedules. **The harness and the repository's guards belong to no lot** — every wave
+uses them and none owns them — so their debts are named here, with one rule that decides them:
+**the next wave that touches the tool takes its debt**, in the same pull request, and says so in
+its report.
+
+- **B-269** — five corpus floors in `served_copy.py` calibrated by hand, one figure per corpus.
+- **B-272's open form** — nothing RE-TAKES a floor, so every floor in the repository drifts under a
+  green guard until somebody measures it. The compositor manifest's floors were re-taken in L12;
+  the mechanism that would keep them true does not exist.
+- **B-273** — `scripts/mutate.sh` exits SILENTLY when a mutation breaks the build: no rule runs and
+  it does not say so, which reads exactly like « no hold fell ».
+- **B-276** — a delay set by hand in an instrument outlives the drawn duration it was set against.
+  Three rules were repaired for it in L12 alone; the species stays open because nothing refuses the
+  next one.
+- **B-277** — `exits.py`'s frame-count control flakes under the suite's parallel load.
+- **B-278** — the drawer's dismiss acknowledges itself twice, unexplained, with the decisive
+  experiment written down in the entry.
 
 **The gate.** Before every wave's closing commit: `make lint` at zero errors, `make test` with no
 failure and **no error** (an error means collection crashed and everything after it was skipped),
