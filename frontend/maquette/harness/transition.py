@@ -715,6 +715,106 @@ async def hold_a_hero_that_changes_picture(journal, browser):
     await context.close()
 
 
+async def hold_one_owner_on_the_body(journal, browser):
+    """Reads how many things animate the media body's blocks on one arrival.
+
+    THE DRAWING SAID « one entry, one owner » AND HAD TWO. The blocks carry an
+    element-side entry — `opacity` and `translate` from a `@starting-style` — on
+    the argument that an element already present when the screen mounted never
+    has a starting style, so the two cases could not overlap. The whole screen is
+    inserted INSIDE the view transition's callback, so every block has one on the
+    arrival itself: measured at 16ms, `opacity` and `translate` ran from 0 and
+    16px in the very frames `body-rise` was lifting the same snapshot 24px.
+    Forty pixels and a double fade.
+
+    Nothing read it. `body-rise` was one of three drawings this lot decided with
+    no rule at all, which is why a second owner could sit in it unseen.
+
+    Args:
+        journal: The rule's journal.
+        browser: A launched Playwright browser.
+    """
+    context, page = await open_page_with(browser, "no-preference")
+    await page.evaluate("(s)=>window.__go(s)", FROM_STATE)
+    await page.wait_for_timeout(600)
+    await page.evaluate("""()=>{
+      window.__owners = new Set();
+      window.__bodyOpacity = [];
+      window.__watchBody = setInterval(() => {
+        const body = document.querySelector('[data-region="screen-media/body"]');
+        const block = body && body.firstElementChild;
+        if (!block) return;
+        window.__bodyOpacity.push(Number(getComputedStyle(block).opacity));
+        for (const animation of document.getAnimations()) {
+          const effect = animation.effect;
+          if (!effect) continue;
+          // The view transition's own half, by pseudo-element…
+          const pseudo = effect.pseudoElement;
+          if (pseudo && pseudo.includes('screen-body')) {
+            window.__owners.add('transition:' + pseudo);
+          }
+          // …and the element-side half, by target.
+          if (effect.target === block) {
+            window.__owners.add(
+              'element:' + (animation.transitionProperty
+                            || animation.animationName || '?'));
+          }
+        }
+      }, 16);
+    }""")
+    await page.click(TILE)
+    await page.wait_for_timeout(1600)
+    reading = await page.evaluate(
+        "()=>{clearInterval(window.__watchBody);"
+        " return {owners: [...window.__owners],"
+        "         lowest: Math.min(...window.__bodyOpacity),"
+        "         samples: window.__bodyOpacity.length};}")
+
+    journal.check(
+        "the media body's arrival IS drawn — the view transition lifts it",
+        any(name.startswith("transition:") for name in reading["owners"]),
+        f"owners seen: {reading['owners']} — `body-rise` is the arrival's own "
+        "drawing and this lot decided it with no rule; without this the "
+        "distance and the duration could be deleted and nothing would say so")
+    journal.check(
+        "and it has ONE owner — nothing animates the blocks BESIDE it",
+        not any(name.startswith("element:") for name in reading["owners"]),
+        f"owners seen: {reading['owners']} — a second entry runs on the blocks "
+        "in the same frames the transition is lifting the snapshot that "
+        "contains them: the content moves twice and fades twice")
+    journal.check(
+        "and the blocks never go transparent inside the arrival",
+        reading["samples"] > 10 and reading["lowest"] >= 1.0,
+        f"opacity fell to {reading['lowest']} over {reading['samples']} "
+        "sample(s) — the snapshot already carries the blocks, so anything "
+        "fading them is fading a picture of them")
+
+    # THE OTHER HALF OF THE SAME DRAWING, and the one that keeps it alive: a
+    # block arriving AFTER the transition — a slow read landing — must still
+    # enter rather than snap in. Driven by inserting one, because the fixture
+    # serves the whole sheet at once and no block ever arrives late in it.
+    entered = await page.evaluate("""async ()=>{
+      const body = document.querySelector('[data-region="screen-media/body"]');
+      if (!body) return null;
+      const block = document.createElement('div');
+      block.textContent = '.';
+      body.appendChild(block);
+      const first = getComputedStyle(block).opacity;
+      await new Promise((settle) => setTimeout(settle, 120));
+      return {atInsertion: Number(first),
+              afterwards: Number(getComputedStyle(block).opacity)};
+    }""")
+    journal.check(
+        "a block that arrives LATER still enters rather than snapping in",
+        bool(entered) and entered["atInsertion"] < 0.5
+        and entered["afterwards"] > entered["atInsertion"],
+        f"read {entered} — the entry above is scoped away from the page's own "
+        "transition, and this is what it is scoped away FOR: with the rule "
+        "removed rather than scoped, a read that lands after the arrival puts "
+        "its blocks on screen in one frame")
+    await context.close()
+
+
 async def hold(journal):
     """Drives the page switch under both motion preferences."""
     errors = []
@@ -728,6 +828,7 @@ async def hold(journal):
         await hold_the_chrome_stays_in_front(journal, browser)
         await hold_the_panel_departs(journal, browser)
         await hold_a_hero_that_changes_picture(journal, browser)
+        await hold_one_owner_on_the_body(journal, browser)
         await browser.close()
     journal.summary(errors)
 

@@ -591,10 +591,22 @@
    `@starting-style` IS THE WHOLE MECHANISM, and it is why this needs no module
    and no line in `features/media/media-screen.tsx` — one of L14's four. It
    declares the style an element has for the frame it is INSERTED in, so the
-   transition beside it runs from there to the resting value. An element that was
-   already present when the screen mounted never had a starting style, so nothing
-   animates for it: the two cases are exclusive by construction, which is the
-   « one entry, one owner » rule holding without anything having to choose.
+   transition beside it runs from there to the resting value.
+
+   THE EXCLUSION IS WRITTEN IN THE SELECTOR, and it used to be an argument.
+   « An element that was already present when the screen mounted never had a
+   starting style, so the two cases are exclusive by construction » — false, and
+   the opposite of construction: the WHOLE SCREEN is inserted inside the view
+   transition's callback, so every one of these blocks has a starting style on
+   the arrival itself. Measured at 16ms on 2026-09-01: the blocks ran `opacity`
+   and `translate` from 0 and 16px in the very frames `body-rise` was lifting
+   the same snapshot 24px — two owners, forty pixels, a double fade, in the
+   drawing whose own heading is « one entry, one owner ».
+
+   So the rule does not apply while the page's own transition is running. What
+   is left is exactly what it was written for: a block that arrives LATER, when
+   a slow read lands after the transition has finished, entering instead of
+   snapping in.
 
    SCOPED TO THE BODY'S DIRECT CHILDREN, deliberately. Deeper, every re-render
    would animate a leaf; shallower, the whole screen would move and that is the
@@ -611,6 +623,22 @@
       opacity: 0;
       translate: 0 16px;
     }
+  }
+
+  /* AND THE EXCLUSION ITSELF: while the page's own transition is running, the
+     blocks have no entry of their own, because the snapshot the transition is
+     lifting already contains them.
+
+     THE TRANSITION IS SILENCED RATHER THAN THE RULE, and the difference is
+     measurable. Scoping the whole rule away with `:not(:active-view-transition)`
+     leaves the blocks at `translate: none` for the arrival and at `0 0`
+     afterwards — equivalent to the eye, a real transition to the engine, which
+     starts the moment the selector begins to match: a second owner again, one
+     frame later, found by the hold below on its first run. A starting style is
+     only ever observable THROUGH a transition, so silencing the transition
+     silences the entry and changes nothing else. */
+  :root:active-view-transition [data-region="screen-media/body"] > * {
+    transition: none;
   }
 }
 
