@@ -130,6 +130,35 @@ async def hold_the_lanes_are_measured(journal, browser):
         f"the grid draws {reading['columns']} columns and the window windows "
         f"{reading['lanes']} — it believes in the wrong number of lines, sizes "
         "its spacers for the wrong row, and puts the wrong rows under the finger")
+
+    # AND THE GEOMETRY AGREES, which the two numbers above cannot say between
+    # them: `data-lanes` is a number the window PUBLISHES and the comparison
+    # above re-derives the same computed style, so a window that publishes the
+    # measured columns and still sizes its lines from a typed three passes both.
+    # What only the spacers can produce is the container's total height.
+    geometry = await page.evaluate(r"""()=>{
+      const box = document.querySelector('#libitems');
+      const tile = box.querySelector('[data-part="tile"]');
+      const style = getComputedStyle(box);
+      return {
+        height: box.getBoundingClientRect().height,
+        rows: Number(box.dataset.virtualised) || 0,
+        columns: (style.gridTemplateColumns || '').split(/\s+/).length,
+        line: tile ? tile.getBoundingClientRect().height : 0,
+        gap: parseFloat(style.rowGap || style.gap) || 0,
+      };
+    }""")
+    lines = -(-geometry["rows"] // max(geometry["columns"], 1))
+    expected = lines * (geometry["line"] + geometry["gap"]) - geometry["gap"]
+    journal.check(
+        "and the window is as TALL as those lanes make it",
+        geometry["line"] > 0 and geometry["rows"] > 4
+        and abs(geometry["height"] - expected) < max(2 * geometry["line"], 40),
+        f"read {geometry} — {geometry['rows']} row(s) over "
+        f"{geometry['columns']} lane(s) is {lines} line(s), which stand "
+        f"{expected:.0f}px tall, and the window measures "
+        f"{geometry['height']:.0f}px. The spacers are sized for a different "
+        "number of lines than the grid draws, whatever the attribute says")
     await context.close()
 
 
@@ -183,6 +212,11 @@ async def hold_rows_keep_their_identity(journal, browser):
     if not marked:
         await context.close()
         return
+    before_edges = await page.evaluate(
+        "(row)=>{const drawn=[...document.querySelectorAll(row)];"
+        " return drawn.length ? [drawn[0].textContent.trim().slice(0, 40),"
+        "   drawn[drawn.length - 1].textContent.trim().slice(0, 40)] : ['', ''];}",
+        ROW)
 
     # A SMALL scroll: far enough to move the window's edges, near enough that
     # the marked row is still inside it. A scroll that evicted the row would
@@ -198,7 +232,7 @@ async def hold_rows_keep_their_identity(journal, browser):
     for step in range(1, 9):
         await session.send("Input.dispatchTouchEvent", {
             "type": "touchMove",
-            "touchPoints": [{"x": box["x"], "y": box["y"] - 200 * step / 8, "id": 1}]})
+            "touchPoints": [{"x": box["x"], "y": box["y"] - 420 * step / 8, "id": 1}]})
         await page.wait_for_timeout(16)
     await session.send("Input.dispatchTouchEvent",
                        {"type": "touchEnd", "touchPoints": []})
@@ -206,22 +240,142 @@ async def hold_rows_keep_their_identity(journal, browser):
 
     after = await page.evaluate("""(row)=>{
       const still = document.querySelector('[data-identity-probe="kept"]');
+      const drawn = [...document.querySelectorAll(row)];
       return {survived: !!(still && still.isConnected),
-              drawn: document.querySelectorAll(row).length,
+              drawn: drawn.length,
+              // WHICH ROWS ARE DRAWN, not how far the port scrolled. A window
+              // that never re-ranged keeps every node too, so identity would
+              // pass for the wrong reason — and whether 200px crosses a line
+              // depends on the row height and the scroll margin.
+              edges: drawn.length
+                ? [drawn[0].textContent.trim().slice(0, 40),
+                   drawn[drawn.length - 1].textContent.trim().slice(0, 40)]
+                : ['', ''],
               scrolled: document.querySelector('#port').scrollTop};
     }""", ROW)
 
     journal.check(
-        "the scroll actually moved the window",
-        after["scrolled"] > 0,
-        f"scrollTop {after['scrolled']} — nothing moved, so nothing was asked "
-        "of identity")
+        "the scroll actually moved the window's RANGE",
+        after["scrolled"] > 0 and after["edges"] != before_edges,
+        f"scrollTop {after['scrolled']} and the window still draws "
+        f"{after['edges']!r} — its RANGE never moved, so nothing was asked of "
+        "identity: a window that never re-ranges keeps every node too")
     journal.check(
         "and a row still in the window is the SAME node it was",
         after["survived"],
         f"read {after} — the marked row was rebuilt: the window rewrote itself "
         "rather than moving at its edges, which takes an open swipe, a pressed "
         "state and every decoded image with it")
+    await context.close()
+
+
+async def hold_the_gallery_keeps_its_ORDER(journal, browser):
+    """Scrolls the gallery down and back UP, and reads the order it draws.
+
+    THE DEFECT THIS EXISTS FOR, and no rule could see it. The window inserts
+    each new row before the row that FOLLOWS it, which is right; it walked its
+    range UPWARDS, which meant the follower of a new row was itself new and not
+    yet in the tree, so those rows fell through to « append before the tail
+    spacer » and landed at the END of the window. The grid's auto-placement
+    follows DOM order, so scrolling UP by one line in a three-lane gallery drew
+    two rows at the bottom of the window and the top line read « 8 9 10 ».
+
+    Every rule drove the LIST, which is immune by arithmetic — one lane means
+    the last new index always has a live follower — and every one of them
+    scrolled DOWN, where the new rows are at the end anyway. Two blind spots
+    that had to coincide, and they did.
+
+    Args:
+        journal: The rule's journal.
+        browser: A launched Playwright browser.
+    """
+    context = await browser.new_context(**PHONE)
+    page = await context.new_page()
+    await page.goto(PROTOTYPE, wait_until="load")
+    await page.evaluate("()=>window.__loadingDone?.()")
+    await page.evaluate("()=>document.querySelector('#toastx')?.click()")
+    await page.wait_for_timeout(250)
+    await page.evaluate("()=>window.__go('lib-grid')")
+    await page.wait_for_timeout(900)
+
+    read_order = """()=>[...document.querySelectorAll(
+      '#libitems > [data-part=\"tile\"]')].map(
+        (tile) => Number(tile.dataset.tile))"""
+
+    session = await page.context.new_cdp_session(page)
+    box = await page.evaluate(
+        "()=>{const r=document.querySelector('#port').getBoundingClientRect();"
+        "return {x:r.x+r.width/2, y:r.y+r.height*0.6};}")
+
+    async def drag(distance):
+        """Drags the scrollport by `distance`, positive meaning DOWNWARD."""
+        await session.send("Input.dispatchTouchEvent", {
+            "type": "touchStart",
+            "touchPoints": [{"x": box["x"], "y": box["y"], "id": 1}]})
+        for step in range(1, 13):
+            await session.send("Input.dispatchTouchEvent", {
+                "type": "touchMove",
+                "touchPoints": [{"x": box["x"],
+                                 "y": box["y"] - distance * step / 12, "id": 1}]})
+            await page.wait_for_timeout(16)
+        await session.send("Input.dispatchTouchEvent",
+                           {"type": "touchEnd", "touchPoints": []})
+        await page.wait_for_timeout(500)
+
+    def first_out_of_order(series):
+        """The index of the first row that is smaller than the one before it.
+
+        Args:
+            series: The `data-tile` numbers in DOM order.
+
+        Returns:
+            The position of the first break, or -1.
+        """
+        for position in range(1, len(series)):
+            if series[position] < series[position - 1]:
+                return position
+        return -1
+
+    lanes = await page.evaluate(
+        "()=>Number(document.querySelector('#libitems').dataset.lanes) || 0")
+    journal.check(
+        "the gallery draws in LANES, or this hold measures the list again",
+        lanes >= 2,
+        f"{lanes} lane(s) — the defect is a multi-lane one, and one lane is "
+        "immune to it by arithmetic")
+
+    # DEEP INTO THE LIST FIRST, so that scrolling back up has rows to re-insert
+    # ABOVE the ones already live. The port is taken there by assignment rather
+    # than by a finger, and that is deliberate: a real finger is what the hold
+    # MEASURES, and it is spent on the upward gesture where the defect lives —
+    # a thousand pixels of dragging to reach the same place proves nothing extra
+    # and takes twenty seconds. Paging is given time to answer, because the
+    # window can only re-range over rows that exist.
+    await page.evaluate("()=>{document.querySelector('#port').scrollTop = 3000;}")
+    await page.wait_for_timeout(900)
+    await drag(400)
+    down = await page.evaluate(read_order)
+    journal.check(
+        "scrolled DOWN, the window draws its rows in order",
+        down == sorted(down) and len(down) > 4,
+        f"the window drew {down} — the first break is at position "
+        f"{first_out_of_order(down)}")
+
+    # AND BACK UP, which is where the order was lost.
+    await drag(-500)
+    up = await page.evaluate(read_order)
+    journal.check(
+        "and scrolled back UP, it still draws them in order",
+        up == sorted(up) and len(up) > 4,
+        f"the window drew {up} — the first break is at position "
+        f"{first_out_of_order(up)}. Rows re-inserted at the top of the range "
+        "were appended at its END, so the grid lays them out last and the "
+        "reader's first line is not the first line")
+    journal.check(
+        "and the two readings are not the same window",
+        down[:1] != up[:1],
+        f"the window began at {down[:1]} both times — it never re-ranged "
+        "upwards, so the hold above measured the downward case twice")
     await context.close()
 
 
@@ -232,6 +386,7 @@ async def hold(journal):
         browser = await play.chromium.launch(channel="chrome")
         await hold_the_lanes_are_measured(journal, browser)
         await hold_rows_keep_their_identity(journal, browser)
+        await hold_the_gallery_keeps_its_ORDER(journal, browser)
         context = await browser.new_context(**PHONE)
         page = await context.new_page()
         await page.goto(PROTOTYPE, wait_until="load")

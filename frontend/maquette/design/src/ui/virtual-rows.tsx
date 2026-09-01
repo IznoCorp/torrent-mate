@@ -247,13 +247,26 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
       container.append(spacers.current.after);
     }
 
-    for (let index = start; index < end; index += 1) {
+    // INSERTED FROM THE BOTTOM OF THE RANGE UPWARDS, and the direction is the
+    // whole correctness of this loop.
+    //
+    // Each new row is placed before the row that FOLLOWS it, so that the DOM
+    // order is the data order — which the grid's auto-placement then follows.
+    // Walking the range upwards, the follower of a new row is itself new and
+    // not yet in the tree, so those rows fell through to « append before the
+    // tail spacer » and landed at the END of the window. Scrolling UP by one
+    // line in a three-lane gallery moved two rows to the bottom of the window;
+    // a flick moved all but one. The list mode was immune by arithmetic — one
+    // lane means the last new index always has a live follower — which is why
+    // a rule driving only the list saw nothing.
+    //
+    // Descending, the follower is ALWAYS resolved: either it was already live,
+    // or this loop inserted it one step earlier.
+    for (let index = end - 1; index >= start; index -= 1) {
       if (live.has(index)) continue;
       const node = elementFor(renderRow(index));
       if (!node) continue;
       live.set(index, node);
-      // Placed before the row that follows it, so order holds however the
-      // window moved — a jump inserts in the middle exactly as a step does.
       const following = live.get(index + 1);
       if (following && following.isConnected) {
         container.insertBefore(node, following);
