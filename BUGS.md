@@ -420,10 +420,14 @@ crossed on the way back — the five ladder rules count entries going forward an
 **B-287 — the rule that maquette comments carry no date, lot or phase has no arm.**
 `CLAUDE.md` § Language: « Maquette/harness comments carry no reference to a session, a phase or a
 dated decision — they must still read years from now, out of context. » Measured 2026-09-01 over
-`frontend/maquette`'s `.py`, `.ts`, `.tsx` and `.css` comments alone (the engine's fixture DATES are
-data, not prose, and are excluded): **266 occurrences across 85 files**, the largest being
-`styles/legacy.css` at 64 and `contract/types.d.ts` at 26. This wave added roughly thirty-five of
-them and repaired the ones an adversarial reader named.
+`frontend/maquette`'s `.py`, `.ts`, `.tsx` and `.css` files, counting `#`, `//` and `/* */` comments
+alone — the engine's fixture DATES are data, not prose, and are excluded, **and so are Python
+DOCSTRINGS**, which the first scan did not say: **263 occurrences across 85 files** by that scope
+and **326 across 99** with docstrings in, the largest being `styles/legacy.css` at 64 and
+`contract/types.d.ts` at 26. **The arm's specification owes that choice explicitly** — a docstring
+is prose a reader meets exactly as a comment is, and freezing a baseline over the narrower scope
+would leave the wider one free to grow. This wave added **28**, measured against `main`, and
+repaired the ones an adversarial reader named.
 
 **Why it is filed rather than fixed.** The debt is eight waves deep and the corpus is not this lot's;
 a partial pass leaves the corpus inconsistent without achieving the rule. The shape of the arm is
@@ -439,10 +443,18 @@ belonging to no lot, and the rule there decides it.
 
 **B-288 — the media screen's priming matches a title by prefix.**
 `useMediaSheet` primes from `reference.sheetFor(title)`; the engine's lookup falls back to a
-normalised key and then to a PREFIX match (`startsWith(key + " ") && length > 6`). So a medium whose
-title is a prefix of another's opens with **the other medium's poster and year** for as long as the
-read is in flight, then corrects itself when the answer lands. On this fixture the family « Lucky »,
-« Lucky (2026) », « Lucky Chances » is exactly that shape.
+normalised key and then to a PREFIX match (`key.startsWith(clef2 + " ") && clef2.length > 6`). So a
+medium whose title is a prefix of another's — **and longer than six characters** — opens with the
+other medium's poster and year for as long as the read is in flight, then corrects itself when the
+answer lands.
+
+**The « Lucky » family is NOT an instance, and naming it was an error found by an adversarial
+reader.** `clef2` is the QUERIED title normalised: « Lucky » is five characters, so the guard
+refuses it, `baseTitle` strips « (2026) » to the same five, and `SHEETS_IDX` holds no `Lucky*` key
+but « Lucky Luke » — the four Lucky titles live only in `POSTERS`. `sheetFor("Lucky")` answers
+`null` and the screen shows its skeleton, which is correct. The mechanism stands on its own reading
+of the code; **no instance of it is claimed on this fixture**, and the entry says so rather than
+carrying an example that cannot reach the branch it accuses.
 
 **Not a defect of the priming**, which is why it is filed against the lookup rather than the screen:
 an absent title answers `null` and the screen shows its skeleton, which is correct. What is wrong is
@@ -532,6 +544,10 @@ it, armed, transition suppressed, until some later gesture moved it. The engine 
 there — which is why « carried over verbatim » was not true — and nothing drove a mouse cancel, so
 nothing saw it.
 
+**What changed**: the non-touch branch zeroes the last delta and calls the module's own `end()`,
+which releases UNARMED — a cancelled gesture is not one the reader completed, so it commits nothing
+and the indicator goes back. The engine's orphaned comment describing the listeners went with them.
+
 <sub>`frontend/maquette/harness/press.py` → « a cancelled mouse pull puts the indicator BACK »;
 its mutation reads `{'height': 72, 'armed': True}`</sub>
 
@@ -541,6 +557,11 @@ the capture happens at the next rendering opportunity whether or not the route h
 the day a route has a loader or a lazy component, the arrival animates the departing page, and
 every hold in R115 stays green because they all read the OLD side. Correct today only by the
 absence of loaders, which is not a property anybody is holding.
+
+**What changed**: the commit returns the router's promise, so the browser captures the new state
+when the route has settled. The flush stays where it was — synchronous, before the return — because
+« one call, one entry » is about the router batching two writes in ONE task, which awaiting after
+the flush does not alter.
 
 <sub>wrap `document.startViewTransition` and read whether the callback returned a thenable → true;
 `void navigated` makes both preferences fall</sub>
@@ -747,13 +768,18 @@ schedule, so they will drift again the next time a wave adds surfaces.
 
 **B-271 — `MODEL.md` cited `index.html:241` for `#ptr`, and that line holds the skip link.**
 Part 8 assigns pull-to-refresh to L12 and located it at `index.html:241`. That line is inside the
-comment explaining the skip link's `tabindex="-1"`; the `#ptr` element opens at `:253` and carries its
-id at `:255`, and the engine drives it from `legacy.js:32313`. The citation was not wrong when it was
+comment explaining the skip link's `tabindex="-1"`. The citation was not wrong when it was
 written — it drifted — which is exactly L15's paid shape (« cited line numbers past the end of the
 file ») in a document no guard reads for line numbers. Found by re-deriving the L12 plan's citations
 against the tree rather than copying them from the model. Corrected in the same move (§ 7.1: what
 loses its subject is fixed, not kept). **The general defect is not fixed**: nothing checks a
 `file:line` citation in `docs/`, and `check-docs-cited-paths.py` reads paths, not lines.
+
+**AND THIS ENTRY CARRIED THE DEFECT IT DESCRIBES.** It named the corrected lines — « opens at :253,
+id at :255, driven from `legacy.js:32313` » — and all three moved inside this very pull request,
+which edits both files. They are removed rather than re-derived: a register entry's subject is the
+DEFECT, and pinning a line number in it manufactures the drift it is about. The commands below find
+the current lines, and a command does not go stale.
 
 <sub>`grep -n 'id="ptr"' frontend/maquette/design/index.html` · `grep -n 'select("#ptr")' frontend/maquette/design/src/engine/legacy.js`</sub>
 

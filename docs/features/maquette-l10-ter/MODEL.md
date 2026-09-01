@@ -218,7 +218,8 @@ it; the sheet resetting ITS OWN port is not a second path (a layer's port is not
 written down as such. The engine's writes go with **L13** (or with the producer that owns each, in
 **L19**); the skip link's goes when the index is scheduled, and not before — churn with no defect
 is churn. **Pull-to-refresh** (`#ptr` — `index.html:258`, the gesture in `design/src/lib/pull-gesture.ts` since L12, wired at `legacy.js:32182`) is this part's: a gesture on
-`#port` that knows nothing of what refreshes — it moves with the gesture vocabulary in **L12**.
+`#port` that knows nothing of what refreshes — it MOVED with the gesture vocabulary, into
+`design/src/lib/pull-gesture.ts`.
 
 ### Part 9 — The entry
 
@@ -358,7 +359,7 @@ come out the other way. A sentinel on `window` and the `load` event are what sep
 | P8 | **A mutation issued offline departs exactly once** on reconnection | **R107**, 16 holds — on the mock layer's `setOffline`, which REJECTS the way an outage does rather than answering a status | **true** since L11 | — |
 | P9 | **Installable, and the handler of its own links**: manifest `display`, `id`, icons, and the entry points L11 names | R51, R52, and **R108** for the three Q4 elected — declared in the manifest, and `/add?q=` proved to pre-fill. The half only a device settles is DECLARED as device-only and NOT yet exercised — `REPORT.md` says so, and no dated device record exists | **true** in the manifest; the operating-system half is device-only | — |
 | P10 | **Safe areas**: the two bars pad by `env(safe-area-inset-*)` and nothing else positions by a distance to an edge | static read of the bars' classes (the compositor guard's shape); the rendered check is device-only | true in the markup, and still true after L15 moved both bars into components | — |
-| P11 | **Dynamic viewport**: the frame is `100dvh`, no `100vh` anywhere | `check-css-tokens.py`-shaped static read | **true** since L12 — `base.css:67` is `height: 100dvh`, and `100vh` is refused across the tree by `scripts/check-viewport-directives.py`; the only `100svh` is `harness.css`, which ships nowhere | L12 |
+| P11 | **Dynamic viewport**: the frame is `100dvh`, no `100vh` anywhere | `check-css-tokens.py`-shaped static read | **true** since L12 — `base.css:67` is `height: 100dvh`, and `100vh` is refused across the tree by `scripts/check-viewport-directives.py`; the only `100svh` is `harness.css`, which ships nowhere | — |
 | P12 | **Contained overscroll** on `#port` | the compositor-CSS guard | true | — |
 | P13 | **No zoom on focus**: every field ≥ 16 px | R83 | true | — |
 | P14 | **Pinch-zoom allowed**: neither directive, on any host | axe 1.4.4 on every named state (`window.__states()`, 87 on 2026-08-30) **and `scripts/check-viewport-directives.py`**, which reads markup, script AND stylesheet — axe can only see a directive PRESENT on the document it audits, and B-230's was written into a branch that never fired here | **true, and no longer a landmine** — B-230 closed by L15 | — |

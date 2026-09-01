@@ -11,7 +11,8 @@
 The blockage below was answered, the carry was built (`5f24d829`), the operator watched it on his
 own phone and **withdrew it** (`a6be3a6e`). `grep -rn "carried-poster" frontend/maquette` reads 0
 at HEAD; the rule that would have held it went with the drawing, and the transition baseline moved
-18 → 10 in that commit.
+18 → 10 when it did — in `fd744005`, the baseline commit, not in `a6be3a6e` which removed the
+drawing. A baseline moves in the commit that RECORDS it.
 
 **What ships in its place** is transition A, phase 11's: the arriving fanart fades while the body
 rises, sharing nothing. The reasoning is the one `MODEL.md`'s P6 row already carried before the

@@ -1531,7 +1531,9 @@ no path of its own left.
 
 **Objective.** What did not die by subtraction, measured by L10-ter on 2026-08-29 rather than
 listed from memory: the ladder's HANDLER (`onEngineBack`, `unwindLayer`, `hideLayers`,
-`__closeLayers` — `MODEL.md` § 2 Part 4, to `app/layers.ts`), the document-level delegation's
+`__closeLayers` and **`switchPageFromLayer`**, which is the one B-275 and B-290 both name as their
+cause — it REPLACES a layer's entry rather than pushing over it — `MODEL.md` § 2 Part 4, to
+`app/layers.ts`), the document-level delegation's
 FRAME verbs, the boot handshake (`__startEngine`), the engine-side seams (`__address`, `__bridge`,
 `__panel`, `__screens`, `__store`), the dead `#screen` layer with its three readers and the
 mount-node placement that rests on it (B-232), `refonte.html` and R72's renegotiation,
@@ -1610,8 +1612,10 @@ its report.
 - **B-272's open form** — nothing RE-TAKES a floor, so every floor in the repository drifts under a
   green guard until somebody measures it. The compositor manifest's floors were re-taken in L12;
   the mechanism that would keep them true does not exist.
-- **B-273** — `scripts/mutate.sh` exits SILENTLY when a mutation breaks the build: no rule runs and
-  it does not say so, which reads exactly like « no hold fell ».
+- **B-273** — `scripts/mutate.sh` cannot judge a GUARD: it decides by reading journal `FAIL` lines,
+  which a guard in `scripts/` never prints, so it answers « no hold fell » whatever the guard says
+  and whatever its exit code. Two arms were rewritten on that false reading before it was found. It
+  also exits SILENTLY when a mutation breaks the build, which reads the same way.
 - **B-276** — a delay set by hand in an instrument outlives the drawn duration it was set against.
   Three rules were repaired for it in L12 alone; the species stays open because nothing refuses the
   next one.
