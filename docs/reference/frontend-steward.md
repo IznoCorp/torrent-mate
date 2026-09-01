@@ -178,3 +178,19 @@ the brief explaining it was never anywhere else.
 **So: the brief is committed and pushed before the agent is called, and the call names its path in
 the repository.** A wave's brief is archived with its lot at the post-merge gesture, like its design
 and its plan.
+
+**The adversarial review is INDEPENDENT of the author, or it is not adversarial — measured on L12,
+2026-09-01.** The wave's agent could not dispatch reviewer agents in its session and ran the review
+as serialised lenses over its own work: four findings. The operator chose independent reviewers
+launched by the steward — read-only, one lens each, on a worktree PINNED at the pull request's
+head, findings relayed to the wave's agent as the sole writer: about forty, two of them blockers,
+and the L11 curve reproduced exactly — **40 → 10 → 3 → 0** over three rounds, each round aimed at
+the previous round's REPAIRS, which is where every round found its sharpest defect (a hold turned
+tautology by the fix beside it; a gallery whose rows shuffled on the one scroll direction no rule
+drove). The steward's own probes — Playwright on this machine, the CDP playback rate for a slow
+motion that is real — served the operator's perception when it disagreed with the record, never
+as validation: **the operator judges in the running application, on his phone**. Three
+consequences the office keeps: a review round is a fresh reader, not a fresh lens; the round after
+a repair reads the repair; and a defect found in the wave's OWN instruments during its gesture
+(B-291, a dangling pointer one file over from the paragraph that names the species) is filed with
+an owner in the plan's instruments' debts block, not repaired by the steward.
