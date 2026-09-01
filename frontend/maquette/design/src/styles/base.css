@@ -700,7 +700,19 @@
   }
 }
 
+/* THE `from` IS DECLARED, and leaving it implicit was a defect rather than a
+   shorthand. An implicit `from` takes the element's UNDERLYING value, which
+   Chrome re-evaluates while the animation runs: measured at 16ms on a cold
+   arrival, the cover went 1 → 0.002 by 167ms, back to 0.996 by 300ms and to 0
+   at 450 — the picture appeared, was covered again, and appeared once more,
+   inside ONE run of one animation. That is the operator's flash, in the rule
+   written to remove it. With `from` declared, the same run reads 0.896, 0.701,
+   0.456, 0.239 … — the standard curve exactly, and monotone. */
 @keyframes banner-cover {
+  from {
+    opacity: 1;
+  }
+
   to {
     opacity: 0;
   }

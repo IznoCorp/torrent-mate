@@ -372,19 +372,32 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
     # was 0 whenever the hold above passed and could only fall after it already
     # had. A second entry replaying now replays on the COVER, and nothing was
     # watching it.
-    def descents_of(series):
-        """How many times a series falls from full to less than full.
+    def recoveries_of(series):
+        """How many times a retreating cover comes BACK over the picture.
+
+        A COVER ONLY EVER RETREATS. « How many times does it fall from full »
+        cannot say that: an entry replayed a second time passes through full
+        opacity for one instant between the two falls, and a 16ms sampler reads
+        exactly 1.0 there only by luck — measured, a cover keyframed 1 → 0 → 1
+        → 0 was counted as ONE descent, because the peak fell between two
+        samples. What a second entry always leaves behind is a RISE.
 
         Args:
-            series: Opacity samples, in order.
+            series: The cover's opacity samples, in order.
 
         Returns:
-            The number of descents.
+            How many times the series rose materially above its running low.
         """
-        return sum(1 for index in range(1, len(series))
-                   if series[index - 1] >= 1.0 > series[index])
+        recoveries = 0
+        lowest = series[0] if series else 1.0
+        for value in series:
+            if value > lowest + 0.15:
+                recoveries += 1
+                lowest = value
+            lowest = min(lowest, value)
+        return recoveries
 
-    descents = descents_of(cover)
+    descents = recoveries_of(cover)
     if arrival == "immediate":
         journal.check(
             "a hero the transition already carried does NOT dip — one owner",
@@ -425,10 +438,10 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
             "the flash this rule exists to refuse, in miniature")
         journal.check(
             "and it fades ONCE — one entry, one owner",
-            descents <= 1,
-            f"{descents} descents of the COVER from full: the picture is "
-            "revealed more than once, which is a second entry animation "
-            "replaying over the first")
+            descents == 0,
+            f"the cover came back over the picture {descents} time(s) after "
+            "retreating: it is revealed more than once, which is a second entry "
+            "animation replaying over the first")
     await context.close()
 
 
