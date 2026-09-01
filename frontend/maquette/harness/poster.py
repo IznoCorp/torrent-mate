@@ -91,7 +91,18 @@ async def hold(journal):
               if (tiles.length < 2) return null;
               // A node BELOW the first posters: if one grew, this moved.
               const last = tiles[tiles.length - 1].getBoundingClientRect();
-              return {top: last.top, count: tiles.length,
+                // HOW MANY POSTERS HAVE ACTUALLY DECODED. Without this the
+              // comparison below is green over images that never arrived at
+              // all: point the fixture at a missing file, nothing loads,
+              // nothing grows, nothing moves, and « nothing moved when the
+              // posters landed » passes over posters that did not land. The
+              // probe holds the requests back itself, so it is the probe's own
+              // release that has to be shown to have worked.
+              const landed = [...document.querySelectorAll(
+                '[data-part="tile"] img')]
+                .filter((image) => image.complete && image.naturalWidth > 0)
+                .length;
+              return {top: last.top, count: tiles.length, landed,
                       firstHeight: tiles[0].getBoundingClientRect().height};
             }""")
 
@@ -116,6 +127,15 @@ async def hold(journal):
         released.set()
         await page.wait_for_timeout(700)
         after = await geometry()
+
+        journal.check(
+            "the posters ACTUALLY landed once released",
+            after["landed"] >= 2 and after["landed"] > before["landed"],
+            f"{before['landed']} poster(s) decoded while withheld and "
+            f"{after['landed']} after the release — the hold below reads a "
+            "gallery whose images never arrived, and an image that never "
+            "arrives never pushes anything: it would pass over the defect it "
+            "exists to catch")
 
         moved = abs(after["top"] - before["top"])
         journal.check(

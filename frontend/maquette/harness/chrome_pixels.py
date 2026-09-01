@@ -147,8 +147,30 @@ async def hold(journal):
             await page.screenshot(clip=box, animations="allow"))
         await page.click(TILE)
         await page.wait_for_timeout(MID_TRANSITION_MILLISECONDS)
+        # WAS A TRANSITION ACTUALLY CROSSING WHEN THIS WAS READ? Nothing asked,
+        # and a rule whose whole subject is « in flight » that never establishes
+        # flight is green over the case it exists for: delete
+        # `document.startViewTransition` and the click still navigates, the two
+        # reads are then two SETTLED bars, the drift is 0.0 and this rule passes
+        # while the transition it measures does not happen. B-085, in the rule
+        # written against B-085.
+        #
+        # Read on BOTH sides of the capture, because a screenshot is not
+        # instantaneous and a transition that ended between the flag and the
+        # shutter would leave the same false reading.
+        crossing_before = await page.evaluate(
+            "()=>document.documentElement.matches(':active-view-transition')")
         crossing = average_colour(
             await page.screenshot(clip=box, animations="allow"))
+        crossing_after = await page.evaluate(
+            "()=>document.documentElement.matches(':active-view-transition')")
+        journal.check(
+            "the mid-flight read is taken WHILE a transition crosses",
+            crossing_before and crossing_after,
+            f"`:active-view-transition` read {crossing_before} before the "
+            f"capture and {crossing_after} after it — the sample below is of a "
+            "settled bar, and comparing two settled bars proves nothing about "
+            "how one is painted under an arriving screen")
         await page.wait_for_timeout(1400)
         after = average_colour(
             await page.screenshot(clip=box, animations="allow"))
