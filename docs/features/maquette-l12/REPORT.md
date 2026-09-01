@@ -314,16 +314,44 @@ rule** — hand-set delays outlived by durations that were later redrawn.
 **The wave's subject was transitions. Its output was an inventory of how
 instruments fail.**
 
-## 7. Device-only protocols — written and dated, never claimed as passed
+## 7. Device-only protocols — written and dated
 
-Neither was exercised, and `MODEL.md` § 3.1 is explicit that they are protocols rather than gates.
+`MODEL.md` § 3.1 is explicit that these are protocols rather than gates, and this section is the
+dated record it asks for.
 
-- **The interaction budget on a real device.** Not measured. A headless browser's frame timing says
-  nothing about a phone's.
-- **Whether `:active` still needs a touch listener to fire.** Not measured. If it does, the remedy is
-  **one empty listener**, never a per-component JavaScript state.
+**EXERCISED, 2026-08-31 and 2026-09-01, by the operator on his own phone** — Chrome on Android,
+through `tm-design`, with « Supprimer les animations » verified OFF (he supplied the capture, so
+neither reduced motion nor a support gap is confounding the reading). This was not a video review:
+he judged the running application, four rounds, and the last is his verdict — **« ok c'est bon pour
+moi »** on the re-tuned transitions, on « A généralisée » with optimistic priming, and on the bottom
+bar.
+
+**What that record does and does not establish.** It establishes that the gestures and the arrival
+READ correctly on real hardware, which no headless browser can say. It is not a frame-timing
+measurement:
+
+- **The interaction budget on a real device — STILL NOT MEASURED.** A headless browser's frame
+  timing says nothing about a phone's, and « it looks right » is not a budget. It stays a device-only
+  protocol, undischarged, and saying so is the point of writing it down.
+- **Whether `:active` still needs a touch listener to fire — STILL NOT MEASURED.** The pressed state
+  was validated by eye (« l'effet enfoncé je le vois bien »), which is evidence that it fires on his
+  device and is not the controlled pair the question asks for. If it ever proves to need one, the
+  remedy is **one empty listener**, never a per-component JavaScript state.
+
+**Neither is claimed as passed.** L11's P9 is the precedent: the half only a device settles is
+declared device-only and left undischarged rather than quietly counted.
 
 ---
+
+## 7b. The option nobody chose
+
+A variant was offered beside the arrival — the entering screen coming up from a 0.98 scale under the
+same curve — held behind `data-transition-option="scale"` so both arms could be judged in the live
+application without a rebuild. **The operator validated the arrival without it.**
+
+**It is removed.** An option nobody chose is machinery with no reader, which is this wave's own rule
+applied to this wave's own code. It is recorded here so the next reader knows it was offered and not
+taken, rather than finding it in a stylesheet and having to work out whether anyone ever decided.
 
 ## 8. The gates
 
