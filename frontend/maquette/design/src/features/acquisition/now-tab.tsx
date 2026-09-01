@@ -6,6 +6,7 @@ import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useUiState } from "../../lib/store-access";
 import { body, crossReference, crossReferenceLink, crossReferenceStrong, emptyNote, section as sectionClass } from "../../ui/variants";
+import { Markup } from "../../ui/markup";
 
 // « En cours » — five sections of urgency, one coloured pip each, and a counter
 // that IS its own link. The page's own note calls this the language reference
@@ -26,9 +27,9 @@ export function NowTab(): ReactElement {
         {state.phase === "error" ? (
           <SurfaceError subject={t("screens.acquisition.errorNow")} />
         ) : (
-          <div
+          <Markup
             className={sectionClass()} data-part="section"
-            dangerouslySetInnerHTML={{ __html: skelCardsInner(4) }}
+            html={skelCardsInner(4)}
           />
         )}
       </div>
@@ -62,11 +63,9 @@ export function NowTab(): ReactElement {
     note?: string,
   ) =>
     cards.length === 0 || inner === "" ? null : (
-      <section
+      <Markup tag="section"
         className={sectionClass()} data-part="section"
-        dangerouslySetInnerHTML={{
-          __html: secInner(pip, title, String(cards.length), inner, note),
-        }}
+        html={secInner(pip, title, String(cards.length), inner, note)}
       />
     );
 
@@ -77,14 +76,12 @@ export function NowTab(): ReactElement {
         {t("screens.acquisition.nowNoteRest")}
       </div>
       {nothing ? (
-        <div
+        <Markup
           className={emptyNote()} data-part="empty-state"
-          dangerouslySetInnerHTML={{
-            __html: emptyInner(
+          html={emptyInner(
               t("screens.acquisition.nowEmptyTitle"),
               `${t("screens.acquisition.nowEmptyBodyBefore")}<b>${t("screens.acquisition.nowEmptyBodyCount")}</b>${t("screens.acquisition.nowEmptyBodyAfter")}`,
-            ),
-          }}
+            )}
         />
       ) : null}
       {section(

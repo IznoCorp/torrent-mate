@@ -18,6 +18,7 @@ import { Icon } from "../../ui/icon";
 import { useAcquisitionReference } from "./reference";
 import { useUiState } from "../../lib/store-access";
 import { body, filterZone, liveDot, liveEmphasis, liveStrip, loadFooter, pillBar, pillScroll, section as sectionClass, surfaceError, viewSwitch, viewSwitchButton, viewSwitchWrap } from "../../ui/variants";
+import { Markup } from "../../ui/markup";
 
 // « Découvrir » — what one might want, which is the only surface here that
 // asks nothing of the operator: the bar's badge never counts it.
@@ -172,9 +173,9 @@ export function DiscoverTab(): ReactElement {
           {t("screens.acquisition.gesturesNoteAfter")}
         </div>
         {state.phase === "loading" ? (
-          <div
+          <Markup
             className={sectionClass()} data-part="section"
-            dangerouslySetInnerHTML={{ __html: skelCardsInner(4) }}
+            html={skelCardsInner(4)}
           />
         ) : state.phase === "error" ? (
           <SurfaceError subject={t("screens.acquisition.errorSuggestions")} />

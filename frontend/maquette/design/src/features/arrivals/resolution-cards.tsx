@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import fr from "../../i18n/fr.json";
 import { useArrivalsReference, type PendingDecision, type SettledDecision } from "./reference";
 import { actionButton, ruleNote } from "../../ui/variants";
+import { Markup } from "../../ui/markup";
 
 // A RELEASE is not a medium, and its card is deliberately a different object.
 // A release has no media sheet and no panel — it is one candidate among
@@ -46,15 +47,13 @@ export function ReleaseCard({
   return (
     <div className="card" data-part="card" data-nonmedia={opts.genre || "release"}>
       <div className="ctop" data-part="card/top">
-        <span
+        <Markup tag="span"
           className="poster"
           data-part="card/poster"
           title={
             opts.noPoster ? t("screens.resolution.noPosterTitle") : undefined
           }
-          dangerouslySetInnerHTML={{
-            __html: posterBox(title, opts.k, { exact: opts.exact }),
-          }}
+          html={posterBox(title, opts.k, { exact: opts.exact })}
         />
         <span className="cbody" data-part="card/body">
           <span className="ctitle" data-part="card/title">{title}</span>
@@ -126,10 +125,10 @@ export function DecisionCard({ decision }: { decision: SettledDecision }) {
   return (
     <div className="card" data-part="card" data-nonmedia="decision">
       <div className="ctop" data-part="card/top">
-        <span
+        <Markup tag="span"
           className="poster"
           data-part="card/poster"
-          dangerouslySetInnerHTML={{ __html: poster }}
+          html={poster}
         />
         <span className="cbody" data-part="card/body">
           <span className="ctitle" data-part="card/title" title={decision.d}>

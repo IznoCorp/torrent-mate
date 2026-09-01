@@ -6,6 +6,7 @@ import { useLibraryReference, type IncompleteShow } from "./reference";
 import { useLibraryIncomplete } from "./queries";
 import { useUiState } from "../../lib/store-access";
 import { body, section } from "../../ui/variants";
+import { Markup } from "../../ui/markup";
 
 export function IncompleteLens(): ReactElement {
   const state = useUiState();
@@ -23,10 +24,9 @@ export function IncompleteLens(): ReactElement {
         {t("screens.library.incompleteNoteEnd")}
       </div>
       {state.libMode === "grid" ? (
-        <div
+        <Markup
           className="gallery" data-part="grid"
-          dangerouslySetInnerHTML={{
-            __html: INCOMPLETE.map((show: IncompleteShow) =>
+          html={INCOMPLETE.map((show: IncompleteShow) =>
               tileHTML(
                 show,
                 t("screens.library.incompleteEpisodes", {
@@ -34,14 +34,12 @@ export function IncompleteLens(): ReactElement {
                   all: show.a,
                 }),
               ),
-            ).join(""),
-          }}
+            ).join("")}
         />
       ) : (
-        <div
+        <Markup
           className={section()} data-part="section"
-          dangerouslySetInnerHTML={{
-            __html: INCOMPLETE.map((show: IncompleteShow) =>
+          html={INCOMPLETE.map((show: IncompleteShow) =>
               cardHTML({
                 t: show.t,
                 s: t(
@@ -53,8 +51,7 @@ export function IncompleteLens(): ReactElement {
                 f: `${show.o}/${show.a}`,
                 chip: ["warning", t("screens.library.incompleteChip")],
               }),
-            ).join(""),
-          }}
+            ).join("")}
         />
       )}
     </div>

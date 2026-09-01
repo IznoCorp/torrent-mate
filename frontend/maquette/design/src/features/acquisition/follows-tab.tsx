@@ -6,6 +6,7 @@ import { useFollows } from "./queries";
 import { useUiState } from "../../lib/store-access";
 import { FollowsFilters } from "./follows-filters";
 import { body, emptyNote, section as sectionClass, sectionCount, sectionTitle } from "../../ui/variants";
+import { Markup } from "../../ui/markup";
 
 // The swipe action a follow that can be searched again reveals. It is a
 // data-ATTRIBUTE VALUE the document-level delegation dispatches on — a contract
@@ -170,9 +171,9 @@ export function FollowsTab(): ReactElement {
   let content: ReactElement;
   if (state.phase === "loading") {
     content = (
-      <div
+      <Markup
         className={sectionClass()} data-part="section"
-        dangerouslySetInnerHTML={{ __html: skelCardsInner(5) }}
+        html={skelCardsInner(5)}
       />
     );
   } else if (state.phase === "error") {
@@ -181,9 +182,9 @@ export function FollowsTab(): ReactElement {
     );
   } else if (visible.length === 0) {
     content = (
-      <div
+      <Markup
         className={emptyNote()} data-part="empty-state"
-        dangerouslySetInnerHTML={{ __html: emptyInner(
+        html={emptyInner(
       term !== ""
         ? t("screens.acquisition.emptyFilter", {
             // ESCAPED, because this string is injected as HTML: i18next
@@ -199,14 +200,14 @@ export function FollowsTab(): ReactElement {
         : state.pill === "pause"
           ? t("screens.acquisition.emptyPausedBody")
           : `${t("screens.acquisition.emptyNoFollowsBodyBefore")}<b>${t("screens.acquisition.emptyNoFollowsBodyPlus")}</b>${t("screens.acquisition.emptyNoFollowsBodyAfter")}`,
-        ) }}
+        )}
       />
     );
   } else if (state.followMode === "grid") {
     content = (
-      <div
+      <Markup
         className="gallery" data-part="grid"
-        dangerouslySetInnerHTML={{ __html: visible.map(tileOf).join("") }}
+        html={visible.map(tileOf).join("")}
       />
     );
   } else if (state.followMode === "group") {
@@ -221,15 +222,13 @@ export function FollowsTab(): ReactElement {
           // cannot say which of its three values each card carries.
           const showStatus = group.of.length > 1;
           return (
-            <section
+            <Markup tag="section"
               key={group.l}
               className={sectionClass()} data-part="section"
-              dangerouslySetInnerHTML={{
-                __html: `
+              html={`
             <div class="sechead" data-part="section/head"><span class="pip ${group.pip}" data-part="status-dot"></span><span class="${sectionTitle()}" data-part="section/title">${group.l}</span><span class="${sectionCount()}" data-part="section/count">${items.length}</span></div>
             ${items.map((item) => rowOf(item, showStatus)).join("")}
-          `,
-              }}
+          `}
             />
           );
         })}
@@ -237,11 +236,9 @@ export function FollowsTab(): ReactElement {
     );
   } else {
     content = (
-      <div
+      <Markup
         className={sectionClass()} data-part="section"
-        dangerouslySetInnerHTML={{
-          __html: visible.map((follow) => rowOf(follow, true)).join(""),
-        }}
+        html={visible.map((follow) => rowOf(follow, true)).join("")}
       />
     );
   }

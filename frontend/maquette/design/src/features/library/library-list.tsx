@@ -22,8 +22,9 @@ import { endMark, loadError, loadErrorAction, loadFooter, section } from "../../
 export function LibraryList(): ReactElement {
   const state = useUiState();
   // The store's own draw counter, which every write bumps — including the
-  // in-place world mutations a delegated action makes.
-  const version = useStoreContent((content) => content.version);
+  // in-place world mutations a delegated action makes. Subscribed to so a
+  // mutation made in place re-renders this list; NOT read into the draw's key.
+  useStoreContent((content) => content.version);
   const { t } = useTranslation();
   const { libRowHTML, tileHTML, paintSelBar } = useLibraryReference();
   const footRef = useRef<HTMLDivElement | null>(null);
@@ -44,6 +45,26 @@ export function LibraryList(): ReactElement {
     Boolean(state.sortReversed),
   );
   const rows = (listing.data?.pages ?? []).flatMap((page) => page.items);
+  // WHAT MAKES A ROW'S MARKUP DIFFER IS THE DRAW'S KEY, and nothing else is.
+  // The key named the store's `version` — every action and every cache landing
+  // — so every bump emptied the window and rebuilt every row, and a tap
+  // between `pointerdown` and `click` on a row landed on a node no longer in
+  // the tree. Three things change what a row draws: the MODE (a tile is not a
+  // card), the SELECTION MODE (`libRowHTML` and `tileHTML` draw a checkbox in
+  // place of the poster's link), and the ROWS THEMSELVES — which the first
+  // page's identity carries: structural sharing keeps a page object while its
+  // content is equal, a delete rewrites the pages, a new question is a new
+  // query. A page loading BELOW keeps the first page and its nodes. A toggled
+  // checkbox is written onto its node in place by the delegation, so a kept
+  // node reads right. The engine's inline transforms — an open swipe — now
+  // survive a bump that changed nothing about the rows, which is the case
+  // `ui/virtual-rows.tsx` already treats a mid-gesture replacement as.
+  const firstPage = listing.data?.pages[0];
+  const draw = useRef<{ page: unknown; count: number }>({ page: undefined, count: 0 });
+  if (draw.current.page !== firstPage) {
+    draw.current = { page: firstPage, count: draw.current.count + 1 };
+  }
+  const drawKey = `${grid ? "grid" : "list"}:${state.selMode ? "select" : "browse"}:${draw.current.count}`;
   // WHAT THE END MARK SAYS is what the source HOLDS, never what the library
   // claims and never the size of a filtered answer.
   const loaded = listing.data?.pages[0]?.loaded ?? 0;
@@ -149,16 +170,13 @@ export function LibraryList(): ReactElement {
       </div>
     );
   } else {
-    // KEYED BY THE DRAW, deliberately. `fillLib` rewrote this container on every
-    // `render()`, and things are written into it IMPERATIVELY afterwards — a
-    // swipe leaves an inline transform on the row it opened. React keeps nodes
-    // whose generated string is unchanged, so an open swipe would survive a
-    // repaint that used to snap it shut. A key that moves with the store's own
-    // version makes each draw a new node, which is what the legacy did.
+    // KEYED BY THE DRAW — see `drawKey` above for what a draw IS. `fillLib`
+    // rewrote this container on every `render()`; a key that moved with the
+    // store's version reproduced that, and reproduced the tap it loses.
     // WINDOWED (P24) — `ui/virtual-rows.tsx` carries the whole reasoning.
     items = (
       <VirtualRows
-        drawKey={version}
+        drawKey={drawKey}
         count={count}
         {...(grid ? LIBRARY_WINDOW.gallery : LIBRARY_WINDOW.list)}
         scrollElement={() => document.querySelector("#port")}
