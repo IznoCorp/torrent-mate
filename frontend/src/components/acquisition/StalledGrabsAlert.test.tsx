@@ -77,7 +77,7 @@ describe("StalledGrabsAlert — the parked-acquisitions alert", () => {
     });
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent(
-      "1 acquisition récupérée n'est jamais arrivée en médiathèque",
+      "1 acquisition récupérée n'est jamais allée au bout",
     );
     // §13 — la release réellement prise, celle qui trahit la bande originale.
     expect(alert).toHaveTextContent(/Original Motion Picture Soundtrack/);

@@ -24,6 +24,13 @@ import { acqKeys, getStalledGrabs } from "@/api/acquisition";
  * wanted with nobody looking for it. Such a row once stayed invisible until
  * the operator asked the question themselves.
  *
+ * The headline says « n'est jamais allée au bout », not « n'est jamais arrivée
+ * en médiathèque », and the difference is load-bearing: one of the reasons this
+ * banner now carries is « rangé en médiathèque, mais l'acquisition ne s'est
+ * jamais refermée ». The old wording would have asserted, one line above that
+ * reason, the exact opposite of it. What every line here has in common is an
+ * acquisition that stopped short — not one whose media is missing.
+ *
  * A banner, not a tile: §8 wants what is NOT moving to be seen, with its
  * reason. Nothing renders when nothing is parked — a permanent alert no
  * longer alerts.
@@ -50,8 +57,8 @@ export function StalledGrabsAlert({ count }: { count: number }): ReactElement | 
         <AlertTriangle className="size-4 shrink-0 text-[var(--warning)]" />
         <p className="text-sm font-medium">
           {count === 1
-            ? "1 acquisition récupérée n'est jamais arrivée en médiathèque"
-            : `${String(count)} acquisitions récupérées ne sont jamais arrivées en médiathèque`}
+            ? "1 acquisition récupérée n'est jamais allée au bout"
+            : `${String(count)} acquisitions récupérées ne sont jamais allées au bout`}
         </p>
       </div>
       {isError && (

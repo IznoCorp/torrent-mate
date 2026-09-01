@@ -159,7 +159,7 @@ def get_overview(request: Request) -> AcquisitionOverviewResponse:
 
 @router.get("/stalled-grabs", response_model=StalledGrabsResponse)
 def get_stalled_grabs(request: Request) -> StalledGrabsResponse:
-    """Les acquisitions parquées à « récupéré » qui n'atteignent jamais la médiathèque.
+    """Les acquisitions parquées à « récupéré » qui ne vont jamais au bout.
 
     Le détail derrière le compteur de la vue d'ensemble : §8 interdit un nombre sans
     accès à ce qu'il compte, et §14.1 fait de « récupéré » un état transitoire — une

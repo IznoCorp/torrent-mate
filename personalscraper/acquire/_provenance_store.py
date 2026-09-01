@@ -55,6 +55,14 @@ def _path_key_forms(path: str) -> tuple[str, str]:
 #: recreates the very same show folder for a NEW episode).
 _TERMINAL_STATUSES = ("dispatched", "reconciled")
 
+#: The SAME fact, spelled for readers outside this module: these journeys reached the
+#: library. Three consumers now answer a question with it and they MUST agree — this
+#: module's write guard, the stalled-grab detector (a landed grab is not a stall) and the
+#: reconciliation sweep (a landed season pack has given everything it will give). Held
+#: once because a private copy in each is a drift waiting to happen: the day one of them
+#: gained a status the others would keep deciding on the old vocabulary, silently.
+LANDED_JOURNEY_STATUSES = frozenset(_TERMINAL_STATUSES)
+
 
 def _path_parts(path: str) -> tuple[str, ...]:
     """Split *path* into NFC-normalized components for containment tests.

@@ -59,7 +59,6 @@
     "personalscraper/acquire/_dedup.py": 2,
     "personalscraper/acquire/_download_marks.py": 12,
     "personalscraper/acquire/_filters.py": 2,
-    "personalscraper/acquire/_pass_gates.py": 2,
     "personalscraper/acquire/_ports.py": 7,
     "personalscraper/acquire/_provenance_store.py": 13,
     "personalscraper/acquire/_query.py": 1,
