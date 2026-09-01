@@ -333,11 +333,18 @@ async def hold_the_press_acknowledgement(journal, browser, motion):
     # in the suite and passed alone, which is B-277's species arriving in the
     # rule this repair touched. A moment cannot drift out of a series that
     # records its own moments.
+    # THE FIRST READINGS COME FAST, so that one of them lands well inside the
+    # settle. At a flat 50ms cadence the first sample arrives around 50-70ms of
+    # a 120ms settle, and the round trip alone can carry it past the 100ms
+    # margin — measured: a recording run read NOTHING inside the window and the
+    # hold fell saying the mark had been placed early. Failing loudly there is
+    # the right direction and is still a false report; the cadence opens tight
+    # and relaxes once the settle is behind it.
     samples = []
-    for _ in range(13):
+    for index in range(16):
         await session.send("Input.dispatchTouchEvent", {
             "type": "touchMove", "touchPoints": [{"x": x + 2, "y": y + 2, "id": 1}]})
-        await page.wait_for_timeout(50)
+        await page.wait_for_timeout(16 if index < 3 else 50)
         samples.append(await page.evaluate(READ_TILE))
     press_delay = await page.evaluate(
         "()=>window.__gestures.press.milliseconds")
@@ -353,9 +360,18 @@ async def hold_the_press_acknowledgement(journal, browser, motion):
     arming_window = [reading for reading in samples
                      if reading["at"] is not None
                      and settle + 40 < reading["at"] < press_delay - 40]
+    # THE PRECONDITION IS ITS OWN HOLD, so a run that sampled nothing inside the
+    # settle says THAT rather than accusing the code of marking early — the two
+    # readings are different findings and were one sentence.
+    journal.check(
+        f"under `{motion}`, the settle window WAS sampled",
+        bool(before_settle),
+        f"no reading landed inside the {settle}ms settle over "
+        f"{[None if r['at'] is None else round(r['at']) for r in samples]} — "
+        "the hold below would then read an absence")
     journal.check(
         f"under `{motion}`, the tile is NOT marked before the settle passes",
-        bool(before_settle) and not any(r["mark"] for r in before_settle),
+        not any(r["mark"] for r in before_settle),
         f"read {before_settle} strictly inside a {settle}ms settle — the mark "
         "is placed "
         "on `pointerdown` after all, which lights every flick that begins on a "
