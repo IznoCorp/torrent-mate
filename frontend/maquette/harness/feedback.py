@@ -317,6 +317,54 @@ async def hold_the_press_acknowledgement(journal, browser, motion):
     await context.close()
 
 
+
+
+async def hold_a_scroll_is_never_acknowledged(journal, browser, motion):
+    """A flick begun ON a tile must never light that tile's pressed state.
+
+    D9's table refuses `onTouchStart` for pressed states for exactly this: it
+    lights when the finger is starting a SCROLL, so a list flickers as it is
+    scrolled past. The acknowledgement was written on the raw `pointerdown` and
+    had the same defect — hidden under `no-preference` by a 450ms ramp, and plain
+    under `reduce`, where the darkening lands instantly.
+
+    Driven under BOTH preferences because the two hide it differently, and the
+    `reduce` one is where a reader actually saw it.
+    """
+    context, page, box = await open_at_state(browser, motion)
+    if not box:
+        journal.check(f"a tile is drawn to flick ({motion})", False, "absent")
+        await context.close()
+        return
+
+    session = await page.context.new_cdp_session(page)
+    x, y = box["x"], box["y"]
+    await page.evaluate(
+        "()=>{window.__lit=0;window.__w=setInterval(()=>{"
+        " if(document.querySelector('[data-pressing]')) window.__lit+=1;},8);}")
+    await session.send("Input.dispatchTouchEvent", {
+        "type": "touchStart", "touchPoints": [{"x": x, "y": y, "id": 1}]})
+    # A FLICK: away fast, which is what a scroll is. Three moves over ~50ms,
+    # well past the 12px tolerance and inside the settle.
+    for step in range(1, 4):
+        await session.send("Input.dispatchTouchEvent", {
+            "type": "touchMove",
+            "touchPoints": [{"x": x, "y": y - 30 * step, "id": 1}]})
+        await page.wait_for_timeout(16)
+    await session.send("Input.dispatchTouchEvent",
+                       {"type": "touchEnd", "touchPoints": []})
+    await page.wait_for_timeout(500)
+    lit = await page.evaluate("()=>{clearInterval(window.__w);return window.__lit;}")
+
+    journal.check(
+        f"under `{motion}`, a flick begun on a tile never lights it",
+        lit == 0,
+        f"the pressed state was up for {lit} sample(s) during a scroll — a list "
+        "flickers as it is scrolled past, which is the defect D9's table refuses "
+        "`onTouchStart` for")
+    await context.close()
+
+
 async def hold(journal):
     """Drives the acknowledgement under both preferences, and the pressed state."""
     errors = []
@@ -327,6 +375,8 @@ async def hold(journal):
         await hold_the_pressed_state(journal, browser)
         await hold_the_press_acknowledgement(journal, browser, "no-preference")
         await hold_the_press_acknowledgement(journal, browser, "reduce")
+        await hold_a_scroll_is_never_acknowledged(journal, browser, "no-preference")
+        await hold_a_scroll_is_never_acknowledged(journal, browser, "reduce")
         await browser.close()
     journal.summary(errors)
 

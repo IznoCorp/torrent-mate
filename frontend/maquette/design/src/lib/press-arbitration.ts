@@ -53,6 +53,14 @@
 
 import { feedback } from "./feedback";
 
+/**
+ * How long to wait before saying anything, so a scroll is never acknowledged.
+ *
+ * The compositor takes a scroll away within a few tens of milliseconds; a mark
+ * placed after that is a mark only a real press ever sees.
+ */
+const PRESS_SETTLE_MILLISECONDS = 120;
+
 /** The mark a press being ARMED writes. Read by `styles/base.css`. */
 const PRESSING_ATTRIBUTE = "data-pressing";
 
@@ -71,6 +79,8 @@ type PressInFlight = {
   readonly x: number;
   readonly y: number;
   readonly pollTimer: number;
+  /** When the acknowledgement lights, once a scroll has been ruled out. */
+  readonly settleTimer: number;
 };
 
 /**
@@ -162,12 +172,14 @@ export function installPressArbitration(
     press: {
       milliseconds: PRESS_MILLISECONDS,
       tolerancePixels: PRESS_TOLERANCE_PIXELS,
+      settleMilliseconds: PRESS_SETTLE_MILLISECONDS,
     },
   };
 
   function cancelPress(): void {
     if (!press) return;
     clearTimeout(press.pollTimer);
+    clearTimeout(press.settleTimer);
     press.element.removeAttribute(PRESSING_ATTRIBUTE);
     press = null;
   }
@@ -189,11 +201,26 @@ export function installPressArbitration(
     // because the arbitration is the only thing that knows a press is arming;
     // that is a fact about the GESTURE, not about the surface, so it stays
     // vocabulary.
-    element.setAttribute(PRESSING_ATTRIBUTE, "");
     press = {
       element,
       x: point.x,
       y: point.y,
+      // THE MARK WAITS UNTIL THE ARBITRATION HAS DECIDED THIS IS NOT A SCROLL.
+      //
+      // It was written on the raw `pointerdown`, which is the species D9's own
+      // table refuses: « onTouchStart for pressed states — refuse — it lights
+      // the pressed state when the finger is starting a SCROLL, so a list
+      // flickers as it is scrolled ». Under `no-preference` the 450ms ramp hid
+      // the first frames; under `reduce` the darkening lands instantly and every
+      // flick begun on a tile darkened it until the compositor took the gesture.
+      //
+      // A scroll is taken away within a few tens of milliseconds — the
+      // compositor cancels at about 14px — so a mark placed after that settle is
+      // a mark only a real press ever sees. It is cleared by `cancelPress` like
+      // everything else the press owns.
+      settleTimer: window.setTimeout(() => {
+        element.setAttribute(PRESSING_ATTRIBUTE, "");
+      }, PRESS_SETTLE_MILLISECONDS),
       pollTimer: window.setTimeout(() => {
         // RELEASED AS THE PANEL ARRIVES, which is the gesture's own shape: the
         // tile is held down while the press arms and lets go the moment the
