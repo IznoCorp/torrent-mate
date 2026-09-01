@@ -751,7 +751,13 @@ async def hold_one_owner_on_the_body(journal, browser):
           // The view transition's own half, by pseudo-element…
           const pseudo = effect.pseudoElement;
           if (pseudo && pseudo.includes('screen-body')) {
-            window.__owners.add('transition:' + pseudo);
+            // THE ANIMATION'S NAME, not merely that the pseudo-element
+            // animates. Every view-transition pseudo-element gets the browser's
+            // OWN cross-fade by default, so « something is animating here » is
+            // true with the declared animation deleted — measured: the hold
+            // below passed with `animation: body-rise …` removed outright.
+            window.__owners.add(
+              'transition:' + pseudo + ':' + (animation.animationName || '?'));
           }
           // …and the element-side half, by target.
           if (effect.target === block) {
@@ -772,10 +778,12 @@ async def hold_one_owner_on_the_body(journal, browser):
 
     journal.check(
         "the media body's arrival IS drawn — the view transition lifts it",
-        any(name.startswith("transition:") for name in reading["owners"]),
+        any("body-rise" in name for name in reading["owners"]),
         f"owners seen: {reading['owners']} — `body-rise` is the arrival's own "
-        "drawing and this lot decided it with no rule; without this the "
-        "distance and the duration could be deleted and nothing would say so")
+        "drawing and this lot decided it with no rule. Read by NAME, because "
+        "every view-transition pseudo-element gets the browser's own cross-fade "
+        "by default: « something animates here » is true with the declared "
+        "animation deleted, and was")
     journal.check(
         "and it has ONE owner — nothing animates the blocks BESIDE it",
         not any(name.startswith("element:") for name in reading["owners"]),
