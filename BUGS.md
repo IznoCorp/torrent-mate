@@ -350,6 +350,7 @@ when the defect comes back.
 | B-288 | The media screen's priming matches a title by PREFIX, so a medium whose title prefixes another opens with the other one's poster and year | by L12 review | `open` |
 | B-289 | `check-frame-domain`'s comment scanner opens a phantom string on a REGEX LITERAL holding a quote, and counts every comment after it as code | by L12 | `fixed #540` |
 | B-290 | A layer closed inside a navigation's commit KEEPS its history entry, so Back crosses two entries where its siblings cross one | by L12 review | `open` |
+| B-291 | `harness-hold-counts.py --record` writes a reference nobody can tell from a good one: a `taken_at_commit` no guard checks (L12's gesture left it naming a squashed-away commit) and a baseline written over a rule that FAILED | by audit | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -398,6 +399,26 @@ spans lines.
 
 <sub>`python3 scripts/check-frame-domain.py` → `app/ 129` (131 before, over 9 060 identifier words
 against 9 192 — the difference is the prose it was reading)</sub>
+
+**B-291 — the hold-count recorder produces a reference indistinguishable from a good one, two
+ways.** (1) `taken_at_commit` is provenance nothing reads. L12's post-merge gesture recorded the
+baseline on `chore/maquette-l12-post-merge` and squash-merged it as `b4b75a67a`, so the file on
+`main` named `a4cfc3b18` — a commit no clone holds. The plan's § 5 names this exact species for the
+oracle (« squashing replaces that commit, so on a fresh clone the pointer names nothing »), and the
+wave that had just applied that paragraph to the oracle reproduced it one file over, in the same
+hour: a paragraph is not an arm. The wave found it itself, an hour after the merge, while answering
+the steward. (2) `--record` writes a baseline even when a rule EXITED 1: it sets `"failed": 1` in
+the totals, a `"reason"` on the rule, records the count the rule printed while falling, and exits
+zero. L12's gesture needed four attempts because R113 and R118 fell under eight parallel rules,
+and the recorder wrote all three bad baselines without a word. Both are one defect — an instrument
+that produces a reference no reader can distinguish from a good one — and one owner: the
+instruments' debts block of the plan's § 5, so the next wave that touches
+`scripts/harness-hold-counts.py` takes it. The form: refuse a pointer that is not an ancestor of
+`main`, as `oracle.py --check` refuses a dangling one, and refuse to write when `failed > 0`. The
+steward's audit re-recorded the baseline at `b4b75a67a` — 0 movement on 86 rules, 1 928 holds,
+`failed 0` — and the gesture paragraph now names both pointers and the hand check.
+
+<sub>`git merge-base --is-ancestor a4cfc3b18 origin/main; echo $?` → 1 before the audit; `python3 -c "import json;d=json.load(open('frontend/maquette/hold-counts-baseline.json'));print(d['taken_at_commit'][:9],d['totals'])"` → `b4b75a67a {'rules': 86, 'parseable': 74, 'unparseable': 12, 'holds': 1928, 'failed': 0}` after</sub>
 
 **B-290 — a layer closed inside a navigation's commit keeps its history entry.**
 « Voir la fiche » closes the panel inside `go()`'s commit with `close(true)`, which does not unwind,

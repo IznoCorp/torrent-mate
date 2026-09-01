@@ -475,6 +475,17 @@ before, 167 after, all on `shell/sheet-content`, in both cases
 The oracle is still not widened: **a child node that carries a function is covered by a named rule**,
 exactly as a pseudo-element is, and the two surfaces above are held by none today (B-252).
 
+**A RULE may read pixels; the ORACLE never does — amended by the steward's L12 audit, 2026-09-01.**
+L12's R118 (`frontend/maquette/harness/chrome_pixels.py`) samples the tab bar's own box
+mid-transition against the same box settled, with a control, and refuses a drift — the defect it
+holds (a bar painted UNDER a transition group, drift 52 of 255) exists only in the pixels the
+transition layer paints, so no geometry-and-style reading can hold that surface. That is not the
+comparison this decision refuses: the L01 measurement is between TWO RUNS of an unmodified page,
+where 8 to 15 states diverge by noise; R118 compares ONE region with ITSELF at two moments of ONE
+run. The line stays where it was — the oracle is not widened, screenshots are not a
+non-regression instrument — and a rule that needs a pixel says why in its own file, carries a
+control, and is bounded like B-277 on the side it can still lie on.
+
 ### D9 — What a library is adopted for, and where motion lives
 
 **Two rules, and between them they settle every "should we use library X" question without
@@ -506,7 +517,7 @@ reasoning is kept so the alternatives are not proposed again as if new.
 | A gesture library for a **new** gesture needing velocity, inertia or multi-pointer maths | **preferred, scoped** | a proven library beats writing that maths here (rule 2, as reversed) — candidates proposed, the operator chooses |
 | A **list virtualiser** for the library's 1 861 titles (P24, L12) | **adopted: `@tanstack/react-virtual`** (operator, 2026-08-31 — « Ok pour @tanstack/react-virtual », relayed in writing) | **DECIDED, not a proposal.** Three candidates were surveyed with their registry facts: `@tanstack/react-virtual` 3.14.10, `react-virtuoso` 4.18.12, `react-window` 2.3.0. All three MIT, all maintained, all released within six weeks — **solves-exactly, maintained and proven separate none of them.** RULE 1 DOES, and it is untouched by the reversal of rule 2: `react-virtuoso` renders its own scroller and `react-window` writes inline styles onto every child, both moving drawing out of the stylesheet and out of the design reference. `@tanstack/react-virtual` is HEADLESS — the registry's own description — so it returns measurements and renders nothing. Secondary, and not decisive: 55 KB against 237 and 211, and its family already ships three packages here. **Used in its FIXED-SIZE mode**: both list modes were measured uniform (tiles 203.34375 px, cards 126 px), the two heights the gallery first showed being skeletons. L12 wraps it in `ui/virtual-rows.tsx` so the dependency has one call site |
 | **Haptics** | **refuse the capability, build the seam** | the target platform exposes no public API; the workarounds ride an implementation detail that has already been tightened once. One `feedback()` call site all gestures pass through, visual today — so adopting it later changes one file |
-| **`onTouchStart` for pressed states** | **refuse** | it lights the pressed state when the finger is starting a SCROLL, so a list flickers as it is scrolled. `:active` is cancelled by the browser when the gesture becomes a scroll, which is the wanted behaviour, for free |
+| **`onTouchStart` for pressed states** | **refuse** | it lights the pressed state when the finger is starting a SCROLL, so a list flickers as it is scrolled. `:active` is cancelled by the browser when the gesture becomes a scroll, which is the wanted behaviour, for free. **What this row refuses is a mark on the RAW pointerdown.** The press acknowledgement the operator chose on 2026-08-31 (L12) is placed by the ARBITRATION once its settle has ruled a scroll out and released when the panel arrives — a fact about the gesture, not the surface — and R113 holds that a flick starting on a tile is never acknowledged. Amended by the steward's L12 audit, 2026-09-01: written before that gesture existed, the row read, unamended, as refusing it |
 | **`@media (hover: hover)`** to keep hover off touch | **adopt** | the sticky-hover problem is real; this is its declarative remedy |
 
 ### D10 — The dying engine's CSS is a bounded residue with a date of death
@@ -1622,9 +1633,15 @@ its report.
 - **B-277** — `exits.py`'s frame-count control flakes under the suite's parallel load.
 - **B-278** — the drawer's dismiss acknowledges itself twice, unexplained, with the decisive
   experiment written down in the entry.
-- **B-287** — 266 maquette/harness comments name a date, a lot or a phase, against the rule in
-  `CLAUDE.md` § Language, and nothing counts them. The arm's shape is already in this repository
-  twice: a per-file baseline that refuses the count going up.
+- **B-287** — 263 maquette/harness comments (326 with docstrings) name a date, a lot or a phase,
+  against the rule in `CLAUDE.md` § Language, and nothing counts them. The arm's shape is already
+  in this repository twice: a per-file baseline that refuses the count going up.
+- **B-291** — `scripts/harness-hold-counts.py --record` produces a reference nobody can tell from
+  a good one, two ways: a `taken_at_commit` no guard checks (L12's gesture left it naming a
+  squashed-away commit), and a baseline written over a rule that FAILED (`"failed": 1` in the
+  totals, the count the rule printed while falling, and a zero exit). The form: refuse a pointer
+  that is not an ancestor of `main`, as `oracle.py --check` refuses a dangling one, and refuse to
+  write when `failed > 0`.
 
 **The gate.** Before every wave's closing commit: `make lint` at zero errors, `make test` with no
 failure and **no error** (an error means collection crashed and everything after it was skipped),
@@ -1685,6 +1702,15 @@ to the machine that took them — the same unmodified tree reads differently on 
 `--check` refuses to compare across a mismatch and the oracle is never wired into CI. An agent
 working anywhere but that machine can establish that a wave *claims* the rendering held, and how,
 but cannot certify it. Plan the wave knowing the certification happens where the oracle runs.
+
+**TWO references carry a commit pointer, and both are re-recorded after the squash** — the
+oracle's `baseCommit` and the hold-count baseline's `taken_at_commit`
+(`frontend/maquette/hold-counts-baseline.json`). This paragraph named only the first, and L12's
+post-merge gesture applied it to the letter and left the second naming the head of the branch the
+squash erased (B-291, found by the wave in the hour after its merge, re-recorded by the steward's
+audit at `b4b75a67a`). Nothing reads that pointer, which is why it could die in silence; until
+`harness-hold-counts.py` refuses a pointer that is not an ancestor of `main`, the gesture checks it
+by hand: `git merge-base --is-ancestor $(python3 -c "import json;print(json.load(open('frontend/maquette/hold-counts-baseline.json'))['taken_at_commit'])") origin/main`.
 
 **And re-record the reference after the squash merge.** The reference names the commit it
 measured; squashing replaces that commit, so on a fresh clone the pointer names nothing and
