@@ -1,6 +1,6 @@
 {
   "feature": "trailers",
-  "design": "docs/reference/trailers.md",
+  "design": "docs/production/trailers.md",
   "sections": {
     "pipeline-step": {
       "tests": [

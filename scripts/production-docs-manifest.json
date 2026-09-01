@@ -1,0 +1,28 @@
+{
+  "why": "The documents describing the version in production, frozen on 2026-08-31 (docs/reference/documentation-model.md section 1): no file is born here, and the switchover deletes the directory, this manifest and the arm that reads it.",
+  "files": [
+    "docs/production/CONFIGURATION.md",
+    "docs/production/INSTALLATION.md",
+    "docs/production/MANUAL.md",
+    "docs/production/ROADMAP.md",
+    "docs/production/api-unify-design.md",
+    "docs/production/architecture.md",
+    "docs/production/commands.md",
+    "docs/production/config-overlay-layout.md",
+    "docs/production/event-bus.md",
+    "docs/production/external-ids-flow.md",
+    "docs/production/grab-core.md",
+    "docs/production/indexer-json-shapes.md",
+    "docs/production/indexer.md",
+    "docs/production/insights.md",
+    "docs/production/logging.md",
+    "docs/production/maintenance.md",
+    "docs/production/pipeline-internals.md",
+    "docs/production/promises.md",
+    "docs/production/runbook-post-merge.md",
+    "docs/production/scraping.md",
+    "docs/production/storage.md",
+    "docs/production/trailers.md",
+    "docs/production/web-ui.md"
+  ]
+}

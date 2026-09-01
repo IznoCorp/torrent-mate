@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -77,3 +78,157 @@ def test_git_unreachable_is_refused(tmp_path: Path) -> None:
     module = _load()
     directive = _directive(tmp_path, "See `docs/x/a.md`.\n")
     assert _run(module, directive, None) == 1
+
+
+def _run_history(module, directive: Path, tracked: set[str] | None, verdicts: dict) -> int:
+    """Like `_run`, with `held_by_commit` answering from `verdicts` — None for an unknown commit."""
+    with (
+        patch.object(module, "DIRECTIVES", (directive,)),
+        patch.object(module, "ROOT", directive.parent),
+        patch.object(module, "tracked_paths", return_value=tracked),
+        patch.object(module, "held_by_commit", side_effect=lambda sha, path: verdicts.get((sha, path))),
+    ):
+        return module.arm_cited_paths()
+
+
+def test_a_history_citation_the_commit_holds_is_clean(tmp_path: Path) -> None:
+    """`docs/archive/x/DESIGN.md@5322c2fa` — the commit holds the path → 0, and the read is not empty."""
+    module = _load()
+    directive = _directive(tmp_path, "Design: `docs/archive/features/x/DESIGN.md@5322c2fa`.\n")
+    assert module.cited_history(directive) == [("docs/archive/features/x/DESIGN.md", "5322c2fa")]
+    assert module.cited_paths(directive) == []
+    assert _run_history(module, directive, set(), {("5322c2fa", "docs/archive/features/x/DESIGN.md"): True}) == 0
+
+
+def test_a_history_citation_the_commit_does_not_hold_is_refused(tmp_path: Path, capsys) -> None:
+    """The sha is a commit, the path was never in it → refused, naming the citation."""
+    module = _load()
+    directive = _directive(tmp_path, "See `docs/archive/features/x/DESIGN.md@5322c2fa`.\n")
+    assert _run_history(module, directive, set(), {("5322c2fa", "docs/archive/features/x/DESIGN.md"): False}) == 1
+    assert "does not hold" in capsys.readouterr().err
+
+
+def test_a_history_citation_with_an_unknown_commit_is_refused(tmp_path: Path, capsys) -> None:
+    """A sha that is not one unambiguous commit → refused, not passed."""
+    module = _load()
+    directive = _directive(tmp_path, "See `docs/archive/features/x/DESIGN.md@abcdef12`.\n")
+    assert _run_history(module, directive, set(), {}) == 1
+    assert "not one commit" in capsys.readouterr().err
+
+
+def test_history_citations_count_as_a_read(tmp_path: Path) -> None:
+    """A directive whose only citations are `@sha` ones is read, not empty."""
+    module = _load()
+    directive = _directive(tmp_path, "Only `docs/archive/a.md@5322c2fa` here.\n")
+    assert _run_history(module, directive, set(), {("5322c2fa", "docs/archive/a.md"): True}) == 0
+
+
+def test_a_bare_citation_still_needs_the_index(tmp_path: Path) -> None:
+    """The `@sha` form does not loosen the bare form: an untracked bare path is still refused."""
+    module = _load()
+    directive = _directive(tmp_path, "`docs/archive/a.md@5322c2fa` and `docs/x/b.md`.\n")
+    assert _run_history(module, directive, set(), {("5322c2fa", "docs/archive/a.md"): True}) == 1
+
+
+def _run_arm(module, arm: str, tracked: set[str] | None) -> int:
+    with patch.object(module, "tracked_paths", return_value=tracked):
+        return getattr(module, arm)()
+
+
+def test_a_tracked_path_under_a_history_tree_is_refused(capsys) -> None:
+    """`docs/archive/x.md` back in the index — a tool that still archives — is named and refused."""
+    module = _load()
+    assert _run_arm(module, "arm_no_history_in_tree", {"docs/archive/x.md", "docs/reference/a.md"}) == 1
+    assert "docs/archive/x.md" in capsys.readouterr().err
+
+
+def test_each_history_tree_is_held() -> None:
+    """Each of the three trees is a violation on its own — one per reborn path."""
+    module = _load()
+    tracked = {"docs/archive/a.md", "docs/superpowers/b.md", "docs/analysis/c.md"}
+    assert _run_arm(module, "arm_no_history_in_tree", tracked) == 3
+
+
+def test_an_index_without_history_trees_is_clean() -> None:
+    """An index holding only living trees is clean."""
+    module = _load()
+    assert _run_arm(module, "arm_no_history_in_tree", {"docs/reference/a.md", "docs/production/b.md"}) == 0
+
+
+def test_history_arm_refuses_when_git_is_unreachable() -> None:
+    """`git ls-files` failing must not read as clean."""
+    module = _load()
+    assert _run_arm(module, "arm_no_history_in_tree", None) == 1
+
+
+def _manifest(tmp_path: Path, files: list[str] | str) -> Path:
+    path = tmp_path / "production-docs-manifest.json"
+    body = files if isinstance(files, str) else json.dumps({"why": "test", "files": files})
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
+def _run_manifest(module, manifest: Path, tracked: set[str] | None) -> int:
+    with (
+        patch.object(module, "MANIFEST", manifest),
+        patch.object(module, "tracked_paths", return_value=tracked),
+    ):
+        return module.arm_production_manifest()
+
+
+def test_production_matching_the_manifest_is_clean(tmp_path: Path) -> None:
+    """The tracked production files equal the manifest, both ways → 0."""
+    module = _load()
+    manifest = _manifest(tmp_path, ["docs/production/a.md", "docs/production/b.md"])
+    assert _run_manifest(module, manifest, {"docs/production/a.md", "docs/production/b.md", "docs/reference/z.md"}) == 0
+
+
+def test_a_birth_in_production_is_refused(tmp_path: Path, capsys) -> None:
+    """A file the manifest does not name — production receives no new file."""
+    module = _load()
+    manifest = _manifest(tmp_path, ["docs/production/a.md"])
+    assert _run_manifest(module, manifest, {"docs/production/a.md", "docs/production/new.md"}) == 1
+    assert "docs/production/new.md" in capsys.readouterr().err
+
+
+def test_a_manifest_entry_the_tree_lost_is_refused(tmp_path: Path, capsys) -> None:
+    """A file promoted or deleted shrinks the manifest in the same change, or the manifest lies."""
+    module = _load()
+    manifest = _manifest(tmp_path, ["docs/production/a.md", "docs/production/gone.md"])
+    assert _run_manifest(module, manifest, {"docs/production/a.md"}) == 1
+    assert "docs/production/gone.md" in capsys.readouterr().err
+
+
+def test_an_empty_production_is_refused(tmp_path: Path) -> None:
+    """Zero files is the switchover, and the switchover deletes this arm; until then it is a misread."""
+    module = _load()
+    manifest = _manifest(tmp_path, [])
+    assert _run_manifest(module, manifest, {"docs/reference/z.md"}) == 1
+
+
+def test_an_unreadable_manifest_is_refused(tmp_path: Path) -> None:
+    """A malformed, absent or mis-shaped manifest is refused, never read as empty."""
+    module = _load()
+    assert _run_manifest(module, _manifest(tmp_path, "{not json"), {"docs/production/a.md"}) == 1
+    assert _run_manifest(module, tmp_path / "absent.json", {"docs/production/a.md"}) == 1
+    assert _run_manifest(module, _manifest(tmp_path, '{"files": "a"}'), {"docs/production/a.md"}) == 1
+
+
+def test_a_shallow_clone_is_named_not_accused(tmp_path: Path, capsys) -> None:
+    """An unresolvable sha in a shallow clone is the checkout's fault, said so, and still refused."""
+    module = _load()
+    directive = _directive(tmp_path, "See `docs/archive/x/DESIGN.md@5322c2fa`.\n")
+    with patch.object(module, "is_shallow", return_value=True):
+        assert _run_history(module, directive, set(), {}) == 1
+    err = capsys.readouterr().err
+    assert "truncated" in err
+    assert "not one commit" not in err
+
+
+def test_a_full_clone_accuses_the_citation(tmp_path: Path, capsys) -> None:
+    """The same unresolvable sha in a full clone is the citation's fault."""
+    module = _load()
+    directive = _directive(tmp_path, "See `docs/archive/x/DESIGN.md@5322c2fa`.\n")
+    with patch.object(module, "is_shallow", return_value=False):
+        assert _run_history(module, directive, set(), {}) == 1
+    assert "not one commit" in capsys.readouterr().err

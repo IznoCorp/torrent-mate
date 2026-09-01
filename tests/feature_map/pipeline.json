@@ -1,6 +1,6 @@
 {
   "feature": "pipeline",
-  "design": "docs/reference/pipeline-internals.md",
+  "design": "docs/production/pipeline-internals.md",
   "sections": {
     "clean-fast-skip": {
       "tests": [

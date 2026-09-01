@@ -1,6 +1,6 @@
 """Design-contract tests for the scraper feature (codename: ``scraper``).
 
-Pin points for ``docs/reference/scraping.md`` — NFO completeness invariants
+Pin points for ``docs/production/scraping.md`` — NFO completeness invariants
 and artwork-recovery semantics.
 """
 
@@ -17,7 +17,7 @@ class TestNfoInvariantsContract:
     def test_complete_nfo_with_uniqueid_returns_true(self, tmp_path: Path) -> None:
         """Parsable XML with a non-empty <uniqueid> → True.
 
-        Design: docs/reference/scraping.md#nfo-invariants
+        Design: docs/production/scraping.md#nfo-invariants
         Contract: ``is_nfo_complete`` returns True iff the NFO file is
         parsable XML and contains at least one ``<uniqueid>`` element with
         non-empty text. Used by fast-skip and corrupt-NFO detection.
@@ -37,7 +37,7 @@ class TestNfoInvariantsContract:
     def test_nfo_missing_uniqueid_returns_false(self, tmp_path: Path) -> None:
         """Parsable XML without any non-empty <uniqueid> → False.
 
-        Design: docs/reference/scraping.md#nfo-invariants
+        Design: docs/production/scraping.md#nfo-invariants
         Contract: An NFO with no ``<uniqueid>`` element (or with one whose
         text is empty/whitespace) is treated as incomplete and re-scraped.
         """
@@ -52,7 +52,7 @@ class TestNfoInvariantsContract:
     def test_corrupt_nfo_returns_false(self, tmp_path: Path) -> None:
         """Unparsable XML → False (does not raise).
 
-        Design: docs/reference/scraping.md#nfo-invariants
+        Design: docs/production/scraping.md#nfo-invariants
         Contract: A corrupt or non-XML NFO returns False rather than
         raising — the scraper relies on this to trigger re-scraping
         instead of crashing the pipeline.

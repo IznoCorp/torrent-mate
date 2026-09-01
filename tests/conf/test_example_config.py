@@ -20,8 +20,8 @@ class TestExampleConfig:
     def test_example_parses_and_validates(self):
         """config.example/ must load and pass full Pydantic validation.
 
-        Design: docs/reference/architecture.md#configuration
-        Design: docs/reference/scraping.md#configuration-reference
+        Design: docs/production/architecture.md#configuration
+        Design: docs/production/scraping.md#configuration-reference
         Contract: example config parses and validates, covering both architecture and scraping config reference docs.
         """
         config = load_config_dir(EXAMPLE_DIR)

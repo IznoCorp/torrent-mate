@@ -42,7 +42,7 @@ class _MockEventBus:
 def test_boot_raises_registry_config_error_when_tmdb_key_missing(monkeypatch):
     """ACC-04b: RegistryConfigError raised at boot if TMDB_API_KEY absent.
 
-    Design: docs/reference/architecture.md#boot-sequence-design-61
+    Design: docs/production/architecture.md#boot-sequence-design-61
     Contract: boot sequence validates configuration and raises actionable errors before any side-effect.
 
     Uses a SimpleNamespace settings stub (matching the unit-test conftest

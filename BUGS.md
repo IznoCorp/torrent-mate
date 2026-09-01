@@ -301,7 +301,7 @@ when the defect comes back.
 | B-239 | `CLAUDE.md` announced 24 frame properties where the model it points at holds 30 | by audit | `fixed #524` |
 | B-240 | `CLAUDE.md` announced 25 engine French words where the file it points at holds 24 | by audit | `fixed #524` |
 | B-241 | `IMPLEMENTATION.md`'s « Next » row said « once L10-ter merges » and « L14 stays last » after both had changed | by audit | `fixed #527` |
-| B-242 | `MODEL.md` P14 says 78 named states where 87 are driven | by audit | `fixed #527` |
+| B-242 | `docs/reference/frame-model.md` P14 says 78 named states where 87 are driven | by audit | `fixed #527` |
 | B-243 | Three small drifts in the directives: nineteen guards for twenty, an archived path cited live, « twenty times » for twenty-four | by audit | `fixed #527` |
 | B-244 | A contracts-tier guard whose subject only the `docs` filter names runs in no job | by L15 | `fixed #528` |
 | B-245 | The pre-paint appearance script compares against the French spellings the engine stopped writing | by L15 | `fixed #528` |
@@ -330,7 +330,7 @@ when the defect comes back.
 | B-268 | R104 lives in the file it measures, and has been defeated twice by exactly that | by audit | `open` |
 | B-269 | Five corpus floors in `served_copy.py` are calibrated by hand, one figure per corpus | by audit | `open` |
 | B-270 | Two harness journals are labelled « R80 » — `attrs.py`'s has no number of its own | by audit | `open` |
-| B-271 | `MODEL.md` cited `index.html:241` for `#ptr`; that line is the skip link's comment and the node is at `:255` | by L12 | `fixed #540` |
+| B-271 | `docs/reference/frame-model.md` cited `index.html:241` for `#ptr`; that line is the skip link's comment and the node is at `:255` | by L12 | `fixed #540` |
 | B-272 | The compositor guard's floors carried slack while its own note claimed they had none — 3 `touch-action` sites were deletable under a green guard | by L12 | `fixed #540` |
 | B-273 | `scripts/mutate.sh` cannot judge a GUARD, and says « no hold fell » either way — and it exits SILENTLY when a mutation breaks the build | by L12 | `open` |
 | B-274 | `page_host.py`'s state-alias arm read DOCSTRINGS as code — English prose ending « … state. » before an assignment matched it | by L12 | `fixed #540` |
@@ -351,6 +351,9 @@ when the defect comes back.
 | B-289 | `check-frame-domain`'s comment scanner opens a phantom string on a REGEX LITERAL holding a quote, and counts every comment after it as code | by L12 | `fixed #540` |
 | B-290 | A layer closed inside a navigation's commit KEEPS its history entry, so Back crosses two entries where its siblings cross one | by L12 review | `open` |
 | B-291 | `harness-hold-counts.py --record` writes a reference nobody can tell from a good one: a `taken_at_commit` no guard checks (L12's gesture left it naming a squashed-away commit) and a baseline written over a rule that FAILED | by audit | `open` |
+| B-292 | `IMPLEMENTATION.md` cited a « parked » L06 spec at a directory no commit ever held | by audit | `fixed #539` |
+| B-293 | 38 `Design:` markers name `docs/features/…` paths that left the tree, and the design-gaps pair passes over them | by audit | `open` |
+| B-294 | `.gitignore` cited two `docs/features/…` files that no longer exist | by audit | `fixed #539` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -400,6 +403,35 @@ spans lines.
 <sub>`python3 scripts/check-frame-domain.py` → `app/ 129` (131 before, over 9 060 identifier words
 against 9 192 — the difference is the prose it was reading)</sub>
 
+**B-294 — two dead `docs/features/` paths in `.gitignore`.** Line 150's comment cited
+« docs/features/config-home/DESIGN.md » and line 170 ignored
+« docs/features/provider-ids/plan/DEVIATIONS.md »; neither file was in the tree (the paths are
+written without backticks here on purpose — the cited-paths guard would refuse them, which is the point). Harmless and
+misleading; removed in #539.
+
+<sub>`git ls-files docs/features/config-home docs/features/provider-ids | wc -l` → 0</sub>
+
+**B-293 — 38 `Design:` markers point at paths that left the tree, and nothing says so.**
+`grep -rhoE 'Design: docs/[^#[:space:]]+' --include='*.py' tests | sort | uniq -c` shows 16 for
+« docs/features/api-unify/DESIGN.md », 13 for `torrent-fetch`, 5 for `watch-seed`, 2 for
+`scraper`, 1 each for `webui-ux/plan/phase-04-scraping.md` and `test-coverage` — features archived
+long ago. `update_feature_map.py --check` and `audit_design_coverage.py --strict` are green over
+them: a marker whose path resolves to no map file is not an error to either. A guard green over
+what it does not read (B-085 species). Left as found by #539, which moved the 78 live markers;
+the fix is the design-gaps pair refusing a marker whose path `git ls-files` does not hold.
+
+<sub>`grep -rhoE 'Design: docs/features/[^#[:space:]]+' --include='*.py' tests | sort | uniq -c`</sub>
+
+**B-292 — the « parked » L06 spec was cited at a directory that never existed.** `IMPLEMENTATION.md`
+said « the L06 spec is parked, not lost — `docs/superpowers/roadmap/maquette-l06/specs/` », and
+`git log --all -- docs/superpowers/roadmap` is empty: no commit on any branch has held that
+directory. The cited-paths guard is blind to a directory by design (a directory is a set; the
+file that matters is cited on its own line), so the sentence sat green. Found by the docs-cleanup
+inventory; rewritten in #539 to what git does hold — the L06 design,
+`docs/archive/features/maquette-l06/DESIGN.md@79ccebe2` — and to this file's own L06 paragraphs.
+
+<sub>`git log --all --oneline -- docs/superpowers/roadmap | wc -l` → 0</sub>
+
 **B-291 — the hold-count recorder produces a reference indistinguishable from a good one, two
 ways.** (1) `taken_at_commit` is provenance nothing reads. L12's post-merge gesture recorded the
 baseline on `chore/maquette-l12-post-merge` and squash-merged it as `b4b75a67a`, so the file on
@@ -416,7 +448,15 @@ instruments' debts block of the plan's § 5, so the next wave that touches
 `scripts/harness-hold-counts.py` takes it. The form: refuse a pointer that is not an ancestor of
 `main`, as `oracle.py --check` refuses a dangling one, and refuse to write when `failed > 0`. The
 steward's audit re-recorded the baseline at `b4b75a67a` — 0 movement on 86 rules, 1 928 holds,
-`failed 0` — and the gesture paragraph now names both pointers and the hand check.
+`failed 0` — and the gesture paragraph now names both pointers and the hand check. **The same
+question reaches the cited-paths guard, twice** (docs-cleanup, 2026-09-01): its arm 1 resolves
+`path@sha` citations, so (a) a sha that is not an ancestor of `main` — a branch head the squash
+erased — reads like a live one until `git show` is asked, and (b) the guard must run where the
+checkout holds the history: a fourth hold of `tests/scripts/test_ci_filter_covers_the_guards.py`
+— « a guard that resolves shas is launched only by a job whose checkout has `fetch-depth: 0` »
+— falls the day somebody moves it out of `harness-contracts`. Both belong to whoever next
+touches the guard; the guard already names a truncated checkout rather than accusing the
+citation.
 
 <sub>`git merge-base --is-ancestor a4cfc3b18 origin/main; echo $?` → 1 before the audit; `python3 -c "import json;d=json.load(open('frontend/maquette/hold-counts-baseline.json'));print(d['taken_at_commit'][:9],d['totals'])"` → `b4b75a67a {'rules': 86, 'parseable': 74, 'unparseable': 12, 'holds': 1928, 'failed': 0}` after</sub>
 
@@ -831,7 +871,7 @@ schedule, so they will drift again the next time a wave adds surfaces.
 
 ---
 
-**B-271 — `MODEL.md` cited `index.html:241` for `#ptr`, and that line holds the skip link.**
+**B-271 — `docs/reference/frame-model.md` cited `index.html:241` for `#ptr`, and that line holds the skip link.**
 Part 8 assigns pull-to-refresh to L12 and located it at `index.html:241`. That line is inside the
 comment explaining the skip link's `tabindex="-1"`. The citation was not wrong when it was
 written — it drifted — which is exactly L15's paid shape (« cited line numbers past the end of the
@@ -1173,7 +1213,7 @@ ignored: `git add -A` skips it, `git status` does not list it, and no gate in th
 `check-bug-register`, `audit_design_coverage`, `check-implementation-state`, CI's `docs` filter —
 reads a path that is not in the index. A folder whose other files were force-added once looks
 entirely normal, because the tracked siblings are tracked. **Found on 2026-08-30 by the steward,
-measuring `origin/main` after L15 merged**: `docs/archive/features/maquette-l15/REPORT.md` was cited in the
+measuring `origin/main` after L15 merged**: `docs/archive/features/maquette-l15/REPORT.md@79ccebe2` was cited in the
 pull request body, in the wave's own account of its gates and in two cross-session reports, and it
 existed on one disk. `BRIEF.md`, `DESIGN.md` and `plan/` were there because the commit that created
 them used `git add -f`; every commit after that skipped the report in silence.
@@ -1243,7 +1283,7 @@ literals are folded before the search now. What it still cannot see is stated in
 rather than left to be discovered: a value composed at RUNTIME. No reader of source text can, and a
 guard claiming otherwise would claim more than it does.
 
-**The inventory this closes.** `SURVEY.md` § 1.1's command listed nineteen sites when this wave
+**The inventory this closes.** `docs/reference/frame-survey.md` § 1.1's command listed nineteen sites when this wave
 opened, one of which « draws nothing at all » — this one. It lists **nine** now: seven of the
 Découvrir feed (L19's) and two of the harness panel, which ships nowhere.
 
@@ -1867,7 +1907,7 @@ down, and writing it down is what made it checkable three waves later.
 **B-043 to B-048 — what L05 left on `main`, and why they are here rather than only in a phase file.**
 All six were found by an adversarial review that did not write the code, and reproduced by the L05
 wave itself before it stopped. Each is written up in full — with the command that establishes it and
-what its repair must hold — in `docs/archive/features/maquette-l05/plan/phase-08-pr-fixes-cycle-1.md`, which
+what its repair must hold — in `docs/archive/features/maquette-l05/plan/phase-08-pr-fixes-cycle-1.md@79ccebe2`, which
 is on `main`. **That file is the source of truth and these entries are the index into it**; a phase
 plan is archived with its wave, and a defect that outlives the wave has to be findable after that.
 The four blocking ones (B-043 to B-046) were known before the merge and merged anyway, so they are
@@ -2052,7 +2092,7 @@ on three sites), a full light-theme sweep still reads **154 occurrences over 115
 states** — dominated by `--primary` used as a label colour on a light surface (~40 sites),
 the `warning`/`success`/`info` tones repeating the same fill-versus-label confusion, and one
 `.tsx` inline re-skin (`add-screen.tsx:185-191`). A remediation campaign, not a call-site fix;
-needs its own design and plan (`docs/archive/features/maquette-l06/drafts/a11y-floor-measures-one-theme.md`
+needs its own design and plan (`docs/archive/features/maquette-l06/drafts/a11y-floor-measures-one-theme.md@79ccebe2`
 carries the full inventory). Not decided here: whether the audit runs both themes (doubling
 its runtime) or a lighter arm audits palette pairs alone in light.
 
@@ -2308,8 +2348,8 @@ removed in the same move as the decision that makes it necessary.
 An adversarial doc-accuracy review over #494 re-measured every figure the wave asserts. **Most
 are right** — 2 739 measurements, 530 rules, 4 136 lines, 30 colours, 8 shadows, 55 rules, 936
 bytes leaked, and D-L07-1's six line ranges are exact. What is not right is written up, item by
-item, in `docs/archive/features/maquette-l07/drafts/documentation-drift-inventory.md`, which travels with
-the wave into `docs/archive/features/`. **That file is the source and this entry is the index**,
+item, in `docs/archive/features/maquette-l07/drafts/documentation-drift-inventory.md@79ccebe2`, which travels with
+the wave into the archive — git history since 2026-09-01. **That file is the source and this entry is the index**,
 the same arrangement B-043 to B-048 use.
 
 Three families, and they fail differently. **Counts** that no longer measure what they say (nine,
@@ -2326,9 +2366,9 @@ current and a phase number is only noise.
 
 **B-069 — the residue's licence to exist points at a document about to be archived.**
 `src/styles/legacy.css` justifies itself with « D-L07-5, arbitrated by the operator on
-2026-08-24 », and D-L07-5 is defined in `docs/archive/features/maquette-l07/DESIGN.md` and nowhere else.
+2026-08-24 », and D-L07-5 is defined in `docs/archive/features/maquette-l07/DESIGN.md@79ccebe2` and nowhere else.
 That directory was archived when #494 landed, so **the only definition of the decision keeping a
-2 470-line stylesheet alive is now in frozen history** — and `docs/archive/` is never revised. Its sibling deferral (the
+2 470-line stylesheet alive is now in frozen history** — and history is never revised. Its sibling deferral (the
 prototype fragment, ACC-14/ACC-19) already has a durable home in
 `docs/reference/frontend-architecture.md` § L13. This one needs the same: the decision moves
 there, and the stylesheet's header cites the durable address.
@@ -2370,7 +2410,7 @@ inside the dying engine, where an edit is L13's to make; it is written down so L
 rediscover it as a live feature.
 
 **B-072 — the command that proves the surface partition no longer runs.**
-`docs/archive/features/maquette-l07/DESIGN.md:281` names `build-surface-manifest.py` as the builder that
+`docs/archive/features/maquette-l07/DESIGN.md@79ccebe2` (line 281) names `build-surface-manifest.py` as the builder that
 asserts the partition of BLOCK 2's 530 rules into 38 surfaces is TOTAL. Run today it raises
 `IndexError` at line 79: it reads `refonte.html`, which is 120 lines and holds no rule. The
 committed `plan/surface-manifest.json` is correct — it was built when the fragment still carried
@@ -3353,10 +3393,10 @@ decision's terms changed. The archive keeps its record of where the decision was
 
 **B-072 — retired, not repaired, and the distinction is the finding.** ⚠ **It leaves a dangling
 citation in FROZEN history, and that is said here because the archive cannot say it.**
-`docs/archive/features/maquette-l07/DESIGN.md` § 248 and § 253 still name
-`plan/build-surface-manifest.py`, and `docs/archive/` is never revised — so this entry is the only
+`docs/archive/features/maquette-l07/DESIGN.md@79ccebe2` § 248 and § 253 still name
+`plan/build-surface-manifest.py`, and history is never revised — so this entry is the only
 place a reader can be told the file was removed on the operator's instruction and why. The
-recording it produced survives at `docs/archive/features/maquette-l07/plan/surface-manifest.json`.
+recording it produced survives at `docs/archive/features/maquette-l07/plan/surface-manifest.json@79ccebe2`.
 `build-surface-manifest.py` read a 4 136-line stylesheet inside `refonte.html`. That file is 120
 lines of conversion ledger. There is nothing left to re-derive from, so the proof is CLOSED and
 the recording it produced (`plan/surface-manifest.json`, correct) stays. What loses its subject is
@@ -3720,16 +3760,16 @@ tap at its coordinates reaches nothing.
 > writing the class alone (falls, naming the tap that leaves the state behind).
 
 **B-083 — L08 landed and its design and plan stayed under `docs/features/`.**
-Every lot from L01 to L07 sits under `docs/archive/features/`; `docs/features/` holds
+Every lot from L01 to L07 was archived (git history since 2026-09-01: `git show 79ccebe2:docs/archive/features/maquette-l07/DESIGN.md`); `docs/features/` holds
 `maquette-l08` and `tech-debt-2` and nothing else. The closing pull request (#504) did the other
 two post-merge gestures — both references re-recorded at `ce1d7b5a`, verified ancestors of `HEAD`,
 on `Darwin/arm64` — and left this one. **Third wave out of eight where archiving is the gesture
 that slips**: the L06 audit had to do it retroactively, L07 did it in the move, L08 did not. A
 gesture that is remembered two times out of three is a gesture that needs a check, not a reminder.
 
-<sub>`ls docs/features/` · `ls docs/archive/features/ | tr ' ' '\n' | grep maquette`</sub>
+<sub>`ls docs/features/` · `git ls-tree --name-only 79ccebe2 docs/archive/features/ | grep maquette`</sub>
 
-> **FIXED by #505, the correction wave between L08 and L09** — `docs/archive/features/maquette-l08/`,
+> **FIXED by #505, the correction wave between L08 and L09** — `docs/archive/features/maquette-l08/DESIGN.md@79ccebe2`,
 > with the three references that named the old path answered in the same step: two moved
 > (`frontend-architecture.md` § L08, `IMPLEMENTATION.md` § Next action) and one REPLACED — B-084's
 > own `<sub>` command, which pointed at a directory this entry had just emptied.
@@ -3978,8 +4018,9 @@ absence of a row can mean either.
 | L15 (the frame) | **12** | **All twelve found by asking the question, none by a gate going red** — and eleven of them are in instruments this wave was writing, which is L09's reading arriving a fifth time. **B-246**, the version arm of the guard that holds the « In flight » row, defeated by markdown emphasis while every row of that table writes its pull request in bold — and its no-version branch exited 0 in SILENCE, so « this wave declares no version » and « I could not parse one » were the same line: none. **B-244**, the CI-filter hold asking « is this path named by ANY filter? » where the question is « by the filter that GATES THE JOB »; its two earlier cases were both fixed by adding to `maquette`, so the two questions had never yet had different answers — asked properly it goes red over **seven** guards, every one of them running in no job for a pull request touching only its own subject. **`boundaries_addressing`'s bracket search**, which found the empty pair of a TYPED declaration (`readonly NavigationRow[]`) and read an empty array — loud only because the caller has a « reads to nothing » branch at all. **R100's P1 hold, twice**: `performance.getEntriesByType("navigation").length` holds one entry PER DOCUMENT, so a full navigation makes a new document where the count is one again and the assertion cannot come out the other way; its replacement counted `framenavigated`, which fires for a `pushState` too — 63 over the 87 states with the property holding perfectly. **The tab bar's badge subscribed to NOTHING**: `acquisitionBadge()` reads the query cache synchronously and a synchronous read is not a subscription, so a badge showed the previous scenario's count until an unrelated store write redrew it — caught by `audit2.py`'s R16, an existing rule, and the reason it never bit before is that the engine's bar was rebuilt by `render()`, which the cache's redraw hook calls. **R101's B-237 hold, three times**: the named delete states raise dialogs of 184–660 and 142–702 against a bar at 787–844, so they DO NOT TOUCH and a hit-test of the dialog's own rectangle passed at 48 exactly as at 56; `inert` takes an element out of hit-testing as well as out of the focus order, so with the background inert `elementFromPoint` answered the dialog either way; and its selection-bar hold asserted over a bar that `lib-delete-multiple` does not put on screen. **R101's popover clamp** read the FIRST and LAST cell of a matrix that wraps, so both readings exercised the same edge and it reported the same placement twice. **B-250**, the stale-figure arm treating a hyphen as a separator, so `B-154` is a match the day the corpus reaches that size — and it then caught the first draft of its own repair saying « the corpus reached 154 files ». **`check-viewport-directives`'s split-literal blind spot**, found by the mutation that wrote `"maximum" + "-scale=1"`: the shape L07's split-class hold had. |
 | L15, after the three adversarial reviews | **15** | Three reviewers on a wave whose every tier was green — the full suite at 75 rules, `--a11y` at 0, `make check` at 0, and the oracle at its 167 enumerated divergences. **Thirteen of the fifteen are in the wave's own instruments, and two are the ORACLE's blind spot read from the product side.** `page_host.py` held « every page in the table has an owner » by comparing `window.__pages()` against `window.__shellPages` — TWO EXPRESSIONS OVER THE SAME ARRAY, a tautology that could only fail by the seam being absent; it now drives every page and asks `#view` whether the host put anything in it. `page_host.py` again: its `#view` write detector read `view\.innerHTML\s*=` and nothing else, so `getElementById("view").innerHTML =`, `replaceChildren`, `append`, `insertAdjacentHTML` and any local alias passed — **and its own control was a literal written in the same file to match its own pattern**, a constant expression this very file warns against two hundred lines above; the control now splices two lines into a COPY of the engine and re-runs the same search. `stacking.py` PRINTED the confirmation's rank and the bar's and compared neither, holding only that they share a parent; and its message hold hit-tested inside the toast's own centre, which is true by construction — a message moved to `bottom-0 z-[60]`, squarely over the bar, would have passed it. `appearance.py` chose ONE appearance and reloaded once, leaving the pre-paint script's other two branches testing words nothing writes: the « repair applied to one branch of an `if` » shape, at the level of the walk. `exits.py` (R103) measured TWO layers of five, and the three it did not read — the message, the drawer, the confirmation — all still had B-249's defect. `boundaries_addressing.py`'s page hold said NOTHING when the navigation table's file is absent, so moving it to `app/navigation/index.ts` would have taken both directions away in silence. `persistence.py`'s focus hold read `dataset.page`, a `closest('#nav')` and « not body » — every one of which a REPLACEMENT node satisfies, in the rule written to catch replaced nodes, whose own header names `isSameNode` as the only question that separates them; and its one-document hold counted `load` events while a bfcache restore brings the sentinel back intact and fires `pageshow`. `selection.py` held its caption by digit SUBSTRING: « 0 sur 15 sélectionnés » satisfies a hold on « 1 », on the one surface whose job is to say how many things are about to be destroyed. `check-intent-map.py` gave `served, unproved` no obligation — the only verdict of five owing nothing — so rewriting fourteen `partly` rows to it empties the ledger and the guard prints « 0 violation »; and a named proof FILE was never checked to exist. `check-viewport-directives.py` read `frontend/maquette` without its `.py` files, leaving every harness rule outside the guard written to keep those two directives out of the tree. **And the two on the product side are the oracle's own limit, which is that it measures REGION ROOTS**: `.dlg p`'s `color` was one of four declarations and three were restated, so a confirmation's explanatory sentence read at full heading weight and the oracle — which does measure `color`, on `#dlg` — saw nothing; and `selectionAction` carried `bg-transparent` in its BASE with `bg-danger-fill` on the `danger` branch, two utilities of equal specificity where Tailwind emits colour alphabetically, so `transparent` always follows `danger-fill` and the destructive button rendered transparent with white text — **white on white under `data-theme="light"`, contrast 1.00** — while the light-theme audit stayed at exactly 166 before the repair and after it, which says the ratchet was not what was holding that surface |
 | L11 (offline and the PWA) | **5 by the wave, 13 by four readers** | **The wave's own five were all found by MUTATING its rules, and two are the same rule going green twice over a shell that was not there.** R105 passed with the document deliberately dropped from the precache — the page had been loaded twice, so Chrome's DISK cache answered the reload after the server was gone. With the browser cache turned off it passed AGAIN: on the harness host `/offline.html` has no file behind it, the fallback folds it onto the document, and the worker's LAST-RESORT entry was a full copy of the prototype. **The consequence held while the mechanism was gone**, which is the difference between a rule and a coincidence. **R107 was silent about the client's half of « at least once »**: with the network up, an envelope forgotten BEFORE its request answered and one forgotten after are indistinguishable, so a client promising at MOST once passed eleven green holds. **R109 passed with the standalone check deleted from the application**, because in a desktop context the banner never appears anyway — « not offered » was « never offered ». And **B-258**, a Makefile announcing nine rules where `run.sh` held twelve. *(The wave first counted six here and included R105 CRASHING rather than naming its defect. A crash is RED; B-085 is « green because of what it does not read », so counting it inflated the figure in the flattering direction. It is repaired below instead.)* **THEN FOUR ADVERSARIAL READERS ON THE GREEN GATE RETURNED SOME FORTY MORE**, and the shape is L15's arriving on a wave that wrote BEHAVIOUR rather than conversions: the instruments were sound and the SUBJECT was not. A security regression — the cached shell outlived the session (B-261). An update discipline that reloaded without ever swapping the worker, and then never swapped again (B-262). A queue a refused replay jammed forever, over an optimistic write the server had rejected (B-263). **B-256 still open** through the two tools most likely to run beside a suite, one of them the tool that recorded this wave's own baseline. **R104 reading three substrings and never the comparison** — two survived on the assignment line alone. **`_code_of` stripping `#` and not docstrings**, so its own arm was satisfiable by moving an assertion's sentence into a docstring. **Five properties recorded as `false` that the wave had made true**, § 7.1's duty skipped. And **the coverage figures the register published as B-256's proof were stale the day they were written** — « 75 of 75 » was 79, in the entry that closes the finding about readings nobody can trust. **RECOUNTED BY THE STEWARD (2026-08-31): the readers' share of THIS table is 13, not « 40+ ».** The ~40, 13 and 7 of the four rounds are PRODUCT defects and belong to the rounds, not to this table, whose species is an instrument green over what it does not read. The thirteen, each named in this cell or in the archived report: B-256 left open through `mutate.sh` and `harness-hold-counts.py` · R104's three substrings · `_code_of` blind to docstrings · R104 satisfied by its own source · R111's queue hold that never queued · the corpus floors aimed at the loud corpora · `mutate.sh`'s lock leaked on the `set -e` path its comment claimed · the address pairing matching one end · R104 holding the wrong half after the repair · `_code_of` eating real code under two negative holds with no floor · the `INT` handler resuming past the released lock (B-256 re-opened) · round three's two repairs shipped with no regression hold · `mutate.sh`'s restore not idempotent under a comment asserting it. Excluded, and said so: the five stale `false` properties and the stale « 75 of 75 » — directive drift (B-243's species), not an instrument reading. **And the archived `REPORT.md` still opens its count with « Six for this wave »**: the cut to five and that sentence entered in the SAME squash (`39363e1d`) — B-239's shape, wrong the moment it was written — and the MECHANISM is on record (the wave's author, 2026-08-31): the report's correction was two `str.replace` calls whose patterns matched nothing, in an edit script where every OTHER change carried an `assert old in s` and those two did not, so they were silent no-ops reported as done — « une commande en échec est une édition qui n'a pas eu lieu », inside the very correction fixing figures nobody had compared. The archive stays frozen and this cell is the living correction. |
-| **Total** | **173** | 130 by the waves through L11's own five, plus the four readers' 13 recounted above — at 2026-08-31, after L10-bis, its review, L10-ter's survey and its review, **L15 with its own review**, and **L11 with FOUR readers**. **L11's FIVE are the mutation half of the curve, and they say what mutation IS good for**: every one was found by breaking the wave's own rules on purpose, and two of them are the same rule going green twice over a shell that was not there. A rule can hold a CONSEQUENCE while the mechanism it names is gone, and only a mutation asks. **What mutation could not reach is the other forty**: four readers on that same green gate found a security regression, an update discipline that never swapped the worker, and a queue a refused replay jammed forever — none of them a defect the author had thought to break. The ratio is this table's oldest argument, arriving on a wave that wrote BEHAVIOUR rather than conversions: 5 by mutation, some 40 by reading. **And a second round on the REPAIRS found thirteen more, then a third found seven** — the two later rounds are where the sharpest findings are, not the first. Round two: the repair for a jammed queue had made a refused mutation vanish SILENTLY instead, and its classifier destroyed the operator's action on a 503, a 429 and a 401 — the very outage the queue exists for. Round three: that repair's own replacement still treated **401 as final**, so an expired session destroyed every queued mutation one after another when a re-login would have saved them all; and the notice's button said « Réessayer maintenant » while doing something else, because its name, its words and its action were written as three ladders that tested their conditions in different orders. **Each round's worst finding was in the previous round's repair**, and none of the three was found by a gate. **L12 adds 30 — 143 + 30 = 173 — and the addition is the itemisation's, not a counter's.** For two days this cell read 151 while the itemisation read 15 and `main` read 143, because the figure had been incremented ONCE PER REGISTER ENTRY FILED as B-271 to B-278 landed: 144, 145, … 151. Four of those eight entries are not units of this species at all, and the itemisation moved 6 → 14 → 15 without the total moving with it. A total that tracks a different quantity from the table under it is the drift this whole page is about, and it took an adversarial reader to do the subtraction. |
+| **Total** | **174** | 130 by the waves through L11's own five, plus the four readers' 13 recounted above — at 2026-08-31, after L10-bis, its review, L10-ter's survey and its review, **L15 with its own review**, and **L11 with FOUR readers**. **L11's FIVE are the mutation half of the curve, and they say what mutation IS good for**: every one was found by breaking the wave's own rules on purpose, and two of them are the same rule going green twice over a shell that was not there. A rule can hold a CONSEQUENCE while the mechanism it names is gone, and only a mutation asks. **What mutation could not reach is the other forty**: four readers on that same green gate found a security regression, an update discipline that never swapped the worker, and a queue a refused replay jammed forever — none of them a defect the author had thought to break. The ratio is this table's oldest argument, arriving on a wave that wrote BEHAVIOUR rather than conversions: 5 by mutation, some 40 by reading. **And a second round on the REPAIRS found thirteen more, then a third found seven** — the two later rounds are where the sharpest findings are, not the first. Round two: the repair for a jammed queue had made a refused mutation vanish SILENTLY instead, and its classifier destroyed the operator's action on a 503, a 429 and a 401 — the very outage the queue exists for. Round three: that repair's own replacement still treated **401 as final**, so an expired session destroyed every queued mutation one after another when a re-login would have saved them all; and the notice's button said « Réessayer maintenant » while doing something else, because its name, its words and its action were written as three ladders that tested their conditions in different orders. **Each round's worst finding was in the previous round's repair**, and none of the three was found by a gate. **L12 adds 30 — 143 + 30 = 173 — and the addition is the itemisation's, not a counter's.** For two days this cell read 151 while the itemisation read 15 and `main` read 143, because the figure had been incremented ONCE PER REGISTER ENTRY FILED as B-271 to B-278 landed: 144, 145, … 151. Four of those eight entries are not units of this species at all, and the itemisation moved 6 → 14 → 15 without the total moving with it. A total that tracks a different quantity from the table under it is the drift this whole page is about, and it took an adversarial reader to do the subtraction. **docs-cleanup adds 1 — 173 + 1 = 174** (B-293, the 38 dead `Design:` markers the design-gaps pair is green over; found by the wave's inventory, 0 by readers). |
 | **L12** (#540, merged 2026-09-01) | **30** | itemised below, one named unit per line with the proof that establishes it — the count follows the itemisation rather than the itemisation following a number. **Fifteen before the adversarial rounds and fifteen more after them** — twelve returned by readers, three the wave found itself, which is this table's oldest reading arriving again: the sharpest findings are in the round that reads the previous round's work, and thirteen of the second fifteen are in instruments this wave had already repaired once |
+| **docs-cleanup** (#539, the documentation model's first application) | **1** | found by the wave: 1 (B-293 — 38 `Design:` markers naming paths that left the tree, `update_feature_map.py --check` and `audit_design_coverage.py --strict` green over every one) · found by readers: 0 |
 
 ### L12's fifteen, itemised
 
@@ -4455,7 +4496,7 @@ against the node as it stands, which is what makes that gesture feasible today.
 
 <sub>`sed -n '448,454p' frontend/maquette/design/index.html` · `grep -rn '#drawer' frontend/maquette/design/src/app/` · `grep -in 'drawer' docs/reference/frontend-architecture.md`</sub>
 
-> **PLACED, 2026-08-29 (L10-ter).** Both are the frame's chrome and both convert in **L15 — The frame**, inserted before L11 in `frontend-architecture.md` § 4. The survey widened the finding: the engine draws no page and no screen, and what it still draws is six frame surfaces, one feed and every panel producer (B-236). The two size-counting instruments are named in `MODEL.md` § 4 as what the clause map's arm must not repeat.
+> **PLACED, 2026-08-29 (L10-ter).** Both are the frame's chrome and both convert in **L15 — The frame**, inserted before L11 in `frontend-architecture.md` § 4. The survey widened the finding: the engine draws no page and no screen, and what it still draws is six frame surfaces, one feed and every panel producer (B-236). The two size-counting instruments are named in `docs/reference/frame-model.md` § 4 as what the clause map's arm must not repeat.
 
 **B-221 — a wave merged leaving its own status as the literal placeholder `fixed #NNN`.**
 Found by `check-bug-register.py --arm status-vocabulary` on its first run, against `main` at
@@ -5287,7 +5328,7 @@ The L10-ter brief re-derived its figure with `grep -n "\.innerHTML = " legacy.js
 **12**; the count had already moved from nine to twelve inside one day. `legacy.js:8943` writes
 `select("#toastmsg").innerHTML =` with its value on the NEXT line, so a pattern demanding a space
 after the `=` cannot see it. A count that depends on where a line breaks changes when a formatter
-runs. The survey's command (`docs/features/maquette-l10-ter/SURVEY.md` § 1.1) reads every way a
+runs. The survey's command (`docs/reference/frame-survey.md` § 1.1) reads every way a
 script puts markup into the document and counts **19** sites — and says in the same breath what
 it does NOT read: descriptors (`panel.open`, 10 producers, all the engine's) and toggles.
 **B-085's species, and the phase's own figure for the « Guards green » table is 1.** Closed by
@@ -5329,7 +5370,7 @@ meta is the rule.
 `nav.innerHTML` (`7802`) — so every page switch, every store bump and every cache landing
 (`app/engine-redraw.ts` calls `render()` on each query that has data) replaces the four tab
 buttons with four new nodes. A persistent chrome is the first property of « as close to a mobile
-application as possible » (`MODEL.md` § 3, P2) and it is false: focus on a tab is lost across a
+application as possible » (`docs/reference/frame-model.md` § 3, P2) and it is false: focus on a tab is lost across a
 redraw, `aria-current` is rewritten rather than moved, and a view transition (L12) would see four
 elements disappear and four appear. Invisible to the oracle by construction — a rectangle and
 nineteen properties do not carry node identity. **L15's**; the rule holds `isSameNode` across a
@@ -5365,7 +5406,7 @@ relative to it. Machinery nobody can justify, kept because nobody measured it (D
 beneath it sets `data-theme="light"` before first paint when the operator chose « clair » or the
 system prefers light — and the meta stays dark, so an installed light-theme application shows a
 dark status bar over a light page. Two metas with a `media` attribute, or one the appearance
-module rewrites, is the fix; **L15's**, with the appearance logic (`MODEL.md` § 2 Part 9), and the
+module rewrites, is the fix; **L15's**, with the appearance logic (`docs/reference/frame-model.md` § 2 Part 9), and the
 rule reads the meta under both themes (P21).
 
 <sub>`grep -n "theme-color" frontend/maquette/design/index.html`</sub>
@@ -5429,7 +5470,7 @@ tree is an accumulation, not a list: 48 (dialog) · 50 (bar) · 51 (selection ba
 install) · 60 (popover, harness panel, login) · 70 (splash). Invisible to the oracle (a rectangle
 does not carry a stacking order) and to the accessibility tier (`inert` is on the background, and
 the bar is in it — so the bar is inert AND painted on top). **L15's**, with the dialog's conversion:
-one ranked list, in `MODEL.md` § 2 Part 6, and a rule that reads `elementFromPoint` over the bar
+one ranked list, in `docs/reference/frame-model.md` § 2 Part 6, and a rule that reads `elementFromPoint` over the bar
 while a dialog is open.
 
 <sub>`grep -n "z-index" frontend/maquette/design/src/styles/legacy.css` · `grep -n "z-\[\|z-[0-9]" frontend/maquette/design/index.html`</sub>
@@ -5488,7 +5529,7 @@ not the anchoring**: the sheet keeps rising from the screen's bottom edge and pa
 while a bottom layer is open the tab bar is not seen. The padding that reserved the bar's height
 goes with the overlap it compensated; the dialog, at 56 since B-237, is the precedent. Interaction
 does not change: `app/focus.ts` marks `#nav` `inert` while a layer is open, and B-237 measured
-that its buttons were never hit-testable over one. Inherent to the template: `MODEL.md` Part 7
+that its buttons were never hit-testable over one. Inherent to the template: `docs/reference/frame-model.md` Part 7
 carries the paragraph and § 3 carries it as **P31**, with its instrument. L15's, in its own
 behaviour commit: the oracle WILL move on the sheet's open states, and each divergence is accepted
 under this entry's name. **The steward first wrote the opposite** — « the bar is the floor, the
@@ -5524,7 +5565,7 @@ moved. Screens stay in its sweep — the bar does pass above them.
 **B-243 — three small drifts in the directives, found by re-running what they cite.**
 `CLAUDE.md` said the contracts tier runs « nineteen » cheap guards; `run.sh` prints **20** since
 `check-implementation-state.py` joined it on 2026-08-29. The plan's L01 entry cited
-`docs/archive/features/maquette-l01/DESIGN.md`, archived under `docs/archive/features/` since L02. § 5 said
+`docs/archive/features/maquette-l01/DESIGN.md@79ccebe2`, archived since L02 (git history since 2026-09-01). § 5 said
 this file cites the survey « twenty times »; the count is **24**. None is a decision; all three are
 figures nobody re-ran. Each now carries its command or its living path.
 
@@ -5532,7 +5573,7 @@ figures nobody re-ran. Each now carries its command or its living path.
 
 ---
 
-**B-242 — `MODEL.md` P14 says 78 named states where 87 are driven.**
+**B-242 — `docs/reference/frame-model.md` P14 says 78 named states where 87 are driven.**
 P14's instrument column reads « axe 1.4.4 on every named state (`window.__states()`, 78 today) ».
 `oracle-reference.json` holds one `measurements` key per state — **87** — and the accessibility
 tier prints « 87 states » in every run recorded in this register since L10. The figure was cited
@@ -5574,23 +5615,23 @@ twenty-four now.
 ---
 
 **B-239 — the index announced twenty-four properties and the document it points at holds thirty.**
-`CLAUDE.md`'s reference table gained a row for `MODEL.md` on 2026-08-29 reading « the 24
-mobile-application properties ». `MODEL.md` § 3 holds **P1 to P30**.
+`CLAUDE.md`'s reference table gained a row for `docs/reference/frame-model.md` on 2026-08-29 reading « the 24
+mobile-application properties ». `docs/reference/frame-model.md` § 3 holds **P1 to P30**.
 
-**It was not drift.** `MODEL.md` carried thirty in the same commit — `d3892d18`, #521 — that wrote
+**It was not drift.** `docs/reference/frame-model.md` carried thirty in the same commit — `d3892d18`, #521 — that wrote
 the index row saying twenty-four. The figure was wrong the moment it was written, by the wave that
 wrote both files, and the session report to the operator said thirty correctly. **The error survived
 only where it would be read first**: the binding index every agent opens before anything else.
 
 **Two things it is NOT, and both were checked before this entry was written.** « Thirteen parts » in
-the same row is right — `MODEL.md` § 2 runs Part 1 to Part 13, plus one heading that says it is not
+the same row is right — `docs/reference/frame-model.md` § 2 runs Part 1 to Part 13, plus one heading that says it is not
 a part, and counting `###` headings gives fourteen. And the suite's « 71 rules » was NOT touched:
 the hold-count baseline's top-level keys are metadata, so a count taken from it is a miscount, and
 the authoritative figure comes from running `run.sh` — which needs a browser this office does not
 have. **A figure that cannot be re-derived is left alone and said so**, which is the other half of
 the rule that produced this entry.
 
-<sub>`grep -c '^| P[0-9]' docs/features/maquette-l10-ter/MODEL.md` · `git show d3892d18:docs/features/maquette-l10-ter/MODEL.md | grep -c '^| P[0-9]'`</sub>
+<sub>`grep -c '^| P[0-9]' docs/reference/frame-model.md` · `git show d3892d18:docs/features/maquette-l10-ter/MODEL.md | grep -c '^| P[0-9]'`</sub>
 
 > **Corrected with a second stale sentence found in the same sweep.** § 1 of the plan still read
 > « invariant 10 has been binding since L09 and its subject — the frame — has never been modelled »,
@@ -5901,7 +5942,7 @@ the operator's reading, not this steward's.
 
 <sub>`python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print(sum(1 for p in d['paths'].values() for v in p if v in ('get','post','put','patch','delete')))"` · `sed -n '492,517p' docs/reference/product-intent.md` · `docs/reference/frontend-backend-demands.md` § 4</sub>
 
-> **THE MAPPING IS WRITTEN, 2026-08-29 (L10-ter).** `docs/reference/product-intent-map.md` — one row per DOIT and NE-DOIT-PAS clause, a verdict from a five-word vocabulary, a proof or an owning lot. Three rows read `to draw` (L16, L17, L18), eleven `partly` with an owed half (L19, L20), and the § 4 list of unused operations has a verdict for every operation a clause names — fourteen of the twenty-four. The arm is specified in `MODEL.md` § 4 and built by **L15**; this entry closes when it runs.
+> **THE MAPPING IS WRITTEN, 2026-08-29 (L10-ter).** `docs/reference/product-intent-map.md` — one row per DOIT and NE-DOIT-PAS clause, a verdict from a five-word vocabulary, a proof or an owning lot. Three rows read `to draw` (L16, L17, L18), eleven `partly` with an owed half (L19, L20), and the § 4 list of unused operations has a verdict for every operation a clause names — fourteen of the twenty-four. The arm is specified in `docs/reference/frame-model.md` § 4 and built by **L15**; this entry closes when it runs.
 
 **B-143 — the constitution gained a section, and nothing in the plan answers it.**
 The operator dictated **§17 — Comptes, droits et identité Plex** on 2026-08-26: the application

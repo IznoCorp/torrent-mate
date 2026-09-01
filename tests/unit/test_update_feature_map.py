@@ -207,13 +207,13 @@ def test_a():
     @pytest.mark.parametrize(
         ("design_path", "expected_codename"),
         [
-            ("docs/reference/scraping.md", "scraper"),
-            ("docs/reference/storage.md", "dispatch"),
-            ("docs/reference/pipeline-internals.md", "pipeline"),
-            ("docs/reference/trailers.md", "trailers"),
-            ("docs/reference/indexer.md", "indexer"),
-            ("docs/reference/indexer-json-shapes.md", "indexer-json-shapes"),
-            ("docs/reference/architecture.md", "architecture"),
+            ("docs/production/scraping.md", "scraper"),
+            ("docs/production/storage.md", "dispatch"),
+            ("docs/production/pipeline-internals.md", "pipeline"),
+            ("docs/production/trailers.md", "trailers"),
+            ("docs/production/indexer.md", "indexer"),
+            ("docs/production/indexer-json-shapes.md", "indexer-json-shapes"),
+            ("docs/production/architecture.md", "architecture"),
         ],
     )
     def test_override_table(self, fake_repo: Path, design_path: str, expected_codename: str) -> None:
@@ -247,7 +247,7 @@ def test_x():
 def test_y():
     """Second.
 
-    Design: docs/reference/scraping.md#beta
+    Design: docs/production/scraping.md#beta
     Contract: clause.
     """
 ''',
@@ -259,7 +259,7 @@ def test_y():
         assert codename == "scraper"
         assert {first, second} == {
             "docs/features/scraper/DESIGN.md",
-            "docs/reference/scraping.md",
+            "docs/production/scraping.md",
         }
 
     def test_test_ids_deduplicated_and_sorted(self, fake_repo: Path) -> None:
@@ -411,7 +411,7 @@ def test_a():
 def test_b():
     """B.
 
-    Design: docs/reference/scraping.md#b
+    Design: docs/production/scraping.md#b
     Contract: clause.
     """
 ''',

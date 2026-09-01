@@ -23,7 +23,7 @@ from .conftest import FakeMultiCapability
 def test_operations_returns_expected_shape(build_registry: object) -> None:
     """``operations()`` returns ``dict[type[Protocol], Mode]`` with all 10 capabilities mapped.
 
-    Design: docs/reference/architecture.md#introspection
+    Design: docs/production/architecture.md#introspection
     Contract: introspection operations() returns the expected shape documenting all capability-to-mode mappings.
     """
     fakes = {"tmdb": FakeMultiCapability(provider_name="tmdb")}
@@ -67,7 +67,7 @@ def test_operations_includes_mode_direct_entries(build_registry: object) -> None
 def test_status_returns_expected_shape(build_registry: object) -> None:
     """``status()`` returns ``dict[provider_name, ProviderStatus]`` for every configured provider.
 
-    Design: docs/reference/architecture.md#introspection
+    Design: docs/production/architecture.md#introspection
     Contract: introspection status() returns circuit and provider health for every configured provider.
     """
     fakes = {"tmdb": FakeMultiCapability(provider_name="tmdb")}

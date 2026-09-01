@@ -18,7 +18,7 @@ class TestDecisionCandidateRoundTrip:
     def test_round_trip_full(self) -> None:
         """All fields populated → dump → validate produces an equal model.
 
-        Design: docs/reference/indexer-json-shapes.md#scrape_decisioncandidates_json
+        Design: docs/production/indexer-json-shapes.md#scrape_decisioncandidates_json
         Contract: A DecisionCandidate with all fields (provider, provider_id,
         title, year, score, poster_url, overview) survives a full
         model_dump → model_validate round-trip with every field preserved

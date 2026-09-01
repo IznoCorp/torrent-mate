@@ -1,6 +1,6 @@
 """Design-contract test for top-level architecture invariants.
 
-Codename: ``architecture`` (override table maps ``docs/reference/architecture.md``
+Codename: ``architecture`` (override table maps ``docs/production/architecture.md``
 to this codename).
 """
 
@@ -18,7 +18,7 @@ class TestPackageContract:
     def test_package_name_and_version_exposed(self) -> None:
         """Package name is ``personalscraper`` and exposes a SemVer ``__version__``.
 
-        Design: docs/reference/architecture.md#package
+        Design: docs/production/architecture.md#package
         Contract: ``import personalscraper`` succeeds and exposes a
         ``__version__`` attribute matching the SemVer ``X.Y.Z`` pattern.
         This is the single source of truth read by the dynamic version
@@ -34,7 +34,7 @@ class TestPackageContract:
     def test_cli_entry_point_importable(self) -> None:
         """The CLI entry point ``personalscraper.cli:app`` is importable.
 
-        Design: docs/reference/architecture.md#package
+        Design: docs/production/architecture.md#package
         Contract: ``from personalscraper.cli import app`` works — Typer
         application object is the project's documented CLI entry, also
         registered as the ``personalscraper`` console script in
@@ -50,7 +50,7 @@ class TestAutomatedPipelineContract:
     def test_pipeline_run_uses_all_nine_default_steps(self) -> None:
         """``personalscraper run`` orchestrates all 9 pipeline steps.
 
-        Design: docs/reference/architecture.md#automated-pipeline-personalscraper-run
+        Design: docs/production/architecture.md#automated-pipeline-personalscraper-run
         Contract: The pipeline orchestrator registered at
         ``personalscraper run`` executes 9 steps in sequence —
         INGEST→SORT→CLEAN→SCRAPE→CLEANUP→ENFORCE→VERIFY→TRAILERS→DISPATCH.
@@ -77,7 +77,7 @@ class TestAutomatedPipelineContract:
     def test_pipeline_steps_are_coherent_with_cli_commands(self) -> None:
         """Each pipeline step has a corresponding CLI command.
 
-        Design: docs/reference/architecture.md#automated-pipeline-personalscraper-run
+        Design: docs/production/architecture.md#automated-pipeline-personalscraper-run
         Contract: Every step in the automated pipeline is also invocable
         as a standalone ``personalscraper <step>`` command (e.g.
         ``personalscraper ingest``, ``personalscraper sort``, …). The
@@ -98,7 +98,7 @@ class TestDirectoryStructureContract:
     def test_package_submodules_match_documented_map(self) -> None:
         """Key package subdirectories exist as documented.
 
-        Design: docs/reference/architecture.md#directory-structure
+        Design: docs/production/architecture.md#directory-structure
         Contract: The documented package subdirectories (ingest, sorter,
         scraper, conf, api, verify, dispatch, indexer, maintenance, commands,
         enforce, process, trailers, core) exist as importable packages
@@ -139,7 +139,7 @@ class TestDirectoryStructureContract:
     def test_key_pipeline_modules_exist(self) -> None:
         """Top-level pipeline modules exist as documented.
 
-        Design: docs/reference/architecture.md#directory-structure
+        Design: docs/production/architecture.md#directory-structure
         Contract: The pipeline orchestrator modules (pipeline.py,
         pipeline_protocol.py, pipeline_steps.py, models.py, logger.py)
         and entry points (cli.py, config.py) exist at the package root.

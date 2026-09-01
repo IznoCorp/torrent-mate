@@ -5,7 +5,7 @@
 // cursor — facts about the PROTOCOL, true of the real server as much as of the
 // fake — while `stream.ts` is a server that behaves. Nothing here holds state.
 //
-// The protocol is `docs/reference/web-ui.md` § WebSocket Protocol.
+// The protocol is `docs/production/web-ui.md` § WebSocket Protocol.
 
 /** What the server pushes once, before anything else. */
 export const HELLO_TYPE = "ws.hello";

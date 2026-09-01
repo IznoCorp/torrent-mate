@@ -1,6 +1,6 @@
 {
   "feature": "architecture",
-  "design": "docs/reference/architecture.md",
+  "design": "docs/production/architecture.md",
   "sections": {
     "appcontext-field-table": {
       "tests": [

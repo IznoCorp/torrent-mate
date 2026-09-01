@@ -22,7 +22,7 @@ Write endpoints (sub-phase 2.3):
 All routes are guarded by ``require_session`` inherited from the parent
 ``guarded_api`` router (registration in app.py, sub-phase 2.4).  Auth
 dependencies are NOT added per-route — the auth perimeter is a single
-dependency at registration time, per ``docs/reference/web-ui.md`` §6 (the
+dependency at registration time, per ``docs/production/web-ui.md`` §6 (the
 single authority for this convention; R14/R24).
 
 **Config directory resolution**: The config directory is resolved at request

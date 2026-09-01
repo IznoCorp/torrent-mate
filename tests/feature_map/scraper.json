@@ -1,6 +1,6 @@
 {
   "feature": "scraper",
-  "design": "docs/reference/scraping.md",
+  "design": "docs/production/scraping.md",
   "sections": {
     "batch-confidence--decision-queue-s5--scrape-arbiter": {
       "tests": [

@@ -1,6 +1,6 @@
 {
   "feature": "indexer-json-shapes",
-  "design": "docs/reference/indexer-json-shapes.md",
+  "design": "docs/production/indexer-json-shapes.md",
   "sections": {
     "index_outboxpayload_json": {
       "tests": [

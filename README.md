@@ -3,6 +3,10 @@
 ![CI](https://github.com/IznoCorp/torrent-mate/actions/workflows/ci.yml/badge.svg)
 [![codecov](https://codecov.io/gh/IznoCorp/torrent-mate/badge.svg)](https://codecov.io/gh/IznoCorp/torrent-mate)
 
+> This document describes the version **in production**, which the next version replaces — the
+> constitution of that next version is `docs/reference/product-intent.md`, and which document
+> describes which version is `docs/reference/documentation-model.md`.
+
 Pipeline d'automatisation media — ingestion, tri, scraping, vérification, dispatch — piloté en ligne de commande ou depuis **TorrentMate**, une web app installable (PWA).
 
 Les torrents terminés sont automatiquement triés, enrichis de métadonnées (TMDB/TVDB), vérifiés, puis déplacés vers les disques de stockage, prêts pour Kodi/Plex.

@@ -126,14 +126,14 @@ def build_retry_logger(log: BoundLogger, event: str) -> Callable[[RetryCallState
         log: Bound structlog logger for the calling module.
         event: structlog event name to use for the warning log entry.  Must be
             snake_case and follow the event-naming convention described in
-            docs/reference/logging.md (event-naming-guideline section).
+            docs/production/logging.md (event-naming-guideline section).
 
     Returns:
         Callback accepted by tenacity's before_sleep parameter.
 
     Note:
         exc_info is passed as the exception instance (or False), NOT as True.
-        See RULE D in docs/reference/logging.md: tenacity before_sleep callbacks
+        See RULE D in docs/production/logging.md: tenacity before_sleep callbacks
         run outside the active except block, so sys.exc_info() is empty there.
         Passing the exception INSTANCE directly lets structlog render the
         traceback from it even when sys.exc_info() is (None, None, None).

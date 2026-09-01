@@ -55,7 +55,7 @@ class TestBuildAppContextTorrent:
     def test_capable_client_wired(self) -> None:
         """D3: capable active client → wired into AppContext.
 
-        Design: docs/reference/architecture.md#torrent-client-boot-wiring-torrent-write-v0210
+        Design: docs/production/architecture.md#torrent-client-boot-wiring-torrent-write-v0210
         Contract: The torrent-write boot-wiring promotes the active torrent
         client into AppContext — a capable client resolved by
         build_active_torrent_client() is stored in ctx.torrent_client (only
@@ -78,7 +78,7 @@ class TestBuildAppContextTorrent:
     def test_incapable_client_raises(self) -> None:
         """D3: enabled-but-incapable client → RegistryConfigError at boot.
 
-        Design: docs/reference/architecture.md#boot-sequence
+        Design: docs/production/architecture.md#boot-sequence
         Contract: In the boot sequence, _build_app_context() asserts the active
         torrent client composes TorrentAdder and raises RegistryConfigError
         (protocol_mismatch, section torrent) when it does not (D3 fail-fast).

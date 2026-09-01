@@ -108,7 +108,7 @@ class TestScoreMatch:
     def test_exact_match_with_year(self) -> None:
         """Exact title + exact year should score >= HIGH_CONFIDENCE.
 
-        Design: docs/reference/scraping.md#threshold-constants
+        Design: docs/production/scraping.md#threshold-constants
         Contract: score_match returns a value >= HIGH_CONFIDENCE (0.9) when
         both the title and year match exactly, and the score is always clamped
         within [0.0, 1.0].
@@ -1446,7 +1446,7 @@ class TestMatchMovieDetailed:
     def test_below_threshold_returns_candidates(self) -> None:
         """Best < LOW_CONFIDENCE → match returned with low confidence, candidates non-empty.
 
-        Design: docs/reference/scraping.md#detailed-match-variants
+        Design: docs/production/scraping.md#detailed-match-variants
         Contract: match_movie_detailed returns a (match, candidates) tuple
         where match is the best-scoring result (even if below threshold) and
         candidates is a DecisionCandidate list sorted by score descending,

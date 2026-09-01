@@ -143,7 +143,7 @@ def test_event_registry_has_all_v1_events() -> None:
     observations emitted by the reconcile sweep (→ 47).
     The literal count guards against silent
     additions that bypass the documented event catalog in
-    ``docs/reference/event-bus.md``.
+    ``docs/production/event-bus.md``.
     """
     import personalscraper.events  # noqa: F401 — eager-import side effect
 

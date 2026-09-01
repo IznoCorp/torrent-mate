@@ -8,7 +8,7 @@ the shared WAL acquire.db — NOT an event projection (unlike S6).
 All routes are guarded by require_session inherited from the parent
 guarded_api router (registration in app.py).  Auth dependencies are NOT
 added per-route — the auth perimeter is a single dependency at registration
-time, per docs/reference/web-ui.md §6 (the single authority for this
+time, per docs/production/web-ui.md §6 (the single authority for this
 convention; R14/R24).
 
 Reads open a FRESH read-only sqlite3 connection PER REQUEST — the store's

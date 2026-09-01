@@ -1,6 +1,6 @@
 """Design-contract tests for the trailers feature.
 
-Pin points for ``docs/reference/trailers.md`` (codename: ``trailers``) — the
+Pin points for ``docs/production/trailers.md`` (codename: ``trailers``) — the
 Plex-conformant trailer placement convention (movies flat, TV shows in a
 ``Trailers/`` subfolder).
 """
@@ -18,7 +18,7 @@ class TestTrailerPlacementContract:
     def test_movie_trailer_is_flat_next_to_media(self, tmp_path: Path) -> None:
         """Movie trailer lands flat next to the media folder.
 
-        Design: docs/reference/trailers.md#pipeline-step
+        Design: docs/production/trailers.md#pipeline-step
         Contract: For ``media_type='movie'`` the path is
         ``{media_dir}/{media_name}-trailer.{ext}`` per Plex Local Media
         Assets — no subfolder.
@@ -30,7 +30,7 @@ class TestTrailerPlacementContract:
     def test_tvshow_trailer_lands_in_trailers_subfolder(self, tmp_path: Path) -> None:
         """TV-show trailer lands in a Trailers/ subfolder.
 
-        Design: docs/reference/trailers.md#pipeline-step
+        Design: docs/production/trailers.md#pipeline-step
         Contract: For ``media_type='tvshow'`` the path is
         ``{media_dir}/Trailers/{media_name}.{ext}`` — the only convention
         Plex's TV Series agent recognises for show-level extras.

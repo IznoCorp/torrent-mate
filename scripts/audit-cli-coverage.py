@@ -5,7 +5,7 @@ Performs two checks:
 
 1. **Command → docs coverage**: for each ``@app.command`` defined under
    ``personalscraper/commands/``, verifies that an entry exists in
-   ``docs/reference/commands.md``.
+   ``docs/production/commands.md``.
 
 2. **Domain → CLI coverage**: for each business-domain package
    (``library/``, ``indexer/``, ``scraper/``, ``trailers/``,
@@ -14,7 +14,7 @@ Performs two checks:
    imports from it.
 
 Both checks emit warnings on failure but **exit 0** (fail-soft).  This is
-intentional for Phase 2.5: ``docs/reference/commands.md`` is known to be
+intentional for Phase 2.5: ``docs/production/commands.md`` is known to be
 incomplete (Phase 6.2 will populate it).  The script becomes a hard gate once
 docs are filled in.
 
@@ -153,7 +153,7 @@ def _extract_documented_commands(doc_text: str) -> set[str]:
     name (``set-password``), not the group path.
 
     Args:
-        doc_text: Raw Markdown text of ``docs/reference/commands.md``.
+        doc_text: Raw Markdown text of ``docs/production/commands.md``.
 
     Returns:
         Set of command name strings (e.g. ``{"ingest", "web", "set-password", ...}``).
@@ -176,11 +176,11 @@ def _extract_documented_commands(doc_text: str) -> set[str]:
 
 
 def check_command_docs_coverage() -> list[str]:
-    """Check that every ``@app.command`` has a corresponding docs/reference/commands.md entry.
+    """Check that every ``@app.command`` has a corresponding docs/production/commands.md entry.
 
     Walks all ``*.py`` files under ``personalscraper/commands/`` (excluding
     ``__pycache__``), extracts command names, and cross-references them against
-    the documented commands extracted from ``docs/reference/commands.md``.
+    the documented commands extracted from ``docs/production/commands.md``.
 
     Returns:
         List of warning strings for commands with no documentation entry.
@@ -201,7 +201,7 @@ def check_command_docs_coverage() -> list[str]:
         for cmd in cmd_names:
             if cmd not in documented:
                 rel = py_file.relative_to(REPO_ROOT)
-                warnings.append(f"WARN: command '{cmd}' (in {rel}) has no entry in docs/reference/commands.md")
+                warnings.append(f"WARN: command '{cmd}' (in {rel}) has no entry in docs/production/commands.md")
 
     return warnings
 

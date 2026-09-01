@@ -13,8 +13,8 @@ Package name: `personalscraper`. CLI entry points: `torrentmate` (public command
 
 All storage paths, staging layout (`001-MOVIES/`, `002-TVSHOWS/`, …) and category names are
 config-driven, never hardcoded; `personalscraper init-config` seeds `config/` from
-`config.example/`. Layout: `docs/reference/config-overlay-layout.md`. Module map:
-`docs/reference/architecture.md`.
+`config.example/`. Layout: `docs/production/config-overlay-layout.md`. Module map:
+`docs/production/architecture.md`.
 
 ## Setup (per clone)
 
@@ -320,11 +320,11 @@ Three checkouts share `library.db`, `.data/` and the storage disks: **dev** = `~
 (feature branches, no PM2 daemons) · **prod** = `~/deploy/torrentmate` (tracks `main`, `torrentmate-web`
 on 8710) · **staging** = `~/staging/torrentmate` (tracks `staging`, 8711, read-only role → 403 on
 writes). Canonical config lives at `~/.torrentmate/config`, outside every working tree. Full topology
-and deploy runbook: `docs/reference/web-ui.md`.
+and deploy runbook: `docs/production/web-ui.md`.
 
 - **NEVER start a local server on 8710/8711** (Caddy routes `tm.`/`tm-staging.` there) — test the frontend via `tm-staging.iznogoudatall.xyz`.
 
-Invariants enforced by tests (do not regress; details in `docs/reference/web-ui.md` + `maintenance.md`):
+Invariants enforced by tests (do not regress; details in `docs/production/web-ui.md` + `maintenance.md`):
 
 - Every mutating web endpoint is staging-guarded (`require_not_staging`) and typed (Pydantic `response_model` → OpenAPI → `schema.d.ts`; any route change ⇒ `make openapi` + commit the regenerated files).
 - The web auth perimeter is the **single** `guarded_api` dependency (web-ui.md §6) — never add per-route `Depends(require_session)`.
@@ -336,15 +336,17 @@ Invariants enforced by tests (do not regress; details in `docs/reference/web-ui.
 
 The operator communicates in French or English — respond in French when they write in French.
 Everything durable is **English only**: code comments, docstrings, maquette/harness sources, and
-all engineering documentation (`docs/`, `BUGS.md`, `CHANGELOG.md`, `ROADMAP.md`,
+all engineering documentation (`docs/`, `BUGS.md`, `CHANGELOG.md`,
 `IMPLEMENTATION.md`, this file). **Never mix languages within a document.** Exceptions:
 
-- **Operator-facing docs stay French**: `README.md`, `MANUAL.md`, `INSTALLATION.md`,
-  `CONFIGURATION.md`, `docs/reference/product-intent.md` (the constitution, dictated by the
-  operator).
+- **One document stays French, by name**: `docs/reference/product-intent.md`, the constitution,
+  dictated by the operator and amended by the operator alone. The documents describing the
+  version in production (`docs/production/`, `README.md`) keep the language they were written
+  in — they are frozen and die at the switchover; the next version's operator documents are born
+  in English. The rule, the three families and their fates:
+  `docs/reference/documentation-model.md`.
 - French inside an English document is allowed **only** to quote UI copy / app screens and
   sections named in French (in « guillemets »), media titles, or the operator verbatim.
-- `docs/archive/` is frozen history — never translated, never restyled.
 - Maquette/harness comments carry no reference to a session, a phase or a dated decision —
   they must still read years from now, out of context.
 
@@ -424,44 +426,51 @@ enforced by `scripts/check-no-french.py` (fifteen arms, in `make check` and in C
 
 Load these docs on-demand based on your task — they are **not** auto-loaded:
 
+**Three families, one rule** — `docs/reference/documentation-model.md`: a row pointing into
+`docs/production/` describes the version IN PRODUCTION, frozen, dying at the switchover; a row
+pointing into `docs/reference/` describes the next version or what is true whatever the version.
+History is not in the tree: a path cited as `` `path@sha` `` is read with `git show sha:path`.
+
 | When working on... | Read |
 | --- | --- |
-| CLI commands, pipeline invocation, scheduling (PM2 crons), make targets | `docs/reference/commands.md` |
-| Disks, NTFS/macFUSE, rsync flags, disk space rules, move rules details | `docs/reference/storage.md` |
-| Directory layout, module map, shared utilities, dependencies, api/ contracts (HttpTransport, Protocols) | `docs/reference/architecture.md` |
+| **The documentation model — which version a document may describe, where it lives, how history is cited (BINDING)** | `docs/reference/documentation-model.md` |
+| CLI commands, pipeline invocation, scheduling (PM2 crons), make targets | `docs/production/commands.md` |
+| Disks, NTFS/macFUSE, rsync flags, disk space rules, move rules details | `docs/production/storage.md` |
+| Directory layout, module map, shared utilities, dependencies, api/ contracts (HttpTransport, Protocols) | `docs/production/architecture.md` |
 | Movie/TV folder naming, episode patterns, filename sanitization | `docs/reference/naming.md` |
 | Code names — the no-abbreviation rule, its blacklist, exemptions and ratchet | `docs/reference/code-naming.md` |
 | Unit tests, E2E, roundtrip, golden files, test markers, timeouts, feature map | `docs/reference/testing.md` |
-| TMDB/TVDB APIs, NFO invariants, artwork, ffprobe language codes | `docs/reference/scraping.md` |
+| TMDB/TVDB APIs, NFO invariants, artwork, ffprobe language codes | `docs/production/scraping.md` |
 | rapidfuzz, tenacity, structlog, rich, guessit gotchas | `docs/reference/libraries.md` |
-| Circuit breaker, fast-skip, dispatch/verify internals, idempotence | `docs/reference/pipeline-internals.md` |
-| EventBus internals, event catalog, subscriber recipes, AppContext boundary rule, ContextVar pattern | `docs/reference/event-bus.md` |
-| Logging conventions, event-name style, structlog vs CLI vs typer channels | `docs/reference/logging.md` |
-| Trailer discovery, download, state, CLI, Plex-conformant placement | `docs/reference/trailers.md` |
-| Media indexer DB, scanner modes, query parser, outbox, cron setup, failure recovery | `docs/reference/indexer.md` |
-| JSON column shapes (artwork_json, payload_json, stats_json) — Pydantic models and examples | `docs/reference/indexer-json-shapes.md` |
-| Cross-provider IDs flow, ratings JSON, backfill mode, capability protocols | `docs/reference/external-ids-flow.md` |
+| Circuit breaker, fast-skip, dispatch/verify internals, idempotence | `docs/production/pipeline-internals.md` |
+| EventBus internals, event catalog, subscriber recipes, AppContext boundary rule, ContextVar pattern | `docs/production/event-bus.md` |
+| Logging conventions, event-name style, structlog vs CLI vs typer channels | `docs/production/logging.md` |
+| Trailer discovery, download, state, CLI, Plex-conformant placement | `docs/production/trailers.md` |
+| Media indexer DB, scanner modes, query parser, outbox, cron setup, failure recovery | `docs/production/indexer.md` |
+| JSON column shapes (artwork_json, payload_json, stats_json) — Pydantic models and examples | `docs/production/indexer-json-shapes.md` |
+| Cross-provider IDs flow, ratings JSON, backfill mode, capability protocols | `docs/production/external-ids-flow.md` |
 | Any provider or client — TMDB/TVDB/OMDB/Trakt, qBittorrent/Transmission, C411/Tr4ker + Torznab, Telegram/healthchecks | `docs/reference/<provider>-api.md` |
 | Plex refresh after dispatch (X-Plex-Token, partial scan, longest-prefix section, fail-soft) | `docs/reference/plex-api.md` |
-| Provider naming — `ProviderName` Enum (transport) vs `RegistryProviderName` NewType (registry) | `docs/archive/features/registry/DESIGN.md` §5.3 |
-| Insights layer — analytics, reporting, recommendations over the indexer DB | `docs/reference/insights.md` |
-| Maintenance ops — disk cleaning, targeted re-scrape repairs, web-UI action catalog + runner | `docs/reference/maintenance.md` |
+| Provider naming — `ProviderName` Enum (transport) vs `RegistryProviderName` NewType (registry) | `docs/archive/features/registry/DESIGN.md@79ccebe2` §5.3 |
+| Insights layer — analytics, reporting, recommendations over the indexer DB | `docs/production/insights.md` |
+| Maintenance ops — disk cleaning, targeted re-scrape repairs, web-UI action catalog + runner | `docs/production/maintenance.md` |
 | ffprobe stream extraction, codec/language → Kodi NFO mapping | `docs/reference/ffprobe-api.md` |
-| Config split layout, JSON5 overlay composition, per-file key ownership | `docs/reference/config-overlay-layout.md` |
-| Config home relocation — canonical location, migration runbook | `docs/archive/features/config-home/DESIGN.md` |
+| Config split layout, JSON5 overlay composition, per-file key ownership | `docs/production/config-overlay-layout.md` |
+| Config home relocation — canonical location, migration runbook | `docs/archive/features/config-home/DESIGN.md@79ccebe2` |
 | Feature lifecycle — ACCEPTANCE format, phase gates, implement:\* flow, KanbanMate claim | `docs/reference/feature-lifecycle.md` |
-| Module-size budget tracking, BLOCK-threshold promise status | `docs/reference/promises.md` |
-| Post-merge operator checklist (DB schema, config/CLI migrations, ACC re-exercise) | `docs/reference/runbook-post-merge.md` |
-| TorrentMate web UI — architecture, auth, WS protocol, Redis relay, PWA, deploy runbook, REST conventions | `docs/reference/web-ui.md` |
+| Module-size budget tracking, BLOCK-threshold promise status | `docs/production/promises.md` |
+| Post-merge operator checklist (DB schema, config/CLI migrations, ACC re-exercise) | `docs/production/runbook-post-merge.md` |
+| TorrentMate web UI — architecture, auth, WS protocol, Redis relay, PWA, deploy runbook, REST conventions | `docs/production/web-ui.md` |
 | **Product intent — the product constitution (BINDING): §1–§15 + DOIT/NE-DOIT-PAS + §méthode** | `docs/reference/product-intent.md` |
 | **Maquette — the VISUAL reference of the web UI (BINDING): it is modified BEFORE the code** | `frontend/maquette/README.md` |
 | **Frontend architecture — what the maquette must BECOME, and in what order (BINDING)** | `docs/reference/frontend-architecture.md` |
-| The frame's model — its thirteen parts under invariant 10, the 30 mobile-application properties, the survey of what the engine still draws | `docs/features/maquette-l10-ter/MODEL.md` · `SURVEY.md` |
+| The frame's model — its thirteen parts under invariant 10, the 30 mobile-application properties, the survey of what the engine still draws | `docs/reference/frame-model.md` · `docs/reference/frame-survey.md` |
 | Product intent → surface map — every DOIT / NE-DOIT-PAS clause, the surface serving it, its verdict and owner (the operator amends it) | `docs/reference/product-intent-map.md` |
 | Backend demands of ARCHITECTURE — the tunnel per media (§20), the requester and rights (§17), the ratio write, cross-seed — inputs of the future backend brief, unscheduled by design | `docs/reference/backend-demands-architecture.md` |
 | Frontend steward — the standing audit of that plan. **NOT for the agent implementing a lot**: it is the operator's and the steward's | `docs/reference/frontend-steward.md` |
 
-Also check archived alpha versions under `docs/archive/legacy-alpha/` and archived features under `docs/archive/features/`.
+Everything a merged wave wrote is in git, not in the tree: `git log --all --oneline -- <path>`
+finds the commit, `git show <sha>:<path>` reads it.
 
 ## Current Feature
 

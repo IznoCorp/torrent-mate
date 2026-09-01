@@ -1,6 +1,6 @@
 {
   "feature": "api-unify",
-  "design": "docs/archive/features/api-unify/DESIGN.md",
+  "design": "docs/production/api-unify-design.md",
   "sections": {
     "33-apitransport_policypy--transport-contract": {
       "tests": [

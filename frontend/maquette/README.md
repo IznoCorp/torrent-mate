@@ -245,7 +245,7 @@ It is the operator-approved interactive prototype of the mobile-first interface:
 sheet and the shared shell. It is **not an illustration**. It is the source the shipped UI
 is derived from, and the reference every measurement compares against.
 
-Design spec: `docs/superpowers/specs/2026-08-10-refonte-mobile-quatre-pages-design.md` — §7
+Design spec: `docs/superpowers/specs/2026-08-10-refonte-mobile-quatre-pages-design.md@79ccebe2` — §7
 is the parity methodology and is the part that matters most.
 
 ---

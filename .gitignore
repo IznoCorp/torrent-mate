@@ -147,7 +147,7 @@ docs/pipeline-runs/
 # Root-anchored: only the repo-root config/ dir — NOT nested dirs like
 # frontend/src/components/config/ (config-editor S4).
 # Canonical config lives at ~/.torrentmate/config since 0.73.0 — the
-# repo carries config.example/ only (see docs/features/config-home/DESIGN.md).
+# repo carries config.example/ only.
 /config/
 config.json5
 config.json5.v15.bak
@@ -167,7 +167,6 @@ tests/fixtures/parity/v0.7-fs/
 
 # Perf-test fixture filesystem (built by build_fixture.py — gitignored, re-run to regenerate)
 tests/e2e/perf/.fixture/
-docs/features/provider-ids/plan/DEVIATIONS.md
 
 # Maquette rule-harness scratch output: harness/audit.py dumps its violation
 # map here (a relative open(), so it lands in the directory the script is run

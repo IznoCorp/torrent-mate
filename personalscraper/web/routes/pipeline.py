@@ -6,7 +6,7 @@ docs/features/pipe-control/DESIGN.md §4 for the full route contract.
 
 The ``require_session`` guard is inherited from the parent ``guarded_api``
 router (registration in app.py) — auth dependencies are NOT added per-route,
-per ``docs/reference/web-ui.md`` §6 (the single authority for this
+per ``docs/production/web-ui.md`` §6 (the single authority for this
 convention; R14/R24).
 """
 
