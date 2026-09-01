@@ -1091,7 +1091,7 @@ describe("NowPanel", () => {
 
     expect(
       await screen.findByText(
-        /2 acquisitions récupérées ne sont jamais arrivées en médiathèque/,
+        /2 acquisitions récupérées ne sont jamais allées au bout/,
       ),
     ).toBeInTheDocument();
   });

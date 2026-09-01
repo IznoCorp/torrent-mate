@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+from personalscraper.acquire._season_fallback import fall_back_to_episodes
 from personalscraper.acquire.domain import FollowedSeries, WantedItem
 from personalscraper.acquire.events import SeasonFellBackToEpisodes
 from personalscraper.acquire.reconcile import reconcile_wanted
@@ -917,3 +918,165 @@ def test_the_landed_season_leaves_the_sweep_for_good(store: ConcreteAcquireStore
     assert second.fell_back_to_episodes == 0
     queued = [(row.season, row.episode) for row in store.wanted.list_pending() if row.kind == "episode"]
     assert queued == [(3, 2)]
+
+
+# ---------------------------------------------------------------------------
+# What a landed-incomplete season must NOT do (adversarial round)
+# ---------------------------------------------------------------------------
+
+
+def test_a_landed_season_the_library_answers_NOTHING_for_is_left_alone(
+    store: ConcreteAcquireStore,
+) -> None:
+    """Zero owned under a dispatched journey is a broken INDEX, not a broken pack.
+
+    The « no answer » tier of :func:`_season_missing_episodes` cannot be reached
+    through the production ownership adapter: ``IndexerOwnershipChecker.owns``
+    catches every exception and answers ``False`` (fail-soft, and its docstring
+    calls that LOAD-BEARING). So a locked, missing or half-migrated
+    ``library.db`` does not read as « I don't know » — it reads as « every
+    episode is missing », which is exactly the shape that would send a whole
+    season back to the queue and re-download media already on the disk.
+
+    The journey says the pipeline SHELVED this pack. A pack that shelved
+    nothing at all is not a pack that came up short; something else is wrong,
+    and the row stays put where the operator can see it.
+    """
+    followed_id = _followed_show(store)
+    store.aired.replace_for_followed(
+        followed_id,
+        [(3, 1, None, "2026-01-01"), (3, 2, None, "2026-01-08")],
+        now=1_750_000_000,
+    )
+    wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e20")
+    _dispatched_journey(store, info_hash="5ea50e20", followed_id=followed_id, season=3)
+
+    summary = reconcile_wanted(
+        store,
+        _StubOwnership(set()),
+        client_items=_items("5ea50e20", progress=1.0),
+        event_bus=_BUS,
+    )
+
+    assert summary.fell_back_to_episodes == 0
+    assert summary.still_in_flight == 1
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "grabbed"
+    assert [r.episode for r in store.wanted.list_pending() if r.kind == "episode"] == []
+
+
+def test_a_landed_season_whose_ownership_lookup_raises_is_left_alone(
+    store: ConcreteAcquireStore,
+) -> None:
+    """The third blind spot, on a SEASON row: a raise is no answer at all."""
+    followed_id = _followed_show(store)
+    store.aired.replace_for_followed(
+        followed_id,
+        [(3, 1, None, "2026-01-01"), (3, 2, None, "2026-01-08")],
+        now=1_750_000_000,
+    )
+    wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e21")
+    _dispatched_journey(store, info_hash="5ea50e21", followed_id=followed_id, season=3)
+
+    summary = reconcile_wanted(
+        store,
+        _ExplodingOwnership(),
+        client_items=_items("5ea50e21", progress=1.0),
+        event_bus=_BUS,
+    )
+
+    assert summary.fell_back_to_episodes == 0
+    assert summary.still_in_flight == 1
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "grabbed"
+
+
+def test_a_crash_window_season_is_CONFIRMED_before_it_may_fall_back(
+    store: ConcreteAcquireStore,
+) -> None:
+    """The intent confirmation outranks the fallback — a seed obligation is at stake.
+
+    A 'searching' row carrying a hash is the §11(d) crash window: the torrent was
+    added but the status write was lost, and with it the seed obligation the grab
+    was supposed to record. Falling the row back to episodes there would make it
+    terminal, drop its hash out of ``hashes_in_flight()`` and leave the obligation
+    unrecordable FOREVER — and ``DeleteAuthority.may_delete`` is fail-OPEN, so the
+    disk cleaner would be free to delete media still owed to the tracker.
+    """
+    followed_id = _followed_show(store)
+    store.aired.replace_for_followed(
+        followed_id,
+        [(3, 1, None, "2026-01-01"), (3, 2, None, "2026-01-08")],
+        now=1_750_000_000,
+    )
+    wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e22")
+    store.wanted.set_status(wanted_id, "searching")
+    _dispatched_journey(store, info_hash="5ea50e22", followed_id=followed_id, season=3)
+    recorded: list[str] = []
+
+    summary = reconcile_wanted(
+        store,
+        _StubOwnership({(3, 1)}),
+        client_items=_items("5ea50e22", progress=1.0),
+        event_bus=_BUS,
+        record_obligation=lambda info_hash: bool(recorded.append(info_hash)) or True,
+    )
+
+    assert summary.confirmed_grabbed == 1
+    assert summary.fell_back_to_episodes == 0
+    assert recorded == ["5ea50e22"]
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "grabbed"
+
+
+def test_the_confirmed_season_falls_back_on_the_very_next_pass(
+    store: ConcreteAcquireStore,
+) -> None:
+    """Deferring the fallback by one pass costs a pass, not the exit."""
+    followed_id = _followed_show(store)
+    store.aired.replace_for_followed(
+        followed_id,
+        [(3, 1, None, "2026-01-01"), (3, 2, None, "2026-01-08")],
+        now=1_750_000_000,
+    )
+    wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e23")
+    store.wanted.set_status(wanted_id, "searching")
+    _dispatched_journey(store, info_hash="5ea50e23", followed_id=followed_id, season=3)
+    ownership = _StubOwnership({(3, 1)})
+    items = _items("5ea50e23", progress=1.0)
+
+    reconcile_wanted(store, ownership, client_items=items, event_bus=_BUS)
+    second = reconcile_wanted(store, ownership, client_items=items, event_bus=_BUS)
+
+    assert second.fell_back_to_episodes == 1
+    row = store.wanted.get(wanted_id)
+    assert row is not None and row.status == "fallback_episodes"
+
+
+def test_only_the_pass_that_WINS_the_transition_announces_it(store: ConcreteAcquireStore) -> None:
+    """Two passes racing on one season row produce ONE event, not two.
+
+    ``fallback_season`` is guarded in SQL and returns whether the row actually
+    transitioned; announcing without reading that answer let the loser of a race
+    (web-triggered detect against the cron grab) fire a second operator
+    notification for a single transition — reading « 0 re-mis en file », which is
+    the loser describing the winner's work.
+    """
+    bus = EventBus()
+    seen = _capture(bus, SeasonFellBackToEpisodes)
+    followed_id = _followed_show(store)
+    store.aired.replace_for_followed(
+        followed_id,
+        [(3, 1, None, "2026-01-01"), (3, 2, None, "2026-01-08")],
+        now=1_750_000_000,
+    )
+    wanted_id = _season_row(store, followed_id=followed_id, season=3, info_hash="5ea50e24")
+    row = store.wanted.get(wanted_id)
+    assert row is not None
+
+    first = fall_back_to_episodes(store, row, now=1_750_000_000, event_bus=bus, episodes=(2,))
+    second = fall_back_to_episodes(store, row, now=1_750_000_000, event_bus=bus, episodes=(2,))
+
+    assert (first.claimed, first.reenqueued) == (True, 1)
+    assert (second.claimed, second.reenqueued) == (False, 0)
+    assert len(seen) == 1

@@ -253,16 +253,21 @@ class TestLandedButNeverClosed:
         assert stalled_grab_reason(_wanted(), past_horizon, now=NOW) is not None
 
     def test_a_landed_journey_with_no_dispatch_instant_never_fires(self) -> None:
-        """A RECONSTRUCTED journey (§14.3) dates nothing — absence is not evidence."""
+        """No instant is « I don't know », never « since the epoch ».
+
+        Unreachable on today's data — both dispatch writers stamp status and instant
+        together — but the horizon cannot be computed without a date, so the shape is
+        pinned rather than left to arithmetic on ``None``.
+        """
         row = _prov(status="dispatched", ingested_at=NOW - 90_000, dispatched_at=None)
 
         assert stalled_grab_reason(_wanted(), row, now=NOW) is None
 
-    def test_a_closed_wanted_over_a_landed_journey_is_the_normal_ending(self) -> None:
-        """The whole point: once the row closes, nothing is flagged any more."""
-        row = _prov(status="dispatched", ingested_at=NOW - 90_000, dispatched_at=NOW - 80_000)
+    def test_a_freshly_reconciled_journey_is_left_alone_too(self) -> None:
+        """The horizon applies to BOTH terminal names, not just the one that fires."""
+        row = _prov(status="reconciled", ingested_at=NOW - 900, dispatched_at=NOW - 600)
 
-        assert stalled_grab_reason(_wanted(status="done"), row, now=NOW) is None
+        assert stalled_grab_reason(_wanted(), row, now=NOW) is None
 
     def test_the_alert_dates_the_stall_from_the_dispatch(self) -> None:
         """« Depuis quand » must read the LAST step, which for a landed journey is dispatch."""

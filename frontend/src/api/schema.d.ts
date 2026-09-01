@@ -601,7 +601,7 @@ export interface paths {
         };
         /**
          * Get Stalled Grabs
-         * @description Les acquisitions parquées à « récupéré » qui n'atteignent jamais la médiathèque.
+         * @description Les acquisitions parquées à « récupéré » qui ne vont jamais au bout.
          *
          *     Le détail derrière le compteur de la vue d'ensemble : §8 interdit un nombre sans
          *     accès à ce qu'il compte, et §14.1 fait de « récupéré » un état transitoire — une

@@ -272,10 +272,15 @@ def _reconcile_before_search(acquire: "AcquireContext", event_bus: "EventBus", c
     except Exception as exc:  # noqa: BLE001 — reconciliation must never abort the search
         log.warning("cli.search.reconcile_failed", error=str(exc))
         return ReconcileSummary()
-    if summary.closed_owned or summary.fell_back_to_episodes:
+    if summary.closed_owned:
+        console.print(f"[cyan]Réconciliation:[/cyan] {summary.closed_owned} clos (déjà en médiathèque).")
+    # Announced on its OWN line, and only when it happened: appending « 0 saisons »
+    # to the line above would have printed a zero on every ordinary run — a number
+    # nobody reads, which is how a number nobody compares gets there in the first place.
+    if summary.fell_back_to_episodes:
         console.print(
-            f"[cyan]Réconciliation:[/cyan] {summary.closed_owned} clos (déjà en médiathèque), "
-            f"{summary.fell_back_to_episodes} saisons repassées en épisodes (pack incomplet)."
+            f"[cyan]Réconciliation:[/cyan] {summary.fell_back_to_episodes} "
+            "saison(s) repassée(s) en épisodes (pack incomplet)."
         )
     return summary
 

@@ -57,10 +57,19 @@ STALLED_AFTER_INGEST_SECONDS = 7200
 STALLED_WITHOUT_INGEST_SECONDS = 86400
 
 #: Horizon for a journey that reached the library while its ``wanted`` row stayed open.
-#: Reconciliation runs on every detect/grab pass, so a row still ``grabbed`` two hours
-#: after its media was shelved is not « awaiting reconciliation »: it is a closure that
-#: is not coming. Same two hours as the ingested horizon, for the same reason — far
-#: longer than the passes that should have closed it, far shorter than a day of silence.
+#:
+#: Derived from the sweep that is SUPPOSED to close such a row, and that one is not a
+#: cron: ``PostDispatchReconcileSubscriber`` runs inside the dispatching run itself, on
+#: ``LibraryScanCompleted``. Two hours outlasts it by a wide margin, so a row still
+#: ``grabbed`` at that point was not closed because it COULD not be.
+#:
+#: Deliberately NOT derived from « the next detect/grab pass », which is the reading that
+#: first justified this number and is false: those crons fire at 03:10/03:20 and
+#: 15:10/15:20, an eleven-hour-fifty gap. Tuning this against that cadence would give a
+#: horizon that says nothing for half a day. The consequence is accepted and is the right
+#: way round: when the in-run sweep does not happen at all — ``_enrich_after_dispatch``
+#: returns early on an unknown disk, so no scan, no event, no reconcile — the alert
+#: lights two hours after the dispatch and stays lit until a cron sweep clears the row.
 STALLED_AFTER_DISPATCH_SECONDS = 7200
 
 _REASON_RUN_LEFT_BEHIND = "un run s'est terminé depuis l'ingestion sans la ranger"
@@ -179,9 +188,14 @@ def stalled_grab_reason(
     # two terminal names the journey carries.
     if row is not None and row.status in LANDED_JOURNEY_STATUSES:
         if row.dispatched_at is None:
-            # A RECONSTRUCTED journey (§14.3) carries the stage but not its instant:
-            # « unknown », never « long ago ». Absence of a date must not manufacture
-            # an alert.
+            # Defensive, and known to be unreachable on today's data: both writers
+            # (``set_dispatch``, ``record_dispatch_by_path``) stamp the status and its
+            # instant in ONE update, and dispatch is one of the two bounds a
+            # RECONSTRUCTED journey dates exactly (migration 018) — the live database
+            # holds 57 reconstructed journeys, all 57 with an instant, and zero rows
+            # dispatched without one. It stays because the horizon below cannot be
+            # computed without a date, and « no date » must read « I don't know » rather
+            # than « since the epoch ».
             return None
         idle_since_landing = now - row.dispatched_at
         return _REASON_LANDED_NEVER_CLOSED if idle_since_landing > STALLED_AFTER_DISPATCH_SECONDS else None

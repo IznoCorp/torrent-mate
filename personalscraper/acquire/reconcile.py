@@ -107,11 +107,28 @@ def _list_open_rows(store: "AcquireStore") -> "list[WantedItem]":
     ]
 
 
-def _season_missing_episodes(
+@dataclass(frozen=True)
+class _SeasonOwnership:
+    """What the library can say about one season of one follow.
+
+    Attributes:
+        aired: How many episodes the follow's cached catalog lists for the
+            season. Zero when the catalog is silent — and a zero here is what
+            makes ``missing`` meaningless, never a statement about the season.
+        missing: The aired episodes the library does not have, in order;
+            ``()`` when the season is complete; ``None`` when no answer could be
+            derived at all.
+    """
+
+    aired: int
+    missing: "tuple[int, ...] | None"
+
+
+def _season_ownership(
     store: "AcquireStore",
     ownership: "OwnershipChecker",
     row: "WantedItem",
-) -> "tuple[int, ...] | None":
+) -> _SeasonOwnership:
     """Answer ownership for a SEASON wanted row from the aired catalog.
 
     The per-file ownership port has no season-level answer, so a season's
@@ -133,25 +150,32 @@ def _season_missing_episodes(
     The cost is one ownership lookup per episode of one season, on a pass that
     already does one per open row.
 
+    The COUNT of aired episodes travels with the answer because the caller needs
+    to tell « the pack was one episode short » from « the library answered
+    nothing for the whole season ». It cannot get that from the ownership port:
+    the production adapter catches every error and answers ``False``, so a
+    locked ``library.db`` is indistinguishable from a season nobody owns unless
+    you can see that ALL of them came back missing.
+
     Args:
         store: The acquire store (``aired`` catalog-cache sub-store).
         ownership: The library ownership port (fail-soft ``False`` per episode).
         row: The ``kind == "season"`` wanted row.
 
     Returns:
-        ``None`` on any blind spot, else the missing episode numbers (empty
-        when the season is complete).
+        The season's aired count and its missing episodes — ``missing`` is
+        ``None`` on any blind spot, empty when the season is complete.
     """
     if row.followed_id is None or row.season is None:
-        return None
+        return _SeasonOwnership(aired=0, missing=None)
     try:
         aired = store.aired.list_for_followed(row.followed_id)
     except Exception as exc:  # noqa: BLE001 — fail-soft: no catalog is no answer
         log.warning("acquire.reconcile.season_catalog_error", wanted_id=row.id, error=str(exc))
-        return None
+        return _SeasonOwnership(aired=0, missing=None)
     episodes = sorted({int(r.episode) for r in aired if r.season == row.season})
     if not episodes:
-        return None
+        return _SeasonOwnership(aired=0, missing=None)
     missing: list[int] = []
     for episode in episodes:
         try:
@@ -165,8 +189,8 @@ def _season_missing_episodes(
                 episode=episode,
                 error=str(exc),
             )
-            return None
-    return tuple(missing)
+            return _SeasonOwnership(aired=len(episodes), missing=None)
+    return _SeasonOwnership(aired=len(episodes), missing=tuple(missing))
 
 
 def _journey_reached_the_library(store: "AcquireStore", row_hash: str) -> bool:
@@ -419,7 +443,13 @@ def reconcile_wanted(
             currently known to the client, or ``None`` when the client is
             unavailable — the vanished-torrent requeue, the intent confirmation
             AND the download-event emission are then all skipped (fail-soft:
-            never decide on a blind spot). Callers must build this mapping from
+            never decide on a blind spot). The landed-incomplete season exit is
+            deliberately NOT among them: it decides on the provenance journey and
+            on ownership, never on the client, so it fires on the three callers
+            that pass ``None`` (``detect``, ``search``, the post-dispatch
+            subscriber) — which is where it needs to fire, since the sweep that
+            follows a dispatch is exactly the one with no client to hand.
+            Callers must build this mapping from
             ``store.wanted.hashes_in_flight()``, not from the grabbed rows
             alone: a pre-add intent hash sits on a 'searching' row and an
             unasked hash would read as « vanished ».
@@ -461,7 +491,7 @@ def reconcile_wanted(
         if row.id is None:  # pragma: no cover — SELECT always carries the id
             continue
         checked += 1
-        missing_episodes: tuple[int, ...] | None = None
+        season_ownership = _SeasonOwnership(aired=0, missing=None)
         if row.kind == "season":
             # Per-file ownership has no season-level answer, so a season row's
             # ownership is derived from the aired catalog: non-empty for the
@@ -469,8 +499,8 @@ def reconcile_wanted(
             # followed_id, empty/unreadable catalog, a lookup that raised) reads
             # ``None`` and the row falls through to the hash paths — a season is
             # never mis-closed, nor declared finished, on missing knowledge.
-            missing_episodes = _season_missing_episodes(store, ownership, row)
-            owned = missing_episodes == ()
+            season_ownership = _season_ownership(store, ownership, row)
+            owned = season_ownership.missing == ()
         else:
             try:
                 owned = ownership.owns(
@@ -521,22 +551,49 @@ def reconcile_wanted(
         # BEFORE the vanished-torrent requeue on purpose: once the pack is
         # shelved, sending the season back to 'pending' would go looking for
         # ANOTHER whole-season release to obtain the one episode missing.
-        if row.kind == "season" and missing_episodes and _journey_reached_the_library(store, row_hash):
-            reenqueued = fall_back_to_episodes(
+        #
+        # AFTER nothing else, and three conditions guard it, each paid for:
+        #
+        #  * NOT a 'searching' row. That status with a hash is the §11(d) crash
+        #    window, and the confirmation below is what records the seed
+        #    obligation the interrupted grab never wrote. Falling back here would
+        #    make the row terminal, drop its hash out of ``hashes_in_flight()``
+        #    and leave that obligation unrecordable for good — and ``may_delete``
+        #    is fail-OPEN, so the disk cleaner would be free to delete media
+        #    still owed to the tracker. The row is confirmed on this pass and
+        #    falls back on the next one: a pass of delay, not a lost exit.
+        #  * The season is PARTIALLY owned, never emptily. Zero owned under a
+        #    journey that says « shelved » does not describe a pack that came up
+        #    short; it describes a library nobody can read. That distinction
+        #    cannot come from the ownership port — the production adapter catches
+        #    every error and answers ``False`` — so it is made here, on the shape
+        #    of the answer. Without it a locked ``library.db`` re-queues a whole
+        #    season and the grab pass re-downloads media already on the disk.
+        #  * The journey REACHED the library (see _journey_reached_the_library).
+        missing_episodes = season_ownership.missing
+        if (
+            row.kind == "season"
+            and row.status != "searching"
+            and missing_episodes
+            and len(missing_episodes) < season_ownership.aired
+            and _journey_reached_the_library(store, row_hash)
+        ):
+            fallback = fall_back_to_episodes(
                 store,
                 row,
                 now=now,
                 event_bus=event_bus,
                 episodes=missing_episodes,
             )
-            fell_back += 1
+            fell_back += 1 if fallback.claimed else 0
             log.info(
                 "acquire.reconcile.season_landed_incomplete",
                 wanted_id=row.id,
                 season=row.season,
                 info_hash=row_hash,
                 missing=list(missing_episodes),
-                reenqueued=reenqueued,
+                reenqueued=fallback.reenqueued,
+                claimed=fallback.claimed,
             )
             continue
 

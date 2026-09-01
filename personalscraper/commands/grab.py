@@ -242,12 +242,17 @@ def _reconcile_before_run(acquire: AcquireContext, event_bus: "EventBus", consol
     except Exception as exc:  # noqa: BLE001 — reconciliation must never abort the grab
         log.warning("cli.grab.reconcile_failed", error=str(exc))
         return ReconcileSummary()
-    if summary.closed_owned or summary.requeued_missing or summary.confirmed_grabbed or summary.fell_back_to_episodes:
+    if summary.closed_owned or summary.requeued_missing or summary.confirmed_grabbed:
         console.print(
             f"[cyan]Réconciliation:[/cyan] {summary.closed_owned} clos (en médiathèque), "
             f"{summary.requeued_missing} remis en file (torrent disparu), "
-            f"{summary.confirmed_grabbed} confirmés (récupérés après interruption), "
-            f"{summary.fell_back_to_episodes} saisons repassées en épisodes (pack incomplet)."
+            f"{summary.confirmed_grabbed} confirmés (récupérés après interruption)."
+        )
+    # Its own line, and only when it happened — see the twin site in search.py.
+    if summary.fell_back_to_episodes:
+        console.print(
+            f"[cyan]Réconciliation:[/cyan] {summary.fell_back_to_episodes} "
+            "saison(s) repassée(s) en épisodes (pack incomplet)."
         )
     return summary
 

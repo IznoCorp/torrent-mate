@@ -161,12 +161,12 @@ class PassGatesMixin:
         assert item.season is not None  # noqa: S101
         # Episodes left implicit: the cutoff path re-enqueues the WHOLE aired
         # season, ownership unchecked (Option B above).
-        reenqueued = fall_back_to_episodes(self._store, item, now=now, event_bus=self._event_bus)
+        fallback = fall_back_to_episodes(self._store, item, now=now, event_bus=self._event_bus)
         log.info(
             "acquire.service.season_fallback",
             wanted_id=item.id,
             season=item.season,
-            reenqueued=reenqueued,
+            reenqueued=fallback.reenqueued,
         )
         return "abandoned"
 

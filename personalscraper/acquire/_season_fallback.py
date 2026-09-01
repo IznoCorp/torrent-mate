@@ -25,6 +25,7 @@ Import direction: acquire/ inward only — ports and domain, never a pass.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from personalscraper.acquire.domain import OPEN_WANTED_STATUSES, WantedItem
@@ -37,6 +38,24 @@ if TYPE_CHECKING:
     from personalscraper.core.event_bus import EventBus
 
 
+@dataclass(frozen=True)
+class SeasonFallback:
+    """What one call to :func:`fall_back_to_episodes` actually did.
+
+    Two zeros need telling apart and a bare count cannot do it: « I transitioned
+    the row and every gap already had an open row » and « another pass got there
+    first » both re-queue nothing, and only the first is this pass's work.
+
+    Attributes:
+        claimed: Whether THIS call transitioned the season row. ``False`` means
+            a concurrent pass won the guarded UPDATE; nothing was announced.
+        reenqueued: Episode rows actually created by this call.
+    """
+
+    claimed: bool
+    reenqueued: int
+
+
 def fall_back_to_episodes(
     store: "AcquireStore",
     item: "WantedItem",
@@ -44,17 +63,25 @@ def fall_back_to_episodes(
     now: int,
     event_bus: "EventBus",
     episodes: "Iterable[int] | None" = None,
-) -> int:
+) -> SeasonFallback:
     """Re-queue a season's episodes individually and close the season row (R6).
 
     Re-enqueues each requested episode that does not already hold an OPEN row
     (a live row is reused as-is — a duplicate ``(follow, season, episode)``
     would double-search and double-grab), transitions the season row to
-    ``fallback_episodes``, then emits :class:`SeasonFellBackToEpisodes`.
+    ``fallback_episodes``, then emits :class:`SeasonFellBackToEpisodes` — but
+    only if the transition was actually THIS call's to make.
 
     Emit-after-persist, as everywhere else: the status write lands first, so a
     crash between the two loses the announcement rather than announcing a
     transition that did not happen.
+
+    The episodes are queued BEFORE the season row goes terminal, and that order
+    is load-bearing the other way round: a crash in the gap leaves the gaps
+    queued under a season row still open, which the next pass re-runs
+    idempotently (the ``find`` skips them) — where the reverse order would leave
+    a terminal season whose gaps were never queued at all, and nothing walks a
+    terminal row again.
 
     A row that already holds a terminal/absorbed status DOES get a fresh one:
     absorption is irreversible by design, so the fallback re-mints it.
@@ -70,8 +97,9 @@ def fall_back_to_episodes(
             episode of the season », read from the follow's catalog cache.
 
     Returns:
-        The number of episode rows actually created — each caller logs its own
-        line with it, so the two triggers stay distinguishable in the journal.
+        Whether this call claimed the transition, and how many episode rows it
+        created. Each caller logs its own line from it, so the two triggers stay
+        distinguishable in the journal.
     """
     assert item.id is not None  # noqa: S101 — ensured by the callers' SELECTs
     assert item.followed_id is not None  # noqa: S101
@@ -111,7 +139,13 @@ def fall_back_to_episodes(
         )
         reenqueued += 1
 
-    store.wanted.fallback_season(season_wanted_id)
+    # The CLAIM, and the whole reason it is read: ``fallback_season`` is guarded
+    # in SQL on kind + open status, so of two passes racing on one row exactly
+    # one transitions it. Announcing without reading that answer let the LOSER
+    # fire a second operator notification for a single transition — saying
+    # « 0 re-mis en file », which is the loser describing the winner's work.
+    if not store.wanted.fallback_season(season_wanted_id):
+        return SeasonFallback(claimed=False, reenqueued=reenqueued)
 
     event_bus.emit(
         SeasonFellBackToEpisodes(
@@ -121,7 +155,7 @@ def fall_back_to_episodes(
             reenqueued_count=reenqueued,
         ),
     )
-    return reenqueued
+    return SeasonFallback(claimed=True, reenqueued=reenqueued)
 
 
-__all__ = ["fall_back_to_episodes"]
+__all__ = ["SeasonFallback", "fall_back_to_episodes"]
