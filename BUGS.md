@@ -3915,6 +3915,22 @@ below.
 
 ### The fifteen the adversarial review found, itemised the same way
 
+**THIS TABLE WAS WRONG AT THIRTY BEFORE IT WAS RIGHT AT THIRTY, and the two corrections cancelled
+— which is exactly the shape that hides a mistake, so it is written out.** A second adversarial
+round applied the stated criterion to the table itself and found one unit in that does not belong
+and one out that the register said was in:
+
+* **OUT** — « the repair for B-281 created a second owner one frame later ». The hold written for
+  B-281 went RED and named the defect: its reading DECIDED. That is an instrument working, and a
+  defect in a repair — worth knowing, counted nowhere. It is recorded in that commit and in
+  `REPORT.md` § 6f instead.
+* **IN** — **B-289**, whose own entry says « a false red, and this register counts it » while no
+  unit carried it: the table was frozen one commit before B-289 was filed and never re-opened. Two
+  paragraphs of this page describe a counter that stops tracking the thing under it, in a page
+  about counters that stop tracking the thing under them.
+
+Thirty out, thirty in, and the criterion applied uniformly this time rather than by cancellation.
+
 **Four independent readers on a wave whose every tier was green** — 86 rules, `--a11y` at 0,
 `make check` at zero, the oracle at 2 958 with no divergence. **Thirteen of the fifteen are in
 instruments this wave had already repaired once**, which is the reading the L11 row states and the
@@ -3924,20 +3940,20 @@ are.
 | # | The unit | What establishes it |
 | ---: | --- | --- |
 | 16 | **The probe that truncated its own evidence** — eight rows read of ten running, which reported a defect that was not there and nearly bought a re-architecture | recorded in the R115 commit; admitted by the criterion above, which is the correction |
-| 17 | R115's priming hold was green with `placeholderData` DELETED — it read the hero's TITLE, which `media-screen.tsx` derives from the route and draws whether or not anything primed, and `status === 'pending'`, which is true with or without priming | commit `fix(maquette-l12): the priming hold reads what only priming supplies`; the hold reads the meta line while the cache is empty |
-| 18 | `hold_one_entry_one_owner` only ever took the `faded` branch — every exercise opened a fresh context, so the fanart was never cached; the branch written for the operator's flash had never executed once, and the branch that did run was green over a second entry animation, because a second entry also dips | commit `fix(maquette-l12): both branches are driven`; the warm branch pre-decodes the file in the same context |
-| 19 | `check-feedback-seam.py` counted its own PROSE — the sentences describing the seam satisfied the floor the seam was supposed to meet | commit repairing the guard; comments stripped before counting |
+| 17 | R115's priming hold was green with `placeholderData` DELETED — it read the hero's TITLE, which `media-screen.tsx` derives from the route and draws whether or not anything primed, and `status === 'pending'`, which is true with or without priming | `49db0eb8` — « blocker I1 — the priming hold read the route's title, not the primed facts »; the hold reads the meta line while the cache is empty |
+| 18 | `hold_one_entry_one_owner` only ever took the `faded` branch — every exercise opened a fresh context, so the fanart was never cached; the branch written for the operator's flash had never executed once, and the branch that did run was green over a second entry animation, because a second entry also dips | `9b61864a` — « blocker I2 — the branch written for the operator's flash had never run »; the warm branch pre-decodes the file in the same context |
+| 19 | `check-feedback-seam.py` counted its own PROSE — the sentences describing the seam satisfied the floor the seam was supposed to meet | `bb26a681` — « I5/S4 — the seam guard read its own prose, and the pull never joined the seam »; comments stripped before counting |
 | 20 | **B-279** — twelve contracts-tier guards run in no CI job when a pull request edits only the guard; the two existing holds both read a guard's SUBJECT, so the third question had never been asked | register entry B-279; the new hold falls over 11 of the 12 with the glob removed |
 | 21 | R113's release hold read a node the panel's redraw had REPLACED — a brand-new tile is never pressed, so the hold answered « released » whatever the gesture did | commit `fix(maquette-l12): the press holds read the delay they wait on, and the node they pressed`; mutation reads `replaced: True` |
 | 22 | R112's mouse hold laid 740 ms BY HAND against a press delay of 480 the design draws — B-276's species inside the file whose docstring says it removed that species | same commit; the mutation raises the delay to 900 and deletes the tolerance, and the hold still bites |
 | 23 | R118 never established that a transition was CROSSING when its « in flight » sample was taken — delete `startViewTransition` and the two reads are two settled bars, drift 0.0, green over a transition that does not happen | commit `fix(maquette-l12): the two runtime probes establish the condition they measure`; reads `:active-view-transition` on both sides of the capture |
 | 24 | R114 never established that a poster LANDED — an image that never arrives never pushes anything, so a broken fixture reads exactly like success | same commit; counts decoded posters across its own release |
-| 25 | R114's « a poster box has its height » read the whole TILE, which carries a title and a subtitle under the picture: it held with the poster box deleted outright | commit `fix(maquette-l12): a cancelled pull is released…`; the mutation deleting `aspect-ratio` now fells it |
+| 25 | R114's « a poster box has its height » read the whole TILE, which carries a title and a subtitle under the picture: it held with the poster box deleted outright | `c51a1d7f` — « a cancelled pull is released, the commit hands back its navigation, three holds read the right thing »; the mutation deleting `aspect-ratio` now fells it |
 | 26 | `touch.py` was the THIRD rule re-typing the press delay, in a wave that had already repaired two for it | same commit; reads `window.__gestures.press`, and a delay moved to 700 no longer fells it |
 | 27 | R113 asserted a mark landed SOMEWHERE in the document — `feedback("commit", document.body)` satisfied every hold | same commit; the mark's target is held, and the mutation reads `tag: 'body'` |
-| 28 | **The repair for B-281 created a second owner one frame later** — scoping the rule away with `:not(:active-view-transition)` leaves `translate: none` for the arrival and `0 0` afterwards, a real transition starting the moment the selector begins to match | caught by the hold written for B-281, on its first run; the transition is silenced rather than the rule |
-| 29 | The faded branch's `min < 1.0` is satisfied by a FLASH exactly as by a fade, which is how **B-282** sat under it | register entry B-282; the hold now samples the cover and the element separately |
-| 30 | « The media body's arrival is drawn » passed with `animation: body-rise …` DELETED — every view-transition pseudo-element gets the browser's own cross-fade by default, so « something animates here » is true either way | found by mutating the drawing the hold was written for; the hold reads the animation's NAME, and the mutation now reports `-ua-view-transition-fade-in` |
+| 28 | The faded branch's `min < 1.0` is satisfied by a FLASH exactly as by a fade, which is how **B-282** sat under it | register entry B-282; the hold now samples the cover and the element separately |
+| 29 | « The media body's arrival is drawn » passed with `animation: body-rise …` DELETED — every view-transition pseudo-element gets the browser's own cross-fade by default, so « something animates here » is true either way | found by mutating the drawing the hold was written for; the hold reads the animation's NAME, and the mutation now reports `-ua-view-transition-fade-in` |
+| 30 | **B-289** — `check-frame-domain`'s comment scanner opens a phantom string on a REGEX LITERAL holding a quote, so it read thirty lines of comments as code and reported two `media` in a sentence as domain words in the frame. A FALSE RED, and the criterion admits it | register entry B-289; `app/ 129` against `131`, and removing the newline branch brings 131 back
 
 **The nine the correction wave found, since a wave that counts itself has to name its own.** The
 figure is large because the count is honest, not because the wave was worse: four of the nine are

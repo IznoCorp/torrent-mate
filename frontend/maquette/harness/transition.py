@@ -364,9 +364,27 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
     # HOW MANY TIMES THE PICTURE GOES AWAY, not merely whether it ever does.
     # « min < 1 » is true of one fade and of two, so it was green over a second
     # entry animation replaying after the transition — the hero's flash exactly.
-    descents = sum(
-        1 for index in range(1, len(samples))
-        if samples[index - 1] >= 1.0 > samples[index])
+    #
+    # COUNTED ON THE COVER, WHICH IS WHERE THE ENTRY LIVES. It was counted on the
+    # ELEMENT, and the day the fade moved to a `::before` that made it a
+    # tautology: the hold above establishes the element never leaves 1.0, and no
+    # index can then satisfy `samples[i-1] >= 1.0 > samples[i]`, so `descents`
+    # was 0 whenever the hold above passed and could only fall after it already
+    # had. A second entry replaying now replays on the COVER, and nothing was
+    # watching it.
+    def descents_of(series):
+        """How many times a series falls from full to less than full.
+
+        Args:
+            series: Opacity samples, in order.
+
+        Returns:
+            The number of descents.
+        """
+        return sum(1 for index in range(1, len(series))
+                   if series[index - 1] >= 1.0 > series[index])
+
+    descents = descents_of(cover)
     if arrival == "immediate":
         journal.check(
             "a hero the transition already carried does NOT dip — one owner",
@@ -374,13 +392,29 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
             f"opacity fell to {min(samples)} on a picture that was already "
             "there: a second entry replayed over the transition's own, which is "
             "the flash the operator saw")
+        # AND THERE IS NO COVER AT ALL, which is the half the element cannot
+        # say. The entry lives on a `::before` keyed on `faded`; widen that key
+        # to any arrival and the cover replays over a picture the transition
+        # already drew — appear, flash, reappear — while the element sits at 1.0
+        # throughout and the hold above stays green. A CSS animation on a tree
+        # mounted under `startViewTransition` starts when the transition ENDS,
+        # which is exactly when that flash would be seen.
+        journal.check(
+            "and it has no entry of its own — nothing covers a carried hero",
+            not cover,
+            f"a cover was drawn on it, running {max(cover) if cover else None} "
+            f"to {min(cover) if cover else None}: the transition already showed "
+            "this picture, so anything revealing it a second time is the flash")
     else:
+        # ORDERED, not merely « it held both values ». `min < 0.5 and max > 0.9`
+        # is true of a cover going 0 → 1, which is the opposite animation.
         journal.check(
             "a hero whose file arrived LATE fades in rather than snapping",
-            bool(cover) and min(cover) < 0.5 and max(cover) > 0.9,
-            f"the cover ran {max(cover) if cover else None} to "
-            f"{min(cover) if cover else None} over {len(cover)} sample(s) — "
-            "a picture that arrived after the transition appeared in one frame")
+            len(cover) > 4 and cover[0] > 0.9 and cover[-1] < 0.5,
+            f"the cover ran {cover[0] if cover else None} to "
+            f"{cover[-1] if cover else None} over {len(cover)} sample(s) — "
+            "a picture that arrived after the transition appeared in one frame, "
+            "or the cover ran the wrong way")
         journal.check(
             "and the ELEMENT itself never dips — the placeholder and the melt "
             "stay",
@@ -392,9 +426,9 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
         journal.check(
             "and it fades ONCE — one entry, one owner",
             descents <= 1,
-            f"{descents} descents from full opacity: the picture goes away more "
-            "than once, which is a second entry animation replaying over the "
-            "first")
+            f"{descents} descents of the COVER from full: the picture is "
+            "revealed more than once, which is a second entry animation "
+            "replaying over the first")
     await context.close()
 
 
@@ -634,7 +668,13 @@ async def hold_the_panel_departs(journal, browser):
       window.__watch = setInterval(() => {
         for (const animation of document.getAnimations()) {
           const pseudo = animation.effect && animation.effect.pseudoElement;
-          if (pseudo && pseudo.includes('view-transition')) window.__seen.add(pseudo);
+          if (pseudo && pseudo.includes('view-transition')) {
+            // THE NAME OF WHAT IS RUNNING, beside the pseudo-element it runs
+            // on. The pseudo-element alone says only that the browser is
+            // cross-fading, which it does by default.
+            window.__seen.add(
+              pseudo + ':' + (animation.animationName || '?'));
+          }
         }
       }, 8);
     }""")
@@ -643,9 +683,15 @@ async def hold_the_panel_departs(journal, browser):
     seen = await page.evaluate(
         "()=>{clearInterval(window.__watch); return [...window.__seen];}")
 
+    # READ BY THE ANIMATION'S NAME, for the reason the body's hold pays two
+    # hundred lines below: every `::view-transition-old(x)` carries the
+    # browser's OWN cross-fade by default, so « the pseudo-element is animating »
+    # is true with `animation: panel-down …` deleted outright — and `panel-down`
+    # would then be a drawing decided with no rule, which is the sentence this
+    # wave wrote about `body-rise` one commit earlier.
     journal.check(
         "the panel is captured LEAVING, so its departure has something to draw",
-        any("old(leaving-panel)" in name for name in seen),
+        any("old(leaving-panel):panel-down" in name for name in seen),
         f"pseudo-elements seen: {sorted(seen)} — no "
         "`::view-transition-old(leaving-panel)`. The panel was already shut "
         "when the old state was captured, so the departure animates nothing "
