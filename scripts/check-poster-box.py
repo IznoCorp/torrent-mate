@@ -47,10 +47,15 @@ DESIGN = ROOT / "frontend" / "maquette" / "design" / "src"
 # A declared box: an aspect ratio, or a height paired with a width. Written to
 # match the CSS declaration and the Tailwind utility both, because the
 # declarations are moving from one to the other and this guard outlives the move.
+#
+# THE POSTER'S OWN RATIO, not any ratio. Counting every `aspect-ratio` in the
+# tree makes the floor satisfiable by declarations that are not poster boxes at
+# all — a 16/9 hero added tomorrow would pay for a 2/3 poster deleted the same
+# day, under a floor that never moved. A floor is only a floor over a corpus
+# that cannot substitute for itself.
 DECLARED_BOX = re.compile(
-    r"aspect-ratio\s*:\s*\d+\s*/\s*\d+"        # CSS
-    r"|aspect-\[\s*\d+\s*/\s*\d+\s*\]"          # Tailwind arbitrary
-    r"|\baspect-(?:square|video)\b",            # Tailwind named
+    r"aspect-ratio\s*:\s*2\s*/\s*3"              # CSS
+    r"|aspect-\[\s*2\s*/\s*3\s*\]",              # Tailwind arbitrary
 )
 
 # `styles/harness.css` is the measuring apparatus and ships nowhere — the same

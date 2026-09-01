@@ -106,8 +106,7 @@ async def hold(journal):
               // and a subtitle under the picture, so its height is above zero
               // whatever the image does — the hold below read it and would
               // have held with the poster box deleted outright.
-              const picture = tiles[0].querySelector('img')
-                || tiles[0].querySelector('[data-part="tile/poster"]');
+              const picture = tiles[0].querySelector('img');
               return {top: last.top, count: tiles.length, landed,
                       firstHeight: picture
                         ? picture.getBoundingClientRect().height : 0};

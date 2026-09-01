@@ -72,7 +72,7 @@ export const heroImage = cva(
   {
     variants: {
       poster: {
-        true: "h-[min(46vh,400px)] min-h-[268px]",
+        true: "h-[min(46dvh,400px)] min-h-[268px]",
         false:
           // One literal, for the reason written at the melt above.
           "h-[72px] min-h-0 [background-image:linear-gradient(160deg,color-mix(in_oklab,var(--color-primary)_45%,var(--color-background)),var(--color-card)_58%,var(--color-muted))]",

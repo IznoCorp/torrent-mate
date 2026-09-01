@@ -50,8 +50,6 @@ from common import PHONE, PROTOTYPE, Journal
 # rather than passing, which is the only reason it was cheap.
 PRESS_READ_MARGIN = 60
 
-# The mark's lifetime is 200ms. Every read must land inside it.
-MARK_WINDOW = 200
 
 STATE = "lib-grid"
 TILE = '[data-part="tile"]'

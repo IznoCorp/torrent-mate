@@ -128,7 +128,13 @@ META_FLOOR = 6
 # stylesheet, and a rule refusing it would refuse hundreds of correct uses to
 # reach one. What is held instead is the POSITIVE: the frame declares `100dvh`,
 # and if that declaration is ever removed this arm falls.
-FORBIDDEN_UNIT = re.compile(r"\b\d+vh\b")
+# `lvh` IS THE SAME DEFECT UNDER ANOTHER NAME, and `h-screen` is `100vh` spelled
+# as a utility. The first version read `\b\d+vh\b` over `.css` files alone, so
+# `100lvh` — which is `vh` renamed by the spec, the large viewport, exactly the
+# height this refuses — passed, and a `h-screen` in a `variants.ts` was outside
+# the corpus entirely. Neither is in the tree today; a guard that only refuses
+# the spelling somebody happened to use is a guard for one spelling.
+FORBIDDEN_UNIT = re.compile(r"\b\d+(?:vh|lvh)\b|\bh-screen\b")
 DYNAMIC_UNIT = re.compile(r"\b100dvh\b")
 
 # `styles/harness.css` is the phone frame the oracle measures INSIDE. It is in
@@ -253,7 +259,11 @@ def main() -> int:
                 "not see it.",
                 file=sys.stderr,
             )
-        if path.suffix != ".css" or any(
+        # STYLESHEETS AND THE FILES THAT WRITE CLASSES. A Tailwind utility is a
+        # declaration in another spelling, and `variants.ts` is where this
+        # codebase writes them — reading `.css` alone left the whole typed-variant
+        # layer outside a guard whose subject is a unit.
+        if path.suffix not in (".css", ".ts", ".tsx") or any(
             str(path).endswith(name) for name in UNIT_EXEMPT
         ):
             continue

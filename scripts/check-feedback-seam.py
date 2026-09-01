@@ -56,8 +56,13 @@ SEAM = "lib/feedback.ts"
 # IMPORT of the name is not a declaration and must not be counted as one — the
 # first version of this pattern matched both and reported eleven
 # implementations, which is a guard that cannot tell its subject from its users.
+# A `const feedback = (…) =>` IS A DECLARATION and this pattern could not see
+# one, so a second seam written in the other spelling would have satisfied « one
+# call site » by being invisible to the arm that counts declarations.
 DECLARATION = re.compile(
-    r"^\s*(?:export\s+)?(?:async\s+)?function\s+feedback\s*\(", re.MULTILINE)
+    r"^\s*(?:export\s+)?(?:async\s+)?function\s+feedback\s*\("
+    r"|^\s*(?:export\s+)?(?:const|let|var)\s+feedback\s*=",
+    re.MULTILINE)
 
 # Every gesture in the interface, and the file that arbitrates it. NAMED, not
 # discovered — see the docstring's second hold.

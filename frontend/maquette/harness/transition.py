@@ -66,7 +66,8 @@ from common import PHONE, PROTOTYPE, Journal
 FROM_STATE = "lib-grid"
 TILE = '[data-part="tile"]'
 
-# The transition's own duration is `--duration-2` = 200ms. The poll must be
+# The transitions run on `--duration-4` = 450ms since the re-tuning. The poll
+# must be
 # fast enough to land inside it and is run repeatedly rather than once: a single
 # read placed by hand either side of a 200ms window is a coin toss, and a rule
 # that flakes is a rule nobody believes.
@@ -720,7 +721,8 @@ async def hold_a_hero_that_changes_picture(journal, browser):
 
     second = await page.evaluate(ARRIVING_BACKGROUND_READ)
     same_node = await page.evaluate(
-        "()=>window.__hero === document.querySelector('[data-part=\"hero/background\"]')")
+        """()=>window.__hero === document.querySelector(
+             '[data-part="hero/background"]')""")
     writes = await page.evaluate("()=>window.__arrivalWrites")
 
     journal.check(

@@ -53,7 +53,8 @@ places where a WRONG implementation passes every hold R55 has.
      check lets them through, and without it the first one after any long press
      is eaten. That is the hold below.
 
-BOTH ARE DRIVEN TWICE — a real touch stream over the DevTools Protocol, and a
+EACH IS DRIVEN WHERE IT IS MEASURABLE — a real touch stream over the DevTools
+Protocol, and a
 REAL MOUSE on a context with no touch at all. The plan's constraint governs
 this lot:
 
@@ -573,16 +574,19 @@ async def hold_a_cancelled_mouse_pull_is_released(journal, browser):
         pointerType: 'mouse', isPrimary: true, bubbles: true}));
     }""")
     await page.wait_for_timeout(260)
+    # READ AS GEOMETRY, like the three holds above it and for their reason (D4):
+    # the indicator's HEIGHT is the fact the gesture produces, and `armed` is one
+    # styling of it — a class-name read dies the day the class is renamed, and
+    # nothing can then say whether the read or the style was at fault.
     released = await page.evaluate(
-        "()=>{const node=document.querySelector('#ptr');"
-        " return {height: node.getBoundingClientRect().height,"
-        "         armed: node.classList.contains('armed')};}")
+        "()=>document.querySelector('#ptr').getBoundingClientRect().height")
     journal.check(
         "and a cancelled mouse pull puts the indicator BACK",
-        released["height"] < arming and not released["armed"],
-        f"read {released} — the gesture's variables were cleared and the "
-        "surface was told nothing, so the indicator stays where the cancelled "
-        "pull left it")
+        released < arming,
+        f"the indicator stood at {released}px after the cancel, at or past the "
+        f"{arming}px arming distance — the gesture's variables were cleared and "
+        "the surface was told nothing, so the indicator stays where the "
+        "cancelled pull left it")
     await page.mouse.up()
     await context.close()
 
