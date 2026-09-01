@@ -517,8 +517,17 @@ the hero. The faded branch held `min < 1.0`, which a flash satisfies as well as 
 opacity. It also answers the case nobody had measured — a file decoding DURING the 450 ms
 transition, which the fixture produces on a LAN.
 
+**AND THE COVER ITSELF THEN REBOUNDED, which the repair's own hold caught (2026-09-01).** Measured
+at 16 ms on a cold arrival: 1 → 0.002 at 167 ms → **back to 0.996 at 300 ms** → 0 at 450, inside ONE
+run of ONE animation with `currentTime` monotone throughout. The picture appeared, was covered
+again, and appeared once more — the operator's flash, on the cover. Declaring the keyframe's `from`
+(implicit until then) made the same run read the standard curve, twice over; **removing it again
+hours later did not bring the rebound back**, and other things had changed in between, so the cause
+is NOT settled and is not claimed. The declaration stays and the rule holds the shape: a cover that
+ever comes back over the picture, whatever makes it.
+
 <sub>sample the element's opacity and its `::before`'s across a faded arrival → element 1
-throughout, cover 1 → 0</sub>
+throughout, cover 1 → 0 with samples in the middle band</sub>
 
 **B-283 — during priming, the media screen prints its unknown parts as answers.**
 Decision (6) of this wave says « skeletons reduced to the unknown parts ». The screen has no
