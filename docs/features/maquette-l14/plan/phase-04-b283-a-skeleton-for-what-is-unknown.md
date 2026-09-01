@@ -1,0 +1,47 @@
+# Phase 4 — B-283: a skeleton for what is unknown · behaviour
+
+**Owns**: B-283, D-L14-7, D-L14-8. **Constitution**: §13 (no assertion about data in flight), §12.
+**Depends on phase 3.**
+
+## What changes
+
+1. `ui/variants/surfaces.ts` gains `skeletonLine` — the residue's `sk` shimmer (as `Skeletons`
+   wears it), a height on the scale, a width variant (`full`, `wide`, `half`, `short`). One
+   component `SkeletonLine` in `ui/state-surfaces.tsx` emits it with `data-skeleton=""` and
+   `aria-hidden="true"`.
+2. `media-screen.tsx` computes `inFlight = sheet.isPending || (sheet.isPlaceholderData &&
+sheet.isFetching)` and `seasonsInFlight = seasons.isPending`, and passes them down.
+3. In `media-hero.tsx`, `media-cast.tsx`, `media-library-facts.tsx`, `media-information.tsx`: every
+   part that prints an « unknown » assertion draws `<SkeletonLine>` INSIDE the same element when
+   its value is absent and the read is in flight. The trailer's no-info `<p>` and the cast's
+   no-info `<p>` are replaced by a skeleton line of the same element while in flight — so
+   `[data-part="no-info"]` is absent then and present after. The blocks and the body's child count
+   do not change at any instant.
+4. **R119 — `harness/priming.py`**, in the full suite (it drives a 2 000 ms latency; it is not a
+   name contract). Holds, in this order:
+   - (a) the reference publishes `sheetFor` and it can be wrapped — the thinning has a subject;
+   - (b) with the thinned placeholder and 2 000 ms latency, at ~300 ms after navigation: the
+     screen is open, the hero title is drawn, `[data-skeleton]` count inside the screen ≥ 6, and
+     `[data-part="no-info"]` count = 0;
+   - (c) after `window.__mocks.quiet()`: `[data-skeleton]` = 0 and exactly one no-info naming the
+     trailer (Broadchurch, the title `screen_addresses.py` already uses);
+   - (d) the CONTROL: the same walk with `sheetFor` restored draws 0 skeletons at ~300 ms — the
+     placeholder is complete and nothing is unknown;
+   - (e) no JS error.
+5. `BUGS.md`: B-283 → `fixed #NNN` (the number once the pull request exists; written at the close
+   if the number is not known yet — B-219's placeholder is refused by the register guard, so the
+   row keeps `open` until the number exists and the body says why).
+
+## Definition of done
+
+- `scripts/mutate.sh frontend/maquette/design/src/features/media/media-screen.tsx
+'t.replace("const inFlight =", "const inFlight = false && ")' frontend/maquette/harness/priming.py`
+  → hold (b) falls naming the no-info count; restored.
+- A second mutation on the cast file (`t.replace("inFlight ?", "false ?")` or its exact form) →
+  (b) falls on the skeleton count; restored.
+- The oracle: zero divergence (no named state shows the priming at rest). R115's priming hold
+  still reads 8 children at 120 ms.
+- `run.sh --contracts` green (R80's pair count may RISE by one — a floor); `npm run check` green;
+  `check-css-tokens.py` green.
+- Two commits: the drawing and the flag (`feat(maquette-l14): …`), then the rule
+  (`test(maquette-l14): R119 …`) — the rule's mutation runs after both are committed.
