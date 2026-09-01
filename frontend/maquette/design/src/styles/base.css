@@ -503,6 +503,18 @@
     z-index: 10;
   }
 
+  /* AND THE DEPARTING PANEL OUTRANKS THE BAR, because it does at rest.
+     A bottom layer covers the tab bar (P31, the operator's own ruling): the
+     sheet is `z-[52]` against the bar's `z-50`, bottom-aligned, its action row
+     over the bar's own footprint. Ordering the bar's group at 10 and leaving
+     the panel's at `auto` INVERTS that for the length of the crossing: the
+     first frame shows the bar surfacing over the leaving panel's action row,
+     and the panel then slides out from under it. The rest order is the one to
+     preserve, so the panel's group ranks above the bar's. */
+  ::view-transition-group(leaving-panel) {
+    z-index: 20;
+  }
+
   ::view-transition-old(shell-tab-bar),
   ::view-transition-new(shell-tab-bar) {
     animation: none;
@@ -784,6 +796,24 @@
   ::view-transition-old(leaving-panel) {
     animation: panel-down var(--duration-4) var(--ease-standard);
   }
+}
+
+/* ONE OWNER OF THE DEPARTURE, and the live panel is not it.
+
+   The seam closes the panel inside the navigation's commit, which is what gives
+   the transition something to capture. That same close removes `data-open` from
+   the LIVE `#sheet`, and the live sheet has a slide of its own in
+   `ui/variants/layout.ts` — 450ms, `--ease-emphasized`, `translateY(100%)`,
+   with its visibility delayed by the same length. That element is captured
+   inside `::view-transition-new(root)` and fades IN there while
+   `::view-transition-old(leaving-panel)` plays `panel-down` above it: two
+   panels sliding down on two different curves, one fading out, one fading in.
+
+   « One entry, one owner » — the rule two blocks up, and the rule the hero was
+   repaired under twice. The live sheet's transition is silenced for the length
+   of the crossing; `panel-down` is the departure. */
+:root:active-view-transition #sheet {
+  transition: none;
 }
 
 @keyframes panel-down {

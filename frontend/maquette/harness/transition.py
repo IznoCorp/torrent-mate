@@ -692,7 +692,23 @@ async def hold_the_panel_departs(journal, browser):
       }, 8);
     }""")
     await leave.click()
-    await page.wait_for_timeout(1200)
+    # MID-CROSSING, the LIVE sheet must not be sliding: the transition owns the
+    # departure. The seam's close removes `data-open`, and the sheet's own
+    # stylesheet slide would then run on the element captured inside
+    # `::view-transition-new(root)` — a second panel going down, on a second
+    # curve, fading IN under the one fading out.
+    await page.wait_for_timeout(150)
+    live_panel = await page.evaluate("""()=>{
+      const node = document.querySelector('#sheet');
+      if (!node) return null;
+      const style = getComputedStyle(node);
+      return {transition: style.transitionProperty,
+              duration: style.transitionDuration,
+              running: node.getAnimations().length,
+              crossing: document.documentElement.matches(
+                ':active-view-transition')};
+    }""")
+    await page.wait_for_timeout(1050)
     seen = await page.evaluate(
         "()=>{clearInterval(window.__watch); return [...window.__seen];}")
 
@@ -715,6 +731,34 @@ async def hold_the_panel_departs(journal, browser):
         f"pseudo-elements seen: {sorted(seen)} — the arrival's own parts are "
         "absent, so the departure above is being read across some other "
         "transition than the one this hold drives")
+
+    # THE DEPARTING PANEL OUTRANKS THE BAR, as it does at rest. The sheet is
+    # `z-[52]` against the bar's `z-50` and its action row sits over the bar's
+    # own footprint (P31, the operator's ruling). Ordering the bar's group and
+    # leaving the panel's at `auto` inverts that for the crossing: the first
+    # frame surfaces the bar over the leaving panel. Read on the pseudo-elements
+    # themselves, which is where the order is declared.
+    ranks = await page.evaluate("""()=>{
+      const read = (name) => getComputedStyle(
+        document.documentElement, '::view-transition-group(' + name + ')').zIndex;
+      return {bar: read('shell-tab-bar'), panel: read('leaving-panel')};
+    }""")
+    journal.check(
+        "the live panel does NOT slide while the transition draws its departure",
+        bool(live_panel) and live_panel["crossing"]
+        and live_panel["running"] == 0,
+        f"read {live_panel} — the panel is animating on its own while "
+        "`old(leaving-panel)` plays `panel-down` above it: two panels going "
+        "down on two curves, which is « one entry, one owner » broken in the "
+        "gesture that rule was written for")
+    journal.check(
+        "and the departing panel is ordered ABOVE the bar, as it is at rest",
+        (ranks["panel"] not in ("auto", "", None)
+         and ranks["bar"] not in ("auto", "", None)
+         and int(ranks["panel"]) > int(ranks["bar"])),
+        f"read {ranks} — at rest the sheet paints over the bar; ordered this "
+        "way the bar surfaces over the leaving panel for the length of the "
+        "crossing and the panel slides out from under it")
     await context.close()
 
 
