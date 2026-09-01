@@ -127,3 +127,31 @@ def test_a_bare_citation_still_needs_the_index(tmp_path: Path) -> None:
     module = _load()
     directive = _directive(tmp_path, "`docs/archive/a.md@5322c2fa` and `docs/x/b.md`.\n")
     assert _run_history(module, directive, set(), {("5322c2fa", "docs/archive/a.md"): True}) == 1
+
+
+def _run_arm(module, arm: str, tracked: set[str] | None) -> int:
+    with patch.object(module, "tracked_paths", return_value=tracked):
+        return getattr(module, arm)()
+
+
+def test_a_tracked_path_under_a_history_tree_is_refused(capsys) -> None:
+    """`docs/archive/x.md` back in the index — a tool that still archives — is named and refused."""
+    module = _load()
+    assert _run_arm(module, "arm_no_history_in_tree", {"docs/archive/x.md", "docs/reference/a.md"}) == 1
+    assert "docs/archive/x.md" in capsys.readouterr().err
+
+
+def test_each_history_tree_is_held() -> None:
+    module = _load()
+    tracked = {"docs/archive/a.md", "docs/superpowers/b.md", "docs/analysis/c.md"}
+    assert _run_arm(module, "arm_no_history_in_tree", tracked) == 3
+
+
+def test_an_index_without_history_trees_is_clean() -> None:
+    module = _load()
+    assert _run_arm(module, "arm_no_history_in_tree", {"docs/reference/a.md", "docs/production/b.md"}) == 0
+
+
+def test_history_arm_refuses_when_git_is_unreachable() -> None:
+    module = _load()
+    assert _run_arm(module, "arm_no_history_in_tree", None) == 1

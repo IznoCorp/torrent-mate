@@ -107,6 +107,32 @@ def held_by_commit(sha: str, path: str) -> bool | None:
     return probe.returncode == 0
 
 
+# The trees that are history and live in git alone (`documentation-model.md` § 2). A tracked
+# path under one of them is a tool that still archives — the operator's `implement:*` skills
+# did — and the tree says no before the habit is unlearned.
+HISTORY_TREES = ("docs/archive/", "docs/superpowers/", "docs/analysis/")
+
+
+def arm_no_history_in_tree() -> int:
+    """Refuse a tracked path under a history tree.
+
+    Returns:
+        The number of violations.
+    """
+    tracked = tracked_paths()
+    if tracked is None:
+        print("check-docs-cited-paths[history]: `git ls-files` failed — refused rather "
+              "than passed", file=sys.stderr)
+        return 1
+    reborn = sorted(path for path in tracked if path.startswith(HISTORY_TREES))
+    for path in reborn:
+        print(f"    {path}: tracked under a history tree — history lives in git alone; "
+              f"cite the commit (`path@sha`), do not re-add the file", file=sys.stderr)
+    print(f"check-docs-cited-paths[history]: {len(reborn)} tracked path(s) under "
+          f"{', '.join(tree.rstrip('/') for tree in HISTORY_TREES)}")
+    return len(reborn)
+
+
 def tracked_paths() -> set[str] | None:
     """Every path the index holds, or None when git cannot answer.
 
