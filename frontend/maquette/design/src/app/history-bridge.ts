@@ -225,9 +225,9 @@ window.__screens = {
     // So the OUTCOME matches its siblings and the mechanism does not, and that
     // difference is filed rather than left for the next reader to discover:
     // whether a layer closed inside a navigation's commit should keep its entry
-    // is the ladder's arbitration, and the ladder's handler is L13's. Nothing
-    // here counts the pops on the way back; that rule belongs with the
-    // arbitration.
+    // is the ladder's arbitration, and it belongs with the ladder's own
+    // handler. Nothing here counts the pops on the way back; that rule belongs
+    // with the arbitration.
     go(
       { to: "/media/$provider/$id", params: ids },
       () => {

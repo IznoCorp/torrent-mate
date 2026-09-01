@@ -8,8 +8,9 @@
 
 **Not the transitions.** The transitions, the gestures and the window all work, and every one of
 them landed with a rule. But the wave's output is **thirty instruments that could not
-fail, caught because something forced them to** — fifteen by the wave itself and fifteen more by a
-four-lens adversarial review of the wave's own repairs — and two blocked properties whose blockers
+fail, caught because something forced them to** — fifteen before the first close and fifteen more
+after it, of which TWELVE were returned by adversarial readers and three the wave found itself while
+repairing what they returned — and two blocked properties whose blockers
 are product decisions rather than technical ones.
 
 **That figure is the honest one and it grew three times.** It was written as six, then fourteen,
@@ -319,7 +320,8 @@ read the same before and after.
 
 **B-085 recounted at THIRTY** — six at the first close, then fourteen, then
 fifteen once the itemisation was written one unit per line, and **fifteen more
-from the four-lens adversarial review**. Not one of the thirty was found by a
+after it — twelve from adversarial readers, three found while repairing what
+they returned**. Not one of the thirty was found by a
 gate going red. Alongside the sharpest above: a transition **degenerate for six phases**
 under a rule that counted animations rather than what they showed; a fix that
 could not work because its selector no longer matched by the time it was needed;
@@ -331,7 +333,7 @@ rule** — hand-set delays outlived by durations that were later redrawn.
 **The wave's subject was transitions. Its output was an inventory of how
 instruments fail.**
 
-## 6f. The adversarial review, and what four independent lenses returned
+## 6f. The first adversarial round — what four independent lenses returned
 
 **Four readers on a gate that was green in every tier** — 86 rules, `--a11y` at 0, `make check` at
 zero, the oracle at 2 958 with no divergence — reading the wave through four lenses: the
@@ -388,11 +390,86 @@ holding a quote, so it had been reading comments as code (**B-289**).
 - **B-275 and the panel's RETURN** → **L13**: Back lands on the list with the panel shut, measured,
   so `::view-transition-new(leaving-panel)` had no subject and was REMOVED rather than kept. « It
   costs nothing and is kept » is the sentence this repository has paid for twice.
-- **B-287** → the instruments' debts: 266 maquette comments name a date, a lot or a phase against
+- **B-287** → the instruments' debts: 263 maquette comments name a date, a lot or a phase against
   `CLAUDE.md` § Language, and nothing counts them. Measured, filed with the arm's shape — a per-file
   baseline, like the two ratchets this repository already has.
 - **B-288**: the priming resolves a title by PREFIX, so a medium whose title prefixes another opens
   with the other one's poster and year until the read lands.
+
+---
+
+## 6g. The second round — read on the repairs, which is where it found the worst
+
+**Three more lenses on the first round's repairs** — the instruments, the code and what it broke,
+and the writings — returned **eight majors and no blocker**, and the shape is this repository's
+oldest reading arriving again: *each round's worst finding is inside the previous round's repair.*
+Three of the eight are defects a reader would SEE.
+
+1. **The gallery's rows were shuffled when scrolling UP.** The windowed library places each new row
+   before the row that follows it, and it walked its range upwards — so a row re-entering at the top
+   had no live follower yet and was appended at the END of the window. The grid lays out in DOM
+   order: a three-lane gallery drew « 8 9 10 » on its first line, and a flick moved every row but
+   one. **Two blind spots had to coincide for this to survive, and they did**: every rule drove the
+   LIST, which is immune by arithmetic — one lane means the last new index always has a live
+   follower — and every rule scrolled DOWN, where the new rows belong at the end anyway. Inserting
+   from the bottom of the range resolves the follower always. R117 scrolls the gallery deep, drags
+   down and back up with a real finger, and holds the drawn sequence against the declared order; the
+   mutation reads `[8..29, 5, 6, 7, 2, 3, 4, 0, 1]`.
+
+2. **The panel's departure had two owners, and the bar surfaced over it.** The seam closes the panel
+   inside the navigation's commit, which is what gives the transition something to capture — and the
+   same close starts the LIVE sheet's own 450 ms slide, captured inside
+   `::view-transition-new(root)` and fading IN there while `panel-down` plays above it. Two panels
+   going down on two curves, in the gesture « one entry, one owner » was written for. Separately,
+   the bar's group was ordered at 10 with the panel's left at `auto`, which INVERTS the rest order —
+   at rest the sheet is `z-[52]` over the bar's `z-50` — so the first frame surfaced the bar over the
+   leaving panel.
+
+3. **The operator's flash was back, on the cover — and repairing the hold is what found it.**
+   « It fades ONCE » counted descents on the ELEMENT's opacity, which the cover repair had made a
+   tautology: the hold above it establishes the element never leaves 1.0, so no index can satisfy
+   the descent test and the count was 0 whenever that hold passed. Counted on the COVER, it went red
+   at once: `@keyframes banner-cover` left its `from` implicit, so Chrome took the pseudo-element's
+   UNDERLYING opacity and re-evaluated it mid-flight — measured at 16 ms on a cold arrival, the
+   cover ran 1 → 0.002 at 167 ms → 0.996 at 300 ms → 0 at 450, **inside one run of one animation**.
+   The picture appeared, was covered again, and appeared once more. With `from` declared the same run
+   reads 0.896, 0.701, 0.456, 0.239 — the standard curve exactly, and monotone.
+
+**And the instruments.** R115's departure hold read the pseudo-element's PRESENCE, which the
+browser's own cross-fade satisfies with `panel-down` deleted — the sentence this wave had written
+about `body-rise` one commit earlier, in the next rule along. The `immediate` branch read the
+element alone and would have passed a cover replaying over a hero the transition already drew. Arm
+3b covered three of the five names it was added for, because both gesture modules write their
+attribute through a CONSTANT and the rules read it by LITERAL. `virtual.py`'s « the scroll actually
+moved the window » held `scrollTop > 0`, and 420 px was needed before the range moved at all. Four
+numbers the gesture modules publish « so a rule does not re-type them » had no reader, and
+`press.py` re-typed one of them four lines under a comment quoting that sentence.
+
+**THEN THE FULL SUITE FOUND THREE REGRESSIONS IN THIS ROUND'S OWN REPAIRS**, which is the same
+sentence one level down:
+
+- Silencing the live sheet with `transition: none` took `visibility` with `transform`, and B-249's
+  idiom IS the visibility delay — the layer must stay hit-testable until it has finished leaving.
+  `exits.py` read `hidden` on every sample of a leaving sheet within the hour. Only the movement is
+  silenced now.
+- R113's arming sample read a FIXED step, and the settle read added 60 ms of dead time in front of
+  it: under the suite's parallel load the step drifted past the press delay and the mark had already
+  gone. The rule fell in the suite and passed alone — **B-277's species, inside the repair**. Every
+  step is sampled now and both readings are chosen from the series by the moment each landed.
+- R118's capture races the transition's end under load, because a screenshot is not instantaneous:
+  the flag read True before and False after. The second read is NOT dropped — a sample taken after
+  the end is exactly the vacuity that hold exists to refuse — so three arrivals are tried and only a
+  straddle every time is a violation.
+
+**What the second round did to the count.** It applied the stated criterion to the itemisation
+itself and found one unit in that did not belong and one out that the register said was in. Both
+corrections are in `BUGS.md`, written out rather than left to cancel silently, because two
+corrections that cancel are the shape that hides a mistake.
+
+**A third round then read the writings at that state** and found the report describing ONE review
+where the pull request described two — this section is that finding's repair, and it is the same
+species as the archived report the register's L11 row still corrects: a closing document frozen with
+the previous round's count.
 
 ---
 
@@ -444,7 +521,7 @@ count** — the ones in the pull request's body and in `IMPLEMENTATION.md` say t
 | --- | --- |
 | `run.sh` full suite | **86 rules + 25 guards, no violation** |
 | `run.sh --a11y` | 87 states, 0 violations; light-theme debt **at its ceiling of 166**, unmoved |
-| `harness-hold-counts.py --compare` | **10 rules ROSE across the two rounds, none fell** — round one: `chrome_pixels` 3→4, `feedback` 14→18, `poster` 4→5, `press` 12→14, `transition` 16→36, `virtual` 7→12; round two: `feedback` 18→22, `press` 14→15, `transition` 36→39, `virtual` 12→17 |
+| `harness-hold-counts.py --compare` | **10 rule FILES rose across the two rounds and none fell**, +33 holds then +13 (1 880 → 1 913 → 1 926) — round one: `chrome_pixels` 3→4, `feedback` 14→18, `poster` 4→5, `press` 12→14, `transition` 16→36, `virtual` 7→12; round two: `feedback` 18→22, `press` 14→15, `transition` 36→39, `virtual` 12→17 |
 | `make check` | **10 983 passed, 4 skipped, 2 xfailed, 0 failed, 0 errors** |
 | oracle | **2 958 measurements, no divergence**, reference at `39363e1d` |
 
