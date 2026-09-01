@@ -136,12 +136,19 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
       const style = getComputedStyle(container);
       const tracks = style.gridTemplateColumns;
       const columns = tracks && tracks !== "none" ? tracks.split(/\s+/).length : 1;
-      const item = container.querySelector(
-        ":scope > *:not([data-part='window/spacer'])");
-      // `offsetHeight`, NOT the bounding rectangle: the rectangle includes the
-      // 0.97 scale a tile wears while a press arms, so a measurement taken
-      // under a finger would size every line 3% short.
-      const height = item ? (item as HTMLElement).offsetHeight : 0;
+      // AN ITEM THAT IS NOT UNDER A FINGER: a tile wears `scale: 0.97` while a
+      // press arms, so measuring that one sizes every line 3% short.
+      const item =
+        container.querySelector(
+          ":scope > *:not([data-part='window/spacer']):not([data-pressing])")
+        || container.querySelector(
+          ":scope > *:not([data-part='window/spacer'])");
+      // THE RECTANGLE, and not `offsetHeight`, which ROUNDS to an integer. The
+      // line height here is 203.34375; rounding it shortened every windowed page
+      // by four tenths of a pixel — twelve oracle divergences across the four
+      // library states, from a change made to exclude that 3% scale. The scale
+      // is excluded by choosing the element instead.
+      const height = item ? item.getBoundingClientRect().height : 0;
       const rowGap = parseFloat(style.rowGap || style.gap) || 0;
       if (!height) return;
       setMeasured((held) =>
