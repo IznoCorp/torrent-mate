@@ -199,3 +199,31 @@ an owner in the plan's instruments' debts block, not repaired by the steward.
 says which version a document may describe and where it lives; the steward's audit reads a
 landed wave against it — its folder deleted, its citations by commit, nothing born in
 `docs/production/` — and `scripts/check-docs-cited-paths.py`'s three arms are the instrument.
+
+## Instrument hygiene — the machine is an instrument too (operator, 2026-09-02)
+
+**Every process the office starts, the office kills. Everything it writes outside the repository, it
+deletes.** This is a rule of the office because the operator has had to enforce it twice: 117 GB
+removed by hand on 2026-08-26 when the boot disk filled and no command could start, and on
+2026-09-02 a machine at load 45 with 200 MB of memory free during a review — eight harness rules
+fanned out in parallel, each driving a real browser, overlapped with the repository's own test run,
+beside nine orphaned static servers and 739 MB of build copies. « Toujours nettoyer l'espace disque,
+la ram, les serveurs. TOUT ! »
+
+**Why it is not housekeeping.** On this machine kernel wired memory grows under heavy input/output
+and only a reboot reclaims it, so a memory squeeze outlives the run that caused it. A review that
+leaves the machine unusable is not finished, whatever its findings are worth.
+
+**What it obliges, and none of it is optional.** A reader's report saying « servers stopped » is not
+evidence — five survived that sentence: the office VERIFIES with `ps` that no server, no browser and
+no build of its own is left, after every probe and at the end of every round. Build trees,
+`node_modules`, `dist` and the screenshots of closed rounds are deleted as soon as the round they
+served is relayed; the reports, the probe scripts and the JSON readings are what is kept, and they
+are small. Load is never stacked: the full suite and the repository's test run go in sequence, the
+harness fans out to two or three rules rather than eight, and the office's readers run one at a time
+while a wave's gates are running. **Every reader's prompt carries the clause** — its own directory,
+its own ports, and the duty to kill what it started and delete what it built BEFORE it reports.
+
+**And the same holds for a wave's agent.** The office measures the load before it accuses, names
+what the measurement attributes to whom, and says it plainly: the operator asked whose it was, and «
+the agent's gates » was the answer he needed to hear with the counts behind it.
