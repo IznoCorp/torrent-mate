@@ -160,9 +160,35 @@ def _upsert_file_row(
     # -good hash value.
     #
     # On conflict, we update only the columns the previous UPDATE branch did
-    # (size_bytes, mtime_ns, ctime_ns, oshash, scan_generation, last_verified_at).
-    # Untouched columns (release_id, xxh3_*, enriched_at, miss_strikes,
-    # deleted_at) are intentionally preserved.
+    # (size_bytes, mtime_ns, ctime_ns, oshash, scan_generation, last_verified_at)
+    # — plus ``miss_strikes``, see below. Untouched columns (release_id, xxh3_*,
+    # enriched_at, deleted_at) are intentionally preserved.
+    #
+    # ``miss_strikes = 0`` because THIS CALL IS THE SIGHTING. Reaching here means
+    # the walk stat'd the file and it is there, which is precisely the event both
+    # the schema docstring (« Consecutive scans where this file was not found »)
+    # and docs/production/indexer.md (« the counter is reset to 0 the moment the
+    # file is observed again ») describe — and which only a RENAME performed
+    # (``drift.detect_rename``). ``reset_strikes_on_reappearance`` was written for
+    # the general case, is tested, and is reachable only through
+    # ``reconcile_file``, which has no production caller.
+    #
+    # Preserving the counter here made it a LIFETIME total rather than a
+    # consecutive one: three absences months apart, with complete scans in between
+    # that saw the file every time, still add up to the tombstone threshold. On
+    # 2026-06-30 that cost the operator 49 553 rows — three truncated runs struck
+    # disk_1, and the complete 49 476-file walk sitting between the second and the
+    # third cleared nothing.
+    #
+    # This is ONE of three writes a sighting can take. The other two are
+    # ``_flush_insert_buffer`` below and ``IncrementalVisitor.visit_file``'s own
+    # four UPDATEs; all three carry the reset, because a counter that resets on
+    # some sightings is not a consecutive counter.
+    #
+    # ``deleted_at`` is deliberately NOT cleared. Restoring tombstoned rows in
+    # bulk is what the Merkle bulk-change freeze exists to arbitrate, and it is a
+    # different decision from this one. Resetting the counter can only ever
+    # PREVENT a tombstone, never cause one.
     conn.execute(
         """
         INSERT INTO media_file (
@@ -176,7 +202,8 @@ def _upsert_file_row(
             ctime_ns = excluded.ctime_ns,
             oshash = COALESCE(excluded.oshash, oshash),
             scan_generation = excluded.scan_generation,
-            last_verified_at = excluded.last_verified_at
+            last_verified_at = excluded.last_verified_at,
+            miss_strikes = 0
         """,
         row_tuple,
     )
@@ -199,6 +226,14 @@ def _flush_insert_buffer(conn: sqlite3.Connection, buffer: list[Any]) -> None:
     still go through the buffered path when ``drop_indexes_during_full_scan`` is
     enabled) do not crash with a UNIQUE-constraint violation.
 
+    « The same shape » includes the ``miss_strikes = 0`` sighting reset, and that
+    is not incidental: which write a walk takes is decided by its MODE — full
+    always batches through here (``FullVisitor`` passes ``insert_buffer``
+    unconditionally; ``drop_indexes_during_full_scan`` only governs the index
+    DDL), while quick, the ``_walk_dir`` fallback and incremental's new-file
+    branch take :func:`_upsert_file_row` directly. A reset on only some of them
+    would make a data-integrity guarantee depend on which mode happened to run.
+
     Args:
         conn: Open SQLite connection.
         buffer: List of row tuples as produced by :func:`_upsert_file_row`.
@@ -219,7 +254,8 @@ def _flush_insert_buffer(conn: sqlite3.Connection, buffer: list[Any]) -> None:
             ctime_ns = excluded.ctime_ns,
             oshash = COALESCE(excluded.oshash, oshash),
             scan_generation = excluded.scan_generation,
-            last_verified_at = excluded.last_verified_at
+            last_verified_at = excluded.last_verified_at,
+            miss_strikes = 0
         """,
         buffer,
     )
