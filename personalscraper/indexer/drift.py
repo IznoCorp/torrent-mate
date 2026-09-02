@@ -480,7 +480,8 @@ def apply_soft_deletes(conn: sqlite3.Connection, disk_id: int, n_strikes_for_sof
     conn.row_factory = sqlite3.Row
     candidates = conn.execute(
         """
-        SELECT mf.id, mf.path_id, mf.filename, mf.oshash, mf.size_bytes, mf.mtime_ns
+        SELECT mf.id, mf.path_id, mf.filename, mf.oshash, mf.size_bytes, mf.mtime_ns,
+               mf.miss_strikes
           FROM media_file mf
           JOIN path p ON p.id = mf.path_id
          WHERE p.disk_id = ?
@@ -508,6 +509,12 @@ def apply_soft_deletes(conn: sqlite3.Connection, disk_id: int, n_strikes_for_sof
             )
 
             # Build a JSON snapshot of the key fields for the tombstone.
+            # ``miss_strikes`` belongs in the snapshot because it is the only
+            # record of WHY this row was retired, and the row that carried it is
+            # about to stop saying so: a later walk that sees the file again
+            # resets the counter to 0 on sight. Diagnosing the 2026-06-30
+            # mass-tombstone meant reading strike counts off live rows; had a
+            # scan reached them first, the evidence would have been gone.
             snapshot_payload = json.dumps(
                 {
                     "id": file_id,
@@ -516,6 +523,7 @@ def apply_soft_deletes(conn: sqlite3.Connection, disk_id: int, n_strikes_for_sof
                     "oshash": row["oshash"],
                     "size_bytes": row["size_bytes"],
                     "mtime_ns": row["mtime_ns"],
+                    "miss_strikes": row["miss_strikes"],
                 }
             )
 
