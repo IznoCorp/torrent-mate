@@ -51,6 +51,7 @@
 // the rows are strings somebody else composed.
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useLayoutEffect, useRef, type ReactElement } from "react";
+import { useReaderPlace } from "./reader-place";
 import { useWindowGeometry } from "./window-geometry";
 
 /** What the surface tells the window, and none of it names a domain. */
@@ -125,7 +126,7 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
 
   // THE GEOMETRY IS THE GRID'S OWN, measured rather than believed —
   // `ui/window-geometry.ts` carries why each of its three numbers had to be.
-  const { lanes: activeLanes, lineHeight, scrollMargin } = useWindowGeometry(
+  const { lanes: activeLanes, lineHeight, gap: activeGap, measuredFor, scrollMargin } = useWindowGeometry(
     containerRef, scrollElement, { rowHeight, gap, lanes },
     { count, drawKey: properties.drawKey });
   const lineCount = Math.ceil(count / activeLanes);
@@ -149,64 +150,35 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   // WHAT THAT COST, measured through the real controls: a selection row is
   // about 60 px against a card's 126. Enter « Sélectionner » on a list scrolled
   // past a page and leave it again, and the browse window is placed with the
-  // SELECTION pitch — the spacer reads 5 620 px, the first row sits 2 807 px
-  // below the port, and the library is blank. It stays blank through a scroll
+  // SELECTION pitch: the spacer reads 5 620 px, the first row sits 2 807 px
+  // below the port, and the library is BLANK. It stays blank through a scroll
   // in either direction, because scrolling changes no memoised option either.
   // Entering the mode looked healthy only because the shorter rows brought the
   // paging sentinel into view and a page landing moved `count`.
-  // AND THE READER KEEPS THEIR PLACE ACROSS IT, which is a row and not a pixel.
-  // Shorter rows make the same row sit at a smaller offset, so re-measuring at a
-  // deep scroll leaves the offset past the new end and the browser clamps it to
-  // zero — the list jumps to the top, which is the same loss wearing the
-  // opposite symptom. The first drawn line is remembered and restored.
-  // THE PLACE IS TAKEN BEFORE THE RESET, and restored after the new pitch is
-  // measured. A new draw key empties the container, which collapses the
-  // scroller's height and makes the browser clamp the offset to zero — so by
-  // the time the pitch is known the position is already lost.
   //
-  // THE PLACE IS A ROW, AND THE ROW IS AN ITEM, not a line. A line is a row in
-  // the list and three or more in the gallery: restoring line 17 across a switch
-  // put a reader who was at row 17 in front of row 51, and back the other way at
-  // row 3. What is remembered is the first visible row's own index, and the line
-  // to scroll to is that index divided by the lanes of the mode being entered.
-  //
-  // AND IT IS THE FIRST VISIBLE ROW, not the first DRAWN one. The window keeps
-  // four lines of overscan beyond each edge, so `getVirtualItems()[0]` is four
-  // lines above what the reader can see — measured: every mode change moved them
-  // four rows up, 21 → 17 → 13 over two round trips.
-  //
-  // IT IS ASKED OF THE MEASUREMENTS, WITH A PIXEL OF TOLERANCE, and the pixel is
-  // not superstition. The pitch is fractional — 60.39 in selection, 213.34 in the
-  // gallery — so a line restored to the top of the port starts a fifth of a pixel
-  // below it, and the line ABOVE is then « visible » by that fifth. Read strictly,
-  // each round trip walked the reader back one row for a sliver nobody can see.
-  const lastPitch = useRef(lineHeight);
-  const lastKey = useRef(properties.drawKey);
-  const lastFirstItem = useRef(0);
-  const placeToKeep = useRef<{ item: number; forKey: number | string } | null>(null);
-  const restoreTo = useRef<number | null>(null);
-  if (lastKey.current !== properties.drawKey) {
-    lastKey.current = properties.drawKey;
-    placeToKeep.current = { item: lastFirstItem.current, forKey: properties.drawKey };
-  }
-  if (lastPitch.current !== lineHeight) {
-    lastPitch.current = lineHeight;
-    virtualizer.measure();
-    // A PLACE BELONGS TO THE DRAWING IT WAS TAKEN FOR. Kept past that, it is a
-    // row number from another listing waiting for the next pitch change to send
-    // the reader to it.
-    const kept = placeToKeep.current;
-    restoreTo.current = kept && kept.forKey === properties.drawKey
-      ? kept.item : lastFirstItem.current;
-    placeToKeep.current = null;
-  }
+  // AND THE READER KEEPS THEIR PLACE ACROSS IT, which is `ui/reader-place.ts`'s
+  // whole subject: what a place is, and how long one lives.
+  const place = useReaderPlace(
+    properties.drawKey, lineHeight, measuredFor, () => virtualizer.measure());
 
   const lines = virtualizer.getVirtualItems();
   const firstLine = lines.length ? lines[0].index : 0;
   const lastLine = lines.length ? lines[lines.length - 1].index : -1;
+  // THE FIRST VISIBLE ROW, asked of the measurements, and the question is the
+  // ROW'S BOX rather than the LINE's. A line is a row plus the gap under it, so
+  // a row entirely above the port still counted as visible while its trailing
+  // gap crossed the port's top — which is why the last row of the list came
+  // back one row up. The gap is subtracted, and one pixel of tolerance is left
+  // on top: the pitch is fractional (60.39 in selection, 213.34 in the
+  // gallery), so a line restored to the top of the port starts a fifth of a
+  // pixel below it and the row above would otherwise be « visible » by that
+  // fifth.
   const offset = virtualizer.scrollOffset ?? 0;
-  const firstSeen = lines.find((line) => line.end > offset + 1);
-  lastFirstItem.current = (firstSeen ? firstSeen.index : firstLine) * activeLanes;
+  const firstSeen = lines.find((line) => line.end - activeGap > offset + 1);
+  place.remember({
+    item: (firstSeen ? firstSeen.index : firstLine) * activeLanes,
+    scrolled: offset > scrollMargin + 1,
+  });
 
   // THE SPACERS ARE THEMSELVES ITEMS, AND THE CONTAINER PUTS A GAP BESIDE EACH.
   // Measured, at 33 oracle divergences of exactly +16px: the un-windowed list
@@ -367,11 +339,10 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   // identical to the pixel. Machinery that changes nothing measurable is
   // machinery nobody can later justify deleting, so it is not kept.
   useLayoutEffect(() => {
-    const item = restoreTo.current;
-    if (item == null) return;
-    restoreTo.current = null;
-    if (item > 0) {
-      virtualizer.scrollToIndex(Math.floor(item / activeLanes), { align: "start" });
+    const held = place.take();
+    if (held === null) return;
+    if (held.item > 0 || held.scrolled) {
+      virtualizer.scrollToIndex(Math.floor(held.item / activeLanes), { align: "start" });
     }
   });
 

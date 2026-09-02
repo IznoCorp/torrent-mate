@@ -79,8 +79,9 @@ export function MediaDetails({
               nothing and over one that failed. The projection carries no
               refresh timestamp, so there is nothing here to print instead:
               correcting it means the backend serving when the metadata was
-              last read, which is recorded with the wave's other demands rather
-              than guessed at here. Named because this screen's whole subject is
+              last read, which belongs with the demands in
+              `docs/reference/backend-demands-architecture.md` rather than
+              guessed at here. Named because this screen's whole subject is
               what a surface may claim about data it has not got. */}
           <div className={keyValueRow()} data-part="key-value">
             <span>{t("screens.media.metadataRefreshed")}</span>
@@ -119,7 +120,17 @@ export function MediaDetails({
           // follows as a series what may be a film is worse than a button
           // nobody drew. The destructive pair above is untouched: deleting from
           // the library asks the kind nothing.
-          inFlight ? <SkeletonLine width="half" /> : null
+          //
+          // AND AT REST IT SAYS SO. Drawing nothing at all leaves a block that
+          // offered an action silently empty, which reads as a surface that
+          // forgot rather than one that is waiting.
+          inFlight ? (
+            <SkeletonLine width="half" />
+          ) : (
+            <p className="noinfo" data-part="no-info">
+              {t("screens.media.followWaitsForKind")}
+            </p>
+          )
         ) : followed ? (
           <button className={`mediaadd done ${actionButton()}`} data-part="media/add" disabled>
             <Icon paths={icons.check} />

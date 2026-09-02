@@ -7978,7 +7978,12 @@ import { icons } from "../app/icons";
   function tileHTML(descriptor, sousLigne, opts) {
     opts = opts || {};
     const sel = currentState().selMode && opts.index != null;
-    const selected = sel && currentState().selected.has(opts.index);
+    // KEYED BY THE TITLE, never by the position. `opts.index` is the row's
+    // rank IN THE LISTING ON SCREEN, and the listing is ordered and filtered by
+    // the layer: index 1 of « A → Z » is not index 1 of the source. Read as a
+    // key into the source, a tick taken on one row selected a different medium
+    // — and the delete dialog then named, and destroyed, that other one.
+    const selected = sel && currentState().selected.has(descriptor.t);
     const badge = opts.badge;
     // A rating is not a status: it reads over the picture without claiming a
     // meaning in the status palette, so it takes the neutral overlay.
@@ -7993,7 +7998,7 @@ import { icons } from "../app/icons";
               ? "info"
               : "warning"
       : null;
-    return `<button class="tile${opts.muted ? " off" : ""}" data-part="tile" ${opts.index != null ? `data-tile="${opts.index}"` : ""} ${opts.dismiss != null ? `data-dismissable="${escapeHtml(String(opts.dismiss))}"` : ""} data-panel="${escapeHtml(opts.panel || `media:${descriptor.t}`)}" ${sel ? `aria-pressed="${selected}"` : `data-mediasheet="${escapeHtml(descriptor.t)}"`}>
+    return `<button class="tile${opts.muted ? " off" : ""}" data-part="tile" ${opts.index != null ? `data-tile="${opts.index}"` : ""} ${opts.dismiss != null ? `data-dismissable="${escapeHtml(String(opts.dismiss))}"` : ""} data-panel="${escapeHtml(opts.panel || `media:${descriptor.t}`)}" ${sel ? `aria-pressed="${selected}" data-selected-title="${escapeHtml(descriptor.t)}"` : `data-mediasheet="${escapeHtml(descriptor.t)}"`}>
       <span class="p">${posterBox(descriptor.t, descriptor.k)}</span>
       ${sel ? `<span class="sel" data-part="selection/check">${svgIcon(icons.check, 3)}</span>` : badge ? `<span class="tilebadge" data-part="tile/badge" style="background:var(--${tone})">${escapeHtml(badge.txt)}</span>` : ""}
       <span class="nm" data-part="tile/title">${escapeHtml(descriptor.t)}</span>
@@ -8013,8 +8018,10 @@ import { icons } from "../app/icons";
 
   function libRowHTML(item, index) {
     if (currentState().selMode) {
-      const has = currentState().selected.has(index);
-      return `<button class="selrow" data-part="selection/row" data-tile="${index}" aria-pressed="${has}">
+      // THE TITLE, as in the gallery above and for the same reason: the
+      // index is the row's rank in the listing on screen.
+      const has = currentState().selected.has(item.t);
+      return `<button class="selrow" data-part="selection/row" data-tile="${index}" data-selected-title="${escapeHtml(item.t)}" aria-pressed="${has}">
         <span class="sel" data-part="selection/check">${svgIcon(icons.check, 3)}</span>
         <span class="poster" data-part="card/poster">${posterBox(item.t)}</span>
         <span class="rowtxt"><span class="ctitle" data-part="card/title" title="${escapeHtml(item.t)}">${escapeHtml(item.t)}</span><span class="csub" data-part="card/subtitle">${escapeHtml(item.f)}</span></span>
@@ -10057,20 +10064,24 @@ import { icons } from "../app/icons";
       return;
     }
     if (closest.dataset.delsel) {
-      openDeleteDialog(
-        null,
-        [...state.selected].map((element) => LIBRARY[element].t),
-      );
+      // THE SET HOLDS TITLES, so the dialog names what the reader ticked. It
+      // used to read each entry as an index into the SOURCE array while the
+      // ticks were taken on the LISTING — so under any order but the source's
+      // it named other media and destroyed them: ticking « 3% » and « À la
+      // recherche de Harry » under A → Z deleted « Ninja Turtles » and « Big
+      // Chicken », and the two ticked rows stayed.
+      openDeleteDialog(null, [...state.selected]);
       return;
     }
     if (closest.dataset.tile != null && currentState().selMode) {
-      const index = Number(closest.dataset.tile);
-      if (currentState().selected.has(index)) currentState().selected.delete(index);
-      else currentState().selected.add(index);
+      const title = closest.dataset.selectedTitle;
+      if (title == null) return;
+      if (currentState().selected.has(title)) currentState().selected.delete(title);
+      else currentState().selected.add(title);
       // paintSelBar() below draws the bar directly, not through render():
       // the explicit bump is what tells React the selection changed.
       store.touch();
-      closest.setAttribute("aria-pressed", String(currentState().selected.has(index)));
+      closest.setAttribute("aria-pressed", String(currentState().selected.has(title)));
       paintSelBar();
       return;
     }

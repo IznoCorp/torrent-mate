@@ -11,10 +11,13 @@ export function MediaCast({
   sheet,
   isFilm,
   inFlight,
+  failed,
 }: {
   sheet: (MediaSheet & MediaSheetFields) | null;
   /** True for a film, false for a series, null while the kind is in flight. */
   isFilm: boolean | null;
+  /** Whether the sheet's read FAILED — an absence is then unread, not answered. */
+  failed: boolean;
   /** Whether the sheet's read is still out — a missing part is then a skeleton, never an answer. */
   inFlight: boolean;
 }) {
@@ -90,7 +93,9 @@ export function MediaCast({
       ) : inFlight ? (
         <p className="noinfo"><SkeletonLine width="half" /></p>
       ) : (
-        <p className="noinfo" data-part="no-info">{t("screens.media.castUnknown")}</p>
+        <p className="noinfo" data-part="no-info">
+          {t(failed ? "screens.media.castUnread" : "screens.media.castUnknown")}
+        </p>
       )}
     </div>
   );

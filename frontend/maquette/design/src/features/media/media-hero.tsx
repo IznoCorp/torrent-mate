@@ -63,7 +63,12 @@ export function MediaHero({
                 line learned its fields. */}
             {sheet ? (
               <>
-                {sheet?.y || (inFlight ? <SkeletonLine width="short" /> : t("screens.media.yearUnknown"))}
+                {sheet?.y || (inFlight
+                  ? <SkeletonLine width="short" />
+                  // A FAILURE IS NOT AN ANSWER, here as under the trailer. « année
+                  // inconnue » says the year is not known of this medium; after a
+                  // 502 what is true is that nobody read it.
+                  : t(failed ? "screens.media.yearUnread" : "screens.media.yearUnknown"))}
                 {" · "}
                 {isFilm === null ? (
                   inFlight ? <SkeletonLine width="short" /> : t("screens.media.unknown")
@@ -87,7 +92,9 @@ export function MediaHero({
             ) : (
               <>
                 <br />
-                {inFlight ? <SkeletonLine width="short" /> : t("screens.media.genresUnknown")}
+                {inFlight
+                  ? <SkeletonLine width="short" />
+                  : t(failed ? "screens.media.genresUnread" : "screens.media.genresUnknown")}
               </>
             )}{" "}
             {sheet && isFilm === false && sheet.status ? (

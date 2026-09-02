@@ -208,6 +208,14 @@ export function installLibraryDelete(queryClient: QueryClient): void {
         // explanation, minutes before it actually applies.
         if (outcome === HELD) return;
         void queryClient.invalidateQueries({ queryKey: ["/api/library/items"] });
+        // AND THE SHEETS OF WHAT LEFT. The list is honest in the same task and
+        // the SHEET was not: reopened after a confirmed delete it still read
+        // « Possédés 24 » from its own cached answer and offered « Supprimer »
+        // again, which is the surface the reader is looking at when the toast
+        // says it is done. Every media read is invalidated rather than the
+        // deleted ones alone — the sheet's key is the provider's identifier,
+        // and nothing here maps a title to it.
+        void queryClient.invalidateQueries({ queryKey: ["/api/media"] });
       }, () => {
         // AND ON A REFUSAL, which the `.finally` this replaced also covered.
         void queryClient.invalidateQueries({ queryKey: ["/api/library/items"] });

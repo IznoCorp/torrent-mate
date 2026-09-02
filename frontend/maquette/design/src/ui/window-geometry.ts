@@ -17,8 +17,17 @@ export type WindowGeometry = {
   readonly lanes: number;
   /** One line's height, gap included. */
   readonly lineHeight: number;
+  /** The gap between two lines, which is the part of a line no row occupies. */
+  readonly gap: number;
   /** How far the container starts below its scroller's origin. */
   readonly scrollMargin: number;
+  /**
+   * The draw key the measurement above was taken under, or null while there is
+   * nothing measured. A caller keeping something across a redraw needs to know
+   * when the NEW drawing has been read — not merely that a new one was asked
+   * for — and no other value here says so: two drawings can measure the same.
+   */
+  readonly measuredFor: number | string | null;
 };
 
 /**
@@ -46,8 +55,9 @@ export function useWindowGeometry(
   // nothing caps the port to a phone's width in production. At five columns the
   // virtualiser believed in 621 lines where the grid draws 373. The row height
   // moves with it: a narrower column makes a shorter 2:3 poster.
-  const [measured, setMeasured] =
-    useState<{ lanes: number; lineHeight: number } | null>(null);
+  const [measured, setMeasured] = useState<
+    { lanes: number; lineHeight: number; gap: number; forKey: number | string } | null
+  >(null);
   // The key the last run of the effect below belonged to, so that run can tell a
   // container holding MORE of the same drawing from one holding another drawing.
   const lastDrawKey = useRef<number | string | null>(null);
@@ -74,10 +84,11 @@ export function useWindowGeometry(
       const rowGap = parseFloat(style.rowGap || style.gap) || 0;
       if (!height) return;
       setMeasured((held) =>
-        held && held.lanes === columns
+        held && held.lanes === columns && held.forKey === drawing.drawKey
         && Math.abs(held.lineHeight - (height + rowGap)) < 0.5
           ? held
-          : { lanes: columns, lineHeight: height + rowGap });
+          : { lanes: columns, lineHeight: height + rowGap, gap: rowGap,
+              forKey: drawing.drawKey });
     };
     // NOT AT COMMIT WHEN THE DRAWING'S IDENTITY MOVED, and this is the whole
     // reason the key is a parameter of its own. This effect runs BEFORE the one
@@ -129,6 +140,8 @@ export function useWindowGeometry(
   return {
     lanes: measured ? measured.lanes : estimates.lanes,
     lineHeight: measured ? measured.lineHeight : estimates.rowHeight + estimates.gap,
+    gap: measured ? measured.gap : estimates.gap,
+    measuredFor: measured ? measured.forKey : null,
     scrollMargin,
   };
 }

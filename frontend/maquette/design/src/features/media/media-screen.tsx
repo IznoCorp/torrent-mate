@@ -158,7 +158,14 @@ export function MediaScreen() {
   const ownershipKnown = sheet !== null
     && (sheet.possede !== undefined
         || (sheetRead.isSuccess && !sheetRead.isPlaceholderData));
-  const owns = sheet?.possede !== false;
+  // AN ANSWER THAT IS NOT « YES » IS NOT « YES ». `possede !== false` reads an
+  // ABSENT ownership as owned, and the contract makes the field nullable
+  // (`MediaSheetResponse.ownership` is required and may be null) — so a sheet
+  // that landed saying nothing about ownership offered « Supprimer de la
+  // médiathèque », a destructive action, over an answer nobody gave. Every
+  // fixture sheet carries the field, which is exactly why nothing here ever
+  // showed it.
+  const owns = sheet?.possede === true;
   // « Supprimer » offered for a medium nobody has identified is that same
   // assertion wearing a destructive button, so the actions read the same flag.
   const identified = ownershipKnown;
@@ -283,9 +290,15 @@ export function MediaScreen() {
             </p>
           </div>
 
-          <MediaCast sheet={sheet} isFilm={isFilm} inFlight={inFlight} />
+          <MediaCast sheet={sheet} isFilm={isFilm} inFlight={inFlight} failed={failed} />
 
-          {seasonsFailed ? (
+          {/* A FILM HAS NO SEASONS, so a failed seasons read is nothing to tell
+              its reader about. The read is issued for every address — the kind
+              arrives with the sheet, after it — and a backend answering 404 on
+              a film's seasons would have raised this surface under every owned
+              film. It is drawn for what is not a film, the unknown kind
+              included: with the kind still out, a failure is worth saying. */}
+          {seasonsFailed && isFilm !== true ? (
             <SurfaceError
               subject={t("screens.media.seasonsSubject")}
               detail={isRequestFailure(seasonsRead.error) ? seasonsRead.error.detail : undefined}

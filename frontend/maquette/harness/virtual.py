@@ -549,6 +549,94 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
     await context.close()
 
 
+async def hold_a_bulk_delete_names_what_was_ticked(journal, browser):
+    """A bulk delete acts on the rows the reader ticked, in any order.
+
+    THE DEFECT THIS EXISTS FOR. The selection was a set of LISTING indexes — the
+    rank of a row on screen — and the delete read each one as an index into the
+    SOURCE. Under the source's own order the two coincide, which is the only
+    order anybody had walked. Sorted A → Z, ticking the second and third rows
+    named the second and third media of the SOURCE in the dialog and destroyed
+    them, while the two the reader had ticked stayed. A search did the same. It
+    is the worst class of defect this interface can have — a destructive action
+    on something the operator did not choose — and every gate was green over it.
+
+    WHAT IT DRIVES. The order is set through the store rather than through the
+    sort panel: the panel is a control of its own with its own holds, and what
+    is under test here is the tick and the delete. The rows are ticked by
+    pressing them, the dialog is read for the titles it NAMES, and the listing
+    is read afterwards for what actually left.
+    """
+    context = await browser.new_context(**PHONE)
+    page = await context.new_page()
+    await page.goto(PROTOTYPE, wait_until="load")
+    await page.evaluate("()=>window.__loadingDone?.()")
+    await page.evaluate("()=>document.querySelector('#toastx')?.click()")
+    await page.wait_for_timeout(250)
+    await page.evaluate("(s)=>window.__go(s)", STATE)
+    await page.wait_for_timeout(600)
+    # AN ORDER THAT IS NOT THE SOURCE'S, which is the whole point: under the
+    # source's own order a listing index and a source index are the same number
+    # and the defect is invisible.
+    await page.evaluate(
+        "()=>window.__store.write({ sortKey: 'az', sortReversed: false })")
+    await page.wait_for_timeout(800)
+    await page.click('[data-selmode="1"]')
+    await page.wait_for_timeout(600)
+
+    picked = await page.evaluate("""() => {
+      const rows = [...document.querySelectorAll('[data-part="selection/row"]')];
+      const two = rows.slice(1, 3);
+      const name = (node) => (node.querySelector('[data-part="card/title"]')
+                              || node).textContent.trim();
+      const names = two.map(name);
+      two.forEach((node) => node.click());
+      return names;
+    }""")
+    await page.wait_for_timeout(400)
+    journal.check(
+        "two rows are ticked under an order that is not the source's — the "
+        "subject of the two holds below",
+        len(picked) == 2 and all(picked),
+        f"ticked {picked!r}")
+
+    await page.click('[data-delsel="1"]')
+    await page.wait_for_timeout(600)
+    named = await page.evaluate("""() => {
+      const dialog = document.querySelector('[data-part="dialog"], .dlg');
+      return dialog ? dialog.textContent : '';
+    }""")
+    journal.check(
+        "and the dialog names THOSE TWO — a set of positions read as a set of "
+        "media names other media, and the reader confirms a list that says one "
+        "thing while the act does another",
+        all(title in named for title in picked),
+        f"ticked {picked!r}; the dialog says "
+        f"{' '.join(named.split())[:160]!r}")
+
+    confirmed = await page.evaluate("""(titles) => {
+      const buttons = [...document.querySelectorAll('[data-part="dialog"] button, .dlg button')];
+      const destructive = buttons.find((button) => button.dataset.tone === 'danger')
+        || buttons[buttons.length - 1];
+      if (!destructive) return { pressed: false };
+      destructive.click();
+      return new Promise((done) => setTimeout(() => {
+        const rows = [...document.querySelectorAll('#libitems > :not([data-part="window/spacer"])')];
+        const name = (node) => (node.querySelector(
+          '[data-part="card/title"], [data-part="tile/title"]') || node).textContent.trim();
+        const drawn = rows.map(name);
+        done({ pressed: true,
+               stillThere: titles.filter((title) => drawn.includes(title)) });
+      }, 600));
+    }""", picked)
+    journal.check(
+        "and confirming removes THOSE TWO from the listing, not two others",
+        confirmed["pressed"] and confirmed["stillThere"] == [],
+        f"ticked {picked!r}; still drawn after the delete: "
+        f"{confirmed.get('stillThere')!r}")
+    await context.close()
+
+
 async def hold_the_list_comes_back_from_selection_mode(journal, browser):
     """Leaving selection mode at a deep scroll leaves the reader where they were.
 
@@ -594,8 +682,8 @@ async def hold_the_list_comes_back_from_selection_mode(journal, browser):
     # measure « nothing on screen » in selection mode and call it the defect.
     # The TITLE is read from whichever of them is drawn, because the title is
     # what the reader recognises across the change.
-    async def visible(row):
-        return await page.evaluate("""(row) => {
+    async def visible(row, fallback=None):
+        drawn = await page.evaluate("""(row) => {
           const port = document.querySelector('#port').getBoundingClientRect();
           const rows = [...document.querySelectorAll(row)];
           const spacer = document.querySelector('#libitems [data-part="window/spacer"]');
@@ -614,6 +702,12 @@ async def hold_the_list_comes_back_from_selection_mode(journal, browser):
             scrolled: Math.round(document.querySelector('#port').scrollTop),
           };
         }""", row)
+        # EACH MODE DRAWS ITS OWN ROW, and a walk that crosses a mode change
+        # cannot know which of the two is on screen at the moment it reads. The
+        # fallback is asked only when the first selector found nothing at all.
+        if fallback and not drawn["drawn"]:
+            return await visible(fallback)
+        return drawn
 
     SELECTION_ROW = '[data-part="selection/row"]'
     top = await visible(ROW)
@@ -692,6 +786,48 @@ async def hold_the_list_comes_back_from_selection_mode(journal, browser):
         and back_in_list["top"] == before_grid["top"],
         f"list {before_grid['top']!r} → gallery {in_grid['top']!r} → "
         f"list {back_in_list['top']!r}")
+
+    # AND A PLACE KEPT FOR A DRAWING THAT DID NOT MOVE THE PITCH IS NOT KEPT.
+    # In the GALLERY, entering selection mode changes the draw key and not the
+    # pitch — a tile is a tile — so a place taken at a deep scroll had nothing
+    # to be restored by and sat waiting. The reader goes back to the top; the
+    # next pitch change of ANY kind fires it. A phone produces those without
+    # touching a mode: a rotation, a window widening, a font landing, a
+    # scrollbar. Measured before the repair: the port jumped 2 940 px to row 39
+    # on a rotation taken minutes later.
+    await page.evaluate("()=>window.__go('lib-grid')")
+    await page.wait_for_timeout(700)
+    await page.evaluate("()=>{document.querySelector('#port').scrollTop = 3000;}")
+    await page.wait_for_timeout(500)
+    deep_in_gallery = await visible('[data-part="tile"]')
+    await page.click('[data-selmode="1"]')
+    await page.wait_for_timeout(600)
+    await page.evaluate("()=>{document.querySelector('#port').scrollTop = 0;}")
+    await page.wait_for_timeout(600)
+    at_the_top = await visible('[data-part="selection/row"]', '[data-part="tile"]')
+    # THE PITCH CHANGE, WITHOUT A MODE CHANGE. A narrower viewport re-measures
+    # the tile — the gallery is a container query — which is the pitch moving
+    # for a reason the reader never asked about.
+    await page.set_viewport_size({"width": 360, "height": 844})
+    await page.wait_for_timeout(700)
+    after_resize = await visible('[data-part="selection/row"]', '[data-part="tile"]')
+    journal.check(
+        "the reader was deep in the gallery, entered selection mode — which "
+        "changes the drawing and not the pitch — and went back to the top: the "
+        "walk below has its subject",
+        deep_in_gallery["inView"] > 0 and at_the_top["scrolled"] == 0,
+        f"deep at {deep_in_gallery['scrolled']}px on {deep_in_gallery['top']!r}, "
+        f"then at {at_the_top['scrolled']}px on {at_the_top['top']!r}")
+    journal.check(
+        "and a pitch change with no mode change leaves them where they are — a "
+        "place kept for a drawing that did not move the pitch EXPIRES, instead "
+        "of waiting for the next rotation to fire it",
+        after_resize["scrolled"] == 0,
+        f"the port is at {after_resize['scrolled']}px on {after_resize['top']!r} "
+        f"after the viewport narrowed, where the reader left it at "
+        f"{at_the_top['scrolled']}px")
+    await page.set_viewport_size({"width": PHONE["viewport"]["width"],
+                                  "height": PHONE["viewport"]["height"]})
     await context.close()
 
 
@@ -705,6 +841,7 @@ async def hold(journal):
         await hold_the_gallery_keeps_its_ORDER(journal, browser)
         await hold_a_deleted_row_leaves_the_screen(journal, browser)
         await hold_the_list_comes_back_from_selection_mode(journal, browser)
+        await hold_a_bulk_delete_names_what_was_ticked(journal, browser)
         context = await browser.new_context(**PHONE)
         page = await context.new_page()
         await page.goto(PROTOTYPE, wait_until="load")

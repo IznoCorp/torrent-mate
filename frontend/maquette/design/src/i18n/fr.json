@@ -297,7 +297,11 @@
       "sheetSubject": "cette fiche",
       "synopsisUnread": "Synopsis inconnu.",
       "trailerUnread": "Bande-annonce inconnue.",
-      "seasonsSubject": "les saisons de cette fiche"
+      "seasonsSubject": "les saisons de cette fiche",
+      "yearUnread": "année non lue",
+      "genresUnread": "Genres non lus",
+      "castUnread": "Distribution non lue.",
+      "followWaitsForKind": "Type de média inconnu — le suivi attend de savoir s'il s'agit d'un film ou d'une série."
     },
     "profile": {
       "back": "Retour",

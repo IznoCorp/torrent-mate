@@ -81,6 +81,9 @@ NOT_OWNED_TITLE = "The Venture Bros"
 # code is written. This one has holes, which is what makes « Manquants : … » and
 # a matrix of cells reachable at all.
 OWNED_INCOMPLETE_TITLE = "Monk"
+# AND A FILM, which has no seasons at all — the kind that must never be told a
+# seasons read failed.
+FILM_TITLE = "Marjorie Prime"
 # WHAT THE TAP KNOWS, and it is the TITLE alone. A list row is `{t, f}` — a
 # title and a folder — and the year and the kind a card displays come from the
 # same projection this thinning stands in for, folded into one string. Keeping
@@ -672,6 +675,30 @@ async def main():
             f"bar {thin_failure['bar'].strip()[:60]!r}; sentence(s) speaking "
             f"for the provider: "
             f"{[said for said in PROVIDER_SENTENCES if said in thin_failure['text']]}")
+        await context.close()
+
+        # ─── (e-iii-b) THE SAME TERM ON A TITLE THAT CAN PRINT THE SENTENCE ──
+        # The walk above opens a medium the fixture gives a trailer, so its
+        # trailer line is a link and the sentence about what the provider
+        # furnishes is unreachable there — the term read true whatever the code
+        # said. Measured: a build printing that sentence over a 502 passed every
+        # hold of this rule. The rule's own title is the one sheet with NO
+        # trailer, which is the case the term exists for.
+        context, page, errors = await cold_load(
+            browser, address, thin=True, fail=True)
+        await page.evaluate("()=>window.__mocks.quiet()")
+        await page.wait_for_timeout(300)
+        no_trailer_failure = await page.evaluate(READ)
+        journal.check(
+            "(e-iii-b) and on the one sheet with no trailer at all — where the "
+            "sentence about what a provider furnishes is REACHABLE — a failure "
+            "still does not print it",
+            no_trailer_failure["open"] and no_trailer_failure["failed"]
+            and not [said for said in PROVIDER_SENTENCES
+                     if said in no_trailer_failure["text"]],
+            f"sentence(s) speaking for the provider on {TITLE!r}: "
+            f"{[said for said in PROVIDER_SENTENCES if said in no_trailer_failure['text']]}; "
+            f"no-info paragraph(s): {no_trailer_failure['noInfos']}")
         journal.check("no JS error on the thin failure walk", not errors, str(errors))
         await context.close()
 
@@ -751,6 +778,28 @@ async def main():
             f"answer count {seasons_retry.get('before')} before the click, "
             f"{seasons_retry.get('after')} after")
         journal.check("no JS error on the failed-seasons walk", not errors, str(errors))
+        await context.close()
+
+        # ─── (e-vi) AND A FILM IS TOLD NOTHING ABOUT SEASONS IT HAS NONE OF ──
+        # The seasons read is issued for every address — the kind arrives with
+        # the sheet, after it — so a failure raised its surface under a film
+        # too: « Impossible de charger les saisons de cette fiche » beside
+        # « Possédé oui » and a file name, with a retry re-asking the seasons of
+        # a film. A backend answering 404 there would have shown it under every
+        # owned film.
+        context, page, errors = await cold_load(
+            browser, await address_of(browser, FILM_TITLE),
+            thin=False, fail_seasons=True, title=FILM_TITLE)
+        await page.evaluate("()=>window.__mocks.quiet()")
+        await page.wait_for_timeout(400)
+        film = await page.evaluate(READ)
+        journal.check(
+            "(e-vi) a FILM whose seasons read failed is told nothing about "
+            "seasons — the surface is drawn for what has them",
+            film["open"] and not film["failed"],
+            f"error surface drawn on {FILM_TITLE!r}: {film['failed']}; "
+            f"it says {' '.join(film['errorText'].split())[:80]!r}")
+        journal.check("no JS error on the film walk", not errors, str(errors))
         await context.close()
 
         # ─── (f) A PARTIAL PLACEHOLDER, where field by field is the question ─
