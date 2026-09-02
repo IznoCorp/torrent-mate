@@ -253,6 +253,16 @@ READ = """() => {
     completeness: screen
       ? /Compl[ée]tude[ ]*0[ ]*%/.test(screen.textContent || '') : false,
     failed: !!(screen && screen.querySelector('[data-part="surface-error"]')),
+    // WHAT THE FAILURE SAYS, and not merely that it is drawn. The shared body
+    // is a sentence about a TIMEOUT; a read that came back 502 with its reason
+    // in hand is not a timeout, and « the surface is present » cannot tell the
+    // two apart.
+    errorText: screen
+      ? ((screen.querySelector('[data-part="surface-error"]') || {}).textContent || '')
+      : '',
+    errorDetail: screen
+      ? ((screen.querySelector('[data-part="surface-error/detail"]') || {}).textContent || '')
+      : '',
     busy: !!(screen && screen.querySelector('[aria-busy="true"]')),
     // BUTTONS, not children: in flight the one child is a skeleton, so « at
     // most one child » is satisfied by one real button just as well — and one
@@ -317,7 +327,24 @@ async def cold_load(browser, address, thin, fail=False, kept=None, seasons_first
     return context, page, errors
 
 
+def failure_body_from_resources():
+    """The shared error surface's own sentence — the one that asserts a timeout.
+
+    Read from the resource rather than retyped, like every other text this rule
+    refuses: a hold quoting a sentence it typed itself goes green the day the
+    interface's words change.
+
+    Returns:
+        The sentence, whitespace folded as the DOM renders it.
+    """
+    resource = json.loads(
+        (pathlib.Path(__file__).resolve().parent.parent
+         / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8"))
+    return " ".join(resource["surfaces"]["error"]["body"].split())
+
+
 ASSERTIONS = assertions_from_resources()
+TIMEOUT_SENTENCE = failure_body_from_resources()
 # Refused only while the sheet's own read is out: once it lands, or once it
 # fails and the screen falls back on what the tap knew, the kind is a fact.
 KIND_WORDS = kind_words_from_resources()
@@ -476,6 +503,14 @@ async def main():
             f"read {retry_state} — a failure count above zero is the query "
             f"having been asked again and failed again, which is what a retry "
             f"against a server still answering 502 does")
+        journal.check(
+            "(e-ii) and the failure says what the SERVER said, not a sentence "
+            "about a timeout over a server that answered",
+            broken["errorDetail"].strip() != ""
+            and " ".join(broken["errorText"].split()).find(TIMEOUT_SENTENCE) < 0,
+            f"detail on the surface: {broken['errorDetail'][:80]!r}; the "
+            f"timeout sentence present: "
+            f"{TIMEOUT_SENTENCE in ' '.join(broken['errorText'].split())}")
         journal.check("no JS error on the failed walk", not errors, str(errors))
         await context.close()
 
