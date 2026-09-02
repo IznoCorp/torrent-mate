@@ -3,11 +3,13 @@
 // underneath when the numbers are known.
 import { useTranslation } from "react-i18next";
 import { useMediaReference } from "./reference";
+import { SkeletonLine } from "../../ui/state-surfaces";
 import { factsPanel } from "../../ui/variants";
 import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields";
 
 export function SeasonList({
   sheet,
+  sheetInFlight,
   seasons,
   owns,
   catalog,
@@ -18,6 +20,13 @@ export function SeasonList({
   owns: boolean;
   catalog: CatalogSeason[];
   title: string;
+  /**
+   * Whether the SHEET's read is still out. The rows come from the seasons read
+   * and the episode lists from the sheet, which are two queries: with the
+   * seasons landed and the sheet not, « Épisodes non détaillés pour cette
+   * saison » is said about a list still on its way.
+   */
+  sheetInFlight: boolean;
 }) {
   const {
     ownedFor,
@@ -156,6 +165,10 @@ export function SeasonList({
               ""
             )}
           </>
+        ) : sheetInFlight ? (
+          <p className="noinfo" style={{ marginTop: "8px" }}>
+            <SkeletonLine width="half" />
+          </p>
         ) : row.aired === 0 || row.aired === null ? (
           <p className="noinfo" data-part="no-info" style={{ marginTop: "8px" }}>
             {t("screens.media.seasonAnnounced")}

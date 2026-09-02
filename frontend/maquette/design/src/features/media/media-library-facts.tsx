@@ -21,6 +21,7 @@ export function MediaLibraryFacts({
   catalogEp,
   title,
   seasonsInFlight,
+  sheetInFlight,
 }: {
   sheet: (MediaSheet & MediaSheetFields) | null;
   isFilm: boolean;
@@ -35,6 +36,8 @@ export function MediaLibraryFacts({
   title: string;
   /** Whether the seasons' read is still out — a missing count is then a skeleton, never « inconnu ». */
   seasonsInFlight: boolean;
+  /** Whether the SHEET's read is still out — the season list's episode lists come from it. */
+  sheetInFlight: boolean;
 }) {
   const { baseTitle } = useMediaReference();
   const { t } = useTranslation();
@@ -105,7 +108,11 @@ export function MediaLibraryFacts({
             </div>
             <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.media.ownedPlural")}</span>
-              <span>{own}</span>
+              {/* A NUMBER IS AN ASSERTION TOO. `own` is derived from the
+                  seasons read, so while that read is out it is zero — « you own
+                  none of it », printed between two lines that say they do not
+                  know yet. */}
+              <span>{seasonsInFlight ? <SkeletonLine width="short" /> : own}</span>
             </div>
             <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.media.completeness")}</span>
@@ -122,6 +129,7 @@ export function MediaLibraryFacts({
         )}
       </div>
       <SeasonList
+        sheetInFlight={sheetInFlight}
         sheet={sheet}
         seasons={seasons}
         owns={owns}

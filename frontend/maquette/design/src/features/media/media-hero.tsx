@@ -44,9 +44,29 @@ export function MediaHero({
         <div className={heroText()} data-part="hero/content">
           <h2 className={heroTitle()} data-part="hero/title">{title.split(" (")[0]}</h2>
           <p className={heroMeta()}>
-            {sheet
-              ? `${sheet.y || t("screens.media.yearUnknown")} · ${isFilm ? t("common.film") : t("common.series")}${sheet.duree ? ` · ${sheet.duree} ${t("screens.media.minutesShort")}` : ""}`
-              : inFlight ? <SkeletonLine width="half" /> : t("screens.media.metadataUnknown")}{" "}
+            {/* FIELD BY FIELD, NEVER BLOCK BY BLOCK, and this line is where the
+                difference shows. Gated on the whole sheet being null, a
+                placeholder carrying the title and not the year printed « année
+                inconnue · Série » — an assertion about the KIND of a medium
+                whose kind is in flight, in the wave that forbids exactly that.
+                The year, the kind and the runtime are three separate answers,
+                and each waits for its own. */}
+            {sheet?.y || sheet?.k || !inFlight ? (
+              <>
+                {sheet?.y || (inFlight ? <SkeletonLine width="short" /> : t("screens.media.yearUnknown"))}
+                {" · "}
+                {sheet?.k
+                  ? isFilm
+                    ? t("common.film")
+                    : t("common.series")
+                  : inFlight
+                    ? <SkeletonLine width="short" />
+                    : t("common.series")}
+                {sheet?.duree ? ` · ${sheet.duree} ${t("screens.media.minutesShort")}` : ""}
+              </>
+            ) : (
+              <SkeletonLine width="half" />
+            )}{" "}
             {sheet?.g ? (
               <>
                 <br />

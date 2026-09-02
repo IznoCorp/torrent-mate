@@ -1,11 +1,7 @@
-// design/src/screens/media.tsx
-// The centre of the product: legacy `openFiche(title)` (`refonte.html`) — ONE
-// media sheet for every medium — reborn as a real route (`/mediasheet/$title`) and
-// a final component. Markup is TRANSPLANTED, not translated: every tag, class
-// and data-attribute below is the one `refonte.html`'s BLOCK 2 CSS already
-// targets (`.screen`, `.screenbar`, `.herowrap`, `.trailer`, `.cast`,
-// `.eprow`, `.sheetacts`…), so the same stylesheet applies unchanged and the
-// rule harness measures the same geometry it measured on the legacy screen.
+// The centre of the product: ONE media sheet for every medium, at its own
+// address (`/media/:provider/:id`). This file holds the screen — the address,
+// the two reads, what is derived from them, and the composition; each part of
+// the sheet is a component beside it.
 //
 // Fixed order, and the order is the promise: hero → trailer → synopsis →
 // cast → library state (+ seasons) → identifiers → actions. The only
@@ -32,7 +28,7 @@ import { useStoreContent } from "../../lib/store-access";
 import { seasonsHeld, useMediaSeasons, useMediaSheet } from "./queries";
 import { backAction, body as bodyClass, screen, screenBar, scrollport, sectionHeading } from "../../ui/variants";
 import { Icon } from "../../ui/icon";
-import { SkeletonLine } from "../../ui/state-surfaces";
+import { SkeletonLine, SurfaceError } from "../../ui/state-surfaces";
 import { MediaCast } from "./media-cast";
 import { MediaHero } from "./media-hero";
 import { MediaDetails } from "./media-details";
@@ -76,19 +72,24 @@ export function MediaScreen() {
   const follows = (window.__followActions?.all() ?? []) as Follow[];
   const reference = useMediaReference();
   const { t } = useTranslation();
-  const {
-    icons,
-    baseTitle,
-    CAST,
-    trailerIds,
-    initials,
-  } = reference;
+  const { icons, baseTitle, trailerIds } = reference;
 
   // FROM THE CACHE, BY ADDRESS (invariant 4, DOIT-11). The engine looked its
   // sheet up by TITLE out of a fixture keyed by title; the address is the
   // identity, and it is what the request carries.
   const sheetRead = useMediaSheet(provider, id);
-  const sheet = (sheetRead.data ?? null) as (MediaSheet & MediaSheetFields) | null;
+  // WHAT THE TAP KNEW SURVIVES A FAILED READ. The query library drops its
+  // placeholder the moment the read errors — it applies only while `pending` —
+  // so the year, the kind and the cast the screen was showing vanished and the
+  // sheet printed « Métadonnées inconnues » and « le provider n'en fournit
+  // pas » over a server that had answered 502. Those sentences cannot change
+  // when the reality changes, which is the first thing §13 forbids. The
+  // fallback is read from the same source the query primes from, so a failure
+  // costs the reader nothing they already had.
+  const failed = sheetRead.isError;
+  const sheet = (sheetRead.data
+    ?? (failed ? (reference.sheetFor(title) ?? null) : null)) as
+    (MediaSheet & MediaSheetFields) | null;
   // IN FLIGHT is two states, and reading one of them is reading half. With
   // placeholder data the query reports `success` and `isPlaceholderData` while
   // the read is still out; with none — an address no title answers — it
@@ -124,6 +125,15 @@ export function MediaScreen() {
   // add it, not to delete it. Same template, with the only variation reality
   // imposes.
   const owns = sheet?.possede !== false;
+  // IS THERE A MEDIUM AT ALL? With no sheet — a read still out with no
+  // placeholder, or one that failed with nothing to fall back on — ownership is
+  // not false, it is unknown, and « Supprimer » offered for a medium nobody has
+  // identified is the assertion §13 refuses wearing a destructive button.
+  // OWNERSHIP IS KNOWN when the sheet we hold carries it, or when the read has
+  // landed and carries nothing — the fixture's own convention for « owned ». A
+  // placeholder thinned to what a list row knows carries neither, and that is
+  // the case where a destructive button would be an assertion.
+  const identified = sheet !== null && (!inFlight || sheet.possede !== undefined);
   // The FIRST of the two follow tests, and it is deliberately the LOOSE one:
   // it matches on the base title, so « Silo » follows « Silo (2023) ». The
   // « Informations » block below asks the SAME question with a STRICTER test
@@ -175,7 +185,22 @@ export function MediaScreen() {
         </span>
       </div>
       <div className={scrollport()} data-part="viewport">
-        <div className={bodyClass()} data-part="surface/body" data-region="screen-media/body">
+        {/* A SKELETON SAYS « NOT YET » TO AN EYE AND NOTHING AT ALL TO A SCREEN
+            READER, which would otherwise meet a heading followed by silence.
+            `aria-busy` is what says the silence is temporary. */}
+        <div
+          className={bodyClass()}
+          data-part="surface/body"
+          data-region="screen-media/body"
+          aria-busy={inFlight || seasonsInFlight || undefined}
+        >
+          {/* AND THE FAILURE IS SAID, ONCE, WHERE A READER MEETS IT. Keeping
+              what the tap knew is half the answer; the other half is that the
+              screen is not silently stale. It stands above the parts it
+              qualifies and carries the retry every error surface here does. */}
+          {failed ? (
+            <SurfaceError subject={t("screens.media.sheetSubject")} />
+          ) : null}
           <MediaHero title={title} sheet={sheet} isFilm={isFilm} artwork={artwork} trailer={trailer} inFlight={inFlight} />
 
           <div>
@@ -209,9 +234,10 @@ export function MediaScreen() {
             catalogEp={catalogEp}
             title={title}
             seasonsInFlight={seasonsInFlight}
+            sheetInFlight={inFlight}
           />
 
-          <MediaDetails title={title} isFilm={isFilm} owns={owns} followed={followed} follows={follows} prov={prov} inFlight={inFlight} />
+          <MediaDetails title={title} isFilm={isFilm} owns={owns} followed={followed} follows={follows} prov={prov} inFlight={inFlight} identified={identified} />
 
           <div className="note" data-part="note">
             <b>{t("screens.media.noteTitle")}</b> {t("screens.media.noteBody")}

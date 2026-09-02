@@ -15,6 +15,7 @@ export function MediaDetails({
   follows,
   prov,
   inFlight,
+  identified,
 }: {
   title: string;
   isFilm: boolean;
@@ -24,6 +25,8 @@ export function MediaDetails({
   prov: Record<string, string | number>;
   /** Whether the sheet's read is still out — identifiers not yet known are a skeleton row, never an absence. */
   inFlight: boolean;
+  /** Whether a medium was identified at all. With none, ownership is unknown, not false. */
+  identified: boolean;
 }) {
   const { icons } = useMediaReference();
   const { t } = useTranslation();
@@ -78,7 +81,13 @@ export function MediaDetails({
       </div>
 
       <div className={sheetActions({ secondary: true })} data-part="sheet/actions">
-        {owns ? (
+        {!identified ? (
+          // NOTHING IS OFFERED FOR A MEDIUM NOBODY HAS IDENTIFIED. Not the
+          // destructive pair, which would act on an ownership nobody knows, and
+          // not the follow, which would ask the machine to watch a title no
+          // read has confirmed.
+          inFlight ? <SkeletonLine width="half" /> : null
+        ) : owns ? (
           <>
             <button
               className={`sact ${actionButton()}`}

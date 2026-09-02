@@ -293,7 +293,8 @@
       "add": "Ajouter",
       "followVerb": "Suivre",
       "noteTitle": "Un seul gabarit pour tout média.",
-      "noteBody": "Les différences visibles ici sont celles que la nature impose — réalisateur et durée pour un film, créateur, statut et catalogue pour une série. Toute autre différence serait une dérive."
+      "noteBody": "Les différences visibles ici sont celles que la nature impose — réalisateur et durée pour un film, créateur, statut et catalogue pour une série. Toute autre différence serait une dérive.",
+      "sheetSubject": "cette fiche"
     },
     "profile": {
       "back": "Retour",
