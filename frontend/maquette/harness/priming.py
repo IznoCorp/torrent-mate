@@ -355,12 +355,18 @@ READ = """() => {
     // an element whose own text is that word and nothing else — because the
     // word is a substring of « inconnue » and of « Genres inconnus », so a text
     // search cannot tell a bare answer from a sentence containing one.
-    bareUnknown: screen
-      ? [...screen.querySelectorAll('*')].filter((node) => {
-          if (node.children.length) return false;
-          return (node.textContent || '').trim() === window.__bareUnknownWord;
-        }).length
-      : -1,
+    // Counted over TEXT NODES, not elements: the kind's own word sits in a
+    // fragment beside « · » and the year, with no element of its own, so an
+    // element-level reading missed the very site this term was written for.
+    bareUnknown: (() => {
+      if (!screen) return -1;
+      const walker = document.createTreeWalker(screen, NodeFilter.SHOW_TEXT);
+      let found = 0;
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if ((node.nodeValue || '').trim() === window.__bareUnknownWord) found += 1;
+      }
+      return found;
+    })(),
     // THE BAR'S OWN SENTENCE. « média non identifié » is an answer about the
     // medium, and after a failure nobody answered.
     bar: screen
