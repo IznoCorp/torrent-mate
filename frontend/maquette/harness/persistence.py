@@ -42,7 +42,7 @@ WHAT IT DOES NOT READ, said before what it does:
   - Hold (f) reads a PAGE's own nodes — cards, tiles, rows, buttons, pills,
     images, key-value rows — on the named states listed below, and NOT the containers
     the dying engine fills on Découvrir (`#sugitems`, the deck): those are
-    the producers' half of the same defect and belong to the lot that moves
+    the producers' half of the same defect and belong to the wave that moves
     the producers. Nor a write that legitimately redraws — entering selection
     mode, a sort, a delete: the bump driven is `touch()`, which changes no
     row. And not `features/maintenance/page.tsx`, where the defect was first
@@ -75,7 +75,7 @@ CAPTURE = """() => {
 # `{ __html }` recreated its children on every render (B-295, `ui/markup.tsx`);
 # and the library's window was keyed on the store's version, so every bump
 # emptied it. The states below cover the two acquisition tabs React draws,
-# the library in both modes, and the two screens this lot cut; a floor on the
+# the library in both modes, and the two screens over a page; a floor on the
 # nodes captured keeps a state that draws nothing from passing as kept.
 # THE GROUPED FOLLOWS ARE HERE BECAUSE THE MEASUREMENT THAT OPENED THIS SUBJECT
 # NAMED THEM — 12 nodes of 77 kept — and the first version of this hold drove the
@@ -323,7 +323,7 @@ async def main():
         await page.wait_for_timeout(200)
 
         # (f) THE PAGE'S OWN NODES, across the same bump, on every surface the
-        # lot that repaired them cut. `isSameNode` by position, as (b) does: a
+        # surfaces repaired here. `isSameNode` by position, as (b) does: a
         # replacement node satisfies every other question.
         # BOTH DOORS, and driving one of them was reading half. `touch()` bumps
         # `version` alone, so a surface subscribed to `version` re-renders and a

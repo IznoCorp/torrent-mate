@@ -86,7 +86,7 @@ KEPT = ["t"]
 # alone cannot tell a line gated on the WHOLE sheet from a line gated per field.
 # With the year known and the kind not, the two answers are separable, and a
 # screen that prints « Série » for a kind it has not got says so out loud. That
-# defect was live in this wave until a reader found it by reading; the mutation
+# defect was live until a reader found it by reading; the mutation
 # for it passes over the lean walk and falls here.
 KEPT_PARTIAL = ["y"]
 # Long enough that every reading below is taken with the read still out under

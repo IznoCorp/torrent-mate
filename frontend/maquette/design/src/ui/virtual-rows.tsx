@@ -364,12 +364,10 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
           ? [...held.node.querySelectorAll(focusable)].indexOf(active as Element)
           : -1;
         const focused = held.node.contains(active);
-        if (!held.node.isConnected) {
-          // A node the document no longer holds cannot be replaced — the call
-          // is a silent no-op and the map would keep a dead node until its
-          // index left the window. Insert it as a new row instead.
-          live.delete(index);
-        } else {
+        // The detached case is taken above, before the unchanged-markup skip,
+        // so a row that left the document is re-inserted whether or not its
+        // string moved.
+        {
           held.node.replaceWith(node);
           live.set(index, { node, markup });
           if (focused) {

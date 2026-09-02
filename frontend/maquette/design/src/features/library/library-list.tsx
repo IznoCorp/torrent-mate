@@ -82,7 +82,7 @@ export function LibraryList(): ReactElement {
   // the whole of it now: whether one is in flight, whether the last one failed,
   // and how many have landed. What is left here is the ASKING.
   //
-  // WHAT WENT WITH IT, and it is the point of the phase. The 620 ms delay and
+  // WHAT WENT WITH IT, and it is the point. The 620 ms delay and
   // the « fail once past three pages » were the interface simulating a server
   // it did not have; the delay is the scenario's `setDefaultLatency` and the
   // failure is its `afterCalls`. An interface that decides when its own reads

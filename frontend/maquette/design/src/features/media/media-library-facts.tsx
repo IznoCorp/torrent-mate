@@ -79,7 +79,17 @@ export function MediaLibraryFacts({
           </div>
         </>
       ) : (
-        !owns ? (
+        // AND THE KIND DECIDES THE SHAPE OF THE OWNED BLOCK, so with ownership
+        // known and the kind still out the rows wait rather than take the
+        // series' shape — the same rule one level up.
+        isFilm === null && owns ? (
+          <div className={keyValueRow()} data-part="key-value">
+            <span>{t("screens.media.inLibrary")}</span>
+            <span>
+              {inFlight ? <SkeletonLine width="short" /> : t("screens.media.unknownFeminine")}
+            </span>
+          </div>
+        ) : !owns ? (
           <>
             <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.media.inLibrary")}</span>

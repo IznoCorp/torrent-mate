@@ -48,7 +48,7 @@ export function MediaCast({
             )}
           </span>
           <span>
-            {(isFilm ? sheet?.real : sheet?.crea) ??
+            {(isFilm === false ? sheet?.crea : isFilm ? sheet?.real : (sheet?.real ?? sheet?.crea)) ??
               (inFlight ? <SkeletonLine width="short" /> : t("screens.media.unknown"))}
           </span>
         </div>
@@ -60,10 +60,15 @@ export function MediaCast({
           data-noswipe=""
           tabIndex={0}
           role="group"
+          // THE LABEL A SCREEN READER HEARS IS THE KIND TOO, and with the
+          // kind unknown the honest name is the section's subject rather than
+          // a guess at which of the two it is.
           aria-label={
-            isFilm === false
-              ? t("screens.media.castHeadingSeries")
-              : t("screens.media.castHeadingFilm")
+            isFilm === null
+              ? t("screens.media.unknown")
+              : isFilm
+                ? t("screens.media.castHeadingFilm")
+                : t("screens.media.castHeadingSeries")
           }
         >
           {sheet.cast.map((cast) => (

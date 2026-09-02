@@ -106,9 +106,11 @@ export function MediaDetails({
         ) : followed ? (
           <button className={`mediaadd done ${actionButton()}`} data-part="media/add" disabled>
             <Icon paths={icons.check} />
-            {isFilm
-              ? t("screens.media.added")
-              : t("screens.media.followed")}
+            {isFilm === false
+              ? t("screens.media.followed")
+              : isFilm
+                ? t("screens.media.added")
+                : t("screens.media.unknown")}
           </button>
         ) : (
           // No sheet-refresh attribute: the legacy button asked the sheet to
@@ -123,9 +125,11 @@ export function MediaDetails({
             data-fkind={isFilm ? "Film" : "Série"}
           >
             <Icon paths={icons.plus} />
-            {isFilm
-              ? t("screens.media.add")
-              : t("screens.media.followVerb")}
+            {isFilm === false
+              ? t("screens.media.followVerb")
+              : isFilm
+                ? t("screens.media.add")
+                : t("screens.media.unknown")}
           </button>
         )}
       </div>

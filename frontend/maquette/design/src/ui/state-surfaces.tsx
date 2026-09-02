@@ -100,7 +100,7 @@ export function SkeletonLine({
  * reason in hand: a constant that cannot change when the reality does is the
  * first thing §13 forbids, and an error surface is not exempt.
  *
- * AN `onRetry` PROP WAS WRITTEN AND TAKEN BACK IN AN EARLIER PHASE. It made the
+ * AN `onRetry` PROP WAS WRITTEN AND TAKEN BACK ONCE BEFORE. It made the
  * library's surface write `phase` — a SERVER-STATE key — from a component, and
  * `check-state-ownership.py --arm server-state` refused it: the component share
  * went 4 → 5 against the ceiling in force that day, which is what a component
@@ -128,17 +128,28 @@ export function SurfaceError({ subject, detail, onRetry }: {
   return (
     <div className={surfaceError()} data-part="surface-error" role="alert">
       <b>{t("surfaces.error.lead", { subject })}</b>
-      {detail ? (
+      {/* PRESENCE, NOT TRUTHINESS. A failure whose reason is an empty string is
+          still a failure that ANSWERED, and falling back on the timeout sentence
+          there says the opposite of what happened. */}
+      {detail !== undefined ? (
         <span data-part="surface-error/detail">{detail}</span>
       ) : (
         t("surfaces.error.body")
       )}
-      <button
-        data-part="surface-error/retry"
-        {...(onRetry ? { onClick: onRetry } : { "data-phase": "ready" })}
-      >
-        {t("surfaces.error.retry")}
-      </button>
+      {/* TWO LITERAL ELEMENTS, not one with a spread. The markup guard SKIPS an
+          element whose props are spread, so the contract this button carries —
+          its part name, and the delegation attribute it wears only when no
+          caller re-asks — sat outside the guard that exists to read exactly
+          that. */}
+      {onRetry ? (
+        <button data-part="surface-error/retry" onClick={onRetry}>
+          {t("surfaces.error.retry")}
+        </button>
+      ) : (
+        <button data-part="surface-error/retry" data-phase="ready">
+          {t("surfaces.error.retry")}
+        </button>
+      )}
     </div>
   );
 }
