@@ -104,7 +104,7 @@ MOUNT_DEADLINE_MILLISECONDS = 1500
 # floor: a wrong number here is loud, where a floor is silent.
 SKELETONS_EXPECTED = 14
 
-INTERCEPT = """({ title, kept, latency, thin, fail }) => {
+INTERCEPT = """({ title, kept, latency, thin, fail, seasonsFirst }) => {
   let reference;
   Object.defineProperty(window, '__referentiel', {
     configurable: true,
@@ -135,6 +135,11 @@ INTERCEPT = """({ title, kept, latency, thin, fail }) => {
       // answer normally, so what is measured is a screen whose sheet failed
       // rather than a page with no server at all.
       if (fail) value.setOperationOutcome('readMediaSheet', { status: 502, latencyMilliseconds: 0 });
+      // THE TWO READS LAND APART, which is the only arrangement where the
+      // season list's own question can be asked: its rows come from the seasons
+      // and its episode lists from the sheet. With one latency for both they
+      // arrive together and the interval does not exist to be measured.
+      if (seasonsFirst) value.setOperationOutcome('readMediaSeasons', { latencyMilliseconds: 0 });
     },
   });
 }"""
@@ -218,7 +223,7 @@ async def address_of(browser):
     return f"{PROTOTYPE}media/{ids['provider']}/{ids['id']}"
 
 
-async def cold_load(browser, address, thin, fail=False, kept=None):
+async def cold_load(browser, address, thin, fail=False, kept=None, seasons_first=False):
     """Opens the sheet cold with the two seams intercepted from the first byte.
 
     Args:
@@ -227,12 +232,14 @@ async def cold_load(browser, address, thin, fail=False, kept=None):
         thin: Whether to thin the placeholder to what a list row carries.
         fail: Whether the sheet's own read answers with a failure.
         kept: Which fields the thinned placeholder keeps. `KEPT` by default.
+        seasons_first: Whether the seasons answer at once while the sheet waits.
     """
     context = await browser.new_context(**PHONE)
     await context.add_init_script(
         f"({INTERCEPT})({{ title: {TITLE!r}, kept: {(kept or KEPT)!r}, "
         f"latency: {LATENCY_MILLISECONDS}, thin: {'true' if thin else 'false'}, "
-        f"fail: {'true' if fail else 'false'} }})")
+        f"fail: {'true' if fail else 'false'}, "
+        f"seasonsFirst: {'true' if seasons_first else 'false'} }})")
     page = await context.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
@@ -401,6 +408,29 @@ async def main():
             f"printed: {[word for word in KIND_WORDS if word in partial['text']]}; "
             f"{partial['skeletons']} skeleton(s) for {partial['parts']}")
         journal.check("no JS error on the partial walk", not errors, str(errors))
+        await context.close()
+
+        # ─── (g) THE SEASONS LAND FIRST, and the sheet is still out ────────
+        # The season list's rows come from the seasons read and its episode
+        # lists from the sheet — two queries. Sharing one latency they arrive
+        # together, so « Épisodes non détaillés pour cette saison », said about
+        # a list still on its way, has no interval to be seen in. This walk
+        # makes the interval, which is what a reader could only predict.
+        context, page, errors = await cold_load(
+            browser, address, thin=True, seasons_first=True)
+        apart = await page.evaluate(READ)
+        seasons_drawn = await page.evaluate(
+            "()=>document.querySelectorAll('[data-part=\"season\"]').length")
+        journal.check(
+            "(g) with the seasons landed and the sheet still out, the season "
+            "rows are drawn and say NOTHING about the episode lists they have "
+            "not got",
+            apart["open"] and apart["inFlight"] > 0 and seasons_drawn > 0
+            and not [answer for answer in ASSERTIONS if answer in apart["text"]],
+            f"{seasons_drawn} season row(s) drawn, {apart['skeletons']} "
+            f"skeleton(s); printed: "
+            f"{[answer for answer in ASSERTIONS if answer in apart['text']]}")
+        journal.check("no JS error on the split-latency walk", not errors, str(errors))
         await context.close()
         await browser.close()
     journal.summary()
