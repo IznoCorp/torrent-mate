@@ -55,8 +55,14 @@ method is exercised on 430 lines before it meets 796.
 
 ## What this plan does not do, and why
 
-- **It does not open `app/shell.tsx`** (398 of 400) nor either of the engine's two files. Nothing
-  here needs them; recorded so « we looked and it was unnecessary » is not read as « nobody looked ».
+- **It does not open `app/shell.tsx`** (398 of 400). Nothing here needs it; recorded so « we looked
+  and it was unnecessary » is not read as « nobody looked ».
+- **It did not plan to open either of the engine's two files, AND IT OPENED BOTH** — under review,
+  at rounds 5 and 6, for defects in the surface this lot owns: a bulk delete that destroyed media
+  the reader had not ticked, a dialog that undercounted what it was about to remove, and the named
+  selection state's seed. The deviation is recorded in `plan/phase-07` with the readings that
+  forced it. It is written here rather than left in the report because this is the paragraph a
+  reader consults for what was not touched.
 - **It does not move a producer, an engine-side gesture caller (L19), or the ladder's handler
   (L13).** `discover-tab.tsx` carries the containers and the fill effect as they are (D-L14-9).
 - **It does not claim the instruments' debts** (D-L14-10): no phase opens `served_copy.py`,

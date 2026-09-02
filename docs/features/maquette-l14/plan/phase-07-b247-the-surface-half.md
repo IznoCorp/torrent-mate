@@ -59,6 +59,17 @@ B-247's surface half, B-295`), then the rule (`test(maquette-l14): R100 (f) …`
   is another. The behaviour did not change with the split — the hook holds the code that stood in
   `virtual-rows.tsx`, verbatim, and a reader diffed it to confirm — and it changed afterwards, when
   the ordering defect the split made visible was repaired inside it.
+- **THE ENGINE'S TWO FILES WERE OPENED, and the plan said they would not be.** Under review, at
+  rounds 5 and 6, for defects in the surface this lot owns and nowhere else. `engine/legacy.js`:
+  the library's selection was a set of positions IN THE LISTING ON SCREEN read as indexes into the
+  source, so a bulk delete taken under any order but the source's named and destroyed media the
+  reader had not ticked — it is keyed by title now, dropped where the question is written, and the
+  delete dialog counts the media each title names, because six titles in this library name two each
+  and the manifest said one file while two left. `engine/states.js`: the named selection state
+  seeded three POSITIONS, which had to become the three titles with the set. Both are a wrong key
+  replaced by the right one; neither adds a drawing, and the oracle reads no divergence. The
+  operator may overrule it — a wrong deletion was judged not to be a thing to file for later, and
+  D-L14-8's « only subtracted from » is the sentence it bends.
 - **The reader's PLACE across a pitch change is this phase's, and it was not in the plan at all.**
   The window is re-measured when the row pitch moves; a reader's place has to survive that, and
   three review rounds were spent finding what « a place » is: the first VISIBLE line, not the first
