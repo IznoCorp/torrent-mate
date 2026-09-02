@@ -603,7 +603,7 @@ async def hold_a_bulk_delete_names_what_was_ticked(journal, browser):
     await page.click('[data-delsel="1"]')
     await page.wait_for_timeout(600)
     named = await page.evaluate("""() => {
-      const dialog = document.querySelector('[data-part="dialog"], .dlg');
+      const dialog = document.querySelector('[data-part="dialog"]');
       return dialog ? dialog.textContent : '';
     }""")
     journal.check(
@@ -615,7 +615,7 @@ async def hold_a_bulk_delete_names_what_was_ticked(journal, browser):
         f"{' '.join(named.split())[:160]!r}")
 
     confirmed = await page.evaluate("""(titles) => {
-      const buttons = [...document.querySelectorAll('[data-part="dialog"] button, .dlg button')];
+      const buttons = [...document.querySelectorAll('[data-part="dialog/button"]')];
       const destructive = buttons.find((button) => button.dataset.tone === 'danger')
         || buttons[buttons.length - 1];
       if (!destructive) return { pressed: false };
