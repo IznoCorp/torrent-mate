@@ -157,10 +157,31 @@ def analyze(conn: sqlite3.Connection) -> AnalysisResult:
     # indexed item.  No release linkage and no dispatch_path → the
     # item is skipped from top_largest only (still counted everywhere else).
     rows = conn.execute(
+        # Both release LEVELS, because a work's files hang off either one: a
+        # movie's video from an ITEM-level release, a series' episodes from
+        # EPISODE-level ones. Joining ``mr.item_id = m.id`` alone — which is what
+        # this branch did — can never reach an episode file: ``media_release``'s
+        # own CHECK makes ``item_id`` NULL exactly when ``episode_id`` is set. So
+        # every series was ranked by the weight of its root sidecars, and the
+        # fallback branch below could not rescue it either, being guarded on the
+        # ABSENCE of an item-level release — which a show has as soon as one
+        # ``tvshow.nfo`` is indexed.
+        #
+        # It stayed invisible because a dispatch write-through bug filed one row
+        # per media folder, at item level, carrying that folder's whole recursive
+        # size — accidentally supplying the number this query could not compute.
+        # Retiring those rows is what exposed it.
+        #
+        # The two-step join (release → episode → season) is the shape
+        # ``_collect_files_for_item`` already uses for the same question; the
+        # COALESCE picks whichever level owns the file, so each file is counted
+        # exactly once.
         "SELECT m.title AS title, SUM(mf.size_bytes) AS bytes "
-        "FROM media_item m "
-        "INNER JOIN media_release mr ON mr.item_id = m.id "
-        "INNER JOIN media_file mf ON mf.release_id = mr.id "
+        "FROM media_file mf "
+        "INNER JOIN media_release mr ON mr.id = mf.release_id "
+        "LEFT JOIN episode e ON e.id = mr.episode_id "
+        "LEFT JOIN season s ON s.id = e.season_id "
+        "INNER JOIN media_item m ON m.id = COALESCE(mr.item_id, s.item_id) "
         "WHERE mf.deleted_at IS NULL "
         "GROUP BY m.id "
         "UNION ALL "

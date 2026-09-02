@@ -661,3 +661,195 @@ class TestAnalyzeFromIndexExtraBranches:
 
         result = analyze_from_index(conn)
         assert result.item_count == 0
+
+
+class TestTopLargestCountsEpisodeFiles:
+    """A TV show's size is its EPISODES, and the ranking never counted them.
+
+    ``top_largest``'s first branch joins ``media_release mr ON mr.item_id = m.id``
+    — item-level releases only. An episode file's release carries ``episode_id``
+    and, by the table's own CHECK, a NULL ``item_id``: it can never satisfy that
+    join. The fallback branch cannot rescue it either, being guarded on
+    ``NOT EXISTS (media_release WHERE item_id = m.id)`` — and a show almost always
+    HAS an item-level release, because its root sidecars (``tvshow.nfo``,
+    ``poster.jpg``) link to one.
+
+    So every series in the library was ranked by the weight of its sidecars.
+    The defect stayed invisible for four months because a dispatch write-through
+    bug happened to file one row per media folder carrying that folder's whole
+    recursive size, at ITEM level — accidentally supplying the number the query
+    could not compute. Removing the phantom rows is what exposed this.
+    """
+
+    @staticmethod
+    def _seed_show_with_episode_file(conn: sqlite3.Connection, *, title: str, size_bytes: int) -> None:
+        """Seed a show whose only media file hangs off an EPISODE-level release."""
+        import time
+
+        now = int(time.time())
+        cur = conn.execute(
+            "INSERT INTO disk (uuid, label, mount_path, last_seen_at, merkle_root, is_mounted, unreachable_strikes) "
+            "VALUES (?, ?, ?, ?, NULL, 1, 0)",
+            (f"uuid-{title}", f"D-{title}", f"/Volumes/{title}", now),
+        )
+        disk_id = cur.lastrowid
+        cur = conn.execute(
+            "INSERT INTO path (disk_id, rel_path, dir_mtime_ns, last_walked_at) VALUES (?, ?, NULL, NULL)",
+            (disk_id, f"series/{title}/Saison 01"),
+        )
+        path_id = cur.lastrowid
+
+        item_id = _seed_media_item(conn, kind="show", title=title, category_id="tv_shows")
+        season_id = _seed_season(conn, item_id=item_id, number=1)
+        cur = conn.execute("INSERT INTO episode (season_id, number, title) VALUES (?, 1, 'E1')", (season_id,))
+        episode_id = cur.lastrowid
+        cur = conn.execute(
+            "INSERT INTO media_release (item_id, episode_id, quality, edition, primary_lang) "
+            "VALUES (NULL, ?, NULL, NULL, NULL)",
+            (episode_id,),
+        )
+        release_id = cur.lastrowid
+        conn.execute(
+            "INSERT INTO media_file (release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns, "
+            " oshash, xxh3_partial, xxh3_full, scan_generation, last_verified_at, enriched_at, "
+            " miss_strikes, deleted_at) "
+            "VALUES (?, ?, 'S01E01.mkv', ?, 0, NULL, NULL, NULL, NULL, 1, ?, ?, 0, NULL)",
+            (release_id, path_id, size_bytes, now, now),
+        )
+
+    def test_a_show_is_ranked_by_its_episodes(self) -> None:
+        """The ranking must carry the show, at the weight of its episode files."""
+        conn = _make_conn()
+        self._seed_show_with_episode_file(conn, title="Silo", size_bytes=8 * 1024**3)
+
+        result = analyze(conn)
+
+        ranked = dict(result.top_largest)
+        assert "Silo" in ranked, (
+            f"a show whose files hang off EPISODE-level releases must be ranked, got {result.top_largest}"
+        )
+        assert ranked["Silo"] == 8.0, f"expected the episode file's 8.0 GiB, got {ranked['Silo']}"
+
+    def test_a_movie_is_still_ranked_by_its_item_level_release(self) -> None:
+        """The movie path is untouched — item-level releases keep counting once."""
+        import time
+
+        conn = _make_conn()
+        now = int(time.time())
+        cur = conn.execute(
+            "INSERT INTO disk (uuid, label, mount_path, last_seen_at, merkle_root, is_mounted, unreachable_strikes) "
+            "VALUES ('uuid-m', 'D-m', '/Volumes/M', ?, NULL, 1, 0)",
+            (now,),
+        )
+        disk_id = cur.lastrowid
+        cur = conn.execute(
+            "INSERT INTO path (disk_id, rel_path, dir_mtime_ns, last_walked_at) VALUES (?, 'films/F', NULL, NULL)",
+            (disk_id,),
+        )
+        path_id = cur.lastrowid
+        item_id = _seed_media_item(conn, kind="movie", title="Dune", category_id="movies")
+        cur = conn.execute(
+            "INSERT INTO media_release (item_id, episode_id, quality, edition, primary_lang) "
+            "VALUES (?, NULL, NULL, NULL, NULL)",
+            (item_id,),
+        )
+        release_id = cur.lastrowid
+        conn.execute(
+            "INSERT INTO media_file (release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns, "
+            " oshash, xxh3_partial, xxh3_full, scan_generation, last_verified_at, enriched_at, "
+            " miss_strikes, deleted_at) "
+            "VALUES (?, ?, 'Dune.mkv', ?, 0, NULL, NULL, NULL, NULL, 1, ?, ?, 0, NULL)",
+            (release_id, path_id, 4 * 1024**3, now, now),
+        )
+
+        ranked = dict(analyze(conn).top_largest)
+
+        assert ranked["Dune"] == 4.0, f"a movie must be counted exactly once, got {ranked.get('Dune')}"
+
+    def test_a_show_counts_its_episodes_AND_its_root_sidecars_exactly_once(self) -> None:
+        """Both release levels belong to the same show; neither may be double-counted."""
+        import time
+
+        conn = _make_conn()
+        self._seed_show_with_episode_file(conn, title="Silo", size_bytes=8 * 1024**3)
+        now = int(time.time())
+        item_id = conn.execute("SELECT id FROM media_item WHERE title = 'Silo'").fetchone()[0]
+        disk_id = conn.execute("SELECT id FROM disk WHERE label = 'D-Silo'").fetchone()[0]
+        cur = conn.execute(
+            "INSERT INTO path (disk_id, rel_path, dir_mtime_ns, last_walked_at) VALUES (?, 'series/Silo', NULL, NULL)",
+            (disk_id,),
+        )
+        root_path_id = cur.lastrowid
+        cur = conn.execute(
+            "INSERT INTO media_release (item_id, episode_id, quality, edition, primary_lang) "
+            "VALUES (?, NULL, NULL, NULL, NULL)",
+            (item_id,),
+        )
+        sidecar_release = cur.lastrowid
+        conn.execute(
+            "INSERT INTO media_file (release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns, "
+            " oshash, xxh3_partial, xxh3_full, scan_generation, last_verified_at, enriched_at, "
+            " miss_strikes, deleted_at) "
+            "VALUES (?, ?, 'tvshow.nfo', ?, 0, NULL, NULL, NULL, NULL, 1, ?, ?, 0, NULL)",
+            (sidecar_release, root_path_id, 1024**3, now, now),
+        )
+
+        ranked = dict(analyze(conn).top_largest)
+
+        assert ranked["Silo"] == 9.0, f"expected 8 GiB of episodes + 1 GiB of sidecar, got {ranked.get('Silo')}"
+
+    def test_a_soft_deleted_episode_file_is_not_ranked(self) -> None:
+        """The tombstoned half of the library never counts, at either level."""
+        conn = _make_conn()
+        self._seed_show_with_episode_file(conn, title="Silo", size_bytes=8 * 1024**3)
+        conn.execute("UPDATE media_file SET deleted_at = 1 WHERE filename = 'S01E01.mkv'")
+
+        ranked = dict(analyze(conn).top_largest)
+
+        assert "Silo" not in ranked, f"a show with only tombstoned files must not be ranked, got {ranked}"
+
+    def test_the_two_branches_stay_disjoint(self) -> None:
+        """Widening branch 1 must not make branch 2 count the same bytes again.
+
+        The fallback branch matches files by ``dispatch_path`` and is guarded on
+        the absence of an ITEM-level release. A show with only EPISODE-level
+        releases now passes that guard AND is reached by branch 1, so the two
+        must touch disjoint files: branch 1 the episodes (which live under
+        ``Saison NN``), branch 2 the unlinked root sidecar.
+        """
+        import time
+
+        conn = _make_conn()
+        self._seed_show_with_episode_file(conn, title="Silo", size_bytes=8 * 1024**3)
+        now = int(time.time())
+        item_id = conn.execute("SELECT id FROM media_item WHERE title = 'Silo'").fetchone()[0]
+        disk_id = conn.execute("SELECT id FROM disk WHERE label = 'D-Silo'").fetchone()[0]
+        mount = conn.execute("SELECT mount_path FROM disk WHERE id = ?", (disk_id,)).fetchone()[0]
+        cur = conn.execute(
+            "INSERT INTO path (disk_id, rel_path, dir_mtime_ns, last_walked_at) VALUES (?, 'series/Silo', NULL, NULL)",
+            (disk_id,),
+        )
+        root_path_id = cur.lastrowid
+        # The two attributes the fallback branch joins on.
+        conn.execute(
+            "INSERT INTO item_attribute (item_id, key, value) VALUES (?, 'dispatch_path', ?)",
+            (item_id, f"{mount}/series/Silo"),
+        )
+        conn.execute(
+            "INSERT INTO item_attribute (item_id, key, value) VALUES (?, 'dispatch_disk', 'D-Silo')",
+            (item_id,),
+        )
+        # A root sidecar the linker never attached to any release.
+        conn.execute(
+            "INSERT INTO media_file (release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns, "
+            " oshash, xxh3_partial, xxh3_full, scan_generation, last_verified_at, enriched_at, "
+            " miss_strikes, deleted_at) "
+            "VALUES (NULL, ?, 'tvshow.nfo', ?, 0, NULL, NULL, NULL, NULL, 1, ?, ?, 0, NULL)",
+            (root_path_id, 1024**3, now, now),
+        )
+
+        ranked = dict(analyze(conn).top_largest)
+
+        assert ranked["Silo"] == 9.0, (
+            f"expected 8 GiB of episodes (branch 1) + 1 GiB of unlinked sidecar (branch 2), got {ranked.get('Silo')}"
+        )
