@@ -357,29 +357,22 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   // moved the port 368 px on top of the restore. Drawn first, the scroll is the
   // last word of the commit.
   //
-  // AND ANCHORING IS HELD OFF FOR THE FRAME THE SWAP TAKES. The next draw pass
-  // replaces the rows above the reader with the ones the new offset asks for,
-  // which is precisely what anchoring exists to compensate — here it is
-  // compensating for a move the reader asked for.
-  const anchorHeld = useRef<string | null>(null);
+  // AND THE PORT'S `overflow-anchor` IS LEFT ALONE, which was not the first
+  // answer. Holding anchoring off for the frame the swap takes was written
+  // beside this, on the reasoning that the next draw replaces the rows above
+  // the reader and anchoring would compensate for a move they asked for. Built
+  // both ways and measured over the eight walks — the two mode changes, the
+  // gallery switch, the end of the list, a page landing mid-selection, a sort,
+  // a search and a bulk delete — the reader's row and the port's offset are
+  // identical to the pixel. Machinery that changes nothing measurable is
+  // machinery nobody can later justify deleting, so it is not kept.
   useLayoutEffect(() => {
     const item = restoreTo.current;
     if (item == null) return;
     restoreTo.current = null;
-    const scroller = scrollElement();
-    if (scroller && anchorHeld.current === null) {
-      anchorHeld.current = scroller.style.overflowAnchor;
-      scroller.style.overflowAnchor = "none";
-    }
     if (item > 0) {
       virtualizer.scrollToIndex(Math.floor(item / activeLanes), { align: "start" });
     }
-    requestAnimationFrame(() => {
-      if (scroller && anchorHeld.current !== null) {
-        scroller.style.overflowAnchor = anchorHeld.current;
-        anchorHeld.current = null;
-      }
-    });
   });
 
 
