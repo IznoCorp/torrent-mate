@@ -524,6 +524,85 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
     await context.close()
 
 
+async def hold_the_list_comes_back_from_selection_mode(journal, browser):
+    """Leaving selection mode at a deep scroll leaves rows on the screen.
+
+    THE DEFECT THIS EXISTS FOR, found by walking the real controls. A selection
+    row is about 60 px against a card's 126, so entering and leaving the mode
+    changes the window's pitch — and the virtualiser memoises its measurements
+    on the options it treats as geometry, which do not include the estimated
+    size. The browse window was then placed with the SELECTION pitch: the
+    leading spacer read 5 620 px, the first row sat 2 807 px below the port, and
+    the library was BLANK. It stayed blank through a scroll in either direction,
+    because scrolling moves no memoised option either.
+
+    IT IS DRIVEN THROUGH THE CONTROLS THE READER PRESSES — « Sélectionner » in
+    the count line and « Terminé » in the selection bar — rather than through a
+    store write, because the defect is what the operator meets and a store write
+    is not what they do.
+
+    WHY DEEP. Near the top the window covers the viewport whatever pitch it was
+    placed with, and the defect is invisible; it appears once the leading spacer
+    is wrong by more than a screen.
+    """
+    context = await browser.new_context(**PHONE)
+    page = await context.new_page()
+    await page.goto(PROTOTYPE, wait_until="load")
+    await page.evaluate("()=>window.__loadingDone?.()")
+    await page.evaluate("()=>document.querySelector('#toastx')?.click()")
+    await page.wait_for_timeout(250)
+    await page.evaluate("(s)=>window.__go(s)", STATE)
+    await page.wait_for_timeout(600)
+    await page.evaluate("()=>window.__libraryNextPage && window.__libraryNextPage()")
+    await page.wait_for_timeout(700)
+    await page.evaluate("()=>{document.querySelector('#port').scrollTop = 3000;}")
+    await page.wait_for_timeout(500)
+
+    # EACH MODE DRAWS ITS OWN ROW. Browsing draws cards; selection draws
+    # `selection/row`, a different element with a different height — which is
+    # the whole reason the pitch moves. A hold reading only the card would
+    # measure « nothing on screen » in selection mode and call it the defect.
+    async def visible(row=ROW):
+        return await page.evaluate("""(row) => {
+          const port = document.querySelector('#port').getBoundingClientRect();
+          const rows = [...document.querySelectorAll(row)];
+          const spacer = document.querySelector('#libitems [data-part="window/spacer"]');
+          return {
+            drawn: rows.length,
+            inView: rows.filter((node) => {
+              const box = node.getBoundingClientRect();
+              return box.bottom > port.top && box.top < port.bottom;
+            }).length,
+            spacer: spacer ? Math.round(spacer.getBoundingClientRect().height) : -1,
+          };
+        }""", row)
+
+    before = await visible()
+    journal.check(
+        "the list draws rows in the viewport at a deep scroll — the subject of "
+        "the two holds below",
+        before["inView"] > 0,
+        f"{before['inView']} of {before['drawn']} row(s) in view, "
+        f"spacer {before['spacer']}px")
+    await page.click('[data-selmode="1"]')
+    await page.wait_for_timeout(600)
+    during = await visible('[data-part="selection/row"]')
+    journal.check(
+        "« Sélectionner » keeps rows on the screen",
+        during["inView"] > 0,
+        f"{during['inView']} of {during['drawn']} in view, spacer {during['spacer']}px")
+    await page.click('[data-selmode="0"]')
+    await page.wait_for_timeout(600)
+    after = await visible()
+    journal.check(
+        "and « Terminé » brings the list back — the window is re-measured when "
+        "the row pitch changes, not left placed with the other mode's",
+        after["inView"] > 0,
+        f"{after['inView']} of {after['drawn']} in view, spacer "
+        f"{after['spacer']}px against {before['spacer']}px before the mode")
+    await context.close()
+
+
 async def hold(journal):
     """Counts the window, then scrolls it with a real finger and counts again."""
     errors = []
@@ -533,6 +612,7 @@ async def hold(journal):
         await hold_rows_keep_their_identity(journal, browser)
         await hold_the_gallery_keeps_its_ORDER(journal, browser)
         await hold_a_deleted_row_leaves_the_screen(journal, browser)
+        await hold_the_list_comes_back_from_selection_mode(journal, browser)
         context = await browser.new_context(**PHONE)
         page = await context.new_page()
         await page.goto(PROTOTYPE, wait_until="load")

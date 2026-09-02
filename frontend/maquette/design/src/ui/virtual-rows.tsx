@@ -207,6 +207,26 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
     overscan: 4,
   });
 
+  // THE MEASUREMENTS ARE RE-TAKEN WHEN THE PITCH MOVES, and nothing else does
+  // it. `@tanstack/virtual-core` memoises `getMeasurements()` on the options it
+  // considers geometry — count, padding, scroll margin, key, lanes, gap — and
+  // `estimateSize` is NOT among them, so a new pitch is read by this component
+  // and ignored by the virtualiser until one of those others moves.
+  //
+  // WHAT THAT COST, measured through the real controls: a selection row is
+  // about 60 px against a card's 126. Enter « Sélectionner » on a list scrolled
+  // past a page and leave it again, and the browse window is placed with the
+  // SELECTION pitch — the spacer reads 5 620 px, the first row sits 2 807 px
+  // below the port, and the library is blank. It stays blank through a scroll
+  // in either direction, because scrolling changes no memoised option either.
+  // Entering the mode looked healthy only because the shorter rows brought the
+  // paging sentinel into view and a page landing moved `count`.
+  const lastPitch = useRef(lineHeight);
+  if (lastPitch.current !== lineHeight) {
+    lastPitch.current = lineHeight;
+    virtualizer.measure();
+  }
+
   const lines = virtualizer.getVirtualItems();
   const firstLine = lines.length ? lines[0].index : 0;
   const lastLine = lines.length ? lines[lines.length - 1].index : -1;
