@@ -25,9 +25,9 @@ each: the reference is wrapped the instant it is published, and the latency is
 set the instant the layer is installed. The boot's own reads are slowed by the
 same latency; the screen does not wait for them.
 
-WHAT IT DRIVES. TEN cold loads, and each one is a walk of its own — the count is
-the number of `cold_load` calls below, and it has been wrong in three documents
-at once by being written down from memory:
+WHAT IT DRIVES. TWELVE cold loads, and each one is a walk of its own — the count
+is the number of `cold_load` calls below, and it has been wrong in three
+documents at once by being written down from memory:
 
   1. a placeholder thinned to the TITLE alone (`KEPT`), the leanest a tap knows;
   2. the prototype's own COMPLETE placeholder, as a control;
@@ -42,7 +42,11 @@ at once by being written down from memory:
   8. the same failure on a FILM, which has no seasons to fail;
   9. a PARTIAL placeholder carrying the year and not the kind, where « field by
      field » is decidable at all;
- 10. one where the seasons land before the sheet.
+ 10. an ownership the layer answers as NULL, which the contract defines as the
+     library database being unavailable — the third value, neither owned nor not;
+ 11. a medium DELETED while its sheet is open, which is the only walk that can
+     say whether the sheet stops claiming to hold it;
+ 12. one where the seasons land before the sheet.
 
 WHAT THE FIRST VERSION OF THIS RULE DID NOT READ, because it is the reason the
 holds below have the shape they have. It counted `[data-skeleton]` against a
