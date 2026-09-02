@@ -23,8 +23,13 @@ export function MediaCast({
   return (
     <div>
       <h2 className={sectionHeading()} data-part="heading" style={{ marginBottom: "8px" }}>
+        {/* A WAIT THAT NEVER ENDS IS NOT A WAIT. With the read landed on
+            nothing — a stale bookmark — the kind is unknown for good, and a
+            shimmering line over it says « any moment now » forever, on a screen
+            whose body is not even marked busy. The hero's own line answers
+            « inconnu » there, and these two must answer the same. */}
         {isFilm === null ? (
-          <SkeletonLine width="half" />
+          inFlight ? <SkeletonLine width="half" /> : t("screens.media.unknown")
         ) : isFilm ? (
           t("screens.media.castHeadingFilm")
         ) : (
@@ -35,7 +40,7 @@ export function MediaCast({
         <div className={keyValueRow()} data-part="key-value">
           <span>
             {isFilm === null ? (
-              <SkeletonLine width="short" />
+              inFlight ? <SkeletonLine width="short" /> : t("screens.media.unknown")
             ) : isFilm ? (
               t("screens.media.director")
             ) : (

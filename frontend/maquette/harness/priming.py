@@ -14,7 +14,7 @@ here no field is ever missing and no assertion is ever printed: a rule that
 reads the full placeholder is green over the defect it is written for — the
 species the register counts most. The real backend's projection carries
 `{t, f}`, and THAT is the case driven here: the reference's `sheetFor` is
-wrapped to answer the title, the kind and the year alone for the sheet under
+wrapped to answer the title alone for the sheet under
 test, and the read is held back through the mock layer's own knob.
 
 HOW THE TWO SEAMS ARE REACHED BEFORE THE SCREEN FIRST RENDERS. A cold load
@@ -24,6 +24,11 @@ published by assignment onto `window`, so an init script defines a SETTER for
 each: the reference is wrapped the instant it is published, and the latency is
 set the instant the layer is installed. The boot's own reads are slowed by the
 same latency; the screen does not wait for them.
+
+WHAT IT DRIVES. Five walks: a placeholder thinned to the TITLE alone (`KEPT`),
+a PARTIAL one carrying the year and not the kind (`KEPT_PARTIAL`, where « field
+by field » is decidable at all), the prototype's own complete placeholder as a
+control, a read that FAILS, and one where the seasons land before the sheet.
 
 WHAT THE FIRST VERSION OF THIS RULE DID NOT READ, because it is the reason the
 holds below have the shape they have. It counted `[data-skeleton]` against a
@@ -102,12 +107,15 @@ MOUNT_DEADLINE_MILLISECONDS = 1500
 # kind of the hero's metadata line — separately, which is what « field by field »
 # means — the genres, the rating, the trailer, the cast section's HEADING and its
 # row LABEL (both are the kind, said in other words), the synopsis, the
-# director's value, the cast strip, the two rows the library block draws while
-# ownership is unknown, the two lines of the identifiers row, and the actions.
-# Seventeen.
+# director's value, the cast strip, the VALUES of the two rows the library block
+# draws while ownership is unknown — the rows name what they are waiting for, so
+# only their answers wait — the two lines of the identifiers row, and the
+# actions. Fifteen, and the rule prints them.
 #
 # The address in the bar is NOT among them any more: it is the address the reader
-# navigated with, known at frame one, and a skeleton stood over it. The season list contributes none:
+# navigated with, known at frame one, and a skeleton stood over it. The count has
+# moved four times, each time because a part stopped asserting or stopped
+# pretending to wait — which is what an exact count is for. The season list contributes none:
 # with the seasons read still out there are no rows to draw them under, which is
 # the honest drawing and not an omission.
 #
@@ -116,7 +124,7 @@ MOUNT_DEADLINE_MILLISECONDS = 1500
 # floor: a wrong number here is loud, where a floor is silent. It has moved
 # twice since, both times because a part that had been asserting started
 # waiting, and both times the rule said so.
-SKELETONS_EXPECTED = 17
+SKELETONS_EXPECTED = 15
 
 INTERCEPT = """({ title, kept, latency, thin, fail, seasonsFirst }) => {
   let reference;
@@ -489,6 +497,11 @@ async def main():
         # page's UI phase through the engine's delegation and asked no query:
         # the markup carried a retry and the behaviour did not, which no hold
         # reading the surface's PRESENCE could tell apart.
+        before_retry = await page.evaluate("""() => {
+          const sheet = window.__queries.getQueryCache().getAll().find(
+            (query) => query.queryKey[0] === '/api/media' && query.queryKey.length === 3);
+          return sheet ? sheet.state.errorUpdateCount : null;
+        }""")
         retry_state = await page.evaluate("""async () => {
           const button = document.querySelector('[data-part="surface-error/retry"]');
           if (!button) return { clicked: false };
@@ -498,17 +511,22 @@ async def main():
             (query) => query.queryKey[0] === '/api/media' && query.queryKey.length === 3);
           return { clicked: true,
                    fetchStatus: sheet ? sheet.state.fetchStatus : null,
-                   fetches: sheet ? sheet.state.fetchFailureCount : null,
+                   // `fetchFailureCount` was the first reading and it does
+                   // not move: the reducer zeroes it when a read starts and
+                   // adds one when it errors, so it is 1 before the click and
+                   // 1 after. `errorUpdateCount` counts the ANSWERS.
+                   errors: sheet ? sheet.state.errorUpdateCount : null,
                    delegated: !!button.getAttribute('data-phase') };
         }""")
         journal.check(
             "(e-i) and its « Réessayer » re-asks THIS read rather than writing "
             "a page's phase through the delegation",
             retry_state["clicked"] and not retry_state["delegated"]
-            and (retry_state["fetches"] or 0) > 0,
-            f"read {retry_state} — a failure count above zero is the query "
-            f"having been asked again and failed again, which is what a retry "
-            f"against a server still answering 502 does")
+            and (retry_state["errors"] or 0) > (before_retry or 0),
+            f"read {retry_state}; the answer count was {before_retry} before "
+            f"the click and {retry_state['errors']} after — a count that MOVED "
+            f"is the query having been asked again, which a count that reads 1 "
+            f"whether or not anyone clicked could never say")
         journal.check(
             "(e-ii) and the failure says what the SERVER said, not a sentence "
             "about a timeout over a server that answered",
@@ -518,6 +536,32 @@ async def main():
             f"timeout sentence present: "
             f"{TIMEOUT_SENTENCE in ' '.join(broken['errorText'].split())}")
         journal.check("no JS error on the failed walk", not errors, str(errors))
+        await context.close()
+
+        # ─── (e-iii) THE FAILURE HOLDING A THIN FALLBACK, which is the real
+        # projection's error case and the one the walk above cannot reach: with
+        # the complete placeholder every field is content, so there is nothing
+        # left to assert about. Thinned, the screen holds a sheet that says
+        # almost nothing — and « not in flight » was enough to call its
+        # ownership KNOWN, which brought back « Possédés 0 », « Complétude 0 % »,
+        # the missing chips and a « Supprimer » for a medium nobody identified.
+        context, page, errors = await cold_load(
+            browser, await address_of(browser, NOT_OWNED_TITLE),
+            thin=True, fail=True, title=NOT_OWNED_TITLE)
+        await page.evaluate("()=>window.__mocks.quiet()")
+        await page.wait_for_timeout(300)
+        thin_failure = await page.evaluate(READ)
+        journal.check(
+            "(e-iii) a failed read holding a THIN fallback claims no ownership "
+            "— no count, no completeness, no missing chip, no action",
+            thin_failure["open"] and thin_failure["failed"]
+            and not thin_failure["ownedZero"] and not thin_failure["completeness"]
+            and thin_failure["missing"] == 0 and thin_failure["actions"] == 0,
+            f"« Possédés 0 »: {thin_failure['ownedZero']}, « Complétude 0 % »: "
+            f"{thin_failure['completeness']}, « manquants » chips: "
+            f"{thin_failure['missing']}, action button(s): "
+            f"{thin_failure['actions']}")
+        journal.check("no JS error on the thin failure walk", not errors, str(errors))
         await context.close()
 
         # ─── (f) A PARTIAL PLACEHOLDER, where field by field is the question ─

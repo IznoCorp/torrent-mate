@@ -139,7 +139,19 @@ export function MediaScreen() {
   // « Possédés 0 », « Complétude 0 % » with a warning pip and « 13 manquants »
   // per season about a medium the reader may not own — then flipped to « non »
   // when the answer arrived.
-  const ownershipKnown = sheet !== null && (!inFlight || sheet.possede !== undefined);
+  // « NOT IN FLIGHT » IS NOT « ANSWERED ». A read that FAILED is not in flight
+  // either, and the screen then holds the same thin fallback the tap knew — so
+  // ownership read as `!inFlight` was « known » over a placeholder carrying
+  // nothing, and the whole owned-series block came back through the error door:
+  // « Possédés 0 », « Complétude 0 % », « 13 manquants » in open rows and a
+  // « Supprimer » for a medium the reader may not own. What makes ownership
+  // known is the sheet CARRYING it, or the read having LANDED.
+  // and « success » is not « answered » either: with a placeholder the query
+  // reports success while the read is still out. What answers is a success that
+  // is NOT the placeholder.
+  const ownershipKnown = sheet !== null
+    && (sheet.possede !== undefined
+        || (sheetRead.isSuccess && !sheetRead.isPlaceholderData));
   const owns = sheet?.possede !== false;
   // « Supprimer » offered for a medium nobody has identified is that same
   // assertion wearing a destructive button, so the actions read the same flag.
@@ -260,6 +272,7 @@ export function MediaScreen() {
 
           <MediaLibraryFacts
             ownershipKnown={ownershipKnown}
+            inFlight={inFlight}
             sheet={sheet}
             isFilm={isFilm}
             owns={owns}

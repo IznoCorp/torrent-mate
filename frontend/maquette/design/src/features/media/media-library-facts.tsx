@@ -13,6 +13,7 @@ export function MediaLibraryFacts({
   isFilm,
   owns,
   ownershipKnown,
+  inFlight,
   followed,
   seasons,
   own,
@@ -25,8 +26,10 @@ export function MediaLibraryFacts({
   sheetInFlight,
 }: {
   sheet: (MediaSheet & MediaSheetFields) | null;
-  /** True for a film, false for a series, null while the kind is in flight. */
+  /** True for a film, false for a series, null while the kind is unknown. */
   isFilm: boolean | null;
+  /** Whether the sheet's read is still out — a wait is drawn only while there is one. */
+  inFlight: boolean;
   owns: boolean;
   /**
    * Whether ownership has arrived at all. This block CHOOSES A BRANCH on it —
@@ -58,14 +61,21 @@ export function MediaLibraryFacts({
       </h2>
       <div className={factsPanel()} data-part="panel">
       {!ownershipKnown ? (
+        // WAITING ONLY WHILE THERE IS SOMETHING TO WAIT FOR. Once the read has
+        // answered — with nothing, or with a failure — ownership is unknown for
+        // good, and four shimmering lines forever say the opposite.
         <>
           <div className={keyValueRow()} data-part="key-value">
-            <span><SkeletonLine width="short" /></span>
-            <span><SkeletonLine width="short" /></span>
+            <span>{t("screens.media.inLibrary")}</span>
+            <span>
+              {inFlight ? <SkeletonLine width="short" /> : t("screens.media.unknownFeminine")}
+            </span>
           </div>
           <div className={keyValueRow()} data-part="key-value">
-            <span><SkeletonLine width="short" /></span>
-            <span><SkeletonLine width="half" /></span>
+            <span>{t("screens.media.seasons")}</span>
+            <span>
+              {inFlight ? <SkeletonLine width="half" /> : t("screens.media.unknown")}
+            </span>
           </div>
         </>
       ) : (

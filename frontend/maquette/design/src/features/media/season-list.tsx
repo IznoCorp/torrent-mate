@@ -218,7 +218,9 @@ export function SeasonList({
                 {row.aired === 0
                   ? t("screens.media.seasonUpcoming")
                   : !ownershipKnown
-                    ? <SkeletonLine width="short" />
+                    ? (sheetInFlight
+                        ? <SkeletonLine width="short" />
+                        : t("screens.media.unknown"))
                     : owns
                       ? `${nbOwn}/${row.aired ?? "?"}`
                       : `${row.aired ?? "?"} ${t("screens.media.episodesShort")}`}
