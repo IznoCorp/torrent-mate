@@ -45,26 +45,22 @@ export function LibraryList(): ReactElement {
     Boolean(state.sortReversed),
   );
   const rows = (listing.data?.pages ?? []).flatMap((page) => page.items);
-  // WHAT MAKES A ROW'S MARKUP DIFFER IS THE DRAW'S KEY, and nothing else is.
-  // The key named the store's `version` — every action and every cache landing
-  // — so every bump emptied the window and rebuilt every row, and a tap
-  // between `pointerdown` and `click` on a row landed on a node no longer in
-  // the tree. Three things change what a row draws: the MODE (a tile is not a
-  // card), the SELECTION MODE (`libRowHTML` and `tileHTML` draw a checkbox in
-  // place of the poster's link), and the ROWS THEMSELVES — which the first
-  // page's identity carries: structural sharing keeps a page object while its
-  // content is equal, a delete rewrites the pages, a new question is a new
-  // query. A page loading BELOW keeps the first page and its nodes. A toggled
-  // checkbox is written onto its node in place by the delegation, so a kept
-  // node reads right. The engine's inline transforms — an open swipe — now
-  // survive a bump that changed nothing about the rows, which is the case
-  // `ui/virtual-rows.tsx` already treats a mid-gesture replacement as.
-  const firstPage = listing.data?.pages[0];
-  const draw = useRef<{ page: unknown; count: number }>({ page: undefined, count: 0 });
-  if (draw.current.page !== firstPage) {
-    draw.current = { page: firstPage, count: draw.current.count + 1 };
-  }
-  const drawKey = `${grid ? "grid" : "list"}:${state.selMode ? "select" : "browse"}:${draw.current.count}`;
+  // THE KEY IS THE DRAWING, AND THE ROWS ARE THE WINDOW'S OWN BUSINESS.
+  //
+  // It named the store's `version` — every action and every cache landing — so
+  // every bump emptied the window and rebuilt every row, and a tap between
+  // `pointerdown` and `click` on a row landed on a node no longer in the tree.
+  // Its first replacement named the first page's IDENTITY, and that was wrong
+  // in the other direction, measured: the cache's structural sharing returns an
+  // unchanged page as the same object, so deleting a row on any page but the
+  // first left the key still, the window untouched, and the deleted row on
+  // screen until the network answered — for good on a held mutation.
+  //
+  // What the key answers now is only « is this a different DRAWING »: a tile is
+  // not a card, and a list in selection mode is not the same list. Whether the
+  // ROWS changed is asked per row, against the markup each was built from, by
+  // `ui/virtual-rows.tsx` — the exact question, where the answer lives.
+  const drawKey = `${grid ? "grid" : "list"}:${state.selMode ? "select" : "browse"}`;
   // WHAT THE END MARK SAYS is what the source HOLDS, never what the library
   // claims and never the size of a filtered answer.
   const loaded = listing.data?.pages[0]?.loaded ?? 0;

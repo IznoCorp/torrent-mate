@@ -114,7 +114,10 @@ function spacerElement(height: number): HTMLElement {
 export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   const { count, rowHeight, gap, lanes, scrollElement, renderRow } = properties;
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const liveRows = useRef(new Map<number, Element>());
+  // THE NODE AND THE STRING IT WAS BUILT FROM, per live index. The string is
+  // what says whether a row that is still in range has to be redrawn — see
+  // the effect below.
+  const liveRows = useRef(new Map<number, { node: Element; markup: string }>());
   const spacers = useRef<{ before: HTMLElement | null; after: HTMLElement | null }>(
     { before: null, after: null });
   const lastDraw = useRef<number | string | null>(null);
@@ -241,9 +244,9 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
     }
     const live = liveRows.current;
 
-    for (const [index, node] of [...live]) {
+    for (const [index, held] of [...live]) {
       if (index < start || index >= end) {
-        node.remove();
+        held.node.remove();
         live.delete(index);
       }
     }
@@ -272,14 +275,35 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
     //
     // Descending, the follower is ALWAYS resolved: either it was already live,
     // or this loop inserted it one step earlier.
+    //
+    // AND A ROW STILL IN RANGE IS REDRAWN WHEN ITS MARKUP CHANGED, which is the
+    // only thing that says a kept node has stopped telling the truth. « Keep
+    // every index already live » was the first form and it is wrong in one
+    // direction: a delete rewrites the rows under the window — the source's own
+    // optimistic write — and the row the reader just deleted stayed on screen,
+    // because nothing here asked whether its string had moved. Making the whole
+    // window depend on a KEY instead was wrong in the other direction: a key
+    // coarse enough to catch that empties the window on writes that changed
+    // nothing, which is what destroys a tap. The string is the exact question,
+    // asked per row, and it costs one comparison against markup already
+    // composed.
     for (let index = end - 1; index >= start; index -= 1) {
-      if (live.has(index)) continue;
-      const node = elementFor(renderRow(index));
+      const markup = renderRow(index);
+      const held = live.get(index);
+      if (held && held.markup === markup) continue;
+      const node = elementFor(markup);
       if (!node) continue;
-      live.set(index, node);
+      if (held) {
+        // REPLACED IN PLACE, so the row keeps its position without the tail of
+        // the window being rebuilt around it.
+        held.node.replaceWith(node);
+        live.set(index, { node, markup });
+        continue;
+      }
+      live.set(index, { node, markup });
       const following = live.get(index + 1);
-      if (following && following.isConnected) {
-        container.insertBefore(node, following);
+      if (following && following.node.isConnected) {
+        container.insertBefore(node, following.node);
       } else {
         container.insertBefore(node, spacers.current.after);
       }
