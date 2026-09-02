@@ -99,17 +99,18 @@ MOUNT_DEADLINE_MILLISECONDS = 1500
 # part gained or lost moves it, deliberately, and the rule says which.
 #
 # The parts, on the `{t}` thinning, as the rule PRINTS them: the address in the
-# bar, the year and the kind of the hero's metadata line, the genres, the
-# trailer, the synopsis, the director, the cast strip, the four library figures
-# (seasons, aired episodes, owned, completeness), the two lines of the
-# identifiers row, and the actions. Fourteen. The season list contributes none:
+# bar, the year and the kind of the hero's metadata line — separately, which is
+# what « field by field » means — the genres, the trailer, the synopsis, the
+# director, the cast strip, the four library figures (seasons, aired episodes,
+# owned, completeness), the two lines of the identifiers row, and the actions.
+# Fifteen. The season list contributes none:
 # with the seasons read still out there are no rows to draw them under, which is
 # the honest drawing and not an omission.
 #
 # This number was written as 21 before it was measured, and the rule fell on its
 # author's arithmetic — which is the reason it is an exact count and not a
 # floor: a wrong number here is loud, where a floor is silent.
-SKELETONS_EXPECTED = 14
+SKELETONS_EXPECTED = 15
 
 INTERCEPT = """({ title, kept, latency, thin, fail, seasonsFirst }) => {
   let reference;
@@ -221,7 +222,7 @@ READ = """() => {
     parts: screen ? [...screen.querySelectorAll('[data-skeleton]')].map((line) => {
       const row = line.closest('[data-part="key-value"], [data-part="hero"], p, [data-part="screen/bar"], [data-part="sheet/actions"]');
       return ((row && row.textContent) || (line.parentElement || {}).className || '?')
-        .trim().replace(/\s+/g, ' ').slice(0, 28);
+        .trim().replace(/[ ]+/g, ' ').slice(0, 28);
     }) : [],
     text: screen ? (screen.textContent || '') : '',
     failed: !!(screen && screen.querySelector('[data-part="surface-error"]')),
@@ -451,8 +452,8 @@ async def main():
             browser, await address_of(browser, NOT_OWNED_TITLE),
             thin=True, seasons_first=True, title=NOT_OWNED_TITLE)
         apart = await page.evaluate(READ)
-        seasons_drawn = await page.evaluate(
-            "()=>document.querySelectorAll('[data-part=\"season\"]').length")
+        seasons_drawn = await page.evaluate("""
+            ()=>document.querySelectorAll('[data-part="season"]').length""")
         journal.check(
             "(g) with the seasons landed and the sheet still out, the season "
             "rows are drawn and say NOTHING about the episode lists they have "

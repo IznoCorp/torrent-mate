@@ -51,7 +51,14 @@ export function MediaHero({
                 whose kind is in flight, in the wave that forbids exactly that.
                 The year, the kind and the runtime are three separate answers,
                 and each waits for its own. */}
-            {sheet?.y || sheet?.k || !inFlight ? (
+            {/* NO SHEET AT ALL is not the same as a sheet with fields
+                missing, and this line has to keep both. A read that landed on
+                nothing — an identifier nobody carries — has no year and no kind
+                to wait for, and printing « année inconnue · Série » there
+                asserts the KIND of a medium that does not exist. One honest
+                sentence covers it, which is what the screen said before this
+                line learned its fields. */}
+            {sheet ? (
               <>
                 {sheet?.y || (inFlight ? <SkeletonLine width="short" /> : t("screens.media.yearUnknown"))}
                 {" · "}
@@ -64,8 +71,10 @@ export function MediaHero({
                     : t("common.series")}
                 {sheet?.duree ? ` · ${sheet.duree} ${t("screens.media.minutesShort")}` : ""}
               </>
-            ) : (
+            ) : inFlight ? (
               <SkeletonLine width="half" />
+            ) : (
+              t("screens.media.metadataUnknown")
             )}{" "}
             {sheet?.g ? (
               <>

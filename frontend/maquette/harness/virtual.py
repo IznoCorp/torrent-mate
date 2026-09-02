@@ -446,7 +446,8 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
     await page.evaluate("()=>window.__store.touch()")
     await page.wait_for_timeout(150)
     after = await page.evaluate("""(row) => {
-      const titles = [...document.querySelectorAll(row + ' [data-part=\"card/title\"]')]
+      const inside = row + ' [data-part="card/title"]';
+      const titles = [...document.querySelectorAll(inside)]
         .map((node) => node.textContent.trim());
       return { titles, count: titles.length };
     }""", ROW)
