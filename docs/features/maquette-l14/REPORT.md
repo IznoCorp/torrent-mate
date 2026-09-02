@@ -153,8 +153,9 @@ them at zero. **Total 174 + 2 = 176.**
 | The full suite (`run.sh`, no flag) | **87 rules and 26 repository guards, no violation**                                                                                                                        |
 | `--a11y`                           | **0 violations** over 87 states; the light theme unmoved at its ceiling of **166**                                                                                         |
 | `harness-hold-counts.py --compare` | **two movements, both upward and both this wave's**: `persistence.py` 11 → 18 (hold (f), seven states), `priming.py` NEW at 7. No rule lost a hold. `failed` read first: 0 |
-| `make check`                       | (filled at the close, at zero failures and zero errors)                                                                                                                    |
+| `make check`                       | **11 023 passed, 4 skipped, 2 xfailed, 0 failed, 0 errors**, exit 0. Its seven eslint warnings are in `frontend/src`, the production app, and pre-date this branch |
 | `--contracts`, at every phase      | 13 rules and 26 guards, no violation                                                                                                                                       |
+| CI on the head sha                 | **14 jobs, all green** — read on the LOCAL sha's check-runs, never through the pull request's record, which lags a push |
 
 **Two gates went red during the wave and each is written down rather than smoothed over.** R80 fell
 when `skeletonLine` first carried the residue's `sk` anchor inside its variant: a variant wearing a
