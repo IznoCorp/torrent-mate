@@ -25,14 +25,17 @@ each: the reference is wrapped the instant it is published, and the latency is
 set the instant the layer is installed. The boot's own reads are slowed by the
 same latency; the screen does not wait for them.
 
-WHAT IT DRIVES. Five walks: a placeholder thinned to the TITLE alone (`KEPT`),
+WHAT IT DRIVES. Six walks: a placeholder thinned to the TITLE alone (`KEPT`),
 a PARTIAL one carrying the year and not the kind (`KEPT_PARTIAL`, where « field
 by field » is decidable at all), the prototype's own complete placeholder as a
-control, a read that FAILS, and one where the seasons land before the sheet.
+control, a read that FAILS over that complete placeholder, the same failure over
+a THINNED one — which is the real projection's error case, and the only walk
+where a screen at rest can be caught claiming what it does not know — and one
+where the seasons land before the sheet.
 
 WHAT THE FIRST VERSION OF THIS RULE DID NOT READ, because it is the reason the
 holds below have the shape they have. It counted `[data-skeleton]` against a
-FLOOR of six where eleven stand, and it read assertions as
+FLOOR of six where eleven stood then and fifteen stand now, and it read assertions as
 `[data-part="no-info"]`, a part name worn by two of the nine sites that can
 print one. Between them that left a slack of five: the synopsis, the director
 and the three season lines could all revert to printing their answer about data
