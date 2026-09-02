@@ -33,6 +33,29 @@ sheet.isFetching)` and `seasonsInFlight = seasons.isPending`, and passes them do
    if the number is not known yet — B-219's placeholder is refused by the register guard, so the
    row keeps `open` until the number exists and the body says why).
 
+## Deviations, recorded here rather than discovered later
+
+The design's § 3 and § 5 describe the instrument as it was first drawn. Three things about it
+changed while it was being built, each because a reading proved the drawing wrong, and the design
+is not edited to match — a design is what was decided.
+
+- **The thinning is `{t}`, plus a SECOND walk keeping `{y}`**, not the `{t, k, y}` the design names.
+  Keeping the kind and the year made the hero's own fields impossible to measure: the metadata line
+  was gated on the whole sheet, and with those two present the branch that printed « année inconnue
+  · Série » was never taken. The lean walk is the hardest case; the partial one is the only place
+  « field by field » is decidable at all.
+- **The control holds FEWER skeletons, not zero.** « The same walk with the FULL placeholder draws
+  no skeleton at any moment » was red on its first run, and rightly: the seasons carry no
+  placeholder of their own, so lines stand there whatever the sheet holds. It holds fewer than the
+  thinned walk, plus the CONTENT the placeholder carries — the cast strip drawn, the synopsis a
+  sentence.
+- **The rating draws nothing in flight at first, and waits now.** The design lists it among the
+  parts; it drew neither an answer nor a wait until round 3's pass. Recorded because it was a
+  departure for two rounds.
+
+The hold list below is the instrument's FIRST shape. What it holds today is `harness/priming.py`,
+which prints its own holds; a second copy of them here is a copy that goes stale — as this one did.
+
 ## Definition of done
 
 - `scripts/mutate.sh frontend/maquette/design/src/features/media/media-screen.tsx

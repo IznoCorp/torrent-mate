@@ -27,10 +27,10 @@ repaired.
 each of the four grandfather entries left in the same commit as the file it named: the arm refuses
 an entry for a file back under the ceiling, so the count cannot climb again in silence.
 
-**Three files sit above the 250 soft warning and are named rather than left to be found**:
-`follows-tab.tsx` at 254, `season-list.tsx` at 268 and `ui/virtual-rows.tsx` at 335 — the last two
-grew with round 1's and round 2's repairs, and the third is a `ui/` primitive rather than a surface.
-None is near the ceiling.
+**Four files sit above the 250 soft warning and are named rather than left to be found**:
+`media-screen.tsx`, `follows-tab.tsx`, `season-list.tsx` and `ui/virtual-rows.tsx` — the last a
+`ui/` primitive rather than a surface. Their figures are in the table above and in `--arm size`'s
+own output; none is near the ceiling.
 
 **`Icon` is written once.** Three private copies were deleted (`media-screen.tsx`,
 `resolution-screen.tsx`, `releases-screen.tsx`); the signatures agreed with `ui/icon.tsx`'s and the
@@ -87,15 +87,20 @@ defect. Overruling it is one line.
   taken: no phase opened `served_copy.py`, `mutate.sh`, `harness-hold-counts.py` or `exits.py`.
   The rule is that the next wave that touches the tool takes its debt, and this one did not touch
   them.
-- **Three deviations from the design, each recorded in the phase file that took it** — a reader
+- **Six deviations from the design, each recorded in the phase file that took it** — a reader
   found the count wrong at one, which is the shape of a paragraph nobody re-reads. (1) The
   « written twice » guard is `scripts/check-component-once.py`, its own file, not an arm of
-  `check-frontend-boundaries.py` — that file stands at 952 non-blank lines against a hard ceiling
-  of 1 000, and L07-bis's precedent is to split a guard on a SUBJECT rather than on a line count.
+  `check-frontend-boundaries.py` — that file stood at 952 non-blank lines when the deviation was
+  taken, against a hard ceiling of 1 000, and L07-bis's precedent is to split a guard on a SUBJECT rather than on a line count.
   (2) `media-information.tsx` is `media-details.tsx`: the vocabulary arm refuses « Information »,
   and it is right — the block is identifiers and actions. (3) `ui/markup.ts` with `useMarkup` at
   every site is `ui/markup.tsx` with a `<Markup>` component at every site: a hook cannot be called
   inside a `.map` and several sites are, so the component is where the hook is called once.
+  (4) The rule thins to `{t}` with a second `{y}` walk, not to `{t, k, y}`. (5) Its control holds
+  FEWER skeletons and the content the placeholder carries, not zero. (6) The rating drew nothing in
+  flight for two rounds where the design lists it among the parts. The last three are recorded in
+  `plan/phase-04`, which is where a deviation lives; the design is what was decided and is not
+  edited to match.
 
 ---
 
@@ -145,44 +150,33 @@ included. Hard zero, no allow-list, corpus printed with floors, and ten tests in
 each repair, and every one was run through `scripts/mutate.sh`, which rebuilds the served copy
 under its own lock — see § 7 on why that matters.
 
-## 5. Guards green over what they do not read — **2 by the wave, 12 by nine readers**
+## 5. Guards green over what they do not read — **7 by the wave, 16 by twelve readers**
 
-**The split was wrong in the first version of this section and in the register's row**, and it was
-wrong in the flattering direction: three units the readers returned as majors were listed as the
-wave's own, in a cell whose Total then called them « the three it missed ». A unit is credited to
-whoever found it. The wave found two, both before any reader ran, and both the RED form:
+**This count was taken three times and was wrong three times**, each correction coming from someone
+else reading the same tree. First it read 2, when the readers had already returned three more.
+Then « 5 by the wave », when three of those five were reader majors — in a register cell whose own
+Total called them « the three it missed ». Then 2 again, while § 7 of this very file named five
+vacuities the wave HAD caught in its own new holds, uncounted in either column. The itemisation
+lives in `BUGS.md`'s L14 row; what belongs here is the reading.
 
-1. **R119's own control**, written as « the complete placeholder draws ZERO skeletons » and red on
-   its first run — correctly, since the seasons carry no placeholder. A control that fails over the
-   design working as drawn is the shape whose natural repair is to weaken the drawing.
-2. **`check-component-once.py`'s first floor**, at 50 declarations against a corpus of 69.
+**The wave's seven** are its own instruments, caught either as a red that could not pass or by
+reading the figures a hold prints beside its verdict: a control that failed over the design working
+as drawn; a floor set a quarter under the corpus it guards; and five vacuities found while mutating
+its own rules — a branch unreachable on the fixture the walk opened, one latency shared by two reads
+so the interval a hold names did not exist, a thinning naming one title while the walk opened
+another, « in flight » read as the whole layer's traffic, and a walk on the leanest placeholder that
+cannot decide the property it was written for.
 
-**The readers' twelve**, each an instrument whose reading did not decide what it claimed:
+**The readers' sixteen** are the ones no amount of mutating would have found, because each is a
+question the instrument never asked: a floor with slack, a regex that refused the commonest export,
+a door driven on one side, a selector that never named the leaf the defect lived in, a floor met by
+the page beneath the screen, two states undriven, **a rule green on the very code it was written
+against**, a counter that reads the same whether or not anyone clicked, an error walk that drove
+only the case where nothing could be wrong, a hold green on a window that keeps every row, and a
+hold reading three sentences while six skeletons shimmered beside them.
 
-3. R119 held a floor of six against eleven and read a part name two of nine sites wear — green over
-   three of the four assertions its own register entry names.
-4. `check-component-once.py` said « exported or not » and its regex refused `export default`.
-5. Hold (f) drove `touch()` alone, the one door a surface reading `useUiState()` bails out of.
-6. Hold (f)'s selector never named a `path`, so the icon defect was outside it by construction —
-   named as such in the commit that repaired it, and not counted until a reader did.
-7. Hold (f)'s floor of ten was met, on the two screen states, by the page beneath the screen.
-8. Hold (f) did not drive `acq-follows-group`, the state the design itself measured as replaced.
-9. The incomplete lens's memo was read by no driven state.
-10. **R117's delete hold was GREEN on the code it was written against** — it asked for a page
-    through a door that does not exist, measured a row on the first page, and read 150 ms later
-    against a layer answering instantly, by which time the refetch had already repaired the window.
-    The purest form of this species in the wave: a rule written for a regression, satisfied by it.
-11. R119's « in flight » read `data === undefined`, which is also a read that FAILED with nothing
-    to show — two states under one name.
-12. R119's action count counted CHILDREN, so one real button read exactly like one skeleton.
-13. The split-latency walk held a floor on its skeleton count in place of reading that its own
-    thinning applied — on the walk that exists because an earlier version measured a complete
-    placeholder and printed zero.
-14. R119's hold (e) read that an error surface was PRESENT, never what it said — which is how a
-    timeout sentence stood over a 502 that had answered.
-
-**Total 174 + 14 = 188.** Fourteen, of which the wave found two: the ratio is the argument this
-table has been making since L11, arriving again on a wave that believed it had counted itself.
+**Total 174 + 23 = 197.** The ratio — seven to sixteen — is this table's oldest argument, and the
+wave that produced it had already read the argument three times.
 
 ## 6. The gates
 
@@ -191,7 +185,7 @@ table has been making since L11, arriving again on a wave that believed it had c
 | The oracle, after every phase and every repair| 87 states × 34 regions, **2 958 measurements, no divergence**, every time |
 | The full suite (`run.sh`, no flag) | **87 rules and 26 repository guards, no violation**, re-taken after round 2 |
 | `--a11y`                           | **0 violations** over 87 states; the light theme unmoved at its ceiling of 166, re-taken after round 2 |
-| `harness-hold-counts.py --compare` | **three movements, all upward and all this wave's**: `persistence.py` 11 → 35, `virtual.py` 17 → 21, `priming.py` new at 21. No rule lost a hold, and `failed` read **0** this time — the `outbox.py` flake of round 1 did not recur |
+| `harness-hold-counts.py --compare` | **three movements, all upward and all this wave's**: `persistence.py` 11 → 35, `virtual.py` 17 → 21, `priming.py` new at 21. No rule lost a hold, and `failed` read **0** this time — the rule that failed under round 1's recorder, `outbox.py`, did not fail again — it read « 21 rules EXECUTED — no violation » alone that day and does so now |
 | `make check`                       | **11 043 passed, 4 skipped, 2 xfailed, 0 failed, 0 errors**, exit 0, re-taken after round 2. Its one ignored error is `refresh-maquette-fixture`, which reads the operator's live databases and reports the library's drift, not this branch's; its seven eslint warnings are in `frontend/src`, the production app, and pre-date this branch. `pytest tests/scripts` reads 550 passed |
 | `--contracts`, at every phase      | 13 rules and 26 guards, no violation                                                                                                                                       |
 | CI on the head sha                 | read on the LOCAL sha's check-runs, never through the pull request's record, which lags a push. The sha it was read on is named in the message that reports it — a commit cannot carry its own verdict, and the first version of this row was written into the commit it described |
@@ -295,7 +289,7 @@ missing waits per field; no sheet at all says « Métadonnées inconnues », onc
 **And a reading taken against a stale served copy proved nothing — named, because a confession
 without its subject cannot be checked.** The mutation was the hero's kind branch
 (`media-hero.tsx`, the in-flight arm replaced by `t("common.series")`), applied by hand rather than
-through `scripts/mutate.sh`, built, run, and then restored WITHOUT rebuilding. **Two readings
+through `scripts/mutate.sh`, built, run, and then restored WITHOUT rebuilding. **Two readings — the first account of this said « the next three »; re-read against the session's own commands there are two, and the third was a miscount
 measured the mutated build afterwards**: the first run of walk (f), which reported « Série » printed
 and read as a defect in the repair, and a tree-walk probe that showed the same text. Both were
 diagnostic, both were re-taken on a rebuilt copy in the next command, and (f) passed there. **No
@@ -304,7 +298,7 @@ through `scripts/mutate.sh`, which rebuilds the served copy under its own lock a
 index — which is the whole argument for never doing it by hand.
 
 **It cost more than a wrong reading the second time.** A by-hand `git checkout --` after another
-by-hand mutation, in round 2, threw away six files of uncommitted repairs — the tri-state kind, the
+by-hand mutation, in round 2, threw away the uncommitted repairs in six files — `media-screen.tsx`, `media-hero.tsx`, `media-cast.tsx`, `media-details.tsx`, `media-library-facts.tsx` and `ui/state-surfaces.tsx`: the tri-state kind, the
 ownership gate, the error surface's reason and retry — and they had to be written again. The
 mutation tool refuses a dirty tree for exactly that reason and refused one an hour later, correctly.
 The rule is not « be careful »: it is that the tool does the mutation.

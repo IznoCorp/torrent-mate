@@ -40,7 +40,7 @@ WHAT IT DOES NOT READ, said before what it does:
     re-renders on `write()` instead. Hold (f) drives BOTH, and the sentence that
     said otherwise stood while the hold below already contradicted it.
   - Hold (f) reads a PAGE's own nodes — cards, tiles, rows, buttons, pills,
-    images, key-value rows — on seven named states, and NOT the containers
+    images, key-value rows — on the named states listed below, and NOT the containers
     the dying engine fills on Découvrir (`#sugitems`, the deck): those are
     the producers' half of the same defect and belong to the lot that moves
     the producers. Nor a write that legitimately redraws — entering selection
