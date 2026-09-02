@@ -232,6 +232,15 @@ watches the run, stopping ITS OWN child (exit 75, never anything else on the mac
 consecutive samples below 2 GB free. It releases on exit, on an interrupt and on a kill, and a lock
 older than forty-five minutes is treated as a dead session's.
 
+**And the fan-out has a NAME, `TM_HARNESS_JOBS`, which is the part a rule loses when it is written
+as a number.** Both `run.sh` and `scripts/harness-hold-counts.py` default it to the core count —
+eight here — so a run left to itself takes every core and drives eight browsers, and « fan-out two »
+is an instruction nobody can follow without being told the variable. The office said « fan-out two »
+to a wave, watched it comply, and then ran the hold-count recorder itself at the default and put the
+machine at a load of twenty-seven. Set it explicitly, every time: `TM_HARNESS_JOBS=2 sh
+scripts/heavy.sh <who> <command>`. The lock cannot save a run from its own parallelism — it holds
+the door, it does not hold the room.
+
 **Its thresholds are arithmetic, not taste.** This host is 8 cores and 16 GB; one Playwright browser
 group costs about 1.1 GB; the baseline holds about 6 GB. A fan-out of eight therefore asks for more
 than exists, which is how a load of 65 with 200 MB free happened. The caps that go with the lock: at
