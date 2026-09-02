@@ -25,6 +25,14 @@ draws. Props are the derived values, typed from `sheet-fields.ts`.
 
 `GRANDFATHERED["features/media/media-screen.tsx"]` is removed in the same commit.
 
+## Deviations, recorded here rather than discovered later
+
+- **`media-information.tsx` is `media-details.tsx`.** `check-no-french.py`'s vocabulary arm
+  refuses « Information » — it is not a word this codebase's names are built from — and the guard
+  is right: the block is the medium's identifiers and its actions, which « details » names.
+- The design's § 2 estimate for this cut was seven files at ~190 lines for the screen; it landed
+  at six plus the screen, and the screen ends the wave at 214 after phase 4 writes into it.
+
 ## Definition of done
 
 - `grep -cve '^\s*$' frontend/maquette/design/src/features/media/media-screen.tsx` → **< 400**

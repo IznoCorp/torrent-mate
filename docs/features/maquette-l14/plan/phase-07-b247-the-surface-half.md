@@ -6,7 +6,12 @@ phases 5 and 6.**
 
 ## What changes
 
-1. `ui/markup.ts` — `useMarkup(html: string): { __html: string }`, a `useMemo` on the string.
+1. `ui/markup.tsx` — `useMarkup(html: string): { __html: string }`, a `useMemo` on the string,
+   **and a `<Markup>` component that calls it.** *(Deviation from the design, which named
+   `ui/markup.ts` and `useMarkup` at every site: a hook cannot be called inside a `.map`, and
+   several sites are inside one. The component is where the hook is called — once, unconditionally
+   — so every site is an element and the rule of hooks is kept by construction rather than by care.
+   The file is `.tsx` because it renders.)*
    Its header says WHY (React 19 assigns `innerHTML` on the prop's identity, string unchanged or
    not — the comparison React 18 made) and names the one place the trick lives. Zero domain words.
 2. Every `dangerouslySetInnerHTML={{ __html: … }}` in `now-tab.tsx`, `follows-tab.tsx` and
@@ -34,7 +39,7 @@ phases 5 and 6.**
 - `scripts/mutate.sh frontend/maquette/design/src/features/library/library-list.tsx
 't.replace(<the drawKey expression>, "version")' frontend/maquette/harness/persistence.py` →
   (f) falls on `lib-list` and `lib-grid`; restored.
-- `scripts/mutate.sh frontend/maquette/design/src/ui/markup.ts 't.replace("useMemo(", "((f) => f())(")'`
+- `scripts/mutate.sh frontend/maquette/design/src/ui/markup.tsx 't.replace("useMemo(", "((f) => f())(")'`
   (or the exact form that returns a fresh object) → (f) falls on the three acquisition states;
   restored.
 - **R117 green** (identity across a scroll is untouched), **R94** green, `selection.py`,

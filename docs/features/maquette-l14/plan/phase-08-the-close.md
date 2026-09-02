@@ -36,5 +36,5 @@ the phase that owns it, and the close is re-run.
 ## Definition of done
 
 Every line of the contract's « Done when » true, read through the commands: `--arm size` at 2,
-`--arm twice` at 0, the oracle at zero divergence, the full suite green, the report in git, the
+`check-component-once.py` at 0, the oracle at zero divergence, the full suite green, the report in git, the
 row written, the steward's last round empty.

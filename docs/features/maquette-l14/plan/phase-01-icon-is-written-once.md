@@ -25,7 +25,7 @@
 
 - `grep -rn -E '^(export )?function Icon\b' --include='*.tsx' frontend/maquette/design/src` → **one**
   line, `ui/icon.tsx`.
-- `python3 scripts/check-frontend-boundaries.py --arm twice` → clean, printing its corpus figures.
+- `python3 scripts/check-component-once.py` → clean, printing its corpus figures.
 - **Mutation by hand** (a guard, B-273): re-add a `function Icon` to `releases-screen.tsx`, run
   the arm, read exit **1** naming `Icon` and both files; restore with `git checkout --`.
 - The oracle: zero divergence. `run.sh --contracts`: green. `npm run check`: green.
