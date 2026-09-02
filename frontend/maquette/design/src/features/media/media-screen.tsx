@@ -170,8 +170,12 @@ export function MediaScreen() {
     ? `/media/tvdb/${prov.tvdb}`
     : prov.tmdb
       ? `/media/tmdb/${prov.tmdb}`
-      : provider && id
-        ? `/media/${provider}/${id}`
+      : inFlight && provider && id
+        ? // ONLY WHILE THE SHEET IS OUT. Once it has answered with nothing, the
+          // medium is not identified — and printing an address for it would say
+          // the opposite of what the read found, which is worse than the
+          // skeleton this replaces.
+          `/media/${provider}/${id}`
         : null;
   const artwork = artworkFor(reference, title);
   // THE SERVED FIELD FIRST, and the reference only as what the tap knew. The
