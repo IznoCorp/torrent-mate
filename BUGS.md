@@ -355,6 +355,7 @@ when the defect comes back.
 | B-293 | 38 `Design:` markers name `docs/features/…` paths that left the tree, and the design-gaps pair passes over them | by audit | `open` |
 | B-294 | `.gitignore` cited two `docs/features/…` files that no longer exist | by audit | `fixed #539` |
 | B-295 | React 19 assigns `innerHTML` on the prop OBJECT's identity, string unchanged or not — so every re-render of a page subscribed to the store's version recreates its engine-drawn children | by L14   | `fixed #547` |
+| B-303 | A mutation applied BY HAND leaves the served copy of the previous build in place, so the reading taken next measures code nobody is testing — and a restore by `git checkout --` over the maquette's sources destroys whatever else is uncommitted there | by L14 | `open` |
 
 **B-295 — React 19 re-sets `innerHTML` whenever the `dangerouslySetInnerHTML` prop is a new object,
 and every site here hands it one per render.**
@@ -390,6 +391,32 @@ row, button, pill, image, `path` and key-value row is the SAME node after `windo
 AND after `window.__store.write({})` — the two doors, because a surface reading `useUiState()`
 bails out of the first and re-renders on the second. Mutations: the window keyed on a value that
 moves every draw, and the markup object made fresh per render.</sub>
+
+**B-303 — A mutation taken outside `scripts/mutate.sh` is a mutation with no build behind it, and
+its restore is a `checkout` that does not know what else it is throwing away.**
+Found on 2026-09-01 by L14, twice, at a cost of two re-taken readings and seven rewritten files.
+`scripts/mutate.sh` refuses a dirty tree, edits, REBUILDS, re-copies the served prototype under
+`served_copy.py`'s lock, runs the rule, and restores from the INDEX. Every one of those steps is
+load-bearing, and a by-hand mutation keeps only the first and the last:
+
+- **The served copy stays at the previous build.** The harness reads a MANUAL copy at
+  `/tmp/tm-refonte/wrapped.html`; editing a source and running a rule without rebuilding measures
+  the build before the edit. Two of this wave's mutation readings were taken that way and both had
+  to be re-taken. A mutation that goes green for this reason reads exactly like a rule that does
+  not bite.
+- **`git checkout -- frontend/maquette/design/src` restores the whole path, not the mutation.**
+  It took six files of uncommitted repairs with it here — the media screen, its hero, its cast, its
+  details, its library facts and the shared state surfaces — because the mutation had been applied
+  on top of work that was not yet committed. The rule that answers this is already written down and
+  was not followed: commit BEFORE any mutation check, so the restore has a commit to restore to.
+
+**What it is NOT.** This is not `mutate.sh` failing; it is the wave stepping around it, which is
+also why no gate can see it. B-273 records the case the tool genuinely cannot judge — a GUARD,
+whose subject is the tree rather than the served page. Everything else goes through the tool.
+
+**Owner: whoever writes the next mutation.** The entry stays `open` because what would close it is
+a check nothing can perform: a harness cannot tell a reading taken against a stale copy from a
+reading taken against a fresh one, which is the whole defect.
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same

@@ -183,10 +183,10 @@ wave that produced it had already read the argument three times.
 | Gate                               | Read                                                                                                                                                                       |
 | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The oracle, after every phase and every repair| 87 states × 34 regions, **2 958 measurements, no divergence**, every time |
-| The full suite (`run.sh`, no flag) | **87 rules and 26 repository guards, no violation**, re-taken after round 2 |
-| `--a11y`                           | **0 violations** over 87 states; the light theme unmoved at its ceiling of 166, re-taken after round 2 |
-| `harness-hold-counts.py --compare` | **three movements, all upward and all this wave's**: `persistence.py` 11 → 35, `virtual.py` 17 → 21, `priming.py` new at 21. No rule lost a hold, and `failed` read **0** this time — the rule that failed under round 1's recorder, `outbox.py`, did not fail again — it read « 21 rules EXECUTED — no violation » alone that day and does so now |
-| `make check`                       | **11 043 passed, 4 skipped, 2 xfailed, 0 failed, 0 errors**, exit 0, re-taken after round 2. Its one ignored error is `refresh-maquette-fixture`, which reads the operator's live databases and reports the library's drift, not this branch's; its seven eslint warnings are in `frontend/src`, the production app, and pre-date this branch. `pytest tests/scripts` reads 550 passed |
+| The full suite (`run.sh`, no flag) | **87 rules and 26 repository guards, no violation**, re-taken after round 3 |
+| `--a11y`                           | **0 violations** over 87 states; the light theme unmoved at its ceiling of 166, re-taken after round 3. 68 of the 87 states answered `landmark-one-main` and `page-has-heading-one`; the other 19 hold a modal layer whose `inert` background makes those two unanswerable, which is the markup being right rather than a hole in the audit |
+| `harness-hold-counts.py --compare` | **four movements, all upward and all this wave's**: `persistence.py` 11 → 37, `virtual.py` 17 → 24, `screen_addresses.py` 50 → 51, `priming.py` new at 23. Its exit is 1 because a count moved, which is what it is for. No rule lost a hold, and `failed` read **0** this time — the rule that failed under round 1's recorder, `outbox.py`, did not fail again — it read « 21 rules EXECUTED — no violation » alone that day and does so now |
+| `make check`                       | **11 043 passed, 4 skipped, 2 xfailed, 0 failed, 0 errors**, exit 0, re-taken after round 3. Its one ignored error is `refresh-maquette-fixture`, which reads the operator's live databases and reports the library's drift, not this branch's; its seven eslint warnings are in `frontend/src`, the production app, and pre-date this branch. `pytest tests/scripts` reads 550 passed |
 | `--contracts`, at every phase      | 13 rules and 26 guards, no violation                                                                                                                                       |
 | CI on the head sha                 | read on the LOCAL sha's check-runs, never through the pull request's record, which lags a push. The sha it was read on is named in the message that reports it — a commit cannot carry its own verdict, and the first version of this row was written into the commit it described |
 
@@ -301,7 +301,10 @@ index — which is the whole argument for never doing it by hand.
 by-hand mutation, in round 2, threw away the uncommitted repairs in six files — `media-screen.tsx`, `media-hero.tsx`, `media-cast.tsx`, `media-details.tsx`, `media-library-facts.tsx` and `ui/state-surfaces.tsx`: the tri-state kind, the
 ownership gate, the error surface's reason and retry — and they had to be written again. The
 mutation tool refuses a dirty tree for exactly that reason and refused one an hour later, correctly.
-The rule is not « be careful »: it is that the tool does the mutation.
+The rule is not « be careful »: it is that the tool does the mutation. The rewriting is `aa4397e77`,
+which landed those six files plus `ui/state-surfaces.tsx`'s own share, and `11fe3efd3` after it.
+**Both failures are filed as B-303**, because a confession in a wave's report is read once by whoever
+reviews that wave, and the register is read by whoever writes the next mutation.
 
 ### What the round cost, in numbers
 
@@ -349,3 +352,57 @@ skeleton; `check-component-once.py` has its tests; and R100's header no longer c
 one door while hold (f) drives two.
 
 **Round 3 reads these repairs.**
+
+### Round 3: three readers, ONE BLOCKER and seven majors — and the blocker was found by using the app
+
+**A reader who stopped probing and walked the real controls found the only blocker of the wave.**
+Enter selection mode on a library scrolled deep, tick nothing, press « Terminé »: the list comes
+back BLANK, and no scroll brings it back. Nothing in the wave's instruments could have said so.
+The mode changes the row pitch — a selected row is taller — and `@tanstack/virtual-core` memoises
+`getMeasurements()` on a key list that does NOT include `estimateSize`. So the window kept the
+measurements of the other pitch, computed a range from them, and asked for rows that were not
+where it thought. The repair is `virtualizer.measure()` when the pitch moves, and with it the
+restoration of the reader's PLACE — which is a row index, never a pixel offset, because the same
+offset names a different row at the other pitch.
+
+**Three of the seven majors were defects the round-2 repairs introduced, which is now the wave's
+most repeated shape.** The focus restore that kept a reader's caret across a replaced row called
+`focus()`, and `focus()` scrolls: the port jumped 593 px on a toggle in the mode built for going
+through a library. It passes `{ preventScroll: true }` now, and R100 grew the hold that reads the
+port before and after — plus (g-i), the replacement OUT of view, which must not drag the port
+either. The ownership derivation, made honest in round 2 about a read in flight, was not honest
+about a read that FAILED: `ownershipKnown` was `!inFlight`, and a failed read is not in flight, so
+a thin fallback brought back « Possédés 0 », « Complétude 0 % », the missing chips and a
+« Supprimer » for a medium nobody identified. Ownership is known when the sheet CARRIES it, or when
+a read succeeded that was not a placeholder — and the same fields, drawn as skeletons with no
+in-flight gate, waited FOREVER on a read that landed on nothing. Both ends of that pair were
+written in the same pass and neither was true alone.
+
+**And a hold of this wave's own was vacuous in exactly the way § 5 counts.** R119's « the retry
+asked again » read `fetchFailureCount`, which the query reducer zeroes when a read starts and sets to 1
+when it fails: 1 before the click and 1 after, whether or not anyone clicked. It reads `errorUpdateCount`
+now — the count of ANSWERS — and asserts that it MOVED across the click, which is the only reading
+that can distinguish a re-ask from a screen that merely redraws.
+
+**The rest were the documents disagreeing with the tree**, and one of them would have blocked the
+merge: the branch carried the same version as `main`, because `main` took 0.98.63 in the hours this
+branch was gated. The count of « guards green over what they do not read » was recounted at 23 with
+the five vacuities the wave caught in its own holds finally in the column that names them; the
+design's § 3 and § 5 and phase 4's own hold list still described the instrument as first drawn, so
+the three departures — the thinning kept to the title, the control holding FEWER skeletons rather
+than none, and the rating that drew nothing in flight for two rounds — are written into the phase
+file as deviations rather than edited into the design. A design is what was decided.
+
+**One repair made the file it repaired break the ceiling this lot exists to enforce.**
+`virtual-rows.tsx` reached 403 non-blank lines under the blocker's repair, and `--arm size` says so
+without caring why. It splits on a SUBJECT — what the grid draws (its lanes, its line height, where
+its container starts inside the scroller) is one question, the window's own maintenance is another —
+into `ui/window-geometry.ts`, 338 and 112. A split chosen to get under a number would have been the
+same defect this lot was called to repair.
+
+**What the round taught.** Every instrument this wave owns is a probe, and a probe answers the
+question it was given. The blocker sat behind two ordinary gestures in sequence — scroll, then leave
+a mode — and no probe strings gestures together the way a person does. That is not an argument for
+another rule. It is the argument for the reader who opens the thing and uses it, which is the one
+reading the wave cannot perform on itself.
+
