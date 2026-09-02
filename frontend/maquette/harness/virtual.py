@@ -607,6 +607,24 @@ async def hold_the_selection_state_draws_its_ticks(journal, browser):
         f"{len(after_another['pressed'])} row(s) pressed after « lib-recent », "
         f"{len(alone['pressed'])} when driven alone; the set holds "
         f"{len(after_another['selected'])}")
+
+    # AND THE READER CHANGING THE QUESTION DOES DROP THEM, which is the other
+    # half of the same rule and the reason the watcher existed at all: a search
+    # narrows what is on screen, and ticks taken before it are ticks nobody can
+    # see to untick while « Supprimer » still offers them.
+    await page.evaluate("""() => {
+      const field = document.querySelector('#libq');
+      field.value = 'zzz';
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    }""")
+    await page.wait_for_timeout(800)
+    after_search = await ticks()
+    journal.check(
+        "and a search — the reader changing the question — drops them: a tick "
+        "nobody can see is a tick nobody can untick",
+        after_search["selected"] == [],
+        f"the set holds {len(after_search['selected'])} title(s) after a search "
+        f"that narrows the listing")
     await context.close()
 
 
