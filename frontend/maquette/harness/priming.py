@@ -100,17 +100,20 @@ MOUNT_DEADLINE_MILLISECONDS = 1500
 #
 # The parts, on the `{t}` thinning, as the rule PRINTS them: the address in the
 # bar, the year and the kind of the hero's metadata line — separately, which is
-# what « field by field » means — the genres, the trailer, the synopsis, the
-# director, the cast strip, the four library figures (seasons, aired episodes,
-# owned, completeness), the two lines of the identifiers row, and the actions.
-# Fifteen. The season list contributes none:
+# what « field by field » means — the genres, the trailer, the cast section's
+# HEADING and its row LABEL (both are the kind, said in other words), the
+# synopsis, the director's value, the cast strip, the two rows the library block
+# draws while ownership is unknown, the two lines of the identifiers row, and the
+# actions. Seventeen. The season list contributes none:
 # with the seasons read still out there are no rows to draw them under, which is
 # the honest drawing and not an omission.
 #
 # This number was written as 21 before it was measured, and the rule fell on its
 # author's arithmetic — which is the reason it is an exact count and not a
-# floor: a wrong number here is loud, where a floor is silent.
-SKELETONS_EXPECTED = 15
+# floor: a wrong number here is loud, where a floor is silent. It has moved
+# twice since, both times because a part that had been asserting started
+# waiting, and both times the rule said so.
+SKELETONS_EXPECTED = 17
 
 INTERCEPT = """({ title, kept, latency, thin, fail, seasonsFirst }) => {
   let reference;
@@ -175,7 +178,7 @@ def assertions_from_resources():
 
 
 def kind_words_from_resources():
-    """« Film » and « Série » — an assertion about a KIND, not an absence.
+    """Every text the KIND decides — an assertion about it, not an absence.
 
     THE OTHER SHAPE OF THE SAME DEFECT, and the one an « unknown » word cannot
     catch: a screen that does not know whether it holds a film prints « Série »
@@ -185,13 +188,22 @@ def kind_words_from_resources():
     the kind back moved the skeleton count and left a text hold reading only the
     « unknown » words untouched.
 
+    THE WORD IS NOT THE ONLY WAY TO SAY IT, and reading « Film »/« Série »
+    alone left three sites out: the section HEADING (« Création et distribution »
+    against « Réalisation et distribution »), the row LABEL (« Créateur »
+    against « Réalisateur ») and, through the same boolean, the SHAPE of the
+    library block. Every one of them says what the screen thinks it holds.
+
     Returns:
-        The two words, as the interface prints them.
+        Every such text, as the interface prints them.
     """
     resource = json.loads(
         (pathlib.Path(__file__).resolve().parent.parent
          / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8"))
-    return sorted({resource["common"]["film"], resource["common"]["series"]})
+    media = resource["screens"]["media"]
+    return sorted({resource["common"]["film"], resource["common"]["series"],
+                   media["castHeadingFilm"], media["castHeadingSeries"],
+                   media["director"], media["creator"]})
 
 
 READ = """() => {
@@ -214,7 +226,13 @@ READ = """() => {
       if (!cache) return null;
       const sheet = cache.getAll().find(
         (query) => query.queryKey[0] === '/api/media' && query.queryKey.length === 3);
-      return sheet ? sheet.state.data === undefined : null;
+      // `data === undefined` was the first reading and it says two things at
+      // once: a read still out, and a read that FAILED with nothing to show.
+      // The screen is not in flight in the second, so a walk holding « in
+      // flight » on it would measure the error case under another name.
+      return sheet
+        ? (sheet.state.status === 'pending' || sheet.state.fetchStatus === 'fetching')
+        : null;
     })(),
     // WHAT EACH SKELETON STANDS IN FOR, so the count below is an enumeration a
     // reader can check rather than a number someone wrote down. A part that
@@ -225,10 +243,23 @@ READ = """() => {
         .trim().replace(/[ ]+/g, ' ').slice(0, 28);
     }) : [],
     text: screen ? (screen.textContent || '') : '',
+    // WHAT ARITHMETIC ASSERTS, which no list of words can catch. « Possédés 0 »
+    // and « 13 manquants » are answers about what the reader HOLDS, and they are
+    // numbers: a text hold reading the interface's « unknown » words is blind to
+    // them by construction, and the exact skeleton count only says that
+    // something is waiting, not that nothing is claiming.
+    ownedZero: screen ? /Poss[ée]d[ée]s[ ]*0/.test(screen.textContent || '') : false,
+    missing: screen ? screen.querySelectorAll('[data-part="season/missing"]').length : -1,
+    completeness: screen
+      ? /Compl[ée]tude[ ]*0[ ]*%/.test(screen.textContent || '') : false,
     failed: !!(screen && screen.querySelector('[data-part="surface-error"]')),
     busy: !!(screen && screen.querySelector('[aria-busy="true"]')),
+    // BUTTONS, not children: in flight the one child is a skeleton, so « at
+    // most one child » is satisfied by one real button just as well — and one
+    // real button over a medium nobody has identified is the whole defect.
     actions: screen
-      ? (screen.querySelector('[data-part="sheet/actions"]') || { children: [] }).children.length
+      ? (screen.querySelector('[data-part="sheet/actions"]')
+          || { querySelectorAll: () => [] }).querySelectorAll('button').length
       : -1,
   };
 }"""
@@ -356,8 +387,8 @@ async def main():
         journal.check(
             "(b-iv) and no action is offered over a medium the read has not "
             "identified — a destructive button is an assertion too",
-            early["open"] and early["actions"] <= 1,
-            f"{early['actions']} action(s) drawn while the sheet is out")
+            early["open"] and early["actions"] == 0,
+            f"{early['actions']} action button(s) drawn while the sheet is out")
         early_children = early["bodyChildren"]
         await page.evaluate("()=>window.__mocks.quiet()")
         await page.wait_for_timeout(300)
@@ -421,6 +452,30 @@ async def main():
             and not [answer for answer in ASSERTIONS
                      if answer in broken["text"] and "bande-annonce" not in answer],
             f"read {broken}")
+        # AND THE RETRY RE-ASKS THE READ IT STANDS ON. « Réessayer » wrote a
+        # page's UI phase through the engine's delegation and asked no query:
+        # the markup carried a retry and the behaviour did not, which no hold
+        # reading the surface's PRESENCE could tell apart.
+        retry_state = await page.evaluate("""async () => {
+          const button = document.querySelector('[data-part="surface-error/retry"]');
+          if (!button) return { clicked: false };
+          button.click();
+          await new Promise((done) => setTimeout(done, 250));
+          const sheet = window.__queries.getQueryCache().getAll().find(
+            (query) => query.queryKey[0] === '/api/media' && query.queryKey.length === 3);
+          return { clicked: true,
+                   fetchStatus: sheet ? sheet.state.fetchStatus : null,
+                   fetches: sheet ? sheet.state.fetchFailureCount : null,
+                   delegated: !!button.getAttribute('data-phase') };
+        }""")
+        journal.check(
+            "(e-i) and its « Réessayer » re-asks THIS read rather than writing "
+            "a page's phase through the delegation",
+            retry_state["clicked"] and not retry_state["delegated"]
+            and (retry_state["fetches"] or 0) > 0,
+            f"read {retry_state} — a failure count above zero is the query "
+            f"having been asked again and failed again, which is what a retry "
+            f"against a server still answering 502 does")
         journal.check("no JS error on the failed walk", not errors, str(errors))
         await context.close()
 
@@ -451,18 +506,36 @@ async def main():
         context, page, errors = await cold_load(
             browser, await address_of(browser, NOT_OWNED_TITLE),
             thin=True, seasons_first=True, title=NOT_OWNED_TITLE)
+        thinned_apart = await page.evaluate('''(title)=>{
+          const full = window.__fullSheetFor ? window.__fullSheetFor(title) : null;
+          const thin = window.__referentiel.sheetFor(title);
+          return { fullKeys: full ? Object.keys(full).length : 0,
+                   thinKeys: thin ? Object.keys(thin).length : null };
+        }''', NOT_OWNED_TITLE)
+        journal.check(
+            "(g-i) this walk's own placeholder is thinned — the walk that "
+            "exists because a previous version measured a complete one",
+            thinned_apart["fullKeys"] > 6 and thinned_apart["thinKeys"] == 0,
+            f"full sheet {thinned_apart['fullKeys']} key(s), placeholder "
+            f"{thinned_apart['thinKeys']} key(s) — a floor on the skeleton "
+            f"count is not this check: a complete placeholder leaves a skeleton "
+            f"or two of residue, which passes it")
         apart = await page.evaluate(READ)
         seasons_drawn = await page.evaluate("""
             ()=>document.querySelectorAll('[data-part="season"]').length""")
         journal.check(
             "(g) with the seasons landed and the sheet still out, the season "
             "rows are drawn and say NOTHING about the episode lists they have "
-            "not got",
+            "not got — nor about what the reader HOLDS of them",
             apart["open"] and apart["sheetOut"] and seasons_drawn > 0
             and apart["skeletons"] > 0
+            and not apart["ownedZero"] and not apart["completeness"]
+            and apart["missing"] == 0
             and not [answer for answer in ASSERTIONS if answer in apart["text"]],
             f"{seasons_drawn} season row(s) drawn, {apart['skeletons']} "
-            f"skeleton(s); printed: "
+            f"skeleton(s); « Possédés 0 »: {apart['ownedZero']}, "
+            f"« Complétude 0 % »: {apart['completeness']}, "
+            f"« manquants » chips: {apart['missing']}; printed: "
             f"{[answer for answer in ASSERTIONS if answer in apart['text']]}")
         journal.check("no JS error on the split-latency walk", not errors, str(errors))
         await context.close()
