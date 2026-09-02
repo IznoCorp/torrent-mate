@@ -152,6 +152,26 @@ def assertions_from_resources():
     return sorted({media[key] for key in wanted if isinstance(media[key], str)})
 
 
+def kind_words_from_resources():
+    """« Film » and « Série » — an assertion about a KIND, not an absence.
+
+    THE OTHER SHAPE OF THE SAME DEFECT, and the one an « unknown » word cannot
+    catch: a screen that does not know whether it holds a film prints « Série »
+    because that is the branch a false boolean takes. It says something
+    confident about data in flight, which is what §13 refuses — the answer being
+    positive rather than negative changes nothing. Measured: a mutation putting
+    the kind back moved the skeleton count and left a text hold reading only the
+    « unknown » words untouched.
+
+    Returns:
+        The two words, as the interface prints them.
+    """
+    resource = json.loads(
+        (pathlib.Path(__file__).resolve().parent.parent
+         / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8"))
+    return sorted({resource["common"]["film"], resource["common"]["series"]})
+
+
 READ = """() => {
   const screen = document.querySelector('[data-part="screen"][data-open]');
   return {
@@ -219,6 +239,9 @@ async def cold_load(browser, address, thin, fail=False):
 
 
 ASSERTIONS = assertions_from_resources()
+# Refused only while the sheet's own read is out: once it lands, or once it
+# fails and the screen falls back on what the tap knew, the kind is a fact.
+KIND_WORDS = kind_words_from_resources()
 
 
 async def main():
@@ -267,12 +290,14 @@ async def main():
             early["open"] and early["skeletons"] == SKELETONS_EXPECTED,
             f"{early['skeletons']} skeleton(s), expected {SKELETONS_EXPECTED}, "
             f"standing in for: {early['parts']}")
-        printed = [answer for answer in ASSERTIONS if answer and answer in early["text"]]
+        printed = [answer for answer in ASSERTIONS + KIND_WORDS
+                   if answer and answer in early["text"]]
         journal.check(
             "(b-ii) and the screen says NONE of its « unknown » answers while "
             "the read is out — read as TEXT, from the resource it prints from",
             early["open"] and not printed and len(early["noInfos"]) == 0,
-            f"{len(ASSERTIONS)} answer(s) read from fr.json; printed in flight: "
+            f"{len(ASSERTIONS)} unknown answer(s) and {len(KIND_WORDS)} kind "
+            f"word(s) read from fr.json; printed in flight: "
             f"{printed}; no-info part(s): {early['noInfos']}")
         journal.check(
             "(b-iii) the body says it is busy, so the silence a reader hears is "
