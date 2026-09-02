@@ -37,7 +37,7 @@ plan does not say.
 5. `docs/reference/product-intent.md` — the constitution. §12 (the phone first), §13 (real data,
    never an assertion about data in flight — that is B-283's clause), §16 (the back gesture); every
    web pull request cites the §§ it serves.
-6. `git show 81ad0492:docs/archive/features/maquette-l12/REPORT.md` — L12's report, read from
+6. `git show 79ccebe2:docs/archive/features/maquette-l12/REPORT.md` — L12's report, read from
    history: the thirty instruments that lied, § 6f and § 6g on what three review rounds returned and
    where (inside the repairs), and the reduce/decode/one-owner traps of transitions your files carry.
 7. `docs/reference/frontend-steward.md` § « One machine, one harness at a time » and its last two
@@ -187,7 +187,7 @@ rule you write, ask what it does NOT read, and what it would still read if the b
   library already does (rule 2, reversed 2026-08-31).
 - **No backend work** (D7). B-283's repair is a line in the screen, not a projection change.
 - **You do not relitigate settled arbitrations** — D1 to D11, invariants 1 to 15, the operator's
-  answers of 2026-08-30 (`git show 81ad0492:docs/archive/features/maquette-l10-ter/QUESTIONS.md`),
+  answers of 2026-08-30 (`git show 79ccebe2:docs/features/maquette-l10-ter/QUESTIONS.md` — never archived, deleted by docs-cleanup),
   §18/§19 as dictated.
 - **You do not stop between phases.** Phases chain without pause — the operator arbitrates the
   SCOPE, never the cadence; write that constraint at the head of your plan's INDEX as L12 did, with
