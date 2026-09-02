@@ -26,6 +26,7 @@ cannot see because it measures one settled state at a time.
 """
 import asyncio
 import pathlib
+import re
 import sys
 
 from playwright.async_api import async_playwright
@@ -39,6 +40,17 @@ from common import PHONE, PROTOTYPE, Journal
 # fail is worth nothing.
 STATE = "lib-list"
 ROW = '[data-part="card"]'
+# One page of the listing, as the layer serves it, and one row's pitch — the
+# card's height plus the gap the container puts between two. Both are read from
+# the sources they are declared in rather than typed here twice: a number in
+# this file that the fixture moves is a second source of truth.
+PAGE_SIZE = int(re.search(r"PAGE_SIZE = (\d+)", (
+    pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "mocks"
+    / "handlers" / "library.ts").read_text(encoding="utf-8")).group(1))
+ROW_PITCH = sum(int(number) for number in re.search(
+    r"list: \{[^}]*rowHeight: (\d+)[^}]*gap: (\d+)",
+    (pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "features"
+     / "library" / "reference.ts").read_text(encoding="utf-8"), re.S).groups())
 
 # How far the finger drags the list, in pixels. Several rows' worth, so the
 # window has certainly moved.
@@ -396,7 +408,18 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
     WHY BEYOND THE FIRST PAGE, and it is the whole finding: deleting a row on
     page 0 changes that page's identity and the old key moved with it. Only a
     row further down separates « the rows changed » from « the first page
-    changed », and 321 of the fixture's 345 rows are further down.
+    changed », and 321 of the fixture's 345 rows are further down. **So the
+    index is HELD, not hoped for**: the first version of this hold asked for one
+    more page through a door that does not exist, reached page 1 only by the
+    fling three touch strokes happen to produce, and checked `scrollTop > 0` —
+    which is not « beyond the first page » on any machine.
+
+    AND IT IS READ ONE TASK AFTER THE DELETE, WITH THE NETWORK DOWN. The first
+    version read 150 ms later against a layer answering instantly: the refetch
+    the delete triggers had already rebuilt the window by then, so the hold was
+    green on the very code it was written against. Offline, the mutation is HELD
+    and no refetch exists to repair anything — which is also the case the
+    docstring above names and did not drive.
     """
     context = await browser.new_context(**PHONE)
     page = await context.new_page()
@@ -406,14 +429,33 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
     await page.wait_for_timeout(250)
     await page.evaluate("(s)=>window.__go(s)", STATE)
     await page.wait_for_timeout(700)
-    # ONE PAGE MORE, so the window can hold a row the first page does not.
-    await page.evaluate("()=>window.__libraryPaging && window.__libraryPaging()")
-    await page.wait_for_timeout(600)
+    # ONE PAGE MORE, so the window can hold a row the first page does not — and
+    # the door is asserted to EXIST, because a name that has moved leaves
+    # `undefined && …` behind, which is a no-op that reads exactly like a call.
+    door = await page.evaluate(
+        "()=>typeof window.__libraryNextPage === 'function'")
+    journal.check(
+        "the list publishes the door this hold asks a page through",
+        door, f"typeof window.__libraryNextPage === 'function': {door}")
+    await page.evaluate("()=>window.__libraryNextPage && window.__libraryNextPage()")
+    await page.wait_for_timeout(700)
+    declared = await page.evaluate(
+        """()=>Number((document.querySelector('#libitems') || {dataset: {}})
+             .dataset.virtualised || 0)""")
+    journal.check(
+        "and a second page landed, so a row beyond the first exists to delete",
+        declared > PAGE_SIZE, f"{declared} row(s) declared, one page is {PAGE_SIZE}")
     session = await page.context.new_cdp_session(page)
     box = await page.evaluate(
         "()=>{const r=document.querySelector('#port').getBoundingClientRect();"
         "return {x:r.x+r.width/2, y:r.y+r.height*0.7};}")
-    for _ in range(3):
+    # SCROLLED UNTIL THE WINDOW IS PAST THE FIRST PAGE, with a real touch stream
+    # and a bounded loop — not a fixed number of strokes whose reach depends on
+    # how far this browser's fling carries. Three strokes put the window at index
+    # 19 on this machine, under the 24 the hold is about; a count that happens to
+    # work here is the precondition failing silently somewhere else.
+    reached = 0
+    for _ in range(12):
         await session.send("Input.dispatchTouchEvent", {
             "type": "touchStart",
             "touchPoints": [{"x": box["x"], "y": box["y"]}]})
@@ -422,29 +464,50 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
                 "type": "touchMove",
                 "touchPoints": [{"x": box["x"], "y": box["y"] - step * 45}]})
         await session.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
-        await page.wait_for_timeout(120)
+        await page.wait_for_timeout(150)
+        reached = await page.evaluate(
+            "(pitch)=>Math.round(document.querySelector('#port').scrollTop / pitch)",
+            ROW_PITCH)
+        if reached >= PAGE_SIZE + 6:
+            break
     await page.wait_for_timeout(400)
 
-    drawn = await page.evaluate("""(row) => {
+    # THE MEASURED ROW'S INDEX, derived from the window's own leading spacer
+    # rather than from the scroll: the spacer stands in for every row above the
+    # window, so its height over one row's pitch IS the first drawn index.
+    drawn = await page.evaluate("""({ row, pitch }) => {
+      const container = document.querySelector('#libitems');
+      const spacer = container && container.querySelector('[data-part="window/spacer"]');
+      const above = spacer ? Math.round(spacer.getBoundingClientRect().height / pitch) : 0;
       const items = [...document.querySelectorAll(row)];
       const at = Math.floor(items.length / 2);
       const title = items[at] && items[at].querySelector('[data-part="card/title"]');
       return { count: items.length,
+               at: above + at,
                title: title ? title.textContent.trim() : null,
                scrolled: document.querySelector('#port').scrollTop };
-    }""", ROW)
+    }""", {"row": ROW, "pitch": ROW_PITCH})
     journal.check(
-        "the window is scrolled past the first page, so a row here is one the "
-        "first page does not hold",
-        drawn["scrolled"] > 0 and drawn["count"] > 0 and drawn["title"],
-        f"{drawn['count']} row(s) drawn at {drawn['scrolled']}px, "
-        f"measuring on {drawn['title']!r}")
+        "the row measured is BEYOND the first page — the whole subject of this "
+        "hold, and a scroll offset is not that check",
+        drawn["at"] >= PAGE_SIZE and drawn["count"] > 0 and drawn["title"],
+        f"{drawn['count']} row(s) drawn at {drawn['scrolled']}px; measuring on "
+        f"index {drawn['at']} ({drawn['title']!r}), one page is {PAGE_SIZE}")
     if not drawn["title"]:
         await context.close()
         return
-    await page.evaluate("(title)=>window.__deleteLibraryItems([title])", drawn["title"])
-    await page.evaluate("()=>window.__store.touch()")
-    await page.wait_for_timeout(150)
+    # ONE TASK, and no network. `setOffline` makes the mutation HELD — the
+    # layer keeps it and invalidates nothing — so nothing but the optimistic
+    # write can take the row off the screen; and the read is a macrotask after
+    # it, which is what « at once, not when the network answers » means. The
+    # store bump the engine's own delete makes is deliberately NOT sent: what is
+    # measured is the query notification alone.
+    await page.evaluate("()=>window.__mocks.setOffline(true)")
+    await page.evaluate(
+        """(title)=>new Promise((done) => {
+             window.__deleteLibraryItems([title]);
+             setTimeout(done, 0);
+           })""", drawn["title"])
     after = await page.evaluate("""(row) => {
       const inside = row + ' [data-part="card/title"]';
       const titles = [...document.querySelectorAll(inside)]
@@ -456,7 +519,8 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
         "network answers",
         drawn["title"] not in after["titles"],
         f"{drawn['title']!r} still drawn: {drawn['title'] in after['titles']}; "
-        f"{after['count']} row(s) now")
+        f"{after['count']} row(s) now, one task after the delete, offline")
+    await page.evaluate("()=>window.__mocks.setOffline(false)")
     await context.close()
 
 
