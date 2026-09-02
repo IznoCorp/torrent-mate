@@ -224,6 +224,27 @@ harness fans out to two or three rules rather than eight, and the office's reade
 while a wave's gates are running. **Every reader's prompt carries the clause** — its own directory,
 its own ports, and the duty to kill what it started and delete what it built BEFORE it reports.
 
+**The lock, `scripts/heavy.sh`, is what makes the rule hold when two sessions both believe they are
+alone.** Wrap every run that starts browsers, builds or a parallel test run — `sh scripts/heavy.sh
+<who> <command>`. It is a machine-wide mutex plus a readiness check: it waits for whoever is
+running, then waits again until there are 4 GB free and a one-minute load at or below 6, and it
+watches the run, stopping ITS OWN child (exit 75, never anything else on the machine) after three
+consecutive samples below 2 GB free. It releases on exit, on an interrupt and on a kill, and a lock
+older than forty-five minutes is treated as a dead session's.
+
+**Its thresholds are arithmetic, not taste.** This host is 8 cores and 16 GB; one Playwright browser
+group costs about 1.1 GB; the baseline holds about 6 GB. A fan-out of eight therefore asks for more
+than exists, which is how a load of 65 with 200 MB free happened. The caps that go with the lock: at
+most two browser groups machine-wide, a harness fan-out of two, a parallel test run at three workers
+rather than all eight cores, and never a build beside one. **The margin is deliberate** — the script
+asks whether there is room to spare, never whether a run merely fits, because a run that squeezes
+leaves compressed memory this host does not reclaim until a reboot.
+
+**And it must not tax what it protects.** Measured on its own tests: one second of overhead on an
+instant command, the exact duration on a three-second one, seven seconds to acquire behind a five-
+second holder, and the lock free after an interrupt. A wrapper that made every quick command wait
+would be a wrapper someone bypasses, and a rule bypassed once is a rule gone.
+
 **And the same holds for a wave's agent.** The office measures the load before it accuses, names
 what the measurement attributes to whom, and says it plainly: the operator asked whose it was, and «
 the agent's gates » was the answer he needed to hear with the counts behind it.
