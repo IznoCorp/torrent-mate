@@ -14,11 +14,10 @@ phases 5 and 6.**
    The file is `.tsx` because it renders.)*
    Its header says WHY (React 19 assigns `innerHTML` on the prop's identity, string unchanged or
    not — the comparison React 18 made) and names the one place the trick lives. Zero domain words.
-2. Every `dangerouslySetInnerHTML={{ __html: … }}` in `now-tab.tsx`, `follows-tab.tsx` and
-   `incomplete-lens.tsx` becomes `dangerouslySetInnerHTML={useMarkup(…)}` — where a site is
-   inside a `.map` or a closure (the « En cours » sections, the grouped follows), the section
-   becomes a small component so the hook is called at the top level of a component, as the rules
-   of hooks require. `discover-tab.tsx` has no such site (the engine fills its containers).
+2. Every `dangerouslySetInnerHTML={{ __html: … }}` under `design/src` becomes a `<Markup>`
+   element — the component of item 1, never a `useMarkup(…)` call at the site: several sites are
+   inside a `.map` or a helper closure, where a hook may not be called. `discover-tab.tsx`'s
+   engine-filled containers are not among them (the engine owns their content).
 3. `library-list.tsx`: `drawKey` becomes `` `${state.libMode}:${state.selMode}:${firstPageDraw}` ``
    where `firstPageDraw` is a counter kept in a ref that increments when
    `listing.data?.pages[0]` changes identity — D-L14-6. The comment that argued for keying on the

@@ -31,7 +31,9 @@ draws. Props are the derived values, typed from `sheet-fields.ts`.
   refuses « Information » — it is not a word this codebase's names are built from — and the guard
   is right: the block is the medium's identifiers and its actions, which « details » names.
 - The design's § 2 estimate for this cut was seven files at ~190 lines for the screen; it landed
-  at six plus the screen, and the screen ends the wave at 214 after phase 4 writes into it.
+  at six plus the screen. **The screen's final figure is the REPORT's**, re-measured there after
+  every phase and every review round wrote into it — a number repeated in a phase file is a
+  number that stops being true at the next commit, and this one did.
 
 ## Definition of done
 

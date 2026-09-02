@@ -11,7 +11,8 @@
    `aria-hidden="true"`.
 2. `media-screen.tsx` computes `inFlight = sheet.isPending || (sheet.isPlaceholderData &&
 sheet.isFetching)` and `seasonsInFlight = seasons.isPending`, and passes them down.
-3. In `media-hero.tsx`, `media-cast.tsx`, `media-library-facts.tsx`, `media-information.tsx`: every
+3. In `media-hero.tsx`, `media-cast.tsx`, `media-library-facts.tsx`, `media-details.tsx` (phase 3's
+   recorded deviation — the vocabulary arm refuses « Information »): every
    part that prints an « unknown » assertion draws `<SkeletonLine>` INSIDE the same element when
    its value is absent and the read is in flight. The trailer's no-info `<p>` and the cast's
    no-info `<p>` are replaced by a skeleton line of the same element while in flight — so

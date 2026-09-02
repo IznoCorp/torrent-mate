@@ -15,9 +15,9 @@ repaired.
 
 | File                                      | Before |   After | What went beside it                                                                                                                                 |
 | ----------------------------------------- | -----: | ------: | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `features/acquisition/page.tsx`           |    756 |  **48** | `acquisition-tabs.tsx` 53 · `now-tab.tsx` 142 · `follows-tab.tsx` 254 · `follows-filters.tsx` 105 · `discover-tab.tsx` 192 |
-| `features/media/media-screen.tsx`         |    796 | **240** | `sheet-fields.ts` 36 · `season-list.tsx` 245 · `media-hero.tsx` 150 · `media-cast.tsx` 77 · `media-library-facts.tsx` 140 · `media-details.tsx` 131 |
-| `features/library/page.tsx`               |    613 |  **102** | `library-head.tsx` 144 · `library-list.tsx` 241 · `library-count.tsx` 76 · `library-empty.tsx` 52 · `incomplete-lens.tsx` 67 |
+| `features/acquisition/page.tsx`           |    756 | **48** | `acquisition-tabs.tsx` 53 · `now-tab.tsx` 142 · `follows-tab.tsx` 254 · `follows-filters.tsx` 105 · `discover-tab.tsx` 192 |
+| `features/media/media-screen.tsx`         |    796 | **262** | `sheet-fields.ts` 36 · `season-list.tsx` 268 · `media-hero.tsx` 150 · `media-cast.tsx` 86 · `media-library-facts.tsx` 164 · `media-details.tsx` 132 |
+| `features/library/page.tsx`               |    613 | **102** | `library-head.tsx` 144 · `library-list.tsx` 241 · `library-count.tsx` 76 · `library-empty.tsx` 52 · `incomplete-lens.tsx` 67 |
 | `features/arrivals/resolution-screen.tsx` |    430 | **213** | `resolution-cards.tsx` 208 |
 
 <sub>`for f in features/acquisition/page.tsx features/media/media-screen.tsx features/library/page.tsx features/arrivals/resolution-screen.tsx; do printf '%-45s %s\n' "$f" "$(grep -cve '^\s*$' frontend/maquette/design/src/$f)"; done`</sub>
@@ -27,10 +27,10 @@ repaired.
 each of the four grandfather entries left in the same commit as the file it named: the arm refuses
 an entry for a file back under the ceiling, so the count cannot climb again in silence.
 
-**One file sits above the 250 soft warning and is named rather than left to be found**:
-`follows-tab.tsx` at 254. « Suivis » is one surface with four display branches, and cutting it
-further would have split a single decision across two files to satisfy a warning. The warning is
-what it is for.
+**Three files sit above the 250 soft warning and are named rather than left to be found**:
+`follows-tab.tsx` at 254, `season-list.tsx` at 268 and `ui/virtual-rows.tsx` at 335 — the last two
+grew with round 1's and round 2's repairs, and the third is a `ui/` primitive rather than a surface.
+None is near the ceiling.
 
 **`Icon` is written once.** Three private copies were deleted (`media-screen.tsx`,
 `resolution-screen.tsx`, `releases-screen.tsx`); the signatures agreed with `ui/icon.tsx`'s and the
@@ -101,56 +101,88 @@ defect. Overruling it is one line.
 
 ## 4. The rules this wave added, and what each does not read
 
-**R119 — `frontend/maquette/harness/priming.py`** (7 holds, full suite). It thins the reference's
-`sheetFor` to `{t, k, y}` for one title and holds the read back 2 000 ms, both through setters
-installed by an init script — a wrapper installed after `load` arrives after the placeholder has
-been computed on a cold load. It reads 11 skeletons and 0 assertions in flight, 0 skeletons and one
-no-info (the trailer) landed, and the same block count at both instants. It does not read the
-skeleton's rendering (no named state shows the priming at rest, so the oracle never measures it),
-nor any sheet but Broadchurch's.
+**Re-taken at the head after round 2.** This section described round 1's instruments for a round —
+seven holds, a `{t, k, y}` thinning, seven states, one door — while § 6 and § 7 of this same file
+described the ones that exist. A reader was handed the wrong ones by the section titled « what each
+does not read », which is the species this whole wave keeps counting. The figures below are the
+tree's; each rule prints its own.
 
-**R100 hold (f) — `frontend/maquette/harness/persistence.py`** (R100 rises 11 → 18). On seven named
-states, every card, tile, row, button, pill, image and key-value row is asked `isSameNode` after
-`window.__store.touch()`, with a floor of ten captured per state: 56, 88, 35, 61, 61, 110 and 27,
-all kept. It does not read the Découvrir containers, a write that legitimately redraws, or the
-maintenance page.
+**R119 — `frontend/maquette/harness/priming.py`, 21 holds, full suite.** It intercepts two seams
+from an init script — a wrapper installed after `load` arrives after the placeholder was computed —
+and walks the media sheet five times: a placeholder thinned to the TITLE alone (the leanest a tap
+can know), a PARTIAL one carrying the year and not the kind (where « field by field » is decidable
+at all), the prototype's own complete placeholder as a control, a read that FAILS with a 502, and
+one where the seasons land before the sheet. It holds an EXACT skeleton count — 17, printed with
+the enumeration that produces it — the absence of every « unknown » word and of every text the KIND
+decides, read from `fr.json` rather than retyped; that no ownership arithmetic is printed
+(« Possédés 0 », « Complétude 0 % », the « manquants » chips); `aria-busy`; zero action buttons over
+an unidentified medium; that the failure says what the SERVER said rather than the shared timeout
+sentence; and that its retry re-asks the query. **What it does not read**: the skeleton's rendering
+(no named state shows the priming at rest), any sheet but the two it names, and the seasons'
+placeholder — there is none.
+
+**R100 hold (f) and (g) — `frontend/maquette/harness/persistence.py`, 15 checks over 35 holds.**
+Nine named states × two store doors: `touch()`, which bumps the version, and `write({})`, which
+makes a new state object and is the door every surface reading `useUiState()` re-renders on — the
+one the first version did not drive. Every card, tile, row, button, pill, image, `path` and
+key-value row is asked `isSameNode`; the two screen states are floored on their OWN nodes rather
+than on the page beneath them. And (g): a row whose markup changes under the reader — a checkbox
+toggled in selection mode — keeps the keyboard's place on it. **What it does not read**: Découvrir's
+engine-filled containers (L19's), a write that legitimately redraws, and the maintenance page.
+
+**R117's delete hold — `frontend/maquette/harness/virtual.py`, 21 holds.** It asserts the paging
+door EXISTS, that a second page landed, and that the row it measures is past the first page — its
+index derived from the window's own leading spacer — then deletes it with the network DOWN, where
+the mutation is held and no refetch can repair anything, and reads one macrotask later. **What it
+does not read**: the swipe gesture that reaches the delete (`drag.py`'s subject).
 
 **`scripts/check-component-once.py`** — every `.ts`/`.tsx` under `design/src` outside `engine/` and
-`mocks/`, for a top-level PascalCase function declared in more than one file. Hard zero, no
-allow-list, corpus printed with a floor on both files and declarations. It does not read camelCase
-helpers (`announce` ×4, `isOpen` ×2 are private helpers of their own modules; `useStaging` ×2 is a
-hook written twice, a finding for a reader and not this guard's subject) nor a component copied
-under a different name.
+`mocks/`, for a top-level PascalCase function declared in more than one file, `export default`
+included. Hard zero, no allow-list, corpus printed with floors, and ten tests in
+`tests/scripts/test_check_component_once.py` — two of which fall on the pre-repair regex.
 
-**Every one was mutation-tested, seen red, restored.** R119: `inFlight` forced false, and the
-cast's branch forced to its assertion — hold (b) falls both times. R100 (f): the window keyed on a
-value that moves every draw (16 of 61 kept on `lib-list`), and the markup object made fresh per
-render (5 of 56 kept on `acq-now-loaded`). `check-component-once.py` is a GUARD, which
-`scripts/mutate.sh` cannot judge (B-273), so a second `Icon` was written back by hand and its exit
-code read: 1, naming both files.
+**Every rule lands with its mutation, seen red.** The reds are quoted in the commit that carries
+each repair, and every one was run through `scripts/mutate.sh`, which rebuilds the served copy
+under its own lock — see § 7 on why that matters.
 
----
+## 5. Guards green over what they do not read — **2 by the wave, 12 by nine readers**
 
-## 5. Guards green over what they do not read — this wave's figure is 2
-
-Both were found by the wave in its own instruments, and **both are the RED form**, which the
-criterion admits in either sign: an instrument whose reading does not decide what it claims to
-decide.
+**The split was wrong in the first version of this section and in the register's row**, and it was
+wrong in the flattering direction: three units the readers returned as majors were listed as the
+wave's own, in a cell whose Total then called them « the three it missed ». A unit is credited to
+whoever found it. The wave found two, both before any reader ran, and both the RED form:
 
 1. **R119's own control**, written as « the complete placeholder draws ZERO skeletons » and red on
-   its first run — correctly. The seasons carry no placeholder and this sheet's served creator is
-   absent, so four lines stand there legitimately. A control that fails over the design working as
-   drawn is the shape whose natural repair is to weaken the drawing. It reads « fewer skeletons,
-   and the parts the placeholder carries are CONTENT » now: 4 against 11, the cast strip drawn and
-   the synopsis a sentence.
-2. **`check-component-once.py`'s first floor**, set at 50 declarations against a corpus of 69. A
-   floor a quarter under the value it guards goes red the day a wave legitimately merges two
-   components, and its author lowers it then. Measured before it was written down, and set at 30.
+   its first run — correctly, since the seasons carry no placeholder. A control that fails over the
+   design working as drawn is the shape whose natural repair is to weaken the drawing.
+2. **`check-component-once.py`'s first floor**, at 50 declarations against a corpus of 69.
 
-The readers have not run at the time of writing; the register's row says so rather than counting
-them at zero. **Total 174 + 2 = 176.**
+**The readers' twelve**, each an instrument whose reading did not decide what it claimed:
 
----
+3. R119 held a floor of six against eleven and read a part name two of nine sites wear — green over
+   three of the four assertions its own register entry names.
+4. `check-component-once.py` said « exported or not » and its regex refused `export default`.
+5. Hold (f) drove `touch()` alone, the one door a surface reading `useUiState()` bails out of.
+6. Hold (f)'s selector never named a `path`, so the icon defect was outside it by construction —
+   named as such in the commit that repaired it, and not counted until a reader did.
+7. Hold (f)'s floor of ten was met, on the two screen states, by the page beneath the screen.
+8. Hold (f) did not drive `acq-follows-group`, the state the design itself measured as replaced.
+9. The incomplete lens's memo was read by no driven state.
+10. **R117's delete hold was GREEN on the code it was written against** — it asked for a page
+    through a door that does not exist, measured a row on the first page, and read 150 ms later
+    against a layer answering instantly, by which time the refetch had already repaired the window.
+    The purest form of this species in the wave: a rule written for a regression, satisfied by it.
+11. R119's « in flight » read `data === undefined`, which is also a read that FAILED with nothing
+    to show — two states under one name.
+12. R119's action count counted CHILDREN, so one real button read exactly like one skeleton.
+13. The split-latency walk held a floor on its skeleton count in place of reading that its own
+    thinning applied — on the walk that exists because an earlier version measured a complete
+    placeholder and printed zero.
+14. R119's hold (e) read that an error surface was PRESENT, never what it said — which is how a
+    timeout sentence stood over a 502 that had answered.
+
+**Total 174 + 14 = 188.** Fourteen, of which the wave found two: the ratio is the argument this
+table has been making since L11, arriving again on a wave that believed it had counted itself.
 
 ## 6. The gates
 
@@ -245,11 +277,22 @@ kind asserted about a medium that does not exist, the very defect this wave remo
 its own repair. R75's hold on the honest empty case went red and named it. A sheet with fields
 missing waits per field; no sheet at all says « Métadonnées inconnues », once.
 
-**And a reading taken against a stale served copy proved nothing.** A mutation applied by hand,
-built, run, and then restored WITHOUT rebuilding left the served copy holding the mutated build;
-the next three readings measured it. The suite's own header warns about exactly this and it was
-still paid for. `scripts/mutate.sh` does the rebuild itself, which is the argument for never doing
-it by hand.
+**And a reading taken against a stale served copy proved nothing — named, because a confession
+without its subject cannot be checked.** The mutation was the hero's kind branch
+(`media-hero.tsx`, the in-flight arm replaced by `t("common.series")`), applied by hand rather than
+through `scripts/mutate.sh`, built, run, and then restored WITHOUT rebuilding. **Two readings
+measured the mutated build afterwards**: the first run of walk (f), which reported « Série » printed
+and read as a defect in the repair, and a tree-walk probe that showed the same text. Both were
+diagnostic, both were re-taken on a rebuilt copy in the next command, and (f) passed there. **No
+mutation-red credited anywhere in this report rests on them**: every red named in a commit was run
+through `scripts/mutate.sh`, which rebuilds the served copy under its own lock and restores from the
+index — which is the whole argument for never doing it by hand.
+
+**It cost more than a wrong reading the second time.** A by-hand `git checkout --` after another
+by-hand mutation, in round 2, threw away six files of uncommitted repairs — the tri-state kind, the
+ownership gate, the error surface's reason and retry — and they had to be written again. The
+mutation tool refuses a dirty tree for exactly that reason and refused one an hour later, correctly.
+The rule is not « be careful »: it is that the tool does the mutation.
 
 ### What the round cost, in numbers
 
@@ -262,5 +305,30 @@ it by hand.
 | Defects the repairs themselves introduced, caught by a rule | 1 (the empty case, R75) |
 | Vacuities in the wave's own new holds, caught by reading the figures they print | 5 |
 
-**Round 2 reads these repairs**, which is where every round in this repository has found its
-sharpest defect.
+### Round 2: four readers, 0 blocker, nine majors — and the sharpest was inside a round-1 repair
+
+**Every one is repaired, and three of them were defects the round-1 repairs introduced.** The
+regression the first round found had been repaired at the surface and the rule written for it was
+GREEN on the code it was written against (§ 5, unit 10). The string memory that repaired it replaced
+a row whose markup changed — which is what a checkbox toggle does — and threw keyboard focus to the
+document root on every toggle in the mode built for going through a library. And the field-by-field
+gating stopped one derivation short: the FIELDS waited while the two BOOLEANS derived from them —
+`owns` and `isFilm` — kept their defaults, so a suggestion still printed « Possédés 0 »,
+« Complétude 0 % » with a warning pip, « 13 manquants » per season and « Création et distribution »
+about a medium whose ownership and kind had not arrived.
+
+The error path, made honest about its fields in round 1, was not honest about the failure: it
+printed « le serveur n'a pas répondu dans le temps imparti » over a 502 that had answered with its
+reason in hand, and its « Réessayer » wrote a page's UI phase through the engine's delegation and
+re-asked nothing. Both now read the failure they were given.
+
+**What the round taught, and it is the same lesson from a new angle.** A rule that is green can be
+green for the wrong reason, and the way to find out is to run it against the code it was written
+for. R117's hold was written from a regression a reader had measured, passed on the repair, and
+passed on the defect — because its door name had moved, its precondition read a scroll offset where
+it meant an index, and its wait outlasted the refetch that repairs the window anyway. Nothing in
+the wave's own gates could say so. **A hold that has never been run against the defect it names is a
+hold nobody has tested**, and « I mutated something and it went red » is not that run unless the
+mutation restores the defect.
+
+**Round 3 reads these repairs.**
