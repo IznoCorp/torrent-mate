@@ -18,7 +18,8 @@ export function MediaHero({
 }: {
   title: string;
   sheet: (MediaSheet & MediaSheetFields) | null;
-  isFilm: boolean;
+  /** True for a film, false for a series, null while the kind is in flight. */
+  isFilm: boolean | null;
   artwork: string | null;
   trailer: Trailer | null;
   /** Whether the sheet's read is still out — a missing part is then a skeleton, never an answer. */
@@ -48,9 +49,8 @@ export function MediaHero({
                 difference shows. Gated on the whole sheet being null, a
                 placeholder carrying the title and not the year printed « année
                 inconnue · Série » — an assertion about the KIND of a medium
-                whose kind is in flight, in the wave that forbids exactly that.
-                The year, the kind and the runtime are three separate answers,
-                and each waits for its own. */}
+                whose kind is in flight. The year, the kind and the runtime are
+                three separate answers, and each waits for its own. */}
             {/* NO SHEET AT ALL is not the same as a sheet with fields
                 missing, and this line has to keep both. A read that landed on
                 nothing — an identifier nobody carries — has no year and no kind
@@ -62,13 +62,13 @@ export function MediaHero({
               <>
                 {sheet?.y || (inFlight ? <SkeletonLine width="short" /> : t("screens.media.yearUnknown"))}
                 {" · "}
-                {sheet?.k
-                  ? isFilm
-                    ? t("common.film")
-                    : t("common.series")
-                  : inFlight
-                    ? <SkeletonLine width="short" />
-                    : t("common.series")}
+                {isFilm === null ? (
+                  inFlight ? <SkeletonLine width="short" /> : t("screens.media.unknown")
+                ) : isFilm ? (
+                  t("common.film")
+                ) : (
+                  t("common.series")
+                )}
                 {sheet?.duree ? ` · ${sheet.duree} ${t("screens.media.minutesShort")}` : ""}
               </>
             ) : inFlight ? (
@@ -87,7 +87,7 @@ export function MediaHero({
                 {inFlight ? <SkeletonLine width="short" /> : t("screens.media.genresUnknown")}
               </>
             )}{" "}
-            {sheet && !isFilm && sheet.status ? (
+            {sheet && isFilm === false && sheet.status ? (
               <>
                 <br />
                 {t("screens.media.seriesStatus", {

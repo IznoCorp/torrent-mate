@@ -18,7 +18,8 @@ export function MediaDetails({
   identified,
 }: {
   title: string;
-  isFilm: boolean;
+  /** True for a film, false for a series, null while the kind is in flight. */
+  isFilm: boolean | null;
   owns: boolean;
   followed: boolean;
   follows: Follow[];

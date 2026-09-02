@@ -13,7 +13,8 @@ export function MediaCast({
   inFlight,
 }: {
   sheet: (MediaSheet & MediaSheetFields) | null;
-  isFilm: boolean;
+  /** True for a film, false for a series, null while the kind is in flight. */
+  isFilm: boolean | null;
   /** Whether the sheet's read is still out — a missing part is then a skeleton, never an answer. */
   inFlight: boolean;
 }) {
@@ -22,16 +23,24 @@ export function MediaCast({
   return (
     <div>
       <h2 className={sectionHeading()} data-part="heading" style={{ marginBottom: "8px" }}>
-        {isFilm
-          ? t("screens.media.castHeadingFilm")
-          : t("screens.media.castHeadingSeries")}
+        {isFilm === null ? (
+          <SkeletonLine width="half" />
+        ) : isFilm ? (
+          t("screens.media.castHeadingFilm")
+        ) : (
+          t("screens.media.castHeadingSeries")
+        )}
       </h2>
       <div className={factsPanel()} data-part="panel" style={{ marginBottom: "10px" }}>
         <div className={keyValueRow()} data-part="key-value">
           <span>
-            {isFilm
-              ? t("screens.media.director")
-              : t("screens.media.creator")}
+            {isFilm === null ? (
+              <SkeletonLine width="short" />
+            ) : isFilm ? (
+              t("screens.media.director")
+            ) : (
+              t("screens.media.creator")
+            )}
           </span>
           <span>
             {(isFilm ? sheet?.real : sheet?.crea) ??
@@ -47,9 +56,9 @@ export function MediaCast({
           tabIndex={0}
           role="group"
           aria-label={
-            isFilm
-              ? t("screens.media.castHeadingFilm")
-              : t("screens.media.castHeadingSeries")
+            isFilm === false
+              ? t("screens.media.castHeadingSeries")
+              : t("screens.media.castHeadingFilm")
           }
         >
           {sheet.cast.map((cast) => (

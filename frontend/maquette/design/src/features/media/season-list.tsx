@@ -10,6 +10,7 @@ import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields"
 export function SeasonList({
   sheet,
   sheetInFlight,
+  ownershipKnown,
   seasons,
   owns,
   catalog,
@@ -27,6 +28,14 @@ export function SeasonList({
    * saison » is said about a list still on its way.
    */
   sheetInFlight: boolean;
+  /**
+   * Whether ownership has arrived. Every row's arithmetic is ownership: the
+   * fraction, the « n manquants » and whether the row opens all read what the
+   * reader HOLDS, and with `possede` still out they read a medium nobody owns
+   * as one owned with nothing in it — « 0/13 · 13 manquants », in an open row,
+   * about a suggestion.
+   */
+  ownershipKnown: boolean;
 }) {
   const {
     ownedFor,
@@ -46,6 +55,13 @@ export function SeasonList({
         air: season.air,
       }));
   if (!rows.length) return null;
+  if (!ownershipKnown) {
+    return (
+      <div style={{ marginTop: "10px" }}>
+        <SkeletonLine width="full" />
+      </div>
+    );
+  }
   return (
     <div style={{ marginTop: "10px" }}>
       {rows.map((row) => {
@@ -165,13 +181,17 @@ export function SeasonList({
               ""
             )}
           </>
+        ) : row.aired === 0 || row.aired === null ? (
+          // A SEASON WITH NOTHING AIRED IS THE SEASONS READ'S OWN ANSWER, and
+          // that read has landed: a skeleton over it would be waiting for a
+          // thing already known — the same defect with its sign turned round.
+          // It precedes the sheet's flight deliberately.
+          <p className="noinfo" data-part="no-info" style={{ marginTop: "8px" }}>
+            {t("screens.media.seasonAnnounced")}
+          </p>
         ) : sheetInFlight ? (
           <p className="noinfo" style={{ marginTop: "8px" }}>
             <SkeletonLine width="half" />
-          </p>
-        ) : row.aired === 0 || row.aired === null ? (
-          <p className="noinfo" data-part="no-info" style={{ marginTop: "8px" }}>
-            {t("screens.media.seasonAnnounced")}
           </p>
         ) : (
           <p className="noinfo" data-part="no-info" style={{ marginTop: "8px" }}>

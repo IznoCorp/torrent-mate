@@ -12,6 +12,7 @@ export function MediaLibraryFacts({
   sheet,
   isFilm,
   owns,
+  ownershipKnown,
   followed,
   seasons,
   own,
@@ -24,8 +25,17 @@ export function MediaLibraryFacts({
   sheetInFlight,
 }: {
   sheet: (MediaSheet & MediaSheetFields) | null;
-  isFilm: boolean;
+  /** True for a film, false for a series, null while the kind is in flight. */
+  isFilm: boolean | null;
   owns: boolean;
+  /**
+   * Whether ownership has arrived at all. This block CHOOSES A BRANCH on it —
+   * not owned, film owned, series owned — so a default here is not one wrong
+   * field but a wrong block: « Possédés 0 », « Complétude 0 % » with a warning
+   * pip and a season list of missing episodes, about a medium the reader may
+   * not own, replaced by « non » a moment later.
+   */
+  ownershipKnown: boolean;
   followed: boolean;
   seasons: [number, number | null, number][];
   own: number;
@@ -47,7 +57,19 @@ export function MediaLibraryFacts({
         {t("screens.media.library")}
       </h2>
       <div className={factsPanel()} data-part="panel">
-        {!owns ? (
+      {!ownershipKnown ? (
+        <>
+          <div className={keyValueRow()} data-part="key-value">
+            <span><SkeletonLine width="short" /></span>
+            <span><SkeletonLine width="short" /></span>
+          </div>
+          <div className={keyValueRow()} data-part="key-value">
+            <span><SkeletonLine width="short" /></span>
+            <span><SkeletonLine width="half" /></span>
+          </div>
+        </>
+      ) : (
+        !owns ? (
           <>
             <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.media.inLibrary")}</span>
@@ -126,9 +148,11 @@ export function MediaLibraryFacts({
               </span>
             </div>
           </>
-        )}
+        )
+      )}
       </div>
       <SeasonList
+        ownershipKnown={ownershipKnown}
         sheetInFlight={sheetInFlight}
         sheet={sheet}
         seasons={seasons}

@@ -25,6 +25,7 @@ import {
   type MediaSheet,
 } from "../../features/media/reference";
 import { useStoreContent } from "../../lib/store-access";
+import { isRequestFailure } from "../../lib/query-client";
 import { seasonsHeld, useMediaSeasons, useMediaSheet } from "./queries";
 import { backAction, body as bodyClass, screen, screenBar, scrollport, sectionHeading } from "../../ui/variants";
 import { Icon } from "../../ui/icon";
@@ -99,7 +100,13 @@ export function MediaScreen() {
   // in flight — it has answered, and the screen prints what it can.
   const inFlight =
     sheetRead.isPending || (sheetRead.isPlaceholderData && sheetRead.isFetching);
-  const isFilm = sheet ? sheet.k === "movie" : false;
+  // THE KIND IS THREE-VALUED, and a boolean could not carry the third. Read as
+  // `sheet.k === "movie"` it is FALSE for a placeholder with no `k` — and false
+  // is « series », which the screen then prints as a heading (« Création et
+  // distribution »), as a row label (« Créateur ») and as the SHAPE of the
+  // library block. An assertion is an assertion whichever way it points; `null`
+  // is the answer nobody has yet.
+  const isFilm = sheet?.k === undefined ? null : sheet.k === "movie";
   /* Seasons are DERIVED from the provider catalogue crossed with the numbers
      actually owned. A hand-written table gave seasons to 10 series only, and
      none of them to the INCOMPLETE ones — the very media the question is
@@ -124,16 +131,18 @@ export function MediaScreen() {
   // A suggestion is NOT in the library: the sheet must say so and offer to
   // add it, not to delete it. Same template, with the only variation reality
   // imposes.
-  const owns = sheet?.possede !== false;
-  // IS THERE A MEDIUM AT ALL? With no sheet — a read still out with no
-  // placeholder, or one that failed with nothing to fall back on — ownership is
-  // not false, it is unknown, and « Supprimer » offered for a medium nobody has
-  // identified is the assertion §13 refuses wearing a destructive button.
   // OWNERSHIP IS KNOWN when the sheet we hold carries it, or when the read has
-  // landed and carries nothing — the fixture's own convention for « owned ». A
-  // placeholder thinned to what a list row knows carries neither, and that is
-  // the case where a destructive button would be an assertion.
-  const identified = sheet !== null && (!inFlight || sheet.possede !== undefined);
+  // landed carrying nothing — the fixture's own convention for « owned ». A
+  // placeholder thinned to what a list row knows carries neither, and `owns`
+  // read as `possede !== false` is TRUE there: it chose the owned-series block,
+  // « Possédés 0 », « Complétude 0 % » with a warning pip and « 13 manquants »
+  // per season about a medium the reader may not own — then flipped to « non »
+  // when the answer arrived.
+  const ownershipKnown = sheet !== null && (!inFlight || sheet.possede !== undefined);
+  const owns = sheet?.possede !== false;
+  // « Supprimer » offered for a medium nobody has identified is that same
+  // assertion wearing a destructive button, so the actions read the same flag.
+  const identified = ownershipKnown;
   // The FIRST of the two follow tests, and it is deliberately the LOOSE one:
   // it matches on the base title, so « Silo » follows « Silo (2023) ». The
   // « Informations » block below asks the SAME question with a STRICTER test
@@ -199,7 +208,19 @@ export function MediaScreen() {
               screen is not silently stale. It stands above the parts it
               qualifies and carries the retry every error surface here does. */}
           {failed ? (
-            <SurfaceError subject={t("screens.media.sheetSubject")} />
+            <SurfaceError
+              subject={t("screens.media.sheetSubject")}
+              // WHAT THE SERVER SAID, not what a constant sentence guesses it
+              // said. The shared body asserts a timeout; this read failed with
+              // a status and a reason in hand, and « the server did not answer
+              // in time » over a 502 that answered is that constant.
+              detail={isRequestFailure(sheetRead.error) ? sheetRead.error.detail : undefined}
+              // AND THE RETRY RE-ASKS THIS READ. The delegated attribute writes
+              // a page's UI phase and re-asks nothing — on a screen that owns
+              // its query that is a button saying « Réessayer » and doing
+              // something else.
+              onRetry={() => void sheetRead.refetch()}
+            />
           ) : null}
           <MediaHero title={title} sheet={sheet} isFilm={isFilm} artwork={artwork} trailer={trailer} inFlight={inFlight} />
 
@@ -222,6 +243,7 @@ export function MediaScreen() {
           <MediaCast sheet={sheet} isFilm={isFilm} inFlight={inFlight} />
 
           <MediaLibraryFacts
+            ownershipKnown={ownershipKnown}
             sheet={sheet}
             isFilm={isFilm}
             owns={owns}
