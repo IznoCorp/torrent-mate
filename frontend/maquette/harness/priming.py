@@ -841,6 +841,13 @@ async def main():
             and (seasons_retry["after"] or 0) > (seasons_retry["before"] or 0),
             f"answer count {seasons_retry.get('before')} before the click, "
             f"{seasons_retry.get('after')} after")
+        journal.check(
+            "(e-v-b) and the rows derived from that read say nobody READ them, "
+            "not that they are unknown of this series — the twins are the "
+            "SHEET's failure's and these three rows come from the other read",
+            seasons_failure["bareUnknown"] == 0,
+            f"{seasons_failure['bareUnknown']} part(s) print the bare unknown "
+            f"word over a seasons read that failed")
         journal.check("no JS error on the failed-seasons walk", not errors, str(errors))
         await context.close()
 

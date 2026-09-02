@@ -10065,7 +10065,7 @@ import { icons } from "../app/icons";
       return;
     }
     if (closest.dataset.selmode) {
-      store.write({ selMode: closest.dataset.selmode === "1" });
+      store.write({ selMode: closest.dataset.selmode === "1", selectedMedia: 0 });
       // Set mutated in place; render() right below carries the bump.
       currentState().selected.clear();
       render();
@@ -10088,7 +10088,18 @@ import { icons } from "../app/icons";
       else currentState().selected.add(title);
       // paintSelBar() below draws the bar directly, not through render():
       // the explicit bump is what tells React the selection changed.
-      store.touch();
+      // THE BAR COUNTS MEDIA, not ticks. One press on a title this library holds
+      // twice lights both rows and the dialog says « 2 médias »; a caption
+      // reading « 1 sélectionné » beside them is the only figure in the flow
+      // still counting something else. Written rather than touched: a write
+      // bumps too, and hold (f) drives `write({})` on nine states to prove a
+      // surface keeps its nodes across one.
+      store.write({
+        selectedMedia: [...currentState().selected].reduce(
+          (accumulator, element) => accumulator + mediaNamedBy(element),
+          0,
+        ),
+      });
       closest.setAttribute("aria-pressed", String(currentState().selected.has(title)));
       paintSelBar();
       return;
@@ -10281,6 +10292,13 @@ import { icons } from "../app/icons";
   });
 
   /* Deletion */
+  /* How many library rows one title names. The delete acts BY TITLE — the only
+     key the contract offers — so a title naming two rows is two media, and every
+     figure the interface prints about a selection has to say so. */
+  function mediaNamedBy(title) {
+    return Math.max(1, LIBRARY.filter((row) => row.t === title).length);
+  }
+
   function openDeleteDialog(title, many) {
     const titles = many && many.length > 0 ? many : [title];
     const multi = titles.length > 1;
@@ -10292,20 +10310,34 @@ import { icons } from "../app/icons";
     );
     // HOW MANY MEDIA EACH TITLE NAMES, and it is not always one. The delete
     // acts BY TITLE — the only key the contract offers — and this library holds
-    // « Doctor Who » twice, 2005 and 2023, as it holds five other titles twice.
+    // « Doctor Who » twice, 2005 and 2023 — ONE duplicated title in 345 rows,
+    // 344 of them distinct. (The first version of this sentence said five, a
+    // count taken over a window that ran past this array into the next one.)
     // Confirming one of them removes both, and the count below said one file:
     // a manifest whose whole purpose is « voici exactement ce qui serait
     // supprimé » naming half of it. The interface cannot delete one of the two
     // — that needs an identifier the backend does not serve, and the demand is
     // recorded — but it can say the truth about what it is about to do.
-    const mediaFor = (title2) =>
-      Math.max(1, LIBRARY.filter((row) => row.t === title2).length);
+    const mediaFor = mediaNamedBy;
     const files = titles.reduce(
       (accumulator, element) =>
         accumulator + (inc(element) ? inc(element).o : mediaFor(element)),
       0,
     );
     const media = titles.reduce(
+      (accumulator, element) => accumulator + mediaFor(element),
+      0,
+    );
+    // What the four rows above the fold account for, so « et N autres » names
+    // media like every other figure in this dialog.
+    const shown = titles.slice(0, 4).reduce(
+      (accumulator, element) => accumulator + mediaFor(element),
+      0,
+    );
+    // AND THE FOLLOWED WARNING TOO. A followed title that names two rows is two
+    // media coming back at the next search. Latent while no duplicated title is
+    // followed, which is exactly how it would ship unnoticed.
+    const followedMedia = followed.reduce(
       (accumulator, element) => accumulator + mediaFor(element),
       0,
     );
@@ -10342,7 +10374,7 @@ import { icons } from "../app/icons";
                   ...(titles.length > 4
                     ? [
                         {
-                          text: `et ${titles.length - 4} autre${titles.length - 4 > 1 ? "s" : ""}`,
+                          text: `et ${media - shown} autre${media - shown > 1 ? "s" : ""}`,
                           value: "",
                         },
                       ]
@@ -10379,7 +10411,7 @@ import { icons } from "../app/icons";
                 strong:
                   followed.length === 1
                     ? `« ${followed[0]} » est suivi.`
-                    : `${followed.length} de ces médias sont suivis.`,
+                    : `${followedMedia} de ces médias sont suivis.`,
                 text:
                   "Sans action de votre part, ces épisodes seront " +
                   "re-téléchargés à la prochaine recherche.",

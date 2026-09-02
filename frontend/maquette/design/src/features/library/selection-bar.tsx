@@ -33,9 +33,19 @@ export function SelectionBar(): ReactElement | null {
   // reading `state.selected.size` through it would never re-render. The SIZE
   // is selected instead — a number, which changes, which is what
   // `useSyncExternalStore` compares.
-  const size = useStoreContent(
-    (content) => (content.state.selected as Set<number> | undefined)?.size ?? 0,
+  // MEDIA, NOT TICKS, and the two differ. The selection is keyed by TITLE
+  // because that is the only key the delete has, so one press on a title this
+  // library holds twice lights both rows and the dialog says « 2 médias » — a
+  // caption reading « 1 sélectionné » beside them was the last figure in the
+  // flow still counting something else. The engine publishes the count with the
+  // set; the set's own size stands in until it has.
+  const ticked = useStoreContent(
+    (content) => (content.state.selected as Set<string> | undefined)?.size ?? 0,
   );
+  const counted = useStoreContent(
+    (content) => content.state.selectedMedia as number | undefined,
+  );
+  const size = counted ?? ticked;
   const selecting = useStoreContent(
     (content) => content.state.selMode === true,
   );

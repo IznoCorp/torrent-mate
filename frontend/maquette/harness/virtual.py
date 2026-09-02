@@ -773,9 +773,17 @@ async def hold_the_list_comes_back_from_selection_mode(journal, browser):
           const name = (node) => (node.querySelector(
             '[data-part="card/title"], [data-part="tile/title"]'
           ) || node).textContent.trim();
+          const gap = parseFloat(getComputedStyle(
+            document.querySelector('#libitems')).rowGap) || 0;
+          const first = rows[0] ? rows[0].getBoundingClientRect().height : 0;
           return {
             drawn: rows.length,
             inView: seen.length,
+            // MEASURED, so the tolerance below is not a number typed here. A
+            // constant of 134 left thirteen pixels of margin against a port
+            // that moves 121, and any growth of the library's head raises the
+            // container's start past it — a hold going red on correct code.
+            pitch: first + gap,
             top: seen.length ? name(seen[0]) : null,
             spacer: spacer ? Math.round(spacer.getBoundingClientRect().height) : -1,
             scrolled: Math.round(document.querySelector('#port').scrollTop),
@@ -861,11 +869,11 @@ async def hold_the_list_comes_back_from_selection_mode(journal, browser):
         "a reader three hundred pixels down keeps their row through the mode "
         "and back — the first row is a place like any other",
         barely["top"] is not None and barely_after["top"] == barely["top"]
-        and abs(barely_after["scrolled"] - barely["scrolled"]) < ROW_PITCH,
+        and abs(barely_after["scrolled"] - barely["scrolled"]) < barely["pitch"],
         f"top row {barely['top']!r} at {barely['scrolled']}px, "
         f"{barely_after['top']!r} at {barely_after['scrolled']}px after — "
         f"the port moved {abs(barely_after['scrolled'] - barely['scrolled'])}px, "
-        f"and a row is {ROW_PITCH}px")
+        f"and a row measures {barely['pitch']}px")
 
     # AND THE OTHER PITCH CHANGE, which changes the LANES as well as the height:
     # list to gallery and back. A place remembered as a LINE is a row in the list

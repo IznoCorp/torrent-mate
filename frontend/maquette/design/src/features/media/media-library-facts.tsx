@@ -167,11 +167,20 @@ export function MediaLibraryFacts({
           <>
             <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.media.seasons")}</span>
-              <span>{seasons.length || (seasonsInFlight ? <SkeletonLine width="short" /> : t("screens.media.unknown"))}</span>
+              {/* THE SEASONS' FAILURE IS A FAILURE TOO. The twins were threaded
+                  in for the SHEET's read and these three rows derive from the
+                  other one, so a failed seasons read printed « inconnu » —
+                  unknown of this series — where what is true is that nobody
+                  read it. */}
+              <span>{seasons.length || (seasonsInFlight
+                ? <SkeletonLine width="short" />
+                : t(seasonsFailed ? "screens.media.unread" : "screens.media.unknown"))}</span>
             </div>
             <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.media.airedEpisodes")}</span>
-              <span>{aired || (seasonsInFlight ? <SkeletonLine width="short" /> : t("screens.media.unknown"))}</span>
+              <span>{aired || (seasonsInFlight
+                ? <SkeletonLine width="short" />
+                : t(seasonsFailed ? "screens.media.unread" : "screens.media.unknown"))}</span>
             </div>
             <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.media.ownedPlural")}</span>
@@ -186,7 +195,7 @@ export function MediaLibraryFacts({
                 {seasonsInFlight
                   ? <SkeletonLine width="short" />
                   : seasonsFailed
-                    ? t("screens.media.unknown")
+                    ? t("screens.media.unread")
                     : own}
               </span>
             </div>
