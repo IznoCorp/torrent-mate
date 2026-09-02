@@ -537,7 +537,38 @@ def _dispatch_item(
         resolved = disk_id_for_path(result.destination, _db_path)
         if resolved is not None:
             disk_id, rel_path = resolved
-            size_bytes, max_mtime = _transfer.dir_stats(result.destination)
+            # ``size_bytes`` / ``mtime_ns`` are deliberately NULL, and that is the
+            # whole contract on this branch. ``result.destination`` is the media
+            # FOLDER, while the move op keys a ``media_file`` row on
+            # ``(dst_rel_path, filename)`` — a FILE (indexer-json-shapes.md
+            # documents ``"Inception (2010).mkv"``). Publishing metrics for a
+            # directory makes ``_apply_move`` materialise a row at
+            # ``<folder>/<folder>``: a path that has never existed, carrying the
+            # folder's entire recursive size.
+            #
+            # This IS what the original write-through published; a later refactor
+            # filled the two fields from ``_transfer.dir_stats`` and, by doing so,
+            # flipped ``_apply_move`` from its best-effort skip to an insert. The
+            # cost was 46 phantom rows in production, one per dispatched folder,
+            # double-counting 973 GiB across the analytics totals, the top-largest
+            # ranking and /index/health. Nothing retired them: ``miss_strikes`` is
+            # only raised by a ``full`` scan, and none is scheduled — and even a
+            # full scan could not win, because the ON CONFLICT clause clears
+            # ``deleted_at`` and resets the strikes on the next dispatch.
+            #
+            # The row still ships, and the drain still records its ``scan_event``:
+            # ``_apply_move`` RETURNS on the skip rather than raising, so the event
+            # is written exactly as on a full apply. (That event is inert for the
+            # quick-mode paranoia branch, which reads the payload's path as a FILE
+            # and so looks the row up under a key nothing ever wrote — as true
+            # before this change as after it.)
+            #
+            # The FILES are indexed by the post-dispatch incremental scan. That
+            # scan is the mechanism which was doing this work all along, but it is
+            # NOT unconditional: ``--no-post-maintenance``, the
+            # ``post_dispatch_maintenance`` toggle and a scan that simply fails all
+            # skip it. What the publish contributed in those cases was never a real
+            # file — one row for a path that does not exist.
             publish_event(
                 disk_id,
                 op="move",
@@ -545,8 +576,8 @@ def _dispatch_item(
                     "src_rel_path": "",
                     "dst_rel_path": rel_path,
                     "filename": result.destination.name,
-                    "size_bytes": size_bytes,
-                    "mtime_ns": max_mtime,
+                    "size_bytes": None,
+                    "mtime_ns": None,
                 },
                 db_path=_db_path,
                 source="dispatch",

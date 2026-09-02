@@ -320,4 +320,40 @@ def test_dispatch_movie_publishes_outbox_row_and_drains(
         f"Outbox row must be marked 'done' after drain, got status={row_after['status']!r}"
     )
 
+    # --- The payload describes a DIRECTORY, so it must carry no file metrics ---
+    # ``result.destination`` is the media FOLDER. The move contract keys a
+    # ``media_file`` row on ``(dst_rel_path, filename)``, i.e. it expects a FILE
+    # (docs/production/indexer-json-shapes.md documents ``"Inception (2010).mkv"``).
+    # Publishing a folder's recursive ``dir_stats`` total as ``size_bytes`` makes
+    # ``_apply_move`` materialise a row for a path that has never existed —
+    # ``<folder>/<folder>`` — carrying the whole folder's bytes.
+    assert payload["size_bytes"] is None, (
+        "a move payload naming a DIRECTORY must publish size_bytes=None so "
+        f"_apply_move takes its best-effort skip, got {payload['size_bytes']!r}"
+    )
+    assert payload["mtime_ns"] is None, (
+        f"same for mtime_ns — a directory has no file mtime to record, got {payload['mtime_ns']!r}"
+    )
+
+    # --- And the drain must therefore have created no row FOR THE FOLDER ---
+    # Scoped to the folder-named row on purpose. Asserting « no media_file row at
+    # all » would pin the absence of a FEATURE rather than the presence of the
+    # defect: publishing one move op per real FILE, with that file's own metrics,
+    # is the correct way to make this write-through do what its name promises, and
+    # a blanket zero would refuse it as a regression. What must never come back is
+    # a row whose filename IS its parent directory.
+    #
+    # The regression this pins cost 46 rows in production, one per dispatched
+    # media folder, each claiming its folder's entire size: 973 GiB counted twice
+    # across the analytics totals, the top-largest ranking and /index/health.
+    folder_rows = conn.execute(
+        "SELECT COUNT(*) FROM media_file mf JOIN path p ON p.id = mf.path_id WHERE p.rel_path = ? AND mf.filename = ?",
+        (dst_rel_path, result.destination.name),
+    ).fetchone()[0]
+    assert folder_rows == 0, (
+        f"the drain created {folder_rows} media_file row(s) at "
+        f"{dst_rel_path}/{result.destination.name} — a path that is a DIRECTORY, "
+        "so the row describes a file the filesystem does not have."
+    )
+
     conn.close()
