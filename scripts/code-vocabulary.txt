@@ -372,6 +372,7 @@ floor
 flux
 fmode
 focus
+focusable
 focused
 folder
 follow
@@ -406,6 +407,7 @@ gate
 gauche
 gauge
 generation
+geometry
 gesture
 get
 go
@@ -430,6 +432,7 @@ header
 heading
 health
 height
+heir
 held
 hello
 hero
@@ -652,6 +655,7 @@ number
 numbers
 numeric
 nums
+object
 observer
 of
 offer
@@ -724,7 +728,9 @@ pilot
 ping
 pipe
 pipeline
+pitch
 pixels
+place
 platform
 play
 point

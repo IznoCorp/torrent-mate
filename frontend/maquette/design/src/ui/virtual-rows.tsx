@@ -50,7 +50,8 @@
 // imperatively, which is what preserving identity across a scroll requires when
 // the rows are strings somebody else composed.
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useLayoutEffect, useRef, useState, type ReactElement } from "react";
+import { useLayoutEffect, useRef, type ReactElement } from "react";
+import { useWindowGeometry } from "./window-geometry";
 
 /** What the surface tells the window, and none of it names a domain. */
 export type VirtualRowsProperties = {
@@ -122,80 +123,12 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
     { before: null, after: null });
   const lastDraw = useRef<number | string | null>(null);
 
-  // THE GEOMETRY IS MEASURED FROM THE RENDERED GRID, and the props are only the
-  // estimate the first frame needs before anything exists to measure.
-  //
-  // The lane count was a PROP, typed 3. `.gallery` is a CONTAINER QUERY:
-  // `repeat(3)` below 460px of port, then 4, then 5 at 620 and 6 at 820 — and
-  // nothing caps the port to a phone's width in production. At five columns the
-  // virtualiser believed in 621 lines where the grid draws 373. The row height
-  // moves with it: a narrower column makes a shorter 2:3 poster.
-  const [measured, setMeasured] =
-    useState<{ lanes: number; lineHeight: number } | null>(null);
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    if (!container) return undefined;
-    const read = () => {
-      const style = getComputedStyle(container);
-      const tracks = style.gridTemplateColumns;
-      const columns = tracks && tracks !== "none" ? tracks.split(/\s+/).length : 1;
-      // AN ITEM THAT IS NOT UNDER A FINGER: a tile wears `scale: 0.97` while a
-      // press arms, so measuring that one sizes every line 3% short.
-      const item =
-        container.querySelector(
-          ":scope > *:not([data-part='window/spacer']):not([data-pressing])")
-        || container.querySelector(
-          ":scope > *:not([data-part='window/spacer'])");
-      // THE RECTANGLE, and not `offsetHeight`, which ROUNDS to an integer. The
-      // line height here is 203.34375; rounding it shortened every windowed page
-      // by four tenths of a pixel — twelve oracle divergences across the four
-      // library states, from a change made to exclude that 3% scale. The scale
-      // is excluded by choosing the element instead.
-      const height = item ? item.getBoundingClientRect().height : 0;
-      const rowGap = parseFloat(style.rowGap || style.gap) || 0;
-      if (!height) return;
-      setMeasured((held) =>
-        held && held.lanes === columns
-        && Math.abs(held.lineHeight - (height + rowGap)) < 0.5
-          ? held
-          : { lanes: columns, lineHeight: height + rowGap });
-    };
-    read();
-    // AND AGAIN ON THE NEXT FRAME. The DRAW changes under the same container, so React
-    // replaces the node on every redraw; an effect that measured only at commit
-    // read a computed style of empty strings — measured — and the window
-    // silently kept the props' estimate of three lanes at every width.
-    const retry = requestAnimationFrame(read);
-    const watcher = new ResizeObserver(read);
-    watcher.observe(container);
-    return () => {
-      cancelAnimationFrame(retry);
-      watcher.disconnect();
-    };
-  }, [count, properties.drawKey]);
-
-  const activeLanes = measured ? measured.lanes : lanes;
-  const lineHeight = measured ? measured.lineHeight : rowHeight + gap;
+  // THE GEOMETRY IS THE GRID'S OWN, measured rather than believed —
+  // `ui/window-geometry.ts` carries why each of its three numbers had to be.
+  const { lanes: activeLanes, lineHeight, scrollMargin } = useWindowGeometry(
+    containerRef, scrollElement, { rowHeight, gap, lanes },
+    [count, properties.drawKey]);
   const lineCount = Math.ceil(count / activeLanes);
-
-  // THE LIST DOES NOT START AT THE SCROLLER'S ORIGIN. `#libitems` sits below the
-  // filters and the tabs inside the same scrollport; without telling the
-  // virtualiser, every offset is short by that distance and the window sits
-  // shifted down the list — measured at 485px of margin above against 742 below
-  // where the overscan asks for the same on each side.
-  const [scrollMargin, setScrollMargin] = useState(0);
-  // MEASURED ONCE PER DRAW, not on every render: without a dependency list this
-  // forced a layout read and a setState on every render the virtualiser causes
-  // while scrolling.
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    const scroller = scrollElement();
-    if (!container || !scroller) return;
-    const distance = container.getBoundingClientRect().top
-      - scroller.getBoundingClientRect().top
-      + scroller.scrollTop;
-    setScrollMargin((held) => (Math.abs(held - distance) < 0.5 ? held : distance));
-  }, [count, properties.drawKey]);
 
   const virtualizer = useVirtualizer({
     count: lineCount,

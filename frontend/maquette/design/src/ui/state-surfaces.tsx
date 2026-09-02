@@ -136,20 +136,21 @@ export function SurfaceError({ subject, detail, onRetry }: {
       ) : (
         t("surfaces.error.body")
       )}
-      {/* TWO LITERAL ELEMENTS, not one with a spread. The markup guard SKIPS an
-          element whose props are spread, so the contract this button carries —
-          its part name, and the delegation attribute it wears only when no
-          caller re-asks — sat outside the guard that exists to read exactly
-          that. */}
-      {onRetry ? (
-        <button data-part="surface-error/retry" onClick={onRetry}>
-          {t("surfaces.error.retry")}
-        </button>
-      ) : (
-        <button data-part="surface-error/retry" data-phase="ready">
-          {t("surfaces.error.retry")}
-        </button>
-      )}
+      {/* ONE ELEMENT, AND NO SPREAD. The markup guard SKIPS an element whose
+          props are spread, so the contract this button carries — its part name,
+          and the delegation attribute it wears only when no caller re-asks —
+          sat outside the guard that exists to read exactly that. Two literal
+          elements read the same to a browser and count as two bare buttons to
+          the guard, which is one allowance spent on a drawing that has not
+          changed; the conditional props are written on the one element instead,
+          and React omits an undefined one. */}
+      <button
+        data-part="surface-error/retry"
+        onClick={onRetry}
+        data-phase={onRetry ? undefined : "ready"}
+      >
+        {t("surfaces.error.retry")}
+      </button>
     </div>
   );
 }
