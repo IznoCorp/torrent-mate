@@ -157,12 +157,12 @@ them at zero. **Total 174 + 2 = 176.**
 | Gate                               | Read                                                                                                                                                                       |
 | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The oracle, after every phase and every repair| 87 states × 34 regions, **2 958 measurements, no divergence**, every time |
-| The full suite (`run.sh`, no flag) | **87 rules and 26 repository guards, no violation**                                                                                                                        |
-| `--a11y`                           | **0 violations** over 87 states; the light theme unmoved at its ceiling of **166**                                                                                         |
-| `harness-hold-counts.py --compare` | **two movements, both upward and both this wave's**: `persistence.py` 11 → 18 (hold (f), seven states), `priming.py` NEW at 7. No rule lost a hold. `failed` read first: 0 |
-| `make check`                       | **11 023 passed, 4 skipped, 2 xfailed, 0 failed, 0 errors**, exit 0. Its seven eslint warnings are in `frontend/src`, the production app, and pre-date this branch |
+| The full suite (`run.sh`, no flag) | **87 rules and 26 repository guards, no violation**, re-taken after round 1 |
+| `--a11y`                           | **0 violations** over 87 states; the light theme unmoved at its ceiling of 166, re-taken after round 1 |
+| `harness-hold-counts.py --compare` | **three movements, all upward and all this wave's**: `persistence.py` 11 → 33, `virtual.py` 17 → 19, `priming.py` new at 18. No rule lost a hold. `failed` read first: **1** — `outbox.py`, which passed alone (21 holds, no violation) and in the full suite; B-277's species under the recorder's parallel load, said in the same breath as the verdict |
+| `make check`                       | **11 023 passed, 4 skipped, 2 xfailed, 0 failed, 0 errors**, exit 0, re-taken after round 1 and after the merge of `main`. Its seven eslint warnings are in `frontend/src`, the production app, and pre-date this branch |
 | `--contracts`, at every phase      | 13 rules and 26 guards, no violation                                                                                                                                       |
-| CI on the head sha                 | **14 jobs, all green** — read on the LOCAL sha's check-runs, never through the pull request's record, which lags a push |
+| CI on the head sha                 | read on the LOCAL sha's check-runs, never through the pull request's record, which lags a push. The sha it was read on is named in the message that reports it — a commit cannot carry its own verdict, and the first version of this row was written into the commit it described |
 
 **Two gates went red during the wave and each is written down rather than smoothed over.** R80 fell
 when `skeletonLine` first carried the residue's `sk` anchor inside its variant: a variant wearing a
