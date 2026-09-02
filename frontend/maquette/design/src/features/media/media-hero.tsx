@@ -115,6 +115,11 @@ export function MediaHero({
                 {t("screens.media.ratingSource")}
               </span>
             </span>
+          ) : inFlight ? (
+            // THE RATING IS A PART LIKE THE OTHERS, and drawing nothing for it
+            // left the hero one line shorter until the read landed — an absence
+            // that is neither an answer nor a wait.
+            <SkeletonLine width="short" />
           ) : (
             ""
           )}

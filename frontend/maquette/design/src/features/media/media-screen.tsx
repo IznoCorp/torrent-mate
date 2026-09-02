@@ -23,6 +23,7 @@ import {
   useMediaReference,
   type MediaReference,
   type MediaSheet,
+  type Trailer,
 } from "../../features/media/reference";
 import { useStoreContent } from "../../lib/store-access";
 import { isRequestFailure } from "../../lib/query-client";
@@ -161,14 +162,25 @@ export function MediaScreen() {
     0,
   );
   const prov = sheet?.ids ?? {};
+  // THE ADDRESS THE READER NAVIGATED WITH IS KNOWN AT FRAME ONE, and a skeleton
+  // stood over it while the sheet was out. The canonical form prefers the
+  // provider the sheet names; until it answers, the route's own address is what
+  // the screen honestly has.
   const url = prov.tvdb
     ? `/media/tvdb/${prov.tvdb}`
     : prov.tmdb
       ? `/media/tmdb/${prov.tmdb}`
-      : null;
+      : provider && id
+        ? `/media/${provider}/${id}`
+        : null;
   const artwork = artworkFor(reference, title);
-  // The link exists or it does not; where one arrives from changes nothing.
-  const trailer = trailerIds[title] ?? trailerIds[baseTitle(title)] ?? null;
+  // THE SERVED FIELD FIRST, and the reference only as what the tap knew. The
+  // payload carries `trailerVideo` and the screen read none of it: a synchronous
+  // lookup in the engine's fixture answered at frame one, so the skeleton drawn
+  // while the sheet is out stood over an absence already known — and a served
+  // trailer the fixture does not hold would never have appeared.
+  const trailer = ((sheet?.trailerVideo as Trailer | undefined)
+    ?? trailerIds[title] ?? trailerIds[baseTitle(title)] ?? null);
 
   return (
     <section
@@ -190,7 +202,7 @@ export function MediaScreen() {
             color: "var(--color-muted-foreground)",
           }}
         >
-          {url ?? (inFlight ? <SkeletonLine width="short" /> : t("screens.media.unidentified"))}
+          {url ?? t("screens.media.unidentified")}
         </span>
       </div>
       <div className={scrollport()} data-part="viewport">

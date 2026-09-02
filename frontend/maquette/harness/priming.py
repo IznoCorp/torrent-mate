@@ -98,13 +98,16 @@ MOUNT_DEADLINE_MILLISECONDS = 1500
 # read from the run and written here with the enumeration that produces it; a
 # part gained or lost moves it, deliberately, and the rule says which.
 #
-# The parts, on the `{t}` thinning, as the rule PRINTS them: the address in the
-# bar, the year and the kind of the hero's metadata line — separately, which is
-# what « field by field » means — the genres, the trailer, the cast section's
-# HEADING and its row LABEL (both are the kind, said in other words), the
-# synopsis, the director's value, the cast strip, the two rows the library block
-# draws while ownership is unknown, the two lines of the identifiers row, and the
-# actions. Seventeen. The season list contributes none:
+# The parts, on the `{t}` thinning, as the rule PRINTS them: the year and the
+# kind of the hero's metadata line — separately, which is what « field by field »
+# means — the genres, the rating, the trailer, the cast section's HEADING and its
+# row LABEL (both are the kind, said in other words), the synopsis, the
+# director's value, the cast strip, the two rows the library block draws while
+# ownership is unknown, the two lines of the identifiers row, and the actions.
+# Seventeen.
+#
+# The address in the bar is NOT among them any more: it is the address the reader
+# navigated with, known at frame one, and a skeleton stood over it. The season list contributes none:
 # with the seasons read still out there are no rows to draw them under, which is
 # the honest drawing and not an omission.
 #
@@ -436,13 +439,16 @@ async def main():
         await context.close()
 
         # ─── The control: the prototype's own COMPLETE placeholder ────────
-        # NOT « zero skeletons ». The seasons have no placeholder and this
-        # sheet's served creator is absent, so a few lines stand here too —
-        # measured at 4 against 11. What separates the two walks is that the
-        # parts the placeholder CARRIES are real content while the read is out:
-        # the cast strip is drawn and the synopsis is a sentence, not a line.
-        # A control that asked for zero was green over nothing and red over the
-        # design working exactly as written.
+        # NOT « zero skeletons ». The seasons carry no placeholder of their
+        # own, so the library block's rows stand here too whatever the sheet
+        # holds — the rule prints the control's own count beside this hold. What
+        # separates the two walks is that the parts the placeholder CARRIES are
+        # real content while the read is out: the cast strip is drawn and the
+        # synopsis is a sentence, not a line. A control asking for zero was
+        # green over nothing and red over the design working exactly as written.
+        # (The figures « 4 against 11 » stood in this comment after the thinning
+        # and the count had both moved; a number written beside the number a
+        # tool prints is the drift this file measures elsewhere.)
         context, page, errors = await cold_load(browser, address, thin=False)
         control = await page.evaluate(READ)
         journal.check(

@@ -374,7 +374,10 @@ every surface reading `useUiState()` re-renders on any of the engine's 35 write 
 its markup the same way. The count is therefore not « the pages that watch the version » but every
 inline `{ __html }` in the tree: **32 on `main`**, 15 of them in the four files L14 cut.
 
-**Owner: L14, phase 7. FIXED by #547 — at all 32 sites.** `ui/markup.tsx` memoises the
+**Owner: L14, phase 7. FIXED by #547 — at every one of the 32.** Twenty-nine go through the memo;
+the other three were the private `Icon` copies deleted in the same wave, so their sites left with
+them. « At all 32 » was the first sentence here and it is loose by three, which on a count this
+entry exists to state is worth the extra clause. `ui/markup.tsx` memoises the
 `{ __html }` object on its string — the comparison React 18 made — and every site in `design/src`
 goes through its `<Markup>` component, `ui/icon.tsx` included: an icon's `<path>` children were
 rebuilt on every parent render, and Chromium delivers no `click` at all when the `pointerdown`

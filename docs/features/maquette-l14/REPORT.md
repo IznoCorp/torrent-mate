@@ -207,6 +207,21 @@ in a triple-quoted string now.
 
 ---
 
+## 6b. What the wave records for the backend brief
+
+**A real 404 lands in the error case, and the maquette cannot show the difference.** `read()` throws
+on any non-ok answer, and the prototype's not-found is a 200 carrying `null` — so a stale bookmark
+draws the honest empty case here and would draw « Impossible de charger cette fiche » against a
+backend that answers 404. Which one a media sheet gets for an identity nobody carries is a contract
+question, not a screen question, and it belongs with the demands
+(`docs/reference/backend-demands-architecture.md`) rather than in a branch here. Recorded by a
+reader, kept because the distinction is invisible until the day it is not.
+
+**The trailer is served and was not read.** The payload carries `trailerVideo` and the screen looked
+the trailer up in the engine's fixture instead; it reads the served field first now, with the
+fixture as the fallback the tap knew. The same shape may sit on other fields of this projection,
+and L19 opens the producers that would show it.
+
 ## 7. The review — round 1: five readers, 0 blocker, 13 majors, every one repaired
 
 **The gate was green in every tier when this round opened**, which is the only interesting fact
@@ -330,5 +345,13 @@ it meant an index, and its wait outlasted the refetch that repairs the window an
 the wave's own gates could say so. **A hold that has never been run against the defect it names is a
 hold nobody has tested**, and « I mutated something and it went red » is not that run unless the
 mutation restores the defect.
+
+**And the minors both rounds left open are taken in the same pass**: the skeleton line stands
+18 px, the height of the line it replaces, where it stood 8 and every block under it rose ten when
+the read landed; the screen bar shows the address the reader navigated with instead of a skeleton
+over something known at frame one; the rating waits like the parts around it; the trailer is read
+from the served payload; the season list's « Saison annoncée » is a landed fact again rather than a
+skeleton; `check-component-once.py` has its tests; and R100's header no longer calls `touch()` the
+one door while hold (f) drives two.
 
 **Round 3 reads these repairs.**
