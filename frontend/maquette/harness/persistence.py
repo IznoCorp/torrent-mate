@@ -376,8 +376,10 @@ async def main():
           if (!row) return { drawn: 0 };
           row.focus();
           const before = document.activeElement === row;
+          window.__toggledRow = row;
           row.click();
           return { drawn: rows.length, before,
+                   scrolled: document.querySelector('#port').scrollTop,
                    index: row.getAttribute('data-tile') };
         }""")
         journal.check(
@@ -390,6 +392,13 @@ async def main():
           const active = document.activeElement;
           const row = document.querySelector(`#libitems [data-tile="${index}"]`);
           return { onTheRow: !!(row && active === row),
+                   // THE NODE MUST HAVE CHANGED, or this hold is green on a
+                   // window that keeps every row — where the reader's place was
+                   // never at risk. Its own title says the markup and the node
+                   // moved; without this it proved only the first half.
+                   replaced: !!(row && window.__toggledRow
+                                && !window.__toggledRow.isSameNode(row)),
+                   scrolled: document.querySelector('#port').scrollTop,
                    pressed: row ? row.getAttribute('aria-pressed') : null,
                    active: active ? (active.tagName + (active.getAttribute
                      ? ' ' + (active.getAttribute('data-tile') || '') : '')) : null };
@@ -397,9 +406,13 @@ async def main():
         journal.check(
             "and toggling one keeps the reader's place on it, though its "
             "markup — and so its node — has changed",
-            kept_focus["onTheRow"] and kept_focus["pressed"] == "true",
+            kept_focus["onTheRow"] and kept_focus["replaced"]
+            and kept_focus["pressed"] == "true"
+            and kept_focus["scrolled"] == toggled.get("scrolled"),
             f"aria-pressed {kept_focus['pressed']!r}, focus on "
-            f"{kept_focus['active']!r}")
+            f"{kept_focus['active']!r}, the node was replaced: "
+            f"{kept_focus['replaced']}, the port stayed at "
+            f"{kept_focus['scrolled']} (was {toggled.get('scrolled')})")
         await page.evaluate("()=>window.__store.write({selMode: false})")
         await page.wait_for_timeout(200)
 

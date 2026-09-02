@@ -353,7 +353,17 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
         // keyboard focus to the document root on every toggle of the mode built
         // for going through a library. Focus is restored onto the node that
         // takes the old one's place, which is where the reader left it.
-        const focused = held.node.contains(document.activeElement);
+        // WHERE THE READER'S FOCUS IS INSIDE THE ROW, not merely that it is.
+        // Restoring onto the row's ROOT loses a focused child — and in browse
+        // mode the root is a `<div>` with no tabindex, so `focus()` on it is a
+        // no-op and the place goes to the document root. The child is found
+        // again by its position among the row's focusable elements.
+        const active = document.activeElement;
+        const focusable = 'button, [tabindex], a[href], input';
+        const focusedAt = held.node.contains(active) && active !== held.node
+          ? [...held.node.querySelectorAll(focusable)].indexOf(active as Element)
+          : -1;
+        const focused = held.node.contains(active);
         if (!held.node.isConnected) {
           // A node the document no longer holds cannot be replaced — the call
           // is a silent no-op and the map would keep a dead node until its
@@ -362,7 +372,18 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
         } else {
           held.node.replaceWith(node);
           live.set(index, { node, markup });
-          if (focused && node instanceof HTMLElement) node.focus();
+          if (focused) {
+            // PREVENT SCROLL, and it is not a detail. A live row is not
+            // necessarily visible — the window keeps four lines beyond each
+            // edge — and a row's markup moves for reasons that have nothing to
+            // do with the reader: a delete above it shifts every row. Without
+            // this the port scrolled back to the row being replaced, 593 px
+            // measured, landing the reader somewhere they never asked to be.
+            const heir = focusedAt >= 0
+              ? node.querySelectorAll(focusable)[focusedAt]
+              : node;
+            if (heir instanceof HTMLElement) heir.focus({ preventScroll: true });
+          }
           continue;
         }
       }
