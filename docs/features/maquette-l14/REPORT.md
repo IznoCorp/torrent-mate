@@ -91,8 +91,10 @@ defect. Overruling it is one line.
   taken: no phase opened `served_copy.py`, `mutate.sh`, `harness-hold-counts.py` or `exits.py`.
   The rule is that the next wave that touches the tool takes its debt, and this one did not touch
   them.
-- **Six deviations from the design, each recorded in the phase file that took it** — a reader
-  found the count wrong at one, which is the shape of a paragraph nobody re-reads. (1) The
+- **Eight deviations from the design, each recorded in the phase file that took it** — a reader
+  found this count wrong twice, at one and then at six, which is the shape of a paragraph nobody
+  re-reads. It is the phase files that hold them: `phase-01` one, `phase-03` one, `phase-04` three,
+  `phase-07` three. (1) The
   « written twice » guard is `scripts/check-component-once.py`, its own file, not an arm of
   `check-frontend-boundaries.py` — that file stood at 952 non-blank lines when the deviation was
   taken, against a hard ceiling of 1 000, and L07-bis's precedent is to split a guard on a SUBJECT rather than on a line count.
@@ -102,9 +104,14 @@ defect. Overruling it is one line.
   inside a `.map` and several sites are, so the component is where the hook is called once.
   (4) The rule thins to `{t}` with a second `{y}` walk, not to `{t, k, y}`. (5) Its control holds
   FEWER skeletons and the content the placeholder carries, not zero. (6) The rating drew nothing in
-  flight for two rounds where the design lists it among the parts. The last three are recorded in
-  `plan/phase-04`, which is where a deviation lives; the design is what was decided and is not
-  edited to match.
+  flight for two rounds where the design lists it among the parts. (7) `ui/window-geometry.ts` and
+  (8) `ui/reader-place.ts` are modules the plan never planned: the repairs of phase 7, and the
+  place-restoration the review rounds added on top of them, took `ui/virtual-rows.tsx` over the
+  ceiling this lot exists to enforce, twice, and each split was taken on a SUBJECT rather than on a
+  line count. Deviations (4) to (6) live in `plan/phase-04` and (7) and (8) in `plan/phase-07`,
+  which is where a deviation lives; the design is what was decided and is not edited to match.
+  **None of the eight carries an operator sign-off**, and a reader was right to say so: they are
+  recorded so the operator can overrule any of them, not because any was approved.
 
 ---
 
@@ -117,14 +124,17 @@ under a heading saying it had been re-taken after round 2, it carried round 2's 
 4. A reader recomputed them both times. **No figure below is remembered: each rule prints its own
 hold count, and these are read from that output.**
 
-**R119 — `frontend/maquette/harness/priming.py`, 29 holds, full suite.** It intercepts two seams
+**R119 — `frontend/maquette/harness/priming.py`, 32 holds, full suite.** It intercepts two seams
 from an init script — a wrapper installed after `load` arrives after the placeholder was computed —
-and walks the media sheet SIX times: a placeholder thinned to the TITLE alone (the leanest a tap can
-know), a PARTIAL one carrying the year and not the kind (where « field by field » is decidable at
-all), the prototype's own complete placeholder as a control, a read that FAILS over that complete
-placeholder, the same failure over a THINNED one — on a title the reader owns INCOMPLETELY, which
-is the only walk where a season's BODY has anything to assert — and one where the seasons land
-before the sheet. A seventh walk fails the SEASONS read alone, with the sheet landing normally.
+and makes TEN cold loads, each a walk of its own. **The rule's own header enumerates them and this
+is the only place that number is repeated**: it was written down from memory in three documents at
+once and disagreed with itself in all three. The shortest reading of what they are: the leanest
+placeholder a tap knows, the complete one as a control, a failure over each of those two, a failure
+over the thinned one on the rule's own title — the one sheet with no trailer, and so the only walk
+where the sentence about what a provider furnishes can be printed at all — a failure on a series
+owned INCOMPLETELY, where a season's closed body has something to assert, the seasons read failing
+alone on a series and then on a FILM, a partial placeholder where « field by field » is decidable,
+and one where the seasons land before the sheet.
 
 It holds an EXACT skeleton count — 15, printed with the enumeration that produces it — the absence
 of every « unknown » word and of every text the KIND decides, read from `fr.json` rather than
@@ -150,15 +160,20 @@ document by anything but the window itself is drawn again, at its own position, 
 **What it does not read**: Découvrir's engine-filled containers (L19's), a write that legitimately
 redraws, and the maintenance page.
 
-**R117 — `frontend/maquette/harness/virtual.py`, 27 holds.** Its delete hold asserts the paging door
+**R117 — `frontend/maquette/harness/virtual.py`, 33 holds.** Its delete hold asserts the paging door
 EXISTS, that a second page landed, and that the row it measures is past the first page — its index
 derived from the window's own leading spacer — then deletes it with the network DOWN, where the
 mutation is held and no refetch can repair anything, and reads one macrotask later. Its
 selection-mode hold enters the mode at the top, where the control is; reaches the depth inside the
 mode; presses « Terminé » in the bar, which is fixed; and asserts the reader is in front of the SAME
-ROW, by title, before and after. Then the gallery switch, where the lanes change too — driven by
+ROW, by title, before and after. Then a reader three hundred pixels down, whose row is index 0 and
+is a place like any other. Then the gallery switch, where the lanes change too — driven by
 script, and the hold says why: the mode control scrolls away with the head, so a click driver would
-switch modes at the top, where there is no place to lose. **What it does not read**: the swipe
+switch modes at the top, where there is no place to lose. Then the walk that expires a place: deep
+in the gallery, into selection mode — which changes the drawing and not the pitch — back to the top,
+and a viewport that narrows, where a kept place used to fire minutes later. And a bulk delete taken
+under an order that is not the source's, read for the names the dialog gives and for what actually
+left the listing. **What it does not read**: the swipe
 gesture that reaches the delete (`drag.py`'s subject), and any deep mode change a reader cannot
 perform — which is now a sentence in the rule rather than a scenario dressed as one.
 
@@ -171,7 +186,7 @@ included. Hard zero, no allow-list, corpus printed with floors, and ten tests in
 each repair, and every one was run through `scripts/mutate.sh`, which rebuilds the served copy
 under its own lock — see § 7 on why that matters.
 
-## 5. Guards green over what they do not read — **7 by the wave, 16 by twelve readers**
+## 5. Guards green over what they do not read — **7 by the wave, 27 by eighteen readers**
 
 **This count was taken three times and was wrong three times**, each correction coming from someone
 else reading the same tree. First it read 2, when the readers had already returned three more.
@@ -188,16 +203,22 @@ so the interval a hold names did not exist, a thinning naming one title while th
 another, « in flight » read as the whole layer's traffic, and a walk on the leanest placeholder that
 cannot decide the property it was written for.
 
-**The readers' sixteen** are the ones no amount of mutating would have found, because each is a
-question the instrument never asked: a floor with slack, a regex that refused the commonest export,
+**The readers' twenty-seven** are the ones no amount of mutating would have found, because each is
+a question the instrument never asked — nine of them in round 4, in instruments round 3 had just
+written, and two more in round 5, in instruments round 4 had just written: a floor with slack, a regex that refused the commonest export,
 a door driven on one side, a selector that never named the leaf the defect lived in, a floor met by
 the page beneath the screen, two states undriven, **a rule green on the very code it was written
 against**, a counter that reads the same whether or not anyone clicked, an error walk that drove
 only the case where nothing could be wrong, a hold green on a window that keeps every row, and a
-hold reading three sentences while six skeletons shimmered beside them.
+hold reading three sentences while six skeletons shimmered beside them; **a hold written to close
+a vacuity, carrying the same vacuity**; and a provider-sentence term walked on the one title where
+that sentence cannot be printed, so a build printing it over a 502 passed every hold of its rule.
 
-**Total 174 + 23 = 197.** The ratio — seven to sixteen — is this table's oldest argument, and the
-wave that produced it had already read the argument three times.
+**Total 174 + 34 = 208.** The ratio — seven to twenty-seven — is this table's oldest argument, and
+the wave that produced it had already read the argument three times before the readers had
+finished. **The itemisation is `BUGS.md`'s L14 row and nowhere else**: this section carried its own
+figures for two rounds while the register carried others, which is the drift the whole table is
+about, one level up.
 
 ## 6. The gates
 
@@ -425,7 +446,9 @@ file as deviations rather than edited into the design. A design is what was deci
 `virtual-rows.tsx` reached 403 non-blank lines under the blocker's repair, and `--arm size` says so
 without caring why. It splits on a SUBJECT — what the grid draws (its lanes, its line height, where
 its container starts inside the scroller) is one question, the window's own maintenance is another —
-into `ui/window-geometry.ts`, 338 and 112. A split chosen to get under a number would have been the
+into `ui/window-geometry.ts`, and again at 406 into `ui/reader-place.ts` when the place
+mechanism grew under review. The three read 351, 142 and 114 at this head; the figures are
+re-measured with the table in § 1. A split chosen to get under a number would have been the
 same defect this lot was called to repair.
 
 **What the round taught.** Every instrument this wave owns is a probe, and a probe answers the
@@ -503,3 +526,68 @@ one row down, `seasons502-probe.py` — against a control build of the previous 
 21 → 21 → 21 across the gallery switch; one `scrollTo` per switch where there were three, no
 anchoring shift, 110 row compositions where there were 201, and **no frame is ever painted with an
 empty port**, sampled once per animation frame across both mode changes on both builds.
+
+### Round 5: three readers, 0 blocker, 6 majors — and the sheet lens read zero for the first time
+
+**Every reading round 4 reported re-measured true on the head and false on the control**, which is
+the first thing to say about a round: the repairs are what they were said to be. What round 5 found
+is what those repairs had not thought of.
+
+**A place kept for a drawing that did not move the pitch was a loaded gun.** In the GALLERY,
+browsing to selection changes the draw key and not the pitch — a tile is a tile — so a place taken
+at row 39 had nothing to be restored by and simply sat there. The reader scrolls back to the top;
+minutes later the phone rotates, or the window widens, or a font lands, or a scrollbar appears —
+every one of those is a pitch change with no key change — and the kept place fires: 2 940 px down,
+row 39. A place lives for the frame between a new draw key and the pitch that key brings, and it
+expires the moment the new drawing has been MEASURED without the pitch moving. The geometry hook can
+say when that happened because it now reports the key its measurement belongs to.
+
+**Two more readings of the same place were wrong in the same file.** The tolerance was the LINE's
+box rather than the ROW's — a line is a row plus the gap under it, so a row entirely above the port
+counted as visible while its trailing gap crossed the top, which is what took the last row of the
+list back one row on every round trip and was written up as a clamp that never happened. And item 0
+was refused as « no place »: a reader three hundred pixels down, with the first row a sliver at the
+top, is reading row 0, and refusing to restore it moved them two rows down each time. What is
+refused now is a port ABOVE the container's own start, where the head is on screen and scrolling to
+row 0 would hide it.
+
+**All of it is `ui/reader-place.ts` now**, because the window had reached 406 lines — over the
+ceiling this lot exists to enforce, for the second time — and because what a place IS turned out to
+be four separate lessons, each paid for by a reading. A file that answers one question is where they
+belong.
+
+**And the worst defect of the wave was not the wave's.** The library's selection was a set of
+LISTING indexes, and the delete read each one as an index into the SOURCE array. Under the source's
+own order those are the same number, which is the only order anybody had ever walked — including
+this wave's own round-4 variant. Sorted A → Z, ticking two rows named two OTHER media in the
+confirmation dialog and destroyed them, while the two the reader had ticked stayed in the library. A
+search did the same. It is pre-existing, identical on `main`, in a file this wave does not own — and
+it is repaired here, because the operator's rule is that a pre-existing defect in the surface a wave
+owns is repaired in that wave, and because a wrong deletion is not something anyone files for later.
+The set is keyed by TITLE, which the delete already took; a selection is dropped when the listing's
+question changes, since a tick nobody can see is a tick nobody can untick.
+
+**The sheet lens returned zero majors for the first time in five rounds**, and its minors were taken
+in the same pass: a film is no longer told its seasons read failed — it has none, and that read is
+issued for every address because the kind arrives after it; an absent ownership is no longer read as
+owned, which the contract makes reachable (`MediaSheetResponse.ownership` is required and nullable)
+and which offered « Supprimer », a destructive action, over an answer nobody gave; the hero's year
+and genres and the cast's line have failure-neutral twins as the synopsis and the trailer already
+had; the kind's absence says so rather than leaving the block that offered an action silently empty;
+and a confirmed delete invalidates the sheets, which went on saying « Possédés 24 » and offering
+« Supprimer » over the toast that said it was done.
+
+**Four of the six were figures, which is the species this wave has now paid for in every round.**
+§ 5 of this file still read 23 and 197 while the register read 32 and 206; the state row still said
+262 for a file at 314; R119's walks were counted at six, seven and eight in three places while the
+rule made ten cold loads; and the deviations were counted at six where the phase files record eight.
+The corrections are the same each time and so is the lesson: **a number belongs in one place, and
+every other place quotes it.** R119's walks are enumerated in the rule's own header now, and the
+itemisation of the guards-green count is `BUGS.md`'s row and nowhere else.
+
+**And two instrument findings, in instruments round 4 had just written.** (e-iii-a), the term
+written to refuse the sentences that speak for the provider, walked a title the fixture gives a
+trailer — so that sentence could not be printed there whatever the code did, and a build printing it
+over a 502 passed all twenty-nine holds of its rule. It runs on the rule's own title too now, the
+one sheet with no trailer at all. The other is the walk count above: an instrument that cannot say
+how many walks it makes is an instrument nobody can check.
