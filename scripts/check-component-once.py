@@ -25,6 +25,10 @@ WHAT IT DOES NOT READ, said before the arm so nobody reads more into it:
   - a component copied under a DIFFERENT name. Two bodies compared by text
     would be a second instrument with its own blind spots; this one holds the
     NAME, which is what a reader greps.
+  - a declaration inside a block comment, or a PascalCase helper in a `*.test.ts`
+    file: both are read as declarations. Neither can hide a duplicate — the
+    error is in the other direction, a red the reader must judge — and a
+    comment-stripping pass here would be a second parser with its own defects.
   - arrow-function components (`const X = () => …`). Measured at zero
     top-level occurrences today; the shape is named here so the day the first
     one is written the hole is known rather than discovered.
@@ -44,10 +48,19 @@ DESIGN_ROOT = ROOT / "frontend" / "maquette" / "design" / "src"
 # The dying engine is only ever subtracted from; the mock layer's doubles may
 # shadow the names they stand in for.
 EXCLUDED_DIRECTORIES = ("engine", "mocks")
+# `export default function X(` IS A DECLARATION, and the first version of this
+# pattern refused only `export function` — so the commonest way a component is
+# exported anywhere outside this repository was green, under a docstring saying
+# « exported or not ». Nothing saw it because the corpus holds no such
+# declaration today, which is the whole shape of a guard measured against the
+# tree it was written on rather than against the shapes it claims to read.
 DECLARATION = re.compile(
-    r"^(?:export\s+)?(?:async\s+)?function\s+([A-Z][A-Za-z0-9]*)\s*[(<]", re.MULTILINE)
-# Well under the corpus at the time of writing (145 files, 69 declarations),
-# so a tree that halves is still read and a tree that vanishes is refused.
+    r"^(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s+([A-Z][A-Za-z0-9]*)\s*[(<]",
+    re.MULTILINE)
+# Well under the corpus, so a tree that halves is still read and a tree that
+# vanishes is refused. The figures the guard PRINTS are the tree's; a second
+# copy of them in this sentence would be the drift this repository names, so
+# there is none here.
 FLOOR_FILES = 60
 FLOOR_DECLARATIONS = 30
 
