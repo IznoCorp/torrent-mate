@@ -758,6 +758,27 @@ async def hold_the_list_comes_back_from_selection_mode(journal, browser):
         after["top"] is not None and after["top"] == during["top"],
         f"top row {during['top']!r} before, {after['top']!r} after")
 
+    # AND A READER WHO HAS BARELY SCROLLED HAS A PLACE TOO. Three hundred pixels
+    # down, the first row is a sliver at the top and it is the row they are
+    # reading — but its index is 0, and « restore only a place past zero » moved
+    # them two rows down on every round trip. What is refused is a port ABOVE the
+    # container's own start, where the head is on screen and scrolling to row 0
+    # would hide it.
+    await page.evaluate("()=>{document.querySelector('#port').scrollTop = 300;}")
+    await page.wait_for_timeout(500)
+    barely = await visible(ROW)
+    await page.click('[data-selmode="1"]')
+    await page.wait_for_timeout(600)
+    await page.click('[data-selmode="0"]')
+    await page.wait_for_timeout(700)
+    barely_after = await visible(ROW)
+    journal.check(
+        "a reader three hundred pixels down keeps their row through the mode "
+        "and back — the first row is a place like any other",
+        barely["top"] is not None and barely_after["top"] == barely["top"],
+        f"top row {barely['top']!r} at {barely['scrolled']}px, "
+        f"{barely_after['top']!r} at {barely_after['scrolled']}px after")
+
     # AND THE OTHER PITCH CHANGE, which changes the LANES as well as the height:
     # list to gallery and back. A place remembered as a LINE is a row in the list
     # and three in the gallery, so restoring one across the switch sent the
