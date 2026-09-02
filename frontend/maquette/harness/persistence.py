@@ -481,6 +481,46 @@ async def main():
         await page.evaluate("()=>window.__mocks?.setOffline(false)")
         await page.wait_for_timeout(150)
 
+        # (g-ii) A ROW THAT LEFT THE DOCUMENT IS DRAWN AGAIN. The window keeps a
+        # node and the string it was built from, per index, and skips any row
+        # whose string has not moved — so a node removed from the document by
+        # anything other than the window itself was never redrawn: `replaceWith`
+        # on a parentless node is a no-op, and the map held the dead one until
+        # its index left the window. The guard for it was written, then deleted
+        # by a commit whose message says it was moved, and nothing read it
+        # either way. Driven by hand because no engine path removes a library
+        # row today: the contract is the window's, and a contract nobody drives
+        # is a comment.
+        detached = await page.evaluate("""(row) => {
+          const rows = [...document.querySelectorAll(row)];
+          const target = rows[3];
+          if (!target) return { drawn: rows.length };
+          const name = (node) => (node.querySelector('[data-part="tile/title"]')
+                                  || node).textContent.trim();
+          const title = name(target);
+          const before = rows.length;
+          target.remove();
+          const afterRemoval = document.querySelectorAll(row).length;
+          window.__store.touch();
+          return new Promise((done) => setTimeout(() => {
+            const now = [...document.querySelectorAll(row)];
+            done({ drawn: before, afterRemoval, redrawn: now.length,
+                   at: now.findIndex((node) => name(node) === title) });
+          }, 300));
+        }""", '#libitems [data-part="tile"]')
+        if detached.get("redrawn") is not None:
+            journal.check(
+                "a row taken out of the document by something other than the "
+                "window is drawn again, at its own position, on the next write "
+                "— a node the document no longer holds cannot be replaced in "
+                "place, so forgetting it is the only way back",
+                detached["afterRemoval"] == detached["drawn"] - 1
+                and detached["redrawn"] == detached["drawn"]
+                and detached["at"] == 3,
+                f"{detached['drawn']} tile(s), {detached['afterRemoval']} after "
+                f"removing one by hand, {detached['redrawn']} after a write; the "
+                f"row came back at {detached['at']}, expected 3")
+
         # (e) THE POSITIVE CONTROL FOR (a), and it comes LAST because it
         # destroys the document every hold above measures. One real navigation:
         # the sentinel must be gone and the counter must have moved. Without it

@@ -563,14 +563,23 @@ async def main():
         await page.evaluate("()=>window.__mocks.quiet()")
         await page.wait_for_timeout(300)
         broken = await page.evaluate(READ)
+        # THE TRAILER'S OWN LINE IS NOT AN ASSERTION ABOUT THE FAILED READ: its
+        # absence is a fact the tap knew, and the sentence sits in a `no-info`
+        # paragraph of its own. It used to be excluded by a French substring
+        # typed here, which stopped excluding anything the day the sentence was
+        # reworded — and (e) then fell over its own repair. What is excluded is
+        # what the screen DRAWS as a no-info paragraph, whatever it says.
+        outside = broken["text"]
+        for said in broken["noInfos"]:
+            outside = outside.replace(said, "")
         journal.check(
             "(e) a FAILED read draws the error surface, keeps what the tap knew, "
             "and asserts nothing about what it never got",
             broken["open"] and broken["failed"] and broken["skeletons"] == 0
             and TITLE in broken["title"] and broken["cast"]
-            and not [answer for answer in ASSERTIONS
-                     if answer in broken["text"] and "bande-annonce" not in answer],
-            f"read {broken}")
+            and not [answer for answer in ASSERTIONS if answer in outside],
+            f"read {broken}; assertion(s) outside the no-info paragraphs: "
+            f"{[answer for answer in ASSERTIONS if answer in outside]}")
         # AND THE RETRY RE-ASKS THE READ IT STANDS ON. « Réessayer » wrote a
         # page's UI phase through the engine's delegation and asked no query:
         # the markup carried a retry and the behaviour did not, which no hold

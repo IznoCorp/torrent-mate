@@ -639,17 +639,25 @@ async def hold_the_list_comes_back_from_selection_mode(journal, browser):
         after["top"] is not None and after["top"] == during["top"],
         f"top row {during['top']!r} before, {after['top']!r} after")
 
-    # AND THE OTHER PITCH CHANGE THE SAME READER MAKES: list to gallery and
-    # back. It changes the LANES as well as the height, so a place remembered as
-    # a line — a row in the list, three in the gallery — sends them somewhere
-    # else entirely: measured, row 21 came back as row 3.
+    # AND THE OTHER PITCH CHANGE, which changes the LANES as well as the height:
+    # list to gallery and back. A place remembered as a LINE is a row in the list
+    # and three in the gallery, so restoring one across the switch sent the
+    # reader somewhere else entirely — measured, row 21 came back as row 3.
+    #
+    # DRIVEN BY SCRIPT, AND SAID SO. The mode control sits in the library's head
+    # and scrolls away with it: at this depth it is 2 824 px above the viewport,
+    # so a click driver would scroll to the top first and the switch would happen
+    # where there is no place to lose. The reachable deep pitch change is the
+    # selection round trip above; this one drives the MECHANISM — a place across
+    # a change of lanes — and a hold that pretended otherwise is the defect this
+    # rule was rewritten for.
     await page.evaluate("()=>{document.querySelector('#port').scrollTop = 3000;}")
     await page.wait_for_timeout(600)
     before_grid = await visible(ROW)
-    await page.evaluate("()=>window.__go('lib-grid')")
+    await page.evaluate("()=>document.querySelector('[data-lmode=\"grid\"]').click()")
     await page.wait_for_timeout(900)
     in_grid = await visible('[data-part="tile"]')
-    await page.evaluate("(s)=>window.__go(s)", STATE)
+    await page.evaluate("()=>document.querySelector('[data-lmode=\"list\"]').click()")
     await page.wait_for_timeout(900)
     back_in_list = await visible(ROW)
     journal.check(
