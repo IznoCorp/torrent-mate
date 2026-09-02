@@ -6,9 +6,8 @@
 // (`app/bottom-slot.tsx`). That is the split `MODEL.md` § 2 Part 6 names:
 // « frame slot, feature content ».
 //
-// IT IS A NEW FILE ON PURPOSE. `features/library/page.tsx` is 613 non-blank
-// lines and one of L14's four surfaces over invariant 6's ceiling: a
-// grandfathered file is never extended, not by one line. The engine created
+// IT IS A FILE OF ITS OWN, and it stays one: the selection bar is a surface
+// with its own condition, not a branch of the library page. The engine created
 // this node and appended it to `#device` on every selection change; it is a
 // component now, mounted once, and its own condition decides whether it draws.
 //

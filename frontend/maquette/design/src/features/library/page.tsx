@@ -21,6 +21,7 @@
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { useUiState } from "../../lib/store-access";
+import { useLibraryIncomplete } from "./queries";
 import { IncompleteLens } from "./incomplete-lens";
 import { CountLine, SortLabel } from "./library-count";
 import { INCOMPLETE_COUNT, LibraryHead } from "./library-head";
@@ -30,8 +31,11 @@ import { body, countLine, countLineAction, statusDot } from "../../ui/variants";
 export function LibraryPage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
-  // The « incomplets » lens reads its own resource, in its own file. The
-  // « récent » lens does NOT: it draws the same `LibraryList`, which is the
+  const { data: INCOMPLETE = [] } = useLibraryIncomplete();
+  // THE « INCOMPLETS » LENS'S RESOURCE IS READ HERE, for every lens, exactly
+  // where it was read before this page was cut: the read starts when the page
+  // mounts, so the lens paints full on its first frame instead of over an empty
+  // body. The « récent » lens does NOT read its own: it draws the same `LibraryList`, which is the
   // listing in the source's own order — a second read of the same rows would
   // be a second answer to one question (§13), and `RECENT` is the fixture that
   // arrangement made redundant.
@@ -45,7 +49,7 @@ export function LibraryPage(): ReactElement | null {
           <span>{t("screens.library.incompleteTitle")}</span>
           <b style={{ marginLeft: "auto" }}>{INCOMPLETE_COUNT}</b>
         </div>
-        <IncompleteLens />
+        <IncompleteLens rows={INCOMPLETE} />
       </>
     );
   }

@@ -3,16 +3,25 @@
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { useLibraryReference, type IncompleteShow } from "./reference";
-import { useLibraryIncomplete } from "./queries";
 import { useUiState } from "../../lib/store-access";
 import { body, section } from "../../ui/variants";
 import { Markup } from "../../ui/markup";
 
-export function IncompleteLens(): ReactElement {
+export function IncompleteLens({ rows }: {
+  /**
+   * What is owned and not whole. It is READ BY THE PAGE, not here, and that is
+   * the whole of this prop's reason: a hook moved into a component the page
+   * mounts only on this lens is a read that starts when the lens is ENTERED,
+   * and the lens then paints its count line over an empty body until it lands.
+   * Where the read lives is a behaviour, and a cut is not where a behaviour
+   * changes.
+   */
+  rows: IncompleteShow[];
+}): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
   const { cardHTML, tileHTML } = useLibraryReference();
-  const { data: INCOMPLETE = [] } = useLibraryIncomplete();
+  const INCOMPLETE = rows;
   return (
     <div className={body()} data-part="surface/body" data-region="library/body">
       <div className="note" data-part="note">
