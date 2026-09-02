@@ -10,6 +10,7 @@ import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields"
 export function SeasonList({
   sheet,
   sheetInFlight,
+  failed,
   ownershipKnown,
   seasons,
   owns,
@@ -35,6 +36,8 @@ export function SeasonList({
    * as one owned with nothing in it — « 0/13 · 13 manquants », in an open row,
    * about a suggestion.
    */
+  /** Whether the sheet's read FAILED — an unknown is then unread, not unanswered. */
+  failed: boolean;
   ownershipKnown: boolean;
 }) {
   const {
@@ -228,7 +231,7 @@ export function SeasonList({
                   : !ownershipKnown
                     ? (sheetInFlight
                         ? <SkeletonLine width="short" />
-                        : t("screens.media.unknown"))
+                        : t(failed ? "screens.media.unread" : "screens.media.unknown"))
                     : owns
                       ? `${nbOwn}/${row.aired ?? "?"}`
                       : `${row.aired ?? "?"} ${t("screens.media.episodesShort")}`}

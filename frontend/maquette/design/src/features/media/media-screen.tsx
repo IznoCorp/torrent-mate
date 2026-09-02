@@ -313,6 +313,7 @@ export function MediaScreen() {
             />
           ) : null}
           <MediaLibraryFacts
+            failed={failed}
             ownershipKnown={ownershipKnown}
             seasonsFailed={seasonsFailed}
             inFlight={inFlight}

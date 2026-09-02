@@ -24,6 +24,7 @@ export function MediaLibraryFacts({
   title,
   seasonsInFlight,
   seasonsFailed,
+  failed,
   sheetInFlight,
 }: {
   sheet: (MediaSheet & MediaSheetFields) | null;
@@ -57,6 +58,12 @@ export function MediaLibraryFacts({
    * arrived, between two lines that had the honesty to say « inconnu ».
    */
   seasonsFailed: boolean;
+  /**
+   * Whether the SHEET's read failed. Ownership is unknown either way, but the
+   * word differs: « inconnue » says nobody holds the answer about this medium,
+   * and after a failure what is true is that nobody read it.
+   */
+  failed: boolean;
   /** Whether the SHEET's read is still out — the season list's episode lists come from it. */
   sheetInFlight: boolean;
 }) {
@@ -76,13 +83,17 @@ export function MediaLibraryFacts({
           <div className={keyValueRow()} data-part="key-value">
             <span>{t("screens.media.inLibrary")}</span>
             <span>
-              {inFlight ? <SkeletonLine width="short" /> : t("screens.media.unknownFeminine")}
+              {inFlight
+                ? <SkeletonLine width="short" />
+                : t(failed ? "screens.media.unreadFeminine" : "screens.media.unknownFeminine")}
             </span>
           </div>
           <div className={keyValueRow()} data-part="key-value">
             <span>{t("screens.media.seasons")}</span>
             <span>
-              {inFlight ? <SkeletonLine width="half" /> : t("screens.media.unknown")}
+              {inFlight
+                ? <SkeletonLine width="half" />
+                : t(failed ? "screens.media.unread" : "screens.media.unknown")}
             </span>
           </div>
         </>
@@ -201,6 +212,7 @@ export function MediaLibraryFacts({
       )}
       </div>
       <SeasonList
+        failed={failed}
         ownershipKnown={ownershipKnown}
         sheetInFlight={sheetInFlight}
         sheet={sheet}

@@ -32,7 +32,14 @@ export function MediaCast({
             whose body is not even marked busy. The hero's own line answers
             « inconnu » there, and these two must answer the same. */}
         {isFilm === null ? (
-          inFlight ? <SkeletonLine width="half" /> : t("screens.media.unknown")
+          inFlight
+            ? <SkeletonLine width="half" />
+            // A HEADING THAT IS THE BARE WORD « inconnu » over a row reading
+            // « inconnu | inconnu » is three unknowns where one fact is
+            // missing. After a failure the heading is the section's SUBJECT —
+            // which is known, it is the distribution — and the kind's own
+            // absence is said once, in the metadata line above.
+            : t(failed ? "screens.media.castHeadingUnread" : "screens.media.unknown")
         ) : isFilm ? (
           t("screens.media.castHeadingFilm")
         ) : (
@@ -43,7 +50,9 @@ export function MediaCast({
         <div className={keyValueRow()} data-part="key-value">
           <span>
             {isFilm === null ? (
-              inFlight ? <SkeletonLine width="short" /> : t("screens.media.unknown")
+              inFlight
+                ? <SkeletonLine width="short" />
+                : t(failed ? "screens.media.creditUnread" : "screens.media.unknown")
             ) : isFilm ? (
               t("screens.media.director")
             ) : (
@@ -52,7 +61,9 @@ export function MediaCast({
           </span>
           <span>
             {(isFilm === false ? sheet?.crea : isFilm ? sheet?.real : (sheet?.real ?? sheet?.crea)) ??
-              (inFlight ? <SkeletonLine width="short" /> : t("screens.media.unknown"))}
+              (inFlight
+              ? <SkeletonLine width="short" />
+              : t(failed ? "screens.media.unread" : "screens.media.unknown"))}
           </span>
         </div>
       </div>
@@ -68,7 +79,7 @@ export function MediaCast({
           // a guess at which of the two it is.
           aria-label={
             isFilm === null
-              ? t("screens.media.unknown")
+              ? t(failed ? "screens.media.castHeadingUnread" : "screens.media.unknown")
               : isFilm
                 ? t("screens.media.castHeadingFilm")
                 : t("screens.media.castHeadingSeries")

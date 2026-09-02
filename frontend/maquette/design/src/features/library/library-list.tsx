@@ -11,7 +11,7 @@ import { VirtualRows } from "../../ui/virtual-rows";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { LIBRARY_WINDOW, useLibraryReference, type LibraryRow } from "./reference";
 import { registerListingPaging, useLibraryListing } from "./queries";
-import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
+import { useStoreContent, useUiState } from "../../lib/store-access";
 import { EmptyLibrary } from "./library-empty";
 import { endMark, loadError, loadErrorAction, loadFooter, section } from "../../ui/variants";
 
@@ -46,22 +46,18 @@ export function LibraryList(): ReactElement {
   );
   const rows = (listing.data?.pages ?? []).flatMap((page) => page.items);
 
-  // A SELECTION BELONGS TO THE LISTING IT WAS TAKEN IN. The set follows its
-  // titles across a re-order — that is what keying it by title buys — but a
-  // question that changes WHICH media are on screen can leave ticks the reader
-  // cannot see: search a word that matches nothing, and « Supprimer » still
-  // offers to destroy two titles nothing on screen names. The selection is
-  // dropped when the question moves, and only then. The set is REPLACED rather
-  // than emptied in place: a write is what the selection bar re-renders on, and
-  // the engine reads the set through the state it is written into.
-  const question = `${state.q ?? ""}|${state.libCat ?? ""}|${state.sortKey ?? ""}|${String(state.sortReversed ?? "")}|${state.libLens ?? ""}`;
-  const askedBefore = useRef(question);
-  useEffect(() => {
-    if (askedBefore.current === question) return;
-    askedBefore.current = question;
-    const picked = state.selected as Set<string> | undefined;
-    if (picked && picked.size) writeUiState({ selected: new Set() });
-  }, [question, state.selected]);
+  // A SELECTION BELONGS TO THE LISTING IT WAS TAKEN IN, and it is dropped WHERE
+  // THE QUESTION IS WRITTEN — beside each control that changes it — rather than
+  // here, by watching the question for movement.
+  //
+  // WHY THE WATCHER WAS WRONG, and it is a distinction no observer can make: a
+  // driven state applies a lens and THEN seeds a selection, two writes in a
+  // sequence, which from here is indistinguishable from a reader changing the
+  // lens with rows ticked. Driving every named state in one page, in order —
+  // which is what the oracle does — the lens moved from « rec » to « cat » and
+  // the seeded ticks were wiped before anything drew them: a named state called
+  // « mode sélection » with nothing selected in it. The control that changes the
+  // question is the one place that knows the reader asked.
   // THE KEY IS THE DRAWING, AND THE ROWS ARE THE WINDOW'S OWN BUSINESS.
   //
   // It named the store's `version` — every action and every cache landing — so

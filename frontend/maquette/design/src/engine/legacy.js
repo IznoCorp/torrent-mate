@@ -9662,9 +9662,12 @@ import { icons } from "../app/icons";
       return;
     }
     if (closest.dataset.lens) {
-      // Changing lens changes the list: start again from the first page.
+      // Changing lens changes the list: start again from the first page. And the
+      // SELECTION goes with it — a tick taken in another listing is one the
+      // reader cannot see to untick, and « Supprimer » would still offer it.
       store.write({
         libLens: closest.dataset.lens,
+        selected: new Set(),
         });
       port.scrollTop = 0;
       render();
@@ -9674,6 +9677,7 @@ import { icons } from "../app/icons";
     if (closest.dataset.cat) {
       store.write({
         libCat: closest.dataset.cat,
+        selected: new Set(),
         });
       port.scrollTop = 0;
       render();
@@ -10030,6 +10034,7 @@ import { icons } from "../app/icons";
       store.write({
         sortKey: closest.dataset.setsort,
         sortReversed: closest.dataset.reversed === "1",
+        selected: new Set(),
       });
       panel.close();
       render();
@@ -10051,7 +10056,10 @@ import { icons } from "../app/icons";
     }
     if (closest.dataset.clearq) {
       if (closest.dataset.clearq === "lib")
-        store.write({ q: "" });
+        // THE SELECTION GOES WITH THE QUESTION. Clearing the search widens what
+        // is on screen, and the ticks taken under the narrower listing are not
+        // the ones a reader is looking at.
+        store.write({ q: "", selected: new Set() });
       else store.write({ filter: "" });
       render();
       return;
@@ -10282,9 +10290,23 @@ import { icons } from "../app/icons";
       (title2) =>
         follows().some((follow) => follow.t === title2) || !!inc(title2),
     );
+    // HOW MANY MEDIA EACH TITLE NAMES, and it is not always one. The delete
+    // acts BY TITLE — the only key the contract offers — and this library holds
+    // « Doctor Who » twice, 2005 and 2023, as it holds five other titles twice.
+    // Confirming one of them removes both, and the count below said one file:
+    // a manifest whose whole purpose is « voici exactement ce qui serait
+    // supprimé » naming half of it. The interface cannot delete one of the two
+    // — that needs an identifier the backend does not serve, and the demand is
+    // recorded — but it can say the truth about what it is about to do.
+    const mediaFor = (title2) =>
+      Math.max(1, LIBRARY.filter((row) => row.t === title2).length);
     const files = titles.reduce(
       (accumulator, element) =>
-        accumulator + (inc(element) ? inc(element).o : 1),
+        accumulator + (inc(element) ? inc(element).o : mediaFor(element)),
+      0,
+    );
+    const media = titles.reduce(
+      (accumulator, element) => accumulator + mediaFor(element),
       0,
     );
     const size = (files * 0.41).toFixed(1).replace(".", ",") + " Go";
@@ -10295,8 +10317,10 @@ import { icons } from "../app/icons";
        ampersand, and the seeds carry five. The other thirty-five sites still
        feed `innerHTML` and still need it. */
     const head = multi
-      ? `Supprimer ${titles.length} médias ?`
-      : `Supprimer « ${titles[0]} » ?`;
+      ? `Supprimer ${media} médias ?`
+      : media > 1
+        ? `Supprimer « ${titles[0]} » — ${media} médias ?`
+        : `Supprimer « ${titles[0]} » ?`;
     window.__dialog?.open({
       heading: head,
       body: [
@@ -10313,7 +10337,7 @@ import { icons } from "../app/icons";
                 entries: [
                   ...titles.slice(0, 4).map((title2) => ({
                     text: title2,
-                    value: `${inc(title2) ? inc(title2).o : 1} fichier${(inc(title2) ? inc(title2).o : 1) > 1 ? "s" : ""}`,
+                    value: `${inc(title2) ? inc(title2).o : mediaFor(title2)} fichier${(inc(title2) ? inc(title2).o : mediaFor(title2)) > 1 ? "s" : ""}`,
                   })),
                   ...(titles.length > 4
                     ? [

@@ -24,6 +24,20 @@ import { filterPill, filterPillCount, filterZone, pillBar, pillScroll, searchCle
 // while saying nothing true about a library of 1 861 titles.
 export const INCOMPLETE_COUNT = 47;
 
+/**
+ * Drops the ticks a reader took under the listing they are leaving.
+ *
+ * A selection follows its titles across a re-order — that is what keying it by
+ * title buys — but a question that changes WHICH media are on screen leaves
+ * ticks nobody can see, and « Supprimer » would still offer them. Called at each
+ * control that writes the question, never from a watcher: a driven state applies
+ * a lens and then seeds a selection, and no observer can tell that sequence from
+ * a reader changing the lens with rows ticked.
+ */
+function dropSelection(): void {
+  writeUiState({ selected: new Set() });
+}
+
 export function LibraryHead(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
@@ -92,6 +106,10 @@ export function LibraryHead(): ReactElement {
               if (element.getAttribute("value") !== query)
                 element.setAttribute("value", query);
               const commit = () => {
+                // A TICK NOBODY CAN SEE IS A TICK NOBODY CAN UNTICK. Searching
+                // narrows what is on screen, and a selection taken before it
+                // would still be offered for deletion with nothing naming it.
+                dropSelection();
                 // ONLY THE QUERY. Resetting a page cursor and clearing an error
                 // beside it is what the interface had to do while it owned
                 // both; the query KEY carries the search now, so typing asks a

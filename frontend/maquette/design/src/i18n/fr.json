@@ -301,7 +301,12 @@
       "yearUnread": "année non lue",
       "genresUnread": "Genres non lus",
       "castUnread": "Distribution non lue.",
-      "followWaitsForKind": "Type de média inconnu — le suivi attend de savoir s'il s'agit d'un film ou d'une série."
+      "followWaitsForKind": "Type de média inconnu — le suivi attend de savoir s'il s'agit d'un film ou d'une série.",
+      "kindUnread": "type non lu",
+      "castHeadingUnread": "Distribution",
+      "creditUnread": "Crédit non lu",
+      "unread": "non lu",
+      "unreadFeminine": "non lue"
     },
     "profile": {
       "back": "Retour",

@@ -549,6 +549,67 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
     await context.close()
 
 
+async def hold_the_selection_state_draws_its_ticks(journal, browser):
+    """The named selection state draws its ticks, reached the way the oracle reaches it.
+
+    THE DEFECT THIS EXISTS FOR, and it is a repair's own regression. A selection
+    was dropped by an effect WATCHING the listing's question for movement. A
+    driven state applies a lens and THEN seeds a selection — two writes in a
+    sequence — and from a watcher that is indistinguishable from a reader
+    changing the lens with rows ticked. Driven alone the state was fine; driven
+    after another library state, as every state is when they are driven in one
+    page in order, the lens moved and the ticks were wiped before anything drew
+    them. A state called « mode sélection » with nothing selected in it.
+
+    WHY THE ORDER IS THE WHOLE HOLD. The oracle drives all of them in ONE page,
+    one after another, and every other rule that touches this state arrives from
+    a page where the list is unmounted, so the seed survives. The predecessor
+    here is the state that changes the lens, which is the case that failed.
+    """
+    context = await browser.new_context(**PHONE)
+    page = await context.new_page()
+    await page.goto(PROTOTYPE, wait_until="load")
+    await page.evaluate("()=>window.__loadingDone?.()")
+    await page.evaluate("()=>document.querySelector('#toastx')?.click()")
+    await page.wait_for_timeout(250)
+
+    async def ticks():
+        return await page.evaluate("""() => {
+          const pressed = [...document.querySelectorAll('#libitems [aria-pressed="true"]')];
+          const name = (node) => (node.querySelector(
+            '[data-part="tile/title"], [data-part="card/title"]') || node).textContent.trim();
+          return { pressed: pressed.map(name),
+                   selected: [...(window.__store.read().state.selected || [])] };
+        }""")
+
+    await page.evaluate("()=>window.__go('lib-selection')")
+    await page.wait_for_timeout(800)
+    alone = await ticks()
+    journal.check(
+        "the selection state seeds ticks when it is the first state driven — "
+        "the hold below has a subject",
+        len(alone["selected"]) > 0,
+        f"{len(alone['selected'])} title(s) in the set, "
+        f"{len(alone['pressed'])} row(s) pressed")
+
+    # THE PREDECESSOR IS THE ONE THAT MOVES THE LENS, which is what the oracle's
+    # own order puts in front of it.
+    await page.evaluate("()=>window.__go('lib-recent')")
+    await page.wait_for_timeout(700)
+    await page.evaluate("()=>window.__go('lib-selection')")
+    await page.wait_for_timeout(800)
+    after_another = await ticks()
+    journal.check(
+        "and it draws them when another library state was driven first, in the "
+        "same page — which is the only way anything drives all of them",
+        after_another["pressed"] == alone["pressed"]
+        and len(after_another["pressed"]) > 0,
+        f"{len(after_another['pressed'])} row(s) pressed after « lib-recent », "
+        f"{len(alone['pressed'])} when driven alone; the set holds "
+        f"{len(after_another['selected'])}")
+    await context.close()
+
+
 async def hold_a_bulk_delete_names_what_was_ticked(journal, browser):
     """A bulk delete acts on the rows the reader ticked, in any order.
 
@@ -772,12 +833,21 @@ async def hold_the_list_comes_back_from_selection_mode(journal, browser):
     await page.click('[data-selmode="0"]')
     await page.wait_for_timeout(700)
     barely_after = await visible(ROW)
+    # THE TITLE ALONE CANNOT DECIDE THIS ONE, and that is why it is read with a
+    # pixel. Three hundred pixels down and at the container's own start the top
+    # VISIBLE row is the same row — index 0 — so a hold comparing titles passes
+    # on the code that refused to restore item 0 and left the reader two rows
+    # further down. What separates them is where the PORT lands: at the
+    # container's start, or a screenful past it.
     journal.check(
         "a reader three hundred pixels down keeps their row through the mode "
         "and back — the first row is a place like any other",
-        barely["top"] is not None and barely_after["top"] == barely["top"],
+        barely["top"] is not None and barely_after["top"] == barely["top"]
+        and abs(barely_after["scrolled"] - barely["scrolled"]) < ROW_PITCH,
         f"top row {barely['top']!r} at {barely['scrolled']}px, "
-        f"{barely_after['top']!r} at {barely_after['scrolled']}px after")
+        f"{barely_after['top']!r} at {barely_after['scrolled']}px after — "
+        f"the port moved {abs(barely_after['scrolled'] - barely['scrolled'])}px, "
+        f"and a row is {ROW_PITCH}px")
 
     # AND THE OTHER PITCH CHANGE, which changes the LANES as well as the height:
     # list to gallery and back. A place remembered as a LINE is a row in the list
@@ -863,6 +933,7 @@ async def hold(journal):
         await hold_a_deleted_row_leaves_the_screen(journal, browser)
         await hold_the_list_comes_back_from_selection_mode(journal, browser)
         await hold_a_bulk_delete_names_what_was_ticked(journal, browser)
+        await hold_the_selection_state_draws_its_ticks(journal, browser)
         context = await browser.new_context(**PHONE)
         page = await context.new_page()
         await page.goto(PROTOTYPE, wait_until="load")

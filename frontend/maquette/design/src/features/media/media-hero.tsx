@@ -71,7 +71,14 @@ export function MediaHero({
                   : t(failed ? "screens.media.yearUnread" : "screens.media.yearUnknown"))}
                 {" · "}
                 {isFilm === null ? (
-                  inFlight ? <SkeletonLine width="short" /> : t("screens.media.unknown")
+                  inFlight
+                    ? <SkeletonLine width="short" />
+                    // THE KIND KEPT ITS BARE ANSWER between the two twins added
+                    // for exactly this: over a failed read the line said
+                    // « année non lue · inconnu Genres non lus », one word in
+                    // three claiming the kind is unknown of this medium where
+                    // the other two say nobody read it.
+                    : t(failed ? "screens.media.kindUnread" : "screens.media.unknown")
                 ) : isFilm ? (
                   t("common.film")
                 ) : (

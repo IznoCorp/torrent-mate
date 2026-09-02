@@ -149,7 +149,10 @@ MOUNT_DEADLINE_MILLISECONDS = 1500
 # waiting, and both times the rule said so.
 SKELETONS_EXPECTED = 15
 
-INTERCEPT = """({ title, kept, latency, thin, fail, failSeasons, ownershipUnknown, seasonsFirst }) => {
+INTERCEPT = """({ title, kept, latency, thin, fail, failSeasons, ownershipUnknown, seasonsFirst, bareUnknownWord }) => {
+  // THE INTERFACE'S OWN WORD FOR AN UNKNOWN, put where the reading below can
+  // compare against it rather than typed into the comparison.
+  window.__bareUnknownWord = bareUnknownWord;
   let reference;
   Object.defineProperty(window, '__referentiel', {
     configurable: true,
@@ -346,6 +349,18 @@ READ = """() => {
       ? [...screen.querySelectorAll('[data-part="season"] summary')]
           .filter((row) => /[0-9]+[ ]*\\/[ ]*[0-9]+/.test(row.textContent || '')).length
       : -1,
+    // WHERE THE BARE UNKNOWN WORD STANDS. « inconnu » says the thing is unknown
+    // OF THIS MEDIUM; after a failed read what is true is that nobody read it,
+    // and the difference is the whole subject of the twins. Counted as LEAVES —
+    // an element whose own text is that word and nothing else — because the
+    // word is a substring of « inconnue » and of « Genres inconnus », so a text
+    // search cannot tell a bare answer from a sentence containing one.
+    bareUnknown: screen
+      ? [...screen.querySelectorAll('*')].filter((node) => {
+          if (node.children.length) return false;
+          return (node.textContent || '').trim() === window.__bareUnknownWord;
+        }).length
+      : -1,
     // THE BAR'S OWN SENTENCE. « média non identifié » is an answer about the
     // medium, and after a failure nobody answered.
     bar: screen
@@ -422,6 +437,7 @@ async def cold_load(browser, address, thin, fail=False, kept=None, seasons_first
         f"fail: {'true' if fail else 'false'}, "
         f"failSeasons: {'true' if fail_seasons else 'false'}, "
         f"ownershipUnknown: {'true' if ownership_unknown else 'false'}, "
+        f"bareUnknownWord: {BARE_UNKNOWN!r}, "
         f"seasonsFirst: {'true' if seasons_first else 'false'} }})")
     page = await context.new_page()
     errors = []
@@ -463,6 +479,10 @@ PROVIDER_SENTENCES = provider_sentences_from_resources()
 UNIDENTIFIED = unidentified_from_resources()
 # The word the interface prints for a feminine unknown — « la médiathèque » —
 # read from the resource rather than typed here.
+BARE_UNKNOWN = json.loads(
+    (pathlib.Path(__file__).resolve().parent.parent
+     / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8")
+)["screens"]["media"]["unknown"]
 UNKNOWN_FEMININE = json.loads(
     (pathlib.Path(__file__).resolve().parent.parent
      / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8")
@@ -691,6 +711,13 @@ async def main():
         # holds — printed over a read that came back 502 without reaching
         # either question. The words are read from the resources, never retyped:
         # a retyped sentence renders correctly while the reference has moved.
+        journal.check(
+            "(e-iii-a-bis) and no part of it still answers the bare « unknown » "
+            "about the medium — the word that says a thing is unknown OF this "
+            "medium, between two lines that say nobody read it",
+            thin_failure["bareUnknown"] == 0,
+            f"{thin_failure['bareUnknown']} part(s) print the bare unknown word "
+            f"over a read that failed")
         journal.check(
             "(e-iii-a) and the failure speaks neither for the medium nor for "
             "the provider — the address the reader navigated with stands, and "
