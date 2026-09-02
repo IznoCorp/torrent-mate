@@ -25,6 +25,18 @@ each: the reference is wrapped the instant it is published, and the latency is
 set the instant the layer is installed. The boot's own reads are slowed by the
 same latency; the screen does not wait for them.
 
+WHAT THE FIRST VERSION OF THIS RULE DID NOT READ, because it is the reason the
+holds below have the shape they have. It counted `[data-skeleton]` against a
+FLOOR of six where eleven stand, and it read assertions as
+`[data-part="no-info"]`, a part name worn by two of the nine sites that can
+print one. Between them that left a slack of five: the synopsis, the director
+and the three season lines could all revert to printing their answer about data
+in flight and every hold stayed green — three of the four examples the register
+entry names, in the rule written for that entry. So the count is held EXACTLY,
+against a thinning whose unknown parts are known, and the assertions are read as
+TEXT: the screen's own words, taken from `fr.json` rather than retyped here, and
+refused while the read is out.
+
 WHAT IT DOES NOT READ, said first:
   - The RENDERING of a skeleton line. No named state shows the priming at
     rest — the placeholder is complete — so the oracle never measures it; the
@@ -38,6 +50,7 @@ WHAT IT DOES NOT READ, said first:
     in the library facts while the seasons are out.
 """
 import asyncio
+import json
 import pathlib
 import sys
 
@@ -47,9 +60,14 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import PHONE, PROTOTYPE, Journal, open_page
 
 TITLE = "Broadchurch"
-# What the tap knows: the title, the kind and the year — the projection a list
-# row carries, and what the screen may draw as content while the rest is out.
-KEPT = ["t", "k", "y"]
+# WHAT THE TAP KNOWS, and it is the TITLE alone. A list row is `{t, f}` — a
+# title and a folder — and the year and the kind a card displays come from the
+# same projection this thinning stands in for, folded into one string. Keeping
+# `k` and `y` here made the hero's own fields impossible to measure: the metadata
+# line was gated on the whole sheet being null, and with those two present it
+# never took the branch that printed « année inconnue · Série » about a medium
+# whose kind was in flight.
+KEPT = ["t"]
 # Long enough that every reading below is taken with the read still out under
 # the suite's parallel load, and short enough that the rule stays cheap.
 LATENCY_MILLISECONDS = 2000
@@ -57,12 +75,27 @@ LATENCY_MILLISECONDS = 2000
 # reading is taken. Well under the latency, so the reading is in flight or the
 # hold that says so falls.
 MOUNT_DEADLINE_MILLISECONDS = 1500
-# At least: the metadata line, the genres, the synopsis, the director, the cast
-# strip, the trailer, the seasons, the aired count, the completeness, the
-# identifiers — with a margin for the ones that land with the kept keys.
-SKELETONS_AT_LEAST = 6
+# EXACTLY, not at least. A placeholder thinned to a known set has a KNOWN number
+# of unknown parts, so the count is a fact and a floor under it is slack a defect
+# fits into — measured: with a floor of six against eleven, three of the four
+# assertions this rule exists to refuse could come back untouched. The number is
+# read from the run and written here with the enumeration that produces it; a
+# part gained or lost moves it, deliberately, and the rule says which.
+#
+# The parts, on the `{t}` thinning, as the rule PRINTS them: the address in the
+# bar, the year and the kind of the hero's metadata line, the genres, the
+# trailer, the synopsis, the director, the cast strip, the four library figures
+# (seasons, aired episodes, owned, completeness), the two lines of the
+# identifiers row, and the actions. Fourteen. The season list contributes none:
+# with the seasons read still out there are no rows to draw them under, which is
+# the honest drawing and not an omission.
+#
+# This number was written as 21 before it was measured, and the rule fell on its
+# author's arithmetic — which is the reason it is an exact count and not a
+# floor: a wrong number here is loud, where a floor is silent.
+SKELETONS_EXPECTED = 14
 
-INTERCEPT = """({ title, kept, latency, thin }) => {
+INTERCEPT = """({ title, kept, latency, thin, fail }) => {
   let reference;
   Object.defineProperty(window, '__referentiel', {
     configurable: true,
@@ -87,10 +120,37 @@ INTERCEPT = """({ title, kept, latency, thin }) => {
     get() { return mocks; },
     set(value) {
       mocks = value;
-      if (value && typeof value.setDefaultLatency === 'function') value.setDefaultLatency(latency);
+      if (!value || typeof value.setDefaultLatency !== 'function') return;
+      value.setDefaultLatency(latency);
+      // THE SHEET'S OWN READ FAILS, and only it: the seasons and the library
+      // answer normally, so what is measured is a screen whose sheet failed
+      // rather than a page with no server at all.
+      if (fail) value.setOperationOutcome('readMediaSheet', { status: 502, latencyMilliseconds: 0 });
     },
   });
 }"""
+
+def assertions_from_resources():
+    """The screen's own « unknown » words, read from the resource it prints from.
+
+    NOT RETYPED. A rule holding a sentence it typed itself is a rule that goes
+    green the day the interface's words change, which is the same defect one
+    layer up from the one it measures.
+
+    Returns:
+        Every value under `screens.media` whose key names an unknown or an
+        absence, plus the two the sheet draws from elsewhere.
+    """
+    resource = json.loads(
+        (pathlib.Path(__file__).resolve().parent.parent
+         / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8"))
+    media = resource["screens"]["media"]
+    wanted = [key for key in media
+              if key.endswith("Unknown") or key.endswith("UnknownFeminine")
+              or key in ("unknown", "unknownFeminine", "unidentified", "noTrailer",
+                         "episodesNotDetailed", "seasonAnnounced")]
+    return sorted({media[key] for key in wanted if isinstance(media[key], str)})
+
 
 READ = """() => {
   const screen = document.querySelector('[data-part="screen"][data-open]');
@@ -103,6 +163,20 @@ READ = """() => {
     cast: !!(screen && screen.querySelector('[data-part="cast"]')),
     synopsis: (((screen && screen.querySelector('[data-part="heading"]')) || {}).nextElementSibling || {}).textContent || '',
     inFlight: window.__mocks ? window.__mocks.inFlight() : -1,
+    // WHAT EACH SKELETON STANDS IN FOR, so the count below is an enumeration a
+    // reader can check rather than a number someone wrote down. A part that
+    // stops waiting leaves this list, and the diff names it.
+    parts: screen ? [...screen.querySelectorAll('[data-skeleton]')].map((line) => {
+      const row = line.closest('[data-part="key-value"], [data-part="hero"], p, [data-part="screen/bar"], [data-part="sheet/actions"]');
+      return ((row && row.textContent) || (line.parentElement || {}).className || '?')
+        .trim().replace(/\s+/g, ' ').slice(0, 28);
+    }) : [],
+    text: screen ? (screen.textContent || '') : '',
+    failed: !!(screen && screen.querySelector('[data-part="surface-error"]')),
+    busy: !!(screen && screen.querySelector('[aria-busy="true"]')),
+    actions: screen
+      ? (screen.querySelector('[data-part="sheet/actions"]') || { children: [] }).children.length
+      : -1,
   };
 }"""
 
@@ -115,12 +189,20 @@ async def address_of(browser):
     return f"{PROTOTYPE}media/{ids['provider']}/{ids['id']}"
 
 
-async def cold_load(browser, address, thin):
-    """Opens the sheet cold with the two seams intercepted from the first byte."""
+async def cold_load(browser, address, thin, fail=False):
+    """Opens the sheet cold with the two seams intercepted from the first byte.
+
+    Args:
+        browser: A launched browser.
+        address: The sheet's address.
+        thin: Whether to thin the placeholder to what a list row carries.
+        fail: Whether the sheet's own read answers with a failure.
+    """
     context = await browser.new_context(**PHONE)
     await context.add_init_script(
         f"({INTERCEPT})({{ title: {TITLE!r}, kept: {KEPT!r}, "
-        f"latency: {LATENCY_MILLISECONDS}, thin: {'true' if thin else 'false'} }})")
+        f"latency: {LATENCY_MILLISECONDS}, thin: {'true' if thin else 'false'}, "
+        f"fail: {'true' if fail else 'false'} }})")
     page = await context.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
@@ -136,8 +218,16 @@ async def cold_load(browser, address, thin):
     return context, page, errors
 
 
+ASSERTIONS = assertions_from_resources()
+
+
 async def main():
     journal = Journal("R119 — priming draws what the tap knew, and a skeleton for the rest")
+    journal.check(
+        "the screen's own « unknown » answers are readable from the resource — "
+        "the text hold has something to refuse",
+        len(ASSERTIONS) >= 8,
+        f"{len(ASSERTIONS)} answer(s): {ASSERTIONS[:3]}…")
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel="chrome")
         address = await address_of(browser)
@@ -154,15 +244,46 @@ async def main():
             "(a) the reference is wrapped and the placeholder is THINNED — the "
             "flight has a subject",
             thinned["fullKeys"] > 6 and thinned["thinKeys"] is not None
-            and set(thinned["thinKeys"]) <= set(KEPT) and "k" in thinned["thinKeys"],
-            f"full sheet {thinned['fullKeys']} key(s), placeholder {thinned['thinKeys']}")
+            and set(thinned["thinKeys"]) <= set(KEPT)
+            and len(thinned["thinKeys"]) < thinned["fullKeys"],
+            f"full sheet {thinned['fullKeys']} key(s), placeholder {thinned['thinKeys']} "
+            f"— the title is the fixture's KEY, not a field, so a sheet thinned to "
+            f"it carries no field at all, which is the leanest projection a tap can "
+            f"know and the hardest case for the screen")
         early = await page.evaluate(READ)
+        # THE SUBJECT FIRST, AND ON ITS OWN LINE. A hold that conflates « the
+        # screen is open and its read is out » with « and here is what it draws »
+        # falls for either reason and the tool that reads a FAIL cannot tell
+        # which — so a mutation that merely broke the mount would read as proof
+        # of the drawing.
         journal.check(
-            "(b) while the read is out, the screen draws the title it knew, a "
-            "skeleton where each unknown part will go, and NO answer about it",
-            early["open"] and early["inFlight"] > 0 and TITLE in early["title"]
-            and early["skeletons"] >= SKELETONS_AT_LEAST and len(early["noInfos"]) == 0,
-            f"read {early}")
+            "(b) the screen is open with its read still out — the holds below "
+            "have a subject",
+            early["open"] and early["inFlight"] > 0 and TITLE in early["title"],
+            f"open={early['open']} in flight={early['inFlight']} title={early['title']!r}")
+        journal.check(
+            "(b-i) every unknown part stands as a skeleton — the EXACT count a "
+            "known thinning produces, never a floor",
+            early["open"] and early["skeletons"] == SKELETONS_EXPECTED,
+            f"{early['skeletons']} skeleton(s), expected {SKELETONS_EXPECTED}, "
+            f"standing in for: {early['parts']}")
+        printed = [answer for answer in ASSERTIONS if answer and answer in early["text"]]
+        journal.check(
+            "(b-ii) and the screen says NONE of its « unknown » answers while "
+            "the read is out — read as TEXT, from the resource it prints from",
+            early["open"] and not printed and len(early["noInfos"]) == 0,
+            f"{len(ASSERTIONS)} answer(s) read from fr.json; printed in flight: "
+            f"{printed}; no-info part(s): {early['noInfos']}")
+        journal.check(
+            "(b-iii) the body says it is busy, so the silence a reader hears is "
+            "temporary rather than empty",
+            early["open"] and early["busy"],
+            f"aria-busy present: {early['busy']}")
+        journal.check(
+            "(b-iv) and no action is offered over a medium the read has not "
+            "identified — a destructive button is an assertion too",
+            early["open"] and early["actions"] <= 1,
+            f"{early['actions']} action(s) drawn while the sheet is out")
         early_children = early["bodyChildren"]
         await page.evaluate("()=>window.__mocks.quiet()")
         await page.wait_for_timeout(300)
@@ -171,7 +292,8 @@ async def main():
             "(c) once the read lands the skeletons stand down and the one part "
             "the served sheet lacks is said — the trailer",
             late["inFlight"] == 0 and late["skeletons"] == 0
-            and len(late["noInfos"]) == 1 and "bande-annonce" in late["noInfos"][0],
+            and len(late["noInfos"]) == 1 and "bande-annonce" in late["noInfos"][0]
+            and not late["busy"],
             f"read {late}")
         journal.check(
             "the body keeps the same blocks at both instants — a line stands "
@@ -200,6 +322,32 @@ async def main():
             and control["cast"] and len(control["synopsis"]) > 40,
             f"read {control} against {early['skeletons']} skeleton(s) thinned")
         journal.check("no JS error on the control walk", not errors, str(errors))
+        await context.close()
+
+        # ─── (e) THE READ FAILS, and the screen must not lie about it ──────
+        # The query library drops its placeholder the moment a read errors, so
+        # the screen went from showing what the tap knew to printing « le
+        # provider n'en fournit pas » about a provider that had answered 502 —
+        # a sentence that cannot change when the reality does, which is the
+        # first thing the constitution's §13 forbids. Neither a skeleton
+        # forever nor an answer: what the tap knew, and the failure said.
+        context, page, errors = await cold_load(browser, address, thin=False, fail=True)
+        # READ AT REST. Only the sheet's own read fails; the seasons answer
+        # normally and are still out at the mount, so a reading taken there
+        # measures a screen that is half in flight and says nothing about the
+        # failure. What is held is the state a reader is LEFT in.
+        await page.evaluate("()=>window.__mocks.quiet()")
+        await page.wait_for_timeout(300)
+        broken = await page.evaluate(READ)
+        journal.check(
+            "(e) a FAILED read draws the error surface, keeps what the tap knew, "
+            "and asserts nothing about what it never got",
+            broken["open"] and broken["failed"] and broken["skeletons"] == 0
+            and TITLE in broken["title"] and broken["cast"]
+            and not [answer for answer in ASSERTIONS
+                     if answer in broken["text"] and "bande-annonce" not in answer],
+            f"read {broken}")
+        journal.check("no JS error on the failed walk", not errors, str(errors))
         await context.close()
         await browser.close()
     journal.summary()
