@@ -372,6 +372,7 @@ floor
 flux
 fmode
 focus
+focused
 folder
 follow
 followed
@@ -685,6 +686,7 @@ overview
 owed
 own
 owned
+ownership
 owns
 page
 pages
