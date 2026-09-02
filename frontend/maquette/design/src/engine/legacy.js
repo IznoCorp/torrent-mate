@@ -10365,9 +10365,11 @@ import { icons } from "../app/icons";
             },
             {
               text: "Lignes de la médiathèque",
-              value: `${titles.length} item${multi ? "s" : ""}`,
+              // THE MEDIA, not the titles: one title can name two rows, and this
+              // manifest's whole purpose is to say exactly what would go.
+              value: `${media} item${media > 1 ? "s" : ""}`,
             },
-            { text: "Entrée Plex", value: `${titles.length} · à vérifier` },
+            { text: "Entrée Plex", value: `${media} · à vérifier` },
           ],
         },
         ...(followed.length > 0
