@@ -416,6 +416,54 @@ async def main():
         await page.evaluate("()=>window.__store.write({selMode: false})")
         await page.wait_for_timeout(200)
 
+        # (g-i) AND A ROW REPLACED OUT OF VIEW DOES NOT DRAG THE PORT TO IT.
+        # The window keeps four lines beyond each edge, so a live row is often
+        # off screen — and its markup moves for reasons that have nothing to do
+        # with the reader: a delete ABOVE it shifts every row below. Restoring
+        # focus without saying « do not scroll » then pulls the whole list back
+        # to a row nobody was looking at.
+        # ON THE GRID, because a tile IS a button and a browse-mode list row is
+        # a `<div>` with no tabindex — `focus()` on one does nothing, so the
+        # case cannot arise there and a hold driving it would measure nothing.
+        await page.evaluate("()=>window.__go('lib-grid')")
+        await page.evaluate("()=>window.__mocks?.quiet()")
+        await page.wait_for_timeout(400)
+        await page.evaluate("()=>window.__mocks?.setOffline(true)")
+        moved = await page.evaluate("""(row) => {
+          const rows = [...document.querySelectorAll(row)];
+          const first = rows[0] && rows[0].querySelector('[data-part="tile/title"]');
+          const target = rows[2];
+          if (!target || !first) return { drawn: rows.length };
+          target.focus();
+          const port = document.querySelector('#port');
+          port.scrollTop = port.scrollTop + 700;
+          return { drawn: rows.length, focused: document.activeElement === target,
+                   scrolled: port.scrollTop,
+                   above: first.textContent.trim() };
+        }""", '#libitems [data-part="tile"]')
+        await page.wait_for_timeout(250)
+        if moved.get("above"):
+            await page.evaluate(
+                "(title)=>window.__deleteLibraryItems([title])", moved["above"])
+            await page.wait_for_timeout(300)
+            settled = await page.evaluate(
+                "()=>Math.round(document.querySelector('#port').scrollTop)")
+            journal.check(
+                "the tile focused was live, out of view, and its markup moved "
+                "— the hold below has a subject",
+                moved.get("focused") and moved.get("drawn", 0) > 6,
+                f"{moved.get('drawn')} tile(s), focus taken: "
+                f"{moved.get('focused')}, deleting {moved.get('above')!r} above it")
+            journal.check(
+                "a row replaced while OUT of view does not pull the port back "
+                "to it — focus is restored where the reader left it, not the "
+                "scroll",
+                abs(settled - round(moved["scrolled"])) < 40,
+                f"the port was at {round(moved['scrolled'])} and is at "
+                f"{settled} after a row above was deleted")
+        await page.evaluate("()=>window.__mocks?.setOffline(false)")
+        await page.wait_for_timeout(150)
+
         # (e) THE POSITIVE CONTROL FOR (a), and it comes LAST because it
         # destroys the document every hold above measures. One real navigation:
         # the sentinel must be gone and the counter must have moved. Without it
