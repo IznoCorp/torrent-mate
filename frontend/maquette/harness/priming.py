@@ -60,6 +60,13 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import PHONE, PROTOTYPE, Journal, open_page
 
 TITLE = "Broadchurch"
+# A SERIES THE LIBRARY DOES NOT OWN, for the walk that lands the two reads
+# apart. An owned season draws its episode matrix from the owned numbers, which
+# the reference answers synchronously — so the branch that says « les épisodes
+# ne sont pas détaillés » is unreachable there, whatever the sheet is doing. On
+# a suggestion there are no owned numbers, the matrix has nothing to draw, and
+# the sentence about the sheet's episode lists is what the row would print.
+NOT_OWNED_TITLE = "The Venture Bros"
 # WHAT THE TAP KNOWS, and it is the TITLE alone. A list row is `{t, f}` — a
 # title and a folder — and the year and the kind a card displays come from the
 # same projection this thinning stands in for, folded into one string. Keeping
@@ -197,6 +204,17 @@ READ = """() => {
     cast: !!(screen && screen.querySelector('[data-part="cast"]')),
     synopsis: (((screen && screen.querySelector('[data-part="heading"]')) || {}).nextElementSibling || {}).textContent || '',
     inFlight: window.__mocks ? window.__mocks.inFlight() : -1,
+    // IS THE SHEET'S OWN READ OUT? `inFlight()` counts every request the layer
+    // holds — the library's, the stream's — so « something is in flight » is
+    // true on a page where the sheet landed long ago, and a hold resting on it
+    // would call any reading « in flight ». The cache answers about THIS query.
+    sheetOut: (() => {
+      const cache = window.__queries && window.__queries.getQueryCache();
+      if (!cache) return null;
+      const sheet = cache.getAll().find(
+        (query) => query.queryKey[0] === '/api/media' && query.queryKey.length === 3);
+      return sheet ? sheet.state.data === undefined : null;
+    })(),
     // WHAT EACH SKELETON STANDS IN FOR, so the count below is an enumeration a
     // reader can check rather than a number someone wrote down. A part that
     // stops waiting leaves this list, and the diff names it.
@@ -215,15 +233,24 @@ READ = """() => {
 }"""
 
 
-async def address_of(browser):
-    """Resolves the sheet's address through the reference, on a throwaway page."""
+async def address_of(browser, title=None):
+    """Resolves a sheet's address through the reference, on a throwaway page.
+
+    Args:
+        browser: A launched browser.
+        title: Which title. The measured one by default.
+
+    Returns:
+        The address, as the router reads it.
+    """
     context, page = await open_page(browser)
-    ids = await page.evaluate("(title)=>window.addressIdsFor(title)", TITLE)
+    ids = await page.evaluate("(t)=>window.addressIdsFor(t)", title or TITLE)
     await context.close()
     return f"{PROTOTYPE}media/{ids['provider']}/{ids['id']}"
 
 
-async def cold_load(browser, address, thin, fail=False, kept=None, seasons_first=False):
+async def cold_load(browser, address, thin, fail=False, kept=None, seasons_first=False,
+                    title=None):
     """Opens the sheet cold with the two seams intercepted from the first byte.
 
     Args:
@@ -233,10 +260,13 @@ async def cold_load(browser, address, thin, fail=False, kept=None, seasons_first
         fail: Whether the sheet's own read answers with a failure.
         kept: Which fields the thinned placeholder keeps. `KEPT` by default.
         seasons_first: Whether the seasons answer at once while the sheet waits.
+        title: Whose placeholder is thinned. The measured title by default — and
+            it must be the title the ADDRESS opens, or the thinning applies to a
+            sheet nobody is looking at and the walk measures a complete one.
     """
     context = await browser.new_context(**PHONE)
     await context.add_init_script(
-        f"({INTERCEPT})({{ title: {TITLE!r}, kept: {(kept or KEPT)!r}, "
+        f"({INTERCEPT})({{ title: {(title or TITLE)!r}, kept: {(kept or KEPT)!r}, "
         f"latency: {LATENCY_MILLISECONDS}, thin: {'true' if thin else 'false'}, "
         f"fail: {'true' if fail else 'false'}, "
         f"seasonsFirst: {'true' if seasons_first else 'false'} }})")
@@ -299,8 +329,9 @@ async def main():
         journal.check(
             "(b) the screen is open with its read still out — the holds below "
             "have a subject",
-            early["open"] and early["inFlight"] > 0 and TITLE in early["title"],
-            f"open={early['open']} in flight={early['inFlight']} title={early['title']!r}")
+            early["open"] and early["sheetOut"] and TITLE in early["title"],
+            f"open={early['open']} the sheet's own read is out={early['sheetOut']} "
+            f"title={early['title']!r}")
         journal.check(
             "(b-i) every unknown part stands as a skeleton — the EXACT count a "
             "known thinning produces, never a floor",
@@ -359,7 +390,7 @@ async def main():
             "(d) the control — the complete placeholder, same latency — draws "
             "FEWER skeletons, and the parts it carries are content while the "
             "read is out",
-            control["open"] and control["inFlight"] > 0
+            control["open"] and control["sheetOut"]
             and control["skeletons"] < early["skeletons"]
             and control["cast"] and len(control["synopsis"]) > 40,
             f"read {control} against {early['skeletons']} skeleton(s) thinned")
@@ -401,7 +432,7 @@ async def main():
         journal.check(
             "(f) with the YEAR known and the kind not, the year is content and "
             "the kind is a skeleton — a field waits for its own answer",
-            partial["open"] and partial["inFlight"] > 0 and year
+            partial["open"] and partial["sheetOut"] and year
             and year in partial["text"]
             and not [word for word in KIND_WORDS if word in partial["text"]],
             f"year {year!r} in text: {year in partial['text']}; kind word(s) "
@@ -417,7 +448,8 @@ async def main():
         # a list still on its way, has no interval to be seen in. This walk
         # makes the interval, which is what a reader could only predict.
         context, page, errors = await cold_load(
-            browser, address, thin=True, seasons_first=True)
+            browser, await address_of(browser, NOT_OWNED_TITLE),
+            thin=True, seasons_first=True, title=NOT_OWNED_TITLE)
         apart = await page.evaluate(READ)
         seasons_drawn = await page.evaluate(
             "()=>document.querySelectorAll('[data-part=\"season\"]').length")
@@ -425,7 +457,8 @@ async def main():
             "(g) with the seasons landed and the sheet still out, the season "
             "rows are drawn and say NOTHING about the episode lists they have "
             "not got",
-            apart["open"] and apart["inFlight"] > 0 and seasons_drawn > 0
+            apart["open"] and apart["sheetOut"] and seasons_drawn > 0
+            and apart["skeletons"] > 0
             and not [answer for answer in ASSERTIONS if answer in apart["text"]],
             f"{seasons_drawn} season row(s) drawn, {apart['skeletons']} "
             f"skeleton(s); printed: "
