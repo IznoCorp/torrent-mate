@@ -379,6 +379,86 @@ async def hold_the_gallery_keeps_its_ORDER(journal, browser):
     await context.close()
 
 
+async def hold_a_deleted_row_leaves_the_screen(journal, browser):
+    """A row deleted beyond the first page leaves the window in the same task.
+
+    THE REGRESSION THIS EXISTS FOR. The window redrew only on a KEY, and the key
+    named the first page's identity — but the cache's structural sharing returns
+    an unchanged page as the SAME object, so deleting a row on any page but the
+    first left the key still, the window untouched, and the row the reader had
+    just deleted on screen until the network answered. On a mutation the layer
+    HOLDS — no invalidation by design — it never left at all.
+
+    It is driven through `__deleteLibraryItems`, the seam the engine's own
+    delete calls, rather than through the swipe: what is measured here is the
+    window's redraw, and the gesture that reaches it is `drag.py`'s subject.
+
+    WHY BEYOND THE FIRST PAGE, and it is the whole finding: deleting a row on
+    page 0 changes that page's identity and the old key moved with it. Only a
+    row further down separates « the rows changed » from « the first page
+    changed », and 321 of the fixture's 345 rows are further down.
+    """
+    context = await browser.new_context(**PHONE)
+    page = await context.new_page()
+    await page.goto(PROTOTYPE, wait_until="load")
+    await page.evaluate("()=>window.__loadingDone?.()")
+    await page.evaluate("()=>document.querySelector('#toastx')?.click()")
+    await page.wait_for_timeout(250)
+    await page.evaluate("(s)=>window.__go(s)", STATE)
+    await page.wait_for_timeout(700)
+    # ONE PAGE MORE, so the window can hold a row the first page does not.
+    await page.evaluate("()=>window.__libraryPaging && window.__libraryPaging()")
+    await page.wait_for_timeout(600)
+    session = await page.context.new_cdp_session(page)
+    box = await page.evaluate(
+        "()=>{const r=document.querySelector('#port').getBoundingClientRect();"
+        "return {x:r.x+r.width/2, y:r.y+r.height*0.7};}")
+    for _ in range(3):
+        await session.send("Input.dispatchTouchEvent", {
+            "type": "touchStart",
+            "touchPoints": [{"x": box["x"], "y": box["y"]}]})
+        for step in range(1, 9):
+            await session.send("Input.dispatchTouchEvent", {
+                "type": "touchMove",
+                "touchPoints": [{"x": box["x"], "y": box["y"] - step * 45}]})
+        await session.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+        await page.wait_for_timeout(120)
+    await page.wait_for_timeout(400)
+
+    drawn = await page.evaluate("""(row) => {
+      const items = [...document.querySelectorAll(row)];
+      const at = Math.floor(items.length / 2);
+      const title = items[at] && items[at].querySelector('[data-part="card/title"]');
+      return { count: items.length,
+               title: title ? title.textContent.trim() : null,
+               scrolled: document.querySelector('#port').scrollTop };
+    }""", ROW)
+    journal.check(
+        "the window is scrolled past the first page, so a row here is one the "
+        "first page does not hold",
+        drawn["scrolled"] > 0 and drawn["count"] > 0 and drawn["title"],
+        f"{drawn['count']} row(s) drawn at {drawn['scrolled']}px, "
+        f"measuring on {drawn['title']!r}")
+    if not drawn["title"]:
+        await context.close()
+        return
+    await page.evaluate("(title)=>window.__deleteLibraryItems([title])", drawn["title"])
+    await page.evaluate("()=>window.__store.touch()")
+    await page.wait_for_timeout(150)
+    after = await page.evaluate("""(row) => {
+      const titles = [...document.querySelectorAll(row + ' [data-part=\"card/title\"]')]
+        .map((node) => node.textContent.trim());
+      return { titles, count: titles.length };
+    }""", ROW)
+    journal.check(
+        "and a row deleted there is off the screen at once, not when the "
+        "network answers",
+        drawn["title"] not in after["titles"],
+        f"{drawn['title']!r} still drawn: {drawn['title'] in after['titles']}; "
+        f"{after['count']} row(s) now")
+    await context.close()
+
+
 async def hold(journal):
     """Counts the window, then scrolls it with a real finger and counts again."""
     errors = []
@@ -387,6 +467,7 @@ async def hold(journal):
         await hold_the_lanes_are_measured(journal, browser)
         await hold_rows_keep_their_identity(journal, browser)
         await hold_the_gallery_keeps_its_ORDER(journal, browser)
+        await hold_a_deleted_row_leaves_the_screen(journal, browser)
         context = await browser.new_context(**PHONE)
         page = await context.new_page()
         await page.goto(PROTOTYPE, wait_until="load")
