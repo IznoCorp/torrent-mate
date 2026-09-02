@@ -141,3 +141,20 @@ closing them possible.
 
 **What would close them**: nothing new on the wire. They are recorded here so the next reader
 knows the value has arrived and is waiting for a surface.
+
+## 7. A passage's narrative is built by the interface, from structured events
+
+**Asked for by** the operator, 2026-09-02, when the raw log and the narrative of a passage were
+placed (L20 and L19): « du français clair, mais on utilise i18n partout — l'interface doit être
+traduisible ».
+
+Production builds the narrative of a run IN THE FRONTEND, in French, from the events
+(`interpretRun`). The maquette keeps that side of the line — a narrative line is a KEY of `fr.json`
+with parameters, never a sentence received from the wire — so the backend's share is the OPPOSITE of
+a pre-formatted line: every run and tunnel event carries a stable code and its parameters (the
+title, the step, a reason code, the counts), and no French. The `run_log` envelope's `line` is the
+one exception, on purpose: it is raw output, data displayed verbatim and folded (L20), not copy.
+
+**What would close it**: an event vocabulary with a code per step and per block reason, parameters
+typed in the contract, and a rule that reads a narrative line back to its key (the `check-no-
+french.py` arms already refuse a sentence in the code; this asks the same of the wire).

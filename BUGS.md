@@ -354,6 +354,13 @@ when the defect comes back.
 | B-292 | `IMPLEMENTATION.md` cited a « parked » L06 spec at a directory no commit ever held | by audit | `fixed #539` |
 | B-293 | 38 `Design:` markers name `docs/features/…` paths that left the tree, and the design-gaps pair passes over them | by audit | `open` |
 | B-294 | `.gitignore` cited two `docs/features/…` files that no longer exist | by audit | `fixed #539` |
+| B-296 | The raw log of an execution has no surface; the passage's narrative is per media and the log lines are folded in the run's detail | by survey | `open` |
+| B-297 | The locks — pipeline lock, pause sentinel, watcher pause, tmp-orphan sweep — have no surface, and three of them are the state of L20's levers | by survey | `open` |
+| B-298 | The ranking editor is a promise: a settings rubric that leads nowhere and a toast saying it will exist | by survey | `open` |
+| B-299 | `SettingsState.conflict` is declared, set to `false` at boot, and never raised, drawn or copied — the 412 has no surface | by survey | `open` |
+| B-300 | « Redémarrer maintenant » restarts on the tap, with no confirmation, while a restart cuts the service for the whole household | by survey | `open` |
+| B-301 | The seasons panel prints a season as `to_grab` and offers no verb; the season grab operation is uncalled | by survey | `open` |
+| B-302 | The journey sheet is the tunnel and offers neither « Remettre en file » nor « Re-scraper »; both operations are uncalled | by survey | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -410,6 +417,73 @@ written without backticks here on purpose — the cited-paths guard would refuse
 misleading; removed in #539.
 
 <sub>`git ls-files docs/features/config-home docs/features/provider-ids | wc -l` → 0</sub>
+
+**B-296 — the raw log of an execution has no surface.** Production draws two things on `/pipeline`
+for a run: a narrative in plain French folded from the events (`InterpretedRunFeed`) and the raw
+`run_log` lines (`RunLogFeed`, in a collapsed accordion). The maquette's Système lists executions
+with « réussi / échoué » and nothing more; the placement table of `IMPLEMENTATION.md` sends « logs »
+to Système and no lot owed them. Placed 2026-09-02: the narrative is per media under §20 and is the
+journey's (L19, DOIT-5); the raw lines land FOLDED inside the run's detail of L20's history, a
+secondary disclosure — DOIT-1 asks for clear French and raw lines are not that. The narrative is
+translatable by construction (`frontend-backend-demands-stream.md` § 7). Owner **L20**.
+
+<sub>`grep -c "log" frontend/maquette/design/src/features/system/page.tsx` → 0 · `grep -n "RunLogFeed\|InterpretedRunFeed" frontend/src/pages/Pipeline.tsx`</sub>
+
+**B-297 — the locks have no surface, and three of the four are the state of L20's levers.** `GET
+/api/maintenance/locks` answers `pipeline.lock`, the `pipeline.pause` sentinel, `watcher.paused`,
+and a bounded sweep of stale `_tmp_dispatch_*` / `.ingest_tmp_*` entries
+(`personalscraper/web/routes/maintenance.py`, « GET /locks »). Production draws it as `LocksPanel`
+on Système; the maquette calls the operation nowhere and draws none of it. Placed 2026-09-02: the
+lock and the two sentinels ARE what L20's pause, resume and watcher levers must read; the orphan
+sweep is a machine fact — a block of Système, its repair a Maintenance command as the index's is.
+Who holds the lock behind « En file » stays L19's (NE-DOIT-PAS-2). Owner **L20**.
+
+<sub>`grep -rn "maintenance/locks" -g '*.ts' -g '*.tsx' frontend/maquette/design/src` → none · `sed -n '/GET \/locks/,/return/p' personalscraper/web/routes/maintenance.py`</sub>
+
+**B-298 — the ranking editor is a promise.** The settings rubric « Classement des releases » says «
+c'est un écran à part » and its row leads nowhere; the quality screen's « Poids du classement
+(global) » button carries `data-toast` with « Dans l'app, ce bouton mènera à /config?tab=classement
+— l'éditeur de classement ». Production has the editor (`RankingPanel`, live preview through `POST
+/api/acquisition/ranking/preview`, uncalled by the maquette). Placed 2026-09-02 with **L16**: §18
+makes the ranking follow the ratio, and the editor is where that term is set; it is drawn as the
+screen the rubric promises, with the live preview.
+
+<sub>`grep -n "rankingToast\|rankingTitle" frontend/maquette/design/src/i18n/fr.json` · `grep -rn "ranking/preview" -g '*.ts' frontend/maquette/design/src` → none</sub>
+
+**B-299 — the settings' version conflict is declared and never drawn.** `SettingsState.conflict:
+boolean` (`features/settings/reference.ts`) is set to `false` where the engine builds the state and
+reset to `false` on save, and no reader, no variant and no `fr.json` key exists for it —
+production's `ConflictDialog` (the 412 when the file changed under the editor) has no maquette
+counterpart, while the copy names « three banners » and draws two. Placed 2026-09-02 with **L19**:
+the banner is born when the settings producer moves.
+
+<sub>`grep -rn "conflict" frontend/maquette/design/src/features/settings/ frontend/maquette/design/src/engine/legacy.js` → the declaration and two `= false`, no reader · `grep -c "conflit" frontend/maquette/design/src/i18n/fr.json` → 0</sub>
+
+**B-300 — « Redémarrer maintenant » restarts on the tap.** The settings' restart banner's button
+(`data-restart`) is handled by the engine with no confirmation: the flag drops, a toast says «
+Service redémarré ». Production confirms first (`RestartConfirmDialog`). A restart cuts the service
+for every account of the household (§17), which is the case NE-DOIT-PAS-6's spirit covers even
+though nothing is destroyed. Placed 2026-09-02 with **L19**, beside B-299: the confirmation uses
+`ui/dialog` and lands with the producer's move.
+
+<sub>`grep -n "dataset.restart" frontend/maquette/design/src/engine/legacy.js` → the branch sets `redemarrage = false` and toasts, no dialog</sub>
+
+**B-301 — a season is printed « à récupérer » and nothing lets one take it.** `features/media/panel-
+seasons.tsx` derives a `to_grab` state per season and draws it as a warning swatch; no verb follows,
+and `POST /api/acquisition/follows/{followed_id}/seasons/{season}/grab` is among the operations the
+maquette never calls (`frontend-backend-demands.md` § 4). DOIT-3 — act where one observes. Placed
+2026-09-02 with **L21**, the tunnel's verbs.
+
+<sub>`grep -n "to_grab" frontend/maquette/design/src/features/media/panel-seasons.tsx` · `grep -rn "seasons/" -g '*.ts' frontend/maquette/design/src` → none</sub>
+
+**B-302 — the journey offers no way to resume a tunnel.** The journey sheet is the tunnel seen by
+the operator (§20), and §20 says a blocked tunnel « reprend là où il s'est arrêté, par l'opérateur
+». `POST /api/acquisition/journeys/{info_hash}/requeue` and `/rescrape` exist and are uncalled;
+`fr.json` holds no « Remettre en file » and no journey-level « Re-scraper » (the media sheet's
+rescrape is another subject). The clause map had these with L19, whose contract forbids a surface
+change; placed 2026-09-02 with **L21**.
+
+<sub>`grep -rn "requeue\|journeys/" -g '*.ts' frontend/maquette/design/src` → the single-journey read only · `grep -n "Remettre en file" frontend/maquette/design/src/i18n/fr.json` → 0</sub>
 
 **B-293 — 38 `Design:` markers point at paths that left the tree, and nothing says so.**
 `grep -rhoE 'Design: docs/[^#[:space:]]+' --include='*.py' tests | sort | uniq -c` shows 16 for
