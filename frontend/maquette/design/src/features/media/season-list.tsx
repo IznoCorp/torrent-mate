@@ -46,7 +46,11 @@ export function SeasonList({
   } = useMediaReference();
   const { t } = useTranslation();
   const eps = sheet?.eps ?? {};
-  const rows: SeasonRow[] = owns
+  // WHICH ROWS EXIST is the SEASONS read's answer; how full each one is, is the
+  // sheet's. With ownership still out the rows are drawn from what has landed —
+  // hiding them would wait for one answer by withholding another the reader
+  // already has.
+  const rows: SeasonRow[] = owns || !ownershipKnown
     ? seasons.map(([number, aired, own]) => ({ n: number, aired, own }))
     : catalog.map((season) => ({
         n: season.n,
@@ -55,13 +59,6 @@ export function SeasonList({
         air: season.air,
       }));
   if (!rows.length) return null;
-  if (!ownershipKnown) {
-    return (
-      <div style={{ marginTop: "10px" }}>
-        <SkeletonLine width="full" />
-      </div>
-    );
-  }
   return (
     <div style={{ marginTop: "10px" }}>
       {rows.map((row) => {
@@ -203,7 +200,7 @@ export function SeasonList({
             className="season"
             data-part="season"
             key={row.n}
-            open={!(complete || !owns)}
+            open={ownershipKnown && !(complete || !owns)}
           >
             <summary>
               {/* The blanks between these children are NOT decoration: the
@@ -214,13 +211,19 @@ export function SeasonList({
                   flex container, so a whitespace-only node draws nothing. */}
               {t("common.season")} {row.n}{" "}
               <span className="sfr">
+                {/* THE FRACTION IS OWNERSHIP, and a fraction is an assertion:
+                    « 0/13 » about a medium whose `possede` has not arrived says
+                    the reader holds none of it. The season's own total is the
+                    seasons read's and is drawn either way. */}
                 {row.aired === 0
                   ? t("screens.media.seasonUpcoming")
-                  : owns
-                    ? `${nbOwn}/${row.aired ?? "?"}`
-                    : `${row.aired ?? "?"} ${t("screens.media.episodesShort")}`}
+                  : !ownershipKnown
+                    ? <SkeletonLine width="short" />
+                    : owns
+                      ? `${nbOwn}/${row.aired ?? "?"}`
+                      : `${row.aired ?? "?"} ${t("screens.media.episodesShort")}`}
               </span>{" "}
-              {owns && missing != null && missing > 0 ? (
+              {ownershipKnown && owns && missing != null && missing > 0 ? (
                 <span className="miss" data-part="season/missing">
                   {missing}{" "}
                   {missing > 1
