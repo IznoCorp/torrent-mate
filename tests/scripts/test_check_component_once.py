@@ -48,8 +48,8 @@ def run(tree: Path) -> subprocess.CompletedProcess[str]:
         The completed process, with its output captured.
     """
     return subprocess.run(
-        [sys.executable, str(tree / "scripts" / "check-component-once.py")],
-        capture_output=True, text=True, check=False)
+        [sys.executable, str(tree / "scripts" / "check-component-once.py")], capture_output=True, text=True, check=False
+    )
 
 
 @pytest.fixture
@@ -57,8 +57,7 @@ def tree(tmp_path: Path) -> Path:
     """A scratch copy of the sources the guard reads, and of the guard itself."""
     copy = tmp_path / "frontend" / "maquette" / "design" / "src"
     copy.parent.mkdir(parents=True)
-    shutil.copytree(DESIGN_SOURCE, copy,
-                    ignore=shutil.ignore_patterns("*.css", "*.json", "*.html"))
+    shutil.copytree(DESIGN_SOURCE, copy, ignore=shutil.ignore_patterns("*.css", "*.json", "*.html"))
     (tmp_path / "scripts").mkdir()
     shutil.copy2(SCRIPT, tmp_path / "scripts" / SCRIPT.name)
     return tmp_path
@@ -79,6 +78,7 @@ def test_the_tree_it_reads_is_clean(tree: Path) -> None:
 
 
 def test_a_plain_second_declaration_is_refused(tree: Path) -> None:
+    """A component declared in a second file is refused."""
     second(tree, f"function {SHARED}() {{ return null; }}\n")
     finished = run(tree)
     assert finished.returncode != 0
@@ -86,6 +86,7 @@ def test_a_plain_second_declaration_is_refused(tree: Path) -> None:
 
 
 def test_an_exported_second_declaration_is_refused(tree: Path) -> None:
+    """Exporting it changes nothing: it is still written twice."""
     second(tree, f"export function {SHARED}() {{ return null; }}\n")
     assert run(tree).returncode != 0
 
@@ -96,16 +97,19 @@ def test_a_DEFAULT_exported_declaration_is_refused(tree: Path) -> None:
     finished = run(tree)
     assert finished.returncode != 0, (
         "`export default function` is the commonest way a component is exported "
-        "outside this repository, and the guard said « exported or not »")
+        "outside this repository, and the guard said « exported or not »"
+    )
     assert SHARED in finished.stderr
 
 
 def test_an_async_default_declaration_is_refused(tree: Path) -> None:
+    """Nor does `async` between `default` and `function`."""
     second(tree, f"export default async function {SHARED}() {{ return null; }}\n")
     assert run(tree).returncode != 0
 
 
 def test_a_generic_declaration_is_refused(tree: Path) -> None:
+    """Nor a type parameter where the argument list would start."""
     second(tree, f"export function {SHARED}<T>(value: T) {{ return value; }}\n")
     assert run(tree).returncode != 0
 
@@ -123,6 +127,7 @@ def test_the_mock_layer_is_excluded(tree: Path) -> None:
 
 
 def test_a_camel_case_name_is_not_a_component(tree: Path) -> None:
+    """A camelCase name is a helper, and the guard says it does not read one."""
     second(tree, f"export default function {SHARED.lower()}() {{ return null; }}\n")
     assert run(tree).returncode == 0
 
