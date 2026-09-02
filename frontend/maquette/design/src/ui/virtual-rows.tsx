@@ -295,10 +295,25 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
       if (!node) continue;
       if (held) {
         // REPLACED IN PLACE, so the row keeps its position without the tail of
-        // the window being rebuilt around it.
-        held.node.replaceWith(node);
-        live.set(index, { node, markup });
-        continue;
+        // the window being rebuilt around it — AND THE READER'S PLACE IN IT
+        // SURVIVES. A row whose markup changes under a finger is a row somebody
+        // is using: toggling a checkbox in selection mode rewrites its
+        // `aria-pressed` and therefore its string, and the replacement threw
+        // keyboard focus to the document root on every toggle of the mode built
+        // for going through a library. Focus is restored onto the node that
+        // takes the old one's place, which is where the reader left it.
+        const focused = held.node.contains(document.activeElement);
+        if (!held.node.isConnected) {
+          // A node the document no longer holds cannot be replaced — the call
+          // is a silent no-op and the map would keep a dead node until its
+          // index left the window. Insert it as a new row instead.
+          live.delete(index);
+        } else {
+          held.node.replaceWith(node);
+          live.set(index, { node, markup });
+          if (focused && node instanceof HTMLElement) node.focus();
+          continue;
+        }
       }
       live.set(index, { node, markup });
       const following = live.get(index + 1);

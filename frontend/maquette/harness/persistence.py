@@ -35,9 +35,10 @@ WHAT IT DOES NOT READ, said before what it does:
     walk never touches is outside it. What the walk DOES cover is every state
     the interface declares it can be in, which is the corpus every other rule
     here is measured over.
-  - The store bump is `window.__store.touch()` — the same call every engine
-    action ends in. A bump made another way is not a different case; that is
-    the one door.
+  - `touch()` was called « the one door » here, and it is not: it bumps the
+    version alone, so a surface reading `useUiState()` bails out of it and
+    re-renders on `write()` instead. Hold (f) drives BOTH, and the sentence that
+    said otherwise stood while the hold below already contradicted it.
   - Hold (f) reads a PAGE's own nodes — cards, tiles, rows, buttons, pills,
     images, key-value rows — on seven named states, and NOT the containers
     the dying engine fills on Découvrir (`#sugitems`, the deck): those are
@@ -354,6 +355,53 @@ async def main():
                     and kept["same"] == captured,
                     f"{captured} captured (floor {floor}), {kept['now']} after, "
                     f"{kept['same']} same; lost: {kept['lost']}")
+
+        # (g) A ROW WHOSE MARKUP CHANGES UNDER THE READER KEEPS THEIR PLACE.
+        #
+        # The window replaces a live row when its markup moves, which is what
+        # makes a delete leave the screen at once — and toggling a checkbox in
+        # selection mode moves it: the engine bakes `aria-pressed` into the
+        # string. So the node the reader just pressed is replaced, and without
+        # care keyboard focus goes to the document root on every toggle of the
+        # mode built for going through a library. The state reads right either
+        # way, which is why every hold that reads attributes was green over it.
+        await page.evaluate("()=>window.__go('lib-list')")
+        await page.evaluate("()=>window.__mocks?.quiet()")
+        await page.wait_for_timeout(300)
+        await page.evaluate("()=>window.__store.write({selMode: true})")
+        await page.wait_for_timeout(250)
+        toggled = await page.evaluate("""() => {
+          const rows = [...document.querySelectorAll('#libitems [data-tile]')];
+          const row = rows[2];
+          if (!row) return { drawn: 0 };
+          row.focus();
+          const before = document.activeElement === row;
+          row.click();
+          return { drawn: rows.length, before,
+                   index: row.getAttribute('data-tile') };
+        }""")
+        journal.check(
+            "selection mode draws rows that can take focus — the hold below "
+            "has a subject",
+            toggled.get("drawn", 0) > 2 and toggled.get("before"),
+            f"{toggled.get('drawn')} row(s), focus placed: {toggled.get('before')}")
+        await page.wait_for_timeout(300)
+        kept_focus = await page.evaluate("""(index) => {
+          const active = document.activeElement;
+          const row = document.querySelector(`#libitems [data-tile="${index}"]`);
+          return { onTheRow: !!(row && active === row),
+                   pressed: row ? row.getAttribute('aria-pressed') : null,
+                   active: active ? (active.tagName + (active.getAttribute
+                     ? ' ' + (active.getAttribute('data-tile') || '') : '')) : null };
+        }""", toggled.get("index"))
+        journal.check(
+            "and toggling one keeps the reader's place on it, though its "
+            "markup — and so its node — has changed",
+            kept_focus["onTheRow"] and kept_focus["pressed"] == "true",
+            f"aria-pressed {kept_focus['pressed']!r}, focus on "
+            f"{kept_focus['active']!r}")
+        await page.evaluate("()=>window.__store.write({selMode: false})")
+        await page.wait_for_timeout(200)
 
         # (e) THE POSITIVE CONTROL FOR (a), and it comes LAST because it
         # destroys the document every hold above measures. One real navigation:
