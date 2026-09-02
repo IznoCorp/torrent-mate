@@ -53,7 +53,8 @@ is not edited to match — a design is what was decided.
   parts; it drew neither an answer nor a wait until round 3's pass. Recorded because it was a
   departure for two rounds.
 
-The hold list below is the instrument's FIRST shape. What it holds today is `harness/priming.py`,
+The hold list in item 4 above is the instrument's FIRST shape, and so is the definition of done
+under it — both describe holds and a mechanism that have since moved. What it holds today is `harness/priming.py`,
 which prints its own holds; a second copy of them here is a copy that goes stale — as this one did.
 
 ## Definition of done

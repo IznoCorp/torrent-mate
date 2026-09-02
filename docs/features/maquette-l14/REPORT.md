@@ -16,21 +16,24 @@ repaired.
 | File                                      | Before |   After | What went beside it                                                                                                                                 |
 | ----------------------------------------- | -----: | ------: | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `features/acquisition/page.tsx`           |    756 | **48** | `acquisition-tabs.tsx` 53 · `now-tab.tsx` 142 · `follows-tab.tsx` 254 · `follows-filters.tsx` 105 · `discover-tab.tsx` 192 |
-| `features/media/media-screen.tsx`         |    796 | **262** | `sheet-fields.ts` 36 · `season-list.tsx` 268 · `media-hero.tsx` 150 · `media-cast.tsx` 86 · `media-library-facts.tsx` 164 · `media-details.tsx` 132 |
-| `features/library/page.tsx`               |    613 | **102** | `library-head.tsx` 144 · `library-list.tsx` 241 · `library-count.tsx` 76 · `library-empty.tsx` 52 · `incomplete-lens.tsx` 67 |
+| `features/media/media-screen.tsx`         |    796 | **314** | `sheet-fields.ts` 36 · `season-list.tsx` 282 · `media-hero.tsx` 164 · `media-cast.tsx` 96 · `media-library-facts.tsx` 213 · `media-details.tsx` 145 |
+| `features/library/page.tsx`               |    613 | **102** | `library-head.tsx` 156 · `library-list.tsx` 241 · `library-count.tsx` 76 · `library-empty.tsx` 52 · `incomplete-lens.tsx` 67 |
 | `features/arrivals/resolution-screen.tsx` |    430 | **213** | `resolution-cards.tsx` 208 |
 
-<sub>`for f in features/acquisition/page.tsx features/media/media-screen.tsx features/library/page.tsx features/arrivals/resolution-screen.tsx; do printf '%-45s %s\n' "$f" "$(grep -cve '^\s*$' frontend/maquette/design/src/$f)"; done`</sub>
+<sub>`for f in features/acquisition/page.tsx features/media/media-screen.tsx features/library/page.tsx features/arrivals/resolution-screen.tsx; do printf '%-45s %s\n' "$f" "$(grep -cve '^\s*$' frontend/maquette/design/src/$f)"; done`. **Every figure in this table is re-measured after each review round and none is remembered** — the round-2 figures survived two commits whose own subjects said the numbers had been re-taken, and a reader recomputed them.</sub>
 
 **`python3 scripts/check-frontend-boundaries.py --arm size` reads 2 at or over the ceiling** —
 `engine/legacy.js` and `engine/states.js`, both labelled L13. That is the contract's own line, and
 each of the four grandfather entries left in the same commit as the file it named: the arm refuses
 an entry for a file back under the ceiling, so the count cannot climb again in silence.
 
-**Four files sit above the 250 soft warning and are named rather than left to be found**:
-`media-screen.tsx`, `follows-tab.tsx`, `season-list.tsx` and `ui/virtual-rows.tsx` — the last a
-`ui/` primitive rather than a surface. Their figures are in the table above and in `--arm size`'s
-own output; none is near the ceiling.
+**Four of this wave's files sit above the 250 soft warning and are named rather than left to
+be found**: `media-screen.tsx` (314), `ui/virtual-rows.tsx` (380), `season-list.tsx` (282) and
+`follows-tab.tsx` (254) — the second a `ui/` primitive rather than a surface. Three of them grew
+under the review rounds' repairs, and the figures here are re-measured with the table above. The
+warning is not the wave's to clear: **25 files in the design tree stand above it**, `app/shell.tsx`
+and `features/acquisition/add-screen.tsx` among them, none of them this branch's. None is at the
+400 ceiling.
 
 **`Icon` is written once.** Three private copies were deleted (`media-screen.tsx`,
 `resolution-screen.tsx`, `releases-screen.tsx`); the signatures agreed with `ui/icon.tsx`'s and the
@@ -60,8 +63,9 @@ carried: **React 19 assigns `innerHTML` whenever the `dangerouslySetInnerHTML` p
 object**, without comparing the string React 18 compared — and `{ __html: … }` written inline is a
 fresh object per render. Measured before the design was written: the `<section>` was the same node,
 its markup byte-equal at 1 968 characters, and every card inside it new. Filed as **B-295** at the
-design, with the probe. The repair is `ui/markup.tsx` (the object memoised on its string, thirteen
-sites) and a draw key naming what makes a row's markup differ — the mode, the selection mode, and
+design, with the probe. The repair is `ui/markup.tsx` (the object memoised on its string —
+thirteen sites at that phase, twenty-nine across the tree once the rest were found) and a draw key
+naming what makes a row's markup differ — the mode, the selection mode, and
 the first page's identity.
 
 **One consequence is named for the operator rather than assumed (D-L14-3)**: a swipe left open on a
@@ -106,40 +110,57 @@ defect. Overruling it is one line.
 
 ## 4. The rules this wave added, and what each does not read
 
-**Re-taken at the head after round 2.** This section described round 1's instruments for a round —
-seven holds, a `{t, k, y}` thinning, seven states, one door — while § 6 and § 7 of this same file
-described the ones that exist. A reader was handed the wrong ones by the section titled « what each
-does not read », which is the species this whole wave keeps counting. The figures below are the
-tree's; each rule prints its own.
+**Re-taken at the head after round 4, and the reason it is re-taken every round is this
+section's own history.** It described round 1's instruments — seven holds, a `{t, k, y}` thinning,
+seven states, one door — while § 6 and § 7 of this same file described the ones that existed; then,
+under a heading saying it had been re-taken after round 2, it carried round 2's numbers into round
+4. A reader recomputed them both times. **No figure below is remembered: each rule prints its own
+hold count, and these are read from that output.**
 
-**R119 — `frontend/maquette/harness/priming.py`, 21 holds, full suite.** It intercepts two seams
+**R119 — `frontend/maquette/harness/priming.py`, 29 holds, full suite.** It intercepts two seams
 from an init script — a wrapper installed after `load` arrives after the placeholder was computed —
-and walks the media sheet five times: a placeholder thinned to the TITLE alone (the leanest a tap
-can know), a PARTIAL one carrying the year and not the kind (where « field by field » is decidable
-at all), the prototype's own complete placeholder as a control, a read that FAILS with a 502, and
-one where the seasons land before the sheet. It holds an EXACT skeleton count — 17, printed with
-the enumeration that produces it — the absence of every « unknown » word and of every text the KIND
-decides, read from `fr.json` rather than retyped; that no ownership arithmetic is printed
-(« Possédés 0 », « Complétude 0 % », the « manquants » chips); `aria-busy`; zero action buttons over
-an unidentified medium; that the failure says what the SERVER said rather than the shared timeout
-sentence; and that its retry re-asks the query. **What it does not read**: the skeleton's rendering
-(no named state shows the priming at rest), any sheet but the two it names, and the seasons'
-placeholder — there is none.
+and walks the media sheet SIX times: a placeholder thinned to the TITLE alone (the leanest a tap can
+know), a PARTIAL one carrying the year and not the kind (where « field by field » is decidable at
+all), the prototype's own complete placeholder as a control, a read that FAILS over that complete
+placeholder, the same failure over a THINNED one — on a title the reader owns INCOMPLETELY, which
+is the only walk where a season's BODY has anything to assert — and one where the seasons land
+before the sheet. A seventh walk fails the SEASONS read alone, with the sheet landing normally.
 
-**R100 hold (f) and (g) — `frontend/maquette/harness/persistence.py`, 15 checks over 35 holds.**
+It holds an EXACT skeleton count — 15, printed with the enumeration that produces it — the absence
+of every « unknown » word and of every text the KIND decides, read from `fr.json` rather than
+retyped; that no ownership arithmetic is printed anywhere, summaries and closed BODIES alike
+(« Possédés 0 », « Complétude 0 % », the « manquants » chips, the missing lists, the episode cells,
+the fractions, the open rows); that a failure speaks neither for the medium nor for the provider;
+`aria-busy`; zero action buttons over an unidentified medium; that the failure says what the SERVER
+said rather than the shared timeout sentence; and that each retry re-asks ITS query, read as an
+answer count that MOVED. **What it does not read**: the skeleton's rendering (no named state shows
+the priming at rest), any sheet but the three it names, and the seasons' placeholder — there is
+none.
+
+**R100 holds (f), (g), (g-i) and (g-ii) — `frontend/maquette/harness/persistence.py`, 39 holds.**
 Nine named states × two store doors: `touch()`, which bumps the version, and `write({})`, which
 makes a new state object and is the door every surface reading `useUiState()` re-renders on — the
 one the first version did not drive. Every card, tile, row, button, pill, image, `path` and
 key-value row is asked `isSameNode`; the two screen states are floored on their OWN nodes rather
-than on the page beneath them. And (g): a row whose markup changes under the reader — a checkbox
-toggled in selection mode — keeps the keyboard's place on it. **What it does not read**: Découvrir's
-engine-filled containers (L19's), a write that legitimately redraws, and the maintenance page.
+than on the page beneath them. (g): a row whose markup changes under the reader — a checkbox toggled
+in selection mode — keeps the keyboard's place on it, and the port does not move. (g-i): a row
+replaced OUT of view does not drag the port to it, and the hold first asks whether the delete
+reached the window at all — stubbed to a no-op, it used to pass. (g-ii): a row taken out of the
+document by anything but the window itself is drawn again, at its own position, on the next write.
+**What it does not read**: Découvrir's engine-filled containers (L19's), a write that legitimately
+redraws, and the maintenance page.
 
-**R117's delete hold — `frontend/maquette/harness/virtual.py`, 21 holds.** It asserts the paging
-door EXISTS, that a second page landed, and that the row it measures is past the first page — its
-index derived from the window's own leading spacer — then deletes it with the network DOWN, where
-the mutation is held and no refetch can repair anything, and reads one macrotask later. **What it
-does not read**: the swipe gesture that reaches the delete (`drag.py`'s subject).
+**R117 — `frontend/maquette/harness/virtual.py`, 27 holds.** Its delete hold asserts the paging door
+EXISTS, that a second page landed, and that the row it measures is past the first page — its index
+derived from the window's own leading spacer — then deletes it with the network DOWN, where the
+mutation is held and no refetch can repair anything, and reads one macrotask later. Its
+selection-mode hold enters the mode at the top, where the control is; reaches the depth inside the
+mode; presses « Terminé » in the bar, which is fixed; and asserts the reader is in front of the SAME
+ROW, by title, before and after. Then the gallery switch, where the lanes change too — driven by
+script, and the hold says why: the mode control scrolls away with the head, so a click driver would
+switch modes at the top, where there is no place to lose. **What it does not read**: the swipe
+gesture that reaches the delete (`drag.py`'s subject), and any deep mode change a reader cannot
+perform — which is now a sentence in the rule rather than a scenario dressed as one.
 
 **`scripts/check-component-once.py`** — every `.ts`/`.tsx` under `design/src` outside `engine/` and
 `mocks/`, for a top-level PascalCase function declared in more than one file, `export default`
@@ -186,7 +207,7 @@ wave that produced it had already read the argument three times.
 | The full suite (`run.sh`, no flag) | **87 rules and 26 repository guards, no violation**, re-taken after round 3 |
 | `--a11y`                           | **0 violations** over 87 states; the light theme unmoved at its ceiling of 166, re-taken after round 3. 68 of the 87 states answered `landmark-one-main` and `page-has-heading-one`; the other 19 hold a modal layer whose `inert` background makes those two unanswerable, which is the markup being right rather than a hole in the audit |
 | `harness-hold-counts.py --compare` | **four movements, all upward and all this wave's**: `persistence.py` 11 → 37, `virtual.py` 17 → 24, `screen_addresses.py` 50 → 51, `priming.py` new at 23. Its exit is 1 because a count moved, which is what it is for. No rule lost a hold, and `failed` read **0** this time — the rule that failed under round 1's recorder, `outbox.py`, did not fail again — it read « 21 rules EXECUTED — no violation » alone that day and does so now |
-| `make check`                       | **11 043 passed, 4 skipped, 2 xfailed, 0 failed, 0 errors**, exit 0, re-taken after round 3. Its one ignored error is `refresh-maquette-fixture`, which reads the operator's live databases and reports the library's drift, not this branch's; its seven eslint warnings are in `frontend/src`, the production app, and pre-date this branch. `pytest tests/scripts` reads 550 passed, 0 skipped, in this checkout — a reader read 528 passed and 20 skipped in theirs, where two of the environment's optional dependencies are absent, and the arithmetic agrees |
+| `make check`                       | **11 043 passed, 4 skipped, 2 xfailed, 0 failed, 0 errors**, exit 0, re-taken after round 4. Its one ignored error is `refresh-maquette-fixture`, which reads the operator's live databases and reports the library's drift, not this branch's; its seven eslint warnings are in `frontend/src`, the production app, and pre-date this branch. `pytest tests/scripts` reads 550 passed, 0 skipped, in this checkout — a reader read 528 passed, 20 skipped and 2 failed in theirs: the twenty skips are all one absence, `frontend/node_modules/typescript`, and the two failures are a side-car of their own environment, not of this branch. 528 + 20 + 2 = 550 |
 | `--contracts`, at every phase      | 13 rules and 26 guards, no violation                                                                                                                                       |
 | CI on the head sha                 | read on the LOCAL sha's check-runs, never through the pull request's record, which lags a push. The sha it was read on is named in the message that reports it — a commit cannot carry its own verdict, and the first version of this row was written into the commit it described |
 
@@ -242,8 +263,9 @@ Seventeen inline `{ __html }` sites remained, four on components that re-render 
 the Add screen is B-247's mechanism verbatim — and the shared `Icon` rebuilt every `<path>` on
 every parent render. The reader measured what that costs: Chromium delivers no `click` at all when
 the `pointerdown` target has been replaced, and a surviving ancestor does not rescue it, so a press
-landing on the stroke of an icon-only control was lost on any store write. All 32 sites go through
-the memo now, and hold (f)'s selector names `path`.
+landing on the stroke of an icon-only control was lost on any store write. All 32 go through the memo now — twenty-nine of
+them literally, the other three being the private `Icon` copies deleted in the same wave, so their
+sites left with them — and hold (f)'s selector names `path`.
 
 **THREE ASSERTIONS ABOUT DATA IN FLIGHT SURVIVED B-283's repair**, each in a place the rule could
 not see: the hero's metadata line was gated on the WHOLE sheet being null, so a placeholder
@@ -289,8 +311,10 @@ missing waits per field; no sheet at all says « Métadonnées inconnues », onc
 **And a reading taken against a stale served copy proved nothing — named, because a confession
 without its subject cannot be checked.** The mutation was the hero's kind branch
 (`media-hero.tsx`, the in-flight arm replaced by `t("common.series")`), applied by hand rather than
-through `scripts/mutate.sh`, built, run, and then restored WITHOUT rebuilding. **Two readings — the first account of this said « the next three »; re-read against the session's own commands there are two, and the third was a miscount
-measured the mutated build afterwards**: the first run of walk (f), which reported « Série » printed
+through `scripts/mutate.sh`, built, run, and then restored WITHOUT rebuilding. **Two readings
+measured the mutated build afterwards** — the first account of this said « the next three », and
+re-read against the session's own commands there are two, the third being a miscount: the first run
+of walk (f), which reported « Série » printed
 and read as a defect in the repair, and a tree-walk probe that showed the same text. Both were
 diagnostic, both were re-taken on a rebuilt copy in the next command, and (f) passed there. **No
 mutation-red credited anywhere in this report rests on them**: every red named in a commit was run
@@ -298,11 +322,15 @@ through `scripts/mutate.sh`, which rebuilds the served copy under its own lock a
 index — which is the whole argument for never doing it by hand.
 
 **It cost more than a wrong reading the second time.** A by-hand `git checkout --` after another
-by-hand mutation, in round 2, threw away the uncommitted repairs in six files — `media-screen.tsx`, `media-hero.tsx`, `media-cast.tsx`, `media-details.tsx`, `media-library-facts.tsx` and `ui/state-surfaces.tsx`: the tri-state kind, the
-ownership gate, the error surface's reason and retry — and they had to be written again. The
+by-hand mutation, in round 2, threw away the uncommitted repairs in **seven** files —
+`media-screen.tsx`, `media-hero.tsx`, `media-cast.tsx`, `media-details.tsx`,
+`media-library-facts.tsx`, `season-list.tsx` and `ui/state-surfaces.tsx`: the tri-state kind, the
+ownership gate, the error surface's reason and retry — and they had to be written again. « Six » was
+the count in the first version of this paragraph and in the register beside it; `aa4397e77`, the
+commit that rewrote them, touches seven, and `season-list.tsx` was named nowhere. The
 mutation tool refuses a dirty tree for exactly that reason and refused one an hour later, correctly.
 The rule is not « be careful »: it is that the tool does the mutation. The rewriting is `aa4397e77`,
-which landed those six files plus `ui/state-surfaces.tsx`'s own share, and `11fe3efd3` after it.
+with `11fe3efd3` after it.
 **Both failures are filed as B-303**, because a confession in a wave's report is read once by whoever
 reviews that wave, and the register is read by whoever writes the next mutation.
 
@@ -406,3 +434,72 @@ a mode — and no probe strings gestures together the way a person does. That is
 another rule. It is the argument for the reader who opens the thing and uses it, which is the one
 reading the wave cannot perform on itself.
 
+### Round 4: three readers, 0 blocker, 9 majors — and the place the blocker's repair claimed
+
+**The blocker of round 3 is repaired and the repair was not what it said.** « Terminé » at a deep
+scroll brought rows back — 6 in the viewport against 0 on the pre-repair build, through the real
+controls and through the flow a reader can actually perform — and the reader's PLACE, which the
+same repair claimed, was four rows above where they had been. Three of the round's nine are that
+one mechanism seen from three sides, and they are repaired as one:
+
+- **The place restored was the top of the OVERSCAN.** The window keeps four lines beyond each edge,
+  so `getVirtualItems()[0]` is four lines above anything visible: measured, 21 → 17 → 13 → 9 → 7
+  over two round trips, and 38 → 34 in the reachable flow. It is the first line the measurements
+  say is visible now, **with a pixel of tolerance** — the pitch is fractional, 60.39 in selection
+  and 213.34 in the gallery, so a line restored to the top of the port starts a fifth of a pixel
+  below it and the line above is « visible » by that fifth. Read strictly, that sliver cost one more
+  row on every switch, which is how a repair measured at « exact » still walked backwards.
+- **A LINE is not a place across a change of lanes.** List line 17 is row 17 and gallery line 17 is
+  row 51: a switch at depth sent row 21 to row 33 and back to row 3. What is remembered is the
+  ITEM index, and the line to scroll to is that index divided by the lanes of the mode being
+  entered.
+- **The restore ran BEFORE the draw, and the browser finished the job.** The draw then inserted the
+  range computed for the pre-restore offset — five rows above the anchor node — and scroll anchoring
+  moved the port 368 px on top of a move the reader had already been given. The restore is declared
+  after the draw now, so the scroll is the commit's last word.
+
+**A fourth was the same repair's own residue.** Holding `overflow-anchor: none` for the frame the
+swap takes was written beside the restore, and built both ways it changes nothing: the reader's row
+and the port's offset are identical to the pixel over all eight walks, and a mutation on it fell no
+rule. Machinery nobody can measure is machinery nobody can later justify deleting. It was removed
+rather than kept.
+
+**The sheet's three are one gate each, applied everywhere rather than to the site that was
+reported.** The three lines of a season's SUMMARY waited on ownership and its BODY did not: one tap
+under « Saison 8 inconnu » stood a missing list of 1–16 and sixteen cells coloured as things to
+fetch — 5 paragraphs and 124 cells on one screen, measured. Every one of them derives from the
+owned numbers, so the gate goes on that lookup and they empty together. A failure is not an answer:
+the address the reader navigated with stands while the read is out AND after it fails, where
+« média non identifié » sat one block above the title the hero prints in 30 px, and the two
+sentences that speak for the provider have failure-neutral twins. And the SECOND read has an error
+branch at last: with the sheet landed and the seasons errored, the library block printed « Possédés
+0 » — the exact string this wave's own instruments name as the defect's signature — with no surface
+and nothing to press.
+
+**Two more, pre-existing, in files this wave owns, repaired here because that is the operator's
+rule.** The library block answers « oui » for an ownership it holds while only the kind is unknown,
+where it printed « inconnue » about the fact its own branch was chosen by, three blocks above a
+« Supprimer de la médiathèque ». And the follow button no longer offers the unknown-word as its
+verb while sending the series value to the act behind it — the destructive pair is untouched,
+because deleting from the library asks the kind nothing.
+
+**And the round's own lesson is about the instruments, again, from the closest possible range.**
+Nine findings, and every one is in a rule this wave had just written or just repaired. R117's new
+hold measured a walk no reader can take: a click driver scrolls a static control into view, so the
+mode change it timed happened at the top of the list, and its three checks never compared a place —
+« the port is past zero » was green over a repair that walked the reader four rows up. R100's
+(g-i), written in round 3 to close a vacuity in its sibling, carried the same vacuity: stub the
+delete to a no-op and it passed. R119's (e-iii) walked a title the fixture records no owned numbers
+for, so the season bodies it exists to hold are empty whatever the code says. **A hold written to
+close a vacuity, holding the same vacuity, is the sharpest form this table has produced** — and
+none of the nine was reachable by mutating anything, because a mutation asks the question the
+author already thought of.
+
+**What every repair was measured with.** The readers' own probes, on builds outside the checkout —
+`place4.py`'s eight walks, `realistic4.py`'s reachable flow, `trace4.py`'s every `scrollTo`,
+`focusprobe3.py`, `walk4.py`, `compose4.py`, `sheet-probe.py`'s six situations, `tap-probe.py`'s tap
+one row down, `seasons502-probe.py` — against a control build of the previous head. The place is
+21 → 21 → 21 → 21 → 21 over two round trips, 38 « Star City » → 38 in the reachable flow, and
+21 → 21 → 21 across the gallery switch; one `scrollTo` per switch where there were three, no
+anchoring shift, 110 row compositions where there were 201, and **no frame is ever painted with an
+empty port**, sampled once per animation frame across both mode changes on both builds.

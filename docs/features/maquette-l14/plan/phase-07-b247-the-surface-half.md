@@ -48,3 +48,19 @@ phases 5 and 6.**
 - `python3 scripts/check-frame-domain.py | tail -1` → `ui/ 0` unchanged.
 - Two commits: the repair (`fix(maquette-l14): a page's nodes keep identity across a store write —
 B-247's surface half, B-295`), then the rule (`test(maquette-l14): R100 (f) …`).
+
+## Deviations, recorded here rather than discovered later
+
+- **A module the plan never planned: `ui/window-geometry.ts`.** The repairs this phase owns, and the
+  place-restoration the review rounds added on top of them, took `ui/virtual-rows.tsx` to 403
+  non-blank lines — over the very ceiling this lot exists to enforce. It splits on a SUBJECT rather
+  than on a line count: what the grid draws (its lanes, its line height, where the container starts
+  inside its scroller) is one question, measured rather than believed; the window's own maintenance
+  is another. The behaviour did not change with the split — the hook holds the code that stood in
+  `virtual-rows.tsx`, verbatim, and a reader diffed it to confirm — and it changed afterwards, when
+  the ordering defect the split made visible was repaired inside it.
+- **The reader's PLACE across a pitch change is this phase's, and it was not in the plan at all.**
+  The window is re-measured when the row pitch moves; a reader's place has to survive that, and
+  three review rounds were spent finding what « a place » is: the first VISIBLE line, not the first
+  drawn one; an ITEM index, not a line, because the lanes change too; restored after the container
+  is reset, not before the draw.

@@ -211,6 +211,11 @@ harness already counts. A `<p>` that today prints « aucun synopsis » keeps its
 class; its CONTENT becomes lines. No new named state is added: `engine/states.js` is one of the
 two files this lot may only subtract from, and R119 drives the state itself.
 
+**How R119 thins the placeholder** — and three things about this paragraph and § 3's row for R119
+changed while the rule was built, each because a reading proved the drawing wrong. **The plan's
+phase 4 records those deviations**, as phase 1 records the guard's; a design is what was decided,
+so it is not edited to agree with what the code became.
+
 **How R119 thins the placeholder.** `window.__referentiel` is a plain object and `sheetFor` a
 property on it; the rule wraps it before opening the sheet so it answers `{ t, k, y }` alone for
 the title under test, sets `window.__mocks.setDefaultLatency(2000)` after `window.__reset()` (which

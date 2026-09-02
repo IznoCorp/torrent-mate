@@ -11,8 +11,8 @@
 2. `ui/panel/index.tsx`'s private `ActionButton` becomes `PanelActionButton`, through
    `scripts/rename-identifiers.py` (never by hand). The diff is re-read after the tool reports.
 3. **`scripts/check-component-once.py`** — a guard of its own, NOT an arm of
-   `check-frontend-boundaries.py` as the design first wrote: that file stands at **952** non-blank
-   lines against `check-module-size.py`'s hard ceiling of 1 000, and L07-bis split guards on a
+   `check-frontend-boundaries.py` as the design first wrote: that file stood at **952** non-blank
+   lines when this was written and reads **948** at the head against `check-module-size.py`'s hard ceiling of 1 000, and L07-bis split guards on a
    SUBJECT rather than on a line count. The subject here is one sentence, « a component is written
    once ». Every `.ts`/`.tsx` under `design/src` outside `engine/` and `mocks/` is read for
    top-level `function <PascalCase>(` declarations (exported or not); a name declared in more than
