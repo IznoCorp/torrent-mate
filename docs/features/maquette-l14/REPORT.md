@@ -16,24 +16,24 @@ repaired.
 | File                                      | Before |   After | What went beside it                                                                                                                                 |
 | ----------------------------------------- | -----: | ------: | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `features/acquisition/page.tsx`           |    756 | **48** | `acquisition-tabs.tsx` 53 · `now-tab.tsx` 142 · `follows-tab.tsx` 254 · `follows-filters.tsx` 105 · `discover-tab.tsx` 192 |
-| `features/media/media-screen.tsx`         |    796 | **314** | `sheet-fields.ts` 36 · `season-list.tsx` 282 · `media-hero.tsx` 164 · `media-cast.tsx` 96 · `media-library-facts.tsx` 213 · `media-details.tsx` 145 |
-| `features/library/page.tsx`               |    613 | **102** | `library-head.tsx` 156 · `library-list.tsx` 257 · `library-count.tsx` 76 · `library-empty.tsx` 52 · `incomplete-lens.tsx` 67 · `selection-bar.tsx` 74 |
+| `features/media/media-screen.tsx`         |    796 | **335** | `sheet-fields.ts` 42 · `season-list.tsx` 285 · `media-hero.tsx` 178 · `media-cast.tsx` 112 · `media-library-facts.tsx` 234 · `media-details.tsx` 156 |
+| `features/library/page.tsx`               |    613 | **102** | `library-head.tsx` 173 · `library-list.tsx` 253 · `library-count.tsx` 76 · `library-empty.tsx` 52 · `incomplete-lens.tsx` 67 · `selection-bar.tsx` 84 |
 | `features/arrivals/resolution-screen.tsx` |    430 | **213** | `resolution-cards.tsx` 208 |
 
-<sub>`for f in features/acquisition/page.tsx features/media/media-screen.tsx features/library/page.tsx features/arrivals/resolution-screen.tsx; do printf '%-45s %s\n' "$f" "$(grep -cve '^\s*$' frontend/maquette/design/src/$f)"; done`. **Every figure in this table is re-measured after each review round and none is remembered** — the round-2 figures survived two commits whose own subjects said the numbers had been re-taken, and a reader recomputed them.</sub>
+<sub>`for f in features/acquisition/page.tsx features/media/media-screen.tsx features/library/page.tsx features/arrivals/resolution-screen.tsx; do printf '%-45s %s\n' "$f" "$(grep -cve '^\s*$' frontend/maquette/design/src/$f)"; done`. **Every figure in this table is re-measured here, on the final head, in ONE pass** — and it was stale at rounds 4, 6 and 7, twice inside a commit whose own subject said the numbers had been re-taken, with a reader recomputing it every time. What was wrong was the discipline rather than the arithmetic: a figure written during a repair round is stale by the next repair. They are written once, at the end, from the command above.</sub>
 
 **`python3 scripts/check-frontend-boundaries.py --arm size` reads 2 at or over the ceiling** —
 `engine/legacy.js` and `engine/states.js`, both labelled L13. That is the contract's own line, and
 each of the four grandfather entries left in the same commit as the file it named: the arm refuses
 an entry for a file back under the ceiling, so the count cannot climb again in silence.
 
-**Four of this wave's files sit above the 250 soft warning and are named rather than left to
-be found**: `media-screen.tsx` (314), `ui/virtual-rows.tsx` (351), `season-list.tsx` (282) and
-`follows-tab.tsx` (254) — the second a `ui/` primitive rather than a surface. Three of them grew
-under the review rounds' repairs, and the figures here are re-measured with the table above. The
-warning is not the wave's to clear: **25 files in the design tree stand above it**, `app/shell.tsx`
-and `features/acquisition/add-screen.tsx` among them, none of them this branch's. None is at the
-400 ceiling.
+**Five of this wave's files sit above the 250 soft warning and are named rather than left to be
+found**: `ui/virtual-rows.tsx` 351 · `media-screen.tsx` 335 · `season-list.tsx` 285 · `follows-tab.tsx` 254 · `library-list.tsx` 253. `virtual-rows.tsx` is a `ui/` primitive rather than a surface; the other four are
+the cut's own, and every one of them grew under the review rounds' repairs rather than under the
+cut. **26 files in the design tree stand above the warning**, which is the guard's own
+count; `app/shell.tsx` and `features/acquisition/add-screen.tsx` are the two nearest the ceiling and
+neither is this branch's, though both moved by a line or two under its edits. None is at the 400
+ceiling.
 
 **`Icon` is written once.** Three private copies were deleted (`media-screen.tsx`,
 `resolution-screen.tsx`, `releases-screen.tsx`); the signatures agreed with `ui/icon.tsx`'s and the
@@ -90,31 +90,36 @@ defect. Overruling it is one line.
   they would not be** — the sentence stood in three documents while the diff contradicted it, which
   is worse than the deviation. `engine/legacy.js`: the library's selection keyed by TITLE rather
   than by a position in the listing on screen (a bulk delete under any order but the source's named
-  and destroyed other media), the delete dialog counting the media each title names (six titles in
-  this library name two each, and the manifest said one file while two left), and the selection
+  and destroyed other media), the delete dialog counting the media each title names (ONE title in
+  this library names two media, « Doctor Who » in 2005 and in 2023, and the manifest said one file
+  while both left), and the selection
   dropped where the question is written. `engine/states.js`: the seeded selection of the named
   selection state, which had to become titles with the set. Both are subtractions in spirit — a
   wrong key replaced by the right one — and neither adds a drawing. The deviation is recorded in
-  `plan/phase-07`; it is the eighth and ninth of nine.
+  `plan/phase-07`; they are the ninth and tenth of ten.
 - **The instruments' debts** (B-269, B-272, B-273, B-276, B-277, B-278, B-287, B-291) are not
   taken: no phase opened `served_copy.py`, `mutate.sh`, `harness-hold-counts.py` or `exits.py`.
   The rule is that the next wave that touches the tool takes its debt, and this one did not touch
   them.
-- **Eight deviations from the design, each recorded in the phase file that took it** — a reader
-  found this count wrong twice, at one and then at six, which is the shape of a paragraph nobody
-  re-reads. It is the phase files that hold them: `phase-01` one, `phase-03` one, `phase-04` three,
+- **Ten deviations from the design, each recorded in the phase file that took it** — a reader
+  found this count wrong three times, at one, at six and at eight, which is the shape of a
+  paragraph nobody re-reads. **The phase files hold them and this count follows THEM**, which is
+  the only order that stops the drift: `phase-01` one, `phase-03` two, `phase-04` three,
   `phase-07` four. (1) The
   « written twice » guard is `scripts/check-component-once.py`, its own file, not an arm of
   `check-frontend-boundaries.py` — that file stood at 952 non-blank lines when the deviation was
   taken, against a hard ceiling of 1 000, and L07-bis's precedent is to split a guard on a SUBJECT rather than on a line count.
   (2) `media-information.tsx` is `media-details.tsx`: the vocabulary arm refuses « Information »,
-  and it is right — the block is identifiers and actions. (3) `ui/markup.ts` with `useMarkup` at
+  and it is right — the block is identifiers and actions. (2-bis) The media cut was estimated at
+  seven files of about 190 lines and landed at six beside the screen; `phase-03` records both, and
+  this paragraph credited it with one. (3) `ui/markup.ts` with `useMarkup` at
   every site is `ui/markup.tsx` with a `<Markup>` component at every site: a hook cannot be called
   inside a `.map` and several sites are, so the component is where the hook is called once.
   (4) The rule thins to `{t}` with a second `{y}` walk, not to `{t, k, y}`. (5) Its control holds
   FEWER skeletons and the content the placeholder carries, not zero. (6) The rating drew nothing in
   flight for two rounds where the design lists it among the parts. (7) `ui/window-geometry.ts` and
-  (8) `ui/reader-place.ts` are modules the plan never planned: the repairs of phase 7, and the
+  (8) `ui/reader-place.ts` — numbered here as the seventh and eighth of the ten, the estimate above
+  being the second's twin — are modules the plan never planned: the repairs of phase 7, and the
   place-restoration the review rounds added on top of them, took `ui/virtual-rows.tsx` over the
   ceiling this lot exists to enforce, twice, and each split was taken on a SUBJECT rather than on a
   line count. (9) The engine's TWO FILES were opened, which the plan said in three places would not
@@ -122,7 +127,7 @@ defect. Overruling it is one line.
   undercounted what it was about to remove, and the seed that had to follow the selection's new key.
   Deviations (4) to (6) live in `plan/phase-04` and (7) to (9) in `plan/phase-07`, which is where a
   deviation lives; the design is what was decided and is not edited to match.
-  **None of the nine carries an operator sign-off**, and a reader was right to say so: they are
+  **None of the ten carries an operator sign-off**, and a reader was right to say so: they are
   recorded so the operator can overrule any of them, not because any was approved. The ninth is the
   one most worth overruling explicitly: it bends D-L14-8's « `engine/states.js` is only subtracted
   from », and it was taken because a wrong deletion was judged not to be a thing to file for later.
@@ -647,9 +652,13 @@ arrives from a page where the list unmounts and the seed survives. The selection
 the question is WRITTEN now — the search field, the clear cross, the lens, the category, the sort —
 because the control that changes the question is the only place that knows the reader asked.
 
-**And one more wrong deletion, in the same code as round 5's.** This library holds six titles twice
-— « Doctor Who » in 2005 and in 2023 — and the delete acts BY TITLE, the only key the contract
-offers, so confirming one removes both while the manifest said « 1 fichier ». The dialog counts the
+**And one more wrong deletion, in the same code as round 5's.** This library holds ONE title twice
+— « Doctor Who », 2005 and 2023, one duplicate in 345 rows — and the delete acts BY TITLE, the only
+key the contract offers, so confirming it removes both while the manifest said « 1 fichier ». (Six
+was the figure written here and in four other places for two rounds, from a count taken over a
+search window that ran past the array into the next one. It matters because this is the record of
+the ninth deviation, and six duplicates make bending a decision look systemic where one makes it
+singular.) The dialog counts the
 media each title names. The interface cannot delete one of two media sharing a title; that needs an
 identifier the backend does not serve, and the demand is recorded rather than faked.
 
@@ -677,8 +686,10 @@ which is what a mutation is for.
 **What the incident of round 5 was**, since it appears in no document and no commit message and a
 reader was right to ask: a `git add -f` naming a PATH rather than the ignored files it was needed
 for swept 28 375 vendored files and 5 161 195 lines into a commit. It was caught by
-`check-no-french`'s path-segment arm refusing five French file names inside `node_modules` — luck,
-not design: a vendored tree of English names would have passed every gate and all fourteen CI jobs.
+`check-no-french`'s path-segment arm refusing five French file names — and those were not in
+`node_modules` at all but the maquette's own ignored screenshots, swept in by the same flag, which
+makes the luck starker: the twenty-eight thousand vendored files were refused by nothing, and what
+stopped the commit was five screenshots in another directory that happen to carry French names.
 Reset and re-committed against an explicit five-file list, with no residue. **It is filed as B-304**,
 because a process failure that leaves no trace in the diff leaves nothing for the next reader
 either.

@@ -64,7 +64,8 @@ B-247's surface half, B-295`), then the rule (`test(maquette-l14): R100 (f) …`
   the library's selection was a set of positions IN THE LISTING ON SCREEN read as indexes into the
   source, so a bulk delete taken under any order but the source's named and destroyed media the
   reader had not ticked — it is keyed by title now, dropped where the question is written, and the
-  delete dialog counts the media each title names, because six titles in this library name two each
+  delete dialog counts the media each title names, because ONE title in this library names two media
+  — « Doctor Who », 2005 and 2023, the only duplicate in 345 rows
   and the manifest said one file while two left. `engine/states.js`: the named selection state
   seeded three POSITIONS, which had to become the three titles with the set. Both are a wrong key
   replaced by the right one; neither adds a drawing, and the oracle reads no divergence. The

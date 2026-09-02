@@ -356,7 +356,7 @@ when the defect comes back.
 | B-294 | `.gitignore` cited two `docs/features/…` files that no longer exist | by audit | `fixed #539` |
 | B-295 | React 19 assigns `innerHTML` on the prop OBJECT's identity, string unchanged or not — so every re-render of a page subscribed to the store's version recreates its engine-drawn children | by L14   | `fixed #547` |
 | B-303 | A mutation applied BY HAND leaves the served copy of the previous build in place, so the reading taken next measures code nobody is testing — and a restore by `git checkout --` over the maquette's sources destroys whatever else is uncommitted there (the number is 303 and not 296 because #549 held 296-302 on `main`-to-be) | by L14 | `open` |
-| B-304 | `git add -f` applied to a PATH rather than to the ignored files it was needed for swept 28 375 vendored files into a commit, and nothing in the repository refuses it — the only guard that noticed read French PATH SEGMENTS inside `node_modules` | by L14 | `open` |
+| B-304 | `git add -f` applied to a PATH rather than to the ignored files it was needed for swept 28 375 files into a commit, `node_modules` entire, and nothing in the repository refuses it — the only guard that noticed read five French PATH SEGMENTS, and they were the MAQUETTE's own ignored screenshots, not the vendored tree | by L14 | `open` |
 
 **B-295 — React 19 re-sets `innerHTML` whenever the `dangerouslySetInnerHTML` prop is a new object,
 and every site here hands it one per render.**
@@ -444,12 +444,16 @@ Found by L14 on 2026-09-02, at the fifth review round. The global ignore file bl
 `frontend` as well: **28 375 files and 5 161 195 insertions**, `frontend/node_modules` entire,
 `.vite` caches and a `__pycache__` among them.
 
-**What caught it, and it was not designed to.** `check-no-french.py`'s path-segment arm reads every
-tracked file's name and refused five French ones inside vendored assets — `g_fiche_bas.png`,
-`m_annonce.png`, `s_grille.png`, `s_liste.png`, `st_acq-ajout-resultats.png`. That is luck: a
-vendored tree of English file names would have gone through the full suite, `make check` and all
-fourteen CI jobs without a word. Nothing counts tracked files, nothing floors a diff's size,
-nothing refuses `node_modules` by name.
+**What caught it, and it was not designed to — and the true version is worse than the first
+account.** `check-no-french.py`'s path-segment arm reads every tracked file's name and refused five
+French ones: `g_fiche_bas.png`, `m_annonce.png`, `s_grille.png`, `s_liste.png`,
+`st_acq-ajout-resultats.png`. Those are **not** in `node_modules` and not vendored — `git
+check-ignore -v` names them at `frontend/maquette/*.png` and `frontend/maquette/harness/*.png`, the
+maquette's OWN ignored screenshots, swept in by the same flag. So the twenty-eight thousand
+vendored files were refused by nothing at all: what stopped the commit was five screenshots that
+happen to carry French names, in another directory entirely. A vendored tree alone would have gone
+through the full suite, `make check` and all fourteen CI jobs without a word. Nothing counts tracked
+files, nothing floors a diff's size, nothing refuses `node_modules` by name.
 
 **What the wave did about it.** `git reset --soft HEAD~1`, `git reset`, then a commit naming its
 five files explicitly. No residue: nothing tracked, nothing in the diff, nothing a reader of the
@@ -465,6 +469,12 @@ may add without a reason, or a refusal of any tracked path under a dependency di
 this lot's subject, and writing one here would be a tool nobody asked for at the end of a review
 round. The entry stays open with the mechanism named. B-303 is the same family: a tool
 stepped around rather than a tool that failed.
+
+<sub>`git add -f BUGS.md IMPLEMENTATION.md docs/features/maquette-l14 frontend` is the command;
+`git show --stat` on the commit reads « 28 375 files changed, 5 161 195 insertions ». The recovery
+is `git reset --soft HEAD~1`, then `git reset`, then a commit naming its files. `git check-ignore -v
+frontend/maquette/g_fiche_bas.png` names `.gitignore:35:*.png` — which is how one can tell what the
+guard actually refused. What has no command is the detection: there is none to write down.</sub>
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same

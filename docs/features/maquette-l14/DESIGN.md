@@ -311,6 +311,11 @@ while another listener is on 8899 is re-run alone before it is read as anything.
 - Move a pixel. Every conversion is at zero divergence or the divergence is a defect.
 - Move a producer or its engine-side gesture callers (L19), the ladder's handler (L13), or a line
   INTO `app/shell.tsx` (398 of 400) or the engine's two.
+  **This last clause is the one the wave broke, and it stands as written.** A design is what was
+  decided; the departure from it is recorded where a departure lives — `plan/phase-07`, the ninth
+  and tenth deviations — and repeated in `REPORT.md` § 3 and in `plan/INDEX.md`, which is the
+  paragraph a reader consults for what was not touched. Of the three documents that carried the
+  claim, two now say what happened and this one keeps the decision it recorded.
 - Touch `docs/production/`, or re-create `docs/archive/`.
 - Adopt a library: nothing here needs one, and D9's question was asked (a memoised prop and a
   key are not a problem a library solves).

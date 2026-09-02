@@ -3903,7 +3903,7 @@ import { icons } from "../app/icons";
      its own NFO on disk. It is NOT in `library.db`: neither a column of
      `media_item` nor a key of `item_attribute` carries it, so the app cannot
      render this today — the read-model has to grow a field first. Nine of the
-     349 titles have none, and those show nothing rather than a filler. */
+     345 titles have none, and those show nothing rather than a filler. */
   const LIBRARY = [
     { t: "On l'appelait Robin des Bois", f: "2026 · Film", c: "movies" },
     { t: "Ninja Turtles", f: "2014 · Film", c: "movies" },
