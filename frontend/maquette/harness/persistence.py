@@ -76,19 +76,39 @@ CAPTURE = """() => {
 # emptied it. The states below cover the two acquisition tabs React draws,
 # the library in both modes, and the two screens this lot cut; a floor on the
 # nodes captured keeps a state that draws nothing from passing as kept.
+# THE GROUPED FOLLOWS ARE HERE BECAUSE THE MEASUREMENT THAT OPENED THIS SUBJECT
+# NAMED THEM — 12 nodes of 77 kept — and the first version of this hold drove the
+# two neighbouring branches and not that one. It is also the site whose markup is
+# rebuilt per render from a group and its items, so it is the one most able to
+# defeat a memo on the string.
+#
+# `lib-incomplete` is here for the opposite reason: its two memoised sites were
+# repaired and nothing drove them, so « repaired » rested on a reading nobody
+# took.
 PAGE_STATES = (
     ("acq-now-loaded", 10), ("acq-follows-list", 10), ("acq-follows-grid", 10),
-    ("lib-list", 10), ("lib-grid", 10), ("mediasheet-series", 10), ("arr-resolution", 10),
+    ("acq-follows-group", 10), ("lib-list", 10), ("lib-grid", 10),
+    ("lib-incomplete", 10), ("mediasheet-series", 10), ("arr-resolution", 10),
 )
+# `path` IS IN THIS LIST, and it is not thoroughness. An icon's paths are markup
+# handed to React like any other, so they were rebuilt on every parent render —
+# and the browser delivers no click at all when the `pointerdown` target has left
+# the document, whatever survives above it. A press landing on the stroke of an
+# icon-only control was lost, and a selector naming only the button was green
+# over it.
 PAGE_SELECTOR = (
     '#view [data-part="card"], #view [data-part="tile"], #view button, '
-    '#view [data-part="pill"], #view img, '
+    '#view [data-part="pill"], #view img, #view svg path, '
     '[data-part="screen"][data-open] button, '
     '[data-part="screen"][data-open] [data-part="episode/row"], '
     '[data-part="screen"][data-open] [data-part="card"], '
     '[data-part="screen"][data-open] [data-part="key-value"], '
-    '[data-part="screen"][data-open] img'
+    '[data-part="screen"][data-open] img, '
+    '[data-part="screen"][data-open] svg path'
 )
+# The states whose subject is a SCREEN over a page: their floor is read on the
+# screen's own nodes as well as on the union.
+SCREEN_STATES = ("mediasheet-series", "arr-resolution")
 PAGE_CAPTURE = """(selector) => {
   window.__pageProbe = [...document.querySelectorAll(selector)];
   return window.__pageProbe.length;
@@ -100,6 +120,16 @@ PAGE_SAME = """(selector) => {
   return { before: before.length, now: now.length, same,
            lost: before.filter((node) => !node.isConnected).slice(0, 3).map(
              (node) => (node.dataset && node.dataset.part) || node.tagName) };
+}"""
+
+# HOW MANY OF THE CAPTURED NODES ARE THE SCREEN'S OWN. On a state that opens a
+# screen the selector unions the page BENEATH it, so a floor on the total is met
+# by the library's own rows and a screen drawing nothing would pass. The floor
+# has to be on the set the state is about.
+SCREEN_OWN = """(selector) => {
+  const screen = document.querySelector('[data-part="screen"][data-open]');
+  return screen ? [...document.querySelectorAll(selector)].filter(
+    (node) => screen.contains(node)).length : -1;
 }"""
 
 SAME = """() => {
@@ -294,21 +324,36 @@ async def main():
         # (f) THE PAGE'S OWN NODES, across the same bump, on every surface the
         # lot that repaired them cut. `isSameNode` by position, as (b) does: a
         # replacement node satisfies every other question.
+        # BOTH DOORS, and driving one of them was reading half. `touch()` bumps
+        # `version` alone, so a surface subscribed to `version` re-renders and a
+        # surface reading `useUiState()` bails out — which is most of them. The
+        # engine's own actions call `store.write`, which produces a new state
+        # object and re-renders BOTH. So the door the first version of this hold
+        # did not drive is the one that reaches the surfaces it did not name.
         for state, floor in PAGE_STATES:
-            await page.evaluate("(id)=>window.__go(id)", state)
-            await page.evaluate("()=>window.__mocks?.quiet()")
-            await page.wait_for_timeout(300)
-            captured = await page.evaluate(PAGE_CAPTURE, PAGE_SELECTOR)
-            await page.evaluate("()=>window.__store.touch()")
-            await page.wait_for_timeout(250)
-            kept = await page.evaluate(PAGE_SAME, PAGE_SELECTOR)
-            journal.check(
-                f"on {state}, the page's own nodes are the SAME nodes after a "
-                "store bump (B-247, B-295)",
-                captured >= floor and kept["now"] == captured
-                and kept["same"] == captured,
-                f"{captured} captured (floor {floor}), {kept['now']} after, "
-                f"{kept['same']} same; lost: {kept['lost']}")
+            for door, bump in (("touch", "()=>window.__store.touch()"),
+                               ("write", "()=>window.__store.write({})")):
+                await page.evaluate("(id)=>window.__go(id)", state)
+                await page.evaluate("()=>window.__mocks?.quiet()")
+                await page.wait_for_timeout(300)
+                captured = await page.evaluate(PAGE_CAPTURE, PAGE_SELECTOR)
+                await page.evaluate(bump)
+                await page.wait_for_timeout(250)
+                kept = await page.evaluate(PAGE_SAME, PAGE_SELECTOR)
+                own = await page.evaluate(SCREEN_OWN, PAGE_SELECTOR)
+                if state in SCREEN_STATES:
+                    journal.check(
+                        f"on {state}, the SCREEN itself draws the nodes this "
+                        "hold is about — the floor is on its own set",
+                        own >= floor,
+                        f"{own} of {captured} captured are the screen's")
+                journal.check(
+                    f"on {state}, the page's own nodes are the SAME nodes after "
+                    f"a store {door} (B-247, B-295)",
+                    captured >= floor and kept["now"] == captured
+                    and kept["same"] == captured,
+                    f"{captured} captured (floor {floor}), {kept['now']} after, "
+                    f"{kept['same']} same; lost: {kept['lost']}")
 
         # (e) THE POSITIVE CONTROL FOR (a), and it comes LAST because it
         # destroys the document every hold above measures. One real navigation:
