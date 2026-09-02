@@ -37,6 +37,7 @@ import { settingLabel } from "../../features/settings/labels";
 import { emptyNote, factsPanel, loadError, loadErrorAction, qualityHint, searchClear, searchField, searchInput, sectionHeading, topicRow } from "../../ui/variants";
 import { saveAction, saveBar, settingsRow } from "./variants";
 import { guidance } from "../../ui/variants/layout";
+import { Markup } from "../../ui/markup";
 
 // The pending-edit marker and the row's own identity live on the same element:
 // the row IS the control the delegation reads.
@@ -213,16 +214,14 @@ export function SettingsPage(): ReactElement | null {
                 {secret.l}{" "}
                 <span className="rf" data-part="setting/origin">{secret.k}</span>
               </span>
-              <span
+              <Markup tag="span"
                 className="rv"
                 data-part="setting/value"
-                dangerouslySetInnerHTML={{
-                  __html: chipHTML(
+                html={chipHTML(
                     secret.def
                       ? ["success", t("screens.settings.secretSet")]
                       : ["warning", t("screens.settings.secretUnset")],
-                  ),
-                }}
+                  )}
               />
             </button>
           ))}
@@ -241,11 +240,9 @@ export function SettingsPage(): ReactElement | null {
     if (!topic) {
       return (
         <>
-          <div
+          <Markup
             className={emptyNote()} data-part="empty-state"
-            dangerouslySetInnerHTML={{
-              __html: emptyInner(t("screens.settings.unknownTopic"), ""),
-            }}
+            html={emptyInner(t("screens.settings.unknownTopic"), "")}
           />
           <SaveBar />
         </>
@@ -271,14 +268,12 @@ export function SettingsPage(): ReactElement | null {
       <>
         <SearchField />
         {found.length === 0 ? (
-          <div
+          <Markup
             className={emptyNote()} data-part="empty-state"
-            dangerouslySetInnerHTML={{
-              __html: emptyInner(
+            html={emptyInner(
                 t("screens.settings.noMatchTitle"),
                 t("screens.settings.noMatchBody"),
-              ),
-            }}
+              )}
           />
         ) : (
           <>

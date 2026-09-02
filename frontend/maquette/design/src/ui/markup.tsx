@@ -43,7 +43,7 @@ export function Markup({
   html,
   ...rest
 }: {
-  tag?: "div" | "section" | "span";
+  tag?: "div" | "section" | "span" | "ol" | "p";
   html: string;
   className?: string;
   id?: string;
