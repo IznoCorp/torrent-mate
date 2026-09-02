@@ -68,6 +68,15 @@ TITLE = "Broadchurch"
 # never took the branch that printed « année inconnue · Série » about a medium
 # whose kind was in flight.
 KEPT = ["t"]
+# AND A PARTIAL ONE, which is where « field by field » is the whole question.
+# With NOTHING known the hero draws one skeleton for its whole metadata line and
+# the per-field branches are never reached — so a walk on the leanest projection
+# alone cannot tell a line gated on the WHOLE sheet from a line gated per field.
+# With the year known and the kind not, the two answers are separable, and a
+# screen that prints « Série » for a kind it has not got says so out loud. That
+# defect was live in this wave until a reader found it by reading; the mutation
+# for it passes over the lean walk and falls here.
+KEPT_PARTIAL = ["y"]
 # Long enough that every reading below is taken with the read still out under
 # the suite's parallel load, and short enough that the rule stays cheap.
 LATENCY_MILLISECONDS = 2000
@@ -209,7 +218,7 @@ async def address_of(browser):
     return f"{PROTOTYPE}media/{ids['provider']}/{ids['id']}"
 
 
-async def cold_load(browser, address, thin, fail=False):
+async def cold_load(browser, address, thin, fail=False, kept=None):
     """Opens the sheet cold with the two seams intercepted from the first byte.
 
     Args:
@@ -217,10 +226,11 @@ async def cold_load(browser, address, thin, fail=False):
         address: The sheet's address.
         thin: Whether to thin the placeholder to what a list row carries.
         fail: Whether the sheet's own read answers with a failure.
+        kept: Which fields the thinned placeholder keeps. `KEPT` by default.
     """
     context = await browser.new_context(**PHONE)
     await context.add_init_script(
-        f"({INTERCEPT})({{ title: {TITLE!r}, kept: {KEPT!r}, "
+        f"({INTERCEPT})({{ title: {TITLE!r}, kept: {(kept or KEPT)!r}, "
         f"latency: {LATENCY_MILLISECONDS}, thin: {'true' if thin else 'false'}, "
         f"fail: {'true' if fail else 'false'} }})")
     page = await context.new_page()
@@ -373,6 +383,24 @@ async def main():
                      if answer in broken["text"] and "bande-annonce" not in answer],
             f"read {broken}")
         journal.check("no JS error on the failed walk", not errors, str(errors))
+        await context.close()
+
+        # ─── (f) A PARTIAL PLACEHOLDER, where field by field is the question ─
+        context, page, errors = await cold_load(
+            browser, address, thin=True, kept=KEPT_PARTIAL)
+        partial = await page.evaluate(READ)
+        year = await page.evaluate(
+            "(title)=>String((window.__fullSheetFor(title) || {}).y || '')", TITLE)
+        journal.check(
+            "(f) with the YEAR known and the kind not, the year is content and "
+            "the kind is a skeleton — a field waits for its own answer",
+            partial["open"] and partial["inFlight"] > 0 and year
+            and year in partial["text"]
+            and not [word for word in KIND_WORDS if word in partial["text"]],
+            f"year {year!r} in text: {year in partial['text']}; kind word(s) "
+            f"printed: {[word for word in KIND_WORDS if word in partial['text']]}; "
+            f"{partial['skeletons']} skeleton(s) for {partial['parts']}")
+        journal.check("no JS error on the partial walk", not errors, str(errors))
         await context.close()
         await browser.close()
     journal.summary()
