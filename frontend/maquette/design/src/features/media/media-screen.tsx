@@ -155,9 +155,16 @@ export function MediaScreen() {
   // and « success » is not « answered » either: with a placeholder the query
   // reports success while the read is still out. What answers is a success that
   // is NOT the placeholder.
-  const ownershipKnown = sheet !== null
-    && (sheet.possede !== undefined
-        || (sheetRead.isSuccess && !sheetRead.isPlaceholderData));
+  // AND « KNOWN » IS A BOOLEAN, not « the key is there ». The contract makes
+  // this field NULLABLE and says what null means — the library database is
+  // unavailable — which is the definition of unknown; read as `!== undefined`
+  // it was classed known, and then `possede === true` made it « non ». Measured
+  // on an owned complete series served with a null ownership: « Dans votre
+  // médiathèque non », every owned number gone, the season rows switched to a
+  // catalogue with air dates, and « Suivre » offered for a medium in the
+  // library. A landed sheet with no field at all is unknown for the same
+  // reason: nobody answered.
+  const ownershipKnown = sheet !== null && typeof sheet.possede === "boolean";
   // AN ANSWER THAT IS NOT « YES » IS NOT « YES ». `possede !== false` reads an
   // ABSENT ownership as owned, and the contract makes the field nullable
   // (`MediaSheetResponse.ownership` is required and may be null) — so a sheet

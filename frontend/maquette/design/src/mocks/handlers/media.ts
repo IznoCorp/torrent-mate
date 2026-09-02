@@ -7,6 +7,7 @@ import POSTERS_HIGH_DEFINITION from "../seeds/posters-high-definition.json";
 import SEASONS from "../seeds/seasons.json";
 import MEDIA_SHEETS from "../seeds/media-sheets.json";
 import TRAILERS from "../seeds/trailers.json";
+import { mockState } from "../state";
 import { GET, route } from "./shared";
 import type { MockRequest, MockRoute } from "../router";
 
@@ -99,8 +100,19 @@ function sheet(request: MockRequest): unknown {
   // one for the other answered a different text on 213 of the 259 titles both
   // hold, several of them in English — a re-derivation, which the projection
   // rule forbids for exactly this reason.
+  // WHAT A DELETE DID TO THIS MEDIUM. `found` is a seed, and a seed does not
+  // know about a mutation; a sheet reopened after a confirmed delete answered
+  // « Possédés 24 » and offered to delete it again.
+  const deleted = titles.some((title) => mockState().deletedTitles.includes(title));
   return {
     ...found,
+    ...(deleted ? { owned: false } : {}),
+    // AND THE CONTRACT'S OWN « UNKNOWN ». `MediaSheetResponse.ownership` is
+    // required and NULLABLE — null « when the library database is unavailable »
+    // — so the layer has to be able to answer it, or a screen's unknown-ownership
+    // branch is unreachable and untestable while the contract says a backend
+    // reaches it every time that database is down.
+    ...(mockState().libraryDatabaseAvailable ? {} : { owned: null }),
     poster: underAnyTitle(POSTERS as ByTitle, titles),
     posterHighDefinition: underAnyTitle(POSTERS_HIGH_DEFINITION as ByTitle, titles),
     hero: underAnyTitle(HERO_IMAGES as ByTitle, titles),

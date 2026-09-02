@@ -19,7 +19,13 @@ export type MediaSheetFields = {
   status?: string;
   seasons?: CatalogSeason[];
   eps?: Record<string, SheetEpisode[]>;
-  possede?: boolean;
+  /**
+   * Whether the reader holds it: true, false, or NULL for « nobody knows ». The
+   * contract's own third value — `ownership` is nullable, null when the library
+   * database is unavailable — and a type that admitted only two made the third
+   * indistinguishable from « not owned ».
+   */
+  possede?: boolean | null;
 };
 
 // The slice of the simulated world this screen reads: the follow list, and

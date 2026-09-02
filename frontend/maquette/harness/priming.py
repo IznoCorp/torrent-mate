@@ -149,7 +149,7 @@ MOUNT_DEADLINE_MILLISECONDS = 1500
 # waiting, and both times the rule said so.
 SKELETONS_EXPECTED = 15
 
-INTERCEPT = """({ title, kept, latency, thin, fail, failSeasons, seasonsFirst }) => {
+INTERCEPT = """({ title, kept, latency, thin, fail, failSeasons, ownershipUnknown, seasonsFirst }) => {
   let reference;
   Object.defineProperty(window, '__referentiel', {
     configurable: true,
@@ -191,6 +191,13 @@ INTERCEPT = """({ title, kept, latency, thin, fail, failSeasons, seasonsFirst })
       // what the reader holds, taken from a read that never arrived — with no
       // surface and nothing to press.
       if (failSeasons) value.setOperationOutcome('readMediaSeasons', { status: 502, latencyMilliseconds: 0 });
+      // AND THE OWNERSHIP THE CONTRACT CALLS UNKNOWN. `ownership` is nullable
+      // and null means the library database is unavailable — a state a backend
+      // reaches on its own, and the one the screen has to draw as « inconnue »
+      // rather than as « non ».
+      if (ownershipUnknown && typeof value.setLibraryDatabaseAvailable === 'function') {
+        value.setLibraryDatabaseAvailable(false);
+      }
     },
   });
 }"""
@@ -390,7 +397,7 @@ async def address_of(browser, title=None):
 
 
 async def cold_load(browser, address, thin, fail=False, kept=None, seasons_first=False,
-                    title=None, fail_seasons=False):
+                    title=None, fail_seasons=False, ownership_unknown=False):
     """Opens the sheet cold with the two seams intercepted from the first byte.
 
     Args:
@@ -402,6 +409,8 @@ async def cold_load(browser, address, thin, fail=False, kept=None, seasons_first
         seasons_first: Whether the seasons answer at once while the sheet waits.
         fail_seasons: Whether the SEASONS read answers with a failure — the
             sheet lands, and every number derived from the seasons does not.
+        ownership_unknown: Whether the layer answers a NULL ownership, which the
+            contract defines as « the library database is unavailable ».
         title: Whose placeholder is thinned. The measured title by default — and
             it must be the title the ADDRESS opens, or the thinning applies to a
             sheet nobody is looking at and the walk measures a complete one.
@@ -412,6 +421,7 @@ async def cold_load(browser, address, thin, fail=False, kept=None, seasons_first
         f"latency: {LATENCY_MILLISECONDS}, thin: {'true' if thin else 'false'}, "
         f"fail: {'true' if fail else 'false'}, "
         f"failSeasons: {'true' if fail_seasons else 'false'}, "
+        f"ownershipUnknown: {'true' if ownership_unknown else 'false'}, "
         f"seasonsFirst: {'true' if seasons_first else 'false'} }})")
     page = await context.new_page()
     errors = []
@@ -451,6 +461,12 @@ TIMEOUT_SENTENCE = failure_body_from_resources()
 KIND_WORDS = kind_words_from_resources()
 PROVIDER_SENTENCES = provider_sentences_from_resources()
 UNIDENTIFIED = unidentified_from_resources()
+# The word the interface prints for a feminine unknown — « la médiathèque » —
+# read from the resource rather than typed here.
+UNKNOWN_FEMININE = json.loads(
+    (pathlib.Path(__file__).resolve().parent.parent
+     / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8")
+)["screens"]["media"]["unknownFeminine"]
 
 
 async def main():
@@ -811,6 +827,92 @@ async def main():
             f"error surface drawn on {FILM_TITLE!r}: {film['failed']}; "
             f"it says {' '.join(film['errorText'].split())[:80]!r}")
         journal.check("no JS error on the film walk", not errors, str(errors))
+        await context.close()
+
+        # ─── (e-vii) THE OWNERSHIP THE CONTRACT CALLS UNKNOWN ─────────────
+        # `MediaSheetResponse.ownership` is required and NULLABLE, and the
+        # contract says what null means: the library database is unavailable.
+        # That is the definition of « nobody knows », and the screen read it as
+        # « the key is present », classed it KNOWN, and then printed « non » —
+        # every owned number gone, the season rows switched to a catalogue of
+        # air dates, and « Suivre » offered for a medium sitting in the library.
+        # Nothing held it: reverting the one line left every hold of this rule
+        # green, because no rule read ownership at all.
+        context, page, errors = await cold_load(
+            browser, address, thin=False, ownership_unknown=True)
+        await page.evaluate("()=>window.__mocks.quiet()")
+        await page.wait_for_timeout(400)
+        unknown_ownership = await page.evaluate(READ)
+        journal.check(
+            "(e-vii) an ownership the layer answers as NULL is drawn as unknown "
+            "— not as « not owned »: no count, no completeness, no missing "
+            "chip, no action, and the unknown word where the answer would be",
+            unknown_ownership["open"]
+            and not unknown_ownership["ownedZero"]
+            and unknown_ownership["missing"] == 0
+            and unknown_ownership["actions"] == 0
+            and unknown_ownership["fractions"] == 0
+            and unknown_ownership["openRows"] == 0,
+            f"« Possédés 0 »: {unknown_ownership['ownedZero']}, "
+            f"« manquants » chip(s): {unknown_ownership['missing']}, "
+            f"action button(s): {unknown_ownership['actions']}, fraction(s): "
+            f"{unknown_ownership['fractions']}, open row(s): "
+            f"{unknown_ownership['openRows']}")
+        # AND THE WORD ITSELF, because « no numbers » is also what a screen
+        # showing nothing at all looks like. The library block draws its rows
+        # either way; what changes is whether their VALUES are answers.
+        unknown_words = await page.evaluate("""(words) => {
+          const screen = document.querySelector('[data-part="screen"][data-open]');
+          const text = screen ? (screen.textContent || '') : '';
+          return words.filter((said) => text.includes(said));
+        }""", [UNKNOWN_FEMININE])
+        journal.check(
+            "(e-vii-a) and it SAYS so, in the interface's own word for it",
+            unknown_words == [UNKNOWN_FEMININE],
+            f"the unknown word present: {unknown_words}")
+        journal.check("no JS error on the unknown-ownership walk",
+                      not errors, str(errors))
+        await context.close()
+
+        # ─── (e-viii) A SHEET AFTER A CONFIRMED DELETE ────────────────────────
+        # The list is honest in the same task and the SHEET was not: reopened
+        # after a confirmed delete it read « Possédés 24 » from its own cached
+        # answer and offered « Supprimer » again — over the toast saying it was
+        # done. Invalidating the media reads is half of it; the other half is
+        # that the layer has to be able to ANSWER the mutation, which it could
+        # not: ownership came from a seed keyed by title, so a refetch returned
+        # exactly what it returned before and a repair for this was
+        # unmeasurable.
+        context, page, errors = await cold_load(browser, address, thin=False)
+        await page.evaluate("()=>window.__mocks.quiet()")
+        await page.wait_for_timeout(300)
+        before_delete = await page.evaluate(READ)
+        await page.evaluate("(title)=>window.__deleteLibraryItems([title])", TITLE)
+        # TWO ROUND TRIPS THROUGH THE LAYER, and the layer's default latency
+        # applies to both: the mutation answers, and only THEN is the read the
+        # invalidation causes issued. One `quiet()` waits for the first and
+        # returns before the second exists — which is a walk that reads the
+        # screen mid-repair and calls it unrepaired.
+        for _ in range(3):
+            await page.evaluate("()=>window.__mocks.quiet()")
+            await page.wait_for_timeout(300)
+        after_delete = await page.evaluate(READ)
+        journal.check(
+            "the sheet of an owned medium offers to delete it — the hold below "
+            "has a subject",
+            before_delete["actions"] == 2 and before_delete["fractions"] > 0,
+            f"{before_delete['actions']} action(s), "
+            f"{before_delete['fractions']} fraction(s) before the delete")
+        journal.check(
+            "(e-viii) and once that delete is confirmed the same sheet stops "
+            "saying the medium is held — no owned fraction, and no second "
+            "« Supprimer » over a toast that said it was done",
+            after_delete["fractions"] == 0 and after_delete["actions"] < 2,
+            f"{after_delete['actions']} action(s) and "
+            f"{after_delete['fractions']} owned fraction(s) after the delete, "
+            f"against {before_delete['actions']} and "
+            f"{before_delete['fractions']} before")
+        journal.check("no JS error on the delete walk", not errors, str(errors))
         await context.close()
 
         # ─── (f) A PARTIAL PLACEHOLDER, where field by field is the question ─
