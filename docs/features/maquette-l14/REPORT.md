@@ -17,7 +17,7 @@ repaired.
 | ----------------------------------------- | -----: | ------: | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `features/acquisition/page.tsx`           |    756 | **48** | `acquisition-tabs.tsx` 53 · `now-tab.tsx` 142 · `follows-tab.tsx` 254 · `follows-filters.tsx` 105 · `discover-tab.tsx` 192 |
 | `features/media/media-screen.tsx`         |    796 | **314** | `sheet-fields.ts` 36 · `season-list.tsx` 282 · `media-hero.tsx` 164 · `media-cast.tsx` 96 · `media-library-facts.tsx` 213 · `media-details.tsx` 145 |
-| `features/library/page.tsx`               |    613 | **102** | `library-head.tsx` 156 · `library-list.tsx` 241 · `library-count.tsx` 76 · `library-empty.tsx` 52 · `incomplete-lens.tsx` 67 |
+| `features/library/page.tsx`               |    613 | **102** | `library-head.tsx` 156 · `library-list.tsx` 257 · `library-count.tsx` 76 · `library-empty.tsx` 52 · `incomplete-lens.tsx` 67 · `selection-bar.tsx` 74 |
 | `features/arrivals/resolution-screen.tsx` |    430 | **213** | `resolution-cards.tsx` 208 |
 
 <sub>`for f in features/acquisition/page.tsx features/media/media-screen.tsx features/library/page.tsx features/arrivals/resolution-screen.tsx; do printf '%-45s %s\n' "$f" "$(grep -cve '^\s*$' frontend/maquette/design/src/$f)"; done`. **Every figure in this table is re-measured after each review round and none is remembered** — the round-2 figures survived two commits whose own subjects said the numbers had been re-taken, and a reader recomputed them.</sub>
@@ -28,7 +28,7 @@ each of the four grandfather entries left in the same commit as the file it name
 an entry for a file back under the ceiling, so the count cannot climb again in silence.
 
 **Four of this wave's files sit above the 250 soft warning and are named rather than left to
-be found**: `media-screen.tsx` (314), `ui/virtual-rows.tsx` (380), `season-list.tsx` (282) and
+be found**: `media-screen.tsx` (314), `ui/virtual-rows.tsx` (351), `season-list.tsx` (282) and
 `follows-tab.tsx` (254) — the second a `ui/` primitive rather than a surface. Three of them grew
 under the review rounds' repairs, and the figures here are re-measured with the table above. The
 warning is not the wave's to clear: **25 files in the design tree stand above it**, `app/shell.tsx`
