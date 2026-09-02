@@ -651,8 +651,10 @@ class TestSizeArmReadsTheLabel:
         own sibling below already carries the lesson — « a test that enumerates
         the plan's lots is a test the plan falsifies by growing » — and this one
         was written the day before it. What the two documents being read apart
-        MEANS is that the sets differ and neither contains the other's whole;
-        that is what is asserted, and it survives every wave that lands.
+        MEANS is that the sets DIFFER and that the landed ones are all declared:
+        a lot lands only after the plan names it, and the plan names more than
+        have landed. That is what the assertion below says, and it survives
+        every wave that lands.
         """
         declared, landed = guard.declared_and_landed_lots()
         assert "L09" in landed, "IMPLEMENTATION.md records L09 as landed"
