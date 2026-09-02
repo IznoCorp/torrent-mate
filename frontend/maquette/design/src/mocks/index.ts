@@ -26,7 +26,7 @@ import {
   setDefaultLatency,
   setOperationOutcome,
 } from "./scenario";
-import { resetMockState } from "./state";
+import { mockState, resetMockState } from "./state";
 import { installMockStream, resetStream, type StreamDriver } from "./stream";
 import { routes } from "./handlers";
 
@@ -312,6 +312,9 @@ export function installMockNetwork(): void {
       becameQuiet = [];
       for (const settle of stranded) settle();
     },
+    setLibraryDatabaseAvailable: (available: boolean) => {
+      mockState().libraryDatabaseAvailable = available;
+    },
     setOffline: (down: boolean) => {
       networkIsDown = down;
     },
@@ -348,6 +351,8 @@ declare global {
       /** Whether the network answers at all — P8's dial, not a status. */
       setOffline: (down: boolean) => void;
       isOffline: () => boolean;
+      /** Whether the library database answers — false makes ownership null. */
+      setLibraryDatabaseAvailable: (available: boolean) => void;
       /** How many times each idempotency key arrived at the layer. */
       arrivalsByKey: () => Record<string, number>;
       reset: () => void;

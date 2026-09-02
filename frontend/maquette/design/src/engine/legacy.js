@@ -3903,7 +3903,7 @@ import { icons } from "../app/icons";
      its own NFO on disk. It is NOT in `library.db`: neither a column of
      `media_item` nor a key of `item_attribute` carries it, so the app cannot
      render this today — the read-model has to grow a field first. Nine of the
-     349 titles have none, and those show nothing rather than a filler. */
+     345 titles have none, and those show nothing rather than a filler. */
   const LIBRARY = [
     { t: "On l'appelait Robin des Bois", f: "2026 · Film", c: "movies" },
     { t: "Ninja Turtles", f: "2014 · Film", c: "movies" },
@@ -7978,7 +7978,12 @@ import { icons } from "../app/icons";
   function tileHTML(descriptor, sousLigne, opts) {
     opts = opts || {};
     const sel = currentState().selMode && opts.index != null;
-    const selected = sel && currentState().selected.has(opts.index);
+    // KEYED BY THE TITLE, never by the position. `opts.index` is the row's
+    // rank IN THE LISTING ON SCREEN, and the listing is ordered and filtered by
+    // the layer: index 1 of « A → Z » is not index 1 of the source. Read as a
+    // key into the source, a tick taken on one row selected a different medium
+    // — and the delete dialog then named, and destroyed, that other one.
+    const selected = sel && currentState().selected.has(descriptor.t);
     const badge = opts.badge;
     // A rating is not a status: it reads over the picture without claiming a
     // meaning in the status palette, so it takes the neutral overlay.
@@ -7993,7 +7998,7 @@ import { icons } from "../app/icons";
               ? "info"
               : "warning"
       : null;
-    return `<button class="tile${opts.muted ? " off" : ""}" data-part="tile" ${opts.index != null ? `data-tile="${opts.index}"` : ""} ${opts.dismiss != null ? `data-dismissable="${escapeHtml(String(opts.dismiss))}"` : ""} data-panel="${escapeHtml(opts.panel || `media:${descriptor.t}`)}" ${sel ? `aria-pressed="${selected}"` : `data-mediasheet="${escapeHtml(descriptor.t)}"`}>
+    return `<button class="tile${opts.muted ? " off" : ""}" data-part="tile" ${opts.index != null ? `data-tile="${opts.index}"` : ""} ${opts.dismiss != null ? `data-dismissable="${escapeHtml(String(opts.dismiss))}"` : ""} data-panel="${escapeHtml(opts.panel || `media:${descriptor.t}`)}" ${sel ? `aria-pressed="${selected}" data-selected-title="${escapeHtml(descriptor.t)}"` : `data-mediasheet="${escapeHtml(descriptor.t)}"`}>
       <span class="p">${posterBox(descriptor.t, descriptor.k)}</span>
       ${sel ? `<span class="sel" data-part="selection/check">${svgIcon(icons.check, 3)}</span>` : badge ? `<span class="tilebadge" data-part="tile/badge" style="background:var(--${tone})">${escapeHtml(badge.txt)}</span>` : ""}
       <span class="nm" data-part="tile/title">${escapeHtml(descriptor.t)}</span>
@@ -8013,8 +8018,10 @@ import { icons } from "../app/icons";
 
   function libRowHTML(item, index) {
     if (currentState().selMode) {
-      const has = currentState().selected.has(index);
-      return `<button class="selrow" data-part="selection/row" data-tile="${index}" aria-pressed="${has}">
+      // THE TITLE, as in the gallery above and for the same reason: the
+      // index is the row's rank in the listing on screen.
+      const has = currentState().selected.has(item.t);
+      return `<button class="selrow" data-part="selection/row" data-tile="${index}" data-selected-title="${escapeHtml(item.t)}" aria-pressed="${has}">
         <span class="sel" data-part="selection/check">${svgIcon(icons.check, 3)}</span>
         <span class="poster" data-part="card/poster">${posterBox(item.t)}</span>
         <span class="rowtxt"><span class="ctitle" data-part="card/title" title="${escapeHtml(item.t)}">${escapeHtml(item.t)}</span><span class="csub" data-part="card/subtitle">${escapeHtml(item.f)}</span></span>
@@ -9655,9 +9662,12 @@ import { icons } from "../app/icons";
       return;
     }
     if (closest.dataset.lens) {
-      // Changing lens changes the list: start again from the first page.
+      // Changing lens changes the list: start again from the first page. And the
+      // SELECTION goes with it — a tick taken in another listing is one the
+      // reader cannot see to untick, and « Supprimer » would still offer it.
       store.write({
         libLens: closest.dataset.lens,
+        selected: new Set(),
         });
       port.scrollTop = 0;
       render();
@@ -9667,6 +9677,7 @@ import { icons } from "../app/icons";
     if (closest.dataset.cat) {
       store.write({
         libCat: closest.dataset.cat,
+        selected: new Set(),
         });
       port.scrollTop = 0;
       render();
@@ -10023,6 +10034,7 @@ import { icons } from "../app/icons";
       store.write({
         sortKey: closest.dataset.setsort,
         sortReversed: closest.dataset.reversed === "1",
+        selected: new Set(),
       });
       panel.close();
       render();
@@ -10044,33 +10056,51 @@ import { icons } from "../app/icons";
     }
     if (closest.dataset.clearq) {
       if (closest.dataset.clearq === "lib")
-        store.write({ q: "" });
+        // THE SELECTION GOES WITH THE QUESTION. Clearing the search widens what
+        // is on screen, and the ticks taken under the narrower listing are not
+        // the ones a reader is looking at.
+        store.write({ q: "", selected: new Set() });
       else store.write({ filter: "" });
       render();
       return;
     }
     if (closest.dataset.selmode) {
-      store.write({ selMode: closest.dataset.selmode === "1" });
+      store.write({ selMode: closest.dataset.selmode === "1", selectedMedia: 0 });
       // Set mutated in place; render() right below carries the bump.
       currentState().selected.clear();
       render();
       return;
     }
     if (closest.dataset.delsel) {
-      openDeleteDialog(
-        null,
-        [...state.selected].map((element) => LIBRARY[element].t),
-      );
+      // THE SET HOLDS TITLES, so the dialog names what the reader ticked. It
+      // used to read each entry as an index into the SOURCE array while the
+      // ticks were taken on the LISTING — so under any order but the source's
+      // it named other media and destroyed them: ticking « 3% » and « À la
+      // recherche de Harry » under A → Z deleted « Ninja Turtles » and « Big
+      // Chicken », and the two ticked rows stayed.
+      openDeleteDialog(null, [...state.selected]);
       return;
     }
     if (closest.dataset.tile != null && currentState().selMode) {
-      const index = Number(closest.dataset.tile);
-      if (currentState().selected.has(index)) currentState().selected.delete(index);
-      else currentState().selected.add(index);
+      const title = closest.dataset.selectedTitle;
+      if (title == null) return;
+      if (currentState().selected.has(title)) currentState().selected.delete(title);
+      else currentState().selected.add(title);
       // paintSelBar() below draws the bar directly, not through render():
       // the explicit bump is what tells React the selection changed.
-      store.touch();
-      closest.setAttribute("aria-pressed", String(currentState().selected.has(index)));
+      // THE BAR COUNTS MEDIA, not ticks. One press on a title this library holds
+      // twice lights both rows and the dialog says « 2 médias »; a caption
+      // reading « 1 sélectionné » beside them is the only figure in the flow
+      // still counting something else. Written rather than touched: a write
+      // bumps too, and hold (f) drives `write({})` on nine states to prove a
+      // surface keeps its nodes across one.
+      store.write({
+        selectedMedia: [...currentState().selected].reduce(
+          (accumulator, element) => accumulator + mediaNamedBy(element),
+          0,
+        ),
+      });
+      closest.setAttribute("aria-pressed", String(currentState().selected.has(title)));
       paintSelBar();
       return;
     }
@@ -10262,6 +10292,13 @@ import { icons } from "../app/icons";
   });
 
   /* Deletion */
+  /* How many library rows one title names. The delete acts BY TITLE — the only
+     key the contract offers — so a title naming two rows is two media, and every
+     figure the interface prints about a selection has to say so. */
+  function mediaNamedBy(title) {
+    return Math.max(1, LIBRARY.filter((row) => row.t === title).length);
+  }
+
   function openDeleteDialog(title, many) {
     const titles = many && many.length > 0 ? many : [title];
     const multi = titles.length > 1;
@@ -10271,9 +10308,37 @@ import { icons } from "../app/icons";
       (title2) =>
         follows().some((follow) => follow.t === title2) || !!inc(title2),
     );
+    // HOW MANY MEDIA EACH TITLE NAMES, and it is not always one. The delete
+    // acts BY TITLE — the only key the contract offers — and this library holds
+    // « Doctor Who » twice, 2005 and 2023 — ONE duplicated title in 345 rows,
+    // 344 of them distinct. (The first version of this sentence said five, a
+    // count taken over a window that ran past this array into the next one.)
+    // Confirming one of them removes both, and the count below said one file:
+    // a manifest whose whole purpose is « voici exactement ce qui serait
+    // supprimé » naming half of it. The interface cannot delete one of the two
+    // — that needs an identifier the backend does not serve, and the demand is
+    // recorded — but it can say the truth about what it is about to do.
+    const mediaFor = mediaNamedBy;
     const files = titles.reduce(
       (accumulator, element) =>
-        accumulator + (inc(element) ? inc(element).o : 1),
+        accumulator + (inc(element) ? inc(element).o : mediaFor(element)),
+      0,
+    );
+    const media = titles.reduce(
+      (accumulator, element) => accumulator + mediaFor(element),
+      0,
+    );
+    // What the four rows above the fold account for, so « et N autres » names
+    // media like every other figure in this dialog.
+    const shown = titles.slice(0, 4).reduce(
+      (accumulator, element) => accumulator + mediaFor(element),
+      0,
+    );
+    // AND THE FOLLOWED WARNING TOO. A followed title that names two rows is two
+    // media coming back at the next search. Latent while no duplicated title is
+    // followed, which is exactly how it would ship unnoticed.
+    const followedMedia = followed.reduce(
+      (accumulator, element) => accumulator + mediaFor(element),
       0,
     );
     const size = (files * 0.41).toFixed(1).replace(".", ",") + " Go";
@@ -10284,8 +10349,10 @@ import { icons } from "../app/icons";
        ampersand, and the seeds carry five. The other thirty-five sites still
        feed `innerHTML` and still need it. */
     const head = multi
-      ? `Supprimer ${titles.length} médias ?`
-      : `Supprimer « ${titles[0]} » ?`;
+      ? `Supprimer ${media} médias ?`
+      : media > 1
+        ? `Supprimer « ${titles[0]} » — ${media} médias ?`
+        : `Supprimer « ${titles[0]} » ?`;
     window.__dialog?.open({
       heading: head,
       body: [
@@ -10302,12 +10369,12 @@ import { icons } from "../app/icons";
                 entries: [
                   ...titles.slice(0, 4).map((title2) => ({
                     text: title2,
-                    value: `${inc(title2) ? inc(title2).o : 1} fichier${(inc(title2) ? inc(title2).o : 1) > 1 ? "s" : ""}`,
+                    value: `${inc(title2) ? inc(title2).o : mediaFor(title2)} fichier${(inc(title2) ? inc(title2).o : mediaFor(title2)) > 1 ? "s" : ""}`,
                   })),
                   ...(titles.length > 4
                     ? [
                         {
-                          text: `et ${titles.length - 4} autre${titles.length - 4 > 1 ? "s" : ""}`,
+                          text: `et ${media - shown} autre${media - shown > 1 ? "s" : ""}`,
                           value: "",
                         },
                       ]
@@ -10330,9 +10397,11 @@ import { icons } from "../app/icons";
             },
             {
               text: "Lignes de la médiathèque",
-              value: `${titles.length} item${multi ? "s" : ""}`,
+              // THE MEDIA, not the titles: one title can name two rows, and this
+              // manifest's whole purpose is to say exactly what would go.
+              value: `${media} item${media > 1 ? "s" : ""}`,
             },
-            { text: "Entrée Plex", value: `${titles.length} · à vérifier` },
+            { text: "Entrée Plex", value: `${media} · à vérifier` },
           ],
         },
         ...(followed.length > 0
@@ -10342,7 +10411,7 @@ import { icons } from "../app/icons";
                 strong:
                   followed.length === 1
                     ? `« ${followed[0]} » est suivi.`
-                    : `${followed.length} de ces médias sont suivis.`,
+                    : `${followedMedia} de ces médias sont suivis.`,
                 text:
                   "Sans action de votre part, ces épisodes seront " +
                   "re-téléchargés à la prochaine recherche.",

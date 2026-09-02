@@ -55,6 +55,7 @@ import {
   suggestionChip,
   suggestions,
 } from "../../features/acquisition/variants";
+import { Markup } from "../../ui/markup";
 
 type Mode = "follow" | "identify";
 
@@ -319,10 +320,10 @@ export function AddScreen() {
               {" — "}
               {t("screens.add.mostRelevant")}
             </p>
-            <div
+            <Markup
               className={`${resultList()} sec`}
               data-part="result/list"
-              dangerouslySetInnerHTML={{ __html: rows }}
+              html={rows}
             />
           </>
         ) : (

@@ -55,6 +55,7 @@ import {
   pilotQualifier,
   pilotTitle,
 } from "./variants";
+import { Markup } from "../../ui/markup";
 
 // The nine steps, told as the last run left them. A step with nothing recorded
 // at all reads « rien à faire »; a step that BLOCKED something says so and
@@ -191,11 +192,9 @@ function LastRun(): ReactElement | null {
           {t("screens.arrivals.triggeredWhen", { when: run.when })}
         </span>
       </div>
-      <ol
+      <Markup tag="ol"
         className="flux" data-part="flux"
-        dangerouslySetInnerHTML={{
-          __html: factRowsHTML(lastRunRows(PIPELINE.steps, run.facts, t)),
-        }}
+        html={factRowsHTML(lastRunRows(PIPELINE.steps, run.facts, t))}
       />
     </section>
   );
@@ -218,9 +217,9 @@ export function ArrivalsPage(): ReactElement | null {
     return state.phase === "error" ? (
       <SurfaceError subject={t("screens.arrivals.errorSubject")} />
     ) : (
-      <div
+      <Markup
         className={sectionClass()} data-part="section"
-        dangerouslySetInnerHTML={{ __html: skelCardsInner(3) }}
+        html={skelCardsInner(3)}
       />
     );
   }
@@ -240,11 +239,9 @@ export function ArrivalsPage(): ReactElement | null {
     note?: string,
   ) =>
     cards.length === 0 || inner === "" ? null : (
-      <section
+      <Markup tag="section"
         className={sectionClass()} data-part="section"
-        dangerouslySetInnerHTML={{
-          __html: secInner(pip, title, String(cards.length), inner, note),
-        }}
+        html={secInner(pip, title, String(cards.length), inner, note)}
       />
     );
 
@@ -277,14 +274,12 @@ export function ArrivalsPage(): ReactElement | null {
         </div>
       ) : null}
       {nothing ? (
-        <div
+        <Markup
           className={emptyNote()} data-part="empty-state"
-          dangerouslySetInnerHTML={{
-            __html: emptyInner(
+          html={emptyInner(
               t("screens.arrivals.emptyTitle"),
               t("screens.arrivals.emptyBody"),
-            ),
-          }}
+            )}
         />
       ) : null}
       {section(

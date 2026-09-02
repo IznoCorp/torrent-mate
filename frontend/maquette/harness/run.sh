@@ -185,6 +185,7 @@ CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.
 # other end; the suite is a superset or it is not a gate.
 REPOSITORY_GUARDS=(
   "scripts/check-frontend-boundaries.py"
+  "scripts/check-component-once.py"
   "scripts/check-module-size.py"
   "scripts/check-module-size.py --root scripts"
   "scripts/check-module-size.py --root tests"

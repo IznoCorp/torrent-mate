@@ -89,6 +89,7 @@ check: lint test-cov
 	python3 scripts/check-legacy-css-residue.py
 	python3 scripts/check-markup-contracts.py
 	python3 scripts/check-frontend-boundaries.py
+	python3 scripts/check-component-once.py
 	python3 scripts/check-state-ownership.py
 	python3 scripts/check-live-relay.py
 	python3 scripts/check-bug-register.py

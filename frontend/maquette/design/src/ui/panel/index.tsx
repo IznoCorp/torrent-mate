@@ -86,7 +86,7 @@ function Poster({ poster }: { poster: { t: string; k?: string } }) {
   );
 }
 
-function ActionButton({ action }: { action: Action | null | undefined }) {
+function PanelActionButton({ action }: { action: Action | null | undefined }) {
   if (!action) return null;
   // The only dynamically-keyed attribute set in this file: `target`'s keys
   // are the action's own vocabulary (`mediaSheet`, `go`, `toast`, …), decided by
@@ -125,7 +125,7 @@ function ActionsBlock({
   return (
     <div className={sheetActions({ secondary: Boolean(block.secondary) })} data-part="sheet/actions">
       {list.map((action, index) => (
-        <ActionButton key={index} action={action} />
+        <PanelActionButton key={index} action={action} />
       ))}
     </div>
   );

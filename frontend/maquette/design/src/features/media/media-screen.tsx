@@ -1,11 +1,7 @@
-// design/src/screens/media.tsx
-// The centre of the product: legacy `openFiche(title)` (`refonte.html`) — ONE
-// media sheet for every medium — reborn as a real route (`/mediasheet/$title`) and
-// a final component. Markup is TRANSPLANTED, not translated: every tag, class
-// and data-attribute below is the one `refonte.html`'s BLOCK 2 CSS already
-// targets (`.screen`, `.screenbar`, `.herowrap`, `.trailer`, `.cast`,
-// `.eprow`, `.sheetacts`…), so the same stylesheet applies unchanged and the
-// rule harness measures the same geometry it measured on the legacy screen.
+// The centre of the product: ONE media sheet for every medium, at its own
+// address (`/media/:provider/:id`). This file holds the screen — the address,
+// the two reads, what is derived from them, and the composition; each part of
+// the sheet is a component beside it.
 //
 // Fixed order, and the order is the promise: hero → trailer → synopsis →
 // cast → library state (+ seasons) → identifiers → actions. The only
@@ -27,322 +23,19 @@ import {
   useMediaReference,
   type MediaReference,
   type MediaSheet,
+  type Trailer,
 } from "../../features/media/reference";
 import { useStoreContent } from "../../lib/store-access";
+import { isRequestFailure } from "../../lib/query-client";
 import { seasonsHeld, useMediaSeasons, useMediaSheet } from "./queries";
-import {
-  actionButton,
-  backAction,
-  // `body` is already a local binding in this file.
-  body as bodyClass,
-  factsPanel,
-  keyValueRow,
-  screen,
-  screenBar,
-  scrollport,
-  sectionHeading,
-  sheetActions,
-  statusDot,
-} from "../../ui/variants";
-import {
-  castCaption,
-  castFigure,
-  castList,
-  castPortrait,
-  heroImage,
-  heroMeta,
-  heroNote,
-  heroText,
-  heroTitle,
-  heroWrap,
-  trailerPlay,
-  trailerRow,
-  trailerSource,
-} from "./variants";
-
-// The exact shape `svgIcon(paths, strokeWidth)` produced as an HTML string —
-// rebuilt as a real element so it composes with JSX. Same helper as
-// `profile.tsx`'s, `add.tsx`'s and `panel.tsx`'s, still not shared: the
-// extraction those files' comments call for is a follow-up of its own, not a
-// silent scope add here.
-function Icon({ paths, strokeWidth }: { paths: string; strokeWidth?: number }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={strokeWidth || 2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      dangerouslySetInnerHTML={{ __html: paths }}
-    />
-  );
-}
-
-// The fields this screen reads off a `SHEETS_RAW` entry. The source stays
-// untyped JS and a movie and a show do not carry the same keys, so every
-// field is optional — a narrowed view of `MediaSheet`, never a claim about
-// what a sheet always has.
-type SheetEpisode = { n: number; t: string; air?: string | null };
-type CatalogSeason = { n: number; ep: number | null; air?: string };
-type MediaSheetFields = {
-  k?: string;
-  y?: string;
-  note?: number;
-  g?: string;
-  duree?: number | null;
-  ov?: string;
-  real?: string | null;
-  crea?: string | null;
-  cast?: { n: string; r?: string }[];
-  ids?: Record<string, string | number>;
-  status?: string;
-  seasons?: CatalogSeason[];
-  eps?: Record<string, SheetEpisode[]>;
-  possede?: boolean;
-};
-
-// The slice of the simulated world this screen reads: the follow list, and
-// only its titles.
-type Follow = { t: string };
-
-// One row of the season list: an owned-seasons row (`[n, aired, own]` from
-// `seasonsOf`) and a catalogue row (`{ n, ep, air }` from the sheet) are
-// folded into the same shape before rendering, exactly as `sheetSeasonsHTML`
-// folds them.
-type SeasonRow = {
-  n: number;
-  aired: number | null;
-  own: number;
-  air?: string;
-};
-
-function SeasonList({
-  sheet,
-  seasons,
-  owns,
-  catalog,
-  title,
-}: {
-  sheet: MediaSheetFields | null;
-  seasons: [number, number | null, number][];
-  owns: boolean;
-  catalog: CatalogSeason[];
-  title: string;
-}) {
-  const {
-    ownedFor,
-    plages,
-    dateFR,
-    EP_LABEL,
-    TODAY,
-  } = useMediaReference();
-  const { t } = useTranslation();
-  const eps = sheet?.eps ?? {};
-  const rows: SeasonRow[] = owns
-    ? seasons.map(([number, aired, own]) => ({ n: number, aired, own }))
-    : catalog.map((season) => ({
-        n: season.n,
-        aired: season.ep,
-        own: 0,
-        air: season.air,
-      }));
-  if (!rows.length) return null;
-  return (
-    <div style={{ marginTop: "10px" }}>
-      {rows.map((row) => {
-        const list = eps[String(row.n)] ?? null;
-        const held = owns ? ownedFor(title, row.n) : null;
-        /* The count is DERIVED from the owned numbers when they are known;
-           a total that does not say where the holes are is no longer
-           trusted. */
-        const nbOwn = held
-          ? [...held].filter((element) => !row.aired || element <= row.aired)
-              .length
-          : row.own;
-        const complete = owns && row.aired != null && nbOwn >= row.aired;
-        const missing = row.aired != null ? row.aired - nbOwn : null;
-        /* With no known total, reason up to the highest owned episode: a
-           hole BELOW that maximum is a genuine gap, above it nothing is
-           known. */
-        const bound =
-          row.aired === 0
-            ? 0
-            : held && held.size
-              ? (row.aired ?? Math.max(...held))
-              : row.aired || 0;
-        const missingNums =
-          owns && held && row.aired
-            ? Array.from(
-                { length: row.aired },
-                (ignored, index) => index + 1,
-              ).filter((from) => !held.has(from))
-            : [];
-        const body = list ? (
-          <div className={factsPanel()} data-part="panel" style={{ marginTop: "8px" }}>
-            {list.map((episode) => {
-              /* SUBTLE state colour: a 6px dot and the number in the
-                 tone. The title stays neutral — it is what one reads
-                 first, so it keeps maximum contrast. One colour signal
-                 per row, not a Christmas tree. */
-              const upcoming = episode.air && episode.air > TODAY;
-              /* State comes from the LIST of owned numbers. A « number <=
-                 owned count » threshold assumes the hole is always at the
-                 end of the season: false for 35 series in this library. */
-              const episodeState = upcoming
-                ? "announced"
-                : !owns || !held
-                  ? "unverified"
-                  : held.has(episode.n)
-                    ? "in_library"
-                    : "to_grab";
-              return (
-                // Same blanks as the season summary, same reason: the row is
-                // a flex container (they draw nothing) and its `textContent`
-                // is read as one sentence.
-                <div
-                  className={`eprow ${episodeState}`}
-                  data-part="episode/row"
-                  data-announced={episodeState === "announced" || undefined}
-                  data-in-library={episodeState === "in_library" || undefined}
-                  key={episode.n}
-                >
-                  <span className="epdot"></span>{" "}
-                  <span className="en" data-part="episode/number">
-                    E{String(episode.n).padStart(2, "0")}
-                  </span>{" "}
-                  <span className="et">{episode.t}</span>{" "}
-                  <span className="ed">
-                    {episode.air
-                      ? dateFR(episode.air)
-                      : t("screens.media.dateUnknown")}
-                    {episodeState === "in_library"
-                      ? ""
-                      : ` · ${EP_LABEL[episodeState].toLowerCase()}`}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        ) : bound && held ? (
-          /* No episode titles, but the numbers are known: the matrix still
-             answers « which ones are missing ». When the aired total is
-             unknown, go no further than the highest owned episode — beyond
-             it nothing is known, and it says so. */
-          <>
-            <div
-              className="eps"
-              data-part="episode/set"
-              style={{ marginTop: "8px" }}
-            >
-              {Array.from({ length: bound }, (ignored, index) => {
-                const number = index + 1;
-                const episodeState = held.has(number)
-                  ? "in_library"
-                  : "to_grab";
-                return (
-                  <span
-                    className={`ep ${episodeState}`}
-                    data-part="episode"
-                    data-in-library={episodeState === "in_library" || undefined}
-                    key={number}
-                    aria-label={t("screens.media.episodeAria", {
-                      n: number,
-                      // french-ok: the INTERPOLATION placeholder, named by
-                      // `episodeAria` in fr.json — renaming this half alone
-                      // leaves « Épisode 3 — {{etat}} » in the aria-label.
-                      etat: EP_LABEL[episodeState],
-                    })}
-                  >
-                    {String(number).padStart(2, "0")}
-                  </span>
-                );
-              })}
-            </div>
-            {row.aired == null ? (
-              <p className="noinfo" data-part="no-info" style={{ marginTop: "6px" }}>
-                {t("screens.media.beyondEpisode", { n: bound })}
-              </p>
-            ) : (
-              ""
-            )}
-          </>
-        ) : row.aired === 0 || row.aired === null ? (
-          <p className="noinfo" data-part="no-info" style={{ marginTop: "8px" }}>
-            {t("screens.media.seasonAnnounced")}
-          </p>
-        ) : (
-          <p className="noinfo" data-part="no-info" style={{ marginTop: "8px" }}>
-            {t("screens.media.episodesNotDetailed")}
-          </p>
-        );
-        return (
-          <details
-            className="season"
-            data-part="season"
-            key={row.n}
-            open={!(complete || !owns)}
-          >
-            <summary>
-              {/* The blanks between these children are NOT decoration: the
-                  legacy template carried a line break at each of them, and a
-                  reader of `summary.textContent` — the rule that derives the
-                  season number from it, an assistive technology reading the
-                  row — would otherwise see « Saison 33/13 ». `summary` is a
-                  flex container, so a whitespace-only node draws nothing. */}
-              {t("common.season")} {row.n}{" "}
-              <span className="sfr">
-                {row.aired === 0
-                  ? t("screens.media.seasonUpcoming")
-                  : owns
-                    ? `${nbOwn}/${row.aired ?? "?"}`
-                    : `${row.aired ?? "?"} ${t("screens.media.episodesShort")}`}
-              </span>{" "}
-              {owns && missing != null && missing > 0 ? (
-                <span className="miss" data-part="season/missing">
-                  {missing}{" "}
-                  {missing > 1
-                    ? t("common.missingPlural")
-                    : t("common.missing")}
-                </span>
-              ) : (
-                ""
-              )}{" "}
-              {!owns && row.air ? (
-                <span
-                  className="miss" data-part="season/missing"
-                  style={{
-                    background: "transparent",
-                    color: "var(--color-muted-foreground)",
-                    fontWeight: 400,
-                  }}
-                >
-                  {dateFR(row.air)}
-                </span>
-              ) : (
-                ""
-              )}
-            </summary>
-            {missingNums.length ? (
-              <p className="missing">
-                {t("screens.media.missingList", {
-                  // french-ok: the INTERPOLATION placeholder, named by
-                  // `missingList` in fr.json — renaming this half alone
-                  // leaves « Manquants : {{liste}} » on screen.
-                  liste: plages(missingNums),
-                })}
-              </p>
-            ) : (
-              ""
-            )}
-            {body}
-          </details>
-        );
-      })}
-    </div>
-  );
-}
+import { backAction, body as bodyClass, screen, screenBar, scrollport, sectionHeading } from "../../ui/variants";
+import { Icon } from "../../ui/icon";
+import { SkeletonLine, SurfaceError } from "../../ui/state-surfaces";
+import { MediaCast } from "./media-cast";
+import { MediaHero } from "./media-hero";
+import { MediaDetails } from "./media-details";
+import { MediaLibraryFacts } from "./media-library-facts";
+import type { Follow, MediaSheetFields } from "./sheet-fields";
 
 // The banner prefers the wide visual; the vertical poster is only a fallback,
 // and nothing at all when there is neither — same resolution order as the
@@ -381,25 +74,55 @@ export function MediaScreen() {
   const follows = (window.__followActions?.all() ?? []) as Follow[];
   const reference = useMediaReference();
   const { t } = useTranslation();
-  const {
-    icons,
-    baseTitle,
-    CAST,
-    trailerIds,
-    initials,
-  } = reference;
+  const { icons, baseTitle, trailerIds } = reference;
 
   // FROM THE CACHE, BY ADDRESS (invariant 4, DOIT-11). The engine looked its
   // sheet up by TITLE out of a fixture keyed by title; the address is the
   // identity, and it is what the request carries.
-  const { data: answered } = useMediaSheet(provider, id);
-  const sheet = (answered ?? null) as (MediaSheet & MediaSheetFields) | null;
-  const isFilm = sheet ? sheet.k === "movie" : false;
+  const sheetRead = useMediaSheet(provider, id);
+  // WHAT THE TAP KNEW SURVIVES A FAILED READ. The query library drops its
+  // placeholder the moment the read errors — it applies only while `pending` —
+  // so the year, the kind and the cast the screen was showing vanished and the
+  // sheet printed « Métadonnées inconnues » and « le provider n'en fournit
+  // pas » over a server that had answered 502. Those sentences cannot change
+  // when the reality changes, which is the first thing §13 forbids. The
+  // fallback is read from the same source the query primes from, so a failure
+  // costs the reader nothing they already had.
+  const failed = sheetRead.isError;
+  const sheet = (sheetRead.data
+    ?? (failed ? (reference.sheetFor(title) ?? null) : null)) as
+    (MediaSheet & MediaSheetFields) | null;
+  // IN FLIGHT is two states, and reading one of them is reading half. With
+  // placeholder data the query reports `success` and `isPlaceholderData` while
+  // the read is still out; with none — an address no title answers — it
+  // reports `pending`. Either way a part the screen does not have yet is a
+  // part still to come, and the constitution refuses an answer about it
+  // (§13): a skeleton stands where the answer will go. An errored read is not
+  // in flight — it has answered, and the screen prints what it can.
+  const inFlight =
+    sheetRead.isPending || (sheetRead.isPlaceholderData && sheetRead.isFetching);
+  // THE KIND IS THREE-VALUED, and a boolean could not carry the third. Read as
+  // `sheet.k === "movie"` it is FALSE for a placeholder with no `k` — and false
+  // is « series », which the screen then prints as a heading (« Création et
+  // distribution »), as a row label (« Créateur ») and as the SHAPE of the
+  // library block. An assertion is an assertion whichever way it points; `null`
+  // is the answer nobody has yet.
+  const isFilm = sheet?.k === undefined ? null : sheet.k === "movie";
   /* Seasons are DERIVED from the provider catalogue crossed with the numbers
      actually owned. A hand-written table gave seasons to 10 series only, and
      none of them to the INCOMPLETE ones — the very media the question is
      about. */
-  const { data: catalogue } = useMediaSeasons(provider, id);
+  const seasonsRead = useMediaSeasons(provider, id);
+  const catalogue = seasonsRead.data;
+  // The seasons have no placeholder — nothing the tap knew says what is
+  // aired — so their flight is the plain one.
+  const seasonsInFlight = seasonsRead.isPending;
+  // THE SECOND READ FAILS ON ITS OWN, and the screen said nothing about it. The
+  // sheet lands, `seasonsInFlight` goes false, and the library block printed
+  // « Possédés 0 » and « Complétude inconnue » — a count of what the reader
+  // holds, derived from a read that never arrived — with no surface and no way
+  // to ask again.
+  const seasonsFailed = seasonsRead.isError;
   const sorted = seasonsHeld(catalogue)
     .slice()
     .sort((slice, index) => index[0] - slice[0]);
@@ -415,7 +138,44 @@ export function MediaScreen() {
   // A suggestion is NOT in the library: the sheet must say so and offer to
   // add it, not to delete it. Same template, with the only variation reality
   // imposes.
-  const owns = sheet?.possede !== false;
+  // OWNERSHIP IS KNOWN when the sheet we hold carries it, or when the read has
+  // landed carrying nothing — the fixture's own convention for « owned ». A
+  // placeholder thinned to what a list row knows carries neither, and `owns`
+  // read as `possede !== false` is TRUE there: it chose the owned-series block,
+  // « Possédés 0 », « Complétude 0 % » with a warning pip and « 13 manquants »
+  // per season about a medium the reader may not own — then flipped to « non »
+  // when the answer arrived.
+  // « NOT IN FLIGHT » IS NOT « ANSWERED ». A read that FAILED is not in flight
+  // either, and the screen then holds the same thin fallback the tap knew — so
+  // ownership read as `!inFlight` was « known » over a placeholder carrying
+  // nothing, and the whole owned-series block came back through the error door:
+  // « Possédés 0 », « Complétude 0 % », « 13 manquants » in open rows and a
+  // « Supprimer » for a medium the reader may not own. What makes ownership
+  // known is the sheet CARRYING it, or the read having LANDED.
+  // and « success » is not « answered » either: with a placeholder the query
+  // reports success while the read is still out. What answers is a success that
+  // is NOT the placeholder.
+  // AND « KNOWN » IS A BOOLEAN, not « the key is there ». The contract makes
+  // this field NULLABLE and says what null means — the library database is
+  // unavailable — which is the definition of unknown; read as `!== undefined`
+  // it was classed known, and then `possede === true` made it « non ». Measured
+  // on an owned complete series served with a null ownership: « Dans votre
+  // médiathèque non », every owned number gone, the season rows switched to a
+  // catalogue with air dates, and « Suivre » offered for a medium in the
+  // library. A landed sheet with no field at all is unknown for the same
+  // reason: nobody answered.
+  const ownershipKnown = sheet !== null && typeof sheet.possede === "boolean";
+  // AN ANSWER THAT IS NOT « YES » IS NOT « YES ». `possede !== false` reads an
+  // ABSENT ownership as owned, and the contract makes the field nullable
+  // (`MediaSheetResponse.ownership` is required and may be null) — so a sheet
+  // that landed saying nothing about ownership offered « Supprimer de la
+  // médiathèque », a destructive action, over an answer nobody gave. Every
+  // fixture sheet carries the field, which is exactly why nothing here ever
+  // showed it.
+  const owns = sheet?.possede === true;
+  // « Supprimer » offered for a medium nobody has identified is that same
+  // assertion wearing a destructive button, so the actions read the same flag.
+  const identified = ownershipKnown;
   // The FIRST of the two follow tests, and it is deliberately the LOOSE one:
   // it matches on the base title, so « Silo » follows « Silo (2023) ». The
   // « Informations » block below asks the SAME question with a STRICTER test
@@ -434,14 +194,32 @@ export function MediaScreen() {
     0,
   );
   const prov = sheet?.ids ?? {};
+  // THE ADDRESS THE READER NAVIGATED WITH IS KNOWN AT FRAME ONE, and a skeleton
+  // stood over it while the sheet was out. The canonical form prefers the
+  // provider the sheet names; until it answers, the route's own address is what
+  // the screen honestly has.
   const url = prov.tvdb
     ? `/media/tvdb/${prov.tvdb}`
     : prov.tmdb
       ? `/media/tmdb/${prov.tmdb}`
-      : null;
+      : (inFlight || failed) && provider && id
+        ? // WHILE THE SHEET IS OUT, AND AFTER IT FAILS. Once the read has
+          // ANSWERED with nothing, the medium is not identified and printing an
+          // address for it would say the opposite of what the read found. A
+          // failure is not that answer: the address the reader navigated with
+          // is still the address they navigated with, and « média non
+          // identifié » over a 502 sat one block above the title the hero
+          // prints in 30 px.
+          `/media/${provider}/${id}`
+        : null;
   const artwork = artworkFor(reference, title);
-  // The link exists or it does not; where one arrives from changes nothing.
-  const trailer = trailerIds[title] ?? trailerIds[baseTitle(title)] ?? null;
+  // THE SERVED FIELD FIRST, and the reference only as what the tap knew. The
+  // payload carries `trailerVideo` and the screen read none of it: a synchronous
+  // lookup in the engine's fixture answered at frame one, so the skeleton drawn
+  // while the sheet is out stood over an absence already known — and a served
+  // trailer the fixture does not hold would never have appeared.
+  const trailer = ((sheet?.trailerVideo as Trailer | undefined)
+    ?? trailerIds[title] ?? trailerIds[baseTitle(title)] ?? null);
 
   return (
     <section
@@ -467,95 +245,35 @@ export function MediaScreen() {
         </span>
       </div>
       <div className={scrollport()} data-part="viewport">
-        <div className={bodyClass()} data-part="surface/body" data-region="screen-media/body">
-          <div
-            className={heroWrap({ poster: Boolean(artwork) })}
-            data-part="hero"
-            data-no-poster={!artwork || undefined}
-          >
-            <div
-              className={heroImage({ poster: Boolean(artwork) })}
-              data-part="hero/background"
-              aria-hidden="true"
-              style={
-                artwork ? { backgroundImage: `url('${artwork}')` } : undefined
-              }
-            ></div>
-            <div className={heroText()} data-part="hero/content">
-              <h2 className={heroTitle()} data-part="hero/title">{title.split(" (")[0]}</h2>
-              <p className={heroMeta()}>
-                {sheet
-                  ? `${sheet.y || t("screens.media.yearUnknown")} · ${isFilm ? t("common.film") : t("common.series")}${sheet.duree ? ` · ${sheet.duree} ${t("screens.media.minutesShort")}` : ""}`
-                  : t("screens.media.metadataUnknown")}{" "}
-                {sheet?.g ? (
-                  <>
-                    <br />
-                    {sheet.g}
-                  </>
-                ) : (
-                  <>
-                    <br />
-                    {t("screens.media.genresUnknown")}
-                  </>
-                )}{" "}
-                {sheet && !isFilm && sheet.status ? (
-                  <>
-                    <br />
-                    {t("screens.media.seriesStatus", {
-                      // french-ok: the INTERPOLATION placeholder, named by
-                    // `seriesStatus` in fr.json — renaming this half alone
-                    // leaves « Série {{statut}} » on screen.
-                    statut: sheet.status.toLowerCase(),
-                    })}
-                  </>
-                ) : (
-                  ""
-                )}
-              </p>
-              {sheet?.note ? (
-                <span className={heroNote()}>
-                  <Icon paths={icons.star} />
-                  {String(sheet.note).replace(".", ",")}
-                  <span
-                    style={{
-                      color: "var(--color-muted-foreground)",
-                      fontWeight: 400,
-                    }}
-                  >
-                    {" "}
-                    {t("screens.media.ratingSource")}
-                  </span>
-                </span>
-              ) : (
-                ""
-              )}
-            </div>
-          </div>
-
-          {trailer ? (
-            <a
-              className={trailerRow()}
-              data-part="media/trailer"
-              href={`https://www.youtube.com/watch?v=${trailer.key}`}
-              target="_blank"
-              rel="noopener"
-              data-yt={trailer.key}
-            >
-              <span className={trailerPlay()}>
-                <Icon paths={icons.play} />
-              </span>{" "}
-              <span>
-                {t("screens.media.trailer")}
-                <small>{trailer.name}</small>
-              </span>{" "}
-              <span className={trailerSource()}>
-                <Icon paths={icons.ext} />
-                YouTube
-              </span>
-            </a>
-          ) : (
-            <p className="noinfo" data-part="no-info">{t("screens.media.noTrailer")}</p>
-          )}
+        {/* A SKELETON SAYS « NOT YET » TO AN EYE AND NOTHING AT ALL TO A SCREEN
+            READER, which would otherwise meet a heading followed by silence.
+            `aria-busy` is what says the silence is temporary. */}
+        <div
+          className={bodyClass()}
+          data-part="surface/body"
+          data-region="screen-media/body"
+          aria-busy={inFlight || seasonsInFlight || undefined}
+        >
+          {/* AND THE FAILURE IS SAID, ONCE, WHERE A READER MEETS IT. Keeping
+              what the tap knew is half the answer; the other half is that the
+              screen is not silently stale. It stands above the parts it
+              qualifies and carries the retry every error surface here does. */}
+          {failed ? (
+            <SurfaceError
+              subject={t("screens.media.sheetSubject")}
+              // WHAT THE SERVER SAID, not what a constant sentence guesses it
+              // said. The shared body asserts a timeout; this read failed with
+              // a status and a reason in hand, and « the server did not answer
+              // in time » over a 502 that answered is that constant.
+              detail={isRequestFailure(sheetRead.error) ? sheetRead.error.detail : undefined}
+              // AND THE RETRY RE-ASKS THIS READ. The delegated attribute writes
+              // a page's UI phase and re-asks nothing — on a screen that owns
+              // its query that is a button saying « Réessayer » and doing
+              // something else.
+              onRetry={() => void sheetRead.refetch()}
+            />
+          ) : null}
+          <MediaHero title={title} sheet={sheet} isFilm={isFilm} artwork={artwork} trailer={trailer} inFlight={inFlight} failed={failed} />
 
           <div>
             <h2 className={sectionHeading()} data-part="heading" style={{ marginBottom: "6px" }}>
@@ -569,238 +287,52 @@ export function MediaScreen() {
                 color: "var(--color-muted-foreground)",
               }}
             >
-              {sheet?.ov ? sheet.ov : t("screens.media.synopsisUnknown")}
+              {sheet?.ov
+                ? sheet.ov
+                : inFlight
+                  ? <SkeletonLine width="full" />
+                  : // « LE PROVIDER N'EN FOURNIT PAS » IS AN ANSWER, and a read
+                    // that failed did not get one. Same rule as the trailer's.
+                    t(failed ? "screens.media.synopsisUnread" : "screens.media.synopsisUnknown")}
             </p>
           </div>
 
-          <div>
-            <h2 className={sectionHeading()} data-part="heading" style={{ marginBottom: "8px" }}>
-              {isFilm
-                ? t("screens.media.castHeadingFilm")
-                : t("screens.media.castHeadingSeries")}
-            </h2>
-            <div className={factsPanel()} data-part="panel" style={{ marginBottom: "10px" }}>
-              <div className={keyValueRow()} data-part="key-value">
-                <span>
-                  {isFilm
-                    ? t("screens.media.director")
-                    : t("screens.media.creator")}
-                </span>
-                <span>
-                  {(isFilm ? sheet?.real : sheet?.crea) ??
-                    t("screens.media.unknown")}
-                </span>
-              </div>
-            </div>
-            {sheet?.cast?.length ? (
-              <div
-                className={castList()}
-                data-part="cast"
-                data-noswipe=""
-                tabIndex={0}
-                role="group"
-                aria-label={
-                  isFilm
-                    ? t("screens.media.castHeadingFilm")
-                    : t("screens.media.castHeadingSeries")
-                }
-              >
-                {sheet.cast.map((cast) => (
-                  <figure key={cast.n} className={castFigure()}>
-                    <span className={castPortrait()} data-part="cast/avatar">
-                      {CAST[cast.n] ? (
-                        <img src={CAST[cast.n]} alt="" loading="lazy" />
-                      ) : (
-                        initials(cast.n)
-                      )}
-                    </span>
-                    <figcaption className={castCaption()}>
-                      <b>{cast.n}</b>
-                      <span>{cast.r || t("screens.media.roleUnknown")}</span>
-                    </figcaption>
-                  </figure>
-                ))}
-              </div>
-            ) : (
-              <p className="noinfo" data-part="no-info">{t("screens.media.castUnknown")}</p>
-            )}
-          </div>
+          <MediaCast sheet={sheet} isFilm={isFilm} inFlight={inFlight} failed={failed} />
 
-          <div>
-            <h2 className={sectionHeading()} data-part="heading" style={{ marginBottom: "6px" }}>
-              {t("screens.media.library")}
-            </h2>
-            <div className={factsPanel()} data-part="panel">
-              {!owns ? (
-                <>
-                  <div className={keyValueRow()} data-part="key-value">
-                    <span>{t("screens.media.inLibrary")}</span>
-                    <span>
-                      <span className={statusDot({ tone: "neutral" })} data-part="status-dot"></span>
-                      {t("screens.media.no")}
-                    </span>
-                  </div>
-                  <div className={keyValueRow()} data-part="key-value">
-                    <span>{t("screens.media.follow")}</span>
-                    <span>
-                      {followed
-                        ? t("screens.media.followActive")
-                        : t("screens.media.followInactive")}
-                    </span>
-                  </div>
-                  {catalog.length ? (
-                    <div className={keyValueRow()} data-part="key-value">
-                      <span>{`${t("screens.media.catalogue")} ${isFilm ? "" : t("screens.media.catalogueKnown")}`}</span>
-                      <span>
-                        {`${catalog.length} ${catalog.length > 1 ? t("screens.media.seasonLowerPlural") : t("screens.media.seasonLower")} · ${catalogEp} ${t("screens.media.episodes")}`}
-                      </span>
-                    </div>
-                  ) : (
-                    ""
-                  )}
-                </>
-              ) : isFilm ? (
-                <>
-                  <div className={keyValueRow()} data-part="key-value">
-                    <span>{t("screens.media.owned")}</span>
-                    <span>
-                      <span className={statusDot({ tone: "success" })} data-part="status-dot"></span>
-                      {t("screens.media.yes")}
-                    </span>
-                  </div>
-                  <div className={keyValueRow()} data-part="key-value">
-                    <span>{t("screens.media.file")}</span>
-                    <span
-                      style={{
-                        fontFamily: "ui-monospace,Menlo,monospace",
-                        fontSize: "11px",
-                      }}
-                    >
-                      {`${baseTitle(title)}.${sheet?.y ?? "2026"}.MULTi.1080p.mkv`}
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className={keyValueRow()} data-part="key-value">
-                    <span>{t("screens.media.seasons")}</span>
-                    <span>{sorted.length || t("screens.media.unknown")}</span>
-                  </div>
-                  <div className={keyValueRow()} data-part="key-value">
-                    <span>{t("screens.media.airedEpisodes")}</span>
-                    <span>{aired || t("screens.media.unknown")}</span>
-                  </div>
-                  <div className={keyValueRow()} data-part="key-value">
-                    <span>{t("screens.media.ownedPlural")}</span>
-                    <span>{own}</span>
-                  </div>
-                  <div className={keyValueRow()} data-part="key-value">
-                    <span>{t("screens.media.completeness")}</span>
-                    <span>
-                      <span
-                        className={`pip ${pct === 100 ? "success" : pct === null ? "neutral" : "warning"}`} data-part="status-dot"
-                      ></span>
-                      {pct === null
-                        ? t("screens.media.unknownFeminine")
-                        : pct + " %"}
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
-            <SeasonList
-              sheet={sheet}
-              seasons={sorted}
-              owns={owns}
-              catalog={catalog}
-              title={title}
+          {/* A FILM HAS NO SEASONS, so a failed seasons read is nothing to tell
+              its reader about. The read is issued for every address — the kind
+              arrives with the sheet, after it — and a backend answering 404 on
+              a film's seasons would have raised this surface under every owned
+              film. It is drawn for what is not a film, the unknown kind
+              included: with the kind still out, a failure is worth saying. */}
+          {seasonsFailed && isFilm !== true ? (
+            <SurfaceError
+              subject={t("screens.media.seasonsSubject")}
+              detail={isRequestFailure(seasonsRead.error) ? seasonsRead.error.detail : undefined}
+              onRetry={() => void seasonsRead.refetch()}
             />
-          </div>
+          ) : null}
+          <MediaLibraryFacts
+            failed={failed}
+            ownershipKnown={ownershipKnown}
+            seasonsFailed={seasonsFailed}
+            inFlight={inFlight}
+            sheet={sheet}
+            isFilm={isFilm}
+            owns={owns}
+            followed={followed}
+            seasons={sorted}
+            own={own}
+            aired={aired}
+            pct={pct}
+            catalog={catalog}
+            catalogEp={catalogEp}
+            title={title}
+            seasonsInFlight={seasonsInFlight}
+            sheetInFlight={inFlight}
+          />
 
-          <div>
-            <h2 className={sectionHeading()} data-part="heading" style={{ marginBottom: "6px" }}>
-              {t("screens.media.information")}
-            </h2>
-            <div className={factsPanel()} data-part="panel">
-              <div className={keyValueRow()} data-part="key-value">
-                <span>{t("screens.media.follow")}</span>
-                {/* The SECOND follow test, and the strict one: an exact title
-                    match, or an exact match on the title without its year
-                    suffix. The hero block above answers the same question
-                    through `baseTitle` on BOTH sides — a follow recorded
-                    under a different year suffix reads « actif » there and
-                    « non suivi » here. Transplanted as found. */}
-                <span>
-                  {follows.some(
-                    (follow) =>
-                      follow.t === title || follow.t === title.split(" (")[0],
-                  )
-                    ? t("screens.media.followActive")
-                    : t("screens.media.followInactive")}
-                </span>
-              </div>
-              {Object.entries(prov).map(([key, value]) => (
-                <div className={keyValueRow()} data-part="key-value" key={key}>
-                  <span>{key.toUpperCase()}</span>
-                  <span
-                    style={{
-                      fontFamily: "ui-monospace,Menlo,monospace",
-                      fontSize: "11px",
-                    }}
-                  >
-                    {String(value)}
-                  </span>
-                </div>
-              ))}
-              <div className={keyValueRow()} data-part="key-value">
-                <span>{t("screens.media.metadataRefreshed")}</span>
-                <span>{t("screens.media.metadataRefreshedValue")}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className={sheetActions({ secondary: true })} data-part="sheet/actions">
-            {owns ? (
-              <>
-                <button
-                  className={`sact ${actionButton()}`}
-                  data-part="sheet/action"
-                  data-toast={t("screens.media.rescrapeToast")}
-                >
-                  <Icon paths={icons.refresh} />
-                  {t("screens.media.rescrape")}
-                </button>{" "}
-                <button className={`sact danger ${actionButton()}`} data-part="sheet/action" data-tone="danger" data-del={title}>
-                  <Icon paths={icons.trash} />
-                  {t("screens.media.delete")}
-                </button>
-              </>
-            ) : followed ? (
-              <button className={`mediaadd done ${actionButton()}`} data-part="media/add" disabled>
-                <Icon paths={icons.check} />
-                {isFilm
-                  ? t("screens.media.added")
-                  : t("screens.media.followed")}
-              </button>
-            ) : (
-              // No sheet-refresh attribute: the legacy button asked the sheet to
-              // REOPEN itself so the label would flip under the finger. This
-              // screen re-renders from the store instead — the follow act
-              // bumps it, and the button becomes `mediaadd done` in place.
-              <button
-                className={`mediaadd ${actionButton()}`}
-                data-part="media/add"
-                data-follow={title}
-                // french-ok: a data-* VALUE, frozen with the DOM contract
-                data-fkind={isFilm ? "Film" : "Série"}
-              >
-                <Icon paths={icons.plus} />
-                {isFilm
-                  ? t("screens.media.add")
-                  : t("screens.media.followVerb")}
-              </button>
-            )}
-          </div>
+          <MediaDetails title={title} isFilm={isFilm} owns={owns} followed={followed} follows={follows} prov={prov} inFlight={inFlight} identified={identified} />
 
           <div className="note" data-part="note">
             <b>{t("screens.media.noteTitle")}</b> {t("screens.media.noteBody")}

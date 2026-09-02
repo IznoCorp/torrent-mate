@@ -41,6 +41,26 @@ export const emptyNote = cva(
     "text-3 text-muted-foreground leading-[1.5]",
 );
 
+/**
+ * One line of a skeleton, standing where a sentence will go while its read is
+ * in flight. The BOX is the variant's — a width that says roughly how long the
+ * sentence will be, and a height that is the LINE's rather than the box's:
+ * `--spacing-8` is 18 px, which is `--text-3` at the 1.55 the body sets, so the
+ * blocks below a skeleton do not move when the sentence lands. The first
+ * version stood 8 px tall and every block under it rose ten when the read
+ * arrived — a layout shift a placeholder exists to prevent. The shimmer is the residue's `sk`,
+ * with its reduced-motion guard, worn as a literal class beside this exactly
+ * as `Skeletons` wears `sk tile`: the anchor is deliberately NOT in this
+ * string, because a variant wearing a residue anchor owes the residue's every
+ * term (R80), and the shimmer moves here the day the residue dies.
+ */
+export const skeletonLine = cva("block h-8 rounded-2", {
+  variants: {
+    width: { full: "w-full", wide: "w-4/5", half: "w-1/2", short: "w-1/3" },
+  },
+  defaultVariants: { width: "wide" },
+});
+
 /** A surface in error: it names the cause and offers a retry. */
 export const surfaceError = cva(
   "surferr [border:1px_solid_color-mix(in_oklab,var(--color-danger)_45%,transparent)] " +

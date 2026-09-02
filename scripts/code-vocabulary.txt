@@ -341,6 +341,7 @@ expanded
 fab
 fact
 facts
+failed
 failing
 failure
 fallback
@@ -371,6 +372,8 @@ floor
 flux
 fmode
 focus
+focusable
+focused
 folder
 follow
 followed
@@ -404,6 +407,7 @@ gate
 gauche
 gauge
 generation
+geometry
 gesture
 get
 go
@@ -428,6 +432,7 @@ header
 heading
 health
 height
+heir
 held
 hello
 hero
@@ -451,6 +456,7 @@ icon
 icons
 id
 idempotency
+identified
 identifier
 identifiers
 identify
@@ -574,6 +580,7 @@ map
 maquette
 margin
 mark
+markup
 match
 matched
 matches
@@ -648,6 +655,7 @@ number
 numbers
 numeric
 nums
+object
 observer
 of
 offer
@@ -682,6 +690,7 @@ overview
 owed
 own
 owned
+ownership
 owns
 page
 pages
@@ -719,7 +728,9 @@ pilot
 ping
 pipe
 pipeline
+pitch
 pixels
+place
 platform
 play
 point
@@ -765,6 +776,7 @@ qsettings
 qualifier
 quality
 query
+question
 queue
 queued
 quiet
@@ -775,6 +787,7 @@ ratify
 raw
 react
 read
+reader
 ready
 real
 reason
@@ -883,6 +896,7 @@ screenshots
 scrim
 scripted
 scroll
+scrolled
 scroller
 scrollport
 seam
@@ -978,6 +992,7 @@ stall
 stalling
 stamped
 standard
+standing
 start
 startup
 state
@@ -1052,6 +1067,7 @@ the
 theme
 there
 threshold
+ticked
 tied
 tier
 tight

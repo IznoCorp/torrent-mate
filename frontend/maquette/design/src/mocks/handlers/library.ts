@@ -164,6 +164,13 @@ export function libraryRoutes(): MockRoute[] {
       const titles = Array.isArray(asked) ? asked.map(String) : [];
       const before = state.library.length;
       state.library = state.library.filter((row) => !titles.includes(row.title));
+      // AND THE SHEETS ARE TOLD. Ownership on a media sheet comes from a seed
+      // keyed by title, so filtering the listing left every sheet answering as
+      // before — and a reader who reopened one after confirming was offered
+      // « Supprimer » a second time, over a toast saying it was done.
+      for (const title of titles) {
+        if (!state.deletedTitles.includes(title)) state.deletedTitles.push(title);
+      }
       return { deleted: before - state.library.length };
     }),
   ];

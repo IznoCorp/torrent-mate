@@ -15,8 +15,8 @@
 // needed » contract finally has a subject. Decode, then fade. Never snap.
 //
 // WHY IT INSTALLS FROM `app/` AGAINST THE NODE AS IT STANDS: the hero is drawn
-// by `features/media/media-screen.tsx`, one of L14's four grandfathered files
-// this lot may not extend. The posture is `drawer-gesture.ts`'s and
+// by `features/media/media-hero.tsx`, which the media screen composes, and this
+// file adds nothing to it. The posture is `drawer-gesture.ts`'s and
 // `focus.ts`'s — watch what the markup already emits, add nothing to it.
 //
 // ─────────────────────────────────────────────────────────────────────────────

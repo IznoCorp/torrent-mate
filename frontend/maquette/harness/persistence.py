@@ -35,9 +35,18 @@ WHAT IT DOES NOT READ, said before what it does:
     walk never touches is outside it. What the walk DOES cover is every state
     the interface declares it can be in, which is the corpus every other rule
     here is measured over.
-  - The store bump is `window.__store.touch()` — the same call every engine
-    action ends in. A bump made another way is not a different case; that is
-    the one door.
+  - `touch()` was called « the one door » here, and it is not: it bumps the
+    version alone, so a surface reading `useUiState()` bails out of it and
+    re-renders on `write()` instead. Hold (f) drives BOTH, and the sentence that
+    said otherwise stood while the hold below already contradicted it.
+  - Hold (f) reads a PAGE's own nodes — cards, tiles, rows, buttons, pills,
+    images, key-value rows — on the named states listed below, and NOT the containers
+    the dying engine fills on Découvrir (`#sugitems`, the deck): those are
+    the producers' half of the same defect, and no surface here owns them. Nor a write that legitimately redraws — entering selection
+    mode, a sort, a delete: the bump driven is `touch()`, which changes no
+    row. And not `features/maintenance/page.tsx`, where the defect was first
+    seen: it is held by nobody yet and this hold says so rather than reading
+    a surface the repair did not reach.
 """
 import asyncio
 import sys
@@ -55,6 +64,72 @@ from playwright.async_api import async_playwright
 CAPTURE = """() => {
   window.__persistenceProbe = [...document.querySelectorAll('#nav button')];
   return window.__persistenceProbe.length;
+}"""
+
+# (f) THE PAGE'S OWN NODES — B-247's surface half. A store write between
+# `pointerdown` and `click` replaced a page's DOM nodes and the tap was lost:
+# no event, no error. The chrome was held (b, c); a page's rows had the same
+# property and nothing read it. Two mechanisms, both repaired in the surfaces:
+# React 19 assigns `innerHTML` on the prop OBJECT's identity, so every inline
+# `{ __html }` recreated its children on every render (B-295, `ui/markup.tsx`);
+# and the library's window was keyed on the store's version, so every bump
+# emptied it. The states below cover the two acquisition tabs React draws,
+# the library in both modes, and the two screens over a page; a floor on the
+# nodes captured keeps a state that draws nothing from passing as kept.
+# THE GROUPED FOLLOWS ARE HERE BECAUSE THE MEASUREMENT THAT OPENED THIS SUBJECT
+# NAMED THEM — 12 nodes of 77 kept — and the first version of this hold drove the
+# two neighbouring branches and not that one. It is also the site whose markup is
+# rebuilt per render from a group and its items, so it is the one most able to
+# defeat a memo on the string.
+#
+# `lib-incomplete` is here for the opposite reason: its two memoised sites were
+# repaired and nothing drove them, so « repaired » rested on a reading nobody
+# took.
+PAGE_STATES = (
+    ("acq-now-loaded", 10), ("acq-follows-list", 10), ("acq-follows-grid", 10),
+    ("acq-follows-group", 10), ("lib-list", 10), ("lib-grid", 10),
+    ("lib-incomplete", 10), ("mediasheet-series", 10), ("arr-resolution", 10),
+)
+# `path` IS IN THIS LIST, and it is not thoroughness. An icon's paths are markup
+# handed to React like any other, so they were rebuilt on every parent render —
+# and the browser delivers no click at all when the `pointerdown` target has left
+# the document, whatever survives above it. A press landing on the stroke of an
+# icon-only control was lost, and a selector naming only the button was green
+# over it.
+PAGE_SELECTOR = (
+    '#view [data-part="card"], #view [data-part="tile"], #view button, '
+    '#view [data-part="pill"], #view img, #view svg path, '
+    '[data-part="screen"][data-open] button, '
+    '[data-part="screen"][data-open] [data-part="episode/row"], '
+    '[data-part="screen"][data-open] [data-part="card"], '
+    '[data-part="screen"][data-open] [data-part="key-value"], '
+    '[data-part="screen"][data-open] img, '
+    '[data-part="screen"][data-open] svg path'
+)
+# The states whose subject is a SCREEN over a page: their floor is read on the
+# screen's own nodes as well as on the union.
+SCREEN_STATES = ("mediasheet-series", "arr-resolution")
+PAGE_CAPTURE = """(selector) => {
+  window.__pageProbe = [...document.querySelectorAll(selector)];
+  return window.__pageProbe.length;
+}"""
+PAGE_SAME = """(selector) => {
+  const before = window.__pageProbe || [];
+  const now = [...document.querySelectorAll(selector)];
+  const same = before.filter((node, at) => node.isSameNode(now[at])).length;
+  return { before: before.length, now: now.length, same,
+           lost: before.filter((node) => !node.isConnected).slice(0, 3).map(
+             (node) => (node.dataset && node.dataset.part) || node.tagName) };
+}"""
+
+# HOW MANY OF THE CAPTURED NODES ARE THE SCREEN'S OWN. On a state that opens a
+# screen the selector unions the page BENEATH it, so a floor on the total is met
+# by the library's own rows and a screen drawing nothing would pass. The floor
+# has to be on the set the state is about.
+SCREEN_OWN = """(selector) => {
+  const screen = document.querySelector('[data-part="screen"][data-open]');
+  return screen ? [...document.querySelectorAll(selector)].filter(
+    (node) => screen.contains(node)).length : -1;
 }"""
 
 SAME = """() => {
@@ -245,6 +320,205 @@ async def main():
             str(undo))
         await page.evaluate("()=>window.__toast.hide()")
         await page.wait_for_timeout(200)
+
+        # (f) THE PAGE'S OWN NODES, across the same bump, on every surface the
+        # surfaces repaired here. `isSameNode` by position, as (b) does: a
+        # replacement node satisfies every other question.
+        # BOTH DOORS, and driving one of them was reading half. `touch()` bumps
+        # `version` alone, so a surface subscribed to `version` re-renders and a
+        # surface reading `useUiState()` bails out — which is most of them. The
+        # engine's own actions call `store.write`, which produces a new state
+        # object and re-renders BOTH. So the door the first version of this hold
+        # did not drive is the one that reaches the surfaces it did not name.
+        for state, floor in PAGE_STATES:
+            for door, bump in (("touch", "()=>window.__store.touch()"),
+                               ("write", "()=>window.__store.write({})")):
+                await page.evaluate("(id)=>window.__go(id)", state)
+                await page.evaluate("()=>window.__mocks?.quiet()")
+                await page.wait_for_timeout(300)
+                captured = await page.evaluate(PAGE_CAPTURE, PAGE_SELECTOR)
+                await page.evaluate(bump)
+                await page.wait_for_timeout(250)
+                kept = await page.evaluate(PAGE_SAME, PAGE_SELECTOR)
+                own = await page.evaluate(SCREEN_OWN, PAGE_SELECTOR)
+                if state in SCREEN_STATES:
+                    journal.check(
+                        f"on {state}, the SCREEN itself draws the nodes this "
+                        "hold is about — the floor is on its own set",
+                        own >= floor,
+                        f"{own} of {captured} captured are the screen's")
+                journal.check(
+                    f"on {state}, the page's own nodes are the SAME nodes after "
+                    f"a store {door} (B-247, B-295)",
+                    captured >= floor and kept["now"] == captured
+                    and kept["same"] == captured,
+                    f"{captured} captured (floor {floor}), {kept['now']} after, "
+                    f"{kept['same']} same; lost: {kept['lost']}")
+
+        # (g) A ROW WHOSE MARKUP CHANGES UNDER THE READER KEEPS THEIR PLACE.
+        #
+        # The window replaces a live row when its markup moves, which is what
+        # makes a delete leave the screen at once — and toggling a checkbox in
+        # selection mode moves it: the engine bakes `aria-pressed` into the
+        # string. So the node the reader just pressed is replaced, and without
+        # care keyboard focus goes to the document root on every toggle of the
+        # mode built for going through a library. The state reads right either
+        # way, which is why every hold that reads attributes was green over it.
+        await page.evaluate("()=>window.__go('lib-list')")
+        await page.evaluate("()=>window.__mocks?.quiet()")
+        await page.wait_for_timeout(300)
+        await page.evaluate("()=>window.__store.write({selMode: true})")
+        await page.wait_for_timeout(250)
+        toggled = await page.evaluate("""() => {
+          const rows = [...document.querySelectorAll('#libitems [data-tile]')];
+          const row = rows[2];
+          if (!row) return { drawn: 0 };
+          row.focus();
+          const before = document.activeElement === row;
+          window.__toggledRow = row;
+          row.click();
+          return { drawn: rows.length, before,
+                   scrolled: document.querySelector('#port').scrollTop,
+                   index: row.getAttribute('data-tile') };
+        }""")
+        journal.check(
+            "selection mode draws rows that can take focus — the hold below "
+            "has a subject",
+            toggled.get("drawn", 0) > 2 and toggled.get("before"),
+            f"{toggled.get('drawn')} row(s), focus placed: {toggled.get('before')}")
+        await page.wait_for_timeout(300)
+        kept_focus = await page.evaluate("""(index) => {
+          const active = document.activeElement;
+          const row = document.querySelector(`#libitems [data-tile="${index}"]`);
+          return { onTheRow: !!(row && active === row),
+                   // THE NODE MUST HAVE CHANGED, or this hold is green on a
+                   // window that keeps every row — where the reader's place was
+                   // never at risk. Its own title says the markup and the node
+                   // moved; without this it proved only the first half.
+                   replaced: !!(row && window.__toggledRow
+                                && !window.__toggledRow.isSameNode(row)),
+                   scrolled: document.querySelector('#port').scrollTop,
+                   pressed: row ? row.getAttribute('aria-pressed') : null,
+                   active: active ? (active.tagName + (active.getAttribute
+                     ? ' ' + (active.getAttribute('data-tile') || '') : '')) : null };
+        }""", toggled.get("index"))
+        journal.check(
+            "and toggling one keeps the reader's place on it, though its "
+            "markup — and so its node — has changed",
+            kept_focus["onTheRow"] and kept_focus["replaced"]
+            and kept_focus["pressed"] == "true"
+            and kept_focus["scrolled"] == toggled.get("scrolled"),
+            f"aria-pressed {kept_focus['pressed']!r}, focus on "
+            f"{kept_focus['active']!r}, the node was replaced: "
+            f"{kept_focus['replaced']}, the port stayed at "
+            f"{kept_focus['scrolled']} (was {toggled.get('scrolled')})")
+        await page.evaluate("()=>window.__store.write({selMode: false})")
+        await page.wait_for_timeout(200)
+
+        # (g-i) AND A ROW REPLACED OUT OF VIEW DOES NOT DRAG THE PORT TO IT.
+        # The window keeps four lines beyond each edge, so a live row is often
+        # off screen — and its markup moves for reasons that have nothing to do
+        # with the reader: a delete ABOVE it shifts every row below. Restoring
+        # focus without saying « do not scroll » then pulls the whole list back
+        # to a row nobody was looking at.
+        # ON THE GRID, because a tile IS a button and a browse-mode list row is
+        # a `<div>` with no tabindex — `focus()` on one does nothing, so the
+        # case cannot arise there and a hold driving it would measure nothing.
+        await page.evaluate("()=>window.__go('lib-grid')")
+        await page.evaluate("()=>window.__mocks?.quiet()")
+        await page.wait_for_timeout(400)
+        await page.evaluate("()=>window.__mocks?.setOffline(true)")
+        moved = await page.evaluate("""(row) => {
+          const rows = [...document.querySelectorAll(row)];
+          const first = rows[0] && rows[0].querySelector('[data-part="tile/title"]');
+          const target = rows[2];
+          if (!target || !first) return { drawn: rows.length };
+          target.focus();
+          const port = document.querySelector('#port');
+          port.scrollTop = port.scrollTop + 700;
+          // KEPT SO THE HOLD CAN ASK WHETHER THE DELETE REACHED IT.
+          window.__watchedTile = target;
+          return { drawn: rows.length, focused: document.activeElement === target,
+                   scrolled: port.scrollTop,
+                   above: first.textContent.trim() };
+        }""", '#libitems [data-part="tile"]')
+        await page.wait_for_timeout(250)
+        if moved.get("above"):
+            await page.evaluate(
+                "(title)=>window.__deleteLibraryItems([title])", moved["above"])
+            await page.wait_for_timeout(300)
+            settled = await page.evaluate(
+                "()=>Math.round(document.querySelector('#port').scrollTop)")
+            # DID THE DELETE ACTUALLY REACH THE ROW? The check below is
+            # satisfied by a build in which NOTHING happened: stub the delete to
+            # a no-op and the port has not moved, so « it did not drag the port »
+            # is green over a window that never redrew. The watched tile leaving
+            # the document is what says there was something to measure — the
+            # same vacuity found in hold (g) and closed there, reproduced here
+            # by the repair that closed it.
+            replaced = await page.evaluate(
+                "()=>!(window.__watchedTile && window.__watchedTile.isConnected)")
+            journal.check(
+                "the tile focused was live, out of view, and its markup moved "
+                "— the hold below has a subject",
+                moved.get("focused") and moved.get("drawn", 0) > 6,
+                f"{moved.get('drawn')} tile(s), focus taken: "
+                f"{moved.get('focused')}, deleting {moved.get('above')!r} above it")
+            journal.check(
+                "the delete reached the window — the watched tile left the "
+                "document, so the hold below measures a redraw and not a page "
+                "where nothing happened",
+                replaced,
+                f"the focused tile is still in the document: {not replaced}")
+            journal.check(
+                "a row replaced while OUT of view does not pull the port back "
+                "to it — focus is restored where the reader left it, not the "
+                "scroll",
+                abs(settled - round(moved["scrolled"])) < 40,
+                f"the port was at {round(moved['scrolled'])} and is at "
+                f"{settled} after a row above was deleted")
+        await page.evaluate("()=>window.__mocks?.setOffline(false)")
+        await page.wait_for_timeout(150)
+
+        # (g-ii) A ROW THAT LEFT THE DOCUMENT IS DRAWN AGAIN. The window keeps a
+        # node and the string it was built from, per index, and skips any row
+        # whose string has not moved — so a node removed from the document by
+        # anything other than the window itself was never redrawn: `replaceWith`
+        # on a parentless node is a no-op, and the map held the dead one until
+        # its index left the window. The guard for it was written, then deleted
+        # by a commit whose message says it was moved, and nothing read it
+        # either way. Driven by hand because no engine path removes a library
+        # row today: the contract is the window's, and a contract nobody drives
+        # is a comment.
+        detached = await page.evaluate("""(row) => {
+          const rows = [...document.querySelectorAll(row)];
+          const target = rows[3];
+          if (!target) return { drawn: rows.length };
+          const name = (node) => (node.querySelector('[data-part="tile/title"]')
+                                  || node).textContent.trim();
+          const title = name(target);
+          const before = rows.length;
+          target.remove();
+          const afterRemoval = document.querySelectorAll(row).length;
+          window.__store.touch();
+          return new Promise((done) => setTimeout(() => {
+            const now = [...document.querySelectorAll(row)];
+            done({ drawn: before, afterRemoval, redrawn: now.length,
+                   at: now.findIndex((node) => name(node) === title) });
+          }, 300));
+        }""", '#libitems [data-part="tile"]')
+        if detached.get("redrawn") is not None:
+            journal.check(
+                "a row taken out of the document by something other than the "
+                "window is drawn again, at its own position, on the next write "
+                "— a node the document no longer holds cannot be replaced in "
+                "place, so forgetting it is the only way back",
+                detached["afterRemoval"] == detached["drawn"] - 1
+                and detached["redrawn"] == detached["drawn"]
+                and detached["at"] == 3,
+                f"{detached['drawn']} tile(s), {detached['afterRemoval']} after "
+                f"removing one by hand, {detached['redrawn']} after a write; the "
+                f"row came back at {detached['at']}, expected 3")
 
         # (e) THE POSITIVE CONTROL FOR (a), and it comes LAST because it
         # destroys the document every hold above measures. One real navigation:

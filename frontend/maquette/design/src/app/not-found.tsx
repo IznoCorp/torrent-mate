@@ -10,6 +10,7 @@ import type { ReactElement } from "react";
 import { useEngineDrawing } from "../lib/engine-drawing";
 import { useUiState } from "../lib/store-access";
 import { actionButton, crossReference, crossReferenceLink, emptyNote } from "../ui/variants";
+import { Markup } from "../ui/markup";
 
 export function NotFoundPage(): ReactElement {
   const state = useUiState();
@@ -18,14 +19,12 @@ export function NotFoundPage(): ReactElement {
   const asked = (state.notFound as string) || t("screens.notFound.bodyFallback");
   return (
     <>
-      <div
+      <Markup
         className={emptyNote()} data-part="empty-state"
-        dangerouslySetInnerHTML={{
-          __html: emptyInner(
+        html={emptyInner(
             t("screens.notFound.title"),
             `${t("screens.notFound.bodyBefore")}<code>${escapeHtml(asked)}</code>${t("screens.notFound.bodyAfter")}`,
-          ),
-        }}
+          )}
       />
       <button className={`cfoot solid ${actionButton()}`} data-part="card/foot" data-solid="" data-go="acq">
         {t("screens.notFound.toAcquisition")}

@@ -9,6 +9,7 @@
 // (`media.tsx`, `releases.tsx`, `resolution.tsx`) still carry their own private
 // copy — adopting them is a change to surfaces this one does not touch.
 import type { ReactElement } from "react";
+import { useMarkup } from "./markup";
 
 export function Icon({
   paths,
@@ -34,7 +35,15 @@ export function Icon({
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      dangerouslySetInnerHTML={{ __html: paths }}
+      // THE PATHS ARE MARKUP AND THEY ARE MEMOISED, like every other markup
+      // this interface hands React. Written inline, the object was new on every
+      // render, so React re-set `innerHTML` and every icon's `<path>` children
+      // were replaced whenever a parent redrew. That is not cosmetic: the
+      // browser delivers no `click` at all when the `pointerdown` target has
+      // left the document, and a surviving ancestor does not rescue it — so a
+      // press landing on an icon's STROKE, and the box is `fill="none"`, was
+      // lost on any store write, on every icon-only control there is.
+      dangerouslySetInnerHTML={useMarkup(paths)}
     />
   );
 }

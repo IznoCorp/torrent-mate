@@ -22,7 +22,7 @@
 // same phase, because it made a component write a server-state key.
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
-import { surfaceError } from "./variants";
+import { skeletonLine, surfaceError } from "./variants";
 
 /**
  * The placeholders a surface shows while its data is in flight.
@@ -56,6 +56,24 @@ export function Skeletons({
 }
 
 /**
+ * One line of placeholder where a sentence will go, while its read is in flight.
+ *
+ * A PART, NEVER A BLOCK: it stands inside the element that will carry the
+ * answer, so the screen's blocks are the same blocks at every instant and a
+ * read that lands replaces a line, not a layout. `data-skeleton` is what the
+ * harness counts; `aria-hidden` because a placeholder says nothing a reader
+ * should hear.
+ */
+export function SkeletonLine({
+  width,
+}: {
+  /** Roughly how long the sentence will be. */
+  width?: "full" | "wide" | "half" | "short";
+}): ReactElement {
+  return <span className={`sk ${skeletonLine({ width })}`} data-skeleton="" aria-hidden="true" />;
+}
+
+/**
  * What a surface shows when its data could not be loaded at all.
  *
  * IT OWNS ITS OUTER ELEMENT, which the six call sites drew themselves in two
@@ -68,35 +86,68 @@ export function Skeletons({
  * `role="alert"` is L03's and it stays: an error nobody is told about is
  * NE-DOIT-PAS-5 with extra steps.
  *
- * THE RETRY STAYS DELEGATED, and that is a decision rather than an omission. No
- * surface is wired to the query cache yet, so there is nothing here to re-ask:
- * the button keeps the `data-phase="ready"` the engine's document-level handler
- * already reads, which puts the surface back into its ready state.
+ * THE RETRY RE-ASKS WHERE A CALLER GIVES IT SOMETHING TO ASK, and is delegated
+ * everywhere else. The button carried `data-phase="ready"` alone: the engine's
+ * document-level handler writes a PAGE's UI phase and re-asks nothing, so on a
+ * surface that owns a query the control said « Réessayer » and did something
+ * else. A caller holding a read passes `onRetry`; the delegation attribute is
+ * emitted only when none does, so the surfaces the engine still draws keep the
+ * behaviour they had.
  *
- * AN `onRetry` PROP WAS WRITTEN AND TAKEN BACK IN THE SAME PHASE. It made the
+ * AND A FAILURE CARRIES ITS OWN REASON. `detail` is what the server said — data,
+ * never copy — and it stands where the body sentence would. That sentence
+ * asserts a TIMEOUT, and it was printed over a 502 that had answered with its
+ * reason in hand: a constant that cannot change when the reality does is the
+ * first thing §13 forbids, and an error surface is not exempt.
+ *
+ * AN `onRetry` PROP WAS WRITTEN AND TAKEN BACK ONCE BEFORE. It made the
  * library's surface write `phase` — a SERVER-STATE key — from a component, and
  * `check-state-ownership.py --arm server-state` refused it: the component share
  * went 4 → 5 against the ceiling in force that day, which is what a component
  * ceiling exists to see — the union alone stays put when the engine already
  * writes the key. (Both numbers moved after that phase: the ceiling is 0 now
  * and so is the share. This paragraph records the measurement that refused the
- * prop, not a threshold in force.) The arm was right. A retry that re-asks
- * belongs to the phase that gives this surface a query, and adding the prop
- * before its first caller would be machinery nobody could justify.
+ * prop, not a threshold in force.) The arm was right about what it refused: a
+ * component writing a SERVER-STATE key. `onRetry` re-asks a query and writes
+ * nothing, which is the case that paragraph's own last sentence reserved for a
+ * surface that owns a read — and this one does.
  *
- * B-031 IS THEREFORE NOT TOUCHED. Its entry reads « Réessayer on every error
- * surface is inert » and its status is the operator's to move.
+ * B-031 SHRINKS BY ONE SURFACE and is not closed: « Réessayer on every error
+ * surface is inert » stays true of every surface without a read to re-ask.
  */
-export function SurfaceError({ subject }: {
+export function SurfaceError({ subject, detail, onRetry }: {
   /** What could not be loaded, in the interface's own words. */
   subject: string;
+  /** What the server said, if it said anything. Data, never copy. */
+  detail?: string;
+  /** Re-asks the caller's own read. Without one, the retry stays delegated. */
+  onRetry?: () => void;
 }): ReactElement {
   const { t } = useTranslation();
   return (
     <div className={surfaceError()} data-part="surface-error" role="alert">
       <b>{t("surfaces.error.lead", { subject })}</b>
-      {t("surfaces.error.body")}
-      <button data-part="surface-error/retry" data-phase="ready">
+      {/* PRESENCE, NOT TRUTHINESS. A failure whose reason is an empty string is
+          still a failure that ANSWERED, and falling back on the timeout sentence
+          there says the opposite of what happened. */}
+      {detail !== undefined ? (
+        <span data-part="surface-error/detail">{detail}</span>
+      ) : (
+        t("surfaces.error.body")
+      )}
+      {/* ONE ELEMENT, AND NO SPREAD. The markup guard SKIPS an element whose
+          props are spread, so the contract this button carries — its part name,
+          and the delegation attribute it wears only when no caller re-asks —
+          sat outside the guard that exists to read exactly that. Two literal
+          elements read the same to a browser and count as two bare buttons to
+          the guard, which is one allowance spent on a drawing that has not
+          changed; the conditional props are written on the one element instead,
+          and React omits an undefined one. */}
+      <button
+        data-part="surface-error/retry"
+        onClick={onRetry}
+        data-phase={onRetry ? undefined : "ready"}
+      >
         {t("surfaces.error.retry")}
       </button>
     </div>

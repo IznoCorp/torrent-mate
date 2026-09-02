@@ -58,6 +58,27 @@ export type MockState = {
   pipeline: Schemas["Pipeline"];
   library: Schemas["LibraryItem"][];
   /**
+   * THE TITLES A DELETE REMOVED, which the listing alone could not say.
+   *
+   * A media sheet's ownership comes from a static seed keyed by title, so a
+   * delete that filtered `library` changed the LIST and nothing else: the sheet
+   * of a deleted medium went on answering « Possédés 24 » and offering
+   * « Supprimer » to whoever reopened it. A layer that cannot show a mutation's
+   * effect on the surface the reader is looking at cannot be used to prove that
+   * surface right, which is what a repair for it was measured against.
+   */
+  deletedTitles: string[];
+  /**
+   * Whether the library database answers at all.
+   *
+   * The contract makes a media sheet's `ownership` nullable and says why: null
+   * « when the library database is unavailable ». That is a state a backend
+   * reaches on its own, so the layer answers it on demand — without it, the
+   * screen's « ownership unknown » branch is unreachable and no rule can drive
+   * it, which is how a null answer came to be drawn as « non ».
+   */
+  libraryDatabaseAvailable: boolean;
+  /**
    * THE QUEUE, IN BOTH SCENARIOS, and the pairing is the engine's own.
    *
    * The prototype has always carried two worlds — a DENSE one, which is what a
@@ -142,6 +163,8 @@ const seeded = (): MockState => ({
   settledDecisions: copyOf<Schemas["SettledDecision"][]>(SETTLED_DECISIONS),
   pipeline: copyOf<Schemas["Pipeline"]>(PIPELINE),
   library: copyOf<Schemas["LibraryItem"][]>(LIBRARY_ITEMS),
+  deletedTitles: [],
+  libraryDatabaseAvailable: true,
   stuck: copyOf<Schemas["QueueCard"][]>(STUCK),
   stuckLoaded: copyOf<Schemas["QueueCard"][]>(STUCK_LOADED),
   moving: copyOf<Schemas["QueueCard"][]>(MOVING),
