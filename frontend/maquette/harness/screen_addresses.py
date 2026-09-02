@@ -494,7 +494,12 @@ async def main():
                   const screen = document.querySelector('[data-part="screen"][data-open]');
                   return {
                     skeletons: screen ? screen.querySelectorAll('[data-skeleton]').length : -1,
-                    busy: !!(screen && screen.querySelector('[aria-busy="true"]')),
+                    // THE SCREEN ITSELF COUNTS. `querySelector` reads
+                    // DESCENDANTS only, so an `aria-busy` moved one level up —
+                    // onto the screen — leaves this false while the screen is
+                    // saying it is busy.
+                    busy: !!(screen && (screen.matches('[aria-busy="true"]')
+                             || screen.querySelector('[aria-busy="true"]'))),
                   };
                 }""")
             journal.check(

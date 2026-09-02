@@ -63,7 +63,15 @@ export function SeasonList({
     <div style={{ marginTop: "10px" }}>
       {rows.map((row) => {
         const list = eps[String(row.n)] ?? null;
-        const held = owns ? ownedFor(title, row.n) : null;
+        // THE OWNED NUMBERS ARE AN ANSWER ABOUT OWNERSHIP, so they wait for
+        // ownership to be known — and reading them one line lower than the
+        // three lines that already waited is what left « Manquants : 1–16 »
+        // and sixteen `to_grab` cells one tap under « Saison 8 inconnu ».
+        // Everything below derives from `held`: the count, the missing list and
+        // the matrix all empty themselves through this one term, and the body
+        // falls back to « Épisodes non détaillés pour cette saison », which
+        // asserts nothing.
+        const held = ownershipKnown && owns ? ownedFor(title, row.n) : null;
         /* The count is DERIVED from the owned numbers when they are known;
            a total that does not say where the holes are is no longer
            trusted. */
@@ -237,7 +245,11 @@ export function SeasonList({
               )}{" "}
               {!owns && row.air ? (
                 <span
-                  className="miss" data-part="season/missing"
+                  // ITS OWN NAME. It wore `season/missing` — the name of the
+                  // chip that counts what a reader is short of — and a date is
+                  // not a shortfall: a rule counting « missing chips » read
+                  // seven of them on a sheet missing nothing.
+                  className="miss" data-part="season/aired-on"
                   style={{
                     background: "transparent",
                     color: "var(--color-muted-foreground)",
@@ -251,7 +263,7 @@ export function SeasonList({
               )}
             </summary>
             {missingNums.length ? (
-              <p className="missing">
+              <p className="missing" data-part="season/missing-list">
                 {t("screens.media.missingList", {
                   // french-ok: the INTERPOLATION placeholder, named by
                   // `missingList` in fr.json — renaming this half alone

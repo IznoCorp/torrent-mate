@@ -23,6 +23,7 @@ export function MediaLibraryFacts({
   catalogEp,
   title,
   seasonsInFlight,
+  seasonsFailed,
   sheetInFlight,
 }: {
   sheet: (MediaSheet & MediaSheetFields) | null;
@@ -49,6 +50,13 @@ export function MediaLibraryFacts({
   title: string;
   /** Whether the seasons' read is still out — a missing count is then a skeleton, never « inconnu ». */
   seasonsInFlight: boolean;
+  /**
+   * Whether the seasons' read FAILED. Every number in the owned-series block is
+   * derived from it, so after a failure they are not zero: they are unknown.
+   * `seasonsInFlight` alone left « Possédés 0 » printed from a read that never
+   * arrived, between two lines that had the honesty to say « inconnu ».
+   */
+  seasonsFailed: boolean;
   /** Whether the SHEET's read is still out — the season list's episode lists come from it. */
   sheetInFlight: boolean;
 }) {
@@ -83,10 +91,16 @@ export function MediaLibraryFacts({
         // known and the kind still out the rows wait rather than take the
         // series' shape — the same rule one level up.
         isFilm === null && owns ? (
+          // OWNERSHIP IS KNOWN HERE — it is the kind that is not. So the first
+          // row ANSWERS, and only the rows whose very existence depends on the
+          // kind wait. Printing « inconnue » about a fact this branch was
+          // chosen by is the defect one level down from the one it repairs, and
+          // it stood three blocks above a « Supprimer de la médiathèque ».
           <div className={keyValueRow()} data-part="key-value">
             <span>{t("screens.media.inLibrary")}</span>
             <span>
-              {inFlight ? <SkeletonLine width="short" /> : t("screens.media.unknownFeminine")}
+              <span className={statusDot({ tone: "success" })} data-part="status-dot"></span>
+              {t("screens.media.yes")}
             </span>
           </div>
         ) : !owns ? (
@@ -154,7 +168,16 @@ export function MediaLibraryFacts({
                   seasons read, so while that read is out it is zero — « you own
                   none of it », printed between two lines that say they do not
                   know yet. */}
-              <span>{seasonsInFlight ? <SkeletonLine width="short" /> : own}</span>
+              {/* AND A READ THAT FAILED IS NOT A ZERO EITHER. `own` is derived
+                  from the seasons read; with that read errored the number below
+                  says « you own none of it » about a question nobody answered. */}
+              <span>
+                {seasonsInFlight
+                  ? <SkeletonLine width="short" />
+                  : seasonsFailed
+                    ? t("screens.media.unknown")
+                    : own}
+              </span>
             </div>
             <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.media.completeness")}</span>

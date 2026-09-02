@@ -15,6 +15,7 @@ export function MediaHero({
   artwork,
   trailer,
   inFlight,
+  failed,
 }: {
   title: string;
   sheet: (MediaSheet & MediaSheetFields) | null;
@@ -24,6 +25,8 @@ export function MediaHero({
   trailer: Trailer | null;
   /** Whether the sheet's read is still out — a missing part is then a skeleton, never an answer. */
   inFlight: boolean;
+  /** Whether the sheet's read FAILED — an absence is then unread, not answered. */
+  failed: boolean;
 }) {
   const { icons } = useMediaReference();
   const { t } = useTranslation();
@@ -150,7 +153,13 @@ export function MediaHero({
       ) : inFlight ? (
         <p className="noinfo"><SkeletonLine width="half" /></p>
       ) : (
-        <p className="noinfo" data-part="no-info">{t("screens.media.noTrailer")}</p>
+        // A SENTENCE THAT SPEAKS FOR THE PROVIDER cannot be printed over a
+        // read that never reached it. « Aucune bande-annonce fournie par le
+        // provider » is an answer; after a failure the honest word is that
+        // nobody knows.
+        <p className="noinfo" data-part="no-info">
+          {t(failed ? "screens.media.trailerUnread" : "screens.media.noTrailer")}
+        </p>
       )}
     </>
   );

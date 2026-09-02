@@ -127,7 +127,7 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   // `ui/window-geometry.ts` carries why each of its three numbers had to be.
   const { lanes: activeLanes, lineHeight, scrollMargin } = useWindowGeometry(
     containerRef, scrollElement, { rowHeight, gap, lanes },
-    [count, properties.drawKey]);
+    { count, drawKey: properties.drawKey });
   const lineCount = Math.ceil(count / activeLanes);
 
   const virtualizer = useVirtualizer({
@@ -162,38 +162,51 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   // THE PLACE IS TAKEN BEFORE THE RESET, and restored after the new pitch is
   // measured. A new draw key empties the container, which collapses the
   // scroller's height and makes the browser clamp the offset to zero — so by
-  // the time the pitch is known the position is already lost. The first drawn
-  // line under the OLD key is what a reader's place is; the new offset for it
-  // is a row's index times the new pitch, and only the virtualiser can say
-  // that, once it has re-measured.
+  // the time the pitch is known the position is already lost.
+  //
+  // THE PLACE IS A ROW, AND THE ROW IS AN ITEM, not a line. A line is a row in
+  // the list and three or more in the gallery: restoring line 17 across a switch
+  // put a reader who was at row 17 in front of row 51, and back the other way at
+  // row 3. What is remembered is the first visible row's own index, and the line
+  // to scroll to is that index divided by the lanes of the mode being entered.
+  //
+  // AND IT IS THE FIRST VISIBLE ROW, not the first DRAWN one. The window keeps
+  // four lines of overscan beyond each edge, so `getVirtualItems()[0]` is four
+  // lines above what the reader can see — measured: every mode change moved them
+  // four rows up, 21 → 17 → 13 over two round trips.
+  //
+  // IT IS ASKED OF THE MEASUREMENTS, WITH A PIXEL OF TOLERANCE, and the pixel is
+  // not superstition. The pitch is fractional — 60.39 in selection, 213.34 in the
+  // gallery — so a line restored to the top of the port starts a fifth of a pixel
+  // below it, and the line ABOVE is then « visible » by that fifth. Read strictly,
+  // each round trip walked the reader back one row for a sliver nobody can see.
   const lastPitch = useRef(lineHeight);
   const lastKey = useRef(properties.drawKey);
-  const lastFirstLine = useRef(0);
-  const placeToKeep = useRef<number | null>(null);
+  const lastFirstItem = useRef(0);
+  const placeToKeep = useRef<{ item: number; forKey: number | string } | null>(null);
   const restoreTo = useRef<number | null>(null);
   if (lastKey.current !== properties.drawKey) {
     lastKey.current = properties.drawKey;
-    placeToKeep.current = lastFirstLine.current;
+    placeToKeep.current = { item: lastFirstItem.current, forKey: properties.drawKey };
   }
   if (lastPitch.current !== lineHeight) {
     lastPitch.current = lineHeight;
     virtualizer.measure();
-    restoreTo.current = placeToKeep.current ?? lastFirstLine.current;
+    // A PLACE BELONGS TO THE DRAWING IT WAS TAKEN FOR. Kept past that, it is a
+    // row number from another listing waiting for the next pitch change to send
+    // the reader to it.
+    const kept = placeToKeep.current;
+    restoreTo.current = kept && kept.forKey === properties.drawKey
+      ? kept.item : lastFirstItem.current;
     placeToKeep.current = null;
   }
 
   const lines = virtualizer.getVirtualItems();
   const firstLine = lines.length ? lines[0].index : 0;
   const lastLine = lines.length ? lines[lines.length - 1].index : -1;
-  lastFirstLine.current = firstLine;
-
-  useLayoutEffect(() => {
-    const index = restoreTo.current;
-    restoreTo.current = null;
-    if (index != null && index > 0) {
-      virtualizer.scrollToIndex(index, { align: "start" });
-    }
-  });
+  const offset = virtualizer.scrollOffset ?? 0;
+  const firstSeen = lines.find((line) => line.end > offset + 1);
+  lastFirstItem.current = (firstSeen ? firstSeen.index : firstLine) * activeLanes;
 
   // THE SPACERS ARE THEMSELVES ITEMS, AND THE CONTAINER PUTS A GAP BESIDE EACH.
   // Measured, at 33 oracle divergences of exactly +16px: the un-windowed list
@@ -273,6 +286,13 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
     // composed.
     for (let index = end - 1; index >= start; index -= 1) {
       const markup = renderRow(index);
+      // A NODE THE DOCUMENT NO LONGER HOLDS cannot be replaced: `replaceWith`
+      // on a parentless node is a no-op, so a detached row whose markup then
+      // changed stayed dead in the map until its index left the window. It is
+      // forgotten here, BEFORE the unchanged-markup skip, so the row is drawn
+      // again whether or not its string moved.
+      const standing = live.get(index);
+      if (standing && !standing.node.isConnected) live.delete(index);
       const held = live.get(index);
       if (held && held.markup === markup) continue;
       const node = elementFor(markup);
@@ -297,9 +317,6 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
           ? [...held.node.querySelectorAll(focusable)].indexOf(active as Element)
           : -1;
         const focused = held.node.contains(active);
-        // The detached case is taken above, before the unchanged-markup skip,
-        // so a row that left the document is re-inserted whether or not its
-        // string moved.
         {
           held.node.replaceWith(node);
           live.set(index, { node, markup });
@@ -331,6 +348,38 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
     spacers.current.before.style.display = before > 0 ? "" : "none";
     spacers.current.after.style.height = `${after}px`;
     spacers.current.after.style.display = after > 0 ? "" : "none";
+  });
+
+  // THE RESTORE IS DECLARED AFTER THE DRAW, and the order is the fix. Effects
+  // run in the order their hooks were called: restoring first put the port at
+  // the new offset and THEN let the draw insert the range computed for the old
+  // one — five rows above the browser's anchor node — and scroll anchoring
+  // moved the port 368 px on top of the restore. Drawn first, the scroll is the
+  // last word of the commit.
+  //
+  // AND ANCHORING IS HELD OFF FOR THE FRAME THE SWAP TAKES. The next draw pass
+  // replaces the rows above the reader with the ones the new offset asks for,
+  // which is precisely what anchoring exists to compensate — here it is
+  // compensating for a move the reader asked for.
+  const anchorHeld = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const item = restoreTo.current;
+    if (item == null) return;
+    restoreTo.current = null;
+    const scroller = scrollElement();
+    if (scroller && anchorHeld.current === null) {
+      anchorHeld.current = scroller.style.overflowAnchor;
+      scroller.style.overflowAnchor = "none";
+    }
+    if (item > 0) {
+      virtualizer.scrollToIndex(Math.floor(item / activeLanes), { align: "start" });
+    }
+    requestAnimationFrame(() => {
+      if (scroller && anchorHeld.current !== null) {
+        scroller.style.overflowAnchor = anchorHeld.current;
+        anchorHeld.current = null;
+      }
+    });
   });
 
 

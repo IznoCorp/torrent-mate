@@ -75,6 +75,12 @@ TITLE = "Broadchurch"
 # a suggestion there are no owned numbers, the matrix has nothing to draw, and
 # the sentence about the sheet's episode lists is what the row would print.
 NOT_OWNED_TITLE = "The Venture Bros"
+# AND A TITLE THE READER OWNS, INCOMPLETELY. The walk above measures nothing
+# about a season's BODY: the fixture records no owned numbers for a series
+# nobody owns, so `ownedFor` answers nothing and the body is empty however the
+# code is written. This one has holes, which is what makes « Manquants : … » and
+# a matrix of cells reachable at all.
+OWNED_INCOMPLETE_TITLE = "Monk"
 # WHAT THE TAP KNOWS, and it is the TITLE alone. A list row is `{t, f}` — a
 # title and a folder — and the year and the kind a card displays come from the
 # same projection this thinning stands in for, folded into one string. Keeping
@@ -129,7 +135,7 @@ MOUNT_DEADLINE_MILLISECONDS = 1500
 # waiting, and both times the rule said so.
 SKELETONS_EXPECTED = 15
 
-INTERCEPT = """({ title, kept, latency, thin, fail, seasonsFirst }) => {
+INTERCEPT = """({ title, kept, latency, thin, fail, failSeasons, seasonsFirst }) => {
   let reference;
   Object.defineProperty(window, '__referentiel', {
     configurable: true,
@@ -165,6 +171,12 @@ INTERCEPT = """({ title, kept, latency, thin, fail, seasonsFirst }) => {
       // and its episode lists from the sheet. With one latency for both they
       // arrive together and the interval does not exist to be measured.
       if (seasonsFirst) value.setOperationOutcome('readMediaSeasons', { latencyMilliseconds: 0 });
+      // AND THE SEASONS READ FAILS ON ITS OWN. It is a SECOND query, and every
+      // number in the library block is derived from it: with the sheet landed
+      // and this one errored the screen printed « Possédés 0 » — a count of
+      // what the reader holds, taken from a read that never arrived — with no
+      // surface and nothing to press.
+      if (failSeasons) value.setOperationOutcome('readMediaSeasons', { status: 502, latencyMilliseconds: 0 });
     },
   });
 }"""
@@ -189,6 +201,38 @@ def assertions_from_resources():
               or key in ("unknown", "unknownFeminine", "unidentified", "noTrailer",
                          "episodesNotDetailed", "seasonAnnounced")]
     return sorted({media[key] for key in wanted if isinstance(media[key], str)})
+
+
+def provider_sentences_from_resources():
+    """The sentences that answer FOR the provider, as the interface prints them.
+
+    A SENTENCE THAT SPEAKS FOR SOMEONE ELSE cannot be printed over a read that
+    never reached them. « Synopsis inconnu — le provider n'en fournit pas » and
+    « Aucune bande-annonce fournie par le provider » are answers about what a
+    provider holds; after a 502 nobody asked it. They are not « unknown » words
+    — each one asserts something — so the list this rule already reads cannot
+    catch them.
+
+    Returns:
+        The two sentences, from the resource the screen prints from.
+    """
+    resource = json.loads(
+        (pathlib.Path(__file__).resolve().parent.parent
+         / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8"))
+    media = resource["screens"]["media"]
+    return [media["synopsisUnknown"], media["noTrailer"]]
+
+
+def unidentified_from_resources():
+    """The bar's sentence for a medium no read identified.
+
+    Returns:
+        The sentence, from the resource the screen prints from.
+    """
+    resource = json.loads(
+        (pathlib.Path(__file__).resolve().parent.parent
+         / "design" / "src" / "i18n" / "fr.json").read_text(encoding="utf-8"))
+    return resource["screens"]["media"]["unidentified"]
 
 
 def kind_words_from_resources():
@@ -264,6 +308,28 @@ READ = """() => {
     // something is waiting, not that nothing is claiming.
     ownedZero: screen ? /Poss[ée]d[ée]s[ ]*0/.test(screen.textContent || '') : false,
     missing: screen ? screen.querySelectorAll('[data-part="season/missing"]').length : -1,
+    // AND WHAT IS ONE TAP DOWN. The three lines of a season's SUMMARY waited on
+    // ownership and its BODY did not: under « Saison 8 inconnu » stood
+    // « Manquants : 1–16 » and sixteen cells coloured « à récupérer », an
+    // assertion about what the reader holds, drawn from `ownedFor` read one
+    // line below the gate. The rows are closed at rest, so a hold that reads
+    // only what is visible sees none of it — these count the markup.
+    openRows: screen ? screen.querySelectorAll('[data-part="season"][open]').length : -1,
+    episodeCells: screen ? screen.querySelectorAll('[data-part="episode"]').length : -1,
+    missingParagraphs: screen
+      ? screen.querySelectorAll('[data-part="season/missing-list"]').length : -1,
+    // A FRACTION IS THE OWNERSHIP ASSERTION IN ITS SHORTEST FORM. « 0/13 » in a
+    // season's summary says the reader holds none of it; it is neither a word
+    // this rule lists nor a chip it counts.
+    fractions: screen
+      ? [...screen.querySelectorAll('[data-part="season"] summary')]
+          .filter((row) => /[0-9]+[ ]*\\/[ ]*[0-9]+/.test(row.textContent || '')).length
+      : -1,
+    // THE BAR'S OWN SENTENCE. « média non identifié » is an answer about the
+    // medium, and after a failure nobody answered.
+    bar: screen
+      ? ((screen.querySelector('[data-part="screen/bar"]') || {}).textContent || '')
+      : '',
     completeness: screen
       ? /Compl[ée]tude[ ]*0[ ]*%/.test(screen.textContent || '') : false,
     failed: !!(screen && screen.querySelector('[data-part="surface-error"]')),
@@ -277,7 +343,11 @@ READ = """() => {
     errorDetail: screen
       ? ((screen.querySelector('[data-part="surface-error/detail"]') || {}).textContent || '')
       : '',
-    busy: !!(screen && screen.querySelector('[aria-busy="true"]')),
+    // THE SCREEN ITSELF COUNTS. `querySelector` reads DESCENDANTS only, so an
+    // `aria-busy` moved one level up — onto the screen — would leave this
+    // reading false while the screen says it is busy.
+    busy: !!(screen && (screen.matches('[aria-busy="true"]')
+                        || screen.querySelector('[aria-busy="true"]'))),
     // BUTTONS, not children: in flight the one child is a skeleton, so « at
     // most one child » is satisfied by one real button just as well — and one
     // real button over a medium nobody has identified is the whole defect.
@@ -306,7 +376,7 @@ async def address_of(browser, title=None):
 
 
 async def cold_load(browser, address, thin, fail=False, kept=None, seasons_first=False,
-                    title=None):
+                    title=None, fail_seasons=False):
     """Opens the sheet cold with the two seams intercepted from the first byte.
 
     Args:
@@ -316,6 +386,8 @@ async def cold_load(browser, address, thin, fail=False, kept=None, seasons_first
         fail: Whether the sheet's own read answers with a failure.
         kept: Which fields the thinned placeholder keeps. `KEPT` by default.
         seasons_first: Whether the seasons answer at once while the sheet waits.
+        fail_seasons: Whether the SEASONS read answers with a failure — the
+            sheet lands, and every number derived from the seasons does not.
         title: Whose placeholder is thinned. The measured title by default — and
             it must be the title the ADDRESS opens, or the thinning applies to a
             sheet nobody is looking at and the walk measures a complete one.
@@ -325,6 +397,7 @@ async def cold_load(browser, address, thin, fail=False, kept=None, seasons_first
         f"({INTERCEPT})({{ title: {(title or TITLE)!r}, kept: {(kept or KEPT)!r}, "
         f"latency: {LATENCY_MILLISECONDS}, thin: {'true' if thin else 'false'}, "
         f"fail: {'true' if fail else 'false'}, "
+        f"failSeasons: {'true' if fail_seasons else 'false'}, "
         f"seasonsFirst: {'true' if seasons_first else 'false'} }})")
     page = await context.new_page()
     errors = []
@@ -362,6 +435,8 @@ TIMEOUT_SENTENCE = failure_body_from_resources()
 # Refused only while the sheet's own read is out: once it lands, or once it
 # fails and the screen falls back on what the tap knew, the kind is a fact.
 KIND_WORDS = kind_words_from_resources()
+PROVIDER_SENTENCES = provider_sentences_from_resources()
+UNIDENTIFIED = unidentified_from_resources()
 
 
 async def main():
@@ -556,15 +631,117 @@ async def main():
         thin_failure = await page.evaluate(READ)
         journal.check(
             "(e-iii) a failed read holding a THIN fallback claims no ownership "
-            "— no count, no completeness, no missing chip, no action",
+            "— no count, no completeness, no missing chip, no action, no open "
+            "row, no fraction and no episode cell one tap down",
             thin_failure["open"] and thin_failure["failed"]
             and not thin_failure["ownedZero"] and not thin_failure["completeness"]
-            and thin_failure["missing"] == 0 and thin_failure["actions"] == 0,
+            and thin_failure["missing"] == 0 and thin_failure["actions"] == 0
+            and thin_failure["openRows"] == 0 and thin_failure["fractions"] == 0
+            and thin_failure["episodeCells"] == 0
+            and thin_failure["missingParagraphs"] == 0,
             f"« Possédés 0 »: {thin_failure['ownedZero']}, « Complétude 0 % »: "
             f"{thin_failure['completeness']}, « manquants » chips: "
             f"{thin_failure['missing']}, action button(s): "
-            f"{thin_failure['actions']}")
+            f"{thin_failure['actions']}, open row(s): {thin_failure['openRows']}, "
+            f"fraction(s): {thin_failure['fractions']}, episode cell(s): "
+            f"{thin_failure['episodeCells']}, « Manquants : … » paragraph(s): "
+            f"{thin_failure['missingParagraphs']}")
+        # AND IT SAYS NOTHING FOR THE SERVER EITHER. « média non identifié » in
+        # the bar and « le provider n'en fournit pas » under the synopsis are
+        # both ANSWERS — one about the medium, one about what the provider
+        # holds — printed over a read that came back 502 without reaching
+        # either question. The words are read from the resources, never retyped:
+        # a retyped sentence renders correctly while the reference has moved.
+        journal.check(
+            "(e-iii-a) and the failure speaks neither for the medium nor for "
+            "the provider — the address the reader navigated with stands, and "
+            "no sentence claims what a provider does or does not furnish",
+            UNIDENTIFIED not in thin_failure["bar"]
+            and PROVIDER_SENTENCES
+            and not [said for said in PROVIDER_SENTENCES
+                     if said in thin_failure["text"]],
+            f"bar {thin_failure['bar'].strip()[:60]!r}; sentence(s) speaking "
+            f"for the provider: "
+            f"{[said for said in PROVIDER_SENTENCES if said in thin_failure['text']]}")
         journal.check("no JS error on the thin failure walk", not errors, str(errors))
+        await context.close()
+
+        # ─── (e-iv) THE SAME FAILURE ON A TITLE THE READER ACTUALLY OWNS, and
+        # owns INCOMPLETELY. (e-iii) walks a title the fixture records no owned
+        # numbers for, so `ownedFor` answers nothing there and the bodies are
+        # empty whether or not anyone gated them: the hold could not have seen
+        # the defect it was written for. On an owned, incomplete series the same
+        # screen printed « Manquants : 1–16 » and sixteen cells under
+        # « Saison 8 inconnu » — one tap down, on rows closed at rest.
+        context, page, errors = await cold_load(
+            browser, await address_of(browser, OWNED_INCOMPLETE_TITLE),
+            thin=True, fail=True, title=OWNED_INCOMPLETE_TITLE)
+        await page.evaluate("()=>window.__mocks.quiet()")
+        await page.wait_for_timeout(300)
+        owned_failure = await page.evaluate(READ)
+        journal.check(
+            "(e-iv) and on a series the reader OWNS INCOMPLETELY, the same "
+            "failure draws no missing list and no episode cell — the season "
+            "bodies wait on ownership like the lines above them",
+            owned_failure["open"] and owned_failure["failed"]
+            and owned_failure["missingParagraphs"] == 0
+            and owned_failure["episodeCells"] == 0
+            and owned_failure["missing"] == 0
+            and owned_failure["openRows"] == 0
+            and owned_failure["fractions"] == 0,
+            f"« Manquants : … » paragraph(s): "
+            f"{owned_failure['missingParagraphs']}, episode cell(s): "
+            f"{owned_failure['episodeCells']}, « manquants » chip(s): "
+            f"{owned_failure['missing']}, open row(s): "
+            f"{owned_failure['openRows']}, fraction(s): "
+            f"{owned_failure['fractions']} — on {OWNED_INCOMPLETE_TITLE!r}, "
+            f"which the fixture records owned numbers for")
+        journal.check("no JS error on the owned-failure walk", not errors, str(errors))
+        await context.close()
+
+        # ─── (e-v) THE SECOND READ FAILS AND THE FIRST DOES NOT ─────────────
+        # The library block's numbers all come from the SEASONS read. With the
+        # sheet landed and that read errored, `isPending` is false and every one
+        # of them printed as a fact: « Possédés 0 » — the exact string this
+        # rule's own term names as the defect's signature — beside « Saisons
+        # inconnu » and « Complétude inconnue », with no surface and nothing to
+        # press. A read has three outcomes and this screen knew two.
+        context, page, errors = await cold_load(
+            browser, address, thin=False, fail_seasons=True)
+        await page.evaluate("()=>window.__mocks.quiet()")
+        await page.wait_for_timeout(400)
+        seasons_failure = await page.evaluate(READ)
+        journal.check(
+            "(e-v) a failed SEASONS read is said and can be asked again, and "
+            "the counts derived from it are unknown rather than zero",
+            seasons_failure["open"] and seasons_failure["failed"]
+            and not seasons_failure["ownedZero"]
+            and seasons_failure["errorDetail"].strip() != "",
+            f"« Possédés 0 »: {seasons_failure['ownedZero']}, surface drawn: "
+            f"{seasons_failure['failed']}, detail on it: "
+            f"{seasons_failure['errorDetail'][:60]!r}")
+        seasons_retry = await page.evaluate("""async () => {
+          const button = document.querySelector('[data-part="surface-error/retry"]');
+          if (!button) return { clicked: false };
+          const count = () => {
+            const seasons = window.__queries.getQueryCache().getAll().find(
+              (query) => query.queryKey[0] === '/api/media' && query.queryKey.length === 4);
+            return seasons ? seasons.state.errorUpdateCount : null;
+          };
+          const before = count();
+          button.click();
+          await new Promise((done) => setTimeout(done, 300));
+          return { clicked: true, before, after: count() };
+        }""")
+        journal.check(
+            "(e-v-a) and its « Réessayer » re-asks the SEASONS read — the "
+            "answer count moves, which is the only reading that tells a re-ask "
+            "from a screen that merely redraws",
+            seasons_retry["clicked"]
+            and (seasons_retry["after"] or 0) > (seasons_retry["before"] or 0),
+            f"answer count {seasons_retry.get('before')} before the click, "
+            f"{seasons_retry.get('after')} after")
+        journal.check("no JS error on the failed-seasons walk", not errors, str(errors))
         await context.close()
 
         # ─── (f) A PARTIAL PLACEHOLDER, where field by field is the question ─

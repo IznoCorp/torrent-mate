@@ -9,7 +9,7 @@
 // lane count, since a narrower column makes a shorter 2:3 poster; and the
 // container does not start at the scroller's origin, which shifted every offset
 // by the height of the filters above it.
-import { useLayoutEffect, useState, type RefObject } from "react";
+import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 
 /** What the window needs to know about the grid it is drawn in. */
 export type WindowGeometry = {
@@ -28,14 +28,15 @@ export type WindowGeometry = {
  * @param container The container the rows are drawn in.
  * @param scrollElement The scrolling ancestor.
  * @param estimates The first frame's guesses: a row's height, the gap, the lanes.
- * @param redrawnOn What makes the container a new drawing — a count, a draw key.
+ * @param drawing What makes the container a new drawing: how many rows it
+ *     holds, and the key whose change means the rows are a DIFFERENT drawing.
  * @returns The measured geometry, or the estimates until a measurement exists.
  */
 export function useWindowGeometry(
   container: RefObject<HTMLDivElement | null>,
   scrollElement: () => HTMLElement | null,
   estimates: { rowHeight: number; gap: number; lanes: number },
-  redrawnOn: readonly unknown[],
+  drawing: { count: number; drawKey: number | string },
 ): WindowGeometry {
   // THE GEOMETRY IS MEASURED FROM THE RENDERED GRID, and the props are only the
   // estimate the first frame needs before anything exists to measure.
@@ -47,6 +48,9 @@ export function useWindowGeometry(
   // moves with it: a narrower column makes a shorter 2:3 poster.
   const [measured, setMeasured] =
     useState<{ lanes: number; lineHeight: number } | null>(null);
+  // The key the last run of the effect below belonged to, so that run can tell a
+  // container holding MORE of the same drawing from one holding another drawing.
+  const lastDrawKey = useRef<number | string | null>(null);
   useLayoutEffect(() => {
     const node = container.current;
     if (!node) return undefined;
@@ -75,11 +79,24 @@ export function useWindowGeometry(
           ? held
           : { lanes: columns, lineHeight: height + rowGap });
     };
-    read();
-    // AND AGAIN ON THE NEXT FRAME. The DRAW changes under the same container, so React
+    // NOT AT COMMIT WHEN THE DRAWING'S IDENTITY MOVED, and this is the whole
+    // reason the key is a parameter of its own. This effect runs BEFORE the one
+    // that empties the container, so the instant after a mode change the rows
+    // still standing there are the PREVIOUS mode's, re-laid inside the new
+    // mode's container class: cards squeezed into a grid column measured 120 px
+    // where a tile is 213, tiles stretched down a flex column measured ~527
+    // where a card is 126. A pitch read from that is not a pitch, and the
+    // window placed the reader with it — a list at row 21 came back at row 3.
+    // A count that grew leaves the drawing itself intact, so that read stays.
+    const sameDrawing = lastDrawKey.current === drawing.drawKey;
+    lastDrawKey.current = drawing.drawKey;
+    if (sameDrawing) read();
+    // AND ON THE NEXT FRAME, ALWAYS. The DRAW changes under the same container, so React
     // replaces the node on every redraw; an effect that measured only at commit
     // read a computed style of empty strings — measured — and the window
-    // silently kept the props' estimate of three lanes at every width.
+    // silently kept the props' estimate of three lanes at every width. By this
+    // frame the draw effect has emptied and refilled the container, so what
+    // stands in it is the drawing the key names.
     const retry = requestAnimationFrame(read);
     const watcher = new ResizeObserver(read);
     watcher.observe(node);
@@ -87,7 +104,7 @@ export function useWindowGeometry(
       cancelAnimationFrame(retry);
       watcher.disconnect();
     };
-  }, redrawnOn);
+  }, [drawing.count, drawing.drawKey]);
 
 
   // THE LIST DOES NOT START AT THE SCROLLER'S ORIGIN. `#libitems` sits below the
@@ -107,7 +124,7 @@ export function useWindowGeometry(
       - scroller.getBoundingClientRect().top
       + scroller.scrollTop;
     setScrollMargin((held) => (Math.abs(held - distance) < 0.5 ? held : distance));
-  }, redrawnOn);
+  }, [drawing.count, drawing.drawKey]);
 
   return {
     lanes: measured ? measured.lanes : estimates.lanes,

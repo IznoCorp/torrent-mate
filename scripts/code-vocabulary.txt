@@ -989,6 +989,7 @@ stall
 stalling
 stamped
 standard
+standing
 start
 startup
 state

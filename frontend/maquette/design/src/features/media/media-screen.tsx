@@ -117,6 +117,12 @@ export function MediaScreen() {
   // The seasons have no placeholder — nothing the tap knew says what is
   // aired — so their flight is the plain one.
   const seasonsInFlight = seasonsRead.isPending;
+  // THE SECOND READ FAILS ON ITS OWN, and the screen said nothing about it. The
+  // sheet lands, `seasonsInFlight` goes false, and the library block printed
+  // « Possédés 0 » and « Complétude inconnue » — a count of what the reader
+  // holds, derived from a read that never arrived — with no surface and no way
+  // to ask again.
+  const seasonsFailed = seasonsRead.isError;
   const sorted = seasonsHeld(catalogue)
     .slice()
     .sort((slice, index) => index[0] - slice[0]);
@@ -182,11 +188,14 @@ export function MediaScreen() {
     ? `/media/tvdb/${prov.tvdb}`
     : prov.tmdb
       ? `/media/tmdb/${prov.tmdb}`
-      : inFlight && provider && id
-        ? // ONLY WHILE THE SHEET IS OUT. Once it has answered with nothing, the
-          // medium is not identified — and printing an address for it would say
-          // the opposite of what the read found, which is worse than the
-          // skeleton this replaces.
+      : (inFlight || failed) && provider && id
+        ? // WHILE THE SHEET IS OUT, AND AFTER IT FAILS. Once the read has
+          // ANSWERED with nothing, the medium is not identified and printing an
+          // address for it would say the opposite of what the read found. A
+          // failure is not that answer: the address the reader navigated with
+          // is still the address they navigated with, and « média non
+          // identifié » over a 502 sat one block above the title the hero
+          // prints in 30 px.
           `/media/${provider}/${id}`
         : null;
   const artwork = artworkFor(reference, title);
@@ -250,7 +259,7 @@ export function MediaScreen() {
               onRetry={() => void sheetRead.refetch()}
             />
           ) : null}
-          <MediaHero title={title} sheet={sheet} isFilm={isFilm} artwork={artwork} trailer={trailer} inFlight={inFlight} />
+          <MediaHero title={title} sheet={sheet} isFilm={isFilm} artwork={artwork} trailer={trailer} inFlight={inFlight} failed={failed} />
 
           <div>
             <h2 className={sectionHeading()} data-part="heading" style={{ marginBottom: "6px" }}>
@@ -264,14 +273,28 @@ export function MediaScreen() {
                 color: "var(--color-muted-foreground)",
               }}
             >
-              {sheet?.ov ? sheet.ov : inFlight ? <SkeletonLine width="full" /> : t("screens.media.synopsisUnknown")}
+              {sheet?.ov
+                ? sheet.ov
+                : inFlight
+                  ? <SkeletonLine width="full" />
+                  : // « LE PROVIDER N'EN FOURNIT PAS » IS AN ANSWER, and a read
+                    // that failed did not get one. Same rule as the trailer's.
+                    t(failed ? "screens.media.synopsisUnread" : "screens.media.synopsisUnknown")}
             </p>
           </div>
 
           <MediaCast sheet={sheet} isFilm={isFilm} inFlight={inFlight} />
 
+          {seasonsFailed ? (
+            <SurfaceError
+              subject={t("screens.media.seasonsSubject")}
+              detail={isRequestFailure(seasonsRead.error) ? seasonsRead.error.detail : undefined}
+              onRetry={() => void seasonsRead.refetch()}
+            />
+          ) : null}
           <MediaLibraryFacts
             ownershipKnown={ownershipKnown}
+            seasonsFailed={seasonsFailed}
             inFlight={inFlight}
             sheet={sheet}
             isFilm={isFilm}

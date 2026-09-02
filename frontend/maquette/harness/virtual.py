@@ -525,7 +525,7 @@ async def hold_a_deleted_row_leaves_the_screen(journal, browser):
 
 
 async def hold_the_list_comes_back_from_selection_mode(journal, browser):
-    """Leaving selection mode at a deep scroll leaves rows on the screen.
+    """Leaving selection mode at a deep scroll leaves the reader where they were.
 
     THE DEFECT THIS EXISTS FOR, found by walking the real controls. A selection
     row is about 60 px against a card's 126, so entering and leaving the mode
@@ -536,14 +536,21 @@ async def hold_the_list_comes_back_from_selection_mode(journal, browser):
     the library was BLANK. It stayed blank through a scroll in either direction,
     because scrolling moves no memoised option either.
 
-    IT IS DRIVEN THROUGH THE CONTROLS THE READER PRESSES — « Sélectionner » in
-    the count line and « Terminé » in the selection bar — rather than through a
-    store write, because the defect is what the operator meets and a store write
-    is not what they do.
+    AND THE ROW THE READER WAS LOOKING AT IS THE OTHER HALF, which is why this
+    hold reads a TITLE and not a pixel. The first repair brought rows back and
+    moved the reader four rows up each time — the place restored was the top of
+    the overscan, four lines above anything visible — and a hold that asked only
+    « is the port past zero » was green over all of it. « Somewhere » is not a
+    place.
 
-    WHY DEEP. Near the top the window covers the viewport whatever pitch it was
-    placed with, and the defect is invisible; it appears once the leading spacer
-    is wrong by more than a screen.
+    THE ORDER OF THE GESTURES IS THE READER'S, and it is not the obvious one.
+    « Sélectionner » lives in the count line, which scrolls away: at a deep
+    scroll it sits 2 846 px above the viewport, and a click driver scrolls it
+    into view before pressing — so a hold that scrolled deep and THEN pressed
+    was measuring a mode change taken at the top of the list, which no reader
+    can produce. The mode is entered at the top, where the button is; the depth
+    is reached inside the mode; and « Terminé » is pressed in the selection bar,
+    which is fixed and always in view.
     """
     context = await browser.new_context(**PHONE)
     page = await context.new_page()
@@ -555,54 +562,103 @@ async def hold_the_list_comes_back_from_selection_mode(journal, browser):
     await page.wait_for_timeout(600)
     await page.evaluate("()=>window.__libraryNextPage && window.__libraryNextPage()")
     await page.wait_for_timeout(700)
-    await page.evaluate("()=>{document.querySelector('#port').scrollTop = 3000;}")
-    await page.wait_for_timeout(500)
 
     # EACH MODE DRAWS ITS OWN ROW. Browsing draws cards; selection draws
     # `selection/row`, a different element with a different height — which is
     # the whole reason the pitch moves. A hold reading only the card would
     # measure « nothing on screen » in selection mode and call it the defect.
-    async def visible(row=ROW):
+    # The TITLE is read from whichever of them is drawn, because the title is
+    # what the reader recognises across the change.
+    async def visible(row):
         return await page.evaluate("""(row) => {
           const port = document.querySelector('#port').getBoundingClientRect();
           const rows = [...document.querySelectorAll(row)];
           const spacer = document.querySelector('#libitems [data-part="window/spacer"]');
+          const seen = rows.filter((node) => {
+            const box = node.getBoundingClientRect();
+            return box.bottom > port.top + 1 && box.top < port.bottom;
+          });
+          const name = (node) => (node.querySelector(
+            '[data-part="card/title"], [data-part="tile/title"]'
+          ) || node).textContent.trim();
           return {
             drawn: rows.length,
-            inView: rows.filter((node) => {
-              const box = node.getBoundingClientRect();
-              return box.bottom > port.top && box.top < port.bottom;
-            }).length,
+            inView: seen.length,
+            top: seen.length ? name(seen[0]) : null,
             spacer: spacer ? Math.round(spacer.getBoundingClientRect().height) : -1,
             scrolled: Math.round(document.querySelector('#port').scrollTop),
           };
         }""", row)
 
-    before = await visible()
+    SELECTION_ROW = '[data-part="selection/row"]'
+    top = await visible(ROW)
     journal.check(
-        "the list draws rows in the viewport at a deep scroll — the subject of "
-        "the two holds below",
-        before["inView"] > 0,
-        f"{before['inView']} of {before['drawn']} row(s) in view at "
-        f"{before['scrolled']}px, spacer {before['spacer']}px")
+        "the list draws rows in the viewport — the subject of the holds below",
+        top["inView"] > 0,
+        f"{top['inView']} of {top['drawn']} row(s) in view at "
+        f"{top['scrolled']}px, spacer {top['spacer']}px")
+
+    # ENTERED AT THE TOP, where the control is.
     await page.click('[data-selmode="1"]')
     await page.wait_for_timeout(600)
-    during = await visible('[data-part="selection/row"]')
-    journal.check(
-        "« Sélectionner » keeps rows on the screen",
-        during["inView"] > 0,
-        f"{during['inView']} of {during['drawn']} in view at {during['scrolled']}px, "
-        f"spacer {during['spacer']}px")
-    await page.click('[data-selmode="0"]')
+    # AND THE DEPTH IS REACHED INSIDE THE MODE, which is the reader's own way of
+    # arriving at a deep scroll with a pitch about to change under them.
+    await page.evaluate("()=>{document.querySelector('#port').scrollTop = 3000;}")
     await page.wait_for_timeout(600)
-    after = await visible()
+    during = await visible(SELECTION_ROW)
     journal.check(
-        "and « Terminé » brings the list back — the window is re-measured when "
-        "the row pitch changes, not left placed with the other mode's — and the "
-        "place is still a place",
-        after["inView"] > 0 and after["scrolled"] > 0,
-        f"{after['inView']} of {after['drawn']} in view at {after['scrolled']}px, spacer "
-        f"{after['spacer']}px against {before['spacer']}px at {before['scrolled']}px")
+        "scrolling deep INSIDE selection mode keeps rows on the screen",
+        during["inView"] > 0 and during["top"],
+        f"{during['inView']} of {during['drawn']} in view at {during['scrolled']}px, "
+        f"spacer {during['spacer']}px, top row {during['top']!r}")
+
+    in_port = await page.evaluate("""() => {
+      const button = document.querySelector('[data-selmode="0"]');
+      if (!button) return null;
+      const box = button.getBoundingClientRect();
+      return box.top >= 0 && box.bottom <= window.innerHeight;
+    }""")
+    journal.check(
+        "« Terminé » is in the viewport where the reader left it — a control a "
+        "driver has to scroll to is a control this walk is not driving",
+        in_port is True, f"in the viewport: {in_port}")
+
+    await page.click('[data-selmode="0"]')
+    await page.wait_for_timeout(700)
+    after = await visible(ROW)
+    journal.check(
+        "« Terminé » brings the list back — the window is re-measured when the "
+        "row pitch changes, not left placed with the other mode's",
+        after["inView"] > 0,
+        f"{after['inView']} of {after['drawn']} in view at {after['scrolled']}px, "
+        f"spacer {after['spacer']}px against {during['spacer']}px at "
+        f"{during['scrolled']}px")
+    journal.check(
+        "and the reader is in front of the SAME ROW — the place is a row, and "
+        "a port merely past zero is not one",
+        after["top"] is not None and after["top"] == during["top"],
+        f"top row {during['top']!r} before, {after['top']!r} after")
+
+    # AND THE OTHER PITCH CHANGE THE SAME READER MAKES: list to gallery and
+    # back. It changes the LANES as well as the height, so a place remembered as
+    # a line — a row in the list, three in the gallery — sends them somewhere
+    # else entirely: measured, row 21 came back as row 3.
+    await page.evaluate("()=>{document.querySelector('#port').scrollTop = 3000;}")
+    await page.wait_for_timeout(600)
+    before_grid = await visible(ROW)
+    await page.evaluate("()=>window.__go('lib-grid')")
+    await page.wait_for_timeout(900)
+    in_grid = await visible('[data-part="tile"]')
+    await page.evaluate("(s)=>window.__go(s)", STATE)
+    await page.wait_for_timeout(900)
+    back_in_list = await visible(ROW)
+    journal.check(
+        "the gallery opens on the row the list was showing, and the list comes "
+        "back to it — across a change of LANES, where a line index is not a place",
+        in_grid["top"] == before_grid["top"]
+        and back_in_list["top"] == before_grid["top"],
+        f"list {before_grid['top']!r} → gallery {in_grid['top']!r} → "
+        f"list {back_in_list['top']!r}")
     await context.close()
 
 

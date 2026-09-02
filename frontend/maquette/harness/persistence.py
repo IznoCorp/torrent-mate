@@ -437,6 +437,8 @@ async def main():
           target.focus();
           const port = document.querySelector('#port');
           port.scrollTop = port.scrollTop + 700;
+          // KEPT SO THE HOLD CAN ASK WHETHER THE DELETE REACHED IT.
+          window.__watchedTile = target;
           return { drawn: rows.length, focused: document.activeElement === target,
                    scrolled: port.scrollTop,
                    above: first.textContent.trim() };
@@ -448,12 +450,27 @@ async def main():
             await page.wait_for_timeout(300)
             settled = await page.evaluate(
                 "()=>Math.round(document.querySelector('#port').scrollTop)")
+            # DID THE DELETE ACTUALLY REACH THE ROW? The check below is
+            # satisfied by a build in which NOTHING happened: stub the delete to
+            # a no-op and the port has not moved, so « it did not drag the port »
+            # is green over a window that never redrew. The watched tile leaving
+            # the document is what says there was something to measure — the
+            # same vacuity found in hold (g) and closed there, reproduced here
+            # by the repair that closed it.
+            replaced = await page.evaluate(
+                "()=>!(window.__watchedTile && window.__watchedTile.isConnected)")
             journal.check(
                 "the tile focused was live, out of view, and its markup moved "
                 "— the hold below has a subject",
                 moved.get("focused") and moved.get("drawn", 0) > 6,
                 f"{moved.get('drawn')} tile(s), focus taken: "
                 f"{moved.get('focused')}, deleting {moved.get('above')!r} above it")
+            journal.check(
+                "the delete reached the window — the watched tile left the "
+                "document, so the hold below measures a redraw and not a page "
+                "where nothing happened",
+                replaced,
+                f"the focused tile is still in the document: {not replaced}")
             journal.check(
                 "a row replaced while OUT of view does not pull the port back "
                 "to it — focus is restored where the reader left it, not the "

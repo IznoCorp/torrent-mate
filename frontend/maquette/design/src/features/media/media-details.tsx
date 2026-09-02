@@ -103,14 +103,19 @@ export function MediaDetails({
               {t("screens.media.delete")}
             </button>
           </>
+        ) : isFilm === null ? (
+          // THE FOLLOW'S VERB IS THE KIND: one word for a series, another for a
+          // film. With the kind still unknown there is no verb to write, and
+          // this branch printed the unknown-word as its label while the
+          // attribute behind it sent the series value to the act. A button that
+          // follows as a series what may be a film is worse than a button
+          // nobody drew. The destructive pair above is untouched: deleting from
+          // the library asks the kind nothing.
+          inFlight ? <SkeletonLine width="half" /> : null
         ) : followed ? (
           <button className={`mediaadd done ${actionButton()}`} data-part="media/add" disabled>
             <Icon paths={icons.check} />
-            {isFilm === false
-              ? t("screens.media.followed")
-              : isFilm
-                ? t("screens.media.added")
-                : t("screens.media.unknown")}
+            {isFilm ? t("screens.media.added") : t("screens.media.followed")}
           </button>
         ) : (
           // No sheet-refresh attribute: the legacy button asked the sheet to
@@ -125,11 +130,7 @@ export function MediaDetails({
             data-fkind={isFilm ? "Film" : "Série"}
           >
             <Icon paths={icons.plus} />
-            {isFilm === false
-              ? t("screens.media.followVerb")
-              : isFilm
-                ? t("screens.media.add")
-                : t("screens.media.unknown")}
+            {isFilm ? t("screens.media.add") : t("screens.media.followVerb")}
           </button>
         )}
       </div>
