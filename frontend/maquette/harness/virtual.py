@@ -574,6 +574,7 @@ async def hold_the_list_comes_back_from_selection_mode(journal, browser):
               return box.bottom > port.top && box.top < port.bottom;
             }).length,
             spacer: spacer ? Math.round(spacer.getBoundingClientRect().height) : -1,
+            scrolled: Math.round(document.querySelector('#port').scrollTop),
           };
         }""", row)
 
@@ -582,24 +583,26 @@ async def hold_the_list_comes_back_from_selection_mode(journal, browser):
         "the list draws rows in the viewport at a deep scroll — the subject of "
         "the two holds below",
         before["inView"] > 0,
-        f"{before['inView']} of {before['drawn']} row(s) in view, "
-        f"spacer {before['spacer']}px")
+        f"{before['inView']} of {before['drawn']} row(s) in view at "
+        f"{before['scrolled']}px, spacer {before['spacer']}px")
     await page.click('[data-selmode="1"]')
     await page.wait_for_timeout(600)
     during = await visible('[data-part="selection/row"]')
     journal.check(
         "« Sélectionner » keeps rows on the screen",
         during["inView"] > 0,
-        f"{during['inView']} of {during['drawn']} in view, spacer {during['spacer']}px")
+        f"{during['inView']} of {during['drawn']} in view at {during['scrolled']}px, "
+        f"spacer {during['spacer']}px")
     await page.click('[data-selmode="0"]')
     await page.wait_for_timeout(600)
     after = await visible()
     journal.check(
         "and « Terminé » brings the list back — the window is re-measured when "
-        "the row pitch changes, not left placed with the other mode's",
-        after["inView"] > 0,
-        f"{after['inView']} of {after['drawn']} in view, spacer "
-        f"{after['spacer']}px against {before['spacer']}px before the mode")
+        "the row pitch changes, not left placed with the other mode's — and the "
+        "place is still a place",
+        after["inView"] > 0 and after["scrolled"] > 0,
+        f"{after['inView']} of {after['drawn']} in view at {after['scrolled']}px, spacer "
+        f"{after['spacer']}px against {before['spacer']}px at {before['scrolled']}px")
     await context.close()
 
 

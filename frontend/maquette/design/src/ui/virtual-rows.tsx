@@ -221,15 +221,46 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   // in either direction, because scrolling changes no memoised option either.
   // Entering the mode looked healthy only because the shorter rows brought the
   // paging sentinel into view and a page landing moved `count`.
+  // AND THE READER KEEPS THEIR PLACE ACROSS IT, which is a row and not a pixel.
+  // Shorter rows make the same row sit at a smaller offset, so re-measuring at a
+  // deep scroll leaves the offset past the new end and the browser clamps it to
+  // zero — the list jumps to the top, which is the same loss wearing the
+  // opposite symptom. The first drawn line is remembered and restored.
+  // THE PLACE IS TAKEN BEFORE THE RESET, and restored after the new pitch is
+  // measured. A new draw key empties the container, which collapses the
+  // scroller's height and makes the browser clamp the offset to zero — so by
+  // the time the pitch is known the position is already lost. The first drawn
+  // line under the OLD key is what a reader's place is; the new offset for it
+  // is a row's index times the new pitch, and only the virtualiser can say
+  // that, once it has re-measured.
   const lastPitch = useRef(lineHeight);
+  const lastKey = useRef(properties.drawKey);
+  const lastFirstLine = useRef(0);
+  const placeToKeep = useRef<number | null>(null);
+  const restoreTo = useRef<number | null>(null);
+  if (lastKey.current !== properties.drawKey) {
+    lastKey.current = properties.drawKey;
+    placeToKeep.current = lastFirstLine.current;
+  }
   if (lastPitch.current !== lineHeight) {
     lastPitch.current = lineHeight;
     virtualizer.measure();
+    restoreTo.current = placeToKeep.current ?? lastFirstLine.current;
+    placeToKeep.current = null;
   }
 
   const lines = virtualizer.getVirtualItems();
   const firstLine = lines.length ? lines[0].index : 0;
   const lastLine = lines.length ? lines[lines.length - 1].index : -1;
+  lastFirstLine.current = firstLine;
+
+  useLayoutEffect(() => {
+    const index = restoreTo.current;
+    restoreTo.current = null;
+    if (index != null && index > 0) {
+      virtualizer.scrollToIndex(index, { align: "start" });
+    }
+  });
 
   // THE SPACERS ARE THEMSELVES ITEMS, AND THE CONTAINER PUTS A GAP BESIDE EACH.
   // Measured, at 33 oracle divergences of exactly +16px: the un-windowed list
