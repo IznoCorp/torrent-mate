@@ -248,3 +248,50 @@ would be a wrapper someone bypasses, and a rule bypassed once is a rule gone.
 **And the same holds for a wave's agent.** The office measures the load before it accuses, names
 what the measurement attributes to whom, and says it plainly: the operator asked whose it was, and «
 the agent's gates » was the answer he needed to hear with the counts behind it.
+
+## What a review costs, and the five rules that make it cost less (L14, 2026-09-02)
+
+**L14 took seven review rounds where L12 took three**, and its curve did not fall the way L12's did:
+thirteen majors, then nine, eight with a blocker, nine, six, twelve, and the twelve were not a new
+supply of defects — four of them were repairs announced and not delivered, one was a regression the
+repair itself introduced, and six were figures in documents. The yield was poor for reasons that are
+the office's before they are the wave's, and each has a rule.
+
+**1. A conversion wave does not carry a behaviour repair.** A conversion is proved cheaply — the
+oracle measures that nothing moved on the screen — and that proof covers nothing a behaviour change
+does. L14's brief attached two behaviour entries to a wave whose subject was cutting four files, and
+they landed on the two most intricate surfaces the prototype has, a virtualised list and a screen
+with two asynchronous reads. The conversion half was clean at the first round and stayed clean;
+every round after the first was the other half. **A behaviour entry gets its own wave, or it waits
+for the lot that owns its surface.**
+
+**2. The deepest reading method applies from the FIRST round.** L14's readers read code for two
+rounds and only then began to build the prototype and walk it with a control build beside it. Every
+blocker and most of the surface defects came from walking. Changing method mid-wave means the defect
+population changes under the curve, so the curve stops meaning anything: round four was not finding
+new defects, it was finding old ground newly visible. **Build it and walk it from round one, against
+a control of the previous head.**
+
+**3. « Repaired » without a reading is not repaired.** The one round where the wave ran the readers'
+own probes before announcing its head found six majors; the round where it did not found twelve,
+four of which were repairs that had not happened. The probes existed three rounds before the office
+made running them a condition. **No head is reviewed until every item of the previous round arrives
+with the probe reading that closes it**, taken on a build of the candidate against a control — or
+with a sentence saying what the fixtures cannot show, which is an honest answer and a fast one.
+
+**4. A repair lands with the rule that falls when it is reverted.** Three of round six's four code
+defects were held by nothing: revert the line and every one of the suite's holds stayed green. That
+is why the same defect kept returning with its sign turned round. A repair without its rule is a
+repair the next round pays for again, and the rule is cheapest written beside the fix.
+
+**5. Figures are written ONCE, on the final head.** Line counts, hold counts, walk counts, the
+register's tallies: every repair moves them, so a wave that re-measures them each round writes
+numbers that are stale before the round ends. L14 paid about two majors a round for six rounds on
+exactly this. **The office does not count a stale figure as a finding during repair rounds**, tells
+its readers so, and requires one measured pass on the head that is about to merge.
+
+**And the arithmetic worth keeping.** Of L14's sixty-odd majors, roughly a dozen were defects a user
+would meet — a library that went blank, taps lost on icon-only buttons, a three-thousand-pixel jump
+on a rotation, an interface asserting about data still in flight, one selection deleting the wrong
+titles. The rest was the cost of proving those and of writing them down. That ratio is the thing to
+improve, and the five rules above are how; abandoning the dozen is not.
