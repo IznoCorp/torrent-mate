@@ -44,13 +44,38 @@ ROW = '[data-part="card"]'
 # card's height plus the gap the container puts between two. Both are read from
 # the sources they are declared in rather than typed here twice: a number in
 # this file that the fixture moves is a second source of truth.
-PAGE_SIZE = int(re.search(r"PAGE_SIZE = (\d+)", (
-    pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "mocks"
-    / "handlers" / "library.ts").read_text(encoding="utf-8")).group(1))
-ROW_PITCH = sum(int(number) for number in re.search(
-    r"list: \{[^}]*rowHeight: (\d+)[^}]*gap: (\d+)",
-    (pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "features"
-     / "library" / "reference.ts").read_text(encoding="utf-8"), re.S).groups())
+def declared(pattern, *where):
+    """Reads a number declared in a TypeScript source, or says which one moved.
+
+    THE READ IS A REGEX BECAUSE PYTHON CANNOT IMPORT TYPESCRIPT, and the price of
+    that is a match which can stop matching. Unwrapped it stopped as
+    `AttributeError: 'NoneType' has no attribute 'group'` at import time — loud,
+    but naming neither the file nor the declaration, so the reader's first guess
+    is that the rule is broken rather than that a constant was reformatted.
+
+    Args:
+        pattern: The expression, with every number to read as a group.
+        *where: The path of the source, from `frontend/maquette`.
+
+    Returns:
+        The sum of the groups, as integers.
+
+    Raises:
+        AssertionError: If the declaration is no longer where it was.
+    """
+    source = pathlib.Path(__file__).resolve().parent.parent.joinpath(*where)
+    found = re.search(pattern, source.read_text(encoding="utf-8"), re.S)
+    assert found, (
+        f"the declaration matching {pattern!r} is no longer in "
+        f"{source.name} — this rule reads it there rather than typing the "
+        f"number twice, so it has to be pointed at wherever it moved")
+    return sum(int(number) for number in found.groups())
+
+
+PAGE_SIZE = declared(r"PAGE_SIZE = (\d+)",
+                     "design", "src", "mocks", "handlers", "library.ts")
+ROW_PITCH = declared(r"list: \{[^}]*rowHeight: (\d+)[^}]*gap: (\d+)",
+                     "design", "src", "features", "library", "reference.ts")
 
 # How far the finger drags the list, in pixels. Several rows' worth, so the
 # window has certainly moved.

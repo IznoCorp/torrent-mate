@@ -182,9 +182,15 @@ export function MediaLibraryFacts({
             <div className={keyValueRow()} data-part="key-value">
               <span>{t("screens.media.completeness")}</span>
               <span>
-                <span
-                  className={`pip ${pct === 100 ? "success" : pct === null ? "neutral" : "warning"}`} data-part="status-dot"
-                ></span>
+                {/* A PIP IS A SIGNAL, and a signal beside a shimmering line is
+                    an answer beside a wait: « neutral » said about a
+                    completeness nobody has computed yet. It waits with the
+                    value it qualifies. */}
+                {seasonsInFlight && pct === null ? null : (
+                  <span
+                    className={`pip ${pct === 100 ? "success" : pct === null ? "neutral" : "warning"}`} data-part="status-dot"
+                  ></span>
+                )}
                 {pct === null
                   ? seasonsInFlight ? <SkeletonLine width="short" /> : t("screens.media.unknownFeminine")
                   : pct + " %"}

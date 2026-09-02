@@ -109,9 +109,8 @@ export function SkeletonLine({
  * and so is the share. This paragraph records the measurement that refused the
  * prop, not a threshold in force.) The arm was right about what it refused: a
  * component writing a SERVER-STATE key. `onRetry` re-asks a query and writes
- * nothing, and that paragraph's own last sentence — « a retry that re-asks
- * belongs to the phase that gives this surface a query » — names the phase this
- * is.
+ * nothing, which is the case that paragraph's own last sentence reserved for a
+ * surface that owns a read — and this one does.
  *
  * B-031 SHRINKS BY ONE SURFACE and is not closed: « Réessayer on every error
  * surface is inert » stays true of every surface without a read to re-ask.

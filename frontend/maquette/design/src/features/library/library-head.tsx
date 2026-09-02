@@ -8,8 +8,20 @@ import { useLibraryCategories } from "./queries";
 import { useUiState, writeUiState } from "../../lib/store-access";
 import { filterPill, filterPillCount, filterZone, pillBar, pillScroll, searchClear, searchField, searchInput, segment, segmentCount, segmentTab, viewSwitch, viewSwitchButton, viewSwitchWrap, viewTabs } from "../../ui/variants";
 
-// The three lenses, in the order the tab bar draws them. The count on
-// « Incomplets » is the drawing's own, exactly as the legacy hard-coded it.
+// The three lenses, in the order the tab bar draws them.
+//
+// THE COUNT ON « Incomplets » IS NOT DERIVED FROM THE ROWS THE LENS DRAWS, and
+// it cannot be here: the seed holds twelve incomplete series where this figure
+// claims forty-seven, and forty-seven is neither their number nor the sum of
+// anything about them (they are short 226 episodes between them). It is the
+// library's own figure, hard-coded as the legacy hard-coded it, standing over a
+// fixture that seeds a sample of the shows it counts.
+//
+// WHICH MAKES IT A DEMAND ON THE BACKEND, not a number to correct here. The
+// count and the rows must come from ONE read, or the interface goes on printing
+// a total no reader can reconcile with the list under it — and correcting the
+// literal to twelve would only make the maquette agree with its own fixture
+// while saying nothing true about a library of 1 861 titles.
 export const INCOMPLETE_COUNT = 47;
 
 export function LibraryHead(): ReactElement {

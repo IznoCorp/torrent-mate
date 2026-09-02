@@ -42,8 +42,7 @@ WHAT IT DOES NOT READ, said before what it does:
   - Hold (f) reads a PAGE's own nodes — cards, tiles, rows, buttons, pills,
     images, key-value rows — on the named states listed below, and NOT the containers
     the dying engine fills on Découvrir (`#sugitems`, the deck): those are
-    the producers' half of the same defect and belong to the wave that moves
-    the producers. Nor a write that legitimately redraws — entering selection
+    the producers' half of the same defect, and no surface here owns them. Nor a write that legitimately redraws — entering selection
     mode, a sort, a delete: the bump driven is `touch()`, which changes no
     row. And not `features/maintenance/page.tsx`, where the defect was first
     seen: it is held by nobody yet and this hold says so rather than reading

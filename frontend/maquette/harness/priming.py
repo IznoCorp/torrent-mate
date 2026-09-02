@@ -797,6 +797,15 @@ async def main():
         apart = await page.evaluate(READ)
         seasons_drawn = await page.evaluate("""
             ()=>document.querySelectorAll('[data-part="season"]').length""")
+        # THE SEASONS' OWN ANSWERS ARE NOT ASSERTIONS ABOUT THE SHEET. « Saison
+        # annoncée : aucun épisode diffusé » is what the seasons read RETURNED,
+        # drawn deliberately and before the sheet's flight — the same rule with
+        # its sign turned round. It is in the list of unknown words this hold
+        # refuses, so a walk that met one would have fallen on the screen being
+        # right. What is refused is what stands OUTSIDE the no-info paragraphs.
+        apart_outside = apart["text"]
+        for said in apart["noInfos"]:
+            apart_outside = apart_outside.replace(said, "")
         journal.check(
             "(g) with the seasons landed and the sheet still out, the season "
             "rows are drawn and say NOTHING about the episode lists they have "
@@ -805,12 +814,12 @@ async def main():
             and apart["skeletons"] > 0
             and not apart["ownedZero"] and not apart["completeness"]
             and apart["missing"] == 0
-            and not [answer for answer in ASSERTIONS if answer in apart["text"]],
+            and not [answer for answer in ASSERTIONS if answer in apart_outside],
             f"{seasons_drawn} season row(s) drawn, {apart['skeletons']} "
             f"skeleton(s); « Possédés 0 »: {apart['ownedZero']}, "
             f"« Complétude 0 % »: {apart['completeness']}, "
             f"« manquants » chips: {apart['missing']}; printed: "
-            f"{[answer for answer in ASSERTIONS if answer in apart['text']]}")
+            f"{[answer for answer in ASSERTIONS if answer in apart_outside]}")
         journal.check("no JS error on the split-latency walk", not errors, str(errors))
         await context.close()
         await browser.close()

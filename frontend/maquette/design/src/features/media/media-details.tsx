@@ -74,6 +74,14 @@ export function MediaDetails({
               </span>
             </div>
           ))}
+          {/* THIS DATE IS A CONSTANT, and it is printed as a fact in every
+              state — in flight, at rest, over a sheet that answered with
+              nothing and over one that failed. The projection carries no
+              refresh timestamp, so there is nothing here to print instead:
+              correcting it means the backend serving when the metadata was
+              last read, which is recorded with the wave's other demands rather
+              than guessed at here. Named because this screen's whole subject is
+              what a surface may claim about data it has not got. */}
           <div className={keyValueRow()} data-part="key-value">
             <span>{t("screens.media.metadataRefreshed")}</span>
             <span>{t("screens.media.metadataRefreshedValue")}</span>
