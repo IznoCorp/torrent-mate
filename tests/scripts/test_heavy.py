@@ -33,7 +33,10 @@ def run(lock: Path, *command: str, timeout: float = 30, **environment: str):
     env = {**os.environ, "HEAVY_LOCK": str(lock), **PERMISSIVE, **environment}
     return subprocess.run(
         ["sh", str(SCRIPT), "tester", *command],
-        capture_output=True, text=True, timeout=timeout, env=env,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        env=env,
     )
 
 
@@ -92,7 +95,9 @@ def test_the_lock_excludes_a_second_holder(tmp_path: Path) -> None:
     env = {**os.environ, "HEAVY_LOCK": str(lock), **PERMISSIVE}
     first = subprocess.Popen(
         ["sh", str(SCRIPT), "first", "sleep", "6"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=env,
     )
     try:
         time.sleep(1.5)
@@ -143,7 +148,9 @@ def test_an_interrupted_run_releases_the_lock(tmp_path: Path) -> None:
     env = {**os.environ, "HEAVY_LOCK": str(lock), **PERMISSIVE}
     held = subprocess.Popen(
         ["sh", str(SCRIPT), "interrupted", "sleep", "30"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=env,
     )
     time.sleep(2)
     assert lock.exists(), "the lock was never taken"
