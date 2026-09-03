@@ -42,12 +42,22 @@ HARD_FLOOR_MB=${HEAVY_HARD_FLOOR_MB:-2048}
 HARD_STRIKES=3
 
 free_megabytes() {
-    vm_stat | awk '
-        /page size of/ { size = $8 }
-        /Pages free/ { free = $3 }
-        /Pages inactive/ { inactive = $3 }
-        END { gsub(/\./, "", free); gsub(/\./, "", inactive);
-              print int((free + inactive) * size / 1048576) }'
+    # macOS first, then Linux, and NOTHING when neither answers. A wrapper that
+    # runs on one operating system is a wrapper the repository's own CI cannot
+    # execute: `vm_stat` is Darwin's, the runners are Linux, and the first
+    # version of this hung there for the same reason it hung on a missing lock
+    # parent — it waited for a number it could never obtain.
+    if command -v vm_stat > /dev/null 2>&1; then
+        vm_stat | awk '
+            /page size of/ { size = $8 }
+            /Pages free/ { free = $3 }
+            /Pages inactive/ { inactive = $3 }
+            END { gsub(/\./, "", free); gsub(/\./, "", inactive);
+                  if (size && (free + inactive) > 0)
+                      print int((free + inactive) * size / 1048576) }'
+    elif [ -r /proc/meminfo ]; then
+        awk '/^MemAvailable:/ { print int($2 / 1024) }' /proc/meminfo
+    fi
 }
 
 one_minute_load() {
@@ -115,6 +125,10 @@ announced=0
 while :; do
     free=$(free_megabytes)
     load=$(one_minute_load)
+    if [ -z "$free" ] || [ -z "$load" ]; then
+        echo "heavy: this machine reports neither free memory nor load — running unmeasured" >&2
+        break
+    fi
     if [ "$(at_least "$free" "$FREE_FLOOR_MB")" = 1 ] &&
        [ "$(at_most "$load" "$LOAD_CEILING")" = 1 ]; then
         break
@@ -148,6 +162,7 @@ while kill -0 "$child" 2>/dev/null; do
     [ "$((ticks % 15))" -eq 0 ] || continue
     kill -0 "$child" 2>/dev/null || break
     free=$(free_megabytes)
+    [ -z "$free" ] && continue
     if [ "$(at_least "$free" "$HARD_FLOOR_MB")" = 0 ]; then
         strikes=$((strikes + 1))
         echo "heavy: ${free}MB free — strike $strikes of $HARD_STRIKES" >&2

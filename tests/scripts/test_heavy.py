@@ -183,3 +183,45 @@ def test_the_watchdog_signals_the_whole_process_group(tmp_path: Path) -> None:
     assert 'kill -TERM -"$child"' in body, "the watchdog signals the child alone"
     assert 'kill -KILL -"$child"' in body, "the watchdog's last resort spares the group"
     assert "set -m" in body, "without job control the child leads no group to signal"
+
+
+def test_a_machine_that_reports_no_memory_runs_rather_than_waits(tmp_path: Path) -> None:
+    """THE SECOND DEFECT THIS FILE CAUGHT, and it is the first one's shape.
+
+    `vm_stat` is Darwin's and the repository's runners are Linux, so the first
+    version could not read free memory there — and WAITED for a number it could
+    never obtain, hanging every job that touched it. A gate that cannot measure
+    must let the run through and say so; only a gate that measures may hold one.
+    """
+    empty = tmp_path / "bin"
+    empty.mkdir()
+    for name in ("vm_stat", "sh", "awk", "uptime", "sleep", "mkdir", "rm", "cat", "dirname", "find"):
+        pass
+    started = time.monotonic()
+    result = subprocess.run(
+        ["sh", str(SCRIPT), "tester", "sh", "-c", "echo ran"],
+        capture_output=True,
+        text=True,
+        timeout=25,
+        env={
+            **os.environ,
+            "HEAVY_LOCK": str(tmp_path / "holder"),
+            "HEAVY_FREE_FLOOR_MB": "1",
+            "HEAVY_LOAD_CEILING": "9999",
+            "PATH": f"{empty}:{os.environ['PATH']}",
+        },
+    )
+    assert "ran" in result.stdout
+    assert time.monotonic() - started < 20
+
+
+def test_the_memory_reader_covers_both_operating_systems() -> None:
+    """Darwin answers through `vm_stat`, Linux through `/proc/meminfo`.
+
+    Read rather than executed: a test cannot become the other operating system,
+    and the branch that matters is the one this machine never takes.
+    """
+    body = SCRIPT.read_text()
+    assert "command -v vm_stat" in body, "the Darwin reader is not guarded by a probe"
+    assert "/proc/meminfo" in body, "no Linux reader — CI cannot run what it must enforce"
+    assert 'if [ -z "$free" ] || [ -z "$load" ]' in body, "an unmeasurable machine still waits"
