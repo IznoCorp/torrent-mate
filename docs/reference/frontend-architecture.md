@@ -596,6 +596,32 @@ not asserted here, and a wave that assumes either answer is doing what B-101 rec
 
 ---
 
+
+### D12 — Two production surfaces do not survive the switchover (operator, 2026-09-02)
+
+**Decision.** The global event feed (`EventFeed`, `RecentEventsTable` — a scrollable list of every
+event the stream carries, on production's Système) and the standalone configuration validation
+(`POST /api/config/validate`) are NOT redrawn. They are the two of the nine ownerless surfaces of
+the 2026-09-02 inventory that the operator wrote off; the seven others have a lot each (Phase 5's
+re-cut, B-296 to B-302).
+
+**Replaces.** The standing reading of the mission — « every production screen with no page in the
+maquette is a page still to be drawn » — for these two, by name. The mission is unchanged for
+everything else.
+
+**Why.** A feed of every event has no axis: it is the old dashboard's model, refused on 2026-08-19
+with Contrôle (« a medium in trouble is Arrivées, a machine in trouble is Système »). Its two halves
+are already served where the rule puts them — an event about a medium reaches its card and its
+journey (L19), a service that changes state reaches Système (`frontend-backend-demands-stream.md` §
+4) — and production's panel was an instrument demonstration (a virtualised list over the event
+ring), not a product surface. The validation call is a backend convenience: the save already returns
+its warnings, and a separate « validate » has no surface of its own.
+
+**What it makes void.** Any future inventory listing these two as missing. The absences already on
+the record stand beside them and are not repeated here: the desktop rail (Q1 — drawer alone, not
+frozen), the Pipeline tab and badge (Q6 — none), per-file configuration editing (settings navigate
+by topic), the trigger legend (the trigger is written in words), push notifications (B-257 —
+declined, consumer L16).
 ## 3. Invariants — true at the end of every wave
 
 1. **The URL and the interface never contradict each other.** D1's rule holds in both
@@ -1331,6 +1357,14 @@ Declared by L10-ter on 2026-08-29, ordered by the operator's answers of 2026-08-
 then the global levers; then the constitution's three, each drawn in the maquette first like every
 surface — L16 and L17 still blocked on a dictated answer, L18 no longer.
 
+**Re-cut on 2026-09-02, on the steward's inventory of every production surface against the
+maquette.** Nine surfaces had no owner — production draws them, the maquette does not, and no lot
+named them. The operator placed each (D12 records the two that do not survive): the settings' two
+banners with L19; the three verbs a tunnel owes in a lot of their own, **L21**, because a verb is
+behaviour and L19 is a conversion; a passage's raw log and the locks with L20; the ranking editor
+with L16. **The order is now L14 · L19 · L21 · L20 · L16 · L17 · L18 · L13**, and no dependency
+already written moved.
+
 #### L14 — The surfaces that outgrew their file · *depends on L07, L09*
 
 **Objective.** The four feature surfaces that sit over the 400-line hard ceiling come back under
@@ -1423,10 +1457,52 @@ inside the navigation's own commit, which is what the delay was standing in for 
 inherits here is the SHAPE, at the other `setTimeout(…, 260)` sites the delegation still holds, not
 this one.
 
+**Two surfaces placed here on 2026-09-02** (the operator, on the steward's inventory). When the
+settings producer moves, it DRAWS the two banners production has and the maquette only declares —
+`SettingsState.conflict` is set to `false` at boot and never raised, drawn or copied: the version
+conflict, production's 412 when the file changed under the editor (B-299); and a confirmation before
+« Redémarrer maintenant », which today restarts on the tap while a restart cuts the service for the
+whole household, §17 (B-300). Both are work inside the file the producer becomes, and neither adds a
+verb. **The verbs §20 names for a tunnel are NOT this lot's** — a season grab from the sheet,
+requeue and rescrape from the journey are L21's, so that « no surface changes » stays exactly true
+here.
+
 **Done when.** `grep -c "panel\.open(" legacy.js` reads 0; the inventory command lists only the
-harness panel; the fixture families that fed the producers are gone (D5's bracket-match method
-reads the difference); the delegation handles only the frame's verbs; the four map rows above
-read `served` with a rule that bit; the oracle is green or its divergences accepted with reasons.
+harness panel; the fixture families that fed the producers are gone (D5's bracket-match method reads
+the difference); the delegation handles only the frame's verbs; the four map rows above read
+`served` with a rule that bit; the oracle is green or its divergences accepted with reasons. The
+settings' two banners draw (B-299, B-300), each with a rule seen red.
+
+#### L21 — The tunnel's verbs · *depends on L19*
+
+**Objective.** DOIT-3 — « agir là où l'on observe » — applied to a tunnel (§20). Three verbs the
+maquette's surfaces show the NEED for and do not offer: « Récupérer cette saison » from the media
+sheet's seasons panel, which prints a season as `to_grab` and offers nothing (`POST
+/api/acquisition/follows/{followed_id}/seasons/{season}/grab` is uncalled — B-301); « Remettre en
+file » and « Re-scraper » from the journey sheet, which is the tunnel seen by the operator and where
+§20 says a blocked tunnel « reprend là où il s'est arrêté, par l'opérateur » (`POST
+/api/acquisition/journeys/{info_hash}/requeue` and `/rescrape` are uncalled — B-302).
+
+**Why it is a lot of its own, and a small one** (operator, 2026-09-02). These verbs were placed with
+L19 by the clause map, and L19's contract says « no surface changes »: a producer moves at zero
+divergence, and a verb changes what the interface does. Putting them in L19 meant amending that
+sentence and loading the largest remaining lot further. A behaviour lot after it keeps L19's
+contract exact and lands each verb with its rule seen red, on producers L19 has just put in their
+feature — about four phases.
+
+**Where it lives (invariant 10).** On the producers L19 moved: the seasons panel in
+`features/media/` and the journey in `features/acquisition/`. The media feature calls the
+acquisition OPERATION through its own `queries.ts` — invariant 7 forbids importing the acquisition
+feature, and a mutation on the contract is not a feature import.
+
+**What it must hold.** DOIT-4: a verb asked while the parallelism bound is met is queued VISIBLY,
+never « occupé » (§20). NE-DOIT-PAS-3: no 409 on a legitimate ask. §17: the verbs land unconditional
+here — who may act on whose tunnel is L18's gate, which hides them per role afterwards; this lot
+does not draw a right it cannot yet read. NE-DOIT-PAS-9 is untouched: nothing here draws a medium.
+
+**Done when.** The three operations are called and mocked (seeded from the running backend's shapes,
+D7); each verb has a rule that walks it and reads the queued state; the map's DOIT-3 row names the
+three as `served`; B-301 and B-302 read `fixed`.
 
 #### L20 — The global levers and the history · *depends on L15, L19, L10*
 
@@ -1443,6 +1519,16 @@ surfaces), the global half is this lot's, and there is **no Pipeline tab and no 
 (the operator's Q6 answer) — the chrome shows what awaits the operator, and the Acquisition and
 Arrivées badges already do.
 
+**Two surfaces placed here on 2026-09-02** (the operator, on the steward's inventory). **The raw log
+of an execution** — production's `RunLogFeed`, the `run_log` lines verbatim — lands inside the run's
+detail in the history, FOLDED by default: DOIT-1 asks for clear French, and the narrative of a
+passage is per media under §20 and is L19's (the journey, DOIT-5); what stays global is the raw
+lines, a secondary disclosure for diagnosis, never the default view (B-296). **The locks** — `GET
+/api/maintenance/locks` answers the pipeline lock, the pause sentinel and the watcher's pause, which
+are exactly the STATE of this lot's own levers, plus the tmp-orphan sweep, which is a machine fact
+and renders as a block of Système; its repair stays a Maintenance command, as the index's does today
+(B-297). Who holds the lock behind « En file » remains L19's line.
+
 **Blocking note.** Where the levers land — a page of their own, or a section of Système — is the
 operator's UX question, answered in the wave's design before it opens; the per-media half is no
 longer a question, §20 answers it.
@@ -1453,7 +1539,8 @@ settings feature's contract.
 
 **Done when.** DOIT-3's « relancer le watcher », DOIT-5's progress to the library and DOIT-6's
 figures read `served` in the map with a rule; the bound, the pause and the watcher are called and
-mocked; the history renders every named state at 390 px with no overflow; the oracle records the
+mocked; the history renders every named state at 390 px with no overflow; a run's detail carries its raw
+log folded and the levers read the lock and the sentinels (B-296, B-297); the oracle records the
 surfaces as new.
 
 #### L16 — §18, the ratio · *depends on L15, L19, L10*
@@ -1475,6 +1562,14 @@ volumes, the trend, and per ACTIVE torrent its deadline and its ratio. **No prop
 the interface exposes, the operator judges. The backend's share is recorded in
 `backend-demands-architecture.md` § 4.
 
+**And the ranking editor (operator, 2026-09-02, on the steward's inventory).** « Le ranking suit le
+ratio »: the weights that rank a release gain a ratio term, and the surface where that term is set
+is the ranking editor production has — `RankingPanel`, with a live preview through `POST
+/api/acquisition/ranking/preview`, uncalled — and the maquette only NAMES: the settings rubric «
+Classement des releases » promises « un écran à part », and the quality screen's button is a toast
+saying the editor will exist (B-298). It is drawn here, as that screen, with its own address under
+the settings page (D1) and the live preview the backend already computes; the toast goes with it.
+
 **Where it lives (invariant 10).** `features/trackers/` — a tracker is a domain of its own, read
 by the acquisition and the media sheet, and invariant 7 forbids either from importing the other.
 A page with its row in `app/navigation.ts` (bar or drawer — the wave's design says which, drawn
@@ -1483,7 +1578,8 @@ first), a per-tracker panel through `ui/panel`.
 **Done when.** The map's DOIT-13 row and DOIT-2's ratio half read `served` with a rule; the three
 operations are called and mocked (seeded from the running backend's shapes, D7); the policy write
 is in the demands register; the events are claimed by a rule (R91's fan-out); the ratio shown is
-the tracker's (NE-DOIT-PAS-1, held by the mock's own value, never a local computation).
+the tracker's (NE-DOIT-PAS-1, held by the mock's own value, never a local computation); the
+ranking editor draws with its live preview and the quality screen's toast is gone (B-298).
 
 #### L17 — §19, cross-seed · *depends on L16*
 

@@ -355,126 +355,15 @@ when the defect comes back.
 | B-293 | 38 `Design:` markers name `docs/features/…` paths that left the tree, and the design-gaps pair passes over them | by audit | `open` |
 | B-294 | `.gitignore` cited two `docs/features/…` files that no longer exist | by audit | `fixed #539` |
 | B-295 | React 19 assigns `innerHTML` on the prop OBJECT's identity, string unchanged or not — so every re-render of a page subscribed to the store's version recreates its engine-drawn children | by L14   | `fixed #547` |
+| B-296 | The raw log of an execution has no surface; the passage's narrative is per media and the log lines are folded in the run's detail | by survey | `open` |
+| B-297 | The locks — pipeline lock, pause sentinel, watcher pause, tmp-orphan sweep — have no surface, and three of them are the state of L20's levers | by survey | `open` |
+| B-298 | The ranking editor is a promise: a settings rubric that leads nowhere and a toast saying it will exist | by survey | `open` |
+| B-299 | `SettingsState.conflict` is declared, set to `false` at boot, and never raised, drawn or copied — the 412 has no surface | by survey | `open` |
+| B-300 | « Redémarrer maintenant » restarts on the tap, with no confirmation, while a restart cuts the service for the whole household | by survey | `open` |
+| B-301 | The seasons panel prints a season as `to_grab` and offers no verb; the season grab operation is uncalled | by survey | `open` |
+| B-302 | The journey sheet is the tunnel and offers neither « Remettre en file » nor « Re-scraper »; both operations are uncalled | by survey | `open` |
 | B-303 | A mutation applied BY HAND leaves the served copy of the previous build in place, so the reading taken next measures code nobody is testing — and a restore by `git checkout --` over the maquette's sources destroys whatever else is uncommitted there (the number is 303 and not 296 because #549 held 296-302 on `main`-to-be) | by L14 | `open` |
 | B-304 | `git add -f` applied to a PATH rather than to the ignored files it was needed for swept 28 375 files into a commit, `node_modules` entire, and nothing in the repository refuses it — the only guard that noticed read five French PATH SEGMENTS, and they were the MAQUETTE's own ignored screenshots, not the vendored tree | by L14 | `open` |
-
-**B-295 — React 19 re-sets `innerHTML` whenever the `dangerouslySetInnerHTML` prop is a new object,
-and every site here hands it one per render.**
-Found on 2026-09-01 while measuring B-247's surface half before L14's design was written. The
-acquisition page keeps 5 of 44 captured nodes across `window.__store.touch()`; the first
-`<section data-part="section">` is the SAME node before and after, its `innerHTML` is byte-equal
-(1 968 characters), and the card inside it is a NEW node. React 18's `diffProperties` compared the
-`__html` strings and left equal markup alone; React 19.2.8's `setProp` assigns
-`domElement.innerHTML = value.__html` whenever the generic prop loop sees `nextProp !== lastProp`
-— and `{ __html: … }` written inline is a fresh object on every render. **This is B-247's
-acquisition mechanism**: a tap between `pointerdown` and `click` on one of those cards is lost
-whenever anything bumps the store, with no event and no error.
-
-**And it is not confined to a page that subscribes to the store's `version`, which is how the
-first reading of it under-counted the sites.** `store.write` produces a new `state` object, so
-every surface reading `useUiState()` re-renders on any of the engine's 35 write sites and rebuilds
-its markup the same way. The count is therefore not « the pages that watch the version » but every
-inline `{ __html }` in the tree: **32 on `main`**, 15 of them in the four files L14 cut.
-
-**Owner: L14, phase 7. FIXED by #547 — at every one of the 32.** Twenty-nine go through the memo;
-the other three were the private `Icon` copies deleted in the same wave, so their sites left with
-them. « At all 32 » was the first sentence here and it is loose by three, which on a count this
-entry exists to state is worth the extra clause. `ui/markup.tsx` memoises the
-`{ __html }` object on its string — the comparison React 18 made — and every site in `design/src`
-goes through its `<Markup>` component, `ui/icon.tsx` included: an icon's `<path>` children were
-rebuilt on every parent render, and Chromium delivers no `click` at all when the `pointerdown`
-target has been replaced, so a press landing on an icon's stroke was lost on any bump. The
-library's window was a second mechanism and is repaired beside it: its draw key named the store's
-`version`, so every bump emptied the window and rebuilt every row.
-
-<sub>`frontend/maquette/harness/persistence.py` hold (f): on the states its own list names, every card, tile,
-row, button, pill, image, `path` and key-value row is the SAME node after `window.__store.touch()`
-AND after `window.__store.write({})` — the two doors, because a surface reading `useUiState()`
-bails out of the first and re-renders on the second. Mutations: the window keyed on a value that
-moves every draw, and the markup object made fresh per render.</sub>
-
-**B-303 — A mutation taken outside `scripts/mutate.sh` is a mutation with no build behind it, and
-its restore is a `checkout` that does not know what else it is throwing away.**
-Found by L14 on 2026-09-02, twice in the same day, at a cost of two re-taken readings and seven
-rewritten files. **The number is 303 and not 296** — `check-bug-register.py --next` printed B-296 on
-this branch, and #549 was open on `main`-to-be holding B-296 through B-302; the helper prints that
-warning under its own answer, and a register read on one branch cannot see a number taken on
-another.
-`scripts/mutate.sh` refuses a dirty tree, edits, REBUILDS, re-copies the served prototype under
-`served_copy.py`'s lock, runs the rule, and restores from the INDEX. Every one of those steps is
-load-bearing, and a by-hand mutation keeps only the first and the last:
-
-- **The served copy stays at the previous build.** The harness reads a MANUAL copy at
-  `/tmp/tm-refonte/wrapped.html`; editing a source and running a rule without rebuilding measures
-  the build before the edit. Two of this wave's mutation readings were taken that way and both had
-  to be re-taken. A mutation that goes green for this reason reads exactly like a rule that does
-  not bite.
-- **`git checkout -- frontend/maquette/design/src` restores the whole path, not the mutation.**
-  It took SEVEN files of uncommitted repairs with it here — the media screen, its hero, its cast,
-  its details, its library facts, its season list and the shared state surfaces — because the
-  mutation had been applied on top of work that was not yet committed. « Six » stood here and in
-  the wave's report until a reader diffed the commit that rewrote them (`aa4397e77`, seven files,
-  with `11fe3efd3` after it) and found `season-list.tsx` named nowhere. The rule that answers this is already written down and
-  was not followed: commit BEFORE any mutation check, so the restore has a commit to restore to.
-
-**What it is NOT.** This is not `mutate.sh` failing; it is the wave stepping around it, which is
-also why no gate can see it. B-273 records the case the tool genuinely cannot judge — a GUARD,
-whose subject is the tree rather than the served page. Everything else goes through the tool.
-
-**Owner: whoever writes the next mutation.** The entry stays `open` because what would close it is
-a check nothing can perform: a harness cannot tell a reading taken against a stale copy from a
-reading taken against a fresh one, which is the whole defect.
-
-<sub>The subject of the first one was `frontend/maquette/design/src/features/media/media-hero.tsx`,
-the in-flight arm of the kind branch replaced by the kind's own word, run against
-`frontend/maquette/harness/priming.py`. The way to take it is
-`scripts/mutate.sh <file> '<expression>' <rule>`, which refuses a dirty tree, rebuilds, re-copies
-the served prototype under `frontend/maquette/harness/served_copy.py`'s lock, runs the rule and
-restores from the index. The two readings that had to be re-taken were the first run of the
-walk that reports the kind's own words, and a tree-walk probe showing the same text; both were
-diagnostic, both were re-taken on a rebuilt copy in the next command, and no mutation-red credited
-anywhere rests on them. They are written out here because the report that first carried them leaves
-the tree at the post-merge gesture.</sub>
-
-**B-304 — `git add -f <path>` bypasses the ignore rules for everything under that path, and no
-gate in this repository refuses a vendored tree.**
-Found by L14 on 2026-09-02, at the fifth review round. The global ignore file blocks `docs/`,
-`BUGS.md` and `CLAUDE.md`, so committing this wave's documents needs `-f`. Written as
-`git add -f BUGS.md IMPLEMENTATION.md docs/features/maquette-l14 frontend`, the flag applied to
-`frontend` as well: **28 375 files and 5 161 195 insertions**, `frontend/node_modules` entire,
-`.vite` caches and a `__pycache__` among them.
-
-**What caught it, and it was not designed to — and the true version is worse than the first
-account.** `check-no-french.py`'s path-segment arm reads every tracked file's name and refused five
-French ones: `g_fiche_bas.png`, `m_annonce.png`, `s_grille.png`, `s_liste.png`,
-`st_acq-ajout-resultats.png`. Those are **not** in `node_modules` and not vendored — `git
-check-ignore -v` names them at `frontend/maquette/*.png` and `frontend/maquette/harness/*.png`, the
-maquette's OWN ignored screenshots, swept in by the same flag. So the twenty-eight thousand
-vendored files were refused by nothing at all: what stopped the commit was five screenshots that
-happen to carry French names, in another directory entirely. A vendored tree alone would have gone
-through the full suite, `make check` and all fourteen CI jobs without a word. Nothing counts tracked
-files, nothing floors a diff's size, nothing refuses `node_modules` by name.
-
-**What the wave did about it.** `git reset --soft HEAD~1`, `git reset`, then a commit naming its
-five files explicitly. No residue: nothing tracked, nothing in the diff, nothing a reader of the
-pull request can see — which is exactly why it is written down here. It is this wave's THIRD process
-failure and the first that a gate stopped rather than a reader.
-
-**The rule, and it is one line**: `git add -f` names FILES, never a directory. What it exists for
-is a file the ignore rules block on purpose; a directory under it is a promise about everything
-inside, including what a package manager put there this morning.
-
-**Owner: unclaimed.** What would close it is a guard — a floor on the number of files one commit
-may add without a reason, or a refusal of any tracked path under a dependency directory. Neither is
-this lot's subject, and writing one here would be a tool nobody asked for at the end of a review
-round. The entry stays open with the mechanism named. B-303 is the same family: a tool
-stepped around rather than a tool that failed.
-
-<sub>`git add -f BUGS.md IMPLEMENTATION.md docs/features/maquette-l14 frontend` is the command;
-`git show --stat` on the commit reads « 28 375 files changed, 5 161 195 insertions ». The recovery
-is `git reset --soft HEAD~1`, then `git reset`, then a commit naming its files. `git check-ignore -v
-frontend/maquette/g_fiche_bas.png` names `.gitignore:35:*.png` — which is how one can tell what the
-guard actually refused. What has no command is the detection: there is none to write down.</sub>
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -531,6 +420,73 @@ written without backticks here on purpose — the cited-paths guard would refuse
 misleading; removed in #539.
 
 <sub>`git ls-files docs/features/config-home docs/features/provider-ids | wc -l` → 0</sub>
+
+**B-296 — the raw log of an execution has no surface.** Production draws two things on `/pipeline`
+for a run: a narrative in plain French folded from the events (`InterpretedRunFeed`) and the raw
+`run_log` lines (`RunLogFeed`, in a collapsed accordion). The maquette's Système lists executions
+with « réussi / échoué » and nothing more; the placement table of `IMPLEMENTATION.md` sends « logs »
+to Système and no lot owed them. Placed 2026-09-02: the narrative is per media under §20 and is the
+journey's (L19, DOIT-5); the raw lines land FOLDED inside the run's detail of L20's history, a
+secondary disclosure — DOIT-1 asks for clear French and raw lines are not that. The narrative is
+translatable by construction (`frontend-backend-demands-stream.md` § 7). Owner **L20**.
+
+<sub>`grep -c "log" frontend/maquette/design/src/features/system/page.tsx` → 0 · `grep -n "RunLogFeed\|InterpretedRunFeed" frontend/src/pages/Pipeline.tsx`</sub>
+
+**B-297 — the locks have no surface, and three of the four are the state of L20's levers.** `GET
+/api/maintenance/locks` answers `pipeline.lock`, the `pipeline.pause` sentinel, `watcher.paused`,
+and a bounded sweep of stale `_tmp_dispatch_*` / `.ingest_tmp_*` entries
+(`personalscraper/web/routes/maintenance.py`, « GET /locks »). Production draws it as `LocksPanel`
+on Système; the maquette calls the operation nowhere and draws none of it. Placed 2026-09-02: the
+lock and the two sentinels ARE what L20's pause, resume and watcher levers must read; the orphan
+sweep is a machine fact — a block of Système, its repair a Maintenance command as the index's is.
+Who holds the lock behind « En file » stays L19's (NE-DOIT-PAS-2). Owner **L20**.
+
+<sub>`grep -rn "maintenance/locks" -g '*.ts' -g '*.tsx' frontend/maquette/design/src` → none · `sed -n '/GET \/locks/,/return/p' personalscraper/web/routes/maintenance.py`</sub>
+
+**B-298 — the ranking editor is a promise.** The settings rubric « Classement des releases » says «
+c'est un écran à part » and its row leads nowhere; the quality screen's « Poids du classement
+(global) » button carries `data-toast` with « Dans l'app, ce bouton mènera à /config?tab=classement
+— l'éditeur de classement ». Production has the editor (`RankingPanel`, live preview through `POST
+/api/acquisition/ranking/preview`, uncalled by the maquette). Placed 2026-09-02 with **L16**: §18
+makes the ranking follow the ratio, and the editor is where that term is set; it is drawn as the
+screen the rubric promises, with the live preview.
+
+<sub>`grep -n "rankingToast\|rankingTitle" frontend/maquette/design/src/i18n/fr.json` · `grep -rn "ranking/preview" -g '*.ts' frontend/maquette/design/src` → none</sub>
+
+**B-299 — the settings' version conflict is declared and never drawn.** `SettingsState.conflict:
+boolean` (`features/settings/reference.ts`) is set to `false` where the engine builds the state and
+reset to `false` on save, and no reader, no variant and no `fr.json` key exists for it —
+production's `ConflictDialog` (the 412 when the file changed under the editor) has no maquette
+counterpart, while the copy names « three banners » and draws two. Placed 2026-09-02 with **L19**:
+the banner is born when the settings producer moves.
+
+<sub>`grep -rn "conflict" frontend/maquette/design/src/features/settings/ frontend/maquette/design/src/engine/legacy.js` → the declaration and two `= false`, no reader · `grep -c "conflit" frontend/maquette/design/src/i18n/fr.json` → 0</sub>
+
+**B-300 — « Redémarrer maintenant » restarts on the tap.** The settings' restart banner's button
+(`data-restart`) is handled by the engine with no confirmation: the flag drops, a toast says «
+Service redémarré ». Production confirms first (`RestartConfirmDialog`). A restart cuts the service
+for every account of the household (§17), which is the case NE-DOIT-PAS-6's spirit covers even
+though nothing is destroyed. Placed 2026-09-02 with **L19**, beside B-299: the confirmation uses
+`ui/dialog` and lands with the producer's move.
+
+<sub>`grep -n "dataset.restart" frontend/maquette/design/src/engine/legacy.js` → the branch sets `redemarrage = false` and toasts, no dialog</sub>
+
+**B-301 — a season is printed « à récupérer » and nothing lets one take it.** `features/media/panel-
+seasons.tsx` derives a `to_grab` state per season and draws it as a warning swatch; no verb follows,
+and `POST /api/acquisition/follows/{followed_id}/seasons/{season}/grab` is among the operations the
+maquette never calls (`frontend-backend-demands.md` § 4). DOIT-3 — act where one observes. Placed
+2026-09-02 with **L21**, the tunnel's verbs.
+
+<sub>`grep -n "to_grab" frontend/maquette/design/src/features/media/panel-seasons.tsx` · `grep -rn "seasons/" -g '*.ts' frontend/maquette/design/src` → none</sub>
+
+**B-302 — the journey offers no way to resume a tunnel.** The journey sheet is the tunnel seen by
+the operator (§20), and §20 says a blocked tunnel « reprend là où il s'est arrêté, par l'opérateur
+». `POST /api/acquisition/journeys/{info_hash}/requeue` and `/rescrape` exist and are uncalled;
+`fr.json` holds no « Remettre en file » and no journey-level « Re-scraper » (the media sheet's
+rescrape is another subject). The clause map had these with L19, whose contract forbids a surface
+change; placed 2026-09-02 with **L21**.
+
+<sub>`grep -rn "requeue\|journeys/" -g '*.ts' frontend/maquette/design/src` → the single-journey read only · `grep -n "Remettre en file" frontend/maquette/design/src/i18n/fr.json` → 0</sub>
 
 **B-293 — 38 `Design:` markers point at paths that left the tree, and nothing says so.**
 `grep -rhoE 'Design: docs/[^#[:space:]]+' --include='*.py' tests | sort | uniq -c` shows 16 for

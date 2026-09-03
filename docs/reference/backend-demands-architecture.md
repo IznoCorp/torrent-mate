@@ -100,6 +100,6 @@ and why nothing will warn tomorrow.
 ## 7. What the existing operation-level registers already ask, and this file does not repeat
 
 `frontend-backend-demands.md` § 1–3 (operations the interface requires and the backend lacks,
-renamed properties, pre-formatted fields) and `frontend-backend-demands-stream.md` § 1–6 (the
+renamed properties, pre-formatted fields) and `frontend-backend-demands-stream.md` § 1–7 (the
 event's subject, a progress channel, the §18/§19 events, a service that stopped answering, the
 ownership index, a richer hello). This file adds the decisions those registers cannot express.

@@ -199,3 +199,108 @@ an owner in the plan's instruments' debts block, not repaired by the steward.
 says which version a document may describe and where it lives; the steward's audit reads a
 landed wave against it — its folder deleted, its citations by commit, nothing born in
 `docs/production/` — and `scripts/check-docs-cited-paths.py`'s three arms are the instrument.
+
+## Instrument hygiene — the machine is an instrument too (operator, 2026-09-02)
+
+**Every process the office starts, the office kills. Everything it writes outside the repository, it
+deletes.** This is a rule of the office because the operator has had to enforce it twice: 117 GB
+removed by hand on 2026-08-26 when the boot disk filled and no command could start, and on
+2026-09-02 a machine at load 45 with 200 MB of memory free during a review — eight harness rules
+fanned out in parallel, each driving a real browser, overlapped with the repository's own test run,
+beside nine orphaned static servers and 739 MB of build copies. « Toujours nettoyer l'espace disque,
+la ram, les serveurs. TOUT ! »
+
+**Why it is not housekeeping.** On this machine kernel wired memory grows under heavy input/output
+and only a reboot reclaims it, so a memory squeeze outlives the run that caused it. A review that
+leaves the machine unusable is not finished, whatever its findings are worth.
+
+**What it obliges, and none of it is optional.** A reader's report saying « servers stopped » is not
+evidence — five survived that sentence: the office VERIFIES with `ps` that no server, no browser and
+no build of its own is left, after every probe and at the end of every round. Build trees,
+`node_modules`, `dist` and the screenshots of closed rounds are deleted as soon as the round they
+served is relayed; the reports, the probe scripts and the JSON readings are what is kept, and they
+are small. Load is never stacked: the full suite and the repository's test run go in sequence, the
+harness fans out to two or three rules rather than eight, and the office's readers run one at a time
+while a wave's gates are running. **Every reader's prompt carries the clause** — its own directory,
+its own ports, and the duty to kill what it started and delete what it built BEFORE it reports.
+
+**The lock, `scripts/heavy.sh`, is what makes the rule hold when two sessions both believe they are
+alone.** Wrap every run that starts browsers, builds or a parallel test run — `sh scripts/heavy.sh
+<who> <command>`. It is a machine-wide mutex plus a readiness check: it waits for whoever is
+running, then waits again until there are 4 GB free and a one-minute load at or below 6, and it
+watches the run, stopping ITS OWN child (exit 75, never anything else on the machine) after three
+consecutive samples below 2 GB free. It releases on exit, on an interrupt and on a kill, and a lock
+older than forty-five minutes is treated as a dead session's.
+
+**And the fan-out has a NAME, `TM_HARNESS_JOBS`, which is the part a rule loses when it is written
+as a number.** Both `run.sh` and `scripts/harness-hold-counts.py` default it to the core count —
+eight here — so a run left to itself takes every core and drives eight browsers, and « fan-out two »
+is an instruction nobody can follow without being told the variable. The office said « fan-out two »
+to a wave, watched it comply, and then ran the hold-count recorder itself at the default and put the
+machine at a load of twenty-seven. Set it explicitly, every time: `TM_HARNESS_JOBS=2 sh
+scripts/heavy.sh <who> <command>`. The lock cannot save a run from its own parallelism — it holds
+the door, it does not hold the room.
+
+**Its thresholds are arithmetic, not taste.** This host is 8 cores and 16 GB; one Playwright browser
+group costs about 1.1 GB; the baseline holds about 6 GB. A fan-out of eight therefore asks for more
+than exists, which is how a load of 65 with 200 MB free happened. The caps that go with the lock: at
+most two browser groups machine-wide, a harness fan-out of two, a parallel test run at three workers
+rather than all eight cores, and never a build beside one. **The margin is deliberate** — the script
+asks whether there is room to spare, never whether a run merely fits, because a run that squeezes
+leaves compressed memory this host does not reclaim until a reboot.
+
+**And it must not tax what it protects.** Measured on its own tests: one second of overhead on an
+instant command, the exact duration on a three-second one, seven seconds to acquire behind a five-
+second holder, and the lock free after an interrupt. A wrapper that made every quick command wait
+would be a wrapper someone bypasses, and a rule bypassed once is a rule gone.
+
+**And the same holds for a wave's agent.** The office measures the load before it accuses, names
+what the measurement attributes to whom, and says it plainly: the operator asked whose it was, and «
+the agent's gates » was the answer he needed to hear with the counts behind it.
+
+## What a review costs, and the five rules that make it cost less (L14, 2026-09-02)
+
+**L14 took seven review rounds where L12 took three**, and its curve did not fall the way L12's did:
+thirteen majors, then nine, eight with a blocker, nine, six, twelve, and the twelve were not a new
+supply of defects — four of them were repairs announced and not delivered, one was a regression the
+repair itself introduced, and six were figures in documents. The yield was poor for reasons that are
+the office's before they are the wave's, and each has a rule.
+
+**1. A conversion wave does not carry a behaviour repair.** A conversion is proved cheaply — the
+oracle measures that nothing moved on the screen — and that proof covers nothing a behaviour change
+does. L14's brief attached two behaviour entries to a wave whose subject was cutting four files, and
+they landed on the two most intricate surfaces the prototype has, a virtualised list and a screen
+with two asynchronous reads. The conversion half was clean at the first round and stayed clean;
+every round after the first was the other half. **A behaviour entry gets its own wave, or it waits
+for the lot that owns its surface.**
+
+**2. The deepest reading method applies from the FIRST round.** L14's readers read code for two
+rounds and only then began to build the prototype and walk it with a control build beside it. Every
+blocker and most of the surface defects came from walking. Changing method mid-wave means the defect
+population changes under the curve, so the curve stops meaning anything: round four was not finding
+new defects, it was finding old ground newly visible. **Build it and walk it from round one, against
+a control of the previous head.**
+
+**3. « Repaired » without a reading is not repaired.** The one round where the wave ran the readers'
+own probes before announcing its head found six majors; the round where it did not found twelve,
+four of which were repairs that had not happened. The probes existed three rounds before the office
+made running them a condition. **No head is reviewed until every item of the previous round arrives
+with the probe reading that closes it**, taken on a build of the candidate against a control — or
+with a sentence saying what the fixtures cannot show, which is an honest answer and a fast one.
+
+**4. A repair lands with the rule that falls when it is reverted.** Three of round six's four code
+defects were held by nothing: revert the line and every one of the suite's holds stayed green. That
+is why the same defect kept returning with its sign turned round. A repair without its rule is a
+repair the next round pays for again, and the rule is cheapest written beside the fix.
+
+**5. Figures are written ONCE, on the final head.** Line counts, hold counts, walk counts, the
+register's tallies: every repair moves them, so a wave that re-measures them each round writes
+numbers that are stale before the round ends. L14 paid about two majors a round for six rounds on
+exactly this. **The office does not count a stale figure as a finding during repair rounds**, tells
+its readers so, and requires one measured pass on the head that is about to merge.
+
+**And the arithmetic worth keeping.** Of L14's sixty-odd majors, roughly a dozen were defects a user
+would meet — a library that went blank, taps lost on icon-only buttons, a three-thousand-pixel jump
+on a rotation, an interface asserting about data still in flight, one selection deleting the wrong
+titles. The rest was the cost of proving those and of writing them down. That ratio is the thing to
+improve, and the five rules above are how; abandoning the dozen is not.
