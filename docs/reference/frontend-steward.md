@@ -43,7 +43,9 @@ the lot. Only the operator's choice does.**
 `docs/reference/frontend-architecture.md` (what must become true, and in what order), then
 `IMPLEMENTATION.md` § « Where the frontend work stands » (where it stands),
 `frontend/maquette/README.md` (how the prototype runs and what it has already cost), `BUGS.md`,
-and finally the landed lot's own design and plan under `docs/features/`. Nothing in that list
+and finally the landed lot's own design and plan, which the post-merge gesture this same file
+prescribes has DELETED from the tree — read them at `git show <the lot's squash>:docs/features/<codename>/DESIGN.md`,
+the squash being the one `IMPLEMENTATION.md` records beside the lot. Nothing in that list
 depends on having watched the work happen — which is what makes the office transferable.
 
 ---
@@ -249,7 +251,9 @@ rather than all eight cores, and never a build beside one. **The margin is delib
 asks whether there is room to spare, never whether a run merely fits, because a run that squeezes
 leaves compressed memory this host does not reclaim until a reboot.
 
-**And it must not tax what it protects.** Measured on its own tests: one second of overhead on an
+**And it must not tax what it protects.** Measured by `pytest tests/scripts/test_heavy.py`, which
+exercises every path below on a lock moved aside by `HEAVY_LOCK` so no run of it touches the
+machine's own: one second of overhead on an
 instant command, the exact duration on a three-second one, seven seconds to acquire behind a five-
 second holder, and the lock free after an interrupt. A wrapper that made every quick command wait
 would be a wrapper someone bypasses, and a rule bypassed once is a rule gone.
@@ -261,7 +265,8 @@ the agent's gates » was the answer he needed to hear with the counts behind it.
 ## What a review costs, and the five rules that make it cost less (L14, 2026-09-02)
 
 **L14 took seven review rounds where L12 took three**, and its curve did not fall the way L12's did:
-thirteen majors, then nine, eight with a blocker, nine, six, twelve, and the twelve were not a new
+thirteen majors, then nine, then a blocker and seven, then nine, six, twelve and two — the
+seven counts `IMPLEMENTATION.md` records — and the twelve were not a new
 supply of defects — four of them were repairs announced and not delivered, one was a regression the
 repair itself introduced, and six were figures in documents. The yield was poor for reasons that are
 the office's before they are the wave's, and each has a rule.

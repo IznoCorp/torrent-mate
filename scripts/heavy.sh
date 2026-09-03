@@ -19,7 +19,8 @@
 #
 # It waits for whoever holds the lock, waits again until the machine has room
 # to spare, runs the command under a watchdog, and releases the lock whatever
-# happens. `HEAVY_LOCK` moves the lock, which is what its own tests use.
+# happens. `HEAVY_LOCK` moves the lock, which is what `tests/scripts/test_heavy.py`
+# uses to exercise every path here without touching the machine's real lock.
 
 LOCK=${HEAVY_LOCK:-/private/tmp/tm-heavy/holder}
 WHO=${1:?who is asking}
@@ -30,23 +31,33 @@ shift
 # one or two: the slack is deliberate. A load of 6 on 8 cores already means
 # most cores are busy, so a heavy run waits for the machine to be genuinely
 # quiet rather than merely survivable.
-FREE_FLOOR_MB=4096
-LOAD_CEILING=6
+FREE_FLOOR_MB=${HEAVY_FREE_FLOOR_MB:-4096}
+LOAD_CEILING=${HEAVY_LOAD_CEILING:-6}
 
 # The watchdog's red line. Crossed for three samples in a row — 45 seconds, so
 # a transient dip during a build's peak does not count — the wrapped command is
 # stopped. It kills only what this script started; nothing else on the machine
 # is ever touched, and the run can simply be launched again.
-HARD_FLOOR_MB=2048
+HARD_FLOOR_MB=${HEAVY_HARD_FLOOR_MB:-2048}
 HARD_STRIKES=3
 
 free_megabytes() {
-    vm_stat | awk '
-        /page size of/ { size = $8 }
-        /Pages free/ { free = $3 }
-        /Pages inactive/ { inactive = $3 }
-        END { gsub(/\./, "", free); gsub(/\./, "", inactive);
-              print int((free + inactive) * size / 1048576) }'
+    # macOS first, then Linux, and NOTHING when neither answers. A wrapper that
+    # runs on one operating system is a wrapper the repository's own CI cannot
+    # execute: `vm_stat` is Darwin's, the runners are Linux, and the first
+    # version of this hung there for the same reason it hung on a missing lock
+    # parent — it waited for a number it could never obtain.
+    if command -v vm_stat > /dev/null 2>&1; then
+        vm_stat | awk '
+            /page size of/ { size = $8 }
+            /Pages free/ { free = $3 }
+            /Pages inactive/ { inactive = $3 }
+            END { gsub(/\./, "", free); gsub(/\./, "", inactive);
+                  if (size && (free + inactive) > 0)
+                      print int((free + inactive) * size / 1048576) }'
+    elif [ -r /proc/meminfo ]; then
+        awk '/^MemAvailable:/ { print int($2 / 1024) }' /proc/meminfo
+    fi
 }
 
 one_minute_load() {
@@ -63,6 +74,20 @@ at_least() {
 at_most() {
     awk -v have="$1" -v want="$2" 'BEGIN { print (have <= want) ? 1 : 0 }'
 }
+
+# ── Make sure the lock CAN be taken ──────────────────────────────────────────
+# `/private/tmp` is purged at boot and this host reboots weekly, so the lock's
+# parent is absent on the first heavy run of every week. With a bare `mkdir`
+# that failed `ENOENT` on every pass, the stale-lock breaker below could never
+# fire (it tests a path that does not exist), and the script span forever
+# announcing a holder nobody held. A wrapper the office is REQUIRED to use must
+# not be the thing that stops it.
+parent=$(dirname "$LOCK")
+mkdir -p "$parent" 2>/dev/null || true
+if [ ! -d "$parent" ] || [ ! -w "$parent" ]; then
+    echo "heavy: cannot use $parent as the lock's home — running unlocked" >&2
+    exec "$@"
+fi
 
 # ── Take the lock ────────────────────────────────────────────────────────────
 announced=0
@@ -83,13 +108,27 @@ while :; do
     sleep 3
 done
 
-trap 'rm -rf "$LOCK"' EXIT INT TERM
+# Interrupted, the wrapper must take DOWN what it started, not merely let go of
+# the lock: a run stopped by hand that leaves its browsers behind is the exact
+# residue the ceiling exists to prevent, and the operator has had to clear it.
+# `child` is empty until the run begins, so the same handler serves both phases.
+child=""
+release() {
+    [ -n "$child" ] && { kill -TERM -"$child" 2>/dev/null || kill -TERM "$child" 2>/dev/null; }
+    rm -rf "$LOCK"
+}
+trap 'release; exit 130' INT TERM
+trap release EXIT
 
 # ── Wait for room to spare ───────────────────────────────────────────────────
 announced=0
 while :; do
     free=$(free_megabytes)
     load=$(one_minute_load)
+    if [ -z "$free" ] || [ -z "$load" ]; then
+        echo "heavy: this machine reports neither free memory nor load — running unmeasured" >&2
+        break
+    fi
     if [ "$(at_least "$free" "$FREE_FLOOR_MB")" = 1 ] &&
        [ "$(at_most "$load" "$LOAD_CEILING")" = 1 ]; then
         break
@@ -102,8 +141,14 @@ done
 
 # ── Run it, watched ──────────────────────────────────────────────────────────
 echo "heavy: $WHO starts (${free}MB free, load $load)" >&2
+# Job control puts the child in its OWN process group, so the watchdog can
+# signal the whole tree. Signalling the direct child alone left the browsers
+# and workers it had forked — which are the very things the ceiling exists to
+# stop — running after the rescue said it had stopped them.
+set -m
 "$@" &
 child=$!
+set +m
 
 # The watchdog samples memory every 15 s, but it notices the child finishing
 # within a second: a wrapper that slept a fixed 15 s before looking would tax
@@ -117,14 +162,15 @@ while kill -0 "$child" 2>/dev/null; do
     [ "$((ticks % 15))" -eq 0 ] || continue
     kill -0 "$child" 2>/dev/null || break
     free=$(free_megabytes)
+    [ -z "$free" ] && continue
     if [ "$(at_least "$free" "$HARD_FLOOR_MB")" = 0 ]; then
         strikes=$((strikes + 1))
         echo "heavy: ${free}MB free — strike $strikes of $HARD_STRIKES" >&2
         if [ "$strikes" -ge "$HARD_STRIKES" ]; then
             echo "heavy: STOPPING $WHO's run — the machine is out of room" >&2
-            kill -TERM "$child" 2>/dev/null
+            kill -TERM -"$child" 2>/dev/null || kill -TERM "$child" 2>/dev/null
             sleep 5
-            kill -KILL "$child" 2>/dev/null
+            kill -KILL -"$child" 2>/dev/null || kill -KILL "$child" 2>/dev/null
             wait "$child" 2>/dev/null
             exit 75
         fi

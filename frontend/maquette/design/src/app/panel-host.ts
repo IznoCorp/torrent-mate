@@ -91,7 +91,7 @@ function openPanelOnCurrentEntry(open: () => void): void {
 export function installPanelHost(store: Store): void {
   // INSTALLED FROM HERE FOR THE REASON THE CARRIED POSTER WAS: `app/shell.tsx`
   // stands at 398 of a 400-line hard ceiling and an import plus a call would put
-  // it AT it. This is the nearest installer that boots once and is not L14's.
+  // it AT it. This is the nearest installer that boots once and owns no surface.
   installArtworkArrival();
 function openPanel(descriptor: PanelDescriptor): void {
   // Same order as the legacy `openSheet`: the layer first, the history entry

@@ -382,7 +382,7 @@ LOT_CODE = re.compile(r"\bL\d\d\b")
 # AND IT EXPIRED ANYWAY, on the four labels that read « L09 — the data layer
 # takes it ». L09 landed having reduced the largest of them by thirteen lines
 # out of the three hundred and fifty-six it owed, and this arm reported nothing
-# because the status it read said L09 had not run. The debt is L14's now, and
+# because the status it read said L09 had not run. The debt was L14's and it is paid (`9ce9b0508`); what remains is the engine's two, L13's, and
 # L14 exists in the plan because of it.
 OWED_LOT = re.compile(r"^(L\d\d)\b")
 
