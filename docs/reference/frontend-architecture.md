@@ -74,7 +74,9 @@ selection rule must not reach it. **Where and when its findings are converted is
 decide**, and it may amend this file's lots and their order under § 7.1. Invariant 10 had been
 binding since L09 with its subject — the frame — never modelled; **that was the debt, and this
 phase paid it**: the frame is modelled in thirteen parts in `docs/reference/frame-model.md` § 2, as the paragraph below
-records. Its definition and its agent's brief are `docs/features/maquette-l10-ter/`.
+records. Its definition and its agent's brief are read at
+`git show d3892d18:docs/features/maquette-l10-ter/DESIGN.md` — the folder left the tree at that
+wave's own post-merge gesture, as every wave's does.
 
 **It RAN on 2026-08-29, and this is what it decided** — its products are `docs/reference/frame-survey.md`, `docs/reference/frame-model.md`,
 `QUESTIONS.md` under that folder and `docs/reference/product-intent-map.md`; the lots below are
@@ -382,10 +384,27 @@ file reveals.
 cross-cutting parts are lifted once and early; the rest dies with each surface as that surface is
 converted and wired.
 
+**AMENDED 2026-09-03, and the amendment is the operator's to overrule.** L14 (`9ce9b0508`) ADDED to
+the engine: `legacy.js` +68 non-blank lines and `states.js` +9, against a decision whose title is «
+dies by subtraction ». The reason is good and the edit should stand: the library's bulk delete keyed
+its selection by a row's POSITION in the listing on screen and read that position back as an index
+into the source array, so under any sort or search a confirmed delete named and destroyed media the
+reader had never ticked. Keying by title, dropping the selection when the listing's question
+changes, and counting the media each title names is the repair of a data-destroying defect, and «
+file it for L13 » would have been the wrong call.
+
+**What the amendment costs, said plainly.** D5 is BINDING, and for a day the tree contradicted it
+with the only living record inside a state-file cell the next wave overwrites. So the rule stands
+with one exception written into it: **the engine may be added to only to stop a defect that destroys
+or loses the operator's data, and every such edit is amended here with its commit.** Anything else
+waits for the surface that kills the code. The size arm cannot hold this — a grandfathered file has
+no recorded count, so it may grow without limit and the guard still prints clean (B-306).
+
 **Why, and this is a measurement rather than a preference.** `legacy.js` was 34 650 lines when
 this was decided, of which **27 678 (79 %) are fixtures** — `SHEETS_RAW` alone is 20 538 lines of
 episode catalogue — and the engine's actual code about **6 949 lines**. **Re-measured on
-2026-08-29 (L10-ter)**: 33 449 lines, **33 026 non-blank**
+2026-09-03**: **32 461 non-blank** (`grep -cve '^[[:space:]]*$' frontend/maquette/design/src/engine/legacy.js`), which is 565 fewer than L10-ter read on
+2026-08-29 — and the aggregate CONCEALS a growth, see the amendment below
 (`grep -cve '^\s*$' frontend/maquette/design/src/engine/legacy.js`), of which **26 366** sit in
 the **9** declarations over 100 lines the method below finds — L09's « sixty families » counts
 every fixture constant whatever its size, which is a different figure and not this one.

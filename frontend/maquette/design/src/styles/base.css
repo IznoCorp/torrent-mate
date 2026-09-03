@@ -533,7 +533,7 @@
    else (D9 rule 1). No source file is touched to place them: each is keyed on a
    naming attribute the surface already emits, which is also how the media
    screen keeps its name without a line being added to
-   `features/media/media-screen.tsx` — one of L14's four files this lot may not
+   `features/media/media-screen.tsx` — the media screen, which this lot may not
    extend.
 
    A NAME MUST BE UNIQUE IN THE DOCUMENT, and each of these resolves to at most
@@ -596,7 +596,7 @@
    skeletons; they enter as they arrive now.
 
    `@starting-style` IS THE WHOLE MECHANISM, and it is why this needs no module
-   and no line in `features/media/media-screen.tsx` — one of L14's four. It
+   and no line in `features/media/media-screen.tsx`. It
    declares the style an element has for the frame it is INSERTED in, so the
    transition beside it runs from there to the resting value.
 
