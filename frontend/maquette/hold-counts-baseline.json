@@ -1,8 +1,8 @@
 {
-  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 74 of 86 rule(s) report a hold count; the other 12 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
-  "taken_at_commit": "b4b75a67a6cfcde6754c97d49d7ba8f9e9d75bcf",
-  "taken_on": "2026-09-01",
-  "suite": "86 of 86 rule(s)",
+  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 75 of 87 rule(s) report a hold count; the other 12 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
+  "taken_at_commit": "64c43d0e77cd61fe3fc5a7db0ac00ed128873a17",
+  "taken_on": "2026-09-03",
+  "suite": "87 of 87 rule(s)",
   "host": "http://127.0.0.1:8899/",
   "rules": {
     "actions.py": {
@@ -272,7 +272,7 @@
     },
     "persistence.py": {
       "exit": 0,
-      "count": 11,
+      "count": 39,
       "source": "common.Journal summary"
     },
     "pop.py": {
@@ -288,6 +288,11 @@
     "press.py": {
       "exit": 0,
       "count": 15,
+      "source": "common.Journal summary"
+    },
+    "priming.py": {
+      "exit": 0,
+      "count": 40,
       "source": "common.Journal summary"
     },
     "pwa.py": {
@@ -322,7 +327,7 @@
     },
     "screen_addresses.py": {
       "exit": 0,
-      "count": 50,
+      "count": 51,
       "source": "common.Journal summary"
     },
     "screens.py": {
@@ -432,15 +437,15 @@
     },
     "virtual.py": {
       "exit": 0,
-      "count": 17,
+      "count": 36,
       "source": "common.Journal summary"
     }
   },
   "totals": {
-    "rules": 86,
-    "parseable": 74,
+    "rules": 87,
+    "parseable": 75,
     "unparseable": 12,
-    "holds": 1928,
+    "holds": 2016,
     "failed": 0
   }
 }

@@ -12,6 +12,7 @@ import type { ReactElement } from "react";
 import { useAccountReference } from "../../features/account/reference";
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { actionButton, emptyNote, sectionHeading } from "../../ui/variants";
+import { Markup } from "../../ui/markup";
 
 export function AccountPage(): ReactElement | null {
   const { t } = useTranslation();
@@ -20,9 +21,9 @@ export function AccountPage(): ReactElement | null {
   if (!ACCOUNT) return null;
   const { factRowsHTML, emptyInner } = useEngineDrawing();
   const facts = (rows: Parameters<typeof factRowsHTML>[0]) => (
-    <ol
+    <Markup tag="ol"
       className="flux" data-part="flux"
-      dangerouslySetInnerHTML={{ __html: factRowsHTML(rows) }}
+      html={factRowsHTML(rows)}
     />
   );
   return (
@@ -72,14 +73,12 @@ export function AccountPage(): ReactElement | null {
       </button>
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.accountPage.others")}</h2>
-      <div
+      <Markup
         className={emptyNote()} data-part="empty-state"
-        dangerouslySetInnerHTML={{
-          __html: emptyInner(
+        html={emptyInner(
             t("screens.accountPage.othersEmptyTitle"),
             t("screens.accountPage.othersEmptyBody"),
-          ),
-        }}
+          )}
       />
     </>
   );

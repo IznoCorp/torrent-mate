@@ -666,6 +666,9 @@ def test_custom_property_never_matches_a_longer_name(tmp_path):
     assert "--color-card: red" in after["a.css"], "CONTROL: nothing was renamed at all"
 
 
+# A `.ts` file in the scratch tree, so the tool reaches for the TypeScript
+# parser: this case belongs with the eighteen that say so.
+@needs_typescript
 def test_custom_property_leaves_prose_alone(tmp_path):
     """A name inside a comment or a sentence is prose, and prose does not move.
 
@@ -686,6 +689,9 @@ def test_custom_property_leaves_prose_alone(tmp_path):
     assert "// --card in a comment" in after["b.ts"]
 
 
+# A `.ts` file in the scratch tree, so the tool reaches for the TypeScript
+# parser: this case belongs with the eighteen that say so.
+@needs_typescript
 def test_custom_property_moves_a_whole_quoted_name(tmp_path):
     """`setProperty("--x")` and `getPropertyValue("--x")` are how code reaches one."""
     after = _run_custom_properties(

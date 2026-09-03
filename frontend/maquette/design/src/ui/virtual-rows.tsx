@@ -50,7 +50,9 @@
 // imperatively, which is what preserving identity across a scroll requires when
 // the rows are strings somebody else composed.
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useLayoutEffect, useRef, useState, type ReactElement } from "react";
+import { useLayoutEffect, useRef, type ReactElement } from "react";
+import { useReaderPlace } from "./reader-place";
+import { useWindowGeometry } from "./window-geometry";
 
 /** What the surface tells the window, and none of it names a domain. */
 export type VirtualRowsProperties = {
@@ -114,85 +116,20 @@ function spacerElement(height: number): HTMLElement {
 export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
   const { count, rowHeight, gap, lanes, scrollElement, renderRow } = properties;
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const liveRows = useRef(new Map<number, Element>());
+  // THE NODE AND THE STRING IT WAS BUILT FROM, per live index. The string is
+  // what says whether a row that is still in range has to be redrawn — see
+  // the effect below.
+  const liveRows = useRef(new Map<number, { node: Element; markup: string }>());
   const spacers = useRef<{ before: HTMLElement | null; after: HTMLElement | null }>(
     { before: null, after: null });
   const lastDraw = useRef<number | string | null>(null);
 
-  // THE GEOMETRY IS MEASURED FROM THE RENDERED GRID, and the props are only the
-  // estimate the first frame needs before anything exists to measure.
-  //
-  // The lane count was a PROP, typed 3. `.gallery` is a CONTAINER QUERY:
-  // `repeat(3)` below 460px of port, then 4, then 5 at 620 and 6 at 820 — and
-  // nothing caps the port to a phone's width in production. At five columns the
-  // virtualiser believed in 621 lines where the grid draws 373. The row height
-  // moves with it: a narrower column makes a shorter 2:3 poster.
-  const [measured, setMeasured] =
-    useState<{ lanes: number; lineHeight: number } | null>(null);
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    if (!container) return undefined;
-    const read = () => {
-      const style = getComputedStyle(container);
-      const tracks = style.gridTemplateColumns;
-      const columns = tracks && tracks !== "none" ? tracks.split(/\s+/).length : 1;
-      // AN ITEM THAT IS NOT UNDER A FINGER: a tile wears `scale: 0.97` while a
-      // press arms, so measuring that one sizes every line 3% short.
-      const item =
-        container.querySelector(
-          ":scope > *:not([data-part='window/spacer']):not([data-pressing])")
-        || container.querySelector(
-          ":scope > *:not([data-part='window/spacer'])");
-      // THE RECTANGLE, and not `offsetHeight`, which ROUNDS to an integer. The
-      // line height here is 203.34375; rounding it shortened every windowed page
-      // by four tenths of a pixel — twelve oracle divergences across the four
-      // library states, from a change made to exclude that 3% scale. The scale
-      // is excluded by choosing the element instead.
-      const height = item ? item.getBoundingClientRect().height : 0;
-      const rowGap = parseFloat(style.rowGap || style.gap) || 0;
-      if (!height) return;
-      setMeasured((held) =>
-        held && held.lanes === columns
-        && Math.abs(held.lineHeight - (height + rowGap)) < 0.5
-          ? held
-          : { lanes: columns, lineHeight: height + rowGap });
-    };
-    read();
-    // AND AGAIN ON THE NEXT FRAME. The DRAW changes under the same container, so React
-    // replaces the node on every redraw; an effect that measured only at commit
-    // read a computed style of empty strings — measured — and the window
-    // silently kept the props' estimate of three lanes at every width.
-    const retry = requestAnimationFrame(read);
-    const watcher = new ResizeObserver(read);
-    watcher.observe(container);
-    return () => {
-      cancelAnimationFrame(retry);
-      watcher.disconnect();
-    };
-  }, [count, properties.drawKey]);
-
-  const activeLanes = measured ? measured.lanes : lanes;
-  const lineHeight = measured ? measured.lineHeight : rowHeight + gap;
+  // THE GEOMETRY IS THE GRID'S OWN, measured rather than believed —
+  // `ui/window-geometry.ts` carries why each of its three numbers had to be.
+  const { lanes: activeLanes, lineHeight, gap: activeGap, measuredFor, scrollMargin } = useWindowGeometry(
+    containerRef, scrollElement, { rowHeight, gap, lanes },
+    { count, drawKey: properties.drawKey });
   const lineCount = Math.ceil(count / activeLanes);
-
-  // THE LIST DOES NOT START AT THE SCROLLER'S ORIGIN. `#libitems` sits below the
-  // filters and the tabs inside the same scrollport; without telling the
-  // virtualiser, every offset is short by that distance and the window sits
-  // shifted down the list — measured at 485px of margin above against 742 below
-  // where the overscan asks for the same on each side.
-  const [scrollMargin, setScrollMargin] = useState(0);
-  // MEASURED ONCE PER DRAW, not on every render: without a dependency list this
-  // forced a layout read and a setState on every render the virtualiser causes
-  // while scrolling.
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    const scroller = scrollElement();
-    if (!container || !scroller) return;
-    const distance = container.getBoundingClientRect().top
-      - scroller.getBoundingClientRect().top
-      + scroller.scrollTop;
-    setScrollMargin((held) => (Math.abs(held - distance) < 0.5 ? held : distance));
-  }, [count, properties.drawKey]);
 
   const virtualizer = useVirtualizer({
     count: lineCount,
@@ -204,9 +141,44 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
     overscan: 4,
   });
 
+  // THE MEASUREMENTS ARE RE-TAKEN WHEN THE PITCH MOVES, and nothing else does
+  // it. `@tanstack/virtual-core` memoises `getMeasurements()` on the options it
+  // considers geometry — count, padding, scroll margin, key, lanes, gap — and
+  // `estimateSize` is NOT among them, so a new pitch is read by this component
+  // and ignored by the virtualiser until one of those others moves.
+  //
+  // WHAT THAT COST, measured through the real controls: a selection row is
+  // about 60 px against a card's 126. Enter « Sélectionner » on a list scrolled
+  // past a page and leave it again, and the browse window is placed with the
+  // SELECTION pitch: the spacer reads 5 620 px, the first row sits 2 807 px
+  // below the port, and the library is BLANK. It stays blank through a scroll
+  // in either direction, because scrolling changes no memoised option either.
+  // Entering the mode looked healthy only because the shorter rows brought the
+  // paging sentinel into view and a page landing moved `count`.
+  //
+  // AND THE READER KEEPS THEIR PLACE ACROSS IT, which is `ui/reader-place.ts`'s
+  // whole subject: what a place is, and how long one lives.
+  const place = useReaderPlace(
+    properties.drawKey, lineHeight, measuredFor, () => virtualizer.measure());
+
   const lines = virtualizer.getVirtualItems();
   const firstLine = lines.length ? lines[0].index : 0;
   const lastLine = lines.length ? lines[lines.length - 1].index : -1;
+  // THE FIRST VISIBLE ROW, asked of the measurements, and the question is the
+  // ROW'S BOX rather than the LINE's. A line is a row plus the gap under it, so
+  // a row entirely above the port still counted as visible while its trailing
+  // gap crossed the port's top — which is why the last row of the list came
+  // back one row up. The gap is subtracted, and one pixel of tolerance is left
+  // on top: the pitch is fractional (60.39 in selection, 213.34 in the
+  // gallery), so a line restored to the top of the port starts a fifth of a
+  // pixel below it and the row above would otherwise be « visible » by that
+  // fifth.
+  const offset = virtualizer.scrollOffset ?? 0;
+  const firstSeen = lines.find((line) => line.end - activeGap > offset + 1);
+  place.remember({
+    item: (firstSeen ? firstSeen.index : firstLine) * activeLanes,
+    scrolled: offset > scrollMargin + 1,
+  });
 
   // THE SPACERS ARE THEMSELVES ITEMS, AND THE CONTAINER PUTS A GAP BESIDE EACH.
   // Measured, at 33 oracle divergences of exactly +16px: the un-windowed list
@@ -241,9 +213,9 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
     }
     const live = liveRows.current;
 
-    for (const [index, node] of [...live]) {
+    for (const [index, held] of [...live]) {
       if (index < start || index >= end) {
-        node.remove();
+        held.node.remove();
         live.delete(index);
       }
     }
@@ -272,14 +244,73 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
     //
     // Descending, the follower is ALWAYS resolved: either it was already live,
     // or this loop inserted it one step earlier.
+    //
+    // AND A ROW STILL IN RANGE IS REDRAWN WHEN ITS MARKUP CHANGED, which is the
+    // only thing that says a kept node has stopped telling the truth. « Keep
+    // every index already live » was the first form and it is wrong in one
+    // direction: a delete rewrites the rows under the window — the source's own
+    // optimistic write — and the row the reader just deleted stayed on screen,
+    // because nothing here asked whether its string had moved. Making the whole
+    // window depend on a KEY instead was wrong in the other direction: a key
+    // coarse enough to catch that empties the window on writes that changed
+    // nothing, which is what destroys a tap. The string is the exact question,
+    // asked per row, and it costs one comparison against markup already
+    // composed.
     for (let index = end - 1; index >= start; index -= 1) {
-      if (live.has(index)) continue;
-      const node = elementFor(renderRow(index));
+      const markup = renderRow(index);
+      // A NODE THE DOCUMENT NO LONGER HOLDS cannot be replaced: `replaceWith`
+      // on a parentless node is a no-op, so a detached row whose markup then
+      // changed stayed dead in the map until its index left the window. It is
+      // forgotten here, BEFORE the unchanged-markup skip, so the row is drawn
+      // again whether or not its string moved.
+      const standing = live.get(index);
+      if (standing && !standing.node.isConnected) live.delete(index);
+      const held = live.get(index);
+      if (held && held.markup === markup) continue;
+      const node = elementFor(markup);
       if (!node) continue;
-      live.set(index, node);
+      if (held) {
+        // REPLACED IN PLACE, so the row keeps its position without the tail of
+        // the window being rebuilt around it — AND THE READER'S PLACE IN IT
+        // SURVIVES. A row whose markup changes under a finger is a row somebody
+        // is using: toggling a checkbox in selection mode rewrites its
+        // `aria-pressed` and therefore its string, and the replacement threw
+        // keyboard focus to the document root on every toggle of the mode built
+        // for going through a library. Focus is restored onto the node that
+        // takes the old one's place, which is where the reader left it.
+        // WHERE THE READER'S FOCUS IS INSIDE THE ROW, not merely that it is.
+        // Restoring onto the row's ROOT loses a focused child — and in browse
+        // mode the root is a `<div>` with no tabindex, so `focus()` on it is a
+        // no-op and the place goes to the document root. The child is found
+        // again by its position among the row's focusable elements.
+        const active = document.activeElement;
+        const focusable = 'button, [tabindex], a[href], input';
+        const focusedAt = held.node.contains(active) && active !== held.node
+          ? [...held.node.querySelectorAll(focusable)].indexOf(active as Element)
+          : -1;
+        const focused = held.node.contains(active);
+        {
+          held.node.replaceWith(node);
+          live.set(index, { node, markup });
+          if (focused) {
+            // PREVENT SCROLL, and it is not a detail. A live row is not
+            // necessarily visible — the window keeps four lines beyond each
+            // edge — and a row's markup moves for reasons that have nothing to
+            // do with the reader: a delete above it shifts every row. Without
+            // this the port scrolled back to the row being replaced, 593 px
+            // measured, landing the reader somewhere they never asked to be.
+            const heir = focusedAt >= 0
+              ? node.querySelectorAll(focusable)[focusedAt]
+              : node;
+            if (heir instanceof HTMLElement) heir.focus({ preventScroll: true });
+          }
+          continue;
+        }
+      }
+      live.set(index, { node, markup });
       const following = live.get(index + 1);
-      if (following && following.isConnected) {
-        container.insertBefore(node, following);
+      if (following && following.node.isConnected) {
+        container.insertBefore(node, following.node);
       } else {
         container.insertBefore(node, spacers.current.after);
       }
@@ -289,6 +320,30 @@ export function VirtualRows(properties: VirtualRowsProperties): ReactElement {
     spacers.current.before.style.display = before > 0 ? "" : "none";
     spacers.current.after.style.height = `${after}px`;
     spacers.current.after.style.display = after > 0 ? "" : "none";
+  });
+
+  // THE RESTORE IS DECLARED AFTER THE DRAW, and the order is the fix. Effects
+  // run in the order their hooks were called: restoring first put the port at
+  // the new offset and THEN let the draw insert the range computed for the old
+  // one — five rows above the browser's anchor node — and scroll anchoring
+  // moved the port 368 px on top of the restore. Drawn first, the scroll is the
+  // last word of the commit.
+  //
+  // AND THE PORT'S `overflow-anchor` IS LEFT ALONE, which was not the first
+  // answer. Holding anchoring off for the frame the swap takes was written
+  // beside this, on the reasoning that the next draw replaces the rows above
+  // the reader and anchoring would compensate for a move they asked for. Built
+  // both ways and measured over the eight walks — the two mode changes, the
+  // gallery switch, the end of the list, a page landing mid-selection, a sort,
+  // a search and a bulk delete — the reader's row and the port's offset are
+  // identical to the pixel. Machinery that changes nothing measurable is
+  // machinery nobody can later justify deleting, so it is not kept.
+  useLayoutEffect(() => {
+    const held = place.take();
+    if (held === null) return;
+    if (held.item > 0 || held.scrolled) {
+      virtualizer.scrollToIndex(Math.floor(held.item / activeLanes), { align: "start" });
+    }
   });
 
 

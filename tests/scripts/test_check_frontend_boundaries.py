@@ -644,11 +644,25 @@ class TestSizeArmReadsTheLabel:
 
         A single reader over one file was what let `L09` sit at `NOT STARTED`
         for a wave after it merged while four labels promised its reduction.
+
+        NO LOT IS NAMED FOR THE « NOT LANDED » SIDE, and the reason is that this
+        test named one and the naming expired: it pinned `L14` there, `L14`
+        landed, and the assertion failed on a document telling the truth. Its
+        own sibling below already carries the lesson — « a test that enumerates
+        the plan's lots is a test the plan falsifies by growing » — and this one
+        was written the day before it. What the two documents being read apart
+        MEANS is that the sets DIFFER and that the landed ones are all declared:
+        a lot lands only after the plan names it, and the plan names more than
+        have landed. That is what the assertion below says, and it survives
+        every wave that lands.
         """
         declared, landed = guard.declared_and_landed_lots()
-        assert "L14" in declared, "the plan declares the lot the four labels now name"
         assert "L09" in landed, "IMPLEMENTATION.md records L09 as landed"
-        assert "L14" not in landed, "a declared lot is not a landed one"
+        assert landed < declared, (
+            "every landed lot is one the plan declares, and the plan declares "
+            "more than have landed — two readers over two files, or this "
+            "comparison could not be made at all"
+        )
 
     def test_a_label_naming_a_lot_the_plan_never_declares_is_a_violation(self, monkeypatch, capsys) -> None:
         """A lot that will never run is a promise nobody can call in.

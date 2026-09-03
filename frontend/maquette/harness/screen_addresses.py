@@ -484,6 +484,30 @@ async def main():
                 and "Métadonnées inconnues" in sheet_lost["body"]
                 and "Genres inconnus" in sheet_lost["body"],
                 f"key={sheet_lost['key']} title={sheet_lost['title']!r}")
+            # AND IT SAYS SO EVERYWHERE, not in three sentences with a
+            # shimmering line beside them. A skeleton at rest is a promise the
+            # screen cannot keep: the read has answered, and « any moment now »
+            # over a thing that will never arrive is the assertion this hold
+            # exists to refuse, wearing the other face.
+            waiting = await pg.evaluate(
+                """() => {
+                  const screen = document.querySelector('[data-part="screen"][data-open]');
+                  return {
+                    skeletons: screen ? screen.querySelectorAll('[data-skeleton]').length : -1,
+                    // THE SCREEN ITSELF COUNTS. `querySelector` reads
+                    // DESCENDANTS only, so an `aria-busy` moved one level up —
+                    // onto the screen — leaves this false while the screen is
+                    // saying it is busy.
+                    busy: !!(screen && (screen.matches('[aria-busy="true"]')
+                             || screen.querySelector('[aria-busy="true"]'))),
+                  };
+                }""")
+            journal.check(
+                "and nothing on it is still WAITING — the read has answered, "
+                "so no part may shimmer",
+                waiting["skeletons"] == 0 and not waiting["busy"],
+                f"{waiting['skeletons']} skeleton(s) at rest, busy: "
+                f"{waiting['busy']}")
             journal.check(
                 "the address stays exactly as typed",
                 pg.url == wrong_sheet_address, pg.url)

@@ -20,24 +20,7 @@ import { useReleases } from "./queries";
 import { useReleasesReference } from "../../features/releases/reference";
 import { actionButton, backAction, body, emptyNote, qualityHint, resultCount, screen, screenBar, scrollport } from "../../ui/variants";
 import { releaseName, releaseRow, releaseScore, releaseTags } from "../../features/releases/variants";
-
-// Same helper as `media.tsx`'s, `profile.tsx`'s and `add.tsx`'s, still not
-// shared: the extraction those files' comments call for is a follow-up of
-// its own, not a silent scope add here.
-function Icon({ paths, strokeWidth }: { paths: string; strokeWidth?: number }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={strokeWidth || 2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      dangerouslySetInnerHTML={{ __html: paths }}
-    />
-  );
-}
+import { Icon } from "../../ui/icon";
 
 export function ReleasesScreen() {
   const { title: raw } = useParams({ from: "/releases/$title" });

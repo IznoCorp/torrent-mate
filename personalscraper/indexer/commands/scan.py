@@ -314,10 +314,63 @@ def library_index_command(
                 # ``dry_run`` because this is a write that mutates state
                 # outside any rollback boundary (writes happen in their own
                 # implicit transaction here, not in the dry-run savepoint).
-                if not dry_run and scan_mode in (ScanMode.full,):
-                    from personalscraper.indexer.drift import mark_missed_files  # noqa: PLC0415
+                # A strike claims a file was LOOKED FOR and not found, and three of
+                # them tombstone the row. So it may only be raised over ground the
+                # walk actually covered — twice guarded below, because a walk can
+                # fall short in two unrelated ways and NEITHER was checked:
+                #
+                #  * the run stopped early. ``budget_exhausted`` covers both the
+                #    wall-clock cap and a SIGTERM (the walker raises the same flag
+                #    for both). Everything past the stopping point kept its old
+                #    generation and would be struck for an absence nobody checked.
+                #    The guard is run-level, not per-disk: a truncated run skips
+                #    the strike on the disks it DID finish too. Delaying a
+                #    legitimate strike by one run is recoverable; a false one is
+                #    three runs from a tombstone.
+                #  * a disk could not be confirmed. ``mark_missed_files``'s own
+                #    docstring states the contract — « the disk must be mounted
+                #    (the caller is responsible for checking mount status) » — and
+                #    DESIGN §8.2 requires the counters to FREEZE for an
+                #    unreachable disk. The product already ships the decision
+                #    table for exactly this, tested, and it had never been wired
+                #    to anything: ``should_apply_drift_for_disk`` over a live
+                #    ``verify_disk_mounted``. It is asked HERE, after the walk,
+                #    because a disk can go away mid-run.
+                #
+                #    The ``disk.is_mounted`` column is NOT the signal, and reading
+                #    it instead is a trap worth naming: exactly one code path in
+                #    the package ever writes it (the errno branch in
+                #    ``_scan_orchestrator``), so a physically unmounted disk, a
+                #    sentinel mismatch and an open circuit breaker all leave the
+                #    row reading ``is_mounted = 1`` while the walk touched not one
+                #    of their files.
+                #
+                # Not covered here, and left visible rather than papered over: a
+                # disk whose circuit breaker was OPEN is skipped by the walk yet
+                # verifies as mounted, so it is still struck. Closing that needs
+                # the walk to report which disks it actually finished — the
+                # information exists per-worker in ``_concurrency`` and is
+                # discarded into a single run-level flag.
+                #
+                # This has fired on the operator's library: 49 553 rows were
+                # tombstoned with ``reason='n_strikes'`` on 2026-06-30, on a disk
+                # holding 49 476 files, from three truncated full runs at ~1 file
+                # visited (scan_run 83, 85, 89). They were NOT consecutive — a
+                # complete 49 476-file walk (run 87) sits between the second and
+                # the third and did nothing to stop it, because ``miss_strikes``
+                # is a LIFETIME counter: ``reset_strikes_on_reappearance`` exists
+                # but has no production caller, so seeing a file again never
+                # clears its strikes.
+                if not dry_run and scan_mode in (ScanMode.full,) and not result.budget_exhausted:
+                    from personalscraper.indexer.drift import (  # noqa: PLC0415
+                        mark_missed_files,
+                        should_apply_drift_for_disk,
+                    )
+                    from personalscraper.indexer.merkle import verify_disk_mounted  # noqa: PLC0415
 
                     for d in filtered_disks:
+                        if not should_apply_drift_for_disk(d, verify_disk_mounted(d)):
+                            continue
                         try:
                             mark_missed_files(conn, d.id, next_gen)
                         except sqlite3.Error as miss_exc:
@@ -327,6 +380,12 @@ def library_index_command(
                                 error=str(miss_exc),
                                 error_type=type(miss_exc).__name__,
                             )
+                elif not dry_run and scan_mode in (ScanMode.full,) and result.budget_exhausted:
+                    log.warning(
+                        "indexer.cli.index.mark_missed_skipped_truncated",
+                        scan_run_id=result.scan_run_id,
+                        files_visited=result.files_visited,
+                    )
 
                 # --- Apply soft-deletes (per disk, post-walk) ---
                 # Files that exceeded the miss-strike threshold during the
@@ -366,7 +425,13 @@ def library_index_command(
                     "disks_bootstrapped": disks_bootstrapped,
                     "scan_run_id": result.scan_run_id,
                     "status": result.status,
-                    "budget_exhausted": False,
+                    # The real value, not a literal. It was hardcoded ``False``
+                    # while ``ScanRunResult`` carried the truth, so a run that
+                    # stopped at its 30-minute cap read exactly like one that
+                    # walked the whole library — in the operator's terminal and in
+                    # every cron log. A scan that silently covers less than it
+                    # claims is the premise of the strike guard above.
+                    "budget_exhausted": result.budget_exhausted,
                     "soft_deleted": soft_deleted,
                     "dry_run": dry_run,
                     "rebuild": rebuild,

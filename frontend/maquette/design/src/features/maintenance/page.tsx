@@ -25,6 +25,7 @@ import { useUiState } from "../../lib/store-access";
 import { useDeletionJournal, useMaintenanceActions } from "./queries";
 import { crossReference, section, sectionHeading, topicRow } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
+import { Markup } from "../../ui/markup";
 
 export function MaintenancePage(): ReactElement | null {
   const state = useUiState();
@@ -43,17 +44,17 @@ export function MaintenancePage(): ReactElement | null {
     return state.phase === "error" ? (
       <SurfaceError subject={t("screens.maintenance.errorSubject")} />
     ) : (
-      <div
+      <Markup
         className={section()} data-part="section"
-        dangerouslySetInnerHTML={{ __html: skelCardsInner(3) }}
+        html={skelCardsInner(3)}
       />
     );
   }
 
   const facts = (rows: Fact[]) => (
-    <ol
+    <Markup tag="ol"
       className="flux" data-part="flux"
-      dangerouslySetInnerHTML={{ __html: factRowsHTML(rows) }}
+      html={factRowsHTML(rows)}
     />
   );
 

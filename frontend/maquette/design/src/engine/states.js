@@ -372,7 +372,16 @@ const STATES = [
           phase: "ready",
           selMode: true,
         });
-        store.write({ selected: new Set([0, 2, 5]) });
+        // THE TITLES, because the selection is keyed by title — the three
+        // rows drawn at ranks 0, 2 and 5 of the unfiltered listing, which is
+        // the source's own order. french-ok: media titles, which are data.
+        store.write({
+          selected: new Set([
+            "On l'appelait Robin des Bois",
+            "Big Chicken Le complot de la malbouffe",
+            "Marjorie Prime",
+          ]),
+        });
         render();
       },
     ],
