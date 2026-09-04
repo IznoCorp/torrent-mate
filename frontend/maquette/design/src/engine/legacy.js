@@ -7908,7 +7908,7 @@ import {
   function openPanel(element) {
     const { genre, ref } = refPanel(element);
     if (genre === "sug") panel.produce("suggestion", ref);
-    else if (genre === "add") openAddSheet(Number(ref));
+    else if (genre === "add") panel.produce("add", ref);
     else openFollowSheet(ref);
   }
 
@@ -8249,44 +8249,6 @@ import {
      and the sheet to judge it by. This panel is the ONLY place that carries
      the act — the card wears no inline button, so the row stays the size of
      what it lists. */
-  function openAddSheet(index) {
-    const result = searchResults().results[index];
-    const done = currentState().added.has(index);
-    panel.open({
-      title: result.t,
-      meta: `${result.y} · ${result.k} · TMDB`,
-      blocs: [
-        result.owned && currentState().addMode !== "identify"
-          ? {
-              type: "note",
-              text: [
-                "Déjà en médiathèque — l'acquisition ",
-                { e: "remplacera" },
-                " la version en place.",
-              ],
-            }
-          : null,
-        {
-          type: "actions",
-          actions: [
-            {
-              text: addVerb(result, index),
-              icone: icons.plus,
-              ton: "primary",
-              desactive: done,
-              target: { act: `add:${index}` },
-            },
-            {
-              text: "Voir la fiche",
-              icone: icons.eye,
-              target: { mediasheet: result.t },
-            },
-          ],
-        },
-      ],
-    });
-  }
-
   function sugFoot() {
     const foot = document.querySelector("#sugload");
     if (!foot) return;
@@ -32473,7 +32435,7 @@ Object.assign(window, {
   libRowHTML, factsListHTML, loadMoreSug, hideSignIn,
   hideStartup, masquerInstallation, sameValue, changeSetting,
   mountDeck, mountLoaders, mountSearch, fileName, normalisedKey,
-  recordPath, openAddSheet, openDeleteDialog, openDetailSheet,
+  recordPath, openDeleteDialog, openDetailSheet,
   openFollowSheet, openHarness, openPanel,
   openSheet,
   openPopEp,

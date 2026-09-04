@@ -182,7 +182,7 @@ async def main():
           row.click();
           return true;}""")
         await pg.wait_for_timeout(400)
-        shown = await pg.evaluate("""()=>{
+        shown = await pg.evaluate(r"""()=>{
           const rows = [...document.querySelectorAll('#sheetin [data-part="key-value"]')]
             .map(r => r.textContent.replace(/\s+/g, ' ').trim());
           return {rows, pending: [...(window.__referentiel.SETTINGS_STATE.modifs || new Map())

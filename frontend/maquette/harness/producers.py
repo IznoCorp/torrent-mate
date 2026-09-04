@@ -42,7 +42,7 @@ from playwright.async_api import async_playwright
 # appears without being written here is a registration nobody declared, and a
 # kind written here that is missing is a producer that stopped answering.
 MOVED = ("account", "action", "journey", "more", "secret", "setting", "sort",
-         "suggestion")
+         "suggestion", "add")
 
 # What each kind is driven with, and what the panel must then say about it. The
 # expected title is read from the PROTOTYPE's own data at run time — the third

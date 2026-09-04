@@ -85,7 +85,7 @@ GENERATED = {
 # STALENESS: a record that no longer describes the file is a record nobody
 # compared, so it is printed on every run rather than discovered at an audit.
 GRANDFATHERED = {
-    "engine/legacy.js": ("L13 — the engine dies by subtraction, surface by surface", 32150),
+    "engine/legacy.js": ("L13 — the engine dies by subtraction, surface by surface", 32113),
     "engine/states.js": ("L13 — the scenario table goes with the engine it drives", 787),
 }
 

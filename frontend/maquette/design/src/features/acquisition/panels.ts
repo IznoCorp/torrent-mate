@@ -6,3 +6,4 @@
 import "./panel-journey";
 import "./panel-more";
 import "./panel-suggestion";
+import "./panel-add";

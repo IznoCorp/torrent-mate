@@ -906,6 +906,13 @@
       "seeSheet": "Voir la fiche",
       "notInterested": "Pas intéressé",
       "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste (§5)."
+    },
+    "add": {
+      "meta": "{{year}} · {{kind}} · TMDB",
+      "ownedBefore": "Déjà en médiathèque — l'acquisition ",
+      "ownedEmphasis": "remplacera",
+      "ownedAfter": " la version en place.",
+      "seeSheet": "Voir la fiche"
     }
   }
 }
