@@ -161,6 +161,15 @@ async def main():
                 f"on {state}, {why}",
                 chip is not None and chip["tone"] == tone,
                 f"{chip} · expected tone {tone!r}")
+            # AND THE WORD ARRIVED. A producer's copy moved out of the engine
+            # into `fr.json` in this lot; a key that does not resolve renders as
+            # the key itself, which reads like a label until someone looks. This
+            # is the cheapest reading that separates the two.
+            journal.check(
+                f"on {state}, the chip's word is a word and not its key",
+                chip is not None and bool(chip["text"])
+                and not chip["text"].startswith("panels."),
+                str(chip))
 
         # 5. THE HOLDER, both ways.
         for kind, real, invented in HOLDS:
