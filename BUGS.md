@@ -367,6 +367,7 @@ when the defect comes back.
 | B-305 | An open swipe survives a store write that changed nothing about the rows — D-L14-3, flagged for the operator, living only in a state-file cell the next wave overwrites | by audit | `closed` |
 | B-306 | A GRANDFATHERED file may grow without limit: the size arm reads the label and never a recorded count, so the engine gained 77 lines under a decision titled « dies by subtraction » and the guard printed clean | by audit | `open` |
 | B-307 | Three rules have fallen under the recorder's parallel load and passed alone; the register holds one of them, under a title naming a fourth rule and a diagnosis that does not transfer | by audit | `open` |
+| B-308 | The maquette draws six schedulers and the machine now runs seven — `machine.py`'s count fell the day `personalscraper-index-full` was scheduled on `main`, and nothing in that pull request could have told it | by L19 | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -525,6 +526,33 @@ whoever next opens the size arm, and L13 at the latest since the label's own dea
 **Named in the plan's § 5 debts block on 2026-09-04**: L19 is the next wave that subtracts from the
 engine, so L19 takes it — one recorded count per entry, re-recorded DOWNWARD at each phase that
 subtracts, refused upward.
+
+**B-308 — the maquette draws six schedulers and the machine runs seven.**
+`harness/machine.py`'s « as many schedulers drawn as PM2 schedules » reads the operator's live
+PM2 list and compares it with what the interface draws. It reads **6 drawn vs 7 real** since
+`personalscraper-index-full` was scheduled — `4c0e274a7`, « chore(full-scan-cron): schedule the
+only mode that retires a vanished file » (#557) — and the engine's `SCHEDULERS` fixture has not
+carried it.
+
+**IT IS NOT L19's, and that is measured rather than claimed.** This branch touches neither the
+rule nor the fixture: `git diff origin/main...HEAD -- frontend/maquette/harness/machine.py` is
+empty and `git diff … -- engine/legacy.js | grep -c SCHEDULERS` reads 0. The rule falls on
+`origin/main` for the same reason it falls here.
+
+**Why nothing caught it in the pull request that caused it.** `machine.py` is a full-suite rule,
+not a contracts-tier one — correctly, since it reads the operator's live databases and could not
+hold on a runner — and #557's own subject is `ecosystem.config.js` and the indexer. A change to
+what the MACHINE runs is invisible to every gate a backend pull request passes, and the interface
+that has to describe it is measured by a rule only a maquette wave runs. **That is the finding,
+and it is larger than the missing row**: the fixture and the machine are one contract with two
+ends in two repositories' worth of concerns, and only one end has a guard.
+
+**Not repaired here.** Adding the seventh scheduler is a surface change, which L19's contract
+forbids — « no surface changes » — and the first of the office's five review rules forbids a
+conversion wave from carrying it. Filed with the reading, named in L19's report as a pre-existing
+red in the full suite, and owed by whoever draws Système's schedulers next.
+
+<sub>`python3 frontend/maquette/harness/machine.py` → « FAIL as many schedulers drawn as PM2 schedules — 6 drawn vs 7 real: … personalscraper-index-full … » · `git log --oneline -1 origin/main -- ecosystem.config.js`</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in

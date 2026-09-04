@@ -78,4 +78,4 @@ function accountPanel(
 // query belongs to the account page — so without this the cache is empty
 // everywhere but there, the producer answers `null`, and the menu opens
 // nowhere. Measured, on `sheet-user`, by three rules at once.
-registerProducer("account", accountPanel, [accountQuery]);
+registerProducer("account", { produce: accountPanel, needs: [accountQuery] });

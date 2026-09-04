@@ -231,8 +231,30 @@ export type PanelNeed = {
   queryFn: () => Promise<unknown>;
 };
 
+/**
+ * Everything a feature declares about one panel kind.
+ *
+ * ONE OBJECT RATHER THAN A GROWING ARGUMENT LIST, because the three answers are
+ * about one subject and a positional third argument is a positional fourth
+ * waiting to happen.
+ *
+ * `holds` is separate from `produce` ANSWERING, and the addressed-panel table
+ * is why: a producer answers for anything, which is right for a door inside the
+ * application and wrong for a door anyone can type into the address bar. The
+ * table asks « does this interface hold this subject » before it opens
+ * anything, and that question is the FEATURE's knowledge — the engine answered
+ * it from its own fixture, which is precisely what keeps a fixture alive after
+ * its producer has left.
+ */
+export type PanelRegistration = {
+  produce: PanelProducer;
+  needs?: readonly PanelNeed[];
+  holds?: (subject: string, cache: PanelCache) => boolean;
+};
+
 const producers = new Map<string, PanelProducer>();
 const needs = new Map<string, readonly PanelNeed[]>();
+const holders = new Map<string, (subject: string, cache: PanelCache) => boolean>();
 
 /**
  * Declares what produces a panel kind.
@@ -247,11 +269,28 @@ const needs = new Map<string, readonly PanelNeed[]>();
  */
 export function registerProducer(
   kind: string,
-  produce: PanelProducer,
-  requires: readonly PanelNeed[] = [],
+  registration: PanelRegistration,
 ): void {
-  producers.set(kind, produce);
-  if (requires.length > 0) needs.set(kind, requires);
+  producers.set(kind, registration.produce);
+  if (registration.needs?.length) needs.set(kind, registration.needs);
+  if (registration.holds) holders.set(kind, registration.holds);
+}
+
+/**
+ * Finds what answers « does this interface hold this subject » for a kind.
+ *
+ * Args:
+ *     kind: The panel's kind.
+
+ * Returns:
+ *     The declared answer, or null when the kind declares none — in which case
+ *     the caller decides, and the addressed-panel table refuses rather than
+ *     guessing.
+ */
+export function holderFor(
+  kind: string,
+): ((subject: string, cache: PanelCache) => boolean) | null {
+  return holders.get(kind) ?? null;
 }
 
 /**

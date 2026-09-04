@@ -247,6 +247,7 @@ delay
 delete
 deleted
 deletefield
+deletes
 deletion
 deliver
 delivered
@@ -442,6 +443,9 @@ hide
 hint
 history
 hold
+holder
+holders
+holds
 home
 hooks
 host
@@ -729,6 +733,7 @@ pill
 pills
 pilot
 ping
+pip
 pipe
 pipeline
 pitch

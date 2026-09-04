@@ -129,6 +129,7 @@ SCREEN_STATES = ("mediasheet-series", "arr-resolution")
 # changing, which is not.
 PANEL_STATES = (
     ("sheet-user", 5),
+    ("maintenance-delete", 5),
 )
 # The panel's own nodes, and only its own: `#sheet` never contains the page. The
 # `svg path` is here for the reason it is in `PAGE_SELECTOR` — a press landing

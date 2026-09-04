@@ -823,5 +823,30 @@
     "installing": "Installation en cours — l'icône arrive sur votre écran d'accueil.",
     "installRefused": "Installation refusée — le bandeau reviendra à la prochaine visite.",
     "installed": "TorrentMate est installé."
+  },
+  "panels": {
+    "maintenance": {
+      "whatItDoes": "Ce qu'elle fait",
+      "duration": "Durée",
+      "durationLong": "peut être longue",
+      "durationImmediate": "immédiate",
+      "dryRun": "Essai à blanc",
+      "dryRunOn": "activé",
+      "dryRunOff": "désactivé",
+      "dryRunImpossible": "impossible",
+      "destructiveNote": "**Cette commande supprime.** L'essai à blanc reste activé tant que rien n'a montré ce qui serait détruit : un « êtes-vous sûr ? » se répond sans lire, une liste se regarde. Lancez-la à blanc, lisez ce qu'elle nomme, puis relancez-la pour de vrai.",
+      "runDry": "Lancer à blanc",
+      "run": "Lancer",
+      "launchedDry": "{{action}} — lancée à blanc. Le résultat s'affichera ici.",
+      "launched": "{{action}} — lancée. Le résultat s'affichera ici.",
+      "runForReal": "Lancer pour de vrai",
+      "runForRealHint": "Lisez d'abord ce que l'essai à blanc nomme.",
+      "runForRealMention": "après l'essai"
+    },
+    "risks": {
+      "ro": "ne change rien",
+      "write": "écrit",
+      "destructive": "supprime"
+    }
   }
 }

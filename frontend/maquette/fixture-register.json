@@ -277,7 +277,8 @@
     "RISQUES": {
       "class": "interface",
       "why": "how risky a maintenance action is, and what that is called",
-      "seed": null
+      "seed": null,
+      "converted": "L19 phase 03 — the maintenance panel's producer moved to `features/maintenance/panel-action.ts`, and the risk vocabulary went with it rather than to a seed. It is SPLIT on the line the language rule draws: what a risk level is CALLED is interface text and lives in `i18n/fr.json` (`panels.risks.*`), and which pip colour says so is a token name and is code (`features/maintenance/risks.ts`). They were one object in the engine because the engine has no i18n layer at all. Not `served`: a risk level's name is the operator's words, never an answer a server sends."
     },
     "SCHEDULERS": {
       "class": "served",

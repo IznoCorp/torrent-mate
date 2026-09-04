@@ -7,6 +7,7 @@
 import { installArtworkArrival } from "./artwork-arrival";
 import { flushSync } from "react-dom";
 import {
+  holderFor,
   producerFor,
   producerNeeds,
   refuseBlock,
@@ -239,12 +240,23 @@ window.__refillProducers = () => {
   for (const required of producerNeeds()) void queryClient.prefetchQuery(required);
 };
 
+/* DOES A FEATURE HOLD THIS SUBJECT — asked by the engine's addressed-panel
+   table before it opens anything from a typed address. A kind that declares no
+   answer answers FALSE rather than true: an address anyone can type is refused
+   when nobody has said it is holdable, which is the table's own three-ways-to-
+   refuse discipline and not a new one. */
+function panelHolds(kind: string, subject: string): boolean {
+  const holds = holderFor(kind);
+  return holds === null ? false : holds(subject, { held });
+}
+
 window.__panel = {
   open: openPanel,
   close: closePanel,
   isOpen: isPanelOpen,
   openOnCurrentEntry: openPanelOnCurrentEntry,
   produce: producePanel,
+  holds: panelHolds,
   /* WHICH KINDS HAVE A PRODUCER, for the rule that reads the seam from
      outside. It is a reading rather than an assertion: the rule compares it
      with what it expects to be moved, so a registration lost in a refactor is

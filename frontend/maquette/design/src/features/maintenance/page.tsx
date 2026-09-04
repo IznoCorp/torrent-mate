@@ -26,6 +26,10 @@ import { useDeletionJournal, useMaintenanceActions } from "./queries";
 import { crossReference, section, sectionHeading, topicRow } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 import { Markup } from "../../ui/markup";
+// The risk vocabulary is the FEATURE's since its panel moved here (L19): the
+// page and the panel read one derivation of « what does this command risk »
+// rather than a copy each (§13).
+import { riskLabel } from "./risks";
 
 export function MaintenancePage(): ReactElement | null {
   const state = useUiState();
@@ -34,7 +38,6 @@ export function MaintenancePage(): ReactElement | null {
     factRowsHTML,
     skelCardsInner,
     MAINT_TOPICS,
-    RISQUES,
   } = useMaintenanceReference();
   // FROM THE CACHE (invariant 4).
   const { data: MAINT_ACTIONS = [] } = useMaintenanceActions();
@@ -73,7 +76,7 @@ export function MaintenancePage(): ReactElement | null {
           actions.map((action) => ({
             l: action.l,
             k: action.id,
-            v: RISQUES[action.r].t,
+            v: riskLabel(action.r),
             s:
               action.d +
               (action.long ? t("screens.maintenance.mayBeLong") : ""),

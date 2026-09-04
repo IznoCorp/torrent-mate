@@ -35,7 +35,6 @@ import {
   openFollowSheet,
   openJourneySheet,
   openMoreSheet,
-  openActionMaintenance,
   openSetting,
   openDrawer,
   settingId,
@@ -627,7 +626,7 @@ const STATES = [
       "Maintenance — une commande qui supprime",
       () => {
         applyState({ page: "maint", phase: "ready", maintTopic: "clean" });
-        openActionMaintenance("library-clean");
+        window.__panel.produce("action", "library-clean");
       },
     ],
     [

@@ -26,17 +26,20 @@ import { read } from "../lib/query-client";
 import { toEngineShape } from "../engine/engine-shape";
 import { queueKey, stagingKey } from "../lib/queue";
 
-/** What the engine reads with no component to ask for it. */
+/** What the engine reads with no component to ask for it.
+ *
+ * IT SHRINKS AS THE PRODUCERS MOVE (L19). Every entry here existed because a
+ * surface the engine DRAWS asked through a synchronous accessor and no
+ * component wanted the resource on that address. A producer that has moved into
+ * its feature declares what it needs beside itself
+ * (`registerProducer`'s `needs`), so its family leaves this list rather than
+ * being asked for twice. `MAINT_ACTIONS` left with the maintenance panel.
+ */
 const NEEDED = [
   {
     key: ["/api/acquisition/followed"],
     address: "/api/acquisition/followed",
     family: "FOLLOWS",
-  },
-  {
-    key: ["/api/maintenance/actions"],
-    address: "/api/maintenance/actions",
-    family: "MAINT_ACTIONS",
   },
 ] as const;
 

@@ -4607,12 +4607,6 @@ import { icons } from "../app/icons";
 
   /* Said rather than encoded: `ro` / `write` / `destructive` are the engine's
      three words, and none of them is French. */
-  const RISQUES = {
-    ro: { t: "ne change rien", p: "success" },
-    write: { t: "écrit", p: "info" },
-    destructive: { t: "supprime", p: "danger" },
-  };
-
   const MAINT_ACTIONS = [
     {
       id: "library-status",
@@ -5819,65 +5813,6 @@ import { icons } from "../app/icons";
 
   /* One command's panel. Derived from what is TRUE about the command — does
      it delete, can it run blank, is it long — never from a list of screens. */
-  function openActionMaintenance(id) {
-    const action = MAINT_ACTIONS.find((a) => a.id === id);
-    if (!action) return;
-    const deleted = action.r === "destructive";
-    const blanc = deleted ? true : !!currentState().maintBlanc;
-    panel.open({
-      address: "action:" + id,
-      title: action.l,
-      subtitle: action.id,
-      meta: action.d,
-      puce: [RISQUES[action.r].p, RISQUES[action.r].t],
-      blocs: [
-        {
-          type: "faits",
-          lignes: [
-            {
-              c: "Ce qu'elle fait",
-              v: RISQUES[action.r].t,
-              pipValue: RISQUES[action.r].p,
-            },
-            { c: "Durée", v: action.long ? "peut être longue" : "immédiate" },
-            {
-              c: "Essai à blanc",
-              v: action.blanc ? (blanc ? "activé" : "désactivé") : "impossible",
-            },
-          ],
-        },
-        deleted
-          ? {
-              type: "note",
-              text:
-                "**Cette commande supprime.** L'essai à blanc reste activé tant que rien n'a montré ce qui serait détruit : un « êtes-vous sûr ? » se répond sans lire, une liste se regarde. Lancez-la à blanc, lisez ce qu'elle nomme, puis relancez-la pour de vrai.",
-            }
-          : null,
-        {
-          type: "actions",
-          actions: [
-            {
-              text: action.blanc ? "Lancer à blanc" : "Lancer",
-              ton: "solid",
-              target: {
-                toast: `${action.l} — lancée${action.blanc ? " à blanc" : ""}. Le résultat s'affichera ici.`,
-              },
-            },
-            deleted
-              ? {
-                  text: "Lancer pour de vrai",
-                  desactive: true,
-                  infobulle: "Lisez d'abord ce que l'essai à blanc nomme.",
-                  mention: "après l'essai",
-                }
-              : null,
-          ].filter(Boolean),
-        },
-      ].filter(Boolean),
-    });
-  }
-
-
   /* ── RÉGLAGES ────────────────────────────────────────────────────────
      The configuration, and the one decision that shapes everything else:
      ONE NAVIGATES BY WHAT ONE WANTS TO CHANGE, NEVER BY FILE.
@@ -7849,9 +7784,10 @@ import { icons } from "../app/icons";
     INDEX,
     DEPENDENCIES,
     ERRORS,
-    /* What the Maintenance page draws. `openActionMaintenance`
-       reste au fragment : c'est la délégation `data-maintact` qui l'appelle, pas
-       un composant. */
+    /* What the Maintenance page draws. The command PANEL left at L19 — it is
+       `features/maintenance/panel-action.ts` now, reached through
+       `panel.produce("action", id)` — and the risk vocabulary went with it,
+       which is why `RISQUES` is no longer published from here at all. */
     MAINT_TOPICS,
     MAINT_ACTIONS,
     /* What the Réglages page draws. REG_ETAT est l'objet
@@ -7867,7 +7803,6 @@ import { icons } from "../app/icons";
     displayedValue,
     fileName,
     changedFiles,
-    RISQUES,
     JOURNAL,
     // ACTEURS and AUJOURDHUI are declared with `const` further down this
     // same script, past this literal's evaluation point — a plain shorthand
@@ -9895,7 +9830,8 @@ import { icons } from "../app/icons";
       return;
     }
     if (closest.dataset.maintact) {
-      openActionMaintenance(closest.dataset.maintact);
+      // THE PRODUCER LEFT (L19). `features/maintenance/panel-action.ts` answers.
+      panel.produce("action", closest.dataset.maintact);
       return;
     }
     if (closest.dataset.pipe) {
@@ -32328,9 +32264,11 @@ import { icons } from "../app/icons";
         allSettings().some((setting) => settingId(setting) === subject),
     },
     action: {
-      open: openActionMaintenance,
-      resolves: (subject) =>
-        MAINT_ACTIONS.some((action) => action.id === subject),
+      /* MOVED (L19). Both halves are the feature's now: it produces the panel,
+         and it answers whether it HOLDS the subject — which is what stops this
+         table reading a fixture the producer no longer needs. */
+      open: (subject) => panel.produce("action", subject),
+      resolves: (subject) => panel.holds("action", subject),
     },
   };
 
@@ -32699,7 +32637,6 @@ export {
   openFollowSheet,
   openJourneySheet,
   openMoreSheet,
-  openActionMaintenance,
   openSetting,
   openDrawer,
   settingId,
@@ -32749,7 +32686,7 @@ Object.assign(window, {
   REASON_DETAIL, REASON_TONE,
   SCHEDULERS, SCHEDULERS_DOWN, OWNED,
   POSTERS, SETTINGS, SETTINGS_STATE, RESOLUTIONS, BACK_WINDOW,
-  RISQUES, SEASONS, SECRETS, SERVICES, SERVICES_PANNE,
+  SEASONS, SECRETS, SERVICES, SERVICES_PANNE,
   STRIP_LABELS, ST_LABEL,
   ST_LABEL_MOVIE, ST_TONE, SUG_BATCH,
   TRIS, URGENCY, VIA_LABEL, actionLeave, actionPause,
@@ -32770,7 +32707,7 @@ Object.assign(window, {
   recordPath, openAddSheet, openDeleteDialog, openDetailSheet,
   openFollowSheet, openHarness, openJourneySheet, openPanel, openMoreSheet,
   openSheet, openSugSheet,
-  openActionMaintenance, openPopEp, openSetting, openSecret,
+  openPopEp, openSetting, openSecret,
   openDrawer, paintSelBar, panelUnderFinger, passerSug, screenStack,
   plages, ownedFor, posterBox, nextSearchFR,
   ptr, refPanel, collapseCard,

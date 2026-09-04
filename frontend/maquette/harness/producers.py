@@ -41,7 +41,7 @@ from playwright.async_api import async_playwright
 # per conversion phase, and it is an EQUALITY rather than a subset: a kind that
 # appears without being written here is a registration nobody declared, and a
 # kind written here that is missing is a producer that stopped answering.
-MOVED = ("account",)
+MOVED = ("account", "action")
 
 # What each kind is driven with, and what the panel must then say about it. The
 # expected title is read from the PROTOTYPE's own data at run time — the third
@@ -49,6 +49,21 @@ MOVED = ("account",)
 DRIVEN = (
     # kind, subject, how the expected title is read from the page
     ("account", "", "window.__queries.getQueryData(['/api/auth/me']).name"),
+    ("action", "library-clean",
+     "window.__queries.getQueryData(['/api/maintenance/actions'])"
+     ".find(a=>a.id==='library-clean').l"),
+)
+
+# THE OTHER QUESTION A KIND MAY ANSWER — « does this interface HOLD this
+# subject » — and the addressed-panel table asks it before opening anything from
+# an address a reader can type. It is not `produce` answering: a producer
+# answers for anything, which is right inside the application and wrong for a
+# typed address. A kind that declares it is read BOTH WAYS here, because a
+# holder that says yes to everything is the defect the table exists to prevent
+# and it passes a one-sided reading.
+HOLDS = (
+    # kind, a subject it holds, a subject it does not
+    ("action", "library-clean", "no-such-command"),
 )
 
 
@@ -119,6 +134,18 @@ async def main():
         # listener is attached once `open_page` has navigated, so this reads the
         # errors the SEAM raises and not the ones the boot might. Boot errors are
         # `states.py`'s, on all 54 named states.
+        # 4. THE HOLDER, both ways.
+        for kind, real, invented in HOLDS:
+            journal.check(
+                f"« {kind} » holds a subject it really has",
+                await page.evaluate("([k,s])=>window.__panel.holds(k,s)", [kind, real]),
+                real)
+            journal.check(
+                f"and refuses one it does not ({kind})",
+                not await page.evaluate(
+                    "([k,s])=>window.__panel.holds(k,s)", [kind, invented]),
+                invented)
+
         journal.check("no JS error while the seam is driven", not errors, str(errors))
         await context.close()
         await browser.close()

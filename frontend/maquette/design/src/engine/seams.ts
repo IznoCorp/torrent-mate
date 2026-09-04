@@ -75,6 +75,11 @@ export type Panel = {
   // Which kinds have a producer, read by the rule that holds the seam from
   // outside. A reading rather than an assertion — see `registeredProducers`.
   producers: () => string[];
+  // Whether the feature that owns a kind HOLDS a subject — asked by the
+  // addressed-panel table before it opens a panel from a typed address. A
+  // producer answers for anything; this is the other question, and it is the
+  // feature's to answer rather than the engine's fixture's.
+  holds: (kind: string, subject: string) => boolean;
 };
 
 // The published half of the same seam. It is declared HERE, beside the type it

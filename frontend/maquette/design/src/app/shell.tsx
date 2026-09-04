@@ -52,16 +52,11 @@ import "../engine/states.js";
 import { RouterProvider } from "@tanstack/react-router";
 import React from "react";
 import ReactDOM from "react-dom/client";
-// WHAT THE FEATURES CONTRIBUTE TO THE PANEL, imported for their SIDE EFFECT:
-// each declares a block kind and registers what draws it, or registers what
-// PRODUCES a descriptor, as it evaluates. Nothing else imports them — a panel
-// is opened through `window.__panel`, never by a component holding a reference
-// — so the boot is where they have to be named, and `app/` naming what a
-// feature contributes at boot is exactly its job. ONE LINE PER FEATURE, never
-// one per producer: a feature's module imports its own siblings.
-import "../features/media/panel-seasons";
-import "../features/settings/panel-field";
-import "../features/account/panel-account";
+// What the features contribute to the panel — blocks and producers, each
+// registered by its module's own evaluation. The LIST is `panel-contributions`,
+// which is a file rather than four lines here because it gains an entry per
+// feature converted and this file may only lose lines.
+import "./panel-contributions";
 import { createStore, type Store } from "./store";
 import { installFocusManager } from "./focus";
 import { installMockNetwork } from "../mocks";
