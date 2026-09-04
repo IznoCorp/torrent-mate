@@ -140,6 +140,7 @@ cadence
 call
 calls
 cancel
+cancelsetting
 candidate
 candidates
 cap

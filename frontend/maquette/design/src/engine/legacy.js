@@ -9392,12 +9392,11 @@ import {
       return;
     }
     if (closest.dataset.cancelsetting) {
-      SETTINGS_STATE.modifs.delete(closest.dataset.cancelsetting);
-      panel.close();
-      setTimeout(() => {
-        render();
-        toast("Modification annulée — rien n'avait été écrit.");
-      }, 200);
+      // THE READER LEFT (L19). The verb is still this delegation's; what it
+      // does is `features/settings/panel-setting.ts`'s, beside the panel that
+      // offers it. The rule that holds it was written against the branch this
+      // replaces and is unchanged in count.
+      window.__settingsVerbs?.cancelEdit(closest.dataset.cancelsetting);
       return;
     }
     if (closest.dataset.save) {

@@ -113,6 +113,44 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
   };
 }
 
+/* « ANNULER LA MODIFICATION » — the verb this panel offers, living beside the
+   panel that offers it. It was `legacy.js`'s `data-cancelsetting` branch, and
+   it moves here because a producer owns the verbs its own surface carries
+   (`frame-model.md` Part 12). Its rule was written FIRST, against the engine's
+   branch, and seen red under a mutation of it — `harness/settings.py`'s
+   « cancelling drops that edit », « and leaves every other edit standing »,
+   « and the panel is gone ».
+
+   THE MAP IT WRITES IS STILL THE ENGINE'S. `SETTINGS_STATE` is not server state
+   and does not move in this lot; what moved is the DECISION about it, which is
+   this feature's. So is the redraw and the sentence that follows — both through
+   seams that die with the engine.
+
+   THE WAIT IS THE PANEL'S EXIT, unchanged at 200 ms: the panel closes, then the
+   page is redrawn and the message said. Shortening or removing it is a
+   behaviour change and this is a conversion. */
+const CANCEL_SETTLE_MILLISECONDS = 200;
+
+function cancelEdit(identifier: string): void {
+  window.__referentiel.SETTINGS_STATE.modifs.delete(identifier);
+  window.__panel.close();
+  window.setTimeout(() => {
+    window.__referentiel.render();
+    window.__toast?.show({
+      message: i18next.t("panels.setting.cancelledToast"),
+    });
+  }, CANCEL_SETTLE_MILLISECONDS);
+}
+
+declare global {
+  interface Window {
+    /** The verbs the settings panels offer, called by the click delegation. */
+    __settingsVerbs?: { cancelEdit: (identifier: string) => void };
+  }
+}
+
+window.__settingsVerbs = { cancelEdit };
+
 registerProducer("setting", {
   produce: settingPanel,
   needs: [settingsQuery],

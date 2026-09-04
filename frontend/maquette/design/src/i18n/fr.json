@@ -864,7 +864,8 @@
       "writtenValue": "Valeur écrite",
       "readOnly": "Lecture seule sur cette instance",
       "cancelEdit": "Annuler la modification",
-      "nothingWritten": "Rien n'est écrit tant que la barre du bas n'est pas utilisée. Elle dit quels fichiers seront touchés."
+      "nothingWritten": "Rien n'est écrit tant que la barre du bas n'est pas utilisée. Elle dit quels fichiers seront touchés.",
+      "cancelledToast": "Modification annulée — rien n'avait été écrit."
     }
   }
 }
