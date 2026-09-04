@@ -370,6 +370,7 @@ when the defect comes back.
 | B-308 | The maquette draws six schedulers and the machine now runs seven — `machine.py`'s count fell the day `personalscraper-index-full` was scheduled on `main`, and nothing in that pull request could have told it | by L19 | `open` |
 | B-309 | « Récupérer maintenant » on a medium's own panel THROWS and takes nothing: the release screen's `data-take` branch is checked first, has no guard, and swallows every `data-take` in the document | by L19 | `to confirm` |
 | B-310 | Opening a media sheet from a bottom panel shows the PANEL again briefly before the sheet comes back — B-249's family, reported by the operator on the L19 head | 1× | `open` |
+| B-311 | Coming back to a list after a medium's sheet does not restore the scroll position the list was left at | 1× | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -680,6 +681,29 @@ B-249's open half as it already stood is the first thing to establish, and it is
 walking the same path on a build of each — not by reading either.
 
 <sub>reported through the steward, 2026-09-04 · `grep -n "setTimeout(.*260" frontend/maquette/design/src/engine/legacy.js`</sub>
+
+**B-311 — a list does not come back at the place it was left.**
+Reported by the operator on 2026-09-04, verbatim: « quand je reviens sur la liste après avoir vu
+la fiche, je ne reviens pas avec le même scroll sur la liste ». Read: open a medium's sheet from a
+list, go Back, and the list is not where it was.
+
+**WHICH LIST MATTERS, and it is the first thing to establish rather than assume.** The library's
+place-keeping was rewritten at L14 — `ui/reader-place.ts` and `ui/virtual-rows.tsx` restore a ROW
+INDEX across a pitch change rather than a pixel — and that is a different mechanism from
+`app/scroll-restoration.ts`, which keeps a scroll position per history entry for an ordinary page.
+The two answer the same question on different surfaces, so a walk on the wrong one measures the
+wrong mechanism.
+
+**What L19 touched, measured**: `git diff origin/main...HEAD` reaches `features/library/` at phase
+07 alone (the sort sheet), and touches **neither** `ui/reader-place.ts`, `ui/virtual-rows.tsx`
+**nor** `app/scroll-restoration.ts`. What it did change on a page that scrolls is the Découvrir
+feed (phase 14), whose list container the feature now fills.
+
+**Rule 4 of this file applies before any repair**: the rule must cover the path the operator
+actually walks — list → the medium's sheet → Back — and `harness/scroll_memory.py` is where it
+goes. Whether it drives that path on a WINDOWED list is the question the reading has to answer.
+
+<sub>reported through the steward, 2026-09-04 · `git diff --stat origin/main...HEAD -- frontend/maquette/design/src/ui/reader-place.ts frontend/maquette/design/src/ui/virtual-rows.tsx frontend/maquette/design/src/app/scroll-restoration.ts` → empty</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
