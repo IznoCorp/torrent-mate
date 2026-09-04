@@ -31,6 +31,7 @@ _ECOSYSTEM_PATH = Path(__file__).parent.parent.parent / "ecosystem.config.js"
 _EXPECTED_APP_NAMES = frozenset(
     {
         "personalscraper-watch",
+        "personalscraper-index-full",
         "personalscraper-index-enrich",
         "personalscraper-backfill-ids",
         "personalscraper-follow-detect",
@@ -59,6 +60,7 @@ _CANONICAL_CONFIG = "/Users/izno/.torrentmate/config"
 _PROD_PYTHON_APP_NAMES = frozenset(
     {
         "personalscraper-watch",
+        "personalscraper-index-full",
         "personalscraper-index-enrich",
         "personalscraper-backfill-ids",
         "personalscraper-follow-detect",
@@ -346,6 +348,78 @@ def test_watch_app_has_kill_timeout_30000() -> None:
     assert watch.get("kill_timeout") == 30000, (
         f"watch app: expected kill_timeout=30000, got {watch.get('kill_timeout')!r}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Tests — full-scan cron specifics
+# ---------------------------------------------------------------------------
+#
+# `full` is the ONLY mode that retires a file the filesystem no longer has: miss
+# strikes are raised there alone, and three of them tombstone a row. Nothing
+# scheduled it until 2026-09-04, so rows for paths deleted or renamed months ago
+# sat in the index indefinitely. Each argument below is a decision, and each is
+# pinned because losing it silently un-does the schedule.
+
+
+def test_index_full_app_autorestart_false() -> None:
+    """A cron job must not be restarted on exit — it has finished, not crashed."""
+    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
+    full = _get_app_by_name(apps, "personalscraper-index-full")
+    assert full.get("autorestart") is False, (
+        f"index-full app: expected autorestart=false, got {full.get('autorestart')!r}"
+    )
+
+
+def test_index_full_app_cron_is_valid_5field_on_monday() -> None:
+    """Monday small hours: the walk ends long before 03:00, and 05:00 reclaims its memory.
+
+    Measured 2026-09-04: 22 min 00 over 97 672 files. Starting at 01:00 leaves
+    1 h 38 before ``follow-detect``, and the weekly 05:00 reboot reclaims the wired
+    memory the walk grows — which is why Monday beats Sunday evening.
+    """
+    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
+    full = _get_app_by_name(apps, "personalscraper-index-full")
+    cron = full["cron_restart"]
+    assert isinstance(cron, str), f"index-full cron_restart must be str, got {type(cron)}"
+    assert _is_valid_cron_5field(cron), f"index-full app: cron_restart '{cron}' is not a valid 5-field expression"
+    fields = cron.strip().split()
+    assert fields[4] == "1", f"index-full app: day-of-week must be Monday (1), got '{fields[4]}'"
+    assert fields[1] == "1", f"index-full app: hour must be 01, got '{fields[1]}'"
+
+
+def test_index_full_app_runs_without_a_time_budget() -> None:
+    """``--no-budget`` is load-bearing, not decoration.
+
+    The walk takes 22 min against the 1800 s default — a 27 % margin, and a slower
+    night would truncate it. A truncated walk no longer strikes anything (the
+    run-level guard in ``library_index_command``), so the failure mode is a wasted
+    pass rather than a false tombstone; but a pass that completes is the entire
+    point of scheduling one.
+    """
+    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
+    full = _get_app_by_name(apps, "personalscraper-index-full")
+    args = full.get("args", "")
+    assert isinstance(args, str), f"index-full args must be str, got {type(args)}"
+    assert "library-index" in args, f"index-full app: args must contain 'library-index', got {args!r}"
+    assert "--mode full" in args, f"index-full app: args must contain '--mode full', got {args!r}"
+    assert "--no-budget" in args, (
+        f"index-full app: args must contain '--no-budget' — the 1800 s default would "
+        f"truncate a 22-minute walk on a slow night. Got {args!r}"
+    )
+
+
+def test_index_full_app_waits_for_the_writer_lock() -> None:
+    """The watch daemon's post-dispatch scans hold the indexer lock at unpredictable times.
+
+    With the default ``--wait-for-lock 0`` the weekly run would abandon rather than
+    wait, and a week's retirement would be skipped in silence.
+    """
+    apps = _parse_ecosystem_apps(_ECOSYSTEM_PATH)
+    full = _get_app_by_name(apps, "personalscraper-index-full")
+    args = full.get("args", "")
+    assert "--wait-for-lock" in args, f"index-full app: args must contain '--wait-for-lock', got {args!r}"
+    waited = int(args.split("--wait-for-lock", 1)[1].split()[0])
+    assert waited > 0, f"index-full app: --wait-for-lock must be > 0 (0 abandons on a busy lock), got {waited}"
 
 
 # ---------------------------------------------------------------------------
