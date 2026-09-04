@@ -231,3 +231,32 @@ def test_the_guards_own_file_is_named_by_a_filter_that_gates_a_job_running_it(gu
         "pull request that edits only this guard runs it NOWHERE — the shape "
         "every repair to a guard takes."
     )
+
+
+def test_the_ledger_ratchet_has_a_base_to_read_in_ci() -> None:
+    """A ratchet that cannot reach the base is inert, and says so quietly enough.
+
+    `check-frontend-boundaries.py`'s size arm compares each grandfathered file's
+    RECORD against the record at the revision the branch grew from — the level
+    B-306's first repair was missing, where a wave legalises a growth by moving
+    the number in the same commit. It reads that base with git, so the job that
+    runs the guard has to have one: with `actions/checkout`'s default shallow
+    clone there is no `origin/main`, the arm prints « no base branch is
+    reachable » and refuses nothing, in the only CI job that runs it.
+
+    This hold is what makes removing that line loud.
+    """
+    workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    jobs = workflow["jobs"]
+    running = [name for name, job in jobs.items()
+               if any("check-frontend-boundaries.py" in str(step.get("run", ""))
+                      for step in job.get("steps", []))]
+    assert running, "no CI job runs check-frontend-boundaries.py at all"
+    for name in running:
+        checkouts = [step for step in jobs[name]["steps"]
+                     if str(step.get("uses", "")).startswith("actions/checkout")]
+        assert checkouts, f"{name} runs the guard and checks nothing out"
+        for step in checkouts:
+            assert (step.get("with") or {}).get('fetch-depth') == 0, (
+                f"{name} clones shallow, so the ledger's ratchet reads no "
+                f"base and refuses nothing")

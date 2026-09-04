@@ -22,8 +22,15 @@ of the maquette.
 """
 from __future__ import annotations
 
+import ast
 import re
+import subprocess
 from pathlib import Path
+
+# Where this file sits, so the git reads below name it and run from the
+# repository rather than from whatever directory the guard was invoked in.
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+LEDGER_PATH = "scripts/frontend_size_ledger.py"
 
 
 # Files over the block ceiling, each with the lot that OWES the reduction. The
@@ -88,6 +95,119 @@ GRANDFATHERED = {
     "engine/legacy.js": ("L13 — the engine dies by subtraction, surface by surface", 31645),
     "engine/states.js": ("L13 — the scenario table goes with the engine it drives", 786),
 }
+
+
+# WHAT REFUSES A RECORD THAT IS RAISED, and it is a different question from the
+# one above. The arm compares the FILE against the record; nothing compared the
+# RECORD against anything, so a wave that grew a grandfathered file and moved
+# its number in the same commit passed — the ratchet's floor was editable by the
+# commit it exists to refuse, which is B-306's own species one level up.
+#
+# So the record is read as it stands at the BASE this branch grew from, and a
+# record that has gone UP is a violation. The base's copy of this file is parsed
+# and never executed: a guard that runs code from another revision is a guard
+# with a much larger problem than the one it was written for.
+#
+# WHEN IT CANNOT ENGAGE — no git, a shallow clone, no base branch — it says so
+# on its own line rather than passing quietly, because a ratchet nobody can tell
+# from an inert one is an inert one. What keeps it real in CI is a checkout with
+# `fetch-depth: 0` on the job that runs the guard, and a test holds that.
+BASE_REVISIONS = ("origin/main", "main")
+
+
+def _git(*arguments: str) -> str | None:
+    """Runs a git command, and answers None rather than raising.
+
+    Args:
+        *arguments: The command, git excluded.
+
+    Returns:
+        Its standard output, or None when git is absent or the command failed.
+    """
+    try:
+        done = subprocess.run(("git", *arguments), capture_output=True,
+                              text=True, cwd=REPOSITORY_ROOT, check=False)
+    except (OSError, ValueError):
+        return None
+    return done.stdout if done.returncode == 0 else None
+
+
+def recorded_before() -> tuple[dict[str, int] | None, str]:
+    """The counts this ledger records at the revision the branch grew from.
+
+    Returns:
+        `(counts, where)` — the recorded count per module and the revision they
+        were read at, or `(None, why)` when the base could not be read.
+    """
+    head = _git("rev-parse", "HEAD")
+    for revision in BASE_REVISIONS:
+        base = _git("merge-base", "HEAD", revision)
+        if base is None:
+            continue
+        base = base.strip()
+        if head is not None and base == head.strip():
+            # The base IS this commit: nothing to compare against, and saying
+            # « unchanged » would be a green reading of nothing.
+            return None, f"{revision} is this very commit"
+        text = _git("show", f"{base}:{LEDGER_PATH}")
+        if text is None:
+            return None, (f"this ledger does not exist at {revision} "
+                          f"({base[:9]}) — there is no earlier record")
+        earlier = parse_recorded(text)
+        if not earlier:
+            return None, (f"the table at {revision} ({base[:9]}) records no "
+                          f"count — there is nothing to compare")
+        return earlier, f"{revision} at {base[:9]}"
+    return None, "no base branch is reachable (no git, or a shallow clone)"
+
+
+def parse_recorded(text: str) -> dict[str, int]:
+    """Reads a `GRANDFATHERED` table out of another revision of this file.
+
+    PARSED, NEVER EXECUTED — `ast.literal_eval` on the assignment's value, so a
+    revision of this file cannot run anything here.
+
+    Args:
+        text: That revision's source.
+
+    Returns:
+        The recorded count per module; empty when the table cannot be read.
+    """
+    tree = ast.parse(text)
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(isinstance(target, ast.Name) and target.id == "GRANDFATHERED"
+                   for target in node.targets):
+            continue
+        table = ast.literal_eval(node.value)
+        return {module: entry[1] for module, entry in table.items()
+                if isinstance(entry, tuple) and len(entry) >= 2
+                and isinstance(entry[1], int)}
+    return {}
+
+
+def raised_records() -> tuple[list[str], str]:
+    """The entries whose RECORD is higher than it was at the base.
+
+    Returns:
+        `(violations, where)` — one sentence per raised record, and the
+        revision they were compared against.
+    """
+    before, where = recorded_before()
+    if before is None:
+        return [], where
+    raised = []
+    for module in sorted(GRANDFATHERED):
+        count = grandfathered_count(module)
+        was = before.get(module)
+        if was is not None and count > was:
+            raised.append(
+                f"{module} — recorded at {was} at the base and at {count} here, "
+                f"{count - was} more. A grandfathered file's record may only go "
+                f"DOWN: raising it legalises the growth in the same commit that "
+                f"commits it, which is the ratchet refusing nothing")
+    return raised, where
 
 
 def grandfathered_label(module: str) -> str:

@@ -505,6 +505,16 @@ def arm_size(root: Path, listing: bool = False) -> int:
                           f"Re-record it in THIS commit: a count re-recorded later "
                           f"is a count nobody compared")
 
+    # AND THE RECORD ITSELF IS READ, which is the level the ratchet was missing.
+    # Everything above compares the FILE against the record; a wave that grew a
+    # grandfathered file and moved its number in the same commit satisfied all
+    # of it. So the record is compared with the record at the revision this
+    # branch grew from, and a record that has gone UP is refused. When that
+    # comparison cannot be made — no git, a shallow clone, a ledger that does
+    # not exist at the base — it says so on its own line: a ratchet nobody can
+    # tell from an inert one is an inert one.
+    raised, compared_against = ledger.raised_records()
+
     # An exemption nobody counts is indistinguishable from an oversight, so the
     # generated files are PRINTED on every run rather than merely skipped — and
     # an entry naming a file that is not there is a violation, because a stale
@@ -521,7 +531,8 @@ def arm_size(root: Path, listing: bool = False) -> int:
           f"and IMPLEMENTATION.md records {len(landed)} landed), "
           f"{len(warn)} above the {WARN_LINES} warning, "
           f"{len(ledger.GENERATED)} generated file(s) exempt"
-          + (f" — grandfathered counts: {records}" if records else ""))
+          + (f" — grandfathered counts: {records}" if records else "")
+          + f"; the records themselves compared against {compared_against}")
     for entry in shrunk:
         print(f"    [RE-RECORD] {entry}")
     for name in absent:
@@ -547,6 +558,8 @@ def arm_size(root: Path, listing: bool = False) -> int:
               f"is the state B-073 found this list in", file=sys.stderr)
     for entry in grown:
         print(f"    {entry}", file=sys.stderr)
+    for entry in raised:
+        print(f"    {entry}", file=sys.stderr)
     # NEITHER EMPTINESS IS A PASS. A reader that finds nothing and reports clean
     # is the exact shape this arm was written to end: the hold would pass for the
     # one reason it must never pass for. Two documents, so two messages — a
@@ -561,7 +574,7 @@ def arm_size(root: Path, listing: bool = False) -> int:
               "with a lot that has not landed » is a sentence this arm cannot check",
               file=sys.stderr)
     return (len(unrecorded) + len(stale) + len(spent) + len(unnamed)
-            + len(invented) + len(absent) + len(grown)
+            + len(invented) + len(absent) + len(grown) + len(raised)
             + int(plan_unreadable) + int(advancement_unreadable))
 
 

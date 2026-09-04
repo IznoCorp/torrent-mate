@@ -225,7 +225,17 @@ jobs:
     name: no-french
     runs-on: ubuntu-latest
     steps:
+      # FULL HISTORY, and it is `check-frontend-boundaries.py` that needs it.
+      # Its size arm compares each grandfathered file's RECORD with the record
+      # at the revision the branch grew from — the level B-306's first repair
+      # was missing, where a growth is legalised by moving the number in the
+      # same commit. With a shallow checkout there is no base to read, the arm
+      # says so on its own line, and the ratchet is inert in the only job that
+      # runs it. `tests/scripts/test_ci_filter_covers_the_guards.py` holds this
+      # line so it cannot be removed silently.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

@@ -42,6 +42,7 @@ from __future__ import annotations
 import importlib.util
 import re
 import shutil
+import subprocess
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "check-frontend-boundaries.py"
@@ -769,3 +770,155 @@ class TestSizeArmReadsTheCount:
         violations = guard.arm_size(root)
         captured = capsys.readouterr()
         assert violations == 0, captured.err
+
+
+class TestTheRecordIsARatchetToo:
+    """The ledger was its own oracle: a growth was legalised by moving the number.
+
+    Every case above mutates the FILE and measures it against the record as it
+    stands. Nothing measured the RECORD, so a wave that added lines to a
+    grandfathered file and raised its entry in the same commit satisfied all of
+    them — the ratchet's floor was editable by exactly the commit it exists to
+    refuse, which is B-306's own species one level up.
+
+    So the record is read at the revision the branch grew from. These cases
+    build a two-commit repository of their own rather than reading this one,
+    because a case that depends on this repository's history measures the day it
+    ran, not the rule.
+    """
+
+    @staticmethod
+    def _repository(tmp_path: Path, before: int, after: int) -> Path:
+        """A repository whose ledger records `before` on main and `after` on a branch.
+
+        Args:
+            tmp_path: The scratch directory.
+            before: The count recorded on `main`.
+            after: The count recorded on the branch checked out at the end.
+
+        Returns:
+            The repository's root.
+        """
+        root = tmp_path / "repository"
+        (root / "scripts").mkdir(parents=True)
+        ledger = root / "scripts" / "frontend_size_ledger.py"
+
+        def write(count: int) -> None:
+            ledger.write_text(
+                'GRANDFATHERED = {\n'
+                f'    "engine/legacy.js": ("L13 — it dies by subtraction", {count}),\n'
+                '}\n', encoding="utf-8")
+
+        def git(*arguments: str) -> None:
+            subprocess.run(("git", *arguments), cwd=root, check=True,
+                           capture_output=True)
+
+        git("init", "-b", "main")
+        git("config", "user.email", "rule@example.invalid")
+        git("config", "user.name", "the rule")
+        write(before)
+        git("add", "scripts/frontend_size_ledger.py")
+        git("commit", "-m", "the base")
+        git("checkout", "-b", "the-wave")
+        write(after)
+        git("add", "scripts/frontend_size_ledger.py")
+        # `--allow-empty`, because one case records the SAME count on both
+        # sides: an unchanged record is the ordinary case, and it must be
+        # buildable.
+        git("commit", "--allow-empty", "-m", "the wave")
+        return root
+
+    def _read(self, root: Path, table: dict) -> tuple[list[str], str]:
+        """Runs the ratchet against a built repository.
+
+        Args:
+            root: The repository's root.
+            table: What `GRANDFATHERED` holds on the branch.
+
+        Returns:
+            `(violations, where)`.
+        """
+        ledger = guard.ledger
+        before_root, before_table = ledger.REPOSITORY_ROOT, ledger.GRANDFATHERED
+        try:
+            ledger.REPOSITORY_ROOT = root
+            ledger.GRANDFATHERED = table
+            return ledger.raised_records()
+        finally:
+            ledger.REPOSITORY_ROOT = before_root
+            ledger.GRANDFATHERED = before_table
+
+    def test_a_record_raised_is_refused(self, tmp_path) -> None:
+        """THE DEFECT: the ledger edited upward, in the commit that grows the file."""
+        root = self._repository(tmp_path, before=100, after=120)
+        raised, where = self._read(root, {"engine/legacy.js": ("L13 — a lot", 120)})
+        assert len(raised) == 1, (raised, where)
+        assert "engine/legacy.js" in raised[0]
+        assert "100" in raised[0] and "120" in raised[0]
+        assert "may only go" in raised[0]
+
+    def test_the_arm_returns_that_violation(self, tmp_path, capsys) -> None:
+        """And it reaches the arm's count, which is what the exit code reads."""
+        root = self._repository(tmp_path, before=100, after=120)
+        design = copy_design_src(tmp_path)
+        engine_lines = sum(
+            1 for line in (design / "engine" / "legacy.js").read_text(encoding="utf-8").splitlines()
+            if line.strip())
+        ledger = guard.ledger
+        before_root, before_table = ledger.REPOSITORY_ROOT, ledger.GRANDFATHERED
+        try:
+            ledger.REPOSITORY_ROOT = root
+            ledger.GRANDFATHERED = {
+                "engine/legacy.js": ("L13 — the engine dies by subtraction, surface by surface",
+                                     engine_lines),
+                "engine/states.js": before_table["engine/states.js"],
+            }
+            violations = guard.arm_size(design)
+        finally:
+            ledger.REPOSITORY_ROOT = before_root
+            ledger.GRANDFATHERED = before_table
+        captured = capsys.readouterr()
+        assert violations == 1, captured.out + captured.err
+        assert "may only go" in captured.err
+
+    def test_a_record_lowered_is_not(self, tmp_path) -> None:
+        """A record going DOWN is the work the label demands, not a violation."""
+        root = self._repository(tmp_path, before=120, after=100)
+        raised, where = self._read(root, {"engine/legacy.js": ("L13 — a lot", 100)})
+        assert raised == [], (raised, where)
+
+    def test_an_unchanged_record_is_not(self, tmp_path) -> None:
+        """The ordinary case."""
+        root = self._repository(tmp_path, before=100, after=100)
+        raised, where = self._read(root, {"engine/legacy.js": ("L13 — a lot", 100)})
+        assert raised == []
+
+    def test_a_new_entry_has_nothing_to_compare(self, tmp_path) -> None:
+        """A file grandfathered for the first time is not a raise."""
+        root = self._repository(tmp_path, before=100, after=100)
+        raised, _ = self._read(root, {"engine/legacy.js": ("L13 — a lot", 100),
+                                      "engine/states.js": ("L13 — a lot", 900)})
+        assert raised == []
+
+    def test_it_says_so_when_it_cannot_engage(self, tmp_path) -> None:
+        """A ratchet nobody can tell from an inert one is an inert one."""
+        empty = tmp_path / "not-a-repository"
+        empty.mkdir()
+        ledger = guard.ledger
+        before_root = ledger.REPOSITORY_ROOT
+        try:
+            ledger.REPOSITORY_ROOT = empty
+            raised, where = ledger.raised_records()
+        finally:
+            ledger.REPOSITORY_ROOT = before_root
+        assert raised == []
+        assert "no base branch is reachable" in where
+
+    def test_the_base_is_parsed_and_never_executed(self, tmp_path) -> None:
+        """A revision of this file cannot run anything inside the guard."""
+        ledger = guard.ledger
+        marker = tmp_path / "it-ran"
+        text = (f'import pathlib\npathlib.Path({str(marker)!r}).write_text("x")\n'
+                'GRANDFATHERED = {"engine/legacy.js": ("L13 — a lot", 100)}\n')
+        assert ledger.parse_recorded(text) == {"engine/legacy.js": 100}
+        assert not marker.exists()
