@@ -168,6 +168,35 @@ async def main():
               pending["marked"] >= 1, f"{pending['marked']} row(s)")
         check("the bar stays inside the frame", pending["insideFrame"])
 
+        # ── AND THE PANEL SAYS THE EDIT, not the file ─────────────────────
+        # The panel of an EDITED setting must show what the operator typed as
+        # « Valeur actuelle » and the file's own value as « Valeur écrite ». It
+        # is one derivation — `valueShown` — and NOTHING read it: a mutation
+        # making it answer `setting.v` unconditionally fell no hold in this file
+        # and none in R120, and what it produces is a panel telling the operator
+        # their edit did not take. The two rows are read TOGETHER, because
+        # either alone passes over a panel showing the same value twice.
+        edited = await pg.evaluate("""()=>{
+          const row = document.querySelector('[data-part="setting/row"][data-edited]');
+          if (!row) return null;
+          row.click();
+          return true;}""")
+        await pg.wait_for_timeout(400)
+        shown = await pg.evaluate("""()=>{
+          const rows = [...document.querySelectorAll('#sheetin [data-part="key-value"]')]
+            .map(r => r.textContent.replace(/\s+/g, ' ').trim());
+          return {rows, pending: [...(window.__referentiel.SETTINGS_STATE.modifs || new Map())
+            .values()].map(String)};}""")
+        current = next((r for r in shown["rows"] if r.startswith("Valeur actuelle")), "")
+        written = next((r for r in shown["rows"] if r.startswith("Valeur écrite")), "")
+        check("an edited setting's panel says the EDIT as its current value",
+              bool(edited) and bool(shown["pending"])
+              and any(value in current for value in shown["pending"]),
+              f"{current!r} · pending {shown['pending']}")
+        check("and the file's own value beside it, as the written one",
+              bool(written) and current != written,
+              f"current {current!r} · written {written!r}")
+
         # ── a secret is never shown ────────────────────────────────────────
         await pg.evaluate("()=>window.__go('settings-secrets')")
         await pg.wait_for_timeout(320)
