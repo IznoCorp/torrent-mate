@@ -22,10 +22,25 @@ async def main():
         # reads only the layer passes over a sentence about the WRONG one, and
         # that is the half this rule owed since the producer moved (L19).
         tapped = await pg.evaluate(js.replace(".click()", ".dataset.ep"))
+        # AND WHAT THE CATALOGUE SAYS ABOUT THAT EPISODE — its own title and its
+        # own air date, read from the référentiel rather than from the popover.
+        # `SssEnn` is composed from the CELL, so it is right even when the
+        # episode looked up is the wrong one: a mutation making the producer
+        # answer the season's FIRST episode left every check green while the
+        # date and the title belonged to another episode entirely.
+        expected = await pg.evaluate("""(written)=>{
+          if (!written) return null;
+          const [title, season, number] = written.split('|');
+          const sheet = window.__referentiel.sheetFor(title);
+          const one = (sheet?.eps?.[season] || []).find(
+            (e) => String(e.n) === number);
+          return one ? {title: one.t || null,
+                        air: one.air ? window.__referentiel.dateFR(one.air) : null}
+                     : null;}""", tapped)
         await pg.evaluate(js); await pg.wait_for_timeout(320)
         txt = await pg.evaluate("""()=>document.querySelector('[data-part="episode/popover"]')?.innerText.replace(/\\n/g,' | ')""")
         print(f"  {label:24} {txt}")
-        named.append((label, tapped, txt))
+        named.append((label, tapped, txt, expected))
         return txt
 
     # (label, the cell's own `data-ep`, what the popover said)
@@ -67,18 +82,34 @@ async def main():
     # popover's first line says. A popover that opened correctly and described
     # its neighbour would satisfy every check above.
     identity = True
-    for label, written, said in named:
+    for label, written, said, expected in named:
         if not written or not said:
             identity = False
             print(f"  FAIL {label}: nothing to compare — cell {written!r}, said {said!r}")
             continue
         _, season, number, _ = written.split("|")
-        expected = f"S{int(season):02d}E{int(number):02d}"
-        if not said.startswith(expected):
+        number_name = f"S{int(season):02d}E{int(number):02d}"
+        if not said.startswith(number_name):
             identity = False
-            print(f"  FAIL {label}: tapped {expected}, the popover says {said[:40]!r}")
+            print(f"  FAIL {label}: tapped {number_name}, the popover says {said[:40]!r}")
+            continue
+        # THE FACTS, NOT ONLY THE NUMBER. The number is composed from the cell
+        # and is right whichever episode was looked up; the title and the date
+        # are the looked-up episode's, and they are what a wrong lookup shows.
+        wrong = []
+        if expected is None:
+            wrong.append("the catalogue knows nothing of it")
         else:
-            print(f"  PASS {label} is about {expected}")
+            if expected["title"] and expected["title"] not in said:
+                wrong.append(f"title {expected['title']!r}")
+            if expected["air"] and expected["air"] not in said:
+                wrong.append(f"air date {expected['air']!r}")
+        if wrong:
+            identity = False
+            print(f"  FAIL {label}: {number_name} says {said[:60]!r} — missing "
+                  f"{', '.join(wrong)}")
+        else:
+            print(f"  PASS {label} is about {number_name}, with its own facts")
 
     print("\nJS errors:", errs or "none")
     print("VERDICT:", "the date appears, in French, following the state, about "
