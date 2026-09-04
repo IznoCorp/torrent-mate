@@ -5,6 +5,11 @@ producers`.** It is not restated here: a contract copied into a second file is a
 in one of them. This document says HOW the contract is met — the seam a producer moves through,
 where each one lands, what proves each move, and the readings taken on the way.
 
+**Version.** The wave opened at 0.98.68 off `446b0e921`; `main` moved to `4c0e274a7` while
+phase 02 was being written and had itself reached 0.98.68, so the branch was rebased and the
+bump re-taken to **0.98.69**. Recorded here because a version written once and silently
+corrected is the shape `check-implementation-state.py` exists to catch.
+
 **Constitution served.** §13 (real data — a producer reads the cache, never a fixture),
 §17 (a restart cuts the household — B-300), §20 (a tunnel per media — the journey sheet moves
 into the feature that owns the tunnel), DOIT-3, DOIT-4, DOIT-8, NE-DOIT-PAS-3, NE-DOIT-PAS-9,
