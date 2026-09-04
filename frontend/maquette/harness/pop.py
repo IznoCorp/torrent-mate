@@ -40,7 +40,7 @@ async def main():
 
     print("── Silo (including announced episodes) ──")
     await pg.evaluate("()=>{closePopEp();window.__go('acq-follows-list');}"); await pg.wait_for_timeout(300)
-    await pg.evaluate("()=>openFollowSheet('Silo')"); await pg.wait_for_timeout(450)
+    await pg.evaluate("()=>window.__panel.produce('follow', 'Silo')"); await pg.wait_for_timeout(450)
     c1 = await click_("""()=>{const l=[...document.querySelectorAll('[data-part="episode"]')];l[l.length-1].click();}""", "last episode")
     await shot(pg, "pop-last-episode")
 
@@ -63,7 +63,7 @@ async def announced():
     await pg.goto("http://127.0.0.1:8899/", wait_until="load")
     await pg.evaluate("()=>window.__measure(true)")
     await pg.evaluate("()=>window.__go('acq-follows-list')"); await pg.wait_for_timeout(300)
-    await pg.evaluate("()=>openFollowSheet('Silo')"); await pg.wait_for_timeout(450)
+    await pg.evaluate("()=>window.__panel.produce('follow', 'Silo')"); await pg.wait_for_timeout(450)
     await pg.evaluate("""()=>document.querySelector('[data-part="episode"][data-announced]').click()"""); await pg.wait_for_timeout(330)
     txt = await pg.evaluate("""()=>document.querySelector('[data-part="episode/popover"]')?.innerText.replace(/\\n/g,' | ')""")
     print("  popover for an ANNOUNCED episode:", txt)

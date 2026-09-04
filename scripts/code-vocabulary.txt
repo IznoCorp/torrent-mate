@@ -40,6 +40,7 @@ accepted
 account
 acq
 acqtab
+acquired
 acquisition
 act
 action
@@ -110,6 +111,7 @@ became
 before
 began
 begin
+being
 beneath
 best
 block
@@ -966,6 +968,7 @@ shorthands
 shot
 show
 shown
+shows
 sibling
 side
 sidebar

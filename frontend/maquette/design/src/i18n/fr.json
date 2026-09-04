@@ -913,6 +913,28 @@
       "ownedEmphasis": "remplacera",
       "ownedAfter": " la version en place.",
       "seeSheet": "Voir la fiche"
+    },
+    "follow": {
+      "film": "Film",
+      "series": "Série",
+      "episodesSuffix": " épisodes",
+      "resolve": "Résoudre →",
+      "takeNow": "Récupérer maintenant",
+      "complete": "Compléter → Acquisitions",
+      "searchNow": "Chercher maintenant",
+      "seeSheet": "Voir la fiche",
+      "seeJourney": "Voir le parcours",
+      "noEpisodeCatalogue": "Un film n'a pas de catalogue d'épisodes : il est acquis, ou il ne l'est pas.",
+      "noSeasonData": "Aucune donnée de saison connue pour cette série — le catalogue n'a pas encore été récupéré. La fraction affiche « — », jamais « 0/0 » qui se lirait comme une série vide.",
+      "otherRelease": "Chercher une autre release",
+      "qualityProfile": "Profil de qualité",
+      "rescrape": "Re-scraper les métadonnées",
+      "stopSearchingFilm": "Ne plus chercher",
+      "pauseSeries": "Mettre en pause",
+      "removeFilm": "Retirer de la liste",
+      "removeSeries": "Retirer le suivi",
+      "deleteFromLibrary": "Supprimer de la médiathèque",
+      "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste (§5)."
     }
   }
 }

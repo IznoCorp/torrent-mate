@@ -32,7 +32,6 @@ import {
   applyState,
   store,
   openDeleteDialog,
-  openFollowSheet,
   openDrawer,
   settingId,
   resetSettings,
@@ -252,7 +251,7 @@ const STATES = [
       "Feuille de suivi — gros catalogue complet",
       () => {
         applyState({ page: "acq", acqTab: "follows", phase: "ready" });
-        openFollowSheet("American Dad!");
+        window.__panel.produce("follow", "American Dad!");
       },
     ],
     [
@@ -260,7 +259,7 @@ const STATES = [
       "Feuille de suivi — matrice à trous",
       () => {
         applyState({ page: "lib", libLens: "inc", phase: "ready" });
-        openFollowSheet("Les aventures de Tintin");
+        window.__panel.produce("follow", "Les aventures de Tintin");
       },
     ],
     [

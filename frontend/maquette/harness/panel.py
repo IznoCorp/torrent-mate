@@ -272,7 +272,7 @@ async def main():
         await pg2.evaluate("()=>window.__loadingDone?.()")
         await pg2.wait_for_timeout(300)
 
-        await pg2.evaluate("()=>window.openFollowSheet('Silo')")
+        await pg2.evaluate("()=>window.__panel.produce('follow', 'Silo')")
         await pg2.wait_for_timeout(400)
         addressed = pg2.url
         check("an addressed panel writes its address",
@@ -486,7 +486,7 @@ async def main():
         await pg10.goto(PROTOTYPE + "acquisition", wait_until="load")
         await pg10.evaluate("()=>window.__loadingDone?.()")
         await pg10.wait_for_timeout(600)
-        await pg10.evaluate(f"()=>window.openFollowSheet({FOLLOW_TITLE!r})")
+        await pg10.evaluate(f"()=>window.__panel.produce('follow', {FOLLOW_TITLE!r})")
         await pg10.wait_for_timeout(500)
         # The tab the tap goes to is read off the BAR, never written down: which
         # pages are tabs is the bar's own decision, and a constant here would
@@ -662,7 +662,7 @@ async def main():
         await pg7.wait_for_timeout(300)
         await pg7.evaluate(f"()=>window.__screens.mediaSheet({SHEET_TITLE!r})")
         await pg7.wait_for_timeout(500)
-        await pg7.evaluate(f"()=>window.openFollowSheet({FOLLOW_TITLE!r})")
+        await pg7.evaluate(f"()=>window.__panel.produce('follow', {FOLLOW_TITLE!r})")
         await pg7.wait_for_timeout(500)
         check("a panel opened in-app over a screen leaves the screen standing",
               await pg7.evaluate("()=>window.__panel.isOpen()")

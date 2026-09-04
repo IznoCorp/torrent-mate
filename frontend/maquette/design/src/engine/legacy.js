@@ -7909,7 +7909,7 @@ import {
     const { genre, ref } = refPanel(element);
     if (genre === "sug") panel.produce("suggestion", ref);
     else if (genre === "add") panel.produce("add", ref);
-    else openFollowSheet(ref);
+    else panel.produce("follow", ref);
   }
 
   /* THE LONG PRESS — arbitrated in `lib/press-arbitration.ts`.
@@ -31208,7 +31208,8 @@ import {
      fixed. The panel derives what it offers from what is true about the
      medium, and « nothing is known about this one » is one of those truths. */
   function openDetailSheet(title) {
-    return openFollowSheet(title);
+    // THE PRODUCER LEFT (L19). `features/acquisition/panel-follow.ts` answers.
+    return panel.produce("follow", title);
   }
 
   /* Follow detail sheet, with its season matrix
@@ -31277,7 +31278,7 @@ import {
   }
 
   /* Does this interface HOLD a medium by that title?
-     `openFollowSheet` below answers for ANYTHING: a title it recognises in
+     the follow panel answers for ANYTHING: a title it recognises in
      none of its sources still gets a panel, synthesised from the title alone.
      That is right for the in-app door — every medium opens the same panel, and
      « rien n'est connu de celui-ci » is one of the truths a library title can
@@ -31300,214 +31301,6 @@ import {
       INCOMPLETE.some((entry) => entry.t === title) ||
       LIBRARY.some((entry) => entry.t === title)
     );
-  }
-
-  function openFollowSheet(title) {
-    const follow = follows().find((follow2) => follow2.t === title) ||
-      INCOMPLETE.map((INCOMPLETE2) => ({
-        t: INCOMPLETE2.t,
-        k: "show",
-        st: "to_grab",
-        own: INCOMPLETE2.o,
-        aired: INCOMPLETE2.a,
-      })).find((map) => map.t === title) || {
-        t: title,
-        k: "show",
-        st: "up_to_date",
-      };
-    const seasons = (SEASONS[title] || [])
-      .slice()
-      .sort((slice, index) => index[0] - slice[0]);
-    const isFilm = follow.k === "movie";
-    /* What is TRUE about this medium, gathered once. Every action below is
-       derived from these three facts and nothing else — never from the screen
-       the panel was opened from. That is what makes the panel the same object
-       everywhere, instead of a family of look-alikes. */
-    const incomplete = INCOMPLETE.some((INCOMPLETE2) => INCOMPLETE2.t === title);
-    const isFollowed = follows().some((follow2) => follow2.t === title);
-    const inLibrary = incomplete || LIBRARY.some((LIB) => LIB.t === title);
-    /* Read from the SAME derivations the urgency sections read. A section that
-       computes what to grab while the panel computes it separately is two
-       answers to one question, and they part company on the first change. */
-    const toTake = queued().takeable.some((takeable) => takeable.t === title);
-    const toResolve = queued()
-      .blocked.concat(queued().stuck)
-      .some((concat) => concat.t === title);
-    // An unidentified release has no sheet. Offering to open one is the same
-    // broken promise as a poster that leads nowhere.
-    const hasSheet = sheetFor(title) != null;
-    const own = seasons.reduce(
-      (accumulator, element) => accumulator + element[2],
-      0,
-    );
-    const aired = seasons.reduce(
-      (accumulator, element) => accumulator + element[1],
-      0,
-    );
-    /* One derivation: the card's fraction, the header's, and the sum of the
-       season headers all read the SAME computation. */
-    const frac = isFilm
-      ? null
-      : seasons.length
-        ? `${own}/${aired}`
-        : (stFraction(follow) ?? "—");
-    panel.open({
-      address: "follow:" + title,
-      title: follow.t,
-      poster: { t: follow.t, k: follow.k },
-      meta: `${follow.y ? String(follow.y) + " · " : ""}${isFilm ? "Film" : "Série"}${frac ? " · " + frac + " épisodes" : ""}`,
-      puce: [ST_TONE[follow.st], stLabel(follow)],
-      blocs: [
-        {
-          type: "actions",
-          actions: [
-            /* The primary action answers the medium's STATE, not the screen
-               it came from — which is why it is read from the derivations
-               above and not passed in. Blocked outranks everything: nothing
-               else can happen until it is resolved. Then what can be
-               grabbed, then what is incomplete, then what is merely watched.
-               A medium that is owned and whole has nothing left to chase, so
-               the panel leads to its sheet rather than offering a search
-               that would find nothing. */
-            toResolve
-              ? {
-                  text: "Résoudre →",
-                  icone: icons.play,
-                  ton: "primary",
-                  target: { resolve: follow.t },
-                }
-              : toTake
-                ? {
-                    text: "Récupérer maintenant",
-                    icone: icons.play,
-                    ton: "primary",
-                    target: { take: follow.t },
-                  }
-                : incomplete
-                  ? {
-                      text: "Compléter → Acquisitions",
-                      icone: icons.play,
-                      ton: "primary",
-                      target: { complete: follow.t },
-                    }
-                  : isFollowed
-                    ? {
-                        text:
-                          follow.st === "to_grab"
-                            ? "Récupérer maintenant"
-                            : "Chercher maintenant",
-                        icone: icons.play,
-                        ton: "primary",
-                        target: { sheetprim: `${follow.t}|${follow.st}` },
-                      }
-                    : hasSheet
-                      ? {
-                          text: "Voir la fiche",
-                          icone: icons.eye,
-                          ton: "primary",
-                          target: { mediasheet: follow.t },
-                        }
-                      : {
-                          text: "Voir le parcours",
-                          icone: icons.refresh,
-                          ton: "primary",
-                          target: { journey: follow.t },
-                        },
-          ],
-        },
-        seasons.length
-          ? { type: "saisons", isFollowed: follow, seasons: seasons }
-          : isFilm
-            ? {
-                type: "note",
-                text:
-                  "Un film n'a pas de catalogue d'épisodes : il est acquis, ou il ne l'est pas.",
-              }
-            : {
-                type: "note",
-                text:
-                  "Aucune donnée de saison connue pour cette série — le catalogue n'a pas encore été récupéré. La fraction affiche « — », jamais « 0/0 » qui se lirait comme une série vide.",
-              },
-        {
-          type: "actions",
-          secondary: true,
-          actions: [
-            /* « Voir la fiche » is reachable from the panel whenever a sheet
-               exists. It is omitted only when it is ALREADY the primary
-               action, which happens for a medium that is owned and whole. */
-            hasSheet && (toResolve || toTake || incomplete || isFollowed)
-              ? {
-                  text: "Voir la fiche",
-                  icone: icons.eye,
-                  target: { mediasheet: follow.t },
-                }
-              : null,
-            {
-              text: "Voir le parcours",
-              icone: icons.refresh,
-              target: { journey: follow.t },
-            },
-            /* Chasing a release only means something for a medium still
-               being acquired. Offered on a complete one it is a button that
-               can only disappoint. */
-            isFollowed || incomplete || toTake
-              ? {
-                  text: "Chercher une autre release",
-                  icone: icons.search,
-                  target: { releases: follow.t },
-                }
-              : null,
-            isFollowed || incomplete || toTake
-              ? {
-                  text: "Profil de qualité",
-                  icone: icons.sort,
-                  target: { profile: follow.t },
-                }
-              : null,
-            inLibrary
-              ? {
-                  text: "Re-scraper les métadonnées",
-                  icone: icons.refresh,
-                  target: { rescrape: follow.t },
-                }
-              : null,
-            /* Pausing or dropping a follow requires a follow. An incomplete
-               series in the library is not one: nothing is watching it, so
-               there is nothing to stop. */
-            isFollowed
-              ? {
-                  text: isFilm ? "Ne plus chercher" : "Mettre en pause",
-                  icone: icons.x,
-                  target: { pause: follow.t },
-                }
-              : null,
-            isFollowed
-              ? {
-                  text: isFilm ? "Retirer de la liste" : "Retirer le suivi",
-                  icone: icons.trash,
-                  ton: "danger",
-                  target: { remove: follow.t },
-                }
-              : null,
-            inLibrary
-              ? {
-                  text: "Supprimer de la médiathèque",
-                  icone: icons.trash,
-                  ton: "danger",
-                  target: { del: follow.t },
-                }
-              : null,
-          ],
-        },
-        isFilm
-          ? {
-              type: "note",
-              text:
-                "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
-            }
-          : null,
-      ],
-    });
   }
 
   /* Journey sheet
@@ -31976,7 +31769,12 @@ import {
      setting is addressed `<file>:<key>`, and a title like « Dexter:
      Resurrection » would otherwise name a medium that does not exist. */
   const REOPEN = {
-    follow: { open: openFollowSheet, resolves: knownMedium },
+    /* MOVED (L19). `resolves` stays the ENGINE's: `knownMedium` asks whether
+       this interface holds the medium at all, which is a question about the
+       library and the queue rather than about the follow read — and the panel
+       answers for ANY title by construction, which is the shape a typed address
+       must be refused by. */
+    follow: { open: (subject) => panel.produce("follow", subject), resolves: knownMedium },
     journey: {
       /* MOVED (L19). `resolves` stays the ENGINE's and it is not an oversight:
          it asks whether this interface holds the MEDIUM, which is a question
@@ -32368,7 +32166,6 @@ export {
   applyState,
   store,
   openDeleteDialog,
-  openFollowSheet,
   openDrawer,
   settingId,
   resetSettings,
@@ -32436,7 +32233,7 @@ Object.assign(window, {
   hideStartup, masquerInstallation, sameValue, changeSetting,
   mountDeck, mountLoaders, mountSearch, fileName, normalisedKey,
   recordPath, openDeleteDialog, openDetailSheet,
-  openFollowSheet, openHarness, openPanel,
+  openHarness, openPanel,
   openSheet,
   openPopEp,
   openDrawer, paintSelBar, panelUnderFinger, passerSug, screenStack,
