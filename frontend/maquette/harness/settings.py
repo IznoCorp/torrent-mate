@@ -240,6 +240,49 @@ async def main():
         check("and the panel is gone",
               not await pg.evaluate("()=>window.__panel.isOpen()"))
 
+        # ── THE VERSION CONFLICT SAYS SO, AND OFFERS A WAY OUT (B-299) ────
+        #
+        # `SettingsState.conflict` was declared, set to `false` at boot, and
+        # NEVER raised, drawn or copied — the copy names « three banners » and
+        # the page drew two. What it stands for is the file having moved under
+        # the editor: the contract's `updateConfigurationFile` answers
+        # `{ restartRequired, conflict }` and the second field had no reader.
+        #
+        # THIS HOLD IS WRITTEN BEFORE THE BANNER EXISTS and is RED against the
+        # tree as it stands. It walks the save — a real tap on the save bar —
+        # against a layer that answers `conflict: true`, and reads:
+        #   1. the banner, by the SAME `data-part` the other two banners wear,
+        #      so a third shape would be a third banner nobody styled;
+        #   2. that it OFFERS RELOAD — the only honest verb, because the
+        #      editor's copy is stale and there is nothing local to keep;
+        #   3. that nothing was lost silently: the flag really came from the
+        #      LAYER's answer and not from a local guess.
+        await pg.evaluate("()=>window.__go('settings-edited')")
+        await pg.wait_for_timeout(400)
+        await pg.evaluate("""()=>window.__mocks?.set?.({conflict: true})""")
+        saved = await pg.evaluate("""()=>{
+          const act = document.querySelector('#savebar [data-save]');
+          if (!act) return false; act.click(); return true;}""")
+        await pg.wait_for_timeout(700)
+        check("the save bar is really there to be tapped", saved)
+        conflicted = await pg.evaluate("""()=>{
+          const banners = [...document.querySelectorAll('[data-part="load-error"]')]
+            .map((one) => ({text: one.textContent.replace(/\s+/g,' ').trim(),
+                            actions: [...one.querySelectorAll('button')]
+                              .map((b) => b.textContent.trim())}));
+          return {banners, flag: !!window.__referentiel.SETTINGS_STATE.conflict};}""")
+        conflict_banner = next(
+            (one for one in conflicted["banners"] if "conflit" in one["text"].lower()),
+            None)
+        check("a file that moved under the editor RAISES the conflict (B-299)",
+              conflicted["flag"], str(conflicted["flag"]))
+        check("and the page SAYS so, in the shape the other banners wear",
+              conflict_banner is not None,
+              str([one["text"][:40] for one in conflicted["banners"]]))
+        check("and it offers to reload rather than leaving the reader stuck",
+              conflict_banner is not None and len(conflict_banner["actions"]) >= 1,
+              str((conflict_banner or {}).get("actions")))
+
         # ── a secret is never shown ────────────────────────────────────────
         await pg.evaluate("()=>window.__go('settings-secrets')")
         await pg.wait_for_timeout(320)
