@@ -334,6 +334,26 @@ def keys_written(source: str) -> tuple[list[str], list[str]]:
     return keys, unreadable
 
 
+# How an import specifier is spelled, in either of the two forms that reach one:
+# `import … from "spec"` and the side-effect `import "spec"`. Read on the BLANKED
+# text and captured, never searched for as a substring of the whole file — see
+# `engine_imports`.
+IMPORT_SPECIFIER = re.compile(r"""(?:^|[\s;}])(?:from|import)\s*["']([^"']+)["']""",
+                              re.M)
+
+
+def imported_specifiers(source: str) -> set[str]:
+    """Every module specifier a source file really imports.
+
+    Args:
+        source: The module's text, comments and all.
+
+    Returns:
+        The specifiers, comments excluded.
+    """
+    return set(IMPORT_SPECIFIER.findall(blanked(source)))
+
+
 def engine_imports(root: pathlib.Path, relative: str) -> bool:
     """Whether the dying engine really imports a module claiming to be its own.
 
@@ -341,6 +361,14 @@ def engine_imports(root: pathlib.Path, relative: str) -> bool:
     `ENGINE_OWNED` and mean nothing: what makes it the engine's is that the
     engine reaches for it. That is a fact in a file, not a claim in a list, and
     it expires by itself the day `legacy.js` goes.
+
+    WHICH IS WHY THE FACT IS PARSED AND NOT SEARCHED FOR. This read used to ask
+    whether the specifier appeared ANYWHERE in the engine's text, which a
+    comment naming the path satisfies just as well as an import — and the engine
+    is full of comments naming feature paths, so the exemption would have
+    outlived the import that justifies it, silently, in the one file whose whole
+    purpose is to shrink. The specifiers are extracted from the blanked source,
+    so a commented-out import is exactly as dead here as a deleted one.
 
     Args:
         root: The tree being read.
@@ -352,8 +380,12 @@ def engine_imports(root: pathlib.Path, relative: str) -> bool:
     engine = root / "engine" / "legacy.js"
     if not engine.is_file():
         return False
-    specifier = "../" + relative.removesuffix(".ts").removesuffix(".tsx")
-    return specifier in engine.read_text(encoding="utf-8")
+    stem = "../" + relative.removesuffix(".ts").removesuffix(".tsx")
+    # The same module can be spelled four ways by a resolver that fills in the
+    # extension and the folder index; all four name one file, and none of them
+    # is a prose mention.
+    wanted = {stem, stem + ".js", stem + ".ts", stem + "/index"}
+    return bool(wanted & imported_specifiers(engine.read_text(encoding="utf-8")))
 
 
 def arm_server_state(root: pathlib.Path) -> int:
