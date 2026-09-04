@@ -47,4 +47,60 @@ and both `deck.py` and `persistence.py` must fall.
 
 ## Verdict
 
-*(filled when the phase lands)*
+**Landed.** Thirteen functions become `discover-cards.ts` and `discover-feed.ts`; the engine
+imports them back. `engine/legacy.js` 31 909 → **31 654** — 255 lines, the largest single
+subtraction of the wave.
+
+### The finding — B-247's producer half was LIVE, on the surface nobody owned
+
+R100's hold (i), written for this phase, fell on the code as it stood: **all sixty tiles of
+`acq-discover-posters` were new nodes after any store write.** `discover-tab.tsx`'s effect runs on
+every commit and asks for the feed to be filled; the deck branch already refused to rewrite a pile
+that was there, and the list and poster branches rewrote unconditionally. **A tap landing between
+`pointerdown` and `click` was lost, silently, on the one surface built to be browsed with a
+thumb.**
+
+The repair is `ui/markup.tsx`'s one layer down — write only when the string CHANGES — with a named
+door (`forgetDrawnFeed`) for the three moments that mean to rewrite. Mutated away, the hold falls
+again: « 60 captured, 60 after, **0 same**; lost: tile, IMG, tile ». `deck.py` does not catch it,
+correctly: it measures the gesture, not identity.
+
+### A type that lied
+
+`lib/engine-drawing.ts` declared `tileHTML`'s badge as `{ tone, text }` while `tileHTML` reads
+`badge.txt`, and named neither `panel` nor `dismiss` — both of which it reads. Invisible for one
+reason: **the only caller was untyped JavaScript inside the engine.** The first TypeScript caller
+asked the question.
+
+### A guard refused the move, and the exemption is CHECKABLE
+
+`check-state-ownership` counted the feed's two store keys as « a COMPONENT copying server state »
+— right for what it could see. A module the ENGINE IMPORTS BACK renders nothing and its writes are
+the writes the engine was already making, at the same moments.
+
+**What makes the exemption safe rather than a hole**: an entry is honoured only while
+`engine/legacy.js` REALLY IMPORTS the module. Nobody can grant it to themselves, a stale entry is
+refused outright, and every entry expires on the day the engine goes. Read by hand, both ways:
+
+```
+as it stands                          → exit 0
+the import repointed elsewhere        → exit 1, two violations:
+    "recorded as the engine's own and the engine does not import it"
+    "2 server-state key(s) written by a COMPONENT against a ceiling of 0"
+restored, git status empty            → exit 0
+```
+
+### Readings
+
+oracle **2 958, no divergence** · contracts 17 rules + 26 guards, no violation · `persistence.py`
+41 → **47** holds · `deck.py` green · `legacy.js` **31 654**
+
+### Deviations
+
+**(1) The technique is unchanged, deliberately.** The design said the feed's imperative half stays
+imperative; this is that, and the phase file records that it is a decision rather than an
+unfinished conversion.
+
+**(2) `check-state-ownership.py` was opened**, which no phase planned. It is the instrument that
+refused the move, and the repository's own rule is that the wave which touches a tool takes its
+debt — here, the absence of any way to say « this is the engine's code, wherever it lives ».
