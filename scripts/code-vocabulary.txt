@@ -303,6 +303,7 @@ drag
 draw
 drawer
 drawing
+drawn
 draws
 driver
 drop
@@ -354,6 +355,7 @@ failure
 fallback
 families
 fast
+feed
 feedback
 fetch
 fetching
@@ -447,6 +449,7 @@ hero
 hgo
 hide
 hint
+hints
 history
 hold
 holder
@@ -568,6 +571,7 @@ liveness
 lmode
 load
 loaded
+loader
 loaders
 loading
 lock
@@ -846,8 +850,10 @@ releases
 reload
 reloaded
 reloading
+remaining
 remember
 remembered
+remount
 remove
 removed
 renamed
@@ -943,6 +949,7 @@ selector
 selmode
 semibold
 send
+sentinel
 separator
 sequence
 series

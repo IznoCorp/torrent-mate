@@ -380,7 +380,8 @@
     "SUG_BATCH": {
       "class": "interface",
       "why": "how many suggestions a deck batch holds",
-      "seed": null
+      "seed": null,
+      "converted": "L19 phase 14 — the Découvrir feed moved to `features/acquisition/discover-feed.ts` and its page size went with it as `BATCH`. Not `served`: how many a footer asks for at a time is the interface's own pacing, never an answer a server sends — the register's `interface` class exactly."
     },
     "SYNOPSIS": {
       "class": "served",

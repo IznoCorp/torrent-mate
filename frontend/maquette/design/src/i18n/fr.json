@@ -941,5 +941,15 @@
     "arrivals": {
       "taken": "« {{title}} » récupéré — suivez-le dans « En vol »."
     }
+  },
+  "discover": {
+    "notInterested": "Pas intéressé",
+    "skip": "Passer",
+    "onTmdb": " sur TMDB",
+    "allSeenLead": "Vous avez tout parcouru.",
+    "allSeenRest": "Les {{count}} suggestions du lot ont été vues. La réserve en garde d'autres.",
+    "loadThirtyMore": "Charger 30 de plus",
+    "endOfReserve": "Fin de la réserve chargée dans cette maquette — {{loaded}} des 503 suggestions réellement calculées pour vous. La passe de fond en recalcule après chaque nouvelle note TMDB.",
+    "dismissed": "« {{title}} » écarté."
   }
 }

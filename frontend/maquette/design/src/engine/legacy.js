@@ -48,6 +48,25 @@ import {
   settingIdentifier,
   valueShown,
 } from "../features/settings/catalog";
+/* THE DÉCOUVRIR FEED, IMPORTED BACK (L19). The reserve, the pile and the
+   gesture that spends them are `features/acquisition/` now — the last feature
+   surface this file still DREW. Its containers were already React's; what moved
+   is who owns their content, and the technique is unchanged because a replaced
+   node cannot animate. `render()`, `mountLoaders()`, the click delegation and
+   the swipe handlers below all still call these by name. */
+import {
+  advanceDeck,
+  deckOrder,
+  dismissSug,
+  fillSug,
+  loadMoreSug,
+  mountDeck,
+  passerSug,
+  refreshDeck,
+  deckHTML,
+  remountSuggestionLoader,
+  sugFoot,
+} from "../features/acquisition/discover-feed";
 
   /* TorrentMate — mobile-first redesign prototype
      Data: real library titles (1,861 items). */
@@ -7632,15 +7651,9 @@ import {
        hold them — but it calls them BEFORE the shell has drawn, so a migrated
        page asks again from an effect, exactly as it asks for the selection bar
        to be repainted. */
-    fillSug,
-    sugFoot,
-    mountDeck,
-    deckHTML,
     /* Published for the MEASUREMENT of the deck's gesture: a rule drives the
        two halves the way the swipe handler drives them, and reads what the
        animation is doing one frame later. */
-    passerSug,
-    advanceDeck,
     /* What the Médiathèque draws. `tileHTML` and `swipeHTML` are emitters a
        component calls VERBATIM, for the same reason as `cardHTML`: the rows
        they emit carry the `data-*` the document-level delegation reads.
@@ -7783,8 +7796,6 @@ import {
     ];
   }
   const LIB_PAGE = 24;
-  const SUG_BATCH = 30;
-  let sugObserver = null;
 
   /* ONE tile, in every gallery of the interface — the library's three lenses
      and the follows grid alike. A gallery that draws its own tile drifts from
@@ -7970,254 +7981,11 @@ import {
     return suggestion.k === "Film" ? "Ajouter" : "Suivre";
   }
 
-  /* Poster format — the shared gallery tile. A suggestion is a medium one does
-     not own yet, not a different kind of picture: the same tap opens its
-     sheet, the same long press opens its panel, at the same size as every
-     other gallery. What it alone carries is a rating to show and a handle to
-     be dismissed by. */
-  /* USED AS A VALUE, never called by name: `fillSug` picks between this and
-     `sugTileHTML` and calls whichever it picked. A count of « name( » says zero
-     callers, which is how it was deleted once — and the page went blank the
-     moment the suggestions were drawn. */
-  /* A suggestion, described as a CARD. It had its own builder and its own class
-     vocabulary, and drew a poster 63 % larger than every other list on a page
-     that already offers two visual formats for browsing — the poster gallery
-     and the deck. A list is a list.
-
-     What stays its own is the swipe wrapper: dismissing a suggestion is a
-     gesture no other list has. */
-  function sugCardHTML(suggestion, index) {
-    return `<div class="sugwrap" data-part="suggestion/wrap" data-dismissable="${index}">
-      <div class="sugback">
-        <span>${svgIcon(icons.x)}Pas intéressé</span>
-        <span>Pas intéressé${svgIcon(icons.x)}</span>
-      </div>
-      ${cardHTML({
-        t: suggestion.t,
-        k: suggestion.k === "Film" ? "movie" : "show",
-        s: `${suggestion.y} · ${suggestion.k}`,
-        note: suggestion.note,
-        r: suggestion.why,
-        panel: `sug:${index}`,
-      })}
-    </div>`;
-  }
-
-  function sugTileHTML(suggestion, rang) {
-    return tileHTML(
-      { t: suggestion.t, k: suggestion.k === "Film" ? "movie" : "show" },
-      `${suggestion.y} · ${suggestion.k}`,
-      {
-        panel: `sug:${rang}`,
-        dismiss: rang,
-        badge: { tone: "note", txt: String(suggestion.note) },
-      },
-    );
-  }
-
-  /* Deck format — one card fills the surface, the next ones are stacked
-     behind it. Tapping the card opens the sheet; a swipe either way dismisses
-     it, exactly as in the list, and the next card rises from the deck; a long
-     press opens the panel, exactly as in a gallery. The card STATES which
-     panel it addresses and never how to build it. */
-  function deckCardHTML(suggestion, index, depth) {
-    return `<article class="dcard" data-part="deck/card" data-deck="${index}" data-depth="${depth}" data-panel="sug:${index}">
-      <button class="p" data-mediasheet="${escapeHtml(suggestion.t)}" aria-label="Fiche de ${escapeHtml(suggestion.t)}">
-        ${
-          POSTERS_HD[suggestion.t]
-            ? `<img src="${POSTERS_HD[suggestion.t]}" alt="" loading="lazy">`
-            : posterBox(
-                suggestion.t,
-                suggestion.k === "Film" ? "movie" : "show",
-              )
-        }
-        <span class="cap">
-          <span class="t" data-part="deck/title">${escapeHtml(suggestion.t)}</span>
-          <span class="m">${escapeHtml(suggestion.y)} · ${escapeHtml(suggestion.k)} · ${escapeHtml(String(suggestion.note))} sur TMDB</span>
-          <span class="why">${richText(suggestion.why)}</span>
-        </span>
-      </button>
-      ${depth === 0 ? `<span class="dhint l">Passer</span><span class="dhint r">Pas intéressé</span>` : ""}
-    </article>`;
-  }
-
-  /* Deck order. « Passer » does not decide anything: it sends the card to the
-     back, so it comes round again. « Pas intéressé » removes it, with an undo. */
-  function deckOrder() {
-    /* THE ORDER IS DERIVED FROM THE LIST, and it is re-derived while the two
-       disagree in LENGTH. It used to be computed once, on the first draw — which
-       was safe while the list was a fixture that existed before anything ran.
-       It is a query now: the first draw happens before the cards land, so an
-       order computed then is empty and stays empty, and the deck draws nothing
-       for ever. Re-deriving on a length mismatch keeps what a shuffle or a
-       dismissal put there, and fills it the moment the cards arrive. */
-    if (
-      !currentState().sugOrder ||
-      currentState().sugOrder.length !== suggestions().length
-    )
-      store.write({
-        sugOrder: suggestions().map((one, index) => index),
-      });
-    return currentState().sugOrder.filter((sugOrder) => !currentState().sugGone.has(sugOrder));
-  }
-
-  function passerSug(index) {
-    const filter = deckOrder().filter((element) => element !== index);
-    store.write({ sugOrder: [...filter, index] });
-  }
-
-  function deckHTML() {
-    const restants = deckOrder().map((element) => [
-      suggestions()[element],
-      element,
-    ]);
-    if (!restants.length) {
-      return `<div class="empty" data-part="empty-state"><b>Vous avez tout parcouru.</b>
-        <p>Les ${suggestions().length} suggestions du lot ont été vues. La réserve en garde d'autres.</p>
-        <button class="btnprimary" data-sugmore="1">${svgIcon(icons.refresh)}Charger 30 de plus</button></div>`;
-    }
-    const pile = restants
-      .slice(0, 3)
-      .map(([suggestion, index], index2) =>
-        deckCardHTML(suggestion, index, index2),
-      )
-      .reverse()
-      .join("");
-    return `<div class="deck" data-part="deck">${pile}</div>`;
-  }
-
-
-  /* Gives the deck the height actually left in the scrollport, once. Re-run on
-     every render and on resize, because a rotated phone is a different height. */
-  /* The deck lives in the body, not in the list container — it needs its own
-     re-render, otherwise a gesture reorders the data and nothing moves. */
-  /* Advances the pile WITHOUT rebuilding it: the top card flies out, the ones
-     behind change depth — and their CSS transition carries them forward — and a
-     new card is inserted at the back, rising from under the deck. Rebuilding
-     the HTML would replace every node, and a replaced node cannot animate:
-     that is what made the pile look like it was cutting rather than moving. */
-  function advanceDeck(index, vers) {
-    const deck = document.querySelector(".deck");
-    const outgoing = deck?.querySelector('.dcard[data-depth="0"]');
-    if (!deck || !outgoing) return;
-
-    outgoing.classList.add("out");
-    outgoing.style.transform = `translateX(${vers > 0 ? 460 : -460}px) rotate(${vers > 0 ? 20 : -20}deg)`;
-    outgoing.dataset.depth = "sortie";
-
-    deck.querySelectorAll(".dcard[data-depth]").forEach((querySelectorAll) => {
-      const depth = Number(querySelectorAll.dataset.depth);
-      if (!Number.isNaN(depth) && depth > 0)
-        querySelectorAll.dataset.depth = String(depth - 1);
-    });
-
-    // The card that takes the place of the top one becomes the swipeable one,
-    // and needs the gesture labels the outgoing card carried.
-    const newHead = deck.querySelector('.dcard[data-depth="0"]');
-    if (newHead && !newHead.querySelector(".dhint")) {
-      newHead.insertAdjacentHTML(
-        "beforeend",
-        `<span class="dhint l">Passer</span><span class="dhint r">Pas intéressé</span>`,
-      );
-    }
-
-    // Feed the back of the pile from the order, skipping what is already shown.
-    const shown = new Set(
-      [...deck.querySelectorAll(".dcard")].map((element) =>
-        Number(element.dataset.deck),
-      ),
-    );
-    const next = deckOrder().find((element) => !shown.has(element));
-    if (next != null) {
-      deck.insertAdjacentHTML(
-        "afterbegin",
-        deckCardHTML(suggestions()[next], next, 3),
-      );
-      const incoming = deck.querySelector('.dcard[data-depth="3"]');
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => (incoming.dataset.depth = "2")),
-      );
-    }
-
-    setTimeout(() => {
-      outgoing.remove();
-      if (!deck.querySelector(".dcard")) refreshDeck();
-    }, 440);
-  }
-
-  function refreshDeck() {
-    const corps = document.querySelector(".deckbody");
-    if (!corps) return;
-    corps.innerHTML = deckHTML();
-    mountDeck();
-  }
-
-  function mountDeck() {
-    const element = document.querySelector(".deck");
-    const port = document.querySelector("#port");
-    if (!element || !port) return;
-    const top =
-      element.getBoundingClientRect().top - port.getBoundingClientRect().top;
-    let hauteur = Math.max(340, Math.round(port.clientHeight - top - 12));
-    element.style.height = hauteur + "px";
-    // Self-correcting: whatever still overflows is taken back, once. A deck
-    // that makes the page scroll is a deck that is not full-screen.
-    const overflow = port.scrollHeight - port.clientHeight;
-    if (overflow > 0) element.style.height = Math.max(340, hauteur - overflow) + "px";
-  }
-
-  window.addEventListener("resize", mountDeck, { passive: true });
-
-  function fillSug() {
-    const box = document.querySelector("#sugitems");
-    if (!box) return;
-    if (currentState().sugMode === "deck") {
-      box.innerHTML = deckHTML();
-      box.className = "";
-      mountDeck();
-      return;
-    }
-    const cardTemplate = currentState().sugMode === "poster" ? sugTileHTML : sugCardHTML;
-    box.className = currentState().sugMode === "poster" ? "gallery" : "";
-    box.innerHTML = suggestions().slice(0, currentState().sugCount)
-      .map((slice, index) =>
-        currentState().sugGone.has(index) ? "" : cardTemplate(slice, index),
-      )
-      .join("");
-  }
-
-  /* Dismiss — reversible. A quick gesture gets it wrong, hence « Annuler ». */
-  function dismissSug(index) {
-    if (currentState().sugMode === "deck") {
-      // In the deck the whole pile changes, not one row: re-render, and the
-      // undo restores both the suggestion and its place in the order.
-      // `sugGone` is a Set mutated in place — refreshDeck() redraws the
-      // legacy deck directly, so React needs the explicit bump `write`
-      // would otherwise have given it for free.
-      currentState().sugGone.add(index);
-      store.touch();
-      refreshDeck();
-      toastUndo(`« ${suggestions()[index].t} » écarté.`, () => {
-        currentState().sugGone.delete(index);
-        store.touch();
-        refreshDeck();
-      });
-      return;
-    }
-    const element = document.querySelector(`[data-dismissable="${index}"]`);
-    if (!element) return;
-    currentState().sugGone.add(index);
-    store.touch();
-    element.style.height = element.getBoundingClientRect().height + "px";
-    requestAnimationFrame(() => element.classList.add("gone"));
-    setTimeout(() => element.remove(), 320);
-    toastUndo(`« ${suggestions()[index].t} » écarté.`, () => {
-      currentState().sugGone.delete(index);
-      store.touch();
-      fillSug();
-      sugFoot();
-    });
-  }
+  /* THE DÉCOUVRIR FEED LEFT AT L19 — the reserve, the three card shapes, the
+     pile and the gesture that spends them are
+     `features/acquisition/discover-feed.ts` and `discover-cards.ts` now, and
+     this file imports them back. Its own `resize` listener went with
+     `mountDeck`: two listeners on one window would measure the deck twice. */
 
   /* The label a search result's action carries, computed ONCE. The panel
      entry and the done chip on the card must say the same thing, and the
@@ -8248,39 +8016,6 @@ import {
      rather than a follow's: what it offers is the act that WOULD make it one,
      and the sheet to judge it by. This panel is the ONLY place that carries
      the act — the card wears no inline button, so the row stays the size of
-     what it lists. */
-  function sugFoot() {
-    const foot = document.querySelector("#sugload");
-    if (!foot) return;
-    if (currentState().sugCount >= suggestions().length) {
-      foot.innerHTML = `<p class="endmark">Fin de la réserve chargée dans cette maquette — ${suggestions().length} des 503 suggestions réellement calculées pour vous. La passe de fond en recalcule après chaque nouvelle note TMDB.</p>`;
-      return;
-    }
-    foot.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">${'<div class="sk row" data-skeleton="" style="height:104px"></div>'.repeat(2)}</div>`;
-    if (sugObserver) sugObserver.disconnect();
-    sugObserver = new IntersectionObserver(
-      (ents) => {
-        if (ents.some((ent) => ent.isIntersecting)) loadMoreSug();
-      },
-      { root: port, rootMargin: "260px" },
-    );
-    sugObserver.observe(foot);
-  }
-
-  function loadMoreSug() {
-    if (currentState().sugLoading || currentState().sugCount >= suggestions().length) return;
-    store.write({ sugLoading: true });
-    if (sugObserver) sugObserver.disconnect();
-    setTimeout(() => {
-      store.write({
-        sugLoading: false,
-        sugCount: Math.min(suggestions().length, currentState().sugCount + SUG_BATCH),
-      });
-      fillSug();
-      sugFoot();
-    }, 420);
-  }
-
   /* Typing filters as you go (the source is LOCAL, therefore free) — unlike
      the provider search on the add screen, which runs on submit. */
   function mountSearch() {
@@ -8312,16 +8047,7 @@ import {
      page it belonged to: its list, its footer and its sentinel are drawn by the
      component now, and filling a container React owns from here is what makes
      two worlds write one element. */
-  function mountLoaders() {
-    if (sugObserver) {
-      sugObserver.disconnect();
-      sugObserver = null;
-    }
-    if (document.querySelector("#sugitems")) {
-      fillSug();
-      sugFoot();
-    }
-  }
+  const mountLoaders = remountSuggestionLoader;
 
   /* Interactions */
   /* WHETHER A MESSAGE IS ON SCREEN IS WRITTEN IN ONE PLACE. Six call sites
@@ -32215,34 +31941,34 @@ Object.assign(window, {
   POSTERS, SETTINGS, SETTINGS_STATE, RESOLUTIONS, BACK_WINDOW,
   SEASONS, SECRETS, SERVICES, SERVICES_PANNE,
   STRIP_LABELS, ST_LABEL,
-  ST_LABEL_MOVIE, ST_TONE, SUG_BATCH,
+  ST_LABEL_MOVIE, ST_TONE,
   URGENCY, VIA_LABEL, actionLeave, actionPause,
   actionTake, actionResolve, actionRetirer, actionFollow,
   actionDelete, addVerb, showSignIn, showStartup,
-  showInstallation, applyState, advanceDeck,
+  showInstallation, applyState,
   baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
   closeDlg, closeHarness, closeScreen, closeSheet, coverLoading,
-  dateFR, decisionPending, deckCardHTML, deckHTML,
-  deckOrder, signOut, alreadyInstalled, unwindLayer,
-  dismissSug, emptyInner, endCardDrag, endDeckDrag,
+  dateFR, decisionPending,
+  signOut, alreadyInstalled, unwindLayer,
+  emptyInner, endCardDrag, endDeckDrag,
   endSugDrag, epState, escapeHtml, navigationState,
-  factRowsHTML, closePopEp, closeDrawer, changedFiles, fillSug,
+  factRowsHTML, closePopEp, closeDrawer, changedFiles,
   gridBadge, hideLayers, icons, initials, initialsOf, drawerWidth,
-  libRowHTML, factsListHTML, loadMoreSug, hideSignIn,
+  libRowHTML, factsListHTML, hideSignIn,
   hideStartup, masquerInstallation, sameValue, changeSetting,
-  mountDeck, mountLoaders, mountSearch, fileName, normalisedKey,
+  mountLoaders, mountSearch, fileName, normalisedKey,
   recordPath, openDeleteDialog, openDetailSheet,
   openHarness, openPanel,
   openSheet,
   openPopEp,
-  openDrawer, paintSelBar, panelUnderFinger, passerSug, screenStack,
+  openDrawer, paintSelBar, panelUnderFinger, screenStack,
   plages, ownedFor, posterBox, nextSearchFR,
   ptr, refPanel, collapseCard,
-  refreshDeck, settingId, resetSettings, render,
+  settingId, resetSettings, render,
   richText, seasonsOf, sheetSeasonsHTML, secHTML, secInner, seedWorld,
   select, sheetFor, titleForProviderId, addressIdsFor, skelCards, skelCardsInner, skelTiles, sortLabel,
-  stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
-  sugTileHTML, sugVerb, onEngineBack,
+  stFraction, stLabel, stripHTML,
+  sugVerb, onEngineBack,
   surfErr, surfErrInner, svgIcon, swipeHTML, tileHTML, toast, toastUndo,
   allSettings, trailerIds, displayedValue,
   rawValue, typedValue, view,
@@ -32274,6 +32000,5 @@ Object.defineProperties(window, {
   // reason it is not a syntax error is that the resolution is late.
   state: { get: () => currentState(), configurable: true },
   sugDrag: { get: () => sugDrag, configurable: true },
-  sugObserver: { get: () => sugObserver, configurable: true },
   world: { get: () => world, configurable: true },
 });

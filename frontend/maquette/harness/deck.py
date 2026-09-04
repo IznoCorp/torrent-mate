@@ -50,7 +50,7 @@ async def main():
     t0 = await title(); n0 = await pg.evaluate("()=>state.sugGone.size")
     await swipe(-170)
     t1 = await title(); n1 = await pg.evaluate("()=>state.sugGone.size")
-    comes_back = await pg.evaluate("(t)=>deckOrder().map(i=>(window.__suggestions?.()||[])[i].t).includes(t)", t0)
+    comes_back = await pg.evaluate("(t)=>window.__discover.order().map(i=>(window.__suggestions?.()||[])[i].t).includes(t)", t0)
     print(f"LEFT   « {t0[:26]} » → « {t1[:26]} »")
     print(f"       dismissed {n0} → {n1} · comes round again: {comes_back}")
 

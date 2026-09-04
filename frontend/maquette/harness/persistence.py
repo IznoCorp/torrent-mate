@@ -40,10 +40,11 @@ WHAT IT DOES NOT READ, said before what it does:
     re-renders on `write()` instead. Hold (f) drives BOTH, and the sentence that
     said otherwise stood while the hold below already contradicted it.
   - Hold (f) reads a PAGE's own nodes — cards, tiles, rows, buttons, pills,
-    images, key-value rows — on the named states listed below, and NOT the containers
-    the dying engine fills on Découvrir (`#sugitems`, the deck): those are
-    the producers' half of the same defect, and they are read by hold (h)
-    as each producer moves into its feature (L19). Nor a write that legitimately redraws — entering selection
+    images, key-value rows — on the named states listed below. The containers
+    the dying engine used to fill on Découvrir (`#sugitems`, the deck) are hold
+    (i)'s since L19 moved the feed into its feature: they are still filled
+    imperatively — a replaced node cannot animate — and that is exactly why
+    their identity has to be read rather than assumed. Nor a write that legitimately redraws — entering selection
     mode, a sort, a delete: the bump driven is `touch()`, which changes no
     row. And not `features/maintenance/page.tsx`, where the defect was first
     seen: it is held by nobody yet and this hold says so rather than reading
@@ -130,6 +131,32 @@ SCREEN_STATES = ("mediasheet-series", "arr-resolution")
 PANEL_STATES = (
     ("sheet-user", 5),
     ("maintenance-delete", 5),
+)
+
+# (i) THE DÉCOUVRIR CONTAINERS — B-247's last unread surface, and the one this
+# rule's own docstring said no surface owned. `#sugitems` and the deck are
+# filled by `features/acquisition/discover-feed.ts` (L19) and NOT by React:
+# `advanceDeck` mutates the pile in place because a replaced node cannot
+# animate, so React renders zero children into them and neither world removes
+# the other's nodes.
+#
+# THAT ARRANGEMENT IS EXACTLY WHY THE IDENTITY MUST BE READ. Nothing in React's
+# reconciliation protects these nodes; what protects them is that the feed only
+# rewrites them when it means to. A store write that rebuilt the pile would
+# destroy a gesture in flight and lose a tap between press and click, and no
+# other hold here would see it.
+FEED_STATES = (
+    ("acq-discover-deck", 1),
+    ("acq-discover-posters", 5),
+)
+# ANCHORED ON `data-part`, never on a class token — the deck is
+# `[data-part="deck"]` and its cards `[data-part="deck/card"]`. A selector
+# carrying `.deck` dies the day the class is removed, and nothing can then say
+# whether the anchor or the style was at fault.
+FEED_SELECTOR = (
+    '#sugitems [data-part="tile"], #sugitems [data-part="card"], '
+    '#sugitems img, [data-part="deck/card"], [data-part="deck/card"] img, '
+    '[data-part="deck/card"] button'
 )
 # The panel's own nodes, and only its own: `#sheet` never contains the page. The
 # `svg path` is here for the reason it is in `PAGE_SELECTOR` — a press landing
@@ -401,6 +428,25 @@ async def main():
                 journal.check(
                     f"on {state}, the PANEL's own nodes are the same nodes "
                     f"after a store {door} (B-247's producer half)",
+                    captured >= floor and kept["now"] == captured
+                    and kept["same"] == captured,
+                    f"{captured} captured (floor {floor}), {kept['now']} after, "
+                    f"{kept['same']} same; lost: {kept['lost']}")
+
+        # (i) THE DÉCOUVRIR CONTAINERS, across the same two doors.
+        for state, floor in FEED_STATES:
+            for door, bump in (("touch", "()=>window.__store.touch()"),
+                               ("write", "()=>window.__store.write({})")):
+                await page.evaluate("(id)=>window.__go(id)", state)
+                await page.evaluate("()=>window.__mocks?.quiet()")
+                await page.wait_for_timeout(450)
+                captured = await page.evaluate(PAGE_CAPTURE, FEED_SELECTOR)
+                await page.evaluate(bump)
+                await page.wait_for_timeout(300)
+                kept = await page.evaluate(PAGE_SAME, FEED_SELECTOR)
+                journal.check(
+                    f"on {state}, the FEED's own nodes are the same nodes after "
+                    f"a store {door} (B-247's producer half)",
                     captured >= floor and kept["now"] == captured
                     and kept["same"] == captured,
                     f"{captured} captured (floor {floor}), {kept['now']} after, "
