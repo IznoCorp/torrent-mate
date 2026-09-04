@@ -1430,6 +1430,11 @@ field is ever missing during priming, and the real backend's projection carries 
 repair is a line in `features/media/media-screen.tsx`, one of the four files this lot decomposes
 and that no earlier wave may extend — which is why L12 filed it rather than fixing it.
 
+**One consequence of B-247's surface half was RULED on 2026-09-04** (B-305, D-L14-3): a row
+opened by a swipe stays open across a store write that did not concern it. The old snap was the
+engine's redraw, not a design; it is not restored, and the hold that keeps the ruling true is in
+§ 5's debts block.
+
 **Done when.** No file under `frontend/maquette/design/src` is at or over 400 non-blank lines with
 the sole exception of the dying engine's two, `engine/legacy.js` and `engine/states.js`, which
 L13 removes; no component is written out twice; every extraction is proved by the oracle, whose
@@ -1458,7 +1463,10 @@ the engine's accessors; each moved producer takes its `installX` seam out of `ap
 **One kind of change.** A descriptor rendered by `ui/panel` from a React producer is the same
 descriptor rendered from the engine's — the oracle proves each move at zero divergence, surface
 by surface, in L07's order. A verb that moves is a behaviour move and lands in its own commit with
-the rule that held it before, unchanged in count.
+the rule that held it before, unchanged in count. **Measured on 2026-09-04: no rule holds either verb**
+— `grep -ln 'data-take' frontend/maquette/harness/*.py` and `grep -ln 'cancelsetting' …` return nothing —
+so the rule is written FIRST, on the engine's side, seen red under a mutation of the engine's branch, and
+the move is then read green by it; a rule written after the move proves only that it agrees with the move.
 
 **What it must not do.** Extend a grandfathered file (L14's four) — a producer becomes a new file
 beside its page. Add a feature: DOIT-4, DOIT-8, NE-DOIT-PAS-3 and NE-DOIT-PAS-9's missing
@@ -1757,6 +1765,20 @@ its report.
   totals, the count the rule printed while falling, and a zero exit). The form: refuse a pointer
   that is not an ancestor of `main`, as `oracle.py --check` refuses a dangling one, and refuse to
   write when `failed > 0`.
+- **B-306** — a grandfathered file may grow without limit: `check-frontend-boundaries.py`'s size arm
+  reads the label and never a count, so the engine gained 77 non-blank lines at L14 under « dies by
+  subtraction » and the arm printed clean. **L19 takes it**, being the next wave that subtracts from
+  the engine: one recorded count per `GRANDFATHERED` entry, refused upward, re-recorded downward in
+  each phase that subtracts, with the mutation that proves the refusal (add one line, see it red).
+- **B-305's hold** — the operator ruled on 2026-09-04 that a swipe left open survives an unrelated
+  store write; nothing reads that property. The next wave that opens `virtual.py` writes the hold
+  (open a swipe, `window.__store.write({})`, the swipe still open), and sees it red on a component
+  that re-keys its rows.
+- **B-307** — three rules have fallen under the suite's parallel load and passed alone, and nine
+  passes at the largest fan-out this machine allows (three) reproduced nothing. The instrument is not a
+  bigger run: `exits.py`, `outbox.py` and `drag.py` PRINT, when they fall, the evidence their diagnosis
+  needs (frames sampled against milliseconds drawn; wait elapsed against timeout given), so the next
+  fall under the suite carries its own reading. The next wave that touches any of the three takes it.
 
 **The gate.** Before every wave's closing commit: `make lint` at zero errors, `make test` with no
 failure and **no error** (an error means collection crashed and everything after it was skipped),
