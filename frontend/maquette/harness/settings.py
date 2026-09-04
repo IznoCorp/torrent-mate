@@ -197,6 +197,49 @@ async def main():
               bool(written) and current != written,
               f"current {current!r} · written {written!r}")
 
+        # ── « Annuler la modification » DROPS THAT EDIT, and only that one ──
+        #
+        # NO RULE READ THIS VERB. `grep -ln 'cancelsetting'
+        # frontend/maquette/harness/*.py` returned nothing on 2026-09-04, and it
+        # is emitted by a producer and read by a delegation branch — a contract
+        # with two ends and no reader. It is written HERE, against the engine's
+        # own branch, and seen red under a mutation of it BEFORE the reader
+        # moves into this feature: a rule written after a move proves only that
+        # it agrees with the move.
+        #
+        # TWO EDITS ARE MADE, and that is the whole shape. Cancelling one must
+        # leave the other standing; a hold that cancels the only pending edit
+        # passes over a branch that clears the map.
+        await pg.evaluate("()=>window.__go('settings-edited')")
+        await pg.wait_for_timeout(350)
+        before_cancel = await pg.evaluate(
+            "()=>[...window.__referentiel.SETTINGS_STATE.modifs.keys()]")
+        check("the walk really starts with more than one pending edit, so "
+              "« only that one » is a question",
+              len(before_cancel) > 1, str(before_cancel))
+        opened = await pg.evaluate("""(id)=>{
+          window.__panel.produce("setting", id); return true;}""", before_cancel[0])
+        await pg.wait_for_timeout(400)
+        cancel_present = await pg.evaluate(
+            """()=>{const b = document.querySelector('#sheetin [data-cancelsetting]');
+                    return b ? {id: b.dataset.cancelsetting, text: b.textContent.trim()} : null;}""")
+        check("an edited setting's panel offers to cancel THAT edit",
+              bool(opened) and cancel_present is not None
+              and cancel_present["id"] == before_cancel[0],
+              f"{cancel_present} · expected {before_cancel[0]}")
+        await pg.click("#sheetin [data-cancelsetting]")
+        await pg.wait_for_timeout(500)
+        after_cancel = await pg.evaluate(
+            "()=>[...window.__referentiel.SETTINGS_STATE.modifs.keys()]")
+        check("cancelling drops that edit",
+              before_cancel[0] not in after_cancel,
+              f"{before_cancel} → {after_cancel}")
+        check("and leaves every other edit standing",
+              sorted(after_cancel) == sorted(before_cancel[1:]),
+              f"{before_cancel} → {after_cancel}")
+        check("and the panel is gone",
+              not await pg.evaluate("()=>window.__panel.isOpen()"))
+
         # ── a secret is never shown ────────────────────────────────────────
         await pg.evaluate("()=>window.__go('settings-secrets')")
         await pg.wait_for_timeout(320)
