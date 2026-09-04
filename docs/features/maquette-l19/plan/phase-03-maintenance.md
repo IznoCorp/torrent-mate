@@ -37,4 +37,73 @@ engine's accessor instead of the cache would survive the first mutation and not 
 
 ## Verdict
 
-*(filled when the phase lands)*
+**Landed**, over three commits — the move, and two rules the move's own mutations demanded.
+
+### What the phase changed beyond its own producer
+
+**A registration is an OBJECT now** — `registerProducer(kind, { produce, needs, holds })`. A
+positional third argument is a positional fourth waiting to happen, and the three answers are
+about one subject.
+
+**`holds` exists because the engine answered « does this interface hold this subject » from its
+own fixture**, and that is exactly what keeps a fixture alive after its producer has left. The
+addressed-panel table asks it before opening a panel from an address a reader can type — a
+producer answers for anything, which is right inside the application and wrong for a typed
+address. `REOPEN`'s `action` entry now reads the feature for both halves.
+
+**`RISQUES` left the engine entirely**, the producer having been its last reader there, and it is
+split on the line the language rule draws: the WORD is interface text (`fr.json`), the TONE is a
+token name and is code (`features/maintenance/risks.ts`). `page.tsx` reads the same derivation,
+so the page and the panel answer one question once (§13). The register records the conversion;
+the reference slice drops the member.
+
+**`app/panel-contributions.ts`** — the boot list left the shell, because it gains an entry per
+feature converted and the shell may only lose lines. 397 → **392**.
+
+### The mutations, and the two rules they forced
+
+| # | Mutation | Rule | Outcome |
+| --- | --- | --- | --- |
+| 1 | `holds: () => true` | `producers.py` | fell — « and refuses one it does not (action) — no-such-command » |
+| 2 | `destructive: "danger"` → `"success"` | `machine.py` | **fell NOTHING.** See below |
+| 2-bis | the same, after the repair | `producers.py` | fell — « {'tone': 'success', 'text': 'supprime'} · expected tone 'danger' » |
+
+**Mutation 2 is the phase's finding, and it is a guard-green-over-what-it-does-not-read.** A
+destructive command announced in the SUCCESS tone fell no rule at all: `machine.py` walks that
+very panel and reads its ACTIONS; the oracle measures a region ROOT and a chip is a child of one;
+nothing anywhere asked what colour a command that deletes is announced in. It is a reassuring lie
+about the one thing that panel exists to say, and the risk vocabulary had just been split in two
+by this phase — so the half nobody read was the half that had just moved.
+
+R120 reads the drawn chip's `data-tone` now, and one line further, that the chip's WORD is a word
+and not an unresolved `panels.` key — the failure mode a copy move introduces, which renders like
+a label until somebody looks.
+
+### Readings
+
+| Gate | Reading |
+| --- | --- |
+| **oracle** | 2 958 measurements, **NO DIVERGENCE** |
+| `run.sh --contracts` | 14 rules, 26 guards, no violation |
+| `producers.py` alone | **14 holds, no violation** |
+| `machine.py` alone | 89 holds, **1 violation — B-308, pre-existing** |
+| `app/shell.tsx` | 397 → **392** |
+| `engine/legacy.js` | 32 436 → **32 376**, re-recorded |
+| `check-frame-domain.py` | `app/` 129 → **126**, ceiling lowered in the same commit |
+| `engine-data.ts` `NEEDED` | one entry fewer |
+
+### B-308 — filed, not repaired
+
+`machine.py` reads « 6 schedulers drawn vs 7 real » since `personalscraper-index-full` was
+scheduled on `main` (`4c0e274a7`, #557). **Measured as pre-existing**: this branch touches
+neither the rule nor the `SCHEDULERS` fixture (`git diff origin/main...HEAD` on both is empty).
+Drawing the seventh row is a surface change this lot's contract forbids, and the first review
+rule forbids a conversion wave from carrying it. The larger finding is in the entry: the fixture
+and the machine are one contract, and only one end has a guard a backend pull request passes.
+
+### Deviation
+
+**`MAINT_ACTIONS`'s fixture does NOT die with its producer**, and saying so is the point. The
+engine's ladder still reads it — `REOPEN`'s validation now asks the feature, but the family is
+also published to the maintenance PAGE through the reference. It dies when that reader goes,
+which is L13's. The producer's own reading of it is gone, which is what this phase owed.
