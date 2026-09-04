@@ -15,9 +15,19 @@
 // translated: same fields, same order, same `data-*` targets, so the delegation
 // keeps working unchanged and the oracle has nothing to report.
 import i18next from "i18next";
-import { icons } from "../../app/icons";
 import { registerProducer, type PanelDescriptor } from "../../ui/panel/contract";
 import { accountQuery, type Account } from "./queries";
+
+// THE ICONS COME THROUGH THE ENGINE'S DRAWING SLICE, not by importing
+// `app/icons.ts`, and it is invariant 8 that decides. `app/icons.ts` is outside
+// `ui/` and `lib/`, so the fan-in ceiling applies to it — four features — and a
+// producer per feature importing it directly walked it to five in one phase,
+// which is « no god module » arriving exactly where the guard was aimed. Every
+// other drawing helper in this tree comes through the same door
+// (`lib/engine-drawing.ts`), it is the SAME object either way, and it dies with
+// the engine — at which point `app/icons.ts` is the durable home and this line
+// is the one that changes.
+const icons = () => window.__referentiel.icons;
 
 /**
  * Builds the account menu's descriptor.
@@ -58,12 +68,12 @@ function accountPanel(
             // (§13). Retyping either into a new key would render correctly while
             // the two copies drifted, which is the defect a retyped string IS.
             text: translate("navigation.pages.profile"),
-            icone: icons.user,
+            icone: icons().user,
             target: { go: "profile" },
           },
           {
             text: translate("screens.accountPage.signOut"),
-            icone: icons.logout,
+            icone: icons().logout,
             ton: "danger",
             target: { signout: "1" },
           },

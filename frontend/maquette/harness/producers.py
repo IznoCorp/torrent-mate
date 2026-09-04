@@ -41,7 +41,7 @@ from playwright.async_api import async_playwright
 # per conversion phase, and it is an EQUALITY rather than a subset: a kind that
 # appears without being written here is a registration nobody declared, and a
 # kind written here that is missing is a producer that stopped answering.
-MOVED = ("account", "action")
+MOVED = ("account", "action", "secret", "setting")
 
 # What each kind is driven with, and what the panel must then say about it. The
 # expected title is read from the PROTOTYPE's own data at run time — the third
@@ -52,6 +52,13 @@ DRIVEN = (
     ("action", "library-clean",
      "window.__queries.getQueryData(['/api/maintenance/actions'])"
      ".find(a=>a.id==='library-clean').l"),
+    ("setting", "thresholds:thresholds.min_free_space_staging_gb",
+     "window.__settingLabels.label("
+     "window.__queries.getQueryData(['/api/config/schema']).flatMap(r=>r.r)"
+     ".find(s=>`${s.f}:${s.c}`==='thresholds:thresholds.min_free_space_staging_gb'))"),
+    ("secret", "TMDB_API_KEY",
+     "window.__queries.getQueryData(['/api/config/secrets'])"
+     ".find(s=>s.k==='TMDB_API_KEY').l"),
 )
 
 # WHAT A PANEL SAYS ABOUT RISK, read on the DRAWN chip. It is here because the
@@ -80,6 +87,8 @@ TONES = (
 HOLDS = (
     # kind, a subject it holds, a subject it does not
     ("action", "library-clean", "no-such-command"),
+    ("setting", "thresholds:thresholds.min_free_space_staging_gb", "nowhere:no.such.key"),
+    ("secret", "TMDB_API_KEY", "NO_SUCH_SECRET"),
 )
 
 

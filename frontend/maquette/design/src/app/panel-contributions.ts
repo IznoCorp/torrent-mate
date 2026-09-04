@@ -19,6 +19,6 @@
 //
 // The shell imports THIS file at boot, before anything can open a panel.
 import "../features/media/panel-seasons";
-import "../features/settings/panel-field";
+import "../features/settings/panels";
 import "../features/account/panel-account";
 import "../features/maintenance/panel-action";

@@ -847,6 +847,24 @@
       "ro": "ne change rien",
       "write": "écrit",
       "destructive": "supprime"
+    },
+    "secret": {
+      "set": "définie",
+      "absent": "absente",
+      "neverReturned": "La valeur n'est jamais renvoyée par le serveur, donc elle ne s'affiche pas ici. On sait qu'elle est posée, on ne sait pas ce qu'elle vaut.",
+      "readOnly": "Lecture seule sur cette instance",
+      "replace": "Remplacer la valeur",
+      "replaceToast": "Un champ masqué s'ouvre ici. Laissé vide, il n'efface rien.",
+      "removeKey": "Retirer la clé",
+      "removeKeyToast": "Retirer une clé coupe ce qu'elle autorisait — le service le dira avant."
+    },
+    "setting": {
+      "edited": "modifié, pas encore écrit",
+      "currentValue": "Valeur actuelle",
+      "writtenValue": "Valeur écrite",
+      "readOnly": "Lecture seule sur cette instance",
+      "cancelEdit": "Annuler la modification",
+      "nothingWritten": "Rien n'est écrit tant que la barre du bas n'est pas utilisée. Elle dit quels fichiers seront touchés."
     }
   }
 }

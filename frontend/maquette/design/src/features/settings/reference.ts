@@ -80,7 +80,6 @@ export type SettingsReference = EngineDrawing & {
   rawValue: (setting: Setting) => unknown;
   typedValue: (setting: Setting, text: string) => unknown;
   changeSetting: (id: string, value: unknown) => void;
-  openSetting: (id: string) => void;
   displayedValue: (setting: Setting) => unknown;
   fileName: (file: string) => string;
   changedFiles: () => string[];

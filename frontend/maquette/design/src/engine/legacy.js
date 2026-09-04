@@ -36,6 +36,18 @@ import { screens, panel, bridge } from "./seams.js";
 import { installPressArbitration } from "../lib/press-arbitration";
 import { installPullGesture } from "../lib/pull-gesture";
 import { icons } from "../app/icons";
+/* THE SETTINGS CATALOGUE, IMPORTED BACK (L19). How a setting is identified,
+   listed and read moved to the feature that owns settings when its panels did,
+   and the engine reads the same three answers rather than keeping its own —
+   `app/icons.ts`'s arrangement and its reasoning word for word: one copy, read
+   by both worlds, and the day this file goes the feature loses an importer
+   rather than a subject. Its own verbs (`changeSetting`, the field branches)
+   still live here and still ask the same questions. */
+import {
+  flattenSettings,
+  settingIdentifier,
+  valueShown,
+} from "../features/settings/catalog";
 
   /* TorrentMate — mobile-first redesign prototype
      Data: real library titles (1,861 items). */
@@ -7361,14 +7373,9 @@ import { icons } from "../app/icons";
     SETTINGS_STATE.conflict = false;
   }
 
-  function settingId(setting) {
-    return `${setting.f}:${setting.c}`;
-  }
+  const settingId = settingIdentifier;
 
-  function displayedValue(setting) {
-    const change = SETTINGS_STATE.modifs.get(settingId(setting));
-    return change === undefined ? setting.v : change;
-  }
+  const displayedValue = (setting) => valueShown(setting, SETTINGS_STATE.modifs);
 
   /* The file a setting really lives in. Nineteen of them are JSON5 overlays
      named by their concern, and one is not: the schedules belong to PM2 and
@@ -7385,11 +7392,7 @@ import { icons } from "../app/icons";
     ];
   }
 
-  function allSettings() {
-    return SETTINGS.flatMap((topic) =>
-      topic.r.map((setting) => ({ ...setting, topic })),
-    );
-  }
+  const allSettings = () => flattenSettings(SETTINGS);
 
   /* THE FIELD A VALUE ASKS FOR.
 
@@ -7452,107 +7455,9 @@ import { icons } from "../app/icons";
     return text === "" ? null : text;
   }
 
-  function openSecret(secret) {
-    panel.open({
-      title: secret.l,
-      meta: [{ m: secret.k }],
-      puce: secret.def ? ["success", "définie"] : ["warning", "absente"],
-      blocs: [
-        {
-          type: "note",
-          text:
-            "La valeur n'est jamais renvoyée par le serveur, donc elle ne s'affiche pas ici. On sait qu'elle est posée, on ne sait pas ce qu'elle vaut.",
-        },
-        {
-          type: "actions",
-          actions: [
-            SETTINGS_STATE.readOnly
-              ? {
-                  text: "Lecture seule sur cette instance",
-                  icone: icons.x,
-                  desactive: true,
-                }
-              : {
-                  text: "Remplacer la valeur",
-                  icone: icons.wrench,
-                  ton: "primary",
-                  target: {
-                    toast:
-                      "Un champ masqué s'ouvre ici. Laissé vide, il n'efface rien.",
-                  },
-                },
-            secret.def
-              ? {
-                  text: "Retirer la clé",
-                  icone: icons.trash,
-                  ton: "danger",
-                  target: {
-                    toast:
-                      "Retirer une clé coupe ce qu'elle autorisait — le service le dira avant.",
-                  },
-                }
-              : null,
-          ],
-        },
-      ],
-    });
-  }
-
   /* One setting, in the panel — the same panel as everywhere else, taking the
      same descriptor of facts. What it says: where the value comes from, what
      the file's own comment explains, and what it is now. */
-  function openSetting(id) {
-    const setting = allSettings().find((r) => settingId(r) === id);
-    if (!setting) return;
-    const courante = displayedValue(setting);
-    const changed = SETTINGS_STATE.modifs.has(id);
-    panel.open({
-      address: "setting:" + id,
-      title: window.__settingLabels.label(setting),
-      meta: [{ m: `${setting.f}.json5 · ${setting.c}` }],
-      ...(changed ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
-      blocs: [
-        setting.note ? { type: "note", text: setting.note } : null,
-        SETTINGS_STATE.readOnly ? null : { type: "field", setting },
-        {
-          type: "faits",
-          lignes: [
-            { c: "Valeur actuelle", v: String(courante) },
-            ...(changed
-              ? [{ c: "Valeur écrite", v: String(setting.v), terne: true }]
-              : []),
-            // The file is on the mono line above; a « Fichier » fact under it
-            // says the same thing twice on a screen that has no room for it.
-          ],
-        },
-        {
-          type: "actions",
-          actions: [
-            SETTINGS_STATE.readOnly
-              ? {
-                  text: "Lecture seule sur cette instance",
-                  icone: icons.x,
-                  desactive: true,
-                }
-              : null,
-            changed
-              ? {
-                  text: "Annuler la modification",
-                  icone: icons.x,
-                  target: { cancelsetting: id },
-                }
-              : null,
-          ],
-        },
-        {
-          type: "note",
-          text:
-            "Rien n'est écrit tant que la barre du bas n'est pas utilisée. Elle dit quels fichiers seront touchés.",
-        },
-      ],
-    });
-  }
-
   /* Navigation — THE PAGE TABLE IS NOT HERE ANY MORE.
      `PAGES_OF()` declared eight pages beside three other copies of the same
      fact (the drawer's own `NAVIGATION`, `PAGES` in the shell's page
@@ -7836,7 +7741,6 @@ import { icons } from "../app/icons";
     rawValue,
     typedValue,
     changeSetting,
-    openSetting,
     // The arbitration flow's LABELS, which are the interface's own words and
     // were never server state — the register classifies them `interface`, and
     // they stay exactly where they are.
@@ -9439,14 +9343,19 @@ import { icons } from "../app/icons";
       return;
     }
     if (closest.dataset.setting) {
-      openSetting(closest.dataset.setting);
+      // THE PRODUCER LEFT (L19). `features/settings/panel-setting.ts` answers.
+      panel.produce("setting", closest.dataset.setting);
       return;
     }
     if (closest.dataset.secret) {
       // A secret is never shown, so its panel offers the only act that exists:
       // replacing it. Nothing to read, nothing to copy.
-      const secret = SECRETS.find((x) => x.k === closest.dataset.secret);
-      if (secret) openSecret(secret);
+      //
+      // THE PRODUCER LEFT (L19), and it takes the KEY rather than the record:
+      // the feature reads the layer's answer, so handing it a row found in the
+      // engine's own fixture would be handing it the copy it exists to stop
+      // reading.
+      panel.produce("secret", closest.dataset.secret);
       return;
     }
     if (closest.dataset.field && closest.dataset.to) {
@@ -9454,7 +9363,7 @@ import { icons } from "../app/icons";
       const setting = allSettings().find((r) => settingId(r) === id);
       if (setting) {
         changeSetting(id, closest.dataset.to === "oui");
-        openSetting(id);
+        panel.produce("setting", id);
       }
       return;
     }
@@ -9465,7 +9374,7 @@ import { icons } from "../app/icons";
         const list = [...(rawValue(setting) || [])];
         list.splice(Number(closest.dataset.index), 1);
         changeSetting(id, list);
-        openSetting(id);
+        panel.produce("setting", id);
       }
       return;
     }
@@ -9478,7 +9387,7 @@ import { icons } from "../app/icons";
         const list = [...(rawValue(setting) || [])];
         list.push(`valeur ${list.length + 1}`);
         changeSetting(id, list);
-        openSetting(id);
+        panel.produce("setting", id);
       }
       return;
     }
@@ -32259,9 +32168,10 @@ import { icons } from "../app/icons";
         knownMedium(subject) || queued().inFlight.some((entry) => entry.t === subject),
     },
     setting: {
-      open: openSetting,
-      resolves: (subject) =>
-        allSettings().some((setting) => settingId(setting) === subject),
+      /* MOVED (L19): the feature produces the panel and answers whether it
+         holds the subject. */
+      open: (subject) => panel.produce("setting", subject),
+      resolves: (subject) => panel.holds("setting", subject),
     },
     action: {
       /* MOVED (L19). Both halves are the feature's now: it produces the panel,
@@ -32637,7 +32547,6 @@ export {
   openFollowSheet,
   openJourneySheet,
   openMoreSheet,
-  openSetting,
   openDrawer,
   settingId,
   resetSettings,
@@ -32707,7 +32616,7 @@ Object.assign(window, {
   recordPath, openAddSheet, openDeleteDialog, openDetailSheet,
   openFollowSheet, openHarness, openJourneySheet, openPanel, openMoreSheet,
   openSheet, openSugSheet,
-  openPopEp, openSetting, openSecret,
+  openPopEp,
   openDrawer, paintSelBar, panelUnderFinger, passerSug, screenStack,
   plages, ownedFor, posterBox, nextSearchFR,
   ptr, refPanel, collapseCard,

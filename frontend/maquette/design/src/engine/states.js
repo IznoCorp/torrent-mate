@@ -35,7 +35,6 @@ import {
   openFollowSheet,
   openJourneySheet,
   openMoreSheet,
-  openSetting,
   openDrawer,
   settingId,
   resetSettings,
@@ -667,7 +666,8 @@ const STATES = [
         resetSettings();
         SETTINGS_STATE.topic = "acquisition";
         applyState({ page: "cfg", phase: "ready" });
-        openSetting("thresholds:thresholds.min_free_space_staging_gb");
+        const gap = "thresholds:thresholds.min_free_space_staging_gb";
+        window.__panel.produce("setting", gap);
       },
     ],
     [
@@ -713,7 +713,7 @@ const STATES = [
         SETTINGS_STATE.topic =
           SETTINGS.find((r) => r.r.includes(found))?.id ?? null;
         applyState({ page: "cfg", phase: "ready" });
-        if (found) openSetting(settingId(found));
+        if (found) window.__panel.produce("setting", settingId(found));
       },
     ]),
     [
