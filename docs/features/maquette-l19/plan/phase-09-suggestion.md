@@ -30,4 +30,32 @@ on the card's body. The mutation removes the registration; the hold falls naming
 
 ## Verdict
 
-*(filled when the phase lands)*
+**Landed** over two commits — the move, and one hold the mutation proved missing.
+
+`features/acquisition/panel-suggestion.ts`, kind `suggestion`, no address (the reasoning is
+`ui/panel/contract.ts`'s own and is preserved rather than revisited).
+
+### The finding — §5 was drawn and read by nothing
+
+A mutation forcing every suggestion to be treated as a series fell **no hold** in R120 and none in
+`deck.py`. « Une fois acquis, ce film quittera automatiquement votre liste » is §5 in the
+interface's own words — a film has an end, a series does not — and a panel offering « Suivre » on
+a film is the interface promising a watch that will never end.
+
+R120 reads the verb AND the note, together: either alone passes over a panel that says the right
+word and draws the wrong promise. Re-mutated, both fall — « film 'Suivre' · series 'Suivre' » and
+« film says it: False ».
+
+### What did NOT move, said rather than inferred
+
+`sugVerb` stays in the engine: `sugTileHTML` reads it, and the tile is drawing the engine still
+does. The producer answers the same question through `fr.json` for its own action, and the
+engine's copy dies with the tile.
+
+`window.__suggestions` and `installSuggestionsLookup` stay: the deck still indexes into that
+seam, and it dies with the deck at phase 14.
+
+### Readings
+
+oracle **2 958, no divergence** · contracts 14 rules + 26 guards, no violation · `producers.py`
+22 → **33** holds · `legacy.js` 32 192 → **32 150**
