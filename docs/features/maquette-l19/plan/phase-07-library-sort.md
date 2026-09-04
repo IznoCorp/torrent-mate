@@ -35,4 +35,48 @@ marked instead.
 
 ## Verdict
 
-*(filled when the phase lands)*
+**Landed.** `features/library/panel-sort.ts`, kind `sort`, no address.
+
+**`TRIS` left the engine.** `features/library/sorting.ts` owns the ways and publishes
+`window.__sortWays` — `settings-labels.ts`'s arrangement — so the count line, the panel, the
+engine's `sortLabel` and `library_sort.py` read ONE derivation. The KEYS are code, the six NAMES
+are `fr.json`'s.
+
+### The mutation
+
+`sortReversed === (direction === "inverse")` → `true`, so every direction claims to be the one in
+force. `library_sort.py` fell twice: « exactly one of them is marked as the one in force » and
+« with a reversed direction in force, exactly that one is marked ». R120 did not — correctly: it
+holds the SEAM, and which entry is primary is the sort rule's subject.
+
+### The phase's finding — a reading taken against the previous build
+
+**`library_sort.py` reported 19 holds GREEN while reading `window.__referentiel.TRIS`, which this
+phase had already removed.** Running a rule directly after editing `design/src` measures the
+PREVIOUS build: `run.sh` and `scripts/mutate.sh` rebuild and republish, a bare
+`python3 harness/<rule>.py` does not. It is B-303's shape one file over — the served copy is a
+manual artefact, and a stale one measures code nobody is testing.
+
+Rebuilt and re-read, the rule crashed on `None`, which is the honest answer, and it is repointed
+at the seam. **Phase 06's own « 53 green » was re-taken on a fresh build and holds** — it had the
+same exposure and did not have the defect.
+
+**The discipline this establishes for the rest of the wave**: a rule read outside `run.sh` or
+`mutate.sh` is preceded by `npm run build` and `served_copy.py --publish`, or it is not a reading.
+
+### Readings
+
+| Gate | Reading |
+| --- | --- |
+| **oracle** | 2 958 measurements, **NO DIVERGENCE** |
+| `run.sh --contracts` | 14 rules, 26 guards, no violation |
+| `library_sort.py` | 19 holds, green |
+| `engine/legacy.js` | 32 286 → **32 256**, re-recorded |
+
+### Deviation
+
+**Two shapes in the descriptor were tightened**, and both are typing rather than drawing: the
+target is two literals rather than one carrying `reversed: undefined` — an attribute the
+delegation would read as PRESENT — and the absent tone is `undefined` rather than `null`, which is
+what `Action.ton` declares. The engine wrote `null` because JavaScript let it. The oracle says the
+drawing is identical.
