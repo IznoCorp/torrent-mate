@@ -185,7 +185,50 @@ async def main():
                 and not chip["text"].startswith("panels."),
                 str(chip))
 
-        # 5. THE HOLDER, both ways.
+        # 5. §5 SEEN IN THE PANEL: a film is ADDED and a series is FOLLOWED.
+        #
+        # « Une fois acquis, ce film quittera automatiquement votre liste » is
+        # the constitution's §5 in the interface's own words — a film has an
+        # end, a series does not — and NOTHING read it: a mutation forcing every
+        # suggestion to be treated as a series fell no hold here and none in
+        # `deck.py`. A suggestion panel offering « Suivre » on a film is the
+        # interface promising a watch that will never end.
+        #
+        # THE TWO ARE READ TOGETHER: the verb AND the note. Either alone passes
+        # over a panel that says the right word and draws the wrong promise.
+        kinds = await page.evaluate("""()=>{
+          const all = window.__suggestions();
+          const film = all.findIndex((s) => s.k === 'Film');
+          const series = all.findIndex((s) => s.k !== 'Film');
+          return {film, series};}""")
+        journal.check(
+            "the reserve carries both a film and a series, so « the verb "
+            "follows the kind » is a question",
+            kinds["film"] >= 0 and kinds["series"] >= 0, str(kinds))
+        said = {}
+        for kind, position in (("film", kinds["film"]), ("series", kinds["series"])):
+            await page.evaluate("()=>window.__panel.close()")
+            await page.wait_for_timeout(150)
+            await page.evaluate(
+                "(at)=>window.__panel.produce('suggestion', String(at))", position)
+            await page.wait_for_timeout(300)
+            said[kind] = await page.evaluate("""()=>({
+              primary: (document.querySelector(
+                '#sheetin [data-part="sheet/action"]') || {}).textContent,
+              body: document.querySelector('#sheetin').textContent});""")
+        journal.check(
+            "a film is ADDED and a series is FOLLOWED, never the same word (§5)",
+            said["film"]["primary"] and said["series"]["primary"]
+            and said["film"]["primary"] != said["series"]["primary"],
+            f"film {said['film']['primary']!r} · series {said['series']['primary']!r}")
+        journal.check(
+            "and only the film is told it will leave the list once acquired (§5)",
+            "quittera" in (said["film"]["body"] or "")
+            and "quittera" not in (said["series"]["body"] or ""),
+            f"film says it: {'quittera' in (said['film']['body'] or '')} · "
+            f"series says it: {'quittera' in (said['series']['body'] or '')}")
+
+        # 6. THE HOLDER, both ways.
         for kind, real, invented in HOLDS:
             journal.check(
                 f"« {kind} » holds a subject it really has",
