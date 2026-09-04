@@ -951,5 +951,10 @@
     "loadThirtyMore": "Charger 30 de plus",
     "endOfReserve": "Fin de la réserve chargée dans cette maquette — {{loaded}} des 503 suggestions réellement calculées pour vous. La passe de fond en recalcule après chaque nouvelle note TMDB.",
     "dismissed": "« {{title}} » écarté."
+  },
+  "popover": {
+    "airDateUnknown": "Date de diffusion inconnue.",
+    "airsOn": "Sortie prévue le {{date}}",
+    "airedOn": "Diffusé le {{date}}"
   }
 }

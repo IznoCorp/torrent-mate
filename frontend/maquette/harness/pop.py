@@ -17,11 +17,19 @@ async def main():
     await pg.evaluate("()=>window.__measure(true)")
 
     async def click_(js, label):
+        # WHICH EPISODE WAS TAPPED, read from the cell itself BEFORE it is
+        # tapped. The popover says a sentence about an episode; a hold that
+        # reads only the layer passes over a sentence about the WRONG one, and
+        # that is the half this rule owed since the producer moved (L19).
+        tapped = await pg.evaluate(js.replace(".click()", ".dataset.ep"))
         await pg.evaluate(js); await pg.wait_for_timeout(320)
         txt = await pg.evaluate("""()=>document.querySelector('[data-part="episode/popover"]')?.innerText.replace(/\\n/g,' | ')""")
         print(f"  {label:24} {txt}")
+        named.append((label, tapped, txt))
         return txt
 
+    # (label, the cell's own `data-ep`, what the popover said)
+    named = []
     print("── Tintin (owned + missing) ──")
     await pg.evaluate("()=>window.__go('followsheet-gaps')"); await pg.wait_for_timeout(450)
     # The two episodes are picked by the STATE ATTRIBUTES the cell emits,
@@ -41,7 +49,11 @@ async def main():
     print("── Silo (including announced episodes) ──")
     await pg.evaluate("()=>{closePopEp();window.__go('acq-follows-list');}"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>window.__panel.produce('follow', 'Silo')"); await pg.wait_for_timeout(450)
-    c1 = await click_("""()=>{const l=[...document.querySelectorAll('[data-part="episode"]')];l[l.length-1].click();}""", "last episode")
+    # THE SAME SHAPE as the two above, so `click_` can read the cell's own
+    # `data-ep` from it before tapping. It used to be a block statement, which
+    # answered nothing when read as an expression — and the identity half then
+    # had nothing to compare, which it said out loud rather than passing.
+    c1 = await click_("""()=>[...document.querySelectorAll('[data-part="episode"]')].at(-1).click()""", "last episode")
     await shot(pg, "pop-last-episode")
 
     print("── closing on outside click ──")
@@ -49,9 +61,34 @@ async def main():
     await pg.wait_for_timeout(250)
     print("  popover closed:", await pg.evaluate("""()=>!document.querySelector('[data-part="episode/popover"]')"""))
     ok = all(x and ("Diffusé le" in x or "Sortie prévue le" in x or "inconnue" in x) for x in (a,b1,c1))
+
+    # ── AND IT IS ABOUT THE EPISODE THAT WAS TAPPED ────────────────────────
+    # `title|season|episode|state` is what the cell writes; `SssEnn` is what the
+    # popover's first line says. A popover that opened correctly and described
+    # its neighbour would satisfy every check above.
+    identity = True
+    for label, written, said in named:
+        if not written or not said:
+            identity = False
+            print(f"  FAIL {label}: nothing to compare — cell {written!r}, said {said!r}")
+            continue
+        _, season, number, _ = written.split("|")
+        expected = f"S{int(season):02d}E{int(number):02d}"
+        if not said.startswith(expected):
+            identity = False
+            print(f"  FAIL {label}: tapped {expected}, the popover says {said[:40]!r}")
+        else:
+            print(f"  PASS {label} is about {expected}")
+
     print("\nJS errors:", errs or "none")
-    print("VERDICT:", "the date appears, in French, following the state" if ok and not errs else "needs review")
+    print("VERDICT:", "the date appears, in French, following the state, about "
+          "the episode tapped" if ok and identity and not errs else "needs review")
     await b.close()
+    # THE VERDICT REACHES THE EXIT CODE. It did not: `ok` was computed and
+    # discarded, so this half of the rule could print « needs review » and pass
+    # the suite. The other half already raised; this one does now.
+    if errs or not ok or not identity:
+        raise SystemExit(1)
 asyncio.run(main())
 
 async def announced():

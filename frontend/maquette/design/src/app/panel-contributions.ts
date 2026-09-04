@@ -19,6 +19,8 @@
 //
 // The shell imports THIS file at boot, before anything can open a panel.
 import "../features/media/panel-seasons";
+// And what the episode popover SAYS — the frame places it, the feature says it.
+import "../features/media/popover-episode";
 import "../features/settings/panels";
 import "../features/account/panel-account";
 import "../features/maintenance/panel-action";

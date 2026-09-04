@@ -58,6 +58,7 @@ advance
 after
 again
 agent
+ahead
 air
 aired
 all
@@ -907,6 +908,7 @@ sample
 save
 savebar
 say
+saying
 says
 scale
 scen

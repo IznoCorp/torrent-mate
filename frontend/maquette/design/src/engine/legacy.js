@@ -30978,28 +30978,11 @@ import {
     window.__popover?.close();
   }
   function openPopEp(btn) {
-    const [title, season, episodeNumber, state] = btn.dataset.ep.split("|");
-    const sheetFound = sheetFor(title);
-    const list = sheetFound?.eps?.[season] ?? null;
-    const episode =
-      list?.find((liste2) => String(liste2.n) === episodeNumber) ?? null;
-    const airDate = episode?.air ? dateFR(episode.air) : null;
-    const future = episode?.air && episode.air > TODAY;
-    window.__popover?.open(btn, {
-      title:
-        "S" +
-        String(season).padStart(2, "0") +
-        "E" +
-        String(episodeNumber).padStart(2, "0") +
-        (episode?.t ? " · " + episode.t : ""),
-      text:
-        airDate == null
-          ? "Date de diffusion inconnue."
-          : future || state === "announced"
-            ? `Sortie prévue le ${airDate}`
-            : `Diffusé le ${airDate}`,
-      note: EP_LABEL[state] ?? "",
-    });
+    // THE SENTENCE LEFT (L19). The frame places, the feature says —
+    // `features/media/popover-episode.ts`, reached through the seam it
+    // publishes. What stays here is the tap, which is the delegation's.
+    const saying = window.__episodeSaying?.(btn);
+    if (saying) window.__popover?.open(btn, saying);
   }
 
   /* Does this interface HOLD a medium by that title?
