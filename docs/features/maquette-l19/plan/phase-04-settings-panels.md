@@ -35,4 +35,61 @@ must fall naming the key it leaked.
 
 ## Verdict
 
-*(filled when the phase lands)*
+**Landed** over two commits — the move, and one hold a mutation proved was missing.
+
+### What moved beyond the two producers
+
+**The settings CATALOGUE is the feature's**, and the engine imports it back:
+`settingIdentifier`, `flattenSettings`, `valueShown` in `features/settings/catalog.ts`.
+`app/icons.ts`'s arrangement and its reasoning word for word. Leaving them in the engine was the
+alternative and §13 refuses it: the producer reads the LAYER's answer while the engine's field
+verbs read the FIXTURE, so « what is this setting's identity » would have carried two derivations
+that agree today.
+
+`valueShown` takes the pending edits as an ARGUMENT, so nothing in the catalogue depends on where
+`SETTINGS_STATE` lives — and it does not move (design § 2; it goes with the last verb that writes
+it, L13's).
+
+**`REOPEN`'s `setting` entry reads the feature both ways**, so the addressed-panel table stops
+asking the fixture whether a subject exists. `openSetting` leaves the reference slice.
+
+### The fan-in ceiling, hit in one phase
+
+`app/icons.ts` is outside `ui/` and `lib/`, so invariant 8's ceiling of **four features** applies
+to it. A producer per feature importing it directly walked it from 3 to **5** in this one phase —
+« no god module » arriving exactly where the guard was aimed. The producers read icons through
+`lib/engine-drawing.ts`, the door every other drawing helper already uses; same object, and it
+dies with the engine. `panel-account.ts` was rewired with them. Back to **3**.
+
+### The mutations
+
+| # | Mutation | Rule | Outcome |
+| --- | --- | --- | --- |
+| 1 | `settingIdentifier` drops the file half | `producers.py`, `settings.py` | fell 3 + 4 — « drawn 'Nettoyer les disques' · expected 'Espace libre minimal avant une ingestion' »: the panel opened about **another setting entirely** |
+| 2 | `valueShown` ignores the pending edit | `settings.py` | **fell NOTHING.** See below |
+| 2-bis | the same, after the repair | `settings.py` | fell — « 'Valeur actuelleoui' · pending ['40', 'false'] » |
+
+**Mutation 2 is the phase's finding.** A panel that ignores the pending edit tells the operator
+their edit did not take — « Valeur actuelle » showing the file's value while the save bar below
+says that file is about to change. `settings.py` walks that very panel and R120 drives the kind,
+and neither read the value. The hold reads the two rows TOGETHER, because either alone passes
+over a panel showing the same value twice.
+
+### Readings
+
+| Gate | Reading |
+| --- | --- |
+| **oracle** | 2 958 measurements, **NO DIVERGENCE** |
+| `run.sh --contracts` | 14 rules, 26 guards, no violation |
+| `producers.py` | 22 holds | 
+| `settings.py` | 46 → **48** holds |
+| `engine/legacy.js` | 32 376 → **32 287**, re-recorded |
+| `engine/states.js` | 790 → **789**, re-recorded |
+| `check-frontend-boundaries --arm fan-in` | highest 3, ceiling 4 |
+
+### Deviation
+
+**A fourth shell-list rule appeared and is written into `panel-contributions.ts`**: a feature with
+more than one panel gathers its own siblings (`features/settings/panels.ts`) so the boot list
+stays one line per FEATURE. The design said « one module per feature is named in the shell »; this
+is that sentence made true rather than assumed.
