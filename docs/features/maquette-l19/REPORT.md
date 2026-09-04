@@ -133,8 +133,9 @@ closest possible range.
 
 ## 6. Guards green over what they do not read
 
-**Nine, found by this wave, on gates that were green in every tier.** Zero would have been a real
-answer and this is not it.
+**Nine found by this wave, and SEVEN more by round one's four readers — sixteen.** Zero would
+have been a real answer and this is not it; nine was the wave's own count, written as a claim
+awaiting readers, and the readers came back at 78 % of it on a gate green in every tier.
 
 | # | Green over | Found by |
 | --- | --- | --- |
@@ -151,6 +152,23 @@ answer and this is not it.
 **And two the wave's own instruments caught in the wave's own work**: `check-markup-contracts`
 refused a selector emitted nowhere **three** times, and a class-token anchor once;
 `check-state-ownership` refused the Découvrir feed's store writes as a component's.
+
+**Round one's seven, and every one is in an INSTRUMENT** — not one is a product surface, which is
+the opposite of what L11's four readers found and is worth saying:
+
+| # | Green over | Repaired |
+| --- | --- | --- |
+| 10 | the size ledger is its own oracle: the FILE is compared with the record, the RECORD with nothing, so a growth is legalised by moving the number in the same commit | `baa16f2c6` — the record is read at the base and may only go DOWN, with the CI job given a base to read |
+| 11 | `check-state-ownership.py`'s engine-owned exemption proved by SUBSTRING — a comment spelling the path keeps it alive after the import goes, in a file full of comments naming feature paths | `309263aca` — the specifiers are parsed, and the guard has a test file for the first time |
+| 12 | `panel.py`'s boot needle, the same shape: a commented-out `import "./panel-field";` left the hold green at exit 0, where the deleted line fails it | `0991da79f` — the reach is a set of resolved paths |
+| 13 | `paths_to_sheets.py`, twice: four of five reachability branches select nothing on all six surfaces, and the message counted the four-item SAMPLE as the number of dead ends | `bafab0e51` — the carrier is named on the green line, and the count and the sample are two fields |
+| 14 | `fanout.py` holds the invalidation map against ITSELF — a key dropped from the declaration is invisible | filed, **B-319**: the repair is a second end, and it is the query layer's lot |
+| 15 | `hold-counts-baseline.json` is compared by nothing — no guard, no CI job — and now carries eleven rows that are wrong or absent | § 9, with B-291 |
+| 16 | `busy.py` raises its panels through the SEAM: the exact vacuity this wave caught in R103's journey hold, reproduced one rule along | § 9 |
+
+**Three of the seven are one shape — a fact asserted by SEARCHING a file's text instead of
+parsing it — and that shape shipped twice in this wave under its own author's review.** A wave
+cannot audit its own instruments, and it cannot see its own habits either.
 
 ---
 
@@ -185,7 +203,28 @@ the contracts tier) · `phase-04` one (a feature with more than one panel gather
 technique is unchanged by decision; `check-state-ownership.py` was opened) · `phase-13` one (the
 first shape of the take move grew the engine and was reshaped to shrink it).
 
-**None carries an operator sign-off**, and saying so is the rule rather than an apology.
+**Six more, added on 2026-09-05 after round one read them off the code rather than off this
+file.** A deviation nobody wrote down is indistinguishable from one nobody noticed, and five of
+these six were found by a reader comparing the tree with the contract — which is exactly what
+this section exists to make unnecessary.
+
+| # | The deviation | Why it stands |
+| --- | --- | --- |
+| 10 | **« The delegation handles only the frame's verbs » is not met, and was not attempted** — the only one of the ten carrying an **operator sign-off**, given 2026-09-05 (« OK pour le placement L13 et L21 ») | § 3, and the plan now places the remainder in L13 and L21 |
+| 11 | **`SettingsBanners` is rendered on FOUR branches** of `features/settings/page.tsx` (secrets, a topic, search, the rubric list); the read-only and restart banners existed on the rubric list alone | The save bar exists on every branch, and it is what raises B-299's banner — drawn on the list alone it would have been invisible exactly where the operator taps « Enregistrer ». Reverting it would put B-299's surface where nobody saves |
+| 12 | **B-299's shape is not the brief's.** The brief § 3 says production answers **412**; the mock answers **200** with `conflict: true` and the banner reads the body, not an error path | D7 — the data contract is the maquette's own artefact, and a 412 branch mocked as an error path would have had the query layer treat a conflict as a failure. Reasoned in `features/settings/queries.ts` and in `plan/phase-17-b299-conflict.md` |
+| 13 | **`panel-add.ts` reads the engine, not the cache** — `window.__searchResults?.()`, `window.__referentiel.addVerb(…)`, `window.__store` | Invariant 10's letter is « reads the query cache … never the engine's accessors », and the add search has no boot-askable key: its subject is what the operator just typed. Justified in the file, and a justification is not the invariant — which is why it is here |
+| 14 | **The take sentence has two derivations** for the duration of the engine's life. `features/arrivals/verbs.ts` says `verbs.arrivals.taken`; `engine/legacy.js`'s `actionTake` still holds the same sentence as a template literal, with three live callers | §13 asks one derivation per question. The three callers are verbs this lot does not own (§ 3); the two agree today, and the engine's copy goes with its callers |
+| 15 | **« each moved producer takes its `installX` seam out of `app/shell.tsx` » is unmet**: `install*(` reads **25 on `main` and 25 here** | No feature `queries.ts` seam was left to take — the clause described an arrangement that had already gone. `shell.tsx` did fall, 398 → 392, by other means. Recorded rather than claimed, because a clause silently unmet is a clause nobody re-reads |
+
+**And one commit's shape, which is not a deviation from the design but is a defect in how it was
+reviewed**: `ca09e9b28` lands `check-state-ownership.py`'s new exemption **beside the seven files
+under `design/src/` that it exempts**. An exemption cannot be reviewed as a separate decision when
+it arrives inside the change it permits. The other fifteen mixed commits in the wave are mandated
+co-edits — a ledger re-record, a vocabulary word, a ceiling lowered in the commit that earns it.
+
+**Only deviation 10 carries an operator sign-off. The other fourteen do not**, and saying so is
+the rule rather than an apology.
 
 ---
 
@@ -199,6 +238,28 @@ first shape of the take move grew the engine and was reshaped to shrink it).
   three tunnel verbs; the acquisition's own delegation verbs.
 - **B-308** — the maquette draws six schedulers and the machine runs seven, since `4c0e274a7` on
   `main`. Filed, not repaired: drawing the seventh row is a surface change this contract forbids.
+  **AND IT BLOCKS THE POST-MERGE GESTURE, which is round one's reading and not this wave's.**
+  `machine.py` is the one rule failing in the full suite, so re-recording
+  `hold-counts-baseline.json` at the gesture writes a baseline while `failed = 1` — B-291's second
+  form exactly, and nothing refuses it. **The gesture must not re-record until B-308 is either
+  repaired or quarantined**: the recorder needs a way to say « this row was taken over a failing
+  rule », or the row it writes is indistinguishable from a good one. Owner of the repair: the wave
+  that draws the machine page — the seventh row is a surface. Owner of the quarantine: whoever
+  performs the gesture, before they perform it.
+- **B-291, with eleven more rows.** `hold-counts-baseline.json` is untouched by this wave, which
+  is correct — it is the post-merge gesture's file — but nothing in the tree compares it: `rg
+  'hold-counts-baseline'` finds the recorder, `IMPLEMENTATION.md` and `BUGS.md`, and no guard and
+  no CI job. Against this head it is wrong or absent in eleven places (`exits` 15→18, `fanout`
+  142→150, `panel` 50→51, `persistence` 39→47, `settings` 46→65, `pop` unparseable→a real count,
+  and five rules it does not carry at all). A baseline nobody compares is a baseline nobody can
+  tell a good row from a bad one in.
+- **B-316 to B-319**, filed by round one and none of them this wave's: the suggestion producer with
+  no finger path, the greeting toast over the settings save bar, the build racing its own output
+  again (B-098's shape), and `fanout.py`'s map held against itself.
+- **`busy.py` opens its panels through the seam** (§ 6, row 16). The tap on the action is real; the
+  path that RAISES the panel is not walked, so a lost `data-panel` on a busy page is invisible to
+  it. Left as it is rather than repaired blind: the correction is the one R103 took — drive the
+  delegation — and it belongs with the wave that owns those verbs (L21).
 
 ---
 
