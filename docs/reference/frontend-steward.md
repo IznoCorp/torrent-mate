@@ -142,6 +142,15 @@ one can arrive mid-run. B-256 closed at L11 (#534): `served_copy.py` is the lock
 all three rebuilders call it, and every rule asserts the stamp at start and at end — the
 convention below still stands, because a lock held by one machine's tools does not reach a rule
 started before the lock existed.
+**The host on 8899 is run.sh's and is LEFT RUNNING by design** — `run.sh` starts it only when nothing
+listens there and never stops it, and every rule reads `http://127.0.0.1:8899/` rather than starting a
+server of its own. It is a static server over the served copy, so it is harmless to kill and harmless to
+leave; what is not harmless is killing it as « an orphan » between two readings, which is what this
+office did on 2026-09-04 (a `python3 server.py --serve 8899` at parent 1, a day and a half old) and
+then read three rules red on `ERR_CONNECTION_REFUSED`. The hygiene rule below says the office kills what
+IT starts — a process is matched to the rule by who started it, not by the shape of its `ps` line.
+Restart it as `run.sh` does: `(python3 frontend/maquette/harness/server.py --serve 8899 /tmp/tm-refonte &)`.
+
 So the steward runs no instrument while an executing agent is running one — the two say so to each
 other first (`SendMessage`), and a rule that falls during an overlap is re-run alone before it is
 read as anything.

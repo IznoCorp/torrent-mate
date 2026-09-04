@@ -364,7 +364,7 @@ when the defect comes back.
 | B-302 | The journey sheet is the tunnel and offers neither « Remettre en file » nor « Re-scraper »; both operations are uncalled | by survey | `open` |
 | B-303 | A mutation applied BY HAND leaves the served copy of the previous build in place, so the reading taken next measures code nobody is testing — and a restore by `git checkout --` over the maquette's sources destroys whatever else is uncommitted there (the number is 303 and not 296 because #549 held 296-302 on `main`-to-be) | by L14 | `open` |
 | B-304 | `git add -f` applied to a PATH rather than to the ignored files it was needed for swept 28 375 files into a commit, `node_modules` entire, and nothing in the repository refuses it — the only guard that noticed read five French PATH SEGMENTS, and they were the MAQUETTE's own ignored screenshots, not the vendored tree | by L14 | `open` |
-| B-305 | An open swipe survives a store write that changed nothing about the rows — D-L14-3, flagged for the operator, living only in a state-file cell the next wave overwrites | by audit | `open` |
+| B-305 | An open swipe survives a store write that changed nothing about the rows — D-L14-3, flagged for the operator, living only in a state-file cell the next wave overwrites | by audit | `closed` |
 | B-306 | A GRANDFATHERED file may grow without limit: the size arm reads the label and never a recorded count, so the engine gained 77 lines under a decision titled « dies by subtraction » and the guard printed clean | by audit | `open` |
 | B-307 | Three rules have fallen under the recorder's parallel load and passed alone; the register holds one of them, under a title naming a fourth rule and a diagnosis that does not transfer | by audit | `open` |
 
@@ -500,6 +500,15 @@ wave's report, which left the tree at the gesture, and its only living trace is 
 `IMPLEMENTATION.md`'s « Last landed » cell, which the next wave overwrites by construction. Filed so
 the question survives L19. Owner: the operator's ruling, and L19 or L13 if the answer is a change.
 
+**RULED by the operator on 2026-09-04: the swipe STAYS OPEN.** A row a reader opened by hand is
+closed by the reader, never by a write that did not concern it — the behaviour a native application
+has, and the one L12 asks for. The old snap was an accident of the engine's wholesale redraw, held by
+no rule, and it is not restored. Closed here on the ruling: the entry's defect was the QUESTION
+having no durable home, and this paragraph is that home. **What is owed and not yet built** — rule 3's
+named exception: no hold reads the property today, so the next wave that opens `virtual.py` writes
+one (open a swipe, `window.__store.write({})`, read the swipe still open), and the plan's § 5 debts
+block names it so the ruling cannot silently reverse under a repaint nobody measured.
+
 <sub>`git show 9ce9b0508:docs/features/maquette-l14/REPORT.md` § D-L14-3 · `rg -n -g '*.md' 'D-L14' .` → one hit, and it is a cell</sub>
 
 **B-306 — a grandfathered file may grow without limit and the size arm reports clean.**
@@ -512,6 +521,10 @@ it rather than at an audit. B-073's species with the VALUE now read and the SIZE
 whoever next opens the size arm, and L13 at the latest since the label's own deadline is L13.
 
 <sub>`git diff --numstat 3cc2e5d47 9ce9b0508 -- frontend/maquette/design/src/engine/` → `94 25` and `10 1`, while `python3 scripts/check-frontend-boundaries.py --arm size` prints clean</sub>
+
+**Named in the plan's § 5 debts block on 2026-09-04**: L19 is the next wave that subtracts from the
+engine, so L19 takes it — one recorded count per entry, re-recorded DOWNWARD at each phase that
+subtracts, refused upward.
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
@@ -526,6 +539,23 @@ expected green, then three runs at `TM_HARNESS_JOBS=8` on an idle machine, readi
 is a frame count or a timeout.
 
 <sub>`grep -n 'exits.py' BUGS.md` names B-277 · `rg -n -g '*.md' 'outbox\.py|drag\.py' BUGS.md` → no fall recorded</sub>
+
+**READ on 2026-09-04 by the steward, at `cb2128220`, and the protocol above is replaced.** It asked for
+three runs at `TM_HARNESS_JOBS=8` « on an idle machine », which the office forbids for arithmetic (eight
+browsers ≈ 8.8 GB against ~6 GB free; the watchdog stops the run under 2 GB) — a protocol the office
+cannot run is a sentence. What was run instead, every reading under `scripts/heavy.sh`, the host on 8899
+up: each rule ALONE — `exits.py` 15 holds in 7 s, `outbox.py` 21 in 2 s, `drag.py` 22 in 16 s, all green;
+then each rule THREE times beside `virtual.py` and `persistence.py` running concurrently (fan-out 3, the
+most this machine's free memory allows): **nine passes, zero falls**, and the durations did not move —
+10/10/10 s, 6/5/5 s, 19/18/19 s. So the contention at three is not the contention the suite produces at
+eight, and the fall's MECHANISM stays unread. **What settles it is not a bigger run but a rule that says
+why it fell**: each of the three prints, when it falls, the evidence its diagnosis needs — `exits.py` the
+frames it sampled against the milliseconds the exit was drawn with, `outbox.py` and `drag.py` the wait
+that elapsed against the timeout it was given — so the NEXT natural fall under the suite carries its
+own reading, and « re-run until green » stops being the only habit available. Named in the plan's § 5
+debts block for the next wave that touches those rules.
+
+<sub>`TM_HARNESS_JOBS=3 sh scripts/heavy.sh <who> sh passes.sh` — each target rule three times with `virtual.py` and `persistence.py` started 3 s before it; the nine logs read `N rules EXECUTED — no violation` and exit 0</sub>
 
 **B-293 — 38 `Design:` markers point at paths that left the tree, and nothing says so.**
 `grep -rhoE 'Design: docs/[^#[:space:]]+' --include='*.py' tests | sort | uniq -c` shows 16 for
