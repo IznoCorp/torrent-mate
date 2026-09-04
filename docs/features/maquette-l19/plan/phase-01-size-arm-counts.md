@@ -67,4 +67,58 @@ restore. The tree is committed before the mutation.
 
 ## Verdict
 
-*(filled when the phase lands)*
+**Landed.** `0e2a855e5`.
+
+### The mutation, read by hand
+
+`scripts/mutate.sh` cannot judge a guard (B-273), so the arm's EXIT CODE is the reading and both
+readings are written here:
+
+```
+BEFORE    python3 scripts/check-frontend-boundaries.py --arm size   → exit 0
+MUTATED   printf '\n// mutation: one line, to be removed\n' >> …/engine/legacy.js
+          python3 scripts/check-frontend-boundaries.py --arm size   → exit 1
+
+  engine/legacy.js — recorded at 32461 non-blank lines and reads 32462, 1 more.
+  A grandfathered file is one that may not be EXTENDED; subtract the addition,
+  or record the growth here with the decision that allows it
+
+RESTORED  git checkout -- …/engine/legacy.js && git status --short   → empty
+          python3 scripts/check-frontend-boundaries.py --arm size   → exit 0
+```
+
+The arm fell on **one** added line, which is the smallest form of the defect B-306 records, and
+it named the file, the record and the reading.
+
+### Deviation — the guard was split
+
+**Not in the design, and taken here.** The change took `check-frontend-boundaries.py` to 1 026
+non-blank lines against `check-module-size.py`'s **hard** ceiling of 1 000 (exit 1). The subject
+split out is the ceiling's LEDGER — `scripts/frontend_size_ledger.py`, 177 lines: the forgiven
+files, the lot that owes each reduction, the recorded sizes, and the reader of the plan and the
+advancement. They travel together because every one of them answers « does this entry still
+promise something », and splitting them would have left the reader of `IMPLEMENTATION.md` in one
+file and the labels it judges in another — the arrangement that let `L09` sit at `NOT STARTED`
+for a whole wave.
+
+The guard keeps `arm_size` itself, which measures the tree: `arms()`'s census still finds it,
+`ARMS["size"]` still points at it, and the arms test reads 11 arms as before.
+
+**Split on a SUBJECT, not on a line count** — L07-bis's answer, taken twice again in L14. 948 →
+885 (soft warning, as before) plus a 177-line ledger.
+
+### Readings
+
+| Reading | Value |
+| --- | --- |
+| `check-frontend-boundaries.py` | 948 → 885 non-blank |
+| `scripts/frontend_size_ledger.py` | 177 non-blank |
+| `check-module-size.py --root scripts` | exit 0 |
+| guard tests | 56 passed |
+| `make lint` | clean (ruff, ruff format, mypy 488 files, logging) |
+| `check-no-french.py` · `check-code-abbreviations.py` | clean |
+| `tests/scripts/test_ci_filter_covers_the_guards.py` | 69 passed |
+
+**The ledger is read on every pull request**: `check-frontend-boundaries.py` is a step of the
+`no-french` job, which carries **no path filter at all** — so the « a guard that runs in no CI
+job » trap does not apply, and it was checked rather than assumed.

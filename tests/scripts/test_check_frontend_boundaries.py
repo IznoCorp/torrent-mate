@@ -595,7 +595,11 @@ class TestSizeArmReadsTheLabel:
 
     def test_a_label_leading_with_a_landed_lot_is_a_violation(self, monkeypatch, capsys) -> None:
         """Refuse an entry promising a lot the plan already marks `LANDED`."""
-        monkeypatch.setitem(guard.GRANDFATHERED, "engine/legacy.js", "L07 — long since been and gone")
+        monkeypatch.setitem(
+            guard.ledger.GRANDFATHERED,
+            "engine/legacy.js",
+            ("L07 — long since been and gone", guard.ledger.GRANDFATHERED["engine/legacy.js"][1]),
+        )
         violations = guard.arm_size(DESIGN_SRC)
         captured = capsys.readouterr()
         assert violations == 1, captured.err
@@ -603,14 +607,22 @@ class TestSizeArmReadsTheLabel:
 
     def test_a_lot_that_has_not_landed_is_accepted(self, monkeypatch, capsys) -> None:
         """`L13` is absent from the landed row, so the promise still stands."""
-        monkeypatch.setitem(guard.GRANDFATHERED, "engine/legacy.js", "L13 — the engine dies by subtraction")
+        monkeypatch.setitem(
+            guard.ledger.GRANDFATHERED,
+            "engine/legacy.js",
+            ("L13 — the engine dies by subtraction", guard.ledger.GRANDFATHERED["engine/legacy.js"][1]),
+        )
         violations = guard.arm_size(DESIGN_SRC)
         captured = capsys.readouterr()
         assert violations == 0, captured.err
 
     def test_a_label_naming_no_lot_is_a_violation(self, monkeypatch, capsys) -> None:
         """A label nobody can act on is the state B-073 found the list in."""
-        monkeypatch.setitem(guard.GRANDFATHERED, "engine/legacy.js", "big, and someone will look")
+        monkeypatch.setitem(
+            guard.ledger.GRANDFATHERED,
+            "engine/legacy.js",
+            ("big, and someone will look", guard.ledger.GRANDFATHERED["engine/legacy.js"][1]),
+        )
         violations = guard.arm_size(DESIGN_SRC)
         captured = capsys.readouterr()
         assert violations == 1, captured.err
@@ -618,7 +630,7 @@ class TestSizeArmReadsTheLabel:
 
     def test_a_plan_that_cannot_be_read_is_a_violation_not_a_pass(self, monkeypatch, capsys) -> None:
         """No lot declared means the hold cannot be checked — never that the plan declares none."""
-        monkeypatch.setattr(guard, "PLAN", Path("does/not/exist.md"))
+        monkeypatch.setattr(guard.ledger, "PLAN", Path("does/not/exist.md"))
         violations = guard.arm_size(DESIGN_SRC)
         captured = capsys.readouterr()
         assert violations == 1, captured.err
@@ -633,7 +645,7 @@ class TestSizeArmReadsTheLabel:
         has landed » it would pass every spent label in the list, which is the
         one reason this hold must never pass.
         """
-        monkeypatch.setattr(guard, "ADVANCEMENT", Path("does/not/exist.md"))
+        monkeypatch.setattr(guard.ledger, "ADVANCEMENT", Path("does/not/exist.md"))
         violations = guard.arm_size(DESIGN_SRC)
         captured = capsys.readouterr()
         assert violations == 1, captured.err
@@ -656,7 +668,7 @@ class TestSizeArmReadsTheLabel:
         have landed. That is what the assertion below says, and it survives
         every wave that lands.
         """
-        declared, landed = guard.declared_and_landed_lots()
+        declared, landed = guard.ledger.declared_and_landed_lots()
         assert "L09" in landed, "IMPLEMENTATION.md records L09 as landed"
         assert landed < declared, (
             "every landed lot is one the plan declares, and the plan declares "
@@ -676,7 +688,11 @@ class TestSizeArmReadsTheLabel:
         test that enumerates the plan's lots is a test the plan falsifies by
         growing.
         """
-        monkeypatch.setitem(guard.GRANDFATHERED, "engine/legacy.js", "L99 — some lot that does not exist")
+        monkeypatch.setitem(
+            guard.ledger.GRANDFATHERED,
+            "engine/legacy.js",
+            ("L99 — some lot that does not exist", guard.ledger.GRANDFATHERED["engine/legacy.js"][1]),
+        )
         violations = guard.arm_size(DESIGN_SRC)
         captured = capsys.readouterr()
         assert violations == 1, captured.err
@@ -685,5 +701,71 @@ class TestSizeArmReadsTheLabel:
     def test_the_real_list_reads_clean(self, capsys) -> None:
         """Every entry leads with a lot that still owes the reduction."""
         violations = guard.arm_size(DESIGN_SRC)
+        captured = capsys.readouterr()
+        assert violations == 0, captured.err
+
+
+class TestSizeArmReadsTheCount:
+    """B-306 — a grandfathered file could grow without limit and the arm printed clean.
+
+    The label said WHO owed the reduction. Nothing said the reduction was
+    happening, so `engine/legacy.js` gained 68 non-blank lines at L14 and
+    `engine/states.js` 9, both under a decision titled « dies by subtraction »,
+    and this arm had nothing to say about either.
+
+    THE THREE CASES ARE NOT SYMMETRICAL, and that asymmetry is the design. At
+    the record is clean; ABOVE it is a violation; BELOW it is the list working
+    and is PRINTED rather than refused — a ratchet that refused a shrink would
+    refuse exactly the work the label demands, and a shrink left silent would
+    leave a record nobody compared, which is the state B-073 found the labels in.
+    """
+
+    def test_a_file_at_its_record_is_clean(self, tmp_path, capsys) -> None:
+        """The tree as it stands: every record describes its file."""
+        root = copy_design_src(tmp_path)
+        violations = guard.arm_size(root)
+        captured = capsys.readouterr()
+        assert violations == 0, captured.err
+        assert "grandfathered counts:" in captured.out
+
+    def test_one_line_added_to_a_grandfathered_file_is_a_violation(self, tmp_path, capsys) -> None:
+        """B-306's own defect, in its smallest form: ONE line, refused."""
+        root = copy_design_src(tmp_path)
+        engine = root / "engine" / "legacy.js"
+        engine.write_text(
+            engine.read_text(encoding="utf-8") + "\n// one line, which is all it takes\n", encoding="utf-8"
+        )
+        violations = guard.arm_size(root)
+        captured = capsys.readouterr()
+        assert violations == 1, captured.out
+        assert "engine/legacy.js" in captured.err
+        assert "1 more" in captured.err
+        assert "may not be EXTENDED" in captured.err
+
+    def test_a_file_below_its_record_is_printed_and_not_refused(self, tmp_path, capsys) -> None:
+        """A subtraction is the list working — and it is never silent."""
+        root = copy_design_src(tmp_path)
+        engine = root / "engine" / "legacy.js"
+        kept = [line for line in engine.read_text(encoding="utf-8").splitlines() if line.strip()][:-3]
+        engine.write_text("\n".join(kept) + "\n", encoding="utf-8")
+        violations = guard.arm_size(root)
+        captured = capsys.readouterr()
+        assert violations == 0, captured.err
+        assert "[RE-RECORD]" in captured.out
+        assert "engine/legacy.js" in captured.out
+        assert "re-recorded later" in captured.out
+
+    def test_the_record_is_measured_the_way_the_arm_measures(self, tmp_path, capsys) -> None:
+        """Blank lines move neither reading, so the two cannot drift apart.
+
+        The record and the reading come from ONE loop — the arm's own — and this
+        case is what says so from outside: a hundred blank lines added to the
+        engine change nothing, where a record taken with `wc -l` would have made
+        the guard refuse a file nobody had extended.
+        """
+        root = copy_design_src(tmp_path)
+        engine = root / "engine" / "legacy.js"
+        engine.write_text(engine.read_text(encoding="utf-8") + "\n" * 100, encoding="utf-8")
+        violations = guard.arm_size(root)
         captured = capsys.readouterr()
         assert violations == 0, captured.err
