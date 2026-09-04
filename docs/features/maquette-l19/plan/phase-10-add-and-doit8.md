@@ -34,4 +34,42 @@ It does not draw a confirmation, change its copy, or add a verb. It reads what e
 
 ## Verdict
 
-*(filled when the phase lands)*
+**Landed.** `features/acquisition/panel-add.ts`, kind `add`, a NEW FILE beside `add-screen.tsx`
+(395 of 400 — a single line added there is a red gate).
+
+### R121 — DOIT-8's instrument
+
+Four holds, each failing differently: the PANEL announces the replacement before the act is
+tapped; the act raises a DIALOG, not a message after the fact; CANCELLING leaves the medium
+unadded; and a medium the library does NOT own is added with no dialog at all.
+
+**The last one is not thoroughness.** A rule reading only the owned case passes a build that asks
+« are you sure? » about everything — the shape that teaches an operator to tap through without
+reading.
+
+**Which result is owned is read from the LAYER's answer, never named in the rule.** A title
+written into a rule goes stale the day the fixture changes, and the walk would then pass for the
+wrong reason.
+
+**The mutation** (`if (result.owned)` → `if (false)`) fells **four** holds and prints the medium
+added silently: « cancelling leaves the medium UNADDED — [0] → [0] ».
+
+R121 joins the contracts tier.
+
+### Two guards caught this phase's own slips
+
+- `check-markup-contracts` refused `[data-part='row']` — a leftover constant the rule never used,
+  and the three-ends contract caught **from the markup end**: « a value selected and emitted
+  nowhere is a rule selecting nothing ».
+- `check-no-french` refused `identifying`.
+
+### Readings
+
+oracle **2 958, no divergence** · contracts **15 rules** + 26 guards, no violation ·
+`replacement.py` 8 holds · `legacy.js` 32 150 → **32 113**
+
+### What the map still needs
+
+DOIT-8's row turns `served` naming R121 — **written in phase 16**, where all four rows the map
+hands this lot are amended in one edit, with the proposal stated in the pull request body
+(`product-intent-map.md` is the operator's to amend).
