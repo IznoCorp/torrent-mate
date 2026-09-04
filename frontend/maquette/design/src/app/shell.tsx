@@ -52,14 +52,16 @@ import "../engine/states.js";
 import { RouterProvider } from "@tanstack/react-router";
 import React from "react";
 import ReactDOM from "react-dom/client";
-// The two panel blocks that belong to a domain, imported for their SIDE
-// EFFECT: each declares its kind to the panel's contract and registers what
-// draws it as it evaluates. Nothing else imports them — a panel is opened by
-// a legacy producer through `window.__panel`, never by a component holding a
-// reference to the block — so the boot is where they have to be named, and
-// `app/` naming what a feature contributes at boot is exactly its job.
+// WHAT THE FEATURES CONTRIBUTE TO THE PANEL, imported for their SIDE EFFECT:
+// each declares a block kind and registers what draws it, or registers what
+// PRODUCES a descriptor, as it evaluates. Nothing else imports them — a panel
+// is opened through `window.__panel`, never by a component holding a reference
+// — so the boot is where they have to be named, and `app/` naming what a
+// feature contributes at boot is exactly its job. ONE LINE PER FEATURE, never
+// one per producer: a feature's module imports its own siblings.
 import "../features/media/panel-seasons";
 import "../features/settings/panel-field";
+import "../features/account/panel-account";
 import { createStore, type Store } from "./store";
 import { installFocusManager } from "./focus";
 import { installMockNetwork } from "../mocks";
@@ -211,13 +213,22 @@ installScreenBridge();
 // truthful failure instead of an app with mute verbs.
 const store = createStore();
 window.__store = store;
+
+// THE QUERY CACHE (invariant 4): server state lives in it, the address in the
+// router, only ephemeral interface state in the store. Created in the BOOT for
+// the reason the store is — one owner, one instant — and published for the
+// harness beside the other seams.
 //
-// CREATED BEFORE THE PANEL HOST, and that is the one ordering this split
-// changed. The panel host receives the store as an ARGUMENT instead of closing
-// over a `const` declared below its own use — the dependency is stated rather
-// than resting on when a function happens to be called. Nothing between the
-// two positions reads the store, and the oracle is what says so.
-installPanelHost(store);
+// IT SITS HERE, ABOVE THE PANEL HOST, and that is an ORDERING rather than a
+// preference: the host takes the cache a producer reads, and `installSeams`
+// two calls below reads `window.__panel`, so the host cannot go down past the
+// cache and the cache has to come up past the host. Nothing between its old
+// position and this one reads it; its own installers all sit where they sat.
+// Both arrive as ARGUMENTS rather than as `const`s closed over from below, so
+// the dependency is stated instead of resting on when a function is called.
+const queryClient = createQueryClient();
+window.__queries = queryClient;
+installPanelHost(store, queryClient);
 
 // The engine reads these three by import rather than off `window` — same
 // objects, so the two ways cannot disagree. Filled HERE, after all three
@@ -317,17 +328,6 @@ installFocusManager();
 // nothing. It runs in that component's own layout effect instead. R84's
 // « exactly one publisher » is untouched — `app/bar-height.ts` is still it.
 
-// THE QUERY CACHE, created here and wrapped around the router (invariant 4).
-// Server state lives in it; the address lives in the router; only ephemeral
-// interface state lives in the store. It is created in the BOOT rather than at
-// its module's evaluation for the same reason the store is — one owner, one
-// instant, named in the order everything else is named in.
-//
-// Published for the harness beside the other seams: a rule that has to reach
-// inside a module to ask what the cache holds is a rule coupled to how the
-// module is built, which is the arrangement `__store` and `__mocks` refuse.
-const queryClient = createQueryClient();
-window.__queries = queryClient;
 // The dying engine asks one question synchronously that the cache now owns
 // (§13: one derivation per question). It is installed here, beside the other
 // seams, and it goes with the engine at L13.

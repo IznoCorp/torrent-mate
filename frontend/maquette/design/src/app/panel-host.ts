@@ -6,7 +6,14 @@
 // doors was meant.
 import { installArtworkArrival } from "./artwork-arrival";
 import { flushSync } from "react-dom";
-import { refuseBlock, type PanelDescriptor } from "../ui/panel/contract";
+import {
+  producerFor,
+  refuseBlock,
+  refuseProducer,
+  registeredProducers,
+  type PanelDescriptor,
+} from "../ui/panel/contract";
+import type { QueryClient } from "@tanstack/react-query";
 import { addressOf, isScreenPath, withPanel } from "../lib/addresses";
 import type { Store } from "./store";
 
@@ -15,6 +22,8 @@ declare global {
     // The probe R56 calls to prove the panel REFUSES a block nobody declared.
     // Published here because the constructor it exercises is a component now.
     __unknownPanel: () => void;
+    // The same probe one level up: a panel KIND nobody produces must raise.
+    __unknownProducer: () => void;
   }
 }
 
@@ -87,8 +96,12 @@ function openPanelOnCurrentEntry(open: () => void): void {
  *
  * Args:
  *     store: The single owner of the mutable state.
+ *     queryClient: The cache a producer reads. It arrives as an ARGUMENT for
+ *         the reason the store does — the thing a producer reads is the thing
+ *         the boot handed this module, and no reader has to work out which of
+ *         two doors was meant.
  */
-export function installPanelHost(store: Store): void {
+export function installPanelHost(store: Store, queryClient: QueryClient): void {
   // INSTALLED FROM HERE FOR THE REASON THE CARRIED POSTER WAS: `app/shell.tsx`
   // stands at 398 of a 400-line hard ceiling and an import plus a call would put
   // it AT it. This is the nearest installer that boots once and owns no surface.
@@ -157,11 +170,42 @@ function isPanelOpen(): boolean {
   return store.read().state.panelOpen === true;
 }
 
+/* OPENS A PANEL BY KIND — the seam every moved producer arrives through, and
+   the reason `app/` learns no domain in the process: `kind` and `subject` are
+   opaque strings here. The dying engine's delegation asks for « the panel about
+   this », and which feature answers is the registry's business.
+
+   A producer that answers `null` opens nothing. That is not a failure to
+   report: it is the honest reply for a subject the cache does not hold yet, and
+   it is what the engine's own producers already did by returning early. A KIND
+   nobody registered is the other case entirely, and it RAISES — the two look
+   the same from outside and only one of them is a defect. */
+function producePanel(kind: string, subject = ""): void {
+  const produce = producerFor(kind);
+  if (produce === null) refuseProducer(kind);
+  const descriptor = produce(subject, { held });
+  if (descriptor !== null) openPanel(descriptor);
+}
+
+/* WHAT A PRODUCER SEES OF THE CACHE, and all it sees. `getQueryData` answers
+   what has landed and `undefined` where nothing has — synchronously, which is
+   the whole requirement: a producer is called from a click handler that cannot
+   await. */
+function held<Result>(key: readonly unknown[]): Result | undefined {
+  return queryClient.getQueryData<Result>(key);
+}
+
 window.__panel = {
   open: openPanel,
   close: closePanel,
   isOpen: isPanelOpen,
   openOnCurrentEntry: openPanelOnCurrentEntry,
+  produce: producePanel,
+  /* WHICH KINDS HAVE A PRODUCER, for the rule that reads the seam from
+     outside. It is a reading rather than an assertion: the rule compares it
+     with what it expects to be moved, so a registration lost in a refactor is
+     a fallen rule instead of a panel that silently stops opening. */
+  producers: registeredProducers,
 };
 
 /* Lets the contract check prove the refusal rather than trust the comment on
@@ -169,4 +213,10 @@ window.__panel = {
    plain function, not rendered — the dispatcher refuses before it reads
    anything else, which is what makes the refusal provable from outside. */
 window.__unknownPanel = () => refuseBlock({ type: "ceci-n-existe-pas" });
+
+/* And the same proof for the producer registry: a kind nobody registered must
+   raise rather than open an empty panel. Called as a plain function, so the
+   refusal is provable from outside without a tap, which would measure the
+   delegation at the same time and leave two candidates for one failure. */
+window.__unknownProducer = () => producePanel("ceci-n-existe-pas");
 }

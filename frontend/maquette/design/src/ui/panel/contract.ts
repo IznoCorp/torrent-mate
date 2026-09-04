@@ -170,3 +170,106 @@ export function refuseBlock(block: { type: string }): never {
   // `console.error` calls in the shell are English.
   throw new Error("unknown panel block: " + block.type);
 }
+
+// ─── WHO PRODUCES A DESCRIPTOR ───────────────────────────────────────────────
+//
+// The half above says what a descriptor may CONTAIN and who draws each block.
+// This half says who BUILDS one, and it is the same shape for the same reason:
+// a producer belongs with what makes it change (invariant 10), and the panel
+// must be able to open one without knowing which domain answered.
+//
+// A PRODUCER IS NOT A HOOK AND NOT A COMPONENT. It is called from a click
+// delegation, in the middle of a task that cannot await — invariant 10's own
+// words, « a function from the cache to a descriptor ».
+
+/**
+ * What a producer may ask the query cache for.
+ *
+ * STRUCTURAL, AND DELIBERATELY SO. This file may not import a feature and
+ * carries a domain-word ceiling of zero: a `QueryClient` type would pull the
+ * caching library into a primitive that draws, and a query KEY spelled out
+ * here would name a domain. `held` takes an opaque key and answers what is
+ * cached under it — this file learns nothing about either side.
+ */
+export type PanelCache = {
+  held: <Result>(key: readonly unknown[]) => Result | undefined;
+};
+
+/**
+ * What builds one panel's descriptor.
+ *
+ * Answering `null` opens nothing, and it is the honest reply for a subject the
+ * cache does not hold yet — the reply the engine's own producers already give
+ * by returning early. A producer that guessed instead would draw a panel about
+ * a medium nobody has fetched.
+ */
+export type PanelProducer = (
+  subject: string,
+  cache: PanelCache,
+) => PanelDescriptor | null;
+
+const producers = new Map<string, PanelProducer>();
+
+/**
+ * Declares what produces a panel kind.
+ *
+ * Called at module evaluation by the feature that owns the kind, exactly as
+ * `registerBlock` is. The shell imports those feature modules at boot, before
+ * anything can open a panel.
+ *
+ * Args:
+ *     kind: The panel's kind, as the delegation asks for it.
+ *     produce: What builds its descriptor.
+ */
+export function registerProducer(kind: string, produce: PanelProducer): void {
+  producers.set(kind, produce);
+}
+
+/**
+ * Finds what produces a panel kind.
+ *
+ * Args:
+ *     kind: The panel's kind.
+
+ * Returns:
+ *     The registered producer, or null when nothing has registered one.
+ */
+export function producerFor(kind: string): PanelProducer | null {
+  return producers.get(kind) ?? null;
+}
+
+/**
+ * Names every kind a producer has been registered for.
+ *
+ * Published for the rule that reads the seam from outside. A rule that had to
+ * import this module to ask would be a rule coupled to how the module is
+ * built, which is the arrangement `__store` and `__panel` already refuse.
+ *
+ * Returns:
+ *     The kinds, sorted, so a reading is comparable with the one before it.
+ */
+export function registeredProducers(): string[] {
+  return [...producers.keys()].sort();
+}
+
+/**
+ * Refuses a panel kind nothing produces.
+ *
+ * `refuseBlock`'s reasoning, one level up and word for word: silence here
+ * would open an empty panel and blame the data, which is also what a forgotten
+ * `registerProducer` looks like. That is why this throws rather than opening
+ * nothing — the two are indistinguishable from the outside, and only one of
+ * them is a defect.
+ *
+ * Args:
+ *     kind: The kind nothing registered.
+
+ * Raises:
+ *     Error: Always. The message names the kind.
+ */
+export function refuseProducer(kind: string): never {
+  // ENGLISH, and deliberately not in `fr.json`, for the reason `refuseBlock`
+  // gives: a tool message reaches a developer console and the rule harness,
+  // never a reader of the interface.
+  throw new Error("unknown panel producer: " + kind);
+}

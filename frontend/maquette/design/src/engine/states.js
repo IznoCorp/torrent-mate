@@ -35,7 +35,6 @@ import {
   openFollowSheet,
   openJourneySheet,
   openMoreSheet,
-  openUserSheet,
   openActionMaintenance,
   openSetting,
   openDrawer,
@@ -316,7 +315,7 @@ const STATES = [
       "Menu utilisateur — profil et déconnexion",
       () => {
         applyState({ page: "acq", phase: "ready" });
-        openUserSheet();
+        window.__panel.produce("account");
       },
     ],
     [

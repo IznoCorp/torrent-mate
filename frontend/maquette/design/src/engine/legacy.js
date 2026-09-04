@@ -8129,34 +8129,6 @@ import { icons } from "../app/icons";
      is what the profile entry will open onto. The entry is drawn disabled and
      says why, rather than being absent: a menu that grows an item later teaches
      its shape twice. */
-  function openUserSheet() {
-    panel.open({
-      title: ACCOUNT.name,
-      subtitle: ACCOUNT.mail,
-      avatar: ACCOUNT.avatar,
-      blocs: [
-        {
-          type: "actions",
-          secondary: true,
-          actions: [
-            {
-              text: "Profil et préférences",
-              icone: icons.user,
-              target: { go: "profile" },
-            },
-            {
-              text: "Se déconnecter",
-              icone: icons.logout,
-              ton: "danger",
-              target: { signout: "1" },
-            },
-          ],
-        },
-      ],
-    });
-  }
-
-
   /* Découvrir: one card, one tappable body
      · poster            → the media sheet, never a dead link
      · rest of the card   → bottom panel, same grammar as Suivis
@@ -10216,7 +10188,9 @@ import { icons } from "../app/icons";
       return;
     }
     if (closest.dataset.sheet === "utilisateur") {
-      openUserSheet();
+      // THE PRODUCER LEFT (L19). The verb is still this delegation's; what it
+      // asks for is a KIND, and `features/account/panel-account.ts` answers.
+      panel.produce("account");
       return;
     }
     if (closest.dataset.sheet) {
@@ -32725,7 +32699,6 @@ export {
   openFollowSheet,
   openJourneySheet,
   openMoreSheet,
-  openUserSheet,
   openActionMaintenance,
   openSetting,
   openDrawer,
@@ -32796,7 +32769,7 @@ Object.assign(window, {
   mountDeck, mountLoaders, mountSearch, fileName, normalisedKey,
   recordPath, openAddSheet, openDeleteDialog, openDetailSheet,
   openFollowSheet, openHarness, openJourneySheet, openPanel, openMoreSheet,
-  openSheet, openSugSheet, openUserSheet,
+  openSheet, openSugSheet,
   openActionMaintenance, openPopEp, openSetting, openSecret,
   openDrawer, paintSelBar, panelUnderFinger, passerSug, screenStack,
   plages, ownedFor, posterBox, nextSearchFR,

@@ -698,7 +698,7 @@ async def main():
         await pg4.evaluate("()=>window.__loadingDone?.()")
         await pg4.wait_for_timeout(300)
         before = pg4.url
-        await pg4.evaluate("()=>window.openUserSheet()")
+        await pg4.evaluate('()=>window.__panel.produce("account")')
         await pg4.wait_for_timeout(400)
         check("a transient layer writes NO address",
               pg4.url == before and await pg4.evaluate("()=>window.__panel.isOpen()"),

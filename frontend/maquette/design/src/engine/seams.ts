@@ -66,6 +66,15 @@ export type Panel = {
   // history write suppressed, because the entry it would push is the one
   // being stood on.
   openOnCurrentEntry: (open: () => void) => void;
+  // Opening a panel BY KIND — the seam a producer that has moved into its
+  // feature arrives through. The delegation asks « the panel about this »; the
+  // registry decides which feature answers. A kind nobody registered raises;
+  // a producer answering `null` opens nothing, which is the honest reply for a
+  // subject the cache does not hold yet.
+  produce: (kind: string, subject?: string) => void;
+  // Which kinds have a producer, read by the rule that holds the seam from
+  // outside. A reading rather than an assertion — see `registeredProducers`.
+  producers: () => string[];
 };
 
 // The published half of the same seam. It is declared HERE, beside the type it

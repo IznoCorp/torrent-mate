@@ -42,7 +42,8 @@ WHAT IT DOES NOT READ, said before what it does:
   - Hold (f) reads a PAGE's own nodes — cards, tiles, rows, buttons, pills,
     images, key-value rows — on the named states listed below, and NOT the containers
     the dying engine fills on Découvrir (`#sugitems`, the deck): those are
-    the producers' half of the same defect, and no surface here owns them. Nor a write that legitimately redraws — entering selection
+    the producers' half of the same defect, and they are read by hold (h)
+    as each producer moves into its feature (L19). Nor a write that legitimately redraws — entering selection
     mode, a sort, a delete: the bump driven is `touch()`, which changes no
     row. And not `features/maintenance/page.tsx`, where the defect was first
     seen: it is held by nobody yet and this hold says so rather than reading
@@ -109,6 +110,29 @@ PAGE_SELECTOR = (
 # The states whose subject is a SCREEN over a page: their floor is read on the
 # screen's own nodes as well as on the union.
 SCREEN_STATES = ("mediasheet-series", "arr-resolution")
+
+# (h) THE PANEL'S OWN NODES — B-247's PRODUCER half, the one L14 left open and
+# said so in this docstring. A producer that has moved into its feature builds
+# its descriptor in React, so the panel it opens is subject to exactly the
+# mechanism (f) reads on a page: React 19 assigns `innerHTML` on the prop
+# OBJECT's identity, so an inline `{ __html }` recreates its children on every
+# render, and a store write between `pointerdown` and `click` then loses the tap.
+#
+# ONE ENTRY PER MOVED PRODUCER, with its floor. The list grows with each
+# conversion phase, and the floor is what stops a panel that draws nothing from
+# passing as kept — the failure a bare `isSameNode` over an empty set reports as
+# success.
+PANEL_STATES = (
+    ("sheet-user", 3),
+)
+# The panel's own nodes, and only its own: `#sheet` never contains the page. The
+# `svg path` is here for the reason it is in `PAGE_SELECTOR` — a press landing
+# on the stroke of an icon is lost when that path has been replaced, whatever
+# survives above it, and a selector naming only the button is green over it.
+PANEL_SELECTOR = (
+    '#sheet button, #sheet [data-part="sheet/action"], #sheet img, '
+    '#sheet svg path, #sheet [data-part="key-value"]'
+)
 PAGE_CAPTURE = """(selector) => {
   window.__pageProbe = [...document.querySelectorAll(selector)];
   return window.__pageProbe.length;
@@ -350,6 +374,27 @@ async def main():
                 journal.check(
                     f"on {state}, the page's own nodes are the SAME nodes after "
                     f"a store {door} (B-247, B-295)",
+                    captured >= floor and kept["now"] == captured
+                    and kept["same"] == captured,
+                    f"{captured} captured (floor {floor}), {kept['now']} after, "
+                    f"{kept['same']} same; lost: {kept['lost']}")
+
+        # (h) THE PANEL'S OWN NODES, across the same two doors. Same shape as
+        # (f) and a different corpus: a panel is `#sheet`, never `#view`, so
+        # (f)'s selector was green over every producer by construction.
+        for state, floor in PANEL_STATES:
+            for door, bump in (("touch", "()=>window.__store.touch()"),
+                               ("write", "()=>window.__store.write({})")):
+                await page.evaluate("(id)=>window.__go(id)", state)
+                await page.evaluate("()=>window.__mocks?.quiet()")
+                await page.wait_for_timeout(300)
+                captured = await page.evaluate(PAGE_CAPTURE, PANEL_SELECTOR)
+                await page.evaluate(bump)
+                await page.wait_for_timeout(250)
+                kept = await page.evaluate(PAGE_SAME, PANEL_SELECTOR)
+                journal.check(
+                    f"on {state}, the PANEL's own nodes are the same nodes "
+                    f"after a store {door} (B-247's producer half)",
                     captured >= floor and kept["now"] == captured
                     and kept["same"] == captured,
                     f"{captured} captured (floor {floor}), {kept['now']} after, "

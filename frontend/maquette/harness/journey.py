@@ -496,7 +496,7 @@ async def main():
              HOME_PAGE, HOME, ()),
             # Anywhere else, exactly one: the entry page, and never the
             # médiathèque the layer was opened from.
-            ("the account menu", "JS:window.openUserSheet()", '[data-go="profile"]',
+            ("the account menu", 'JS:window.__panel.produce("account")', '[data-go="profile"]',
              "profile", PAGE_PATHS["profile"], ((HOME, HOME_PAGE),)),
         ):
             ctx, pg, errors = await open_page(b, PROTOTYPE + LIBRARY.lstrip("/"))
