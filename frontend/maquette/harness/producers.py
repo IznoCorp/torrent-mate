@@ -78,9 +78,16 @@ async def main():
           try { window.__unknownProducer(); return null; }
           catch (error) { return String(error && error.message); }
         }""")
+        # READ AS THE NAMED THROWER'S MESSAGE, never as « something threw ».
+        # Written the second way first, and its own mutation showed why: making
+        # `refuseProducer` return instead of throwing left `produce` null and
+        # the next line called it, so a TypeError arrived and « is refused »
+        # passed over a refusal that had stopped existing. A rule that accepts
+        # any throw certifies the crash it was written to prevent.
         journal.check(
-            "a panel kind nobody produces is REFUSED, not drawn empty",
-            refusal is not None, str(refusal))
+            "a panel kind nobody produces is refused BY THE NAMED THROWER",
+            bool(refusal) and refusal.startswith("unknown panel producer:"),
+            str(refusal))
         journal.check(
             "and the refusal names the kind",
             bool(refusal) and "ceci-n-existe-pas" in refusal, str(refusal))
