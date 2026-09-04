@@ -24,3 +24,6 @@ import "../features/account/panel-account";
 import "../features/maintenance/panel-action";
 import "../features/library/panel-sort";
 import "../features/acquisition/panels";
+// Arrivals contributes no PANEL — it contributes the verb `data-take` reads
+// (L19, B-309), and the boot is where a side effect is named whatever it is.
+import "../features/arrivals/verbs";

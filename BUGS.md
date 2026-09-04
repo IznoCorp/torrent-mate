@@ -368,7 +368,7 @@ when the defect comes back.
 | B-306 | A GRANDFATHERED file may grow without limit: the size arm reads the label and never a recorded count, so the engine gained 77 lines under a decision titled « dies by subtraction » and the guard printed clean | by audit | `open` |
 | B-307 | Three rules have fallen under the recorder's parallel load and passed alone; the register holds one of them, under a title naming a fourth rule and a diagnosis that does not transfer | by audit | `open` |
 | B-308 | The maquette draws six schedulers and the machine now runs seven — `machine.py`'s count fell the day `personalscraper-index-full` was scheduled on `main`, and nothing in that pull request could have told it | by L19 | `open` |
-| B-309 | « Récupérer maintenant » on a medium's own panel THROWS and takes nothing: the release screen's `data-take` branch is checked first, has no guard, and swallows every `data-take` in the document | by L19 | `fixing` |
+| B-309 | « Récupérer maintenant » on a medium's own panel THROWS and takes nothing: the release screen's `data-take` branch is checked first, has no guard, and swallows every `data-take` in the document | by L19 | `to confirm` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -586,7 +586,26 @@ release screen's take stop sharing an unguarded branch. The rule was written FIR
 against the engine as it stands, and it was RED without needing a mutation — which is the
 strongest form of « seen red before the move » this register asks for.
 
-<sub>`sed -n '9615,9616p' frontend/maquette/design/src/engine/legacy.js` · `harness/actions.py` § « the panel's own take »</sub>
+**FIXED on this branch, phase 13.** The two takes are told apart by WHAT THEY CARRY, which is
+what the engine's branch never asked: an INDEX is the release screen's, a TITLE is the panel's.
+The arrivals feature answers which values are its own (`features/arrivals/verbs.ts`), and it asks
+the QUEUE rather than the value's shape — « is it a number? » would be a rule about spelling, and
+a medium whose title is a year would break it (`2012`, `1917`, `300`). The panel's dead branch is
+deleted with it.
+
+**The rule that closes it is R123** (`harness/take.py`, 9 holds, in the contracts tier), and it
+was RED before the repair with no mutation needed:
+
+    before   FAIL tapping it raises no error (B-309) — ["Cannot read properties of undefined (reading 'res')"]
+             FAIL the medium LEAVES what is waiting to be taken — ['The Hawk','Backrooms'] → ['The Hawk','Backrooms']
+    after    PASS the medium LEAVES what is waiting to be taken — ['The Hawk','Backrooms'] → ['Backrooms']
+             PASS and JOINS what is in flight — ['President Curtis',…] → ['The Hawk','President Curtis',…]
+
+It reads the STATE and not the message — a toast can be right about nothing — and it walks the
+RELEASE screen's take too, because the two share an attribute and a repair that fixed one by
+breaking the other would leave a one-sided rule green.
+
+<sub>`sed -n '9615,9616p' frontend/maquette/design/src/engine/legacy.js@86fe9549a` · `python3 frontend/maquette/harness/take.py`</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in

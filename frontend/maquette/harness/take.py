@@ -64,15 +64,37 @@ async def main():
         title = before["takeable"][0] if before["takeable"] else ""
         await page.evaluate("(t)=>window.__panel.produce('follow', t)", title)
         await page.wait_for_timeout(400)
+        # SELECTED BY `data-part`, and the take READ from its dataset. A
+        # selection on `[data-take]`'s PRESENCE would make the attribute a
+        # boolean state in `check-markup-contracts`'s derived list — it is a
+        # VALUE, an index or a title, and the release screen writes one on every
+        # row by design.
         offered = await page.evaluate(
-            """()=>{const a = document.querySelector('#sheetin [data-take]');
+            """()=>{const a = [...document.querySelectorAll(
+                      '#sheetin [data-part="sheet/action"]')]
+                      .find((one) => 'take' in one.dataset);
                     return a ? {take: a.dataset.take, text: a.textContent.trim()} : null;}""")
         journal.check(
             f"« {title} »'s own panel offers to take it",
             offered is not None and offered["take"] == title, str(offered))
         errors.clear()
-        await page.click("#sheetin [data-take]")
-        await page.wait_for_timeout(800)
+        await page.evaluate(
+            """()=>{[...document.querySelectorAll('#sheetin [data-part="sheet/action"]')]
+                     .find((one) => 'take' in one.dataset).click();}""")
+        # ── B-249's SHAPE ON THIS PATH, read before anything settles ───────
+        # The branch used to close the panel and `setTimeout(…, 260)` before
+        # doing anything. It does not any more: the act lands inside the tap's
+        # own commit. 120 ms is under half that wait, so a queue that has
+        # already moved here is a queue that did not wait.
+        await page.wait_for_timeout(120)
+        early = await page.evaluate(QUEUE)
+        journal.check(
+            "the queue moves inside the tap's own commit, with no producer "
+            "wait before it (B-249)",
+            title not in early["takeable"],
+            f"after 120 ms: {early['takeable']} — a 260 ms wait would still "
+            f"show {before['takeable']}")
+        await page.wait_for_timeout(700)
         after = await page.evaluate(QUEUE)
         journal.check(
             "tapping it raises no error (B-309)",
@@ -92,21 +114,27 @@ async def main():
         await page.evaluate("()=>window.__go('screen-releases')")
         await page.wait_for_timeout(600)
         rows = await page.evaluate(
-            "()=>document.querySelectorAll('[data-take]').length")
+            """()=>[...document.querySelectorAll('[data-part="card/foot"]')]
+                    .filter((one) => 'take' in one.dataset).length""")
         journal.check(
             "the release screen really offers releases to take",
             rows > 0, f"{rows} row(s)")
         errors.clear()
         await page.evaluate(
-            "()=>document.querySelector('[data-take]').click()")
+            """()=>{[...document.querySelectorAll('[data-part="card/foot"]')]
+                     .find((one) => 'take' in one.dataset).click();}""")
         await page.wait_for_timeout(800)
         journal.check(
             "choosing a release raises no error either",
             not errors, str(errors))
         journal.check(
             "and it leaves the release screen",
+            # ANCHORED ON `data-part`, never on a class token: a class in a
+            # rule selection dies the day the class is removed, and nothing can
+            # then say whether the anchor or the style was at fault.
             not await page.evaluate(
-                """()=>!!document.querySelector('.screen.open[data-key^="releases:"]')"""))
+                """()=>[...document.querySelectorAll('[data-part="screen"][data-open]')]
+                        .some((one) => (one.dataset.key || '').startsWith('releases:'))"""))
 
         await context.close()
         await browser.close()
