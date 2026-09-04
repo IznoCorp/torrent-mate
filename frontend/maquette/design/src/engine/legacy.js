@@ -7907,7 +7907,7 @@ import {
      wants a panel states WHICH one and never how to build it. */
   function openPanel(element) {
     const { genre, ref } = refPanel(element);
-    if (genre === "sug") openSugSheet(Number(ref));
+    if (genre === "sug") panel.produce("suggestion", ref);
     else if (genre === "add") openAddSheet(Number(ref));
     else openFollowSheet(ref);
   }
@@ -8216,52 +8216,6 @@ import {
       store.touch();
       fillSug();
       sugFoot();
-    });
-  }
-
-  function openSugSheet(index) {
-    const suggestion = suggestions()[index];
-    panel.open({
-      title: suggestion.t,
-      meta: `${suggestion.y} · ${suggestion.k} · note TMDB ${suggestion.note}`,
-      blocs: [
-        { type: "note", text: suggestion.why },
-        {
-          type: "actions",
-          actions: [
-            {
-              text: sugVerb(suggestion),
-              icone: icons.plus,
-              ton: "primary",
-              target: { follow: suggestion.t, sugidx: index },
-            },
-            {
-              text: "Voir la fiche",
-              icone: icons.eye,
-              target: { mediasheet: suggestion.t },
-            },
-          ],
-        },
-        {
-          type: "actions",
-          secondary: true,
-          actions: [
-            {
-              text: "Pas intéressé",
-              icone: icons.x,
-              ton: "danger",
-              target: { dropsug: index },
-            },
-          ],
-        },
-        suggestion.k === "Film"
-          ? {
-              type: "note",
-              text:
-                "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
-            }
-          : null,
-      ],
     });
   }
 
@@ -9530,7 +9484,10 @@ import {
     }
 
     if (closest.dataset.sug) {
-      openSugSheet(Number(closest.dataset.sug));
+      // THE PRODUCER LEFT (L19). `features/acquisition/panel-suggestion.ts`
+      // answers, and it takes the POSITION as the seam spells every subject:
+      // a string.
+      panel.produce("suggestion", closest.dataset.sug);
       return;
     }
     if (closest.dataset.dropsug) {
@@ -32518,7 +32475,7 @@ Object.assign(window, {
   mountDeck, mountLoaders, mountSearch, fileName, normalisedKey,
   recordPath, openAddSheet, openDeleteDialog, openDetailSheet,
   openFollowSheet, openHarness, openPanel,
-  openSheet, openSugSheet,
+  openSheet,
   openPopEp,
   openDrawer, paintSelBar, panelUnderFinger, passerSug, screenStack,
   plages, ownedFor, posterBox, nextSearchFR,

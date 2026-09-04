@@ -898,6 +898,14 @@
       "globalRatio": "Ratio global",
       "obligations": "Obligations en cours",
       "runNow": "Lancer la veille maintenant"
+    },
+    "suggestion": {
+      "metaRating": "{{year}} · {{kind}} · note TMDB {{rating}}",
+      "addFilm": "Ajouter",
+      "followSeries": "Suivre",
+      "seeSheet": "Voir la fiche",
+      "notInterested": "Pas intéressé",
+      "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste (§5)."
     }
   }
 }

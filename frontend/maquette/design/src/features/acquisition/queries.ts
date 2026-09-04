@@ -22,7 +22,7 @@ import { queueNow } from "../../lib/queue";
  * once and the seam below reads what landed. A hook with no caller would be
  * machinery nobody could justify.
  */
-const suggestionsQuery = {
+export const suggestionsQuery = {
   queryKey: ["/api/acquisition/suggestions"],
   queryFn: async () => {
     // THE WHOLE RESERVE, batch after batch, because the deck INDEXES into it.
