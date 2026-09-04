@@ -2,6 +2,7 @@
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
+import { sortWays } from "./sorting";
 import { useLibraryReference } from "./reference";
 import { useLibraryCategories, useLibraryListing } from "./queries";
 import { useUiState } from "../../lib/store-access";
@@ -67,8 +68,10 @@ export function CountLine(): ReactElement {
 // rather than restated here.
 export function SortLabel(): ReactElement {
   const state = useUiState();
-  const { icons, TRIS } = useLibraryReference();
-  const ways = TRIS[state.sortKey as string];
+  const { icons } = useLibraryReference();
+  // THE NAMES ARE THE FEATURE'S (L19), one derivation read by the count line
+  // and by the sort panel alike (§13).
+  const ways = sortWays()[state.sortKey as string];
   return (
     <>
       <Icon paths={icons.sort} />

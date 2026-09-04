@@ -279,6 +279,7 @@ diffuses
 digits
 direct
 direction
+directions
 disarm
 discipline
 discover
@@ -945,6 +946,7 @@ served
 server
 services
 set
+setsort
 setting
 settings
 settle
@@ -1172,6 +1174,7 @@ warm
 warning
 was
 watcher
+way
 ways
 weekday
 weight

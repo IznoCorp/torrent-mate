@@ -402,7 +402,8 @@
     "TRIS": {
       "class": "interface",
       "why": "the six sort names, each way round",
-      "seed": null
+      "seed": null,
+      "converted": "L19 phase 07 — the sort sheet's producer moved to `features/library/panel-sort.ts` and the sort vocabulary went with it, split on the line the language rule draws: the three KEYS are code (what the store holds and what `data-setsort` carries) and the six NAMES are interface text in `i18n/fr.json`. `features/library/sorting.ts` owns both and publishes `window.__sortWays` — `settings-labels.ts`'s arrangement — so the count line, the panel, the engine's `sortLabel` and `harness/library_sort.py` all read ONE derivation. Not `served`: how a library may be ordered is the interface's own decision."
     },
     "URGENCY": {
       "class": "interface",

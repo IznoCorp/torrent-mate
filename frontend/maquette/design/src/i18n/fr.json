@@ -866,6 +866,24 @@
       "cancelEdit": "Annuler la modification",
       "nothingWritten": "Rien n'est écrit tant que la barre du bas n'est pas utilisée. Elle dit quels fichiers seront touchés.",
       "cancelledToast": "Modification annulée — rien n'avait été écrit."
+    },
+    "sort": {
+      "title": "Trier la médiathèque",
+      "note": "Le tri est une préférence, pas un emplacement : il reste sur cet appareil et n'entre pas dans l'URL (A7).",
+      "ways": {
+        "recent": {
+          "normal": "Ajout récent",
+          "inverse": "Ajout ancien"
+        },
+        "az": {
+          "normal": "A → Z",
+          "inverse": "Z → A"
+        },
+        "manque": {
+          "normal": "Les plus incomplets",
+          "inverse": "Les plus complets"
+        }
+      }
     }
   }
 }

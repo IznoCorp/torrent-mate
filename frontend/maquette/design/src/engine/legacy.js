@@ -7662,19 +7662,10 @@ import {
     INCOMPLETE,
     /* A GETTER: `LIB_PAGE` is a `const` declared further down this same script,
        so a plain shorthand would hit the temporal dead zone the instant this
-       literal is built — the same trap `CAST` and `TRIS` are published
+       literal is built — the same trap `CAST` was published
        around. */
     get LIB_PAGE() {
       return LIB_PAGE;
-    },
-    /* The sort table, published because the rule that holds E-001 reads the
-       NAMES from the prototype rather than restating them: a rule carrying its
-       own copy of six labels would go green the day the interface renamed one.
-       A GETTER, because `TRIS` is a `const` declared further down this same
-       script: a plain shorthand would hit the temporal dead zone the instant
-       this literal is built, and the engine would never finish booting. */
-    get TRIS() {
-      return TRIS;
     },
     skelCards,
     skelCardsInner,
@@ -7778,17 +7769,18 @@ import {
      and is invisible: nothing on a phone says that a second tap on the row one
      just chose does something else. A row that reads « A → Z » and answers
      Z → A is the opposite of showing what the machine will do. */
-  const TRIS = {
-    recent: { normal: "Ajout récent", inverse: "Ajout ancien" },
-    az: { normal: "A → Z", inverse: "Z → A" },
-    manque: { normal: "Les plus incomplets", inverse: "Les plus complets" },
-  };
 
   /* The name of the sort in force, which is what the control on the count line
      reads. `sortReversed` is a store field like any other and, like `sortKey`, it
      stays OUT of the address: the sort is a preference, not a place (A7). */
   function sortLabel() {
-    return TRIS[currentState().sortKey][currentState().sortReversed ? "inverse" : "normal"];
+    /* THE NAMES ARE THE FEATURE'S (L19) — `features/library/sorting.ts`, read
+       through the seam the sort panel publishes, the way a setting's label is
+       read through `window.__settingLabels`. */
+    const named = window.__sortWays();
+    return named[currentState().sortKey][
+      currentState().sortReversed ? "inverse" : "normal"
+    ];
   }
   const LIB_PAGE = 24;
   const SUG_BATCH = 30;
@@ -9820,30 +9812,8 @@ import {
       return;
     }
     if (closest.dataset.sort) {
-      panel.open({
-        title: "Trier la médiathèque",
-        meta: "Le tri est une préférence, pas un emplacement : il reste sur cet appareil et n'entre pas dans l'URL (A7).",
-        blocs: [
-          {
-            type: "actions",
-            actions: Object.entries(TRIS).flatMap(([cle, noms]) =>
-              ["normal", "inverse"].map((sens) => ({
-                text: noms[sens],
-                icone: icons.sort,
-                ton:
-                  currentState().sortKey === cle &&
-                  currentState().sortReversed === (sens === "inverse")
-                    ? "primary"
-                    : null,
-                target:
-                  sens === "inverse"
-                    ? { setsort: cle, reversed: "1" }
-                    : { setsort: cle },
-              })),
-            ),
-          },
-        ],
-      });
+      // THE PRODUCER LEFT (L19). `features/library/panel-sort.ts` answers.
+      panel.produce("sort");
       return;
     }
     if (closest.dataset.setsort) {
@@ -32597,7 +32567,7 @@ Object.assign(window, {
   SEASONS, SECRETS, SERVICES, SERVICES_PANNE,
   STRIP_LABELS, ST_LABEL,
   ST_LABEL_MOVIE, ST_TONE, SUG_BATCH,
-  TRIS, URGENCY, VIA_LABEL, actionLeave, actionPause,
+  URGENCY, VIA_LABEL, actionLeave, actionPause,
   actionTake, actionResolve, actionRetirer, actionFollow,
   actionDelete, addVerb, showSignIn, showStartup,
   showInstallation, applyState, advanceDeck,
