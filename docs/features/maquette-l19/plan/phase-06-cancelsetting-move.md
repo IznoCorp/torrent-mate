@@ -34,4 +34,29 @@ The oracle at zero divergence · `settings.py` · `--contracts` · the size arm 
 
 ## Verdict
 
-*(filled when the phase lands)*
+**Landed.** The reader is `features/settings/panel-setting.ts`'s, beside the panel that offers
+the verb. The delegation branch keeps the verb and is one line.
+
+### The count
+
+| | Holds | Result |
+| --- | ---: | --- |
+| phase 05, engine's branch, unmutated | 53 | green |
+| phase 05, engine's branch mutated | 53 | **3 fell** |
+| phase 06, moved reader | **53** | green |
+| phase 06, moved reader mutated (`window.__settingsVerbs` publication removed) | 53 | **the same 3 fell, naming the same defect** |
+
+**Unchanged in count, both ways.** That is what the two-phase shape exists to establish.
+
+### What did NOT move, said rather than inferred
+
+`SETTINGS_STATE` is still the engine's map; what moved is the DECISION about it. The redraw and
+the message go through seams that die with the engine. The 200 ms wait is the panel's exit and is
+unchanged — shortening it is a behaviour change and this is a conversion.
+
+### One word entered the vocabulary
+
+`cancelsetting`. The arm caught it in this phase's own PROSE and is right to: a name written
+anywhere must be a name this codebase uses. It had never been read before, because the engine
+only ever spells it `dataset.cancelsetting` and the arm looks for the literal `data-…` — a scope
+that had a hole exactly where the verb lived.

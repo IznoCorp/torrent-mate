@@ -41,4 +41,27 @@ this file: phase 06 must read the same count, green.
 
 ## Verdict
 
-*(filled when the phase lands)*
+**Landed.** The hold is `harness/settings.py`'s, three checks, driven on the operator's own path:
+the panel of an edited setting is opened, its « Annuler la modification » is TAPPED, and the
+pending edits are read before and after.
+
+**TWO EDITS ARE MADE FIRST**, and a fourth check reads that they are — « the walk really starts
+with more than one pending edit, so « only that one » is a question ». A hold that cancels the
+only pending edit passes over a branch that clears the whole map, which is the failure this verb
+is one line away from.
+
+### Seen RED, on the engine's own branch, before anything moved
+
+```
+scripts/mutate.sh …/engine/legacy.js \
+  "t.replace('if (closest.dataset.cancelsetting) {', 'if (0 && closest.dataset.cancelsetting) {')" \
+  …/harness/settings.py
+
+FAIL cancelling drops that edit — [a, b] → [a, b]
+FAIL and leaves every other edit standing — [a, b] → [a, b]
+FAIL and the panel is gone
+53 rules EXECUTED — 3 violation(s)
+```
+
+**The assertion count is 53.** Phase 06 reads the same number, green, or the rule was edited to
+agree with the move.
