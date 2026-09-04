@@ -372,6 +372,8 @@ when the defect comes back.
 | B-310 | Opening a media sheet from a bottom panel shows the PANEL again briefly before the sheet comes back — B-249's family, reported by the operator on the L19 head | 1× | `open` |
 | B-311 | Coming back to a list after a medium's sheet does not restore the scroll position the list was left at | 1× | `open` |
 | B-312 | Changing the library's lens during a selection DROPS it — L14's own decision, reported by the operator as a defect | 1× | `open` |
+| B-313 | The follow sheet offers « Voir le parcours » TWICE — once as the primary act, once in the secondary row — whenever the primary falls through to it | 1× | `open` |
+| B-314 | The add screen's search shows no example result to try the flow with | 1× | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -758,6 +760,42 @@ selection bar already counts MEDIA rather than rows, which is most of that answe
 wave that owns the library's selection surface carries whatever it decides.
 
 <sub>`grep -n "selected: new Set()" frontend/maquette/design/src/engine/legacy.js` · `git show 9ce9b0508:docs/features/maquette-l14/REPORT.md` § the selection keyed by title</sub>
+
+**B-313 — the follow sheet offers « Voir le parcours » twice.**
+Reported by the operator on 2026-09-05 with a screenshot: « dans les Arrivées, au clic sur un
+média, le panel bottom affiche 2 boutons "Voir le parcours" ». The sheet is « Stuart Fails to Save
+the Universe (2026) », chip « À jour », a PRIMARY yellow « Voir le parcours », the no-season note,
+then a SECOND « Voir le parcours » outlined in the action row.
+
+**IT IS NOT L19's, and the producer's own source says so.** The primary action is a ladder whose
+LAST fallback is the journey — for a medium with no sheet, which is this one — and the secondary
+list emits the journey UNCONDITIONALLY. Both are in `main`'s producer, byte for byte:
+
+    origin/main legacy.js:31699   text: "Voir le parcours",  ton: "primary"   (the ladder's fallback)
+    origin/main legacy.js:31734   text: "Voir le parcours",                   (the secondary row)
+
+L19 transplanted both, unchanged, which is what a conversion is for.
+
+**THE DEFECT IS AN ASYMMETRY THE ENGINE CARRIED**, and it is one line wide. « Voir la fiche » is
+guarded against exactly this — `hasSheet && (toResolve || toTake || incomplete || isFollowed)`,
+whose comment says « it is omitted only when it is ALREADY the primary action » — and
+« Voir le parcours » has no such guard. The rule that would have caught it does not exist: nothing
+counts a panel's actions by label.
+
+**Owner**: the repair is one condition on the secondary journey action, mirroring the one beside
+it, and it belongs to whoever next opens that surface — **L21**, whose subject is the verbs of that
+very panel. It is not L19's: this lot's contract is « no surface changes », and removing an action
+a reader can see is a surface change. The rule it lands with is named here so it is not invented
+twice: a panel's actions are counted BY LABEL, and a label appearing twice is refused.
+
+<sub>`git show origin/main:…/engine/legacy.js | grep -n "Voir le parcours"` → 31699, 31734 · the operator's screenshot, on the L19 head</sub>
+
+**B-314 — the add screen shows no example result to try the flow with.**
+Reported by the operator on 2026-09-05: « Ajouter un suivi : le formulaire de recherche ne montre
+plus d'exemple de résultat pour tester ». « Ne montre PLUS » says he saw them on an earlier build,
+so the first question is which build — and it is answered by walking both, not by reading either.
+
+<sub>reported through the steward, 2026-09-05</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
