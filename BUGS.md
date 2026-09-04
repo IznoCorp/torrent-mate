@@ -368,6 +368,7 @@ when the defect comes back.
 | B-306 | A GRANDFATHERED file may grow without limit: the size arm reads the label and never a recorded count, so the engine gained 77 lines under a decision titled « dies by subtraction » and the guard printed clean | by audit | `open` |
 | B-307 | Three rules have fallen under the recorder's parallel load and passed alone; the register holds one of them, under a title naming a fourth rule and a diagnosis that does not transfer | by audit | `open` |
 | B-308 | The maquette draws six schedulers and the machine now runs seven — `machine.py`'s count fell the day `personalscraper-index-full` was scheduled on `main`, and nothing in that pull request could have told it | by L19 | `open` |
+| B-309 | « Récupérer maintenant » on a medium's own panel THROWS and takes nothing: the release screen's `data-take` branch is checked first, has no guard, and swallows every `data-take` in the document | by L19 | `fixing` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -553,6 +554,39 @@ conversion wave from carrying it. Filed with the reading, named in L19's report 
 red in the full suite, and owed by whoever draws Système's schedulers next.
 
 <sub>`python3 frontend/maquette/harness/machine.py` → « FAIL as many schedulers drawn as PM2 schedules — 6 drawn vs 7 real: … personalscraper-index-full … » · `git log --oneline -1 origin/main -- ecosystem.config.js`</sub>
+
+**B-309 — « Récupérer maintenant » throws, and the medium is never taken.**
+The follow panel's PRIMARY action for a medium waiting to be taken carries `data-take` with the
+medium's TITLE. The document's click delegation has two branches for that attribute, and the
+first one — the release-choice screen's — is checked first and carries no guard:
+
+    if (closest.dataset.take) {
+      const release = releases()[Number(closest.dataset.take)];   // Number("The Hawk") → NaN
+      …
+      toast(`« ${release.res} …`);                                // throws
+
+So the tap raises `TypeError: Cannot read properties of undefined (reading 'res')`, the panel
+closes, **and nothing is taken**. The second branch — the panel's own, at `legacy.js:9964`, which
+reads the title and calls `actionTake` — is unreachable dead code.
+
+**Measured, not inferred**, on a build of `feat/maquette-l19` at phase 11's head:
+
+    window.__panel.produce("follow", "The Hawk")   → the panel offers « Récupérer maintenant »
+    click('#sheetin [data-take]')
+    pageerror                                      → "Cannot read properties of undefined (reading 'res')"
+    window.__panel.isOpen()                        → false
+
+**Why nothing caught it.** `grep -ln 'data-take' frontend/maquette/harness/*.py` returned NOTHING
+on 2026-09-04 — the brief that opened L19 says so, and this is what it cost. The verb is EMITTED
+by React (`features/releases/releases-screen.tsx:113`) and READ by the engine, a contract with two
+ends in two worlds and no reader at all.
+
+**Repaired by L19's phase 13**, which is where that verb's reader moves: the panel's take and the
+release screen's take stop sharing an unguarded branch. The rule was written FIRST (phase 12),
+against the engine as it stands, and it was RED without needing a mutation — which is the
+strongest form of « seen red before the move » this register asks for.
+
+<sub>`sed -n '9615,9616p' frontend/maquette/design/src/engine/legacy.js` · `harness/actions.py` § « the panel's own take »</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
