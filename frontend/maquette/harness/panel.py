@@ -129,35 +129,60 @@ READ = """() => {
 
 
 
+def side_effect_imports(path):
+    """The local modules one file imports for their side effect, RESOLVED.
+
+    Read on the text with its comments blanked, so a dead import is exactly as
+    dead here as a deleted one, and returned as resolved paths rather than as
+    the strings the importer happened to type.
+
+    Args:
+        path: The importing file.
+
+    Yields:
+        Each existing local module it imports for a side effect.
+    """
+    text = re.sub(r"/\*.*?\*/", " ", path.read_text(encoding="utf-8"), flags=re.S)
+    text = re.sub(r"//[^\n]*", " ", text)
+    for specifier in re.findall(r'\bimport\s+"([^"]+)"', text):
+        if not specifier.startswith("."):
+            continue
+        target = (path.parent / specifier).resolve()
+        for candidate in (target.with_suffix(".ts"), target.with_suffix(".tsx"),
+                          target / "index.ts", target / "index.tsx"):
+            if candidate.is_file():
+                yield candidate
+                break
+
+
 def boot_reach(source_root):
-    """Every source the boot's side-effect imports reach, concatenated.
+    """Every source the boot's side-effect imports reach, as resolved paths.
 
     THE BOOT NAMES ONE MODULE PER FEATURE and a feature gathers its own
-    siblings (L19), so « imported at boot » is a question about REACH rather
-    than about one file's text. One level of indirection is followed —
-    enough for the arrangement that exists, and shallow enough that a reader
-    can say what it read.
+    siblings, so « imported at boot » is a question about REACH rather than
+    about one file's text. One level of indirection is followed — enough for
+    the arrangement that exists, and shallow enough that a reader can say what
+    it read.
+
+    THIS USED TO RETURN THE TEXT, and the caller looked for the module's name
+    inside it. Two things answered that needle without being an import: a
+    COMMENTED-OUT import — measured, and the hold stayed green over it — and
+    any file of the same basename anywhere in the tree. A path either is in the
+    reach or it is not, and that is a fact this returns rather than a string a
+    reader searches.
 
     Args:
         source_root: `design/src`.
 
     Returns:
-        The boot file's text plus the text of every local module it imports for
-        a side effect.
+        The set of resolved paths the boot reaches, itself included.
     """
-    boot_path = source_root / BOOT_FILE
-    text = boot_path.read_text(encoding="utf-8")
-    reached = [text]
-    for specifier in re.findall(r'^import\s+"([^"]+)";', text, re.M):
-        if not specifier.startswith("."):
-            continue
-        target = (boot_path.parent / specifier).resolve()
-        for suffix in (".ts", ".tsx"):
-            candidate = target.with_suffix(suffix)
-            if candidate.is_file():
-                reached.append(candidate.read_text(encoding="utf-8"))
-                break
-    return "\n".join(reached)
+    boot_path = (source_root / BOOT_FILE).resolve()
+    reached = {boot_path}
+    for named in side_effect_imports(boot_path):
+        reached.add(named)
+        reached.update(side_effect_imports(named))
+    return reached
 
 
 def block_kind_ends():
@@ -188,16 +213,12 @@ def block_kind_ends():
         if calls and "ui/panel" not in file.as_posix():
             stem = file.relative_to(source_root).as_posix().rsplit(".", 1)[0]
             # READ AGAINST WHAT THE BOOT REACHES, not against the boot's own
-            # text. Since L19 a feature with more than one panel gathers its
-            # siblings in a module of its own and the boot names that module —
-            # so a file imported one level down IS imported at boot, and a
-            # reader that stopped at the first file called it absent. The
-            # needle is the module's own path, matched however the importer
-            # spelled it relative to itself.
-            if f"/{stem.rsplit('/', 1)[-1]}\"" not in boot \
-                    and f'"{stem}"' not in boot \
-                    and not any(line.rstrip('";').endswith(stem)
-                                for line in boot.splitlines()):
+            # text. A feature with more than one panel gathers its siblings in a
+            # module of its own and the boot names that module — so a file
+            # imported one level down IS imported at boot, and a reader that
+            # stopped at the first file called it absent. The answer is this
+            # file's own resolved path, present in the reach or absent from it.
+            if file.resolve() not in boot:
                 unimported.append(stem)
     return declared, registered, unimported
 

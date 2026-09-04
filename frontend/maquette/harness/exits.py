@@ -193,11 +193,16 @@ async def main():
         # `data-mediasheet` has had since L12 — and this rule REFUSES the gap
         # rather than printing it.
         #
-        # THE OTHER FIVE ARE NOT L19's, and naming them is the point: 9792 and
-        # 10249 are the arrivals', 9861 the releases', 9882 and 9885 the
-        # profile's. The reversal this rule was promised is complete when the
-        # LAST site goes, and the last site is not this lot's. A blanket refusal
-        # here would have been a rule against the wrong subject.
+        # THE OTHER FIVE ARE NOT THIS LOT's, and naming them is the point.
+        # They are named by the CALL they wrap, never by a line number: a line
+        # number in a comment is right on the day it is typed and wrong on the
+        # next edit, and the first version of this block named five that had
+        # already moved. `grep -n "setTimeout(.*260)" legacy.js` finds them:
+        # `screens.add(…, "identify")`, `screens.releases(…)`,
+        # `screens.profile(…)` twice and `screens.resolution(…)`. The reversal
+        # this rule was promised is complete when the LAST site goes, and the
+        # last site is not this lot's. A blanket refusal here would have been a
+        # rule against the wrong subject.
         # DRIVEN THROUGH THE DELEGATION, NEVER THROUGH THE SEAM. The first
         # version of this walk called `window.__panel.produce("journey", …)`
         # directly and was VACUOUS: putting the 260 ms wait back beside
