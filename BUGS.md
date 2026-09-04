@@ -369,6 +369,7 @@ when the defect comes back.
 | B-307 | Three rules have fallen under the recorder's parallel load and passed alone; the register holds one of them, under a title naming a fourth rule and a diagnosis that does not transfer | by audit | `open` |
 | B-308 | The maquette draws six schedulers and the machine now runs seven — `machine.py`'s count fell the day `personalscraper-index-full` was scheduled on `main`, and nothing in that pull request could have told it | by L19 | `open` |
 | B-309 | « Récupérer maintenant » on a medium's own panel THROWS and takes nothing: the release screen's `data-take` branch is checked first, has no guard, and swallows every `data-take` in the document | by L19 | `to confirm` |
+| B-310 | Opening a media sheet from a bottom panel shows the PANEL again briefly before the sheet comes back — B-249's family, reported by the operator on the L19 head | 1× | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -660,6 +661,25 @@ RELEASE screen's take too, because the two share an attribute and a repair that 
 breaking the other would leave a one-sided rule green.
 
 <sub>`sed -n '9615,9616p' frontend/maquette/design/src/engine/legacy.js@86fe9549a` · `python3 frontend/maquette/harness/take.py`</sub>
+
+**B-310 — the bottom panel is seen again after the media sheet has opened.**
+Reported by the operator on 2026-09-04, verbatim: « effet de clignotement du panel bottom après
+l'ouverture de la fiche média : on revoit rapidement le panel bottom puis la fiche réapparaît ».
+Read: from a bottom panel, « Voir la fiche » opens the media sheet, the panel is seen again for a
+moment, and then the sheet comes back.
+
+**B-249's FAMILY, and its own half of it.** B-249 is « the screen flashes when a sheet action
+closes the sheet AND opens a page », and this is the same seam from the other side: what returns
+is the PANEL rather than a bare page. The producer half of B-249 is L19's, and five of the seven
+`setTimeout(…, 260)` sites remain in `legacy.js` at that head — `data-mediasheet` is NOT one of
+them (it lost its wait at L12), which is exactly why this needs measuring rather than assuming.
+
+**Reported against the L19 head**, not against `main`: the design host on 8712 serves this
+checkout's `design/dist`, rebuilt by L19's own gates. Whether L19 introduced it or whether it is
+B-249's open half as it already stood is the first thing to establish, and it is established by
+walking the same path on a build of each — not by reading either.
+
+<sub>reported through the steward, 2026-09-04 · `grep -n "setTimeout(.*260" frontend/maquette/design/src/engine/legacy.js`</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
