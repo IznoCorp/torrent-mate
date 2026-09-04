@@ -41,7 +41,7 @@ from playwright.async_api import async_playwright
 # per conversion phase, and it is an EQUALITY rather than a subset: a kind that
 # appears without being written here is a registration nobody declared, and a
 # kind written here that is missing is a producer that stopped answering.
-MOVED = ("account", "action", "secret", "setting", "sort")
+MOVED = ("account", "action", "journey", "more", "secret", "setting", "sort")
 
 # What each kind is driven with, and what the panel must then say about it. The
 # expected title is read from the PROTOTYPE's own data at run time — the third
@@ -60,6 +60,8 @@ DRIVEN = (
      "window.__queries.getQueryData(['/api/config/secrets'])"
      ".find(s=>s.k==='TMDB_API_KEY').l"),
     ("sort", "", "window.__i18n.t('panels.sort.title')"),
+    ("more", "", "window.__i18n.t('panels.standby.title')"),
+    ("journey", "Furious", "'Furious'"),
 )
 
 # WHAT A PANEL SAYS ABOUT RISK, read on the DRAWN chip. It is here because the

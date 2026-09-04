@@ -8,6 +8,7 @@ import { installArtworkArrival } from "./artwork-arrival";
 import { flushSync } from "react-dom";
 import {
   holderFor,
+  needsFor,
   producerFor,
   producerNeeds,
   refuseBlock,
@@ -207,7 +208,7 @@ function producePanel(kind: string, subject = ""): void {
      oracle measures at rest and has nothing to report. A subject the layer
      genuinely does not have still opens nothing, which is where this stops. */
   void Promise.all(
-    producerNeeds().map((required) => queryClient.prefetchQuery(required)),
+    needsFor(kind, subject).map((required) => queryClient.prefetchQuery(required)),
   ).then(() => {
     const landed = produce(subject, { held });
     if (landed !== null) openPanel(landed);

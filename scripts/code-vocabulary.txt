@@ -1003,12 +1003,15 @@ splash
 src
 st
 stack
+stage
+stages
 staging
 stale
 stall
 stalling
 stamped
 standard
+standby
 standing
 start
 startup
@@ -1173,6 +1176,7 @@ wants
 warm
 warning
 was
+watch
 watcher
 way
 ways

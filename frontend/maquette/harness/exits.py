@@ -175,9 +175,47 @@ async def main():
         print(f"  note the scrim reaches zero at frame {gone} and the "
               f"destination arrives at frame {arrived} — "
               f"{'' if gone is None or arrived is None else arrived - gone} "
-              "frame(s) of bare page between them. The wait is the PRODUCER's "
-              "(`setTimeout(…, 260)` beside `data-mediasheet`) and moves with "
-              "it at L19; this rule prints it and refuses nothing about it.")
+              "frame(s) of bare page between them. This walk's own path carries "
+              "no producer wait; the sites that still do are named below.")
+
+        # ── THE WAIT, REFUSED WHERE ITS PRODUCER HAS MOVED (L19) ───────────
+        #
+        # B-249's SHAPE, and the line this rule used to carry said the wait
+        # « moves with the producer at L19 ». Two of the seven `setTimeout(…,
+        # 260)` sites did: `data-journey` and `data-take`. On those paths the
+        # panel now leaves inside the navigation's own commit — the arrangement
+        # `data-mediasheet` has had since L12 — and this rule REFUSES the gap
+        # rather than printing it.
+        #
+        # THE OTHER FIVE ARE NOT L19's, and naming them is the point: 9792 and
+        # 10249 are the arrivals', 9861 the releases', 9882 and 9885 the
+        # profile's. The reversal this rule was promised is complete when the
+        # LAST site goes, and the last site is not this lot's. A blanket refusal
+        # here would have been a rule against the wrong subject.
+        for verb, drive, destination in (
+            ("journey", """()=>{window.__go('acq-now-loaded');}""",
+             "#sheet[data-open]"),
+        ):
+            await page.evaluate(drive)
+            await page.wait_for_timeout(500)
+            sampling = asyncio.create_task(page.evaluate(SAMPLE, [24, LAYERS]))
+            await asyncio.sleep(0.02)
+            await page.evaluate(
+                """()=>{window.__panel.produce("journey", "Furious");}""")
+            walked = await sampling
+            up = next((at for at, frame in enumerate(walked)
+                       if frame["sheet"] and frame["sheet"]["opacity"] > 0), None)
+            journal.check(
+                f"« {verb} » opens its panel inside the window this walk samples",
+                up is not None,
+                f"panel at frame {up} · {destination}")
+            # THE PANEL IS ALREADY THERE, or it arrived without a wait. 260 ms
+            # at 60 Hz is about 16 frames; anything under a third of that is the
+            # navigation's own commit rather than a timer.
+            journal.check(
+                f"and with no producer wait before it (B-249, « {verb} »)",
+                up is not None and up <= 5,
+                f"frame {up} — a 260 ms wait would put it past 15")
 
         # EVERY OTHER LAYER OF THE FRAME, each driven into its OWN exit. The
         # first version of this rule read the two above and nothing else —

@@ -11,9 +11,34 @@ const SUGGESTIONS_KEY = ["/api/acquisition/suggestions"];
 const FOLLOWED_KEY = ["/api/acquisition/followed"];
 /** What is waiting to be handled. Its scenario follows in the key. */
 const QUEUE_KEY = ["/api/acquisition/to-handle"];
+/** One acquisition's journey. The medium follows in the key (L19). */
+const JOURNEY_KEY = ["/api/acquisition/journeys"];
 
 /** What a server event refreshes on acquisition. */
 export const acquisitionLiveRules: readonly LiveRule[] = [
+  {
+    // THE JOURNEY IS THE TUNNEL (§20), and a tunnel that stops moving while the
+    // pipeline moves is the thing the sheet exists to disprove. The engine's
+    // producer carried its five stages as a literal, so the question of
+    // freshness could not arise; reading them from the layer (L19) is what
+    // raises it. Every event below advances a stage the sheet DRAWS — taken,
+    // downloaded, ingested, scraped, shelved — and the key is prefixed, so one
+    // rule refreshes whichever journey is open.
+    // THE NAMES ARE THE BACKEND'S, and two of them were invented on the first
+    // attempt — `ItemIngested` and `ItemScraped` do not exist, and the guard
+    // said so: « a rule names it and the backend emits nothing by that name —
+    // the rule is dead, and its surface will never refresh ». The middle stages
+    // are `ItemProgressed`, which is the one event the pipeline emits per item
+    // per step.
+    types: ["GrabSucceeded", "DownloadCompleted", "ItemProgressed",
+            "ItemDispatched"],
+    keys: [JOURNEY_KEY],
+    because:
+      "each is a stage of the journey the sheet draws, in the order it draws "
+      + "them. A tunnel that stands still while the pipeline moves is what §20 "
+      + "asks the operator to be able to watch, and `staleTime: Infinity` makes "
+      + "silence permanent rather than momentary",
+  },
   {
     types: ["WantedEnqueued", "WantedAbandoned", "GrabSucceeded", "GrabFailed",
             "GrabReswitched"],

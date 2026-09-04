@@ -248,12 +248,21 @@ export type PanelNeed = {
  */
 export type PanelRegistration = {
   produce: PanelProducer;
-  needs?: readonly PanelNeed[];
+  /**
+   * What must have landed. A LIST when the answer is the same whatever panel is
+   * opened, and a FUNCTION OF THE SUBJECT when it is not — a journey is read
+   * per medium, and a boot cannot know which one will be asked for. The
+   * function form is therefore invisible to the boot's prefill, by
+   * construction, and is resolved when a panel is actually asked for.
+   */
+  needs?: readonly PanelNeed[] | ((subject: string) => readonly PanelNeed[]);
   holds?: (subject: string, cache: PanelCache) => boolean;
 };
 
 const producers = new Map<string, PanelProducer>();
-const needs = new Map<string, readonly PanelNeed[]>();
+const needs = new Map<
+  string, readonly PanelNeed[] | ((subject: string) => readonly PanelNeed[])
+>();
 const holders = new Map<string, (subject: string, cache: PanelCache) => boolean>();
 
 /**
@@ -272,7 +281,7 @@ export function registerProducer(
   registration: PanelRegistration,
 ): void {
   producers.set(kind, registration.produce);
-  if (registration.needs?.length) needs.set(kind, registration.needs);
+  if (registration.needs !== undefined) needs.set(kind, registration.needs);
   if (registration.holds) holders.set(kind, registration.holds);
 }
 
@@ -305,7 +314,26 @@ export function holderFor(
  *     the cache deduplicates by key, which is the layer that knows how.
  */
 export function producerNeeds(): readonly PanelNeed[] {
-  return [...needs.values()].flat();
+  // THE LIST FORM ONLY. A need that depends on the subject cannot be asked for
+  // at boot without inventing a subject, and a panel about an invented subject
+  // is worse than a panel that waits.
+  return [...needs.values()].filter(Array.isArray).flat() as PanelNeed[];
+}
+
+/**
+ * What one kind needs to have landed for one subject.
+ *
+ * Args:
+ *     kind: The panel's kind.
+ *     subject: The subject asked for.
+
+ * Returns:
+ *     The reads to ask for, resolved.
+ */
+export function needsFor(kind: string, subject: string): readonly PanelNeed[] {
+  const declared = needs.get(kind);
+  if (declared === undefined) return [];
+  return typeof declared === "function" ? declared(subject) : declared;
 }
 
 /**

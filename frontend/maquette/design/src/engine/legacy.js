@@ -9907,7 +9907,8 @@ import {
       return;
     }
     if (closest.dataset.sheet === "plus") {
-      openMoreSheet();
+      // THE PRODUCER LEFT (L19). `features/acquisition/panel-more.ts` answers.
+      panel.produce("more");
       return;
     }
     if (closest.dataset.act?.startsWith("add:")) {
@@ -9997,8 +9998,12 @@ import {
       return;
     }
     if (closest.dataset.journey) {
+      // THE PRODUCER LEFT (L19), and its 260 ms wait went with it: the panel
+      // leaves inside the navigation's own commit, as `data-mediasheet` has
+      // since L12. R103 refuses the gap on this path now rather than printing
+      // it.
       panel.close();
-      setTimeout(() => openJourneySheet(closest.dataset.journey), 260);
+      panel.produce("journey", closest.dataset.journey);
       return;
     }
     if (closest.dataset.sheet === "utilisateur") {
@@ -31590,51 +31595,6 @@ import {
      A journey has no hole. A step not reached is stated « à venir », never
      « pas faite »; a step without a date is stated « inconnue », never
      given an invented date. */
-  function openJourneySheet(title) {
-    const steps = [
-      ["Pris chez le tracker", "10 août, 03 h 21", "done"],
-      ["Téléchargé", "10 août, 03 h 48", "done"],
-      ["Ingéré dans le staging", "10 août, 04 h 02", "done"],
-      ["Scrapé", "en cours depuis 4 min", "now"],
-      ["Rangé en médiathèque", "à venir", "todo"],
-    ];
-    panel.open({
-      address: "journey:" + title,
-      title: title,
-      meta: [
-        "Parcours de l'acquisition · release ",
-        { m: "Furious.S01E01.MULTi.1080p.WEB-DL" },
-      ],
-      blocs: [
-        {
-          type: "faits",
-          lignes: steps.map(([libelle, detail, ton]) => ({
-            c: libelle,
-            v: detail,
-            pip:
-              ton === "done" ? "success" : ton === "now" ? "info" : "neutral",
-            terne: ton === "todo",
-          })),
-        },
-        {
-          type: "note",
-          text:
-            "Les dates viennent de la spine de provenance. Une étape non encore atteinte affiche « à venir » — jamais une date reconstruite.",
-        },
-        {
-          type: "actions",
-          actions: [
-            {
-              text: "Voir la fiche",
-              icone: icons.eye,
-              target: { mediasheet: title },
-            },
-          ],
-        },
-      ],
-    });
-  }
-
   /* Add screen (« + ») — migrated to a real route, `AddScreen`
      (`design/src/screens/add.tsx`, reached at `/add`). The design
      rationale (full screen not a sheet, vertical result list, the two
@@ -31649,35 +31609,6 @@ import {
      and enough to pick another knowingly. The score shown is the ranking's,
      not an opinion. `RELEASES` stays defined here and crosses the handshake
      through `window.__referentiel` — same seam as `SEARCH`/`cardHTML` above. */
-
-  function openMoreSheet() {
-    panel.open({
-      title: "Veille et obligations",
-      meta: "Second rang — consulté, pas surveillé.",
-      blocs: [
-        {
-          type: "faits",
-          lignes: [
-            { c: "Dernier passage", v: "il y a 22 min" },
-            { c: "Prochain passage", v: "dans 38 min" },
-            { c: "Ratio global", v: "2,41", pipValue: "success" },
-            { c: "Obligations en cours", v: "3 torrents" },
-          ],
-        },
-        {
-          type: "actions",
-          actions: [
-            {
-              text: "Lancer la veille maintenant",
-              icone: icons.refresh,
-              ton: "primary",
-              target: { standby: "1" },
-            },
-          ],
-        },
-      ],
-    });
-  }
 
   // A harness-facing shortcut, not a control the app itself uses (a real
   // « Retour » button calls its own layer's close directly). `"screen"`
@@ -32128,7 +32059,12 @@ import {
   const REOPEN = {
     follow: { open: openFollowSheet, resolves: knownMedium },
     journey: {
-      open: openJourneySheet,
+      /* MOVED (L19). `resolves` stays the ENGINE's and it is not an oversight:
+         it asks whether this interface holds the MEDIUM, which is a question
+         about the library and the queue, not about the journey read — and the
+         layer answers the same stages for any info hash, so a `holds` built on
+         that read would say yes to everything. */
+      open: (subject) => panel.produce("journey", subject),
       /* A journey is reached from the follow panel's own action, which
          carries the medium's title, and from nowhere else. So it answers for
          a medium this interface holds, plus the acquisitions in flight —
@@ -32514,8 +32450,6 @@ export {
   store,
   openDeleteDialog,
   openFollowSheet,
-  openJourneySheet,
-  openMoreSheet,
   openDrawer,
   settingId,
   resetSettings,
@@ -32583,7 +32517,7 @@ Object.assign(window, {
   hideStartup, masquerInstallation, sameValue, changeSetting,
   mountDeck, mountLoaders, mountSearch, fileName, normalisedKey,
   recordPath, openAddSheet, openDeleteDialog, openDetailSheet,
-  openFollowSheet, openHarness, openJourneySheet, openPanel, openMoreSheet,
+  openFollowSheet, openHarness, openPanel,
   openSheet, openSugSheet,
   openPopEp,
   openDrawer, paintSelBar, panelUnderFinger, passerSug, screenStack,

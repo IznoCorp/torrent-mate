@@ -884,6 +884,20 @@
           "inverse": "Les plus complets"
         }
       }
+    },
+    "journey": {
+      "metaBefore": "Parcours de l'acquisition · release ",
+      "provenanceNote": "Les dates viennent de la spine de provenance. Une étape non encore atteinte affiche « à venir » — jamais une date reconstruite.",
+      "seeSheet": "Voir la fiche"
+    },
+    "standby": {
+      "title": "Veille et obligations",
+      "meta": "Second rang — consulté, pas surveillé.",
+      "lastPass": "Dernier passage",
+      "nextPass": "Prochain passage",
+      "globalRatio": "Ratio global",
+      "obligations": "Obligations en cours",
+      "runNow": "Lancer la veille maintenant"
     }
   }
 }

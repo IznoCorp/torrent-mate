@@ -23,3 +23,4 @@ import "../features/settings/panels";
 import "../features/account/panel-account";
 import "../features/maintenance/panel-action";
 import "../features/library/panel-sort";
+import "../features/acquisition/panels";

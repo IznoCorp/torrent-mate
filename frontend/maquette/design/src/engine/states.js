@@ -33,8 +33,6 @@ import {
   store,
   openDeleteDialog,
   openFollowSheet,
-  openJourneySheet,
-  openMoreSheet,
   openDrawer,
   settingId,
   resetSettings,
@@ -297,7 +295,7 @@ const STATES = [
       "Feuille de parcours",
       () => {
         applyState({ page: "acq", phase: "ready" });
-        openJourneySheet("Furious");
+        window.__panel.produce("journey", "Furious");
       },
     ],
     [
@@ -305,7 +303,7 @@ const STATES = [
       "Feuille « ⋮ » — veille et obligations",
       () => {
         applyState({ page: "acq", phase: "ready" });
-        openMoreSheet();
+        window.__panel.produce("more");
       },
     ],
     [
