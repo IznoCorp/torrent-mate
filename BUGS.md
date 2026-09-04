@@ -371,6 +371,7 @@ when the defect comes back.
 | B-309 | « Récupérer maintenant » on a medium's own panel THROWS and takes nothing: the release screen's `data-take` branch is checked first, has no guard, and swallows every `data-take` in the document | by L19 | `to confirm` |
 | B-310 | Opening a media sheet from a bottom panel shows the PANEL again briefly before the sheet comes back — B-249's family, reported by the operator on the L19 head | 1× | `open` |
 | B-311 | Coming back to a list after a medium's sheet does not restore the scroll position the list was left at | 1× | `open` |
+| B-312 | Changing the library's lens during a selection DROPS it — L14's own decision, reported by the operator as a defect | 1× | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -680,7 +681,22 @@ checkout's `design/dist`, rebuilt by L19's own gates. Whether L19 introduced it 
 B-249's open half as it already stood is the first thing to establish, and it is established by
 walking the same path on a build of each — not by reading either.
 
-<sub>reported through the steward, 2026-09-04 · `grep -n "setTimeout(.*260" frontend/maquette/design/src/engine/legacy.js`</sub>
+**MEASURED ON BOTH BUILDS, and it is NOT L19's.** The same walk — `followsheet-complete`, then
+« Voir la fiche » — sampled frame by frame on a build of the L19 head and on a build of
+`origin/main` at `4c0e274a7` in a worktree of its own:
+
+    L19 head      media sheet at frame 3 · panel still visible for 24 frames after it
+    main control  media sheet at frame 2 · panel still visible for 24 frames after it
+
+**Identical.** It is B-249's open half as it already stood, seen from the side the register had
+not described: what returns is the PANEL, not a bare page. The panel is not RE-OPENED — it never
+finished leaving: the media sheet arrives at frame 2 or 3 while the panel's own exit still has
+its fade and its slide to run, so the reader sees the sheet appear over a panel that is still
+there. Owner: whichever lot converts the SCREEN layer, which R103's own docstring already names
+as the one layer it cannot hold (« its closed state is the variant's BASE and its open state is a
+residue rule the engine toggles »).
+
+<sub>reported through the steward, 2026-09-04 · probe on 8899 and on a control of `4c0e274a7` served on 8902</sub>
 
 **B-311 — a list does not come back at the place it was left.**
 Reported by the operator on 2026-09-04, verbatim: « quand je reviens sur la liste après avoir vu
@@ -703,7 +719,45 @@ feed (phase 14), whose list container the feature now fills.
 actually walks — list → the medium's sheet → Back — and `harness/scroll_memory.py` is where it
 goes. Whether it drives that path on a WINDOWED list is the question the reading has to answer.
 
-<sub>reported through the steward, 2026-09-04 · `git diff --stat origin/main...HEAD -- frontend/maquette/design/src/ui/reader-place.ts frontend/maquette/design/src/ui/virtual-rows.tsx frontend/maquette/design/src/app/scroll-restoration.ts` → empty</sub>
+**WALKED ON BOTH BUILDS AND NOT REPRODUCED — said plainly rather than closed.** Two lists, the
+windowed one and an ordinary one, scrolled to 900, a medium's sheet opened from a row, Back:
+
+    L19 head      library (windowed) 900 → 900 KEPT · follows (ordinary) 900 → 900 KEPT
+    main control  library (windowed) 900 → 900 KEPT · follows (ordinary) 900 → 900 KEPT
+
+**So the walk is not the operator's.** What this probe does that a finger does not: it sets
+`#port.scrollTop` rather than scrolling, it goes back through the browser's history rather than
+through the interface's own back, and it opens the sheet from a row rather than from the medium's
+panel. **The entry stays open with the reading attached**, because « I could not reproduce it » is
+an honest answer and « it does not happen » is not one this probe can give. What is needed next is
+the operator's own path — which list, and how he came back — and `harness/scroll_memory.py` is
+where the rule goes once that is known (rule 4: the rule must cover the path the operator actually
+walks).
+
+<sub>reported through the steward, 2026-09-04 · probe on 8899 and on a control of `4c0e274a7` served on 8902 · `git diff --stat origin/main...HEAD -- …/ui/reader-place.ts …/ui/virtual-rows.tsx …/app/scroll-restoration.ts` → empty</sub>
+
+**B-312 — changing the lens during a selection drops it.**
+Reported by the operator on 2026-09-04, verbatim: « sur médiathèque, à la sélection de médias,
+quand je change de filtre — je passe de Tout à Films ou Séries — et que je sélectionne un média,
+la sélection précédente est reset ».
+
+**IT IS L14's DECISION, working as written, and that is why this entry is a RULING to obtain
+rather than a repair to make.** The selection is dropped when the listing's QUESTION changes —
+`legacy.js` writes `selected: new Set()` on a lens change and on clearing the search, and
+`features/library/library-head.tsx` does the same from the React head. L14's reason was « a tick
+nobody can see is a tick nobody can untick », and it was the right reason at the time: the
+selection was keyed by a row's POSITION, so a tick surviving a change of listing could land on
+another medium — which is the destroying-the-wrong-media defect L14 itself found.
+
+**What changed under it**: L14 also re-keyed the selection by TITLE. A tick that survives a lens
+change can no longer land on another medium, so the reason for dropping it is spent. What remains
+true is the second half — a tick hidden by the lens has to be visible SOMEWHERE — and the
+selection bar already counts MEDIA rather than rows, which is most of that answer.
+
+**Not L19's**, whose contract is « no surface changes ». The operator's ruling is the gate; the
+wave that owns the library's selection surface carries whatever it decides.
+
+<sub>`grep -n "selected: new Set()" frontend/maquette/design/src/engine/legacy.js` · `git show 9ce9b0508:docs/features/maquette-l14/REPORT.md` § the selection keyed by title</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
