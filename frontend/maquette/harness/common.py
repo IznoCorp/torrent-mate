@@ -331,6 +331,21 @@ PHONE = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2,
          "is_mobile": True, "has_touch": True, "color_scheme": "dark"}
 
 
+# THE WAITS, NAMED ONCE, EACH AGAINST THE DURATION IT HAS TO OUTLAST.
+# `design/src/styles/theme.css` draws four — `--duration-1` 150 ms,
+# `--duration-2` 200 ms, `--duration-3` 300 ms, `--duration-4` 450 ms — and
+# `styles/base.css` spends them: the panel's entrance and exit are
+# `--duration-4`, a surface's own fade is `--duration-3`. A bare number in a
+# rule is a number nobody can re-derive the day a duration moves, and it
+# outlives the duration it was set against without saying so (B-276). So every
+# wait below is named for what it waits for, and no number is under the
+# animation it claims to have let finish.
+SETTLED = 500       # a named state asked for: --duration-3 and the mocks' answer
+PANEL_IN = 550      # the panel's entrance, --duration-4 plus a frame
+PANEL_OUT = 250     # the panel's exit, once its content is already gone
+ACTED = 700         # an action tapped: the mutation, the refetch, the redraw
+
+
 class Journal:
     """Collects the verdicts of one script and decides its exit code.
 

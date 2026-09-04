@@ -31,7 +31,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, open_page
+from common import ACTED, Journal, PANEL_IN, PANEL_OUT, SETTLED, open_page
 
 from playwright.async_api import async_playwright
 
@@ -63,7 +63,7 @@ async def main():
         page.on("pageerror", lambda error: errors.append(str(error)))
 
         await page.evaluate("()=>window.__go('acq-add-results')")
-        await page.wait_for_timeout(700)
+        await page.wait_for_timeout(SETTLED)
         where = await page.evaluate(OWNED_AT)
         journal.check(
             "the search really answers a result the library OWNS and one it "
@@ -74,7 +74,7 @@ async def main():
         # 1. THE PANEL ANNOUNCES THE REPLACEMENT, before anything is tapped.
         await page.evaluate("(at)=>window.__panel.produce('add', String(at))",
                             where["owned"])
-        await page.wait_for_timeout(400)
+        await page.wait_for_timeout(PANEL_IN)
         announced = await page.evaluate(
             """()=>{const body = document.querySelector('#sheetin');
                     return body ? body.textContent.replace(/\\s+/g,' ') : '';}""")
@@ -88,7 +88,7 @@ async def main():
         await page.evaluate(
             """()=>{const act = document.querySelector(
                  '#sheetin [data-part="sheet/action"]'); if (act) act.click();}""")
-        await page.wait_for_timeout(600)
+        await page.wait_for_timeout(ACTED)
         dialog = await page.evaluate(DIALOG)
         journal.check(
             "and tapping the act raises a CONFIRMATION, not a message after "
@@ -110,7 +110,7 @@ async def main():
         await page.evaluate(
             """()=>{const out = [...document.querySelectorAll('#dlg button')]
                  .find((b) => !b.dataset.confirmadd); if (out) out.click();}""")
-        await page.wait_for_timeout(400)
+        await page.wait_for_timeout(PANEL_IN)
         after_cancel = await page.evaluate(
             "()=>[...window.__store.read().state.added]")
         journal.check(
@@ -123,14 +123,14 @@ async def main():
         # dialog at all. Without this, a build asking « are you sure? » about
         # everything would pass — the shape that teaches tapping through.
         await page.evaluate("()=>window.__panel.close()")
-        await page.wait_for_timeout(200)
+        await page.wait_for_timeout(PANEL_OUT)
         await page.evaluate("(at)=>window.__panel.produce('add', String(at))",
                             where["free"])
-        await page.wait_for_timeout(400)
+        await page.wait_for_timeout(PANEL_IN)
         await page.evaluate(
             """()=>{const act = document.querySelector(
                  '#sheetin [data-part="sheet/action"]'); if (act) act.click();}""")
-        await page.wait_for_timeout(600)
+        await page.wait_for_timeout(ACTED)
         free_dialog = await page.evaluate(DIALOG)
         added_after = await page.evaluate(
             "()=>[...window.__store.read().state.added]")

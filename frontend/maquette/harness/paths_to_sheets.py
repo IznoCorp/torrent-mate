@@ -35,7 +35,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, open_page
+from common import ACTED, Journal, PANEL_IN, PANEL_OUT, SETTLED, open_page
 
 from playwright.async_api import async_playwright
 
@@ -61,12 +61,18 @@ NAMING = """()=>{
   // emitted nowhere is a rule selecting nothing.
   const rows = [...document.querySelectorAll(
     '#view [data-part="card"], #view [data-part="tile"]')];
-  const reachable = (node) => {
-    if (node.matches('[data-mediasheet], [data-panel], [data-tile], [data-add], [data-sug]'))
-      return true;
-    if (node.querySelector('[data-mediasheet], [data-panel]')) return true;
-    const go = node.closest('[data-go], [data-navgo]');
-    return !!go;
+  // WHICH BRANCH CARRIED THE ROW, not merely whether one did. A disjunction
+  // reports the same green whether all four of its arms answer or only one
+  // does, and « only one does » is a rule that has quietly narrowed to a single
+  // attribute without anyone reading it — measured here: every row on all six
+  // surfaces was carried by one branch alone. The carrier is named and tallied,
+  // so the narrowing sits on the GREEN line where a reader meets it.
+  const carrier = (node) => {
+    if (node.matches('[data-mediasheet], [data-panel]')) return "self/sheet";
+    if (node.matches('[data-tile], [data-add], [data-sug]')) return "self/list";
+    if (node.querySelector('[data-mediasheet], [data-panel]')) return "descendant";
+    if (node.closest('[data-go], [data-navgo]')) return "ancestor";
+    return null;
   };
   // A ROW THAT NAMES NO IDENTIFIED MEDIUM OWES NO SHEET, and the markup says
   // which: `data-nonmedia` is what an arrival wears while it is still a folder
@@ -75,9 +81,23 @@ NAMING = """()=>{
   // the other side.
   const named = rows.filter((node) => (node.textContent || '').trim().length > 0
     && !('nonmedia' in node.dataset));
+  const dead = named.filter((node) => carrier(node) === null);
+  const by = {};
+  for (const node of named) {
+    const which = carrier(node);
+    if (which) by[which] = (by[which] || 0) + 1;
+  }
   return {
     drawn: named.length,
-    dead: named.filter((node) => !reachable(node)).slice(0, 4).map(
+    kinds: {card: rows.filter((n) => n.dataset.part === "card").length,
+            tile: rows.filter((n) => n.dataset.part === "tile").length},
+    by,
+    // THE COUNT AND THE SAMPLE ARE TWO THINGS. They used to be one: the list
+    // was sliced to four and its length was then printed as the number of dead
+    // ends, so a wholly dead surface of twelve rows reported « 4 dead of 12 »
+    // and a reader had no way to tell a partial failure from a total one.
+    deadCount: dead.length,
+    dead: dead.slice(0, 4).map(
       (node) => (node.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 60)),
   };}"""
 
@@ -93,18 +113,23 @@ async def main():
         for state, what in SURFACES:
             await page.evaluate("(id)=>window.__go(id)", state)
             await page.evaluate("()=>window.__mocks?.quiet()")
-            await page.wait_for_timeout(450)
+            await page.wait_for_timeout(SETTLED)
             read = await page.evaluate(NAMING)
             # THE FLOOR IS NOT DECORATION. A surface that draws nothing has no
             # dead end either, and « 0 of 0 reachable » is the vacuous pass this
             # rule would otherwise report on the day a state stops rendering.
+            carriers = ", ".join(f"{name} {count}" for name, count
+                                 in sorted(read["by"].items())) or "none"
             journal.check(
                 f"{state} really draws rows, so « {what} » has a subject",
-                read["drawn"] >= 3, f"{read['drawn']} row(s)")
+                read["drawn"] >= 3,
+                f"{read['drawn']} row(s) — card {read['kinds']['card']}, "
+                f"tile {read['kinds']['tile']}")
             journal.check(
                 f"every {what} carries a path to its sheet (NE-DOIT-PAS-9)",
-                not read["dead"],
-                f"{len(read['dead'])} dead of {read['drawn']}: {read['dead']}")
+                not read["deadCount"],
+                f"{read['deadCount']} dead of {read['drawn']} — carried by "
+                f"{carriers}{': ' + str(read['dead']) if read['dead'] else ''}")
 
         journal.check("no JS error along the walk", not errors, str(errors))
         await context.close()

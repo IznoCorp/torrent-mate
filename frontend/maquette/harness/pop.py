@@ -1,8 +1,20 @@
-"""Popovers and their dismissal."""
+"""Popovers and their dismissal.
+
+ITS VERDICTS GO THROUGH THE JOURNAL, and they used not to. This script printed
+hand-rolled `PASS` / `FAIL` lines and ended without a summary, so the recorder
+that keeps every rule's hold count could not read it: it was carried as
+« unparseable » for as long as it has existed, and a rule whose count nobody
+holds is a rule that can quietly stop holding anything. Two browsers are opened
+one after the other and one journal spans both — the summary is what ends the
+process, so it is called once, at the end of the second.
+"""
 
 import asyncio
-from common import shot
+from common import Journal, shot
 from playwright.async_api import async_playwright
+journal = Journal("the episode date popover, in all its states")
+
+
 async def main():
   async with async_playwright() as p:
     b=await p.chromium.launch(channel="chrome")
@@ -74,24 +86,30 @@ async def main():
     print("── closing on outside click ──")
     await pg.evaluate("()=>document.querySelector('#sheet').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}))")
     await pg.wait_for_timeout(250)
-    print("  popover closed:", await pg.evaluate("""()=>!document.querySelector('[data-part="episode/popover"]')"""))
-    ok = all(x and ("Diffusé le" in x or "Sortie prévue le" in x or "inconnue" in x) for x in (a,b1,c1))
+    journal.check("a tap outside closes the popover",
+                  await pg.evaluate("""()=>!document.querySelector('[data-part="episode/popover"]')"""))
+    for label, said in (("owned episode", a), ("missing episode", b1),
+                        ("last episode", c1)):
+        journal.check(f"{label}: the popover dates the episode, in French",
+                      bool(said) and ("Diffusé le" in said
+                                      or "Sortie prévue le" in said
+                                      or "inconnue" in said),  # french-ok: the app's own rendered words are what this reads
+                      str(said)[:70])
 
     # ── AND IT IS ABOUT THE EPISODE THAT WAS TAPPED ────────────────────────
     # `title|season|episode|state` is what the cell writes; `SssEnn` is what the
     # popover's first line says. A popover that opened correctly and described
     # its neighbour would satisfy every check above.
-    identity = True
     for label, written, said, expected in named:
-        if not written or not said:
-            identity = False
-            print(f"  FAIL {label}: nothing to compare — cell {written!r}, said {said!r}")
+        if not journal.check(f"{label}: there is something to compare",
+                             bool(written) and bool(said),
+                             f"cell {written!r}, said {said!r}"):
             continue
         _, season, number, _ = written.split("|")
         number_name = f"S{int(season):02d}E{int(number):02d}"
-        if not said.startswith(number_name):
-            identity = False
-            print(f"  FAIL {label}: tapped {number_name}, the popover says {said[:40]!r}")
+        if not journal.check(f"{label}: the popover is about the episode tapped",
+                             said.startswith(number_name),
+                             f"tapped {number_name}, said {said[:40]!r}"):
             continue
         # THE FACTS, NOT ONLY THE NUMBER. The number is composed from the cell
         # and is right whichever episode was looked up; the title and the date
@@ -104,22 +122,12 @@ async def main():
                 wrong.append(f"title {expected['title']!r}")
             if expected["air"] and expected["air"] not in said:
                 wrong.append(f"air date {expected['air']!r}")
-        if wrong:
-            identity = False
-            print(f"  FAIL {label}: {number_name} says {said[:60]!r} — missing "
-                  f"{', '.join(wrong)}")
-        else:
-            print(f"  PASS {label} is about {number_name}, with its own facts")
+        journal.check(f"{label} carries {number_name}'s OWN facts", not wrong,
+                      f"says {said[:60]!r}" + (f" — missing {', '.join(wrong)}"
+                                               if wrong else ""))
 
-    print("\nJS errors:", errs or "none")
-    print("VERDICT:", "the date appears, in French, following the state, about "
-          "the episode tapped" if ok and identity and not errs else "needs review")
+    journal.check("no JS error along the walk", not errs, str(errs or "none"))
     await b.close()
-    # THE VERDICT REACHES THE EXIT CODE. It did not: `ok` was computed and
-    # discarded, so this half of the rule could print « needs review » and pass
-    # the suite. The other half already raised; this one does now.
-    if errs or not ok or not identity:
-        raise SystemExit(1)
 asyncio.run(main())
 
 async def announced():
@@ -158,13 +166,16 @@ async def announced():
     distinct = (outline["border"] == outline["expected"]
                 and outline["border"] != outline["background"]
                 and outline["border"] != outline["frame"])
-    print("  outline :", outline)
-    print("  VERDICT :", "the date appears, following the episode state" if txt and "Sortie prévue" in txt else "needs review")
-    if not distinct:
-        print("  FAIL the outline does not separate from the app's background")
-    print("  errors  :", errs or "none")
+    journal.check("an ANNOUNCED episode's popover gives its release date",
+                  bool(txt) and "Sortie prévue" in txt,  # french-ok: the app's own rendered words are what this reads
+                  str(txt)[:70])
+    journal.check("the popover's outline separates it from what is behind it",
+                  distinct, str(outline))
+    journal.check("no JS error along the announced walk", not errs,
+                  str(errs or "none"))
     await b.close()
-    # A script that only prints can never fail, and a script that cannot fail
-    # proves nothing: the verdict has to reach the exit code.
-    if errs or not (txt and "Sortie prévue" in txt) or not distinct: raise SystemExit(1)
+    # THE SUMMARY IS WHAT ENDS THE PROCESS, and it is called once for the two
+    # runs: it prints the executed count the recorder reads and raises on any
+    # failure. Before it existed here, a verdict was printed and discarded.
+    journal.summary()
 asyncio.run(announced())

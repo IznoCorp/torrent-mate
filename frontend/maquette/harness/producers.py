@@ -33,7 +33,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, open_page
+from common import ACTED, Journal, PANEL_IN, PANEL_OUT, SETTLED, open_page
 
 from playwright.async_api import async_playwright
 
@@ -144,12 +144,12 @@ async def main():
         # 3. EACH MOVED KIND OPENS A PANEL ABOUT ITS OWN SUBJECT.
         for kind, subject, expected_from in DRIVEN:
             await page.evaluate("()=>window.__panel.close()")
-            await page.wait_for_timeout(150)
+            await page.wait_for_timeout(PANEL_OUT)
             expected = await page.evaluate(f"()=>{expected_from}")
             await page.evaluate(
                 "([kind, subject])=>window.__panel.produce(kind, subject)",
                 [kind, subject])
-            await page.wait_for_timeout(250)
+            await page.wait_for_timeout(PANEL_IN)
             drawn = await page.evaluate(
                 """()=>{const head = document.querySelector('#sheet [data-part="sheet/title"]');
                         return head ? head.textContent.trim() : null;}""")
@@ -168,7 +168,7 @@ async def main():
         # 4. THE CHIP'S TONE, on the panel a named state opens.
         for state, tone, why in TONES:
             await page.evaluate("(id)=>window.__go(id)", state)
-            await page.wait_for_timeout(400)
+            await page.wait_for_timeout(SETTLED)
             chip = await page.evaluate(
                 """()=>{const c = document.querySelector('#sheet [data-part="chip"]');
                         return c ? {tone: c.dataset.tone, text: c.textContent.trim()} : null;}""")
@@ -209,10 +209,10 @@ async def main():
         said = {}
         for kind, position in (("film", kinds["film"]), ("series", kinds["series"])):
             await page.evaluate("()=>window.__panel.close()")
-            await page.wait_for_timeout(150)
+            await page.wait_for_timeout(PANEL_OUT)
             await page.evaluate(
                 "(at)=>window.__panel.produce('suggestion', String(at))", position)
-            await page.wait_for_timeout(300)
+            await page.wait_for_timeout(PANEL_IN)
             said[kind] = await page.evaluate("""()=>({
               primary: (document.querySelector(
                 '#sheetin [data-part="sheet/action"]') || {}).textContent,

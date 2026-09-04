@@ -33,7 +33,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, open_page
+from common import ACTED, Journal, PANEL_IN, PANEL_OUT, SETTLED, open_page
 
 from playwright.async_api import async_playwright
 
@@ -72,9 +72,9 @@ async def main():
             f"{answer.status} {answer.url}") if answer.status == 409 else None)
 
         await page.evaluate("(id)=>window.__go(id)", BUSY_STATE)
-        await page.wait_for_timeout(500)
+        await page.wait_for_timeout(SETTLED)
         await page.evaluate("""()=>window.__store.write({pipe: "running"})""")
-        await page.wait_for_timeout(300)
+        await page.wait_for_timeout(SETTLED)
         running = await page.evaluate("()=>window.__store.read().state.pipe")
         journal.check(
             "the scenario really has the pipeline busy, so this walk measures "
@@ -90,12 +90,12 @@ async def main():
         # ── TAKING A MEDIUM, from its own panel, while the pipeline runs ────
         title = before["takeable"][0]
         await page.evaluate("(t)=>window.__panel.produce('follow', t)", title)
-        await page.wait_for_timeout(400)
+        await page.wait_for_timeout(PANEL_IN)
         await page.evaluate(
             """()=>{const act = [...document.querySelectorAll(
                      '#sheetin [data-part="sheet/action"]')]
                      .find((one) => 'take' in one.dataset); if (act) act.click();}""")
-        await page.wait_for_timeout(700)
+        await page.wait_for_timeout(ACTED)
         after = await page.evaluate(QUEUE)
         journal.check(
             f"« {title} » is TAKEN while the pipeline runs — the act lands "
@@ -109,13 +109,13 @@ async def main():
             "(t)=>(window.__followActions?.all() || []).find((one) => one.t === t)?.st",
             watched)
         await page.evaluate("(t)=>window.__panel.produce('follow', t)", watched)
-        await page.wait_for_timeout(400)
+        await page.wait_for_timeout(PANEL_IN)
         paused = await page.evaluate(
             """()=>{const act = [...document.querySelectorAll(
                      '#sheetin [data-part="sheet/action"]')]
                      .find((one) => 'pause' in one.dataset);
                     if (!act) return false; act.click(); return true;}""")
-        await page.wait_for_timeout(700)
+        await page.wait_for_timeout(ACTED)
         journal.check(
             f"« {watched} »'s panel offers to pause it while the pipeline runs",
             paused, watched)

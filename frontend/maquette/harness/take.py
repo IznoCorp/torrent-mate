@@ -36,7 +36,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, open_page
+from common import ACTED, Journal, PANEL_IN, PANEL_OUT, SETTLED, open_page
 
 from playwright.async_api import async_playwright
 
@@ -55,7 +55,7 @@ async def main():
 
         # ── THE PANEL'S OWN TAKE ───────────────────────────────────────────
         await page.evaluate("()=>window.__go('acq-now-loaded')")
-        await page.wait_for_timeout(500)
+        await page.wait_for_timeout(SETTLED)
         before = await page.evaluate(QUEUE)
         journal.check(
             "the queue really holds something to be taken, so this walk has a "
@@ -63,7 +63,7 @@ async def main():
             len(before["takeable"]) > 0, str(before["takeable"]))
         title = before["takeable"][0] if before["takeable"] else ""
         await page.evaluate("(t)=>window.__panel.produce('follow', t)", title)
-        await page.wait_for_timeout(400)
+        await page.wait_for_timeout(PANEL_IN)
         # SELECTED BY `data-part`, and the take READ from its dataset. A
         # selection on `[data-take]`'s PRESENCE would make the attribute a
         # boolean state in `check-markup-contracts`'s derived list — it is a
@@ -94,7 +94,7 @@ async def main():
             title not in early["takeable"],
             f"after 120 ms: {early['takeable']} — a 260 ms wait would still "
             f"show {before['takeable']}")
-        await page.wait_for_timeout(700)
+        await page.wait_for_timeout(ACTED)
         after = await page.evaluate(QUEUE)
         journal.check(
             "tapping it raises no error (B-309)",
@@ -112,7 +112,7 @@ async def main():
         # A repair that fixed one branch by breaking the other would leave a
         # rule reading only the panel's side perfectly green.
         await page.evaluate("()=>window.__go('screen-releases')")
-        await page.wait_for_timeout(600)
+        await page.wait_for_timeout(SETTLED)
         rows = await page.evaluate(
             """()=>[...document.querySelectorAll('[data-part="card/foot"]')]
                     .filter((one) => 'take' in one.dataset).length""")
@@ -123,7 +123,7 @@ async def main():
         await page.evaluate(
             """()=>{[...document.querySelectorAll('[data-part="card/foot"]')]
                      .find((one) => 'take' in one.dataset).click();}""")
-        await page.wait_for_timeout(800)
+        await page.wait_for_timeout(ACTED)
         journal.check(
             "choosing a release raises no error either",
             not errors, str(errors))
