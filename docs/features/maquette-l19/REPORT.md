@@ -191,3 +191,72 @@ first shape of the take move grew the engine and was reshaped to shrink it).
   three tunnel verbs; the acquisition's own delegation verbs.
 - **B-308** — the maquette draws six schedulers and the machine runs seven, since `4c0e274a7` on
   `main`. Filed, not repaired: drawing the seventh row is a surface change this contract forbids.
+
+---
+
+## 10. The gates, on the final head
+
+Each run ALONE, wrapped in `scripts/heavy.sh`, at `TM_HARNESS_JOBS=2` and three test workers.
+Never a build beside a run.
+
+| Gate | Reading |
+| --- | --- |
+| **oracle** | 87 states × 34 regions, **2 958 measurements, NO DIVERGENCE** — and on every one of the eighteen phases before it |
+| **full suite** (`run.sh`, no flag) | **92 rules**, one failure: `machine.py` — **B-308**, pre-existing, proved not this branch's |
+| `run.sh --contracts` | 18 rules and 26 repository guards, no violation |
+| `--a11y` | **0 violations** over 87 states; the light theme unmoved at its ceiling of **166** |
+| `harness-hold-counts.py --compare` | **`failed` read FIRST (B-291): 1, and it is `machine.py`.** Six rules changed — `exits.py` 15→18, `fanout.py` 142→150, `panel.py` 50→51, `persistence.py` 39→47, `pop.py` unparseable→3, `settings.py` 46→65 — and five are new: `busy.py` 7, `paths_to_sheets.py` 13, `producers.py` 35, `replacement.py` 8, `take.py` 9. Every movement upward |
+| `make check` | **11 077 passed, 0 failed, 0 errors** (4 skipped, 2 xfailed) |
+| `tsc --noEmit` · `vitest` | clean · 134 files, 1 374 tests passed |
+
+### The figures, taken once
+
+| Reading | Before | After |
+| --- | ---: | ---: |
+| `grep -c "panel\.open(" legacy.js` | 10 | **0** |
+| the inventory command | 9 sites | **2** — the harness panel alone |
+| `grep -c "closest\.dataset\." legacy.js` | 132 | **133** — § 3 says why it rose |
+| `setTimeout(…, 260)` sites | 7 | **5** — the two this lot owned are gone |
+| `install*(` in `app/shell.tsx` | 25 | 25 |
+| `app/shell.tsx` non-blank | 398 | **392** |
+| `engine/legacy.js` non-blank | 32 461 | **31 645** |
+| `engine/states.js` non-blank | 791 | **786** |
+| fixture families over 100 lines | 9 / 26 375 | **9 / 26 375** — § 2 says why |
+| families the register records converted | 27 | **31** |
+| `check-frame-domain` `app/` | 129 | **126**, ceiling lowered with it |
+
+### The plan's own self-check
+
+```
+git log --oneline origin/main..HEAD | wc -l                     → 48
+git log --oneline origin/main..HEAD | grep -c "maquette-l19"    → 48
+grep -L "^## Verdict" docs/features/maquette-l19/plan/phase-*.md → (no output)
+```
+
+**Every commit carries the codename and every phase file carries a verdict.** The phases chained
+without pause; the only stops taken are the ones the plan named — Stop A (the harness, asked of
+the steward and granted), Stop B (DOIT-4's pastille, measured not to exist and recorded), and
+Stop D, which is the pull request.
+
+---
+
+## 11. Six operator reports arrived during the closing gates
+
+They are in the register with their readings. **None of the six is this wave's**, and each was
+walked rather than argued.
+
+| # | Report | Reading |
+| --- | --- | --- |
+| **B-310** | the bottom panel seen again after the media sheet | **identical on head and control** — 24 frames of panel-after-sheet on each. B-249's open half, seen from a side the register had not described: the panel is not re-opened, it never finished leaving |
+| **B-311** | a list does not come back at the place it was left | **not reproduced on either**, twice. And the first probe is recorded as the green reading of nothing it was: its « drag » never scrolled |
+| **B-312** | the lens drops the selection | L14's decision, **ruled against by the operator**; its reason is spent because L14 re-keyed by title in the same wave |
+| **B-313** | « Voir le parcours » offered twice | **main's producer emits it twice, byte for byte** — `legacy.js:31699` and `:31734`. An asymmetry the engine carried: « Voir la fiche » is guarded against exactly this, and says so in its own comment |
+| **B-314** | the add screen shows no example results | **not reproduced** — 5 results on both, the same copy. No family the add screen reads died with a producer |
+| **B-315** | Découvrir's « charger plus » | three parts: the end mark exists and is identical, a press adds a batch, and the button's SIZE did not move — which the ORACLE says at 2 958 measurements |
+
+**Two of these are the same question the brief's § 10 asked** — « the difference must not include a
+family a React surface still reads » — and the answer, measured twice, is that it does not.
+
+**And one of them is a finding about this wave's own instruments rather than its code**: a probe
+that reads a number having never performed the gesture is a green reading of nothing, and it took
+a second walk to see it. It is written into B-311 rather than quietly replaced.
