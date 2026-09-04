@@ -49,4 +49,37 @@ the banner · `--contracts`.
 
 ## Verdict
 
-*(filled when the phase lands)*
+**Landed**, alone in its commit, its rule seen RED first (three holds, before the banner existed).
+
+### The brief said 412; the maquette's contract says otherwise
+
+`updateConfigurationFile` answers `{ restartRequired, conflict }` on **200** and declares **409**
+for a refusal. « The file moved under the editor » is something the write SUCCEEDS in telling, so
+drawing it from an error branch would be drawing it from a case the contract does not describe.
+**The contract is the maquette's own artefact (D7)** and it is followed — recorded here rather
+than reconciled silently.
+
+### The save had to start asking
+
+`data-save` cleared the pending edits, raised the restart flag and said « Enregistré » **without
+writing anything**. A field the contract has always answered had no reader BY CONSTRUCTION. It
+writes each changed file now and reads what comes back; a held write (offline) and an empty answer
+are passed through rather than flattened — **neither is a conflict, and neither is a promise that
+there is none.**
+
+### A conflict does not throw the edits away
+
+The file moved under the editor, so what is on screen no longer describes what is stored. Losing
+the operator's work on top of that would be the second loss. Reloading is OFFERED.
+
+### The banners moved to where the operator is
+
+All three were inline in the RUBRIC LIST alone — so a read-only instance said so on the list and
+said nothing once a rubric was open, while the save bar that raises the third exists on every
+branch. **B-299's banner would have been invisible exactly where « Enregistrer » is tapped.**
+
+### Readings
+
+oracle **2 958, no divergence** (the banner draws on a state no named state reaches, so nothing at
+rest moved) · contracts 18 rules + 26 guards, no violation · `settings.py` 53 → **57** holds ·
+mutation: the banner's condition forced false fells two holds

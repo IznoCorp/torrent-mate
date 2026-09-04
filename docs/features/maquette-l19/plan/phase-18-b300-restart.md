@@ -42,4 +42,34 @@ held) · `--contracts`.
 
 ## Verdict
 
-*(filled when the phase lands)*
+**Landed**, alone in its commit, its rule seen RED first (five holds, before the confirmation
+existed).
+
+### A rule was asserting the defect
+
+`harness/page_host.py` held « and a real tap on the restart offer **TAKES** it » — the behaviour
+B-300 calls a defect, written down as a requirement. **B-085's species from the closest possible
+range**: a rule can certify the defect, and this one did for as long as the defect stood. It reads
+« ASKS before it takes it » now.
+
+Its three neighbours then failed for a reason that was not theirs — a modal left up makes every
+later tap « present but not tappable » — so the walk dismisses the confirmation before going on.
+Worth naming: **a repair's first symptom was three unrelated holds falling.**
+
+### The sentence says what §17 makes it a confirmation FOR
+
+Unavailable **for every account of the household, not only for you**, and an acquisition in flight
+resumes where it stopped. « Êtes-vous sûr ? » would have been a dialog that says nothing — and it
+is what a confirmation added without reading §17 would have said.
+
+### The cancel is the half that matters
+
+A build that raised a dialog and restarted anyway satisfies every check that only taps through.
+Cancelling leaves the restart OWED and says nothing about one having happened; only confirming
+restarts, and then it says so.
+
+### Readings
+
+oracle **2 958, no divergence** · contracts 18 rules + 26 guards, no violation · `settings.py`
+57 → **65** holds · `page_host.py` 44, no violation · mutation: the confirmation short-circuited
+fells **five** holds in `settings.py` and **one** in `page_host.py`
