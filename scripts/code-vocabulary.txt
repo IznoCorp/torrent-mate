@@ -204,6 +204,7 @@ conditions
 config
 configuration
 confirmadd
+confirmrestart
 conflicted
 connect
 connected

@@ -266,7 +266,7 @@ async def main():
           if (!act) return false; act.click(); return true;}""")
         await pg.wait_for_timeout(700)
         check("the save bar is really there to be tapped", saved)
-        conflicted = await pg.evaluate("""()=>{
+        conflicted = await pg.evaluate(r"""()=>{
           const banners = [...document.querySelectorAll('[data-part="load-error"]')]
             .map((one) => ({text: one.textContent.replace(/\s+/g,' ').trim(),
                             actions: [...one.querySelectorAll('button')]
@@ -300,7 +300,7 @@ async def main():
           const act = document.querySelector('[data-restart]');
           if (!act) return false; act.click(); return true;}""")
         await pg.wait_for_timeout(500)
-        confirmation = await pg.evaluate("""()=>{
+        confirmation = await pg.evaluate(r"""()=>{
           const dialog = document.querySelector('#dlg');
           if (!dialog || !dialog.hasAttribute('data-open')) return null;
           return {text: dialog.textContent.replace(/\s+/g,' ').trim(),

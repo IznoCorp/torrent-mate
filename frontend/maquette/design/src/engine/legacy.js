@@ -9046,9 +9046,13 @@ import {
       return;
     }
     if (closest.dataset.restart) {
-      SETTINGS_STATE.redemarrage = false;
-      render();
-      toast("Service redémarré — les réglages sont pris en compte.");
+      // IT ASKS FIRST (L19, B-300, §17). A restart cuts the service for every
+      // account of the household; this branch used to do it on the tap.
+      window.__settingsVerbs?.askToRestart();
+      return;
+    }
+    if (closest.dataset.confirmrestart) {
+      window.__settingsVerbs?.restart();
       return;
     }
     if (closest.dataset.qsettings != null) {

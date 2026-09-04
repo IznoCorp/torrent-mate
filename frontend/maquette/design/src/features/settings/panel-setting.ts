@@ -152,6 +152,10 @@ declare global {
       save: () => Promise<void>;
       /** Throws the stale edits away and asks for the settings again. */
       reload: () => void;
+      /** Asks before cutting the service for the household (B-300, §17). */
+      askToRestart: () => void;
+      /** Restarts, once the operator has said so. */
+      restart: () => void;
     };
   }
 }
@@ -208,7 +212,61 @@ function reloadSettings(): void {
   reference.render();
 }
 
-window.__settingsVerbs = { cancelEdit, save: saveEdits, reload: reloadSettings };
+/* RESTARTING IS ASKED BEFORE IT IS DONE (B-300, §17).
+
+   « Redémarrer maintenant » used to restart on the tap: the flag dropped and a
+   toast said « Service redémarré ». A restart cuts the service for EVERY
+   account of the household — §17 — which is the case NE-DOIT-PAS-6's spirit
+   covers even though nothing is destroyed, and it is the one thing the sentence
+   below has to say rather than merely asking « êtes-vous sûr ? ».
+
+   THE CONFIRMATION IS `ui/dialog`, whose paragraph colour and danger contrast
+   R116 has held since L12 — so this adds no drawing primitive, only a use of
+   one. Cancelling leaves the restart OWED and says nothing about one having
+   happened: a confirmation that restarts anyway is a delay. */
+function askToRestart(): void {
+  const translate = i18next.t.bind(i18next);
+  window.__dialog?.open({
+    heading: translate("screens.settings.restartConfirmHeading"),
+    body: [
+      {
+        type: "paragraph",
+        runs: [{ text: translate("screens.settings.restartConfirmBody") }],
+      },
+    ],
+    actions: [
+      {
+        text: translate("screens.settings.restartConfirmGo"),
+        tone: "danger",
+        target: { "data-confirmrestart": "1" },
+      },
+      {
+        text: translate("screens.settings.restartConfirmCancel"),
+        tone: "ghost",
+        dismiss: true,
+      },
+    ],
+  });
+}
+
+/** Restarts, and only once the operator has said so. */
+function restart(): void {
+  const reference = window.__referentiel;
+  window.__dialog?.close();
+  reference.SETTINGS_STATE.redemarrage = false;
+  reference.render();
+  window.__toast?.show({
+    message: i18next.t("screens.settings.restartDone"),
+  });
+}
+
+window.__settingsVerbs = {
+  cancelEdit,
+  save: saveEdits,
+  reload: reloadSettings,
+  askToRestart,
+  restart,
+};
 
 registerProducer("setting", {
   produce: settingPanel,

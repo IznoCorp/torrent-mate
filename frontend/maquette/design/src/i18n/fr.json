@@ -728,7 +728,12 @@
       "saveBarLabel": "Modifications non enregistrées",
       "conflictLead": "Conflit de version.",
       "conflictRest": " Le fichier a changé sur le disque pendant que vous l'éditiez : ce qui est à l'écran ne décrit plus ce qui est enregistré. Rien n'a été écrit.",
-      "conflictReload": "Recharger les réglages"
+      "conflictReload": "Recharger les réglages",
+      "restartConfirmHeading": "Redémarrer le service ?",
+      "restartConfirmBody": "Le service s'arrête et repart. Il est indisponible pendant quelques secondes — pour tous les comptes de la maison, pas seulement pour vous, et une acquisition en cours reprendra où elle s'est arrêtée.",
+      "restartConfirmGo": "Redémarrer",
+      "restartConfirmCancel": "Annuler",
+      "restartDone": "Service redémarré — les réglages sont pris en compte."
     }
   },
   "surfaces": {

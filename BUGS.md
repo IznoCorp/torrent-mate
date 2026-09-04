@@ -359,7 +359,7 @@ when the defect comes back.
 | B-297 | The locks — pipeline lock, pause sentinel, watcher pause, tmp-orphan sweep — have no surface, and three of them are the state of L20's levers | by survey | `open` |
 | B-298 | The ranking editor is a promise: a settings rubric that leads nowhere and a toast saying it will exist | by survey | `open` |
 | B-299 | `SettingsState.conflict` is declared, set to `false` at boot, and never raised, drawn or copied — the conflict the contract answers has no surface | by survey | `to confirm` |
-| B-300 | « Redémarrer maintenant » restarts on the tap, with no confirmation, while a restart cuts the service for the whole household | by survey | `open` |
+| B-300 | « Redémarrer maintenant » restarts on the tap, with no confirmation, while a restart cuts the service for the whole household | by survey | `to confirm` |
 | B-301 | The seasons panel prints a season as `to_grab` and offers no verb; the season grab operation is uncalled | by survey | `open` |
 | B-302 | The journey sheet is the tunnel and offers neither « Remettre en file » nor « Re-scraper »; both operations are uncalled | by survey | `open` |
 | B-303 | A mutation applied BY HAND leaves the served copy of the previous build in place, so the reading taken next measures code nobody is testing — and a restore by `git checkout --` over the maquette's sources destroys whatever else is uncommitted there (the number is 303 and not 296 because #549 held 296-302 on `main`-to-be) | by L14 | `open` |
@@ -508,6 +508,26 @@ though nothing is destroyed. Placed 2026-09-02 with **L19**, beside B-299: the c
 `ui/dialog` and lands with the producer's move.
 
 <sub>`grep -n "dataset.restart" frontend/maquette/design/src/engine/legacy.js` → the branch sets `redemarrage = false` and toasts, no dialog</sub>
+
+**FIXED on this branch, L19 phase 18.** The tap raises a `ui/dialog` confirmation — no new drawing
+primitive, only a use of one whose paragraph colour and danger contrast R116 has held since L12.
+The sentence says the thing §17 makes this a confirmation FOR: the service is unavailable **for
+every account of the household, not only for you**, and an acquisition in flight resumes where it
+stopped. « Êtes-vous sûr ? » would have been a dialog that says nothing.
+
+**A RULE WAS ASSERTING THE DEFECT.** `harness/page_host.py` held « and a real tap on the restart
+offer TAKES it » — which is the behaviour this entry calls a defect, written down as a
+requirement. It reads « ASKS before it takes it » now. That is B-085's species from the closest
+possible range: a rule can certify the defect, and this one did for as long as the defect stood.
+Its neighbours then failed for a reason that was not theirs — a modal left up makes every later
+tap « present but not tappable » — so the walk dismisses the confirmation before going on.
+
+**The rule that closes it is `harness/settings.py`'s, seven holds, and it was RED before the
+confirmation existed.** THE WALK GOES THROUGH THE CANCEL, which is the half that separates a
+confirmation from a delay: cancelling leaves the restart OWED and says nothing about one having
+happened; only confirming restarts, and then it says so.
+
+<sub>`python3 frontend/maquette/harness/settings.py` → 65 holds, no violation · `python3 frontend/maquette/harness/page_host.py` → 44 holds, no violation</sub>
 
 **B-301 — a season is printed « à récupérer » and nothing lets one take it.** `features/media/panel-
 seasons.tsx` derives a `to_grab` state per season and draws it as a warning swatch; no verb follows,
