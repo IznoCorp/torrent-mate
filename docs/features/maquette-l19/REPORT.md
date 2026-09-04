@@ -48,16 +48,24 @@ is L13's, and this wave is the one that establishes it by subtraction rather tha
 
 ## 3. « The delegation handles only the frame's verbs » — carried, not met
 
-**Measured on the final head: 133 `closest.dataset.` reads over some 71 verbs, of which six are
-the frame's.** The wave moved the two the contract's own objective names — `data-cancelsetting`
+**Measured on the final head: 133 `closest.dataset.` reads over 73 distinct names** (132 over 71
+on `main`). The wave moved the two the contract's own objective names — `data-cancelsetting`
 (settings) and `data-take` (arrivals) — and added none.
+<sub>`grep -c "closest\.dataset\." frontend/maquette/design/src/engine/legacy.js` · `grep -o "closest\.dataset\.[A-Za-z0-9_]*" … | sed 's/.*\.//' | sort -u | wc -l`</sub>
+
+**NEITHER FIGURE IS A VERB COUNT, and this file said « some 71 verbs, of which six are the
+frame's » with no command under it.** `index`, `ep`, `sugidx` and `selectedTitle` are data the
+handler reads off the tapped node, not acts; the split between a verb and a datum has never been
+produced by any lot, this one included. What is measured is 133 reads over 73 names. What is
+asserted below is that most of them are behaviour, and it is an assertion on a denominator nobody
+has counted — said here rather than dressed as a measurement.
 
 **Why the rest were not moved**, said as a reading rather than as a shortfall:
 
 - The lot's own contract says « no surface changes » and the office's first review rule says a
-  conversion wave does not carry a behaviour repair. **Moving sixty-five verb readers is a
-  behaviour surface**, and `data-take` is the evidence: moving ONE of them uncovered a live defect
-  that had never been measured (B-309, § 5).
+  conversion wave does not carry a behaviour repair. **Moving the remaining readers is a behaviour
+  surface**, and `data-take` is the evidence: moving ONE of them uncovered a live defect that had
+  never been measured (B-309, § 5).
 - The brief that opened the lot names exactly two and says « you do not add a verb ».
 
 **The count rose by one**, 132 → 133, and it is honest to say why: the two behaviour phases added
