@@ -284,6 +284,67 @@ async def main():
               conflict_banner is not None and len(conflict_banner["actions"]) >= 1,
               str((conflict_banner or {}).get("actions")))
 
+        # ── RESTARTING IS CONFIRMED FIRST (B-300, §17) ────────────────────
+        #
+        # « Redémarrer maintenant » restarted ON THE TAP: the flag dropped and a
+        # toast said « Service redémarré ». A restart cuts the service for EVERY
+        # account of the household (§17), which is the case NE-DOIT-PAS-6's
+        # spirit covers even though nothing is destroyed. Production confirms.
+        #
+        # THE WALK GOES THROUGH THE CANCEL, and that is the half that separates
+        # a confirmation from a delay: a build that raised a dialog and
+        # restarted anyway would satisfy every check that only tapped through.
+        await pg.evaluate("()=>window.__go('settings-restart')")
+        await pg.wait_for_timeout(400)
+        raised = await pg.evaluate("""()=>{
+          const act = document.querySelector('[data-restart]');
+          if (!act) return false; act.click(); return true;}""")
+        await pg.wait_for_timeout(500)
+        confirmation = await pg.evaluate("""()=>{
+          const dialog = document.querySelector('#dlg');
+          if (!dialog || !dialog.hasAttribute('data-open')) return null;
+          return {text: dialog.textContent.replace(/\s+/g,' ').trim(),
+                  actions: [...dialog.querySelectorAll('button')]
+                    .map((b) => b.textContent.trim())};}""")
+        check("« Redémarrer maintenant » is there to be tapped", raised)
+        check("and it asks BEFORE it restarts (B-300, §17)",
+              confirmation is not None, str(confirmation))
+        check("the confirmation says the service goes down for everyone",
+              confirmation is not None and "service" in confirmation["text"].lower(),
+              (confirmation or {}).get("text", "")[:120])
+        check("and it offers a way out as well as a way through",
+              confirmation is not None and len(confirmation["actions"]) >= 2,
+              str((confirmation or {}).get("actions")))
+
+        # CANCELLING LEAVES THE RESTART OWED, and says nothing about it having
+        # happened.
+        await pg.evaluate("""()=>{const out = [...document.querySelectorAll('#dlg button')]
+          .find((b) => !('confirmrestart' in b.dataset)); if (out) out.click();}""")
+        await pg.wait_for_timeout(400)
+        after_cancel = await pg.evaluate("""()=>({
+          owed: !!window.__referentiel.SETTINGS_STATE.redemarrage,
+          said: (document.querySelector('#toast') || {}).textContent || ''})""")
+        check("cancelling leaves the restart OWED (B-300)",
+              after_cancel["owed"], str(after_cancel["owed"]))
+        check("and says nothing about a restart having happened",
+              "redémarré" not in after_cancel["said"].lower(),
+              after_cancel["said"][:80])
+
+        # CONFIRMING RESTARTS, and only then.
+        await pg.evaluate("""()=>{const act = document.querySelector('[data-restart]');
+          if (act) act.click();}""")
+        await pg.wait_for_timeout(400)
+        await pg.evaluate("""()=>{const go = document.querySelector('#dlg [data-confirmrestart]');
+          if (go) go.click();}""")
+        await pg.wait_for_timeout(500)
+        after_confirm = await pg.evaluate("""()=>({
+          owed: !!window.__referentiel.SETTINGS_STATE.redemarrage,
+          said: (document.querySelector('#toast') || {}).textContent || ''})""")
+        check("confirming restarts (B-300)", not after_confirm["owed"],
+              str(after_confirm["owed"]))
+        check("and says so", "redémarré" in after_confirm["said"].lower(),
+              after_confirm["said"][:80])
+
         # ── a secret is never shown ────────────────────────────────────────
         await pg.evaluate("()=>window.__go('settings-secrets')")
         await pg.wait_for_timeout(320)
