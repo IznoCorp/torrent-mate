@@ -54,6 +54,22 @@ DRIVEN = (
      ".find(a=>a.id==='library-clean').l"),
 )
 
+# WHAT A PANEL SAYS ABOUT RISK, read on the DRAWN chip. It is here because the
+# mutation that turned `destructive` from `danger` to `success` fell NO rule:
+# `machine.py` walks the maintenance panel and reads its actions, the oracle
+# measures a region ROOT and a chip is a child of one, and nothing anywhere
+# asked what colour a command that deletes is announced in. A destructive
+# command wearing the success tone is a reassuring lie about the one thing this
+# panel exists to say.
+#
+# THE TONE IS READ, NOT THE WORD. The word is `fr.json`'s and moves with the
+# copy; the tone is a token name and is code, and they are two halves the engine
+# kept in one object because it had no i18n layer.
+TONES = (
+    # named state, the tone its chip must carry, and why it must
+    ("maintenance-delete", "danger", "a command that deletes says so"),
+)
+
 # THE OTHER QUESTION A KIND MAY ANSWER — « does this interface HOLD this
 # subject » — and the addressed-panel table asks it before opening anything from
 # an address a reader can type. It is not `produce` answering: a producer
@@ -134,7 +150,19 @@ async def main():
         # listener is attached once `open_page` has navigated, so this reads the
         # errors the SEAM raises and not the ones the boot might. Boot errors are
         # `states.py`'s, on all 54 named states.
-        # 4. THE HOLDER, both ways.
+        # 4. THE CHIP'S TONE, on the panel a named state opens.
+        for state, tone, why in TONES:
+            await page.evaluate("(id)=>window.__go(id)", state)
+            await page.wait_for_timeout(400)
+            chip = await page.evaluate(
+                """()=>{const c = document.querySelector('#sheet [data-part="chip"]');
+                        return c ? {tone: c.dataset.tone, text: c.textContent.trim()} : null;}""")
+            journal.check(
+                f"on {state}, {why}",
+                chip is not None and chip["tone"] == tone,
+                f"{chip} · expected tone {tone!r}")
+
+        # 5. THE HOLDER, both ways.
         for kind, real, invented in HOLDS:
             journal.check(
                 f"« {kind} » holds a subject it really has",
