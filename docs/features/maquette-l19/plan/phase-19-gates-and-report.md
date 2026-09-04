@@ -66,4 +66,20 @@ cited. Then the steward is messaged: the review is independent of this session.
 
 ## Verdict
 
-*(filled when the phase lands)*
+*(the gates' readings are written into `REPORT.md` § 10, taken once on the final head)*
+
+### The full suite found two pointers this wave had invalidated
+
+Neither went quiet; both fell **loudly**, in the tier written to catch exactly that.
+
+- **R56 « there really are callers » read `panel.open(` and found ZERO.** A producer does not
+  CALL `open` since this lot: it is registered against a kind and RETURNS a descriptor. The hold
+  counts registrations beside calls now, and holds the same discipline on them — a registration is
+  a DECLARATION, never a string.
+- **R56 « every block module outside `ui/panel` is imported at boot » read `app/shell.tsx`**, and
+  the list moved to `app/panel-contributions.ts`. It reads what the boot REACHES now, one level
+  down, because a feature with more than one panel gathers its siblings — a reader that stopped at
+  the first file called `panel-field` absent while the boot reached it.
+
+Both are the shape this wave met four times: **a pointer that silently misses its target is how a
+rule goes quiet.** These did not.
