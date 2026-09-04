@@ -936,5 +936,10 @@
       "deleteFromLibrary": "Supprimer de la médiathèque",
       "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste (§5)."
     }
+  },
+  "verbs": {
+    "arrivals": {
+      "taken": "« {{title}} » récupéré — suivez-le dans « En vol »."
+    }
   }
 }

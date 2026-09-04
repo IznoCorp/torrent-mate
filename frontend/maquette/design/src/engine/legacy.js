@@ -9612,21 +9612,10 @@ import {
       }
       return;
     }
-    // THE PANEL'S TAKE, TOLD APART FROM THE RELEASE SCREEN'S (L19, B-309).
-    // Both wear `data-take`; the release screen carries an INDEX and a
-    // medium's panel carries its TITLE. This branch used to answer for both
-    // and had no guard, so a title reached `releases()[NaN]` and threw — the
-    // panel closed and nothing was taken. The arrivals feature says which
-    // values are its own, because the queue is the thing that knows.
-    if (closest.dataset.take
-        && window.__arrivalsVerbs?.takes(closest.dataset.take)) {
-      const take = closest.dataset.take;
-      panel.close();
-      window.__arrivalsVerbs.take(take);
-      render();
-      toast(`« ${baseTitle(take)} » récupéré — suivez-le dans « En vol ».`);
-      return;
-    }
+    // THE PANEL'S TAKE, TOLD APART FROM THE RELEASE SCREEN'S (L19, B-309):
+    // an INDEX is the screen's, a TITLE is a medium's panel. The arrivals
+    // feature says which values are its own, and does the act.
+    if (window.__arrivalsVerbs?.take(closest.dataset.take)) return;
     if (closest.dataset.take) {
       const release = releases()[Number(closest.dataset.take)];
       // One router pop — the release-choice screen is a route now, and the

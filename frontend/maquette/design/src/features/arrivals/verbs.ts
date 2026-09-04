@@ -17,6 +17,7 @@
 // branch never asked: an INDEX is the release screen's, a TITLE is the panel's.
 // That is the whole repair, and it lives here rather than in the delegation
 // because the act is the arrivals' — `frame-model.md` Part 12.
+import i18next from "i18next";
 import { queueNow } from "../../lib/queue";
 
 declare global {
@@ -31,38 +32,46 @@ declare global {
        * holds is not this feature's, and saying so is how the delegation knows
        * which of the two branches it is in.
        */
-      takes: (value: string) => boolean;
-      /** Takes the medium, and says so. */
-      take: (title: string) => void;
+      take: (value: string | undefined) => boolean;
     };
   }
 }
 
 /**
- * Whether a `data-take` value names a medium waiting to be taken.
+ * Takes the medium a `data-take` value names, if it names one.
  *
- * READ FROM THE QUEUE, never from the value's SHAPE. « is it a number? » would
- * be a rule about spelling, and a medium whose title is a year would break it
- * — `2012`, `1917`, `300`. The queue is the thing that knows.
+ * ONE DOOR, ANSWERING WHETHER IT ACTED, so the delegation's branch is a single
+ * line and the act is entirely here — which is the direction D5 asks the engine
+ * to move in. The release screen's own take is left to fall through.
+ *
+ * WHETHER THE VALUE IS OURS IS READ FROM THE QUEUE, never from its SHAPE. « is
+ * it a number? » would be a rule about spelling, and a medium whose title is a
+ * year would break it — `2012`, `1917`, `300`. The queue is the thing that
+ * knows.
+ *
+ * THE PANEL CLOSES AND THE PAGE IS REDRAWN HERE, inside the tap's own commit:
+ * the branch this replaces closed the panel and waited 260 ms before acting,
+ * which is B-249's shape, and R123 reads the queue at 120 ms to say it is gone.
  *
  * Args:
- *     value: The attribute's value.
+ *     value: The attribute's value, or undefined when there is none.
  *
  * Returns:
- *     True when the queue holds a takeable medium by that name.
+ *     True when this feature took the medium — the delegation stops there.
  */
-function takes(value: string): boolean {
-  return queueNow().takeable.some((one) => one.t === value);
+function take(value: string | undefined): boolean {
+  if (value === undefined) return false;
+  if (!queueNow().takeable.some((one) => one.t === value)) return false;
+  const reference = window.__referentiel;
+  window.__panel.close();
+  window.__queueActions?.take(value);
+  reference.render();
+  window.__toast?.show({
+    message: i18next.t("verbs.arrivals.taken", {
+      title: reference.baseTitle(value),
+    }),
+  });
+  return true;
 }
 
-/**
- * Takes a medium out of the queue.
- *
- * Args:
- *     title: The medium.
- */
-function take(title: string): void {
-  window.__queueActions?.take(title);
-}
-
-window.__arrivalsVerbs = { takes, take };
+window.__arrivalsVerbs = { take };

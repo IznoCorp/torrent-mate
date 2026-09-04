@@ -588,8 +588,9 @@ strongest form of « seen red before the move » this register asks for.
 
 **FIXED on this branch, phase 13.** The two takes are told apart by WHAT THEY CARRY, which is
 what the engine's branch never asked: an INDEX is the release screen's, a TITLE is the panel's.
-The arrivals feature answers which values are its own (`features/arrivals/verbs.ts`), and it asks
-the QUEUE rather than the value's shape — « is it a number? » would be a rule about spelling, and
+The arrivals feature answers which values are its own (`features/arrivals/verbs.ts`) — one door
+that says whether it acted, so the delegation's branch is a SINGLE LINE and the engine SHRINKS
+rather than grows — and it asks the QUEUE rather than the value's shape — « is it a number? » would be a rule about spelling, and
 a medium whose title is a year would break it (`2012`, `1917`, `300`). The panel's dead branch is
 deleted with it.
 
