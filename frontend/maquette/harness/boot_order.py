@@ -16,12 +16,12 @@ WHAT THE ORDER IS, AND WHY EACH STEP CANNOT MOVE:
   installNavigation(...)      hands `go()` the router and the history
   installScreenBridge()       every opener it installs navigates through `go()`
   createStore()               the panel host receives it as an ARGUMENT
-  installPanelHost(store)     must exist before the seams are handed over
+  installPanelHost(store, …)  must exist before the seams are handed over
   installSeams({...})         the engine imports these three names
   window.__startEngine(...)   the engine runs, and everything above must be real
   installLiveUpdates(client)  L10. It invalidates INTO the query cache and
                               receives it as an argument, the same reason
-                              `installPanelHost(store)` follows `createStore()`
+                              `installPanelHost(store, …)` follows `createStore()`
   installRelay()              after the rules are subscribed, or the first
                               event of the connection reaches an empty table.
                               And BEFORE the render: a subscription installed
@@ -97,7 +97,11 @@ BOOT_STEPS = (
     (r"^installNavigation\(", "installNavigation(router, history)"),
     (r"^installScreenBridge\(\);", "installScreenBridge()"),
     (r"^const store = createStore\(\);", "createStore()"),
-    (r"^installPanelHost\(store\);", "installPanelHost(store)"),
+    # THE CACHE IS ITS SECOND ARGUMENT since the producers became the
+    # features' (L19), so the pin reads the CALL and not one spelling of
+    # its argument list — a pointer that misses its target is how a rule
+    # goes quiet, and this one holds a POSITION rather than a signature.
+    (r"^installPanelHost\(store,", "installPanelHost(store, …)"),
     (r"^installSeams\(\{", "installSeams({…})"),
     (r"^const start = window\.__startEngine;", "the engine handshake"),
     (r"^installLiveUpdates\(queryClient\);", "installLiveUpdates(queryClient)"),

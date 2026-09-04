@@ -208,7 +208,31 @@ export type PanelProducer = (
   cache: PanelCache,
 ) => PanelDescriptor | null;
 
+/**
+ * A read a producer needs to have LANDED before it can answer.
+ *
+ * WHY A PRODUCER DECLARES THIS AT ALL, and it was measured rather than
+ * foreseen: a producer reads the cache synchronously, and nothing fills a cache
+ * for a surface no component has mounted. The account menu is raised from the
+ * header on every page and its query belongs to the account PAGE, so the first
+ * reading of it was `undefined` on every page but one — the producer answered
+ * `null`, correctly, and the menu opened nowhere.
+ *
+ * The engine's answer to the same problem is `app/engine-data.ts`: ONE list, in
+ * `app/`, of what it reads with no component to ask for it. A producer that has
+ * moved into its feature declares its own instead, beside itself, which is what
+ * lets that list empty entry by entry rather than grow one per conversion.
+ *
+ * STRUCTURAL, like `PanelCache`: a key and a function that answers. This file
+ * learns neither the caching library nor the address.
+ */
+export type PanelNeed = {
+  queryKey: readonly unknown[];
+  queryFn: () => Promise<unknown>;
+};
+
 const producers = new Map<string, PanelProducer>();
+const needs = new Map<string, readonly PanelNeed[]>();
 
 /**
  * Declares what produces a panel kind.
@@ -221,8 +245,28 @@ const producers = new Map<string, PanelProducer>();
  *     kind: The panel's kind, as the delegation asks for it.
  *     produce: What builds its descriptor.
  */
-export function registerProducer(kind: string, produce: PanelProducer): void {
+export function registerProducer(
+  kind: string,
+  produce: PanelProducer,
+  requires: readonly PanelNeed[] = [],
+): void {
   producers.set(kind, produce);
+  if (requires.length > 0) needs.set(kind, requires);
+}
+
+/**
+ * Every read the registered producers need to have landed.
+ *
+ * Answered as one list rather than per kind, because the caller is a boot and a
+ * reset — both of which ask for all of it at once — and a per-kind door would
+ * invite asking at open time, which is the one moment a producer cannot await.
+ *
+ * Returns:
+ *     The needs, in registration order, with no attempt to remove duplicates:
+ *     the cache deduplicates by key, which is the layer that knows how.
+ */
+export function producerNeeds(): readonly PanelNeed[] {
+  return [...needs.values()].flat();
 }
 
 /**

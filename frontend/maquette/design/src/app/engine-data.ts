@@ -85,6 +85,11 @@ export function installEngineData(queryClient: QueryClient): void {
       },
     });
     window.__refillSuggestions?.();
+    // AND WHAT THE MOVED PRODUCERS READ. A producer is called from a click and
+    // cannot await, so its reads are asked for here with the rest — beside the
+    // list this file exists to hold rather than inside it, because a producer
+    // that has moved declares its own needs and this file is the one that dies.
+    window.__refillProducers?.();
   };
   window.__refillEngineData();
 }

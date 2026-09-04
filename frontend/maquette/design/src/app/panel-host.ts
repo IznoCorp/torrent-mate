@@ -8,6 +8,7 @@ import { installArtworkArrival } from "./artwork-arrival";
 import { flushSync } from "react-dom";
 import {
   producerFor,
+  producerNeeds,
   refuseBlock,
   refuseProducer,
   registeredProducers,
@@ -24,6 +25,8 @@ declare global {
     __unknownPanel: () => void;
     // The same probe one level up: a panel KIND nobody produces must raise.
     __unknownProducer: () => void;
+    /** Re-asks for what the moved producers read and no component observes. */
+    __refillProducers?: () => void;
   }
 }
 
@@ -184,7 +187,30 @@ function producePanel(kind: string, subject = ""): void {
   const produce = producerFor(kind);
   if (produce === null) refuseProducer(kind);
   const descriptor = produce(subject, { held });
-  if (descriptor !== null) openPanel(descriptor);
+  if (descriptor !== null) {
+    openPanel(descriptor);
+    return;
+  }
+  /* NOTHING IN THE CACHE YET — so it is asked for, and the panel opens when the
+     answer lands. This is not a retry loop dressed up: it is the one case a
+     producer reading a cache has that a producer reading a FIXTURE never had,
+     and it was measured rather than foreseen. `window.__go(id)` clears the
+     cache so no measurement inherits a previous one's pages, and a named state
+     that opens a panel then produces it in the SAME tick — `sheet-user` does,
+     and so will every panel state after it. The engine's producer had its
+     fixture in hand and always opened; this one would have opened nothing, on
+     the very path three rules walk.
+
+     WHAT IT DOES NOT DO is draw anything new. Same descriptor, same rendering,
+     one beat later on a cold cache and not at all different on a warm one — the
+     oracle measures at rest and has nothing to report. A subject the layer
+     genuinely does not have still opens nothing, which is where this stops. */
+  void Promise.all(
+    producerNeeds().map((required) => queryClient.prefetchQuery(required)),
+  ).then(() => {
+    const landed = produce(subject, { held });
+    if (landed !== null) openPanel(landed);
+  });
 }
 
 /* WHAT A PRODUCER SEES OF THE CACHE, and all it sees. `getQueryData` answers
@@ -194,6 +220,24 @@ function producePanel(kind: string, subject = ""): void {
 function held<Result>(key: readonly unknown[]): Result | undefined {
   return queryClient.getQueryData<Result>(key);
 }
+
+/* WHAT THE PRODUCERS NEED, ASKED FOR — and published rather than called once,
+   for the reason `__refillSuggestions` is: a named state CLEARS the cache so no
+   measurement inherits a previous one's pages, and a query with an OBSERVER is
+   re-asked by that observer while one without is not. A producer has none: it
+   is called from a click, not rendered. This is the door the reset re-asks
+   through, and `app/engine-data.ts` — the engine's own list of what nothing
+   observes — calls it beside its own. It dies when that file does.
+
+   PUBLISHED HERE AND FIRST CALLED THERE, which is an ordering and was measured:
+   this module is installed BEFORE `installMockNetwork()`, so a fetch started on
+   this line leaves before there is a layer to answer it, and the cache stays
+   empty in a way that reads exactly like a producer with nothing to say. The
+   first fill is `installEngineData`'s, which runs after the mocks — the same
+   position `installSuggestionsLookup` fills its own reserve from. */
+window.__refillProducers = () => {
+  for (const required of producerNeeds()) void queryClient.prefetchQuery(required);
+};
 
 window.__panel = {
   open: openPanel,

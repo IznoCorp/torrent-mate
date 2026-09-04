@@ -122,8 +122,13 @@ SCREEN_STATES = ("mediasheet-series", "arr-resolution")
 # conversion phase, and the floor is what stops a panel that draws nothing from
 # passing as kept — the failure a bare `isSameNode` over an empty set reports as
 # success.
+# The floor is READ, not guessed: `sheet-user` captures 7 — two actions, the
+# avatar, and the icon strokes inside the buttons — measured by raising the
+# floor to 999 and reading what the hold printed. 5 is what is left when the
+# actions go, which is the failure this floor is for; it survives an icon path
+# changing, which is not.
 PANEL_STATES = (
-    ("sheet-user", 3),
+    ("sheet-user", 5),
 )
 # The panel's own nodes, and only its own: `#sheet` never contains the page. The
 # `svg path` is here for the reason it is in `PAGE_SELECTOR` — a press landing

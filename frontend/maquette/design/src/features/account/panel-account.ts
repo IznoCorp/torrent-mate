@@ -17,18 +17,7 @@
 import i18next from "i18next";
 import { icons } from "../../app/icons";
 import { registerProducer, type PanelDescriptor } from "../../ui/panel/contract";
-
-// The key the account is cached under — `queries.ts`'s own, written once here
-// rather than imported, because importing the hook would pull `useQuery` into a
-// module no component renders. It is the address, which is the one spelling
-// both sides already agree on.
-const ACCOUNT_KEY = ["/api/auth/me"];
-
-// What this panel reads of the account. `avatar` is not in the feature's
-// reference slice — the engine's fixture carries it and the mock seed serves
-// it, and this is the only surface that draws it, so it is declared where it is
-// read.
-type Account = { name: string; mail: string; avatar?: string };
+import { accountQuery, type Account } from "./queries";
 
 /**
  * Builds the account menu's descriptor.
@@ -50,7 +39,7 @@ function accountPanel(
   _subject: string,
   cache: { held: <Result>(key: readonly unknown[]) => Result | undefined },
 ): PanelDescriptor | null {
-  const account = cache.held<Account>(ACCOUNT_KEY);
+  const account = cache.held<Account>(accountQuery.queryKey);
   if (account === undefined) return null;
   const translate = i18next.t.bind(i18next);
   return {
@@ -84,6 +73,9 @@ function accountPanel(
   };
 }
 
-// Declared to the registry as this module evaluates. The shell imports this
-// file at boot, before any panel can open.
-registerProducer("account", accountPanel);
+// Declared to the registry as this module evaluates, WITH WHAT IT NEEDS TO HAVE
+// LANDED. The menu is raised from the header on every page, and the account's
+// query belongs to the account page — so without this the cache is empty
+// everywhere but there, the producer answers `null`, and the menu opens
+// nowhere. Measured, on `sheet-user`, by three rules at once.
+registerProducer("account", accountPanel, [accountQuery]);
