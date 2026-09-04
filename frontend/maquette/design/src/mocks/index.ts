@@ -315,6 +315,13 @@ export function installMockNetwork(): void {
     setLibraryDatabaseAvailable: (available: boolean) => {
       mockState().libraryDatabaseAvailable = available;
     },
+    // WHETHER A CONFIGURATION FILE HAS MOVED UNDER THE EDITOR. The contract's
+    // `updateConfigurationFile` answers `{ restartRequired, conflict }`, and
+    // the second field had no reader anywhere until L19 — a dial rather than a
+    // scenario, because it is a property of the FILE and not of the request.
+    setConfigurationConflict: (moved: boolean) => {
+      mockState().conflict = moved;
+    },
     setOffline: (down: boolean) => {
       networkIsDown = down;
     },
@@ -353,6 +360,8 @@ declare global {
       isOffline: () => boolean;
       /** Whether the library database answers — false makes ownership null. */
       setLibraryDatabaseAvailable: (available: boolean) => void;
+      /** Whether a configuration file has moved under the editor (B-299). */
+      setConfigurationConflict: (moved: boolean) => void;
       /** How many times each idempotency key arrived at the layer. */
       arrivalsByKey: () => Record<string, number>;
       reset: () => void;

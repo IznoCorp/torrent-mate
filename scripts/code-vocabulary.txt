@@ -105,6 +105,7 @@ backoff
 badge
 badges
 band
+banners
 bar
 base
 batch
@@ -203,6 +204,7 @@ conditions
 config
 configuration
 confirmadd
+conflicted
 connect
 connected
 connection
@@ -316,6 +318,7 @@ ease
 edge
 edit
 edited
+edits
 element
 emit
 emphasis
@@ -851,6 +854,7 @@ releases
 reload
 reloaded
 reloading
+reloadsettings
 remaining
 remember
 remembered
@@ -1169,6 +1173,7 @@ user
 username
 valid
 value
+values
 variant
 verb
 version

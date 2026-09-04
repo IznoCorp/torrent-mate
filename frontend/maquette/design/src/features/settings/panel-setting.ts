@@ -12,7 +12,8 @@
 import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import { flattenSettings, settingIdentifier, valueShown } from "./catalog";
-import { settingsQuery } from "./queries";
+import { HELD } from "../../lib/query-client";
+import { settingsQuery, writeConfigurationFile } from "./queries";
 import type { Setting, SettingsTopic } from "./reference";
 
 // THE ICONS COME THROUGH THE ENGINE'S DRAWING SLICE, not by importing
@@ -145,11 +146,69 @@ function cancelEdit(identifier: string): void {
 declare global {
   interface Window {
     /** The verbs the settings panels offer, called by the click delegation. */
-    __settingsVerbs?: { cancelEdit: (identifier: string) => void };
+    __settingsVerbs?: {
+      cancelEdit: (identifier: string) => void;
+      /** Writes every changed file and reads what came back (B-299). */
+      save: () => Promise<void>;
+      /** Throws the stale edits away and asks for the settings again. */
+      reload: () => void;
+    };
   }
 }
 
-window.__settingsVerbs = { cancelEdit };
+/* SAVING — the settings' other verb, and the one that made B-299 readable.
+   `data-save` closed over nothing but local state: it cleared the pending
+   edits, raised the restart flag and said « Enregistré », without ever asking
+   the layer. So `conflict` — a field the contract has always answered — had no
+   reader, and the copy naming « three banners » drew two.
+
+   IT WRITES EACH CHANGED FILE and reads what comes back. A conflict does not
+   clear the edits: the file moved under the editor, so what is on screen no
+   longer describes what is stored, and throwing the operator's work away on top
+   of that would be the second loss. */
+async function saveEdits(): Promise<void> {
+  const reference = window.__referentiel;
+  const files = reference.changedFiles();
+  const pending = reference.SETTINGS_STATE.modifs;
+  let conflicted = false;
+  for (const file of files) {
+    const values: Record<string, unknown> = {};
+    for (const [identifier, value] of pending)
+      if (identifier.startsWith(file + ":")) values[identifier] = value;
+    const answered = await writeConfigurationFile(file, values);
+    // A WRITE THE OUTBOX HELD, or one that answered nothing, says nothing about
+    // the file — so it says nothing here either. Neither is a conflict, and
+    // neither is a promise that there is none.
+    if (answered !== HELD && answered !== undefined && answered.conflict)
+      conflicted = true;
+  }
+  reference.SETTINGS_STATE.conflict = conflicted;
+  if (conflicted) {
+    reference.render();
+    return;
+  }
+  pending.clear();
+  reference.SETTINGS_STATE.redemarrage = true;
+  reference.render();
+  window.__toast?.show({
+    message: i18next.t("panels.setting.savedToast", {
+      files: files.map(reference.fileName).join(", "),
+    }),
+  });
+}
+
+/* RELOADING after a conflict — the only honest verb. The editor's copy is
+   stale and there is nothing local worth keeping, so the pending edits go with
+   the banner and the settings are asked for again. */
+function reloadSettings(): void {
+  const reference = window.__referentiel;
+  reference.SETTINGS_STATE.modifs.clear();
+  reference.SETTINGS_STATE.conflict = false;
+  window.__queries?.invalidateQueries({ queryKey: settingsQuery.queryKey });
+  reference.render();
+}
+
+window.__settingsVerbs = { cancelEdit, save: saveEdits, reload: reloadSettings };
 
 registerProducer("setting", {
   produce: settingPanel,

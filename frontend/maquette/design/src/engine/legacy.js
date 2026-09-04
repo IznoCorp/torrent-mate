@@ -9034,11 +9034,15 @@ import {
       return;
     }
     if (closest.dataset.save) {
-      const fileNames = changedFiles();
-      SETTINGS_STATE.modifs.clear();
-      SETTINGS_STATE.redemarrage = true;
-      render();
-      toast(`Enregistré — ${fileNames.map(fileName).join(", ")}.`);
+      // THE SAVE ASKS THE LAYER NOW (L19, B-299). It used to clear the edits,
+      // raise the restart flag and say « Enregistré » without ever writing
+      // anything — so `conflict`, a field the contract has always answered, had
+      // no reader and the copy naming three banners drew two.
+      void window.__settingsVerbs?.save();
+      return;
+    }
+    if (closest.dataset.reloadsettings) {
+      window.__settingsVerbs?.reload();
       return;
     }
     if (closest.dataset.restart) {

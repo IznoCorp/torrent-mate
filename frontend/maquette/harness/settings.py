@@ -259,7 +259,8 @@ async def main():
         #      LAYER's answer and not from a local guess.
         await pg.evaluate("()=>window.__go('settings-edited')")
         await pg.wait_for_timeout(400)
-        await pg.evaluate("""()=>window.__mocks?.set?.({conflict: true})""")
+        await pg.evaluate(
+            """()=>window.__mocks.setConfigurationConflict(true)""")
         saved = await pg.evaluate("""()=>{
           const act = document.querySelector('#savebar [data-save]');
           if (!act) return false; act.click(); return true;}""")

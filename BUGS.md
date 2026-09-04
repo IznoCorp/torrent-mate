@@ -358,7 +358,7 @@ when the defect comes back.
 | B-296 | The raw log of an execution has no surface; the passage's narrative is per media and the log lines are folded in the run's detail | by survey | `open` |
 | B-297 | The locks — pipeline lock, pause sentinel, watcher pause, tmp-orphan sweep — have no surface, and three of them are the state of L20's levers | by survey | `open` |
 | B-298 | The ranking editor is a promise: a settings rubric that leads nowhere and a toast saying it will exist | by survey | `open` |
-| B-299 | `SettingsState.conflict` is declared, set to `false` at boot, and never raised, drawn or copied — the 412 has no surface | by survey | `open` |
+| B-299 | `SettingsState.conflict` is declared, set to `false` at boot, and never raised, drawn or copied — the conflict the contract answers has no surface | by survey | `to confirm` |
 | B-300 | « Redémarrer maintenant » restarts on the tap, with no confirmation, while a restart cuts the service for the whole household | by survey | `open` |
 | B-301 | The seasons panel prints a season as `to_grab` and offers no verb; the season grab operation is uncalled | by survey | `open` |
 | B-302 | The journey sheet is the tunnel and offers neither « Remettre en file » nor « Re-scraper »; both operations are uncalled | by survey | `open` |
@@ -466,6 +466,39 @@ counterpart, while the copy names « three banners » and draws two. Placed 2026
 the banner is born when the settings producer moves.
 
 <sub>`grep -rn "conflict" frontend/maquette/design/src/features/settings/ frontend/maquette/design/src/engine/legacy.js` → the declaration and two `= false`, no reader · `grep -c "conflit" frontend/maquette/design/src/i18n/fr.json` → 0</sub>
+
+**FIXED on this branch, L19 phase 18.** The banner draws, from the LAYER's own answer.
+
+**THE BRIEF SAID 412 AND THE MAQUETTE'S CONTRACT SAYS OTHERWISE**, and the contract is the
+maquette's own artefact (D7): `updateConfigurationFile` answers `{ restartRequired, conflict }` on
+**200** and declares 409 for a refusal. So « the file moved under the editor » is something the
+write SUCCEEDS in telling, and drawing it from an error branch would be drawing it from a case the
+contract does not describe. Followed, and recorded rather than reconciled silently.
+
+**The save had to start asking.** `data-save` cleared the pending edits, raised the restart flag
+and said « Enregistré » **without writing anything** — so a field the contract has always answered
+had no reader by construction. It writes each changed file now, through
+`features/settings/queries.ts`, and reads what comes back. A held write (offline) and an empty
+answer are passed through rather than flattened: neither is a conflict, and neither is a promise
+that there is none.
+
+**A conflict does not throw the edits away.** The file moved under the editor, so what is on screen
+no longer describes what is stored — losing the operator's work on top of that would be the second
+loss. Reloading is OFFERED, as a decision.
+
+**And the banners moved to where the operator is.** All three were written inline in the RUBRIC
+LIST alone, so a read-only instance said so on the list and said nothing once a rubric was open —
+while the save bar, which raises the third, exists on every branch. B-299's banner would have been
+invisible exactly where « Enregistrer » is tapped. `SettingsBanners` is one component, rendered on
+all four.
+
+**The rule is `harness/settings.py`'s, three holds, and it was RED before the banner existed**
+(`86fe9549a`'s sibling commit): the flag is raised from the layer's answer, the page says so in the
+same `data-part` the other two banners wear — a third shape would be a third banner nobody styled —
+and it offers to reload. `window.__mocks.setConfigurationConflict(true)` is the dial, a property of
+the FILE rather than of the request, which is why it is a dial and not a scenario.
+
+<sub>`python3 frontend/maquette/harness/settings.py` → 57 holds, no violation</sub>
 
 **B-300 — « Redémarrer maintenant » restarts on the tap.** The settings' restart banner's button
 (`data-restart`) is handled by the engine with no confirmation: the flag drops, a toast says «
