@@ -68,7 +68,13 @@ NAMING = """()=>{
     const go = node.closest('[data-go], [data-navgo]');
     return !!go;
   };
-  const named = rows.filter((node) => (node.textContent || '').trim().length > 0);
+  // A ROW THAT NAMES NO IDENTIFIED MEDIUM OWES NO SHEET, and the markup says
+  // which: `data-nonmedia` is what an arrival wears while it is still a folder
+  // nobody has identified. Demanding a path from it would be demanding a link
+  // to a sheet that does not exist, which is the same broken promise read from
+  // the other side.
+  const named = rows.filter((node) => (node.textContent || '').trim().length > 0
+    && !('nonmedia' in node.dataset));
   return {
     drawn: named.length,
     dead: named.filter((node) => !reachable(node)).slice(0, 4).map(
