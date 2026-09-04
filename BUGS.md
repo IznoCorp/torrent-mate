@@ -371,9 +371,10 @@ when the defect comes back.
 | B-309 | « Récupérer maintenant » on a medium's own panel THROWS and takes nothing: the release screen's `data-take` branch is checked first, has no guard, and swallows every `data-take` in the document | by L19 | `to confirm` |
 | B-310 | Opening a media sheet from a bottom panel shows the PANEL again briefly before the sheet comes back — B-249's family, reported by the operator on the L19 head | 1× | `open` |
 | B-311 | Coming back to a list after a medium's sheet does not restore the scroll position the list was left at | 1× | `open` |
-| B-312 | Changing the library's lens during a selection DROPS it — L14's own decision, reported by the operator as a defect | 1× | `open` |
+| B-312 | Changing the library's lens during a selection DROPS it — L14's own decision, RULED against by the operator on 2026-09-05 | 1× | `open` |
 | B-313 | The follow sheet offers « Voir le parcours » TWICE — once as the primary act, once in the secondary row — whenever the primary falls through to it | 1× | `open` |
 | B-314 | The add screen's search shows no example result to try the flow with | 1× | `open` |
+| B-315 | Découvrir's « charger plus »: the button is too big, one press should show more, and the feed must say when the reserve is spent | 1× | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -759,6 +760,23 @@ selection bar already counts MEDIA rather than rows, which is most of that answe
 **Not L19's**, whose contract is « no surface changes ». The operator's ruling is the gate; the
 wave that owns the library's selection surface carries whatever it decides.
 
+**RULED by the operator on 2026-09-05: « La sélection doit survivre au changement des filtres. »**
+L14's decision is overruled, and the reason it was taken is spent — the selection is keyed by
+TITLE since that same wave, so a tick that survives a change of listing cannot land on another
+medium.
+
+**Two guard-rails come with the ruling**, and they are the second half of « a tick nobody can see
+is a tick nobody can untick »: the selection bar counts every ticked MEDIUM, hidden by the lens or
+not; and the delete dialog NAMES every ticked title, the hidden ones included. A selection that
+survives a lens change without both is a selection the reader cannot audit before destroying it.
+
+**The rule the repair lands with**, named here so it is not invented twice: tick under « Tout »,
+switch to « Films », read the bar's count and the dialog's titles; the mutation is the lens write
+re-dropping the set, and the hold must fall on it.
+
+**Owner**: the wave that owns the library's selection surface, or a behaviour wave beside B-313.
+**Not L19** — its contract is « no surface changes » and it does not touch this.
+
 <sub>`grep -n "selected: new Set()" frontend/maquette/design/src/engine/legacy.js` · `git show 9ce9b0508:docs/features/maquette-l14/REPORT.md` § the selection keyed by title</sub>
 
 **B-313 — the follow sheet offers « Voir le parcours » twice.**
@@ -794,6 +812,26 @@ twice: a panel's actions are counted BY LABEL, and a label appearing twice is re
 Reported by the operator on 2026-09-05: « Ajouter un suivi : le formulaire de recherche ne montre
 plus d'exemple de résultat pour tester ». « Ne montre PLUS » says he saw them on an earlier build,
 so the first question is which build — and it is answered by walking both, not by reading either.
+
+<sub>reported through the steward, 2026-09-05</sub>
+
+**B-315 — Découvrir's « charger plus », in three parts.**
+Reported by the operator on 2026-09-05: « Dans Découvrir, le bouton "charger plus" est trop gros,
+et il devrait permettre de voir plus de suggestions et prévenir s'il n'y a plus de suggestions à
+voir. »
+
+**Three parts of three different natures, and separating them is most of the work:**
+
+- **(a) The button is too big.** A DRAWING question on a surface the mission of 2026-08-19
+  declares validated. If its size did not move, this is the operator AMENDING the design, not a
+  regression — and the oracle is what says which.
+- **(b) One press should show more.** A behaviour question: how many suggestions a press adds, and
+  whether the reserve the feed draws from is intact.
+- **(c) The feed must say when the reserve is spent.** `main`'s footer carried an end mark —
+  « Fin de la réserve chargée dans cette maquette — N des 503 suggestions … » — at
+  `legacy.js:8537`. Whether the head still draws it, when, and with what count.
+
+The readings follow, on the head and on a control of `origin/main`.
 
 <sub>reported through the steward, 2026-09-05</sub>
 
