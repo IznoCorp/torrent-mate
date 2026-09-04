@@ -722,20 +722,35 @@ feed (phase 14), whose list container the feature now fills.
 actually walks — list → the medium's sheet → Back — and `harness/scroll_memory.py` is where it
 goes. Whether it drives that path on a WINDOWED list is the question the reading has to answer.
 
-**WALKED ON BOTH BUILDS AND NOT REPRODUCED — said plainly rather than closed.** Two lists, the
-windowed one and an ordinary one, scrolled to 900, a medium's sheet opened from a row, Back:
+**THE OPERATOR NAMED THE SURFACE AND THE MECHANISM.** « Acquisition », the « En cours » tab and
+**not** « Suivis »; and « Bouton retour ou geste retour, même résultat : retour sur la liste EN
+HAUT » — so the back mechanism is not the difference.
 
-    L19 head      library (windowed) 900 → 900 KEPT · follows (ordinary) 900 → 900 KEPT
-    main control  library (windowed) 900 → 900 KEPT · follows (ordinary) 900 → 900 KEPT
+**WALKED TWICE ON BOTH BUILDS AND NOT REPRODUCED — said plainly rather than closed.**
 
-**So the walk is not the operator's.** What this probe does that a finger does not: it sets
-`#port.scrollTop` rather than scrolling, it goes back through the browser's history rather than
-through the interface's own back, and it opens the sheet from a row rather than from the medium's
-panel. **The entry stays open with the reading attached**, because « I could not reproduce it » is
-an honest answer and « it does not happen » is not one this probe can give. What is needed next is
-the operator's own path — which list, and how he came back — and `harness/scroll_memory.py` is
-where the rule goes once that is known (rule 4: the rule must cover the path the operator actually
-walks).
+    first walk    `#port.scrollTop = 900`, history back, sheet from a row
+                  head    library 900 → 900 KEPT · follows 900 → 900 KEPT
+                  control library 900 → 900 KEPT · follows 900 → 900 KEPT
+
+    second walk   a WHEEL over `#port`, « En cours », a tap on a card, the interface's own
+                  `__bridge.back()`
+                  head    960 → 960 KEPT      control 960 → 960 KEPT
+
+The first walk was worse than it looked and is recorded as such: it aimed at `#view` on a page
+where the add screen is a LAYER, and its « finger drag » moved nothing at all — `#port` is the
+scroller and a mouse drag on it does not scroll it. **A probe that reads 900 → 900 having never
+scrolled is a green reading of nothing**, which is this register's oldest species; the second walk
+scrolls for real and reads 960.
+
+**Three differences remain between this walk and his**, and the entry stays open until one of them
+is closed: (1) a TOUCH drag with momentum rather than a wheel — the virtualiser keeps its place
+from a scroll offset, and a momentum scroll settles after the gesture ends; (2) the **standalone
+PWA**, where the system back gesture reaches the app through history rather than through the
+interface's own verb — his status bar shows the app installed; (3) a real device's own scroll
+restoration, which a headless viewport does not have.
+
+« I could not reproduce it » is an honest answer. « It does not happen » is not one this probe can
+give, and the entry does not say it.
 
 <sub>reported through the steward, 2026-09-04 · probe on 8899 and on a control of `4c0e274a7` served on 8902 · `git diff --stat origin/main...HEAD -- …/ui/reader-place.ts …/ui/virtual-rows.tsx …/app/scroll-restoration.ts` → empty</sub>
 
@@ -813,7 +828,25 @@ Reported by the operator on 2026-09-05: « Ajouter un suivi : le formulaire de r
 plus d'exemple de résultat pour tester ». « Ne montre PLUS » says he saw them on an earlier build,
 so the first question is which build — and it is answered by walking both, not by reading either.
 
-<sub>reported through the steward, 2026-09-05</sub>
+**WALKED ON BOTH BUILDS AND NOT REPRODUCED.** The add screen is a LAYER over the acquisition
+page, so the first probe read the page BENEATH it and saw nothing — corrected, and read inside
+`[data-part="screen"][data-open]`:
+
+    head     acq-add-empty   0 row(s), 2 field(s), « Cherchez un titre. Vos recherches récentes… »
+             acq-add-results 5 row(s), query « star wars », « 5 résultats affichés sur 5 trouvés »
+    control  acq-add-empty   0 row(s), 2 field(s), the same sentence
+             acq-add-results 5 row(s), the same query, the same sentence
+
+**Identical.** The example results are drawn on both, and no family the add screen reads died with
+a producer — which is the § 10 question this entry was filed to answer, and the answer is no.
+
+**What the fixtures cannot show**: the operator's « ne montre PLUS » refers to a build he saw, and
+the two here are this head and `origin/main`. If the examples were lost on a build between them —
+or if what he means by « exemple » is the RECENT SEARCHES the empty state offers rather than the
+results — this walk does not reach it. The entry stays open for that answer rather than being
+closed on a reading that does not contradict him.
+
+<sub>reported through the steward, 2026-09-05 · probe on 8899 and on a control of `4c0e274a7` served on 8902</sub>
 
 **B-315 — Découvrir's « charger plus », in three parts.**
 Reported by the operator on 2026-09-05: « Dans Découvrir, le bouton "charger plus" est trop gros,
@@ -831,9 +864,36 @@ voir. »
   « Fin de la réserve chargée dans cette maquette — N des 503 suggestions … » — at
   `legacy.js:8537`. Whether the head still draws it, when, and with what count.
 
-The readings follow, on the head and on a control of `origin/main`.
+**READ ON BOTH BUILDS, and the three parts answer differently.**
 
-<sub>reported through the steward, 2026-09-05</sub>
+**(c) The end mark IS drawn, and it is identical on both.** On `acq-discover-exhausted`:
+
+    head     38 shown of a 38-strong reserve · « Fin de la réserve chargée dans cette maquette —
+             38 des 503 suggestions réellement calculées pour vous. La passe de fond… »
+    control  38 shown of 38 · the same sentence, the same figures
+
+So « prévenir s'il n'y a plus de suggestions » is already true — **when the reserve is spent**.
+What the operator may be asking for is that it be said EARLIER, or said where he is looking; that
+is a design amendment, not a regression, and it is not L19's.
+
+**(b) One press adds a batch, and the reserve is intact.** `acq-discover` draws 30 of 38 on both;
+the footer's sentinel asks for the next batch of 30 as it comes into view. The reserve is 38 on
+both, so **no family the feed reads died with a producer** — the § 10 question, answered no here
+too.
+
+**(a) The button's size did not move, and the oracle is what says so.** `acq-discover`,
+`acq-discover-posters`, `acq-discover-deck`, `acq-discover-degraded`, `acq-discover-exhausted` and
+`acq-discover-loading` are all among the 87 states the oracle measures over 34 regions, and it
+read **no divergence** on every one of L19's eighteen phases. A button whose size had changed
+would have moved a rectangle. **So (a) is the operator amending the design**, which is his to do —
+and the surface to amend is `deckHTML`'s empty state, where `[data-sugmore]` lives: it is the
+DECK's « Charger 30 de plus », not the list's footer, which has no button at all.
+
+**None of the three is L19's.** (a) is a design amendment, (b) already works, (c) already exists
+and may be wanted sooner. Owner: the operator's amendment, then the wave that draws Découvrir's
+footer.
+
+<sub>reported through the steward, 2026-09-05 · probe on 8899 and on a control of `4c0e274a7` served on 8902 · `make maquette-oracle` → 2 958 measurements, no divergence</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
