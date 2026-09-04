@@ -48,4 +48,42 @@ not read all of it.**
 
 ## Verdict
 
-*(filled when the phase lands)*
+**Landed** over two commits. The 207-line producer becomes three files, cut on SUBJECTS:
+`follow-facts.ts` (what is TRUE), `follow-actions.ts` (what one may DO), `panel-follow.ts` (the
+descriptor). Nine harness rules that drove `openFollowSheet` are repointed at the seam.
+
+### Where the data comes from, and where it does not
+
+`LIBRARY` and `SEASONS` are read from **the window surface the engine publishes for the harness**,
+not through the reference — which does not carry them, and adding them to it would be adding to
+the engine, which D5 forbids outside a defect that destroys data. `INCOMPLETE` is the engine's
+thin arrow over the library's own query and comes through the slice, with its expiry written
+beside it. The seasons block receives the same array the engine handed it — the oracle says so at
+zero divergence.
+
+### R122 — NE-DOIT-PAS-9's instrument
+
+Six surfaces, each with a floor. **A path is three things**, because the interface spells
+reachability three ways — `data-mediasheet`, `data-panel` (the long press raises the panel that
+carries the act), and the frame's navigation. Refusing the second would be refusing the
+interface's own gesture vocabulary.
+
+**A row wearing `data-nonmedia` is excluded**, and that is the rule getting sharper rather than
+weaker: an arrival still a folder nobody has identified names no medium, and demanding a path to
+a sheet that does not exist is the same broken promise read from the other side.
+
+**Its first mutation fell nothing, and the rule was right.** Removing `data-panel` from a card's
+body left `data-mediasheet` on its poster, so the row was still reachable. The decisive mutation
+takes BOTH, and the rule fells **all six** surfaces naming the exact media left stranded — « 4
+dead of 12: Kyma, L'Odyssée, Silo, Spider-Man ».
+
+### Readings
+
+oracle **2 958, no divergence** · contracts **16 rules** + 26 guards, no violation ·
+`paths_to_sheets.py` 13 holds · `legacy.js` 32 113 → **31 911** · `states.js` 787 → **786**
+
+### Deviation
+
+**Three files rather than the « about six of 190 lines » shape L14 used.** The cut is on the
+three questions this panel answers, and each file is well under the ceiling; splitting further
+would have been splitting on a line count, which is what both precedents refuse.
