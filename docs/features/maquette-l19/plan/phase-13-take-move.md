@@ -26,4 +26,44 @@ owners, rather than announced as done.
 
 ## Verdict
 
-*(filled when the phase lands)*
+**Landed** over two commits — the move, and the reshaping that made it a subtraction.
+
+### The count, and the repair
+
+| | Holds | Result |
+| --- | ---: | --- |
+| phase 12, engine as it stood | 8 | **3 fell** — B-309 |
+| phase 13, moved reader | **8** | green |
+| phase 13, gained the B-249 hold | 9 | green |
+| phase 13, the queue guard mutated away | 9 | **fell: « and it leaves the release screen »** |
+
+The mutation is the sharp one: removing the guard makes the arrivals verb swallow the RELEASE
+screen's take, and the rule catches it — the exact failure the two-sided reading was written for.
+
+### The two takes are told apart by what they CARRY
+
+An INDEX is the release screen's, a TITLE is a medium's panel — the question the engine's branch
+never asked. **It is answered from the QUEUE, never from the value's shape**: « is it a number? »
+is a rule about spelling, and a medium whose title is a year would break it (`2012`, `1917`,
+`300`).
+
+### The engine had to SHRINK, and the first shape did not
+
+The first commit left `legacy.js` **nine lines longer**, and D5's exception is narrow: the engine
+may be added to only to stop a defect that destroys or loses the operator's DATA. B-309 loses an
+ACT, which is not that — **the growth had no licence and the shape was wrong.**
+`window.__arrivalsVerbs.take(value)` answers whether it ACTED, so the delegation's branch is one
+line and the panel's close, the redraw and the sentence live in the feature. 31 920 → **31 909**,
+twelve below where the phase found it.
+
+### Two guards caught the new rule's own slips
+
+`check-markup-contracts` refused a class-token anchor (copied from the engine's own code) against
+a hard zero, and refused `[data-take]` selected by PRESENCE — which would have made a VALUE
+attribute a boolean state in its derived list. The rule anchors on `data-part` and reads the take
+from the dataset.
+
+### Readings
+
+oracle **2 958, no divergence** · contracts **17 rules** + 26 guards, no violation · `take.py`
+9 holds · `legacy.js` 31 911 → **31 909**
