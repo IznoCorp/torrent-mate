@@ -229,7 +229,11 @@ def main() -> int:
             json.dumps({"note": "One entry per file: how many references to a "
                                 "lot, a phase or a date its comments hold. "
                                 "Refused UPWARD; re-record a file that has "
-                                "shrunk in the commit that shrinks it.",
+                                "shrunk in the commit that shrinks it. "
+                                "`read` is how many files the corpus held when "
+                                "this was taken — the floor below is derived "
+                                "from it, never typed.",
+                        "read": sum(1 for _ in sources()),
                         "files": dict(sorted(counts.items()))},
                        indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8")
@@ -247,24 +251,34 @@ def main() -> int:
               f"has nothing to compare and refuses to report clean",
               file=sys.stderr)
         return 1
-    recorded = json.loads(BASELINE.read_text(encoding="utf-8"))["files"]
+    record = json.loads(BASELINE.read_text(encoding="utf-8"))
+    recorded = record["files"]
 
     # A CORPUS FLOOR, because a reader that finds nothing reports clean. If the
     # tree stops being readable — a moved directory, a suffix list that no
     # longer matches — this arm would print « 0 references » and pass for the
     # one reason it must never pass for.
+    #
+    # DERIVED FROM THE RECORD, NEVER TYPED, and the first version was typed: a
+    # flat 100 against a corpus of 316, so 217 files had to vanish before it
+    # fired and deleting twenty stayed green. A floor placed below anything that
+    # can happen is B-085's own species, in the guard written to end it. The
+    # corpus is recorded with the counts and re-taken with them, and a tenth of
+    # it going missing is a reader that has stopped reading.
     read = sum(1 for _ in sources())
-    if read < 100:
-        print(f"check-maquette-comments: {read} file(s) read, which is fewer "
-              f"than this tree holds — the reader stopped reading",
+    floor = int(record.get("read", 0) * 0.9)
+    if read < floor:
+        print(f"check-maquette-comments: {read} file(s) read against "
+              f"{record.get('read')} recorded — under the floor of {floor}, so "
+              f"the reader has stopped reading rather than the tree got cleaner",
               file=sys.stderr)
         return 1
 
     grown, shrunk = compare(counts, recorded)
 
     print(f"check-maquette-comments: {total} reference(s) in {len(counts)} of "
-          f"{read} file(s) read, {len(GENERATED)} generated file(s) exempt, "
-          f"{len(grown)} grown")
+          f"{read} file(s) read (floor {floor}), {len(GENERATED)} generated "
+          f"file(s) exempt, {len(grown)} grown")
     for name, why in sorted(GENERATED.items()):
         print(f"      {name}: {why}")
     for entry in shrunk:

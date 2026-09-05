@@ -1,5 +1,6 @@
 {
-  "note": "One entry per file: how many references to a lot, a phase or a date its comments hold. Refused UPWARD; re-record a file that has shrunk in the commit that shrinks it.",
+  "note": "One entry per file: how many references to a lot, a phase or a date its comments hold. Refused UPWARD; re-record a file that has shrunk in the commit that shrinks it. `read` is how many files the corpus held when this was taken — the floor below is derived from it, never typed.",
+  "read": 316,
   "files": {
     "a11y.py": 4,
     "contract/openapi.json": 2,

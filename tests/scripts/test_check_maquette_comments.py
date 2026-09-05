@@ -198,3 +198,56 @@ class TestItReadsTheRealTree:
         recorded = json.loads(arm.BASELINE.read_text(encoding="utf-8"))["files"]
         counts, _ = arm.measure()
         assert counts == recorded
+
+
+class TestTheCorpusFloor:
+    """A reader that stops reading reports clean, and the first floor could not fire.
+
+    It was a flat 100 against a corpus of 316: 217 files had to vanish before it
+    said anything, deleting twenty stayed green, and no case exercised it at all.
+    A floor placed below anything that can happen is the species this whole guard
+    was written to end, inside the guard itself.
+    """
+
+    def test_the_floor_is_derived_from_the_record(self, arm) -> None:
+        """Never typed: the corpus is recorded with the counts."""
+        import json
+
+        record = json.loads(arm.BASELINE.read_text(encoding="utf-8"))
+        assert record["read"] == sum(1 for _ in arm.sources())
+        assert record["read"] > 250
+
+    def test_a_tenth_of_the_corpus_missing_fires(self, arm, monkeypatch, capsys) -> None:
+        """THE DEFECT: twenty files gone left the old floor green."""
+        real = list(arm.sources())
+        kept = real[: int(len(real) * 0.85)]
+        monkeypatch.setattr(arm, "sources", lambda: iter(kept))
+        monkeypatch.setattr(arm, "measure", lambda: ({}, {}))
+        monkeypatch.setattr(sys, "argv", ["check-maquette-comments.py"])
+
+        code = arm.main()
+
+        assert code == 1
+        assert "stopped reading" in capsys.readouterr().err
+
+    def test_the_corpus_as_it_stands_is_over_the_floor(self, arm, monkeypatch, capsys) -> None:
+        """The control: the real tree passes its own floor."""
+        monkeypatch.setattr(sys, "argv", ["check-maquette-comments.py"])
+
+        code = arm.main()
+
+        captured = capsys.readouterr()
+        assert code == 0, captured.err
+        assert "floor" in captured.out
+
+    def test_a_few_files_gone_does_not_fire(self, arm, monkeypatch, capsys) -> None:
+        """A floor that fired on any subtraction would refuse ordinary deletions."""
+        real = list(arm.sources())
+        kept = real[: len(real) - 5]
+        monkeypatch.setattr(arm, "sources", lambda: iter(kept))
+        monkeypatch.setattr(arm, "measure", lambda: ({}, {}))
+        monkeypatch.setattr(sys, "argv", ["check-maquette-comments.py"])
+
+        code = arm.main()
+
+        assert code == 0, capsys.readouterr().err
