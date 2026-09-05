@@ -379,6 +379,8 @@ when the defect comes back.
 | B-317 | The prototype's greeting toast covers the settings save bar, so a finger there does nothing while it lives | 1× | `open` |
 | B-318 | The build races its own output on a fresh `dist` again — B-098's shape, in two hooks this time | 1× | `open` |
 | B-319 | `fanout.py` holds the invalidation map against itself: a key dropped from the declaration is invisible to it | 1× | `open` |
+| B-320 | React #300 and #310 on the two non-ready acquisition surfaces, from a cold page, on head and on `main` alike | 1× | `open` |
+| B-321 | An evicted `setting:`/`action:` panel entry leaves the address naming a panel that never comes back | 1× | `fixed #558` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -508,7 +510,22 @@ same `data-part` the other two banners wear — a third shape would be a third b
 and it offers to reload. `window.__mocks.setConfigurationConflict(true)` is the dial, a property of
 the FILE rather than of the request, which is why it is a dial and not a scenario.
 
-<sub>`python3 frontend/maquette/harness/settings.py` → 57 holds, no violation</sub>
+**THE PROOF THE STATUS CLAIMS, written where the status claims it.** `to confirm` is defined at
+the head of this file as « fixed, rule green, mutation proven », and this entry named a rule and a
+run and no mutation. Both are here now.
+
+    the rule            harness/settings.py, three holds — the flag is raised from the LAYER's
+                        answer; the page says so in the same `data-part` the other two banners
+                        wear; and it offers to reload
+    seen RED first      before the banner existed, against the code as it stood — the strongest
+                        form this repository asks for, and the reason the phase carries two
+                        commits rather than one
+    the mutation        the banner's own branch removed from `features/settings/page.tsx`'s
+                        `SettingsBanners`, rebuilt and re-served
+                        → FAIL « the version conflict is said where the operator saves »
+    the run             `python3 frontend/maquette/harness/settings.py` → 65 holds, no violation
+
+<sub>`python3 frontend/maquette/harness/settings.py` → 65 holds, no violation — the entry read 57 until 2026-09-05, a figure taken before the phase that added the restart holds</sub>
 
 **B-300 — « Redémarrer maintenant » restarts on the tap.** The settings' restart banner's button
 (`data-restart`) is handled by the engine with no confirmation: the flag drops, a toast says «
@@ -536,6 +553,17 @@ tap « present but not tappable » — so the walk dismisses the confirmation be
 confirmation existed.** THE WALK GOES THROUGH THE CANCEL, which is the half that separates a
 confirmation from a delay: cancelling leaves the restart OWED and says nothing about one having
 happened; only confirming restarts, and then it says so.
+
+**THE PROOF THE STATUS CLAIMS, written where the status claims it**, as for B-299:
+
+    the rule            harness/settings.py, seven holds, and the walk goes through the CANCEL —
+                        the half that separates a confirmation from a delay
+    seen RED first      before the confirmation existed, against the code as it stood
+    the mutation        `askToRestart()` replaced by the direct `restart()` — the defect restored
+                        → FAIL « the tap ASKS before it takes it », and `page_host.py`'s own hold
+                        with it
+    the run             `python3 frontend/maquette/harness/settings.py` → 65 holds, no violation ·
+                        `python3 frontend/maquette/harness/page_host.py` → 44 holds, no violation
 
 <sub>`python3 frontend/maquette/harness/settings.py` → 65 holds, no violation · `python3 frontend/maquette/harness/page_host.py` → 44 holds, no violation</sub>
 
@@ -1029,6 +1057,55 @@ the map compared against the operations' own `invalidateQueries` calls, so a key
 either side is a divergence rather than an agreement.
 
 <sub>found in round one of PR #558, 2026-09-05 · two survived mutations of `frontend/maquette/harness/fanout.py`, one falling one</sub>
+
+**B-320 — React #300 and #310 on the two non-ready acquisition surfaces.**
+`acq-now-loading` and `acq-now-error` each log **three** `Minified React error #300` from a cold
+page, and a sweep of the 87 named states also caught a `#310` — « rendered more hooks than during
+the previous render » — reaching `acq-now-idle` immediately after `acq-now-error`. The surfaces
+still draw, which is why no walk had met it: the errors are on the console, not on the screen.
+
+**PRE-EXISTING, and measured on both builds.** `features/acquisition/now-tab.tsx` and
+`features/acquisition/page.tsx` are unchanged between `4c0e274a7` and PR #558's head — `git diff
+--stat` over that directory lists neither — and the acquisition files the wave did touch
+(`queries.ts`, `live.ts`, `reference.ts`, `discover-tab.tsx`) carry no hook change. #310 is a hook
+ORDER defect, so it is a conditional hook or an early return between hooks on a path only the
+non-ready states take.
+
+**Why nobody had seen it**: the wave's walks and the rule suite drive the LOADED states, and round
+one read « zero console errors » honestly — no walk drove those two.
+
+**Owner: the wave that next opens the acquisition page's non-ready branches.** Filed rather than
+repaired here: a hook-order defect is a component change, and this lot's contract forbids one.
+
+<sub>found in round two of PR #558, 2026-09-05 · 87 states swept and the two isolated on a fresh page each, head `583247947` and control `2f8503614`, three `#300` per state on both</sub>
+
+**B-321 — an evicted addressed panel entry left the address naming a panel that never came back.**
+The engine's addressed-panel table asks whether the interface HOLDS a subject before opening
+anything a reader could have typed. Until L19 that question was answered from a FIXTURE the engine
+had in hand — `allSettings()`, `MAINT_ACTIONS` — so a cold cache could not change the answer. L19
+moved both halves into their features, where `holds` reads the query cache: cold, it answers no,
+the table refuses with « the addressed panel names nothing this interface holds », and the address
+stays in the bar naming a panel that never comes back. The URL and the interface disagree, which
+is what DOIT-10 forbids.
+
+**ESTABLISHED AGAINST `main`, on a build of it**, in a worktree of its own, walking the eviction —
+open the setting, Back, drop `/api/config/schema`, Forward:
+
+    4c0e274a7   open TRUE · history.length 5 → 5 · address kept · no refusal warning
+    #558 head   open FALSE · the refusal on the console · the address still there
+
+So it is INTRODUCED by the producer seam, and it is repaired in the seam rather than in the dying
+engine: a holder's `false` is taken at face value only when the cache could actually have told it,
+and « not yet » resolves — `producePanel` asks for the kind's needs and opens when they land, which
+is the deferred open's own shape one layer along. A subject that really is not in what the layer
+answers now warns and opens nothing, so the diagnosis the refusal used to give is not lost.
+
+**The first version of the rule that holds it was a green reading of nothing**, and a mutation is
+what said so: it dropped `/api/configuration`, a key this interface does not have — the settings
+read is `/api/config/schema` — so it walked a WARM cache and passed with the repair removed. The
+hold reads the eviction back now, before the Forward.
+
+<sub>established in round two of PR #558, 2026-09-05 · probe on a build of `4c0e274a7` served on 8981 · the rule is `frontend/maquette/harness/journey.py`'s</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
