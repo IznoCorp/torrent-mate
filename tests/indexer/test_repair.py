@@ -564,3 +564,91 @@ def test_repair_processor_content_drift_refreshes_disk_merkle(tmp_path: Path) ->
     assert detect_merkle_drift(conn) == [], (
         "disk.merkle_root left stale after the oshash rewrite — bulk-change protection will trip on mass drift"
     )
+
+
+# ---------------------------------------------------------------------------
+# soft_delete_subtree — audit trail
+# ---------------------------------------------------------------------------
+
+
+def _tombstones(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """Return every deleted_item row, oldest first."""
+    conn.row_factory = sqlite3.Row
+    return list(conn.execute("SELECT * FROM deleted_item ORDER BY id").fetchall())
+
+
+def test_soft_delete_subtree_records_every_pruned_file() -> None:
+    """The prune leaves an audit record per file, not merely a log line.
+
+    The docstring promised step 1's count as an "audit trail", but the rows
+    were hard-deleted immediately and nothing reached ``deleted_item`` — the
+    table ``apply_soft_deletes`` writes for exactly this purpose. A prune that
+    turns out to have been wrong (an unmounted disk, a case or unicode-form
+    mismatch) left nothing to reconstruct from.
+    """
+    conn = _open_mem_db()
+    _, path_id = _seed_disk_and_path(conn)
+    _seed_media_file(conn, path_id, "ep01.mkv")
+    _seed_media_file(conn, path_id, "ep02.mkv")
+
+    soft_delete_subtree(conn, path_id)
+    conn.commit()
+
+    rows = _tombstones(conn)
+    assert len(rows) == 2, "every hard-deleted media_file must leave a tombstone"
+    assert {row["kind"] for row in rows} == {"file"}
+    assert {row["reason"] for row in rows} == {"subtree_pruned"}
+    assert {json.loads(row["payload_json"])["filename"] for row in rows} == {"ep01.mkv", "ep02.mkv"}
+
+
+def test_soft_delete_subtree_snapshot_survives_the_path_row() -> None:
+    """The snapshot names the path itself, because the path row is deleted too.
+
+    ``apply_soft_deletes`` stores ``path_id``, which is enough while the path
+    row lives. Here step 3 deletes it, so a record holding only that id points
+    at nothing. The snapshot carries the disk and the relative path instead.
+    """
+    conn = _open_mem_db()
+    disk_id, path_id = _seed_disk_and_path(conn)
+    _seed_media_file(conn, path_id, "ep01.mkv")
+
+    soft_delete_subtree(conn, path_id)
+    conn.commit()
+
+    payload = json.loads(_tombstones(conn)[0]["payload_json"])
+    assert payload["rel_path"] == "shows/Gone"
+    assert payload["disk_id"] == disk_id
+    assert payload["filename"] == "ep01.mkv"
+    assert payload["size_bytes"] == 1000
+
+
+def test_soft_delete_subtree_records_an_already_tombstoned_file() -> None:
+    """A struck-out row is hard-deleted here, and that is its own event.
+
+    Its earlier ``n_strikes`` tombstone describes a soft delete and names a
+    path row that is about to vanish; the prune is a second, later fact.
+    """
+    conn = _open_mem_db()
+    _, path_id = _seed_disk_and_path(conn)
+    file_id = _seed_media_file(conn, path_id, "ep01.mkv")
+    conn.execute("UPDATE media_file SET deleted_at = ? WHERE id = ?", (int(time.time()), file_id))
+    conn.commit()
+
+    count = soft_delete_subtree(conn, path_id)
+    conn.commit()
+
+    assert count == 0, "the row was already soft-deleted, so step 1 tombstones none"
+    rows = _tombstones(conn)
+    assert len(rows) == 1, "the hard delete is recorded even when the soft delete was not"
+    assert rows[0]["reason"] == "subtree_pruned"
+
+
+def test_soft_delete_subtree_on_an_empty_path_records_nothing() -> None:
+    """A path holding no files has nothing to lose and writes no record."""
+    conn = _open_mem_db()
+    _, path_id = _seed_disk_and_path(conn)
+
+    soft_delete_subtree(conn, path_id)
+    conn.commit()
+
+    assert _tombstones(conn) == []
