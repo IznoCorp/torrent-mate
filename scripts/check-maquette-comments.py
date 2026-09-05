@@ -74,10 +74,21 @@ NOT_TEMPORAL = re.compile(r"\bD-L\d{2}-\d+\b")
 
 
 def comments(source: str, suffix: str):
-    """Yields the comment text of one source, and nothing else.
+    """Yields the comment text of one source, and very nearly nothing else.
 
     A guard that counted its own subject inside a string literal would refuse
     code that merely quotes a lot code — and this arm's own tests do.
+
+    WHERE IT IS STILL WRONG, and it is wrong in ONE direction only: a `//` or a
+    `#` INSIDE a string is read as opening a comment, so
+    `const u = "https://example.com/L19/x"` is counted. That over-reports and
+    can never under-report — the failure mode is refusing prose that is really
+    code, which a reader meets immediately and can rewrite, rather than passing
+    a comment nobody counted. It is not repaired because repairing it means a
+    string-aware scanner for four languages, and the cost of the defect is one
+    reworded URL. `test_a_url_inside_a_string_is_counted_and_that_is_known`
+    holds the shape as it IS, so the next reader meets the limit instead of
+    discovering it.
 
     Args:
         source: The file's text.

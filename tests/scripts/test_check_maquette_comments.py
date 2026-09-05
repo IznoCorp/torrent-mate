@@ -130,6 +130,21 @@ class TestItReadsCommentsAndNotCode:
         """The same protection on the other side."""
         assert list(arm.comments('const name = "L19";\n', ".ts")) == []
 
+    def test_a_url_inside_a_string_is_counted_and_that_is_known(self, arm) -> None:
+        """THE LIMIT, held as it IS rather than as the docstring wishes.
+
+        A `//` inside a string opens a comment as far as this reader is
+        concerned, so a URL carrying what looks like a lot code is counted. It
+        over-reports and can never under-report; the case is here so the next
+        reader meets the limit instead of discovering it, and so that the two
+        cases above are not mistaken for proof that strings are safe in general
+        — both assert on shapes containing no `//` and no `#` at all.
+        """
+        found = list(arm.comments('const u = "https://example.com/L19/x";', ".ts"))
+
+        assert found, "the limit has been repaired — rewrite this case"
+        assert arm.references(found[0]), "a lot code inside a URL is counted"
+
 
 class TestTheRatchet:
     """Per file, refused upward, and never silent about a shrink."""
@@ -181,11 +196,21 @@ class TestItReadsTheRealTree:
         assert "openapi.json" in arm.GENERATED["design/src/contract/types.d.ts"]
         assert all(relative != "design/src/contract/types.d.ts" for relative, _, _ in arm.sources())
 
-    def test_the_contract_is_read_at_its_source(self, arm) -> None:
-        """`openapi.json` carries prose under the same rule, and it is read."""
+    def test_the_contract_is_read_at_its_source(self, arm, monkeypatch) -> None:
+        """`openapi.json` carries prose under the same rule, and it is read.
+
+        THE READING, NOT THE PRESENCE. This case used to assert that the
+        contract appears in the counts — which held only while the contract had
+        a reference to count, so rewording its two dated lines to zero made the
+        case fail for the one reason it should have celebrated. What it means to
+        assert is that a dated line placed there WOULD be counted.
+        """
         assert any(text for text in arm.contract_prose())
+
+        monkeypatch.setattr(arm, "contract_prose", lambda: iter(["moved at L19"]))
         counts, _ = arm.measure()
-        assert arm.CONTRACT in counts
+
+        assert counts.get(arm.CONTRACT) == 1
 
     def test_the_baseline_describes_the_tree(self, arm) -> None:
         """Every recorded file exists, and every count matches what is read.
