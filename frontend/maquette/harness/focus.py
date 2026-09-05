@@ -114,7 +114,7 @@ async def main():
                 landed_on.startswith("the "),
                 f"focus went to {landed_on}")
 
-        # ── A CONFIRMATION OPENS ON ITS WAY OUT, NEVER ON THE ACT ──────────
+        # ── EVERY CONFIRMATION OPENS ON ITS WAY OUT, NEVER ON THE ACT ──────
         #
         # `app/focus.ts` moves focus into a layer that opens and takes the
         # first control the reader would reach. On a confirmation that first
@@ -128,37 +128,61 @@ async def main():
         # tree proves the intention; what this holds is where focus actually
         # went, because the attribute is only half a contract and the other
         # half is a layer's entry selector that may stop reading it.
-        await page.evaluate("(id)=>window.__go(id)", "settings-restart")
-        await page.wait_for_timeout(500)
-        raised = await page.evaluate(
-            """()=>{const act = document.querySelector('[data-restart]');
-               if (!act) return false; act.click(); return true;}""")
-        await page.wait_for_timeout(500)
-        landed_in_dialog = await page.evaluate("""()=>{
-          const dialog = document.getElementById('dlg');
-          const active = document.activeElement;
-          const buttons = [...dialog.querySelectorAll('[data-part="dialog/button"]')];
-          return {open: dialog.hasAttribute('data-open'),
-                  inside: !!active && dialog.contains(active),
-                  text: (active?.textContent || '').trim(),
-                  tone: active?.dataset?.tone || 'neutral',
-                  isTheWayOut: !!active && 'dialogDismiss' in active.dataset,
-                  offered: buttons.map((b) => (b.textContent || '').trim())};}""")
-        journal.check(
-            "the restart confirmation is raised, and offers a way out",
-            raised and landed_in_dialog["open"]
-            and len(landed_in_dialog["offered"]) >= 2,
-            str(landed_in_dialog["offered"]))
-        journal.check(
-            "it opens with focus on its WAY OUT, not on the destructive act "
-            "(B-300, §17)",
-            landed_in_dialog["inside"] and landed_in_dialog["isTheWayOut"]
-            and landed_in_dialog["tone"] != "danger",
-            f"focus on {landed_in_dialog['text']!r}, tone "
-            f"{landed_in_dialog['tone']}, way out: "
-            f"{landed_in_dialog['isTheWayOut']}")
-        await page.keyboard.press("Escape")
-        await page.wait_for_timeout(350)
+        # ALL THREE THE PROTOTYPE HAS, and it used to be one. Two readers of one
+        # review disagreed about the library's bulk confirmation — one had it
+        # focusing « Supprimer et arrêter le suivi », the other « Annuler » —
+        # and neither could be settled by a rule, because the rule walked the
+        # settings dialog alone. A property held on one instance of a layer is a
+        # property nobody holds.
+        #
+        # THE RESTART ONE IS RAISED BY A FINGER, the other two by their named
+        # states: they are reached from a swipe and from selection mode, which
+        # are gestures other rules own, and a walk that re-drives them here
+        # would measure those gestures rather than this property.
+        DIALOGS = (
+            ("the restart confirmation", "settings-restart", "[data-restart]"),
+            ("the library's row delete", "lib-delete", None),
+            ("the library's bulk delete", "lib-delete-multiple", None),
+        )
+        for what, state, opener in DIALOGS:
+            await page.evaluate("(id)=>window.__go(id)", state)
+            await page.wait_for_timeout(500)
+            if opener is not None:
+                await page.evaluate(
+                    """(sel)=>{const act = document.querySelector(sel);
+                       if (act) act.click();}""", opener)
+                await page.wait_for_timeout(500)
+            landed_in_dialog = await page.evaluate("""()=>{
+              const dialog = document.getElementById('dlg');
+              const active = document.activeElement;
+              const buttons = [...dialog.querySelectorAll('[data-part="dialog/button"]')];
+              return {open: dialog.hasAttribute('data-open'),
+                      inside: !!active && dialog.contains(active),
+                      text: (active?.textContent || '').trim(),
+                      tone: active?.dataset?.tone || 'neutral',
+                      isTheWayOut: !!active && 'dialogDismiss' in active.dataset,
+                      dangerous: buttons.filter(
+                        (b) => b.dataset.tone === 'danger').length,
+                      offered: buttons.map((b) => (b.textContent || '').trim())};}""")
+            journal.check(
+                f"{what} is raised, and offers a way out",
+                landed_in_dialog["open"] and len(landed_in_dialog["offered"]) >= 2,
+                str(landed_in_dialog["offered"]))
+            journal.check(
+                f"{what} really offers a destructive act, so this is not a "
+                f"vacuous walk",
+                landed_in_dialog["dangerous"] >= 1,
+                f"{landed_in_dialog['dangerous']} danger button(s)")
+            journal.check(
+                f"{what} opens with focus on its WAY OUT, not on the "
+                f"destructive act (B-300, §17)",
+                landed_in_dialog["inside"] and landed_in_dialog["isTheWayOut"]
+                and landed_in_dialog["tone"] != "danger",
+                f"focus on {landed_in_dialog['text']!r}, tone "
+                f"{landed_in_dialog['tone']}, way out: "
+                f"{landed_in_dialog['isTheWayOut']}")
+            await page.keyboard.press("Escape")
+            await page.wait_for_timeout(350)
 
         # THE SKIP LINK, on a FRESH PAGE, which is also how a reader meets it.
         #
