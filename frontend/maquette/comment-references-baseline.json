@@ -3,7 +3,6 @@
   "read": 316,
   "files": {
     "a11y.py": 4,
-    "contract/openapi.json": 2,
     "design/src/app/artwork-arrival.ts": 1,
     "design/src/app/bar-height.ts": 1,
     "design/src/app/bottom-slot.tsx": 1,
