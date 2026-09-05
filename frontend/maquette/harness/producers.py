@@ -70,7 +70,7 @@ DRIVEN = (
     # search to have happened, because its subject is a POSITION in what the
     # operator just typed, so the walk asks for one first (`__addSearch`) rather
     # than opening the panel over an empty answer.
-    ("add", "0", "window.__searchResults()[0].t"),
+    ("add", "0", "window.__searchResults().results[0].t"),
 )
 
 # WHAT A PANEL SAYS ABOUT RISK, read on the DRAWN chip. It is here because the
