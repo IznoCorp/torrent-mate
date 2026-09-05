@@ -717,6 +717,59 @@ async def main():
                       str(errors))
         await reopen_context.close()
 
+        # ── AND A COLD ADDRESSED REOPEN IS NOT REFUSED FOR BEING COLD ───────
+        #
+        # The engine's addressed table asks whether the interface HOLDS the
+        # subject before it opens anything, and a feature answers that from the
+        # query cache. Before the producers moved, the same question was
+        # answered from a fixture the engine had in hand, so cold and warm could
+        # not differ — measured on a build of the base: a Forward onto an
+        # evicted `setting:` entry reopens the panel there. A « no » the cache
+        # cannot yet mean must therefore not be spent as a refusal: the address
+        # would stay in the bar naming a panel that never comes back, which is
+        # the URL and the interface disagreeing.
+        #
+        # THE SETTING IS THE SURFACE THAT SHOWS IT, and it is not the journey's
+        # case: its need is a LIST, so the boot prefills it and only an eviction
+        # makes it cold — which is what a reader meets after a long visit, and
+        # what this walk does on purpose.
+        reopen_context, reopen_page, errors = await open_page(b)
+        await reopen_page.evaluate("(id)=>window.__go(id)", "settings-one")
+        await reopen_page.wait_for_timeout(500)
+        reached = await reopen_page.evaluate(
+            """()=>{const one = document.querySelector('[data-setting]');
+               if (!one) return false; one.click(); return true;}""")
+        await reopen_page.wait_for_timeout(600)
+        settled = await reopen_page.evaluate(
+            """()=>({open: window.__panel.isOpen(), depth: history.length,
+                    address: location.search})""")
+        journal.check(
+            "a setting opens at an address of its own",
+            reached and settled["open"] and "panel=setting" in settled["address"],
+            f"reached={reached} open={settled['open']} {settled['address']!r}")
+
+        await reopen_page.go_back()
+        await reopen_page.wait_for_timeout(500)
+        await reopen_page.evaluate(
+            """()=>window.__queries.removeQueries(
+                 {queryKey: ["/api/configuration"]})""")
+        await reopen_page.go_forward()
+        await reopen_page.wait_for_timeout(1200)
+        settings_back = await reopen_page.evaluate(
+            """()=>({open: window.__panel.isOpen(), depth: history.length,
+                    address: location.search})""")
+        journal.check(
+            "and a Forward onto its EVICTED entry puts it back rather than "
+            "refusing it for being cold",
+            settings_back["open"]
+            and settings_back["depth"] == settled["depth"]
+            and "panel=setting" in settings_back["address"],
+            f"open={settings_back['open']} · history.length {settled['depth']} -> "
+            f"{settings_back['depth']} · {settings_back['address']!r}")
+        journal.check("no JS error on the evicted addressed reopen", not errors,
+                      str(errors))
+        await reopen_context.close()
+
         await b.close()
 
     journal.summary()

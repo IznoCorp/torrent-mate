@@ -226,7 +226,20 @@ function producePanel(kind: string, subject = ""): void {
     needsFor(kind, subject).map((required) => queryClient.prefetchQuery(required)),
   ).then(() => {
     const landed = produce(subject, { held });
-    if (landed === null) return;
+    if (landed === null) {
+      /* THE ANSWER CAME AND THE SUBJECT IS NOT IN IT. Before `panelHolds`
+         learned to say « not yet », the engine's addressed table refused this
+         case itself and said so in the console; now it reaches here instead,
+         and a silent nothing would be a worse diagnosis than the refusal it
+         replaces.
+
+         ENGLISH, and not in the i18n resources: a console message is a tool
+         message, read by a developer, never by a reader of the interface. */
+      console.warn(
+        "the panel's subject is not in what the layer answered, and nothing opens:",
+        kind, subject);
+      return;
+    }
     if (addressed) openPanelOnCurrentEntry(() => openPanel(landed));
     else openPanel(landed);
   });
@@ -262,10 +275,31 @@ window.__refillProducers = () => {
    table before it opens anything from a typed address. A kind that declares no
    answer answers FALSE rather than true: an address anyone can type is refused
    when nobody has said it is holdable, which is the table's own three-ways-to-
-   refuse discipline and not a new one. */
+   refuse discipline and not a new one.
+
+   AND A « NO » THE CACHE CANNOT YET MEAN IS NOT A NO. A holder reads the query
+   cache, and before this wave the same question was answered from a FIXTURE the
+   engine had in hand — so cold and warm could not differ. They can now, and the
+   difference was measured rather than reasoned: on a build of `4c0e274a7` a
+   Forward onto an evicted `setting:` entry reopens the panel (`open: true`,
+   `history.length 5 → 5`, no warning); on this seam without the clause below it
+   is refused with « the addressed panel names nothing this interface holds »,
+   and the address stays in the bar naming a panel that never comes back —
+   which is the URL and the interface disagreeing, DOIT-10's own subject.
+
+   So a holder's `false` is taken at face value only when the cache could
+   actually have told it. When one of the kind's own needs has not landed, the
+   honest answer is « not yet », and « not yet » resolves: `producePanel` below
+   asks for what the kind needs and opens when the answer lands, or opens
+   nothing and says so. The decision moves to the one place that can wait for
+   it, which is exactly what the deferred open does one layer along. */
 function panelHolds(kind: string, subject: string): boolean {
   const holds = holderFor(kind);
-  return holds === null ? false : holds(subject, { held });
+  if (holds === null) return false;
+  if (holds(subject, { held })) return true;
+  return needsFor(kind, subject).some(
+    (required) => held(required.queryKey) === undefined,
+  );
 }
 
 window.__panel = {
