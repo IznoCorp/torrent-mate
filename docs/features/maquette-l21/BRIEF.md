@@ -60,8 +60,8 @@ question bites hardest, because a conversion's oracle is no proof of anything yo
    your review from round one — and § « Instrument hygiene ».
 8. `frontend/maquette/README.md` — the method, the named states, the traps already paid for.
 9. `IMPLEMENTATION.md` § « Where the frontend work stands » — and `BUGS.md`: **B-301**, **B-302**
-   (the three verbs), **B-313** (the follow panel's doubled action — placed with you, the operator
-   has not yet confirmed: ask the steward at the handshake), **B-316** (the suggestion producer no
+   (the three verbs), **B-313** (the follow panel's doubled action — yours, ratified by the operator on
+   2026-09-05), **B-316** (the suggestion producer no
    finger reaches — its surface is yours, its DRAWING decision is the operator's), **B-315** (b) and
    (c) (`data-sugmore` is yours), **B-320** (yours only if you open the acquisition page's non-ready
    branches), **B-322** and **B-323** (the release screen's take, its two toasts, its 260 ms wait),

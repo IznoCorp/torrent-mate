@@ -1655,6 +1655,13 @@ reads `served` with a rule that reads the pastille on a queued mutation, and
 `grep -c "closest\.dataset\.take" frontend/maquette/design/src/engine/legacy.js` reads **0** like the
 five above, each landing with its rule seen red first.
 
+**And B-313, ratified by the operator on 2026-09-05** (« OK B-313 pour L21 »): the follow panel
+offers « Voir le parcours » twice whenever its primary ladder falls through to the journey, because
+the secondary row emits it unconditionally where « Voir la fiche » beside it is guarded. One
+condition, mirroring that guard, on the producer this lot already opens — and the rule its entry
+names: a panel's actions are counted BY LABEL, a label appearing twice is refused, written first and
+red on `main`'s panel for a medium with no sheet. **Done when** B-313 reads `fixed` under that rule.
+
 #### L20 — The global levers and the history · *depends on L15, L19, L10*
 
 **Objective.** What remains of « the control station » once §20 is dictated: the **global
