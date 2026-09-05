@@ -32,6 +32,9 @@ import json
 import sqlite3
 import time
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.repair import (
@@ -41,7 +44,8 @@ from personalscraper.indexer.repair import (
     repair_processor,
     soft_delete_subtree,
 )
-from personalscraper.indexer.schema import RepairQueueRow
+from personalscraper.indexer.repos import log_repo
+from personalscraper.indexer.schema import DeletedItemRow, RepairQueueRow
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -652,3 +656,66 @@ def test_soft_delete_subtree_on_an_empty_path_records_nothing() -> None:
     conn.commit()
 
     assert _tombstones(conn) == []
+
+
+def test_soft_delete_subtree_leaves_nothing_half_done_when_a_tombstone_fails() -> None:
+    """A raise mid-loop must undo the soft delete rather than leave it standing.
+
+    ``drain`` marks the queue row ``failed`` and then COMMITS, and nothing in
+    this module rolls back. Before the audit records existed, the soft-delete
+    UPDATE and the hard DELETE were adjacent with nothing between them that
+    could raise. The tombstone loop sits in that gap, so a failure there left
+    every file under the path marked deleted — invisible to the library while
+    still present on disk — with the path row surviving, so the reconcile loop
+    never closed and the merkle was never refreshed.
+    """
+    conn = _open_mem_db()
+    _, path_id = _seed_disk_and_path(conn)
+    _seed_media_file(conn, path_id, "ep01.mkv")
+    _seed_media_file(conn, path_id, "ep02.mkv")
+    _seed_media_file(conn, path_id, "ep03.mkv")
+
+    real_insert = log_repo.insert_deleted_item
+    seen: list[int] = []
+
+    def _fail_on_the_second_row(connection: sqlite3.Connection, row: DeletedItemRow) -> int:
+        """Write the first tombstone, then fail as a disk error would."""
+        seen.append(row.original_id)
+        if len(seen) == 2:
+            raise sqlite3.OperationalError("disk I/O error")
+        return real_insert(connection, row)
+
+    with patch.object(log_repo, "insert_deleted_item", _fail_on_the_second_row):
+        with pytest.raises(sqlite3.OperationalError):
+            soft_delete_subtree(conn, path_id)
+    conn.commit()  # what drain's error handler does
+
+    live = conn.execute(
+        "SELECT COUNT(*) FROM media_file WHERE path_id = ? AND deleted_at IS NULL", (path_id,)
+    ).fetchone()[0]
+    assert live == 3, "every file must still be live — a committed half-delete hides files that exist"
+    assert _tombstones(conn) == [], "a partial audit trail is worse than none"
+    assert conn.execute("SELECT COUNT(*) FROM path WHERE id = ?", (path_id,)).fetchone()[0] == 1
+
+
+def test_soft_delete_subtree_snapshot_carries_the_release_and_the_strikes() -> None:
+    """Reading a tombstone back is the point, so it must name what was lost.
+
+    ``release_id`` is the only link from a file to its release and its title;
+    without it a record names a filename belonging to nothing. ``miss_strikes``
+    is the corroborating evidence for whether the scanner had also stopped
+    seeing the file — the field ``apply_soft_deletes`` keeps for exactly that
+    reason, and the one the 2026-06-30 diagnosis depended on.
+    """
+    conn = _open_mem_db()
+    _, path_id = _seed_disk_and_path(conn)
+    file_id = _seed_media_file(conn, path_id, "ep01.mkv")
+    conn.execute("UPDATE media_file SET miss_strikes = 2 WHERE id = ?", (file_id,))
+    conn.commit()
+
+    soft_delete_subtree(conn, path_id)
+    conn.commit()
+
+    payload = json.loads(_tombstones(conn)[0]["payload_json"])
+    assert "release_id" in payload, "without it the record names a file belonging to nothing"
+    assert payload["miss_strikes"] == 2

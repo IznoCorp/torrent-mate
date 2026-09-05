@@ -113,18 +113,22 @@ def _scan_disk_full(
     exception occurs during the walk.
 
     Rows are accumulated in the visitor's ``insert_buffer`` and drained by
-    :func:`_flush_insert_buffer` (one ``executemany``) whenever the buffer
-    reaches :data:`_INSERT_BATCH_SIZE`, and once more here when the walk
-    returns, for whatever did not fill a batch. Neither flush commits, so both
-    stay inside the per-disk transaction DESIGN §15.5 rolls back on ``EIO``.
+    :func:`_flush_insert_buffer` (one ``executemany``) ONCE, below, after the
+    walk returns — exactly as the legacy ``_walk_dir_full_buffered`` did.
 
-    The post-walk flush alone — which is what the legacy
-    ``_walk_dir_full_buffered`` did, and what this held until the ceiling was
-    enforced — retained the entire library in memory (98 506 rows, 37.2 MB
-    measured) and lost all of it if the process was killed, while the
-    checkpoint had already committed the claim that those files were walked.
-    The ceiling bounds both, to whatever has accumulated since the last
-    checkpoint commit rather than to the whole walk.
+    That single late flush is what implements DESIGN §15.5 for ``media_file``
+    rows, and it does so by accident rather than by design: the scanner runs in
+    autocommit with no BEGIN anywhere, so ``worker_conn.rollback()`` on the EIO
+    path rolls back nothing, and what actually keeps a vanished disk's rows out
+    of the index is that they are still in a Python list when the ``OSError``
+    propagates out of :func:`walk` and skips this line. The ``path`` rows are
+    not buffered and are therefore already durable when it happens.
+
+    The cost is that the whole walk is retained (98 506 rows, 37.2 MB measured
+    for the operator's library) and lost outright on a hard kill, while
+    ``scan_run.last_path`` has already recorded that those files were walked.
+    Both are consequences of the missing transaction, and neither can be fixed
+    from inside this function.
 
     Args:
         conn: Open SQLite connection.
