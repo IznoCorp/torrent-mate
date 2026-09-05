@@ -71,11 +71,18 @@ describe("the fault falls on the named row, in any order", () => {
       expect(late[0].l).toBe(words.label);
     });
 
+    // THE ROW IT COMPARES AGAINST IS THE ONE THAT WAS ALTERED, never the one
+    // that was NAMED, and the difference is the whole of this hold. The
+    // substituted sentence IS the named row's cadence, so comparing it with
+    // that row's own cadence is true by construction whichever row received
+    // it — the first version of this assertion did exactly that and stayed
+    // GREEN under the mutation it was written to catch. Reading the altered
+    // row's own healthy cadence is what sees a cadence transplanted.
     it(`gives the late row ITS OWN cadence, not another job's — ${order}`, () => {
       const drawn = schedulersDown(list, words);
       const late = drawn.find((row) => row.ton === "alert") as Fact;
-      const same = list.find((row) => row.l === words.label) as Fact;
-      expect(cadence(late)).toBe(cadence(same));
+      const beforehand = list.find((row) => row.l === late.l) as Fact;
+      expect(cadence(late)).toBe(cadence(beforehand));
       expect(late.v).toBe(words.value);
     });
 
