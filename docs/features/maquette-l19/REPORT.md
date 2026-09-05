@@ -165,7 +165,7 @@ the opposite of what L11's four readers found and is worth saying:
 | 13 | `paths_to_sheets.py`, twice: four of five reachability branches select nothing on all six surfaces, and the message counted the four-item SAMPLE as the number of dead ends | `bafab0e51` — the carrier is named on the green line, and the count and the sample are two fields |
 | 14 | `fanout.py` holds the invalidation map against ITSELF — a key dropped from the declaration is invisible | filed, **B-319**: the repair is a second end, and it is the query layer's lot |
 | 15 | `hold-counts-baseline.json` is compared by nothing — no guard, no CI job — and now carries eleven rows that are wrong or absent | § 9, with B-291 |
-| 16 | `busy.py` raises its panels through the SEAM: the exact vacuity this wave caught in R103's journey hold, reproduced one rule along | § 9 |
+| 16 | `busy.py` raises its panels through the SEAM: the exact vacuity this wave caught in R103's journey hold, reproduced one rule along | `3d67325f9` — and driven by a finger it went RED, which is the finding under the finding: the PAUSE half ran on the acquisitions page, where a followed medium not in flight has no row at all, so it had been asking a panel nobody there could open |
 
 **Three of the seven are one shape — a fact asserted by SEARCHING a file's text instead of
 parsing it — and that shape shipped twice in this wave under its own author's review.** A wave
@@ -177,12 +177,15 @@ above is eleven and not nine:
 
 | # | Green over | Found by |
 | --- | --- | --- |
-| 10 | **`app/focus.ts` asserting a priority its selector cannot express.** « `[autofocus]` first, so a layer can name its own entry point » — over a selector LIST, where `querySelector` answers the first matching node in DOCUMENT order whatever order the alternatives are written in. The restart confirmation rendered `autofocus` on « Annuler », `[autofocus]` matched exactly one node, and `document.activeElement` was « Redémarrer ». The comment had been there the whole time and nothing read it | repairing round one's MINOR 1, when the repair did not take |
-| 11 | **R82's own new hold, a green reading of nothing on BOTH builds.** It cleared the whole query cache between the Back and the Forward; the engine's addressed table asks `resolves` first, the journey's reads the LIBRARY and the QUEUE, so an empty cache had the address refused outright — « the addressed panel names nothing this interface holds » — and the walk never reached the suppression it was written to measure. `open=False · history.length 4 -> 4`, identically with the repair and with the repair mutated away | asking why the mutation's reading and the repaired reading were the same |
+| 17 | **`app/focus.ts` asserting a priority its selector cannot express.** « `[autofocus]` first, so a layer can name its own entry point » — over a selector LIST, where `querySelector` answers the first matching node in DOCUMENT order whatever order the alternatives are written in. The restart confirmation rendered `autofocus` on « Annuler », `[autofocus]` matched exactly one node, and `document.activeElement` was « Redémarrer ». The comment had been there the whole time and nothing read it | repairing round one's MINOR 1, when the repair did not take |
+| 18 | **R82's own new hold, a green reading of nothing on BOTH builds.** It cleared the whole query cache between the Back and the Forward; the engine's addressed table asks `resolves` first, the journey's reads the LIBRARY and the QUEUE, so an empty cache had the address refused outright — « the addressed panel names nothing this interface holds » — and the walk never reached the suppression it was written to measure. `open=False · history.length 4 -> 4`, identically with the repair and with the repair mutated away | asking why the mutation's reading and the repaired reading were the same |
 
-**Row 11 is lens A's own lesson arriving one day later, in this wave's hands**: a probe that taps
+**Row 18 is lens A's own lesson arriving one day later, in this wave's hands**: a probe that taps
 a covered button, or clears more than it meant to, is green over nothing at all — and the tell is
 that the mutation and the control read the SAME.
+
+**The numbering runs 1–9 for the wave's own, 10–16 for round one's, 17–18 for the two the repairs
+turned up.** Eighteen in all.
 
 ---
 
