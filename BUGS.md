@@ -365,7 +365,7 @@ when the defect comes back.
 | B-303 | A mutation applied BY HAND leaves the served copy of the previous build in place, so the reading taken next measures code nobody is testing — and a restore by `git checkout --` over the maquette's sources destroys whatever else is uncommitted there (the number is 303 and not 296 because #549 held 296-302 on `main`-to-be) | by L14 | `open` |
 | B-304 | `git add -f` applied to a PATH rather than to the ignored files it was needed for swept 28 375 files into a commit, `node_modules` entire, and nothing in the repository refuses it — the only guard that noticed read five French PATH SEGMENTS, and they were the MAQUETTE's own ignored screenshots, not the vendored tree | by L14 | `open` |
 | B-305 | An open swipe survives a store write that changed nothing about the rows — D-L14-3, flagged for the operator, living only in a state-file cell the next wave overwrites | by audit | `closed` |
-| B-306 | A GRANDFATHERED file may grow without limit: the size arm reads the label and never a recorded count, so the engine gained 77 lines under a decision titled « dies by subtraction » and the guard printed clean | by audit | `open` |
+| B-306 | A GRANDFATHERED file may grow without limit: the size arm reads the label and never a recorded count, so the engine gained 77 lines under a decision titled « dies by subtraction » and the guard printed clean | by audit | `fixed #558` |
 | B-307 | Three rules have fallen under the recorder's parallel load and passed alone; the register holds one of them, under a title naming a fourth rule and a diagnosis that does not transfer | by audit | `open` |
 | B-308 | The maquette draws six schedulers and the machine now runs seven — `machine.py`'s count fell the day `personalscraper-index-full` was scheduled on `main`, and nothing in that pull request could have told it | by L19 | `open` |
 | B-309 | « Récupérer maintenant » on a medium's own panel THROWS and takes nothing: the release screen's `data-take` branch is checked first, has no guard, and swallows every `data-take` in the document | by L19 | `to confirm` |
@@ -591,6 +591,48 @@ whoever next opens the size arm, and L13 at the latest since the label's own dea
 engine, so L19 takes it — one recorded count per entry, re-recorded DOWNWARD at each phase that
 subtracts, refused upward.
 
+**FIXED in #558, and in TWO places, because the first repair left the ratchet's own floor
+editable.** The arm is `scripts/check-frontend-boundaries.py`'s size arm and the list it reads is
+`scripts/frontend_size_ledger.py`, split out onto that subject.
+
+**First half — the FILE against the record.** Each `GRANDFATHERED` entry records the file's
+non-blank count, measured by the arm's own loop, so the record and the reading cannot drift apart.
+Above the record is a violation; below it prints `[RE-RECORD]` and refuses nothing, because a
+ratchet that refused a shrink would refuse exactly the work the label demands. Four cases at
+`tests/scripts/test_check_frontend_boundaries.py` (`TestSizeArmReadsTheCount`), and the mutation:
+ONE line added to `engine/legacy.js` → exit 1, « engine/legacy.js — recorded at 31 645 … and reads
+31 646, 1 more … may not be EXTENDED ».
+
+**Second half — the RECORD against the record at the base**, and this is the one an adversarial
+reader found the first repair missing. Everything above compares the FILE; nothing compared the
+RECORD, so a wave that grew a grandfathered file and moved its number **in the same commit**
+satisfied all of it — B-306's own species one level up. The record is read at the revision the
+branch grew from (`git show <base>:scripts/frontend_size_ledger.py`, parsed with
+`ast.literal_eval`, never executed) and may only go DOWN.
+
+    the arm-level scenario, two-commit repository, record 100 at the base
+      with the ratchet          1 violation — « recorded at 100 at the base and at 31 645 here …
+                                may only go DOWN »
+      with the call neutralised 0 violations — which is the arm as it stood
+    round one's exact defect, file +2 AND record +2 in one commit
+                                exit 1, the same sentence
+
+Eight cases in the same test file (`TestTheRecordIsARatchetToo`), one of them proving the base's
+copy is parsed and never run.
+
+**And it had to be able to ENGAGE where it matters.** With `actions/checkout`'s default clone the
+guard's own CI job had no base to read, so the ratchet would have been inert exactly there. That
+job takes the full history now, and a hold in
+`tests/scripts/test_ci_filter_covers_the_guards.py` falls when the line goes — « no-french clones
+shallow, so the ledger's ratchet reads no base and refuses nothing ». **Read on the CI run of
+`583247947`**: `no-french` prints « the records themselves compared against this ledger does not
+exist at origin/main (4c0e274a7) — there is no earlier record », which is the arm RESOLVING the
+merge base and reporting truthfully that the ledger is a file this branch creates. Its first live
+comparison is the next wave's, and saying so is the point: the sentence it did NOT print — « no
+base branch is reachable » — is the one that would have meant an inert ratchet.
+
+<sub>`python3 scripts/check-frontend-boundaries.py --arm size` → « grandfathered counts: engine/legacy.js 31645→31645, engine/states.js 786→786; the records themselves compared against … » · `python3 -m pytest tests/scripts/test_check_frontend_boundaries.py -q` → 53 passed · the CI line above, job `no-french` of run 33934613752</sub>
+
 **B-308 — the maquette draws six schedulers and the machine runs seven.**
 `harness/machine.py`'s « as many schedulers drawn as PM2 schedules » reads the operator's live
 PM2 list and compares it with what the interface draws. It reads **6 drawn vs 7 real** since
@@ -632,7 +674,7 @@ So the tap raises `TypeError: Cannot read properties of undefined (reading 'res'
 closes, **and nothing is taken**. The second branch — the panel's own, at `legacy.js:9964`, which
 reads the title and calls `actionTake` — is unreachable dead code.
 
-**Measured, not inferred**, on a build of `feat/maquette-l19` at phase 11's head:
+**Measured, not inferred**, on a build of `2f8503614` (this wave, at phase 11's head — a sha, because the branch it was on is deleted at the squash):
 
     window.__panel.produce("follow", "The Hawk")   → the panel offers « Récupérer maintenant »
     click('#sheetin [data-take]')

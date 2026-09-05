@@ -1851,11 +1851,14 @@ its report.
   totals, the count the rule printed while falling, and a zero exit). The form: refuse a pointer
   that is not an ancestor of `main`, as `oracle.py --check` refuses a dangling one, and refuse to
   write when `failed > 0`.
-- **B-306** — a grandfathered file may grow without limit: `check-frontend-boundaries.py`'s size arm
-  reads the label and never a count, so the engine gained 77 non-blank lines at L14 under « dies by
-  subtraction » and the arm printed clean. **L19 takes it**, being the next wave that subtracts from
-  the engine: one recorded count per `GRANDFATHERED` entry, refused upward, re-recorded downward in
-  each phase that subtracts, with the mutation that proves the refusal (add one line, see it red).
+- **B-306 — DISCHARGED by L19 in #558, and the line is kept saying so rather than deleted.** A
+  grandfathered file could grow without limit: the size arm read the label and never a count, so the
+  engine gained 77 non-blank lines at L14 under « dies by subtraction » and the arm printed clean.
+  It records a count per `GRANDFATHERED` entry now, refused upward and re-recorded downward — **and
+  the record itself is compared with the record at the branch's base**, which is the level the first
+  repair was missing: a growth was otherwise legalised by moving the number in the same commit.
+  Both halves are mutation-proven and the register carries the readings (B-306). **Nothing is owed
+  here.**
 - **B-305's hold** — the operator ruled on 2026-09-04 that a swipe left open survives an unrelated
   store write; nothing reads that property. The next wave that opens `virtual.py` writes the hold
   (open a swipe, `window.__store.write({})`, the swipe still open), and sees it red on a component
