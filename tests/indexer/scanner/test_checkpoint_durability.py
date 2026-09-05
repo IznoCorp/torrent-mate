@@ -31,10 +31,57 @@ from pathlib import Path
 from typing import Any
 
 from personalscraper.indexer.db import apply_migrations
+from personalscraper.indexer.repos import disk_repo, log_repo
 from personalscraper.indexer.scanner._checkpoint import _maybe_checkpoint
 from personalscraper.indexer.scanner._db_writes import _INSERT_BATCH_SIZE, _upsert_file_row
+from personalscraper.indexer.scanner._modes.full import FullVisitor
+from personalscraper.indexer.scanner._walker import WalkBudget, WalkCheckpoint, walk
+from personalscraper.indexer.schema import DiskRow, ScanRunRow
 
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent.parent / "personalscraper" / "indexer" / "migrations"
+
+
+def _insert_disk(conn: sqlite3.Connection, mount_path: str) -> DiskRow:
+    """Insert a disk rooted at *mount_path* and return the stored row."""
+    row = DiskRow(
+        id=0,
+        uuid="uuid-wiring",
+        label="WiringDisk",
+        mount_path=mount_path,
+        last_seen_at=int(time.time()),
+        merkle_root=None,
+        is_mounted=1,
+        unreachable_strikes=0,
+    )
+    disk_id = disk_repo.insert(conn, row)
+    return DiskRow(
+        id=disk_id,
+        uuid=row.uuid,
+        label=row.label,
+        mount_path=row.mount_path,
+        last_seen_at=row.last_seen_at,
+        merkle_root=row.merkle_root,
+        is_mounted=row.is_mounted,
+        unreachable_strikes=row.unreachable_strikes,
+    )
+
+
+def _insert_scan_run(conn: sqlite3.Connection) -> int:
+    """Insert a running full-mode scan_run row and return its PK."""
+    return log_repo.insert_scan_run(
+        conn,
+        ScanRunRow(
+            id=0,
+            generation=1,
+            mode="full",
+            disk_filter=None,
+            started_at=int(time.time()),
+            finished_at=None,
+            last_path=None,
+            status="running",
+            stats_json=None,
+        ),
+    )
 
 
 def _make_conn() -> sqlite3.Connection:
@@ -147,3 +194,72 @@ class TestCheckpointFlushesFirst:
         scan_run_id = int(conn.execute("SELECT id FROM scan_run").fetchone()[0])
         counter, exhausted = _maybe_checkpoint(conn, scan_run_id, "BatchDisk/films/x.mkv", 100, 100, 0.0, None)
         assert (counter, exhausted) == (0, False)
+
+
+class TestTheWalkerDrivesTheFlush:
+    """The hook has to be WIRED, which testing _maybe_checkpoint alone never shows.
+
+    The first version of these tests passed ``before_commit`` by hand, so
+    removing the walker's own ``before_commit=visitor.flush_pending`` left every
+    one of them green. This class drives a real :func:`walk` and reads the
+    database, which is the only thing that can tell the wiring apart.
+    """
+
+    def test_rows_reach_the_database_before_the_walk_returns(self, tmp_path: Path) -> None:
+        """A checkpoint mid-walk must leave written rows behind it, not a buffer."""
+        conn = _make_conn()
+        disk = _insert_disk(conn, str(tmp_path))
+        scan_run_id = _insert_scan_run(conn)
+        for index in range(6):
+            (tmp_path / f"Movie {index}.mkv").write_bytes(b"\0" * 16)
+
+        visitor = FullVisitor(conn, disk, generation=1, files_visited=[0], dirs_visited=[0])
+        walk(
+            str(tmp_path),
+            visitor,
+            budget=WalkBudget(budget_seconds=None, started_at_monotonic=time.monotonic(), budget_exhausted=[False]),
+            shutdown=lambda: False,
+            checkpoint=WalkCheckpoint(
+                scan_run_id=scan_run_id,
+                checkpoint_every=2,
+                files_since_checkpoint=[0],
+                resume_from=[None],
+            ),
+        )
+
+        # walk() has returned but the caller's trailing flush has NOT run. Every
+        # file covered by a checkpoint must already be in the database.
+        assert _rows_written(conn) == 6, "the checkpoints must have drained the buffer as they went"
+        assert visitor.insert_buffer == []
+
+    def test_the_committed_position_never_outruns_the_written_rows(self, tmp_path: Path) -> None:
+        """The defect itself: last_path claimed files whose rows were in memory."""
+        conn = _make_conn()
+        disk = _insert_disk(conn, str(tmp_path))
+        scan_run_id = _insert_scan_run(conn)
+        for index in range(5):
+            (tmp_path / f"Movie {index}.mkv").write_bytes(b"\0" * 16)
+
+        visitor = FullVisitor(conn, disk, generation=1, files_visited=[0], dirs_visited=[0])
+        walk(
+            str(tmp_path),
+            visitor,
+            budget=WalkBudget(budget_seconds=None, started_at_monotonic=time.monotonic(), budget_exhausted=[False]),
+            shutdown=lambda: False,
+            checkpoint=WalkCheckpoint(
+                scan_run_id=scan_run_id,
+                checkpoint_every=2,
+                files_since_checkpoint=[0],
+                resume_from=[None],
+            ),
+        )
+
+        last_path = conn.execute("SELECT last_path FROM scan_run WHERE id = ?", (scan_run_id,)).fetchone()[0]
+        assert last_path is not None, "the walk was long enough to checkpoint"
+        # Every file at or before the committed position is one a resume would
+        # skip, so each of them must already have its row.
+        claimed = sorted(
+            name for name in (f"Movie {index}.mkv" for index in range(5)) if f"{disk.label}//{name}" <= last_path
+        )
+        written = sorted(row[0] for row in conn.execute("SELECT filename FROM media_file ORDER BY filename").fetchall())
+        assert set(claimed) <= set(written), "a committed position named files with no row"
