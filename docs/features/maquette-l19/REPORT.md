@@ -50,7 +50,10 @@ is L13's, and this wave is the one that establishes it by subtraction rather tha
 
 **Measured on the final head: 133 `closest.dataset.` reads over 73 distinct names** (132 over 71
 on `main`). The wave moved the two the contract's own objective names — `data-cancelsetting`
-(settings) and `data-take` (arrivals) — and added none.
+(settings) and `data-take` (arrivals), and added the two its two behaviour phases required —
+`data-confirmrestart` and `data-reloadsettings`, which is where the **+1** below comes from.
+**No verb was added that a surface did not need**, which is the clause's real subject. « and
+added none » stood here until 2026-09-05 and contradicted the paragraph two below it.
 <sub>`grep -c "closest\.dataset\." frontend/maquette/design/src/engine/legacy.js` · `grep -o "closest\.dataset\.[A-Za-z0-9_]*" … | sed 's/.*\.//' | sort -u | wc -l`</sub>
 
 **NEITHER FIGURE IS A VERB COUNT, and this file said « some 71 verbs, of which six are the
