@@ -81,8 +81,8 @@ describe("the fault falls on the named row, in any order", () => {
     it(`gives the late row ITS OWN cadence, not another job's — ${order}`, () => {
       const drawn = schedulersDown(list, words);
       const late = drawn.find((row) => row.ton === "alert") as Fact;
-      const beforehand = list.find((row) => row.l === late.l) as Fact;
-      expect(cadence(late)).toBe(cadence(beforehand));
+      const healthyRow = list.find((row) => row.l === late.l) as Fact;
+      expect(cadence(late)).toBe(cadence(healthyRow));
       expect(late.v).toBe(words.value);
     });
 

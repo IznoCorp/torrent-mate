@@ -244,7 +244,7 @@ PANEL = """() => ({
 DECLARED_SOURCE_TIMEOUT_MILLISECONDS = 4000
 
 
-async def declared_tones(pg, source):
+async def declared_tones(page, source):
     """Reads a declared source's tones, waiting for it and never raising.
 
     A rule must always print its verdict. `getQueryData` answers `undefined`
@@ -255,19 +255,19 @@ async def declared_tones(pg, source):
     expression named; it is not an exception.
 
     Args:
-        pg: The page.
+        page: The page.
         source: The JavaScript expression naming the declared list.
 
     Returns:
         The list of declared tones, or None when the source never answered.
     """
     try:
-        await pg.wait_for_function(f"()=>{source} != null",
-                                   timeout=DECLARED_SOURCE_TIMEOUT_MILLISECONDS)
+        await page.wait_for_function(f"()=>{source} != null",
+                                     timeout=DECLARED_SOURCE_TIMEOUT_MILLISECONDS)
     except Exception:  # noqa: BLE001 — a source that never arrives is a verdict
         return None
     try:
-        return await pg.evaluate(f"()=>{source}.map((x) => x.ton)")
+        return await page.evaluate(f"()=>{source}.map((x) => x.ton)")
     except Exception:  # noqa: BLE001 — same reading, one step later
         return None
 
