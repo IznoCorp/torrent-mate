@@ -19,6 +19,9 @@ anything is enforced by that choice rather than by a mechanism. **That limit is 
 this repository prevents the steward prompt from being handed to the agent that just implemented
 the lot. Only the operator's choice does.**
 
+**Three conditions, and all three are the operator's to meet — for the FIRST instantiation.** A
+steward that reaches its context gate does not wait for the operator: it succeeds itself (below).
+
 **Three conditions, and all three are the operator's to meet:**
 
 1. **A fresh session.** Not the one that implemented the lot under audit, and not a continuation
@@ -84,6 +87,18 @@ launch prompt had said « message the steward (`ListAgents` names the session) �
 among three sessions sharing a prefix. The skill's rule is the repair; this paragraph is the reason
 it is not optional here, and the handoff memory carries the steward's address beside each agent's so
 a re-instantiated steward's first message reaches the right session.
+
+**Succession is the steward's to trigger, not to offer (operator, 2026-09-05 — three critical
+defects on the first succession).** At its context gate, at the next quiet boundary, the steward
+SPAWNS its successor with `orchestrator:iterm-agents` — `--permission-mode auto`, the operator's
+decision mode, or the successor stops at its first prompt in a tab nobody watches — with the
+succession brief as the startup prompt, and tells the operator AFTER the fact, in one line. It does
+not ask « hand over now or continue? »: the gate is not a choice. The successor's first task ends by
+CLOSING the predecessor's tab once it is idle, and the predecessor's session ends there; a brief that
+omits that step is defective. What happened on 2026-09-05: the steward announced its gate and waited
+(« le successeur n'est pas lancé, que se passe-t-il ? »), spawned without the decision mode, and its
+brief said « there is no tab to close ». The plugin's script defaults to the mode since 0.2.1; this
+paragraph is the office's half.
 
 **Building the context — from the repository, never from a conversation.** In order:
 `docs/reference/product-intent.md` (what the product must be), then
