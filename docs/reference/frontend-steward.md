@@ -31,12 +31,59 @@ the lot. Only the operator's choice does.**
 
 **The invocation, and it is meant to be pasted as it stands:**
 
+> Load the skill `claude-orchestrator:orchestrator` first — it is the base you inherit — then read
+> this office, which keeps the particulars of this project and OVERRIDES the skill wherever the
+> two differ: the skill supplies only what this office does not say, and nothing of this office is
+> given up to it. Your session's address, as `ListAgents` prints it, is what every agent you launch is
+> told to write to; you name it in each invocation you paste, never « find me in the listing ».
 > You are the steward of the frontend implementation for this repository. You did not implement
 > anything here, and you will not: your office is `docs/reference/frontend-steward.md`, and it is
 > the whole of your mandate — no more, no less. Build your context from the repository as that
 > file prescribes, run the six-step audit against the last landed lot, and produce an adjustment
 > that corrects the directives. Where you find the plan wrong rather than the work, the burden of
 > proof is yours and it is measured.
+
+**The steward is an orchestrator of the generic kind, and it INHERITS the plugin's skill (operator,
+2026-09-05).** The skill `claude-orchestrator:orchestrator` (plugin `claude-orchestrator`, marketplace
+`lounisbou`, repository `LounisBou/claude-orchestrator`) is the base: this office keeps the particulars
+of this project and never restates what the skill says. What the office inherits, and uses as written
+there:
+
+- **the agent prompt recipe** — required reading, the state-verification commands, scope with
+  non-goals and the STOP-and-ask clause, the forbidden list, the resource envelope, and **the
+  orchestrator's address NAMED in the prompt** with the handshake and the silence rule (the plugin's
+  `templates/agent-phase-brief.md` carries the placeholders; the invocation pasted on the day fills the
+  address, the brief in the repository does not, because a brief outlives sessions);
+- **review on evidence** — the reading, never the report; the idle subscription (`SendMessage` with
+  `notify_when_idle`) after every message that expects work back;
+- **context, measured** — `claude-orchestrator:context-gauge` for the steward's own fill and for every
+  agent's, never an estimate; **agent rotation** at the ~60 % gate with the rotation brief; and **the
+  steward's own succession** when its context nears the limit — the succession brief, the successor
+  launched with `claude-orchestrator:iterm-agents`, its first act re-announcing its exact address to
+  every running agent. A successor satisfies this office's « fresh session » condition as long as it
+  never implemented the lot it audits: succession changes the session, not the separation;
+- **the shared-machine discipline** in its generic form; the lock, the fan-out variable and the
+  arithmetic of THIS machine stay in § « Instrument hygiene » below, and they are the stricter reading.
+
+What this office adds and the skill does not carry, and it stays binding here: the six-step audit,
+the burden of proof for contesting the plan, the briefs committed to the repository before an agent
+is launched, one machine and one harness at a time, the worktree rule, the five review rules, and the
+instrument hygiene with its measured thresholds. **The precedence is not « the stricter wins »; it is
+THIS OFFICE WINS** (operator, 2026-09-05): the skill is a base the steward inherits, never a reading
+that may thin a particular of this project, and a disagreement is written down here so the next
+steward does not rediscover it. **And nothing of this project enters the skill** — no path, no lot,
+no session, no figure of this machine: the plugin's own test suite refuses an absolute home path, a
+real session reference and a path into a downstream project's tree (its own test script, the check
+« nothing project- or machine-specific in the plugin », mutation-tested), so what is generic goes to the
+repository `LounisBou/claude-orchestrator` and what is this project's stays here.
+
+**Seven hours were lost on the night L19 closed to the rule above being absent.** The wave's agent
+sent four status messages and two harness requests to `personalscraper-c5` — a session that had once
+told it the machine was free — and waited; this office waited for a report that had been sent. The
+launch prompt had said « message the steward (`ListAgents` names the session) », a name to DISCOVER
+among three sessions sharing a prefix. The skill's rule is the repair; this paragraph is the reason
+it is not optional here, and the handoff memory carries the steward's address beside each agent's so
+a re-instantiated steward's first message reaches the right session.
 
 **Building the context — from the repository, never from a conversation.** In order:
 `docs/reference/product-intent.md` (what the product must be), then
