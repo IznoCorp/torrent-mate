@@ -236,6 +236,42 @@ PANEL = """() => ({
 })"""
 
 
+# HOW LONG A DECLARED SOURCE IS GIVEN TO ANSWER. Four of the five are synchronous
+# `window` globals that exist before any rule can look; the schedulers' is a
+# query cache entry, so it is the one read that has to arrive. The page itself
+# is settled with a fixed wait above, and this is the same discipline applied to
+# the one source that is not the document.
+DECLARED_SOURCE_TIMEOUT_MILLISECONDS = 4000
+
+
+async def declared_tones(pg, source):
+    """Reads a declared source's tones, waiting for it and never raising.
+
+    A rule must always print its verdict. `getQueryData` answers `undefined`
+    until its query settles, and `undefined.map` raises a TypeError out of
+    `main()` — so `Journal.summary()` never runs and the run prints no « N
+    rules » line at all, handing its reader a traceback naming `.map` instead
+    of the schedulers. A source that never answers is a FAILED hold, with the
+    expression named; it is not an exception.
+
+    Args:
+        pg: The page.
+        source: The JavaScript expression naming the declared list.
+
+    Returns:
+        The list of declared tones, or None when the source never answered.
+    """
+    try:
+        await pg.wait_for_function(f"()=>{source} != null",
+                                   timeout=DECLARED_SOURCE_TIMEOUT_MILLISECONDS)
+    except Exception:  # noqa: BLE001 — a source that never arrives is a verdict
+        return None
+    try:
+        return await pg.evaluate(f"()=>{source}.map((x) => x.ton)")
+    except Exception:  # noqa: BLE001 — same reading, one step later
+        return None
+
+
 def real_processes():
     """The process names PM2 really runs, or None when pm2 cannot be read."""
     try:
@@ -401,10 +437,13 @@ async def main():
             rows = sys_view[key]
             without_badge = [x["l"] for x in (rows or []) if x["tone"] is None]
             journal.check(f"every {name} carries a badge", not without_badge, str(without_badge) or "all of them")
-            declared = await pg.evaluate(f"()=>{source}.map((x) => x.ton)")
+            declared = await declared_tones(pg, source)
             rendered = [x["tone"] for x in (rows or [])]
             journal.check(f"a {name}'s badge follows the declared state, never a hand-written colour",
-                          rendered == declared, f"rendered {rendered} vs declared {declared}")
+                          declared is not None and rendered == declared,
+                          f"rendered {rendered} vs declared {declared}"
+                          if declared is not None else
+                          f"rendered {rendered} vs a declared source that never answered: {source}")
             # And the tone matches what the WORD means. This is the half that
             # a comparison against the data cannot do.
             misworded = [
