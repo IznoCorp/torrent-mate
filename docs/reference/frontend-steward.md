@@ -65,6 +65,22 @@ there:
   launched with `orchestrator:iterm-agents`, its first act re-announcing its exact address to
   every running agent. A successor satisfies this office's « fresh session » condition as long as it
   never implemented the lot it audits: succession changes the session, not the separation;
+- **the launch itself.** **The steward LAUNCHES every wave's agent, and it ROTATES one whose context
+  has passed the gate — itself, with `orchestrator:iterm-agents`, never by handing the operator an
+  invocation to paste (operator, 2026-09-05: « c'est à toi de lancer les agents, tes skills
+  d'orchestrateur sont faites pour ça ; ne pas le faire est une erreur critique »).** This REVERSES
+  the sentence of 2026-09-04 that had the operator launch each agent (« c'est toujours comme ça
+  qu'on procède »), and the successor steward paid for reading it as current: two reports ended by
+  handing the operator a path and an address, and an agent at 83 % context was left running until
+  he said so. The brief is merged, and the agent is spawned in the same move — `--dir` the checkout
+  the wave writes in (one writer per repository), the tab placed immediately RIGHT of the steward's
+  (`--left-of` the next sibling's tty), the prompt ONE LINE naming the brief's path and the
+  steward's exact `ListAgents` name and reference, everything else in the brief. The prompt is typed
+  into a shell by AppleScript: a long one is truncated mid-sentence and never runs, and a non-ASCII
+  character kills the script's own `sed` (« RE error: illegal byte sequence ») — both observed on the
+  first launch this office made. Verify the spawn on the artifact (`list`, `ps -t <tty>`,
+  `ListAgents`), then wait for the handshake; an agent past ~60 % is stood down, its tab closed
+  after its acknowledgment, and its replacement spawned with the resume brief;
 - **the shared-machine discipline** in its generic form; the lock, the fan-out variable and the
   arithmetic of THIS machine stay in § « Instrument hygiene » below, and they are the stricter reading.
 
