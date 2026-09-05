@@ -471,3 +471,22 @@ class TestFindShowTrailer:
     def test_returns_none_when_the_media_dir_is_absent(self, tmp_path: Path) -> None:
         """An unmounted or moved media dir reads as absent, never raising."""
         assert find_show_trailer(tmp_path / "nothing here", 1024) is None
+
+    def test_finds_a_trailer_that_carries_no_extension(self, tmp_path: Path) -> None:
+        """128 of this library's 676 trailer files have none — a yt-dlp artefact.
+
+        Skipping them reads each of those shows as trailer-less and downloads a
+        second trailer, which is the defect this function exists to end.
+        """
+        show_dir = self._make_show(tmp_path, "trailers", "trailer #1", 2048)
+        assert find_show_trailer(show_dir, 1024) == show_dir / "trailers" / "trailer #1"
+
+    def test_still_ignores_a_sidecar_that_does_carry_an_extension(self, tmp_path: Path) -> None:
+        """Admitting extensionless files must not admit every file."""
+        show_dir = self._make_show(tmp_path, "Trailers", "poster.jpg", 2048)
+        assert find_show_trailer(show_dir, 1024) is None
+
+    def test_an_extensionless_file_below_the_floor_is_not_a_trailer(self, tmp_path: Path) -> None:
+        """With no suffix to judge by, the size floor is the only guard left."""
+        show_dir = self._make_show(tmp_path, "trailers", "trailer #1", 10)
+        assert find_show_trailer(show_dir, 1024) is None

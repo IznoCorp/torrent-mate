@@ -170,11 +170,18 @@ def find_show_trailer(media_dir: Path, min_size_bytes: int) -> Path | None:
     copy beside the first, and a viewer sees the same trailer twice in the
     extras row.
 
-    The folder is therefore matched case-insensitively, and any known trailer
-    extension of at least ``min_size_bytes`` inside it answers — a folder Plex
-    treats as trailer extras holds trailers whatever its files are called, and
-    a check keyed on the file name would miss a hand-placed one for the same
-    reason it misses the legacy one.
+    The folder is therefore matched case-insensitively, and a file of at least
+    ``min_size_bytes`` inside it answers whatever it is called — a folder Plex
+    treats as trailer extras holds trailers, and a check keyed on the file name
+    would miss a hand-placed one for the same reason it misses the legacy one.
+
+    A file carrying an extension that is not one of
+    :data:`_KNOWN_TRAILER_EXTENSIONS` is skipped, so a sidecar never stands in
+    for a trailer. A file carrying NO extension is not skipped: 128 of this
+    library's 676 trailer files have none — a yt-dlp artefact — and treating
+    them as absent re-downloads a trailer each of those shows already owns,
+    which is the very defect this function exists to end. The size floor is
+    what keeps junk out, not the presence of a suffix.
 
     The canonical spelling is preferred when a show carries both, so the path
     reported stays stable from run to run.
@@ -206,8 +213,9 @@ def find_show_trailer(media_dir: Path, min_size_bytes: int) -> Path | None:
         except OSError:
             continue
         for candidate in candidates:
-            if candidate.suffix.lstrip(".").casefold() not in _KNOWN_TRAILER_EXTENSIONS:
-                continue
+            suffix = candidate.suffix.lstrip(".").casefold()
+            if suffix and suffix not in _KNOWN_TRAILER_EXTENSIONS:
+                continue  # a sidecar; an extensionless file falls through
             if trailer_exists(candidate, min_size_bytes):
                 return candidate
 
