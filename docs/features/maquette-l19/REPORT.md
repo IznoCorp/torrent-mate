@@ -206,7 +206,8 @@ turned up.** Eighteen in all.
 | `settings.py` | the cancel verb, the pending edit shown, B-299's banner, B-300's confirmation through its CANCEL | 46 → 65 |
 | `pop.py` | the episode's own facts, a verdict that reaches the exit code, **and a `common.Journal` the recorder can read** | unparseable → 17 |
 | `page_host.py` | stops asserting B-300 | 44 |
-| **B-306** `check-frontend-boundaries.py` | a grandfathered file's size is RECORDED and refused upward | 4 new cases |
+| **B-306** `check-frontend-boundaries.py` | a grandfathered file's size is RECORDED and refused upward, **and the record itself is compared with the record at the base** | 4 + 8 new cases |
+| — | **and that second half is INERT on its own pull request**, correctly and out loud: the ledger is a file this wave creates, so there is no earlier record to read. CI prints « … does not exist at origin/main (4c0e274a7) — there is no earlier record », which is the arm RESOLVING the base and saying so; the sentence it does not print — « no base branch is reachable » — is the one that would mean an inert ratchet. **Its first live comparison is the next wave's** | said, not shown |
 | `check-state-ownership.py` | a module the engine imports back is the engine's — an exemption PARSED rather than searched for, and the guard's first test file | 13 new cases |
 | **R82** `journey.py` | a cold addressed reopen puts the panel back on the entry that already records it, pushing nothing | 66 → 70 |
 | **R81** `focus.py` | a confirmation opens on its WAY OUT, never on the destructive act | 20 → 22 |

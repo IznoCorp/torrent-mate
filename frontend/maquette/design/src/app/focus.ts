@@ -55,6 +55,16 @@ const LAYERS = [
 // Disabled is excluded here as it is below: a named entry nobody can reach is
 // not an entry, and focusing it would leave the reader with no way in at all —
 // worse than the fallback it overrides.
+//
+// AND NOTHING PROVES THAT CLAUSE TODAY, which is said here rather than left for
+// a reader to discover. A dialog action carries no `disabled` field at all, so
+// no state this prototype can reach distinguishes `[autofocus]` from
+// `[autofocus]:not([disabled])`: remove the qualifier and every gate stays
+// green. It is written for the layer that will have one — a panel action HAS a
+// `desactive` field, and the day a panel names its own entry the distinction
+// becomes measurable. An unprovable guard is worth having when it costs one
+// selector and its absence costs a reader the way in; what it is not worth is
+// being counted as proved.
 const NAMED_ENTRY = "[autofocus]:not([disabled])";
 
 // Where focus goes when a layer names none: the first control the reader would

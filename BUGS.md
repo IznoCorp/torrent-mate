@@ -381,6 +381,7 @@ when the defect comes back.
 | B-319 | `fanout.py` holds the invalidation map against itself: a key dropped from the declaration is invisible to it | 1× | `open` |
 | B-320 | React #300 and #310 on the two non-ready acquisition surfaces, from a cold page, on head and on `main` alike | 1× | `open` |
 | B-321 | An evicted `setting:`/`action:` panel entry leaves the address naming a panel that never comes back | 1× | `fixed #558` |
+| B-322 | The release screen fires TWO take toasts into one element in the same tick, and the first is never seen | 1× | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -1106,6 +1107,35 @@ read is `/api/config/schema` — so it walked a WARM cache and passed with the r
 hold reads the eviction back now, before the Forward.
 
 <sub>established in round two of PR #558, 2026-09-05 · probe on a build of `4c0e274a7` served on 8981 · the rule is `frontend/maquette/harness/journey.py`'s</sub>
+
+**B-322 — the release screen says two things and the operator hears one.**
+Choosing a release calls `actionTake(currentState().relatedTitle)`
+(`engine/legacy.js:5538`), which toasts « … récupéré — suivez-le dans « En
+vol ». », and the same block then toasts « « … » retenue — récupération lancée. »
+Both land in the ONE `#toast` element, in the same tick. Sampled every 180 ms
+across the gesture, **only the second is ever observed**: the first is
+overwritten before a frame carries it.
+
+**Why it matters more than a lost sentence.** REPORT § 8's deviation 14 records
+that the take sentence has two derivations for the duration of the engine's
+life, and says « the two agree today ». They cannot be compared by anyone: the
+duplicate is dropped silently, which is the state in which two derivations drift
+without a reader ever noticing. It is the deviation's own risk, realised.
+
+**NOT REPAIRED HERE, and the reason is the ratchet this wave itself armed.** The
+clean repair takes the act without its sentence at that one site —
+`window.__queueActions?.take(…)` and `render()` in place of `actionTake(…)` —
+which ADDS lines to `engine/legacy.js`. D5 allows an addition to the engine only
+to stop a defect that destroys or loses the operator's DATA, and a lost toast is
+not that; the size ledger refuses the file upward, which is the same rule with
+an exit code. Subtracting instead — dropping `actionTake`'s own toast — would
+silence the two other callers that depend on it.
+
+**Owner: the lot that takes the release screen's delegation verbs.** `data-take`
+on that screen is one of the readers still in the engine's delegation, and the
+sentence moves with the verb.
+
+<sub>found in round two of PR #558, 2026-09-05 · `engine/legacy.js:5542` and `:9361-9363`, toast sampled every 180 ms on head and control, only the second observed on either</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in

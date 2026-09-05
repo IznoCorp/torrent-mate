@@ -160,6 +160,24 @@ async def main():
                 f"and it is about the subject it was asked for ({kind})",
                 drawn is not None and drawn == expected,
                 f"drawn {drawn!r} · expected {expected!r}")
+            # AND ITS FIRST ACTION IS NOT THE DESTRUCTIVE ONE, because that is
+            # where focus lands. `app/focus.ts` moves focus into a layer that
+            # opens and takes the layer's own named entry, then the first
+            # control a reader would reach — and a panel names none, so the
+            # first action IS the entry. The dialog layer solved this by naming
+            # its way out; a panel is a menu rather than an interposition and
+            # has no way out to name, so what keeps it safe is the ORDER, and
+            # the order is what this reads. A panel that puts a destructive act
+            # first hands a keyboard's or a switch control's next Enter the act
+            # it should have had to travel to.
+            first_tone = await page.evaluate(
+                """()=>{const one = document.querySelector(
+                     '#sheet [data-part="sheet/action"], #sheetin [data-part="sheet/action"]');
+                   return one ? (one.dataset.tone || "neutral") : null;}""")
+            journal.check(
+                f"and its FIRST action is not the destructive one ({kind}) — "
+                f"a panel names no way out, so focus lands there",
+                first_tone != "danger", f"first action's tone: {first_tone}")
 
         # AFTER THE BOOT, and said so rather than left to be assumed: the
         # listener is attached once `open_page` has navigated, so this reads the
