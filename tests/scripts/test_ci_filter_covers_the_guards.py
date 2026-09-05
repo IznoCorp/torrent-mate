@@ -248,12 +248,26 @@ def test_the_ledger_ratchet_has_a_base_to_read_in_ci() -> None:
     """
     workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     jobs = workflow["jobs"]
+    # BOTH JOBS, and the second is why this hold was widened. A job that runs
+    # the guard DIRECTLY names it in a `run:` step; `harness-contracts` runs it
+    # as the first of `run.sh --contracts`'s repository guards and names only
+    # the script that runs them, so selecting on the literal alone left the
+    # ratchet free to go inert in that job with every test green.
+    through_the_tier = "check-frontend-boundaries.py" in RUN_SCRIPT.read_text(encoding="utf-8")
     running = [
         name
         for name, job in jobs.items()
-        if any("check-frontend-boundaries.py" in str(step.get("run", "")) for step in job.get("steps", []))
+        if any(
+            "check-frontend-boundaries.py" in str(step.get("run", ""))
+            or (through_the_tier and "run.sh --contracts" in str(step.get("run", "")))
+            for step in job.get("steps", [])
+        )
     ]
     assert running, "no CI job runs check-frontend-boundaries.py at all"
+    assert len(running) >= 2, (
+        f"only {running} were found to run the guard; the contract tier runs it "
+        f"too, and a job this hold cannot see is a job whose depth nothing holds"
+    )
     for name in running:
         checkouts = [step for step in jobs[name]["steps"] if str(step.get("uses", "")).startswith("actions/checkout")]
         assert checkouts, f"{name} runs the guard and checks nothing out"

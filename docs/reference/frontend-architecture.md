@@ -1771,6 +1771,14 @@ addition, not an edit of the sentence above).
   delegation's FRAME verbs »; these five are not the frame's, and they move with the delegation
   rather than with the producers that emit them, because what they do is open a surface.
 
+**Done when**, for both, and it is written as a command because the two bullets above are not
+ones: `python3 scripts/check-frontend-boundaries.py --arm size` no longer lists `engine/legacy.js`
+in `GRANDFATHERED` at all — the file is gone, which is this lot's own first clause, and nine
+declarations of 26 375 lines inside a file that does not exist is zero by construction; and
+`grep -cE "closest\.dataset\.(mediasheet|journey|resolve|releases|profile)"
+frontend/maquette/design/src/engine/legacy.js` reads **0**, which is L21's own addendum written the
+same way.
+
 **Carried here by L12, 2026-09-01 — B-290, the ladder's two shapes.** A layer closed inside a
 navigation's commit keeps its history entry, so Back from a media screen opened that way crosses TWO
 entries where every sibling action crosses one. The outcome is the same and the mechanism is not,
