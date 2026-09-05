@@ -805,13 +805,12 @@ class TestTheRecordIsARatchetToo:
 
         def write(count: int) -> None:
             ledger.write_text(
-                'GRANDFATHERED = {\n'
-                f'    "engine/legacy.js": ("L13 — it dies by subtraction", {count}),\n'
-                '}\n', encoding="utf-8")
+                f'GRANDFATHERED = {{\n    "engine/legacy.js": ("L13 — it dies by subtraction", {count}),\n}}\n',
+                encoding="utf-8",
+            )
 
         def git(*arguments: str) -> None:
-            subprocess.run(("git", *arguments), cwd=root, check=True,
-                           capture_output=True)
+            subprocess.run(("git", *arguments), cwd=root, check=True, capture_output=True)
 
         git("init", "-b", "main")
         git("config", "user.email", "rule@example.invalid")
@@ -862,15 +861,14 @@ class TestTheRecordIsARatchetToo:
         root = self._repository(tmp_path, before=100, after=120)
         design = copy_design_src(tmp_path)
         engine_lines = sum(
-            1 for line in (design / "engine" / "legacy.js").read_text(encoding="utf-8").splitlines()
-            if line.strip())
+            1 for line in (design / "engine" / "legacy.js").read_text(encoding="utf-8").splitlines() if line.strip()
+        )
         ledger = guard.ledger
         before_root, before_table = ledger.REPOSITORY_ROOT, ledger.GRANDFATHERED
         try:
             ledger.REPOSITORY_ROOT = root
             ledger.GRANDFATHERED = {
-                "engine/legacy.js": ("L13 — the engine dies by subtraction, surface by surface",
-                                     engine_lines),
+                "engine/legacy.js": ("L13 — the engine dies by subtraction, surface by surface", engine_lines),
                 "engine/states.js": before_table["engine/states.js"],
             }
             violations = guard.arm_size(design)
@@ -896,8 +894,9 @@ class TestTheRecordIsARatchetToo:
     def test_a_new_entry_has_nothing_to_compare(self, tmp_path) -> None:
         """A file grandfathered for the first time is not a raise."""
         root = self._repository(tmp_path, before=100, after=100)
-        raised, _ = self._read(root, {"engine/legacy.js": ("L13 — a lot", 100),
-                                      "engine/states.js": ("L13 — a lot", 900)})
+        raised, _ = self._read(
+            root, {"engine/legacy.js": ("L13 — a lot", 100), "engine/states.js": ("L13 — a lot", 900)}
+        )
         assert raised == []
 
     def test_it_says_so_when_it_cannot_engage(self, tmp_path) -> None:
@@ -918,7 +917,9 @@ class TestTheRecordIsARatchetToo:
         """A revision of this file cannot run anything inside the guard."""
         ledger = guard.ledger
         marker = tmp_path / "it-ran"
-        text = (f'import pathlib\npathlib.Path({str(marker)!r}).write_text("x")\n'
-                'GRANDFATHERED = {"engine/legacy.js": ("L13 — a lot", 100)}\n')
+        text = (
+            f'import pathlib\npathlib.Path({str(marker)!r}).write_text("x")\n'
+            'GRANDFATHERED = {"engine/legacy.js": ("L13 — a lot", 100)}\n'
+        )
         assert ledger.parse_recorded(text) == {"engine/legacy.js": 100}
         assert not marker.exists()

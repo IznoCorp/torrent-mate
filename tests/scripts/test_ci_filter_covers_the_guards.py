@@ -248,15 +248,16 @@ def test_the_ledger_ratchet_has_a_base_to_read_in_ci() -> None:
     """
     workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     jobs = workflow["jobs"]
-    running = [name for name, job in jobs.items()
-               if any("check-frontend-boundaries.py" in str(step.get("run", ""))
-                      for step in job.get("steps", []))]
+    running = [
+        name
+        for name, job in jobs.items()
+        if any("check-frontend-boundaries.py" in str(step.get("run", "")) for step in job.get("steps", []))
+    ]
     assert running, "no CI job runs check-frontend-boundaries.py at all"
     for name in running:
-        checkouts = [step for step in jobs[name]["steps"]
-                     if str(step.get("uses", "")).startswith("actions/checkout")]
+        checkouts = [step for step in jobs[name]["steps"] if str(step.get("uses", "")).startswith("actions/checkout")]
         assert checkouts, f"{name} runs the guard and checks nothing out"
         for step in checkouts:
-            assert (step.get("with") or {}).get('fetch-depth') == 0, (
-                f"{name} clones shallow, so the ledger's ratchet reads no "
-                f"base and refuses nothing")
+            assert (step.get("with") or {}).get("fetch-depth") == 0, (
+                f"{name} clones shallow, so the ledger's ratchet reads no base and refuses nothing"
+            )

@@ -30,7 +30,8 @@ def load_arm():
         The module object.
     """
     spec = importlib.util.spec_from_file_location(
-        "check_maquette_comments", ROOT / "scripts" / "check-maquette-comments.py")
+        "check_maquette_comments", ROOT / "scripts" / "check-maquette-comments.py"
+    )
     module = importlib.util.module_from_spec(spec)
     sys.modules["check_maquette_comments"] = module
     spec.loader.exec_module(module)
@@ -50,13 +51,16 @@ def arm_fixture():
 class TestWhatCounts:
     """The three things that name a wave rather than a thing."""
 
-    @pytest.mark.parametrize("text,what", [
-        ("the producer moved at L19", "a lot code"),
-        ("it goes with the engine at L13, and it goes in one file", "a lot code"),
-        ("the first pass of phase 6 missed it", "a phase"),
-        ("phases 3 and 4 disagreed", "a phase"),
-        ("arbitrated by the operator on 2026-08-29", "a date"),
-    ])
+    @pytest.mark.parametrize(
+        "text,what",
+        [
+            ("the producer moved at L19", "a lot code"),
+            ("it goes with the engine at L13, and it goes in one file", "a lot code"),
+            ("the first pass of phase 6 missed it", "a phase"),
+            ("phases 3 and 4 disagreed", "a phase"),
+            ("arbitrated by the operator on 2026-08-29", "a date"),
+        ],
+    )
     def test_a_temporal_reference_is_counted(self, arm, text, what) -> None:
         """Each one, and the arm says which kind it found."""
         found = arm.references(text)
@@ -71,17 +75,20 @@ class TestWhatCounts:
 class TestWhatMustNotCount:
     """The names that outlive the wave that wrote them — and stay citeable."""
 
-    @pytest.mark.parametrize("text", [
-        "B-247's producer half",
-        "R103 refuses the gap",
-        "DOIT-8 says nothing is replaced in silence",
-        "§20 names the tunnel",
-        "docs/reference/frontend-architecture.md",
-        "features/acquisition/panel-follow.ts",
-        "the 400-line ceiling",
-        "a 260 ms wait",
-        "L is a letter and 19 is a number",
-    ])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "B-247's producer half",
+            "R103 refuses the gap",
+            "DOIT-8 says nothing is replaced in silence",
+            "§20 names the tunnel",
+            "docs/reference/frontend-architecture.md",
+            "features/acquisition/panel-follow.ts",
+            "the 400-line ceiling",
+            "a 260 ms wait",
+            "L is a letter and 19 is a number",
+        ],
+    )
     def test_it_is_not_a_temporal_reference(self, arm, text) -> None:
         """None of these is a wave."""
         assert arm.references(text) == []
@@ -105,18 +112,15 @@ class TestItReadsCommentsAndNotCode:
 
     def test_a_python_docstring_is_read(self, arm) -> None:
         """Most of this repository's prose lives in one."""
-        assert any("L19" in block
-                   for block in arm.comments('"""moved at L19."""\n', ".py"))
+        assert any("L19" in block for block in arm.comments('"""moved at L19."""\n', ".py"))
 
     def test_a_python_string_literal_is_not(self, arm) -> None:
         """A rule may legitimately assert on the text « L19 »."""
-        assert all("L19" not in block
-                   for block in arm.comments('name = "L19"\n', ".py"))
+        assert all("L19" not in block for block in arm.comments('name = "L19"\n', ".py"))
 
     def test_a_line_comment_is_read(self, arm) -> None:
         """The TypeScript half."""
-        assert list(arm.comments("const a = 1; // moved at L19\n", ".ts")) == [
-            " moved at L19"]
+        assert list(arm.comments("const a = 1; // moved at L19\n", ".ts")) == [" moved at L19"]
 
     def test_a_block_comment_is_read(self, arm) -> None:
         """And the block form the maquette leans on."""
@@ -175,8 +179,7 @@ class TestItReadsTheRealTree:
         """A generated file is opened by no one, and its prose is held at its source."""
         assert "design/src/contract/types.d.ts" in arm.GENERATED
         assert "openapi.json" in arm.GENERATED["design/src/contract/types.d.ts"]
-        assert all(relative != "design/src/contract/types.d.ts"
-                   for relative, _, _ in arm.sources())
+        assert all(relative != "design/src/contract/types.d.ts" for relative, _, _ in arm.sources())
 
     def test_the_contract_is_read_at_its_source(self, arm) -> None:
         """`openapi.json` carries prose under the same rule, and it is read."""
@@ -191,6 +194,7 @@ class TestItReadsTheRealTree:
         which is the state the size ledger's labels were found in.
         """
         import json
+
         recorded = json.loads(arm.BASELINE.read_text(encoding="utf-8"))["files"]
         counts, _ = arm.measure()
         assert counts == recorded

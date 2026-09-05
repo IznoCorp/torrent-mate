@@ -28,7 +28,8 @@ def load_arm():
         The module object.
     """
     spec = importlib.util.spec_from_file_location(
-        "check_state_ownership", ROOT / "scripts" / "check-state-ownership.py")
+        "check_state_ownership", ROOT / "scripts" / "check-state-ownership.py"
+    )
     module = importlib.util.module_from_spec(spec)
     sys.modules["check_state_ownership"] = module
     spec.loader.exec_module(module)
@@ -86,12 +87,15 @@ def test_a_side_effect_import_counts(arm, tmp_path):
     assert arm.engine_imports(tmp_path, "features/acquisition/discover-feed.ts") is True
 
 
-@pytest.mark.parametrize("specifier", [
-    "../features/acquisition/discover-feed",
-    "../features/acquisition/discover-feed.js",
-    "../features/acquisition/discover-feed.ts",
-    "../features/acquisition/discover-feed/index",
-])
+@pytest.mark.parametrize(
+    "specifier",
+    [
+        "../features/acquisition/discover-feed",
+        "../features/acquisition/discover-feed.js",
+        "../features/acquisition/discover-feed.ts",
+        "../features/acquisition/discover-feed/index",
+    ],
+)
 def test_every_spelling_of_one_file_counts(arm, tmp_path, specifier):
     """A resolver fills in the extension and the folder index; all four name it."""
     write_engine(tmp_path, f'import {{ feed }} from "{specifier}";\n')
