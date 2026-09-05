@@ -196,11 +196,11 @@ turned up.** Eighteen in all.
 
 | Rule | Subject | Holds |
 | --- | --- | --- |
-| **R120** `producers.py` | the seam: which kinds are registered, the refusal by its named thrower, each kind opening a panel about the subject asked for, the chip's tone and its word, the holder both ways, §5's distinction | 35 |
+| **R120** `producers.py` | the seam: which kinds are registered, the refusal by its named thrower, each kind opening a panel about the subject asked for, the chip's tone and its word, the holder both ways, §5's distinction, **and that no panel puts a destructive act first** | 44 |
 | **R121** `replacement.py` | DOIT-8 — nothing is replaced in silence, and a medium the library does not own raises no dialog | 8 |
 | **R122** `paths_to_sheets.py` | NE-DOIT-PAS-9 — six surfaces, three kinds of path, a floor each | 13 |
 | **R123** `take.py` | `data-take` on both its paths, and B-249's shape on the panel's | 9 |
-| **R124** `busy.py` | NE-DOIT-PAS-3 — the act lands, nothing answers 409, nothing says « occupé » — **raised by a finger, on the page that draws the row** | 10 |
+| **R124** `busy.py` | NE-DOIT-PAS-3 — the act lands, nothing answers 409, nothing says « occupé » — **raised by a hit-tested tap, on the page that draws the row, with what covers it dismissed first** | 10 |
 | R100 `persistence.py` | gains hold (h), the panels' nodes, and hold (i), the feed's containers | 41 → 47 |
 | R103 `exits.py` | refuses the gap on the journey's path, names the five it does not own | 17 → 18 |
 | `settings.py` | the cancel verb, the pending edit shown, B-299's banner, B-300's confirmation through its CANCEL | 46 → 65 |
@@ -209,8 +209,8 @@ turned up.** Eighteen in all.
 | **B-306** `check-frontend-boundaries.py` | a grandfathered file's size is RECORDED and refused upward, **and the record itself is compared with the record at the base** | 4 + 8 new cases |
 | — | **and that second half is INERT on its own pull request**, correctly and out loud: the ledger is a file this wave creates, so there is no earlier record to read. CI prints « … does not exist at origin/main (4c0e274a7) — there is no earlier record », which is the arm RESOLVING the base and saying so; the sentence it does not print — « no base branch is reachable » — is the one that would mean an inert ratchet. **Its first live comparison is the next wave's** | said, not shown |
 | `check-state-ownership.py` | a module the engine imports back is the engine's — an exemption PARSED rather than searched for, and the guard's first test file | 13 new cases |
-| **R82** `journey.py` | a cold addressed reopen puts the panel back on the entry that already records it, pushing nothing | 66 → 70 |
-| **R81** `focus.py` | a confirmation opens on its WAY OUT, never on the destructive act | 20 → 22 |
+| **R82** `journey.py` | a cold addressed reopen puts the panel back on the entry that already records it, pushing nothing — **and an EVICTED one is not refused for being cold**, with the eviction read back | 66 → 74 |
+| **R81** `focus.py` | **every** confirmation opens on its WAY OUT, never on the destructive act — all three the prototype has, each with a floor that it really offers a destructive act | 20 → 29 |
 | **B-287** `check-maquette-comments.py` | a maquette comment names no lot, no phase and no date — per file, refused upward | 31 new cases |
 
 ---
@@ -296,10 +296,11 @@ Never a build beside a run.
 | --- | --- |
 | **oracle** | 87 states × 34 regions, **2 958 measurements, NO DIVERGENCE** — and on every one of the eighteen phases before it |
 | **full suite** | **92 rules**, one failure: `machine.py` — **B-308**, pre-existing, proved not this branch's |
+| `--contracts` (round two) | 18 rules and **27** repository guards, no violation |
 | `run.sh --contracts` | 18 rules and **27** repository guards, no violation |
 | `--a11y` | **0 violations** over 87 states; the light theme unmoved at its ceiling of **166** |
-| `harness-hold-counts.py --compare` | **`failed` read FIRST (B-291): 1, and it is `machine.py`.** **Eight** rules changed hold count — `exits.py` 15→18, `fanout.py` 142→150, `focus.py` 20→22, `journey.py` 66→70, `panel.py` 50→51, `persistence.py` 39→47, `pop.py` **unparseable→17**, `settings.py` 46→65 — and five are new: `busy.py` **10**, `paths_to_sheets.py` 13, `producers.py` 35, `replacement.py` 8, `take.py` 9. **Every movement upward**, and the unparseable list falls from twelve to eleven |
-| `make check` | **11 132 passed, 0 failed, 0 errors** (4 skipped, 2 xfailed), coverage 91.09 % |
+| `harness-hold-counts.py --compare` | **`failed` read FIRST (B-291): 1, and it is `machine.py`.** **Eight** rules changed hold count — `exits.py` 15→18, `fanout.py` 142→150, `focus.py` 20→**29**, `journey.py` 66→**74**, `panel.py` 50→51, `persistence.py` 39→47, `pop.py` **unparseable→17**, `settings.py` 46→65 — and five are new: `busy.py` **10**, `paths_to_sheets.py` 13, `producers.py` **44**, `replacement.py` 8, `take.py` 9. **Every movement upward**, and the unparseable list falls from twelve to eleven |
+| `make check` | **11 137 passed, 0 failed, 0 errors** (4 skipped, 2 xfailed), coverage 91.09 %, the maquette's own unit suite 94 of 94. Its one `Error 1 (ignored)` is `refresh-maquette-fixture --check`, the advisory that reads the operator's LIVE `acquire.db` — nine `searches` counters the acquisition daemon moves while the gate runs, which is why the Makefile prefixes that line with `-` |
 | `tsc --noEmit` · `eslint` · `vitest` · build | clean · clean · 134 files, 1 374 tests passed · built |
 
 ### The figures, taken once
@@ -321,8 +322,8 @@ Never a build beside a run.
 ### The plan's own self-check
 
 ```
-git log --oneline origin/main..HEAD | wc -l                     → 76
-git log --oneline origin/main..HEAD | grep -c "maquette-l19"    → 76
+git log --oneline origin/main..HEAD | wc -l                     → 93
+git log --oneline origin/main..HEAD | grep -c "maquette-l19"    → 93
 grep -L "^## Verdict" docs/features/maquette-l19/plan/phase-*.md → (no output)
 ```
 
