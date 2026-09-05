@@ -53,7 +53,13 @@ class TestMediaDirHasContent:
         assert _media_dir_has_content(movie_dir) is True
 
     def test_a_show_with_both_a_trailer_folder_and_episodes_is_media(self, tmp_path: Path) -> None:
-        """A trailer never subtracts from a show that does hold its episodes."""
+        """A characterization hold, green before and after — NOT a proof of the fix.
+
+        The episode is found through the season directory whatever the trailer
+        folder is called, so the skip plays no part. It is kept because it pins
+        that the change subtracts nothing from a show that does hold its media,
+        which is the direction a reader will worry about.
+        """
         show_dir = tmp_path / "Ahsoka (2023)"
         _make_file(show_dir / "trailers" / "Ahsoka - Saison 1 - trailer.mp4")
         _make_file(show_dir / "Saison 01" / "Ahsoka - S01E01.mkv")

@@ -473,7 +473,7 @@ class TestFindShowTrailer:
         assert find_show_trailer(tmp_path / "nothing here", 1024) is None
 
     def test_finds_a_trailer_that_carries_no_extension(self, tmp_path: Path) -> None:
-        """128 of this library's 676 trailer files have none — a yt-dlp artefact.
+        """128 of this library's 670 trailer files have none (measured 2026-09-05) — a yt-dlp artefact.
 
         Skipping them reads each of those shows as trailer-less and downloads a
         second trailer, which is the defect this function exists to end.

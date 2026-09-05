@@ -242,6 +242,24 @@ _FORMAT_FRAGMENT = re.compile(r"\.f\d+$")
 _LONGEST_EXTENSION = 5
 
 
+def canonical_spelling_first(folder: Path) -> tuple[bool, str]:
+    """Sort key putting the exact canonical trailer folder ahead of any variant.
+
+    A plain ``sorted()`` would not do: it orders by codepoint, so ``TRAILERS``
+    sorts BEFORE ``Trailers`` and the canonical spelling loses. Keying on exact
+    equality states the intent instead of relying on where a spelling happens to
+    fall in the alphabet, and it keeps the answer stable from run to run
+    whatever variants a directory holds.
+
+    Args:
+        folder: A trailer-extras directory.
+
+    Returns:
+        A key ordering the exact canonical name first, then the rest by name.
+    """
+    return (folder.name != TV_TRAILER_SUBFOLDER, folder.name)
+
+
 def trailer_folders_in(media_dir: Path) -> list[Path]:
     """Return every trailer-extras folder directly under *media_dir*.
 
@@ -262,9 +280,7 @@ def trailer_folders_in(media_dir: Path) -> list[Path]:
         folders = [entry for entry in media_dir.iterdir() if entry.is_dir() and entry.name.casefold() == wanted]
     except OSError:
         return []
-    # Exact canonical spelling first, then the rest in a stable order, so the
-    # answer does not depend on how the filesystem happens to order entries.
-    return sorted(folders, key=lambda folder: (folder.name != TV_TRAILER_SUBFOLDER, folder.name))
+    return sorted(folders, key=canonical_spelling_first)
 
 
 def find_trailer_in_media_dir(media_dir: Path, minimum_size_bytes: int = 0) -> Path | None:
@@ -282,8 +298,9 @@ def find_trailer_in_media_dir(media_dir: Path, minimum_size_bytes: int = 0) -> P
     "missing" query forever.
 
     A file answers when it is not a sidecar and not an interrupted download.
-    A name carrying no extension is NOT a sidecar: 128 of this library's 676
-    trailer files have none, and the size floor is what keeps junk out.
+    A name carrying no extension is NOT a sidecar: 128 of this library's 670
+    trailer files have none (measured 2026-09-05), and the size floor is what
+    keeps junk out.
 
     Args:
         media_dir: The show directory on disk.
