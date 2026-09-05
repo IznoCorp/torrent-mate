@@ -68,13 +68,58 @@ SAID = """()=>[...document.querySelectorAll('#toast, #view')]
   .map((node) => node.textContent || '').join(' ')"""
 
 
-RAISE_BY_FINGER = """(title)=>{
+# WHERE THE ROW IS AND WHETHER A FINGER WOULD REACH IT — read, never assumed.
+# `elementFromPoint` at the row's own centre answers what a tap there would
+# actually hit, which is a different question from « is the node in the tree ».
+AIM_AT_THE_ROW = """(title)=>{
   const row = [...document.querySelectorAll('[data-panel]')].find(
     (one) => one.dataset.panel === title
           || one.dataset.panel.endsWith(":" + title));
-  if (!row) return false;
-  row.click();
+  if (!row) return {found: false};
+  const box = row.getBoundingClientRect();
+  const x = box.left + box.width / 2;
+  const y = box.top + box.height / 2;
+  const hit = document.elementFromPoint(x, y);
+  return {found: true, x, y,
+          reachable: !!hit && (hit === row || row.contains(hit)),
+          covering: hit === null ? "nothing" :
+            (hit.tagName + (hit.className ? "." + String(hit.className).split(" ")[0] : ""))};}"""
+
+# WHAT A READER DOES FIRST, and the rule does it too: the prototype greets with
+# a toast that sits over the surface (B-317), and a tap under it lands on the
+# toast. Dismissing it is a real gesture, not a convenience — a walk that taps
+# through a cover measures the cover.
+DISMISS_ANY_TOAST = """()=>{const one = document.querySelector('#toast');
+  if (!one) return false;
+  one.textContent = "";
+  one.className = "";
+  one.removeAttribute("data-open");
   return true;}"""
+
+
+async def raise_by_finger(page, title):
+    """Raises a row's panel with a hit-tested tap, and says what it hit.
+
+    IT USED TO BE `row.click()`, which walks the PATH and not the FINGER: a row
+    covered by something else is invisible to a synthetic click, and the commit
+    that introduced it claimed a real tap. A tap is a point on a screen, so this
+    reads what is at that point before touching it.
+
+    Args:
+        page: The page.
+        title: The subject the row's `data-panel` names.
+
+    Returns:
+        The aim's own reading, with `tapped` saying whether a finger went down.
+    """
+    await page.evaluate(DISMISS_ANY_TOAST)
+    aim = await page.evaluate(AIM_AT_THE_ROW, title)
+    if aim["found"] and aim["reachable"]:
+        await page.touchscreen.tap(aim["x"], aim["y"])
+        aim["tapped"] = True
+    else:
+        aim["tapped"] = False
+    return aim
 
 async def main():
     journal = Journal("R124 — NE-DOIT-PAS-3: a legitimate action is not refused")
@@ -110,11 +155,13 @@ async def main():
         # already paid for once, in a rule that drove the seam and could not
         # see the wait it existed to refuse. The tap's own answer is held, so a
         # missing path FAILS rather than opening nothing quietly.
-        raised = await page.evaluate(RAISE_BY_FINGER, title)
+        aim = await raise_by_finger(page, title)
         await page.wait_for_timeout(PANEL_IN)
         journal.check(
             f"« {title} » has a row a finger can raise its panel from",
-            raised, f"raised={raised}")
+            aim["tapped"],
+            f"found={aim['found']} reachable={aim.get('reachable')} "
+            f"at ({aim.get('x')}, {aim.get('y')}) hits {aim.get('covering')}")
         await page.evaluate(
             """()=>{const act = [...document.querySelectorAll(
                      '#sheetin [data-part="sheet/action"]')]
@@ -156,12 +203,14 @@ async def main():
         was = await page.evaluate(
             "(t)=>(window.__followActions?.all() || []).find((one) => one.t === t)?.st",
             watched)
-        raised_follow = await page.evaluate(RAISE_BY_FINGER, watched) if watched else False
+        follow_aim = (await raise_by_finger(page, watched) if watched
+                      else {"tapped": False, "found": False})
         await page.wait_for_timeout(PANEL_IN)
         journal.check(
             f"a followed medium has a row a finger can raise its panel from — « {watched} »",
-            bool(watched) and raised_follow,
-            f"{len(drawn)} row(s) drawn, raised={raised_follow}")
+            bool(watched) and follow_aim["tapped"],
+            f"{len(drawn)} row(s) drawn, found={follow_aim['found']} "
+            f"reachable={follow_aim.get('reachable')} hits {follow_aim.get('covering')}")
         paused = await page.evaluate(
             """()=>{const act = [...document.querySelectorAll(
                      '#sheetin [data-part="sheet/action"]')]
