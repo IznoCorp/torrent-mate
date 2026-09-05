@@ -353,3 +353,74 @@ family a React surface still reads » — and the answer, measured twice, is tha
 **And one of them is a finding about this wave's own instruments rather than its code**: a probe
 that reads a number having never performed the gesture is a green reading of nothing, and it took
 a second walk to see it. It is written into B-311 rather than quietly replaced.
+
+---
+
+## 12. Round two
+
+**Three readers on the repaired head, against round one's head as control. 0 blockers, 2 majors,
+one thing to establish against `main`, 17 minors.** Every round-one major held under a reading the
+readers took themselves — the deferred open at `4 → 4` on head and `4 → 5` on control, the ledger
+refusing round one's exact edit, the two parsers falling on a commented-out import, R124 falling by
+five when the shared emitter lost `data-panel` — and the walk found no regression, with `fr.json`
+byte-identical across the reword.
+
+**What the repairs had NOT followed was the register**, and that is both majors. B-306 was asserted
+discharged in three durable documents while `BUGS.md` read `open` over an unchanged body and the
+plan's § 5 debts block still read « L19 takes it » — § 7.1's own disease, reproduced one file over
+by the wave repairing it, and no arm reads it because the closure arm inspects only statuses that
+CHANGED. B-299 and B-300 wore `to confirm` — defined as « fixed, rule green, mutation proven » —
+over bodies naming neither a mutation nor, in B-299's case, a current figure.
+
+### The third defect, established against `main` rather than argued
+
+The engine's addressed-panel table asks whether the interface HOLDS a subject before opening a
+typed address. At `4c0e274a7` it asked a FIXTURE the engine had in hand; this wave moved both
+halves into the features, where the answer comes from the query cache. **Reader A saw the refusal
+on both of its builds and could not tell whether the wave had caused it — the control was round
+one's head, not `main`.** So it was read on a build of `4c0e274a7`, in a worktree of its own,
+walking the eviction:
+
+    4c0e274a7   open TRUE · history.length 5 → 5 · address kept · no refusal warning
+    this head   open FALSE · the refusal on the console · the address still there
+
+**Introduced**, therefore, and repaired in the seam rather than in the dying engine: a holder's
+« no » counts only when the cache could have told it, and « not yet » resolves through the deferred
+open that already exists one layer along. **B-321**, with the paired reading.
+
+### What round two cost this wave's own instruments
+
+**Three of its findings are about rules this wave wrote**, and one of the three was caught by a
+mutation rather than by a reader: R82's cold-open hold evicted `/api/configuration`, a key this
+interface does not have — the settings read is `/api/config/schema` — so it walked a WARM cache and
+passed with the repair removed. `mutate.sh` printed « NO RULE FELL. That is the finding. » The hold
+reads the eviction back now, before the Forward, so a key that removes nothing fails it.
+
+**The comment arm's corpus floor could not fire**: a flat 100 against 316 files, so 217 had to
+vanish before it said anything and deleting twenty stayed green — a floor placed below anything
+that can happen, in the guard written to end that species. It is derived from the recorded corpus
+now, and 15 % gone exits 1 where it used to exit 0.
+
+**The CI-depth hold was blind to the second job that runs the guard.** `harness-contracts` runs it
+through `run.sh --contracts` and names only the script, so stripping that job's depth left every
+test green. Both jobs are held now, and both fall.
+
+**And R124's « finger » was a `row.click()`** — the path, which was the repair worth having, and
+not the finger. It is a hit-tested tap now, and it dismisses what covers the row first, which is
+what a reader does and what round one's own walk had to do by hand.
+
+### What is NOT repaired, and why
+
+**B-322** — the release screen fires two take toasts into one element in one tick and only the
+second is ever seen, which is deviation 14's own risk realised. The clean repair ADDS lines to
+`engine/legacy.js`; D5 allows that only against data loss, and the size ledger this wave armed
+refuses the file upward with an exit code. Subtracting instead would silence two other callers.
+Owner: the lot that takes that screen's delegation verbs.
+
+**B-320** — React #300 and #310 on the two non-ready acquisition surfaces, on this head and on the
+base alike, in components this branch does not touch. A hook-order defect is a component change
+this contract forbids.
+
+**The `:not([disabled])` clause on the named entry proves nothing today** and says so in the code:
+a dialog action has no `disabled` field, so removing the qualifier leaves every gate green. Worth
+having for the layer that will have one; not worth counting as proved.
