@@ -114,6 +114,52 @@ async def main():
                 landed_on.startswith("the "),
                 f"focus went to {landed_on}")
 
+        # ── A CONFIRMATION OPENS ON ITS WAY OUT, NEVER ON THE ACT ──────────
+        #
+        # `app/focus.ts` moves focus into a layer that opens and takes the
+        # first control the reader would reach. On a confirmation that first
+        # control is the ACT, and a dialog exists precisely because the act is
+        # one nobody should take by accident: the restart confirmation cuts the
+        # service for the whole household, and opening on « Redémarrer » hands
+        # a keyboard's or a switch control's next Enter the very thing the
+        # dialog was added to prevent.
+        #
+        # READ AS THE FOCUS, NOT AS THE MARKUP. An `autofocus` attribute in the
+        # tree proves the intention; what this holds is where focus actually
+        # went, because the attribute is only half a contract and the other
+        # half is a layer's entry selector that may stop reading it.
+        await page.evaluate("(id)=>window.__go(id)", "settings-restart")
+        await page.wait_for_timeout(500)
+        raised = await page.evaluate(
+            """()=>{const act = document.querySelector('[data-restart]');
+               if (!act) return false; act.click(); return true;}""")
+        await page.wait_for_timeout(500)
+        landed_in_dialog = await page.evaluate("""()=>{
+          const dialog = document.getElementById('dlg');
+          const active = document.activeElement;
+          const buttons = [...dialog.querySelectorAll('[data-part="dialog/button"]')];
+          return {open: dialog.hasAttribute('data-open'),
+                  inside: !!active && dialog.contains(active),
+                  text: (active?.textContent || '').trim(),
+                  tone: active?.dataset?.tone || 'neutral',
+                  isTheWayOut: !!active && 'dialogDismiss' in active.dataset,
+                  offered: buttons.map((b) => (b.textContent || '').trim())};}""")
+        journal.check(
+            "the restart confirmation is raised, and offers a way out",
+            raised and landed_in_dialog["open"]
+            and len(landed_in_dialog["offered"]) >= 2,
+            str(landed_in_dialog["offered"]))
+        journal.check(
+            "it opens with focus on its WAY OUT, not on the destructive act "
+            "(B-300, §17)",
+            landed_in_dialog["inside"] and landed_in_dialog["isTheWayOut"]
+            and landed_in_dialog["tone"] != "danger",
+            f"focus on {landed_in_dialog['text']!r}, tone "
+            f"{landed_in_dialog['tone']}, way out: "
+            f"{landed_in_dialog['isTheWayOut']}")
+        await page.keyboard.press("Escape")
+        await page.wait_for_timeout(350)
+
         # THE SKIP LINK, on a FRESH PAGE, which is also how a reader meets it.
         #
         # Not on the page above, and the reason is a real property of browsers
