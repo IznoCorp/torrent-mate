@@ -52,7 +52,10 @@ const LAYERS = [
 // asserting otherwise had been there the whole time. Measured: the attribute
 // rendered, `[autofocus]` matched one node, and `document.activeElement` was
 // the other button.
-const NAMED_ENTRY = "[autofocus]";
+// Disabled is excluded here as it is below: a named entry nobody can reach is
+// not an entry, and focusing it would leave the reader with no way in at all —
+// worse than the fallback it overrides.
+const NAMED_ENTRY = "[autofocus]:not([disabled])";
 
 // Where focus goes when a layer names none: the first control the reader would
 // reach anyway.
