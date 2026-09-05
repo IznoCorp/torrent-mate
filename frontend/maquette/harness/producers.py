@@ -148,6 +148,16 @@ async def main():
             not await page.evaluate("()=>window.__panel.isOpen()"))
 
         # 3. EACH MOVED KIND OPENS A PANEL ABOUT ITS OWN SUBJECT.
+        # HOW MANY OF THE PANELS ACTUALLY OFFER AN ACTION, collected across the
+        # loop and held once at the end. Per kind the order hold cannot demand
+        # one: a panel that states a value and offers nothing is legitimate —
+        # `setting` is exactly that, and requiring an action per kind made this
+        # rule fail on a correct panel. What must not happen is the ACTION
+        # MARKUP going away everywhere at once, which would make « the first one
+        # is not destructive » true of every kind for the wrong reason. That is
+        # a floor, and it belongs after the loop.
+        with_actions: list[int] = []
+
         for kind, subject, expected_from in DRIVEN:
             await page.evaluate("()=>window.__panel.close()")
             await page.wait_for_timeout(PANEL_OUT)
@@ -205,13 +215,20 @@ async def main():
                    const all = [...panel.querySelectorAll('[data-part="sheet/action"]')];
                    return {count: all.length, scoped: true,
                            first: all.length ? (all[0].dataset.tone || "neutral") : null};}""")
+            with_actions.append(offered["count"])
             journal.check(
                 f"and its FIRST action is not the destructive one ({kind}) — "
                 f"a panel names no way out, so focus lands there",
-                offered["scoped"] and offered["count"] >= 1
-                and offered["first"] != "danger",
+                offered["scoped"] and offered["first"] != "danger",
                 f"scoped={offered['scoped']}, {offered['count']} action(s), "
                 f"first one's tone: {offered['first']}")
+
+        journal.check(
+            "and the panels really offer actions, so the order hold above is "
+            "not true of every kind for the wrong reason",
+            sum(1 for count in with_actions if count >= 1) >= 5,
+            f"{sum(1 for count in with_actions if count >= 1)} of "
+            f"{len(with_actions)} kinds offer at least one action: {with_actions}")
 
         # AFTER THE BOOT, and said so rather than left to be assumed: the
         # listener is attached once `open_page` has navigated, so this reads the
