@@ -196,7 +196,7 @@ turned up.** Eighteen in all.
 
 | Rule | Subject | Holds |
 | --- | --- | --- |
-| **R120** `producers.py` | the seam: which kinds are registered, the refusal by its named thrower, each kind opening a panel about the subject asked for, the chip's tone and its word, the holder both ways, §5's distinction, **and that no panel puts a destructive act first** | 44 |
+| **R120** `producers.py` | the seam: which kinds are registered, the refusal by its named thrower, each of the **ten** kinds opening a panel about the subject asked for, the chip's tone and its word, the holder both ways, §5's distinction, and that no panel puts a destructive act first — **read on the panel that is OPEN**, with a floor across the loop | 48 |
 | **R121** `replacement.py` | DOIT-8 — nothing is replaced in silence, and a medium the library does not own raises no dialog | 8 |
 | **R122** `paths_to_sheets.py` | NE-DOIT-PAS-9 — six surfaces, three kinds of path, a floor each | 13 |
 | **R123** `take.py` | `data-take` on both its paths, and B-249's shape on the panel's | 9 |
@@ -299,7 +299,7 @@ Never a build beside a run.
 | `--contracts` (round two) | 18 rules and **27** repository guards, no violation |
 | `run.sh --contracts` | 18 rules and **27** repository guards, no violation |
 | `--a11y` | **0 violations** over 87 states; the light theme unmoved at its ceiling of **166** |
-| `harness-hold-counts.py --compare` | **`failed` read FIRST (B-291): 1, and it is `machine.py`.** **Eight** rules changed hold count — `exits.py` 15→18, `fanout.py` 142→150, `focus.py` 20→**29**, `journey.py` 66→**74**, `panel.py` 50→51, `persistence.py` 39→47, `pop.py` **unparseable→17**, `settings.py` 46→65 — and five are new: `busy.py` **10**, `paths_to_sheets.py` 13, `producers.py` **44**, `replacement.py` 8, `take.py` 9. **Every movement upward**, and the unparseable list falls from twelve to eleven |
+| `harness-hold-counts.py --compare` | **`failed` read FIRST (B-291): 1, and it is `machine.py`.** **Eight** rules changed hold count — `exits.py` 15→18, `fanout.py` 142→150, `focus.py` 20→**29**, `journey.py` 66→**74**, `panel.py` 50→51, `persistence.py` 39→47, `pop.py` **unparseable→17**, `settings.py` 46→65 — and five are new: `busy.py` **10**, `paths_to_sheets.py` 13, `producers.py` **48**, `replacement.py` 8, `take.py` 9. **Every movement upward**, and the unparseable list falls from twelve to eleven |
 | `make check` | **11 137 passed, 0 failed, 0 errors** (4 skipped, 2 xfailed), coverage 91.09 %, the maquette's own unit suite 94 of 94. Its one `Error 1 (ignored)` is `refresh-maquette-fixture --check`, the advisory that reads the operator's LIVE `acquire.db` — nine `searches` counters the acquisition daemon moves while the gate runs, which is why the Makefile prefixes that line with `-` |
 | `tsc --noEmit` · `eslint` · `vitest` · build | clean · clean · 134 files, 1 374 tests passed · built |
 
@@ -322,8 +322,8 @@ Never a build beside a run.
 ### The plan's own self-check
 
 ```
-git log --oneline origin/main..HEAD | wc -l                     → 93
-git log --oneline origin/main..HEAD | grep -c "maquette-l19"    → 93
+git log --oneline origin/main..HEAD | wc -l                     → 100
+git log --oneline origin/main..HEAD | grep -c "maquette-l19"    → 100
 grep -L "^## Verdict" docs/features/maquette-l19/plan/phase-*.md → (no output)
 ```
 
@@ -443,3 +443,62 @@ this contract forbids.
 **The `:not([disabled])` clause on the named entry proves nothing today** and says so in the code:
 a dialog action has no `disabled` field, so removing the qualifier leaves every gate green. Worth
 having for the layer that will have one; not worth counting as proved.
+
+---
+
+## 13. Round three
+
+**Two readers on the round-two head, then the steward's own certification. 0 blockers, 2 majors,
+8 minors** — and both majors were already repaired locally when the list arrived, which is the
+first time in this review that has happened.
+
+Every round-two repair held on the readers' own measurements: B-321's hold FALLS under the seam
+reverted (24 → 25 holds, the extra being « a Forward onto its EVICTED entry »), the three
+confirmations focus « Annuler » under real gestures with the floor biting, R124 aims by hit-test,
+the corpus floor fires at 15 % and not at five files, and the CI depth is held on both jobs.
+
+### The two majors, and both were figures
+
+**A stale corpus figure in THREE places** — `IMPLEMENTATION.md` and `BUGS.md` twice — reading
+« 301 in 98 » where the head reads **299 in 97**. The two went when `contract/openapi.json`'s own
+dated lines were reworded at the source, which is the ratchet's `[RE-RECORD]` path working rather
+than drift, and all three now say so.
+
+**R120's own new hold could pass over nothing.** It compared `None` with « danger », so a panel
+drawing no action satisfied « its first action is not destructive » by having no first action —
+the vacuous pass this rule exists to refuse, inside a hold added days earlier to refuse it
+elsewhere.
+
+### What repairing that hold then uncovered, which is the round's real finding
+
+**The read was UNSCOPED over a tree that persists.** A `produce` that opens nothing leaves the
+previous panel's actions in the document, so the hold answered about the panel BEFORE this one.
+Scoped to `#sheet[data-open]` now, and a read that finds no open panel fails rather than borrowing.
+
+**`add` was the one registered kind nothing drove** — ten moved, nine walked, and the tenth's order
+and subject were held by nothing at all.
+
+**And my first repair of the hold was itself wrong**: requiring an action PER KIND made the rule
+fail on a correct panel, because `setting` states a value and offers nothing. The floor belongs
+after the loop — at least five of the ten kinds must offer an action — and it prints the whole
+distribution, `[2, 2, 0, 2, 6, 1, 1, 3, 7, 2]`, so the one `0` is met on a green line rather than
+hidden behind a pass.
+
+**Then driving `add` threw**, because `window.__searchResults()` answers `{total, shown, results}`
+and the rule read `[0].t`. It was caught by running the rule UNFILTERED after a grep showed nine
+kinds where ten were expected — the third time in this review that a filtered view nearly carried
+a false green.
+
+### The minors, in one line each
+
+The CI-depth hold asked a SUBSTRING of `run.sh` where it needed the array — the fourth time this
+pull request has repaired that habit; it parses `REPOSITORY_GUARDS` now, and with the guard removed
+from the array and named only in a comment, membership reads `False`. `PANEL_OUT`'s comment claimed
+the panel's content leaves the tree before its slide ends, which measurement contradicts — the
+store closes at +0 ms and the sheet's title and actions are still in the document at +900 ms — so
+it now says it waits for what the STORE reports, and nothing more. R124's toast helper was named
+for a gesture it does not perform, one function below the naming this same rule was repaired for.
+B-321's body says which key the first walk of `main` really evicted and why the conclusion does not
+rest on the probe alone. A test named for a boundary it does not exercise is renamed to what it
+proves. And `panelHolds`'s deliberate cost — one asking of the layer for an address nobody serves —
+is stated in the seam.
