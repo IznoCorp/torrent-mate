@@ -32,12 +32,6 @@ import {
   applyState,
   store,
   openDeleteDialog,
-  openFollowSheet,
-  openJourneySheet,
-  openMoreSheet,
-  openUserSheet,
-  openActionMaintenance,
-  openSetting,
   openDrawer,
   settingId,
   resetSettings,
@@ -257,7 +251,7 @@ const STATES = [
       "Feuille de suivi — gros catalogue complet",
       () => {
         applyState({ page: "acq", acqTab: "follows", phase: "ready" });
-        openFollowSheet("American Dad!");
+        window.__panel.produce("follow", "American Dad!");
       },
     ],
     [
@@ -265,7 +259,7 @@ const STATES = [
       "Feuille de suivi — matrice à trous",
       () => {
         applyState({ page: "lib", libLens: "inc", phase: "ready" });
-        openFollowSheet("Les aventures de Tintin");
+        window.__panel.produce("follow", "Les aventures de Tintin");
       },
     ],
     [
@@ -300,7 +294,7 @@ const STATES = [
       "Feuille de parcours",
       () => {
         applyState({ page: "acq", phase: "ready" });
-        openJourneySheet("Furious");
+        window.__panel.produce("journey", "Furious");
       },
     ],
     [
@@ -308,7 +302,7 @@ const STATES = [
       "Feuille « ⋮ » — veille et obligations",
       () => {
         applyState({ page: "acq", phase: "ready" });
-        openMoreSheet();
+        window.__panel.produce("more");
       },
     ],
     [
@@ -316,7 +310,7 @@ const STATES = [
       "Menu utilisateur — profil et déconnexion",
       () => {
         applyState({ page: "acq", phase: "ready" });
-        openUserSheet();
+        window.__panel.produce("account");
       },
     ],
     [
@@ -628,7 +622,7 @@ const STATES = [
       "Maintenance — une commande qui supprime",
       () => {
         applyState({ page: "maint", phase: "ready", maintTopic: "clean" });
-        openActionMaintenance("library-clean");
+        window.__panel.produce("action", "library-clean");
       },
     ],
     [
@@ -669,7 +663,8 @@ const STATES = [
         resetSettings();
         SETTINGS_STATE.topic = "acquisition";
         applyState({ page: "cfg", phase: "ready" });
-        openSetting("thresholds:thresholds.min_free_space_staging_gb");
+        const gap = "thresholds:thresholds.min_free_space_staging_gb";
+        window.__panel.produce("setting", gap);
       },
     ],
     [
@@ -715,7 +710,7 @@ const STATES = [
         SETTINGS_STATE.topic =
           SETTINGS.find((r) => r.r.includes(found))?.id ?? null;
         applyState({ page: "cfg", phase: "ready" });
-        if (found) openSetting(settingId(found));
+        if (found) window.__panel.produce("setting", settingId(found));
       },
     ]),
     [

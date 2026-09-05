@@ -342,12 +342,26 @@ async def main():
         # lost `data-save` reaches this hold as « absent ». The detail
         # says what was MEASURED either way — a line that reads « restart
         # cleared » under a FAIL tells a reader the opposite of what happened.
+        #
+        # THE TAP ASKS, IT DOES NOT RESTART (B-300, §17), and this hold
+        # ASSERTED THE DEFECT until then: « a real tap … TAKES it » is exactly
+        # the behaviour the register calls a defect, because a restart cuts the
+        # service for every account of the household. What the tap owes is a
+        # CONFIRMATION, and that is what is read.
+        asked = await page.evaluate(
+            """()=>!!document.querySelector('#dlg[data-open]')""")
         restart_left = await page.evaluate("()=>SETTINGS_STATE.redemarrage")
         journal.check(
-            "and a real tap on the restart offer takes it",
-            not refused and not restart_left,
-            f"redemarrage={restart_left}" if not refused
+            "and a real tap on the restart offer ASKS before it takes it "
+            "(B-300)",
+            not refused and asked and restart_left,
+            f"dialog={asked}, redemarrage={restart_left}" if not refused
             else f"data-restart {refused} (the save above raises it)")
+        # AND THE CONFIRMATION IS DISMISSED before the walk goes on: a modal
+        # left up makes every tap after it « present but not tappable », which
+        # is three holds failing for a reason that is not theirs.
+        await page.evaluate("()=>window.__dialog?.close()")
+        await page.wait_for_timeout(250)
 
         refused = await tap("""#view [data-part="topic"][data-topic='secrets']""")
         listed = await page.evaluate(

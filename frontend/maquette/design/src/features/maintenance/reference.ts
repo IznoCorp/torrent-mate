@@ -36,14 +36,9 @@ export type MaintenanceTopic = {
   s: string;
 };
 
-// What a risk level is called and which pip colour says so. `t` is the
-// operator's words; the mapping onto the chip vocabulary lives with the emitter.
-export type Risk = { t: string; p: string };
-
 export type MaintenanceReference = EngineDrawing & {
   MAINT_TOPICS: MaintenanceTopic[];
   MAINT_ACTIONS: MaintenanceAction[];
-  RISQUES: Record<string, Risk>;
   JOURNAL: DeletionJournal;
 };
 

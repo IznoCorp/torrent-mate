@@ -557,7 +557,8 @@ async def main():
                          len(destructive) > 0, f"{len(destructive)}")
         for action in destructive:
             await on_page(pg, "maint", maintTopic=action.category)
-            await pg.evaluate(f"()=>openActionMaintenance({json.dumps(action.id)})")
+            await pg.evaluate(
+                f'()=>window.__panel.produce("action", {json.dumps(action.id)})')
             await pg.wait_for_timeout(320)
             panel = await pg.evaluate(PANEL)
             real_run = [a for a in panel["actions"] if "vrai" in a["text"]]

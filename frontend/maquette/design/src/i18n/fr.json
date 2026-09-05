@@ -725,7 +725,15 @@
       "willWrite": "Écrira {{files}}.",
       "save": "Enregistrer",
       "clearLabel": "Effacer la recherche",
-      "saveBarLabel": "Modifications non enregistrées"
+      "saveBarLabel": "Modifications non enregistrées",
+      "conflictLead": "Conflit de version.",
+      "conflictRest": " Le fichier a changé sur le disque pendant que vous l'éditiez : ce qui est à l'écran ne décrit plus ce qui est enregistré. Rien n'a été écrit.",
+      "conflictReload": "Recharger les réglages",
+      "restartConfirmHeading": "Redémarrer le service ?",
+      "restartConfirmBody": "Le service s'arrête et repart. Il est indisponible pendant quelques secondes — pour tous les comptes de la maison, pas seulement pour vous, et une acquisition en cours reprendra où elle s'est arrêtée.",
+      "restartConfirmGo": "Redémarrer",
+      "restartConfirmCancel": "Annuler",
+      "restartDone": "Service redémarré — les réglages sont pris en compte."
     }
   },
   "surfaces": {
@@ -823,5 +831,139 @@
     "installing": "Installation en cours — l'icône arrive sur votre écran d'accueil.",
     "installRefused": "Installation refusée — le bandeau reviendra à la prochaine visite.",
     "installed": "TorrentMate est installé."
+  },
+  "panels": {
+    "maintenance": {
+      "whatItDoes": "Ce qu'elle fait",
+      "duration": "Durée",
+      "durationLong": "peut être longue",
+      "durationImmediate": "immédiate",
+      "dryRun": "Essai à blanc",
+      "dryRunOn": "activé",
+      "dryRunOff": "désactivé",
+      "dryRunImpossible": "impossible",
+      "destructiveNote": "**Cette commande supprime.** L'essai à blanc reste activé tant que rien n'a montré ce qui serait détruit : un « êtes-vous sûr ? » se répond sans lire, une liste se regarde. Lancez-la à blanc, lisez ce qu'elle nomme, puis relancez-la pour de vrai.",
+      "runDry": "Lancer à blanc",
+      "run": "Lancer",
+      "launchedDry": "{{action}} — lancée à blanc. Le résultat s'affichera ici.",
+      "launched": "{{action}} — lancée. Le résultat s'affichera ici.",
+      "runForReal": "Lancer pour de vrai",
+      "runForRealHint": "Lisez d'abord ce que l'essai à blanc nomme.",
+      "runForRealMention": "après l'essai"
+    },
+    "risks": {
+      "ro": "ne change rien",
+      "write": "écrit",
+      "destructive": "supprime"
+    },
+    "secret": {
+      "set": "définie",
+      "absent": "absente",
+      "neverReturned": "La valeur n'est jamais renvoyée par le serveur, donc elle ne s'affiche pas ici. On sait qu'elle est posée, on ne sait pas ce qu'elle vaut.",
+      "readOnly": "Lecture seule sur cette instance",
+      "replace": "Remplacer la valeur",
+      "replaceToast": "Un champ masqué s'ouvre ici. Laissé vide, il n'efface rien.",
+      "removeKey": "Retirer la clé",
+      "removeKeyToast": "Retirer une clé coupe ce qu'elle autorisait — le service le dira avant."
+    },
+    "setting": {
+      "edited": "modifié, pas encore écrit",
+      "currentValue": "Valeur actuelle",
+      "writtenValue": "Valeur écrite",
+      "readOnly": "Lecture seule sur cette instance",
+      "cancelEdit": "Annuler la modification",
+      "nothingWritten": "Rien n'est écrit tant que la barre du bas n'est pas utilisée. Elle dit quels fichiers seront touchés.",
+      "cancelledToast": "Modification annulée — rien n'avait été écrit.",
+      "savedToast": "Enregistré — {{files}}."
+    },
+    "sort": {
+      "title": "Trier la médiathèque",
+      "note": "Le tri est une préférence, pas un emplacement : il reste sur cet appareil et n'entre pas dans l'URL (A7).",
+      "ways": {
+        "recent": {
+          "normal": "Ajout récent",
+          "inverse": "Ajout ancien"
+        },
+        "az": {
+          "normal": "A → Z",
+          "inverse": "Z → A"
+        },
+        "manque": {
+          "normal": "Les plus incomplets",
+          "inverse": "Les plus complets"
+        }
+      }
+    },
+    "journey": {
+      "metaBefore": "Parcours de l'acquisition · release ",
+      "provenanceNote": "Les dates viennent de la spine de provenance. Une étape non encore atteinte affiche « à venir » — jamais une date reconstruite.",
+      "seeSheet": "Voir la fiche"
+    },
+    "standby": {
+      "title": "Veille et obligations",
+      "meta": "Second rang — consulté, pas surveillé.",
+      "lastPass": "Dernier passage",
+      "nextPass": "Prochain passage",
+      "globalRatio": "Ratio global",
+      "obligations": "Obligations en cours",
+      "runNow": "Lancer la veille maintenant"
+    },
+    "suggestion": {
+      "metaRating": "{{year}} · {{kind}} · note TMDB {{rating}}",
+      "addFilm": "Ajouter",
+      "followSeries": "Suivre",
+      "seeSheet": "Voir la fiche",
+      "notInterested": "Pas intéressé",
+      "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste (§5)."
+    },
+    "add": {
+      "meta": "{{year}} · {{kind}} · TMDB",
+      "ownedBefore": "Déjà en médiathèque — l'acquisition ",
+      "ownedEmphasis": "remplacera",
+      "ownedAfter": " la version en place.",
+      "seeSheet": "Voir la fiche"
+    },
+    "follow": {
+      "film": "Film",
+      "series": "Série",
+      "episodesSuffix": " épisodes",
+      "resolve": "Résoudre →",
+      "takeNow": "Récupérer maintenant",
+      "complete": "Compléter → Acquisitions",
+      "searchNow": "Chercher maintenant",
+      "seeSheet": "Voir la fiche",
+      "seeJourney": "Voir le parcours",
+      "noEpisodeCatalogue": "Un film n'a pas de catalogue d'épisodes : il est acquis, ou il ne l'est pas.",
+      "noSeasonData": "Aucune donnée de saison connue pour cette série — le catalogue n'a pas encore été récupéré. La fraction affiche « — », jamais « 0/0 » qui se lirait comme une série vide.",
+      "otherRelease": "Chercher une autre release",
+      "qualityProfile": "Profil de qualité",
+      "rescrape": "Re-scraper les métadonnées",
+      "stopSearchingFilm": "Ne plus chercher",
+      "pauseSeries": "Mettre en pause",
+      "removeFilm": "Retirer de la liste",
+      "removeSeries": "Retirer le suivi",
+      "deleteFromLibrary": "Supprimer de la médiathèque",
+      "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste (§5)."
+    }
+  },
+  "verbs": {
+    "arrivals": {
+      "taken": "« {{title}} » récupéré — suivez-le dans « En vol »."
+    }
+  },
+  "discover": {
+    "notInterested": "Pas intéressé",
+    "skip": "Passer",
+    "onTmdb": " sur TMDB",
+    "allSeenLead": "Vous avez tout parcouru.",
+    "allSeenRest": "Les {{count}} suggestions du lot ont été vues. La réserve en garde d'autres.",
+    "loadThirtyMore": "Charger 30 de plus",
+    "endOfReserve": "Fin de la réserve chargée dans cette maquette — {{loaded}} des 503 suggestions réellement calculées pour vous. La passe de fond en recalcule après chaque nouvelle note TMDB.",
+    "dismissed": "« {{title}} » écarté."
+  },
+  "popover": {
+    "airDateUnknown": "Date de diffusion inconnue.",
+    "airsOn": "Sortie prévue le {{date}}",
+    "airedOn": "Diffusé le {{date}}"
   }
 }

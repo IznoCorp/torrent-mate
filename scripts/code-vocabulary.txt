@@ -40,6 +40,7 @@ accepted
 account
 acq
 acqtab
+acquired
 acquisition
 act
 action
@@ -57,6 +58,7 @@ advance
 after
 again
 agent
+ahead
 air
 aired
 all
@@ -103,6 +105,7 @@ backoff
 badge
 badges
 band
+banners
 bar
 base
 batch
@@ -110,6 +113,7 @@ became
 before
 began
 begin
+being
 beneath
 best
 block
@@ -134,11 +138,13 @@ burst
 button
 by
 byidv
+cache
 cached
 cadence
 call
 calls
 cancel
+cancelsetting
 candidate
 candidates
 cap
@@ -198,6 +204,8 @@ conditions
 config
 configuration
 confirmadd
+confirmrestart
+conflicted
 connect
 connected
 connection
@@ -246,6 +254,7 @@ delay
 delete
 deleted
 deletefield
+deletes
 deletion
 deliver
 delivered
@@ -276,6 +285,7 @@ diffuses
 digits
 direct
 direction
+directions
 disarm
 discipline
 discover
@@ -297,6 +307,7 @@ drag
 draw
 drawer
 drawing
+drawn
 draws
 driver
 drop
@@ -306,7 +317,9 @@ dx
 each
 ease
 edge
+edit
 edited
+edits
 element
 emit
 emphasis
@@ -347,6 +360,7 @@ failure
 fallback
 families
 fast
+feed
 feedback
 fetch
 fetching
@@ -367,6 +381,7 @@ finish
 finished
 first
 fkind
+flatten
 flight
 floor
 flux
@@ -439,8 +454,12 @@ hero
 hgo
 hide
 hint
+hints
 history
 hold
+holder
+holders
+holds
 home
 hooks
 host
@@ -460,6 +479,7 @@ identified
 identifier
 identifiers
 identify
+identifying
 identity
 idle
 ids
@@ -556,6 +576,7 @@ liveness
 lmode
 load
 loaded
+loader
 loaders
 loading
 lock
@@ -627,7 +648,9 @@ navgo
 navigated
 navigation
 nb
+need
 needed
+needs
 network
 neutral
 new
@@ -726,6 +749,7 @@ pill
 pills
 pilot
 ping
+pip
 pipe
 pipeline
 pitch
@@ -753,6 +777,9 @@ pressing
 previous
 primary
 problem
+produce
+producer
+producers
 profile
 progress
 projection
@@ -814,6 +841,7 @@ refused
 refusing
 region
 register
+registered
 registration
 registrations
 registry
@@ -827,8 +855,11 @@ releases
 reload
 reloaded
 reloading
+reloadsettings
+remaining
 remember
 remembered
+remount
 remove
 removed
 renamed
@@ -843,6 +874,7 @@ replay
 report
 request
 required
+reserve
 reset
 resolution
 resolutions
@@ -881,6 +913,7 @@ sample
 save
 savebar
 say
+saying
 says
 scale
 scen
@@ -923,6 +956,7 @@ selector
 selmode
 semibold
 send
+sentinel
 separator
 sequence
 series
@@ -930,6 +964,7 @@ served
 server
 services
 set
+setsort
 setting
 settings
 settle
@@ -947,6 +982,7 @@ shorthands
 shot
 show
 shown
+shows
 sibling
 side
 sidebar
@@ -986,12 +1022,15 @@ splash
 src
 st
 stack
+stage
+stages
 staging
 stale
 stall
 stalling
 stamped
 standard
+standby
 standing
 start
 startup
@@ -1054,6 +1093,7 @@ tags
 take
 takeable
 taken
+takes
 target
 teardown
 temp
@@ -1100,6 +1140,7 @@ trailer
 transact
 transaction
 transition
+translate
 travelled
 trim
 tuples
@@ -1133,6 +1174,7 @@ user
 username
 valid
 value
+values
 variant
 verb
 version
@@ -1155,7 +1197,9 @@ wants
 warm
 warning
 was
+watch
 watcher
+way
 ways
 weekday
 weight

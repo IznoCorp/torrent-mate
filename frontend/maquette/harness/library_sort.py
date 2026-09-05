@@ -102,7 +102,13 @@ async def main():
             "row scores the same, and answer the source order, which is what "
             "« ajout récent » answers")
 
-        declared = await page.evaluate("()=>window.__referentiel.TRIS")
+        # THE NAMES ARE THE FEATURE'S — `features/library/sorting.ts`,
+        # published as `window.__sortWays` the way a setting's label is
+        # published as `window.__settingLabels`. Read from the prototype rather
+        # than restated here, which is why this line exists at all: a rule
+        # carrying its own copy of six labels goes green the day the interface
+        # renames one.
+        declared = await page.evaluate("()=>window.__sortWays()")
         journal.check(
             "the prototype declares a name for both ways of every sort",
             bool(declared) and all(

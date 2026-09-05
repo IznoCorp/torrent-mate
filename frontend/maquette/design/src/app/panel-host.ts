@@ -6,7 +6,17 @@
 // doors was meant.
 import { installArtworkArrival } from "./artwork-arrival";
 import { flushSync } from "react-dom";
-import { refuseBlock, type PanelDescriptor } from "../ui/panel/contract";
+import {
+  holderFor,
+  needsFor,
+  producerFor,
+  producerNeeds,
+  refuseBlock,
+  refuseProducer,
+  registeredProducers,
+  type PanelDescriptor,
+} from "../ui/panel/contract";
+import type { QueryClient } from "@tanstack/react-query";
 import { addressOf, isScreenPath, withPanel } from "../lib/addresses";
 import type { Store } from "./store";
 
@@ -15,6 +25,10 @@ declare global {
     // The probe R56 calls to prove the panel REFUSES a block nobody declared.
     // Published here because the constructor it exercises is a component now.
     __unknownPanel: () => void;
+    // The same probe one level up: a panel KIND nobody produces must raise.
+    __unknownProducer: () => void;
+    /** Re-asks for what the moved producers read and no component observes. */
+    __refillProducers?: () => void;
   }
 }
 
@@ -87,8 +101,12 @@ function openPanelOnCurrentEntry(open: () => void): void {
  *
  * Args:
  *     store: The single owner of the mutable state.
+ *     queryClient: The cache a producer reads. It arrives as an ARGUMENT for
+ *         the reason the store does — the thing a producer reads is the thing
+ *         the boot handed this module, and no reader has to work out which of
+ *         two doors was meant.
  */
-export function installPanelHost(store: Store): void {
+export function installPanelHost(store: Store, queryClient: QueryClient): void {
   // INSTALLED FROM HERE FOR THE REASON THE CARRIED POSTER WAS: `app/shell.tsx`
   // stands at 398 of a 400-line hard ceiling and an import plus a call would put
   // it AT it. This is the nearest installer that boots once and owns no surface.
@@ -157,11 +175,151 @@ function isPanelOpen(): boolean {
   return store.read().state.panelOpen === true;
 }
 
+/* OPENS A PANEL BY KIND — the seam every moved producer arrives through, and
+   the reason `app/` learns no domain in the process: `kind` and `subject` are
+   opaque strings here. The dying engine's delegation asks for « the panel about
+   this », and which feature answers is the registry's business.
+
+   A producer that answers `null` opens nothing. That is not a failure to
+   report: it is the honest reply for a subject the cache does not hold yet, and
+   it is what the engine's own producers already did by returning early. A KIND
+   nobody registered is the other case entirely, and it RAISES — the two look
+   the same from outside and only one of them is a defect. */
+function producePanel(kind: string, subject = ""): void {
+  const produce = producerFor(kind);
+  if (produce === null) refuseProducer(kind);
+  const descriptor = produce(subject, { held });
+  if (descriptor !== null) {
+    openPanel(descriptor);
+    return;
+  }
+  /* NOTHING IN THE CACHE YET — so it is asked for, and the panel opens when the
+     answer lands. This is not a retry loop dressed up: it is the one case a
+     producer reading a cache has that a producer reading a FIXTURE never had,
+     and it was measured rather than foreseen. `window.__go(id)` clears the
+     cache so no measurement inherits a previous one's pages, and a named state
+     that opens a panel then produces it in the SAME tick — `sheet-user` does,
+     and so will every panel state after it. The engine's producer had its
+     fixture in hand and always opened; this one would have opened nothing, on
+     the very path three rules walk.
+
+     WHAT IT DOES NOT DO is draw anything new. Same descriptor, same rendering,
+     one beat later on a cold cache and not at all different on a warm one — the
+     oracle measures at rest and has nothing to report. A subject the layer
+     genuinely does not have still opens nothing, which is where this stops. */
+  /* AND THE SUPPRESSION TRAVELS WITH THE DEFERRED OPEN, which is the whole of
+     the paragraph above read once more. `openPanelOnCurrentEntry` clears its
+     flag in a `finally` around a SYNCHRONOUS call: an open that lands a beat
+     later happens after that window has shut, so the addressed reopen pushed
+     exactly the duplicate entry the flag exists to prevent — measured, not
+     reasoned: inside the window `history.length` read 3 with the panel closed,
+     and 4 with it open once the promise settled, where a warm producer read
+     4 → 4 → 4.
+
+     It is GUARANTEED rather than occasional for any kind whose `needs` is a
+     function of the subject: those are excluded from the boot's prefill by
+     construction, so the first ask for any subject is always cold. The flag is
+     captured here and put back around the open, which is the only place that
+     knows both that the open was deferred and that it was addressed. */
+  const addressed = onCurrentEntry;
+  void Promise.all(
+    needsFor(kind, subject).map((required) => queryClient.prefetchQuery(required)),
+  ).then(() => {
+    const landed = produce(subject, { held });
+    if (landed === null) {
+      /* THE ANSWER CAME AND THE SUBJECT IS NOT IN IT. Before `panelHolds`
+         learned to say « not yet », the engine's addressed table refused this
+         case itself and said so in the console; now it reaches here instead,
+         and a silent nothing would be a worse diagnosis than the refusal it
+         replaces.
+
+         ENGLISH, and not in the i18n resources: a console message is a tool
+         message, read by a developer, never by a reader of the interface. */
+      console.warn(
+        "the panel's subject is not in what the layer answered, and nothing opens:",
+        kind, subject);
+      return;
+    }
+    if (addressed) openPanelOnCurrentEntry(() => openPanel(landed));
+    else openPanel(landed);
+  });
+}
+
+/* WHAT A PRODUCER SEES OF THE CACHE, and all it sees. `getQueryData` answers
+   what has landed and `undefined` where nothing has — synchronously, which is
+   the whole requirement: a producer is called from a click handler that cannot
+   await. */
+function held<Result>(key: readonly unknown[]): Result | undefined {
+  return queryClient.getQueryData<Result>(key);
+}
+
+/* WHAT THE PRODUCERS NEED, ASKED FOR — and published rather than called once,
+   for the reason `__refillSuggestions` is: a named state CLEARS the cache so no
+   measurement inherits a previous one's pages, and a query with an OBSERVER is
+   re-asked by that observer while one without is not. A producer has none: it
+   is called from a click, not rendered. This is the door the reset re-asks
+   through, and `app/engine-data.ts` — the engine's own list of what nothing
+   observes — calls it beside its own. It dies when that file does.
+
+   PUBLISHED HERE AND FIRST CALLED THERE, which is an ordering and was measured:
+   this module is installed BEFORE `installMockNetwork()`, so a fetch started on
+   this line leaves before there is a layer to answer it, and the cache stays
+   empty in a way that reads exactly like a producer with nothing to say. The
+   first fill is `installEngineData`'s, which runs after the mocks — the same
+   position `installSuggestionsLookup` fills its own reserve from. */
+window.__refillProducers = () => {
+  for (const required of producerNeeds()) void queryClient.prefetchQuery(required);
+};
+
+/* DOES A FEATURE HOLD THIS SUBJECT — asked by the engine's addressed-panel
+   table before it opens anything from a typed address. A kind that declares no
+   answer answers FALSE rather than true: an address anyone can type is refused
+   when nobody has said it is holdable, which is the table's own three-ways-to-
+   refuse discipline and not a new one.
+
+   AND A « NO » THE CACHE CANNOT YET MEAN IS NOT A NO. A holder reads the query
+   cache, and before this wave the same question was answered from a FIXTURE the
+   engine had in hand — so cold and warm could not differ. They can now, and the
+   difference was measured rather than reasoned: on a build of `4c0e274a7` a
+   Forward onto an evicted `setting:` entry reopens the panel (`open: true`,
+   `history.length 5 → 5`, no warning); on this seam without the clause below it
+   is refused with « the addressed panel names nothing this interface holds »,
+   and the address stays in the bar naming a panel that never comes back —
+   which is the URL and the interface disagreeing, DOIT-10's own subject.
+
+   So a holder's `false` is taken at face value only when the cache could
+   actually have told it. When one of the kind's own needs has not landed, the
+   honest answer is « not yet », and « not yet » resolves: `producePanel` below
+   asks for what the kind needs and opens when the answer lands, or opens
+   nothing and says so. The decision moves to the one place that can wait for
+   it, which is exactly what the deferred open does one layer along.
+
+   WHAT IT COSTS, deliberately: while a need is unlanded this answers TRUE for
+   ANY subject, so a typed address naming nothing real is refused a beat later
+   by `producePanel` — after one asking of the layer — instead of at once. That
+   is the price of not refusing the addresses that ARE served, and the refusal
+   still says so on the console. */
+function panelHolds(kind: string, subject: string): boolean {
+  const holds = holderFor(kind);
+  if (holds === null) return false;
+  if (holds(subject, { held })) return true;
+  return needsFor(kind, subject).some(
+    (required) => held(required.queryKey) === undefined,
+  );
+}
+
 window.__panel = {
   open: openPanel,
   close: closePanel,
   isOpen: isPanelOpen,
   openOnCurrentEntry: openPanelOnCurrentEntry,
+  produce: producePanel,
+  holds: panelHolds,
+  /* WHICH KINDS HAVE A PRODUCER, for the rule that reads the seam from
+     outside. It is a reading rather than an assertion: the rule compares it
+     with what it expects to be moved, so a registration lost in a refactor is
+     a fallen rule instead of a panel that silently stops opening. */
+  producers: registeredProducers,
 };
 
 /* Lets the contract check prove the refusal rather than trust the comment on
@@ -169,4 +327,10 @@ window.__panel = {
    plain function, not rendered — the dispatcher refuses before it reads
    anything else, which is what makes the refusal provable from outside. */
 window.__unknownPanel = () => refuseBlock({ type: "ceci-n-existe-pas" });
+
+/* And the same proof for the producer registry: a kind nobody registered must
+   raise rather than open an empty panel. Called as a plain function, so the
+   refusal is provable from outside without a tap, which would measure the
+   delegation at the same time and leave two candidates for one failure. */
+window.__unknownProducer = () => producePanel("ceci-n-existe-pas");
 }

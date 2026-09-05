@@ -48,7 +48,6 @@ function FieldBlock({
     rawValue,
     typedValue,
     changeSetting,
-    openSetting,
   } = useSettingsReference();
   const { icons } = useEngineDrawing();
   const { t } = useTranslation();
@@ -177,7 +176,10 @@ function FieldBlock({
           if (!element) return;
           const commit = () => {
             changeSetting(id, typedValue(setting, element.value));
-            openSetting(id);
+            // REDRAWN THROUGH THE SEAM: the producer is this feature's
+            // now, and the panel is re-opened by kind rather than by a function
+            // the engine published.
+            window.__panel.produce("setting", id);
           };
           element.addEventListener("change", commit);
           return () => element.removeEventListener("change", commit);

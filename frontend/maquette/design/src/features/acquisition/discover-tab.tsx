@@ -19,6 +19,10 @@ import { useAcquisitionReference } from "./reference";
 import { useUiState } from "../../lib/store-access";
 import { body, filterZone, liveDot, liveEmphasis, liveStrip, loadFooter, pillBar, pillScroll, section as sectionClass, surfaceError, viewSwitch, viewSwitchButton, viewSwitchWrap } from "../../ui/variants";
 import { Markup } from "../../ui/markup";
+// THE FEED IS THIS FEATURE'S — imported directly rather than read off
+// the engine's reference, which is what a surface does once its content has
+// stopped being the engine's.
+import { deckHTML, fillSug, mountDeck, sugFoot } from "./discover-feed";
 
 // « Découvrir » — what one might want, which is the only surface here that
 // asks nothing of the operator: the bar's badge never counts it.
@@ -31,14 +35,7 @@ import { Markup } from "../../ui/markup";
 export function DiscoverTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const {
-    icons,
-    skelCardsInner,
-    fillSug,
-    sugFoot,
-    mountDeck,
-    deckHTML,
-  } = useAcquisitionReference();
+  const { icons, skelCardsInner } = useAcquisitionReference();
 
   // THE FRAGMENT FILLS WHAT THIS DRAWS, and it has to be asked AFTER the
   // drawing: `render()` calls the same verbs, but it calls them before React

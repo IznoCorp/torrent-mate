@@ -231,3 +231,54 @@ def test_the_guards_own_file_is_named_by_a_filter_that_gates_a_job_running_it(gu
         "pull request that edits only this guard runs it NOWHERE — the shape "
         "every repair to a guard takes."
     )
+
+
+def test_the_ledger_ratchet_has_a_base_to_read_in_ci() -> None:
+    """A ratchet that cannot reach the base is inert, and says so quietly enough.
+
+    `check-frontend-boundaries.py`'s size arm compares each grandfathered file's
+    RECORD against the record at the revision the branch grew from — the level
+    B-306's first repair was missing, where a wave legalises a growth by moving
+    the number in the same commit. It reads that base with git, so the job that
+    runs the guard has to have one: with `actions/checkout`'s default shallow
+    clone there is no `origin/main`, the arm prints « no base branch is
+    reachable » and refuses nothing, in the only CI job that runs it.
+
+    This hold is what makes removing that line loud.
+    """
+    workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    jobs = workflow["jobs"]
+    # BOTH JOBS, and the second is why this hold was widened. A job that runs
+    # the guard DIRECTLY names it in a `run:` step; `harness-contracts` runs it
+    # as the first of `run.sh --contracts`'s repository guards and names only
+    # the script that runs them, so selecting on the literal alone left the
+    # ratchet free to go inert in that job with every test green.
+    #
+    # MEMBERSHIP, NOT A SUBSTRING. The first version asked whether the guard's
+    # name appeared anywhere in `run.sh`'s text — which a comment mentioning it
+    # answers just as well as the array does, and « a fact asserted by searching
+    # a file's text instead of parsing it » is the habit this pull request has
+    # already repaired three times. `contract_guards()` parses the quoted
+    # entries of `REPOSITORY_GUARDS`; this reads that list.
+    through_the_tier = "scripts/check-frontend-boundaries.py" in contract_guards()
+    running = [
+        name
+        for name, job in jobs.items()
+        if any(
+            "check-frontend-boundaries.py" in str(step.get("run", ""))
+            or (through_the_tier and "run.sh --contracts" in str(step.get("run", "")))
+            for step in job.get("steps", [])
+        )
+    ]
+    assert running, "no CI job runs check-frontend-boundaries.py at all"
+    assert len(running) >= 2, (
+        f"only {running} were found to run the guard; the contract tier runs it "
+        f"too, and a job this hold cannot see is a job whose depth nothing holds"
+    )
+    for name in running:
+        checkouts = [step for step in jobs[name]["steps"] if str(step.get("uses", "")).startswith("actions/checkout")]
+        assert checkouts, f"{name} runs the guard and checks nothing out"
+        for step in checkouts:
+            assert (step.get("with") or {}).get("fetch-depth") == 0, (
+                f"{name} clones shallow, so the ledger's ratchet reads no base and refuses nothing"
+            )

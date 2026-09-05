@@ -38,7 +38,6 @@ export type LibraryReference = EngineDrawing & {
   // Every sort, in both directions, each with its own name — the table E-001
   // made two-dimensional. A rule reads the NAMES from here rather than
   // restating them.
-  TRIS: Record<string, { normal: string; inverse: string }>;
 };
 
 /**

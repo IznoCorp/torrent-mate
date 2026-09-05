@@ -1,0 +1,257 @@
+"""R124 — NE-DOIT-PAS-3: a legitimate action under a busy pipeline is ACCEPTED.
+
+THE CLAUSE. « ne jamais répondre 409 ou « occupé » à une action légitime ».
+`product-intent-map.md` reads it `partly`: R66 holds the pipeline PASS — asked
+for during a run, it is queued and says so — and « every OTHER mutation under a
+busy scenario » is **unproved**. This rule is that instrument, written with the
+producers that offer those mutations.
+
+WHAT IS READ, and the three questions are not the same one:
+
+  1. THE ACT LANDS. The state moves — a follow is paused, a medium is taken, an
+     edit is recorded. Read on the state, never on a message: a toast can be
+     right about nothing, and an interface that says « fait » while the list is
+     unchanged is NE-DOIT-PAS-1 rather than this clause.
+  2. NOTHING ANSWERS 409. Read on the NETWORK, because that is where the
+     refusal this clause names would arrive. A rule reading only the screen
+     would pass a build that swallowed a 409 and drew the old value.
+  3. NOTHING SAYS « occupé ». The word, and its neighbours, anywhere the
+     interface put text after the act.
+
+AND THE SCENARIO IS REALLY BUSY, checked before any of it: a walk that ran
+against an idle pipeline would prove that the actions work, which nobody
+doubts, and nothing about the clause.
+
+WHAT IT DOES NOT READ: the resolve queue's own « En file » pastille, which is
+DOIT-4's other half. **It does not exist** — measured, `grep "En file"` finds it
+nowhere in `i18n/fr.json` and nowhere in the tree outside the pipeline pass's own
+sentence — and drawing it is a behaviour change, which a conversion lot does not
+carry. The clause map names its owner, rather than this rule pretending to cover it.
+"""
+import asyncio
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from common import ACTED, Journal, PANEL_IN, PANEL_OUT, SETTLED, open_page
+
+from playwright.async_api import async_playwright
+
+# THE BUSY SCENARIO IS COMPOSED, and saying so is the point. `arr-running` has
+# the pipeline running and NOTHING waiting to be taken; `acq-now-loaded` has two
+# media waiting and an idle pipeline. The clause is about a legitimate action
+# ASKED WHILE THE MACHINE IS BUSY, so the walk needs both at once: the state
+# that has something to act on, with the pipeline put to work on top of it.
+# Driving `arr-running` alone would have measured a page with no subject.
+BUSY_STATE = "acq-now-loaded"
+
+# WHERE A FOLLOW IS DRAWN. The acquisitions page lists what is in FLIGHT, so a
+# followed medium that is not currently being acquired has no row there at all —
+# which is why the pause half of this walk moves here rather than raising a
+# panel nobody on that page could reach.
+FOLLOWS_STATE = "acq-follows-list"
+
+# THE WORDS A REFUSAL WEARS. « occupé » is the clause's own; the others are what
+# the same refusal reads like when it is dressed differently.
+REFUSALS = ("occupé", "occupee", "occupée", "déjà en cours", "réessayez plus tard")
+
+QUEUE = """()=>({
+  takeable: (window.__queue?.().takeable || []).map((one) => one.t),
+  inFlight: (window.__queue?.().inFlight || []).map((one) => one.t),
+  follows: (window.__followActions?.all() || []).map((one) => one.t)})"""
+
+# THE MESSAGE LAYER IS `#toast`, and `[data-part="message"]` is emitted nowhere
+# — `check-markup-contracts` said so, which is the three-ends contract caught
+# from the markup end. The page itself is read beside it, because a refusal need
+# not arrive as a message.
+SAID = """()=>[...document.querySelectorAll('#toast, #view')]
+  .map((node) => node.textContent || '').join(' ')"""
+
+
+# WHERE THE ROW IS AND WHETHER A FINGER WOULD REACH IT — read, never assumed.
+# `elementFromPoint` at the row's own centre answers what a tap there would
+# actually hit, which is a different question from « is the node in the tree ».
+AIM_AT_THE_ROW = """(title)=>{
+  const row = [...document.querySelectorAll('[data-panel]')].find(
+    (one) => one.dataset.panel === title
+          || one.dataset.panel.endsWith(":" + title));
+  if (!row) return {found: false};
+  const box = row.getBoundingClientRect();
+  const x = box.left + box.width / 2;
+  const y = box.top + box.height / 2;
+  const hit = document.elementFromPoint(x, y);
+  return {found: true, x, y,
+          reachable: !!hit && (hit === row || row.contains(hit)),
+          covering: hit === null ? "nothing" :
+            (hit.tagName + (hit.className ? "." + String(hit.className).split(" ")[0] : ""))};}"""
+
+# WHAT COVERS THE ROW IS TAKEN OUT OF THE WAY FIRST, and this is a DOM EDIT
+# rather than a gesture — said plainly, because naming a thing for what it is
+# not is the defect this same rule was repaired for one commit earlier. The
+# prototype greets with a toast that sits over the surface (B-317) and a tap
+# under it lands on the toast; no gesture dismisses that toast, so the rule
+# empties the element instead. What it costs is stated too: this walk does not
+# prove the toast can be dismissed, only that the row underneath is reachable
+# once it is gone.
+EMPTY_THE_TOAST = """()=>{const one = document.querySelector('#toast');
+  if (!one) return false;
+  one.textContent = "";
+  one.className = "";
+  one.removeAttribute("data-open");
+  return true;}"""
+
+
+async def raise_by_finger(page, title):
+    """Raises a row's panel with a hit-tested tap, and says what it hit.
+
+    IT USED TO BE `row.click()`, which walks the PATH and not the FINGER: a row
+    covered by something else is invisible to a synthetic click, and the commit
+    that introduced it claimed a real tap. A tap is a point on a screen, so this
+    reads what is at that point before touching it.
+
+    Args:
+        page: The page.
+        title: The subject the row's `data-panel` names.
+
+    Returns:
+        The aim's own reading, with `tapped` saying whether a finger went down.
+    """
+    await page.evaluate(EMPTY_THE_TOAST)
+    aim = await page.evaluate(AIM_AT_THE_ROW, title)
+    if aim["found"] and aim["reachable"]:
+        await page.touchscreen.tap(aim["x"], aim["y"])
+        aim["tapped"] = True
+    else:
+        aim["tapped"] = False
+    return aim
+
+async def main():
+    journal = Journal("R124 — NE-DOIT-PAS-3: a legitimate action is not refused")
+    async with async_playwright() as playwright:
+        browser = await playwright.chromium.launch(channel="chrome")
+        context, page = await open_page(browser)
+        refused: list[str] = []
+        page.on("response", lambda answer: refused.append(
+            f"{answer.status} {answer.url}") if answer.status == 409 else None)
+
+        await page.evaluate("(id)=>window.__go(id)", BUSY_STATE)
+        await page.wait_for_timeout(SETTLED)
+        await page.evaluate("""()=>window.__store.write({pipe: "running"})""")
+        await page.wait_for_timeout(SETTLED)
+        running = await page.evaluate("()=>window.__store.read().state.pipe")
+        journal.check(
+            "the scenario really has the pipeline busy, so this walk measures "
+            "the clause and not the actions",
+            running == "running", str(running))
+
+        before = await page.evaluate(QUEUE)
+        journal.check(
+            "and it really has something to act on",
+            len(before["takeable"]) > 0 and len(before["follows"]) > 0,
+            f"{len(before['takeable'])} takeable, {len(before['follows'])} followed")
+
+        # ── TAKING A MEDIUM, from its own panel, while the pipeline runs ────
+        title = before["takeable"][0]
+        # RAISED BY A FINGER, NEVER THROUGH THE SEAM. `window.__panel.produce`
+        # opens the panel without walking the path that raises it, so a row
+        # that has lost its `data-panel` on a busy page would be invisible here
+        # while every hold below stayed green — the shape this suite has
+        # already paid for once, in a rule that drove the seam and could not
+        # see the wait it existed to refuse. The tap's own answer is held, so a
+        # missing path FAILS rather than opening nothing quietly.
+        aim = await raise_by_finger(page, title)
+        await page.wait_for_timeout(PANEL_IN)
+        journal.check(
+            f"« {title} » has a row a finger can raise its panel from",
+            aim["tapped"],
+            f"found={aim['found']} reachable={aim.get('reachable')} "
+            f"at ({aim.get('x')}, {aim.get('y')}) hits {aim.get('covering')}")
+        await page.evaluate(
+            """()=>{const act = [...document.querySelectorAll(
+                     '#sheetin [data-part="sheet/action"]')]
+                     .find((one) => 'take' in one.dataset); if (act) act.click();}""")
+        await page.wait_for_timeout(ACTED)
+        after = await page.evaluate(QUEUE)
+        journal.check(
+            f"« {title} » is TAKEN while the pipeline runs — the act lands "
+            "(NE-DOIT-PAS-3)",
+            title in after["inFlight"] and title not in after["takeable"],
+            f"{before['takeable']} → {after['takeable']}")
+
+        # ── PAUSING A FOLLOW, from its own panel, while the pipeline runs ───
+        #
+        # ON THE PAGE THAT DRAWS A FOLLOW, and that is a correction. This half
+        # used to raise the panel through the seam on the ACQUISITIONS page,
+        # where a followed medium not currently in flight has no row at all —
+        # so it walked a panel no finger there could open, and said nothing
+        # about it. The clause is about an action asked while the machine is
+        # busy; where the operator asks it is the follows list, and the
+        # pipeline is put back to work on top of that page exactly as it was on
+        # the first.
+        await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
+        await page.wait_for_timeout(SETTLED)
+        await page.evaluate("""()=>window.__store.write({pipe: "running"})""")
+        await page.wait_for_timeout(SETTLED)
+        journal.check(
+            "the follows list has the pipeline busy too, so this half measures "
+            "the clause and not the page",
+            await page.evaluate("()=>window.__store.read().state.pipe") == "running")
+
+        drawn = await page.evaluate(
+            """()=>[...document.querySelectorAll('[data-panel]')].map(
+                 (one) => one.dataset.panel)""")
+        watched = next(
+            (one for one in before["follows"]
+             if one in drawn or any(seen.endswith(":" + one) for seen in drawn)),
+            "")
+        was = await page.evaluate(
+            "(t)=>(window.__followActions?.all() || []).find((one) => one.t === t)?.st",
+            watched)
+        follow_aim = (await raise_by_finger(page, watched) if watched
+                      else {"tapped": False, "found": False})
+        await page.wait_for_timeout(PANEL_IN)
+        journal.check(
+            f"a followed medium has a row a finger can raise its panel from — « {watched} »",
+            bool(watched) and follow_aim["tapped"],
+            f"{len(drawn)} row(s) drawn, found={follow_aim['found']} "
+            f"reachable={follow_aim.get('reachable')} hits {follow_aim.get('covering')}")
+        paused = await page.evaluate(
+            """()=>{const act = [...document.querySelectorAll(
+                     '#sheetin [data-part="sheet/action"]')]
+                     .find((one) => 'pause' in one.dataset);
+                    if (!act) return false; act.click(); return true;}""")
+        await page.wait_for_timeout(ACTED)
+        journal.check(
+            f"« {watched} »'s panel offers to pause it while the pipeline runs",
+            paused, watched)
+        # THE STATE MOVED, whatever it moved TO. « paused » was this rule's
+        # first guess and it is the app's `disabled` — the engine's own
+        # `actionPause` toggles between `disabled` and the medium's resting
+        # state. What the clause is about is that the act LANDED, so the hold
+        # reads the CHANGE against what the status was before, and never a word
+        # this file chose.
+        state = await page.evaluate(
+            "(t)=>(window.__followActions?.all() || []).find((one) => one.t === t)?.st",
+            watched)
+        journal.check(
+            "and pausing LANDS — the state moved, not the message "
+            "(NE-DOIT-PAS-3)",
+            state is not None and state != was,
+            f"{watched}: {was} → {state}")
+
+        # ── AND NEITHER REFUSAL EVER ARRIVED ───────────────────────────────
+        journal.check(
+            "no mutation was answered 409 (NE-DOIT-PAS-3)",
+            not refused, str(refused[:3]))
+        said = (await page.evaluate(SAID)).lower()
+        journal.check(
+            "and nothing anywhere said the machine was busy",
+            not any(word in said for word in REFUSALS),
+            next((word for word in REFUSALS if word in said), ""))
+
+        await context.close()
+        await browser.close()
+    journal.summary()
+
+
+asyncio.run(main())

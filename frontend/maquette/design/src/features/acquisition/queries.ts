@@ -22,7 +22,7 @@ import { queueNow } from "../../lib/queue";
  * once and the seam below reads what landed. A hook with no caller would be
  * machinery nobody could justify.
  */
-const suggestionsQuery = {
+export const suggestionsQuery = {
   queryKey: ["/api/acquisition/suggestions"],
   queryFn: async () => {
     // THE WHOLE RESERVE, batch after batch, because the deck INDEXES into it.
@@ -75,17 +75,27 @@ export function installSuggestionsLookup(queryClient: QueryClient): void {
   window.__refillSuggestions();
 }
 
+/**
+ * What the operator follows, as a query DEFINITION.
+ *
+ * A DEFINITION AND NOT ONLY A HOOK: the follows tab subscribes, and the follow
+ * PANEL is produced from a long press — and from a cold load at
+ * `?panel=follow:<title>`, where no tab has mounted. One definition, so the two
+ * cannot drift into two shapes of one answer (§13).
+ */
+export const followsQuery = {
+  queryKey: ["/api/acquisition/followed"],
+  queryFn: async () =>
+    toEngineShape<Follow[]>("FOLLOWS", await read("/api/acquisition/followed")),
+};
+
 /** What the operator follows. */
 export function useFollows() {
-  return useQuery({
-    queryKey: ["/api/acquisition/followed"],
-    queryFn: async () =>
-      toEngineShape<Follow[]>("FOLLOWS", await read("/api/acquisition/followed")),
-  });
+  return useQuery(followsQuery);
 }
 
 /** The key the follows are cached under. */
-const followsKey = ["/api/acquisition/followed"];
+const followsKey = followsQuery.queryKey;
 
 /**
  * Installs the follows' verbs, for the dying engine's delegation to call.

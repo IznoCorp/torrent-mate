@@ -36,6 +36,37 @@ import { screens, panel, bridge } from "./seams.js";
 import { installPressArbitration } from "../lib/press-arbitration";
 import { installPullGesture } from "../lib/pull-gesture";
 import { icons } from "../app/icons";
+/* THE SETTINGS CATALOGUE, IMPORTED BACK. How a setting is identified,
+   listed and read moved to the feature that owns settings when its panels did,
+   and the engine reads the same three answers rather than keeping its own —
+   `app/icons.ts`'s arrangement and its reasoning word for word: one copy, read
+   by both worlds, and the day this file goes the feature loses an importer
+   rather than a subject. Its own verbs (`changeSetting`, the field branches)
+   still live here and still ask the same questions. */
+import {
+  flattenSettings,
+  settingIdentifier,
+  valueShown,
+} from "../features/settings/catalog";
+/* THE DÉCOUVRIR FEED, IMPORTED BACK. The reserve, the pile and the
+   gesture that spends them are `features/acquisition/` now — the last feature
+   surface this file still DREW. Its containers were already React's; what moved
+   is who owns their content, and the technique is unchanged because a replaced
+   node cannot animate. `render()`, `mountLoaders()`, the click delegation and
+   the swipe handlers below all still call these by name. */
+import {
+  advanceDeck,
+  deckOrder,
+  dismissSug,
+  fillSug,
+  loadMoreSug,
+  mountDeck,
+  passerSug,
+  refreshDeck,
+  deckHTML,
+  remountSuggestionLoader,
+  sugFoot,
+} from "../features/acquisition/discover-feed";
 
   /* TorrentMate — mobile-first redesign prototype
      Data: real library titles (1,861 items). */
@@ -4607,12 +4638,6 @@ import { icons } from "../app/icons";
 
   /* Said rather than encoded: `ro` / `write` / `destructive` are the engine's
      three words, and none of them is French. */
-  const RISQUES = {
-    ro: { t: "ne change rien", p: "success" },
-    write: { t: "écrit", p: "info" },
-    destructive: { t: "supprime", p: "danger" },
-  };
-
   const MAINT_ACTIONS = [
     {
       id: "library-status",
@@ -5819,65 +5844,6 @@ import { icons } from "../app/icons";
 
   /* One command's panel. Derived from what is TRUE about the command — does
      it delete, can it run blank, is it long — never from a list of screens. */
-  function openActionMaintenance(id) {
-    const action = MAINT_ACTIONS.find((a) => a.id === id);
-    if (!action) return;
-    const deleted = action.r === "destructive";
-    const blanc = deleted ? true : !!currentState().maintBlanc;
-    panel.open({
-      address: "action:" + id,
-      title: action.l,
-      subtitle: action.id,
-      meta: action.d,
-      puce: [RISQUES[action.r].p, RISQUES[action.r].t],
-      blocs: [
-        {
-          type: "faits",
-          lignes: [
-            {
-              c: "Ce qu'elle fait",
-              v: RISQUES[action.r].t,
-              pipValue: RISQUES[action.r].p,
-            },
-            { c: "Durée", v: action.long ? "peut être longue" : "immédiate" },
-            {
-              c: "Essai à blanc",
-              v: action.blanc ? (blanc ? "activé" : "désactivé") : "impossible",
-            },
-          ],
-        },
-        deleted
-          ? {
-              type: "note",
-              text:
-                "**Cette commande supprime.** L'essai à blanc reste activé tant que rien n'a montré ce qui serait détruit : un « êtes-vous sûr ? » se répond sans lire, une liste se regarde. Lancez-la à blanc, lisez ce qu'elle nomme, puis relancez-la pour de vrai.",
-            }
-          : null,
-        {
-          type: "actions",
-          actions: [
-            {
-              text: action.blanc ? "Lancer à blanc" : "Lancer",
-              ton: "solid",
-              target: {
-                toast: `${action.l} — lancée${action.blanc ? " à blanc" : ""}. Le résultat s'affichera ici.`,
-              },
-            },
-            deleted
-              ? {
-                  text: "Lancer pour de vrai",
-                  desactive: true,
-                  infobulle: "Lisez d'abord ce que l'essai à blanc nomme.",
-                  mention: "après l'essai",
-                }
-              : null,
-          ].filter(Boolean),
-        },
-      ].filter(Boolean),
-    });
-  }
-
-
   /* ── RÉGLAGES ────────────────────────────────────────────────────────
      The configuration, and the one decision that shapes everything else:
      ONE NAVIGATES BY WHAT ONE WANTS TO CHANGE, NEVER BY FILE.
@@ -7426,14 +7392,9 @@ import { icons } from "../app/icons";
     SETTINGS_STATE.conflict = false;
   }
 
-  function settingId(setting) {
-    return `${setting.f}:${setting.c}`;
-  }
+  const settingId = settingIdentifier;
 
-  function displayedValue(setting) {
-    const change = SETTINGS_STATE.modifs.get(settingId(setting));
-    return change === undefined ? setting.v : change;
-  }
+  const displayedValue = (setting) => valueShown(setting, SETTINGS_STATE.modifs);
 
   /* The file a setting really lives in. Nineteen of them are JSON5 overlays
      named by their concern, and one is not: the schedules belong to PM2 and
@@ -7450,11 +7411,7 @@ import { icons } from "../app/icons";
     ];
   }
 
-  function allSettings() {
-    return SETTINGS.flatMap((topic) =>
-      topic.r.map((setting) => ({ ...setting, topic })),
-    );
-  }
+  const allSettings = () => flattenSettings(SETTINGS);
 
   /* THE FIELD A VALUE ASKS FOR.
 
@@ -7517,107 +7474,9 @@ import { icons } from "../app/icons";
     return text === "" ? null : text;
   }
 
-  function openSecret(secret) {
-    panel.open({
-      title: secret.l,
-      meta: [{ m: secret.k }],
-      puce: secret.def ? ["success", "définie"] : ["warning", "absente"],
-      blocs: [
-        {
-          type: "note",
-          text:
-            "La valeur n'est jamais renvoyée par le serveur, donc elle ne s'affiche pas ici. On sait qu'elle est posée, on ne sait pas ce qu'elle vaut.",
-        },
-        {
-          type: "actions",
-          actions: [
-            SETTINGS_STATE.readOnly
-              ? {
-                  text: "Lecture seule sur cette instance",
-                  icone: icons.x,
-                  desactive: true,
-                }
-              : {
-                  text: "Remplacer la valeur",
-                  icone: icons.wrench,
-                  ton: "primary",
-                  target: {
-                    toast:
-                      "Un champ masqué s'ouvre ici. Laissé vide, il n'efface rien.",
-                  },
-                },
-            secret.def
-              ? {
-                  text: "Retirer la clé",
-                  icone: icons.trash,
-                  ton: "danger",
-                  target: {
-                    toast:
-                      "Retirer une clé coupe ce qu'elle autorisait — le service le dira avant.",
-                  },
-                }
-              : null,
-          ],
-        },
-      ],
-    });
-  }
-
   /* One setting, in the panel — the same panel as everywhere else, taking the
      same descriptor of facts. What it says: where the value comes from, what
      the file's own comment explains, and what it is now. */
-  function openSetting(id) {
-    const setting = allSettings().find((r) => settingId(r) === id);
-    if (!setting) return;
-    const courante = displayedValue(setting);
-    const changed = SETTINGS_STATE.modifs.has(id);
-    panel.open({
-      address: "setting:" + id,
-      title: window.__settingLabels.label(setting),
-      meta: [{ m: `${setting.f}.json5 · ${setting.c}` }],
-      ...(changed ? { puce: ["info", "modifié, pas encore écrit"] } : {}),
-      blocs: [
-        setting.note ? { type: "note", text: setting.note } : null,
-        SETTINGS_STATE.readOnly ? null : { type: "field", setting },
-        {
-          type: "faits",
-          lignes: [
-            { c: "Valeur actuelle", v: String(courante) },
-            ...(changed
-              ? [{ c: "Valeur écrite", v: String(setting.v), terne: true }]
-              : []),
-            // The file is on the mono line above; a « Fichier » fact under it
-            // says the same thing twice on a screen that has no room for it.
-          ],
-        },
-        {
-          type: "actions",
-          actions: [
-            SETTINGS_STATE.readOnly
-              ? {
-                  text: "Lecture seule sur cette instance",
-                  icone: icons.x,
-                  desactive: true,
-                }
-              : null,
-            changed
-              ? {
-                  text: "Annuler la modification",
-                  icone: icons.x,
-                  target: { cancelsetting: id },
-                }
-              : null,
-          ],
-        },
-        {
-          type: "note",
-          text:
-            "Rien n'est écrit tant que la barre du bas n'est pas utilisée. Elle dit quels fichiers seront touchés.",
-        },
-      ],
-    });
-  }
-
   /* Navigation — THE PAGE TABLE IS NOT HERE ANY MORE.
      `PAGES_OF()` declared eight pages beside three other copies of the same
      fact (the drawer's own `NAVIGATION`, `PAGES` in the shell's page
@@ -7792,15 +7651,9 @@ import { icons } from "../app/icons";
        hold them — but it calls them BEFORE the shell has drawn, so a migrated
        page asks again from an effect, exactly as it asks for the selection bar
        to be repainted. */
-    fillSug,
-    sugFoot,
-    mountDeck,
-    deckHTML,
     /* Published for the MEASUREMENT of the deck's gesture: a rule drives the
        two halves the way the swipe handler drives them, and reads what the
        animation is doing one frame later. */
-    passerSug,
-    advanceDeck,
     /* What the Médiathèque draws. `tileHTML` and `swipeHTML` are emitters a
        component calls VERBATIM, for the same reason as `cardHTML`: the rows
        they emit carry the `data-*` the document-level delegation reads.
@@ -7822,19 +7675,10 @@ import { icons } from "../app/icons";
     INCOMPLETE,
     /* A GETTER: `LIB_PAGE` is a `const` declared further down this same script,
        so a plain shorthand would hit the temporal dead zone the instant this
-       literal is built — the same trap `CAST` and `TRIS` are published
+       literal is built — the same trap `CAST` was published
        around. */
     get LIB_PAGE() {
       return LIB_PAGE;
-    },
-    /* The sort table, published because the rule that holds E-001 reads the
-       NAMES from the prototype rather than restating them: a rule carrying its
-       own copy of six labels would go green the day the interface renamed one.
-       A GETTER, because `TRIS` is a `const` declared further down this same
-       script: a plain shorthand would hit the temporal dead zone the instant
-       this literal is built, and the engine would never finish booting. */
-    get TRIS() {
-      return TRIS;
     },
     skelCards,
     skelCardsInner,
@@ -7849,9 +7693,10 @@ import { icons } from "../app/icons";
     INDEX,
     DEPENDENCIES,
     ERRORS,
-    /* What the Maintenance page draws. `openActionMaintenance`
-       reste au fragment : c'est la délégation `data-maintact` qui l'appelle, pas
-       un composant. */
+    /* What the Maintenance page draws. The command PANEL has left — it is
+       `features/maintenance/panel-action.ts` now, reached through
+       `panel.produce("action", id)` — and the risk vocabulary went with it,
+       which is why `RISQUES` is no longer published from here at all. */
     MAINT_TOPICS,
     MAINT_ACTIONS,
     /* What the Réglages page draws. REG_ETAT est l'objet
@@ -7867,7 +7712,6 @@ import { icons } from "../app/icons";
     displayedValue,
     fileName,
     changedFiles,
-    RISQUES,
     JOURNAL,
     // ACTEURS and AUJOURDHUI are declared with `const` further down this
     // same script, past this literal's evaluation point — a plain shorthand
@@ -7901,7 +7745,6 @@ import { icons } from "../app/icons";
     rawValue,
     typedValue,
     changeSetting,
-    openSetting,
     // The arbitration flow's LABELS, which are the interface's own words and
     // were never server state — the register classifies them `interface`, and
     // they stay exactly where they are.
@@ -7939,21 +7782,20 @@ import { icons } from "../app/icons";
      and is invisible: nothing on a phone says that a second tap on the row one
      just chose does something else. A row that reads « A → Z » and answers
      Z → A is the opposite of showing what the machine will do. */
-  const TRIS = {
-    recent: { normal: "Ajout récent", inverse: "Ajout ancien" },
-    az: { normal: "A → Z", inverse: "Z → A" },
-    manque: { normal: "Les plus incomplets", inverse: "Les plus complets" },
-  };
 
   /* The name of the sort in force, which is what the control on the count line
      reads. `sortReversed` is a store field like any other and, like `sortKey`, it
      stays OUT of the address: the sort is a preference, not a place (A7). */
   function sortLabel() {
-    return TRIS[currentState().sortKey][currentState().sortReversed ? "inverse" : "normal"];
+    /* THE NAMES ARE THE FEATURE'S — `features/library/sorting.ts`, read
+       through the seam the sort panel publishes, the way a setting's label is
+       read through `window.__settingLabels`. */
+    const named = window.__sortWays();
+    return named[currentState().sortKey][
+      currentState().sortReversed ? "inverse" : "normal"
+    ];
   }
   const LIB_PAGE = 24;
-  const SUG_BATCH = 30;
-  let sugObserver = null;
 
   /* ONE tile, in every gallery of the interface — the library's three lenses
      and the follows grid alike. A gallery that draws its own tile drifts from
@@ -8076,9 +7918,9 @@ import { icons } from "../app/icons";
      wants a panel states WHICH one and never how to build it. */
   function openPanel(element) {
     const { genre, ref } = refPanel(element);
-    if (genre === "sug") openSugSheet(Number(ref));
-    else if (genre === "add") openAddSheet(Number(ref));
-    else openFollowSheet(ref);
+    if (genre === "sug") panel.produce("suggestion", ref);
+    else if (genre === "add") panel.produce("add", ref);
+    else panel.produce("follow", ref);
   }
 
   /* THE LONG PRESS — arbitrated in `lib/press-arbitration.ts`.
@@ -8129,34 +7971,6 @@ import { icons } from "../app/icons";
      is what the profile entry will open onto. The entry is drawn disabled and
      says why, rather than being absent: a menu that grows an item later teaches
      its shape twice. */
-  function openUserSheet() {
-    panel.open({
-      title: ACCOUNT.name,
-      subtitle: ACCOUNT.mail,
-      avatar: ACCOUNT.avatar,
-      blocs: [
-        {
-          type: "actions",
-          secondary: true,
-          actions: [
-            {
-              text: "Profil et préférences",
-              icone: icons.user,
-              target: { go: "profile" },
-            },
-            {
-              text: "Se déconnecter",
-              icone: icons.logout,
-              ton: "danger",
-              target: { signout: "1" },
-            },
-          ],
-        },
-      ],
-    });
-  }
-
-
   /* Découvrir: one card, one tappable body
      · poster            → the media sheet, never a dead link
      · rest of the card   → bottom panel, same grammar as Suivis
@@ -8167,300 +7981,11 @@ import { icons } from "../app/icons";
     return suggestion.k === "Film" ? "Ajouter" : "Suivre";
   }
 
-  /* Poster format — the shared gallery tile. A suggestion is a medium one does
-     not own yet, not a different kind of picture: the same tap opens its
-     sheet, the same long press opens its panel, at the same size as every
-     other gallery. What it alone carries is a rating to show and a handle to
-     be dismissed by. */
-  /* USED AS A VALUE, never called by name: `fillSug` picks between this and
-     `sugTileHTML` and calls whichever it picked. A count of « name( » says zero
-     callers, which is how it was deleted once — and the page went blank the
-     moment the suggestions were drawn. */
-  /* A suggestion, described as a CARD. It had its own builder and its own class
-     vocabulary, and drew a poster 63 % larger than every other list on a page
-     that already offers two visual formats for browsing — the poster gallery
-     and the deck. A list is a list.
-
-     What stays its own is the swipe wrapper: dismissing a suggestion is a
-     gesture no other list has. */
-  function sugCardHTML(suggestion, index) {
-    return `<div class="sugwrap" data-part="suggestion/wrap" data-dismissable="${index}">
-      <div class="sugback">
-        <span>${svgIcon(icons.x)}Pas intéressé</span>
-        <span>Pas intéressé${svgIcon(icons.x)}</span>
-      </div>
-      ${cardHTML({
-        t: suggestion.t,
-        k: suggestion.k === "Film" ? "movie" : "show",
-        s: `${suggestion.y} · ${suggestion.k}`,
-        note: suggestion.note,
-        r: suggestion.why,
-        panel: `sug:${index}`,
-      })}
-    </div>`;
-  }
-
-  function sugTileHTML(suggestion, rang) {
-    return tileHTML(
-      { t: suggestion.t, k: suggestion.k === "Film" ? "movie" : "show" },
-      `${suggestion.y} · ${suggestion.k}`,
-      {
-        panel: `sug:${rang}`,
-        dismiss: rang,
-        badge: { tone: "note", txt: String(suggestion.note) },
-      },
-    );
-  }
-
-  /* Deck format — one card fills the surface, the next ones are stacked
-     behind it. Tapping the card opens the sheet; a swipe either way dismisses
-     it, exactly as in the list, and the next card rises from the deck; a long
-     press opens the panel, exactly as in a gallery. The card STATES which
-     panel it addresses and never how to build it. */
-  function deckCardHTML(suggestion, index, depth) {
-    return `<article class="dcard" data-part="deck/card" data-deck="${index}" data-depth="${depth}" data-panel="sug:${index}">
-      <button class="p" data-mediasheet="${escapeHtml(suggestion.t)}" aria-label="Fiche de ${escapeHtml(suggestion.t)}">
-        ${
-          POSTERS_HD[suggestion.t]
-            ? `<img src="${POSTERS_HD[suggestion.t]}" alt="" loading="lazy">`
-            : posterBox(
-                suggestion.t,
-                suggestion.k === "Film" ? "movie" : "show",
-              )
-        }
-        <span class="cap">
-          <span class="t" data-part="deck/title">${escapeHtml(suggestion.t)}</span>
-          <span class="m">${escapeHtml(suggestion.y)} · ${escapeHtml(suggestion.k)} · ${escapeHtml(String(suggestion.note))} sur TMDB</span>
-          <span class="why">${richText(suggestion.why)}</span>
-        </span>
-      </button>
-      ${depth === 0 ? `<span class="dhint l">Passer</span><span class="dhint r">Pas intéressé</span>` : ""}
-    </article>`;
-  }
-
-  /* Deck order. « Passer » does not decide anything: it sends the card to the
-     back, so it comes round again. « Pas intéressé » removes it, with an undo. */
-  function deckOrder() {
-    /* THE ORDER IS DERIVED FROM THE LIST, and it is re-derived while the two
-       disagree in LENGTH. It used to be computed once, on the first draw — which
-       was safe while the list was a fixture that existed before anything ran.
-       It is a query now: the first draw happens before the cards land, so an
-       order computed then is empty and stays empty, and the deck draws nothing
-       for ever. Re-deriving on a length mismatch keeps what a shuffle or a
-       dismissal put there, and fills it the moment the cards arrive. */
-    if (
-      !currentState().sugOrder ||
-      currentState().sugOrder.length !== suggestions().length
-    )
-      store.write({
-        sugOrder: suggestions().map((one, index) => index),
-      });
-    return currentState().sugOrder.filter((sugOrder) => !currentState().sugGone.has(sugOrder));
-  }
-
-  function passerSug(index) {
-    const filter = deckOrder().filter((element) => element !== index);
-    store.write({ sugOrder: [...filter, index] });
-  }
-
-  function deckHTML() {
-    const restants = deckOrder().map((element) => [
-      suggestions()[element],
-      element,
-    ]);
-    if (!restants.length) {
-      return `<div class="empty" data-part="empty-state"><b>Vous avez tout parcouru.</b>
-        <p>Les ${suggestions().length} suggestions du lot ont été vues. La réserve en garde d'autres.</p>
-        <button class="btnprimary" data-sugmore="1">${svgIcon(icons.refresh)}Charger 30 de plus</button></div>`;
-    }
-    const pile = restants
-      .slice(0, 3)
-      .map(([suggestion, index], index2) =>
-        deckCardHTML(suggestion, index, index2),
-      )
-      .reverse()
-      .join("");
-    return `<div class="deck" data-part="deck">${pile}</div>`;
-  }
-
-
-  /* Gives the deck the height actually left in the scrollport, once. Re-run on
-     every render and on resize, because a rotated phone is a different height. */
-  /* The deck lives in the body, not in the list container — it needs its own
-     re-render, otherwise a gesture reorders the data and nothing moves. */
-  /* Advances the pile WITHOUT rebuilding it: the top card flies out, the ones
-     behind change depth — and their CSS transition carries them forward — and a
-     new card is inserted at the back, rising from under the deck. Rebuilding
-     the HTML would replace every node, and a replaced node cannot animate:
-     that is what made the pile look like it was cutting rather than moving. */
-  function advanceDeck(index, vers) {
-    const deck = document.querySelector(".deck");
-    const outgoing = deck?.querySelector('.dcard[data-depth="0"]');
-    if (!deck || !outgoing) return;
-
-    outgoing.classList.add("out");
-    outgoing.style.transform = `translateX(${vers > 0 ? 460 : -460}px) rotate(${vers > 0 ? 20 : -20}deg)`;
-    outgoing.dataset.depth = "sortie";
-
-    deck.querySelectorAll(".dcard[data-depth]").forEach((querySelectorAll) => {
-      const depth = Number(querySelectorAll.dataset.depth);
-      if (!Number.isNaN(depth) && depth > 0)
-        querySelectorAll.dataset.depth = String(depth - 1);
-    });
-
-    // The card that takes the place of the top one becomes the swipeable one,
-    // and needs the gesture labels the outgoing card carried.
-    const newHead = deck.querySelector('.dcard[data-depth="0"]');
-    if (newHead && !newHead.querySelector(".dhint")) {
-      newHead.insertAdjacentHTML(
-        "beforeend",
-        `<span class="dhint l">Passer</span><span class="dhint r">Pas intéressé</span>`,
-      );
-    }
-
-    // Feed the back of the pile from the order, skipping what is already shown.
-    const shown = new Set(
-      [...deck.querySelectorAll(".dcard")].map((element) =>
-        Number(element.dataset.deck),
-      ),
-    );
-    const next = deckOrder().find((element) => !shown.has(element));
-    if (next != null) {
-      deck.insertAdjacentHTML(
-        "afterbegin",
-        deckCardHTML(suggestions()[next], next, 3),
-      );
-      const incoming = deck.querySelector('.dcard[data-depth="3"]');
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => (incoming.dataset.depth = "2")),
-      );
-    }
-
-    setTimeout(() => {
-      outgoing.remove();
-      if (!deck.querySelector(".dcard")) refreshDeck();
-    }, 440);
-  }
-
-  function refreshDeck() {
-    const corps = document.querySelector(".deckbody");
-    if (!corps) return;
-    corps.innerHTML = deckHTML();
-    mountDeck();
-  }
-
-  function mountDeck() {
-    const element = document.querySelector(".deck");
-    const port = document.querySelector("#port");
-    if (!element || !port) return;
-    const top =
-      element.getBoundingClientRect().top - port.getBoundingClientRect().top;
-    let hauteur = Math.max(340, Math.round(port.clientHeight - top - 12));
-    element.style.height = hauteur + "px";
-    // Self-correcting: whatever still overflows is taken back, once. A deck
-    // that makes the page scroll is a deck that is not full-screen.
-    const overflow = port.scrollHeight - port.clientHeight;
-    if (overflow > 0) element.style.height = Math.max(340, hauteur - overflow) + "px";
-  }
-
-  window.addEventListener("resize", mountDeck, { passive: true });
-
-  function fillSug() {
-    const box = document.querySelector("#sugitems");
-    if (!box) return;
-    if (currentState().sugMode === "deck") {
-      box.innerHTML = deckHTML();
-      box.className = "";
-      mountDeck();
-      return;
-    }
-    const cardTemplate = currentState().sugMode === "poster" ? sugTileHTML : sugCardHTML;
-    box.className = currentState().sugMode === "poster" ? "gallery" : "";
-    box.innerHTML = suggestions().slice(0, currentState().sugCount)
-      .map((slice, index) =>
-        currentState().sugGone.has(index) ? "" : cardTemplate(slice, index),
-      )
-      .join("");
-  }
-
-  /* Dismiss — reversible. A quick gesture gets it wrong, hence « Annuler ». */
-  function dismissSug(index) {
-    if (currentState().sugMode === "deck") {
-      // In the deck the whole pile changes, not one row: re-render, and the
-      // undo restores both the suggestion and its place in the order.
-      // `sugGone` is a Set mutated in place — refreshDeck() redraws the
-      // legacy deck directly, so React needs the explicit bump `write`
-      // would otherwise have given it for free.
-      currentState().sugGone.add(index);
-      store.touch();
-      refreshDeck();
-      toastUndo(`« ${suggestions()[index].t} » écarté.`, () => {
-        currentState().sugGone.delete(index);
-        store.touch();
-        refreshDeck();
-      });
-      return;
-    }
-    const element = document.querySelector(`[data-dismissable="${index}"]`);
-    if (!element) return;
-    currentState().sugGone.add(index);
-    store.touch();
-    element.style.height = element.getBoundingClientRect().height + "px";
-    requestAnimationFrame(() => element.classList.add("gone"));
-    setTimeout(() => element.remove(), 320);
-    toastUndo(`« ${suggestions()[index].t} » écarté.`, () => {
-      currentState().sugGone.delete(index);
-      store.touch();
-      fillSug();
-      sugFoot();
-    });
-  }
-
-  function openSugSheet(index) {
-    const suggestion = suggestions()[index];
-    panel.open({
-      title: suggestion.t,
-      meta: `${suggestion.y} · ${suggestion.k} · note TMDB ${suggestion.note}`,
-      blocs: [
-        { type: "note", text: suggestion.why },
-        {
-          type: "actions",
-          actions: [
-            {
-              text: sugVerb(suggestion),
-              icone: icons.plus,
-              ton: "primary",
-              target: { follow: suggestion.t, sugidx: index },
-            },
-            {
-              text: "Voir la fiche",
-              icone: icons.eye,
-              target: { mediasheet: suggestion.t },
-            },
-          ],
-        },
-        {
-          type: "actions",
-          secondary: true,
-          actions: [
-            {
-              text: "Pas intéressé",
-              icone: icons.x,
-              ton: "danger",
-              target: { dropsug: index },
-            },
-          ],
-        },
-        suggestion.k === "Film"
-          ? {
-              type: "note",
-              text:
-                "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
-            }
-          : null,
-      ],
-    });
-  }
+  /* THE DÉCOUVRIR FEED HAS LEFT — the reserve, the three card shapes, the
+     pile and the gesture that spends them are
+     `features/acquisition/discover-feed.ts` and `discover-cards.ts` now, and
+     this file imports them back. Its own `resize` listener went with
+     `mountDeck`: two listeners on one window would measure the deck twice. */
 
   /* The label a search result's action carries, computed ONCE. The panel
      entry and the done chip on the card must say the same thing, and the
@@ -8491,77 +8016,6 @@ import { icons } from "../app/icons";
      rather than a follow's: what it offers is the act that WOULD make it one,
      and the sheet to judge it by. This panel is the ONLY place that carries
      the act — the card wears no inline button, so the row stays the size of
-     what it lists. */
-  function openAddSheet(index) {
-    const result = searchResults().results[index];
-    const done = currentState().added.has(index);
-    panel.open({
-      title: result.t,
-      meta: `${result.y} · ${result.k} · TMDB`,
-      blocs: [
-        result.owned && currentState().addMode !== "identify"
-          ? {
-              type: "note",
-              text: [
-                "Déjà en médiathèque — l'acquisition ",
-                { e: "remplacera" },
-                " la version en place.",
-              ],
-            }
-          : null,
-        {
-          type: "actions",
-          actions: [
-            {
-              text: addVerb(result, index),
-              icone: icons.plus,
-              ton: "primary",
-              desactive: done,
-              target: { act: `add:${index}` },
-            },
-            {
-              text: "Voir la fiche",
-              icone: icons.eye,
-              target: { mediasheet: result.t },
-            },
-          ],
-        },
-      ],
-    });
-  }
-
-  function sugFoot() {
-    const foot = document.querySelector("#sugload");
-    if (!foot) return;
-    if (currentState().sugCount >= suggestions().length) {
-      foot.innerHTML = `<p class="endmark">Fin de la réserve chargée dans cette maquette — ${suggestions().length} des 503 suggestions réellement calculées pour vous. La passe de fond en recalcule après chaque nouvelle note TMDB.</p>`;
-      return;
-    }
-    foot.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">${'<div class="sk row" data-skeleton="" style="height:104px"></div>'.repeat(2)}</div>`;
-    if (sugObserver) sugObserver.disconnect();
-    sugObserver = new IntersectionObserver(
-      (ents) => {
-        if (ents.some((ent) => ent.isIntersecting)) loadMoreSug();
-      },
-      { root: port, rootMargin: "260px" },
-    );
-    sugObserver.observe(foot);
-  }
-
-  function loadMoreSug() {
-    if (currentState().sugLoading || currentState().sugCount >= suggestions().length) return;
-    store.write({ sugLoading: true });
-    if (sugObserver) sugObserver.disconnect();
-    setTimeout(() => {
-      store.write({
-        sugLoading: false,
-        sugCount: Math.min(suggestions().length, currentState().sugCount + SUG_BATCH),
-      });
-      fillSug();
-      sugFoot();
-    }, 420);
-  }
-
   /* Typing filters as you go (the source is LOCAL, therefore free) — unlike
      the provider search on the add screen, which runs on submit. */
   function mountSearch() {
@@ -8593,16 +8047,7 @@ import { icons } from "../app/icons";
      page it belonged to: its list, its footer and its sentinel are drawn by the
      component now, and filling a container React owns from here is what makes
      two worlds write one element. */
-  function mountLoaders() {
-    if (sugObserver) {
-      sugObserver.disconnect();
-      sugObserver = null;
-    }
-    if (document.querySelector("#sugitems")) {
-      fillSug();
-      sugFoot();
-    }
-  }
+  const mountLoaders = remountSuggestionLoader;
 
   /* Interactions */
   /* WHETHER A MESSAGE IS ON SCREEN IS WRITTEN IN ONE PLACE. Six call sites
@@ -9532,14 +8977,19 @@ import { icons } from "../app/icons";
       return;
     }
     if (closest.dataset.setting) {
-      openSetting(closest.dataset.setting);
+      // THE PRODUCER HAS LEFT. `features/settings/panel-setting.ts` answers.
+      panel.produce("setting", closest.dataset.setting);
       return;
     }
     if (closest.dataset.secret) {
       // A secret is never shown, so its panel offers the only act that exists:
       // replacing it. Nothing to read, nothing to copy.
-      const secret = SECRETS.find((x) => x.k === closest.dataset.secret);
-      if (secret) openSecret(secret);
+      //
+      // THE PRODUCER HAS LEFT, and it takes the KEY rather than the record:
+      // the feature reads the layer's answer, so handing it a row found in the
+      // engine's own fixture would be handing it the copy it exists to stop
+      // reading.
+      panel.produce("secret", closest.dataset.secret);
       return;
     }
     if (closest.dataset.field && closest.dataset.to) {
@@ -9547,7 +8997,7 @@ import { icons } from "../app/icons";
       const setting = allSettings().find((r) => settingId(r) === id);
       if (setting) {
         changeSetting(id, closest.dataset.to === "oui");
-        openSetting(id);
+        panel.produce("setting", id);
       }
       return;
     }
@@ -9558,7 +9008,7 @@ import { icons } from "../app/icons";
         const list = [...(rawValue(setting) || [])];
         list.splice(Number(closest.dataset.index), 1);
         changeSetting(id, list);
-        openSetting(id);
+        panel.produce("setting", id);
       }
       return;
     }
@@ -9571,31 +9021,38 @@ import { icons } from "../app/icons";
         const list = [...(rawValue(setting) || [])];
         list.push(`valeur ${list.length + 1}`);
         changeSetting(id, list);
-        openSetting(id);
+        panel.produce("setting", id);
       }
       return;
     }
     if (closest.dataset.cancelsetting) {
-      SETTINGS_STATE.modifs.delete(closest.dataset.cancelsetting);
-      panel.close();
-      setTimeout(() => {
-        render();
-        toast("Modification annulée — rien n'avait été écrit.");
-      }, 200);
+      // THE READER HAS LEFT. The verb is still this delegation's; what it
+      // does is `features/settings/panel-setting.ts`'s, beside the panel that
+      // offers it. The rule that holds it was written against the branch this
+      // replaces and is unchanged in count.
+      window.__settingsVerbs?.cancelEdit(closest.dataset.cancelsetting);
       return;
     }
     if (closest.dataset.save) {
-      const fileNames = changedFiles();
-      SETTINGS_STATE.modifs.clear();
-      SETTINGS_STATE.redemarrage = true;
-      render();
-      toast(`Enregistré — ${fileNames.map(fileName).join(", ")}.`);
+      // THE SAVE ASKS THE LAYER NOW (B-299). It used to clear the edits,
+      // raise the restart flag and say « Enregistré » without ever writing
+      // anything — so `conflict`, a field the contract has always answered, had
+      // no reader and the copy naming three banners drew two.
+      void window.__settingsVerbs?.save();
+      return;
+    }
+    if (closest.dataset.reloadsettings) {
+      window.__settingsVerbs?.reload();
       return;
     }
     if (closest.dataset.restart) {
-      SETTINGS_STATE.redemarrage = false;
-      render();
-      toast("Service redémarré — les réglages sont pris en compte.");
+      // IT ASKS FIRST (B-300, §17). A restart cuts the service for every
+      // account of the household; this branch used to do it on the tap.
+      window.__settingsVerbs?.askToRestart();
+      return;
+    }
+    if (closest.dataset.confirmrestart) {
+      window.__settingsVerbs?.restart();
       return;
     }
     if (closest.dataset.qsettings != null) {
@@ -9723,7 +9180,10 @@ import { icons } from "../app/icons";
     }
 
     if (closest.dataset.sug) {
-      openSugSheet(Number(closest.dataset.sug));
+      // THE PRODUCER HAS LEFT. `features/acquisition/panel-suggestion.ts`
+      // answers, and it takes the POSITION as the seam spells every subject:
+      // a string.
+      panel.produce("suggestion", closest.dataset.sug);
       return;
     }
     if (closest.dataset.dropsug) {
@@ -9886,6 +9346,10 @@ import { icons } from "../app/icons";
       }
       return;
     }
+    // THE PANEL'S TAKE, TOLD APART FROM THE RELEASE SCREEN'S (B-309):
+    // an INDEX is the screen's, a TITLE is a medium's panel. The arrivals
+    // feature says which values are its own, and does the act.
+    if (window.__arrivalsVerbs?.take(closest.dataset.take)) return;
     if (closest.dataset.take) {
       const release = releases()[Number(closest.dataset.take)];
       // One router pop — the release-choice screen is a route now, and the
@@ -9923,7 +9387,8 @@ import { icons } from "../app/icons";
       return;
     }
     if (closest.dataset.maintact) {
-      openActionMaintenance(closest.dataset.maintact);
+      // THE PRODUCER HAS LEFT. `features/maintenance/panel-action.ts` answers.
+      panel.produce("action", closest.dataset.maintact);
       return;
     }
     if (closest.dataset.pipe) {
@@ -10004,30 +9469,8 @@ import { icons } from "../app/icons";
       return;
     }
     if (closest.dataset.sort) {
-      panel.open({
-        title: "Trier la médiathèque",
-        meta: "Le tri est une préférence, pas un emplacement : il reste sur cet appareil et n'entre pas dans l'URL (A7).",
-        blocs: [
-          {
-            type: "actions",
-            actions: Object.entries(TRIS).flatMap(([cle, noms]) =>
-              ["normal", "inverse"].map((sens) => ({
-                text: noms[sens],
-                icone: icons.sort,
-                ton:
-                  currentState().sortKey === cle &&
-                  currentState().sortReversed === (sens === "inverse")
-                    ? "primary"
-                    : null,
-                target:
-                  sens === "inverse"
-                    ? { setsort: cle, reversed: "1" }
-                    : { setsort: cle },
-              })),
-            ),
-          },
-        ],
-      });
+      // THE PRODUCER HAS LEFT. `features/library/panel-sort.ts` answers.
+      panel.produce("sort");
       return;
     }
     if (closest.dataset.setsort) {
@@ -10121,7 +9564,8 @@ import { icons } from "../app/icons";
       return;
     }
     if (closest.dataset.sheet === "plus") {
-      openMoreSheet();
+      // THE PRODUCER HAS LEFT. `features/acquisition/panel-more.ts` answers.
+      panel.produce("more");
       return;
     }
     if (closest.dataset.act?.startsWith("add:")) {
@@ -10211,12 +9655,18 @@ import { icons } from "../app/icons";
       return;
     }
     if (closest.dataset.journey) {
+      // THE PRODUCER HAS LEFT, and its 260 ms wait went with it: the panel
+      // leaves inside the navigation's own commit, as `data-mediasheet`
+      // already did once B-249's wait left that branch. R103 refuses the gap on
+      // this path now rather than printing it.
       panel.close();
-      setTimeout(() => openJourneySheet(closest.dataset.journey), 260);
+      panel.produce("journey", closest.dataset.journey);
       return;
     }
     if (closest.dataset.sheet === "utilisateur") {
-      openUserSheet();
+      // THE PRODUCER HAS LEFT. The verb is still this delegation's; what it
+      // asks for is a KIND, and `features/account/panel-account.ts` answers.
+      panel.produce("account");
       return;
     }
     if (closest.dataset.sheet) {
@@ -10249,12 +9699,7 @@ import { icons } from "../app/icons";
       setTimeout(() => screens.resolution(resolve), 260);
       return;
     }
-    if (closest.dataset.take) {
-      const take = closest.dataset.take;
-      panel.close();
-      setTimeout(() => actionTake(take), 260);
-      return;
-    }
+
     if (closest.dataset.rescrape) {
       toast(
         `« ${baseTitle(closest.dataset.rescrape)} » : métadonnées à re-récupérer au prochain passage.`,
@@ -31496,7 +30941,8 @@ import { icons } from "../app/icons";
      fixed. The panel derives what it offers from what is true about the
      medium, and « nothing is known about this one » is one of those truths. */
   function openDetailSheet(title) {
-    return openFollowSheet(title);
+    // THE PRODUCER HAS LEFT. `features/acquisition/panel-follow.ts` answers.
+    return panel.produce("follow", title);
   }
 
   /* Follow detail sheet, with its season matrix
@@ -31540,32 +30986,15 @@ import { icons } from "../app/icons";
     window.__popover?.close();
   }
   function openPopEp(btn) {
-    const [title, season, episodeNumber, state] = btn.dataset.ep.split("|");
-    const sheetFound = sheetFor(title);
-    const list = sheetFound?.eps?.[season] ?? null;
-    const episode =
-      list?.find((liste2) => String(liste2.n) === episodeNumber) ?? null;
-    const airDate = episode?.air ? dateFR(episode.air) : null;
-    const future = episode?.air && episode.air > TODAY;
-    window.__popover?.open(btn, {
-      title:
-        "S" +
-        String(season).padStart(2, "0") +
-        "E" +
-        String(episodeNumber).padStart(2, "0") +
-        (episode?.t ? " · " + episode.t : ""),
-      text:
-        airDate == null
-          ? "Date de diffusion inconnue."
-          : future || state === "announced"
-            ? `Sortie prévue le ${airDate}`
-            : `Diffusé le ${airDate}`,
-      note: EP_LABEL[state] ?? "",
-    });
+    // THE SENTENCE HAS LEFT. The frame places, the feature says —
+    // `features/media/popover-episode.ts`, reached through the seam it
+    // publishes. What stays here is the tap, which is the delegation's.
+    const saying = window.__episodeSaying?.(btn);
+    if (saying) window.__popover?.open(btn, saying);
   }
 
   /* Does this interface HOLD a medium by that title?
-     `openFollowSheet` below answers for ANYTHING: a title it recognises in
+     the follow panel answers for ANYTHING: a title it recognises in
      none of its sources still gets a panel, synthesised from the title alone.
      That is right for the in-app door — every medium opens the same panel, and
      « rien n'est connu de celui-ci » is one of the truths a library title can
@@ -31590,263 +31019,10 @@ import { icons } from "../app/icons";
     );
   }
 
-  function openFollowSheet(title) {
-    const follow = follows().find((follow2) => follow2.t === title) ||
-      INCOMPLETE.map((INCOMPLETE2) => ({
-        t: INCOMPLETE2.t,
-        k: "show",
-        st: "to_grab",
-        own: INCOMPLETE2.o,
-        aired: INCOMPLETE2.a,
-      })).find((map) => map.t === title) || {
-        t: title,
-        k: "show",
-        st: "up_to_date",
-      };
-    const seasons = (SEASONS[title] || [])
-      .slice()
-      .sort((slice, index) => index[0] - slice[0]);
-    const isFilm = follow.k === "movie";
-    /* What is TRUE about this medium, gathered once. Every action below is
-       derived from these three facts and nothing else — never from the screen
-       the panel was opened from. That is what makes the panel the same object
-       everywhere, instead of a family of look-alikes. */
-    const incomplete = INCOMPLETE.some((INCOMPLETE2) => INCOMPLETE2.t === title);
-    const isFollowed = follows().some((follow2) => follow2.t === title);
-    const inLibrary = incomplete || LIBRARY.some((LIB) => LIB.t === title);
-    /* Read from the SAME derivations the urgency sections read. A section that
-       computes what to grab while the panel computes it separately is two
-       answers to one question, and they part company on the first change. */
-    const toTake = queued().takeable.some((takeable) => takeable.t === title);
-    const toResolve = queued()
-      .blocked.concat(queued().stuck)
-      .some((concat) => concat.t === title);
-    // An unidentified release has no sheet. Offering to open one is the same
-    // broken promise as a poster that leads nowhere.
-    const hasSheet = sheetFor(title) != null;
-    const own = seasons.reduce(
-      (accumulator, element) => accumulator + element[2],
-      0,
-    );
-    const aired = seasons.reduce(
-      (accumulator, element) => accumulator + element[1],
-      0,
-    );
-    /* One derivation: the card's fraction, the header's, and the sum of the
-       season headers all read the SAME computation. */
-    const frac = isFilm
-      ? null
-      : seasons.length
-        ? `${own}/${aired}`
-        : (stFraction(follow) ?? "—");
-    panel.open({
-      address: "follow:" + title,
-      title: follow.t,
-      poster: { t: follow.t, k: follow.k },
-      meta: `${follow.y ? String(follow.y) + " · " : ""}${isFilm ? "Film" : "Série"}${frac ? " · " + frac + " épisodes" : ""}`,
-      puce: [ST_TONE[follow.st], stLabel(follow)],
-      blocs: [
-        {
-          type: "actions",
-          actions: [
-            /* The primary action answers the medium's STATE, not the screen
-               it came from — which is why it is read from the derivations
-               above and not passed in. Blocked outranks everything: nothing
-               else can happen until it is resolved. Then what can be
-               grabbed, then what is incomplete, then what is merely watched.
-               A medium that is owned and whole has nothing left to chase, so
-               the panel leads to its sheet rather than offering a search
-               that would find nothing. */
-            toResolve
-              ? {
-                  text: "Résoudre →",
-                  icone: icons.play,
-                  ton: "primary",
-                  target: { resolve: follow.t },
-                }
-              : toTake
-                ? {
-                    text: "Récupérer maintenant",
-                    icone: icons.play,
-                    ton: "primary",
-                    target: { take: follow.t },
-                  }
-                : incomplete
-                  ? {
-                      text: "Compléter → Acquisitions",
-                      icone: icons.play,
-                      ton: "primary",
-                      target: { complete: follow.t },
-                    }
-                  : isFollowed
-                    ? {
-                        text:
-                          follow.st === "to_grab"
-                            ? "Récupérer maintenant"
-                            : "Chercher maintenant",
-                        icone: icons.play,
-                        ton: "primary",
-                        target: { sheetprim: `${follow.t}|${follow.st}` },
-                      }
-                    : hasSheet
-                      ? {
-                          text: "Voir la fiche",
-                          icone: icons.eye,
-                          ton: "primary",
-                          target: { mediasheet: follow.t },
-                        }
-                      : {
-                          text: "Voir le parcours",
-                          icone: icons.refresh,
-                          ton: "primary",
-                          target: { journey: follow.t },
-                        },
-          ],
-        },
-        seasons.length
-          ? { type: "saisons", isFollowed: follow, seasons: seasons }
-          : isFilm
-            ? {
-                type: "note",
-                text:
-                  "Un film n'a pas de catalogue d'épisodes : il est acquis, ou il ne l'est pas.",
-              }
-            : {
-                type: "note",
-                text:
-                  "Aucune donnée de saison connue pour cette série — le catalogue n'a pas encore été récupéré. La fraction affiche « — », jamais « 0/0 » qui se lirait comme une série vide.",
-              },
-        {
-          type: "actions",
-          secondary: true,
-          actions: [
-            /* « Voir la fiche » is reachable from the panel whenever a sheet
-               exists. It is omitted only when it is ALREADY the primary
-               action, which happens for a medium that is owned and whole. */
-            hasSheet && (toResolve || toTake || incomplete || isFollowed)
-              ? {
-                  text: "Voir la fiche",
-                  icone: icons.eye,
-                  target: { mediasheet: follow.t },
-                }
-              : null,
-            {
-              text: "Voir le parcours",
-              icone: icons.refresh,
-              target: { journey: follow.t },
-            },
-            /* Chasing a release only means something for a medium still
-               being acquired. Offered on a complete one it is a button that
-               can only disappoint. */
-            isFollowed || incomplete || toTake
-              ? {
-                  text: "Chercher une autre release",
-                  icone: icons.search,
-                  target: { releases: follow.t },
-                }
-              : null,
-            isFollowed || incomplete || toTake
-              ? {
-                  text: "Profil de qualité",
-                  icone: icons.sort,
-                  target: { profile: follow.t },
-                }
-              : null,
-            inLibrary
-              ? {
-                  text: "Re-scraper les métadonnées",
-                  icone: icons.refresh,
-                  target: { rescrape: follow.t },
-                }
-              : null,
-            /* Pausing or dropping a follow requires a follow. An incomplete
-               series in the library is not one: nothing is watching it, so
-               there is nothing to stop. */
-            isFollowed
-              ? {
-                  text: isFilm ? "Ne plus chercher" : "Mettre en pause",
-                  icone: icons.x,
-                  target: { pause: follow.t },
-                }
-              : null,
-            isFollowed
-              ? {
-                  text: isFilm ? "Retirer de la liste" : "Retirer le suivi",
-                  icone: icons.trash,
-                  ton: "danger",
-                  target: { remove: follow.t },
-                }
-              : null,
-            inLibrary
-              ? {
-                  text: "Supprimer de la médiathèque",
-                  icone: icons.trash,
-                  ton: "danger",
-                  target: { del: follow.t },
-                }
-              : null,
-          ],
-        },
-        isFilm
-          ? {
-              type: "note",
-              text:
-                "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
-            }
-          : null,
-      ],
-    });
-  }
-
   /* Journey sheet
      A journey has no hole. A step not reached is stated « à venir », never
      « pas faite »; a step without a date is stated « inconnue », never
      given an invented date. */
-  function openJourneySheet(title) {
-    const steps = [
-      ["Pris chez le tracker", "10 août, 03 h 21", "done"],
-      ["Téléchargé", "10 août, 03 h 48", "done"],
-      ["Ingéré dans le staging", "10 août, 04 h 02", "done"],
-      ["Scrapé", "en cours depuis 4 min", "now"],
-      ["Rangé en médiathèque", "à venir", "todo"],
-    ];
-    panel.open({
-      address: "journey:" + title,
-      title: title,
-      meta: [
-        "Parcours de l'acquisition · release ",
-        { m: "Furious.S01E01.MULTi.1080p.WEB-DL" },
-      ],
-      blocs: [
-        {
-          type: "faits",
-          lignes: steps.map(([libelle, detail, ton]) => ({
-            c: libelle,
-            v: detail,
-            pip:
-              ton === "done" ? "success" : ton === "now" ? "info" : "neutral",
-            terne: ton === "todo",
-          })),
-        },
-        {
-          type: "note",
-          text:
-            "Les dates viennent de la spine de provenance. Une étape non encore atteinte affiche « à venir » — jamais une date reconstruite.",
-        },
-        {
-          type: "actions",
-          actions: [
-            {
-              text: "Voir la fiche",
-              icone: icons.eye,
-              target: { mediasheet: title },
-            },
-          ],
-        },
-      ],
-    });
-  }
-
   /* Add screen (« + ») — migrated to a real route, `AddScreen`
      (`design/src/screens/add.tsx`, reached at `/add`). The design
      rationale (full screen not a sheet, vertical result list, the two
@@ -31861,35 +31037,6 @@ import { icons } from "../app/icons";
      and enough to pick another knowingly. The score shown is the ranking's,
      not an opinion. `RELEASES` stays defined here and crosses the handshake
      through `window.__referentiel` — same seam as `SEARCH`/`cardHTML` above. */
-
-  function openMoreSheet() {
-    panel.open({
-      title: "Veille et obligations",
-      meta: "Second rang — consulté, pas surveillé.",
-      blocs: [
-        {
-          type: "faits",
-          lignes: [
-            { c: "Dernier passage", v: "il y a 22 min" },
-            { c: "Prochain passage", v: "dans 38 min" },
-            { c: "Ratio global", v: "2,41", pipValue: "success" },
-            { c: "Obligations en cours", v: "3 torrents" },
-          ],
-        },
-        {
-          type: "actions",
-          actions: [
-            {
-              text: "Lancer la veille maintenant",
-              icone: icons.refresh,
-              ton: "primary",
-              target: { standby: "1" },
-            },
-          ],
-        },
-      ],
-    });
-  }
 
   // A harness-facing shortcut, not a control the app itself uses (a real
   // « Retour » button calls its own layer's close directly). `"screen"`
@@ -32338,9 +31485,19 @@ import { icons } from "../app/icons";
      setting is addressed `<file>:<key>`, and a title like « Dexter:
      Resurrection » would otherwise name a medium that does not exist. */
   const REOPEN = {
-    follow: { open: openFollowSheet, resolves: knownMedium },
+    /* THE PRODUCER HAS MOVED. `resolves` stays the ENGINE's: `knownMedium` asks whether
+       this interface holds the medium at all, which is a question about the
+       library and the queue rather than about the follow read — and the panel
+       answers for ANY title by construction, which is the shape a typed address
+       must be refused by. */
+    follow: { open: (subject) => panel.produce("follow", subject), resolves: knownMedium },
     journey: {
-      open: openJourneySheet,
+      /* THE PRODUCER HAS MOVED. `resolves` stays the ENGINE's, and that is no oversight:
+         it asks whether this interface holds the MEDIUM, which is a question
+         about the library and the queue, not about the journey read — and the
+         layer answers the same stages for any info hash, so a `holds` built on
+         that read would say yes to everything. */
+      open: (subject) => panel.produce("journey", subject),
       /* A journey is reached from the follow panel's own action, which
          carries the medium's title, and from nowhere else. So it answers for
          a medium this interface holds, plus the acquisitions in flight —
@@ -32349,14 +31506,17 @@ import { icons } from "../app/icons";
         knownMedium(subject) || queued().inFlight.some((entry) => entry.t === subject),
     },
     setting: {
-      open: openSetting,
-      resolves: (subject) =>
-        allSettings().some((setting) => settingId(setting) === subject),
+      /* THE PRODUCER HAS MOVED: the feature produces the panel and answers whether it
+         holds the subject. */
+      open: (subject) => panel.produce("setting", subject),
+      resolves: (subject) => panel.holds("setting", subject),
     },
     action: {
-      open: openActionMaintenance,
-      resolves: (subject) =>
-        MAINT_ACTIONS.some((action) => action.id === subject),
+      /* THE PRODUCER HAS MOVED. Both halves are the feature's now: it produces the panel,
+         and it answers whether it HOLDS the subject — which is what stops this
+         table reading a fixture the producer no longer needs. */
+      open: (subject) => panel.produce("action", subject),
+      resolves: (subject) => panel.holds("action", subject),
     },
   };
 
@@ -32722,12 +31882,6 @@ export {
   applyState,
   store,
   openDeleteDialog,
-  openFollowSheet,
-  openJourneySheet,
-  openMoreSheet,
-  openUserSheet,
-  openActionMaintenance,
-  openSetting,
   openDrawer,
   settingId,
   resetSettings,
@@ -32776,36 +31930,36 @@ Object.assign(window, {
   REASON_DETAIL, REASON_TONE,
   SCHEDULERS, SCHEDULERS_DOWN, OWNED,
   POSTERS, SETTINGS, SETTINGS_STATE, RESOLUTIONS, BACK_WINDOW,
-  RISQUES, SEASONS, SECRETS, SERVICES, SERVICES_PANNE,
+  SEASONS, SECRETS, SERVICES, SERVICES_PANNE,
   STRIP_LABELS, ST_LABEL,
-  ST_LABEL_MOVIE, ST_TONE, SUG_BATCH,
-  TRIS, URGENCY, VIA_LABEL, actionLeave, actionPause,
+  ST_LABEL_MOVIE, ST_TONE,
+  URGENCY, VIA_LABEL, actionLeave, actionPause,
   actionTake, actionResolve, actionRetirer, actionFollow,
   actionDelete, addVerb, showSignIn, showStartup,
-  showInstallation, applyState, advanceDeck,
+  showInstallation, applyState,
   baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
   closeDlg, closeHarness, closeScreen, closeSheet, coverLoading,
-  dateFR, decisionPending, deckCardHTML, deckHTML,
-  deckOrder, signOut, alreadyInstalled, unwindLayer,
-  dismissSug, emptyInner, endCardDrag, endDeckDrag,
+  dateFR, decisionPending,
+  signOut, alreadyInstalled, unwindLayer,
+  emptyInner, endCardDrag, endDeckDrag,
   endSugDrag, epState, escapeHtml, navigationState,
-  factRowsHTML, closePopEp, closeDrawer, changedFiles, fillSug,
+  factRowsHTML, closePopEp, closeDrawer, changedFiles,
   gridBadge, hideLayers, icons, initials, initialsOf, drawerWidth,
-  libRowHTML, factsListHTML, loadMoreSug, hideSignIn,
+  libRowHTML, factsListHTML, hideSignIn,
   hideStartup, masquerInstallation, sameValue, changeSetting,
-  mountDeck, mountLoaders, mountSearch, fileName, normalisedKey,
-  recordPath, openAddSheet, openDeleteDialog, openDetailSheet,
-  openFollowSheet, openHarness, openJourneySheet, openPanel, openMoreSheet,
-  openSheet, openSugSheet, openUserSheet,
-  openActionMaintenance, openPopEp, openSetting, openSecret,
-  openDrawer, paintSelBar, panelUnderFinger, passerSug, screenStack,
+  mountLoaders, mountSearch, fileName, normalisedKey,
+  recordPath, openDeleteDialog, openDetailSheet,
+  openHarness, openPanel,
+  openSheet,
+  openPopEp,
+  openDrawer, paintSelBar, panelUnderFinger, screenStack,
   plages, ownedFor, posterBox, nextSearchFR,
   ptr, refPanel, collapseCard,
-  refreshDeck, settingId, resetSettings, render,
+  settingId, resetSettings, render,
   richText, seasonsOf, sheetSeasonsHTML, secHTML, secInner, seedWorld,
   select, sheetFor, titleForProviderId, addressIdsFor, skelCards, skelCardsInner, skelTiles, sortLabel,
-  stFraction, stLabel, stripHTML, sugCardHTML, sugFoot,
-  sugTileHTML, sugVerb, onEngineBack,
+  stFraction, stLabel, stripHTML,
+  sugVerb, onEngineBack,
   surfErr, surfErrInner, svgIcon, swipeHTML, tileHTML, toast, toastUndo,
   allSettings, trailerIds, displayedValue,
   rawValue, typedValue, view,
@@ -32837,6 +31991,5 @@ Object.defineProperties(window, {
   // reason it is not a syntax error is that the resolution is late.
   state: { get: () => currentState(), configurable: true },
   sugDrag: { get: () => sugDrag, configurable: true },
-  sugObserver: { get: () => sugObserver, configurable: true },
   world: { get: () => world, configurable: true },
 });

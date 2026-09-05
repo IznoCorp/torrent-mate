@@ -277,7 +277,8 @@
     "RISQUES": {
       "class": "interface",
       "why": "how risky a maintenance action is, and what that is called",
-      "seed": null
+      "seed": null,
+      "converted": "L19 phase 03 — the maintenance panel's producer moved to `features/maintenance/panel-action.ts`, and the risk vocabulary went with it rather than to a seed. It is SPLIT on the line the language rule draws: what a risk level is CALLED is interface text and lives in `i18n/fr.json` (`panels.risks.*`), and which pip colour says so is a token name and is code (`features/maintenance/risks.ts`). They were one object in the engine because the engine has no i18n layer at all. Not `served`: a risk level's name is the operator's words, never an answer a server sends."
     },
     "SCHEDULERS": {
       "class": "served",
@@ -379,7 +380,8 @@
     "SUG_BATCH": {
       "class": "interface",
       "why": "how many suggestions a deck batch holds",
-      "seed": null
+      "seed": null,
+      "converted": "L19 phase 14 — the Découvrir feed moved to `features/acquisition/discover-feed.ts` and its page size went with it as `BATCH`. Not `served`: how many a footer asks for at a time is the interface's own pacing, never an answer a server sends — the register's `interface` class exactly."
     },
     "SYNOPSIS": {
       "class": "served",
@@ -401,7 +403,8 @@
     "TRIS": {
       "class": "interface",
       "why": "the six sort names, each way round",
-      "seed": null
+      "seed": null,
+      "converted": "L19 phase 07 — the sort sheet's producer moved to `features/library/panel-sort.ts` and the sort vocabulary went with it, split on the line the language rule draws: the three KEYS are code (what the store holds and what `data-setsort` carries) and the six NAMES are interface text in `i18n/fr.json`. `features/library/sorting.ts` owns both and publishes `window.__sortWays` — `settings-labels.ts`'s arrangement — so the count line, the panel, the engine's `sortLabel` and `harness/library_sort.py` all read ONE derivation. Not `served`: how a library may be ordered is the interface's own decision."
     },
     "URGENCY": {
       "class": "interface",
@@ -427,7 +430,8 @@
     "openJourneySheet.steps": {
       "class": "served",
       "why": "one torrent's journey, told as its five stages. Declared inside openJourneySheet, so it carries a qualified name — it is real state a contract must serve, and leaving it out would have meant copying it into a seed by hand",
-      "seed": null
+      "seed": null,
+      "converted": "L19 phase 08 — the journey sheet's producer moved to `features/acquisition/panel-journey.ts` and its five stages come from the LAYER now: the mock already answered them at `/api/acquisition/journeys/{infoHash}` and nothing called it. The literal is gone, which is what D5 asks of a producer that moves, and `features/acquisition/live.ts` refreshes the read on the five events that advance a stage — a question the literal could not raise."
     },
     "openPopEp.popoverWidth": {
       "class": "unserved",

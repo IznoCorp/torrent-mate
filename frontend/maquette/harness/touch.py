@@ -386,7 +386,7 @@ async def main():
         # pointercancel — and never the pointerup its closing hangs off. The
         # sheet stayed open. Same mechanism as the pull-to-refresh and the view
         # swipe, on a third gesture no rule had looked at.
-        await pg.evaluate("()=>{closeSheet(); openFollowSheet('Silo');}")
+        await pg.evaluate("()=>{closeSheet(); window.__panel.produce('follow', 'Silo');}")
         await pg.wait_for_timeout(450)
         check("a sheet is open", await pg.evaluate(
             "()=>document.querySelector('#sheet').hasAttribute('data-open')"))
@@ -414,7 +414,7 @@ async def main():
 
         # A short drag is not a dismissal: it must spring back, and it must not
         # leave the sheet displaced.
-        await pg.evaluate("()=>openFollowSheet('Silo')")
+        await pg.evaluate("()=>window.__panel.produce('follow', 'Silo')")
         await pg.wait_for_timeout(450)
         await drag_handle(0, 24)
         sheet_state = await pg.evaluate("""()=>({
@@ -427,7 +427,7 @@ async def main():
         # not, so without an explicit capture the events stop the moment the
         # cursor leaves a 22px strip, which is the first centimetre of a 70px
         # gesture.
-        await pg.evaluate("()=>openFollowSheet('Silo')")
+        await pg.evaluate("()=>window.__panel.produce('follow', 'Silo')")
         await pg.wait_for_timeout(450)
         r = await pg.evaluate(
             "()=>{const b=document.querySelector('#sheetgrab').getBoundingClientRect();"
@@ -445,7 +445,7 @@ async def main():
         # A cancel is not a lift. The compositor can still take the gesture — a
         # second finger, a system edge swipe — and the sheet must go back where
         # it was rather than close on something the operator did not finish.
-        await pg.evaluate("()=>openFollowSheet('Silo')")
+        await pg.evaluate("()=>window.__panel.produce('follow', 'Silo')")
         await pg.wait_for_timeout(450)
         # Driven as a REAL cancelled touch, not as synthetic events: a
         # hand-built PointerEvent carries an id no pointer owns, so the capture
