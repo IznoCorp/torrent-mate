@@ -12,10 +12,10 @@ What this holds to:
    and belongs to Arrivées; drawn here it would be reported twice and answered
    nowhere.
 2. **A scheduler between two runs is not stopped.** PM2 reports `stopped` and
-   that is the literal truth about the process and a lie about the system: six
-   red rows on a machine in perfect health. A service is judged on whether it
-   is UP, a scheduler on whether it RAN, and the two lists never share a
-   vocabulary.
+   that is the literal truth about the process and a lie about the system:
+   seven red rows on a machine in perfect health. A service is judged on
+   whether it is UP, a scheduler on whether it RAN, and the two lists never
+   share a vocabulary.
 3. **Every service and scheduler shown really exists**, checked against
    `pm2 jlist` rather than against a list written beside it.
 4. **Maintenance is navigated by what one wants to DO**, and every command it
@@ -70,9 +70,18 @@ CONTRAST_FLOOR = 4.5
 # list and passes. Naming the heading here, and generating the reading from the
 # same tuples, is what makes the lookup and the verdict share one spelling —
 # and the rung that follows is what makes a list that was not found say so.
+#
+# THE DECLARED SOURCE IS AN EXPRESSION, not a fixture name, and the schedulers
+# are why. Four of these lists are still declared by the dying engine and
+# republished on `window`; the schedulers are the layer's answer, held in the
+# query cache. Comparing the drawn tone against `window.SCHEDULERS` after the
+# family left the engine would not read a stale list — it would raise, which is
+# the honest failure. Naming the CACHE keeps the comparison against what the
+# page was actually given, which is the whole point of a declared source.
 BLOCKS = (
     ("Services", "services", "service", "SERVICES"),
-    ("Planificateurs", "schedulers", "scheduler", "SCHEDULERS"),
+    ("Planificateurs", "schedulers", "scheduler",
+     "window.__queries.getQueryData(['/api/maintenance/schedulers'])"),
     ("Disques", "disks", "disk", "DISKS"),
     ("Index de la médiathèque", "index", "index row", "INDEX"),
     ("Dépendances", "dependencies", "dependency", "DEPENDENCIES"),

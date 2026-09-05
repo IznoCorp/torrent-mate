@@ -20,6 +20,7 @@ import { useTranslation } from "react-i18next";
 import { SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { useSystemReference } from "../../features/system/reference";
+import { useSchedulersDown } from "./fault";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
 import {
@@ -38,13 +39,15 @@ import { Markup } from "../../ui/markup";
 export function SystemPage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
-  const { factRowsHTML, skelCardsInner, SERVICES_PANNE, SCHEDULERS_DOWN } =
-    useSystemReference();
-  // FROM THE CACHE (invariant 4). The fault variants stay the engine's: they
-  // carry no class in the register, so no seed derives from them and no
-  // operation answers them.
+  const { factRowsHTML, skelCardsInner, SERVICES_PANNE } = useSystemReference();
+  // FROM THE CACHE (invariant 4). The SERVICE fault variant stays the
+  // engine's: it carries no class in the register, so no seed derives from it
+  // and no operation answers it. Its scheduler twin no longer can — the
+  // healthy schedulers are the layer's answer now, so the overdue list is
+  // derived here from what the layer sent (`./fault`).
   const { data: SERVICES = [] } = useServices();
   const { data: SCHEDULERS = [] } = useSchedulers();
+  const SCHEDULERS_DOWN = useSchedulersDown(SCHEDULERS);
   const { data: EXECUTIONS = [] } = usePipelineHistory();
   const { data: DISKS = [] } = useDisks();
   const { data: INDEX = [] } = useIndexHealth();

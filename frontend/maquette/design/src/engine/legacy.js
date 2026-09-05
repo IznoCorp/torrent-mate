@@ -4970,51 +4970,6 @@ import {
     },
   ];
 
-  /* The schedulers, with their real cron expressions said in French. Their
-     count of passes is `restart_time`, which is what PM2 counts when a cron
-     fires a job — so it is the number of times the job has RUN.
-
-     `ok` is « did it run when it was due », never « is the process alive »:
-     between two passes the process is gone, and that is its healthy state. */
-  const SCHEDULERS = [
-    {
-      l: "Contrôle de santé",
-      ton: "success",
-      v: "à l'heure",
-      s: "toutes les heures à la 15ᵉ minute · dernier passage il y a moins d'une heure · 261 passages",
-    },
-    {
-      l: "Récupération des releases",
-      ton: "success",
-      v: "à l'heure",
-      s: "à 03 h 20 et 15 h 20 · dernier passage ce matin à 03 h 20 · 24 passages",
-    },
-    {
-      l: "Recherche de releases",
-      ton: "success",
-      v: "à l'heure",
-      s: "à 03 h 10 et 15 h 10 · dernier passage ce matin à 03 h 10 · 15 passages",
-    },
-    {
-      l: "Détection des suivis",
-      ton: "success",
-      v: "à l'heure",
-      s: "chaque jour à 03 h 00 · dernier passage ce matin à 03 h 00 · 11 passages",
-    },
-    {
-      l: "Enrichissement de l'index",
-      ton: "success",
-      v: "à l'heure",
-      s: "le dimanche à 04 h 30 · dernier passage le 9 août · 2 passages",
-    },
-    {
-      l: "Complétion des identifiants",
-      ton: "success",
-      v: "à l'heure",
-      s: "le dimanche à 05 h 00 · dernier passage le 9 août · 2 passages",
-    },
-  ];
-
   /* WHAT A FAULT LOOKS LIKE — and it is SIMULATED, which the screen says.
 
      Everything on this machine is green, and a screen that can only be green
@@ -5023,10 +4978,11 @@ import {
      spirit as the dense « charge » scenario — declared, never passed off as
      read from the system.
 
-     A stopped SERVICE and an overdue SCHEDULER are two different sentences.
-     A service is late by nothing: it is up or it is not. A scheduler is late
-     by a DURATION, and the duration is the whole of what one needs — « il y a
-     trois jours » on an hourly job says more than any word could. */
+     A stopped SERVICE and an overdue SCHEDULER are two different sentences,
+     and only the service half is still here. A service is late by nothing: it
+     is up or it is not. The scheduler twin is derived beside the list it
+     alters, in `features/system/fault.ts`, because the healthy list it maps
+     over comes from the mock layer and no longer from this file. */
   const SERVICES_PANNE = SERVICES.map((service, rang) =>
     rang === 2
       ? {
@@ -5036,17 +4992,6 @@ import {
           s: "arrêté depuis 14 h 02 · sortie en erreur",
         }
       : service,
-  );
-
-  const SCHEDULERS_DOWN = SCHEDULERS.map((scheduler, rang) =>
-    rang === 0
-      ? {
-          ...scheduler,
-          ton: "alert",
-          v: "en retard",
-          s: "toutes les heures à la 15ᵉ minute · dernier passage il y a 3 jours · 71 passages manqués",
-        }
-      : scheduler,
   );
 
   /* The disks, read from `df`. The percentage is what fills, so it is what is
@@ -7686,8 +7631,6 @@ import {
     surfErrInner,
     SERVICES,
     SERVICES_PANNE,
-    SCHEDULERS,
-    SCHEDULERS_DOWN,
     EXECUTIONS,
     DISKS,
     INDEX,
@@ -31928,7 +31871,7 @@ Object.assign(window, {
   GROUPS, HERO_IMAGES, INCOMPLETE, INDEX, JOURNAL, LIBRARY,
   LIB_PAGE, LIB_TOTAL, MAINT_ACTIONS, MAINT_TOPICS, MOIS, REASON_LABEL,
   REASON_DETAIL, REASON_TONE,
-  SCHEDULERS, SCHEDULERS_DOWN, OWNED,
+  OWNED,
   POSTERS, SETTINGS, SETTINGS_STATE, RESOLUTIONS, BACK_WINDOW,
   SEASONS, SECRETS, SERVICES, SERVICES_PANNE,
   STRIP_LABELS, ST_LABEL,

@@ -33,8 +33,6 @@ export type PipelineRun = {
 export type SystemReference = EngineDrawing & {
   SERVICES: Fact[];
   SERVICES_PANNE: Fact[];
-  SCHEDULERS: Fact[];
-  SCHEDULERS_DOWN: Fact[];
   EXECUTIONS: PipelineRun[];
   DISKS: Fact[];
   INDEX: Fact[];
