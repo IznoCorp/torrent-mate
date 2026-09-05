@@ -651,6 +651,60 @@ async def main():
         journal.check("no JS error backing off the search's panel", not errors, str(errors))
         await ctx.close()
 
+        # ── A COLD ADDRESSED REOPEN PUTS THE PANEL BACK, AND PUSHES NOTHING ──
+        #
+        # A Forward onto a layer entry finds the entry ALREADY recording the
+        # panel — already `{layer: "sheet"}`, already carrying the panel's own
+        # address — so the reopen must not push a second one. A duplicate is
+        # spent by the next Back without taking the panel's address off, which
+        # is a ladder with an invisible rung.
+        #
+        # THE CACHE IS EMPTIED BETWEEN THE BACK AND THE FORWARD, and that is
+        # the whole of this hold. A producer whose subject has landed opens
+        # SYNCHRONOUSLY, inside the window where the push is suppressed, and
+        # every reading is then identical whether the suppression travels or
+        # not. On a cold cache the producer asks first and opens a beat later —
+        # after that window has shut — and the panel that came back correctly
+        # left an entry behind it. The journey is the surface that guarantees
+        # the cold path: what it needs is a function of its SUBJECT, so it is
+        # excluded from the boot's prefill by construction and the first ask
+        # for any title is always cold.
+        reopen_context, reopen_page, errors = await open_page(b)
+        await reopen_page.evaluate("()=>window.__go('followsheet-complete')")
+        await reopen_page.wait_for_timeout(500)
+        reached = await reopen_page.evaluate(
+            """()=>{const act = document.querySelector('#sheet [data-journey]');
+               if (!act) return false; act.click(); return true;}""")
+        await reopen_page.wait_for_timeout(600)
+        opened = await reopen_page.evaluate(
+            """()=>({open: window.__panel.isOpen(),
+                    depth: history.length,
+                    address: location.search})""")
+        journal.check(
+            "the journey opens from the follow sheet, at an address of its own",
+            reached and opened["open"] and "panel=journey" in opened["address"],
+            f"reached={reached} open={opened['open']} {opened['address']!r}")
+
+        await reopen_page.go_back()
+        await reopen_page.wait_for_timeout(500)
+        closed = await reopen_page.evaluate("()=>window.__panel.isOpen()")
+        journal.check("one Back closes it", not closed, f"open={closed}")
+
+        await reopen_page.evaluate("()=>window.__queries.clear()")
+        await reopen_page.go_forward()
+        await reopen_page.wait_for_timeout(900)
+        returned = await reopen_page.evaluate(
+            """()=>({open: window.__panel.isOpen(), depth: history.length})""")
+        journal.check(
+            "and a Forward on a COLD cache puts it back on the entry that already "
+            "records it, pushing nothing",
+            returned["open"] and returned["depth"] == opened["depth"],
+            f"open={returned['open']} · history.length {opened['depth']} -> "
+            f"{returned['depth']}")
+        journal.check("no JS error on the cold addressed reopen", not errors,
+                      str(errors))
+        await reopen_context.close()
+
         await b.close()
 
     journal.summary()

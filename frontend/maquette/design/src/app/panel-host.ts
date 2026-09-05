@@ -207,11 +207,28 @@ function producePanel(kind: string, subject = ""): void {
      one beat later on a cold cache and not at all different on a warm one — the
      oracle measures at rest and has nothing to report. A subject the layer
      genuinely does not have still opens nothing, which is where this stops. */
+  /* AND THE SUPPRESSION TRAVELS WITH THE DEFERRED OPEN, which is the whole of
+     the paragraph above read once more. `openPanelOnCurrentEntry` clears its
+     flag in a `finally` around a SYNCHRONOUS call: an open that lands a beat
+     later happens after that window has shut, so the addressed reopen pushed
+     exactly the duplicate entry the flag exists to prevent — measured, not
+     reasoned: inside the window `history.length` read 3 with the panel closed,
+     and 4 with it open once the promise settled, where a warm producer read
+     4 → 4 → 4.
+
+     It is GUARANTEED rather than occasional for any kind whose `needs` is a
+     function of the subject: those are excluded from the boot's prefill by
+     construction, so the first ask for any subject is always cold. The flag is
+     captured here and put back around the open, which is the only place that
+     knows both that the open was deferred and that it was addressed. */
+  const addressed = onCurrentEntry;
   void Promise.all(
     needsFor(kind, subject).map((required) => queryClient.prefetchQuery(required)),
   ).then(() => {
     const landed = produce(subject, { held });
-    if (landed !== null) openPanel(landed);
+    if (landed === null) return;
+    if (addressed) openPanelOnCurrentEntry(() => openPanel(landed));
+    else openPanel(landed);
   });
 }
 
