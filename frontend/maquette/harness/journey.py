@@ -659,16 +659,26 @@ async def main():
         # spent by the next Back without taking the panel's address off, which
         # is a ladder with an invisible rung.
         #
-        # THE CACHE IS EMPTIED BETWEEN THE BACK AND THE FORWARD, and that is
-        # the whole of this hold. A producer whose subject has landed opens
-        # SYNCHRONOUSLY, inside the window where the push is suppressed, and
-        # every reading is then identical whether the suppression travels or
-        # not. On a cold cache the producer asks first and opens a beat later —
-        # after that window has shut — and the panel that came back correctly
-        # left an entry behind it. The journey is the surface that guarantees
-        # the cold path: what it needs is a function of its SUBJECT, so it is
-        # excluded from the boot's prefill by construction and the first ask
-        # for any title is always cold.
+        # THE PRODUCER'S OWN READ IS DROPPED BETWEEN THE BACK AND THE FORWARD,
+        # and that is the whole of this hold. A producer whose subject has
+        # landed opens SYNCHRONOUSLY, inside the window where the push is
+        # suppressed, and every reading is then identical whether the
+        # suppression travels or not. Cold, the producer asks first and opens a
+        # beat later — after that window has shut — and the panel that came
+        # back correctly leaves an entry behind it.
+        #
+        # ONE KEY, NEVER THE WHOLE CACHE, and the first version of this hold
+        # cleared the whole cache and was a GREEN READING OF NOTHING on both
+        # builds. The engine's addressed table asks `resolves` before it opens
+        # anything, and the journey's `resolves` reads the LIBRARY and the
+        # QUEUE — so an empty cache makes it answer no, the address is refused
+        # with « the addressed panel names nothing this interface holds », and
+        # the walk never reaches the suppression at all. What has to be cold is
+        # the producer's own read and nothing else.
+        #
+        # The journey is the surface that guarantees the cold path: what it
+        # needs is a function of its SUBJECT, so it is excluded from the boot's
+        # prefill by construction and the first ask for any title is cold.
         reopen_context, reopen_page, errors = await open_page(b)
         await reopen_page.evaluate("()=>window.__go('followsheet-complete')")
         await reopen_page.wait_for_timeout(500)
@@ -690,7 +700,9 @@ async def main():
         closed = await reopen_page.evaluate("()=>window.__panel.isOpen()")
         journal.check("one Back closes it", not closed, f"open={closed}")
 
-        await reopen_page.evaluate("()=>window.__queries.clear()")
+        await reopen_page.evaluate(
+            """()=>window.__queries.removeQueries(
+                 {queryKey: ["/api/acquisition/journeys"]})""")
         await reopen_page.go_forward()
         await reopen_page.wait_for_timeout(900)
         returned = await reopen_page.evaluate(
