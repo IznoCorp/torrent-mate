@@ -44,6 +44,7 @@
       "personalscraper-grab": "Récupération des releases trouvées",
       "personalscraper-follow-detect": "Détection des épisodes diffusés",
       "personalscraper-index-enrich": "Enrichissement de l'index",
+      "personalscraper-index-full": "Analyse complète de l'index",
       "personalscraper-backfill-ids": "Complétion des identifiants croisés",
       "torrent_complete_dir": "Dossier où qBittorrent dépose les torrents terminés",
       "staging_dir": "Dossier de transit avant rangement",

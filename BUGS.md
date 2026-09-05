@@ -386,6 +386,8 @@ when the defect comes back.
 | B-324 | The BACKEND's own mirror of the PM2 crons names three of the seven the machine runs, and nothing reads it against `pm2 jlist` — B-308's finding on the end that has no guard at all | by the backend brief | `open` |
 | B-325 | No harness rule can be pointed at a build: `common.PROTOTYPE` is hard-coded to 8899 with no override, every rule self-runs on import, and a rule rebound elsewhere is still certified by the B-256 stamp of the copy it did NOT read | by the instruments' debts block | `open` |
 | B-326 | `heavy.sh` offers no way to ask who holds its lock, so the natural probe — `cat` on what is a DIRECTORY — reads « free » whether the lock is held or not, and two sessions reached for it independently on the same night | by the steward's office | `open` |
+| B-327 | « Réglages » draws SIX scheduled jobs while the machine runs seven, and the same six are named twice in two French vocabularies that disagree on five of them — the row cannot be added until `SETTINGS` leaves the engine | by L13 | `open` |
+| B-328 | `features/system/page.tsx` heads itself with a path that does not exist and describes a state field (`state.panne`) the code does not have | by the next wave that opens `features/system/page.tsx` | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -703,7 +705,7 @@ family `converted`, which is the mechanism that already exists for a family the 
 declares: `--arm correspondence` names it instead of comparing it against a literal that is gone,
 while `--arm schema` and the oracle still hold it. Its overdue twin `SCHEDULERS_DOWN` had to go with
 it — it MAPPED over the list — and is derived beside the list it alters, in
-`features/system/fault.ts`, its two French words moved to `i18n/fr.json`. `legacy.js` reads 31 645 →
+`features/system/fault.ts`, its **three** French words moved to `i18n/fr.json` — the badge word, the sub-line, and the LABEL the row is now chosen by, which the identity repair added. `legacy.js` reads 31 645 →
 **31 591** non-blank and the ledger's record is re-recorded downward in the same commit.
 
 **The seventh row is a SNAPSHOT of `pm2 jlist` taken on 2026-09-05, not an invention and not a
@@ -726,8 +728,19 @@ the crons names three of the seven, and nothing reads it against anything. That 
 by the backend brief and not repaired here.
 
 **And the rule cannot say WHICH row is unaccounted for**, only that one is: a drawn label and a PM2
-process name are two vocabularies with nothing in the tree joining them. Its fall prints both lists
-now, so a reader does that join by eye instead of going back to `pm2 jlist`.
+process name are two vocabularies, and the rows the hold reads carry no key. Its fall prints both
+lists now, so a reader does that join by eye instead of going back to `pm2 jlist`.
+
+**« WITH NOTHING IN THE TREE JOINING THEM » WAS WRITTEN HERE, AND IT IS FALSE.** `settings.labels`
+in `i18n/fr.json` is keyed by the exact PM2 process names — six of the seven, in the file this wave
+edited — and « Réglages » draws the two vocabularies side by side in one row. The join exists. What
+is true is smaller and worse: **the prototype names these jobs TWICE, in two French vocabularies
+that disagree on five of the six** (« Contrôle de santé » against « Contrôle de santé du système »,
+« Détection des suivis » against « Détection des épisodes diffusés »), and the seventh was in
+neither. So a rule joining a drawn list to the machine does not need the backend and does not need
+D7; it needs the prototype to name a job ONCE. **That is a debt, and its owner is L13** — the wave
+that converts `SETTINGS` — recorded in full in **B-327**. This wave adds the seventh name to that
+table in « Système »'s own words, so the two vocabularies gain no third.
 
 **AND THE LIMITATION IS LARGER THAN « WHICH ROW », which round one measured rather than argued.**
 A row can be WHOLLY INVENTED: the reader relabelled the seventh to a job that does not exist, with
@@ -742,6 +755,16 @@ follows the interface, the interface is not frozen, and B-324 records the end th
 answer such a rule. Written here so the next reader meets the whole limitation rather than the
 half of it that fits in a fall's message.
 
+**AND IT REPAIRED ONE OF TWO DRAWINGS OF THE SAME LIST.** « Réglages », under « Les passages
+programmés », draws six scheduled jobs and still does. That is PRE-EXISTING and measured: its seed
+is byte-identical at the branch point and the machine already ran seven then, so both surfaces were
+wrong together before this repair. **What this repair created is the visible DISAGREEMENT** —
+« Système » right, « Réglages » still a job behind — which is why the row is OWED and is not this
+wave's to add: adding it needs `SETTINGS` to leave the engine, and that family is 1 461 lines read
+by `allSettings` and by eleven places in `settings.py`. Filed with the hold that catches it, the
+four measured refusals and the two-vocabulary half, as **B-327**, owner L13. What this wave does
+add is the seventh name to `settings.labels`, in « Système »'s own words, held by a rule.
+
 **ONE UNIT OF B-085's SPECIES, found by the removal.** « A scheduler's badge follows the declared
 state » compared the drawn tones against `window.SCHEDULERS` — the ENGINE's fixture, which the page
 stopped reading at L08. The hold was green because the fixture and the seed happened to agree byte
@@ -749,7 +772,7 @@ for byte; drifted in tone, it would have reported about a list the surface never
 fixture out made the expression RAISE, which is what named it. The declared source is the query
 cache now. Counted in § Guards green over what they do not read: **1**, total **239**.
 
-<sub>`python3 frontend/maquette/harness/machine.py` → « PASS as many schedulers drawn as PM2 schedules — 7 drawn vs 7 real … — drawn: … Analyse complète de l'index », 89 rules, no violation · the mutation, `scripts/mutate.sh` on the seed with the seventh row removed → « FAIL … 6 drawn vs 7 real » · the derivation's own mutation, `rank === OVERDUE_RANK` → `false` → three falls, « and on the schedulers side — [] » · `pm2 jlist` → 7 processes carrying a `cron_restart`</sub>
+<sub>`python3 frontend/maquette/harness/machine.py` → « PASS as many schedulers drawn as PM2 schedules — 7 drawn vs 7 real … — drawn: … Analyse complète de l'index », 89 rules, no violation · the mutation, `scripts/mutate.sh` on the seed with the seventh row removed → « FAIL … 6 drawn vs 7 real » · the derivation's own mutation, `fault.test.ts` with the key put back to the row's RANK → 4 of 10 red, the three « reversed » holds and the no-match one; and on the harness side, the seed's first label renamed → « and on the schedulers side — [] » with two more · `pm2 jlist` → 7 processes carrying a `cron_restart`</sub>
 
 **IT BLOCKS THE POST-MERGE GESTURE, and that is written HERE because the file that first said it
 does not survive.** L19's report states the obligation in its § 9 (`docs/features/maquette-l19/REPORT.md@9fa13da57`); that folder
@@ -1330,6 +1353,92 @@ from the output.**
 not a wave's. This entry carries the reading; it changes nothing under `scripts/`.
 
 <sub>`grep -n 'mkdir "\$LOCK"' scripts/heavy.sh` → `:95` · `grep -n '\$LOCK/who' scripts/heavy.sh` → `:96` and `:99` · the demonstration above · `grep -c '^heavy: ' <log>` on the wave's kept logs → the `starts`/`done` pair in each</sub>
+
+**B-327 — « Réglages » is a job behind the machine, and names the others twice.**
+« Système » draws **7** scheduler rows, « Réglages » under « Les passages programmés » draws **6**,
+and `pm2 jlist` reports **7** processes carrying a `cron_restart`. `personalscraper-index-full` is
+in neither the `passages` topic of `mocks/seeds/settings.json` nor — until #567 — the
+`settings.labels` table that names its rows.
+
+**IT IS PRE-EXISTING, and that is measured rather than conceded.** `seeds/settings.json` is
+byte-identical at the branch point (`git diff be460fb79..HEAD -- …/seeds/settings.json` → empty)
+and the machine already ran seven schedulers then. So « Réglages » was a job behind before B-308's
+repair and is a job behind after it. **What the repair created is the VISIBLE DISAGREEMENT** —
+« Système » right, « Réglages » still behind — where before the two surfaces were wrong together.
+A wave that corrects one of two drawings of the same list does not own the other; it owes the
+entry, which is this one.
+
+**THE HOLD THAT WOULD CATCH IT IS WRITTEN, AND IT RAN.** It was added to `harness/machine.py`,
+seen RED on the head, and taken out again because the defect it names cannot be repaired here. It
+is kept whole so the wave that can inherits a rule rather than a description:
+
+    await pg.evaluate("()=>{window.SETTINGS_STATE.topic='passages';"
+                      " applyState({page:'cfg', phase:'ready'});}")
+    await pg.wait_for_timeout(320)
+    passages = await pg.evaluate('''
+        ()=>[...document.querySelectorAll('[data-part="setting/row"]')].map((r) => ({
+          key: (r.querySelector('[data-part="setting/origin"]') || {}).textContent || '',
+        }))''')
+    drawn_keys = sorted({row["key"] for row in passages})
+    journal.check(
+        "every scheduler the machine runs has a row on Réglages, and no row names one it does not",
+        drawn_keys == sorted(real_schedulers),
+        f"drawn: {drawn_keys} vs real: {sorted(real_schedulers)}")
+
+It reads the drawn keys as a SET and not a count, because a name that is WRONG and a name that is
+MISSING are different defects a count cannot tell apart. What it printed, on `0ab9c9f29`:
+
+    FAIL every scheduler the machine runs has a row on Réglages, and no row names one it does not
+         — drawn: ['personalscraper-backfill-ids', 'personalscraper-follow-detect',
+           'personalscraper-grab', 'personalscraper-health-check',
+           'personalscraper-index-enrich', 'personalscraper-search']
+           vs real: [… the same six …, 'personalscraper-index-full']
+    91 rules EXECUTED — 2 violation(s)
+
+**WHY THE ROW WAS NOT ADDED — four refusals, each measured, so nobody re-derives them.**
+
+1. `SETTINGS` is not `converted` in `fixture-register.json`, so `check-mock-seeds.py --arm
+   correspondence` re-derives `seeds/settings.json` from `legacy.js` byte for byte. Editing the
+   seed alone fails that arm.
+2. Adding the row to the engine fixture as well: the edit was made, the arm run and the edit
+   reverted — « `engine/legacy.js` — recorded at 31 591 non-blank lines and reads **31 600, 9
+   more**. A grandfathered file is one that may not be EXTENDED », exit 1. D5's exception covers
+   only a defect that DESTROYS the operator's data; a row missing from a fixture is not one.
+3. Marking the family `converted` while the engine still declares it: `--arm classification` fails
+   — « the register calls it converted and the engine still declares it ».
+4. Removing it: `const SETTINGS` spans **1 461 lines** (`legacy.js:5812-7272`) and is read by the
+   engine's own `allSettings()` (`:7359`) and by **eleven** `window.SETTINGS` reads in
+   `harness/settings.py`.
+
+**AND THE SECOND HALF, which is why the first is not merely a missing line.** `settings.labels` is
+keyed by the exact process names, and those are NOT the names « Système » draws: five of the six
+differ — « Contrôle de santé » against « Contrôle de santé du système », « Détection des suivis »
+against « Détection des épisodes diffusés », and so on. **The prototype names the same six jobs
+twice, in two French vocabularies, in one file, with nothing holding them together.** A rule
+joining a drawn list to `pm2` therefore needs neither the backend nor D7 — it needs the prototype
+to name a job once. #567 adds the seventh to that table in « Système »'s own words, so the two
+vocabularies gain no third, and holds it (`machine.py`, « every scheduler the machine runs is NAMED
+where the schedule is drawn »).
+
+**Owner: L13**, the wave that converts `SETTINGS` — the family, its 1 461 lines, `allSettings` and
+the eleven harness reads move together, and the row and the single vocabulary are that wave's to
+land. **Done when** « Réglages » draws seven, the hold above is in `machine.py` and green, and one
+job has one name.
+
+<sub>the two FAIL lines above, on `0ab9c9f29` · `git diff be460fb79..HEAD -- frontend/maquette/design/src/mocks/seeds/settings.json` → empty · `python3 scripts/check-frontend-boundaries.py --arm size` with the row added → « 31 600, 9 more » · `grep -c "SETTINGS" frontend/maquette/harness/settings.py` → the eleven reads · reported by the independent reader of #567, round two, 2026-09-06</sub>
+
+**B-328 — `features/system/page.tsx` names a path and a field that do not exist.**
+Its first line heads the file « design/src/pages/system.tsx », a path no commit holds, and its
+tenth describes the surface's inputs as « `state.phase` … and `state.panne` » while the component
+reads `state.fault` (`:90`). Both are byte-identical at the branch point, so neither is #567's —
+that wave edited this file eight lines below the second of them and did not read up. A header that
+names the wrong file and a comment that names a field the code does not have are the species
+`CLAUDE.md` § Language calls out: prose that outlives its subject reads as current to the next
+session, and this one has outlived two renames.
+
+Owner: **the next wave that opens `features/system/page.tsx`**. Two lines.
+
+<sub>`sed -n '1p;10p' frontend/maquette/design/src/features/system/page.tsx` · `grep -n "state.fault" …/page.tsx` → `:90` · `git diff be460fb79..HEAD -- …/page.tsx | grep -c "pages/system\|panne"` → 0</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in

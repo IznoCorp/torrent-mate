@@ -78,10 +78,11 @@ CONTRAST_FLOOR = 4.5
 # family left the engine would not read a stale list — it would raise, which is
 # the honest failure. Naming the CACHE keeps the comparison against what the
 # page was actually given, which is the whole point of a declared source.
+SCHEDULERS_SOURCE = "window.__queries.getQueryData(['/api/maintenance/schedulers'])"
+
 BLOCKS = (
     ("Services", "services", "service", "SERVICES"),
-    ("Planificateurs", "schedulers", "scheduler",
-     "window.__queries.getQueryData(['/api/maintenance/schedulers'])"),
+    ("Planificateurs", "schedulers", "scheduler", SCHEDULERS_SOURCE),
     ("Disques", "disks", "disk", "DISKS"),
     ("Index de la médiathèque", "index", "index row", "INDEX"),
     ("Dépendances", "dependencies", "dependency", "DEPENDENCIES"),
@@ -259,17 +260,30 @@ async def declared_tones(page, source):
         source: The JavaScript expression naming the declared list.
 
     Returns:
-        The list of declared tones, or None when the source never answered.
+        `(tones, None)` when it answered, and `(None, why)` when it did not —
+        the two failures being different facts: a source that never arrived and
+        a source that arrived carrying something else are not one defect, and
+        reporting both as « never answered » would say the false one half the
+        time.
     """
     try:
         await page.wait_for_function(f"()=>{source} != null",
                                      timeout=DECLARED_SOURCE_TIMEOUT_MILLISECONDS)
     except Exception:  # noqa: BLE001 — a source that never arrives is a verdict
-        return None
+        return None, "never answered"
     try:
-        return await page.evaluate(f"()=>{source}.map((x) => x.ton)")
-    except Exception:  # noqa: BLE001 — same reading, one step later
-        return None
+        return await page.evaluate(f"()=>{source}.map((x) => x.ton)"), None
+    except Exception:  # noqa: BLE001 — it answered, and with the wrong thing
+        return None, "answered with something that is not a list of facts"
+
+
+# THE LABEL TABLE, READ FROM THE RESOURCE THE PAGE READS. A drawn row whose
+# key is absent from it falls back to the key humanised, which LOOKS like a
+# label — so reading the drawing cannot tell a named scheduler from an
+# unnamed one, and the file can.
+SETTING_LABELS = json.loads(
+    (ROOT / 'frontend' / 'maquette' / 'design' / 'src' / 'i18n' / 'fr.json')
+    .read_text(encoding='utf-8'))['settings']['labels']
 
 
 def real_processes():
@@ -296,7 +310,7 @@ def real_commands():
     return {a.id: a for a in REGISTRY}
 
 
-async def on_page(pg, page, **patch):
+async def on_page(pg, page, settle=None, **patch):
     """Drives a named state and reads it, blocks flattened to their rows.
 
     Every hold below reads a list, so the reading is flattened here — and what
@@ -307,6 +321,20 @@ async def on_page(pg, page, **patch):
     await pg.evaluate(
         f"()=>{{applyState({{page: '{page}', phase: 'ready'{', ' + fields if fields else ''}}});}}")
     await pg.wait_for_timeout(320)
+    # AND THEN WAIT FOR WHAT THE FIXED PAUSE CANNOT PROMISE. The pause above is
+    # a guess about the DOCUMENT; a list the layer answers arrives when the
+    # query settles, which is a different clock. Reading the page before it and
+    # the declared source after it made the two halves of every tone comparison
+    # come from two different instants: at half a second of latency the hold
+    # read « rendered [] vs declared [success x7] » and accused the page of a
+    # hand-written colour, when what happened is that the rows were not there
+    # yet. Both halves are read after this wait, so they describe one moment.
+    if settle:
+        try:
+            await pg.wait_for_function(f"()=>{settle} != null",
+                                       timeout=DECLARED_SOURCE_TIMEOUT_MILLISECONDS)
+        except Exception:  # noqa: BLE001 — the holds below report it, by name
+            pass
     seen = await pg.evaluate(READ)
     seen["blocks"] = {key: seen[key] for _, key, _, _ in ALL_BLOCKS}
     for _, key, _, _ in ALL_BLOCKS:
@@ -328,7 +356,7 @@ async def main():
         # whatever the previous one left. The reading below is the one the rung
         # and every badge hold rest on, so it is pinned exactly like the one on
         # the way back from the fault.
-        sys_view = await on_page(pg, "sys", fault=False)
+        sys_view = await on_page(pg, "sys", settle=SCHEDULERS_SOURCE, fault=False)
 
         # 0. THE RUNG EVERYTHING BELOW STANDS ON: a list that was not FOUND is
         # not a list that is fine. The five blocks are located by their French
@@ -402,14 +430,23 @@ async def main():
                              services == len(real_services),
                              f"{services} drawn vs {len(real_services)} real: "
                              + ", ".join(sorted(real_services)))
-            # IT COMPARES COUNTS, AND SAYS BOTH SIDES WHEN IT FALLS. A drawn
-            # label and a PM2 process name have no correspondence anywhere —
-            # « Analyse complète de l'index » and `personalscraper-index-full`
-            # are two vocabularies with nothing joining them — so this cannot
-            # say WHICH row is unaccounted for, only that one is. Printing both
-            # lists is what lets a reader do by eye the join the tree does not
-            # hold; a fall that read « 6 vs 7 » alone sent its reader back to
-            # `pm2 jlist` to work out what had changed.
+            # IT COMPARES COUNTS, AND SAYS BOTH SIDES WHEN IT FALLS. A
+            # drawn label and a PM2 process name are two vocabularies, and the
+            # rows this hold reads carry no key — so it can say that one row is
+            # unaccounted for and not WHICH. Printing both lists is what lets a
+            # reader do that join by eye; « 6 vs 7 » alone sent its reader back
+            # to `pm2 jlist`.
+            #
+            # « NOTHING IN THE TREE JOINS THEM » IS WHAT THIS NOTE USED TO SAY,
+            # AND IT WAS FALSE. `settings.labels` is keyed by the exact process
+            # names, six of the seven, in the resource file the interface reads
+            # — the join exists and is one table away. What is true is smaller
+            # and worse: the prototype names these jobs TWICE, in two French
+            # vocabularies that disagree on five of the six (« Contrôle de
+            # santé » against « Contrôle de santé du système »), so joining
+            # this list to the machine needs the prototype to name a job ONCE
+            # first. That is a debt with an owner, written in B-327, and it is
+            # why the row below reads a count while section 6 reads the table.
             journal.check("as many schedulers drawn as PM2 schedules",
                              schedulers_drawn == len(real_schedulers),
                              f"{schedulers_drawn} drawn vs {len(real_schedulers)} real: "
@@ -437,13 +474,13 @@ async def main():
             rows = sys_view[key]
             without_badge = [x["l"] for x in (rows or []) if x["tone"] is None]
             journal.check(f"every {name} carries a badge", not without_badge, str(without_badge) or "all of them")
-            declared = await declared_tones(pg, source)
+            declared, why = await declared_tones(pg, source)
             rendered = [x["tone"] for x in (rows or [])]
             journal.check(f"a {name}'s badge follows the declared state, never a hand-written colour",
                           declared is not None and rendered == declared,
                           f"rendered {rendered} vs declared {declared}"
                           if declared is not None else
-                          f"rendered {rendered} vs a declared source that never answered: {source}")
+                          f"rendered {rendered} vs a declared source that {why}: {source}")
             # And the tone matches what the WORD means. This is the half that
             # a comparison against the data cannot do.
             misworded = [
@@ -504,7 +541,7 @@ async def main():
             await pg.evaluate(apply)
             await pg.wait_for_timeout(220)
             for state_ in (False, True):
-                await on_page(pg, "sys", fault=state_)
+                await on_page(pg, "sys", settle=SCHEDULERS_SOURCE, fault=state_)
                 contrasts = await pg.evaluate(CONTRAST)
                 journal.check(
                     f"there are badges to read — {theme} theme"
@@ -525,7 +562,7 @@ async def main():
         # `fault` is NAMED on the way back: a state driven without naming every
         # dial inherits whatever the previous one left, which is the defect R10
         # found in the interface and which this probe had just repeated.
-        sys_view = await on_page(pg, "sys", fault=False)
+        sys_view = await on_page(pg, "sys", settle=SCHEDULERS_SOURCE, fault=False)
 
         # The rung again, on the reading « at rest » is judged from: that hold
         # says « nothing alerts », which is true of an empty list too.
@@ -551,7 +588,7 @@ async def main():
         # 3ter. A screen that can only be green cannot be judged, so a named
         # state replays a fault — and SAYS it is simulated, or the operator
         # would read an invented outage as a real one (§13).
-        fault = await on_page(pg, "sys", fault=True)
+        fault = await on_page(pg, "sys", settle=SCHEDULERS_SOURCE, fault=True)
         red_services = [x for x in (fault["services"] or []) if x["tone"] == "alert"]
         red_schedulers = [x for x in (fault["schedulers"] or []) if x["tone"] == "alert"]
         journal.check("a named state shows what an alert looks like, on the services side",
@@ -634,6 +671,40 @@ async def main():
                 str([a["why"] for a in real_run]))
             await pg.evaluate("()=>closeSheet()")
             await pg.wait_for_timeout(180)
+
+        # 6. THE SAME MACHINE IS DESCRIBED BY TWO SURFACES, AND ONLY ONE OF
+        # THEM WAS EVER JOINED TO IT. « Système » says WHICH schedulers exist;
+        # « Réglages », under « Les passages programmés », says WHEN each of
+        # them runs. They are drawn from different fixtures, and `pm2 jlist`
+        # was read against the first alone — which is how a repair that made
+        # « Système » agree with the machine left « Réglages » a job behind
+        # with every tier green. A rule that holds one drawing of a list and
+        # not the other holds the drawing, not the list.
+        #
+        # THE ROW ITSELF IS NOT HELD HERE, AND B-327 CARRIES THE RULE THAT
+        # WOULD. That surface is one job behind on the branch point too — its
+        # seed is byte-identical there and the machine already ran seven — so
+        # it is not a defect this change introduced; what this change did was
+        # make the disagreement visible. Adding the row needs either the engine
+        # to grow, which the size ledger refuses with an exit code, or a
+        # 1 461-line family to leave it, and that family is read by the
+        # engine's own `allSettings` and by eleven places in `settings.py`.
+        # The hold that reads the drawn set against PM2 is written out in
+        # B-327 with the two lines it printed, so the wave that converts the
+        # family inherits a rule rather than a description.
+        #
+        # WHAT IS HELD IS THE JOIN — the thing this rule's own note used to say
+        # did not exist. `settings.labels` is keyed by the PM2 process name, so
+        # a scheduler the machine runs either has a name written for it there
+        # or it does not, and that is readable today. It is read from the
+        # resource file rather than from the drawing because an absent key
+        # falls back to the humanised key, which LOOKS like a label on screen.
+        if pm2 is not None:
+            unnamed = [name for name in sorted(real_schedulers)
+                       if name not in SETTING_LABELS]
+            journal.check(
+                'every scheduler the machine runs is NAMED where the schedule is drawn, not left to fall back to its process name',
+                not unnamed, str(unnamed) if unnamed else 'all of them')
 
         journal.check("no JS error", not errors, str(errors))
         await ctx.close()
