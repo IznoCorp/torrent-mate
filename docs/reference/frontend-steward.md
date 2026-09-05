@@ -31,7 +31,7 @@ the lot. Only the operator's choice does.**
 
 **The invocation, and it is meant to be pasted as it stands:**
 
-> Load the skill `claude-orchestrator:orchestrator` first — it is the base you inherit — then read
+> Load the skill `orchestrator:orchestrator` first — it is the base you inherit — then read
 > this office, which keeps the particulars of this project and OVERRIDES the skill wherever the
 > two differ: the skill supplies only what this office does not say, and nothing of this office is
 > given up to it. Your session's address, as `ListAgents` prints it, is what every agent you launch is
@@ -44,7 +44,7 @@ the lot. Only the operator's choice does.**
 > proof is yours and it is measured.
 
 **The steward is an orchestrator of the generic kind, and it INHERITS the plugin's skill (operator,
-2026-09-05).** The skill `claude-orchestrator:orchestrator` (plugin `claude-orchestrator`, marketplace
+2026-09-05).** The skill `orchestrator:orchestrator` (plugin `orchestrator`, marketplace
 `lounisbou`, repository `LounisBou/claude-orchestrator`) is the base: this office keeps the particulars
 of this project and never restates what the skill says. What the office inherits, and uses as written
 there:
@@ -56,10 +56,10 @@ there:
   address, the brief in the repository does not, because a brief outlives sessions);
 - **review on evidence** — the reading, never the report; the idle subscription (`SendMessage` with
   `notify_when_idle`) after every message that expects work back;
-- **context, measured** — `claude-orchestrator:context-gauge` for the steward's own fill and for every
+- **context, measured** — `orchestrator:context-gauge` for the steward's own fill and for every
   agent's, never an estimate; **agent rotation** at the ~60 % gate with the rotation brief; and **the
   steward's own succession** when its context nears the limit — the succession brief, the successor
-  launched with `claude-orchestrator:iterm-agents`, its first act re-announcing its exact address to
+  launched with `orchestrator:iterm-agents`, its first act re-announcing its exact address to
   every running agent. A successor satisfies this office's « fresh session » condition as long as it
   never implemented the lot it audits: succession changes the session, not the separation;
 - **the shared-machine discipline** in its generic form; the lock, the fan-out variable and the
