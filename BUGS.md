@@ -385,6 +385,7 @@ when the defect comes back.
 | B-323 | Two `setTimeout(…, 260)` sites were never counted — the inventory reads one line — and one of them is the release screen's `data-take`, a verb moved by half with no lot named for the other half | by audit | `open` |
 | B-324 | The BACKEND's own mirror of the PM2 crons names three of the seven the machine runs, and nothing reads it against `pm2 jlist` — B-308's finding on the end that has no guard at all | by the backend brief | `open` |
 | B-325 | No harness rule can be pointed at a build: `common.PROTOTYPE` is hard-coded to 8899 with no override, every rule self-runs on import, and a rule rebound elsewhere is still certified by the B-256 stamp of the copy it did NOT read | by the instruments' debts block | `open` |
+| B-326 | `heavy.sh` offers no way to ask who holds its lock, so the natural probe — `cat` on what is a DIRECTORY — reads « free » whether the lock is held or not, and two sessions reached for it independently on the same night | by the steward's office | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -1293,6 +1294,42 @@ served-copy assertions reading the SAME root the rule was pointed at, so a stamp
 build nobody measured.
 
 <sub>`grep -n "PROTOTYPE" frontend/maquette/harness/common.py` → the constant and its use, no `os.environ` · `tail -1 frontend/maquette/harness/machine.py` → `asyncio.run(main())` · reported by the independent reader of #567, round one, 2026-09-06</sub>
+
+**B-326 — the lock's own probe reads « free » whether it is held or not.**
+`scripts/heavy.sh` takes its lock with `mkdir "$LOCK"` (`:95`) and writes the holder's name to
+`"$LOCK/who"` (`:96`), so `/private/tmp/tm-heavy/holder` is a **directory**. The script offers no
+query — no `--held`, no `--holder` — so the natural way to ask « is anyone running » is
+`cat /private/tmp/tm-heavy/holder`, which reads a directory as a file: it fails, and with the
+`2>/dev/null` everyone writes it with, it prints NOTHING. **Empty output means « I could not read
+this », and it is indistinguishable from « nobody holds it ».**
+
+**Measured, on a private lock so no running work was touched** —
+`HEAVY_LOCK=/private/tmp/tm-heavy-probe/holder sh scripts/heavy.sh probe-demo sleep 6`, probed two
+seconds in, while HELD:
+
+    cat holder        -> []            <- reads EMPTY while HELD
+    cat holder/who    -> [probe-demo]
+    test -d holder    -> HELD
+    (after release)   -> free
+
+**THE PROBES THAT READ** are `test -d "$LOCK"` for « is it held » and `cat "$LOCK/who"` for « by
+whom ». Neither is written down anywhere, which is why neither was used.
+
+**It cost twice in one night, in both directions**, which is what makes it an entry rather than a
+note. The B-308 micro-wave reported « heavy lock free » twice to the steward as evidence that the
+machine was clear, on a probe that cannot fail — a proof that certified nothing, offered as a
+proof. The steward's own hygiene sweep read the same empty output and reported a `run.sh
+--contracts` running UNLOCKED, which it was not: `heavy.sh` prints its own `starts` / `done` lines
+around the command it holds the lock for, and every one of that wave's logs carries them. **One bad
+probe produced a false clean and a false accusation in the same hour, and neither reader could tell
+from the output.**
+
+**Owner: the steward's office.** `heavy.sh` is the office's own instrument — the exception § 5's
+« the steward does not carry code » carves — so the `--held` query, its hold in
+`tests/scripts/test_heavy.py`, and the correction of the hygiene paragraph's probe are the office's,
+not a wave's. This entry carries the reading; it changes nothing under `scripts/`.
+
+<sub>`grep -n 'mkdir "\$LOCK"' scripts/heavy.sh` → `:95` · `grep -n '\$LOCK/who' scripts/heavy.sh` → `:96` and `:99` · the demonstration above · `grep -c '^heavy: ' <log>` on the wave's kept logs → the `starts`/`done` pair in each</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
