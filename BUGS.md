@@ -691,7 +691,7 @@ red in the full suite, and owed by whoever draws Système's schedulers next.
 
 
 **IT BLOCKS THE POST-MERGE GESTURE, and that is written HERE because the file that first said it
-does not survive.** L19's report states the obligation in its § 9; `docs/features/maquette-l19/`
+does not survive.** L19's report states the obligation in its § 9 (`docs/features/maquette-l19/REPORT.md@9fa13da57`); that folder
 is `git rm -r`'d at the gesture, so the sentence would have gone with the wave that wrote it —
 round two's own reading, and the same species as the defect round one found in the verbs.
 
