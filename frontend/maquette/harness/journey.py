@@ -752,7 +752,18 @@ async def main():
         await reopen_page.wait_for_timeout(500)
         await reopen_page.evaluate(
             """()=>window.__queries.removeQueries(
-                 {queryKey: ["/api/configuration"]})""")
+                 {queryKey: ["/api/config/schema"]})""")
+        # THE EVICTION IS READ BACK, and this hold exists because the first
+        # version dropped a key this interface does not have — the settings read
+        # is `/api/config/schema`, not `/api/configuration` — so it walked a WARM
+        # cache and passed whatever the seam did. A mutation is what caught it:
+        # the repair removed, the hold stayed green.
+        still_held = await reopen_page.evaluate(
+            """()=>window.__queries.getQueryData(["/api/config/schema"]) !== undefined""")
+        journal.check(
+            "the setting's own read is really cold before the Forward",
+            not still_held, f"still in the cache: {still_held}")
+
         await reopen_page.go_forward()
         await reopen_page.wait_for_timeout(1200)
         settings_back = await reopen_page.evaluate(
