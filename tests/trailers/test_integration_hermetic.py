@@ -434,3 +434,107 @@ class TestHermeticLibraryAwareIdempotence:
         # Falls through to download since no library match.
         assert counts["downloaded"] == 1, f"Expected download for new show, got {counts}"
         assert counts["already_present_on_disk"] == 0
+
+
+class TestHermeticLegacyLayoutIsNotDownloadedFor:
+    """A show holding its trailer in the pre-canonical layout gets no second one.
+
+    The broadened presence rule is unit-tested, but reverting BOTH call sites in
+    ``_select`` — undoing the entire user-visible fix — left every trailer test
+    green. The rule must be reached, and only a run can show that.
+
+    Storage mounts are case-sensitive, so a lowercase ``trailers/`` written by an
+    earlier release is a directory of its own that the canonical path never
+    names. The show read as trailer-less, downloaded again, and a viewer saw the
+    same trailer twice in the Plex extras row.
+    """
+
+    @staticmethod
+    def _show_with_only_a_legacy_trailer(tmp_path: Path) -> Path:
+        """Create a show whose only trailer sits in the legacy folder."""
+        show_dir = tmp_path / "Ahsoka (2023)"
+        (show_dir / "trailers").mkdir(parents=True)
+        shutil.copy(_SAMPLE_TRAILER, show_dir / "trailers" / "Ahsoka - Saison 1 - trailer.mp4")
+        (show_dir / "Saison 01").mkdir()
+        return show_dir
+
+    def test_the_run_neither_resolves_nor_downloads(self, tmp_path: Path) -> None:
+        """The regression: this show was resolved and a second trailer fetched."""
+        show_dir = self._show_with_only_a_legacy_trailer(tmp_path)
+        config = _make_config(tmp_path)
+        config.trailers.library_check.movies = False
+        config.trailers.library_check.tv_shows = False
+        orchestrator = TrailersOrchestrator(
+            config=config,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
+        scan_item = ScanItem(path=show_dir, media_type="tvshow", title="Ahsoka", year=2023, tmdb_id="114461")
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[scan_item]),
+            patch.object(orchestrator._finder, "find", return_value=_FAKE_YT_URL) as mock_find,
+            patch.object(orchestrator._downloader, "download") as mock_download,
+        ):
+            orchestrator.run()
+
+        assert not mock_find.called, "a show that already has its trailer must not be resolved"
+        assert not mock_download.called, "and must certainly not have a second one downloaded"
+
+    def test_the_canonical_folder_stays_empty(self, tmp_path: Path) -> None:
+        """Nothing is written beside the legacy trailer — that was the duplicate."""
+        show_dir = self._show_with_only_a_legacy_trailer(tmp_path)
+        config = _make_config(tmp_path)
+        config.trailers.library_check.movies = False
+        config.trailers.library_check.tv_shows = False
+        orchestrator = TrailersOrchestrator(
+            config=config,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
+        scan_item = ScanItem(path=show_dir, media_type="tvshow", title="Ahsoka", year=2023, tmdb_id="114461")
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[scan_item]),
+            patch.object(orchestrator._finder, "find", return_value=_FAKE_YT_URL),
+            patch.object(orchestrator._downloader, "download", side_effect=_copy_fixture_on_download),
+        ):
+            orchestrator.run()
+
+        # NOTE the assertion is a COUNT, not a folder name. ``tmp_path`` is on a
+        # case-insensitive volume here, so "Trailers" and "trailers" are one
+        # directory and no test on this machine can tell them apart — the very
+        # situation the fix is about cannot be reproduced in a fixture. What can
+        # be measured is that no SECOND trailer was written anywhere under the
+        # show, which is the defect itself.
+        videos = sorted(p.name for p in show_dir.rglob("*.mp4"))
+        assert videos == ["Ahsoka - Saison 1 - trailer.mp4"], f"a second trailer landed: {videos}"
+
+    def test_a_show_without_any_trailer_is_still_downloaded_for(self, tmp_path: Path) -> None:
+        """The broadening must not suppress a download that is genuinely due."""
+        show_dir = tmp_path / "Andor (2022)"
+        (show_dir / "Saison 01").mkdir(parents=True)
+        config = _make_config(tmp_path)
+        config.trailers.library_check.movies = False
+        config.trailers.library_check.tv_shows = False
+        orchestrator = TrailersOrchestrator(
+            config=config,
+            staging_dir=tmp_path,
+            event_bus=EventBus(),
+            registry=MagicMock(spec=ProviderRegistry),
+        )
+        scan_item = ScanItem(path=show_dir, media_type="tvshow", title="Andor", year=2022, tmdb_id="83867")
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[scan_item]),
+            patch.object(orchestrator._finder, "find", return_value=_FAKE_YT_URL) as mock_find,
+            patch.object(orchestrator._downloader, "download", side_effect=_copy_fixture_on_download),
+        ):
+            orchestrator.run()
+
+        assert mock_find.called, "a show with no trailer anywhere must still be resolved"
+        assert trailer_exists(trailer_path_for(show_dir, show_dir.name, media_type="tvshow"), _MIN_SIZE), (
+            "and its trailer must land at the canonical placement"
+        )

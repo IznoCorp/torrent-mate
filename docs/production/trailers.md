@@ -197,6 +197,36 @@ The Plex TV Series agent requires the `Trailers/` subfolder for show-level and
 season-level extras. Using the flat `{show}-trailer.{ext}` convention at show or
 season level produces an unrecognised orphan video in Plex.
 
+The subfolder NAME is matched case-insensitively by Plex, and the library carries
+both spellings. Measured on disk on **2026-09-05**: **606** media directories
+hold a lowercase `trailers/` written by an earlier release (files named
+`{show} - Saison 1 - trailer.{ext}`), against **34** canonical `Trailers/`; 670
+files in all — 539 `.mp4`, **128 with no extension at all** (a yt-dlp artefact),
+2 `.webm`, 1 `.mkv`, and not one sidecar. Figures carry their date because they
+move: the same day's repair below changed them, and the weekly index scan lags
+the filesystem, so a count read from `library.db` will differ.
+
+Plex serves the legacy layout. Probed against the running server on 2026-09-05,
+the extras row of `Ahsoka (2023)` — which holds only the lowercase folder —
+exposes
+`/Volumes/Disk1/medias/series/Ahsoka (2023)/trailers/Ahsoka - Saison 1 - trailer.mp4`
+as a local part. **So the legacy layout is not invisible and needs no
+migration**, which is the opposite of the conclusion its file names invite.
+
+The STORAGE mounts are case-sensitive, so there the two spellings are two
+different directories; the staging volume is APFS and case-INsensitive, so there
+they are one. Presence checks must therefore not depend on the filesystem
+either way, and they no longer do: `core.media_types.find_trailer_in_media_dir`
+is the single rule, shared by the download decision, the derived `trailer_found`
+attribute (`core.completeness`), `trailers audit` and the orphan collector.
+Every WRITE stays canonical.
+
+Twelve shows had accumulated a trailer under both spellings — the runner read a
+legacy-layout show as trailer-less and downloaded a second one beside it, which
+a viewer then saw twice in the Plex extras row. Resolved on 2026-09-05 by
+keeping the larger of each pair (85 MB removed); the count above is post-repair,
+and no show carries both today.
+
 Accepted extensions: .mp4, .mkv, .webm (priority order).
 
 NFO <trailer> tag: populated with YouTube URL for Plex/Kodi remote-trailer fallback.

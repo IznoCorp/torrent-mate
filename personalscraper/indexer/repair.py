@@ -27,7 +27,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from personalscraper.indexer.schema import RepairQueueRow, RepairScope
+from personalscraper.indexer.repos import log_repo
+from personalscraper.indexer.schema import DeletedItemRow, RepairQueueRow, RepairScope
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.repair")
@@ -414,11 +415,17 @@ def _refresh_disk_merkle(
 def soft_delete_subtree(conn: sqlite3.Connection, path_id: int) -> int:
     """Soft-delete, then hard-prune a phantom path subtree.
 
-    Four-step cascade so the path row is actually removed AND the disk's
+    Five-step cascade so the path row is actually removed AND the disk's
     stored merkle stays coherent with the live file set:
 
-    1. Soft-delete every live ``media_file`` row (``deleted_at = now``) — the
-       count returned reflects this step (audit trail).
+    1. Soft-delete every live ``media_file`` row (``deleted_at = now``). The
+       count returned reflects this step.
+    1b. Write a ``deleted_item`` tombstone for every row about to be
+       hard-deleted, ``reason='subtree_pruned'``. This is the audit trail, and
+       it has to be a row rather than a log line: step 2 destroys the only
+       other record of what was here. The snapshot carries the disk id and the
+       relative path, not just ``path_id``, because step 3 deletes the path row
+       too and an id alone would point at nothing.
     2. Hard-DELETE every ``media_file`` row under the path (including any
        already tombstoned) — the foreign key
        ``media_file.path_id REFERENCES path(id) ON DELETE RESTRICT`` would
@@ -449,20 +456,91 @@ def soft_delete_subtree(conn: sqlite3.Connection, path_id: int) -> int:
         Number of ``media_file`` rows that this call tombstoned (step 1 only
         — does NOT include files already tombstoned by a previous run).
     """
-    # Capture disk_id BEFORE the path row is deleted (step 3).
-    disk_row = conn.execute("SELECT disk_id FROM path WHERE id = ?", (path_id,)).fetchone()
-    disk_id: int | None = int(disk_row[0]) if disk_row else None
+    # Capture the path's identity BEFORE the row is deleted (step 3). The
+    # disk_id is needed for the merkle refresh, and both it and the relative path go
+    # into the audit records: a snapshot naming only ``path_id`` would point
+    # at a row that no longer exists once this call returns.
+    path_row = conn.execute("SELECT disk_id, rel_path FROM path WHERE id = ?", (path_id,)).fetchone()
+    disk_id: int | None = int(path_row[0]) if path_row else None
+    relative_path: str | None = str(path_row[1]) if path_row else None
 
     now = int(time.time())
-    n_soft: int = conn.execute(
-        "UPDATE media_file SET deleted_at = ? WHERE path_id = ? AND deleted_at IS NULL",
-        (now, path_id),
-    ).rowcount
-    n_hard: int = conn.execute(
-        "DELETE FROM media_file WHERE path_id = ?",
-        (path_id,),
-    ).rowcount
-    conn.execute("DELETE FROM path WHERE id = ?", (path_id,))
+
+    # Steps 1-3 are one unit of work. Before the audit records existed, the
+    # soft-delete UPDATE and the hard DELETE were adjacent statements with
+    # nothing between them that could raise; the tombstone loop sits in that
+    # gap and CAN raise. ``drain`` marks the queue row ``failed`` and then
+    # COMMITS, and nothing in this module rolls back, so without this savepoint
+    # a failure mid-loop leaves every file under the path marked deleted —
+    # invisible to the library while still present on disk — with the path row
+    # surviving, so ``detect_path_missing`` re-flags it forever and the merkle
+    # is never refreshed. ``apply_soft_deletes`` guards its own loop the same
+    # way, for the same reason.
+    conn.execute("SAVEPOINT prune_subtree")
+    try:
+        n_soft: int = conn.execute(
+            "UPDATE media_file SET deleted_at = ? WHERE path_id = ? AND deleted_at IS NULL",
+            (now, path_id),
+        ).rowcount
+
+        # Step 1b — the audit record, written before the rows stop existing.
+        # Every row about to be hard-deleted leaves a ``deleted_item`` tombstone
+        # in the same table ``apply_soft_deletes`` writes to, so a prune that
+        # turns out to have been wrong can be read back rather than merely
+        # regretted. A row the strike mechanism had already tombstoned gets one
+        # here too: that record describes a soft delete and names a path row
+        # about to vanish, while this one records the prune and stands on its
+        # own.
+        #
+        # ``release_id`` and ``miss_strikes`` are in the snapshot because
+        # reading a tombstone back is the whole point of writing it:
+        # ``release_id`` is the only link from the file to its release and its
+        # title, without which a record names a filename belonging to nothing,
+        # and ``miss_strikes`` is the corroborating evidence for whether the
+        # scanner had also stopped seeing the file or only the path check
+        # failed — the same reasoning ``apply_soft_deletes`` spells out.
+        doomed = conn.execute(
+            "SELECT id, release_id, filename, oshash, size_bytes, mtime_ns, miss_strikes, deleted_at "
+            "FROM media_file WHERE path_id = ?",
+            (path_id,),
+        ).fetchall()
+        for file_row in doomed:
+            log_repo.insert_deleted_item(
+                conn,
+                DeletedItemRow(
+                    id=0,  # ignored on insert
+                    kind="file",
+                    original_id=int(file_row[0]),
+                    deleted_at=now,
+                    reason="subtree_pruned",
+                    payload_json=json.dumps(
+                        {
+                            "id": int(file_row[0]),
+                            "release_id": file_row[1],
+                            "path_id": path_id,
+                            "disk_id": disk_id,
+                            "rel_path": relative_path,
+                            "filename": file_row[2],
+                            "oshash": file_row[3],
+                            "size_bytes": file_row[4],
+                            "mtime_ns": file_row[5],
+                            "miss_strikes": file_row[6],
+                            "deleted_at": file_row[7],
+                        }
+                    ),
+                ),
+            )
+
+        n_hard: int = conn.execute(
+            "DELETE FROM media_file WHERE path_id = ?",
+            (path_id,),
+        ).rowcount
+        conn.execute("DELETE FROM path WHERE id = ?", (path_id,))
+    except sqlite3.Error:
+        conn.execute("ROLLBACK TO prune_subtree")
+        conn.execute("RELEASE prune_subtree")
+        raise
+    conn.execute("RELEASE prune_subtree")
 
     new_merkle: str | None = None
     if disk_id is not None:

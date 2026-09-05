@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Literal
 from xml.etree import ElementTree as ET
 
-from personalscraper.core.media_types import TV_TRAILER_SUBFOLDER
+from personalscraper.core.media_types import TV_TRAILER_SUBFOLDER, find_trailer_in_media_dir
 from personalscraper.io_utils import atomic_write_text
 from personalscraper.logger import get_logger
 
@@ -155,6 +155,34 @@ def trailer_exists(path: Path, min_size_bytes: int) -> bool:
         return path.stat().st_size >= min_size_bytes
     except OSError:
         return False
+
+
+def find_show_trailer(media_dir: Path, min_size_bytes: int) -> Path | None:
+    """Return a show-level trailer already on disk, whatever layout wrote it.
+
+    Thin alias over :func:`~personalscraper.core.media_types.find_trailer_in_media_dir`,
+    which is the SINGLE rule shared with the derived ``trailer_found`` index,
+    the audit command and the orphan classifier. It is kept as a name in this
+    module because this is where trailer placement is owned and read.
+
+    :func:`trailer_path_for` names one exact path: the right target to WRITE
+    to, and the wrong question to ask before downloading. A show whose trailer
+    was placed by an earlier release keeps it in a lowercase ``trailers/``
+    under a different file name, and the mounts are case-sensitive, so that
+    folder is a directory of its own. Asking only for the canonical path reads
+    such a show as trailer-less and lands a second copy beside the first.
+
+    Season trailers are out of scope: they live under ``Saison NN/``, are
+    opt-in, and no earlier layout wrote them elsewhere.
+
+    Args:
+        media_dir: Absolute path to the show directory on disk.
+        min_size_bytes: Minimum size for a file to count as a trailer.
+
+    Returns:
+        The trailer found, or ``None`` when the show has none.
+    """
+    return find_trailer_in_media_dir(media_dir, min_size_bytes)
 
 
 def write_trailer_url_to_nfo(nfo_path: Path, youtube_url: str) -> bool:
