@@ -45,6 +45,12 @@ from playwright.async_api import async_playwright
 # Driving `arr-running` alone would have measured a page with no subject.
 BUSY_STATE = "acq-now-loaded"
 
+# WHERE A FOLLOW IS DRAWN. The acquisitions page lists what is in FLIGHT, so a
+# followed medium that is not currently being acquired has no row there at all —
+# which is why the pause half of this walk moves here rather than raising a
+# panel nobody on that page could reach.
+FOLLOWS_STATE = "acq-follows-list"
+
 # THE WORDS A REFUSAL WEARS. « occupé » is the clause's own; the others are what
 # the same refusal reads like when it is dressed differently.
 REFUSALS = ("occupé", "occupee", "occupée", "déjà en cours", "réessayez plus tard")
@@ -61,6 +67,14 @@ QUEUE = """()=>({
 SAID = """()=>[...document.querySelectorAll('#toast, #view')]
   .map((node) => node.textContent || '').join(' ')"""
 
+
+RAISE_BY_FINGER = """(title)=>{
+  const row = [...document.querySelectorAll('[data-panel]')].find(
+    (one) => one.dataset.panel === title
+          || one.dataset.panel.endsWith(":" + title));
+  if (!row) return false;
+  row.click();
+  return true;}"""
 
 async def main():
     journal = Journal("R124 — NE-DOIT-PAS-3: a legitimate action is not refused")
@@ -89,8 +103,18 @@ async def main():
 
         # ── TAKING A MEDIUM, from its own panel, while the pipeline runs ────
         title = before["takeable"][0]
-        await page.evaluate("(t)=>window.__panel.produce('follow', t)", title)
+        # RAISED BY A FINGER, NEVER THROUGH THE SEAM. `window.__panel.produce`
+        # opens the panel without walking the path that raises it, so a row
+        # that has lost its `data-panel` on a busy page would be invisible here
+        # while every hold below stayed green — the shape this suite has
+        # already paid for once, in a rule that drove the seam and could not
+        # see the wait it existed to refuse. The tap's own answer is held, so a
+        # missing path FAILS rather than opening nothing quietly.
+        raised = await page.evaluate(RAISE_BY_FINGER, title)
         await page.wait_for_timeout(PANEL_IN)
+        journal.check(
+            f"« {title} » has a row a finger can raise its panel from",
+            raised, f"raised={raised}")
         await page.evaluate(
             """()=>{const act = [...document.querySelectorAll(
                      '#sheetin [data-part="sheet/action"]')]
@@ -104,12 +128,40 @@ async def main():
             f"{before['takeable']} → {after['takeable']}")
 
         # ── PAUSING A FOLLOW, from its own panel, while the pipeline runs ───
-        watched = before["follows"][0]
+        #
+        # ON THE PAGE THAT DRAWS A FOLLOW, and that is a correction. This half
+        # used to raise the panel through the seam on the ACQUISITIONS page,
+        # where a followed medium not currently in flight has no row at all —
+        # so it walked a panel no finger there could open, and said nothing
+        # about it. The clause is about an action asked while the machine is
+        # busy; where the operator asks it is the follows list, and the
+        # pipeline is put back to work on top of that page exactly as it was on
+        # the first.
+        await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
+        await page.wait_for_timeout(SETTLED)
+        await page.evaluate("""()=>window.__store.write({pipe: "running"})""")
+        await page.wait_for_timeout(SETTLED)
+        journal.check(
+            "the follows list has the pipeline busy too, so this half measures "
+            "the clause and not the page",
+            await page.evaluate("()=>window.__store.read().state.pipe") == "running")
+
+        drawn = await page.evaluate(
+            """()=>[...document.querySelectorAll('[data-panel]')].map(
+                 (one) => one.dataset.panel)""")
+        watched = next(
+            (one for one in before["follows"]
+             if one in drawn or any(seen.endswith(":" + one) for seen in drawn)),
+            "")
         was = await page.evaluate(
             "(t)=>(window.__followActions?.all() || []).find((one) => one.t === t)?.st",
             watched)
-        await page.evaluate("(t)=>window.__panel.produce('follow', t)", watched)
+        raised_follow = await page.evaluate(RAISE_BY_FINGER, watched) if watched else False
         await page.wait_for_timeout(PANEL_IN)
+        journal.check(
+            f"a followed medium has a row a finger can raise its panel from — « {watched} »",
+            bool(watched) and raised_follow,
+            f"{len(drawn)} row(s) drawn, raised={raised_follow}")
         paused = await page.evaluate(
             """()=>{const act = [...document.querySelectorAll(
                      '#sheetin [data-part="sheet/action"]')]
