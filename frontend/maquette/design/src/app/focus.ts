@@ -41,10 +41,23 @@ const LAYERS = [
   "#dlg",
 ] as const;
 
-// Where focus goes when a layer opens: the first control the reader would
-// reach anyway. `[autofocus]` first, so a layer can name its own entry point.
+// A layer's own named entry point, asked for FIRST and on its own.
+//
+// IT USED TO BE THE FIRST ALTERNATIVE OF `ENTRY`, under a comment saying
+// « `[autofocus]` first, so a layer can name its own entry point » — and a
+// selector LIST has no priority: `querySelector` answers the first matching
+// node in DOCUMENT order, whatever order the alternatives are written in. So a
+// dialog whose destructive button comes before its way out got focus on the
+// destructive button while carrying `autofocus` on the other, and the comment
+// asserting otherwise had been there the whole time. Measured: the attribute
+// rendered, `[autofocus]` matched one node, and `document.activeElement` was
+// the other button.
+const NAMED_ENTRY = "[autofocus]";
+
+// Where focus goes when a layer names none: the first control the reader would
+// reach anyway.
 const ENTRY =
-  "[autofocus],button:not([disabled]),[href],input:not([disabled])," +
+  "button:not([disabled]),[href],input:not([disabled])," +
   "select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex='-1'])";
 
 type Restore = { layer: Element; trigger: HTMLElement | null };
@@ -109,7 +122,8 @@ function setBackgroundInert(layer: Element | null): void {
  * @param layer The layer's root.
  */
 function focusInto(layer: Element): void {
-  const target = layer.querySelector<HTMLElement>(ENTRY);
+  const target = layer.querySelector<HTMLElement>(NAMED_ENTRY)
+    ?? layer.querySelector<HTMLElement>(ENTRY);
   if (target) {
     target.focus();
     return;
