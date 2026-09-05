@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Literal
 from xml.etree import ElementTree as ET
 
-from personalscraper.core.media_types import TV_TRAILER_SUBFOLDER
+from personalscraper.core.media_types import TV_TRAILER_SUBFOLDER, find_trailer_in_media_dir
 from personalscraper.io_utils import atomic_write_text
 from personalscraper.logger import get_logger
 
@@ -160,66 +160,29 @@ def trailer_exists(path: Path, min_size_bytes: int) -> bool:
 def find_show_trailer(media_dir: Path, min_size_bytes: int) -> Path | None:
     """Return a show-level trailer already on disk, whatever layout wrote it.
 
-    :func:`trailer_path_for` names one exact path. That is the right target to
-    WRITE to, and the wrong question to ask before downloading. A show whose
-    trailer was placed by an earlier release carries a lowercase ``trailers/``
-    folder holding a ``{show} - Saison 1 - trailer`` file, and the storage
-    mounts are case-sensitive, so that folder is a directory of its own rather
-    than the canonical one. Asking only for the canonical path reads such a
-    show as having no trailer at all; the download that follows lands a second
-    copy beside the first, and a viewer sees the same trailer twice in the
-    extras row.
+    Thin alias over :func:`~personalscraper.core.media_types.find_trailer_in_media_dir`,
+    which is the SINGLE rule shared with the derived ``trailer_found`` index,
+    the audit command and the orphan classifier. It is kept as a name in this
+    module because this is where trailer placement is owned and read.
 
-    The folder is therefore matched case-insensitively, and a file of at least
-    ``min_size_bytes`` inside it answers whatever it is called — a folder Plex
-    treats as trailer extras holds trailers, and a check keyed on the file name
-    would miss a hand-placed one for the same reason it misses the legacy one.
-
-    A file carrying an extension that is not one of
-    :data:`_KNOWN_TRAILER_EXTENSIONS` is skipped, so a sidecar never stands in
-    for a trailer. A file carrying NO extension is not skipped: 128 of this
-    library's 676 trailer files have none — a yt-dlp artefact — and treating
-    them as absent re-downloads a trailer each of those shows already owns,
-    which is the very defect this function exists to end. The size floor is
-    what keeps junk out, not the presence of a suffix.
-
-    The canonical spelling is preferred when a show carries both, so the path
-    reported stays stable from run to run.
+    :func:`trailer_path_for` names one exact path: the right target to WRITE
+    to, and the wrong question to ask before downloading. A show whose trailer
+    was placed by an earlier release keeps it in a lowercase ``trailers/``
+    under a different file name, and the mounts are case-sensitive, so that
+    folder is a directory of its own. Asking only for the canonical path reads
+    such a show as trailer-less and lands a second copy beside the first.
 
     Season trailers are out of scope: they live under ``Saison NN/``, are
-    opt-in, and no earlier layout ever wrote them elsewhere.
+    opt-in, and no earlier layout wrote them elsewhere.
 
     Args:
         media_dir: Absolute path to the show directory on disk.
-        min_size_bytes: Minimum size for a file to count as a trailer. A
-            smaller one is a truncated download, not a trailer.
+        min_size_bytes: Minimum size for a file to count as a trailer.
 
     Returns:
-        Absolute Path to the trailer found, or ``None`` when the show has
-        none — including when ``media_dir`` cannot be read.
+        The trailer found, or ``None`` when the show has none.
     """
-    wanted_folder = _TV_TRAILER_SUBFOLDER.casefold()
-    try:
-        # sorted() puts the canonical "Trailers" ahead of a legacy "trailers".
-        folders = sorted(
-            entry for entry in media_dir.iterdir() if entry.is_dir() and entry.name.casefold() == wanted_folder
-        )
-    except OSError:
-        return None
-
-    for folder in folders:
-        try:
-            candidates = sorted(folder.iterdir())
-        except OSError:
-            continue
-        for candidate in candidates:
-            suffix = candidate.suffix.lstrip(".").casefold()
-            if suffix and suffix not in _KNOWN_TRAILER_EXTENSIONS:
-                continue  # a sidecar; an extensionless file falls through
-            if trailer_exists(candidate, min_size_bytes):
-                return candidate
-
-    return None
+    return find_trailer_in_media_dir(media_dir, min_size_bytes)
 
 
 def write_trailer_url_to_nfo(nfo_path: Path, youtube_url: str) -> bool:

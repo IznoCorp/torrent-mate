@@ -238,7 +238,11 @@ class TestTrailersAuditCommand:
 
         show_dir = tmp_path / "ShowB (2021)"
         show_dir.mkdir()
-        trailer_file = show_dir / "ShowB-trailer.mp4"
+        # A REAL TV layout: the audit shares the download decision's rule and
+        # reads the trailer folder, so a flat movie-style file no longer stands
+        # in for a show's trailer.
+        (show_dir / "Trailers").mkdir()
+        trailer_file = show_dir / "Trailers" / "ShowB.mp4"
         trailer_file.write_bytes(b"x" * 100)  # 100 bytes, below 102400 min
 
         item = ScanItem(path=show_dir, media_type="tvshow", title="ShowB", year=2021, tmdb_id=None)
@@ -282,7 +286,11 @@ class TestTrailersAuditCommand:
 
         show_dir = tmp_path / "ShowD (2023)"
         show_dir.mkdir()
-        trailer_file = show_dir / "ShowD-trailer.mp4"
+        # A REAL TV layout. The audit reads the trailer folder now — it shares
+        # the download decision's rule — so a flat movie-style file beside a
+        # mocked path no longer stands in for one.
+        (show_dir / "Trailers").mkdir()
+        trailer_file = show_dir / "Trailers" / "ShowD (2023).mp4"
         trailer_file.write_bytes(b"x" * 200000)
 
         item = ScanItem(path=show_dir, media_type="tvshow", title="ShowD", year=2023, tmdb_id=None)
@@ -318,7 +326,11 @@ class TestTrailersAuditCommand:
 
         show_dir = tmp_path / "ShowE (2023)"
         show_dir.mkdir()
-        trailer_file = show_dir / "ShowE-trailer.mp4"
+        # A REAL TV layout. The audit reads the trailer folder now — it shares
+        # the download decision's rule — so a flat movie-style file beside a
+        # mocked path no longer stands in for one.
+        (show_dir / "Trailers").mkdir()
+        trailer_file = show_dir / "Trailers" / "ShowE (2023).mp4"
         trailer_file.write_bytes(b"x" * 200000)
 
         item = ScanItem(path=show_dir, media_type="tvshow", title="ShowE", year=2023, tmdb_id=None)
@@ -358,7 +370,11 @@ class TestTrailersAuditCommand:
 
         show_dir = tmp_path / "ShowF (2024)"
         show_dir.mkdir()
-        trailer_file = show_dir / "ShowF-trailer.mp4"
+        # A REAL TV layout: the audit shares the download decision's rule and
+        # reads the trailer folder, so a flat movie-style file no longer stands
+        # in for a show's trailer.
+        (show_dir / "Trailers").mkdir()
+        trailer_file = show_dir / "Trailers" / "ShowF.mp4"
         trailer_file.write_bytes(b"x" * 200000)
 
         item = ScanItem(path=show_dir, media_type="tvshow", title="ShowF", year=2024, tmdb_id=None)
@@ -396,7 +412,11 @@ class TestTrailersAuditCommand:
 
         show_dir = tmp_path / "ShowG (2024)"
         show_dir.mkdir()
-        trailer_file = show_dir / "ShowG-trailer.mp4"
+        # A REAL TV layout: the audit shares the download decision's rule and
+        # reads the trailer folder, so a flat movie-style file no longer stands
+        # in for a show's trailer.
+        (show_dir / "Trailers").mkdir()
+        trailer_file = show_dir / "Trailers" / "ShowG.mp4"
         trailer_file.write_bytes(b"x" * 200000)
 
         item = ScanItem(path=show_dir, media_type="tvshow", title="ShowG", year=2024, tmdb_id=None)

@@ -434,8 +434,19 @@ class TrailersOrchestrator:
             min_size_bytes=ctx.min_size,
         ):
             log.debug("trailers_already_present", key=key, title=item.title)
+            # ``clear_state=True`` for the same reason the library-aware branch
+            # above gives: presence lives on the filesystem, never in the
+            # ledger, so a stale NO_TRAILER_AVAILABLE row from a run that
+            # predates this broadened check must go rather than outlive it.
             self._record_outcome(
-                item, key, TrailerOutcome("already_present", item_result=("already_present", "already_present")), counts
+                item,
+                key,
+                TrailerOutcome(
+                    "already_present",
+                    item_result=("already_present", "already_present"),
+                    clear_state=True,
+                ),
+                counts,
             )
             return None
 

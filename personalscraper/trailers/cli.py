@@ -39,6 +39,7 @@ from personalscraper import cli_helpers
 from personalscraper.cli_helpers import _build_app_context
 from personalscraper.conf.ids import NON_VIDEO_CATEGORY_IDS, TV_CATEGORY_IDS
 from personalscraper.core.event_bus import current_correlation_id
+from personalscraper.core.media_types import trailer_folders_in
 from personalscraper.logger import get_logger
 from personalscraper.trailers.orchestrator import TrailersOrchestrator
 from personalscraper.trailers.purge_fs import (
@@ -571,6 +572,7 @@ def _audit_impl(
     from personalscraper.indexer.db import open_db  # noqa: PLC0415
     from personalscraper.trailers.placement import (  # noqa: PLC0415
         find_existing_trailer,
+        find_show_trailer,
         trailer_path_for,
         trailer_path_for_season,
     )
@@ -621,7 +623,14 @@ def _audit_impl(
                 found: Path | None = seasonal_p if seasonal_p.exists() else None
                 trailer_p = seasonal_p
             else:
-                found = find_existing_trailer(item.path, media_name, media_type=item.media_type)
+                # The SAME rule the download decision uses. When these two
+                # disagree the audit reports "missing" for exactly the shows
+                # the runner answers "already present" for.
+                found = (
+                    find_show_trailer(item.path, 0)
+                    if item.media_type == "tvshow"
+                    else find_existing_trailer(item.path, media_name, media_type=item.media_type)
+                )
                 trailer_p = (
                     found if found is not None else trailer_path_for(item.path, media_name, media_type=item.media_type)
                 )
@@ -883,10 +892,16 @@ def _trailers_in_media_dir(media_dir: Path) -> list[Path]:
     # Flat movie-style trailers next to the media file.
     for ext in _KNOWN_TRAILER_EXTENSIONS:
         found.extend(p for p in media_dir.glob(f"*-trailer.{ext}") if p.is_file())
-    # Show-level Trailers/ subfolder and per-season Saison NN/Trailers/ subfolders.
-    subfolders = [media_dir / "Trailers"]
+    # Show-level trailer subfolder and per-season Saison NN/ ones. Matched
+    # case-insensitively, like every other trailer probe: naming one spelling
+    # here while `_media_dir_has_content` skips both means a legacy-layout dir
+    # is classified as holding no media AND yields no orphan files, so it is
+    # dropped silently on every run instead of being healed or cleaned.
+    subfolders = list(trailer_folders_in(media_dir))
     try:
-        subfolders.extend(sd / "Trailers" for sd in media_dir.glob("Saison *") if sd.is_dir())
+        for season_dir in media_dir.glob("Saison *"):
+            if season_dir.is_dir():
+                subfolders.extend(trailer_folders_in(season_dir))
     except OSError:
         pass
     for sub in subfolders:

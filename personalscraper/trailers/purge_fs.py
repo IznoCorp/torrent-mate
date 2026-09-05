@@ -71,10 +71,13 @@ def _media_dir_has_content(media_dir: Path) -> bool:
             if _is_media_video(entry):
                 return True
             # One level down for TV episodes (Saison NN/), skipping the trailer
-            # folder. Matched case-insensitively: the mounts are case-sensitive
-            # and an earlier release wrote the folder in lowercase, so naming
-            # one spelling descends into the other and lets a trailer answer
-            # for the media.
+            # folder. Matched case-insensitively because an earlier release
+            # wrote that folder in lowercase and the STORAGE mounts are
+            # case-sensitive, so it is a directory of its own; naming one
+            # spelling here descends into the other and lets a trailer answer
+            # for the media. (The staging volume is APFS and case-INsensitive,
+            # so the two spellings are one directory there — which is why the
+            # matching must not depend on the filesystem either way.)
             if entry.is_dir() and entry.name.casefold() != TV_TRAILER_SUBFOLDER.casefold():
                 try:
                     if any(_is_media_video(sub) for sub in entry.iterdir()):
