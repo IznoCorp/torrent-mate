@@ -383,6 +383,7 @@ when the defect comes back.
 | B-321 | An evicted `setting:`/`action:` panel entry leaves the address naming a panel that never comes back | 1× | `fixed #558` |
 | B-322 | The release screen fires TWO take toasts into one element in the same tick, and the first is never seen | 1× | `open` |
 | B-323 | Two `setTimeout(…, 260)` sites were never counted — the inventory reads one line — and one of them is the release screen's `data-take`, a verb moved by half with no lot named for the other half | by audit | `open` |
+| B-324 | The BACKEND's own mirror of the PM2 crons names three of the seven the machine runs, and nothing reads it against `pm2 jlist` — B-308's finding on the end that has no guard at all | by the backend brief | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -708,15 +709,11 @@ it — it MAPPED over the list — and is derived beside the list it alters, in
 sub-line says « dernier passage : aucun », which is both what the rule requires a sub-line to say
 and what is true.
 
-**THE FINDING BEYOND THE MISSING ROW STANDS, and this wave measured its other end.** The fixture and
-the machine are one contract with two ends and only one end has a guard — and the end with no guard
-is further from the machine than this entry assumed. `personalscraper/web/schedulers/registry.py`'s
-`CRON_JOBS`, the backend's own static mirror of the PM2 crons, names **three** of the seven
-(`follow-detect`, `grab`, `index-enrich`): `search`, `health-check`, `backfill-ids` and
-`index-full` are absent from it, and its header still says « the three crons here ». Nothing reads
-that against `pm2 jlist` either. It is NOT repaired here — this is a micro-wave on the maquette's
-row, and the backend follows the interface (D7) — and it is written down so the next reader does not
-have to find it twice.
+**THE FINDING BEYOND THE MISSING ROW STANDS, and this wave measured its other end and FILED it.**
+The fixture and the machine are one contract with two ends and only one end has a guard — and the
+end with no guard is further from the machine than this entry assumed: the BACKEND's own mirror of
+the crons names three of the seven, and nothing reads it against anything. That is **B-324**, owned
+by the backend brief and not repaired here.
 
 **And the rule cannot say WHICH row is unaccounted for**, only that one is: a drawn label and a PM2
 process name are two vocabularies with nothing in the tree joining them. Its fall prints both lists
@@ -1216,6 +1213,32 @@ is a stale figure in three places and a verb with no owner. **Owner of the count
 instruments' debts block** (the next wave touching `exits.py`). **Owner of the verb: L21, ratified.**
 
 <sub>steward's audit of L19, 2026-09-05, on `main` at `427ea2bc8` · `grep -c ', 260)' frontend/maquette/design/src/engine/legacy.js` → 7 · `git show 4c0e274a7:frontend/maquette/design/src/engine/legacy.js | grep -c ', 260)'` → 9 · `grep -c "setTimeout(.*260)" …` → 5 (7 at the base) · `grep -c "closest\.dataset\.take" …` → 3</sub>
+
+**B-324 — the backend's mirror of the PM2 crons names three of the seven, and nothing reads it.**
+`personalscraper/web/schedulers/registry.py`'s `CRON_JOBS` is, by its own header, « a static mirror
+of the scheduled personalscraper crons » — the web process may not shell out to `pm2` nor read
+`ecosystem.config.js`, so it hard-codes them. It holds **three**: `follow-detect`, `grab`,
+`library-index --mode enrich`. The machine runs **seven** with a `cron_restart`, so `search`,
+`health-check`, `backfill-ids` and `index-full` are absent from the list the production Dashboard's
+schedulers panel is built from, and the header still says « the three crons here » under a comment
+dated « verified 2026-07-15 ». `GET /api/maintenance/schedulers` therefore answers a watcher row
+plus three cron rows on a machine running eight processes.
+
+**IT IS B-308'S FINDING, on the end that has no guard at all.** B-308 says the fixture and the
+machine are one contract with two ends and only one end has a guard; the maquette's end is now held
+by `machine.py`, which reads `pm2 jlist` on the operator's machine. NOTHING reads `CRON_JOBS`
+against anything — not a test, not a guard, not a startup check — so a cron added to
+`ecosystem.config.js` is invisible here exactly as it was invisible to the maquette, and this list
+has been four crons behind for longer than B-308's row was missing. The shape of the repair is the
+same as `machine.py`'s and cannot be: the web process is forbidden `pm2`, so what it can hold is
+the list against the deployed `ecosystem.config.js`, or a single declaration both read.
+
+**Not repaired in the B-308 micro-wave**, and the reason is D7's: the backend follows the interface,
+and the interface is not frozen. Owner: **the backend brief** —
+`docs/reference/backend-demands-architecture.md` is where the backend's demands are gathered, and
+this is one of them. Filed rather than left in a report because a defect with no entry is nobody's.
+
+<sub>`python3 -c "from personalscraper.web.schedulers.registry import CRON_JOBS; print(len(CRON_JOBS), [j.name for j in CRON_JOBS])"` → `3 [...]` · `pm2 jlist | python3 -c "import sys,json;print(sorted(p['name'] for p in json.load(sys.stdin) if p['pm2_env'].get('cron_restart')))"` → 7 names</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
