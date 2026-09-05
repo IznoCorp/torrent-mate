@@ -382,6 +382,7 @@ when the defect comes back.
 | B-320 | React #300 and #310 on the two non-ready acquisition surfaces, from a cold page, on head and on `main` alike | 1× | `open` |
 | B-321 | An evicted `setting:`/`action:` panel entry leaves the address naming a panel that never comes back | 1× | `fixed #558` |
 | B-322 | The release screen fires TWO take toasts into one element in the same tick, and the first is never seen | 1× | `open` |
+| B-323 | Two `setTimeout(…, 260)` sites were never counted — the inventory reads one line — and one of them is the release screen's `data-take`, a verb moved by half with no lot named for the other half | by audit | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -1146,6 +1147,42 @@ on that screen is one of the readers still in the engine's delegation, and the
 sentence moves with the verb.
 
 <sub>found in round two of PR #558, 2026-09-05 · `engine/legacy.js:5542` and `:9361-9363`, toast sampled every 180 ms on head and control, only the second observed on either</sub>
+
+**B-323 — the 260 ms inventory reads one line, and the release screen's take has no owner.**
+L19's report (§ 4), its entry in `frontend-architecture.md` § 4 and `harness/exits.py`'s own
+comment count the engine's hand-set waits with `grep -n "setTimeout(.*260)" legacy.js`: **7 before
+the lot, 5 after**. The command reads a site only when its call and its delay share a line.
+`grep -c ', 260)' frontend/maquette/design/src/engine/legacy.js` reads **9 at `4c0e274a7` and 7 on
+`main`** (`427ea2bc8`): two callbacks span several lines and were never in the inventory —
+
+    legacy.js:9356-9364   the release screen's `data-take` branch —
+                          bridge.back(); setTimeout(() => { actionTake(currentState().relatedTitle); toast(…) }, 260)
+    legacy.js:9597-9602   the `add:` identify branch —
+                          bridge.rewind(entries); setTimeout(() => { actionResolve(target, result.t); toast(…) }, 260)
+
+Both predate L19 (lines `9900` and `10158` at the base). `docs/reference/frame-survey.md` § 1.1
+named this species on 2026-08-29 about the `innerHTML` count — « a count that depends on where a
+line breaks is a count that changes when a formatter runs » — and the same shape was taken again
+for a different figure, in the wave that read that survey.
+
+**The finding beyond the figure.** The first of the two is a `data-take` READER. L19's entry says
+the lot « moved two verbs — `data-cancelsetting` and `data-take` », and B-322 already records that
+« `data-take` on that screen is one of the readers still in the engine's delegation », naming its
+owner as « the lot that takes the release screen's delegation verbs » — a lot no file names.
+`grep -c "closest\.dataset\.take" frontend/maquette/design/src/engine/legacy.js` reads **3**: the
+arrivals door (`window.__arrivalsVerbs?.take(…)`, the panel's TITLE half, moved) and the engine's own
+INDEX branch behind it, with its wait and B-322's two toasts. **L13's inheritance names five
+surface-opening verbs and L21's five acquisition acts; this verb is in neither list.** A debt with
+no named owner is B-253's species, and it is written into L21's « Done when » as PROPOSED, the
+operator's word pending.
+
+**What it is not.** Not a regression — both sites and both figures were in the tree before the
+lot. Not a guard green over what it does not read — no rule asserts « five »: `exits.py` refuses the
+gap on `data-journey` alone and R123 (`take.py`) reads the panel's take alone, and each says so. It
+is a stale figure in three places and a verb with no owner. **Owner of the count: the § 5
+instruments' debts block** (the next wave touching `exits.py`). **Owner of the verb: L21, proposed.**
+
+<sub>steward's audit of L19, 2026-09-05, on `main` at `427ea2bc8` · `grep -c ', 260)' frontend/maquette/design/src/engine/legacy.js` → 7 · `git show 4c0e274a7:frontend/maquette/design/src/engine/legacy.js | grep -c ', 260)'` → 9 · `grep -c "setTimeout(.*260)" …` → 5 (7 at the base) · `grep -c "closest\.dataset\.take" …` → 3</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in

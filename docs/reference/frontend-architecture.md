@@ -402,6 +402,16 @@ a grandfathered file had no recorded count, so it could grow without limit and t
 printed clean; L19 gave each of the four a count in `scripts/frontend_size_ledger.py`, refused
 upward and re-recorded downward, so an addition to the engine now has to be declared to land.
 
+**Declared here, because that is the rule's own letter: L19 (`9fa13da57`) ADDED two branches to the
+engine's delegation — `closest.dataset.reloadsettings` and `closest.dataset.confirmrestart`, the
+readers of B-299's reload offer and B-300's confirmation — inside a net −816 non-blank lines.**
+Neither stops a data-destroying defect in the exception's strict sense: B-299 keeps the operator's
+edits from being thrown away on a conflict, B-300 keeps a household's service from one tap. The
+ledger read the file DOWNWARD, so no arm could have asked, and the lot's own entry names them only to
+explain a count. Recorded by the steward's audit of 2026-09-05 so the exception is not widened in
+silence; whether it covers them is the operator's word, and either way both leave with the settings'
+other verbs when `legacy.js` no longer exists (L13's first clause).
+
 **Why, and this is a measurement rather than a preference.** `legacy.js` was 34 650 lines when
 this was decided, of which **27 678 (79 %) are fixtures** — `SHEETS_RAW` alone is 20 538 lines of
 episode catalogue — and the engine's actual code about **6 949 lines**. **Re-measured on
@@ -1513,9 +1523,11 @@ the difference); the delegation handles only the frame's verbs; the four map row
 `served` with a rule that bit; the oracle is green or its divergences accepted with reasons. The
 settings' two banners draw (B-299, B-300), each with a rule seen red.
 
-**Measured at the close of L19, 2026-09-05. The « Done when » above is not edited** (§ 7.1) — two
-of its clauses are discharged here instead, and they are discharged differently, because one is a
-measurement the plan asked for and the other is a departure from it.
+**Measured at the close of L19, 2026-09-05. The « Done when » above is not edited** (§ 7.1) — three
+of its clauses are discharged here instead, and they are discharged differently: one is a
+measurement the plan asked for, one is a departure from it, and the third — a surface measured
+absent and placed — was recorded by the wave in the clause map and in `IMPLEMENTATION.md` and not
+here, and is written in by the steward's audit of 2026-09-05.
 
 **« The fixture families that fed the producers are gone » — the MEASUREMENT.** They are not.
 D5's bracket-match method reads **9 declarations over 100 lines, 26 375 lines, unchanged** across
@@ -1542,7 +1554,12 @@ reads **133**, over **73** distinct names
 `sugidx` and `selectedTitle` are data the handler reads off the tapped node, not acts. This lot
 moved **two** verbs — `data-cancelsetting` and `data-take`, the two its own objective names — and
 added the two its two behaviour phases required, `data-confirmrestart` and `data-reloadsettings`,
-which is where the +1 comes from.
+which is where the +1 comes from. **`data-take` moved by HALF, said here so nobody reads it as
+gone**: the panel's take carries a TITLE and is the arrivals feature's since B-309; the release
+screen's take carries an INDEX and is still the engine's branch on the line after the arrivals
+door — `grep -c "closest\.dataset\.take" frontend/maquette/design/src/engine/legacy.js` reads
+**3**, not 0 — with its own `setTimeout(…, 260)` and B-322's two toasts. It had no owner in any lot
+until the steward's audit of 2026-09-05 placed it with L21, PROPOSED (B-323).
 
 **Why the rest were not moved.** « One kind of change per wave » (§ 0) forbids a conversion wave
 carrying a behaviour repair, and a verb reader IS behaviour: moving ONE — `data-take` — uncovered a
@@ -1559,11 +1576,30 @@ is placed rather than left, and written into those two lots' **Done when** on th
   `data-sugmore` — are behaviour on producers L19 has just placed in their features, and that is
   **L21**.
 
-**And R103's promised reversal, in the same shape.** Two of the seven `setTimeout(…, 260)` sites
-left with this lot and R103 refuses the gap on both; **five did not**, each named with its owner in
-`frontend/maquette/harness/exits.py` rather than swept into a blanket refusal, which would have
-been a rule against the wrong subject. The reversal is complete when the last site goes, and the
-last site is not this lot's.
+**« The four map rows above read `served` with a rule that bit » — THREE DO, and the fourth is
+placed.** DOIT-8, NE-DOIT-PAS-3 and NE-DOIT-PAS-9 read `served` in
+`docs/reference/product-intent-map.md`, held by R121, R124 and R122. DOIT-4 reads `partly`: R124
+serves the ACCEPTANCE half of every mutation, and the resolve queue's own « En file » pastille — the
+VISIBLE half — was measured not to exist (`grep -n "en file" frontend/maquette/design/src/i18n/fr.json`
+finds one key, `arrivals.queuedBold`, the pipeline pass's own sentence), and drawing it is a surface
+change this contract forbids. **It is L21's, written into that lot's « Done when » below**; the map
+row said so on the day, and this file did not.
+<sub>steward's audit, 2026-09-05: `python3 scripts/check-intent-map.py` clean; the four rows read in the map</sub>
+
+**And R103's promised reversal, in the same shape — with its COUNT re-taken by the steward's audit
+of 2026-09-05.** The wave wrote « two of the seven `setTimeout(…, 260)` sites left with this lot;
+five did not », counting with `grep -c "setTimeout(.*260)"` — a command that reads a site only
+when its call and its delay share a line. Counting the delay wherever it sits,
+`grep -c ', 260)' frontend/maquette/design/src/engine/legacy.js` reads **9 at `4c0e274a7` and 7 on
+`main`**: two callbacks span several lines and were never in the inventory — the release screen's
+`data-take` branch (`actionTake(currentState().relatedTitle)` after `bridge.back()`) and the `add:`
+identify branch (`actionResolve(target, result.t)` after `bridge.rewind`). Both predate this lot.
+So two of NINE left with it — `data-journey`'s, which R103 refuses, and the panel's `data-take`,
+which R123 reads at 120 ms — and **seven remain**: five named by the call they wrap in
+`frontend/maquette/harness/exits.py` rather than swept into a blanket refusal, and two named nowhere
+until **B-323**. `docs/reference/frame-survey.md` § 1.1 had already named the species, about the
+`innerHTML` count: a count that depends on where a line breaks. The reversal is complete when the
+last site goes, and the last site is not this lot's.
 
 #### L21 — The tunnel's verbs · *depends on L19*
 
@@ -1603,6 +1639,19 @@ just placed in `features/acquisition/`. They are behaviour, which is why L19's c
 carry them and why this lot can. **Done when** each of the five is read by its feature and by no
 engine branch (`grep -c "closest\.dataset\.follow" frontend/maquette/design/src/engine/legacy.js`
 and its four siblings read 0), each landing with the rule that held it before.
+
+**Two more placed here by the steward's audit of L19 (2026-09-05) — the first said by the clause
+map on the day and only now written where the lots are; the second PROPOSED, the operator's word
+pending.** (1) **DOIT-4's « En file » pastille on the resolve queue.** L19 measured it absent and
+could not draw it — a surface change its contract forbade — and the map's DOIT-4 row reads `partly`
+for exactly that half. (2) **`data-take`'s release-screen half.** An INDEX into the offered releases,
+still read by the engine's delegation on the line after the arrivals door, carrying its own
+`setTimeout(…, 260)` and B-322's two toasts, which move with it (B-323). It is an act of
+acquisition on a surface React already emits, which is this lot's shape; the other reading places it
+with the delegation in L13, and the operator decides. **Done when**, for both: the map's DOIT-4 row
+reads `served` with a rule that reads the pastille on a queued mutation, and
+`grep -c "closest\.dataset\.take" frontend/maquette/design/src/engine/legacy.js` reads **0** like the
+five above, each landing with its rule seen red first.
 
 #### L20 — The global levers and the history · *depends on L15, L19, L10*
 
@@ -1876,6 +1925,11 @@ its report.
   bigger run: `exits.py`, `outbox.py` and `drag.py` PRINT, when they fall, the evidence their diagnosis
   needs (frames sampled against milliseconds drawn; wait elapsed against timeout given), so the next
   fall under the suite carries its own reading. The next wave that touches any of the three takes it.
+- **B-323** — the inventory of the engine's `setTimeout(…, 260)` sites in `exits.py`'s own comment is
+  taken by a command that reads one line (`grep -n "setTimeout(.*260)"`), so it names five where seven
+  remain; the two it cannot see span several lines and are named in the register. The next wave that
+  touches `exits.py` re-takes the inventory with `grep -n ', 260)'` and names all seven by the call
+  they wrap.
 
 **The gate.** Before every wave's closing commit: `make lint` at zero errors, `make test` with no
 failure and **no error** (an error means collection crashed and everything after it was skipped),
