@@ -152,8 +152,11 @@ class TestTheRatchet:
         assert len(grown) == 1 and "recorded at 0" in grown[0]
 
     def test_the_total_cannot_hide_a_trade(self, arm) -> None:
-        """PER FILE is the whole design: one file clearing three while another
-        gains three leaves the total where it was, and the habit is per file."""
+        """PER FILE is the whole design.
+
+        One file clearing three references while another gains three leaves the
+        total exactly where it was, and the habit this refuses is per file.
+        """
         grown, shrunk = arm.compare({"a.ts": 0, "b.ts": 3}, {"a.ts": 3, "b.ts": 0})
         assert len(grown) == 1 and len(shrunk) == 1
 
