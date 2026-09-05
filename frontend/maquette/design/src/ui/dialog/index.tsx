@@ -84,12 +84,12 @@ export function Dialog({
   close: () => void;
 }): ReactElement {
   /* WHERE FOCUS LANDS WHEN THE DIALOG OPENS, and it is the WAY OUT.
-     `app/focus.ts` moves focus into a layer that opens and takes the first
-     control the reader would reach anyway — `[autofocus]` first, « so a layer
-     can name its own entry point ». A confirmation that names none puts focus
-     on its first button, which is the ACT: on the restart confirmation that
-     handed a keyboard's or a switch control's next Enter the household-wide
-     restart the dialog exists to prevent.
+     `app/focus.ts` moves focus into a layer that opens: it asks for the
+     layer's own named entry, `[autofocus]`, and falls back to the first
+     control the reader would reach anyway. A confirmation that names none puts
+     focus on its first button, which is the ACT: on the restart confirmation
+     that handed a keyboard's or a switch control's next Enter the
+     household-wide restart the dialog exists to prevent.
 
      So the way out names itself, and no producer has to remember to: the first
      action that dismisses is the entry. A dialog offering none — the dry run
@@ -99,6 +99,11 @@ export function Dialog({
   const entryAt = descriptor
     ? descriptor.actions.findIndex((action) => action.dismiss)
     : -1;
+  // A `Record<string, string>`, the way `action.target` is: an attribute NAME
+  // React does not know is a name TypeScript does not know either, and a
+  // literal spread into JSX is checked for it. The same door the descriptor's
+  // own `data-*` come through.
+  const namedEntry: Record<string, string> = { autofocus: "" };
   return (
     <div
       id="dlg"
@@ -136,7 +141,7 @@ export function Dialog({
                 data-part="dialog/button"
                 {...(action.tone === "danger" ? { "data-tone": "danger" } : {})}
                 {...(action.dismiss ? { "data-dialog-dismiss": "" } : {})}
-                {...(at === entryAt ? { autofocus: "" } : {})}
+                {...(at === entryAt ? namedEntry : {})}
                 {...(action.target ?? {})}
                 className={dialogButton({ tone: action.tone ?? "neutral" })}
                 onClick={() => {
