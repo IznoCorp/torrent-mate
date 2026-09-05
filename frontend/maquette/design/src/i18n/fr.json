@@ -433,6 +433,7 @@
       "schedulers": "Planificateurs",
       "schedulerLead": "Un planificateur entre deux passages n'est pas arrêté.",
       "schedulerRest": " PM2 le dit « stopped », et c'est la vérité sur le processus et un mensonge sur le système : sept lignes rouges sur une machine en parfaite santé. Un service se juge sur « tourne-t-il », un planificateur sur « a-t-il tourné ».",
+      "schedulerLateLabel": "Contrôle de santé",
       "schedulerLateValue": "en retard",
       "schedulerLateLine": "toutes les heures à la 15ᵉ minute · dernier passage il y a 3 jours · 71 passages manqués",
       "runs": "Exécutions du pipeline",
