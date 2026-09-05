@@ -37,6 +37,7 @@ from personalscraper.trailers.discovery.ytdlp_downloader import (
 )
 from personalscraper.trailers.events import TrailerDownloaded
 from personalscraper.trailers.placement import (
+    find_show_trailer,
     trailer_exists,
     trailer_path_for,
     trailer_path_for_season,
@@ -74,6 +75,44 @@ class _LibraryEntry:
     """
 
     path: str
+
+
+def _trailer_already_on_disk(
+    media_dir: Path,
+    expected_path: Path,
+    *,
+    media_type: str,
+    season_number: int | None,
+    min_size_bytes: int,
+) -> bool:
+    """Report whether this item already has its trailer, in any layout.
+
+    The canonical placement answers first. When it does not, a show-level TV
+    item asks again through :func:`find_show_trailer`, which reads the trailer
+    folder rather than one exact file name — a show whose trailer was placed
+    by an earlier release keeps it under a lowercase ``trailers/`` that the
+    canonical path never names, and calling such a show trailer-less
+    re-downloads a trailer it already owns, beside the one it has.
+
+    Movies keep the exact check: their placement is flat, has never changed,
+    and there is no folder to read. Season items keep it too — their layout is
+    opt-in and was never written any other way.
+
+    Args:
+        media_dir: The media directory on disk (the show root for TV items).
+        expected_path: The canonical placement path for this item.
+        media_type: ``"movie"`` or ``"tvshow"``.
+        season_number: Season for a per-season item, ``None`` at show level.
+        min_size_bytes: Minimum size for a file to count as a trailer.
+
+    Returns:
+        True when a trailer is already on disk for this item.
+    """
+    if trailer_exists(expected_path, min_size_bytes):
+        return True
+    if media_type == "tvshow" and season_number is None:
+        return find_show_trailer(media_dir, min_size_bytes) is not None
+    return False
 
 
 class TrailersOrchestrator:
@@ -352,7 +391,13 @@ class TrailersOrchestrator:
                     lib_trailer = trailer_path_for(
                         lib_path, lib_path.name, media_type=item.media_type, ext=_DEFAULT_EXT
                     )
-                if trailer_exists(lib_trailer, ctx.min_size):
+                if _trailer_already_on_disk(
+                    lib_path,
+                    lib_trailer,
+                    media_type=item.media_type,
+                    season_number=item.season_number,
+                    min_size_bytes=ctx.min_size,
+                ):
                     log.info(
                         "trailers_already_present_on_disk",
                         key=key,
@@ -381,7 +426,13 @@ class TrailersOrchestrator:
             expected_path = trailer_path_for_season(item.path, item.season_number, _DEFAULT_EXT)
         else:
             expected_path = trailer_path_for(item.path, item.path.name, media_type=item.media_type, ext=_DEFAULT_EXT)
-        if trailer_exists(expected_path, ctx.min_size):
+        if _trailer_already_on_disk(
+            item.path,
+            expected_path,
+            media_type=item.media_type,
+            season_number=item.season_number,
+            min_size_bytes=ctx.min_size,
+        ):
             log.debug("trailers_already_present", key=key, title=item.title)
             self._record_outcome(
                 item, key, TrailerOutcome("already_present", item_result=("already_present", "already_present")), counts

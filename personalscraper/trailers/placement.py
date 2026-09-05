@@ -157,6 +157,63 @@ def trailer_exists(path: Path, min_size_bytes: int) -> bool:
         return False
 
 
+def find_show_trailer(media_dir: Path, min_size_bytes: int) -> Path | None:
+    """Return a show-level trailer already on disk, whatever layout wrote it.
+
+    :func:`trailer_path_for` names one exact path. That is the right target to
+    WRITE to, and the wrong question to ask before downloading. A show whose
+    trailer was placed by an earlier release carries a lowercase ``trailers/``
+    folder holding a ``{show} - Saison 1 - trailer`` file, and the storage
+    mounts are case-sensitive, so that folder is a directory of its own rather
+    than the canonical one. Asking only for the canonical path reads such a
+    show as having no trailer at all; the download that follows lands a second
+    copy beside the first, and a viewer sees the same trailer twice in the
+    extras row.
+
+    The folder is therefore matched case-insensitively, and any known trailer
+    extension of at least ``min_size_bytes`` inside it answers — a folder Plex
+    treats as trailer extras holds trailers whatever its files are called, and
+    a check keyed on the file name would miss a hand-placed one for the same
+    reason it misses the legacy one.
+
+    The canonical spelling is preferred when a show carries both, so the path
+    reported stays stable from run to run.
+
+    Season trailers are out of scope: they live under ``Saison NN/``, are
+    opt-in, and no earlier layout ever wrote them elsewhere.
+
+    Args:
+        media_dir: Absolute path to the show directory on disk.
+        min_size_bytes: Minimum size for a file to count as a trailer. A
+            smaller one is a truncated download, not a trailer.
+
+    Returns:
+        Absolute Path to the trailer found, or ``None`` when the show has
+        none — including when ``media_dir`` cannot be read.
+    """
+    wanted_folder = _TV_TRAILER_SUBFOLDER.casefold()
+    try:
+        # sorted() puts the canonical "Trailers" ahead of a legacy "trailers".
+        folders = sorted(
+            entry for entry in media_dir.iterdir() if entry.is_dir() and entry.name.casefold() == wanted_folder
+        )
+    except OSError:
+        return None
+
+    for folder in folders:
+        try:
+            candidates = sorted(folder.iterdir())
+        except OSError:
+            continue
+        for candidate in candidates:
+            if candidate.suffix.lstrip(".").casefold() not in _KNOWN_TRAILER_EXTENSIONS:
+                continue
+            if trailer_exists(candidate, min_size_bytes):
+                return candidate
+
+    return None
+
+
 def write_trailer_url_to_nfo(nfo_path: Path, youtube_url: str) -> bool:
     """Populate the ``<trailer>`` tag in a Kodi/Plex-style NFO with a YouTube URL.
 
