@@ -340,15 +340,17 @@ PHONE = {"viewport": {"width": 390, "height": 844}, "device_scale_factor": 2,
 # outlives the duration it was set against without saying so (B-276). So every
 # wait below is named for what it waits for, and each says which duration it is
 # set against — which is not the same as « every one outlasts an animation »,
-# and that sentence stood here, over a `PANEL_OUT` sitting under the 450 ms of
-# `panel-down`, until a reader compared the two. A wait is long enough for the QUESTION it is asked
-# after: the panel's content leaves the tree before its slide ends, so a reader
-# asking « is it still there » need not wait for the pixels, and one asking
-# « what does it draw » must.
+# and that sentence stood here, over a `PANEL_OUT` sitting under the 450 ms
+# of `panel-down`, until a reader compared the two. A wait is long enough for
+# the QUESTION it is asked after, and no longer.
 SETTLED = 500       # a named state asked for: --duration-3 and the mocks' answer
 PANEL_IN = 550      # the panel's entrance, --duration-4 plus a frame
-PANEL_OUT = 250     # the panel's exit as the STORE reports it — its content leaves
-                    # before the --duration-4 slide does, and no hold reads the slide
+PANEL_OUT = 250     # the panel's exit AS THE STORE REPORTS IT, which is the only
+                    # thing any hold asks after it. Not the tree and not the
+                    # pixels: measured, the store closes at +0 ms while the
+                    # sheet's title and its actions are still in the document at
+                    # +900 ms, so a wait that claimed the content had gone would
+                    # be claiming something no reading supports
 ACTED = 700         # an action tapped: the mutation, the refetch, the redraw
 
 

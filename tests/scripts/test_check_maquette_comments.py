@@ -242,8 +242,14 @@ class TestTheCorpusFloor:
         assert record["read"] == sum(1 for _ in arm.sources())
         assert record["read"] > 250
 
-    def test_a_tenth_of_the_corpus_missing_fires(self, arm, monkeypatch, capsys) -> None:
-        """THE DEFECT: twenty files gone left the old floor green."""
+    def test_a_seventh_of_the_corpus_missing_fires(self, arm, monkeypatch, capsys) -> None:
+        """THE DEFECT: twenty files gone left the old floor green.
+
+        A SEVENTH, and the name says so: the floor is `read < recorded * 0.9`,
+        so exactly a tenth missing does NOT fire — the boundary is strict, and a
+        case named « a tenth » over a fixture removing 15 % would be a name
+        nobody could check against the code.
+        """
         real = list(arm.sources())
         kept = real[: int(len(real) * 0.85)]
         monkeypatch.setattr(arm, "sources", lambda: iter(kept))

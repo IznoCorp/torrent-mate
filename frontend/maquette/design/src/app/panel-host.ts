@@ -292,7 +292,13 @@ window.__refillProducers = () => {
    honest answer is « not yet », and « not yet » resolves: `producePanel` below
    asks for what the kind needs and opens when the answer lands, or opens
    nothing and says so. The decision moves to the one place that can wait for
-   it, which is exactly what the deferred open does one layer along. */
+   it, which is exactly what the deferred open does one layer along.
+
+   WHAT IT COSTS, deliberately: while a need is unlanded this answers TRUE for
+   ANY subject, so a typed address naming nothing real is refused a beat later
+   by `producePanel` — after one asking of the layer — instead of at once. That
+   is the price of not refusing the addresses that ARE served, and the refusal
+   still says so on the console. */
 function panelHolds(kind: string, subject: string): boolean {
   const holds = holderFor(kind);
   if (holds === null) return false;

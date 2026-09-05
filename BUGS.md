@@ -1095,6 +1095,16 @@ open the setting, Back, drop `/api/config/schema`, Forward:
     4c0e274a7   open TRUE · history.length 5 → 5 · address kept · no refusal warning
     #558 head   open FALSE · the refusal on the console · the address still there
 
+**THE FIRST WALK OF `main` EVICTED THE WRONG KEY AND WAS RE-TAKEN**, and that is written here
+rather than left as a clean reading. It dropped `/api/configuration`, which this interface does not
+have — the settings read is `/api/config/schema` — so it removed nothing and measured a WARM cache
+on both sides. The re-take drops the right key **and reads it back**: the probe answers `dropped`
+only when `getQueryData` is `undefined` for every key it asked for, so a key that removes nothing
+can no longer be mistaken for a cold cache. The conclusion is unchanged and it does not rest on
+the probe alone — `4c0e274a7`'s own table answers `allSettings()` and `MAINT_ACTIONS`, engine
+fixtures that are in hand whatever the cache holds, which is why cold and warm could not differ
+there.
+
 So it is INTRODUCED by the producer seam, and it is repaired in the seam rather than in the dying
 engine: a holder's `false` is taken at face value only when the cache could actually have told it,
 and « not yet » resolves — `producePanel` asks for the kind's needs and opens when they land, which

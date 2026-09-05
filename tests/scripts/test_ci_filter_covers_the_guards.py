@@ -253,7 +253,14 @@ def test_the_ledger_ratchet_has_a_base_to_read_in_ci() -> None:
     # as the first of `run.sh --contracts`'s repository guards and names only
     # the script that runs them, so selecting on the literal alone left the
     # ratchet free to go inert in that job with every test green.
-    through_the_tier = "check-frontend-boundaries.py" in RUN_SCRIPT.read_text(encoding="utf-8")
+    #
+    # MEMBERSHIP, NOT A SUBSTRING. The first version asked whether the guard's
+    # name appeared anywhere in `run.sh`'s text — which a comment mentioning it
+    # answers just as well as the array does, and « a fact asserted by searching
+    # a file's text instead of parsing it » is the habit this pull request has
+    # already repaired three times. `contract_guards()` parses the quoted
+    # entries of `REPOSITORY_GUARDS`; this reads that list.
+    through_the_tier = "scripts/check-frontend-boundaries.py" in contract_guards()
     running = [
         name
         for name, job in jobs.items()

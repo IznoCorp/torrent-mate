@@ -85,11 +85,15 @@ AIM_AT_THE_ROW = """(title)=>{
           covering: hit === null ? "nothing" :
             (hit.tagName + (hit.className ? "." + String(hit.className).split(" ")[0] : ""))};}"""
 
-# WHAT A READER DOES FIRST, and the rule does it too: the prototype greets with
-# a toast that sits over the surface (B-317), and a tap under it lands on the
-# toast. Dismissing it is a real gesture, not a convenience — a walk that taps
-# through a cover measures the cover.
-DISMISS_ANY_TOAST = """()=>{const one = document.querySelector('#toast');
+# WHAT COVERS THE ROW IS TAKEN OUT OF THE WAY FIRST, and this is a DOM EDIT
+# rather than a gesture — said plainly, because naming a thing for what it is
+# not is the defect this same rule was repaired for one commit earlier. The
+# prototype greets with a toast that sits over the surface (B-317) and a tap
+# under it lands on the toast; no gesture dismisses that toast, so the rule
+# empties the element instead. What it costs is stated too: this walk does not
+# prove the toast can be dismissed, only that the row underneath is reachable
+# once it is gone.
+EMPTY_THE_TOAST = """()=>{const one = document.querySelector('#toast');
   if (!one) return false;
   one.textContent = "";
   one.className = "";
@@ -112,7 +116,7 @@ async def raise_by_finger(page, title):
     Returns:
         The aim's own reading, with `tapped` saying whether a finger went down.
     """
-    await page.evaluate(DISMISS_ANY_TOAST)
+    await page.evaluate(EMPTY_THE_TOAST)
     aim = await page.evaluate(AIM_AT_THE_ROW, title)
     if aim["found"] and aim["reachable"]:
         await page.touchscreen.tap(aim["x"], aim["y"])
