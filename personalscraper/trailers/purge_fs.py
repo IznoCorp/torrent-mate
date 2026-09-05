@@ -11,7 +11,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from personalscraper.core.media_types import VIDEO_EXTENSIONS, is_sample_path, is_trailer_filename
+from personalscraper.core.media_types import (
+    TV_TRAILER_SUBFOLDER,
+    VIDEO_EXTENSIONS,
+    is_sample_path,
+    is_trailer_filename,
+)
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -41,7 +46,7 @@ def _media_dir_has_content(media_dir: Path) -> bool:
 
     A "real media video" is a :data:`VIDEO_EXTENSIONS` file that is not a
     trailer (:func:`is_trailer_filename`), not a sample (:func:`is_sample_path`),
-    and not inside a ``Trailers/`` subfolder. Bounded to two levels — the flat
+    and not inside a trailer subfolder of either spelling. Bounded to two levels — the flat
     movie layout (video beside the trailer) and the TV ``Saison NN/`` layout
     (episodes one level down) — so a media dir that is present on disk is never
     mistaken for an orphan merely because the index does not know it.
@@ -65,8 +70,12 @@ def _media_dir_has_content(media_dir: Path) -> bool:
         for entry in media_dir.iterdir():
             if _is_media_video(entry):
                 return True
-            # One level down for TV episodes (Saison NN/), skipping Trailers/.
-            if entry.is_dir() and entry.name != "Trailers":
+            # One level down for TV episodes (Saison NN/), skipping the trailer
+            # folder. Matched case-insensitively: the mounts are case-sensitive
+            # and an earlier release wrote the folder in lowercase, so naming
+            # one spelling descends into the other and lets a trailer answer
+            # for the media.
+            if entry.is_dir() and entry.name.casefold() != TV_TRAILER_SUBFOLDER.casefold():
                 try:
                     if any(_is_media_video(sub) for sub in entry.iterdir()):
                         return True
