@@ -346,7 +346,7 @@ when the defect comes back.
 | B-284 | A pull cancelled by a mouse or a stylus was FORGOTTEN rather than released — the indicator hung open, armed | by L12 review | `fixed #540` |
 | B-285 | `go()` discarded the router's promise, so the NEW snapshot is captured before the route has committed | by L12 review | `fixed #540` |
 | B-286 | A hero whose picture changes UNDER it — media to media — was never followed again, and the new fanart snapped in | by L12 review | `fixed #540` |
-| B-287 | 263 maquette/harness comments name a date, a lot or a phase — the rule against it has no arm, so nothing counts them | by L12 review | `open` |
+| B-287 | 263 maquette/harness comments name a date, a lot or a phase — the rule against it has no arm, so nothing counts them | by L12 review | `fixed #558` |
 | B-288 | The media screen's priming matches a title by PREFIX, so a medium whose title prefixes another opens with the other one's poster and year | by L12 review | `open` |
 | B-289 | `check-frame-domain`'s comment scanner opens a phantom string on a REGEX LITERAL holding a quote, and counts every comment after it as code | by L12 | `fixed #540` |
 | B-290 | A layer closed inside a navigation's commit KEEPS its history entry, so Back crosses two entries where its siblings cross one | by L12 review | `open` |
@@ -1094,8 +1094,47 @@ the debt on the day it is armed and lets it drain wave by wave.
 **Owner: the instruments' debts block of `frontend-architecture.md` § 5** — it is a repository guard,
 belonging to no lot, and the rule there decides it.
 
+**FIXED on 2026-09-05, in #558, and the arm is `scripts/check-maquette-comments.py`.** It was
+written on the operator's ruling of that day, with the two conditions he set and one the steward
+added.
+
+**What it counts, and it is the operator's boundary**: a LOT CODE, a PHASE and a DATE. Not a
+register entry, not a rule, not a clause, not a decision, not a path — those name things that
+outlive the wave that wrote them, and they are how a comment stays checkable. `D-L08-5` is the
+case a naive pattern gets wrong: the lot code is INSIDE the decision's name, so decisions are
+blanked before the patterns are asked.
+
+**What it reads, and the steward's condition is here**: `design/src/contract/types.d.ts` — 26 of
+the references above, and the second-largest holder — is EXEMPT and named with its generator,
+because a generated file is opened by no one and edited by no one. Its prose is held at its
+SOURCE instead: `contract/openapi.json`'s string values are read, which is where a person could
+actually change one. Reading both would report one defect as two and send its reader to the file
+nobody may edit.
+
+**And it is a RATCHET, per file.** `frontend/maquette/comment-references-baseline.json` records
+**301 references in 98 files** — taken on the REWORDED head, the operator's second condition, so
+the wave's own seventy-five are not in it. A file's count going UP is a violation; going down is
+printed `[RE-RECORD]` and refused nothing. **Per file rather than per total**, because a total
+hides a trade: one file clearing three while another gains three leaves the total where it was,
+and the habit is per file.
+
+**Read by mutation, three ways.**
+
+    control                                              exit 0, « clean »
+    one comment gains « L19, phase 13, on 2026-09-05 »   exit 1, « harness/take.py: 3 reference(s)
+                                                         … recorded at 0 »
+    the same comment gains B-309, R123, D-L08-5,
+      DOIT-4, §20 and a path                             exit 0 — none of those is a wave
+    the reader pointed at a directory of 70 files        exit 1, « the reader stopped reading »
+
+The last is the corpus floor, and it is there because a reader that finds nothing reports clean.
+Thirty-one cases in `tests/scripts/test_check_maquette_comments.py`; wired into `make check` and
+into the contracts tier's cheap guards, and both CI filters name it.
+
 <sub>comment-only scan over `frontend/maquette/**/*.{py,ts,tsx,css}` for `20\d\d-\d\d-\d\d`,
-`\bL\d\d\b`, `\bphase \d` → 263 in 85 files, and 326 in 99 with docstrings in</sub>
+`\bL\d\d\b`, `\bphase \d` → 263 in 85 files, and 326 in 99 with docstrings in · the arm's own
+scan, which adds `.js` and the contract and drops the generated file: `python3
+scripts/check-maquette-comments.py` → 301 in 98 of 316 files read</sub>
 
 **B-288 — the media screen's priming matches a title by prefix.**
 `useMediaSheet` primes from `reference.sheetFor(title)`; the engine's lookup falls back to a

@@ -200,6 +200,7 @@ REPOSITORY_GUARDS=(
   "scripts/check-mock-seeds.py"
   "scripts/check-maquette-unit-tests.py"
   "scripts/check-state-ownership.py"
+  "scripts/check-maquette-comments.py"
   "scripts/check-live-relay.py"
   "scripts/check-implementation-state.py"
   "scripts/check-bug-register.py"
