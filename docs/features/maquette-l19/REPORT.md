@@ -409,6 +409,24 @@ test green. Both jobs are held now, and both fall.
 not the finger. It is a hit-tested tap now, and it dismisses what covers the row first, which is
 what a reader does and what round one's own walk had to do by hand.
 
+### Where two readers disagreed, and what that was really about
+
+Round two's own readers gave opposite accounts of the library's bulk delete: one had focus on
+« Supprimer et arrêter le suivi », the other on « Annuler ». **Read on a build of this head, both
+library dialogs behave the same way**, and it is the second account:
+
+    bulk (selection mode)  « Supprimer et arrêter le suivi » (danger) · « Supprimer, garder le
+                           suivi » · « Annuler » (way out, autofocus) → focus « Annuler », neutral
+    one row (swipe)        the same three → focus « Annuler », neutral
+
+The citation behind the other reading stops one line above the `{ text: "Annuler", dismiss: true }`
+the descriptor ends on. **But the disagreement is the finding, not the answer**: a property held on
+ONE instance of a layer is a property nobody holds, and R81 walked the settings dialog alone — which
+is why two careful readers could reach opposite conclusions and no instrument could arbitrate. It
+walks all three confirmations now, and each carries a floor: « really offers a destructive act, so
+this is not a vacuous walk ». A confirmation with nothing dangerous in it would otherwise pass the
+way-out hold for the one reason it must never pass for.
+
 ### What is NOT repaired, and why
 
 **B-322** — the release screen fires two take toasts into one element in one tick and only the
