@@ -366,10 +366,20 @@ async def main():
                              services == len(real_services),
                              f"{services} drawn vs {len(real_services)} real: "
                              + ", ".join(sorted(real_services)))
+            # IT COMPARES COUNTS, AND SAYS BOTH SIDES WHEN IT FALLS. A drawn
+            # label and a PM2 process name have no correspondence anywhere —
+            # « Analyse complète de l'index » and `personalscraper-index-full`
+            # are two vocabularies with nothing joining them — so this cannot
+            # say WHICH row is unaccounted for, only that one is. Printing both
+            # lists is what lets a reader do by eye the join the tree does not
+            # hold; a fall that read « 6 vs 7 » alone sent its reader back to
+            # `pm2 jlist` to work out what had changed.
             journal.check("as many schedulers drawn as PM2 schedules",
                              schedulers_drawn == len(real_schedulers),
                              f"{schedulers_drawn} drawn vs {len(real_schedulers)} real: "
-                             + ", ".join(sorted(real_schedulers)))
+                             + ", ".join(sorted(real_schedulers))
+                             + " — drawn: "
+                             + ", ".join(x["l"] for x in (sys_view["schedulers"] or [])))
 
         # 3bis. Every service and scheduler carries a pastille, and the
         # pastille AGREES with the sentence beside it. Deriving the colour from
