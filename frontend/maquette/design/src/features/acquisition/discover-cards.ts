@@ -3,7 +3,7 @@
 // Découvrir offers one medium three ways and the choice is the reader's, so the
 // three emitters live together: what changes between them is the shape, and
 // nothing else. They were the dying engine's; they move here with the feed
-// (L19) because a suggestion is Acquisitions' subject.
+// because a suggestion is Acquisitions' subject.
 //
 // MARKUP IS TRANSPLANTED, NOT TRANSLATED: same tags, same classes, same
 // `data-*`, so the document-level delegation and four harness rules keep

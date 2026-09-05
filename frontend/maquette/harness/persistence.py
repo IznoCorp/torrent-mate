@@ -42,7 +42,7 @@ WHAT IT DOES NOT READ, said before what it does:
   - Hold (f) reads a PAGE's own nodes — cards, tiles, rows, buttons, pills,
     images, key-value rows — on the named states listed below. The containers
     the dying engine used to fill on Découvrir (`#sugitems`, the deck) are hold
-    (i)'s since L19 moved the feed into its feature: they are still filled
+    (i)'s, now that the feed lives in its feature: they are still filled
     imperatively — a replaced node cannot animate — and that is exactly why
     their identity has to be read rather than assumed. Nor a write that legitimately redraws — entering selection
     mode, a sort, a delete: the bump driven is `touch()`, which changes no
@@ -112,9 +112,9 @@ PAGE_SELECTOR = (
 # screen's own nodes as well as on the union.
 SCREEN_STATES = ("mediasheet-series", "arr-resolution")
 
-# (h) THE PANEL'S OWN NODES — B-247's PRODUCER half, the one L14 left open and
-# said so in this docstring. A producer that has moved into its feature builds
-# its descriptor in React, so the panel it opens is subject to exactly the
+# (h) THE PANEL'S OWN NODES — B-247's PRODUCER half, the one an earlier lot left
+# open and said so in this docstring. A producer that has moved into its feature
+# builds its descriptor in React, so the panel it opens is subject to exactly the
 # mechanism (f) reads on a page: React 19 assigns `innerHTML` on the prop
 # OBJECT's identity, so an inline `{ __html }` recreates its children on every
 # render, and a store write between `pointerdown` and `click` then loses the tap.
@@ -135,7 +135,7 @@ PANEL_STATES = (
 
 # (i) THE DÉCOUVRIR CONTAINERS — B-247's last unread surface, and the one this
 # rule's own docstring said no surface owned. `#sugitems` and the deck are
-# filled by `features/acquisition/discover-feed.ts` (L19) and NOT by React:
+# filled by `features/acquisition/discover-feed.ts` and NOT by React:
 # `advanceDeck` mutates the pile in place because a replaced node cannot
 # animate, so React renders zero children into them and neither world removes
 # the other's nodes.

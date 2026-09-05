@@ -32,7 +32,7 @@ async def main():
         # WHICH EPISODE WAS TAPPED, read from the cell itself BEFORE it is
         # tapped. The popover says a sentence about an episode; a hold that
         # reads only the layer passes over a sentence about the WRONG one, and
-        # that is the half this rule owed since the producer moved (L19).
+        # that is the half this rule owed once the producer moved.
         tapped = await pg.evaluate(js.replace(".click()", ".dataset.ep"))
         # AND WHAT THE CATALOGUE SAYS ABOUT THAT EPISODE — its own title and its
         # own air date, read from the référentiel rather than from the popover.

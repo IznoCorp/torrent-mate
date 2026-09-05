@@ -53,8 +53,8 @@ function secretPanel(key: string, cache: PanelCache): PanelDescriptor | null {
   if (secret === null) return null;
   const translate = i18next.t.bind(i18next);
   // READ-ONLY IS THE ENGINE'S MUTABLE STATE, not server state and not this
-  // feature's yet: it moves with the last delegation verb that writes it, which
-  // is L13's. Read through the same slice the settings page reads it through,
+  // feature's yet: it moves with the last delegation verb that writes it, and
+  // that is the engine's last lot. Read through the same slice the page reads,
   // so the panel and the page cannot disagree about the instance's rights.
   const readOnly = Boolean(window.__referentiel.SETTINGS_STATE.readOnly);
   return {

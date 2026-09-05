@@ -69,7 +69,7 @@ export function CountLine(): ReactElement {
 export function SortLabel(): ReactElement {
   const state = useUiState();
   const { icons } = useLibraryReference();
-  // THE NAMES ARE THE FEATURE'S (L19), one derivation read by the count line
+  // THE NAMES ARE THE FEATURE'S, one derivation read by the count line
   // and by the sort panel alike (§13).
   const ways = sortWays()[state.sortKey as string];
   return (

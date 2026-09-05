@@ -98,7 +98,7 @@ BOOT_STEPS = (
     (r"^installScreenBridge\(\);", "installScreenBridge()"),
     (r"^const store = createStore\(\);", "createStore()"),
     # THE CACHE IS ITS SECOND ARGUMENT since the producers became the
-    # features' (L19), so the pin reads the CALL and not one spelling of
+    # features', so the pin reads the CALL and not one spelling of
     # its argument list — a pointer that misses its target is how a rule
     # goes quiet, and this one holds a POSITION rather than a signature.
     (r"^installPanelHost\(store,", "installPanelHost(store, …)"),

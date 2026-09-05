@@ -28,7 +28,7 @@ import { queueKey, stagingKey } from "../lib/queue";
 
 /** What the engine reads with no component to ask for it.
  *
- * IT SHRINKS AS THE PRODUCERS MOVE (L19). Every entry here existed because a
+ * IT SHRINKS AS THE PRODUCERS MOVE. Every entry here existed because a
  * surface the engine DRAWS asked through a synchronous accessor and no
  * component wanted the resource on that address. A producer that has moved into
  * its feature declares what it needs beside itself

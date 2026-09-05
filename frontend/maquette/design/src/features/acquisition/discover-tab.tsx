@@ -19,7 +19,7 @@ import { useAcquisitionReference } from "./reference";
 import { useUiState } from "../../lib/store-access";
 import { body, filterZone, liveDot, liveEmphasis, liveStrip, loadFooter, pillBar, pillScroll, section as sectionClass, surfaceError, viewSwitch, viewSwitchButton, viewSwitchWrap } from "../../ui/variants";
 import { Markup } from "../../ui/markup";
-// THE FEED IS THIS FEATURE'S SINCE L19 — imported directly rather than read off
+// THE FEED IS THIS FEATURE'S — imported directly rather than read off
 // the engine's reference, which is what a surface does once its content has
 // stopped being the engine's.
 import { deckHTML, fillSug, mountDeck, sugFoot } from "./discover-feed";

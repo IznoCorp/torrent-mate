@@ -200,7 +200,7 @@ async def main():
         # ── « Annuler la modification » DROPS THAT EDIT, and only that one ──
         #
         # NO RULE READ THIS VERB. `grep -ln 'cancelsetting'
-        # frontend/maquette/harness/*.py` returned nothing on 2026-09-04, and it
+        # frontend/maquette/harness/*.py` returned nothing, and it
         # is emitted by a producer and read by a delegation branch — a contract
         # with two ends and no reader. It is written HERE, against the engine's
         # own branch, and seen red under a mutation of it BEFORE the reader

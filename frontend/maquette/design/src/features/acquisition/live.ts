@@ -11,7 +11,7 @@ const SUGGESTIONS_KEY = ["/api/acquisition/suggestions"];
 const FOLLOWED_KEY = ["/api/acquisition/followed"];
 /** What is waiting to be handled. Its scenario follows in the key. */
 const QUEUE_KEY = ["/api/acquisition/to-handle"];
-/** One acquisition's journey. The medium follows in the key (L19). */
+/** One acquisition's journey. The medium follows in the key. */
 const JOURNEY_KEY = ["/api/acquisition/journeys"];
 
 /** What a server event refreshes on acquisition. */
@@ -20,7 +20,7 @@ export const acquisitionLiveRules: readonly LiveRule[] = [
     // THE JOURNEY IS THE TUNNEL (§20), and a tunnel that stops moving while the
     // pipeline moves is the thing the sheet exists to disprove. The engine's
     // producer carried its five stages as a literal, so the question of
-    // freshness could not arise; reading them from the layer (L19) is what
+    // freshness could not arise; reading them from the layer is what
     // raises it. Every event below advances a stage the sheet DRAWS — taken,
     // downloaded, ingested, scraped, shelved — and the key is prefixed, so one
     // rule refreshes whichever journey is open.

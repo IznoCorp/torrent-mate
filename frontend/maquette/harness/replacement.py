@@ -1,8 +1,8 @@
 """R121 — DOIT-8: a medium the library already owns is never replaced in silence.
 
 THE CLAUSE. « confirmation avant remplacement d'un film déjà en médiathèque ».
-`product-intent-map.md` reads it `served, unproved` and names L19 as owing the
-instrument: the confirmation exists — it was ONE line of the engine's add
+`product-intent-map.md` read it `served, unproved` and named the producers' lot
+as owing the instrument: the confirmation exists — it was ONE line of the add
 handler — and **no rule walked « add a film the library owns » and read it**.
 
 WHY THAT MATTERS MORE THAN THE USUAL. A confirmation nobody measures is a

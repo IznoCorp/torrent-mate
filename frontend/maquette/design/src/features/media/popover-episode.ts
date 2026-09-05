@@ -2,8 +2,8 @@
 //
 // THE FRAME PLACES, THE FEATURE SAYS (`frame-model.md` Part 12). The layer, its
 // anchoring against the phone frame, its dismissal and its stacking are
-// `app/popover-host.ts`'s and are NOT touched here: they went with the frame at
-// L15, behind `{ anchor, content }`. What was left in the engine is the five
+// `app/popover-host.ts`'s and are NOT touched here: they went with the frame,
+// behind `{ anchor, content }`. What was left in the engine is the five
 // lines that turn an episode into three facts, and a producer moves to its
 // feature.
 //

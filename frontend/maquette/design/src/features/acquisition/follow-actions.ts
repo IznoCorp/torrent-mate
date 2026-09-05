@@ -5,8 +5,8 @@
 // below is derived from those facts and from nothing else.
 //
 // NO VERB IS ADDED HERE. « Récupérer cette saison », « Remettre en file » and
-// « Re-scraper » from the journey are **L21's**, on this very panel; what this
-// file does is offer exactly what the engine's producer offered.
+// « Re-scraper » from the journey belong to the lot that wires the tunnel's
+// verbs; what this file does is offer exactly what the engine's producer did.
 import i18next from "i18next";
 import type { Action } from "../../ui/panel/contract";
 import type { FollowFacts } from "./follow-facts";

@@ -1,7 +1,7 @@
 """R123 — « Récupérer maintenant » really takes the medium.
 
 THE VERB IS `data-take`, and NO RULE READ IT. `grep -ln 'data-take'
-frontend/maquette/harness/*.py` returned nothing on 2026-09-04. It is EMITTED
+frontend/maquette/harness/*.py` returned nothing. It is EMITTED
 by React — `features/releases/releases-screen.tsx` — and READ by the dying
 engine's document delegation: a contract with two ends in two worlds and no
 reader at all.
@@ -19,7 +19,7 @@ panel's own branch, further down, is unreachable.
 
 THIS RULE WAS WRITTEN BEFORE THE VERB MOVED and was RED against the engine as it
 stood — no mutation needed, which is the strongest form of « seen red first »
-this repository asks for. L19's phase 13 moves the reader and it goes green.
+this repository asks for. It goes green once the reader moves into the feature.
 
 WHAT IT READS, and each fails differently:
 

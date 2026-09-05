@@ -4,7 +4,7 @@ THE CLAUSE. « ne jamais afficher un média sans chemin vers sa fiche ».
 `product-intent-map.md` reads it `partly`: the FIVE poster galleries
 `harness/gallery.py` names are served, and the LIST ROWS — a follow row, an
 arrival row, a search result — and the galleries outside those five are
-**unproved**. L19 owes the instrument, with the producers that draw them.
+**unproved**. This rule is that instrument, written with the producers that draw them.
 
 WHAT A « PATH » IS, and this is the whole difficulty. It is not one attribute.
 A medium is reachable when tapping it or long-pressing it leads to its sheet,

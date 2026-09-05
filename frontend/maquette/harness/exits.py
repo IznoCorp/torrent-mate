@@ -184,13 +184,13 @@ async def main():
               "frame(s) of bare page between them. This walk's own path carries "
               "no producer wait; the sites that still do are named below.")
 
-        # ── THE WAIT, REFUSED WHERE ITS PRODUCER HAS MOVED (L19) ───────────
+        # ── THE WAIT, REFUSED WHERE ITS PRODUCER HAS MOVED ────────────────
         #
         # B-249's SHAPE, and the line this rule used to carry said the wait
-        # « moves with the producer at L19 ». Two of the seven `setTimeout(…,
+        # « moves with the producer ». Two of the seven `setTimeout(…,
         # 260)` sites did: `data-journey` and `data-take`. On those paths the
         # panel now leaves inside the navigation's own commit — the arrangement
-        # `data-mediasheet` has had since L12 — and this rule REFUSES the gap
+        # `data-mediasheet` already had — and this rule REFUSES the gap
         # rather than printing it.
         #
         # THE OTHER FIVE ARE NOT THIS LOT's, and naming them is the point.

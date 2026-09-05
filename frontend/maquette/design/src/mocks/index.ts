@@ -317,8 +317,9 @@ export function installMockNetwork(): void {
     },
     // WHETHER A CONFIGURATION FILE HAS MOVED UNDER THE EDITOR. The contract's
     // `updateConfigurationFile` answers `{ restartRequired, conflict }`, and
-    // the second field had no reader anywhere until L19 — a dial rather than a
-    // scenario, because it is a property of the FILE and not of the request.
+    // the second field had no reader anywhere until the settings panel moved into
+    // its feature — a dial rather than a scenario, because it is a property of the
+    // FILE and not of the request.
     setConfigurationConflict: (moved: boolean) => {
       mockState().conflict = moved;
     },

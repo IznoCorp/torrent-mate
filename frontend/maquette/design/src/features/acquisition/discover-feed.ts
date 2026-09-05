@@ -1,9 +1,9 @@
 // THE DÉCOUVRIR FEED — the reserve, the pile, and the gesture that spends them.
 //
-// The last feature surface the dying engine still DREW after L15, and the only
-// one where the conversion is not « React owns the markup ». `advanceDeck`
-// mutates the deck's own DOM in place — it inserts a card at the back,
-// decrements every `data-depth`, writes an inline transform on the outgoing card
+// The last feature surface the dying engine still DREW once the frame had gone,
+// and the only one where the conversion is not « React owns the markup ».
+// `advanceDeck` mutates the deck's own DOM in place — it inserts a card at the
+// back, decrements every `data-depth`, writes an inline transform on the card
 // and removes it 440 ms later — and **a replaced node cannot animate**. React
 // owning that markup would restore the string it last rendered on the next
 // repaint and undo the gesture four rules measure.

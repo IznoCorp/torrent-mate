@@ -1,7 +1,7 @@
 // The settings CATALOGUE — how a setting is identified, listed and read.
 //
-// Three derivations, and each was the engine's until L19 moved the settings
-// panels into this feature. They live here and the engine IMPORTS THEM BACK,
+// Three derivations, and each was the engine's until the settings panels moved
+// into this feature. They live here and the engine IMPORTS THEM BACK,
 // which is `app/icons.ts`'s arrangement and its reasoning word for word: one
 // copy of every answer, read by both worlds, and the day the engine goes this
 // file loses an importer rather than a subject.
@@ -15,9 +15,9 @@
 //
 // WHAT DOES NOT LIVE HERE: `SETTINGS_STATE`, the mutable object the click
 // delegation writes. It is not server state and it is not this feature's yet —
-// it moves with the last delegation verb that writes it, which is L13's. The
-// functions below take the pending edits as an ARGUMENT rather than reaching
-// for that object, so nothing here depends on where it lives.
+// it moves with the last delegation verb that writes it, and that is the lot
+// that ends the engine. The functions below take the pending edits as an
+// ARGUMENT rather than reaching for it, so nothing here depends on where it is.
 import type { Setting, SettingsTopic } from "./reference";
 
 /**

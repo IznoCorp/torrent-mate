@@ -92,11 +92,11 @@ export type EngineDrawing = {
       index?: number;
       // `null` and absent both mean « no badge » — `gridBadge` answers `null`,
       // and the fragment reads the option for truthiness.
-      // `txt`, NOT `text`, and the difference was a TYPE THAT LIED until L19.
-      // `tileHTML` reads `badge.txt`; this declaration said `text`, and nothing
-      // noticed because its only caller was untyped JavaScript inside the
-      // engine. The first TypeScript caller — the suggestion tile, moved here
-      // by L19 — is what asked the question.
+      // `txt`, NOT `text`, and the difference was a TYPE THAT LIED for as long as
+      // nobody typed its caller. `tileHTML` reads `badge.txt`; this declaration
+      // said `text`, and nothing noticed because its only caller was untyped
+      // JavaScript inside the engine. The first TypeScript caller — the suggestion
+      // tile, once it moved here — is what asked the question.
       badge?: { tone: string; txt?: string } | null;
       muted?: boolean;
       // AND THE TWO THE DECLARATION HAD NEVER NAMED. `tileHTML` reads

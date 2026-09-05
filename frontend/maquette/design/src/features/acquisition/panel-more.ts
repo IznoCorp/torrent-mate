@@ -7,9 +7,9 @@
 // ITS FOUR FACTS ARE A FIXTURE, and this producer does not pretend otherwise.
 // `GET /api/acquisition/obligations`, `/stalled-grabs` and `/downloads` all
 // ANSWER on the backend and are called by nothing — `product-intent-map.md`
-// reads DOIT-13 « to draw » and hands the ratio surface to **L16**, which is
-// the lot that wires them. Reading them here would be drawing §18 in this lot's
-// clothes. So the four values stay declared, in one place, with the operations
+// reads DOIT-13 « to draw » and hands the ratio surface to the lot that wires
+// it. Reading them here would be drawing §18 in a conversion lot's clothes.
+// So the four values stay declared, in one place, with the operations
 // that will replace them named beside each.
 //
 // « Lancer la veille maintenant » is the trigger DOIT-6 names, and it is
@@ -20,9 +20,9 @@ import { registerProducer, type PanelDescriptor } from "../../ui/panel/contract"
 const icons = () => window.__referentiel.icons;
 
 // WHAT THE LAYER WILL ANSWER, and does not yet. Each value carries the
-// operation that replaces it, so L16 has a list rather than a search. They are
-// VALUES the interface displays — a duration, a figure, a count — which is what
-// separates them from the labels beside them in `fr.json`.
+// operation that replaces it, so that lot has a list rather than a search.
+// They are VALUES the interface displays — a duration, a figure, a count —
+// which is what separates them from the labels beside them in `fr.json`.
 const WATCH_FACTS = {
   // → GET /api/pipeline/history — when the watch last ran and when it runs next
   lastPass: "il y a 22 min", // french-ok: a rendered duration, the layer's value to answer

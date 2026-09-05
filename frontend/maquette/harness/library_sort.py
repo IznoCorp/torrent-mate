@@ -102,7 +102,7 @@ async def main():
             "row scores the same, and answer the source order, which is what "
             "« ajout récent » answers")
 
-        # THE NAMES ARE THE FEATURE'S SINCE L19 — `features/library/sorting.ts`,
+        # THE NAMES ARE THE FEATURE'S — `features/library/sorting.ts`,
         # published as `window.__sortWays` the way a setting's label is
         # published as `window.__settingLabels`. Read from the prototype rather
         # than restated here, which is why this line exists at all: a rule

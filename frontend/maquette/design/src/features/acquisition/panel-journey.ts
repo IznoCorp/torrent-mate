@@ -3,7 +3,8 @@
 // It lives with Acquisitions because a journey is one acquisition's own
 // history: what was taken, when, and where it has got to. §20 says a blocked
 // tunnel « reprend là où il s'est arrêté, par l'opérateur » — the verbs that do
-// the resuming are **L21's**, and this producer offers exactly what it offered.
+// the resuming belong to the lot that wires the tunnel's verbs, and this
+// producer offers exactly what the engine's offered.
 //
 // ITS STEPS COME FROM THE LAYER, not from a literal inside the function. The
 // engine's producer carried the five stages inline; the mock layer already

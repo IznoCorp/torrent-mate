@@ -26,7 +26,7 @@ import { useDeletionJournal, useMaintenanceActions } from "./queries";
 import { crossReference, section, sectionHeading, topicRow } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 import { Markup } from "../../ui/markup";
-// The risk vocabulary is the FEATURE's since its panel moved here (L19): the
+// The risk vocabulary is the FEATURE's, since its panel lives here: the
 // page and the panel read one derivation of « what does this command risk »
 // rather than a copy each (§13).
 import { riskLabel } from "./risks";

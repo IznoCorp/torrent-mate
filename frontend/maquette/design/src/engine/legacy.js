@@ -36,7 +36,7 @@ import { screens, panel, bridge } from "./seams.js";
 import { installPressArbitration } from "../lib/press-arbitration";
 import { installPullGesture } from "../lib/pull-gesture";
 import { icons } from "../app/icons";
-/* THE SETTINGS CATALOGUE, IMPORTED BACK (L19). How a setting is identified,
+/* THE SETTINGS CATALOGUE, IMPORTED BACK. How a setting is identified,
    listed and read moved to the feature that owns settings when its panels did,
    and the engine reads the same three answers rather than keeping its own —
    `app/icons.ts`'s arrangement and its reasoning word for word: one copy, read
@@ -48,7 +48,7 @@ import {
   settingIdentifier,
   valueShown,
 } from "../features/settings/catalog";
-/* THE DÉCOUVRIR FEED, IMPORTED BACK (L19). The reserve, the pile and the
+/* THE DÉCOUVRIR FEED, IMPORTED BACK. The reserve, the pile and the
    gesture that spends them are `features/acquisition/` now — the last feature
    surface this file still DREW. Its containers were already React's; what moved
    is who owns their content, and the technique is unchanged because a replaced
@@ -7693,7 +7693,7 @@ import {
     INDEX,
     DEPENDENCIES,
     ERRORS,
-    /* What the Maintenance page draws. The command PANEL left at L19 — it is
+    /* What the Maintenance page draws. The command PANEL has left — it is
        `features/maintenance/panel-action.ts` now, reached through
        `panel.produce("action", id)` — and the risk vocabulary went with it,
        which is why `RISQUES` is no longer published from here at all. */
@@ -7787,7 +7787,7 @@ import {
      reads. `sortReversed` is a store field like any other and, like `sortKey`, it
      stays OUT of the address: the sort is a preference, not a place (A7). */
   function sortLabel() {
-    /* THE NAMES ARE THE FEATURE'S (L19) — `features/library/sorting.ts`, read
+    /* THE NAMES ARE THE FEATURE'S — `features/library/sorting.ts`, read
        through the seam the sort panel publishes, the way a setting's label is
        read through `window.__settingLabels`. */
     const named = window.__sortWays();
@@ -7981,7 +7981,7 @@ import {
     return suggestion.k === "Film" ? "Ajouter" : "Suivre";
   }
 
-  /* THE DÉCOUVRIR FEED LEFT AT L19 — the reserve, the three card shapes, the
+  /* THE DÉCOUVRIR FEED HAS LEFT — the reserve, the three card shapes, the
      pile and the gesture that spends them are
      `features/acquisition/discover-feed.ts` and `discover-cards.ts` now, and
      this file imports them back. Its own `resize` listener went with
@@ -8977,7 +8977,7 @@ import {
       return;
     }
     if (closest.dataset.setting) {
-      // THE PRODUCER LEFT (L19). `features/settings/panel-setting.ts` answers.
+      // THE PRODUCER HAS LEFT. `features/settings/panel-setting.ts` answers.
       panel.produce("setting", closest.dataset.setting);
       return;
     }
@@ -8985,7 +8985,7 @@ import {
       // A secret is never shown, so its panel offers the only act that exists:
       // replacing it. Nothing to read, nothing to copy.
       //
-      // THE PRODUCER LEFT (L19), and it takes the KEY rather than the record:
+      // THE PRODUCER HAS LEFT, and it takes the KEY rather than the record:
       // the feature reads the layer's answer, so handing it a row found in the
       // engine's own fixture would be handing it the copy it exists to stop
       // reading.
@@ -9026,7 +9026,7 @@ import {
       return;
     }
     if (closest.dataset.cancelsetting) {
-      // THE READER LEFT (L19). The verb is still this delegation's; what it
+      // THE READER HAS LEFT. The verb is still this delegation's; what it
       // does is `features/settings/panel-setting.ts`'s, beside the panel that
       // offers it. The rule that holds it was written against the branch this
       // replaces and is unchanged in count.
@@ -9034,7 +9034,7 @@ import {
       return;
     }
     if (closest.dataset.save) {
-      // THE SAVE ASKS THE LAYER NOW (L19, B-299). It used to clear the edits,
+      // THE SAVE ASKS THE LAYER NOW (B-299). It used to clear the edits,
       // raise the restart flag and say « Enregistré » without ever writing
       // anything — so `conflict`, a field the contract has always answered, had
       // no reader and the copy naming three banners drew two.
@@ -9046,7 +9046,7 @@ import {
       return;
     }
     if (closest.dataset.restart) {
-      // IT ASKS FIRST (L19, B-300, §17). A restart cuts the service for every
+      // IT ASKS FIRST (B-300, §17). A restart cuts the service for every
       // account of the household; this branch used to do it on the tap.
       window.__settingsVerbs?.askToRestart();
       return;
@@ -9180,7 +9180,7 @@ import {
     }
 
     if (closest.dataset.sug) {
-      // THE PRODUCER LEFT (L19). `features/acquisition/panel-suggestion.ts`
+      // THE PRODUCER HAS LEFT. `features/acquisition/panel-suggestion.ts`
       // answers, and it takes the POSITION as the seam spells every subject:
       // a string.
       panel.produce("suggestion", closest.dataset.sug);
@@ -9346,7 +9346,7 @@ import {
       }
       return;
     }
-    // THE PANEL'S TAKE, TOLD APART FROM THE RELEASE SCREEN'S (L19, B-309):
+    // THE PANEL'S TAKE, TOLD APART FROM THE RELEASE SCREEN'S (B-309):
     // an INDEX is the screen's, a TITLE is a medium's panel. The arrivals
     // feature says which values are its own, and does the act.
     if (window.__arrivalsVerbs?.take(closest.dataset.take)) return;
@@ -9387,7 +9387,7 @@ import {
       return;
     }
     if (closest.dataset.maintact) {
-      // THE PRODUCER LEFT (L19). `features/maintenance/panel-action.ts` answers.
+      // THE PRODUCER HAS LEFT. `features/maintenance/panel-action.ts` answers.
       panel.produce("action", closest.dataset.maintact);
       return;
     }
@@ -9469,7 +9469,7 @@ import {
       return;
     }
     if (closest.dataset.sort) {
-      // THE PRODUCER LEFT (L19). `features/library/panel-sort.ts` answers.
+      // THE PRODUCER HAS LEFT. `features/library/panel-sort.ts` answers.
       panel.produce("sort");
       return;
     }
@@ -9564,7 +9564,7 @@ import {
       return;
     }
     if (closest.dataset.sheet === "plus") {
-      // THE PRODUCER LEFT (L19). `features/acquisition/panel-more.ts` answers.
+      // THE PRODUCER HAS LEFT. `features/acquisition/panel-more.ts` answers.
       panel.produce("more");
       return;
     }
@@ -9655,16 +9655,16 @@ import {
       return;
     }
     if (closest.dataset.journey) {
-      // THE PRODUCER LEFT (L19), and its 260 ms wait went with it: the panel
-      // leaves inside the navigation's own commit, as `data-mediasheet` has
-      // since L12. R103 refuses the gap on this path now rather than printing
+      // THE PRODUCER HAS LEFT, and its 260 ms wait went with it: the panel
+      // leaves inside the navigation's own commit, as `data-mediasheet` already
+      // did. R103 refuses the gap on this path now rather than printing
       // it.
       panel.close();
       panel.produce("journey", closest.dataset.journey);
       return;
     }
     if (closest.dataset.sheet === "utilisateur") {
-      // THE PRODUCER LEFT (L19). The verb is still this delegation's; what it
+      // THE PRODUCER HAS LEFT. The verb is still this delegation's; what it
       // asks for is a KIND, and `features/account/panel-account.ts` answers.
       panel.produce("account");
       return;
@@ -30941,7 +30941,7 @@ import {
      fixed. The panel derives what it offers from what is true about the
      medium, and « nothing is known about this one » is one of those truths. */
   function openDetailSheet(title) {
-    // THE PRODUCER LEFT (L19). `features/acquisition/panel-follow.ts` answers.
+    // THE PRODUCER HAS LEFT. `features/acquisition/panel-follow.ts` answers.
     return panel.produce("follow", title);
   }
 
@@ -30986,7 +30986,7 @@ import {
     window.__popover?.close();
   }
   function openPopEp(btn) {
-    // THE SENTENCE LEFT (L19). The frame places, the feature says —
+    // THE SENTENCE HAS LEFT. The frame places, the feature says —
     // `features/media/popover-episode.ts`, reached through the seam it
     // publishes. What stays here is the tap, which is the delegation's.
     const saying = window.__episodeSaying?.(btn);
@@ -31485,14 +31485,14 @@ import {
      setting is addressed `<file>:<key>`, and a title like « Dexter:
      Resurrection » would otherwise name a medium that does not exist. */
   const REOPEN = {
-    /* MOVED (L19). `resolves` stays the ENGINE's: `knownMedium` asks whether
+    /* THE PRODUCER HAS MOVED. `resolves` stays the ENGINE's: `knownMedium` asks whether
        this interface holds the medium at all, which is a question about the
        library and the queue rather than about the follow read — and the panel
        answers for ANY title by construction, which is the shape a typed address
        must be refused by. */
     follow: { open: (subject) => panel.produce("follow", subject), resolves: knownMedium },
     journey: {
-      /* MOVED (L19). `resolves` stays the ENGINE's and it is not an oversight:
+      /* THE PRODUCER HAS MOVED. `resolves` stays the ENGINE's, and that is no oversight:
          it asks whether this interface holds the MEDIUM, which is a question
          about the library and the queue, not about the journey read — and the
          layer answers the same stages for any info hash, so a `holds` built on
@@ -31506,13 +31506,13 @@ import {
         knownMedium(subject) || queued().inFlight.some((entry) => entry.t === subject),
     },
     setting: {
-      /* MOVED (L19): the feature produces the panel and answers whether it
+      /* THE PRODUCER HAS MOVED: the feature produces the panel and answers whether it
          holds the subject. */
       open: (subject) => panel.produce("setting", subject),
       resolves: (subject) => panel.holds("setting", subject),
     },
     action: {
-      /* MOVED (L19). Both halves are the feature's now: it produces the panel,
+      /* THE PRODUCER HAS MOVED. Both halves are the feature's now: it produces the panel,
          and it answers whether it HOLDS the subject — which is what stops this
          table reading a fixture the producer no longer needs. */
       open: (subject) => panel.produce("action", subject),

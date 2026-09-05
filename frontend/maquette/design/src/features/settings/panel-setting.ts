@@ -61,8 +61,8 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
   const translate = i18next.t.bind(i18next);
   // THE PENDING EDITS AND THE INSTANCE'S RIGHTS are the engine's mutable state
   // — not server state, and not this feature's yet: they move with the last
-  // delegation verb that writes them, which is L13's. Read through the same
-  // slice the settings page reads them through, so the panel and the page
+  // delegation verb that writes them, and that is the engine's last lot. Read
+  // through the same slice the settings page reads, so the panel and the page
   // cannot disagree about what has been edited.
   const { modifs: pending, readOnly } = window.__referentiel.SETTINGS_STATE;
   const shown = valueShown(setting, pending);
@@ -221,7 +221,7 @@ function reloadSettings(): void {
    below has to say rather than merely asking « êtes-vous sûr ? ».
 
    THE CONFIRMATION IS `ui/dialog`, whose paragraph colour and danger contrast
-   R116 has held since L12 — so this adds no drawing primitive, only a use of
+   R116 holds — so this adds no drawing primitive, only a use of
    one. Cancelling leaves the restart OWED and says nothing about one having
    happened: a confirmation that restarts anyway is a delay. */
 function askToRestart(): void {

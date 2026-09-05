@@ -72,7 +72,7 @@ export type AcquisitionReference = EngineDrawing & EngineQueue & {
   // mutates its own DOM and a replaced node cannot animate — and a migrated
   // page asks it to fill the containers React has just drawn.
   addVerb: (result: SearchResult, index: number) => string;
-  // WHAT THE FOLLOW PANEL READS TO KNOW WHAT IS TRUE ABOUT A MEDIUM (L19).
+  // WHAT THE FOLLOW PANEL READS TO KNOW WHAT IS TRUE ABOUT A MEDIUM.
   // `INCOMPLETE` is the ENGINE's thin arrow over the library's own query — the
   // value is the world's and stays live — and a feature may not import another
   // feature (invariant 7), so reading it through the reference is the

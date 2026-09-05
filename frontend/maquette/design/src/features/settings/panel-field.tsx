@@ -176,7 +176,7 @@ function FieldBlock({
           if (!element) return;
           const commit = () => {
             changeSetting(id, typedValue(setting, element.value));
-            // REDRAWN THROUGH THE SEAM (L19): the producer is this feature's
+            // REDRAWN THROUGH THE SEAM: the producer is this feature's
             // now, and the panel is re-opened by kind rather than by a function
             // the engine published.
             window.__panel.produce("setting", id);

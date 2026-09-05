@@ -50,8 +50,8 @@ export type WriteOutcome = { restartRequired: boolean; conflict: boolean };
  * and it declares 409 for a refusal — so « the file moved under the editor » is
  * something the write SUCCEEDS in telling, and drawing it from an error branch
  * would be drawing it from a case the contract does not describe. Recorded
- * because the brief that opened L19 said production answers 412: the maquette's
- * contract is the maquette's own artefact (D7), and this follows it.
+ * because the brief that asked for this banner said production answers 412: the
+ * maquette's contract is its own artefact (D7), and this follows it.
  *
  * Args:
  *     name: The file.

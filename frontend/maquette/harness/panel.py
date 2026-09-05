@@ -55,8 +55,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # adjusting it — which is exactly what happened the day the shell moved into
 # `app/`, and the contract tier does not run this rule, so only the full
 # suite before the merge said so.
-# WHERE THE BOOT NAMES WHAT THE FEATURES CONTRIBUTE. It was `app/shell.tsx`
-# until L19, and the list moved to a file of its own because it gains an entry
+# WHERE THE BOOT NAMES WHAT THE FEATURES CONTRIBUTE. It was `app/shell.tsx`,
+# and the list moved to a file of its own because it gains an entry
 # per feature converted while the shell may only lose lines. A pointer that
 # silently misses its target is how a rule goes quiet; this one fell loudly,
 # which is the arrangement working.
@@ -249,7 +249,7 @@ async def main():
     not_facts = [a.strip()[:24] for a in calls if not a.lstrip().startswith("{")]
     check("no caller hands markup", not not_facts,
           " · ".join(not_facts))
-    # AND THE PRODUCERS, which are how a panel is asked for since L19. A
+    # AND THE PRODUCERS, which are how a panel is asked for. A
     # producer does not CALL `open`: it is registered against a kind and RETURNS
     # a descriptor, which `app/panel-host.ts` opens. Counting only the call form
     # read ZERO the day the producers moved — the same shape this hold caught

@@ -343,7 +343,7 @@ async def main():
         # says what was MEASURED either way — a line that reads « restart
         # cleared » under a FAIL tells a reader the opposite of what happened.
         #
-        # THE TAP ASKS, IT DOES NOT RESTART (L19, B-300, §17), and this hold
+        # THE TAP ASKS, IT DOES NOT RESTART (B-300, §17), and this hold
         # ASSERTED THE DEFECT until then: « a real tap … TAKES it » is exactly
         # the behaviour the register calls a defect, because a restart cuts the
         # service for every account of the household. What the tap owes is a

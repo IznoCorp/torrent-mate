@@ -3,8 +3,8 @@
 THE CLAUSE. « ne jamais répondre 409 ou « occupé » à une action légitime ».
 `product-intent-map.md` reads it `partly`: R66 holds the pipeline PASS — asked
 for during a run, it is queued and says so — and « every OTHER mutation under a
-busy scenario » is **unproved**. L19 owes the instrument, with the producers
-that offer those mutations.
+busy scenario » is **unproved**. This rule is that instrument, written with the
+producers that offer those mutations.
 
 WHAT IS READ, and the three questions are not the same one:
 
@@ -25,8 +25,8 @@ doubts, and nothing about the clause.
 WHAT IT DOES NOT READ: the resolve queue's own « En file » pastille, which is
 DOIT-4's other half. **It does not exist** — measured, `grep "En file"` finds it
 nowhere in `i18n/fr.json` and nowhere in the tree outside the pipeline pass's own
-sentence — and drawing it is a behaviour change L19's contract forbids. It is
-L21's, and the clause map says so rather than this rule pretending to cover it.
+sentence — and drawing it is a behaviour change, which a conversion lot does not
+carry. The clause map names its owner, rather than this rule pretending to cover it.
 """
 import asyncio
 import pathlib

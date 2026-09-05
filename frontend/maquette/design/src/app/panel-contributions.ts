@@ -9,10 +9,10 @@
 // job is to name pages).
 //
 // IT IS A FILE OF ITS OWN, and the reason is a ceiling rather than taste.
-// `app/shell.tsx` stands one line under a 400-line hard block that L19 may only
-// move DOWNWARD, and this list gains an entry per feature converted — three
-// today, eight by the end. A list that grows inside the shell is a list that
-// spends the shell's last line on its second entry.
+// `app/shell.tsx` stands one line under a 400-line hard block a converting lot
+// may only move DOWNWARD, and this list gains an entry per feature converted —
+// three today, eight by the end. A list that grows inside the shell is a list
+// that spends the shell's last line on its second entry.
 //
 // ONE LINE PER FEATURE, never one per producer: a feature's own module imports
 // its siblings, so a feature that ends up with four panels appears here once.
@@ -27,5 +27,5 @@ import "../features/maintenance/panel-action";
 import "../features/library/panel-sort";
 import "../features/acquisition/panels";
 // Arrivals contributes no PANEL — it contributes the verb `data-take` reads
-// (L19, B-309), and the boot is where a side effect is named whatever it is.
+// (B-309), and the boot is where a side effect is named whatever it is.
 import "../features/arrivals/verbs";
