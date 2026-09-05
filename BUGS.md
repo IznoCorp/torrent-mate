@@ -384,6 +384,7 @@ when the defect comes back.
 | B-322 | The release screen fires TWO take toasts into one element in the same tick, and the first is never seen | 1× | `open` |
 | B-323 | Two `setTimeout(…, 260)` sites were never counted — the inventory reads one line — and one of them is the release screen's `data-take`, a verb moved by half with no lot named for the other half | by audit | `open` |
 | B-324 | The BACKEND's own mirror of the PM2 crons names three of the seven the machine runs, and nothing reads it against `pm2 jlist` — B-308's finding on the end that has no guard at all | by the backend brief | `open` |
+| B-325 | No harness rule can be pointed at a build: `common.PROTOTYPE` is hard-coded to 8899 with no override, every rule self-runs on import, and a rule rebound elsewhere is still certified by the B-256 stamp of the copy it did NOT read | by the instruments' debts block | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -704,10 +705,18 @@ it — it MAPPED over the list — and is derived beside the list it alters, in
 `features/system/fault.ts`, its two French words moved to `i18n/fr.json`. `legacy.js` reads 31 645 →
 **31 591** non-blank and the ledger's record is re-recorded downward in the same commit.
 
-**The seventh row is read off the live job, not invented.** `personalscraper-index-full`, cron
-`0 1 * * 1`, registered 2026-09-04 18:18, `restart_time` **0** — it has not yet passed. So its
-sub-line says « dernier passage : aucun », which is both what the rule requires a sub-line to say
-and what is true.
+**The seventh row is a SNAPSHOT of `pm2 jlist` taken on 2026-09-05, not an invention and not a
+live reading.** `personalscraper-index-full`, cron `0 1 * * 1`, registered 2026-09-04 18:18,
+`restart_time` **0** on that day — so its sub-line says « dernier passage : aucun », which is what
+the rule requires a sub-line to say and what was true when it was written.
+
+**It stops being true on Monday 2026-09-07 at 01:00**, when the job first fires, and no rule falls
+then. That is not a defect of this row; it is the condition every row in this seed is already in,
+and the round-one reader measured it: the six others' CADENCES all match the live crons, and their
+pass counts do not — 261 drawn against 533 live, 24 against 44, 15 against 37, 11 against 19, 2
+against 3, 2 against 3. Those six readings are byte-identical on `main`, so they are pre-existing
+and not this wave's. A fixture is a snapshot; saying « what is true » of one, undated, is the
+sentence that was wrong here.
 
 **THE FINDING BEYOND THE MISSING ROW STANDS, and this wave measured its other end and FILED it.**
 The fixture and the machine are one contract with two ends and only one end has a guard — and the
@@ -718,6 +727,19 @@ by the backend brief and not repaired here.
 **And the rule cannot say WHICH row is unaccounted for**, only that one is: a drawn label and a PM2
 process name are two vocabularies with nothing in the tree joining them. Its fall prints both lists
 now, so a reader does that join by eye instead of going back to `pm2 jlist`.
+
+**AND THE LIMITATION IS LARGER THAN « WHICH ROW », which round one measured rather than argued.**
+A row can be WHOLLY INVENTED: the reader relabelled the seventh to a job that does not exist, with
+a cadence nothing runs, rebuilt, and the whole suite went green — 89 holds, exit 0. Nothing in the
+tree reads a scheduler's TEXT. `machine.py` holds the count, that the sub-line CONTAINS
+« dernier passage », and that the badge word is one of two; `--arm correspondence` no longer
+re-derives a converted family; `--arm schema` reads the shape; and the oracle reads rectangles and
+computed style, never text. So the count is held and the WORDS are held by nothing.
+
+**A rule that the drawn list IS the backend's is a D7 demand, not this wave's** — the backend
+follows the interface, the interface is not frozen, and B-324 records the end that would have to
+answer such a rule. Written here so the next reader meets the whole limitation rather than the
+half of it that fits in a fall's message.
 
 **ONE UNIT OF B-085's SPECIES, found by the removal.** « A scheduler's badge follows the declared
 state » compared the drawn tones against `window.SCHEDULERS` — the ENGINE's fixture, which the page
@@ -1246,6 +1268,31 @@ and the interface is not frozen. Owner: **the backend brief** —
 this is one of them. Filed rather than left in a report because a defect with no entry is nobody's.
 
 <sub>`python3 -c "from personalscraper.web.schedulers.registry import CRON_JOBS; print(len(CRON_JOBS), [j.name for j in CRON_JOBS])"` → `3 [...]` · `pm2 jlist | python3 -c "import sys,json;print(sorted(p['name'] for p in json.load(sys.stdin) if p['pm2_env'].get('cron_restart')))"` → 7 names</sub>
+
+**B-325 — no rule can be pointed at a build, which is what reading a wave independently requires.**
+`frontend/maquette/harness/common.py`'s `PROTOTYPE` is a module constant hard-coded to
+`http://127.0.0.1:8899/` with no environment override, and every rule ends in an unguarded
+`asyncio.run(main())`, so a rule module cannot even be IMPORTED without running. An independent
+reader cannot run a rule against its own copy without rebinding the constant from a wrapper
+outside the tree.
+
+**AND THE REBINDING IS WORSE THAN THE OBSTACLE.** `served_copy.assert_unchanged` and
+`Journal.summary`'s B-256 stamp read `/tmp/tm-refonte` unconditionally. So a rule pointed at
+another port measures ONE build and is certified against ANOTHER — the stamp says « the copy did
+not change under this run » about a copy the run never read. B-256's whole subject is a reading
+that spans two builds; this is that reading, arrived at through the door the repair left open.
+
+**Its cost is already paid once**: round one of #567 was reviewed by a reader who had to run
+`machine.py` against its own served copy on another port, and could only do so through a wrapper.
+The instruction « run it against your head port » cannot be followed as written.
+
+**Owner: the instruments' debts block of `frontend-architecture.md` § 5** — the harness belongs to
+no lot, and the rule is that the next wave that opens `common.py` takes its debt. The shape: an
+environment override for `PROTOTYPE`, a `if __name__ == "__main__":` guard on the rules, and the
+served-copy assertions reading the SAME root the rule was pointed at, so a stamp cannot certify a
+build nobody measured.
+
+<sub>`grep -n "PROTOTYPE" frontend/maquette/harness/common.py` → the constant and its use, no `os.environ` · `tail -1 frontend/maquette/harness/machine.py` → `asyncio.run(main())` · reported by the independent reader of #567, round one, 2026-09-06</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
