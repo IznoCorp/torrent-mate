@@ -691,6 +691,39 @@ red in the full suite, and owed by whoever draws Système's schedulers next.
 <sub>`python3 frontend/maquette/harness/machine.py` → « FAIL as many schedulers drawn as PM2 schedules — 6 drawn vs 7 real: … personalscraper-index-full … » · `git log --oneline -1 origin/main -- ecosystem.config.js`</sub>
 
 
+**REPAIRED, and the row could not go where the list lived.** `SCHEDULERS` was a fixture in
+`engine/legacy.js`; D5 has the engine dying by subtraction and the size ledger refuses that file
+growing by one line (B-306's arm, with its exit code). So the FAMILY left rather than the rule
+bending: the Système page already read `/api/maintenance/schedulers` from the mock layer, and the
+seed is where the seventh row belongs — it should have carried it since L08. The register marks the
+family `converted`, which is the mechanism that already exists for a family the engine no longer
+declares: `--arm correspondence` names it instead of comparing it against a literal that is gone,
+while `--arm schema` and the oracle still hold it. Its overdue twin `SCHEDULERS_DOWN` had to go with
+it — it MAPPED over the list — and is derived beside the list it alters, in
+`features/system/fault.ts`, its two French words moved to `i18n/fr.json`. `legacy.js` reads 31 645 →
+**31 591** non-blank and the ledger's record is re-recorded downward in the same commit.
+
+**The seventh row is read off the live job, not invented.** `personalscraper-index-full`, cron
+`0 1 * * 1`, registered 2026-09-04 18:18, `restart_time` **0** — it has not yet passed. So its
+sub-line says « dernier passage : aucun », which is both what the rule requires a sub-line to say
+and what is true.
+
+**THE FINDING BEYOND THE MISSING ROW STANDS, and this wave measured its other end.** The fixture and
+the machine are one contract with two ends and only one end has a guard — and the end with no guard
+is further from the machine than this entry assumed. `personalscraper/web/schedulers/registry.py`'s
+`CRON_JOBS`, the backend's own static mirror of the PM2 crons, names **three** of the seven
+(`follow-detect`, `grab`, `index-enrich`): `search`, `health-check`, `backfill-ids` and
+`index-full` are absent from it, and its header still says « the three crons here ». Nothing reads
+that against `pm2 jlist` either. It is NOT repaired here — this is a micro-wave on the maquette's
+row, and the backend follows the interface (D7) — and it is written down so the next reader does not
+have to find it twice.
+
+**And the rule cannot say WHICH row is unaccounted for**, only that one is: a drawn label and a PM2
+process name are two vocabularies with nothing in the tree joining them. Its fall prints both lists
+now, so a reader does that join by eye instead of going back to `pm2 jlist`.
+
+<sub>`python3 frontend/maquette/harness/machine.py` → « PASS as many schedulers drawn as PM2 schedules — 7 drawn vs 7 real … — drawn: … Analyse complète de l'index », 89 rules, no violation · the mutation, `scripts/mutate.sh` on the seed with the seventh row removed → « FAIL … 6 drawn vs 7 real » · the derivation's own mutation, `rank === OVERDUE_RANK` → `false` → three falls, « and on the schedulers side — [] » · `pm2 jlist` → 7 processes carrying a `cron_restart`</sub>
+
 **IT BLOCKS THE POST-MERGE GESTURE, and that is written HERE because the file that first said it
 does not survive.** L19's report states the obligation in its § 9 (`docs/features/maquette-l19/REPORT.md@9fa13da57`); that folder
 is `git rm -r`'d at the gesture, so the sentence would have gone with the wave that wrote it —
