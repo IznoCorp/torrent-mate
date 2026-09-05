@@ -64,6 +64,12 @@ class FullVisitor(ScanVisitor):
         super().__init__(conn, disk, generation, files_visited, dirs_visited)
         self.insert_buffer: list[Any] = []
 
+    def flush_pending(self) -> None:
+        """Drain the insert buffer so a checkpoint commits only written rows."""
+        from personalscraper.indexer.scanner import _modes as modes_api  # noqa: PLC0415
+
+        modes_api._flush_insert_buffer(self.conn, self.insert_buffer)
+
     def visit_file(self, entry: os.DirEntry[str], st: os.stat_result, parent_rel: str) -> None:
         """Fingerprint the file (tier-1 + oshash) and buffer the new ``media_file`` row."""
         is_symlink = entry.is_symlink()
@@ -112,9 +118,16 @@ def _scan_disk_full(
     walk and always recreated in a ``try/finally`` block, regardless of whether an
     exception occurs during the walk.
 
-    New rows are accumulated in the visitor's ``insert_buffer`` and drained once
-    the walk returns via :func:`_flush_insert_buffer` (a single ``executemany``),
-    exactly like the legacy ``_walk_dir_full_buffered`` post-walk flush.
+    Rows are accumulated in the visitor's ``insert_buffer`` and drained by
+    :func:`_flush_insert_buffer` (one ``executemany``) at three points: before
+    every checkpoint, so the walk position this run commits never names files
+    whose rows are still in memory; whenever the buffer reaches
+    :data:`_INSERT_BATCH_SIZE`; and once more here when the walk returns, for
+    whatever did not fill a batch. The post-walk flush alone — which is what
+    the legacy ``_walk_dir_full_buffered`` did, and what this held until the
+    other two were added — retained the whole library and lost all of it if the
+    process was killed, while the checkpoint had already committed the claim
+    that those files were walked.
 
     Args:
         conn: Open SQLite connection.

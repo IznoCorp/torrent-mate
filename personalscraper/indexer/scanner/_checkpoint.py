@@ -12,6 +12,7 @@ import json
 import os
 import sqlite3
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 from personalscraper.indexer.scanner._types import IndexerScanActiveError
@@ -109,6 +110,7 @@ def _maybe_checkpoint(
     checkpoint_every: int,
     started_at_monotonic: float,
     budget_seconds: float | None,
+    before_commit: Callable[[], None] | None = None,
 ) -> tuple[int, bool]:
     """Conditionally write a checkpoint and test whether the budget is exhausted.
 
@@ -127,6 +129,13 @@ def _maybe_checkpoint(
         started_at_monotonic: :func:`time.monotonic` timestamp captured at scan start.
         budget_seconds: Maximum wall-clock seconds allowed for the scan; ``None``
             means unlimited.
+        before_commit: Optional callable run immediately BEFORE the checkpoint
+            is written, and only when one is actually written. A visitor that
+            holds rows in memory (full mode's ``insert_buffer``) drains them
+            here, so the position this call commits is never ahead of what the
+            database holds — a committed ``last_path`` is what the next run's
+            crash-resume skips past, and it must not name files whose rows were
+            still in a Python list when the process died.
 
     Returns:
         A ``(new_counter, budget_exhausted)`` tuple.  ``new_counter`` resets to
@@ -134,6 +143,8 @@ def _maybe_checkpoint(
         ``budget_exhausted`` is ``True`` only when the budget is set and exceeded.
     """
     if files_since_checkpoint >= checkpoint_every:
+        if before_commit is not None:
+            before_commit()
         _checkpoint_scan_run(conn, scan_run_id, current_path)
         if budget_seconds is not None and time.monotonic() - started_at_monotonic >= budget_seconds:
             return 0, True

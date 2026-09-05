@@ -374,6 +374,15 @@ class ScanVisitor:
         self.files_visited = files_visited
         self.dirs_visited = dirs_visited
 
+    def flush_pending(self) -> None:
+        """Write out anything this visitor is still holding in memory.
+
+        Called by :func:`walk` immediately before a checkpoint commits the walk
+        position, so the position never names files whose rows have not reached
+        the database. Most visitors write as they go and this is a no-op; full
+        mode overrides it to drain its ``insert_buffer``.
+        """
+
     def enter_dir(self, entry: os.DirEntry[str], st: os.stat_result, rel: str) -> bool:
         """Decide whether to recurse into subdirectory *entry*.
 
@@ -523,6 +532,7 @@ def _walk_subtree(
                 checkpoint.checkpoint_every,
                 budget.started_at_monotonic,
                 budget.budget_seconds,
+                before_commit=visitor.flush_pending,
             )
             checkpoint.files_since_checkpoint[0] = new_counter
             if exhausted:

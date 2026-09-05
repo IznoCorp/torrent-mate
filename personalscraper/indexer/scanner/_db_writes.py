@@ -99,14 +99,19 @@ def _upsert_file_row(
 ) -> None:
     """Insert or update a ``media_file`` row for a discovered file.
 
-    In full mode the caller passes a pre-computed ``oshash_value`` and may
-    optionally pass an ``insert_buffer`` list.  When a buffer is provided and
-    the file is **new**, the row tuple is appended to the buffer instead of
-    being inserted immediately — the caller flushes the buffer via
-    :func:`_flush_insert_buffer` when it reaches :data:`_INSERT_BATCH_SIZE`.
+    In full mode the caller passes a pre-computed ``oshash_value`` and an
+    ``insert_buffer`` list.  When a buffer is provided the row tuple is appended
+    to it instead of being written immediately, and this function drains it
+    through :func:`_flush_insert_buffer` as soon as it reaches
+    :data:`_INSERT_BATCH_SIZE`.  The ceiling used to be the caller's to enforce
+    and no caller did, so the buffer grew for the length of the walk.
 
-    When the file already exists, the row is updated in-place (no buffering
-    for updates; they are rare during a cold full scan).
+    That is a ceiling, not the usual trigger: :func:`walk` drains the buffer
+    before every checkpoint (100 files in production), so the batch normally
+    ends there.  Both matter — the checkpoint keeps the committed walk position
+    honest, the ceiling bounds memory when checkpoints are far apart or off.
+
+    Without a buffer the row is written immediately, upserted in place.
 
     The ``oshash`` is set to ``oshash_value`` (``None`` for non-video or symlink
     files — stored as SQL NULL, see migration 002).  ``release_id`` is ``None``
@@ -144,9 +149,15 @@ def _upsert_file_row(
         None,  # deleted_at
     )
     if insert_buffer is not None:
-        # Buffered new-row path — caller flushes via _flush_insert_buffer.
-        # Used only during cold full-scan when no row collisions are expected.
+        # Buffered path, taken by full mode for EVERY file it walks (new or
+        # already known — the flush carries an ON CONFLICT clause for that).
+        # The ceiling is enforced here rather than left to the caller: for as
+        # long as it was not, the buffer grew for the whole walk, which for
+        # this library meant 98 000 tuples and 37 MB retained until the walk
+        # returned, and lost outright if the process was killed.
         insert_buffer.append(row_tuple)
+        if len(insert_buffer) >= _INSERT_BATCH_SIZE:
+            _flush_insert_buffer(conn, insert_buffer)
         return
 
     # Atomic INSERT-OR-UPDATE: relies on UNIQUE(path_id, filename) constraint
