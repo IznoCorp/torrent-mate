@@ -197,6 +197,24 @@ The Plex TV Series agent requires the `Trailers/` subfolder for show-level and
 season-level extras. Using the flat `{show}-trailer.{ext}` convention at show or
 season level produces an unrecognised orphan video in Plex.
 
+The subfolder NAME is matched case-insensitively by Plex, and the library
+carries both spellings: 616 media directories hold a lowercase `trailers/`
+written by an earlier release (files named `{show} - Saison 1 - trailer.{ext}`),
+against 37 canonical `Trailers/`. Measured on 2026-09-05 against the running
+server, Plex serves the legacy ones — the extras row of `Ahsoka (2023)`, which
+holds only the lowercase folder, exposes
+`/Volumes/Disk1/medias/series/Ahsoka (2023)/trailers/Ahsoka - Saison 1 - trailer.mp4`
+as a local part. So the legacy layout is not invisible and needs no migration.
+
+The storage MOUNTS, however, are case-sensitive, so the two spellings are two
+different directories. A show carrying both shows the same trailer twice in the
+Plex extras row, which is what happened to twelve shows: a presence check naming
+one exact canonical path read a legacy-layout show as trailer-less and
+downloaded a second copy beside the first. Presence therefore reads the folder
+case-insensitively (`find_show_trailer` for the download decision,
+`_media_dir_has_content` for orphan classification) while every WRITE stays
+canonical.
+
 Accepted extensions: .mp4, .mkv, .webm (priority order).
 
 NFO <trailer> tag: populated with YouTube URL for Plex/Kodi remote-trailer fallback.
