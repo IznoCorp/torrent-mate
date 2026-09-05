@@ -1946,6 +1946,15 @@ audit at `b4b75a67a`). Nothing reads that pointer, which is why it could die in 
 `harness-hold-counts.py` refuses a pointer that is not an ancestor of `main`, the gesture checks it
 by hand: `git merge-base --is-ancestor $(python3 -c "import json;print(json.load(open('frontend/maquette/hold-counts-baseline.json'))['taken_at_commit'])") origin/main`.
 
+**AND THE BASELINE IS NOT RE-RECORDED WHILE A RULE IS FAILING** — added 2026-09-05, on B-291's
+second form, which L19 met and could not repair. Re-recording runs the whole suite and writes what
+it read; run over a suite with `failed > 0`, the row it writes is indistinguishable from a good one
+and every later comparison rests on it. **So the gesture reads `failed` FIRST.** If it is not zero,
+the failing rule is repaired before the gesture, or the reason it is failing is written into the
+baseline's own record and into the register entry that owns it — and the gesture says which of the
+two it did. At the time this was written the standing case is **B-308**, `machine.py`'s « as many
+schedulers drawn as PM2 schedules », which reads 6 drawn against 7 real and is nobody's lot yet.
+
 **And re-record the reference after the squash merge.** The reference names the commit it
 measured; squashing replaces that commit, so on a fresh clone the pointer names nothing and
 `--check` refuses to run at all. **It is two commands, and the first is not optional:**

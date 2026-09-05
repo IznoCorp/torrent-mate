@@ -660,6 +660,19 @@ red in the full suite, and owed by whoever draws Système's schedulers next.
 
 <sub>`python3 frontend/maquette/harness/machine.py` → « FAIL as many schedulers drawn as PM2 schedules — 6 drawn vs 7 real: … personalscraper-index-full … » · `git log --oneline -1 origin/main -- ecosystem.config.js`</sub>
 
+
+**IT BLOCKS THE POST-MERGE GESTURE, and that is written HERE because the file that first said it
+does not survive.** L19's report states the obligation in its § 9; `docs/features/maquette-l19/`
+is `git rm -r`'d at the gesture, so the sentence would have gone with the wave that wrote it —
+round two's own reading, and the same species as the defect round one found in the verbs.
+
+The gesture re-records `frontend/maquette/hold-counts-baseline.json` by running the whole suite
+and writing what it read. **This rule is the one failure in that suite**, so a re-record taken
+while it fails writes a baseline over `failed = 1` and every later comparison rests on it — B-291's
+second form. **Before the gesture: repair this, or quarantine it** — write into the baseline's own
+record and into this entry that the row was taken over a known failing rule, and which. The
+gesture says which of the two it did. `frontend-architecture.md` § 5's post-merge paragraph carries
+the same sentence, so the obligation exists in a file the gesture does not delete.
 **B-309 — « Récupérer maintenant » throws, and the medium is never taken.**
 The follow panel's PRIMARY action for a medium waiting to be taken carries `data-take` with the
 medium's TITLE. The document's click delegation has two branches for that attribute, and the

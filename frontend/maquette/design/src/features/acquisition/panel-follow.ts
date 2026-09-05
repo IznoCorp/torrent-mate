@@ -8,7 +8,9 @@
 // medium, `follow-actions.ts` what one may DO about it, and this file assembles
 // the descriptor. A single module would have been over the 400-line ceiling
 // this lot exists to respect, and the cut is taken on a subject rather than on
-// a line count — the answer this repository has now taken three times.
+// a line count — the answer this repository has now taken three times, and
+// the one `scripts/frontend_size_ledger.py` states as its own reason for
+// being a file of its own.
 //
 // THE SEASONS BLOCK IS ALREADY REACT and needs nothing:
 // `features/media/panel-seasons.tsx` registers `"saisons"`. What this producer

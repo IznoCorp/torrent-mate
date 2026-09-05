@@ -6,8 +6,10 @@
 // is the sentence the engine's producer carried at the top of its own body.
 //
 // SPLIT OUT OF THE PRODUCER on a SUBJECT rather than on a line count
-// — the answer this repository has now taken three times: what is true about a
-// medium is one question, and what the panel OFFERS about it is another.
+// — the answer this repository has now taken three times, and it is written
+// down in `scripts/frontend_size_ledger.py`'s own reason for existing: a file is
+// split on a SUBJECT, never on a line count. What is true about a medium is one
+// question, and what the panel OFFERS about it is another.
 //
 // READ FROM THE SAME DERIVATIONS the urgency sections read. A section that
 // computes what is to be grabbed while the panel computes it separately is two

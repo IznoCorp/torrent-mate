@@ -9656,9 +9656,9 @@ import {
     }
     if (closest.dataset.journey) {
       // THE PRODUCER HAS LEFT, and its 260 ms wait went with it: the panel
-      // leaves inside the navigation's own commit, as `data-mediasheet` already
-      // did. R103 refuses the gap on this path now rather than printing
-      // it.
+      // leaves inside the navigation's own commit, as `data-mediasheet`
+      // already did once B-249's wait left that branch. R103 refuses the gap on
+      // this path now rather than printing it.
       panel.close();
       panel.produce("journey", closest.dataset.journey);
       return;
