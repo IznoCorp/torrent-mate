@@ -614,16 +614,34 @@ def test_soft_delete_subtree_snapshot_survives_the_path_row() -> None:
     """
     conn = _open_mem_db()
     disk_id, path_id = _seed_disk_and_path(conn)
-    _seed_media_file(conn, path_id, "ep01.mkv")
+    file_id = _seed_media_file(conn, path_id, "ep01.mkv")
 
     soft_delete_subtree(conn, path_id)
     conn.commit()
 
-    payload = json.loads(_tombstones(conn)[0]["payload_json"])
-    assert payload["rel_path"] == "shows/Gone"
-    assert payload["disk_id"] == disk_id
-    assert payload["filename"] == "ep01.mkv"
-    assert payload["size_bytes"] == 1000
+    tombstone = _tombstones(conn)[0]
+    payload = json.loads(tombstone["payload_json"])
+
+    # EVERY field is asserted. Blanking six of them at once — original_id, id,
+    # path_id, oshash, mtime_ns, deleted_at — left this suite green, so an audit
+    # record could be written with no identity at all and nothing would notice.
+    assert tombstone["original_id"] == file_id
+    assert payload == {
+        "id": file_id,
+        "release_id": None,
+        "path_id": path_id,
+        "disk_id": disk_id,
+        "rel_path": "shows/Gone",
+        "filename": "ep01.mkv",
+        "oshash": None,
+        "size_bytes": 1000,
+        "mtime_ns": 1700000000000000000,
+        "miss_strikes": 0,
+        # Step 1 stamps only rows that were live, so this field tells the two
+        # cases apart: equal to the tombstone's own stamp means THIS call
+        # retired the row; an earlier value means the strike mechanism had.
+        "deleted_at": tombstone["deleted_at"],
+    }
 
 
 def test_soft_delete_subtree_records_an_already_tombstoned_file() -> None:
@@ -635,7 +653,8 @@ def test_soft_delete_subtree_records_an_already_tombstoned_file() -> None:
     conn = _open_mem_db()
     _, path_id = _seed_disk_and_path(conn)
     file_id = _seed_media_file(conn, path_id, "ep01.mkv")
-    conn.execute("UPDATE media_file SET deleted_at = ? WHERE id = ?", (int(time.time()), file_id))
+    earlier_stamp = int(time.time()) - 3600
+    conn.execute("UPDATE media_file SET deleted_at = ? WHERE id = ?", (earlier_stamp, file_id))
     conn.commit()
 
     count = soft_delete_subtree(conn, path_id)
@@ -645,6 +664,11 @@ def test_soft_delete_subtree_records_an_already_tombstoned_file() -> None:
     rows = _tombstones(conn)
     assert len(rows) == 1, "the hard delete is recorded even when the soft delete was not"
     assert rows[0]["reason"] == "subtree_pruned"
+    # The distinguishing field: this row was retired BEFORE the prune, so its
+    # snapshot keeps the earlier stamp rather than the prune's.
+    payload = json.loads(rows[0]["payload_json"])
+    assert payload["deleted_at"] == earlier_stamp
+    assert payload["deleted_at"] != rows[0]["deleted_at"]
 
 
 def test_soft_delete_subtree_on_an_empty_path_records_nothing() -> None:
