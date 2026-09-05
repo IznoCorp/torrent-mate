@@ -133,9 +133,10 @@ closest possible range.
 
 ## 6. Guards green over what they do not read
 
-**Nine found by this wave, and SEVEN more by round one's four readers — sixteen.** Zero would
+**Eleven found by this wave, and SEVEN more by round one's four readers — eighteen.** Zero would
 have been a real answer and this is not it; nine was the wave's own count, written as a claim
-awaiting readers, and the readers came back at 78 % of it on a gate green in every tier.
+awaiting readers, the readers came back at 78 % of it on a gate green in every tier, and repairing
+what they found turned up two more of the wave's own.
 
 | # | Green over | Found by |
 | --- | --- | --- |
@@ -169,6 +170,19 @@ the opposite of what L11's four readers found and is worth saying:
 **Three of the seven are one shape — a fact asserted by SEARCHING a file's text instead of
 parsing it — and that shape shipped twice in this wave under its own author's review.** A wave
 cannot audit its own instruments, and it cannot see its own habits either.
+
+**And two more of the wave's own, both found REPAIRING round one rather than by a gate** — which
+is this table's oldest reading arriving from the closest possible range, and the reason the count
+above is eleven and not nine:
+
+| # | Green over | Found by |
+| --- | --- | --- |
+| 10 | **`app/focus.ts` asserting a priority its selector cannot express.** « `[autofocus]` first, so a layer can name its own entry point » — over a selector LIST, where `querySelector` answers the first matching node in DOCUMENT order whatever order the alternatives are written in. The restart confirmation rendered `autofocus` on « Annuler », `[autofocus]` matched exactly one node, and `document.activeElement` was « Redémarrer ». The comment had been there the whole time and nothing read it | repairing round one's MINOR 1, when the repair did not take |
+| 11 | **R82's own new hold, a green reading of nothing on BOTH builds.** It cleared the whole query cache between the Back and the Forward; the engine's addressed table asks `resolves` first, the journey's reads the LIBRARY and the QUEUE, so an empty cache had the address refused outright — « the addressed panel names nothing this interface holds » — and the walk never reached the suppression it was written to measure. `open=False · history.length 4 -> 4`, identically with the repair and with the repair mutated away | asking why the mutation's reading and the repaired reading were the same |
+
+**Row 11 is lens A's own lesson arriving one day later, in this wave's hands**: a probe that taps
+a covered button, or clears more than it meant to, is green over nothing at all — and the tell is
+that the mutation and the control read the SAME.
 
 ---
 
