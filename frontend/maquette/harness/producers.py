@@ -65,6 +65,12 @@ DRIVEN = (
     ("journey", "Furious", "'Furious'"),
     ("suggestion", "0", "window.__suggestions()[0].t"),
     ("follow", "Silo", "'Silo'"),
+    # `add` WAS THE ONE REGISTERED KIND NOTHING DROVE — ten moved, nine walked,
+    # and the tenth's order and subject were held by nothing at all. It needs a
+    # search to have happened, because its subject is a POSITION in what the
+    # operator just typed, so the walk asks for one first (`__addSearch`) rather
+    # than opening the panel over an empty answer.
+    ("add", "0", "window.__searchResults()[0].t"),
 )
 
 # WHAT A PANEL SAYS ABOUT RISK, read on the DRAWN chip. It is here because the
@@ -145,6 +151,13 @@ async def main():
         for kind, subject, expected_from in DRIVEN:
             await page.evaluate("()=>window.__panel.close()")
             await page.wait_for_timeout(PANEL_OUT)
+            # `add` reads what the operator has just typed, so a search has to
+            # have happened before its panel means anything.
+            if kind == "add":
+                await page.evaluate("()=>window.__go('acq-add-results')")
+                await page.wait_for_timeout(SETTLED)
+                await page.evaluate("()=>window.__panel.close()")
+                await page.wait_for_timeout(PANEL_OUT)
             expected = await page.evaluate(f"()=>{expected_from}")
             await page.evaluate(
                 "([kind, subject])=>window.__panel.produce(kind, subject)",
@@ -177,16 +190,28 @@ async def main():
             # not destructive » by having no first action. That is the vacuous
             # pass this whole rule exists to refuse, in a hold added to refuse
             # it elsewhere.
+            # SCOPED TO THE PANEL THAT IS OPEN, and this is not tidiness. The
+            # sheet's tree PERSISTS: a `produce` that opens nothing leaves the
+            # previous panel's actions in the document, so an unscoped read
+            # answers about the panel BEFORE this one — shown with
+            # `produce("add", "")`, which drew nothing and left the read
+            # reporting its predecessor's tone. The open panel is the one
+            # carrying `data-open` — `#sheet`, with `#sheetin` inside it — and a
+            # read that finds none answers zero rather than borrowing.
             offered = await page.evaluate(
-                """()=>{const all = [...document.querySelectorAll(
-                     '#sheet [data-part="sheet/action"], #sheetin [data-part="sheet/action"]')];
-                   return {count: all.length,
+                """()=>{const panel = document.querySelector(
+                     '#sheet[data-open]');
+                   if (!panel) return {count: 0, first: null, scoped: false};
+                   const all = [...panel.querySelectorAll('[data-part="sheet/action"]')];
+                   return {count: all.length, scoped: true,
                            first: all.length ? (all[0].dataset.tone || "neutral") : null};}""")
             journal.check(
                 f"and its FIRST action is not the destructive one ({kind}) — "
                 f"a panel names no way out, so focus lands there",
-                offered["count"] >= 1 and offered["first"] != "danger",
-                f"{offered['count']} action(s), first one's tone: {offered['first']}")
+                offered["scoped"] and offered["count"] >= 1
+                and offered["first"] != "danger",
+                f"scoped={offered['scoped']}, {offered['count']} action(s), "
+                f"first one's tone: {offered['first']}")
 
         # AFTER THE BOOT, and said so rather than left to be assumed: the
         # listener is attached once `open_page` has navigated, so this reads the
