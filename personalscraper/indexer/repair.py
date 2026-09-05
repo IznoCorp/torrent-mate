@@ -457,12 +457,12 @@ def soft_delete_subtree(conn: sqlite3.Connection, path_id: int) -> int:
         — does NOT include files already tombstoned by a previous run).
     """
     # Capture the path's identity BEFORE the row is deleted (step 3). The
-    # disk_id is needed for the merkle refresh, and both it and rel_path go
+    # disk_id is needed for the merkle refresh, and both it and the relative path go
     # into the audit records: a snapshot naming only ``path_id`` would point
     # at a row that no longer exists once this call returns.
     path_row = conn.execute("SELECT disk_id, rel_path FROM path WHERE id = ?", (path_id,)).fetchone()
     disk_id: int | None = int(path_row[0]) if path_row else None
-    rel_path: str | None = str(path_row[1]) if path_row else None
+    relative_path: str | None = str(path_row[1]) if path_row else None
 
     now = int(time.time())
     n_soft: int = conn.execute(
@@ -495,7 +495,7 @@ def soft_delete_subtree(conn: sqlite3.Connection, path_id: int) -> int:
                         "id": int(file_row[0]),
                         "path_id": path_id,
                         "disk_id": disk_id,
-                        "rel_path": rel_path,
+                        "rel_path": relative_path,
                         "filename": file_row[1],
                         "oshash": file_row[2],
                         "size_bytes": file_row[3],

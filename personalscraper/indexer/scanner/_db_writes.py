@@ -106,10 +106,9 @@ def _upsert_file_row(
     :data:`_INSERT_BATCH_SIZE`.  The ceiling used to be the caller's to enforce
     and no caller did, so the buffer grew for the length of the walk.
 
-    That is a ceiling, not the usual trigger: :func:`walk` drains the buffer
-    before every checkpoint (100 files in production), so the batch normally
-    ends there.  Both matter — the checkpoint keeps the committed walk position
-    honest, the ceiling bounds memory when checkpoints are far apart or off.
+    The flush does NOT commit, so the rows it writes stay inside the per-disk
+    transaction that DESIGN §15.5 rolls back when a disk raises ``EIO``
+    mid-walk.  What makes them durable is the next checkpoint, which commits.
 
     Without a buffer the row is written immediately, upserted in place.
 
