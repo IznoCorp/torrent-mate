@@ -409,7 +409,8 @@ Neither stops a data-destroying defect in the exception's strict sense: B-299 ke
 edits from being thrown away on a conflict, B-300 keeps a household's service from one tap. The
 ledger read the file DOWNWARD, so no arm could have asked, and the lot's own entry names them only to
 explain a count. Recorded by the steward's audit of 2026-09-05 so the exception is not widened in
-silence; whether it covers them is the operator's word, and either way both leave with the settings'
+silence. **The operator ruled the same day that the exception COVERS them** (« D5 couvert »): the
+edits stand, declared here with their commit as the rule asks, and both leave with the settings'
 other verbs when `legacy.js` no longer exists (L13's first clause).
 
 **Why, and this is a measurement rather than a preference.** `legacy.js` was 34 650 lines when
@@ -1559,7 +1560,7 @@ gone**: the panel's take carries a TITLE and is the arrivals feature's since B-3
 screen's take carries an INDEX and is still the engine's branch on the line after the arrivals
 door — `grep -c "closest\.dataset\.take" frontend/maquette/design/src/engine/legacy.js` reads
 **3**, not 0 — with its own `setTimeout(…, 260)` and B-322's two toasts. It had no owner in any lot
-until the steward's audit of 2026-09-05 placed it with L21, PROPOSED (B-323).
+until the steward's audit of 2026-09-05 placed it with L21 — **ratified by the operator the same day** (B-323).
 
 **Why the rest were not moved.** « One kind of change per wave » (§ 0) forbids a conversion wave
 carrying a behaviour repair, and a verb reader IS behaviour: moving ONE — `data-take` — uncovered a
@@ -1640,15 +1641,16 @@ carry them and why this lot can. **Done when** each of the five is read by its f
 engine branch (`grep -c "closest\.dataset\.follow" frontend/maquette/design/src/engine/legacy.js`
 and its four siblings read 0), each landing with the rule that held it before.
 
-**Two more placed here by the steward's audit of L19 (2026-09-05) — the first said by the clause
-map on the day and only now written where the lots are; the second PROPOSED, the operator's word
-pending.** (1) **DOIT-4's « En file » pastille on the resolve queue.** L19 measured it absent and
+**Two more placed here by the steward's audit of L19 (2026-09-05), both RATIFIED by the operator
+the same day — the first said by the clause map on the day and only now written where the lots
+are; the second placed by the audit.** (1) **DOIT-4's « En file » pastille on the resolve queue.** L19 measured it absent and
 could not draw it — a surface change its contract forbade — and the map's DOIT-4 row reads `partly`
 for exactly that half. (2) **`data-take`'s release-screen half.** An INDEX into the offered releases,
 still read by the engine's delegation on the line after the arrivals door, carrying its own
 `setTimeout(…, 260)` and B-322's two toasts, which move with it (B-323). It is an act of
-acquisition on a surface React already emits, which is this lot's shape; the other reading places it
-with the delegation in L13, and the operator decides. **Done when**, for both: the map's DOIT-4 row
+acquisition on a surface React already emits, which is this lot's shape; the other reading placed it
+with the delegation in L13, and the operator chose this one (« OK L21 pour data-take »). **Done
+when**, for both: the map's DOIT-4 row
 reads `served` with a rule that reads the pastille on a queued mutation, and
 `grep -c "closest\.dataset\.take" frontend/maquette/design/src/engine/legacy.js` reads **0** like the
 five above, each landing with its rule seen red first.

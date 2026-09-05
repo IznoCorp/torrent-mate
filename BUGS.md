@@ -1173,14 +1173,14 @@ owner as « the lot that takes the release screen's delegation verbs » — a lo
 arrivals door (`window.__arrivalsVerbs?.take(…)`, the panel's TITLE half, moved) and the engine's own
 INDEX branch behind it, with its wait and B-322's two toasts. **L13's inheritance names five
 surface-opening verbs and L21's five acquisition acts; this verb is in neither list.** A debt with
-no named owner is B-253's species, and it is written into L21's « Done when » as PROPOSED, the
-operator's word pending.
+no named owner is B-253's species, and it is written into L21's « Done when » — proposed by the
+audit, **RATIFIED by the operator on 2026-09-05** (« OK L21 pour data-take »).
 
 **What it is not.** Not a regression — both sites and both figures were in the tree before the
 lot. Not a guard green over what it does not read — no rule asserts « five »: `exits.py` refuses the
 gap on `data-journey` alone and R123 (`take.py`) reads the panel's take alone, and each says so. It
 is a stale figure in three places and a verb with no owner. **Owner of the count: the § 5
-instruments' debts block** (the next wave touching `exits.py`). **Owner of the verb: L21, proposed.**
+instruments' debts block** (the next wave touching `exits.py`). **Owner of the verb: L21, ratified.**
 
 <sub>steward's audit of L19, 2026-09-05, on `main` at `427ea2bc8` · `grep -c ', 260)' frontend/maquette/design/src/engine/legacy.js` → 7 · `git show 4c0e274a7:frontend/maquette/design/src/engine/legacy.js | grep -c ', 260)'` → 9 · `grep -c "setTimeout(.*260)" …` → 5 (7 at the base) · `grep -c "closest\.dataset\.take" …` → 3</sub>
 
