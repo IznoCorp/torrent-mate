@@ -170,14 +170,23 @@ async def main():
             # the order is what this reads. A panel that puts a destructive act
             # first hands a keyboard's or a switch control's next Enter the act
             # it should have had to travel to.
-            first_tone = await page.evaluate(
-                """()=>{const one = document.querySelector(
-                     '#sheet [data-part="sheet/action"], #sheetin [data-part="sheet/action"]');
-                   return one ? (one.dataset.tone || "neutral") : null;}""")
+            # THE COUNT IS READ BESIDE THE TONE, and it has to be: the first
+            # version compared `None` with « danger » and passed whenever the
+            # selector matched NOTHING — so a panel that drew no action at all,
+            # or one whose action markup moved, satisfied « its first action is
+            # not destructive » by having no first action. That is the vacuous
+            # pass this whole rule exists to refuse, in a hold added to refuse
+            # it elsewhere.
+            offered = await page.evaluate(
+                """()=>{const all = [...document.querySelectorAll(
+                     '#sheet [data-part="sheet/action"], #sheetin [data-part="sheet/action"]')];
+                   return {count: all.length,
+                           first: all.length ? (all[0].dataset.tone || "neutral") : null};}""")
             journal.check(
                 f"and its FIRST action is not the destructive one ({kind}) — "
                 f"a panel names no way out, so focus lands there",
-                first_tone != "danger", f"first action's tone: {first_tone}")
+                offered["count"] >= 1 and offered["first"] != "danger",
+                f"{offered['count']} action(s), first one's tone: {offered['first']}")
 
         # AFTER THE BOOT, and said so rather than left to be assumed: the
         # listener is attached once `open_page` has navigated, so this reads the

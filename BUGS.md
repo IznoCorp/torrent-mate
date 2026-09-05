@@ -1274,8 +1274,10 @@ actually change one. Reading both would report one defect as two and send its re
 nobody may edit.
 
 **And it is a RATCHET, per file.** `frontend/maquette/comment-references-baseline.json` records
-**301 references in 98 files** — taken on the REWORDED head, the operator's second condition, so
-the wave's own seventy-five are not in it. A file's count going UP is a violation; going down is
+**299 references in 97 files** on the wave's final head — taken on the REWORDED head, the
+operator's second condition, so the wave's own seventy-five are not in it. It read 301 in 98 when
+the arm landed and fell by two when `contract/openapi.json`'s own dated lines were reworded at the
+source, which is the ratchet's `[RE-RECORD]` path working rather than drift. A file's count going UP is a violation; going down is
 printed `[RE-RECORD]` and refused nothing. **Per file rather than per total**, because a total
 hides a trade: one file clearing three while another gains three leaves the total where it was,
 and the habit is per file.
@@ -1296,7 +1298,7 @@ into the contracts tier's cheap guards, and both CI filters name it.
 <sub>comment-only scan over `frontend/maquette/**/*.{py,ts,tsx,css}` for `20\d\d-\d\d-\d\d`,
 `\bL\d\d\b`, `\bphase \d` → 263 in 85 files, and 326 in 99 with docstrings in · the arm's own
 scan, which adds `.js` and the contract and drops the generated file: `python3
-scripts/check-maquette-comments.py` → 301 in 98 of 316 files read</sub>
+scripts/check-maquette-comments.py` → 299 in 97 of 316 files read, floor 284</sub>
 
 **B-288 — the media screen's priming matches a title by prefix.**
 `useMediaSheet` primes from `reference.sheetFor(title)`; the engine's lookup falls back to a
