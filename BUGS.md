@@ -396,6 +396,7 @@ when the defect comes back.
 | B-343 | After a real save the restart banner does not appear: the flag is raised on the engine's `SETTINGS_STATE` object and nothing re-renders the page, so « Redémarrer maintenant » is reachable from a named state and not from a save | 1× | `open` |
 | B-344 | On a desktop browser the design host shows the prototype inside the phone frame only — the operator cannot test the interface's desktop layout there; he asks for a desktop-only switch out of the frame and back | 1× | `open` |
 | B-345 | The seeded data does not show every state a surface can take — the operator could not find a single medium « à prendre » to try « Récupérer maintenant » on; his ruling: the test data must always hold enough simulated states to exercise every case by hand | 1× | `open` |
+| B-360 | The pre-push gate refuses a push over a GREEN suite and shows the reason to nobody: each check runs silently first and, when that pytest dies of a signal, is rerun visibly — the rerun's « 11 325 passed » is printed and its result discarded, so the reader gets a green summary, then « Push aborted », and the failure in no output; three refusals in one morning on two branches, the same push landing on its next attempt | 1× | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
@@ -1837,6 +1838,30 @@ fixture clause; a wave that reseeds a family earlier takes its surfaces' share (
 seeds are the first case: a takeable arrival for a followed medium is one line).
 
 <sub>operator, 2026-09-06 · `python3 -c "import json; print(len(json.load(open('frontend/maquette/design/src/mocks/seeds/takeable.json'))))"` → 2 · `grep -n "toTake" frontend/maquette/design/src/features/acquisition/follow-facts.ts` → `queue.takeable.some(…)`</sub>
+
+**B-360 — the pre-push gate refuses a push over a green suite, and shows the reason to nobody.**
+Measured on 2026-09-06, three refusals in one morning on two branches. `hooks/pre-push` runs every check
+SILENTLY first (`"$@" > /dev/null 2>&1`, its `run_check`) and, on a non-zero exit, reruns it VISIBLY
+(`"$@" 2>&1 | sed`) and counts the failure whatever the rerun says. So when the silent pytest run dies of
+a signal, the reader is shown the RERUN's green summary — « 11 307 passed » on the steward's
+`claude/steward-reports-0906`, « 11 325 passed » on L21's `feat/maquette-l21` — followed by « 1/5
+check(s) failed. Push aborted. », and the only trace of the failure is bash's own job line:
+`line 36: 86894 Terminated: 15  "$@" > /dev/null 2>&1` on one push, `94910 Exit 1 … 94911 Abort trap: 6
+| sed` on another. The steward's push, re-run twenty minutes later under the lock at three workers,
+landed unchanged. **Where the signals come from is NOT read**: no crash report was written, the lock
+script's watchdog printed nothing and exits 75 when it acts (these runs exited 1), the hook wraps
+nothing in a timeout, and the suite's own signal-sending tests (`tests/scripts/test_heavy.py`,
+`tests/trailers/test_state.py`) terminate only processes they started. **What IS read is the
+instrument's shape**: a gate whose verdict rests on an output it throws away, and whose visible output
+contradicts its verdict. A reader who trusts the summary bypasses the gate; one who trusts the verdict
+looks for a red test that does not exist; and the L21 agent, rightly, did neither and stopped at 60 %
+context with nineteen commits it could not land. Two things owed, in the hook: the silent run's output
+kept in a file the abort message names, so the reason is readable; and a rerun that passes is a check
+that passed — or no rerun at all. Owner: **the next wave that opens `hooks/`**, and CI is not exposed to
+this shape (it runs the suite once and shows it). Numbered from the steward's block (B-360+): L21 holds
+B-351+ and the departure wave B-346+ on their branches.
+
+<sub>steward, 2026-09-06 · the two pushes' logs (`push-reports.log`: `Terminated: 15`, then 11 307 passed, then « Push aborted »; `push-reports-2.log`: landed) · the L21 agent's report of 11:2x (`Abort trap: 6`, 11 325 passed, « Push aborted », `heavy: l21 done (exit 141)`) · `sed -n '32,42p' hooks/pre-push` · `find ~/Library/Logs/DiagnosticReports -newermt "-90 minutes"` → nothing</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
