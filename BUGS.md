@@ -369,9 +369,9 @@ when the defect comes back.
 | B-307 | **Four** rules have now fallen under the recorder's parallel load and passed alone; the register holds one of them, under a title naming a fourth rule and a diagnosis that does not transfer | by audit | `open` |
 | B-308 | The maquette draws six schedulers and the machine now runs seven — `machine.py`'s count fell the day `personalscraper-index-full` was scheduled on `main`, and nothing in that pull request could have told it | by L19 | `fixed #567` |
 | B-309 | « Récupérer maintenant » on a medium's own panel THROWS and takes nothing: the release screen's `data-take` branch is checked first, has no guard, and swallows every `data-take` in the document | by L19 | `to confirm` |
-| B-310 | Opening a media sheet from a bottom panel shows the PANEL again briefly before the sheet comes back — L12's drawn departure slides the panel's snapshot over the arriving sheet for 450 ms while the root cross-fades in 300 ms; a design amendment for the operator | 2× | `open` |
+| B-310 | Opening a media screen from a bottom panel paints the PANEL again for one frame, open and opaque, after the crossing — the departing snapshot's `animation:` shorthand resets its fill mode, so `panel-down` ends and the snapshot snaps back to the captured (open) state until the transition is torn down one frame later; proven on the operator's phone and reversed there by one line | 2× | `open` |
 | B-311 | Coming back to a list after a medium's sheet does not restore the scroll position the list was left at | 1× | `open` |
-| B-312 | Changing the library's lens during a selection DROPS it — L14's own decision, RULED against by the operator on 2026-09-05 | 1× | `open` |
+| B-312 | Changing the library's lens during a selection DROPS it — L14's own decision, RULED against by the operator on 2026-09-05 | 2× | `open` |
 | B-313 | The follow sheet offers « Voir le parcours » TWICE — once as the primary act, once in the secondary row — whenever the primary falls through to it | 1× | `open` |
 | B-314 | The add screen's search shows no example result to try the flow with | 1× | `open` |
 | B-315 | Découvrir's « charger plus »: the button is too big, one press should show more, and the feed must say when the reserve is spent | 1× | `open` |
@@ -388,6 +388,15 @@ when the defect comes back.
 | B-326 | `heavy.sh` offers no way to ask who holds its lock, so the natural probe — `cat` on what is a DIRECTORY — reads « free » whether the lock is held or not, and two sessions reached for it independently on the same night | by the steward's office | `open` |
 | B-327 | « Réglages » draws SIX scheduled jobs while the machine runs seven, and the same six are named twice in two French vocabularies that disagree on five of them — the row cannot be added until `SETTINGS` leaves the engine | by L13 | `open` |
 | B-328 | `features/system/page.tsx` heads itself with a path that does not exist and describes a state field (`state.panne`) the code does not have | by the next wave that opens `features/system/page.tsx` | `open` |
+| B-338 | After a panel's departure the invisible scrim stays hit-testable over the media screen for ~380 ms — `opacity 0`, `visibility` still `visible` until its delayed flip — so a tap on the fresh screen lands on nothing | by the steward | `open` |
+| B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens » | 1× | `open` |
+| B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
+| B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
+| B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
+| B-334 | The secret panel's « Remplacer la valeur » does nothing: the action's whole effect is a `data-toast` the engine's dead message element answers, and no store, seed or cache moves | 1× | `open` |
+| B-335 | The secret panel's « Retirer la clé » does nothing and asks nothing: the same `data-toast` shape as B-334, on a destructive act that owes a confirmation (B-300's form) | 1× | `open` |
+| B-336 | The library's kind chips (« Tout · Films · Séries », with counts) scroll horizontally with a VISIBLE scrollbar on the phone; the strip should hide it as `pillscroll` does | 1× | `open` |
+| B-337 | A follow card swiped open: the first tap on a revealed action does nothing, the second acts — systematic on the phone | 1× | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -907,6 +916,42 @@ residue rule the engine toggles »).
 
 <sub>reported through the steward, 2026-09-04 · probe on 8899 and on a control of `4c0e274a7` served on 8902</sub>
 
+**THE MECHANISM ABOVE IS SUPERSEDED — measured on the operator's own phone on 2026-09-06, and it
+is one frame, not 450 ms.** The operator refused the reading (« la fiche est ouverte complètement, au
+premier plan, mais le panel bottom réapparaît par-dessus … pas un comportement normal »), sent a
+screenshot and a screen recording, and the recording settled the shape: the panel slides down over
+the arriving screen, the screen stands clean for four frames, and then **the panel is painted again,
+open, opaque, at rest, for ONE frame** — not a slide, not a fade. Read then on the device itself
+(Chrome 152 on Android 16, `adb` wireless pairing, raw DevTools protocol on the `tm-design` tab, a
+reading per animation frame):
+
+    frame N     ::view-transition-old(leaving-panel)   opacity 0.0003   transform translateY(594px)   panel-down at 436 ms
+    frame N+1   ::view-transition-old(leaving-panel)   opacity 1        transform none                panel-down FINISHED, transition still active
+    frame N+2   the transition is torn down; the live #sheet is off-screen and hidden throughout
+
+`base.css` declares the departure with the SHORTHAND — `animation: panel-down var(--duration-4)
+var(--ease-standard)` — and a shorthand resets `animation-fill-mode` to `none` (the user-agent
+stylesheet gives every `::view-transition-*` pseudo-element `both` by inheritance; the shorthand throws
+it away — read as `none` on the device with `getComputedStyle(html, '::view-transition-old(leaving-panel)')`).
+So when `panel-down` ends the snapshot returns to its un-animated state, which is the panel as it was
+captured — open — and stays drawn there, z-index 20 above the root, until the browser tears the
+transition down one frame later. **Every run has that frame** (the Mac's readings too: the last
+active frame of the transition, `panel-down` absent from `getAnimations()`), and the operator sees it
+in Chrome on macOS as well: two sessions of DOM probes had described the 450 ms before it, because a
+DOM sampler does not see a painted frame — only the snapshot's own computed style on that frame does.
+**Counterfactual on the device**: `::view-transition-old(leaving-panel) { animation-fill-mode:
+forwards }` injected into the operator's page → last frame at opacity 0, and the operator: « parti,
+plus de clignotement ». The live `#sheet` is never on screen after the close (its silence rule holds);
+the root cross-fade and the 450 ms departure L12 drew are not the defect and are not amended.
+
+**Owner: the micro-wave `maquette-departure`** (`docs/features/maquette-departure/BRIEF.md`),
+decided by the operator the same day, with B-338 beside it: the line, its rule (R127, red on `main`
+without the line), and the two new snapshots with the same shorthand (`banner-in`, `body-rise`) fixed
+in the same move. **Done when** the rule reads opacity 0 on the transition's last active frame, red
+with the line reverted, and the operator no longer sees the frame.
+
+<sub>steward, 2026-09-06 · operator's screen recording (24 fps, the frame at 6.83 s) · device readings `cdp-fill.py` on the phone's Chrome over `adb forward tcp:9333 localabstract:chrome_devtools_remote` · `grep -n "animation: panel-down" frontend/maquette/design/src/styles/base.css` · `grep -c "fill-mode" …/base.css` → 0 · counterfactual confirmed by the operator</sub>
+
 **B-311 — a list does not come back at the place it was left.**
 Reported by the operator on 2026-09-04, verbatim: « quand je reviens sur la liste après avoir vu
 la fiche, je ne reviens pas avec le même scroll sur la liste ». Read: open a medium's sheet from a
@@ -985,6 +1030,13 @@ wave that owns the library's selection surface carries whatever it decides.
 L14's decision is overruled, and the reason it was taken is spent — the selection is keyed by
 TITLE since that same wave, so a tick that survives a change of listing cannot land on another
 medium.
+
+**REPORTED AGAIN by the operator on 2026-09-06** (« le bug de sélection reset lors du changement de
+filtre dans la médiathèque est toujours là »): the ruling is four days old and no lot carries it —
+neither `frontend-architecture.md` nor the clause map names B-312. PLACED BY THE STEWARD, PROPOSED:
+**L13**, whose conversion of the library's engine half is where `selected: new Set()` is written on a
+lens change (`legacy.js`) beside the React head's own write (`library-head.tsx`) — the two writers of one
+fact; the operator ratifies or names another lot.
 
 **Two guard-rails come with the ruling**, and they are the second half of « a tick nobody can see
 is a tick nobody can untick »: the selection bar counts every ticked MEDIUM, hidden by the lens or
@@ -1486,6 +1538,176 @@ session, and this one has outlived two renames.
 Owner: **the next wave that opens `features/system/page.tsx`**. Two lines.
 
 <sub>`sed -n '1p;10p' frontend/maquette/design/src/features/system/page.tsx` · `grep -n "state.fault" …/page.tsx` → `:90` · `git diff be460fb79..HEAD -- …/page.tsx | grep -c "pages/system\|panne"` → 0</sub>
+
+**B-338 — the departed panel's scrim stays under the finger for ~380 ms after the screen is in.**
+When « Voir la fiche » leaves a bottom panel for the media screen, the scrim fades over 450 ms and its
+`visibility` flips 450 ms after that — B-249's idiom, which keeps a leaving layer visible until it has
+finished leaving. But `visibility: visible` is also hit-testable: once the view transition has ended and
+the media screen is fully in, `document.elementFromPoint` at the screen's centre answers `#scrim` —
+opacity **0**, z-index 46, above the screen — on every frame until the flip. Measured: 567 → 948 ms
+after the tap on a build of `main` on the Mac, 1083 → 1434 ms on the operator's phone. A tap on the
+fresh screen in that window lands on an invisible scrim, whose click handler closes layers that are
+already closed: the tap is simply lost. Found while measuring B-310 on the same frames; the same seam,
+the same shape — a departing layer outliving the crossing — seen from the finger's side.
+
+Owner: **the micro-wave `maquette-departure`**, beside B-310. The repair keeps the fade (R103 reads
+the scrim's visibility and stays green) and removes the target: a closed scrim takes no pointer events.
+**Done when** R127 reads, after the transition ends, that the element under the media screen's centre
+is never `#scrim`, red on `main` before the repair.
+
+<sub>steward, 2026-09-06 · `scratchpad/b310/probe.py` frames (`topAtCentre` = `#scrim[scrim]div` from 567 to 948 ms), the same on the phone's Chrome over CDP · `grep -n "transition-delay" frontend/maquette/design/src/ui/variants/layout.ts` → the scrim's `[transition-delay:0s,450ms]` at :96 · numbered B-338 because L21 holds B-329 on its branch</sub>
+
+**B-331 — Réglages' pull-to-refresh indicator is off-centre and outlives the refresh.**
+Reported by the operator on 2026-09-06 from his phone with two screenshots, verbatim: « Bug de loader
+il est décentré et reste apparent ». On « Réglages », after a pull, the toast « Actualisé. » is up and a
+16 px spinner is drawn at the LEFT edge of the viewport, cut on its left side, level with the top of
+the scrollport; on the second screenshot the content sits 44 px lower with the spinner still there.
+
+**What the code says, read rather than guessed.** The indicator is `#ptr` — `grid place-items-center
+overflow-hidden h-0` with a `.spin` child — and the ENGINE drives it (`legacy.js`, the pull block near
+`onRelease`): an armed release sets `.loading` and `height: 44px`, and a **1 100 ms timer** removes both
+and toasts « Actualisé. ». So the second screenshot is the indicator OPEN (44 px, the content pushed by
+exactly that) and the first is the moment the timer fires. Nothing in that block re-reads the surface:
+the refresh is a fixed-length pretence (D7: the mock layer answers nothing here), and the toast lands
+while the height transition is still closing. **The centring is NOT explained by the code** — at rest
+on the device `#ptr` reads `display: grid` and its spinner at x = 177 of 369, centred, and
+`place-items-center` is in the built stylesheet. Whether the spinner is at the left ONLY while
+`.loading` is on (a rule in `legacy.css` — `.ptr.loading .spin` — animates it, and a transform on a
+grid item does not move it left) is to be established by sampling the pull itself on the device; the
+steward's driven pull on 2026-09-06 could not be read because the operator was using the page.
+
+Owner: **L13**, the wave that converts the settings family and the engine's pull block with it — the
+indicator is the frame's (`lib/pull-gesture.ts` is the gesture; the block that opens and closes the
+indicator is still the engine's). The reading to take first is written above so it is not re-derived.
+
+<sub>operator's screenshots, 2026-09-06 09:57 · `grep -n "ptr.classList" frontend/maquette/design/src/engine/legacy.js` → the `loading` / `armed` toggles and the 1 100 ms timer · `#ptr` read on the device over CDP at rest: `[177, 69, 16]` for the spinner's x, y, width · `grep -o "place-items-center{[^}]*}" …/dist/vite/*.css` → present</sub>
+
+**B-332 — a Réglages topic cannot be left.**
+Reported by the operator on 2026-09-06, verbatim: « Réglage je rentre dans une section et je peux jamais
+revenir en arrière ». Entering a topic (« Où vont les médias », …) shows the topic's rows under a
+heading, with no back affordance; the system Back gesture leaves « Réglages » altogether.
+
+**Read in the engine's delegation** (`legacy.js`, `if (closest.dataset.topic)`): the branch sets
+`SETTINGS_STATE.topic`, re-renders, and calls **`replacePath()`** — the verb D1b reserves for an
+ADJUSTMENT (a filter, an inner tab, a sort). A topic is not an adjustment: it is a screen the reader
+enters and has to leave, i.e. a deliberate arrival in D1b's own words, which `recordPath()` pushes.
+Replaced, it leaves no entry for Back to pop, so Back pops the page. And `features/settings/page.tsx`'s
+`TopicView` draws the heading (`sectionHeading`) and the rows, and nothing that goes back — the list
+is reachable only by the tab bar, which is not Back. Two halves: the address model (the frame's) and
+the affordance (the settings surface's).
+
+Owner: **L13** for the settings family, and the frame's Back contract stands over it — see B-333.
+
+<sub>`grep -n "SETTINGS_STATE.topic = closest" frontend/maquette/design/src/engine/legacy.js` and the four lines after it (`replacePath()`) · `grep -n "TopicView" frontend/maquette/design/src/features/settings/page.tsx` · D1b rule 1 in `docs/reference/frontend-architecture.md`</sub>
+
+**B-333 — « beaucoup de pages n'ont pas de bouton retour et le geste retour ne fonctionne pas non plus ».**
+The operator's reading of 2026-09-06, verbatim, with the sentence that makes it a frame matter: « ça
+devrait être impossible car faisant partie du carcan de l'App ». The frame's model (P3, « Back walks the
+ladder ») reads **true** under R59, R65, R69, R82 and R94, and D1b says a top-level page carries no back
+button by design — Back from a page lands on `/acquisition`. So either the operator meets screens that
+are NOT the four pages and still draw no back, or the ladder does not answer the SYSTEM gesture on his
+device the way the rules drive it. One instance is measured (B-332: a topic replaces instead of pushing).
+**The inventory is owed and it is the steward's**: every named state that is a screen or a topic below a
+page, read for (a) whether entering it pushes an entry (`history.length` +1), (b) whether it draws a
+back affordance, (c) what the system Back does there on the device — taken on the phone paired to this
+machine, never inferred from the rules that already read true. Filed rather than answered so the
+inventory has a name and the operator's sentence is not lost.
+
+Owner: the **steward's inventory first**, then the lot the inventory names per screen.
+
+<sub>operator, 2026-09-06 · `docs/reference/frame-model.md` P3 · D1b rules 1–3</sub>
+
+**B-334 — « Remplacer la valeur » on a secret does nothing.**
+Reported by the operator on 2026-09-06, verbatim: « Réglage: bouton remplacer la valeur ne fait rien ».
+`features/settings/panel-secret.ts` gives the action `target: { toast: translate("panels.secret.replaceToast") }`
+and nothing else — a panel action's `target` IS its `data-*` map (`ui/panel/contract.ts`), so the act
+is a `data-toast`, read by the engine's delegation (`legacy.js`, `if (closest.dataset.toast) toast(…)`)
+into `#toast` — the dying engine's message element, which L21's agent measured EMPTY while a React
+message was on screen (its phase 2 report, 2026-09-06): the message layer is React and reads
+`window.__toast`, not that element. So the tap toasts into a dead element and moves nothing: no seed,
+no cache, no state. From the reader's side, nothing happens. NE-DOIT-PAS-1's shape: an interface that
+says (or would say) « remplacée » without a thing having been replaced.
+
+Owner: **L13**, with the settings family — the act needs a producer-side handler that writes the layer
+(the secret's new value, held when offline, put back on refusal) and a message through the door the
+host publishes; the rule counts the layer's write, never the toast.
+
+<sub>`grep -n "toast:" frontend/maquette/design/src/features/settings/panel-secret.ts` → `:81`, `:88` · `grep -n "dataset.toast" …/engine/legacy.js` → one reader, `toast()` into `#toast`</sub>
+
+**B-335 — « Retirer la clé » on a secret does nothing, and asks nothing.**
+Reported by the operator on 2026-09-06, verbatim: « Réglage: bouton retirer la clef ne fait rien, et il
+devrait proposer une confirmation ». Same mechanism as B-334 (`target: { toast: … }` at
+`panel-secret.ts:88`), on a DESTRUCTIVE act: removing an API key cuts a provider for every account of
+the household, which is B-300's case — a `ui/dialog` confirmation that says what it is a confirmation
+for, with the walk going through the cancel (the key still there, nothing said) before the confirm (the
+key gone, and said). Owner: **L13**, beside B-334; the confirmation's sentence is the operator's to
+dictate if he wants more than « la clé est retirée pour tous les comptes du foyer ».
+
+<sub>`sed -n 84,90p frontend/maquette/design/src/features/settings/panel-secret.ts` · B-300's rule shape in `harness/settings.py`</sub>
+
+**B-336 — the library's kind chips show their scrollbar.**
+Reported by the operator on 2026-09-06, verbatim: « Filtre médiathèque Tout/films/séries il y a un
+scroll horizontal, la barre de scroll est visible elle ne devrait pas l'être ». The strip under the
+library's search — « Tout 1861 · Films 717 · Séries 528 » — overflows the 369 px viewport and scrolls
+sideways with a visible bar. The prototype already has the idiom for a strip that scrolls without
+showing it: `pillscroll` (`ui/variants/controls.ts`, `[scrollbar-width:none] [&::-webkit-scrollbar]:hidden`),
+and D11 says a scrollbar is STYLED, never replaced — a strip of chips is the one place a bar is hidden
+because the chips themselves are the affordance. **Where the strip is drawn is to be located before it
+is repaired**: it is not in `features/library/` (`library-head.tsx` draws the three LENSES, not the
+kinds), so it is the engine's library head, and its container carries neither `pillscroll` nor the
+two declarations. Owner: **L13**, with the library's engine half; if a wave opens that head earlier,
+it takes the two declarations with it.
+
+<sub>operator, 2026-09-06 · `grep -rn "kindAll" frontend/maquette/design/src` → the ADD screen only (`add-screen.tsx:283`), not the library · `grep -n "pillscroll" frontend/maquette/design/src/ui/variants/controls.ts` → the idiom</sub>
+
+**B-337 — a swiped-open follow card ignores the first tap on its revealed action.**
+Reported by the operator on 2026-09-06, verbatim: « Lorsqu'on glisse une carte de suivi à droite ou à
+gauche pour afficher les actions, il faut 2 clics sur le bouton pour que ça soit pris en compte, le
+premier clic ne fait rien systématiquement ».
+
+**What the code says, and what it does not settle.** The engine's swipe (`legacy.js`, the block from
+`cadre.addEventListener("pointerdown"` to the capture-phase `click` guard) arms `clickAfterDrag` at the
+release point of any drag that travelled more than 4 px, and swallows the next click within 24 px of it
+— written for a MOUSE, whose click follows a drag; its own comment says « after a touch drag the browser
+suppresses the click by itself ». On touch, then, the mark stays ARMED after the swipe, and the next
+`pointerdown` clears it (`clickAfterDrag = null` is the handler's first line) — so by that reading the
+first tap should pass. Two mechanisms are left to tell apart on the device, and the reading is a
+finger, not a click: (a) the first tap's `pointerdown` on the open row re-enters the drag machinery
+(`cardDrag` with `depart = openCardDx`) and something on its release — `endCardDrag`, the press
+arbitration's own `swallowClick`, or a `pointercancel` the compositor fires because the row carries
+`touch-action` — swallows the click; (b) the revealed action sits under the translated card's hit area
+for the first tap and the tap CLOSES rather than acts. Whichever it is, « systematic » means the rule
+that reads it is cheap: swipe a card open with a real touch, tap the revealed action ONCE, hold that
+the act happened.
+
+Owner: **L21** if it touches `follows-tab.tsx`'s swipe while moving `data-pause` / `data-remove` (the
+revealed actions ARE those verbs, and a rule that taps them once is the rule the brief asks for);
+otherwise **L13**, with the engine's swipe.
+
+<sub>operator, 2026-09-06 · `grep -n "clickAfterDrag" frontend/maquette/design/src/engine/legacy.js` · `grep -n "swallowClick" frontend/maquette/design/src/lib/press-arbitration.ts` · to measure: a touch swipe then ONE touch tap on `[data-part="swipe/action"]`, reading which listener consumed the click</sub>
+
+**B-339 — a disabled panel action looks enabled.**
+Reported by the operator on 2026-09-06 with a screenshot, verbatim: « Le bouton ajouter ne fait rien
+sur cet écran » — the add screen, a result already added (the strip says « 2 médias ajoutés », the row's
+chip « ✓ Ajouté »), its panel's primary action reading « + ✓ Ajouté » in full primary yellow.
+
+**Read in the code: the act IS spent, and the drawing does not say so.** `features/acquisition/panel-add.ts`
+gives the action `desactive: done` (`done` = the result's position in `state.added`), and
+`ui/panel/index.tsx` writes it as `<button class="sact primary" disabled …>`; `addVerb` (the engine's
+label derivation, `legacy.js`) reads the SAME set and prints « ✓ Ajouté ». So the button is disabled and
+its tap does nothing, correctly — but `.sact` and `.sact.primary` (`styles/legacy.css:1674-1703`) carry
+**no `:disabled` rule at all** (the only one in the residue is `.btnprimary:disabled`, another
+element), so a spent primary action is painted identically to an available one: same yellow, same
+weight, a « + » icon beside a check mark. The reader reads an act, taps, and reads a defect. It is not
+the add screen's alone: every panel action that passes `desactive` is drawn this way, and DOIT-4's
+queued state (an act that cannot be taken NOW) has no visible form to inherit either.
+
+Owner: PROPOSED **L21** — it is the lot drawing new panel actions with a not-available state (the
+queued button, DOIT-4), and the disabled drawing is that state's floor; the action's variant leaves the
+residue for `ui/variants` with its `disabled:` half. The operator ratifies, or names L13 (D10: the
+residue dies there).
+
+<sub>operator's screenshot, 2026-09-06 10:10 · `grep -n "desactive" frontend/maquette/design/src/features/acquisition/panel-add.ts frontend/maquette/design/src/ui/panel/index.tsx` · `grep -n "\.sact" frontend/maquette/design/src/styles/legacy.css` → 1674, 1688, 1694, 1697, 1703, none with `:disabled` · `grep -n ":disabled" …/legacy.css` → `.btnprimary:disabled` only</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
