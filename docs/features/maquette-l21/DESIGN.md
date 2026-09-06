@@ -129,6 +129,43 @@ button and its `data-*`, nothing else.
 **Why not `features/acquisition/`**: the season matrix is drawn on the media side and invariant 7
 is absolute. The acquisition feature is not imported; the OPERATION is called.
 
+### 3.1b What phase 2 measured, and it corrects the brief
+
+**There is no `to_grab` season anywhere in the fixture.** The brief and the lot's
+contract both describe the seasons panel as « printing a season as `to_grab` and offering
+nothing ». Measured: `epState` colours a missing episode by the FOLLOW's status, so the one
+follow that has a hole (`Silo`, `pending`) draws it `pending`, and every other follow is
+`up_to_date` with nothing missing. A rule looking for a `to_grab` cell is red for a reason
+unrelated to the verb — it would have stayed red after the repair and then been « fixed »
+into a green that read nothing.
+
+**What the panel really prints over a hole is `[data-part="season/missing"]`** — the
+« N manquants » mark, drawn exactly when owned is short of what aired. That is the anchor,
+and the subject is chosen from `window.SEASONS` (owned < aired) BEFORE a finger moves.
+
+**The fixture offers exactly one subject**: `Silo`, season 3, 7 aired, 6 held. Thin, and
+said so here rather than discovered by the next reader.
+
+### 3.1c Four instrument defects phase 2 found, none of them by a gate
+
+1. **A mocked call reaches no network.** `mocks/index.ts` replaces `globalThis.fetch`, so
+   Playwright's request/response events never fire for an API call — measured, a verb that
+   demonstrably ran produced ZERO page requests. **Every hold written as `page.on("response")`
+   over a mocked operation is green whatever the interface does.** `mocks/answered.ts` records
+   what the layer answered; rules read the CALL there. ⚠ **`busy.py`'s « no mutation was
+   answered 409 » hold is vacuous for this reason** — it listens for a 409 on a wire nothing
+   is put on. Phase 6 owns `busy.py` and repairs it there.
+2. **The message is not in `#toast`.** That element is the dying engine's; the message layer
+   is React. `#toast` stayed EMPTY through a verb whose message was on screen throughout.
+   Rules read `window.__toast.read()`, the door the host publishes for exactly this.
+3. **`window.__go` re-seeds the mock layer.** A pipeline set running before the state was
+   driven is idle again by the time the act lands. The busy half measured a clause it had
+   switched off, while the hold saying « the pipeline really is busy » was green over a
+   reading already discarded.
+4. **Two sources for one fact.** The absorbed count crossed the sheet's provider CATALOGUE
+   with the owned-episode seed and answered **10** for a season the interface was printing
+   as « 1 manquant ». `seasons.json` is what the matrix is drawn from.
+
 ### 3.2 « Remettre en file » and « Re-scraper » — B-302
 
 **Where.** `features/acquisition/panel-journey.ts` (88 non-blank), whose `actions` block offers
