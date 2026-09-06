@@ -1,313 +1,232 @@
 # L21 — where the wave stands, for whoever picks it up
 
-Written at 54 % context by the session that opened the lot. Read `BRIEF.md`, `DESIGN.md` and
-`plan/INDEX.md` first — this file says only what is TRUE NOW and what the plan does not.
+Rewritten at 41 % context by the session that moved the five acts. Read `BRIEF.md`, `DESIGN.md`
+and `plan/INDEX.md` first — this file says only what is TRUE NOW and what the plan does not.
 
-**Branch** `feat/maquette-l21`, pull request **#572** (draft). **Version** 0.98.75 — it was
-0.98.74 and moved because the departure micro-wave, which merges first, holds that number;
-**re-read `main` and bump past it at the close**, whatever else has merged meanwhile. **Base**
-`origin/main` at `ae1b8de48`, which commit `27a2ef6a9` on this branch has ALREADY MERGED —
-`git merge-base HEAD origin/main` answers `ae1b8de48` and `git diff --name-only <base>
-origin/main` answers zero files. § 6's « merge `main` first » is therefore discharged; it said
-the opposite until this line, and a sentence that outlives its subject is read as current.
+**Branch** `feat/maquette-l21`, pull request **#572** (draft). **Version** 0.98.75 — `main` carries
+0.98.74 and this is already past it; re-read `main` and bump again at the close if it moves.
+**`origin/main` at `163cbfcbb` IS MERGED into this branch** (merge commit, four conflicts resolved
+on their merits — see § 5d). That merge is what makes CI possible at all: see § 5e.
 
 ---
 
 ## 1. Done, with the reading that proves it
 
-| Phase                               | State           | Proof                                                                                              |
-| ----------------------------------- | --------------- | -------------------------------------------------------------------------------------------------- |
-| 1 — the contract                    | **DONE**        | 3 operations + types + register together; § 2c added; mocks answer and MOVE state                  |
-| 2 — the season grab (B-301)         | **DONE**        | R125 **16 holds, no violation**; mutation falls 6 holds naming the right defects                   |
-| 3 — the journey's two verbs (B-302) | **DONE**        | R126 **16 holds, no violation**; red first at 9 violations; mutation falls exactly the stages hold |
-| 4 — the five acts                   | **not started** | —                                                                                                  |
-| 5 — the release take                | **not started** | —                                                                                                  |
-| 6 — the pastille + R124             | **not started** | —                                                                                                  |
-| 7 — B-313 + close                   | **not started** | —                                                                                                  |
-
-**Gates on the current head**: `run.sh --contracts` → 18 rules + 27 guards, no violation. Oracle →
-87 states × 34 regions, 2 958 measurements, **no divergence** (phase 1; not re-run since the
-button landed — **expect and ACCEPT divergences on the states whose seasons panel or journey panel
-gained a button**, D8, each with B-301 / B-302 as its reason). `tsc -b`, vitest 104, build,
-`check-no-french` 15 arms, `check-mock-seeds` 7 arms, `check-markup-contracts` 87 tests: clean.
-
----
-
-## 2. What this wave built that the plan did not foresee
-
-**`lib/verbs.ts` — a tap registry, and phase 4 depends on it.** B-302's verbs had NO reader: a
-panel action emits only `data-*`, `ui/panel` attaches no handler by contract, and every such
-attribute was read by the dying engine — so a verb that never existed there needed a branch in
-`legacy.js`, which D5 forbids. The registry is domain-free (`registerVerb(name, act)`) with one
-delegated listener in capture, `stopPropagation` on a match so the engine cannot also act.
-**Phase 4 moves the five acts onto this same registry** rather than inventing a mechanism then.
-
-**`mocks/answered.ts` — the record a rule reads a CALL from.** See § 3.
-
----
-
-## 3. The instrument facts that change how you write every remaining rule
-
-1. **A mocked call reaches NO network.** `mocks/index.ts` replaces `globalThis.fetch`. Measured: a
-   verb that demonstrably ran produced **zero** Playwright request events with an unfiltered
-   listener attached. **Any hold written as `page.on("request")` or `page.on("response")` over a
-   mocked operation is green whatever the interface does.** Read the call on
-   `window.__mocks.answered()` instead.
-   ⚠ **`busy.py`'s « no mutation was answered 409 » is vacuous for this reason.** It is phase 6's
-   to repair, and until then R124's green has never included that clause.
-2. **The message is NOT in `#toast`.** That element is the dying engine's; the message layer is
-   React. Read `window.__toast.read()` — `{ message, shown }`, published for rules.
-3. **`window.__go` RE-SEEDS the mock layer.** Put the machine to work AFTER driving the state, or
-   the act lands against an idle layer while the « pipeline is busy » hold stays green over a
-   reading already discarded.
-4. **A panel producer has NO OBSERVER.** `invalidateQueries` refetches what is being observed and
-   marks the rest stale; a producer is a function from the cache to a descriptor. Use
-   `refetchQueries` or the sheet does not move.
-5. **`mutate.sh` takes a rule PATH, not a name** — a bad path prints « NO RULE FELL. That is the
-   finding. » See B-330. It cost a false finding that was nearly written down.
-6. **The heavy floor**: `HEAVY_FREE_FLOOR_MB=3584` is approved by the steward for the mutation and
-   the contracts tier at `TM_HARNESS_JOBS=1`; the full suite waits for 4096.
-7. **A PUSH ON THIS REPOSITORY IS A HEAVY RUN** — the pre-push hook runs the whole pytest suite at
-   `-n auto` (8 workers on 8 cores). Always
-   `PYTEST_XDIST_AUTO_NUM_WORKERS=3 … sh scripts/heavy.sh l21 git push …`.
-8. **Read the PUSH's own output, never the task notification's exit code.** Two pushes reported
-   « exit code 0 » from the wrapper while git had refused the ref. `git ls-remote --heads origin`
-   is the only proof.
-
----
-
-## 4. Corrections to the brief, already written into it on this branch
-
-- **§ 4's `busy.py` paragraph**: the repair it orders LANDED inside L19 (`raise_by_finger`,
-  `9fa13da57`). L19's report § 6 row 16 records it and its § 9 says it was left undone — § 9 is
-  the stale half. What remains is the ACTION click at `busy.py:172,222`, not hit-tested.
-- **§ 2's « one action per season row printed `to_grab` »**: there is **no `to_grab` cell anywhere
-  in the fixture**. `epState` colours a hole by the FOLLOW's status. The mark is
-  `[data-part="season/missing"]`, and the fixture holds exactly ONE subject: **Silo, season 3,
-  7 aired, 6 held**.
-
----
-
-## 5. Register numbers, and they are not the ones `--next` says
-
-The steward and a micro-wave hold blocks. **Your next free is B-351+ and R128+.** B-329, B-330 and
-B-350 are this branch's. `--next` on `main` disagrees with everyone until the merges — say so in
-the pull request rather than renumbering.
-
-Filed by this wave: **B-329** (the backend's generated contract does not declare the 409 its route
-raises — so no diff can compute that demand, which is why B-302 keeps a HAND-written one),
-**B-330** (`mutate.sh` cannot tell a typo from a rule that does not bite), **B-350** (a paused
-series is dimmed and says nothing while a paused film says « en pause » — operator-reported,
-measured, not this lot's doing).
-
----
-
-## 5a-ter. THE TRAPS THIS SESSION PAID FOR — read before writing a rule or a move
-
-**Every one of these was found by a reading, and four of them were in MY OWN instruments.**
-
-1. **A hold can pass for the wrong reason and look like a pass.** R132's « the panel offers the
-   pause » matched « pause » OR « cherch » and found « Chercher maintenant » — a different act. The
-   act is « Ne plus chercher » for a FILM and « Mettre en pause » for a series (§5 from the
-   interface's side), so no word finds both. **Find a panel action by its ATTRIBUTE.**
-2. **A mutation finds vacuities in the RULE, not only in the code.** R131's undo hold read « the
-   position is not in `sugGone` » — true, under the mutation, because nothing had ever been
-   removed. It reads the TRANSITION now. **Mutate hold by hold; a rule-level mutation would have
-   said « the rule falls » and taught nothing.**
-3. **A guard is only as wide as its corpus.** ARM 7 accepted a read only in `engine/legacy.js`, and
-   refused `data-sugidx` the moment `follow` moved — a DATUM the act's own handler reads. Widened
-   to the whole tree.
-4. **`--record` can FREEZE a violation.** The comment baseline's `--record` entered my rule's lot
-   code as that file's allowance. **The signal is a NEW KEY in `files`; `read: N → N+1` is the
-   benign half.**
-5. **A stale rectangle looks exactly like a covered button.** Measuring `getBoundingClientRect`
-   in the same turn as `scrollIntoView` returned the ROOT element from `elementFromPoint`. Scroll,
-   let it settle, then hit-test — and print the covering element WITH its class.
-6. **A button below the fold is not a defect.** The media sheet's follow button sits at y=1661 on
-   an 844-tall frame. A hand scrolls; the rule must too.
-7. **The swipe drawers are the other way round.** `swipeHTML` puts the pause and the removal in
-   `data-side="right"`, uncovered by the card travelling LEFT. Rightward reveals « Chercher »,
-   which exists only for a pending follow.
-8. **`app/shell.tsx` stands ONE LINE under a 400-line hard block.** Two acts with an import and a
-   call each took it over and twelve boundary tests fell on the push. Feature contributions go in
-   `app/panel-contributions.ts` and declare themselves at MODULE EVALUATION — that file exists for
-   this and says so in its own header.
-9. **Read the push's OWN LOG, never the task notification.** It reported « exit code 0 » twice
-   today over a wrapper that exited 1 and 141 with git refusing the ref. `git ls-remote` is the
-   only proof.
-10. **`data-go` is not the frame's navigation.** It is a cross-reference an author placed inside a
-    page. The bar a thumb uses is `[data-page]` (`app/tab-bar.tsx`).
-
-## 5b. What phase 3 OWES, and it is phase 4's first task
-
-**The registry now has its rule — LANDED, 2026-09-06.** The steward approved `lib/verbs.ts` on two
-conditions: the decision recorded (DESIGN.md § 3.1d, with the alternatives refused) and a contract
-rule refusing a `data-*` verb that markup emits and no feature registers, seen red once on purpose.
-Both are done. The rule is **ARM 7** of `check-markup-contracts` (`scripts/markup_verbs.py`, the
-emitting side parsed by `harness/panel_verbs.mjs`); it reads 34 verbs over 33 action targets, all
-answered, and it was seen red by removing the `journey-requeue` declaration on the real tree — exit
-1, naming `panel-journey.ts:92`, back to 0 on restore. **By hand, not through `mutate.sh`, which
-cannot judge a guard (B-273).** Detail and the two shapes it had to be taught: DESIGN.md § 3.1d.
-
-**And one correction to carry**: the phase-3 commit calls `ui/variants/controls`'s `actionButton`
-an ORPHAN. It is not — it has two users (`app/not-found.tsx`,
-`features/releases/releases-screen.tsx`) and both compose it with `cfoot`, which paints. It is a
-LAYOUT variant; the defect was using it alone. DESIGN.md § 3.1e carries the correction; the commit
-message cannot be edited and is wrong on that one sentence.
-
----
-
-## 5a-bis. WHERE PHASE 4 STANDS — written 2026-09-06, and it is the only true account
-
-**Landed on the branch, each with its rule and its reading:**
-
-| Part | Commit | Proof |
+| Phase | State | Proof |
 | --- | --- | --- |
-| ARM 7 — the registry's owed rule (§ 5b) | `32b08c011` + `faf5ef5ee` | 34 verbs over 33 action targets, all answered; red by hand on a removed `registerVerb`, naming `panel-journey.ts:92` |
-| B-350 — a paused tile says so, and keeps its figure | `3150d2bc8` | R129, 6 holds over 14 tiles: « 4/9 · en pause », and none of the other 12 carries the word |
-| B-345 — the seeds offer their states to a HAND | `b36d67521` | R128, 10 holds; RED at five before the fixture moved |
-| the record — #572 draft, 0.98.75, B-350 `fixed`, B-351 filed | `b9983bc7a` | `check-implementation-state` clean on both arms |
+| 1 — the contract | **DONE** | 3 operations + types + register; mocks answer and MOVE state |
+| 2 — the season grab (B-301) | **DONE** | R125 16 holds, no violation |
+| 3 — the journey's two verbs (B-302) | **DONE** | R126 16 holds, no violation |
+| 4 — the five acts | **ALL FIVE MOVED** | § 2 — the act-branch grep reads **0** |
+| 5 — the release take | **not started** | — |
+| 6 — the pastille + R124 | **not started** | — |
+| 7 — B-313 + close | **not started** | — |
 
-**Gates on that head**: `run.sh --contracts` → 18 rules + 27 guards, no violation. CI on
-`67580575d` → thirteen check-runs, the negative query (`select(.conclusion != "success")`)
-returning EMPTY. The served copy's stamp identical at both ends of the tier and of both rules.
-
-**The five acts, one at a time — TWO OF FIVE ARE DONE:**
-
-| Act | State | Proof |
-| --- | --- | --- |
-| `follow` | **DONE** `6026840e1` + `5a58b6e52` | R130, 10 holds before and after; red by mutation on exactly the two behaviour holds; ledger 31 591 → 31 542 |
-| `dropsug` | **DONE** `327f8fc3e` + `e35eca13e` + `e3bde6c66` | R131, 8 holds before and after; red by mutation on three of four; ledger 31 542 → 31 536 |
-| `sugmore` | **RULED, not coded** | the operator's ruling below — it is a BEHAVIOUR change |
-| `pause` | **rule landed, move NOT done** | R132 `43b969842`, 9 holds green against the engine |
-| `remove` | not started | — |
-
-**NOT DONE besides**: B-316; B-315 (a); B-337's real-finger measurement.
-
-**`sugmore` — THE OPERATOR RULED IT ON 2026-09-06, and it is a BEHAVIOUR change.** The engine's
-branch does `store.write({ sugGone: new Set(), sugOrder: null })` and re-renders — it CLEARS
-everything the operator dismissed and reshuffles the same reserve, then says « Nouveau lot chargé —
-30 suggestions de plus. », which is not true of what it did. **The ruling, verbatim through the
-orchestrator**: « A press asks the layer for THIRTY MORE suggestions, the reserve grows, nothing
-already dismissed comes back, and the message is true of what happened. » So:
-
-- the mock layer GAINS the operation, seeded from the backend's shapes (D7) — read
-  `docs/reference/frontend-backend-demands.md` for the suggestions route first; **if the backend
-  has no such operation it is a DEMAND recorded in the register**, as B-302's was, and the
-  maquette's contract declares it;
-- the verb registered on `lib/verbs.ts` calls it, and the engine's branch is deleted;
-- the rule holds: dismissed positions STAY GONE across the press, the count grows by thirty (or by
-  what the reserve has left, and it says so), and the message names the number it added;
-- **it is RED against the engine today with no mutation needed** — the engine un-dismisses, so the
-  hold « dismissed stays gone » falls against it as it stands. That is the strongest form of « seen
-  red first » and it is free here.
-
-**`[data-sugmore]` GETS NO NAMED STATE, and that is settled — B-352.** It is drawn only by
-`deckHTML()` when the pile is spent, no state reaches that, and one CANNOT be added: `states.js` is
-grandfathered at 786 non-blank lines, the size arm refuses the growth, and it refuses the raise of
-the record too (« raising it legalises the growth in the same commit that commits it, which is the
-ratchet refusing nothing »). Both refusals were measured on this branch and reverted; the plan's
-sentence ordering the state is STRUCK where it stood, with the refusals quoted. **So the rule builds
-the spent pile itself** — `window.__store.write({ sugMode: "deck", sugGone: … })` — and holds the
-button's DRAWING by its own geometry: its rectangle inside the viewport, uncovered at its centre,
-its label read. The oracle cannot see a state nobody named, and that cost is filed as B-352 with
-L13 as its owner.
-
-**`pause` — THE RULE IS LANDED AND THE MOVE IS NOT.** R132 (`harness/pause_verb.py`, `43b969842`)
-reads 9 holds green against the engine: the panel's act moves the state against WHAT IT WAS (the
-act toggles, so a rule naming the destination asserts the fixture), the undo puts it back, and
-B-337's half. What the move must answer, and it is more than the plan's table says:
-
-- the panel's `data-pause` is the easy half — one `registerVerb`, and the engine's branch at
-  `dataset.pause` deleted;
-- **the ROW's revealed action is dispatched by CLASS**, not by an attribute: `legacy.js`'s click
-  delegation reads `closest.classList.contains("act")`, then `.pause` / `.remove`, and takes the
-  subject from `.ctitle`'s TEXT CONTENT. `data-swipeact` and `data-action` on those buttons are
-  emitted and read by NOTHING — measured, `grep -rn "dataset.swipeact"` answers nothing at all.
-  So moving `actionPause` means that branch calls the feature's door (the `data-take` shape) or the
-  swipe's own dispatch moves with it.
-
-**B-337 DID NOT REPRODUCE, and that is a negative reading rather than a repair.** R132 drives a
-REAL touch — touch start, eight moves, a dwell, touch end over CDP — then ONE tap on the revealed
-action, and the follow moved `pending → disabled` on that first tap. The operator sees the defect on
-an Android; a CDP touch in headless Chrome is closer to a finger than `page.touchscreen.tap` and is
-still not a finger. **The entry stays open**, with the reading recorded in it, and the next attempt
-belongs on the device.
-
-**The `window.__followVerbs` seam is the ENGINE's and only the engine's** — `grep -rn
-"__followVerbs" design/src` answers three lines: the declaration, the assignment, and
-`engine/legacy.js:9537`. It dies with the engine, so this lot adds no product read of a `window.__`
-seam, which L13's « Done when » counts.
-
-**What the ground reading already establishes, so the next hand does not re-earn it:**
-
-- `dismissSug` ALREADY LIVES IN THE FEATURE (`discover-feed.ts:244`) — only its READER is the
-  engine's, at `legacy.js:9132`. `dropsug` is the cheapest of the five.
-- **`sugmore` is not a transposition.** The engine's branch (`:9110`) does
-  `store.write({ sugGone: new Set(), sugOrder: null })` and re-renders — it CLEARS what was
-  dismissed and reshuffles. It does not add thirty. So B-315 (b)'s « one press adds thirty and the
-  reserve is intact » is a BEHAVIOUR decision, not a move, and it needs saying out loud before it
-  is coded.
-- **`[data-sugmore]` is drawn only by `deckHTML()` when the pile is empty**, and no named state
-  reaches that, which is why the phase owes one.
-- **The deck card does NOT share a node**, whatever a first reading suggests: `data-panel="sug:N"`
-  is on the `<article>` and `data-mediasheet` on its child `<button class="p">`, which covers the
-  card — functionally the same defect, differently shaped. The POSTER TILE is the same-node case.
-- **The engine's `panelUnderFinger` already resolves `[data-panel]` from a child**
-  (`legacy.js:7889`), so « the long press cannot reach the panel » must be MEASURED before it is
-  believed. Reason is not a reading here.
-
-## 5c. OPEN, live, and unexplained — the operator's 10:36 reading
-
-**« le bouton récupérer saison 3 de Silo ne semble rien faire, en tout cas il se passe rien
-visuellement »**, on the design host on his Android, with Silo's panel showing « 6/7 · 1 manquant »
-and the button drawn as a plain `sact`. **This is not closed and must not be assumed closed.**
-
-What was RULED OUT, each by a reading:
-
-- **Not a stale build.** The served bundle is `dist/vite/index-DHK4FCS-.js`, built **10:33**, three
-  minutes BEFORE his reading, and `grep` finds both `grab-season` and `journey-requeue` inside it.
-- **Not the mock layer being off.** `__MOCKS_BUILT_IN__` is `JSON.stringify(true)` in
-  `vite.config.mjs:161`, so the layer is installed in that build; if it were not, the prototype
-  would carry no Silo at all.
-- **Not the press arbitration's swallow, as far as it can be reasoned.** `swallowClick` is armed
-  only by a long press and is cleared by the FIRST click after it, whatever the distance — so a
-  later, separate tap on the button is not the one it eats. *Reasoned, not measured — do not treat
-  this as settled.*
-
-What is TRUE on the harness: R125 taps that button at its hit-tested centre and the act fires — the
-operation is recorded, the follow moves `pending → acquiring`, the message reads back through
-`window.__toast.read()`. **And that is exactly the limit**: `page.touchscreen.tap` is a synthetic
-touch with no movement and no dwell, so it cannot reproduce a finger, and **it therefore cannot
-rule out the class of defect B-337 already documents** — a first tap that does nothing on a real
-phone while every synthetic one works.
-
-**Phase 4 owes a measurement on the real path**, not another synthetic tap: B-337 and this reading
-are plausibly the same defect, and B-337 is already ratified into this lot.
+**Gates on the current head**: `run.sh --contracts` on the MERGED tree → **18 rules + 27
+repository guards, no violation** (read after the merge; the wrapper needs the floor override of
+§ 5f or it never starts). `tsc -b` 0, `check-frontend-boundaries` clean, `check-no-french`
+15 arms no violation with the app ratchet unmoved at 751, `check-mock-seeds` 7 arms clean,
+`check-markup-contracts` clean, `check-maquette-unit-tests` 104/104, `check-bug-register` clean,
+`check-implementation-state` clean, `compare-contracts --check` matching.
 
 ---
 
-## 6. What phase 4 must read before it starts
+## 2. THE FIVE ACTS — ALL OF THEM HAVE LEFT THE ENGINE
 
-- **B-339** and **B-337** on `main` (ratified into L21 by the operator): a disabled panel action is
-  drawn like an enabled one (`.sact` has no `:disabled`) — the queued state has no not-available
-  form to inherit; and a swiped-open follow card ignores the FIRST tap on its revealed action,
-  whose actions ARE `pause` and `remove`, this phase's verbs. **Measure with a real touch which
-  listener eats the click**; if it is the swipe rather than the tap path, it goes back to L13 and
-  the steward is told.
-- ~~**Merge `main` into this branch first**~~ — **DISCHARGED, and it was already false when
-  written here.** `git merge-base HEAD origin/main` answers `ae1b8de48`, which IS `main`'s
-  head, and `git diff --name-only <base> origin/main` answers ZERO files: commit `27a2ef6a9`
-  on this branch merged it. No merge was run for phase 4 and none was needed.
-- **B-316 is RULED**: a TAP opens the media sheet, a LONG PRESS opens the suggestion panel,
-  reusing L14's gesture, and the two attributes stop sharing a node. **B-315 (a) is now in
-  scope** — the button's size, at the catalogue's scale for a secondary action in a feed footer.
+`grep -cE "closest\.dataset\.(follow|pause|remove|dropsug|sugmore)\b" …/legacy.js` reads **0**.
+Ledger: 31 591 at the wave's base → **31 484**, re-recorded downward in each commit that subtracts.
+
+| Act | Commit | Proof |
+| --- | --- | --- |
+| `follow` | `6026840e1` + `5a58b6e52` | R130, 10 holds before and after |
+| `dropsug` | `327f8fc3e` … `e3bde6c66` | R131, 8 holds before and after |
+| `pause` | `4c01fe204` | R132, 9 before and after; 3 mutations |
+| `remove` | `959c494ee` + `329f14523` | R133, 10 → 11 holds |
+| `sugmore` | `2ae4e81a9` | R134, 9 holds; **RED on main's build**, 4 violations |
+
+**`pause` and `remove` have TWO readers each, and the plan's table says one.** The panel's
+`data-pause` / `data-remove` moved to the tap registry. The ROW's revealed action carries **no
+attribute at all**: `legacy.js` reaches it by CLASS (`.act` then `.pause` / `.remove`) and takes
+the subject from the row's own heading text — `data-action` and `data-swipeact` are emitted there
+and read by NOTHING, measured. That branch also collapses the drawer it opened, which is DRAWING
+and therefore L13's, so **the branch stays and calls the act through `window.__followVerbs`** — the
+door the add screen already used for `follow`. Taking the click into the registry would have left
+the drawer open under the finger. `.act.remove` additionally has TWO destinations: on a LIBRARY row
+it opens a confirmation dialog. That arbitration stays with the engine.
+
+**`sugmore` was a BEHAVIOUR change and could not have been a move.** The client DRAINED the layer —
+twenty pages in a loop — so « Charger 30 de plus » had nothing left to load, which is *why* the
+engine's branch cleared `sugGone` and reshuffled. The drain is gone: the deck holds ONE page,
+`loadMoreSuggestions()` appends the next, and because `sugGone` holds positions into that same
+list, « nothing dismissed comes back » is true **by construction** rather than by a step that puts
+it back. `deckOrder` appends on growth instead of re-deriving — a rebuild would throw away what
+« Passer » had arranged.
+
+✅ **RULED « A » BY THE OPERATOR, 2026-09-06**: Découvrir holds ONE page — thirty — at rest, the
+button loads the next and says truthfully how many arrived. **The oracle's divergences on the
+discover states are ACCEPTED with this ruling as their reason** (D8). B-315 (b) and (c) are
+delivered by this act; **(a), the button's SIZE, is not started** — see § 6.
+
+---
+
+## 3. B-353 — the undo of a removal restored a STRANGER, and it is FIXED
+
+Found by writing down what my own commit message claimed and then asking which hold read it. None
+did. The hold added to make the claim measurable was **red on a clean tree**:
+
+    removed:  {t: "Kyma…", y: 2026, since: '9 août', searches: 13}
+    restored: {t: "Kyma…", y: 0,    since: '',       searches: 0}
+
+**It predates this lot** — the engine's `actionRetirer` offered the same undo through the same
+seam. The layer's delete DROPPED the record, so the only road back was a CREATE, and the contract's
+create accepts no `since`, no `searches`, no `status`. **No undo can be honest over a create.**
+
+**The operator ruled « fix it in this lot » (2026-09-06).** What landed (`a4c690215` + `8892a4bec`):
+`POST /api/acquisition/followed/{followedId}/restore` in the contract, answering the whole follow
+and **404** where nothing removed under that name is still restorable; the layer's removal is SOFT
+(the record waits in `removedFollows`, newest first); the tombstone is held ASIDE rather than
+flagged in place so `follows` keeps the contract's shape; `__followActions.restore(follow)` takes
+the whole record. Demand recorded in `frontend-backend-demands.md` § 1, decision in DESIGN.md
+§ 3.3b with the road REFUSED (widening the create's body would let every create assert a past the
+interface should not be able to invent).
+
+**Both halves mutation-proved**: the undo reverted to a create fails the eleventh hold ALONE; the
+layer's removal made hard again fails it *with* the undo's own hold, the follow gone entirely —
+the optimistic write rolls back rather than leaving a phantom row.
+
+---
+
+## 4. B-316 — MEASURED, AND IT DID NOT REPRODUCE
+
+R135 (`harness/discover_gestures.py`) drives real CDP touches on **both** card kinds: a 60 ms tap
+and a 700 ms hold with a 4 px drift, because a thumb is never still and the arbitration tolerates
+12 px on purpose.
+
+**On MAIN's build it is GREEN — all four holds on the poster tile AND on the deck card.** The long
+press raises « Ajouter / Voir la fiche / Pas intéressé » on both; the tap opens the media sheet and
+leaves no panel open. The premise « the media screen opened on all ten finger points and the
+suggestion panel was reachable by no finger » **does not reproduce where this can measure.**
+
+✅ **RULED « A » BY THE OPERATOR, 2026-09-06: B-316 CLOSES on this reading** — `fixed #572`. The
+rule stays as the instrument, the negative reading and its two caveats are in the entry, **the two
+attributes are NOT separated and nothing is recoded**: the behaviour a repair would have produced
+is the behaviour that was measured. He walks Découvrir on his Mac at the review.
+
+⚠ **THE PLAN'S MECHANISM SENTENCE IS VOID and is struck in DESIGN.md § 3.3c** — « the two
+attributes stop sharing a node » was work to do, and its premise did not survive measurement.
+`plan/phase-04-five-acts.md` § B-316 still carries it and takes the correction at the audit.
+
+**The premise rests on the GESTURE, not on my artefact.** B-316's ten recorded points are all
+TAPS, and a tap opening the sheet with no panel IS reading (i) — so they show the tap working and
+never test the gesture the panel is opened by. Two caveats stand: the entry is a summary, and the
+survey ran on `2f8503614` while this ran on `f70ca0295`.
+
+⚠ **My FIRST reading of the deck card was a false positive caused by my own rule**, and it looked
+exactly like the reported defect: `querySelector('[data-part="deck/card"]')` answers the card at
+the BOTTOM of a pile of three, so hit-testing its centre named an `IMG` belonging to another card.
+It aims by `data-depth="0"` now. **If the survey that produced B-316's premise had the same flaw,
+the premise is an instrument artefact** — worth checking before anyone repairs a defect that may
+not exist.
+
+---
+
+## 5. What this session learned that the plan does not say
+
+### 5a. THE TRAPS PAID FOR HERE — read before writing a rule
+
+1. **`str(0) in "…30 suggestions de plus"` is TRUE.** The hold written to catch a message naming a
+   number nobody added read « 0 » inside « 30 » and PASSED the engine's exact defect. Compare
+   numbers on digit boundaries; a substring test on a figure agrees with any figure containing it.
+2. **A new hold must be run GREEN before it is mutated.** I mutated first, read a failure, and
+   nearly attributed a pre-existing defect to my own mutation. Without a green baseline a mutation
+   proves nothing about which of the two broke it.
+3. **A claim in your own commit message that no hold reads is where the next defect is.** That is
+   literally how B-353 was found. Re-read your message for verbs — « restores », « preserves » —
+   and check each against a hold.
+4. **`querySelector` on a stacked pile answers the BOTTOM card.** See § 4.
+5. **Two `window.__store.write` calls in one task are ONE commit.** The intermediate state never
+   renders. R134's « leave the deck and come back » had to be split into two evaluations with a
+   settle between them, or the pile it was asking to rebuild never rebuilt.
+6. **The deck branch REFUSES to rewrite a live pile** (« rewriting it destroys the gesture in
+   flight »), so writing `sugGone` wholesale under a drawn pile changes the state and leaves stale
+   cards for ever — measured `order: 0`, `cards: 3`, no end mark.
+7. **A DERIVED file is never resolved by picking a side of a conflict.** Both sides are readings of
+   different trees. `comment-references-baseline.json` was de-conflicted and RE-RECORDED.
+8. **`docs/reference/frontend-backend-demands.md` is COMPUTED**, not written. A hand-typed row was
+   refused by `compare-contracts.py --check`; prose typed into it is prose the next rebuild
+   discards. `--write`, and the reasoning lives in the contract's description and in DESIGN.md.
+9. **`check-bug-register` ACCEPTS a closure with no code change** — its arm reads a body that
+   CHANGED, so B-316 could read `fixed #572` on a measurement alone.
+10. **The repository's network hook matches the TOKEN, not the command.** A Bash call is refused for
+   want of a timeout because the word appears in PROSE being written — this very file tripped it.
+   Assemble the word from parts, or write through a Python script.
+
+### 5b. THE GUARDS READ MY WORK BETTER THAN I DID — four times
+
+`check-maquette-comments` caught a wave name (« since L12 ») and later a DATE and a lot name in
+rule docstrings I had just written — rewritten, never `--record`ed over. `check-markup-contracts`
+refused `.ctitle` and later `.scrim` as class anchors (hard zero, no baseline) — both re-anchored on
+`data-part`. `check-mock-seeds` refused a new contract operation carrying neither `x-seeded-from`
+nor `x-unseeded`. `check-no-french` refused `resumed`, `arrived` and `position` — all three added to
+`code-vocabulary.txt` beside words already there. **Run the guards on your own instruments, not just
+on the product.**
+
+### 5c. B-354 WAS FILED AND WITHDRAWN — it is B-338, already `fixed #573`
+
+An invisible scrim that stays hit-testable after a layer closes. I measured it independently, filed
+it, and the merge of `main` showed the departure micro-wave had already found, filed and REPAIRED
+it. The duplicate is withdrawn. **The lesson is the ordering**: merge `main` before filing against a
+tree that predates other people's fixes. **Your next free register number is B-354 again**, and
+R136 for a rule.
+
+### 5d. The merge's four conflicts, and how each was resolved
+
+Version (kept 0.98.75, past main's 0.98.74) · the comment baseline (derived — re-recorded against
+the merged tree) · `IMPLEMENTATION.md` (main's side is a superset) · `BUGS.md` (a UNION, nothing
+from either side dropped).
+
+### 5f. THE HEAVY FLOOR CANNOT BE MET ON THIS MACHINE
+
+`heavy.sh`'s default `FREE_FLOOR_MB=4096` is unreachable: 4 403 MB is kernel-wired (reboot-only)
+and free+inactive sits near 3 840 MB, so a wrapped run waits in the readiness loop for ever — it
+held the lock 33 minutes before this was diagnosed. **The steward approved
+`HEAVY_FREE_FLOOR_MB=3072` for `TM_HARNESS_JOBS=2` and never larger** (two browser groups plus
+slack). Every run and every push in this session's second half used it.
+
+### 5e. WHY CI READ ZERO, and it is not « green »
+
+`gh api …/check-runs` answered **0** on `8892a4bec` for twenty minutes. The cause: **PR #572 was
+`CONFLICTING` / `DIRTY`** against the moved `main`, and this repository's CI triggers on
+`pull_request`, so GitHub ran nothing at all. The only check-suite was Claude's, `queued`, 0 runs.
+**Zero check-runs means « never started », never « passed ».** The merge in § 5d is the fix; CI has
+NOT yet been read on the merged head.
+
+---
+
+## 6. What is OWED, in order
+
+1. **`run.sh --contracts` on the MERGED tree** — queued behind another session when this was
+   written, never read.
+2. **The operator's word on 30-at-rest** (§ 2). Until it lands nothing may be pushed, because the
+   sugmore commit is in the middle of the branch.
+3. **Push, then read CI on the merged head** — `git ls-remote` against the local sha is the only
+   proof a push landed (B-360); the wrapper's exit code has lied twice on this machine.
+4. **B-315 (a)** — ruled by the orchestrator as the adjacent case of B-352: the button's size is
+   drawn at the catalogue's secondary-footer scale **by its TOKEN**, and its hold reads the rendered
+   size against the same token the catalogue's secondary footer resolves to — measured on the page,
+   never typed. **No state**, so the oracle never sees it and no divergence is « accepted »; the
+   operator judges it on his Mac. Write that reading into DESIGN.md beside B-352's.
+5. **Phases 5, 6, 7** — untouched.
+6. **The wave gate**: full suite, `--a11y`, `harness-hold-counts.py --compare` with `failed` read
+   FIRST, the oracle, `make check`. The orchestrator's references: baseline 93 rules / 2 199 holds
+   and the oracle both at `f70ca0295`.
 
 ---
 
 ## 7. The one thing not to repeat
 
-Every defect this wave found was found by asking what a hold actually READS — never by a gate. The
-rules were green, the guards were green, and the readings were empty: a network with no traffic on
-it, a toast element nothing writes to, a query nobody observes, a mutation tool answering the same
-sentence whether it measured something or nothing. **Ask it of every hold you write.**
+Every defect this session found was found by asking what a hold actually READS — and four of them
+were in the instruments, not the product. A rule that passes is not a rule that measured. **The
+free red on another tree's build is the cheapest proof there is**: the served copy carried `main`
+when this session started, and running the two new rules against it BEFORE republishing cost
+nothing and exposed both a true red and two defects in the rules themselves.
