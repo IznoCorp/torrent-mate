@@ -121,6 +121,43 @@ message cannot be edited and is wrong on that one sentence.
 
 ---
 
+## 5a-bis. WHERE PHASE 4 STANDS — written 2026-09-06, and it is the only true account
+
+**Landed on the branch, each with its rule and its reading:**
+
+| Part | Commit | Proof |
+| --- | --- | --- |
+| ARM 7 — the registry's owed rule (§ 5b) | `32b08c011` + `faf5ef5ee` | 34 verbs over 33 action targets, all answered; red by hand on a removed `registerVerb`, naming `panel-journey.ts:92` |
+| B-350 — a paused tile says so, and keeps its figure | `3150d2bc8` | R129, 6 holds over 14 tiles: « 4/9 · en pause », and none of the other 12 carries the word |
+| B-345 — the seeds offer their states to a HAND | `b36d67521` | R128, 10 holds; RED at five before the fixture moved |
+| the record — #572 draft, 0.98.75, B-350 `fixed`, B-351 filed | `b9983bc7a` | `check-implementation-state` clean on both arms |
+
+**Gates on that head**: `run.sh --contracts` → 18 rules + 27 guards, no violation. CI on
+`67580575d` → thirteen check-runs, the negative query (`select(.conclusion != "success")`)
+returning EMPTY. The served copy's stamp identical at both ends of the tier and of both rules.
+
+**NOT DONE, and it is the phase's main body**: the five acts (`follow`, `dropsug`, `sugmore`,
+`pause`, `remove`) still read by the engine's delegation; B-316; B-315 (a); B-337's real-finger
+measurement.
+
+**What the ground reading already establishes, so the next hand does not re-earn it:**
+
+- `dismissSug` ALREADY LIVES IN THE FEATURE (`discover-feed.ts:244`) — only its READER is the
+  engine's, at `legacy.js:9132`. `dropsug` is the cheapest of the five.
+- **`sugmore` is not a transposition.** The engine's branch (`:9110`) does
+  `store.write({ sugGone: new Set(), sugOrder: null })` and re-renders — it CLEARS what was
+  dismissed and reshuffles. It does not add thirty. So B-315 (b)'s « one press adds thirty and the
+  reserve is intact » is a BEHAVIOUR decision, not a move, and it needs saying out loud before it
+  is coded.
+- **`[data-sugmore]` is drawn only by `deckHTML()` when the pile is empty**, and no named state
+  reaches that, which is why the phase owes one.
+- **The deck card does NOT share a node**, whatever a first reading suggests: `data-panel="sug:N"`
+  is on the `<article>` and `data-mediasheet` on its child `<button class="p">`, which covers the
+  card — functionally the same defect, differently shaped. The POSTER TILE is the same-node case.
+- **The engine's `panelUnderFinger` already resolves `[data-panel]` from a child**
+  (`legacy.js:7889`), so « the long press cannot reach the panel » must be MEASURED before it is
+  believed. Reason is not a reading here.
+
 ## 5c. OPEN, live, and unexplained — the operator's 10:36 reading
 
 **« le bouton récupérer saison 3 de Silo ne semble rien faire, en tout cas il se passe rien
