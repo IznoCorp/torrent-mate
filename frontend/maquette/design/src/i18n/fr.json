@@ -901,7 +901,9 @@
     "journey": {
       "metaBefore": "Parcours de l'acquisition · release ",
       "provenanceNote": "Les dates viennent de la spine de provenance. Une étape non encore atteinte affiche « à venir » — jamais une date reconstruite.",
-      "seeSheet": "Voir la fiche"
+      "seeSheet": "Voir la fiche",
+      "requeue": "Remettre en file",
+      "rescrape": "Re-scraper ce passage"
     },
     "standby": {
       "title": "Veille et obligations",
@@ -960,6 +962,16 @@
       "seasonQueued": "Saison {{season}} en file — pipeline en cours.",
       "seasonHeld": "Saison {{season}} demandée — en attente du réseau, elle partira au retour.",
       "seasonRefused": "Saison {{season}} : la demande n'a pas abouti."
+    },
+    "journey": {
+      "requeueAsked": "Remis en file — le passage reprend où il s'est arrêté.",
+      "requeueQueued": "Remise en file demandée — en file, pipeline en cours.",
+      "requeueHeld": "Remise en file demandée — en attente du réseau.",
+      "requeueRefused": "La remise en file n'a pas abouti.",
+      "rescrapeAsked": "Passage re-scrapé — le pipeline reprend depuis le scrape.",
+      "rescrapeQueued": "Re-scrape demandé — en file, pipeline en cours.",
+      "rescrapeHeld": "Re-scrape demandé — en attente du réseau.",
+      "rescrapeRefused": "Le re-scrape n'a pas abouti."
     }
   },
   "discover": {

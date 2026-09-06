@@ -85,35 +85,37 @@ export function stagesOf(subject: string) {
 }
 
 /**
- * Puts a journey back to work, and answers what its stages now say.
+ * Puts a journey back into the queue, or back onto the scrape.
  *
- * THE MOVE IS THE POINT. The first stage that has not finished becomes the one
- * RUNNING, and every stage after it is still to come — which is what « reprend
- * là où il s'est arrêté » means read off a strip (§20). A journey already at
- * its first stage moves nothing visible and answers so; a journey whose stages
- * are all done is restarted from the first, because that is what asking again
- * means.
+ * THE TWO ARE NOT THE SAME MOVE, and the difference is what makes either one
+ * visible. §20's « reprend là où il s'est arrêté » is a thing the operator
+ * WATCHES on the strip, so a verb whose effect the strip cannot show has not
+ * been proved by anything:
  *
- * @param subject The medium the journey followed.
+ * - **Requeued**, the item is WAITING again. Every stage from the first
+ *   unfinished one becomes still-to-come: nothing is running, it sits in the
+ *   queue. That is also what DOIT-4 draws when the machine is busy.
+ * - **Re-scraped**, the passage is running again FROM that stage: the first
+ *   unfinished stage becomes the one running and everything after it is still
+ *   to come.
+ *
+ * A FIRST VERSION MOVED NOTHING AT ALL and the rule caught it. It set the first
+ * unfinished stage to `now` — which it already was, for the only journey the
+ * fixture holds — and copied that stage's own words onto itself. « Restarted »
+ * and « still running » looked identical, so a build that called the operation
+ * and one that ignored it read the same.
+ *
+ * Args:
+ *     subject: The medium the journey followed.
+ *     running: Whether the passage runs again now, or waits in the queue.
  */
-function restart(subject: string): void {
+function restart(subject: string, running: boolean): void {
   const stages = stagesOf(subject);
   const resumeAt = stages.findIndex((stage) => stage.state !== DONE);
   const from = resumeAt === -1 ? 0 : resumeAt;
-  // READ BEFORE ANYTHING MOVES. The first version looked for the running stage
-  // INSIDE the loop that sets stages running, so after the first iteration it
-  // found the stage it had just written and copied that stage's own words onto
-  // itself. A reading taken after the mutation it describes is not a reading of
-  // what was there.
-  const wasRunning = stages.find((stage) => stage.state === RUNNING_NOW);
   stages.forEach((stage, index) => {
     if (index < from) return;
-    stage.state = index === from ? RUNNING_NOW : UPCOMING;
-    // THE WORDS COME FROM THE STAGES THEMSELVES. A stage put back to work
-    // borrows the phrasing the running stage had, because this module may hold
-    // no data literal and inventing a sentence here would put interface text in
-    // the layer.
-    if (index === from && wasRunning !== undefined) stage.when = wasRunning.when;
+    stage.state = running && index === from ? RUNNING_NOW : UPCOMING;
   });
 }
 
@@ -178,7 +180,8 @@ export function acquisitionVerbRoutes(): MockRoute[] {
       POST,
       "/api/acquisition/journeys/{infoHash}/requeue",
       (request) => {
-        restart(request.parameters.infoHash);
+        // QUEUED, so nothing runs: every unfinished stage is waiting.
+        restart(request.parameters.infoHash, false);
         return { queued: queued(), runUid: null };
       },
     ),
@@ -187,7 +190,8 @@ export function acquisitionVerbRoutes(): MockRoute[] {
       POST,
       "/api/acquisition/journeys/{infoHash}/rescrape",
       (request) => {
-        restart(request.parameters.infoHash);
+        // RUNNING AGAIN, from the stage the passage stopped at.
+        restart(request.parameters.infoHash, true);
         return { queued: queued(), runUid: null };
       },
     ),

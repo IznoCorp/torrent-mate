@@ -69,21 +69,11 @@ SAID = """()=>{
   return {said: held && held.message ? held.message.message || '' : '',
           shown: !!(held && held.shown)};}"""
 
-# THE JOURNEY'S STAGES, as the panel draws them — the caption of each row and
-# the pip that qualifies it. A stage still to come is drawn `terne`; the one
-# running carries the `info` pip. Read off the DRAWN rows, because that is what
-# the operator sees, and cross-checked against the layer's own answer below.
-STAGES_DRAWN = """()=>[...document.querySelectorAll('#sheetin [data-part="fact"]')]
-  .map((row) => ({
-    caption: (row.querySelector('[data-part="fact/caption"]') || {}).textContent || '',
-    value: (row.querySelector('[data-part="fact/value"]') || {}).textContent || '',
-    pip: (row.querySelector('[data-part="fact/pip"]') || {}).dataset?.tone || ''}))"""
-
 # THE STAGES THE LAYER HOLDS for one journey, which is where the move has to be
 # real. The producer reads them from the query cache, so this is the same answer
 # the panel was drawn from rather than a second opinion.
 STAGES_HELD = """(title)=>{
-  const held = window.__query?.get?.(["/api/acquisition/journeys", title]);
+  const held = window.__queries.getQueryData(["/api/acquisition/journeys", title]);
   return Array.isArray(held) ? held.map((one) => ({label: one.label, state: one.state}))
                              : null;}"""
 

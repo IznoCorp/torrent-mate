@@ -877,7 +877,9 @@ replay
 report
 request
 required
+requeue
 reserve
+rescrape
 reset
 resolution
 resolutions
@@ -1180,6 +1182,7 @@ value
 values
 variant
 verb
+verbs
 version
 via
 view

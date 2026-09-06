@@ -13,7 +13,6 @@ import { useTranslation } from "react-i18next";
 import { useMediaReference, type MediaReference } from "./reference";
 import { useQueryClient } from "@tanstack/react-query";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
-import { actionButton } from "../../ui/variants/controls";
 import { seasonGrabSpacing } from "./variants";
 import { grabSeason } from "./season-grab";
 
@@ -161,7 +160,16 @@ function SeasonDetails({
       <div className="eps" data-part="episode/set">
         {cells}
       </div>
-      {/* THE VERB, DRAWN ONLY OVER A HOLE (B-301). The matrix showed « 1
+      {/* THE VERB, DRAWN ONLY OVER A HOLE (B-301).
+
+          IT WEARS `sact`, the class the panel's own actions wear, because that
+          is what it IS — an action inside a panel. A first version used
+          `ui/variants/controls`'s `actionButton`, which turns out to be an
+          ORPHAN: nothing in the application uses it and it carries layout with
+          no colour at all, so the button drew with no border, no background and
+          the inherited text colour — a pale label on a pale panel, which is how
+          the operator saw it on his phone. `.sact` is the residue that paints
+          every other action here, and it dies when they do. The matrix showed « 1
           manquant » and offered nothing; DOIT-3 is « agir là où l'on observe ».
           A complete season carries no button, because a button that can only
           say « nothing to do » is worse than no button.
@@ -174,7 +182,7 @@ function SeasonDetails({
       {complete ? null : (
         <button
           type="button"
-          className={`${actionButton()} ${seasonGrabSpacing()}`}
+          className={`sact ${seasonGrabSpacing()}`}
           data-part="season/grab"
           data-grab-season={`${follow.t}|${num}`}
           onClick={() => {

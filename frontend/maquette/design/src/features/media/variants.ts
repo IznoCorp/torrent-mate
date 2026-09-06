@@ -160,11 +160,10 @@ export const trailerSource = cva(
 /**
  * « Récupérer cette saison » — the verb a season with a hole carries (B-301).
  *
- * IT REUSES THE CATALOGUE'S ACTION SCALE rather than inventing one: it is an
- * action inside the panel, and the panel's actions are `ui/variants/controls`'s
- * `actionButton`. What is added here is placement alone — the gap that separates
- * it from the episode grid above it — and nothing outside the scale
- * (invariant 3).
+ * PLACEMENT ONLY. The button itself wears `sact`, the class every other action
+ * in a panel wears, so it is painted by the same rules and dies when they do.
+ * What is added here is the gap separating it from the episode grid above it,
+ * and nothing outside the scale (invariant 3).
  *
  * It is drawn ONLY on a season the interface has just said is short, so it never
  * offers to take what is already held.
