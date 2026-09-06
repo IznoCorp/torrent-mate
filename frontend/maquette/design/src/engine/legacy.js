@@ -9116,12 +9116,6 @@ import {
       panel.produce("suggestion", closest.dataset.sug);
       return;
     }
-    if (closest.dataset.dropsug) {
-      const index = Number(closest.dataset.dropsug);
-      panel.close();
-      dismissSug(index);
-      return;
-    }
     if (closest.dataset.manual != null) {
       // The way out is not a sentence, it is a pre-filled screen.
       // Clean the folder name to turn it into a query.
