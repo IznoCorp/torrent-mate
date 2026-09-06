@@ -1225,23 +1225,26 @@ class TestPanelVerbs:
         monkeypatch.setattr(verbs, "VERB_FLOOR", 0)
         return verbs.check_panel_verbs()
 
-    def test_a_verb_nothing_answers_is_refused_and_named(
-            self, tmp_path, monkeypatch, capsys) -> None:
+    def test_a_verb_nothing_answers_is_refused_and_named(self, tmp_path, monkeypatch, capsys) -> None:
         """The arm's subject, and the state B-302's verbs shipped in."""
-        assert self._read(
-            tmp_path, monkeypatch,
-            'const a = { text: "x", icone: "i", '
-            'target: { "journey-requeue": t } };') == 1
+        assert (
+            self._read(tmp_path, monkeypatch, 'const a = { text: "x", icone: "i", target: { "journey-requeue": t } };')
+            == 1
+        )
         err = capsys.readouterr().err
         assert "data-journey-requeue" in err
         assert "registerVerb" in err
 
     def test_a_registered_verb_is_answered(self, tmp_path, monkeypatch) -> None:
         """The registry answers, and the arm accepts it."""
-        assert self._read(
-            tmp_path, monkeypatch,
-            'registerVerb("journey-requeue", act);\n'
-            'const a = { text: "x", target: { "journey-requeue": t } };') == 0
+        assert (
+            self._read(
+                tmp_path,
+                monkeypatch,
+                'registerVerb("journey-requeue", act);\nconst a = { text: "x", target: { "journey-requeue": t } };',
+            )
+            == 0
+        )
 
     def test_the_dying_engine_answers_too(self, tmp_path, monkeypatch) -> None:
         """A verb the engine still reads is answered until its branch goes.
@@ -1250,47 +1253,61 @@ class TestPanelVerbs:
         is deleted before its verb reaches the registry — which is the arm doing
         its work, not the arm getting in the way.
         """
-        assert self._read(
-            tmp_path, monkeypatch,
-            'const a = { text: "x", target: { mediasheet: t } };',
-            "if (closest.dataset.mediasheet) openSheet(closest.dataset.mediasheet);"
-        ) == 0
+        assert (
+            self._read(
+                tmp_path,
+                monkeypatch,
+                'const a = { text: "x", target: { mediasheet: t } };',
+                "if (closest.dataset.mediasheet) openSheet(closest.dataset.mediasheet);",
+            )
+            == 0
+        )
 
-    def test_the_engine_spellings_are_the_same_name(
-            self, tmp_path, monkeypatch) -> None:
+    def test_the_engine_spellings_are_the_same_name(self, tmp_path, monkeypatch) -> None:
         """`dataset.journeyRequeue` answers `data-journey-requeue`.
 
         The two spellings are one name. Comparing them as written would refuse a
         verb the engine reads every time it is tapped.
         """
-        assert self._read(
-            tmp_path, monkeypatch,
-            'const a = { text: "x", target: { "journey-requeue": t } };',
-            "act(closest.dataset.journeyRequeue);") == 0
+        assert (
+            self._read(
+                tmp_path,
+                monkeypatch,
+                'const a = { text: "x", target: { "journey-requeue": t } };',
+                "act(closest.dataset.journeyRequeue);",
+            )
+            == 0
+        )
 
-    def test_an_answer_a_comment_gives_is_no_answer(
-            self, tmp_path, monkeypatch) -> None:
+    def test_an_answer_a_comment_gives_is_no_answer(self, tmp_path, monkeypatch) -> None:
         """Prose naming a verb answers no tap.
 
         The engine's own comments name attributes it no longer reads, which is
         how a corpus read as raw text reports an answer that is not there.
         """
-        assert self._read(
-            tmp_path, monkeypatch,
-            'const a = { text: "x", target: { standby: t } };',
-            "// the engine used to read closest.dataset.standby here") == 1
+        assert (
+            self._read(
+                tmp_path,
+                monkeypatch,
+                'const a = { text: "x", target: { standby: t } };',
+                "// the engine used to read closest.dataset.standby here",
+            )
+            == 1
+        )
 
-    def test_a_dialog_action_is_set_aside(
-            self, tmp_path, monkeypatch, capsys) -> None:
+    def test_a_dialog_action_is_set_aside(self, tmp_path, monkeypatch, capsys) -> None:
         """The dialog spreads its keys verbatim and attaches its own handler."""
-        assert self._read(
-            tmp_path, monkeypatch,
-            'const a = { text: "x", tone: "danger", '
-            'target: { "data-confirmrestart": "1" } };') == 0
+        assert (
+            self._read(
+                tmp_path,
+                monkeypatch,
+                'const a = { text: "x", tone: "danger", target: { "data-confirmrestart": "1" } };',
+            )
+            == 0
+        )
         assert "1 dialog action(s) set aside" in capsys.readouterr().out
 
-    def test_a_panel_action_asking_for_the_prefix_is_refused(
-            self, tmp_path, monkeypatch, capsys) -> None:
+    def test_a_panel_action_asking_for_the_prefix_is_refused(self, tmp_path, monkeypatch, capsys) -> None:
         """`ui/panel` writes `data-` itself, so `data-x` renders `data-data-x`.
 
         The same defect from the other direction: an attribute nothing reads and
@@ -1298,24 +1315,28 @@ class TestPanelVerbs:
         which is why this refusal waits until the two surfaces are told apart —
         the sibling `ton` below is the panel's own spelling of `tone`.
         """
-        assert self._read(
-            tmp_path, monkeypatch,
-            'const a = { text: "x", ton: "danger", '
-            'target: { "data-confirmrestart": "1" } };') == 1
+        assert (
+            self._read(
+                tmp_path, monkeypatch, 'const a = { text: "x", ton: "danger", target: { "data-confirmrestart": "1" } };'
+            )
+            == 1
+        )
         assert "data-data-confirmrestart" in capsys.readouterr().err
 
-    def test_a_registration_whose_name_is_not_a_literal_is_refused(
-            self, tmp_path, monkeypatch, capsys) -> None:
+    def test_a_registration_whose_name_is_not_a_literal_is_refused(self, tmp_path, monkeypatch, capsys) -> None:
         """An answer the arm cannot read would refuse a verb that IS answered."""
-        assert self._read(
-            tmp_path, monkeypatch,
-            "registerVerb(NAME, act);\n"
-            'const a = { text: "x", target: { mediasheet: t } };',
-            "act(closest.dataset.mediasheet);") == 1
+        assert (
+            self._read(
+                tmp_path,
+                monkeypatch,
+                'registerVerb(NAME, act);\nconst a = { text: "x", target: { mediasheet: t } };',
+                "act(closest.dataset.mediasheet);",
+            )
+            == 1
+        )
         assert "not a string literal" in capsys.readouterr().err
 
-    def test_a_conditional_target_is_read_whole(
-            self, tmp_path, monkeypatch, capsys) -> None:
+    def test_a_conditional_target_is_read_whole(self, tmp_path, monkeypatch, capsys) -> None:
         """Both branches of `cond ? { … } : { … }`, through an `as`.
 
         The sort panel writes its target that way ON PURPOSE — two shapes rather
@@ -1324,16 +1345,20 @@ class TestPanelVerbs:
         literal, skipped that map whole, and reported one fewer verb with no
         sign that it had.
         """
-        assert self._read(
-            tmp_path, monkeypatch,
-            'const a = { text: "x", target: (r ? { setsort: k, reversed: "1" } '
-            ': { setsort: k }) as Record<string, string> };') == 1
+        assert (
+            self._read(
+                tmp_path,
+                monkeypatch,
+                'const a = { text: "x", target: (r ? { setsort: k, reversed: "1" } '
+                ": { setsort: k }) as Record<string, string> };",
+            )
+            == 1
+        )
         err = capsys.readouterr().err
         assert "data-setsort" in err
         assert "data-reversed" in err
 
-    def test_an_empty_corpus_is_refused_rather_than_reported_green(
-            self, tmp_path, monkeypatch, capsys) -> None:
+    def test_an_empty_corpus_is_refused_rather_than_reported_green(self, tmp_path, monkeypatch, capsys) -> None:
         """A parse that read nothing prints the same line as one that read all.
 
         The arm starts at zero violations, so its floor is what tells « no
@@ -1346,8 +1371,7 @@ class TestPanelVerbs:
         assert verbs.check_panel_verbs() == 1
         assert "under the floor" in capsys.readouterr().err
 
-    def test_an_extractor_that_cannot_run_has_not_passed(
-            self, monkeypatch, capsys) -> None:
+    def test_an_extractor_that_cannot_run_has_not_passed(self, monkeypatch, capsys) -> None:
         """« Did not run » and « no violation » must not print the same word."""
         monkeypatch.setattr(verbs, "typescript_package", lambda: None)
 
