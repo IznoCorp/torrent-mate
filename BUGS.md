@@ -375,7 +375,7 @@ when the defect comes back.
 | B-313 | The follow sheet offers « Voir le parcours » TWICE — once as the primary act, once in the secondary row — whenever the primary falls through to it | 1× | `open` |
 | B-314 | The add screen's search shows no example result to try the flow with | 1× | `open` |
 | B-315 | Découvrir's « charger plus »: the button is too big, one press should show more, and the feed must say when the reserve is spent | 1× | `open` |
-| B-316 | The suggestion producer is registered and no finger reaches it — the media screen takes every point of the card | 1× | `open` |
+| B-316 | The suggestion producer is registered and no finger reaches it — the media screen takes every point of the card. RULED closed on a measurement: the ten recorded points were TAPS, and a real long press raises the panel on both card kinds | 1× | `fixed #572` |
 | B-317 | The prototype's greeting toast covers the settings save bar, so a finger there does nothing while it lives | 1× | `open` |
 | B-318 | The build races its own output on a fresh `dist` again — B-098's shape, in two hooks this time | 1× | `open` |
 | B-319 | `fanout.py` holds the invalidation map against itself: a key dropped from the declaration is invisible to it | 1× | `open` |
@@ -1398,6 +1398,21 @@ closed on a reading that does not contradict him.
 <sub>reported through the steward, 2026-09-05 · probe on 8899 and on a control of `4c0e274a7` served on 8902</sub>
 
 **B-315 — Découvrir's « charger plus », in three parts.**
+
+**(b) AND (c) ARE DELIVERED, L21, with the operator's ruling of 2026-09-06 (« A »).** A press asks
+the layer for the next page, the reserve GROWS, nothing already dismissed comes back, and the
+message names what actually arrived — « 8 suggestions de plus — la réserve en compte 38. » on the
+demonstration data, then « Réserve épuisée » when there is no more. It could not be a move: the
+client DRAINED the layer in a loop of twenty pages, which is why the engine's branch cleared
+`sugGone` and reshuffled instead. **Découvrir therefore holds ONE page — thirty — at rest instead
+of thirty-eight, and the operator ruled that consequence accepted**: the oracle's divergences on
+the discover states carry this ruling as their reason (D8). Held by R134, nine holds, RED on a
+build of `main` at four violations with no mutation needed.
+
+**(a) IS NOT DONE.** The button's size is drawn at the component catalogue's secondary-footer scale
+BY ITS TOKEN, and its hold reads the rendered size against the same token the catalogue resolves to
+— measured on the page, never typed. No named state, so the oracle never sees it and no divergence
+is « accepted »; the operator judges it on his Mac.
 Reported by the operator on 2026-09-05: « Dans Découvrir, le bouton "charger plus" est trop gros,
 et il devrait permettre de voir plus de suggestions et prévenir s'il n'y a plus de suggestions à
 voir. »
@@ -1483,6 +1498,11 @@ a tap opening the media sheet while no panel opens is precisely reading (i) — 
 operator later chose. So the ten points show the tap working; they do not test the gesture the
 panel is opened by, and no long press is recorded. **The premise that no finger reaches the panel
 therefore rests on the gesture that was driven, not on the attributes sharing a node.**
+
+**THE OPERATOR RULED ON 2026-09-06: this entry CLOSES on that reading.** R135 stays as the
+instrument, the two attributes are NOT separated and nothing is recoded — the behaviour the repair
+would have produced is the behaviour that was measured. He walks Découvrir on his Mac at the
+review.
 
 **It is a negative reading and not an absolution**, and two things are deliberately not claimed:
 the entry is a summary, so a long press may have been driven and not written down; and the survey

@@ -336,6 +336,30 @@ follow having gone entirely — the optimistic write is rolled back rather than 
 
 ---
 
+### 3.3c TWO OPERATOR RULINGS ON THE DECK, both dated 2026-09-06
+
+**« 30 at rest » — RULED « A ».** Découvrir holds ONE page — thirty — at rest; the button loads
+the next page and says truthfully how many arrived (« 8 de plus » on the demonstration data). The
+reserve must start smaller in order to grow, so this is the ruling's own consequence rather than a
+regression. **The oracle's divergences on the discover states are ACCEPTED with this ruling as
+their reason** (D8).
+
+**B-316 — RULED « A »: it CLOSES on R135's reading, and nothing is recoded.** The rule stays as the
+instrument; the negative reading and its two caveats are written into the entry; **the two
+attributes are NOT separated.**
+
+⚠ **THE MECHANISM SENTENCE OF THIS MORNING IS VOID** — « a tap opens the media sheet, a long press
+opens the suggestion panel, and the two attributes stop sharing a node » was written as work to do.
+Measurement contradicted its premise: B-316's ten recorded points were all TAPS, and a tap opening
+the sheet with no panel IS reading (i). R135 drives real long presses over CDP on both card kinds
+and both raise the panel. **So the behaviour the sentence ordered already exists**, and separating
+the attributes would have been a repair to a defect nobody could measure. It is struck here rather
+than left standing: a directive whose subject has gone is removed, not executed (§ 7.1), and the
+plan's L21 paragraph takes the same correction at the audit. The operator walks Découvrir on his
+Mac at the review.
+
+---
+
 ### 3.4 `data-take`'s release-screen half — B-323, B-322
 
 `legacy.js:9295` asks the arrivals door (`window.__arrivalsVerbs?.take(…)`,
@@ -427,7 +451,8 @@ sheet. Then one condition, mirroring the `seeSheet` guard.
 
 ## 7. Named STOPS
 
-- **Stop A — B-316, a drawing decision that is the operator's.** On Découvrir's poster tile
+- ~~**Stop A — B-316, a drawing decision that is the operator's.**~~ **LIFTED, then CLOSED by
+  measurement — see § 3.3c.** On Découvrir's poster tile
   `data-panel="sug:N"` and `data-mediasheet` sit on the SAME node; on the deck card the media verb
   is on the tile's child. Ten finger points on two card kinds, and the media SCREEN opens every
   time — the suggestion producer is right and unreachable. This wave moves `data-follow`,
