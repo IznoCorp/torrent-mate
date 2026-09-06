@@ -772,7 +772,7 @@ for byte; drifted in tone, it would have reported about a list the surface never
 fixture out made the expression RAISE, which is what named it. The declared source is the query
 cache now. Counted in § Guards green over what they do not read: **1**, total **239**.
 
-<sub>`python3 frontend/maquette/harness/machine.py` → « PASS as many schedulers drawn as PM2 schedules — 7 drawn vs 7 real … — drawn: … Analyse complète de l'index », 89 rules, no violation · the mutation, `scripts/mutate.sh` on the seed with the seventh row removed → « FAIL … 6 drawn vs 7 real » · the derivation's own mutation, `fault.test.ts` with the key put back to the row's RANK → 4 of 10 red, the three « reversed » holds and the no-match one; and on the harness side, the seed's first label renamed → « and on the schedulers side — [] » with two more · `pm2 jlist` → 7 processes carrying a `cron_restart`</sub>
+<sub>`python3 frontend/maquette/harness/machine.py` → « PASS as many schedulers drawn as PM2 schedules — 7 drawn vs 7 real … — drawn: … Analyse complète de l'index », **91 rules**, no violation · the mutation, `scripts/mutate.sh` on the seed with the seventh row removed → « FAIL … 6 drawn vs 7 real » · the derivation's own mutation, `fault.test.ts` with the key put back to the row's RANK → 4 of 10 red, the three « reversed » holds and the no-match one; and on the harness side, the seed's first label renamed → « and on the schedulers side — [] » with two more · `pm2 jlist` → 7 processes carrying a `cron_restart`</sub>
 
 **IT BLOCKS THE POST-MERGE GESTURE, and that is written HERE because the file that first said it
 does not survive.** L19's report states the obligation in its § 9 (`docs/features/maquette-l19/REPORT.md@9fa13da57`); that folder
@@ -1385,6 +1385,8 @@ is kept whole so the wave that can inherits a rule rather than a description:
         drawn_keys == sorted(real_schedulers),
         f"drawn: {drawn_keys} vs real: {sorted(real_schedulers)}")
 
+**The hold above is B-327's; the LABEL half of that run is not.** The second violation of the same run was the label hold, and #567 keeps it — renamed « every scheduler the machine runs is named in the schedule's LABEL TABLE », because it reads the TABLE and not the surface, and a hold named for a surface it never opens reads as a certificate for it.
+
 It reads the drawn keys as a SET and not a count, because a name that is WRONG and a name that is
 MISSING are different defects a count cannot tell apart. What it printed, on `0ab9c9f29`:
 
@@ -1425,7 +1427,7 @@ the eleven harness reads move together, and the row and the single vocabulary ar
 land. **Done when** « Réglages » draws seven, the hold above is in `machine.py` and green, and one
 job has one name.
 
-<sub>the two FAIL lines above, on `0ab9c9f29` · `git diff be460fb79..HEAD -- frontend/maquette/design/src/mocks/seeds/settings.json` → empty · `python3 scripts/check-frontend-boundaries.py --arm size` with the row added → « 31 600, 9 more » · `grep -c "SETTINGS" frontend/maquette/harness/settings.py` → the eleven reads · reported by the independent reader of #567, round two, 2026-09-06</sub>
+<sub>the FAIL line above and the second of the two that run printed — « FAIL and every one of them is NAMED there rather than falling back to its process name — ['personalscraper-index-full'] », the label half, which #567 KEPT in `machine.py` (renamed « every scheduler the machine runs is named in the schedule's LABEL TABLE ») and which is green there; only the row half above is owed here — on `0ab9c9f29` · `git diff be460fb79..HEAD -- frontend/maquette/design/src/mocks/seeds/settings.json` → empty · `python3 scripts/check-frontend-boundaries.py --arm size` with the row added → « 31 600, 9 more » · `grep -c "SETTINGS" frontend/maquette/harness/settings.py` → the eleven reads · reported by the independent reader of #567, round two, 2026-09-06</sub>
 
 **B-328 — `features/system/page.tsx` names a path and a field that do not exist.**
 Its first line heads the file « design/src/pages/system.tsx », a path no commit holds, and its

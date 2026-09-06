@@ -31,7 +31,6 @@ What this holds to:
 """
 import asyncio
 import json
-import os
 import pathlib
 import subprocess
 import sys
@@ -39,7 +38,16 @@ import sys
 from common import Journal, open_page
 from playwright.async_api import async_playwright
 
-ROOT = pathlib.Path(os.path.expanduser("~/dev/PersonalScraper"))
+# THE TREE THIS FILE LIVES IN, never a path typed out. It read
+# `expanduser("~/dev/PersonalScraper")` and was the only harness file that did:
+# every neighbour resolves from `__file__`. The consequence was not stylistic.
+# This office reviews on a WORKTREE pinned at a pull request's head, so a rule
+# reading an absolute path measures the main checkout while the reader believes
+# it is measuring the branch — a hold below went green over a label deleted in
+# the tree under test, and only passed honestly because the main checkout
+# happened to sit on the same commit. Off that path the module raised at import
+# and printed no verdict at all.
+ROOT = pathlib.Path(__file__).resolve().parents[3]
 
 # THE VOCABULARY BELONGS TO THE RULE, not to the data.
 #
@@ -277,13 +285,42 @@ async def declared_tones(page, source):
         return None, "answered with something that is not a list of facts"
 
 
-# THE LABEL TABLE, READ FROM THE RESOURCE THE PAGE READS. A drawn row whose
-# key is absent from it falls back to the key humanised, which LOOKS like a
-# label — so reading the drawing cannot tell a named scheduler from an
-# unnamed one, and the file can.
-SETTING_LABELS = json.loads(
-    (ROOT / 'frontend' / 'maquette' / 'design' / 'src' / 'i18n' / 'fr.json')
-    .read_text(encoding='utf-8'))['settings']['labels']
+# THE TWO VOCABULARIES, AND WHAT IS ACCEPTED BETWEEN THEM (B-327). The
+# prototype names these jobs twice — « Système » draws one label, the schedule's
+# own table carries another — and five of the six pre-existing pairs disagree.
+# Those five are ACCEPTED here BY NAME, not tolerated by a count: a sixth
+# disagreement is a new one and is refused. The two that agree are named too,
+# so a name that stops agreeing is a fall rather than a silence.
+SCHEDULERS_NAMED_ALIKE = (
+    "personalscraper-index-enrich",
+    "personalscraper-index-full",
+)
+SCHEDULERS_NAMED_TWICE = (
+    "personalscraper-health-check",
+    "personalscraper-grab",
+    "personalscraper-search",
+    "personalscraper-follow-detect",
+    "personalscraper-backfill-ids",
+)
+
+
+def setting_labels():
+    """The schedule's own label table, read from the tree this file lives in.
+
+    READ WHEN THE HOLD RUNS, never at import. A module-level read makes a
+    missing file raise before any hold, and this rule runs on import — so an
+    absent resource printed no verdict at all instead of one failing hold,
+    which is the silence B-273 is about.
+
+    Returns:
+        The table, or None when it cannot be read.
+    """
+    try:
+        return json.loads(
+            (ROOT / "frontend" / "maquette" / "design" / "src" / "i18n" / "fr.json")
+            .read_text(encoding="utf-8"))["settings"]["labels"]
+    except Exception:  # noqa: BLE001 — an unreadable resource is a verdict
+        return None
 
 
 def real_processes():
@@ -452,7 +489,7 @@ async def main():
                              f"{schedulers_drawn} drawn vs {len(real_schedulers)} real: "
                              + ", ".join(sorted(real_schedulers))
                              + " — drawn: "
-                             + ", ".join(x["l"] for x in (sys_view["schedulers"] or [])))
+                             + ", ".join(sorted(x["l"] for x in (sys_view["schedulers"] or []))))
 
         # 3bis. Every service and scheduler carries a pastille, and the
         # pastille AGREES with the sentence beside it. Deriving the colour from
@@ -700,11 +737,36 @@ async def main():
         # resource file rather than from the drawing because an absent key
         # falls back to the humanised key, which LOOKS like a label on screen.
         if pm2 is not None:
-            unnamed = [name for name in sorted(real_schedulers)
-                       if name not in SETTING_LABELS]
-            journal.check(
-                'every scheduler the machine runs is NAMED where the schedule is drawn, not left to fall back to its process name',
-                not unnamed, str(unnamed) if unnamed else 'all of them')
+            labels = setting_labels()
+            drawn_names = {x["l"] for x in (sys_view["schedulers"] or [])}
+            if labels is None:
+                journal.check(
+                    "every scheduler the machine runs is named in the schedule's LABEL TABLE",
+                    False, "the label table could not be read from " + str(ROOT))
+            else:
+                unnamed = [name for name in sorted(real_schedulers)
+                           if name not in labels]
+                journal.check(
+                    "every scheduler the machine runs is named in the schedule's LABEL TABLE",
+                    not unnamed, str(unnamed) if unnamed else "all of them")
+                # AND THE TWO VOCABULARIES DO NOT GAIN A THIRD. Presence is not
+                # agreement: the label may be present and say something « Système »
+                # never says, which is what the repair this hold serves promised
+                # not to do. The five that already disagree are accepted by name;
+                # a scheduler that is named ALIKE stays that way, and a new one
+                # has to be placed in one list or the other before it can pass.
+                drifted = [name for name in SCHEDULERS_NAMED_ALIKE
+                           if name in real_schedulers
+                           and labels.get(name) not in drawn_names]
+                unplaced = [name for name in sorted(real_schedulers)
+                            if name not in SCHEDULERS_NAMED_ALIKE
+                            and name not in SCHEDULERS_NAMED_TWICE]
+                journal.check(
+                    "a scheduler named alike on both surfaces stays that way, and a new one is placed",
+                    not drifted and not unplaced,
+                    f"drifted: {drifted} · unplaced: {unplaced}" if (drifted or unplaced)
+                    else f"{len(SCHEDULERS_NAMED_ALIKE)} alike, "
+                         f"{len(SCHEDULERS_NAMED_TWICE)} accepted as disagreeing (B-327)")
 
         journal.check("no JS error", not errors, str(errors))
         await ctx.close()
