@@ -501,6 +501,27 @@ own markup carries.
 both ends — `{'Terminus Nord': '4/9 · en pause', 'Le Dernier Quai': 'en pause'}`, none of the other
 12 carrying the word</sub>
 
+**B-337 — a NEGATIVE reading, and it does not close the entry.**
+
+Measured on 2026-09-06 by R132 (`harness/pause_verb.py`), which drives a REAL touch rather than a
+synthetic one: touch start, eight moves, a dwell, touch end, dispatched over CDP through the
+browser's own input pipeline — then ONE tap on the revealed action. That is the reading the entry
+asks for (« a finger, not a click »), and `page.touchscreen.tap` cannot reach the defect class at
+all, since the engine's swipe machinery arms its click-swallowing only after a drag that MOVED.
+
+**The first tap ACTED**: « Ne plus chercher » on the swiped-open row moved the follow
+`pending → disabled`, once, with no error. Nine holds, no violation.
+
+**What that licenses, and it is not « fixed »**: this instrument, on this machine, does not see it.
+The operator sees it on an Android through the design host; a CDP touch in headless Chrome is
+closer to a finger than a synthetic tap and is still not a finger. The entry stays `open` with this
+recorded as a negative reading, and the next attempt belongs on the device — read directly off the
+phone rather than reproduced beside it.
+
+<sub>L21, 2026-09-06 · `harness/pause_verb.py` — swipe leftward (the pause and the removal are in
+`data-side="right"`, uncovered by the card travelling left), then one `Input.dispatchTouchEvent`
+pair at the action's hit-tested centre</sub>
+
 **B-352 — no surface born after L19 can enter the oracle's corpus.**
 
 The oracle measures NAMED STATES, and a named state is an entry in

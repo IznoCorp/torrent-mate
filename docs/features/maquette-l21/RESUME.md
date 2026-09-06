@@ -102,6 +102,42 @@ measured, not this lot's doing).
 
 ---
 
+## 5a-ter. THE TRAPS THIS SESSION PAID FOR — read before writing a rule or a move
+
+**Every one of these was found by a reading, and four of them were in MY OWN instruments.**
+
+1. **A hold can pass for the wrong reason and look like a pass.** R132's « the panel offers the
+   pause » matched « pause » OR « cherch » and found « Chercher maintenant » — a different act. The
+   act is « Ne plus chercher » for a FILM and « Mettre en pause » for a series (§5 from the
+   interface's side), so no word finds both. **Find a panel action by its ATTRIBUTE.**
+2. **A mutation finds vacuities in the RULE, not only in the code.** R131's undo hold read « the
+   position is not in `sugGone` » — true, under the mutation, because nothing had ever been
+   removed. It reads the TRANSITION now. **Mutate hold by hold; a rule-level mutation would have
+   said « the rule falls » and taught nothing.**
+3. **A guard is only as wide as its corpus.** ARM 7 accepted a read only in `engine/legacy.js`, and
+   refused `data-sugidx` the moment `follow` moved — a DATUM the act's own handler reads. Widened
+   to the whole tree.
+4. **`--record` can FREEZE a violation.** The comment baseline's `--record` entered my rule's lot
+   code as that file's allowance. **The signal is a NEW KEY in `files`; `read: N → N+1` is the
+   benign half.**
+5. **A stale rectangle looks exactly like a covered button.** Measuring `getBoundingClientRect`
+   in the same turn as `scrollIntoView` returned the ROOT element from `elementFromPoint`. Scroll,
+   let it settle, then hit-test — and print the covering element WITH its class.
+6. **A button below the fold is not a defect.** The media sheet's follow button sits at y=1661 on
+   an 844-tall frame. A hand scrolls; the rule must too.
+7. **The swipe drawers are the other way round.** `swipeHTML` puts the pause and the removal in
+   `data-side="right"`, uncovered by the card travelling LEFT. Rightward reveals « Chercher »,
+   which exists only for a pending follow.
+8. **`app/shell.tsx` stands ONE LINE under a 400-line hard block.** Two acts with an import and a
+   call each took it over and twelve boundary tests fell on the push. Feature contributions go in
+   `app/panel-contributions.ts` and declare themselves at MODULE EVALUATION — that file exists for
+   this and says so in its own header.
+9. **Read the push's OWN LOG, never the task notification.** It reported « exit code 0 » twice
+   today over a wrapper that exited 1 and 141 with git refusing the ref. `git ls-remote` is the
+   only proof.
+10. **`data-go` is not the frame's navigation.** It is a cross-reference an author placed inside a
+    page. The bar a thumb uses is `[data-page]` (`app/tab-bar.tsx`).
+
 ## 5b. What phase 3 OWES, and it is phase 4's first task
 
 **The registry now has its rule — LANDED, 2026-09-06.** The steward approved `lib/verbs.ts` on two
@@ -142,23 +178,61 @@ returning EMPTY. The served copy's stamp identical at both ends of the tier and 
 | --- | --- | --- |
 | `follow` | **DONE** `6026840e1` + `5a58b6e52` | R130, 10 holds before and after; red by mutation on exactly the two behaviour holds; ledger 31 591 → 31 542 |
 | `dropsug` | **DONE** `327f8fc3e` + `e35eca13e` + `e3bde6c66` | R131, 8 holds before and after; red by mutation on three of four; ledger 31 542 → 31 536 |
-| `sugmore` | **BLOCKED on a ruling** | see below |
-| `pause` | not started | — |
+| `sugmore` | **RULED, not coded** | the operator's ruling below — it is a BEHAVIOUR change |
+| `pause` | **rule landed, move NOT done** | R132 `43b969842`, 9 holds green against the engine |
 | `remove` | not started | — |
 
 **NOT DONE besides**: B-316; B-315 (a); B-337's real-finger measurement.
 
-**`sugmore` IS NOT A TRANSPOSITION, and the next hand must not code it as one.** The plan asks for
-« one press adds THIRTY and the reserve is intact ». The engine's branch does
-`store.write({ sugGone: new Set(), sugOrder: null })` and re-renders — it CLEARS everything the
-operator dismissed and reshuffles the same reserve, then says « Nouveau lot chargé — 30 suggestions
-de plus. », which is not true of what it did. Moving that reader unchanged would carry a message
-that is right about nothing (NE-DOIT-PAS-1's shape) into the new code. **The ruling was asked for
-and is pending**; do not choose it alone.
+**`sugmore` — THE OPERATOR RULED IT ON 2026-09-06, and it is a BEHAVIOUR change.** The engine's
+branch does `store.write({ sugGone: new Set(), sugOrder: null })` and re-renders — it CLEARS
+everything the operator dismissed and reshuffles the same reserve, then says « Nouveau lot chargé —
+30 suggestions de plus. », which is not true of what it did. **The ruling, verbatim through the
+orchestrator**: « A press asks the layer for THIRTY MORE suggestions, the reserve grows, nothing
+already dismissed comes back, and the message is true of what happened. » So:
 
-**What the act's move costs, once the ruling lands**: `[data-sugmore]` is drawn only by
-`deckHTML()` when the pile is empty, and no named state reaches that — the phase owes one either
-way, and a named state is harness rather than surface.
+- the mock layer GAINS the operation, seeded from the backend's shapes (D7) — read
+  `docs/reference/frontend-backend-demands.md` for the suggestions route first; **if the backend
+  has no such operation it is a DEMAND recorded in the register**, as B-302's was, and the
+  maquette's contract declares it;
+- the verb registered on `lib/verbs.ts` calls it, and the engine's branch is deleted;
+- the rule holds: dismissed positions STAY GONE across the press, the count grows by thirty (or by
+  what the reserve has left, and it says so), and the message names the number it added;
+- **it is RED against the engine today with no mutation needed** — the engine un-dismisses, so the
+  hold « dismissed stays gone » falls against it as it stands. That is the strongest form of « seen
+  red first » and it is free here.
+
+**`[data-sugmore]` GETS NO NAMED STATE, and that is settled — B-352.** It is drawn only by
+`deckHTML()` when the pile is spent, no state reaches that, and one CANNOT be added: `states.js` is
+grandfathered at 786 non-blank lines, the size arm refuses the growth, and it refuses the raise of
+the record too (« raising it legalises the growth in the same commit that commits it, which is the
+ratchet refusing nothing »). Both refusals were measured on this branch and reverted; the plan's
+sentence ordering the state is STRUCK where it stood, with the refusals quoted. **So the rule builds
+the spent pile itself** — `window.__store.write({ sugMode: "deck", sugGone: … })` — and holds the
+button's DRAWING by its own geometry: its rectangle inside the viewport, uncovered at its centre,
+its label read. The oracle cannot see a state nobody named, and that cost is filed as B-352 with
+L13 as its owner.
+
+**`pause` — THE RULE IS LANDED AND THE MOVE IS NOT.** R132 (`harness/pause_verb.py`, `43b969842`)
+reads 9 holds green against the engine: the panel's act moves the state against WHAT IT WAS (the
+act toggles, so a rule naming the destination asserts the fixture), the undo puts it back, and
+B-337's half. What the move must answer, and it is more than the plan's table says:
+
+- the panel's `data-pause` is the easy half — one `registerVerb`, and the engine's branch at
+  `dataset.pause` deleted;
+- **the ROW's revealed action is dispatched by CLASS**, not by an attribute: `legacy.js`'s click
+  delegation reads `closest.classList.contains("act")`, then `.pause` / `.remove`, and takes the
+  subject from `.ctitle`'s TEXT CONTENT. `data-swipeact` and `data-action` on those buttons are
+  emitted and read by NOTHING — measured, `grep -rn "dataset.swipeact"` answers nothing at all.
+  So moving `actionPause` means that branch calls the feature's door (the `data-take` shape) or the
+  swipe's own dispatch moves with it.
+
+**B-337 DID NOT REPRODUCE, and that is a negative reading rather than a repair.** R132 drives a
+REAL touch — touch start, eight moves, a dwell, touch end over CDP — then ONE tap on the revealed
+action, and the follow moved `pending → disabled` on that first tap. The operator sees the defect on
+an Android; a CDP touch in headless Chrome is closer to a finger than `page.touchscreen.tap` and is
+still not a finger. **The entry stays open**, with the reading recorded in it, and the next attempt
+belongs on the device.
 
 **The `window.__followVerbs` seam is the ENGINE's and only the engine's** — `grep -rn
 "__followVerbs" design/src` answers three lines: the declaration, the assignment, and
