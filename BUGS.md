@@ -401,6 +401,7 @@ when the defect comes back.
 | B-337 | A follow card swiped open: the first tap on a revealed action does nothing, the second acts — systematic on the phone | 1× | `open` |
 | B-350 | A PAUSED SERIES is dimmed in the follows grid with no word saying why: the tile's caption is `stFraction(follow) ?? paused`, so a fraction always outranks the word — a paused FILM says « en pause » only because it has no fraction | by L13 | `fixed #572` |
 | B-351 | `check-maquette-comments.py` reads five suffixes and `.mjs` is not one of them, so every `.mjs` under `frontend/maquette/` is invisible to the comment rule AND to the corpus count the floor is derived from — one real occupant measured, `vite.config.mjs:143`'s « (L08) » | by L21 | `open` |
+| B-352 | `engine/states.js` is grandfathered at 786 non-blank lines and the size arm refuses both the growth AND the raise of its record, so NO surface born after L19 can be given a named state — and a state nobody names is a surface the oracle never measures | by L21 | `open` |
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
 
@@ -499,6 +500,40 @@ own markup carries.
 <sub>L21, 2026-09-06 · `harness/paused_tile.py` green at 6 holds over 14 tiles, stamp unchanged at
 both ends — `{'Terminus Nord': '4/9 · en pause', 'Le Dernier Quai': 'en pause'}`, none of the other
 12 carrying the word</sub>
+
+**B-352 — no surface born after L19 can enter the oracle's corpus.**
+
+The oracle measures NAMED STATES, and a named state is an entry in
+`engine/states.js`. That file is grandfathered by the size ledger at 786 non-blank lines, and the
+arm refuses a new entry twice over — measured on `feat/maquette-l21`, in this order, both reverted:
+
+    engine/states.js — recorded at 786 and reads 807, 21 more. A grandfathered file is one
+    that may not be EXTENDED; subtract the addition, or record the growth here with the
+    decision that allows it
+
+    engine/states.js — recorded at 786 at the base and at 806 here, 20 more. A grandfathered
+    file's record may only go DOWN: raising it legalises the growth in the same commit that
+    commits it, which is the ratchet refusing nothing
+
+**Both refusals are RIGHT about what they refuse.** The ratchet exists so that no wave legalises
+its own growth, and a raise granted one pull request over would be the same legalisation wearing a
+different hat. Nothing here asks for an exemption.
+
+**What it costs, and it is not nothing.** A control drawn only in a state that has no name is
+measured by no oracle: only the rule that constructs that state sees it, and a rule reads behaviour
+where the oracle reads DRAWING. The first instance is `[data-sugmore]` — Découvrir's « charger 30
+de plus », which `deckHTML` writes when the pile is spent and which no state reaches — so its
+drawing is held by a rule's own geometry (rectangle inside the viewport, uncovered at its centre,
+label read) rather than by the picture the oracle would have taken. Every surface after it inherits
+the same gap.
+
+**Owner: L13.** The state table moves out of the engine with the engine — into a harness module
+that owns `__go` — and on that day the file is no longer grandfathered and a state costs nothing
+again. Until then the gap widens by one entry per surface that would have wanted a state.
+
+<sub>L21, 2026-09-06 · both refusals produced by `python3 scripts/check-frontend-boundaries.py`
+after adding one state to `engine/states.js`, then after raising the record in
+`scripts/frontend_size_ledger.py` · reverted, tree clean, arm reads 0</sub>
 
 **B-351 — the comment rule cannot see a `.mjs`, and does not say so.**
 

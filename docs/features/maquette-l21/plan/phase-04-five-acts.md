@@ -23,11 +23,21 @@ puts it back**:
 - **follow** — the follow is at the head of « Suivis », marked new.
 - **dropsug** — the suggestion is gone from the deck **AND from the cache the deck reads**. One
   without the other is a card that comes back on the next render.
-- **sugmore** — one press adds **thirty** and the reserve is intact (B-315 (b)), read on a
-  **NAMED STATE for the deck's empty state**, which does not exist today: `[data-sugmore]` is
-  reachable from no state, so this phase gives it one in `engine/states.js` (a named state is
-  harness, not surface). The end mark on `acq-discover-exhausted` says the reserve is spent, and
-  the rule reads it there too (B-315 (c)).
+- **sugmore** — one press adds **thirty** and the reserve is intact (B-315 (b)). The end mark on
+  `acq-discover-exhausted` says the reserve is spent, and the rule reads it there too (B-315 (c)).
+
+  ⚠ **« this phase gives it one in `engine/states.js` » IS STRUCK — the subject is gone** (§ 7.1:
+  a directive whose subject has gone is removed, not executed). `[data-sugmore]` is indeed
+  reachable from no state, and a state CANNOT be added: `states.js` is grandfathered at 786
+  non-blank lines and the size arm refuses the growth — « A grandfathered file is one that may not
+  be EXTENDED; subtract the addition, or record the growth here with the decision that allows it »
+  — and then refuses the record itself — « A grandfathered file's record may only go DOWN: raising
+  it legalises the growth in the same commit that commits it, which is the ratchet refusing
+  nothing ». Both were measured on this branch and reverted. **So the rule BUILDS the spent pile
+  itself** (`window.__store.write({ sugMode: "deck", sugGone: … })`) and holds the button's
+  DRAWING by its own geometry — its rectangle inside the viewport, not covered at its centre, its
+  label read — because the oracle cannot see a state nobody named. The price is FILED rather than
+  absorbed: B-352, owner L13.
 
 **Seen red how**: the branches still exist, so each rule is written against the engine and
 mutation-tested there — `scripts/mutate.sh` on the engine's branch, confirm the rule falls and
