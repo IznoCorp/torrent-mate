@@ -136,9 +136,34 @@ message cannot be edited and is wrong on that one sentence.
 `67580575d` → thirteen check-runs, the negative query (`select(.conclusion != "success")`)
 returning EMPTY. The served copy's stamp identical at both ends of the tier and of both rules.
 
-**NOT DONE, and it is the phase's main body**: the five acts (`follow`, `dropsug`, `sugmore`,
-`pause`, `remove`) still read by the engine's delegation; B-316; B-315 (a); B-337's real-finger
-measurement.
+**The five acts, one at a time — TWO OF FIVE ARE DONE:**
+
+| Act | State | Proof |
+| --- | --- | --- |
+| `follow` | **DONE** `6026840e1` + `5a58b6e52` | R130, 10 holds before and after; red by mutation on exactly the two behaviour holds; ledger 31 591 → 31 542 |
+| `dropsug` | **DONE** `327f8fc3e` + `e35eca13e` + `e3bde6c66` | R131, 8 holds before and after; red by mutation on three of four; ledger 31 542 → 31 536 |
+| `sugmore` | **BLOCKED on a ruling** | see below |
+| `pause` | not started | — |
+| `remove` | not started | — |
+
+**NOT DONE besides**: B-316; B-315 (a); B-337's real-finger measurement.
+
+**`sugmore` IS NOT A TRANSPOSITION, and the next hand must not code it as one.** The plan asks for
+« one press adds THIRTY and the reserve is intact ». The engine's branch does
+`store.write({ sugGone: new Set(), sugOrder: null })` and re-renders — it CLEARS everything the
+operator dismissed and reshuffles the same reserve, then says « Nouveau lot chargé — 30 suggestions
+de plus. », which is not true of what it did. Moving that reader unchanged would carry a message
+that is right about nothing (NE-DOIT-PAS-1's shape) into the new code. **The ruling was asked for
+and is pending**; do not choose it alone.
+
+**What the act's move costs, once the ruling lands**: `[data-sugmore]` is drawn only by
+`deckHTML()` when the pile is empty, and no named state reaches that — the phase owes one either
+way, and a named state is harness rather than surface.
+
+**The `window.__followVerbs` seam is the ENGINE's and only the engine's** — `grep -rn
+"__followVerbs" design/src` answers three lines: the declaration, the assignment, and
+`engine/legacy.js:9537`. It dies with the engine, so this lot adds no product read of a `window.__`
+seam, which L13's « Done when » counts.
 
 **What the ground reading already establishes, so the next hand does not re-earn it:**
 
