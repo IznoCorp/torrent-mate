@@ -240,11 +240,21 @@ what would leave it green over nothing:
 - **B-247's hold** (`persistence.py` (f)): the panels you touch are added to its list; a producer
   that re-keys its rows falls it.
 
-**And `busy.py` is yours to repair, not to extend as it is.** L19's report § 9 and § 6 row 16 say
-it: R124 raises its panels THROUGH THE SEAM (`window.__panel.produce`), so a `data-panel` lost on a
-busy page is invisible to it. The correction is the one R103 took (`exits.py:208`): drive the
-delegation — a finger on the row, never the seam. Do it before you add your holds to it, or you add
-holds to a rule that does not walk the path a finger takes.
+**⚠ `busy.py`'s repair HAS LANDED — this paragraph ordered one with no subject, and is corrected
+here (2026-09-06, on `feat/maquette-l21`).** It read « `busy.py` is yours to repair, not to extend
+as it is », on L19's report § 9. **The repair landed inside L19 itself** (`raise_by_finger`,
+`3d67325f9`, squashed into `9fa13da57`): both walks raise their panel with a hit test at the row's
+own centre via `elementFromPoint`, the covering toast emptied first, and the tap's own answer held
+so a missing path FAILS rather than opening nothing quietly. It shows in one command —
+`grep -n "__panel.produce" frontend/maquette/harness/busy.py` answers ONE hit and it is a COMMENT.
+**L19's report contradicts itself and § 9 is the stale half**: § 6 row 16 records the repair and
+the finding under it (driven by a finger it went red, because the pause half had been walking the
+acquisitions page, where a followed medium not in flight has no row; it runs on
+`acq-follows-list` now), while § 9 was written before that round and says it was left undone.
+**What remains is a residue, and it IS yours**: the action inside the raised panel is still
+`act.click()` (`:172`, `:222`), not hit-tested, so a button covered on a busy page is invisible to
+R124. Hit-test the action the way the row is hit-tested, and prove the existing repair still bites
+BY MUTATION before adding holds to it.
 
 ### 5. R103's inventory, and B-323's instrument half
 
