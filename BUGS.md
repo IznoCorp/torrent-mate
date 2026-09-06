@@ -1629,6 +1629,11 @@ lands on `/acquisition`. Exactly the report. The same shape on Maintenance's top
 
 <sub>steward, 2026-09-06 · `scratchpad/cdp-back-real.py` on the phone's Chrome over CDP: `load {path:/settings, hist:6}` → `tap rangement` → `{path:/settings, hist:6, back:false, head:"Réglages | Où vont les médias"}` → `history.back()` → `{path:/acquisition}`</sub>
 
+**RULED by the operator on 2026-09-06 (round 2, question 8): owner the « settings » MICRO-WAVE, off L13,
+together with B-361** — the topic verb leaves the engine for the verb registry (a subtraction), pushes,
+and the view draws its back, on « Réglages » and « Maintenance » in one move. Brief:
+`docs/features/maquette-settings/BRIEF.md`.
+
 **B-333 — « beaucoup de pages n'ont pas de bouton retour et le geste retour ne fonctionne pas non plus ».**
 The operator's reading of 2026-09-06, verbatim, with the sentence that makes it a frame matter: « ça
 devrait être impossible car faisant partie du carcan de l'App ». The frame's model (P3, « Back walks the
@@ -1878,6 +1883,9 @@ before the freeze — it touches no application code.
 
 <sub>operator, 2026-09-06 · `grep -n "harness" CLAUDE.md` → the frame's status · `ls frontend/maquette/design/src/styles/harness.css`</sub>
 
+Brief: `docs/features/maquette-desktop-frame/BRIEF.md` (steward, 2026-09-06); launched after the
+`maquette-departure` micro-wave merges.
+
 **RULED by the operator on 2026-09-06 (round 2, question 6): a TOOLING micro-wave of its own**, in its own
 worktree, after the `maquette-departure` micro-wave merges and before the « settings » one — a desktop-only
 switch out of the phone frame and back, with the rule named above. No application code.
@@ -1941,6 +1949,9 @@ affordance (`features/maintenance`'s topic view draws no back). Owner: **L13**, 
 the two rubric kinds are one mechanism and should land together, wherever B-332 lands.
 
 <sub>steward, 2026-09-06 · `scratchpad/cdp-back-real2.py`: `load {path:/maintenance, hist:18}` → `tap query` → `{path:/maintenance?topic=query, hist:18, back:false, head:"Maintenance | Regarder"}` → `history.back()` → `{path:/acquisition}` · `grep -oE "dataset\.maintopic" frontend/maquette/design/src/engine/legacy.js`</sub>
+
+**RULED by the operator on 2026-09-06 (round 2, question 8): owner the « settings » MICRO-WAVE, with
+B-332** — one mechanism, one wave. Brief: `docs/features/maquette-settings/BRIEF.md`.
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
