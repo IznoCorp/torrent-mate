@@ -445,6 +445,15 @@ async def hold_the_departure_is_complete(journal, browser, errors):
     which of the two a hold does is what keeps the second from being read as a
     weaker version of the first.
 
+    AND EACH IS HELD BY ITS ANIMATION'S NAME TOO, WHICH HAS A COST WORTH
+    STATING. A rename carried through consistently — the keyframes and the rule
+    moved together, the arrival drawn pixel for pixel as before — falls these
+    holds. That is intended, and it is the price of the only reading that can
+    tell « this arrival is drawn » from « the browser is cross-fading because no
+    rule matches this pseudo-element at all »: the fill mode reads `both` in
+    both cases, so the NAME is the only fact separating them. A rename is then
+    one deliberate line here, beside the rename that caused it.
+
     Args:
         journal: The rule's journal.
         browser: A launched Playwright browser.
@@ -527,9 +536,12 @@ async def hold_the_departure_is_complete(journal, browser, errors):
             and all(value in ("both", "forwards") for value in read),
             f"`{snapshot['animation']}` runs on {snapshot['pseudo']} over "
             f"{len(drawn)} of {len(crossing)} active frame(s) and "
-            f"animation-fill-mode reads {read} — no frame carrying it means the "
-            "stylesheet is not drawing this arrival at all, whatever the fill "
-            "mode says, and `none` means the shorthand threw the fill away")
+            f"animation-fill-mode reads {read} — zero frames means no animation "
+            "of THAT NAME on THAT pseudo, which is either the arrival no longer "
+            "drawn by this stylesheet or the same arrival drawn under a name "
+            "this rule was not told about; what IS running on the pseudo, above, "
+            "tells the two apart. `none` is the shorthand having thrown the fill "
+            "mode away")
 
     # ── THE DRAWING IS NOT AMENDED, and that is a rule rather than a promise ──
     #
@@ -559,8 +571,9 @@ async def hold_the_departure_is_complete(journal, browser, errors):
     scale = await page.evaluate(SCALE)
     drawn = sorted({(frame["duration"], frame["easing"]) for frame in crossing})
     journal.check(
-        "and the departure spends the SAME step and curve the document declares "
-        "for them — it is not given a step of its own",
+        "and `panel-down` spends the step and curve the document declares as "
+        "`--duration-4` and `--ease-standard` — the departure is not given a "
+        "pace of its own",
         len(drawn) == 1 and drawn[0][0] == scale["duration"]
         and drawn[0][1] == scale["easing"],
         f"the snapshot animates {drawn} against the scale's "
