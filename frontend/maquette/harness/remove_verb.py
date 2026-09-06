@@ -20,9 +20,12 @@ WHAT IT READS, and each fails differently:
   4. THE UNDO PUTS IT BACK — present again and the count restored. Read as a
      TRANSITION, never as a state: a hold that merely asks « is it present »
      is answered by a removal that never occurred.
-  5. THE ROW'S REVEALED REMOVAL ACTS ON THE FIRST TAP, on a real touch — the
+  5. AND IT COMES BACK WHOLE. Field for field against what was taken away. An
+     undo holding only a title restores a medium with no year and no history,
+     and every hold above would still be green over it.
+  6. THE ROW'S REVEALED REMOVAL ACTS ON THE FIRST TAP, on a real touch — the
      same finger B-337 is about, on this act's own button.
-  6. NO ERROR IS RAISED.
+  7. NO ERROR IS RAISED.
 
 THE REVEALED ACTION IS FOUND BY ITS ATTRIBUTE, `data-action="remove"`, and not
 by its label. R132's first version matched « pause » OR « cherch » in the text
@@ -48,6 +51,16 @@ FOLLOWS_STATE = "acq-follows-list"
 # from one place.
 FOLLOWS = """()=>(window.__followActions?.all() || []).map(
   (one) => ({t: one.t, k: one.k, st: one.st}))"""
+
+# ONE FOLLOW, WHOLE. The undo restores what was removed, and « restored » has
+# to mean every field it had: a follow rebuilt from its title alone comes back
+# without its year, without « suivi depuis » and without how many times it was
+# looked for — a different medium wearing the same name. Read as a plain copy,
+# so the comparison is of values and not of a reference the layer may reuse.
+ONE_FOLLOW = """(title)=>{
+  const one = (window.__followActions?.all() || []).find(
+    (follow) => follow.t === title);
+  return one ? JSON.parse(JSON.stringify(one)) : null;}"""
 
 # THE REMOVAL IN THE PANEL, found by the ATTRIBUTE it carries. Its LABEL
 # depends on the kind — « Retirer le film » against « Retirer la série » — so
@@ -145,6 +158,7 @@ async def main():
             journal.summary()
             return
         subject = before[0]
+        whole = await page.evaluate(ONE_FOLLOW, subject["t"])
 
         # ── THE PANEL'S ACT ────────────────────────────────────────────────
         await page.evaluate("(t)=>window.__panel.produce('follow', t)", subject["t"])
@@ -196,6 +210,13 @@ async def main():
             and any(one["t"] == subject["t"] for one in undone)
             and len(undone) == len(before),
             f"{len(before)} → {len(after)} → {len(undone)}")
+
+        restored = await page.evaluate(ONE_FOLLOW, subject["t"])
+        journal.check(
+            "and it comes back WHOLE — every field it had, because a follow "
+            "rebuilt from its title alone returns without its year, without "
+            "« suivi depuis » and without how many times it was looked for",
+            restored == whole, f"{whole} → {restored}")
 
         # ── B-337's SHAPE ON THIS ACT: THE ROW, ON ONE REAL TAP ────────────
         await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
