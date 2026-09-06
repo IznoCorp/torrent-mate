@@ -978,7 +978,8 @@
       "followed": "« {{title}} » ajouté à vos suivis — il apparaît en tête de « Suivis », marqué Nouveau.",
       "resumed": "« {{title}} » réactivé.",
       "searchStopped": "« {{title}} » ne sera plus cherché.",
-      "paused": "« {{title}} » mis en pause."
+      "paused": "« {{title}} » mis en pause.",
+      "removed": "« {{title}} » retiré de vos suivis."
     }
   },
   "discover": {

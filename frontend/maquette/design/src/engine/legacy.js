@@ -5527,17 +5527,6 @@ import {
     );
   }
 
-  function actionRetirer(title) {
-    const removed = follows().find((follow) => follow.t === title);
-    if (!removed) return;
-    window.__followActions?.remove(title);
-    render();
-    toastUndo(`« ${removed.t} » retiré de vos suivis.`, () => {
-      window.__followActions?.add(removed);
-      render();
-    });
-  }
-
   function actionDelete(titres) {
     /* THE REMOVAL IS THE LAYER'S SINCE L09. `world.lib` stopped holding the
        library when the listing converted, so this filtered an empty array and
@@ -9164,12 +9153,6 @@ import {
       }, 240);
       return;
     }
-    if (closest.dataset.remove) {
-      const retirer = closest.dataset.remove;
-      panel.close();
-      setTimeout(() => actionRetirer(retirer), 240);
-      return;
-    }
     if (closest.dataset.releases) {
       panel.close();
       setTimeout(() => screens.releases(closest.dataset.releases), 260);
@@ -9583,7 +9566,7 @@ import {
       if (closest.classList.contains("remove"))
         return currentState().page === "lib"
           ? openDeleteDialog(textContent)
-          : actionRetirer(textContent);
+          : window.__followVerbs?.removeFollow(textContent);
       if (closest.classList.contains("pause"))
         return window.__followVerbs?.pause(textContent);
       toast(`${closest.textContent.trim()} — ${textContent}`);
@@ -31789,7 +31772,7 @@ Object.assign(window, {
   STRIP_LABELS, ST_LABEL,
   ST_LABEL_MOVIE, ST_TONE,
   URGENCY, VIA_LABEL, actionLeave,
-  actionTake, actionResolve, actionRetirer,
+  actionTake, actionResolve,
   actionDelete, addVerb, showSignIn, showStartup,
   showInstallation, applyState,
   baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,

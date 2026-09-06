@@ -157,6 +157,37 @@ function pause(title: string): void {
   });
 }
 
+/**
+ * Takes a medium out of the follows, and offers to put it back.
+ *
+ * THE WHOLE FOLLOW IS HELD, not its title. The undo restores what was
+ * removed, and a follow rebuilt from a title alone would come back without its
+ * year, without « suivi depuis » and without how many times it had been looked
+ * for — a different medium wearing the same name.
+ *
+ * IT RETURNS TO THE HEAD OF THE LIST rather than to the position it held.
+ * That is what the act has always done and this move does not change it: the
+ * follows are held as a list with no place for a position, so restoring one
+ * would mean inventing where it belonged.
+ *
+ * Args:
+ *     title: The medium's title — the only key the follows are held by.
+ */
+function removeFollow(title: string): void {
+  const removed = (window.__followActions?.all() ?? []).find(
+    (follow) => follow.t === title);
+  if (!removed) return;
+  window.__followActions?.remove(title);
+  window.__store.touch();
+  window.__toast?.show({
+    message: i18next.t("verbs.follows.removed", { title: removed.t }),
+    undo: () => {
+      window.__followActions?.add(removed);
+      window.__store.touch();
+    },
+  });
+}
+
 declare global {
   interface Window {
     /**
@@ -182,6 +213,7 @@ declare global {
     __followVerbs?: {
       follow: (title: string, kind: string) => void;
       pause: (title: string) => void;
+      removeFollow: (title: string) => void;
     };
   }
 }
@@ -195,7 +227,7 @@ declare global {
 //
 // ONE VERB, TWO EMITTERS, and the element is what tells them apart — which is
 // why the registry hands the element to the act rather than the value alone.
-window.__followVerbs = { follow, pause };
+window.__followVerbs = { follow, pause, removeFollow };
 registerVerb("follow", (title, element) => {
   const at = element.dataset.sugidx;
   const suggestion = at === undefined
@@ -229,4 +261,14 @@ registerVerb("follow", (title, element) => {
 registerVerb("pause", (title) => {
   window.__panel.close();
   pause(title);
+});
+
+// THE PANEL'S OWN REMOVAL, whose target is `data-remove`. As with the pause,
+// the ROW's « Retirer » carries a class instead and is dispatched through
+// `__followVerbs` — and there it is one of TWO destinations, since the same
+// class on a library row opens a confirmation dialog rather than removing a
+// follow. That arbitration is the engine's drawing and stays with it.
+registerVerb("remove", (title) => {
+  window.__panel.close();
+  removeFollow(title);
 });

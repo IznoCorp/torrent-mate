@@ -98,15 +98,22 @@ export function useFollows() {
 const followsKey = followsQuery.queryKey;
 
 /**
- * Installs the follows' verbs, for the dying engine's delegation to call.
+ * Installs the follows' verbs — the one place a follow is written.
+ *
+ * THE CALLERS ARE ON BOTH SIDES NOW: the acts that left the engine call
+ * these directly, and what is left of the engine's delegation still calls
+ * them for the surfaces it has not given up.
  *
  * EACH ONE WRITES THE CACHE FIRST. Pausing a follow, removing one, adding one:
  * the list on screen changes in the same task as the tap, and the layer is
  * asked afterwards. If it refuses, what was there goes back — which is the only
  * way an optimistic path is honest rather than a lie that usually holds.
  *
- * THE UNDO IS THE ENGINE'S AND IT STAYS. A toast that offers to put something
- * back is interface, and it calls these verbs again to do it.
+ * THE UNDO BELONGS TO THE VERB IT UNDOES, and it moved with it. This said the
+ * opposite while the acts were the engine's, and it was true then; the pause
+ * and the removal offer their own undo now, from the feature that performs
+ * them, and each calls back through here to do it. What a message DRAWS is
+ * still the shell's.
  *
  * @param queryClient The cache the surfaces read.
  */
@@ -166,7 +173,16 @@ declare global {
     __followActions?: {
       setStatus: (title: string, status: string) => void;
       remove: (title: string) => void;
-      add: (follow: { t: string; k: string; st: string; fresh: boolean }) => void;
+      /**
+       * Adds a follow, or puts a removed one back.
+       *
+       * THE PARAMETER IS A WHOLE FOLLOW MINUS WHAT A NEW ONE CANNOT KNOW. A
+       * medium followed for the first time has no year the caller holds and
+       * no history; a medium being RESTORED has both, and handing back only
+       * the three fields an addition needs would restore a different follow —
+       * one with no year and no « suivi depuis ».
+       */
+      add: (follow: Partial<Follow> & Pick<Follow, "t" | "k" | "st">) => void;
       all: () => Follow[];
     };
     /** The discover deck's cards, read synchronously by the dying engine. */
