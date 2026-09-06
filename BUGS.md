@@ -395,6 +395,7 @@ when the defect comes back.
 | B-342 | « Enregistrer » says « Enregistré — torrent.json5 » and the row shows the ORIGINAL value again: the mock's write records the file name and never the value, so the next read contradicts the toast | 1× | `open` |
 | B-343 | After a real save the restart banner does not appear: the flag is raised on the engine's `SETTINGS_STATE` object and nothing re-renders the page, so « Redémarrer maintenant » is reachable from a named state and not from a save | 1× | `open` |
 | B-344 | On a desktop browser the design host shows the prototype inside the phone frame only — the operator cannot test the interface's desktop layout there; he asks for a desktop-only switch out of the frame and back | 1× | `open` |
+| B-345 | The seeded data does not show every state a surface can take — the operator could not find a single medium « à prendre » to try « Récupérer maintenant » on; his ruling: the test data must always hold enough simulated states to exercise every case by hand | 1× | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
@@ -859,6 +860,12 @@ RELEASE screen's take too, because the two share an attribute and a repair that 
 breaking the other would leave a one-sided rule green.
 
 <sub>`sed -n '9615,9616p' frontend/maquette/design/src/engine/legacy.js@86fe9549a` · `python3 frontend/maquette/harness/take.py`</sub>
+
+**CONFIRMATION ATTEMPTED by the operator on 2026-09-06 and NOT REACHABLE BY HAND**: no medium on the
+design host sat « à prendre », so the button never appeared to him (B-345). The status stays `to confirm`
+on the rule's own reading (`take.py`, R123, green on `main`) until the seeds offer the state and the
+operator taps it.
+
 
 **B-310 — the bottom panel is seen again after the media sheet has opened.**
 Reported by the operator on 2026-09-04, verbatim: « effet de clignotement du panel bottom après
@@ -1811,6 +1818,25 @@ wave that opens `harness.css` or the design host's wrapper**, or a steward instr
 before the freeze — it touches no application code.
 
 <sub>operator, 2026-09-06 · `grep -n "harness" CLAUDE.md` → the frame's status · `ls frontend/maquette/design/src/styles/harness.css`</sub>
+
+**B-345 — the seeds do not offer every state to a hand that walks the interface.**
+The operator, on 2026-09-06, trying to confirm B-309 on the design host, verbatim: « Pas testable, j'ai
+aucun torrent dans cet état qui me permet de tester, d'ailleurs c'est un bug global, on devrait toujours
+avoir assez d'états simulés dans les données de test afin de tester tous les cas de figure ! » The
+harness reaches every state through NAMED STATES (`engine/states.js`, `window.__go`), which re-seed the
+layer for a rule; the operator walks the interface with a finger and reads what the seeds hold at rest
+— and at rest, no follow's medium sits in Arrivées « à prendre » on his head (`seeds/takeable.json`
+holds two cards, and none reached his screen as such), so the one verb B-309 repaired was unreachable to
+him. **The ruling is a property of the fixtures, not of one seed**: the data the design host serves at
+rest holds at least one subject in every state every surface can draw — a takeable arrival, a blocked
+one, a paused follow, a season with a hole, a conflict, a restart owed — so any case can be tried by
+hand without a named state. §13 (real data) and the fixture clause the operator ratified on 2026-09-05
+(a measurement L13 inherits) are where this lands: the fixture families' owner measures the states each
+surface can draw against the states the seeds hold, and fills the holes. Owner: **L13** with the
+fixture clause; a wave that reseeds a family earlier takes its surfaces' share (L21's `acquisition-verbs`
+seeds are the first case: a takeable arrival for a followed medium is one line).
+
+<sub>operator, 2026-09-06 · `python3 -c "import json; print(len(json.load(open('frontend/maquette/design/src/mocks/seeds/takeable.json'))))"` → 2 · `grep -n "toTake" frontend/maquette/design/src/features/acquisition/follow-facts.ts` → `queue.takeable.some(…)`</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
