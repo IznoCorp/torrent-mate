@@ -23,6 +23,25 @@
 # uses to exercise every path here without touching the machine's real lock.
 
 LOCK=${HEAVY_LOCK:-/private/tmp/tm-heavy/holder}
+
+# ── Who holds it? ────────────────────────────────────────────────────────────
+# `sh scripts/heavy.sh --held` prints the holder's name and exits 0, or prints
+# « free » and exits 1. THE LOCK IS A DIRECTORY, and that is why this exists:
+# the natural probe — `cat .../holder` — reads a directory as a file, fails, and
+# under `2>/dev/null` prints NOTHING whether the lock is held or free. Two
+# sessions reached for that probe independently on one night, one certified a
+# machine « free » that was not, the other accused a wrapped run of running
+# unwrapped, and neither output could tell them (B-326). A probe that cannot
+# fail is not a probe; this one reads `who`, which only a holder writes.
+if [ "${1:-}" = "--held" ]; then
+    if [ -d "$LOCK" ]; then
+        cat "$LOCK/who" 2>/dev/null || echo "someone"
+        exit 0
+    fi
+    echo "free"
+    exit 1
+fi
+
 WHO=${1:?who is asking}
 shift
 
