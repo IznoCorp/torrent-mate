@@ -952,6 +952,26 @@ with the line reverted, and the operator no longer sees the frame.
 
 <sub>steward, 2026-09-06 · operator's screen recording (24 fps, the frame at 6.83 s) · device readings `cdp-fill.py` on the phone's Chrome over `adb forward tcp:9333 localabstract:chrome_devtools_remote` · `grep -n "animation: panel-down" frontend/maquette/design/src/styles/base.css` · `grep -c "fill-mode" …/base.css` → 0 · counterfactual confirmed by the operator</sub>
 
+**REPAIRED, and the reading the repair makes is the mechanism read backwards.**
+`animation-fill-mode: both` is declared as a LONGHAND after the shorthand on the
+three pseudo-elements of this species — `::view-transition-old(leaving-panel)`
+and, in the same move, `::view-transition-new(screen-banner)` and
+`::view-transition-new(screen-body)`, which snap back too and show nothing only
+because a NEW snapshot's un-animated state happens to be its final one. R127
+(`frontend/maquette/harness/departure.py`) samples the departing snapshot's own
+computed style once per animation frame and reads it on the frames where the
+transition is still active and `panel-down` is over:
+
+    before   541 ms   opacity 1   transform none    panel-down absent from `getAnimations()`
+    after    524 ms   opacity 0   translateY 486px  panel-down present, finished, its fill applying
+
+The animation is RETAINED instead of dropped, which is the whole repair in one
+line. `panel-down` keeps its 450 ms and its curve — the departure is completed,
+not amended — and the rule asserts it CROSSED such a frame rather than assuming
+one existed (B-277): both runs read two of them.
+
+<sub>R127, run under `scripts/heavy.sh` with the served copy's stamp identical at both ends of each run · mutation: the longhand reverted with `scripts/mutate.sh`, one violation, naming the frame</sub>
+
 **B-311 — a list does not come back at the place it was left.**
 Reported by the operator on 2026-09-04, verbatim: « quand je reviens sur la liste après avoir vu
 la fiche, je ne reviens pas avec le même scroll sur la liste ». Read: open a medium's sheet from a
@@ -1556,6 +1576,31 @@ the scrim's visibility and stays green) and removes the target: a closed scrim t
 is never `#scrim`, red on `main` before the repair.
 
 <sub>steward, 2026-09-06 · `scratchpad/b310/probe.py` frames (`topAtCentre` = `#scrim[scrim]div` from 567 to 948 ms), the same on the phone's Chrome over CDP · `grep -n "transition-delay" frontend/maquette/design/src/ui/variants/layout.ts` → the scrim's `[transition-delay:0s,450ms]` at :96 · numbered B-338 because L21 holds B-329 on its branch</sub>
+
+**AND IT IS WORSE UNDER `reduce` — measured, and it was not predicted.** The
+scrim's delayed `visibility` is an ordinary transition declared on the CLOSED
+state, with no motion preference attached, so it runs whatever the reader asked
+for. But the crossing it is supposed to outlast does not: with every
+`::view-transition-*` animation silenced, the transition ends after THREE frames
+instead of thirty. So the window in which the fresh screen answers `#scrim`
+under `reduce` is not shorter than the other one — it is more than twice as
+long, and it starts almost at the tap:
+
+    no-preference   23 of 64 frames after the crossing   559 ms → 924 ms
+    reduce          50 of 92 frames after the crossing    95 ms → 910 ms
+
+A reader who asked for no motion loses a tap for four fifths of a second. Both
+readings are R127's, on a build of this branch before the repair.
+
+**REPAIRED**: `pointer-events-none` on the scrim's CLOSED variant only
+(`ui/variants/layout.ts`, `sheetScrim`). The fade and the delayed `visibility`
+are untouched — B-249's idiom is the layer being SEEN through its exit, never
+the layer being reachable through it — so R103's holds on the scrim keep their
+count and their verdict. After the repair the element at the centre of the fresh
+media screen is a paragraph of that screen, on all 65 frames sampled past the
+crossing under `no-preference` and all 91 under `reduce`.
+
+<sub>R127 (`frontend/maquette/harness/departure.py`), one reading per animation frame over 1 600 ms · mutation: `pointer-events-none` reverted with `scripts/mutate.sh`</sub>
 
 **B-331 — Réglages' pull-to-refresh indicator is off-centre and outlives the refresh.**
 Reported by the operator on 2026-09-06 from his phone with two screenshots, verbatim: « Bug de loader
