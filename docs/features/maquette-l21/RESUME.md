@@ -114,6 +114,36 @@ message cannot be edited and is wrong on that one sentence.
 
 ---
 
+## 5c. OPEN, live, and unexplained — the operator's 10:36 reading
+
+**« le bouton récupérer saison 3 de Silo ne semble rien faire, en tout cas il se passe rien
+visuellement »**, on the design host on his Android, with Silo's panel showing « 6/7 · 1 manquant »
+and the button drawn as a plain `sact`. **This is not closed and must not be assumed closed.**
+
+What was RULED OUT, each by a reading:
+
+- **Not a stale build.** The served bundle is `dist/vite/index-DHK4FCS-.js`, built **10:33**, three
+  minutes BEFORE his reading, and `grep` finds both `grab-season` and `journey-requeue` inside it.
+- **Not the mock layer being off.** `__MOCKS_BUILT_IN__` is `JSON.stringify(true)` in
+  `vite.config.mjs:161`, so the layer is installed in that build; if it were not, the prototype
+  would carry no Silo at all.
+- **Not the press arbitration's swallow, as far as it can be reasoned.** `swallowClick` is armed
+  only by a long press and is cleared by the FIRST click after it, whatever the distance — so a
+  later, separate tap on the button is not the one it eats. *Reasoned, not measured — do not treat
+  this as settled.*
+
+What is TRUE on the harness: R125 taps that button at its hit-tested centre and the act fires — the
+operation is recorded, the follow moves `pending → acquiring`, the message reads back through
+`window.__toast.read()`. **And that is exactly the limit**: `page.touchscreen.tap` is a synthetic
+touch with no movement and no dwell, so it cannot reproduce a finger, and **it therefore cannot
+rule out the class of defect B-337 already documents** — a first tap that does nothing on a real
+phone while every synthetic one works.
+
+**Phase 4 owes a measurement on the real path**, not another synthetic tap: B-337 and this reading
+are plausibly the same defect, and B-337 is already ratified into this lot.
+
+---
+
 ## 6. What phase 4 must read before it starts
 
 - **B-339** and **B-337** on `main` (ratified into L21 by the operator): a disabled panel action is
