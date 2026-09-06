@@ -402,6 +402,7 @@ when the defect comes back.
 | B-350 | A PAUSED SERIES is dimmed in the follows grid with no word saying why: the tile's caption is `stFraction(follow) ?? paused`, so a fraction always outranks the word — a paused FILM says « en pause » only because it has no fraction | by L13 | `fixed #572` |
 | B-351 | `check-maquette-comments.py` reads five suffixes and `.mjs` is not one of them, so every `.mjs` under `frontend/maquette/` is invisible to the comment rule AND to the corpus count the floor is derived from — one real occupant measured, `vite.config.mjs:143`'s « (L08) » | by L21 | `open` |
 | B-352 | `engine/states.js` is grandfathered at 786 non-blank lines and the size arm refuses both the growth AND the raise of its record, so NO surface born after L19 can be given a named state — and a state nobody names is a surface the oracle never measures | by L21 | `open` |
+| B-353 | UNDOING A REMOVAL DOES NOT RESTORE THE FOLLOW, it creates a new one wearing the same name: the layer's delete DROPS the record and the only way back is a CREATE, so the year, « suivi depuis » and the search count are lost and the status comes back right only by coincidence | by L21 | `open` |
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
 
@@ -521,6 +522,44 @@ phone rather than reproduced beside it.
 <sub>L21, 2026-09-06 · `harness/pause_verb.py` — swipe leftward (the pause and the removal are in
 `data-side="right"`, uncovered by the card travelling left), then one `Input.dispatchTouchEvent`
 pair at the action's hit-tested centre</sub>
+
+**B-353 — the undo of a removal restores a stranger.**
+
+« Retirer de la liste », then « Annuler ». The row comes back, the count comes back, and what
+comes back is not what left. Measured on `feat/maquette-l21`, R133's eleventh hold:
+
+    removed:  {t: "Kyma, l'onde mystérieuse", y: 2026, since: '9 août', searches: 13, st: 'pending'}
+    restored: {t: "Kyma, l'onde mystérieuse", y: 0,    since: '',       searches: 0,  st: 'pending'}
+
+A medium followed since 9 August with thirteen searches behind it comes back as a brand-new
+follow. **The status matching is a coincidence** — `NEWLY_ADDED_STATUS` happens to be `pending`,
+and a paused or blocked follow would come back neither.
+
+**The mechanism, read rather than reasoned.** The optimistic half is correct: the undo writes the
+WHOLE follow back into the cache. What undoes the undo is what follows it — the request, then
+`refresh()`, then a refetch that replaces the correct record with the layer's. The layer's delete
+removes the record outright, so the only road back is a CREATE, and a create builds a new row from
+the request body.
+
+**And the body cannot carry the history even if the caller wanted it to.** The contract's
+`POST /api/acquisition/followed` accepts `title`, `kind`, `year`, `provider`, `providerId` —
+there is no `since`, no `searches` and no `status`. So this is not a caller passing too little: it
+is a contract with no operation that RESTORES a follow, only one that creates one, and no undo can
+be honest over a create.
+
+**It is not this lot's doing.** The engine's own `actionRetirer` offered the same undo through the
+same seam, so the defect predates the act's move and travelled with it unchanged. It was found
+because moving the act meant writing down what the undo promises, and a promise written down is a
+promise something can read.
+
+**What it demands of the backend**, in the shape §17's other demands are recorded in: a removal
+that can be undone has to be REVERSIBLE on the layer's side — a soft delete with a restore, or a
+create that accepts a whole record — and the interface names which, because the backend follows
+the interface.
+
+<sub>L21, 2026-09-06 · `python3 frontend/maquette/harness/remove_verb.py`, eleventh hold, red on a
+clean tree · mutation confirming the hold bites: the undo restoring only `{t, k, st}` fails that
+hold ALONE, printing the same three losses</sub>
 
 **B-352 — no surface born after L19 can enter the oracle's corpus.**
 
