@@ -188,10 +188,27 @@ SAMPLE = """([span, departing, filled])=>new Promise((done)=>{
 # the operator validated, and the brief that ordered this rule forbids amending
 # it — so the hold compares the animation against the SCALE rather than against
 # a constant, and a step that moves moves both ends at once.
+#
+# THROUGH THE BROWSER'S OWN SERIALISER, ON BOTH SIDES, and the first version of
+# this was not: it read the tokens as AUTHORED and compared them with a computed
+# style. `--duration-4` is written `.45s` and computes to `0.45s`; the curve is
+# written with bare `.22` and computes with `0.22`. The values were identical
+# and the hold fell on the leading zeros — a rule refusing a change nobody made,
+# which is worse than one that misses a change somebody did: it teaches its
+# reader to disbelieve it. So the tokens are resolved on a probe element and
+# read back the same way the snapshot is read, and what is compared is what the
+# engine resolved on both ends rather than two spellings of one number.
 SCALE = """()=>{
-  const scale = getComputedStyle(document.documentElement);
-  return {duration: scale.getPropertyValue('--duration-4').trim(),
-          easing: scale.getPropertyValue('--ease-standard').trim()};
+  const probe = document.createElement('div');
+  probe.style.animationName = 'none';
+  probe.style.animationDuration = 'var(--duration-4)';
+  probe.style.animationTimingFunction = 'var(--ease-standard)';
+  document.documentElement.appendChild(probe);
+  const resolved = getComputedStyle(probe);
+  const scale = {duration: resolved.animationDuration,
+                 easing: resolved.animationTimingFunction};
+  probe.remove();
+  return scale;
 }"""
 
 
