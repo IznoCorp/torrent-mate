@@ -5527,32 +5527,6 @@ import {
     );
   }
 
-  /* THE STATE IS THE LAYER'S SINCE L09; what stays here is the sentence the
-     operator reads and the undo it offers. */
-  function actionPause(title) {
-    const found = follows().find((follow) => follow.t === title);
-    if (!found) return;
-    const before = found.st;
-    const after =
-      found.st === "disabled"
-        ? found.k === "movie"
-          ? "pending"
-          : "up_to_date"
-        : "disabled";
-    window.__followActions?.setStatus(title, after);
-    const remis = after !== "disabled";
-    render();
-    toastUndo(
-      remis
-        ? `« ${found.t} » réactivé.`
-        : `« ${found.t} » ${found.k === "movie" ? "ne sera plus cherché" : "mis en pause"}.`,
-      () => {
-        window.__followActions?.setStatus(title, before);
-        render();
-      },
-    );
-  }
-
   function actionRetirer(title) {
     const removed = follows().find((follow) => follow.t === title);
     if (!removed) return;
@@ -9190,12 +9164,6 @@ import {
       }, 240);
       return;
     }
-    if (closest.dataset.pause) {
-      const pause = closest.dataset.pause;
-      panel.close();
-      setTimeout(() => actionPause(pause), 240);
-      return;
-    }
     if (closest.dataset.remove) {
       const retirer = closest.dataset.remove;
       panel.close();
@@ -9616,7 +9584,8 @@ import {
         return currentState().page === "lib"
           ? openDeleteDialog(textContent)
           : actionRetirer(textContent);
-      if (closest.classList.contains("pause")) return actionPause(textContent);
+      if (closest.classList.contains("pause"))
+        return window.__followVerbs?.pause(textContent);
       toast(`${closest.textContent.trim()} — ${textContent}`);
       return;
     }
@@ -31819,7 +31788,7 @@ Object.assign(window, {
   SEASONS, SECRETS, SERVICES, SERVICES_PANNE,
   STRIP_LABELS, ST_LABEL,
   ST_LABEL_MOVIE, ST_TONE,
-  URGENCY, VIA_LABEL, actionLeave, actionPause,
+  URGENCY, VIA_LABEL, actionLeave,
   actionTake, actionResolve, actionRetirer,
   actionDelete, addVerb, showSignIn, showStartup,
   showInstallation, applyState,

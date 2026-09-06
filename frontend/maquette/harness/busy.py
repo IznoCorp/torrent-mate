@@ -225,9 +225,8 @@ async def main():
             f"« {watched} »'s panel offers to pause it while the pipeline runs",
             paused, watched)
         # THE STATE MOVED, whatever it moved TO. « paused » was this rule's
-        # first guess and it is the app's `disabled` — the engine's own
-        # `actionPause` toggles between `disabled` and the medium's resting
-        # state. What the clause is about is that the act LANDED, so the hold
+        # first guess and it is the app's `disabled` — the act toggles between
+        # `disabled` and the medium's resting state. What the clause is about is that the act LANDED, so the hold
         # reads the CHANGE against what the status was before, and never a word
         # this file chose.
         state = await page.evaluate(

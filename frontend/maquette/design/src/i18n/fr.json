@@ -975,7 +975,10 @@
     },
     "follows": {
       "added": "« {{title}} » ajouté à votre liste — il apparaît en tête de « Suivis », marqué Nouveau.",
-      "followed": "« {{title}} » ajouté à vos suivis — il apparaît en tête de « Suivis », marqué Nouveau."
+      "followed": "« {{title}} » ajouté à vos suivis — il apparaît en tête de « Suivis », marqué Nouveau.",
+      "resumed": "« {{title}} » réactivé.",
+      "searchStopped": "« {{title}} » ne sera plus cherché.",
+      "paused": "« {{title}} » mis en pause."
     }
   },
   "discover": {

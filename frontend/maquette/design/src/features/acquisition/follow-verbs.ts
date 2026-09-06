@@ -103,18 +103,86 @@ function follow(title: string, kind: string): void {
   });
 }
 
+/**
+ * Stops looking for a medium, or starts again — the same act, both ways.
+ *
+ * IT TOGGLES, and that is why nothing here names a destination. The row and
+ * the panel both offer one button whose meaning is « change this », so a
+ * caller that passed a status would be deciding what the operator can only
+ * have meant by pressing it once.
+ *
+ * WHAT A LIFTED PAUSE GOES BACK TO DEPENDS ON THE KIND, and it is §5 again: a
+ * film is still being looked for, so it returns to `pending`; a series has no
+ * end, so it returns to `up_to_date` and resumes watching for what comes next.
+ * There is no third answer, and a status this function invented would be a
+ * fact about the medium that nothing measured.
+ *
+ * Args:
+ *     title: The medium's title, which is the only key the follows are held
+ *         by — the row reads it off its own heading and the panel carries it
+ *         in the attribute, so both arrive here spelled the same way.
+ */
+function pause(title: string): void {
+  const found = (window.__followActions?.all() ?? []).find(
+    (follow) => follow.t === title);
+  if (!found) return;
+  const before = found.st;
+  const after = before === "disabled"
+    ? (found.k === "movie" ? "pending" : "up_to_date")
+    : "disabled";
+  // THE BUMP IS EXPLICIT, and for the same reason it is in `follow`: the
+  // status is written into the query cache, which moves what React observes
+  // and moves nothing the engine still draws. The undo needs it just as much
+  // as the act does, so both go through this one door.
+  const put = (status: string) => {
+    window.__followActions?.setStatus(title, status);
+    window.__store.touch();
+  };
+  put(after);
+  const resumed = after !== "disabled";
+  window.__toast?.show({
+    message: i18next.t(
+      resumed
+        ? "verbs.follows.resumed"
+        // french-ok: an attribute VALUE frozen with the follows contract — the
+        // same literal the layer answers with, compared where it arrives
+        : found.k === "movie"
+          ? "verbs.follows.searchStopped"
+          : "verbs.follows.paused",
+      { title: found.t }),
+    // THE UNDO MOVES WITH THE VERB IT UNDOES. It restores what WAS rather
+    // than toggling again: a second toggle is the same act repeated, and it
+    // would land on the wrong side of anything that moved in between.
+    undo: () => put(before),
+  });
+}
+
 declare global {
   interface Window {
     /**
-     * The follows' act, for the ONE caller the delegation is not.
+     * The follows' acts, for the callers the tap registry is not.
      *
-     * The add screen follows a medium after a confirmation it draws itself, so
-     * it reaches the act without a `data-*` ever being tapped. That caller is
-     * the engine's and dies with it; until then it calls through this door
-     * rather than keeping a second copy of the act, which is how two truths
-     * about one follow start.
+     * TWO OF THEM NOW, and they are not the same kind of caller — the door was
+     * opened for the first and this says why the second uses it, since a door
+     * whose reason is stale is one nobody dares close.
+     *
+     * · The add screen follows a medium after a confirmation it draws itself,
+     *   so it reaches the act without a `data-*` ever being tapped.
+     * · A swiped-open ROW's revealed action is dispatched by CLASS — the
+     *   engine reads `.act` then `.pause`, and takes the subject from the
+     *   row's own heading text. There is no attribute on that button for a
+     *   registry to answer, and giving it one is DRAWING, which is not this
+     *   lot's. So the engine's branch keeps the gesture's bookkeeping — the
+     *   drawer it must collapse — and calls the act through here.
+     *
+     * Both callers are the engine's and die with it; until then they call
+     * through this door rather than keeping a second copy of an act, which is
+     * how two truths about one follow start.
      */
-    __followVerbs?: { follow: (title: string, kind: string) => void };
+    __followVerbs?: {
+      follow: (title: string, kind: string) => void;
+      pause: (title: string) => void;
+    };
   }
 }
 
@@ -127,7 +195,7 @@ declare global {
 //
 // ONE VERB, TWO EMITTERS, and the element is what tells them apart — which is
 // why the registry hands the element to the act rather than the value alone.
-window.__followVerbs = { follow };
+window.__followVerbs = { follow, pause };
 registerVerb("follow", (title, element) => {
   const at = element.dataset.sugidx;
   const suggestion = at === undefined
@@ -148,4 +216,17 @@ registerVerb("follow", (title, element) => {
   // the cache in place, so without this the button never learns the follow
   // happened and stays « Suivre » under the finger that pressed it.
   window.__store.touch();
+});
+
+// THE PANEL'S OWN ACT, whose target is `data-pause`. Only the panel emits it:
+// the row's button carries a class instead, and is dispatched above through
+// `__followVerbs`.
+//
+// THE PANEL LEAVES FIRST, in the tap's own commit, and the 240 ms the engine
+// waited here goes with the branch (B-249). The panel leaves inside the
+// navigation's own commit, so the wait bought nothing but a state that had
+// already moved being announced late.
+registerVerb("pause", (title) => {
+  window.__panel.close();
+  pause(title);
 });

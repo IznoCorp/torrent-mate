@@ -24,7 +24,7 @@
     "design/src/app/toast-host.ts": 1,
     "design/src/app/worker-registration.ts": 1,
     "design/src/engine/engine-shape.ts": 5,
-    "design/src/engine/legacy.js": 28,
+    "design/src/engine/legacy.js": 27,
     "design/src/engine/states.js": 2,
     "design/src/features/acquisition/add-footer.tsx": 3,
     "design/src/features/acquisition/queries.ts": 2,
