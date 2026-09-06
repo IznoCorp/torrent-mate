@@ -150,10 +150,17 @@ async def main():
             await page.touchscreen.tap(undo["x"], undo["y"])
             await page.wait_for_timeout(ACTED)
         undone = await page.evaluate(SPENT)
+        # IT ASKS FOR THE TRANSITION, NOT FOR THE END STATE, and the mutation
+        # is what taught it: with the drop broken, nothing was ever spent, and
+        # « the position is not in `sugGone` » was true for the wrong reason —
+        # a hold reporting a working undo over an act that never happened. The
+        # card must have GONE and come back.
         journal.check(
-            "and pressing it puts the card BACK — read on the layer, so an undo "
-            "that is drawn and wired to nothing is a failure here",
-            position not in undone, f"{still_spent} → {undone}")
+            "and pressing it puts the card BACK — the card that had gone, read "
+            "on the layer, so an undo drawn and wired to nothing fails here and "
+            "so does one asked about a card that never left",
+            position in still_spent and position not in undone,
+            f"{still_spent} → {undone}")
 
         journal.check("and the whole gesture raises no error", not errors, str(errors))
 
