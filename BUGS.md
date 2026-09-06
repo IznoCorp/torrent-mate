@@ -391,6 +391,9 @@ when the defect comes back.
 | B-338 | After a panel's departure the invisible scrim stays hit-testable over the media screen for ~380 ms — `opacity 0`, `visibility` still `visible` until its delayed flip — so a tap on the fresh screen lands on nothing | by the steward | `open` |
 | B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens » | 1× | `open` |
 | B-340 | The « + » button reopens the add screen with the LAST query and mode still in place — after identifying an arrival, a new search starts on « Marvels Spider-Man 2 v1 526 0 -Mephis… », 0 results, and the « 2 médias ajoutés » strip of the previous visit | 1× | `open` |
+| B-341 | A settings field commits its edit only when the finger LEAVES it — no validation affordance in the panel — which the operator reads as counter-intuitive; the pending edit then says « Valeur actuelle » for the value not yet written | 1× | `open` |
+| B-342 | « Enregistrer » says « Enregistré — torrent.json5 » and the row shows the ORIGINAL value again: the mock's write records the file name and never the value, so the next read contradicts the toast | 1× | `open` |
+| B-343 | After a real save the restart banner does not appear: the flag is raised on the engine's `SETTINGS_STATE` object and nothing re-renders the page, so « Redémarrer maintenant » is reachable from a named state and not from a save | 1× | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
@@ -583,6 +586,13 @@ happened; only confirming restarts, and then it says so.
                         `python3 frontend/maquette/harness/page_host.py` → 44 holds, no violation
 
 <sub>`python3 frontend/maquette/harness/settings.py` → 65 holds, no violation · `python3 frontend/maquette/harness/page_host.py` → 44 holds, no violation</sub>
+
+**CONFIRMATION ATTEMPTED by the operator on 2026-09-06 and NOT REACHED**: on the design host, editing a
+field and saving showed the toast and no restart banner — the flag is raised on an engine object nothing
+re-renders (B-343), and the value itself was not kept by the layer (B-342). So the confirmation dialog
+this entry says is fixed could not be seen through the real path; the status stays `to confirm` until
+B-343 lands and the operator taps the banner's button himself.
+
 
 **B-301 — a season is printed « à récupérer » and nothing lets one take it.** `features/media/panel-
 seasons.tsx` derives a `to_grab` state per season and draws it as a warning swatch; no verb follows,
@@ -1739,6 +1749,50 @@ as it does. Owner: PROPOSED **L13** with the add screen's engine-owned state (`a
 another lot.
 
 <sub>operator's screenshot, 2026-09-06 10:13 · `sed -n 41,42p frontend/maquette/design/src/app/action-button.tsx` · `grep -n "added: new Set\|added.add" frontend/maquette/design/src/engine/legacy.js` → 5214, 5632 (resets: initial shape and named states only), 9526, 9586, 9592 (adds) · `grep -n "screens.add(trim" …/legacy.js` → the identify seed</sub>
+
+**B-341 — a settings field commits on blur, and says « Valeur actuelle » of a value not yet written.**
+Reported by the operator on 2026-09-06 while trying to confirm B-300, verbatim: « Pas de bouton de
+validation d'un changement faut sortir du champ ce qui est contre-intuitif et non ergonomique, puis on
+enregistre dans un second temps seulement ». Read: `features/settings/panel-field.tsx` binds the native
+`change` event, which fires once on blur — a measured choice (a pending edit per keystroke was the
+alternative) — and offers no « Valider » in the panel; the edit is filed when the field loses focus,
+which a phone keyboard's « ✓ » does not always cause. Two-step writing itself (edit, then the bottom bar
+writes the files) is DOIT-8's design and stays. And the panel then prints the pending value as
+« Valeur actuelle » and the stored one as « Valeur écrite » (B-090's « the settings say the value they
+HOLD ») — two labels the operator read the other way round. A drawing decision on a validated surface:
+the operator's amendment to dictate (a commit affordance in the panel; the two labels' words).
+Owner: **L13**, with the settings family.
+
+<sub>operator's screenshots, 2026-09-06 10:24 · `grep -n "change" frontend/maquette/design/src/features/settings/panel-field.tsx` → the native `change` listener and its three reasons</sub>
+
+**B-342 — the save says « Enregistré » and the row shows the old value.**
+Same session, verbatim: « quand on a enregistré sur la liste la valeur est reset à la valeur
+d'origine ». Screenshots: the row « Transmission — Adresse d'écoute » edited to `127.0.0.3`, the bar
+« 1 modification en attente — Écrira torrent.json5 », « Enregistrer », the toast « Enregistré —
+torrent.json5. », and the row back at `localhost`. Read in `mocks/handlers/configuration.ts`,
+`updateConfigurationFile`: the handler adds the file's NAME to `changedFiles`, sets `restartRequired`,
+answers `{ restartRequired, conflict }` — and never reads the request's body into `held.settings`. So
+the write is « recorded » for the file list and not for the value, and the next read of the settings
+answers the seed. The interface says the file was written and shows it was not: NE-DOIT-PAS-1, and the
+exact species L21's agent named the same morning (« the layer answers the three verbs and MOVES
+something when it does »). Owner: **L13**, with the settings family; a wave that opens this handler
+earlier takes it (D7: a mock that answers without moving is a mock that certifies nothing).
+
+<sub>operator's screenshots, 2026-09-06 10:24 · `sed -n 41,47p frontend/maquette/design/src/mocks/handlers/configuration.ts` → no read of the body</sub>
+
+**B-343 — the restart banner does not follow a real save.**
+Same session: « Aucun redémarrer maintenant apparaît ». Read: `panel-setting.ts:195` sets
+`reference.SETTINGS_STATE.redemarrage = true` after the writes, and `page.tsx:149` draws the banner
+from that same object — an ENGINE object, not React state, so nothing re-renders the page when the
+flag flips; the banner appears at the next render caused by something else, or not at all. That is why
+B-300's confirmation could not be reached by the operator through a save: the rule that holds B-300
+(`harness/settings.py`, seven holds) drives `data-restart` from a named state that already has the flag
+up — it reads the confirmation, never the path to it. **B-300 stays `to confirm` and gains this
+reading.** Owner: **L13**, with the settings family (the flag becomes the layer's or the store's, and
+the banner a reader of it); the rule's own debt — a hold that reaches the banner THROUGH a save — goes
+with it.
+
+<sub>operator's screenshots, 2026-09-06 10:24 · `grep -n "redemarrage" frontend/maquette/design/src/features/settings/panel-setting.ts frontend/maquette/design/src/features/settings/page.tsx` → set at `:195`, read at `:149`, no render between</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
