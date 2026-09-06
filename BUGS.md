@@ -390,6 +390,7 @@ when the defect comes back.
 | B-328 | `features/system/page.tsx` heads itself with a path that does not exist and describes a state field (`state.panne`) the code does not have | by the next wave that opens `features/system/page.tsx` | `open` |
 | B-338 | After a panel's departure the invisible scrim stays hit-testable over the media screen for ~380 ms — `opacity 0`, `visibility` still `visible` until its delayed flip — so a tap on the fresh screen lands on nothing | by the steward | `open` |
 | B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens » | 1× | `open` |
+| B-340 | The « + » button reopens the add screen with the LAST query and mode still in place — after identifying an arrival, a new search starts on « Marvels Spider-Man 2 v1 526 0 -Mephis… », 0 results, and the « 2 médias ajoutés » strip of the previous visit | 1× | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
@@ -1708,6 +1709,36 @@ residue for `ui/variants` with its `disabled:` half. The operator ratifies, or n
 residue dies there).
 
 <sub>operator's screenshot, 2026-09-06 10:10 · `grep -n "desactive" frontend/maquette/design/src/features/acquisition/panel-add.ts frontend/maquette/design/src/ui/panel/index.tsx` · `grep -n "\.sact" frontend/maquette/design/src/styles/legacy.css` → 1674, 1688, 1694, 1697, 1703, none with `:disabled` · `grep -n ":disabled" …/legacy.css` → `.btnprimary:disabled` only</sub>
+
+**B-340 — the « + » button reopens the add screen where the last visit left it.**
+Reported by the operator on 2026-09-06 with a screenshot, verbatim: « Une fois que j'ai cliqué sur la
+répartition d'une arrivée, la recherche pour l'ajout aux suivis reste avec une recherche active, elle
+devrait s'être reset quand j'appuie sur le bouton + pour pouvoir lancer une nouvelle recherche. L'état du
+formulaire n'est pas celui attendu ». The screen: query « Marvels Spider-Man 2 v1 526 0 -Mephis… » (a
+release name the identify path had seeded), « 0 résultat affiché sur 0 trouvé », and the footer strip
+« 2 médias ajoutés » from the previous visit.
+
+**Read in the code, two halves.** (1) The floating action button (`app/action-button.tsx:41`) opens the
+screen with `window.__screens.add(String(state.addQ ?? ""), "follow")` — it hands the LAST entry query
+back in. `state.addQ` is written by every visit (`add-screen.tsx`'s `search()` keeps the legacy readers
+in sync, and the resolution path seeds it with the folder's name before `screens.add(trim, "identify")`,
+`legacy.js`), so a « new search » from the « + » is the previous search, in the previous words. The add
+screen itself reads the ROUTER's `q` and says so in its own comment — the store's copy « is the ENTRY
+query and is stale by construction » — which is exactly the copy the button reads. (2) `state.added`
+(the positions already added, the footer strip's count and every « ✓ Ajouté ») is `new Set()` only in
+the named states' reset and in the store's initial shape (`legacy.js:5214`, `:5632`); nothing clears it
+when the screen is opened for a new search, so the strip and the ticks outlive the results they were
+about — and since they are keyed by POSITION, a new answer's row 0 inherits the tick of the previous
+answer's row 0 (B-339's « ✓ Ajouté » on a result that may never have been added is this defect seen from
+the panel).
+
+**What the operator expects, and it is the frame's contract**: the « + » opens a FRESH add screen —
+empty query, mode `follow`, nothing added yet — while the identify path keeps seeding the folder's name
+as it does. Owner: PROPOSED **L13** with the add screen's engine-owned state (`addQ`, `addMode`,
+`added`); the FAB's one line is the frame's (`app/`) and moves with it. The operator ratifies or names
+another lot.
+
+<sub>operator's screenshot, 2026-09-06 10:13 · `sed -n 41,42p frontend/maquette/design/src/app/action-button.tsx` · `grep -n "added: new Set\|added.add" frontend/maquette/design/src/engine/legacy.js` → 5214, 5632 (resets: initial shape and named states only), 9526, 9586, 9592 (adds) · `grep -n "screens.add(trim" …/legacy.js` → the identify seed</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
