@@ -79,18 +79,33 @@ FROM_STATE = "lib-grid"
 TILE = '[data-part="tile"]'
 DEPARTING = "::view-transition-old(leaving-panel)"
 
-# THE THREE SNAPSHOTS OF ONE SPECIES. All three are animated through the
-# `animation:` shorthand, which resets the fill mode the user-agent stylesheet
-# gives every `::view-transition-*` pseudo-element — so all three snap back to
-# their un-animated state when their animation ends. Only the OLD one SHOWS it,
-# because a NEW snapshot's un-animated state happens to be its final one, and
-# that is exactly why the other two need a hold: a repair whose effect is
-# invisible is a repair a later edit removes with nothing said.
-FILLED = {
-    "leaving-panel": DEPARTING,
-    "screen-banner": "::view-transition-new(screen-banner)",
-    "screen-body": "::view-transition-new(screen-body)",
+# THE THREE SNAPSHOTS OF ONE SPECIES, each with the animation that OWNS it. All
+# three are animated through the `animation:` shorthand, which resets the fill
+# mode the user-agent stylesheet gives every `::view-transition-*`
+# pseudo-element — so all three snap back to their un-animated state when their
+# animation ends. Only the OLD one SHOWS it, because a NEW snapshot's
+# un-animated state happens to be its final one, and that is exactly why the
+# other two need a hold: a repair whose effect is invisible is a repair a later
+# edit removes with nothing said.
+#
+# THE ANIMATION IS NAMED HERE BECAUSE THE FILL MODE ALONE CANNOT HOLD THEM.
+# `both` is what an authored rule declares AND what the user agent gives a
+# pseudo-element no author rule matches at all — so a hold reading only
+# `animation-fill-mode` passes identically whether the arrival is drawn as
+# designed or not drawn by this stylesheet at all. Measured: moving the whole
+# `::view-transition-new(screen-banner)` rule to a misspelt pseudo name leaves
+# the fill reading `both` on every frame while `banner-in` never runs and the
+# browser's own cross-fade plays in its place. So each snapshot is held by BOTH
+# facts — its own animation running on its own pseudo, and the fill mode kept —
+# and the pair is what makes the reading mean the arrival this file is about.
+SNAPSHOTS = {
+    "leaving-panel": {"pseudo": DEPARTING, "animation": "panel-down"},
+    "screen-banner": {"pseudo": "::view-transition-new(screen-banner)",
+                      "animation": "banner-in"},
+    "screen-body": {"pseudo": "::view-transition-new(screen-body)",
+                    "animation": "body-rise"},
 }
+FILLED = {name: snapshot["pseudo"] for name, snapshot in SNAPSHOTS.items()}
 
 # HOW LONG THE WALK SAMPLES. The crossing itself is one motion step and the
 # scrim's delayed flip is a second one after it, so a window of two steps plus
@@ -499,17 +514,22 @@ async def hold_the_departure_is_complete(journal, browser, errors):
     # invisible is a repair the next edit removes in silence — so what is held
     # is the DECLARATION, resolved by the browser, on the frames where the
     # pseudo-elements exist at all.
-    for name in FILLED:
+    for name, snapshot in SNAPSHOTS.items():
+        owner = f"{snapshot['pseudo']}:{snapshot['animation']}"
+        drawn = [frame for frame in crossing if owner in frame["running"]]
         read = sorted({frame["fill"][name] for frame in crossing})
         journal.check(
-            f"`{name}`'s snapshot keeps the fill mode the user-agent gives every "
-            "view-transition pseudo-element, which the `animation:` shorthand "
-            "resets (B-310)",
-            bool(read) and all(value in ("both", "forwards") for value in read),
-            f"animation-fill-mode reads {read} over {len(crossing)} active "
-            "frame(s) — `none` is the shorthand having thrown it away, and the "
-            "snapshot then returns to its un-animated state when its animation "
-            "ends")
+            f"`{name}` is drawn by `{snapshot['animation']}` and its snapshot "
+            "keeps the fill mode the `animation:` shorthand resets — the pair, "
+            "because `both` is also what an UNMATCHED pseudo-element reads "
+            "(B-310)",
+            bool(drawn) and bool(read)
+            and all(value in ("both", "forwards") for value in read),
+            f"`{snapshot['animation']}` runs on {snapshot['pseudo']} over "
+            f"{len(drawn)} of {len(crossing)} active frame(s) and "
+            f"animation-fill-mode reads {read} — no frame carrying it means the "
+            "stylesheet is not drawing this arrival at all, whatever the fill "
+            "mode says, and `none` means the shorthand threw the fill away")
 
     # ── THE DRAWING IS NOT AMENDED, and that is a rule rather than a promise ──
     #
@@ -524,15 +544,23 @@ async def hold_the_departure_is_complete(journal, browser, errors):
     # so this hold says nothing about it — deliberately: the scale is a decision
     # of its own, with its own guard, and a step that moves moves every surface
     # spending it at once. What this refuses is THIS departure being spent
-    # differently from the rest of the scale — `panel-down` given another token
-    # or a literal — which is the amendment the brief forbids. The mutation that
+    # differently from the rest of the scale — `panel-down` given a DIFFERENT
+    # token — which is the amendment the brief forbids. The mutation that
     # exercises it is a changed token IN THIS RULE, never a changed token in the
     # scale.
+    #
+    # A LITERAL OF THE SAME VALUE PASSES HERE, and that is not a gap: `0.45s`
+    # written out computes to what the token computes to, so no reading of the
+    # animation can tell them apart. What refuses a literal is
+    # `check-css-tokens.py`, which reads the SOURCE and holds that every
+    # duration in the maquette is a step of the scale. Two guards, two
+    # questions — « is it the same step? » here, « is it written as a step? »
+    # there — and neither can be asked from the other's position.
     scale = await page.evaluate(SCALE)
     drawn = sorted({(frame["duration"], frame["easing"]) for frame in crossing})
     journal.check(
-        "and the departure is still drawn with the scale's own step and curve — "
-        "completing it was not licence to retune it",
+        "and the departure spends the SAME step and curve the document declares "
+        "for them — it is not given a step of its own",
         len(drawn) == 1 and drawn[0][0] == scale["duration"]
         and drawn[0][1] == scale["easing"],
         f"the snapshot animates {drawn} against the scale's "
