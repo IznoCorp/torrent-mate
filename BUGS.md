@@ -389,6 +389,7 @@ when the defect comes back.
 | B-327 | « Réglages » draws SIX scheduled jobs while the machine runs seven, and the same six are named twice in two French vocabularies that disagree on five of them — the row cannot be added until `SETTINGS` leaves the engine | by L13 | `open` |
 | B-328 | `features/system/page.tsx` heads itself with a path that does not exist and describes a state field (`state.panne`) the code does not have | by the next wave that opens `features/system/page.tsx` | `open` |
 | B-338 | After a panel's departure the invisible scrim stays hit-testable over the media screen for ~380 ms — `opacity 0`, `visibility` still `visible` until its delayed flip — so a tap on the fresh screen lands on nothing | by the steward | `open` |
+| B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens » | 1× | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
@@ -1684,6 +1685,29 @@ revealed actions ARE those verbs, and a rule that taps them once is the rule the
 otherwise **L13**, with the engine's swipe.
 
 <sub>operator, 2026-09-06 · `grep -n "clickAfterDrag" frontend/maquette/design/src/engine/legacy.js` · `grep -n "swallowClick" frontend/maquette/design/src/lib/press-arbitration.ts` · to measure: a touch swipe then ONE touch tap on `[data-part="swipe/action"]`, reading which listener consumed the click</sub>
+
+**B-339 — a disabled panel action looks enabled.**
+Reported by the operator on 2026-09-06 with a screenshot, verbatim: « Le bouton ajouter ne fait rien
+sur cet écran » — the add screen, a result already added (the strip says « 2 médias ajoutés », the row's
+chip « ✓ Ajouté »), its panel's primary action reading « + ✓ Ajouté » in full primary yellow.
+
+**Read in the code: the act IS spent, and the drawing does not say so.** `features/acquisition/panel-add.ts`
+gives the action `desactive: done` (`done` = the result's position in `state.added`), and
+`ui/panel/index.tsx` writes it as `<button class="sact primary" disabled …>`; `addVerb` (the engine's
+label derivation, `legacy.js`) reads the SAME set and prints « ✓ Ajouté ». So the button is disabled and
+its tap does nothing, correctly — but `.sact` and `.sact.primary` (`styles/legacy.css:1674-1703`) carry
+**no `:disabled` rule at all** (the only one in the residue is `.btnprimary:disabled`, another
+element), so a spent primary action is painted identically to an available one: same yellow, same
+weight, a « + » icon beside a check mark. The reader reads an act, taps, and reads a defect. It is not
+the add screen's alone: every panel action that passes `desactive` is drawn this way, and DOIT-4's
+queued state (an act that cannot be taken NOW) has no visible form to inherit either.
+
+Owner: PROPOSED **L21** — it is the lot drawing new panel actions with a not-available state (the
+queued button, DOIT-4), and the disabled drawing is that state's floor; the action's variant leaves the
+residue for `ui/variants` with its `disabled:` half. The operator ratifies, or names L13 (D10: the
+residue dies there).
+
+<sub>operator's screenshot, 2026-09-06 10:10 · `grep -n "desactive" frontend/maquette/design/src/features/acquisition/panel-add.ts frontend/maquette/design/src/ui/panel/index.tsx` · `grep -n "\.sact" frontend/maquette/design/src/styles/legacy.css` → 1674, 1688, 1694, 1697, 1703, none with `:disabled` · `grep -n ":disabled" …/legacy.css` → `.btnprimary:disabled` only</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
