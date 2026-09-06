@@ -517,6 +517,17 @@ async def hold_the_departure_is_complete(journal, browser, errors):
     # and completing the departure was not licence to retune it. Compared
     # against the SCALE's own values, asked of the document: a number typed here
     # would outlive the duration it was set against without saying so (B-276).
+    #
+    # WHAT THIS IS INVARIANT UNDER, said plainly because the obvious mutation
+    # tries it and reports « no rule fell », which reads as a vacuity and is
+    # not one. Moving `--duration-4` itself moves BOTH ends of the comparison,
+    # so this hold says nothing about it — deliberately: the scale is a decision
+    # of its own, with its own guard, and a step that moves moves every surface
+    # spending it at once. What this refuses is THIS departure being spent
+    # differently from the rest of the scale — `panel-down` given another token
+    # or a literal — which is the amendment the brief forbids. The mutation that
+    # exercises it is a changed token IN THIS RULE, never a changed token in the
+    # scale.
     scale = await page.evaluate(SCALE)
     drawn = sorted({(frame["duration"], frame["easing"]) for frame in crossing})
     journal.check(
