@@ -371,7 +371,7 @@ when the defect comes back.
 | B-309 | « Récupérer maintenant » on a medium's own panel THROWS and takes nothing: the release screen's `data-take` branch is checked first, has no guard, and swallows every `data-take` in the document | by L19 | `to confirm` |
 | B-310 | Opening a media screen from a bottom panel paints the PANEL again for one frame, open and opaque, after the crossing — the departing snapshot's `animation:` shorthand resets its fill mode, so `panel-down` ends and the snapshot snaps back to the captured (open) state until the transition is torn down one frame later; proven on the operator's phone and reversed there by one line | 2× | `open` |
 | B-311 | Coming back to a list after a medium's sheet does not restore the scroll position the list was left at | 1× | `open` |
-| B-312 | Changing the library's lens during a selection DROPS it — L14's own decision, RULED against by the operator on 2026-09-05 | 1× | `open` |
+| B-312 | Changing the library's lens during a selection DROPS it — L14's own decision, RULED against by the operator on 2026-09-05 | 2× | `open` |
 | B-313 | The follow sheet offers « Voir le parcours » TWICE — once as the primary act, once in the secondary row — whenever the primary falls through to it | 1× | `open` |
 | B-314 | The add screen's search shows no example result to try the flow with | 1× | `open` |
 | B-315 | Découvrir's « charger plus »: the button is too big, one press should show more, and the feed must say when the reserve is spent | 1× | `open` |
@@ -394,6 +394,8 @@ when the defect comes back.
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
 | B-334 | The secret panel's « Remplacer la valeur » does nothing: the action's whole effect is a `data-toast` the engine's dead message element answers, and no store, seed or cache moves | 1× | `open` |
 | B-335 | The secret panel's « Retirer la clé » does nothing and asks nothing: the same `data-toast` shape as B-334, on a destructive act that owes a confirmation (B-300's form) | 1× | `open` |
+| B-336 | The library's kind chips (« Tout · Films · Séries », with counts) scroll horizontally with a VISIBLE scrollbar on the phone; the strip should hide it as `pillscroll` does | 1× | `open` |
+| B-337 | A follow card swiped open: the first tap on a revealed action does nothing, the second acts — systematic on the phone | 1× | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -1028,6 +1030,13 @@ L14's decision is overruled, and the reason it was taken is spent — the select
 TITLE since that same wave, so a tick that survives a change of listing cannot land on another
 medium.
 
+**REPORTED AGAIN by the operator on 2026-09-06** (« le bug de sélection reset lors du changement de
+filtre dans la médiathèque est toujours là »): the ruling is four days old and no lot carries it —
+neither `frontend-architecture.md` nor the clause map names B-312. PLACED BY THE STEWARD, PROPOSED:
+**L13**, whose conversion of the library's engine half is where `selected: new Set()` is written on a
+lens change (`legacy.js`) beside the React head's own write (`library-head.tsx`) — the two writers of one
+fact; the operator ratifies or names another lot.
+
 **Two guard-rails come with the ruling**, and they are the second half of « a tick nobody can see
 is a tick nobody can untick »: the selection bar counts every ticked MEDIUM, hidden by the lens or
 not; and the delete dialog NAMES every ticked title, the hidden ones included. A selection that
@@ -1634,6 +1643,47 @@ key gone, and said). Owner: **L13**, beside B-334; the confirmation's sentence i
 dictate if he wants more than « la clé est retirée pour tous les comptes du foyer ».
 
 <sub>`sed -n 84,90p frontend/maquette/design/src/features/settings/panel-secret.ts` · B-300's rule shape in `harness/settings.py`</sub>
+
+**B-336 — the library's kind chips show their scrollbar.**
+Reported by the operator on 2026-09-06, verbatim: « Filtre médiathèque Tout/films/séries il y a un
+scroll horizontal, la barre de scroll est visible elle ne devrait pas l'être ». The strip under the
+library's search — « Tout 1861 · Films 717 · Séries 528 » — overflows the 369 px viewport and scrolls
+sideways with a visible bar. The prototype already has the idiom for a strip that scrolls without
+showing it: `pillscroll` (`ui/variants/controls.ts`, `[scrollbar-width:none] [&::-webkit-scrollbar]:hidden`),
+and D11 says a scrollbar is STYLED, never replaced — a strip of chips is the one place a bar is hidden
+because the chips themselves are the affordance. **Where the strip is drawn is to be located before it
+is repaired**: it is not in `features/library/` (`library-head.tsx` draws the three LENSES, not the
+kinds), so it is the engine's library head, and its container carries neither `pillscroll` nor the
+two declarations. Owner: **L13**, with the library's engine half; if a wave opens that head earlier,
+it takes the two declarations with it.
+
+<sub>operator, 2026-09-06 · `grep -rn "kindAll" frontend/maquette/design/src` → the ADD screen only (`add-screen.tsx:283`), not the library · `grep -n "pillscroll" frontend/maquette/design/src/ui/variants/controls.ts` → the idiom</sub>
+
+**B-337 — a swiped-open follow card ignores the first tap on its revealed action.**
+Reported by the operator on 2026-09-06, verbatim: « Lorsqu'on glisse une carte de suivi à droite ou à
+gauche pour afficher les actions, il faut 2 clics sur le bouton pour que ça soit pris en compte, le
+premier clic ne fait rien systématiquement ».
+
+**What the code says, and what it does not settle.** The engine's swipe (`legacy.js`, the block from
+`cadre.addEventListener("pointerdown"` to the capture-phase `click` guard) arms `clickAfterDrag` at the
+release point of any drag that travelled more than 4 px, and swallows the next click within 24 px of it
+— written for a MOUSE, whose click follows a drag; its own comment says « after a touch drag the browser
+suppresses the click by itself ». On touch, then, the mark stays ARMED after the swipe, and the next
+`pointerdown` clears it (`clickAfterDrag = null` is the handler's first line) — so by that reading the
+first tap should pass. Two mechanisms are left to tell apart on the device, and the reading is a
+finger, not a click: (a) the first tap's `pointerdown` on the open row re-enters the drag machinery
+(`cardDrag` with `depart = openCardDx`) and something on its release — `endCardDrag`, the press
+arbitration's own `swallowClick`, or a `pointercancel` the compositor fires because the row carries
+`touch-action` — swallows the click; (b) the revealed action sits under the translated card's hit area
+for the first tap and the tap CLOSES rather than acts. Whichever it is, « systematic » means the rule
+that reads it is cheap: swipe a card open with a real touch, tap the revealed action ONCE, hold that
+the act happened.
+
+Owner: **L21** if it touches `follows-tab.tsx`'s swipe while moving `data-pause` / `data-remove` (the
+revealed actions ARE those verbs, and a rule that taps them once is the rule the brief asks for);
+otherwise **L13**, with the engine's swipe.
+
+<sub>operator, 2026-09-06 · `grep -n "clickAfterDrag" frontend/maquette/design/src/engine/legacy.js` · `grep -n "swallowClick" frontend/maquette/design/src/lib/press-arbitration.ts` · to measure: a touch swipe then ONE touch tap on `[data-part="swipe/action"]`, reading which listener consumed the click</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
