@@ -79,6 +79,19 @@ FROM_STATE = "lib-grid"
 TILE = '[data-part="tile"]'
 DEPARTING = "::view-transition-old(leaving-panel)"
 
+# THE THREE SNAPSHOTS OF ONE SPECIES. All three are animated through the
+# `animation:` shorthand, which resets the fill mode the user-agent stylesheet
+# gives every `::view-transition-*` pseudo-element — so all three snap back to
+# their un-animated state when their animation ends. Only the OLD one SHOWS it,
+# because a NEW snapshot's un-animated state happens to be its final one, and
+# that is exactly why the other two need a hold: a repair whose effect is
+# invisible is a repair a later edit removes with nothing said.
+FILLED = {
+    "leaving-panel": DEPARTING,
+    "screen-banner": "::view-transition-new(screen-banner)",
+    "screen-body": "::view-transition-new(screen-body)",
+}
+
 # HOW LONG THE WALK SAMPLES. The crossing itself is one motion step and the
 # scrim's delayed flip is a second one after it, so a window of two steps plus
 # the margin below covers both with room for a frame that arrives late on a
@@ -95,7 +108,7 @@ FADED = 0.01
 # One reading per animation frame: the snapshot's own computed style, whichever
 # animation is running on it, and what a finger would find at the screen's
 # centre.
-SAMPLE = """([span, departing])=>new Promise((done)=>{
+SAMPLE = """([span, departing, filled])=>new Promise((done)=>{
   const started = performance.now();
   const frames = [];
   const asNumber = (value) => (value && typeof value === 'object'
@@ -129,11 +142,26 @@ SAMPLE = """([span, departing])=>new Promise((done)=>{
     }
     const point = centre();
     const under = document.elementFromPoint(point.x, point.y);
+    // THE FILL MODE OF EVERY SNAPSHOT OF THE SPECIES, read from the
+    // pseudo-element itself rather than from the stylesheet's text: what a rule
+    // must hold is the value the browser resolved, and a shorthand written
+    // after a longhand resolves to `none` however the source reads.
+    const fill = {};
+    for (const [name, pseudo] of Object.entries(filled)) {
+      fill[name] = getComputedStyle(root, pseudo).animationFillMode;
+    }
     frames.push({
       at: Math.round(performance.now() - started),
       active: root.matches(':active-view-transition'),
       opacity: Number(snapshot.opacity),
       transform: snapshot.transform,
+      fill,
+      // THE DRAWING ITSELF, so that changing it is a rule going red rather than
+      // a silent amendment. Read as the browser resolved it, beside the scale's
+      // own tokens below — never against a number typed here, which outlives
+      // the duration it was set against without saying so (B-276).
+      duration: snapshot.animationDuration,
+      easing: snapshot.animationTimingFunction,
       panelDown,
       // EVERY view-transition animation running this frame, named. Without it a
       // walk that measured the wrong transition would look like a walk that
@@ -155,6 +183,16 @@ SAMPLE = """([span, departing])=>new Promise((done)=>{
   };
   requestAnimationFrame(read);
 })"""
+
+# WHAT THE DEPARTURE IS DRAWN WITH, asked of the document. The pair is a drawing
+# the operator validated, and the brief that ordered this rule forbids amending
+# it — so the hold compares the animation against the SCALE rather than against
+# a constant, and a step that moves moves both ends at once.
+SCALE = """()=>{
+  const scale = getComputedStyle(document.documentElement);
+  return {duration: scale.getPropertyValue('--duration-4').trim(),
+          easing: scale.getPropertyValue('--ease-standard').trim()};
+}"""
 
 
 def finished(frame):
@@ -304,10 +342,21 @@ async def walk(page, journal, motion):
     if not raised or not (raised["open"] and raised["leaves"]):
         return raised, []
     sampling = asyncio.create_task(
-        page.evaluate(SAMPLE, [WALK_MILLISECONDS, DEPARTING]))
+        page.evaluate(SAMPLE, [WALK_MILLISECONDS, DEPARTING, FILLED]))
     await asyncio.sleep(0.02)
-    await page.evaluate(
-        """()=>document.querySelector('#sheet [data-mediasheet]').click()""")
+    # A REAL TOUCH, because this rule's own sentence says « a finger ». A
+    # `.click()` reaches the handler and reaches nothing else: the press
+    # arbitration that decides whether a gesture is a tap at all never runs, so
+    # an instrument driving one is measuring a path no reader walks. The
+    # conclusion is the same on this surface, measured — which is the argument
+    # for fixing it rather than against, since an instrument that happens to be
+    # right is not an instrument that reads what it claims.
+    box = await page.evaluate(
+        """()=>{const node = document.querySelector('#sheet [data-mediasheet]');
+                 const rectangle = node.getBoundingClientRect();
+                 return {x: rectangle.x + rectangle.width / 2,
+                         y: rectangle.y + rectangle.height / 2};}""")
+    await page.touchscreen.tap(box["x"], box["y"])
     return raised, await sampling
 
 
@@ -399,6 +448,44 @@ async def hold_the_departure_is_complete(journal, browser, errors):
          f"rest — first: {reading(wrong[0])}" if wrong
          else f"{len(after)} frame(s), last: {reading(after[-1])}"
               if after else "no frame to read"))
+
+    # ── THE OTHER TWO THIRDS OF THE REPAIR, held (the fill mode) ──────────
+    #
+    # WITHOUT THIS, TWO OF THE THREE DECLARATIONS ARE HELD BY NOTHING. The two
+    # NEW snapshots snap back exactly as the old one does; their un-animated
+    # state simply happens to be their final one, so the defect draws nothing
+    # and no reading of the picture can find it. A repair whose effect is
+    # invisible is a repair the next edit removes in silence — so what is held
+    # is the DECLARATION, resolved by the browser, on the frames where the
+    # pseudo-elements exist at all.
+    for name in FILLED:
+        read = sorted({frame["fill"][name] for frame in crossing})
+        journal.check(
+            f"`{name}`'s snapshot keeps the fill mode the user-agent gives every "
+            "view-transition pseudo-element, which the `animation:` shorthand "
+            "resets (B-310)",
+            bool(read) and all(value in ("both", "forwards") for value in read),
+            f"animation-fill-mode reads {read} over {len(crossing)} active "
+            "frame(s) — `none` is the shorthand having thrown it away, and the "
+            "snapshot then returns to its un-animated state when its animation "
+            "ends")
+
+    # ── THE DRAWING IS NOT AMENDED, and that is a rule rather than a promise ──
+    #
+    # The 450 ms and the standard curve are a drawing the operator validated,
+    # and completing the departure was not licence to retune it. Compared
+    # against the SCALE's own values, asked of the document: a number typed here
+    # would outlive the duration it was set against without saying so (B-276).
+    scale = await page.evaluate(SCALE)
+    drawn = sorted({(frame["duration"], frame["easing"]) for frame in crossing})
+    journal.check(
+        "and the departure is still drawn with the scale's own step and curve — "
+        "completing it was not licence to retune it",
+        len(drawn) == 1 and drawn[0][0] == scale["duration"]
+        and drawn[0][1] == scale["easing"],
+        f"the snapshot animates {drawn} against the scale's "
+        f"({scale['duration']!r}, {scale['easing']!r})")
+
     hold_the_scrim_lets_go(journal, frames, "no-preference")
     await context.close()
 
