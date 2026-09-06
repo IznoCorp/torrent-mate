@@ -291,6 +291,51 @@ Product code reads no `window.__` at L13, and this lot is the one that empties t
 is read by `busy.py` and by the engine's `follows()`; whichever survives is named in the report
 rather than removed blind.
 
+### 3.3b A DECISION the acts produced: a removal is SOFT, and the undo restores
+
+**The operator ruled this on 2026-09-06 and the ruling is « fix it in this lot ».** It is recorded
+here rather than left in the register because it changes the CONTRACT, and a contract change that
+exists only as a bug entry is a decision nobody can find.
+
+**What was wrong.** « Retirer de la liste », then « Annuler », put back a follow with year 0, no
+« suivi depuis » and no search count — a stranger wearing the same name. The optimistic half was
+correct: the undo wrote the whole record back. What undid the undo was the refetch behind it. The
+layer's removal DROPPED the record, so the only road back was a CREATE, and
+`POST /api/acquisition/followed` accepts `title`, `kind`, `year`, `provider`, `providerId` — no
+`since`, no `searches`, no `status`. **No undo can be honest over a create.**
+
+**It was not this lot's doing.** The engine's `actionRetirer` offered the same undo through the
+same seam, so the defect predates the act's move and travelled with it unchanged. It surfaced
+because moving the act meant writing down what the undo promises, and a promise written down is a
+promise something can read (B-353).
+
+**The three alternatives, and why this one.** Widening the create's body to carry the history was
+refused: it makes every create able to assert a past the interface should not be able to invent,
+and a « create » that back-dates a follow is a create in name only. Recording the demand and
+deferring was refused by the operator with the lot open. What is built instead is the shape a
+backend can actually implement:
+
+- **The removal is SOFT** — the layer keeps the record aside, whole, instead of destroying it.
+- **`POST /api/acquisition/followed/{followedId}/restore` (`restoreFollow`)** answers the follow as
+  it was, and **404** where nothing removed under that name is still restorable. Answering an
+  invented record there would be the create's own lie arrived at from the layer's side.
+- **The tombstone is held ASIDE, never flagged in place**, so `follows` keeps exactly the shape the
+  contract declares. A tombstone field on a follow is a field every reader of the listing has to
+  know to ignore, and one of them eventually would not.
+- **`__followActions.restore(follow)`** takes the whole record, because the optimistic write is on
+  this side; the layer's own record replaces it when the refetch lands.
+
+**What it demands of the backend**, recorded in `docs/reference/frontend-backend-demands.md` § 1 in
+B-302's shape: an operation that RESTORES a removed follow. The interface names the form it asks
+for — a soft delete with a restore — because the backend follows the interface.
+
+**Held by R133's eleventh hold**, which compares the restored follow field for field against what
+was taken away. Both halves are mutation-proved: reverting the undo to a create fails that hold
+ALONE, and making the layer's removal hard again fails it together with the undo's own hold, the
+follow having gone entirely — the optimistic write is rolled back rather than left as a phantom row.
+
+---
+
 ### 3.4 `data-take`'s release-screen half — B-323, B-322
 
 `legacy.js:9295` asks the arrivals door (`window.__arrivalsVerbs?.take(…)`,

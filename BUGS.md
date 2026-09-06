@@ -402,7 +402,7 @@ when the defect comes back.
 | B-350 | A PAUSED SERIES is dimmed in the follows grid with no word saying why: the tile's caption is `stFraction(follow) ?? paused`, so a fraction always outranks the word — a paused FILM says « en pause » only because it has no fraction | by L13 | `fixed #572` |
 | B-351 | `check-maquette-comments.py` reads five suffixes and `.mjs` is not one of them, so every `.mjs` under `frontend/maquette/` is invisible to the comment rule AND to the corpus count the floor is derived from — one real occupant measured, `vite.config.mjs:143`'s « (L08) » | by L21 | `open` |
 | B-352 | `engine/states.js` is grandfathered at 786 non-blank lines and the size arm refuses both the growth AND the raise of its record, so NO surface born after L19 can be given a named state — and a state nobody names is a surface the oracle never measures | by L21 | `open` |
-| B-353 | UNDOING A REMOVAL DOES NOT RESTORE THE FOLLOW, it creates a new one wearing the same name: the layer's delete DROPS the record and the only way back is a CREATE, so the year, « suivi depuis » and the search count are lost and the status comes back right only by coincidence | by L21 | `open` |
+| B-353 | UNDOING A REMOVAL DOES NOT RESTORE THE FOLLOW, it creates a new one wearing the same name: the layer's delete DROPS the record and the only way back is a CREATE, so the year, « suivi depuis » and the search count are lost and the status comes back right only by coincidence | by L21 | `fixed #572` |
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
 
@@ -556,6 +556,24 @@ promise something can read.
 that can be undone has to be REVERSIBLE on the layer's side — a soft delete with a restore, or a
 create that accepts a whole record — and the interface names which, because the backend follows
 the interface.
+
+**RULED BY THE OPERATOR, 2026-09-06: fix it in this lot.** The form was ruled with it — a soft
+delete plus a RESTORE operation, the contract declaring it, the undo calling it instead of a
+create, and the demand recorded. **The other road was refused on purpose**: widening the create's
+body to carry the history would let every create assert a past the interface should not be able to
+invent, and a « create » that back-dates a follow is a create in name only.
+
+**FIXED.** `POST /api/acquisition/followed/{followedId}/restore` (`restoreFollow`) answers the
+follow as it was, and 404 where nothing removed under that name is still restorable; the layer's
+removal keeps the record aside instead of destroying it; `__followActions.restore(follow)` is what
+the undo calls. The demand is recorded in `docs/reference/frontend-backend-demands.md` § 1 and the
+decision, with the alternatives refused, in this lot's DESIGN.md § 3.3b.
+
+**Read after the fix**: the eleventh hold reads the restored follow identical to the removed one —
+`since: '9 août'`, `searches: 13`, `y: 2026`, where it read `''`, `0` and `0`. Both halves are
+mutation-proved: the undo reverted to a create fails that hold ALONE; the layer's removal made hard
+again fails it together with the undo's own hold, the follow having gone entirely, because the
+optimistic write is rolled back rather than left as a phantom row.
 
 <sub>L21, 2026-09-06 · `python3 frontend/maquette/harness/remove_verb.py`, eleventh hold, red on a
 clean tree · mutation confirming the hold bites: the undo restoring only `{t, k, st}` fails that
