@@ -92,17 +92,18 @@ AFTER = """()=>({
 async def settled_after_a_layer(page):
     """Waits until no closing scrim can still eat a touch.
 
-    A CLOSED LAYER IS NOT AN UNCOVERED PAGE. The scrim's visibility is
-    transitioned with a DELAY — it reaches `opacity: 0` at once and stays
-    `visibility: visible` with `pointer-events: auto` until the delay expires —
-    so for that window `elementFromPoint` answers the scrim over an interface
-    that looks, to the eye, entirely uncovered.
+    A CLOSED LAYER IS NOT INSTANTLY AN UNCOVERED PAGE. The scrim's visibility
+    is transitioned with a DELAY: it reaches `opacity: 0` at once and keeps
+    `visibility: visible` until the delay expires, so it is still a real
+    element in the hit-test tree while the page looks, to the eye, entirely
+    uncovered.
 
-    Measured: after the panel closed, `panelOpen` read false and `sheets` read
-    zero while the scrim still reported `visibility: visible`; hit-testing a
-    card there named the scrim and the hold fell on a defect that was this
-    rule's own impatience. It is worth knowing beyond this rule: a finger
-    landing in that window is eaten the same way.
+    IT NO LONGER SWALLOWS A TOUCH — the closed state carries
+    `pointer-events-none`, and that repair is what makes the delay harmless
+    rather than the reason a first tap does nothing. This wait is kept anyway,
+    because a hold that hit-tests through a layer mid-departure is measuring a
+    moment the reader never sees, and because the wait costs one predicate
+    while trusting a transition costs a false reading.
 
     Args:
         page: The page.
