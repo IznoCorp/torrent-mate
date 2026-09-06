@@ -397,6 +397,7 @@ when the defect comes back.
 | B-344 | On a desktop browser the design host shows the prototype inside the phone frame only — the operator cannot test the interface's desktop layout there; he asks for a desktop-only switch out of the frame and back | 1× | `open` |
 | B-345 | The seeded data does not show every state a surface can take — the operator could not find a single medium « à prendre » to try « Récupérer maintenant » on; his ruling: the test data must always hold enough simulated states to exercise every case by hand | 1× | `open` |
 | B-360 | The pre-push gate refuses a push over a GREEN suite and shows the reason to nobody: each check runs silently first and, when that pytest dies of a signal, is rerun visibly — the rerun's « 11 325 passed » is printed and its result discarded, so the reader gets a green summary, then « Push aborted », and the failure in no output; three refusals in one morning on two branches, the same push landing on its next attempt | 1× | `open` |
+| B-361 | A Maintenance rubric cannot be left either — entering it writes `?topic=…` by replacement, pushes no entry and draws no back, so the system Back leaves « Maintenance » for Acquisition; B-332's shape on the second page that has rubrics, measured on the operator's phone by the real path | 1× | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
@@ -1620,6 +1621,14 @@ Owner: **L13** for the settings family, and the frame's Back contract stands ove
 
 <sub>`grep -n "SETTINGS_STATE.topic = closest" frontend/maquette/design/src/engine/legacy.js` and the four lines after it (`replacePath()`) · `grep -n "TopicView" frontend/maquette/design/src/features/settings/page.tsx` · D1b rule 1 in `docs/reference/frontend-architecture.md`</sub>
 
+**CONFIRMED ON THE DEVICE BY THE REAL PATH (steward, 2026-09-06 11:45, the operator's phone paired over adb,
+his word « téléphone libre »).** A real load of `/settings`, a real tap on the topic « rangement »: the heading
+becomes « Où vont les médias », the address stays `/settings` and `history.length` does not move (6 → 6) — no
+entry is pushed; no `[data-part="screen/back"]` is drawn; `history.back()` — what the system gesture calls —
+lands on `/acquisition`. Exactly the report. The same shape on Maintenance's topics is **B-361**.
+
+<sub>steward, 2026-09-06 · `scratchpad/cdp-back-real.py` on the phone's Chrome over CDP: `load {path:/settings, hist:6}` → `tap rangement` → `{path:/settings, hist:6, back:false, head:"Réglages | Où vont les médias"}` → `history.back()` → `{path:/acquisition}`</sub>
+
 **B-333 — « beaucoup de pages n'ont pas de bouton retour et le geste retour ne fonctionne pas non plus ».**
 The operator's reading of 2026-09-06, verbatim, with the sentence that makes it a frame matter: « ça
 devrait être impossible car faisant partie du carcan de l'App ». The frame's model (P3, « Back walks the
@@ -1636,6 +1645,31 @@ inventory has a name and the operator's sentence is not lost.
 Owner: the **steward's inventory first**, then the lot the inventory names per screen.
 
 <sub>operator, 2026-09-06 · `docs/reference/frame-model.md` P3 · D1b rules 1–3</sub>
+
+**THE INVENTORY, TAKEN ON THE OPERATOR'S PHONE (steward, 2026-09-06 11:40–11:50, Chrome 152 / Android 16, the
+design host serving L21's head `3afba585a`).** Two passes: every named state that is a screen, a topic, a panel
+or a page driven by `window.__go` (29 states), then the REAL path — a real load, a real tap, then
+`history.back()`, which is what the system gesture calls inside the PWA — on the cases the operator meets.
+What it read:
+
+    the five SCREENS (media, add/identify, releases, quality, resolution)
+        push an entry (real path on the media screen: history 16 → 17), draw `screen/back`, and Back
+        lands on the parent page (`/media`), then on `/acquisition`         → P3 TRUE
+    the PANELS (journey, follow, more, user) and the DRAWER
+        Back closes them and lands on the page beneath                        → TRUE
+    the PAGES (media, arrivals, system, settings, maintenance, account)
+        no back drawn (D1b: none by design); Back lands on `/acquisition`    → TRUE, as ruled
+    the TOPICS — Réglages' rubrics (B-332) and Maintenance's rubrics (B-361)
+        entering pushes NOTHING (settings: the address is not even written; maintenance: written as
+        `?topic=query` by replacement), no back is drawn, and Back leaves the PAGE for `/acquisition`   → FALSE
+
+So the sentence « beaucoup de pages n'ont pas de bouton retour et le geste retour ne fonctionne pas » is
+TRUE of every topic and false of every screen: the reader who enters a rubric of Réglages or Maintenance
+has no way back but the tab bar, and the gesture throws him out of the page. **Not measured**: an arrival's
+resolution by the real path — no card on the design host carried `data-resolve` at rest (B-345's shape).
+**Owner, per screen**: the topics are B-332's and B-361's owners; nothing else is owed by this entry.
+
+<sub>steward, 2026-09-06 · `scratchpad/cdp-back-inventory.py` (29 states, `back-inventory.jsonl`) and `cdp-back-real.py` / `cdp-back-real2.py` (`back-real*.jsonl`), raw CDP on the phone's tm-design tab; `window.__go` builds its own stack, so the FIRST pass reads the affordance and where Back lands, and only the SECOND pass reads whether entering pushes</sub>
 
 **B-334 — « Remplacer la valeur » on a secret does nothing.**
 Reported by the operator on 2026-09-06, verbatim: « Réglage: bouton remplacer la valeur ne fait rien ».
@@ -1654,6 +1688,11 @@ host publishes; the rule counts the layer's write, never the toast.
 
 <sub>`grep -n "toast:" frontend/maquette/design/src/features/settings/panel-secret.ts` → `:81`, `:88` · `grep -n "dataset.toast" …/engine/legacy.js` → one reader, `toast()` into `#toast`</sub>
 
+**RULED by the operator on 2026-09-06 (round 2, question 1): owner is the « settings » MICRO-WAVE, after L21
+merges and before L20** — the act is a producer-side handler registered on the verb registry L21 built
+(`lib/verbs.ts`), writing the layer, with its rule; the engine is not edited. Placed with B-335, B-341, B-342,
+B-343 and the settings half of B-345.
+
 **B-335 — « Retirer la clé » on a secret does nothing, and asks nothing.**
 Reported by the operator on 2026-09-06, verbatim: « Réglage: bouton retirer la clef ne fait rien, et il
 devrait proposer une confirmation ». Same mechanism as B-334 (`target: { toast: … }` at
@@ -1664,6 +1703,12 @@ key gone, and said). Owner: **L13**, beside B-334; the confirmation's sentence i
 dictate if he wants more than « la clé est retirée pour tous les comptes du foyer ».
 
 <sub>`sed -n 84,90p frontend/maquette/design/src/features/settings/panel-secret.ts` · B-300's rule shape in `harness/settings.py`</sub>
+
+**RULED by the operator on 2026-09-06 (round 2, questions 1 and 5): owner the « settings » MICRO-WAVE, and
+the sentence is dictated.** Title « Retirer la clé <fournisseur> ? »; body « La clé sera retirée pour tous
+les comptes du foyer. Ce fournisseur ne répondra plus tant qu'une nouvelle clé n'est pas saisie. »; buttons
+« Annuler » / « Retirer la clé » (danger tone, right); after confirming, the message « Clé retirée. ». The
+walk goes through the cancel first (B-300's form).
 
 **B-336 — the library's kind chips show their scrollbar.**
 Reported by the operator on 2026-09-06, verbatim: « Filtre médiathèque Tout/films/séries il y a un
@@ -1774,6 +1819,12 @@ Owner: **L13**, with the settings family.
 
 <sub>operator's screenshots, 2026-09-06 10:24 · `grep -n "change" frontend/maquette/design/src/features/settings/panel-field.tsx` → the native `change` listener and its three reasons</sub>
 
+**RULED by the operator on 2026-09-06 (round 2, question 4)**: (1) a **« Valider »** button in the field's
+panel — the edit is filed on the tap, the field no longer has to lose focus; (2) the two labels become
+**« Nouvelle valeur »** (what was just typed, not yet written) and **« Valeur enregistrée »** (what the file
+holds). Owner: the « settings » micro-wave (question 1), with its rule: type, tap « Valider », read the pending
+count; the mutation is the button doing nothing.
+
 **B-342 — the save says « Enregistré » and the row shows the old value.**
 Same session, verbatim: « quand on a enregistré sur la liste la valeur est reset à la valeur
 d'origine ». Screenshots: the row « Transmission — Adresse d'écoute » edited to `127.0.0.3`, the bar
@@ -1789,6 +1840,9 @@ earlier takes it (D7: a mock that answers without moving is a mock that certifie
 
 <sub>operator's screenshots, 2026-09-06 10:24 · `sed -n 41,47p frontend/maquette/design/src/mocks/handlers/configuration.ts` → no read of the body</sub>
 
+**RULED by the operator on 2026-09-06 (round 2, question 1): owner the « settings » MICRO-WAVE** — the mock's
+write keeps the value (D7), with the rule reading the value back after « Enregistrer ».
+
 **B-343 — the restart banner does not follow a real save.**
 Same session: « Aucun redémarrer maintenant apparaît ». Read: `panel-setting.ts:195` sets
 `reference.SETTINGS_STATE.redemarrage = true` after the writes, and `page.tsx:149` draws the banner
@@ -1802,6 +1856,10 @@ the banner a reader of it); the rule's own debt — a hold that reaches the bann
 with it.
 
 <sub>operator's screenshots, 2026-09-06 10:24 · `grep -n "redemarrage" frontend/maquette/design/src/features/settings/panel-setting.ts frontend/maquette/design/src/features/settings/page.tsx` → set at `:195`, read at `:149`, no render between</sub>
+
+**RULED by the operator on 2026-09-06 (round 2, question 1): owner the « settings » MICRO-WAVE** — the flag
+becomes the layer's or the store's and the banner a reader of it; the rule reaches the banner THROUGH a
+save, which is also what lets B-300 be confirmed by hand at last.
 
 **B-344 — the design host has no way out of the phone frame on a desktop.**
 The operator's aside on 2026-09-06, verbatim: « Quand on est sur tm-design sur desktop, le design
@@ -1819,6 +1877,10 @@ wave that opens `harness.css` or the design host's wrapper**, or a steward instr
 before the freeze — it touches no application code.
 
 <sub>operator, 2026-09-06 · `grep -n "harness" CLAUDE.md` → the frame's status · `ls frontend/maquette/design/src/styles/harness.css`</sub>
+
+**RULED by the operator on 2026-09-06 (round 2, question 6): a TOOLING micro-wave of its own**, in its own
+worktree, after the `maquette-departure` micro-wave merges and before the « settings » one — a desktop-only
+switch out of the phone frame and back, with the rule named above. No application code.
 
 **B-345 — the seeds do not offer every state to a hand that walks the interface.**
 The operator, on 2026-09-06, trying to confirm B-309 on the design host, verbatim: « Pas testable, j'ai
@@ -1838,6 +1900,11 @@ fixture clause; a wave that reseeds a family earlier takes its surfaces' share (
 seeds are the first case: a takeable arrival for a followed medium is one line).
 
 <sub>operator, 2026-09-06 · `python3 -c "import json; print(len(json.load(open('frontend/maquette/design/src/mocks/seeds/takeable.json'))))"` → 2 · `grep -n "toTake" frontend/maquette/design/src/features/acquisition/follow-facts.ts` → `queue.takeable.some(…)`</sub>
+
+**RULED by the operator on 2026-09-06 (round 2, question 3): each wave fills its own family as it passes.**
+**L21, now**: the acquisition seeds offer at rest a takeable arrival for a followed medium, a blocked one, a
+paused follow and a season with a hole, with a rule that counts them. **The « settings » micro-wave**: a
+conflict and a restart owed. **L13**: the library and the rest, with the fixture clause.
 
 **B-360 — the pre-push gate refuses a push over a green suite, and shows the reason to nobody.**
 Measured on 2026-09-06, three refusals in one morning on two branches. `hooks/pre-push` runs every check
@@ -1862,6 +1929,18 @@ this shape (it runs the suite once and shows it). Numbered from the steward's bl
 B-351+ and the departure wave B-346+ on their branches.
 
 <sub>steward, 2026-09-06 · the two pushes' logs (`push-reports.log`: `Terminated: 15`, then 11 307 passed, then « Push aborted »; `push-reports-2.log`: landed) · the L21 agent's report of 11:2x (`Abort trap: 6`, 11 325 passed, « Push aborted », `heavy: l21 done (exit 141)`) · `sed -n '32,42p' hooks/pre-push` · `find ~/Library/Logs/DiagnosticReports -newermt "-90 minutes"` → nothing</sub>
+
+**B-361 — a Maintenance rubric cannot be left either.**
+B-332's shape on the second page that has rubrics, found by B-333's inventory on the operator's phone
+(steward, 2026-09-06, real path): a real load of `/maintenance`, a real tap on the rubric `query`
+(`[data-maintopic]`) → the heading reads « Regarder », the address becomes `/maintenance?topic=query` by
+REPLACEMENT (`history.length` 18 → 18), no `[data-part="screen/back"]` is drawn, and `history.back()` —
+the system gesture — lands on `/acquisition`. A topic is an arrival (D1b rule 1): it pushes, and it draws
+its back. Two halves as in B-332: the address (the engine's delegation reads `dataset.maintopic`) and the
+affordance (`features/maintenance`'s topic view draws no back). Owner: **L13**, beside B-332, PROPOSED —
+the two rubric kinds are one mechanism and should land together, wherever B-332 lands.
+
+<sub>steward, 2026-09-06 · `scratchpad/cdp-back-real2.py`: `load {path:/maintenance, hist:18}` → `tap query` → `{path:/maintenance?topic=query, hist:18, back:false, head:"Maintenance | Regarder"}` → `history.back()` → `{path:/acquisition}` · `grep -oE "dataset\.maintopic" frontend/maquette/design/src/engine/legacy.js`</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
