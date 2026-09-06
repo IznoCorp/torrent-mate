@@ -166,6 +166,52 @@ said so here rather than discovered by the next reader.
    with the owned-episode seed and answered **10** for a season the interface was printing
    as « 1 manquant ». `seasons.json` is what the matrix is drawn from.
 
+### 3.1d A DECISION, not a file that appeared: `lib/verbs.ts`
+
+**The problem, and it only exists for a verb that is NEW rather than moved.** A panel action is
+`{ text, icone, target }` where `target` is a map of DATA attributes; `ui/panel` draws them and
+attaches no handler of its own, by contract. Every such attribute was read by the dying engine's
+document delegation. So B-302's two verbs — which had never existed anywhere — had **nobody to
+answer them**, and the obvious move (a branch in `legacy.js`) is forbidden by D5 and refused by
+the size ledger.
+
+**What was chosen**: a domain-free registry in `lib/` — `registerVerb(name, act)` plus one
+delegated listener, in capture, stopping propagation on a match so the engine cannot also act.
+Features declare what they own; `lib/` carries the SHAPE and never the subject (invariant 10).
+
+**The alternatives, and why they were refused:**
+
+| Refused | Why |
+| --- | --- |
+| a branch in `legacy.js` calling a feature door, as `data-take` does | D5: the engine dies by SUBTRACTION. It is the right shape for MOVING a verb that already has a branch; it is the wrong shape for creating one, because it grows the file the ledger refuses upward. |
+| a listener per feature | Every feature would own a document listener, their order would decide who wins a shared node, and the engine's death would leave nine of them to reconcile. One listener, many declarations. |
+| a handler on the `Action` itself (`onSelect`) | `ui/panel`'s contract says a target IS its data attributes and the component adds no `onClick`. Changing that makes the panel know what a verb is. |
+
+**What it commits the next lots to.** Phase 4 moves the five acts onto this registry instead of
+inventing a mechanism at that moment, and **L13 inherits it**: when the engine's delegation dies,
+its branches move here. It is therefore a decision for `frontend-architecture.md` § 2, not a file —
+the steward writes it in at the audit under § 7.1.
+
+**What it still OWES, and this wave did not land it**: a contract rule refusing a `data-*` verb that
+markup emits and no feature registers — the same shape as the invented anchors
+`check-markup-contracts` caught from the markup end — seen red once on purpose. It is phase 4's
+first task.
+
+### 3.1e A correction to this document and to a commit message
+
+**`ui/variants/controls`'s `actionButton` is NOT an orphan, and the phase-3 commit says it is.**
+Measured properly afterwards: it has **two** real users — `app/not-found.tsx` and
+`features/releases/releases-screen.tsx` — and BOTH compose it with `cfoot`, which is what paints
+(`legacy.css:746`: border, background, colour). It is a LAYOUT variant, correctly used only in
+composition.
+
+**The defect was therefore mine and differently shaped than first stated**: the season-grab button
+used `actionButton()` ALONE, so it took layout with no paint and drew as the inherited colour on a
+pale panel. The repair — wearing `sact`, like every other action in a panel — is unchanged and
+right. The first reading came from a grep that excluded the wrong paths and concluded « nothing
+uses it »; a claim about absence is exactly the kind that has to be re-run before it is written
+down.
+
 ### 3.2 « Remettre en file » and « Re-scraper » — B-302
 
 **Where.** `features/acquisition/panel-journey.ts` (88 non-blank), whose `actions` block offers
