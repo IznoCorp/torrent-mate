@@ -89,7 +89,31 @@ def operations(document: dict) -> dict:
 
 
 def response_properties(document: dict, operation: dict) -> set:
-    """Collects every property name the 200 response can carry.
+    """Collects every property name a SUCCESSFUL response can carry.
+
+    EVERY 2xx, NOT `200` ALONE, and the difference is not a refinement — it is
+    the difference between reading an operation and skipping it. This function
+    took `responses["200"]` and nothing else, so an operation whose success is a
+    201, a 202 or a 204 was compared as though neither side answered anything:
+    both sets came back empty, no difference was emitted, and the register said
+    nothing at all about it.
+
+    WHAT THAT HID, measured when the tunnel's verbs were declared: three
+    operations of this contract answer 201 or 202 and contributed nothing to the
+    shape table, and TWELVE operations both documents declare have a success
+    status spelled differently on the two sides. On the ones whose backend
+    answer carries a BODY the silence was worse than silence — it was a wrong
+    cause. `POST /api/pipeline/run` read as « the interface requires `state` and
+    `uid`, the backend answers neither », when the backend answers `queued` and
+    `run_uid` under 202; `POST /api/acquisition/followed` read the same way over
+    a 201 carrying thirty-four properties. A 204 genuinely carries no body, so
+    those rows were right by accident and stay unchanged.
+
+    THE STATUS ITSELF IS STILL NOT A DEMAND THIS FILE CAN EXPRESS. Reading every
+    2xx makes the SHAPES comparable; it does not record that one side says 202
+    where the other says 200. That table does not exist, and until it is
+    decided, a status demand is written by hand where the register cannot carry
+    it.
 
     `$ref`s are resolved and cycles are guarded, so a self-referential schema
     cannot hang the walk.
@@ -99,10 +123,16 @@ def response_properties(document: dict, operation: dict) -> set:
         operation: One operation.
 
     Returns:
-        Every property name reachable from its 200 response.
+        Every property name reachable from any of its 2xx responses.
     """
-    ok = operation.get("responses", {}).get("200", {})
-    content = ok.get("content", {}).get("application/json", {})
+    answers = [
+        answer for code, answer in (operation.get("responses") or {}).items()
+        if code.startswith("2")
+    ]
+    schemas = [
+        (answer.get("content", {}).get("application/json", {}) or {}).get("schema")
+        for answer in answers
+    ]
     names: set = set()
     seen: set = set()
 
@@ -131,7 +161,8 @@ def response_properties(document: dict, operation: dict) -> set:
             for member in node:
                 walk(member)
 
-    walk(content.get("schema"))
+    for schema in schemas:
+        walk(schema)
     return names
 
 

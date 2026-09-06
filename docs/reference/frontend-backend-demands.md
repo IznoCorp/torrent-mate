@@ -76,22 +76,22 @@ reports a difference for every optional field and drowns the real findings.
 | `GET /api/staging/media` (`readStaging`) | `chip`, `moving`, `secondaryLine`, `settled`, `strip`, `stuck`, `text`, `tone`, `withoutPoster` | `absent`, `ambiguous`, `awaiting_action`, `blocked_reason`, `category`, `category_id`, `continuation_requested_at`, `counts`, `decision_id`, `decision_trigger`, `disk`, `dispatch_target`, `episode_count`, `folder`, `has_nfo`, `has_poster`, `has_trailer`, `id`, `items`, `key`, `label`, `match`, `matched`, `media_kind`, `mode`, `modified_at`, `overview`, `page`, `page_size`, `position_stage`, `position_state`, `poster_url`, `provider_ids`, `relative_path`, `scraped`, `season`, `seasons`, `size_bytes`, `stages`, `state`, `total`, `video_count`, `with_trailer`, `year` |
 | `GET /api/version` (`readVersion`) | `commit` | `build_commit` |
 | `PATCH /api/acquisition/followed/{followedId}` (`updateFollow`) | `aired`, `fresh`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `id`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
-| `POST /api/acquisition/detect` (`runDetection`) | `available`, `detected`, `grabbed` | — |
-| `POST /api/acquisition/followed` (`createFollow`) | `aired`, `fresh`, `kind`, `owned`, `searches`, `showStatus`, `since`, `status`, `title`, `year` | — |
-| `POST /api/acquisition/followed/{followedId}/grab` (`grabForFollow`) | `releaseName` | — |
-| `POST /api/acquisition/followed/{followedId}/search` (`searchForFollow`) | `found` | — |
+| `POST /api/acquisition/detect` (`runDetection`) | `available`, `detected`, `grabbed` | `run_uid` |
+| `POST /api/acquisition/followed` (`createFollow`) | `aired`, `fresh`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `id`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
+| `POST /api/acquisition/followed/{followedId}/grab` (`grabForFollow`) | `releaseName` | `run_uid` |
+| `POST /api/acquisition/followed/{followedId}/search` (`searchForFollow`) | `found` | `run_uid` |
 | `POST /api/auth/login` (`signIn`) | `avatar`, `email`, `name` | — |
 | `POST /api/auth/logout` (`signOut`) | `ok` | — |
-| `POST /api/config/restart-web` (`restartWeb`) | `ok` | — |
+| `POST /api/config/restart-web` (`restartWeb`) | `ok` | `status` |
 | `POST /api/decisions/{decisionId}/dismiss` (`dismissDecision`) | `state` | `candidates`, `candidates_count`, `created_at`, `extracted_title`, `extracted_year`, `id`, `media_kind`, `overview`, `poster_url`, `provider`, `provider_id`, `resolution_json`, `score`, `staging_path`, `status`, `title`, `trigger`, `year` |
-| `POST /api/decisions/{decisionId}/resolve` (`resolveDecision`) | `state` | — |
+| `POST /api/decisions/{decisionId}/resolve` (`resolveDecision`) | `state` | `run_uid` |
 | `POST /api/decisions/{decisionId}/search` (`searchForDecision`) | `id`, `withoutPoster` | `candidates`, `poster_url`, `provider_id` |
-| `POST /api/maintenance/actions/{actionId}/run` (`runMaintenanceAction`) | `state`, `uid` | — |
+| `POST /api/maintenance/actions/{actionId}/run` (`runMaintenanceAction`) | `state`, `uid` | `queued`, `run_uid` |
 | `POST /api/pipeline/kill` (`killPipeline`) | — | `paused`, `pid`, `run_uid`, `step`, `watcher_enabled` |
 | `POST /api/pipeline/pause` (`pausePipeline`) | — | `paused`, `pid`, `run_uid`, `step`, `watcher_enabled` |
 | `POST /api/pipeline/resume` (`resumePipeline`) | — | `paused`, `pid`, `run_uid`, `step`, `watcher_enabled` |
-| `POST /api/pipeline/run` (`runPipeline`) | `state`, `uid` | — |
-| `POST /api/staging/media/{mediaId}/continue` (`continueStagedMedia`) | `ok` | — |
+| `POST /api/pipeline/run` (`runPipeline`) | `state`, `uid` | `queued`, `run_uid` |
+| `POST /api/staging/media/{mediaId}/continue` (`continueStagedMedia`) | — | `deferred`, `detail`, `media_id`, `run_uid` |
 | `POST /api/staging/media/{mediaId}/discard` (`discardStagedMedia`) | — | `detail`, `journaled`, `media_id`, `quarantine_path` |
 | `PUT /api/config/files/{name}` (`updateConfigurationFile`) | `conflict`, `restartRequired` | `restart_required`, `warnings` |
 | `PUT /api/config/secrets` (`updateSecrets`) | `restartRequired` | `restart_required`, `warnings` |
