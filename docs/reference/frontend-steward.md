@@ -321,6 +321,15 @@ watches the run, stopping ITS OWN child (exit 75, never anything else on the mac
 consecutive samples below 2 GB free. It releases on exit, on an interrupt and on a kill, and a lock
 older than forty-five minutes is treated as a dead session's.
 
+**The lock is a DIRECTORY, and the probe that reads it is `sh scripts/heavy.sh --held`** — the
+holder's name and exit 0, or « free » and exit 1 (B-326, 2026-09-06). `cat /private/tmp/tm-heavy/holder`
+reads a directory as a file and, silenced, prints NOTHING whether the lock is held or free: on the
+night the B-308 micro-wave closed, the wave read « free » from it twice as a proof the machine was
+clear, and the steward read it once and accused a wrapped contracts run of running unwrapped —
+neither output could tell them, and the wrapped run's own `heavy: … starts / done` lines were the
+evidence that settled it. A probe that cannot fail certifies nothing; the office reads the holder's
+name or `test -d`, never the directory.
+
 **And the fan-out has a NAME, `TM_HARNESS_JOBS`, which is the part a rule loses when it is written
 as a number.** Both `run.sh` and `scripts/harness-hold-counts.py` default it to the core count —
 eight here — so a run left to itself takes every core and drives eight browsers, and « fan-out two »

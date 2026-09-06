@@ -163,6 +163,37 @@ def test_an_interrupted_run_releases_the_lock(tmp_path: Path) -> None:
     assert not lock.exists(), "an interrupted run kept the lock"
 
 
+def test_held_names_the_holder_and_says_free_otherwise(tmp_path: Path) -> None:
+    """`--held` reads `who`, which only a holder writes — never the directory as a file.
+
+    B-326: `cat .../holder` reads a directory, fails, and prints nothing whether the
+    lock is held or free, so two sessions read « free » from it on one night, one
+    of them over a lock that WAS held. The probe has to read a fact only a holder
+    produces, and exit differently on each answer so a script can branch on it.
+    """
+    lock = tmp_path / "holder"
+    env = {**os.environ, "HEAVY_LOCK": str(lock), **PERMISSIVE}
+    free = subprocess.run(["sh", str(SCRIPT), "--held"], capture_output=True, text=True, env=env, timeout=10)
+    assert free.returncode == 1 and free.stdout.strip() == "free"
+    holder = subprocess.Popen(
+        ["sh", str(SCRIPT), "the-holder", "sleep", "4"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=env,
+    )
+    try:
+        deadline = time.time() + 5
+        while not (lock / "who").exists() and time.time() < deadline:
+            time.sleep(0.05)
+        held = subprocess.run(["sh", str(SCRIPT), "--held"], capture_output=True, text=True, env=env, timeout=10)
+        assert held.returncode == 0 and held.stdout.strip() == "the-holder"
+        # And the probe that cannot fail, for the record: it reads nothing either way.
+        blind = subprocess.run(["sh", "-c", f'cat "{lock}" 2>/dev/null'], capture_output=True, text=True)
+        assert blind.stdout == ""
+    finally:
+        holder.wait(timeout=15)
+
+
 @pytest.mark.parametrize("knob", ["HEAVY_FREE_FLOOR_MB", "HEAVY_LOAD_CEILING"])
 def test_the_thresholds_are_readable_from_the_environment(knob: str) -> None:
     """The margin is the point, so the numbers must be visible and testable.
