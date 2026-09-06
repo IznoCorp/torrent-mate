@@ -388,6 +388,33 @@ when the defect comes back.
 | B-326 | `heavy.sh` offers no way to ask who holds its lock, so the natural probe — `cat` on what is a DIRECTORY — reads « free » whether the lock is held or not, and two sessions reached for it independently on the same night | by the steward's office | `open` |
 | B-327 | « Réglages » draws SIX scheduled jobs while the machine runs seven, and the same six are named twice in two French vocabularies that disagree on five of them — the row cannot be added until `SETTINGS` leaves the engine | by L13 | `open` |
 | B-328 | `features/system/page.tsx` heads itself with a path that does not exist and describes a state field (`state.panne`) the code does not have | by the next wave that opens `features/system/page.tsx` | `open` |
+| B-329 | The backend's GENERATED contract does not declare the `409` its own route raises, so no diff between the two contracts can read it — the demand register is structurally blind to a refusal NE-DOIT-PAS-3 forbids the interface to show | by the backend brief | `open` |
+
+**B-329 — the backend's generated contract does not describe what the backend does.**
+
+`personalscraper/web/routes/acquisition_triggers.py:160` raises **409** when a requeue or a
+re-scrape for the same item is already in flight. `frontend/openapi.json` — generated FROM that
+backend — declares, for both routes, exactly `202` and `422`:
+
+    grep -n "409" personalscraper/web/routes/acquisition_triggers.py
+    python3 -c "import json;d=json.load(open('frontend/openapi.json'));\
+      print(sorted(d['paths']['/api/acquisition/journeys/{info_hash}/requeue']['post']['responses']))"
+
+FastAPI derives an operation's responses from its SIGNATURE; a `raise HTTPException` inside a body
+is invisible to the generator unless it is declared. So the document says the route cannot refuse,
+and the route refuses.
+
+**Why it is filed rather than fixed here.** It was found while L21 declared the tunnel's verbs, and
+the demand it hides is exactly the one that lot serves: NE-DOIT-PAS-3 and §20 forbid the interface
+showing a 409 for a legitimate ask — an ask at the bound is QUEUED, visibly. The maquette's
+contract therefore declares a queued 202, and `scripts/compare-contracts.py` § 2c was built in the
+same wave to compute status demands. **It cannot compute this one**: a table diffing two documents
+reports only what one of them carries, and neither carries the 409. The demand is written by hand
+in **B-302** for that reason.
+
+It is the BACKEND's own defect and L21 does not open `personalscraper/` (D7). The repair is one
+`responses=` declaration on each route, and it belongs with whoever writes the backend brief —
+alongside **B-324**, which is the same species on the other end: a backend fact no guard reads.
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
