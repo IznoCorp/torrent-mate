@@ -119,6 +119,21 @@ export type MockState = {
    * `x-unseeded` saying so.
    */
   pipelineState: PipelineState;
+  /**
+   * The stages of each journey the operator has opened, PER MEDIUM.
+   *
+   * WHY PER MEDIUM AND WHY MUTABLE. The layer answered ONE seeded list to every
+   * journey ever asked for, which was enough while the sheet only displayed
+   * them. It is not enough once the tunnel has verbs: « Remettre en file » and
+   * « Re-scraper » are proved by the stages MOVING — a `now` pip where a `todo`
+   * was — and a static answer moves for nobody. A rule reading a literal
+   * instead would pass over a build that called the operation and ignored what
+   * it answered, which is the shape this wave exists to refuse.
+   *
+   * FILLED ON FIRST READ, never at seeding: a journey is read per medium and
+   * nothing knows in advance which media will be asked for.
+   */
+  journeyStages: Record<string, Schemas["JourneyStage"][]>;
   /** Whether a configuration change is waiting for a restart. */
   restartRequired: boolean;
   /**
@@ -182,6 +197,7 @@ const seeded = (): MockState => ({
   settings: copyOf<Schemas["SettingsTopic"][]>(SETTINGS),
   secrets: copyOf<Schemas["Secret"][]>(SECRETS),
   pipelineState: IDLE,
+  journeyStages: {},
   restartRequired: false,
   changedFiles: [],
   conflict: false,

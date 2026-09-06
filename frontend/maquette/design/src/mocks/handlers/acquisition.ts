@@ -3,8 +3,8 @@ import GRAB_CADENCE from "../seeds/grab-cadence.json";
 import RELEASES from "../seeds/releases.json";
 import SEARCH_RESULTS from "../seeds/search-results.json";
 import SUGGESTIONS from "../seeds/suggestions.json";
-import JOURNEY_STAGES from "../seeds/journey-stages.json";
 import { DELETE, GET, PATCH, POST, field, route, text } from "./shared";
+import { stagesOf } from "./acquisition-verbs";
 import { mockState } from "../state";
 import type { MockRequest, MockRoute } from "../router";
 
@@ -210,7 +210,13 @@ export function acquisitionRoutes(): MockRoute[] {
         return { ok: true };
       },
     ),
-    route("readJourney", GET, "/api/acquisition/journeys/{infoHash}", () => JOURNEY_STAGES),
+    // THE STAGES THE VERBS MOVE, not the seed itself. This answered the
+    // imported list to every journey ever asked for, which was enough while the
+    // sheet only displayed them; « Remettre en file » and « Re-scraper » are
+    // proved by the stages MOVING, and a shared constant moves for nobody — it
+    // would also have been mutated in place for every other medium at once.
+    route("readJourney", GET, "/api/acquisition/journeys/{infoHash}",
+          (request) => stagesOf(request.parameters.infoHash)),
     // THE RELEASES OF THE TITLE ASKED FOR. The contract declares `title`,
     // `season` and `episode`; this answered the same eight releases to every
     // question, so the picker opened on « Ted Lasso » and then on « Silo »
