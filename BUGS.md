@@ -399,6 +399,7 @@ when the defect comes back.
 | B-345 | The seeded data does not show every state a surface can take — the operator could not find a single medium « à prendre » to try « Récupérer maintenant » on; his ruling: the test data must always hold enough simulated states to exercise every case by hand | 1× | `open` |
 | B-360 | The pre-push gate refuses a push over a GREEN suite and shows the reason to nobody: each check runs silently first and, when that pytest dies of a signal, is rerun visibly — the rerun's « 11 325 passed » is printed and its result discarded, so the reader gets a green summary, then « Push aborted », and the failure in no output; three refusals in one morning on two branches, the same push landing on its next attempt | 1× | `open` |
 | B-361 | A Maintenance rubric cannot be left either — entering it writes `?topic=…` by replacement, pushes no entry and draws no back, so the system Back leaves « Maintenance » for Acquisition; B-332's shape on the second page that has rubrics, measured on the operator's phone by the real path | 1× | `open` |
+| B-370 | R51 promises « the prototype's own controls never sit on top of the app's » and reads ONE piece of harness chrome by literal — `[data-part="harness/bar"]` — so a second piece is outside it whatever the docstring says; the property now holds by two rules each naming its own subject, and a third would be held by neither | by audit | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
@@ -2035,6 +2036,22 @@ the two rubric kinds are one mechanism and should land together, wherever B-332 
 
 **RULED by the operator on 2026-09-06 (round 2, question 8): owner the « settings » MICRO-WAVE, with
 B-332** — one mechanism, one wave. Brief: `docs/features/maquette-settings/BRIEF.md`.
+
+**B-370 — the rule that keeps harness chrome off the app's controls reads one control by name.**
+`frontend/maquette/harness/chrome.py` opens « The prototype's own controls never sit on top of the
+app's » and then measures `document.querySelector('[data-part="harness/bar"]')` — one literal, the
+harness bar, at 390 px and 1280 px across every named state. The promise is about a CLASS of thing
+and the reading is about one member of it. Found while adding the second member: the desktop switch
+is held against the same list of the app's fixed chrome by its own rule, at both of its states, so
+the property is true today — by two rules that each name their own subject rather than by one rule
+that reads the class. A third piece of harness chrome would be covered by neither, and nothing would
+say so: R51 would stay green, `--a11y` audits at 390 px where harness chrome is deliberately absent,
+and the oracle measures under `html.measuring`, which clears it. **What would settle it**: R51
+selecting every element whose `data-part` begins `harness/`, with a floor on how many it found — a
+reading that cannot go vacuous the day someone renames one. Owner: **the next wave that opens
+`chrome.py`**, or a steward instrument; it touches no application code.
+
+<sub>audit, desktop-frame micro-wave · `grep -n "harness/bar" frontend/maquette/harness/chrome.py` → the one literal · `grep -c "data-part=\"harness/" frontend/maquette/design/index.html` → 3 after this wave (the switch and its label), 1 before</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
