@@ -1665,6 +1665,23 @@ condition, mirroring that guard, on the producer this lot already opens — and 
 names: a panel's actions are counted BY LABEL, a label appearing twice is refused, written first and
 red on `main`'s panel for a medium with no sheet. **Done when** B-313 reads `fixed` under that rule.
 
+**Two more, ratified by the operator on 2026-09-06 from his own test session on the design host, both
+read on this lot's head.** **B-337** — a follow card swiped open ignores the FIRST tap on its revealed
+action; those actions are `data-pause` and `data-remove`, the verbs this lot moves, so the rule that
+moves them taps each ONCE with a real touch and holds that the act happened (if the reading shows the
+swipe itself eats the click rather than the tap's path, the lot says so and the entry goes back to L13).
+**B-339** — a disabled panel action is drawn like an enabled one (`.sact` carries no `:disabled` rule);
+this lot draws a not-available state for DOIT-4's queued button, and that state's floor is the
+disabled drawing: the action's variant leaves the residue for `ui/variants` with its `disabled:` half,
+in its own commit. **Done when** both read `fixed` under their rules.
+
+**Two more, ruled by the operator on 2026-09-06 (round 2, questions 2 and 3).** **B-350** — a paused SERIES
+tile on the follows grid is dimmed and says nothing where a paused film says « en pause » (one `??` in
+`tileOf`: fraction OR word): the caption carries both, with a rule reading « a dimmed tile carries a word ».
+**B-345's acquisition half** — the acquisition seeds offer AT REST a takeable arrival for a followed medium,
+a blocked one, a paused follow and a season with a hole, with a rule that counts them, so every verb of this
+lot can be tried by a hand without a named state. **Done when** both read `fixed` under their rules.
+
 #### L20 — The global levers and the history · *depends on L15, L19, L10*
 
 **Objective.** What remains of « the control station » once §20 is dictated: the **global
@@ -2078,6 +2095,25 @@ wave that found none says so, in its row, with the same authority as a wave that
 
 **The maquette first.** Nothing about a surface is decided anywhere else. A surface is drawn
 before it is coded, with named states and a rule that bites.
+
+**Placed here by the operator's rulings of 2026-09-06 — the first ones from his test session on the design
+host, the rest from the decision round of the same day (round 2, questions 1 and 8) — each with its reading in
+`BUGS.md`, none reopening what this entry already says**: **B-312** (the library's selection survives a lens
+change — RULED 2026-09-05; the two writers of `selected: new Set()`, the engine's and `library-head.tsx`'s,
+are one fact here), **B-327** (« Réglages » draws the seventh scheduler when the `SETTINGS` family converts —
+option E refused), **B-331** (the pull indicator's 1 100 ms pretence and its centring), **B-336** (the kind
+chips hide their scrollbar as `pillscroll` does), **B-340** (the « + » opens a FRESH add screen; `addQ`,
+`addMode` and `added` leave the engine with the add screen's state). **Done when** each reads `fixed` under
+a rule seen red first, or is placed elsewhere by a ruling written here. **What the same round placed
+ELSEWHERE, on purpose**: the settings defects that are React's, the mock's, or a verb the registry can take
+off the engine — **B-334**, **B-335**, **B-341**, **B-342**, **B-343**, **B-332** and **B-361** (a rubric of
+Réglages or Maintenance is an ARRIVAL: it pushes and draws its back — both confirmed on the operator's
+phone by the real path) and the settings half of **B-345** — go to the **`maquette-settings` micro-wave**
+(`docs/features/maquette-settings/BRIEF.md`) after L21 merges and before L20, because they repair without
+an engine edit on the verb registry L21 built and because they are what keeps B-299 and B-300 unconfirmable
+by hand; **B-344** to the **`maquette-desktop-frame` tooling micro-wave**
+(`docs/features/maquette-desktop-frame/BRIEF.md`) after the departure micro-wave merges; and the library's
+share of **B-345** stays here with the fixture clause.
 
 ### One lot at a time
 

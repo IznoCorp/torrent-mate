@@ -391,6 +391,14 @@ when the defect comes back.
 | B-338 | After a panel's departure the invisible scrim stays hit-testable over the media screen for ~380 ms — `opacity 0`, `visibility` still `visible` until its delayed flip — so a tap on the fresh screen lands on nothing | by the steward | `fixed #573` |
 | B-346 | A paragraph that OPENS with another entry's identifier is read as that entry's body head, so it truncates the entry it lives in and — being the first such head in the file — makes the real entry's body the discarded one; `check-bug-register`'s closure arm was blind to B-310 and B-249 at once, and 25 second-or-later heads sit in the register today | by the micro-wave | `open` |
 | B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens » | 1× | `open` |
+| B-340 | The « + » button reopens the add screen with the LAST query and mode still in place — after identifying an arrival, a new search starts on « Marvels Spider-Man 2 v1 526 0 -Mephis… », 0 results, and the « 2 médias ajoutés » strip of the previous visit | 1× | `open` |
+| B-341 | A settings field commits its edit only when the finger LEAVES it — no validation affordance in the panel — which the operator reads as counter-intuitive; the pending edit then says « Valeur actuelle » for the value not yet written | 1× | `open` |
+| B-342 | « Enregistrer » says « Enregistré — torrent.json5 » and the row shows the ORIGINAL value again: the mock's write records the file name and never the value, so the next read contradicts the toast | 1× | `open` |
+| B-343 | After a real save the restart banner does not appear: the flag is raised on the engine's `SETTINGS_STATE` object and nothing re-renders the page, so « Redémarrer maintenant » is reachable from a named state and not from a save | 1× | `open` |
+| B-344 | On a desktop browser the design host shows the prototype inside the phone frame only — the operator cannot test the interface's desktop layout there; he asks for a desktop-only switch out of the frame and back | 1× | `open` |
+| B-345 | The seeded data does not show every state a surface can take — the operator could not find a single medium « à prendre » to try « Récupérer maintenant » on; his ruling: the test data must always hold enough simulated states to exercise every case by hand | 1× | `open` |
+| B-360 | The pre-push gate refuses a push over a GREEN suite and shows the reason to nobody: each check runs silently first and, when that pytest dies of a signal, is rerun visibly — the rerun's « 11 325 passed » is printed and its result discarded, so the reader gets a green summary, then « Push aborted », and the failure in no output; three refusals in one morning on two branches, the same push landing on its next attempt | 1× | `open` |
+| B-361 | A Maintenance rubric cannot be left either — entering it writes `?topic=…` by replacement, pushes no entry and draws no back, so the system Back leaves « Maintenance » for Acquisition; B-332's shape on the second page that has rubrics, measured on the operator's phone by the real path | 1× | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
@@ -583,6 +591,13 @@ happened; only confirming restarts, and then it says so.
                         `python3 frontend/maquette/harness/page_host.py` → 44 holds, no violation
 
 <sub>`python3 frontend/maquette/harness/settings.py` → 65 holds, no violation · `python3 frontend/maquette/harness/page_host.py` → 44 holds, no violation</sub>
+
+**CONFIRMATION ATTEMPTED by the operator on 2026-09-06 and NOT REACHED**: on the design host, editing a
+field and saving showed the toast and no restart banner — the flag is raised on an engine object nothing
+re-renders (B-343), and the value itself was not kept by the layer (B-342). So the confirmation dialog
+this entry says is fixed could not be seen through the real path; the status stays `to confirm` until
+B-343 lands and the operator taps the banner's button himself.
+
 
 **B-301 — a season is printed « à récupérer » and nothing lets one take it.** `features/media/panel-
 seasons.tsx` derives a `to_grab` state per season and draws it as a warning swatch; no verb follows,
@@ -848,6 +863,12 @@ RELEASE screen's take too, because the two share an attribute and a repair that 
 breaking the other would leave a one-sided rule green.
 
 <sub>`sed -n '9615,9616p' frontend/maquette/design/src/engine/legacy.js@86fe9549a` · `python3 frontend/maquette/harness/take.py`</sub>
+
+**CONFIRMATION ATTEMPTED by the operator on 2026-09-06 and NOT REACHABLE BY HAND**: no medium on the
+design host sat « à prendre », so the button never appeared to him (B-345). The status stays `to confirm`
+on the rule's own reading (`take.py`, R123, green on `main`) until the seeds offer the state and the
+operator taps it.
+
 
 **B-310 — the bottom panel is seen again after the media sheet has opened.**
 Reported by the operator on 2026-09-04, verbatim: « effet de clignotement du panel bottom après
@@ -1646,6 +1667,19 @@ Owner: **L13** for the settings family, and the frame's Back contract stands ove
 
 <sub>`grep -n "SETTINGS_STATE.topic = closest" frontend/maquette/design/src/engine/legacy.js` and the four lines after it (`replacePath()`) · `grep -n "TopicView" frontend/maquette/design/src/features/settings/page.tsx` · D1b rule 1 in `docs/reference/frontend-architecture.md`</sub>
 
+**CONFIRMED ON THE DEVICE BY THE REAL PATH (steward, 2026-09-06 11:45, the operator's phone paired over adb,
+his word « téléphone libre »).** A real load of `/settings`, a real tap on the topic « rangement »: the heading
+becomes « Où vont les médias », the address stays `/settings` and `history.length` does not move (6 → 6) — no
+entry is pushed; no `[data-part="screen/back"]` is drawn; `history.back()` — what the system gesture calls —
+lands on `/acquisition`. Exactly the report. The same shape on Maintenance's topics is **B-361**.
+
+<sub>steward, 2026-09-06 · `scratchpad/cdp-back-real.py` on the phone's Chrome over CDP: `load {path:/settings, hist:6}` → `tap rangement` → `{path:/settings, hist:6, back:false, head:"Réglages | Où vont les médias"}` → `history.back()` → `{path:/acquisition}`</sub>
+
+**RULED by the operator on 2026-09-06 (round 2, question 8): owner the « settings » MICRO-WAVE, off L13,
+together with B-361** — the topic verb leaves the engine for the verb registry (a subtraction), pushes,
+and the view draws its back, on « Réglages » and « Maintenance » in one move. Brief:
+`docs/features/maquette-settings/BRIEF.md`.
+
 **B-333 — « beaucoup de pages n'ont pas de bouton retour et le geste retour ne fonctionne pas non plus ».**
 The operator's reading of 2026-09-06, verbatim, with the sentence that makes it a frame matter: « ça
 devrait être impossible car faisant partie du carcan de l'App ». The frame's model (P3, « Back walks the
@@ -1662,6 +1696,31 @@ inventory has a name and the operator's sentence is not lost.
 Owner: the **steward's inventory first**, then the lot the inventory names per screen.
 
 <sub>operator, 2026-09-06 · `docs/reference/frame-model.md` P3 · D1b rules 1–3</sub>
+
+**THE INVENTORY, TAKEN ON THE OPERATOR'S PHONE (steward, 2026-09-06 11:40–11:50, Chrome 152 / Android 16, the
+design host serving L21's head `3afba585a`).** Two passes: every named state that is a screen, a topic, a panel
+or a page driven by `window.__go` (29 states), then the REAL path — a real load, a real tap, then
+`history.back()`, which is what the system gesture calls inside the PWA — on the cases the operator meets.
+What it read:
+
+    the five SCREENS (media, add/identify, releases, quality, resolution)
+        push an entry (real path on the media screen: history 16 → 17), draw `screen/back`, and Back
+        lands on the parent page (`/media`), then on `/acquisition`         → P3 TRUE
+    the PANELS (journey, follow, more, user) and the DRAWER
+        Back closes them and lands on the page beneath                        → TRUE
+    the PAGES (media, arrivals, system, settings, maintenance, account)
+        no back drawn (D1b: none by design); Back lands on `/acquisition`    → TRUE, as ruled
+    the TOPICS — Réglages' rubrics (B-332) and Maintenance's rubrics (B-361)
+        entering pushes NOTHING (settings: the address is not even written; maintenance: written as
+        `?topic=query` by replacement), no back is drawn, and Back leaves the PAGE for `/acquisition`   → FALSE
+
+So the sentence « beaucoup de pages n'ont pas de bouton retour et le geste retour ne fonctionne pas » is
+TRUE of every topic and false of every screen: the reader who enters a rubric of Réglages or Maintenance
+has no way back but the tab bar, and the gesture throws him out of the page. **Not measured**: an arrival's
+resolution by the real path — no card on the design host carried `data-resolve` at rest (B-345's shape).
+**Owner, per screen**: the topics are B-332's and B-361's owners; nothing else is owed by this entry.
+
+<sub>steward, 2026-09-06 · `scratchpad/cdp-back-inventory.py` (29 states, `back-inventory.jsonl`) and `cdp-back-real.py` / `cdp-back-real2.py` (`back-real*.jsonl`), raw CDP on the phone's tm-design tab; `window.__go` builds its own stack, so the FIRST pass reads the affordance and where Back lands, and only the SECOND pass reads whether entering pushes</sub>
 
 **B-334 — « Remplacer la valeur » on a secret does nothing.**
 Reported by the operator on 2026-09-06, verbatim: « Réglage: bouton remplacer la valeur ne fait rien ».
@@ -1680,6 +1739,11 @@ host publishes; the rule counts the layer's write, never the toast.
 
 <sub>`grep -n "toast:" frontend/maquette/design/src/features/settings/panel-secret.ts` → `:81`, `:88` · `grep -n "dataset.toast" …/engine/legacy.js` → one reader, `toast()` into `#toast`</sub>
 
+**RULED by the operator on 2026-09-06 (round 2, question 1): owner is the « settings » MICRO-WAVE, after L21
+merges and before L20** — the act is a producer-side handler registered on the verb registry L21 built
+(`lib/verbs.ts`), writing the layer, with its rule; the engine is not edited. Placed with B-335, B-341, B-342,
+B-343 and the settings half of B-345.
+
 **B-335 — « Retirer la clé » on a secret does nothing, and asks nothing.**
 Reported by the operator on 2026-09-06, verbatim: « Réglage: bouton retirer la clef ne fait rien, et il
 devrait proposer une confirmation ». Same mechanism as B-334 (`target: { toast: … }` at
@@ -1690,6 +1754,12 @@ key gone, and said). Owner: **L13**, beside B-334; the confirmation's sentence i
 dictate if he wants more than « la clé est retirée pour tous les comptes du foyer ».
 
 <sub>`sed -n 84,90p frontend/maquette/design/src/features/settings/panel-secret.ts` · B-300's rule shape in `harness/settings.py`</sub>
+
+**RULED by the operator on 2026-09-06 (round 2, questions 1 and 5): owner the « settings » MICRO-WAVE, and
+the sentence is dictated.** Title « Retirer la clé <fournisseur> ? »; body « La clé sera retirée pour tous
+les comptes du foyer. Ce fournisseur ne répondra plus tant qu'une nouvelle clé n'est pas saisie. »; buttons
+« Annuler » / « Retirer la clé » (danger tone, right); after confirming, the message « Clé retirée. ». The
+walk goes through the cancel first (B-300's form).
 
 **B-336 — the library's kind chips show their scrollbar.**
 Reported by the operator on 2026-09-06, verbatim: « Filtre médiathèque Tout/films/séries il y a un
@@ -1791,6 +1861,180 @@ residue for `ui/variants` with its `disabled:` half. The operator ratifies, or n
 residue dies there).
 
 <sub>operator's screenshot, 2026-09-06 10:10 · `grep -n "desactive" frontend/maquette/design/src/features/acquisition/panel-add.ts frontend/maquette/design/src/ui/panel/index.tsx` · `grep -n "\.sact" frontend/maquette/design/src/styles/legacy.css` → 1674, 1688, 1694, 1697, 1703, none with `:disabled` · `grep -n ":disabled" …/legacy.css` → `.btnprimary:disabled` only</sub>
+
+**B-340 — the « + » button reopens the add screen where the last visit left it.**
+Reported by the operator on 2026-09-06 with a screenshot, verbatim: « Une fois que j'ai cliqué sur la
+répartition d'une arrivée, la recherche pour l'ajout aux suivis reste avec une recherche active, elle
+devrait s'être reset quand j'appuie sur le bouton + pour pouvoir lancer une nouvelle recherche. L'état du
+formulaire n'est pas celui attendu ». The screen: query « Marvels Spider-Man 2 v1 526 0 -Mephis… » (a
+release name the identify path had seeded), « 0 résultat affiché sur 0 trouvé », and the footer strip
+« 2 médias ajoutés » from the previous visit.
+
+**Read in the code, two halves.** (1) The floating action button (`app/action-button.tsx:41`) opens the
+screen with `window.__screens.add(String(state.addQ ?? ""), "follow")` — it hands the LAST entry query
+back in. `state.addQ` is written by every visit (`add-screen.tsx`'s `search()` keeps the legacy readers
+in sync, and the resolution path seeds it with the folder's name before `screens.add(trim, "identify")`,
+`legacy.js`), so a « new search » from the « + » is the previous search, in the previous words. The add
+screen itself reads the ROUTER's `q` and says so in its own comment — the store's copy « is the ENTRY
+query and is stale by construction » — which is exactly the copy the button reads. (2) `state.added`
+(the positions already added, the footer strip's count and every « ✓ Ajouté ») is `new Set()` only in
+the named states' reset and in the store's initial shape (`legacy.js:5214`, `:5632`); nothing clears it
+when the screen is opened for a new search, so the strip and the ticks outlive the results they were
+about — and since they are keyed by POSITION, a new answer's row 0 inherits the tick of the previous
+answer's row 0 (B-339's « ✓ Ajouté » on a result that may never have been added is this defect seen from
+the panel).
+
+**What the operator expects, and it is the frame's contract**: the « + » opens a FRESH add screen —
+empty query, mode `follow`, nothing added yet — while the identify path keeps seeding the folder's name
+as it does. Owner: PROPOSED **L13** with the add screen's engine-owned state (`addQ`, `addMode`,
+`added`); the FAB's one line is the frame's (`app/`) and moves with it. The operator ratifies or names
+another lot.
+
+<sub>operator's screenshot, 2026-09-06 10:13 · `sed -n 41,42p frontend/maquette/design/src/app/action-button.tsx` · `grep -n "added: new Set\|added.add" frontend/maquette/design/src/engine/legacy.js` → 5214, 5632 (resets: initial shape and named states only), 9526, 9586, 9592 (adds) · `grep -n "screens.add(trim" …/legacy.js` → the identify seed</sub>
+
+**B-341 — a settings field commits on blur, and says « Valeur actuelle » of a value not yet written.**
+Reported by the operator on 2026-09-06 while trying to confirm B-300, verbatim: « Pas de bouton de
+validation d'un changement faut sortir du champ ce qui est contre-intuitif et non ergonomique, puis on
+enregistre dans un second temps seulement ». Read: `features/settings/panel-field.tsx` binds the native
+`change` event, which fires once on blur — a measured choice (a pending edit per keystroke was the
+alternative) — and offers no « Valider » in the panel; the edit is filed when the field loses focus,
+which a phone keyboard's « ✓ » does not always cause. Two-step writing itself (edit, then the bottom bar
+writes the files) is DOIT-8's design and stays. And the panel then prints the pending value as
+« Valeur actuelle » and the stored one as « Valeur écrite » (B-090's « the settings say the value they
+HOLD ») — two labels the operator read the other way round. A drawing decision on a validated surface:
+the operator's amendment to dictate (a commit affordance in the panel; the two labels' words).
+Owner: **L13**, with the settings family.
+
+<sub>operator's screenshots, 2026-09-06 10:24 · `grep -n "change" frontend/maquette/design/src/features/settings/panel-field.tsx` → the native `change` listener and its three reasons</sub>
+
+**RULED by the operator on 2026-09-06 (round 2, question 4)**: (1) a **« Valider »** button in the field's
+panel — the edit is filed on the tap, the field no longer has to lose focus; (2) the two labels become
+**« Nouvelle valeur »** (what was just typed, not yet written) and **« Valeur enregistrée »** (what the file
+holds). Owner: the « settings » micro-wave (question 1), with its rule: type, tap « Valider », read the pending
+count; the mutation is the button doing nothing.
+
+**B-342 — the save says « Enregistré » and the row shows the old value.**
+Same session, verbatim: « quand on a enregistré sur la liste la valeur est reset à la valeur
+d'origine ». Screenshots: the row « Transmission — Adresse d'écoute » edited to `127.0.0.3`, the bar
+« 1 modification en attente — Écrira torrent.json5 », « Enregistrer », the toast « Enregistré —
+torrent.json5. », and the row back at `localhost`. Read in `mocks/handlers/configuration.ts`,
+`updateConfigurationFile`: the handler adds the file's NAME to `changedFiles`, sets `restartRequired`,
+answers `{ restartRequired, conflict }` — and never reads the request's body into `held.settings`. So
+the write is « recorded » for the file list and not for the value, and the next read of the settings
+answers the seed. The interface says the file was written and shows it was not: NE-DOIT-PAS-1, and the
+exact species L21's agent named the same morning (« the layer answers the three verbs and MOVES
+something when it does »). Owner: **L13**, with the settings family; a wave that opens this handler
+earlier takes it (D7: a mock that answers without moving is a mock that certifies nothing).
+
+<sub>operator's screenshots, 2026-09-06 10:24 · `sed -n 41,47p frontend/maquette/design/src/mocks/handlers/configuration.ts` → no read of the body</sub>
+
+**RULED by the operator on 2026-09-06 (round 2, question 1): owner the « settings » MICRO-WAVE** — the mock's
+write keeps the value (D7), with the rule reading the value back after « Enregistrer ».
+
+**B-343 — the restart banner does not follow a real save.**
+Same session: « Aucun redémarrer maintenant apparaît ». Read: `panel-setting.ts:195` sets
+`reference.SETTINGS_STATE.redemarrage = true` after the writes, and `page.tsx:149` draws the banner
+from that same object — an ENGINE object, not React state, so nothing re-renders the page when the
+flag flips; the banner appears at the next render caused by something else, or not at all. That is why
+B-300's confirmation could not be reached by the operator through a save: the rule that holds B-300
+(`harness/settings.py`, seven holds) drives `data-restart` from a named state that already has the flag
+up — it reads the confirmation, never the path to it. **B-300 stays `to confirm` and gains this
+reading.** Owner: **L13**, with the settings family (the flag becomes the layer's or the store's, and
+the banner a reader of it); the rule's own debt — a hold that reaches the banner THROUGH a save — goes
+with it.
+
+<sub>operator's screenshots, 2026-09-06 10:24 · `grep -n "redemarrage" frontend/maquette/design/src/features/settings/panel-setting.ts frontend/maquette/design/src/features/settings/page.tsx` → set at `:195`, read at `:149`, no render between</sub>
+
+**RULED by the operator on 2026-09-06 (round 2, question 1): owner the « settings » MICRO-WAVE** — the flag
+becomes the layer's or the store's and the banner a reader of it; the rule reaches the banner THROUGH a
+save, which is also what lets B-300 be confirmed by hand at last.
+
+**B-344 — the design host has no way out of the phone frame on a desktop.**
+The operator's aside on 2026-09-06, verbatim: « Quand on est sur tm-design sur desktop, le design
+s'affiche dans un template de téléphone pour pouvoir voir le rendu sur téléphone, c'est très bien, c'est
+ce qu'il faut, mais du coup je peux pas tester l'aspect « compatible desktop » de l'interface. Ce qui
+serait utile c'est que sur desktop et seulement sur desktop, en dehors du template téléphone, on ait un
+bouton qui permet de switcher en mode desktop (et du coup un bouton pour revenir dans le template
+téléphone, toujours uniquement si on est sur desktop !) ». What he asks for is TOOLING on the design
+host, not a surface of the application: the phone frame is the harness's measuring apparatus
+(`styles/harness.css`, in the maquette's own build and in no production build — `CLAUDE.md` § Design
+Reference), and a switch that leaves it lives with the frame, outside the frame, shown only when the
+viewport is a desktop's. Its rule reads that the switch is absent on a phone-sized viewport and that
+the desktop layout it reveals is the one the oracle would measure without the frame. Owner: **the next
+wave that opens `harness.css` or the design host's wrapper**, or a steward instrument if none does
+before the freeze — it touches no application code.
+
+<sub>operator, 2026-09-06 · `grep -n "harness" CLAUDE.md` → the frame's status · `ls frontend/maquette/design/src/styles/harness.css`</sub>
+
+Brief: `docs/features/maquette-desktop-frame/BRIEF.md` (steward, 2026-09-06); launched after the
+`maquette-departure` micro-wave merges.
+
+**RULED by the operator on 2026-09-06 (round 2, question 6): a TOOLING micro-wave of its own**, in its own
+worktree, after the `maquette-departure` micro-wave merges and before the « settings » one — a desktop-only
+switch out of the phone frame and back, with the rule named above. No application code.
+
+**B-345 — the seeds do not offer every state to a hand that walks the interface.**
+The operator, on 2026-09-06, trying to confirm B-309 on the design host, verbatim: « Pas testable, j'ai
+aucun torrent dans cet état qui me permet de tester, d'ailleurs c'est un bug global, on devrait toujours
+avoir assez d'états simulés dans les données de test afin de tester tous les cas de figure ! » The
+harness reaches every state through NAMED STATES (`engine/states.js`, `window.__go`), which re-seed the
+layer for a rule; the operator walks the interface with a finger and reads what the seeds hold at rest
+— and at rest, no follow's medium sits in Arrivées « à prendre » on his head (`seeds/takeable.json`
+holds two cards, and none reached his screen as such), so the one verb B-309 repaired was unreachable to
+him. **The ruling is a property of the fixtures, not of one seed**: the data the design host serves at
+rest holds at least one subject in every state every surface can draw — a takeable arrival, a blocked
+one, a paused follow, a season with a hole, a conflict, a restart owed — so any case can be tried by
+hand without a named state. §13 (real data) and the fixture clause the operator ratified on 2026-09-05
+(a measurement L13 inherits) are where this lands: the fixture families' owner measures the states each
+surface can draw against the states the seeds hold, and fills the holes. Owner: **L13** with the
+fixture clause; a wave that reseeds a family earlier takes its surfaces' share (L21's `acquisition-verbs`
+seeds are the first case: a takeable arrival for a followed medium is one line).
+
+<sub>operator, 2026-09-06 · `python3 -c "import json; print(len(json.load(open('frontend/maquette/design/src/mocks/seeds/takeable.json'))))"` → 2 · `grep -n "toTake" frontend/maquette/design/src/features/acquisition/follow-facts.ts` → `queue.takeable.some(…)`</sub>
+
+**RULED by the operator on 2026-09-06 (round 2, question 3): each wave fills its own family as it passes.**
+**L21, now**: the acquisition seeds offer at rest a takeable arrival for a followed medium, a blocked one, a
+paused follow and a season with a hole, with a rule that counts them. **The « settings » micro-wave**: a
+conflict and a restart owed. **L13**: the library and the rest, with the fixture clause.
+
+**B-360 — the pre-push gate refuses a push over a green suite, and shows the reason to nobody.**
+Measured on 2026-09-06, three refusals in one morning on two branches. `hooks/pre-push` runs every check
+SILENTLY first (`"$@" > /dev/null 2>&1`, its `run_check`) and, on a non-zero exit, reruns it VISIBLY
+(`"$@" 2>&1 | sed`) and counts the failure whatever the rerun says. So when the silent pytest run dies of
+a signal, the reader is shown the RERUN's green summary — « 11 307 passed » on the steward's
+`claude/steward-reports-0906`, « 11 325 passed » on L21's `feat/maquette-l21` — followed by « 1/5
+check(s) failed. Push aborted. », and the only trace of the failure is bash's own job line:
+`line 36: 86894 Terminated: 15  "$@" > /dev/null 2>&1` on one push, `94910 Exit 1 … 94911 Abort trap: 6
+| sed` on another. The steward's push, re-run twenty minutes later under the lock at three workers,
+landed unchanged. **Where the signals come from is NOT read**: no crash report was written, the lock
+script's watchdog printed nothing and exits 75 when it acts (these runs exited 1), the hook wraps
+nothing in a timeout, and the suite's own signal-sending tests (`tests/scripts/test_heavy.py`,
+`tests/trailers/test_state.py`) terminate only processes they started. **What IS read is the
+instrument's shape**: a gate whose verdict rests on an output it throws away, and whose visible output
+contradicts its verdict. A reader who trusts the summary bypasses the gate; one who trusts the verdict
+looks for a red test that does not exist; and the L21 agent, rightly, did neither and stopped at 60 %
+context with nineteen commits it could not land. Two things owed, in the hook: the silent run's output
+kept in a file the abort message names, so the reason is readable; and a rerun that passes is a check
+that passed — or no rerun at all. Owner: **the next wave that opens `hooks/`**, and CI is not exposed to
+this shape (it runs the suite once and shows it). Numbered from the steward's block (B-360+): L21 holds
+B-351+ and the departure wave B-346+ on their branches.
+
+<sub>steward, 2026-09-06 · the two pushes' logs (`push-reports.log`: `Terminated: 15`, then 11 307 passed, then « Push aborted »; `push-reports-2.log`: landed) · the L21 agent's report of 11:2x (`Abort trap: 6`, 11 325 passed, « Push aborted », `heavy: l21 done (exit 141)`) · `sed -n '32,42p' hooks/pre-push` · `find ~/Library/Logs/DiagnosticReports -newermt "-90 minutes"` → nothing</sub>
+
+**B-361 — a Maintenance rubric cannot be left either.**
+B-332's shape on the second page that has rubrics, found by B-333's inventory on the operator's phone
+(steward, 2026-09-06, real path): a real load of `/maintenance`, a real tap on the rubric `query`
+(`[data-maintopic]`) → the heading reads « Regarder », the address becomes `/maintenance?topic=query` by
+REPLACEMENT (`history.length` 18 → 18), no `[data-part="screen/back"]` is drawn, and `history.back()` —
+the system gesture — lands on `/acquisition`. A topic is an arrival (D1b rule 1): it pushes, and it draws
+its back. Two halves as in B-332: the address (the engine's delegation reads `dataset.maintopic`) and the
+affordance (`features/maintenance`'s topic view draws no back). Owner: **L13**, beside B-332, PROPOSED —
+the two rubric kinds are one mechanism and should land together, wherever B-332 lands.
+
+<sub>steward, 2026-09-06 · `scratchpad/cdp-back-real2.py`: `load {path:/maintenance, hist:18}` → `tap query` → `{path:/maintenance?topic=query, hist:18, back:false, head:"Maintenance | Regarder"}` → `history.back()` → `{path:/acquisition}` · `grep -oE "dataset\.maintopic" frontend/maquette/design/src/engine/legacy.js`</sub>
+
+**RULED by the operator on 2026-09-06 (round 2, question 8): owner the « settings » MICRO-WAVE, with
+B-332** — one mechanism, one wave. Brief: `docs/features/maquette-settings/BRIEF.md`.
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
