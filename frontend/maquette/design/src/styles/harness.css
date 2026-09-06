@@ -82,6 +82,7 @@
   height: 13px;
 }
 html.measuring .hbtn,
+html.measuring .desktop-switch,
 html.measuring .toast,
 html.measuring .note {
   display: none !important;
@@ -140,18 +141,25 @@ html.measuring .note {
    is CORRECT — a real desktop does get the rail. It must be revisited
    whenever a breakpoint is added: a rule that only holds for the breakpoints
    that existed when it was written rots quietly. */
+/* AND THEY HOLD ONLY WHILE THE FRAME IS DRAWN. The switch below leaves the
+   frame, and leaving it means both halves: the phone's dimensions AND these
+   re-assertions. A device that fills a desktop window while these still fire
+   is a desktop window wearing a phone's presentation — the exact thing the
+   operator cannot test today, moved rather than removed. So each of them is
+   scoped to the frame's own condition, and the app's stylesheet answers when
+   the condition is false. */
 @media (min-width: 640px) {
-  .device .ps-dot__label {
+  :root:not(:has(#desktop-switch:checked)) .device .ps-dot__label {
     display: none;
   }
 }
 
 @media (min-width: 768px) {
-  .device .bottombar {
+  :root:not(:has(#desktop-switch:checked)) .device .bottombar {
     display: flex;
   }
 
-  .device .topbar {
+  :root:not(:has(#desktop-switch:checked)) .device .topbar {
     padding-left: 14px;
     padding-right: 14px;
   }
@@ -181,10 +189,10 @@ html.measuring .note {
   overflow: clip;
 }
 @media (min-width: 520px) {
-  .stage {
+  :root:not(:has(#desktop-switch:checked)) .stage {
     padding: 24px 16px;
   }
-  .device {
+  :root:not(:has(#desktop-switch:checked)) .device {
     width: 390px;
     height: min(844px, calc(100svh - 48px));
     border: 1px solid var(--color-border);
@@ -193,3 +201,101 @@ html.measuring .note {
   }
 }
 
+
+/* THE WAY OUT OF THE FRAME, AND BACK — harness chrome, and desktop only.
+   The operator reads the prototype on a desktop browser and the frame draws a
+   phone there, so the desktop presentation his own stylesheet describes is the
+   one surface he cannot look at. This gives him a way out of the frame and a
+   way back into it, and it exists exactly where the frame does: `display: none`
+   below 520px, which is the width at which `.device` becomes a phone. Below
+   that the device already fills the window, so there is nothing to leave — and
+   nothing must be in the layout, in the focus order or under a finger on the
+   operator's own phone.
+
+   NOT ONE LINE OF SCRIPT. The state is the checkbox's, read by `:has()`, so the
+   engine and the shell never learn this control exists — which is the point:
+   one is dying by subtraction and the other may only lose lines. */
+.desktop-switch {
+  display: none;
+}
+
+@media (min-width: 520px) {
+  .desktop-switch {
+    /* FIXED, and never a grid item: `.stage` centres its tracks, and a second
+       in-flow child would move the frame it is drawn beside. */
+    position: fixed;
+    display: flex;
+    left: 16px;
+    top: 16px;
+    z-index: 70;
+    /* THE RIGHT EDGE CANNOT CROSS THE FRAME'S LEFT EDGE, at any width, by
+       arithmetic rather than by a number somebody measured once: the frame is
+       390px wide and centred, so its left edge is at `50% - 195px`, and this
+       stops 16px short of it. Between 520px and the width at which the gutter
+       opens the label is clipped rather than allowed to sit on the prototype —
+       R51's lesson is that harness chrome anchored to the WINDOW misses the
+       frame it was computed against. */
+    max-width: calc(50% - 211px);
+  }
+
+  /* OUT OF THE FRAME, THE APP FILLS THE WINDOW, so there is no gutter left to
+     stand in and the control has to move to a corner the app's own fixed chrome
+     does not claim. The header spans the top — burger on the left, status dot
+     and avatar on the right — and the action button sits bottom-RIGHT, so
+     bottom-left is the free corner. The tab bar spans the bottom below the
+     app's own 768px breakpoint and is gone above it; the height it publishes
+     for exactly this kind of question lifts the control clear of it either
+     way, and reads 0 when there is no bar. */
+  :root:has(#desktop-switch:checked) .desktop-switch {
+    top: auto;
+    bottom: calc(16px + var(--tm-bottom-bar-h, 0px));
+    max-width: calc(100% - 32px);
+  }
+}
+
+/* The checkbox carries the state and is never the affordance: it is taken out
+   of the paint and left in the focus order, and the label is what is seen,
+   pressed and named. */
+.desktop-switch__control {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.desktop-switch__label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-background) 80%, transparent);
+  color: var(--color-muted-foreground);
+  font-size: var(--text-2);
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  backdrop-filter: blur(4px);
+}
+.desktop-switch__control:focus-visible + .desktop-switch__label {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ONE CONTROL, AND THE WORD FOR WHAT THE NEXT PRESS DOES. Only one of the two
+   is ever in the layout, so the accessible name computed from the label is the
+   text on screen and never a second string that drifted away from it. */
+.desktop-switch__enter {
+  display: none;
+}
+:root:has(#desktop-switch:checked) .desktop-switch__leave {
+  display: none;
+}
+:root:has(#desktop-switch:checked) .desktop-switch__enter {
+  display: inline;
+}

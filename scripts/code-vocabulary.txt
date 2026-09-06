@@ -274,6 +274,7 @@ derived
 descriptor
 destination
 destructive
+desktop
 detail
 details
 dev
