@@ -966,7 +966,7 @@ forwards }` injected into the operator's page → last frame at opacity 0, and t
 plus de clignotement ». The live `#sheet` is never on screen after the close (its silence rule holds);
 the root cross-fade and the 450 ms departure L12 drew are not the defect and are not amended.
 
-**Owner: the micro-wave `maquette-departure`** (`docs/features/maquette-departure/BRIEF.md`),
+**Owner: the micro-wave `maquette-departure`** (`docs/features/maquette-departure/BRIEF.md@f70ca0295` — landed as #573 on 2026-09-06),
 decided by the operator the same day, with B-338 beside it: the line, its rule (R127, red on `main`
 without the line), and the two new snapshots with the same shorthand (`banner-in`, `body-rise`) fixed
 in the same move. **Done when** the rule reads opacity 0 on the transition's last active frame, red

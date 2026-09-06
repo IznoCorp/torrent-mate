@@ -1964,6 +1964,13 @@ its report.
   remain; the two it cannot see span several lines and are named in the register. The next wave that
   touches `exits.py` re-takes the inventory with `grep -n ', 260)'` and names all seven by the call
   they wrap.
+- **B-346** — `check-bug-register.py`'s closure arm reads an entry's body up to the first paragraph that
+  OPENS with another entry's identifier (`**B-249's FAMILY…`), so that paragraph ends the entry it lives
+  in and claims the body of the entry it names: measured by the departure micro-wave, which the arm
+  refused an honest `fixed #573` on B-310 while it would have accepted a silent closure of B-249; 25 of
+  278 heads were second-or-later on the day, one reworded, twenty-four unread. The repair is one line
+  either way (a head is `**B-NNN —`, never `**B-NNN's`; or the LONGEST span wins). The next wave that
+  touches the guard takes it, and re-takes the 25 with the command in the entry.
 
 **The gate.** Before every wave's closing commit: `make lint` at zero errors, `make test` with no
 failure and **no error** (an error means collection crashed and everything after it was skipped),
@@ -2033,6 +2040,15 @@ squash erased (B-291, found by the wave in the hour after its merge, re-recorded
 audit at `b4b75a67a`). Nothing reads that pointer, which is why it could die in silence; until
 `harness-hold-counts.py` refuses a pointer that is not an ancestor of `main`, the gesture checks it
 by hand: `git merge-base --is-ancestor $(python3 -c "import json;print(json.load(open('frontend/maquette/hold-counts-baseline.json'))['taken_at_commit'])") origin/main`.
+
+**And both pointers read `HEAD` at the moment of the recording — so `HEAD` IS the squash when they
+are recorded, not a commit of the gesture's own branch** (added 2026-09-06, on the first recording of
+#573's gesture, which named the gesture's docs commit: a commit its own squash would have erased, B-291
+one gesture later with a green `--is-ancestor` on the day). The gesture's worktree is checked out at the
+squash, the references are recorded there, and the gesture's edits are committed AFTER — or, if the
+docs commit came first, it is soft-reset onto the squash and the recording taken again before one
+commit carries everything. A pointer that names the squash survives the gesture's own merge; any other
+survives nothing.
 
 **AND THE BASELINE IS NOT RE-RECORDED WHILE A RULE IS FAILING** — added 2026-09-05, on B-291's
 second form, which L19 met and could not repair. Re-recording runs the whole suite and writes what
