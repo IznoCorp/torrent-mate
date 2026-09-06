@@ -278,7 +278,7 @@ the previous round's REPAIRS, which is where every round found its sharpest defe
 tautology by the fix beside it; a gallery whose rows shuffled on the one scroll direction no rule
 drove). The steward's own probes — Playwright on this machine, the CDP playback rate for a slow
 motion that is real — served the operator's perception when it disagreed with the record, never
-as validation: **the operator judges in the running application, on his phone**. Three
+as validation: **the operator judges in the running application** — on his phone until 2026-09-06, on his Mac since: he ruled that day that device readings are OVER (« Mac seulement, aucun bug téléphone n'était pas présent et visible sur Mac »), after B-310's frame, read on the phone over CDP, proved readable on the Mac as well; the steward drives his phone again only when he asks, and a brief's « re-read on the device » step written before that date is void. Three
 consequences the office keeps: a review round is a fresh reader, not a fresh lens; the round after
 a repair reads the repair; and a defect found in the wave's OWN instruments during its gesture
 (B-291, a dangling pointer one file over from the paragraph that names the species) is filed with
