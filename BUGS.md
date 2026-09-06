@@ -389,6 +389,11 @@ when the defect comes back.
 | B-327 | « Réglages » draws SIX scheduled jobs while the machine runs seven, and the same six are named twice in two French vocabularies that disagree on five of them — the row cannot be added until `SETTINGS` leaves the engine | by L13 | `open` |
 | B-328 | `features/system/page.tsx` heads itself with a path that does not exist and describes a state field (`state.panne`) the code does not have | by the next wave that opens `features/system/page.tsx` | `open` |
 | B-330 | After a panel's departure the invisible scrim stays hit-testable over the media screen for ~380 ms — `opacity 0`, `visibility` still `visible` until its delayed flip — so a tap on the fresh screen lands on nothing | by the steward | `open` |
+| B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
+| B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
+| B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
+| B-334 | The secret panel's « Remplacer la valeur » does nothing: the action's whole effect is a `data-toast` the engine's dead message element answers, and no store, seed or cache moves | 1× | `open` |
+| B-335 | The secret panel's « Retirer la clé » does nothing and asks nothing: the same `data-toast` shape as B-334, on a destructive act that owes a confirmation (B-300's form) | 1× | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -1541,6 +1546,94 @@ the scrim's visibility and stays green) and removes the target: a closed scrim t
 is never `#scrim`, red on `main` before the repair.
 
 <sub>steward, 2026-09-06 · `scratchpad/b310/probe.py` frames (`topAtCentre` = `#scrim[scrim]div` from 567 to 948 ms), the same on the phone's Chrome over CDP · `grep -n "transition-delay" frontend/maquette/design/src/ui/variants/layout.ts` → the scrim's `[transition-delay:0s,450ms]` at :96 · numbered B-330 because L21 holds B-329 on its branch</sub>
+
+**B-331 — Réglages' pull-to-refresh indicator is off-centre and outlives the refresh.**
+Reported by the operator on 2026-09-06 from his phone with two screenshots, verbatim: « Bug de loader
+il est décentré et reste apparent ». On « Réglages », after a pull, the toast « Actualisé. » is up and a
+16 px spinner is drawn at the LEFT edge of the viewport, cut on its left side, level with the top of
+the scrollport; on the second screenshot the content sits 44 px lower with the spinner still there.
+
+**What the code says, read rather than guessed.** The indicator is `#ptr` — `grid place-items-center
+overflow-hidden h-0` with a `.spin` child — and the ENGINE drives it (`legacy.js`, the pull block near
+`onRelease`): an armed release sets `.loading` and `height: 44px`, and a **1 100 ms timer** removes both
+and toasts « Actualisé. ». So the second screenshot is the indicator OPEN (44 px, the content pushed by
+exactly that) and the first is the moment the timer fires. Nothing in that block re-reads the surface:
+the refresh is a fixed-length pretence (D7: the mock layer answers nothing here), and the toast lands
+while the height transition is still closing. **The centring is NOT explained by the code** — at rest
+on the device `#ptr` reads `display: grid` and its spinner at x = 177 of 369, centred, and
+`place-items-center` is in the built stylesheet. Whether the spinner is at the left ONLY while
+`.loading` is on (a rule in `legacy.css` — `.ptr.loading .spin` — animates it, and a transform on a
+grid item does not move it left) is to be established by sampling the pull itself on the device; the
+steward's driven pull on 2026-09-06 could not be read because the operator was using the page.
+
+Owner: **L13**, the wave that converts the settings family and the engine's pull block with it — the
+indicator is the frame's (`lib/pull-gesture.ts` is the gesture; the block that opens and closes the
+indicator is still the engine's). The reading to take first is written above so it is not re-derived.
+
+<sub>operator's screenshots, 2026-09-06 09:57 · `grep -n "ptr.classList" frontend/maquette/design/src/engine/legacy.js` → the `loading` / `armed` toggles and the 1 100 ms timer · `#ptr` read on the device over CDP at rest: `[177, 69, 16]` for the spinner's x, y, width · `grep -o "place-items-center{[^}]*}" …/dist/vite/*.css` → present</sub>
+
+**B-332 — a Réglages topic cannot be left.**
+Reported by the operator on 2026-09-06, verbatim: « Réglage je rentre dans une section et je peux jamais
+revenir en arrière ». Entering a topic (« Où vont les médias », …) shows the topic's rows under a
+heading, with no back affordance; the system Back gesture leaves « Réglages » altogether.
+
+**Read in the engine's delegation** (`legacy.js`, `if (closest.dataset.topic)`): the branch sets
+`SETTINGS_STATE.topic`, re-renders, and calls **`replacePath()`** — the verb D1b reserves for an
+ADJUSTMENT (a filter, an inner tab, a sort). A topic is not an adjustment: it is a screen the reader
+enters and has to leave, i.e. a deliberate arrival in D1b's own words, which `recordPath()` pushes.
+Replaced, it leaves no entry for Back to pop, so Back pops the page. And `features/settings/page.tsx`'s
+`TopicView` draws the heading (`sectionHeading`) and the rows, and nothing that goes back — the list
+is reachable only by the tab bar, which is not Back. Two halves: the address model (the frame's) and
+the affordance (the settings surface's).
+
+Owner: **L13** for the settings family, and the frame's Back contract stands over it — see B-333.
+
+<sub>`grep -n "SETTINGS_STATE.topic = closest" frontend/maquette/design/src/engine/legacy.js` and the four lines after it (`replacePath()`) · `grep -n "TopicView" frontend/maquette/design/src/features/settings/page.tsx` · D1b rule 1 in `docs/reference/frontend-architecture.md`</sub>
+
+**B-333 — « beaucoup de pages n'ont pas de bouton retour et le geste retour ne fonctionne pas non plus ».**
+The operator's reading of 2026-09-06, verbatim, with the sentence that makes it a frame matter: « ça
+devrait être impossible car faisant partie du carcan de l'App ». The frame's model (P3, « Back walks the
+ladder ») reads **true** under R59, R65, R69, R82 and R94, and D1b says a top-level page carries no back
+button by design — Back from a page lands on `/acquisition`. So either the operator meets screens that
+are NOT the four pages and still draw no back, or the ladder does not answer the SYSTEM gesture on his
+device the way the rules drive it. One instance is measured (B-332: a topic replaces instead of pushing).
+**The inventory is owed and it is the steward's**: every named state that is a screen or a topic below a
+page, read for (a) whether entering it pushes an entry (`history.length` +1), (b) whether it draws a
+back affordance, (c) what the system Back does there on the device — taken on the phone paired to this
+machine, never inferred from the rules that already read true. Filed rather than answered so the
+inventory has a name and the operator's sentence is not lost.
+
+Owner: the **steward's inventory first**, then the lot the inventory names per screen.
+
+<sub>operator, 2026-09-06 · `docs/reference/frame-model.md` P3 · D1b rules 1–3</sub>
+
+**B-334 — « Remplacer la valeur » on a secret does nothing.**
+Reported by the operator on 2026-09-06, verbatim: « Réglage: bouton remplacer la valeur ne fait rien ».
+`features/settings/panel-secret.ts` gives the action `target: { toast: translate("panels.secret.replaceToast") }`
+and nothing else — a panel action's `target` IS its `data-*` map (`ui/panel/contract.ts`), so the act
+is a `data-toast`, read by the engine's delegation (`legacy.js`, `if (closest.dataset.toast) toast(…)`)
+into `#toast` — the dying engine's message element, which L21's agent measured EMPTY while a React
+message was on screen (its phase 2 report, 2026-09-06): the message layer is React and reads
+`window.__toast`, not that element. So the tap toasts into a dead element and moves nothing: no seed,
+no cache, no state. From the reader's side, nothing happens. NE-DOIT-PAS-1's shape: an interface that
+says (or would say) « remplacée » without a thing having been replaced.
+
+Owner: **L13**, with the settings family — the act needs a producer-side handler that writes the layer
+(the secret's new value, held when offline, put back on refusal) and a message through the door the
+host publishes; the rule counts the layer's write, never the toast.
+
+<sub>`grep -n "toast:" frontend/maquette/design/src/features/settings/panel-secret.ts` → `:81`, `:88` · `grep -n "dataset.toast" …/engine/legacy.js` → one reader, `toast()` into `#toast`</sub>
+
+**B-335 — « Retirer la clé » on a secret does nothing, and asks nothing.**
+Reported by the operator on 2026-09-06, verbatim: « Réglage: bouton retirer la clef ne fait rien, et il
+devrait proposer une confirmation ». Same mechanism as B-334 (`target: { toast: … }` at
+`panel-secret.ts:88`), on a DESTRUCTIVE act: removing an API key cuts a provider for every account of
+the household, which is B-300's case — a `ui/dialog` confirmation that says what it is a confirmation
+for, with the walk going through the cancel (the key still there, nothing said) before the confirm (the
+key gone, and said). Owner: **L13**, beside B-334; the confirmation's sentence is the operator's to
+dictate if he wants more than « la clé est retirée pour tous les comptes du foyer ».
+
+<sub>`sed -n 84,90p frontend/maquette/design/src/features/settings/panel-secret.ts` · B-300's rule shape in `harness/settings.py`</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
