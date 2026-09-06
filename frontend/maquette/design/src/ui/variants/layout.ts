@@ -86,13 +86,24 @@ export const scrollport = cva(
    focusable — `focus()` on it does nothing, silently, with no error and no
    return value to check. R81 caught it, and it is the one hold in this suite
    that reads that instant. Entering, the layer is `visible` with no transition
-   at all; leaving, the delay holds it. */
+   at all; leaving, the delay holds it.
+
+   AND IT STOPS TAKING THE FINGER AT ONCE, which the fade deliberately does not
+   (B-338). `visibility: visible` is HIT-TESTABLE as well as visible, so while
+   the delay above holds this layer through its exit, `elementFromPoint` at the
+   centre of the screen that has just arrived answered the scrim — opaque to a
+   finger at `opacity: 0`, ranked above the screen — and a tap there was
+   swallowed by a click handler closing layers that were already closed. The tap
+   was not mis-routed; it was lost. `pointer-events` is neither delayed nor
+   transitioned: the exit is SEEN for its whole length and reachable for none of
+   it, which is the half of B-249's idiom that was never the point. */
 export const sheetScrim = cva(
   // The scrim darkens WITH the rise rather than ahead of it — same step, so the
   // ground and the layer are one gesture (operator, 2026-08-31).
   "scrim absolute inset-0 bg-scrim z-[46] duration-450 ease-emphasized",
   { variants: { open: { true: "open opacity-100 visible transition-[opacity]",
-                        false: "opacity-0 invisible transition-[opacity,visibility] "
+                        false: "opacity-0 invisible pointer-events-none "
+                               + "transition-[opacity,visibility] "
                                + "[transition-delay:0s,450ms]" } },
     defaultVariants: { open: false } },
 );
