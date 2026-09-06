@@ -118,33 +118,34 @@ declare global {
   }
 }
 
-/**
- * Declares the act to the tap registry.
- *
- * ONE VERB, TWO EMITTERS, and the element is what tells them apart — which is
- * why the registry hands the element to the act rather than the value alone.
- */
-export function installFollowVerbs(): void {
-  window.__followVerbs = { follow };
-  registerVerb("follow", (title, element) => {
-    const at = element.dataset.sugidx;
-    const suggestion = at === undefined
-      ? null
-      : ((window.__suggestions?.() ?? [])[Number(at)] as Suggestion | undefined)
-        ?? null;
-    // THE PANEL LEAVES FIRST, in the tap's own commit. The act happens beside
-    // it rather than after a wait: the 240 ms the engine spent here is B-249's
-    // shape, and a panel that is still on screen while the follows move is a
-    // reader watching two things happen in the wrong order.
-    window.__panel.close();
-    if (at !== undefined) takeSuggestionOutOfTheDeck(Number(at));
-    // AN ABSENT KIND IS SPELLED AS ONE, not as the series' own word: the test
-    // below asks whether it is a film, so the empty string answers « series »
-    // without this file holding a second interface word to keep in step.
-    follow(title, suggestion?.k ?? element.dataset.fkind ?? "");
-    // AND THE STORE IS TOUCHED AGAIN, for the sheet's own button: `add` writes
-    // the cache in place, so without this the button never learns the follow
-    // happened and stays « Suivre » under the finger that pressed it.
-    window.__store.touch();
-  });
-}
+// THE DECLARATION RUNS AT MODULE EVALUATION, exactly as a panel producer's
+// does, and the boot names this module in `app/panel-contributions.ts` — the
+// list whose job is to name what each feature contributes. It is not an
+// `install…()` the shell calls: `app/shell.tsx` stood ONE LINE under a 400-line
+// hard block, and two acts with an import and a call each took it over. That
+// list exists so a feature's contribution costs the shell nothing.
+//
+// ONE VERB, TWO EMITTERS, and the element is what tells them apart — which is
+// why the registry hands the element to the act rather than the value alone.
+window.__followVerbs = { follow };
+registerVerb("follow", (title, element) => {
+  const at = element.dataset.sugidx;
+  const suggestion = at === undefined
+    ? null
+    : ((window.__suggestions?.() ?? [])[Number(at)] as Suggestion | undefined)
+      ?? null;
+  // THE PANEL LEAVES FIRST, in the tap's own commit. The act happens beside
+  // it rather than after a wait: the 240 ms the engine spent here is B-249's
+  // shape, and a panel that is still on screen while the follows move is a
+  // reader watching two things happen in the wrong order.
+  window.__panel.close();
+  if (at !== undefined) takeSuggestionOutOfTheDeck(Number(at));
+  // AN ABSENT KIND IS SPELLED AS ONE, not as the series' own word: the test
+  // below asks whether it is a film, so the empty string answers « series »
+  // without this file holding a second interface word to keep in step.
+  follow(title, suggestion?.k ?? element.dataset.fkind ?? "");
+  // AND THE STORE IS TOUCHED AGAIN, for the sheet's own button: `add` writes
+  // the cache in place, so without this the button never learns the follow
+  // happened and stays « Suivre » under the finger that pressed it.
+  window.__store.touch();
+});

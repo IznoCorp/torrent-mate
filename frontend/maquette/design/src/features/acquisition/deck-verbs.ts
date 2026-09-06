@@ -14,17 +14,16 @@
 import { registerVerb } from "../../lib/verbs";
 import { dismissSug } from "./discover-feed";
 
-/**
- * Declares the deck's verbs to the tap registry.
- *
- * THE PANEL LEAVES FIRST, in the tap's own commit, exactly as the engine's
- * branch did — and for a reason that outlives it: the card collapses where the
- * panel was, so a panel still on screen while the row goes is a reader watching
- * two things happen in the wrong order.
- */
-export function installDeckVerbs(): void {
-  registerVerb("dropsug", (value) => {
-    window.__panel.close();
-    dismissSug(Number(value));
-  });
-}
+// THE DECLARATION RUNS AT MODULE EVALUATION and the boot names this module in
+// `app/panel-contributions.ts`, for the reason that list gives itself: the
+// shell stands one line under a hard block, and a contribution must cost it
+// nothing.
+//
+// THE PANEL LEAVES FIRST, in the tap's own commit, exactly as the engine's
+// branch did — and for a reason that outlives it: the card collapses where the
+// panel was, so a panel still on screen while the row goes is a reader watching
+// two things happen in the wrong order.
+registerVerb("dropsug", (value) => {
+  window.__panel.close();
+  dismissSug(Number(value));
+});
