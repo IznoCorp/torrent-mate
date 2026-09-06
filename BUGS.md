@@ -1471,7 +1471,26 @@ this is a question about where a finger lands.
 **Owner: the wave that draws Découvrir's cards** — the two attributes have to stop sharing a node,
 and choosing which of them a tap means is a drawing decision, not a repair.
 
-<sub>found in round one's walk of PR #558, 2026-09-05 · head `2f8503614` against `4c0e274a7`, ten points on two card kinds, both builds</sub>
+**A NEGATIVE READING, taken in L21 before any repair, and it contradicts the premise.** R135
+(`harness/discover_gestures.py`) drives real touches over CDP on BOTH card kinds — a 60 ms tap and
+a 700 ms hold with a 4 px drift, because a thumb is never still and the press arbitration tolerates
+12 px on purpose. On a build of `f70ca0295` all four holds pass on the poster tile AND on the deck
+card: the tap opens the media sheet leaving `panelOpen` false, and **the long press raises the
+suggestion panel with « Ajouter / Voir la fiche / Pas intéressé »**, read by label.
+
+**What that does to the evidence above.** Every one of the ten points recorded here was a TAP, and
+a tap opening the media sheet while no panel opens is precisely reading (i) — the behaviour the
+operator later chose. So the ten points show the tap working; they do not test the gesture the
+panel is opened by, and no long press is recorded. **The premise that no finger reaches the panel
+therefore rests on the gesture that was driven, not on the attributes sharing a node.**
+
+**It is a negative reading and not an absolution**, and two things are deliberately not claimed:
+the entry is a summary, so a long press may have been driven and not written down; and the survey
+ran on `2f8503614` while this ran on `f70ca0295`, so « it worked then too » is not established —
+only that the evidence AS RECORDED does not test it. The attributes are left sharing their node
+until the operator rules on a question that has changed shape.
+
+<sub>found in round one's walk of PR #558, 2026-09-05 · head `2f8503614` against `4c0e274a7`, ten points on two card kinds, both builds · negative reading L21, 2026-09-06, `python3 frontend/maquette/harness/discover_gestures.py` on a build of `f70ca0295`, 9 holds no violation</sub>
 
 **B-317 — the greeting toast covers the settings save bar.**
 At the centre of `#savebar [data-save]` — point (327, 758) at 390 px — `elementFromPoint` returns
