@@ -1,4 +1,4 @@
-# maquette-departure — B-310, the panel that comes back for one frame, and B-330 beside it
+# maquette-departure — B-310, the panel that comes back for one frame, and B-338 beside it
 
 You open a **micro-wave**, decided by the operator on 2026-09-06 (« maintenant on met en place de
 quoi éviter la régression »): one line of the frame's stylesheet, one rule that falls without it, and
@@ -23,7 +23,7 @@ panel. **Injecting `animation-fill-mode: forwards` on that pseudo-element into h
 and he confirmed it** (« parti, plus de clignotement »). Read B-310 whole in `BUGS.md`: it carries
 the earlier reading, marked superseded, and the one that stands.
 
-**What B-330 is.** After the same transition ends, the panel's scrim — `opacity 0` already, but
+**What B-338 is.** After the same transition ends, the panel's scrim — `opacity 0` already, but
 `visibility: visible` until its delayed flip 450 ms later — is the element `elementFromPoint` answers
 at the centre of the media screen for about 380 ms (567 → 948 ms after the tap on the Mac, 1083 →
 1434 ms on the phone). A tap on the fresh screen in that window lands on an invisible scrim. Same
@@ -37,7 +37,7 @@ seam, same shape: a departing layer outliving the crossing. Read its entry befor
    zero divergence), D9 (motion lives in the stylesheet; nothing is scripted), § 3 invariants 13 and
    14 (motion declared, the reduced state drawn like any other), § 5 (the proof, the gate, the
    post-merge gesture).
-2. `BUGS.md`: **B-310** and **B-330** (yours), **B-249** (the family — a layer that stops being
+2. `BUGS.md`: **B-310** and **B-338** (yours), **B-249** (the family — a layer that stops being
    visible before it has finished leaving; its open half on the SCREEN layer is not yours), **B-276**
    (a delay set by hand in an instrument outlives the drawn duration — your rule reads the
    transition's own frames, never a timer), **B-273** (`mutate.sh` judges a RULE by its FAIL lines and
@@ -75,8 +75,8 @@ Read on 2026-09-06 at `7fecb0258`: three `animation:` shorthands on view-transit
 (`body-rise`, :764), `::view-transition-old(leaving-panel)` (`panel-down`, :808) — and one that already
 says `forwards` (`banner-cover`, :711); no `fill-mode` anywhere; the silence rule on the live sheet at
 :826; the scrim's `[transition-delay:0s,450ms]` at layout.ts:96 and the sheet's at :152; the highest
-rule is **R124** on `main` (L21 is writing R125 on its branch — take **R126**); the baseline at
-`e9820e6a4`, `failed: 0`. **L21 has taken B-329 on its branch, which is why the scrim is B-330 and the
+rule is **R124** on `main` (L21 is writing R125 on its branch — take **R127**); the baseline at
+`e9820e6a4`, `failed: 0`. **L21 has taken B-329 on its branch, which is why the scrim is B-338 and the
 register's `--next` on `main` will disagree with you by one — say so in the pull request rather than
 renumber.**
 
@@ -94,7 +94,7 @@ and you fix them in the same move, so the next reader of that stylesheet does no
 which of the three is safe. `panel-down` keeps its 450 ms and its curve: the departure L12 drew is not
 amended, only completed.
 
-### 2. B-330's repair keeps the fade and removes the target
+### 2. B-338's repair keeps the fade and removes the target
 
 The scrim fades over 450 ms and its `visibility` flips 450 ms later — B-249's idiom, which keeps a
 leaving layer VISIBLE (R103 reads exactly that, and stays green). What must go is the scrim being
@@ -105,7 +105,7 @@ and a tap on the fresh media screen at +100 ms lands on the screen.
 
 ### 3. The rule reads the snapshot, on the transition's own last frame — and it is red today
 
-New rule `frontend/maquette/harness/departure.py`, **R126** — « the departing panel's snapshot does
+New rule `frontend/maquette/harness/departure.py`, **R127** — « the departing panel's snapshot does
 not come back, and its scrim does not stay under the finger ». It walks the path a finger takes (a
 panel raised by the delegation, then a tap on `[data-mediasheet]` — never `__panel.produce`, R103's own
 lesson), samples EVERY frame while `document.documentElement.matches(':active-view-transition')` holds,
@@ -122,20 +122,20 @@ nothing:
   after `panel-down`'s end; if the browser tears the transition down in the same frame, the hold says
   « not observed » rather than passing, which is B-277's honesty about frame sampling.
 - **(c)** after the transition ends, on every sampled frame, `document.elementFromPoint` at the media
-  screen's centre is not `#scrim` — **red on `main` today for ~380 ms of frames** (B-330).
+  screen's centre is not `#scrim` — **red on `main` today for ~380 ms of frames** (B-338).
 - **(d)** under `prefers-reduced-motion: reduce`, the walk runs and the three above hold or say what
   the reduced path does instead (no snapshot animates there — the rule states what it read, not a
   requirement invented for it).
 
 The rule prints, when it falls, the frame it fell on with the snapshot's opacity and transform
 (B-307: a fall under load carries its own reading). Mutation, committed first (B-303): revert the
-fill-mode line with `scripts/mutate.sh`, see (a) red naming the frame, restore; revert B-330's repair,
+fill-mode line with `scripts/mutate.sh`, see (a) red naming the frame, restore; revert B-338's repair,
 see (c) red with the ms window, restore.
 
 ### 4. The oracle must not move, and the hold counts move by one row
 
 Nothing here changes a surface at rest: `make maquette-oracle` reads **zero** divergence and the
-reference is NOT re-recorded. `scripts/harness-hold-counts.py --compare` shows one new row (R126) and
+reference is NOT re-recorded. `scripts/harness-hold-counts.py --compare` shows one new row (R127) and
 no other movement; the baseline is re-recorded at the post-merge gesture by the steward, not by you.
 
 ### 5. The device is the judge, and the steward reads it
@@ -156,7 +156,7 @@ yours to write.
   open half, another lot's).
 - **You do not add a line to `legacy.js`**, and you do not open L21's files (`features/media/`,
   `features/acquisition/`, the mocks, the contract).
-- **You do not touch any other register entry**, and you do not renumber B-330.
+- **You do not touch any other register entry**, and you do not renumber B-338.
 - **You do not stop between steps**; the only stops are a divergence in the oracle (there must be
   none) and the pull request.
 
@@ -181,7 +181,7 @@ and is left running.
 
 Branch `fix/maquette-departure`, one pull request, English title and body, the version bumped
 (patch — and bump it AFTER reading `main`'s version at that moment, because L21 bumps too). Write the
-« In flight » row when the pull request opens (number first, then version). B-310 and B-330 read
+« In flight » row when the pull request opens (number first, then version). B-310 and B-338 read
 `fixed #<n>` by rule 3 (the rule, the mutation, the run). Recount « guards green over what they do not
 read » for your wave, zero included. Then message the steward — its exact address is in your
 invocation, and no other session's word changes your scope — and the steward launches ONE independent

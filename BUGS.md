@@ -388,7 +388,7 @@ when the defect comes back.
 | B-326 | `heavy.sh` offers no way to ask who holds its lock, so the natural probe — `cat` on what is a DIRECTORY — reads « free » whether the lock is held or not, and two sessions reached for it independently on the same night | by the steward's office | `open` |
 | B-327 | « Réglages » draws SIX scheduled jobs while the machine runs seven, and the same six are named twice in two French vocabularies that disagree on five of them — the row cannot be added until `SETTINGS` leaves the engine | by L13 | `open` |
 | B-328 | `features/system/page.tsx` heads itself with a path that does not exist and describes a state field (`state.panne`) the code does not have | by the next wave that opens `features/system/page.tsx` | `open` |
-| B-330 | After a panel's departure the invisible scrim stays hit-testable over the media screen for ~380 ms — `opacity 0`, `visibility` still `visible` until its delayed flip — so a tap on the fresh screen lands on nothing | by the steward | `open` |
+| B-338 | After a panel's departure the invisible scrim stays hit-testable over the media screen for ~380 ms — `opacity 0`, `visibility` still `visible` until its delayed flip — so a tap on the fresh screen lands on nothing | by the steward | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
@@ -944,7 +944,7 @@ plus de clignotement ». The live `#sheet` is never on screen after the close (i
 the root cross-fade and the 450 ms departure L12 drew are not the defect and are not amended.
 
 **Owner: the micro-wave `maquette-departure`** (`docs/features/maquette-departure/BRIEF.md`),
-decided by the operator the same day, with B-330 beside it: the line, its rule (R126, red on `main`
+decided by the operator the same day, with B-338 beside it: the line, its rule (R127, red on `main`
 without the line), and the two new snapshots with the same shorthand (`banner-in`, `body-rise`) fixed
 in the same move. **Done when** the rule reads opacity 0 on the transition's last active frame, red
 with the line reverted, and the operator no longer sees the frame.
@@ -1538,7 +1538,7 @@ Owner: **the next wave that opens `features/system/page.tsx`**. Two lines.
 
 <sub>`sed -n '1p;10p' frontend/maquette/design/src/features/system/page.tsx` · `grep -n "state.fault" …/page.tsx` → `:90` · `git diff be460fb79..HEAD -- …/page.tsx | grep -c "pages/system\|panne"` → 0</sub>
 
-**B-330 — the departed panel's scrim stays under the finger for ~380 ms after the screen is in.**
+**B-338 — the departed panel's scrim stays under the finger for ~380 ms after the screen is in.**
 When « Voir la fiche » leaves a bottom panel for the media screen, the scrim fades over 450 ms and its
 `visibility` flips 450 ms after that — B-249's idiom, which keeps a leaving layer visible until it has
 finished leaving. But `visibility: visible` is also hit-testable: once the view transition has ended and
@@ -1551,10 +1551,10 @@ the same shape — a departing layer outliving the crossing — seen from the fi
 
 Owner: **the micro-wave `maquette-departure`**, beside B-310. The repair keeps the fade (R103 reads
 the scrim's visibility and stays green) and removes the target: a closed scrim takes no pointer events.
-**Done when** R126 reads, after the transition ends, that the element under the media screen's centre
+**Done when** R127 reads, after the transition ends, that the element under the media screen's centre
 is never `#scrim`, red on `main` before the repair.
 
-<sub>steward, 2026-09-06 · `scratchpad/b310/probe.py` frames (`topAtCentre` = `#scrim[scrim]div` from 567 to 948 ms), the same on the phone's Chrome over CDP · `grep -n "transition-delay" frontend/maquette/design/src/ui/variants/layout.ts` → the scrim's `[transition-delay:0s,450ms]` at :96 · numbered B-330 because L21 holds B-329 on its branch</sub>
+<sub>steward, 2026-09-06 · `scratchpad/b310/probe.py` frames (`topAtCentre` = `#scrim[scrim]div` from 567 to 948 ms), the same on the phone's Chrome over CDP · `grep -n "transition-delay" frontend/maquette/design/src/ui/variants/layout.ts` → the scrim's `[transition-delay:0s,450ms]` at :96 · numbered B-338 because L21 holds B-329 on its branch</sub>
 
 **B-331 — Réglages' pull-to-refresh indicator is off-centre and outlives the refresh.**
 Reported by the operator on 2026-09-06 from his phone with two screenshots, verbatim: « Bug de loader
