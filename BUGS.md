@@ -366,7 +366,7 @@ when the defect comes back.
 | B-304 | `git add -f` applied to a PATH rather than to the ignored files it was needed for swept 28 375 files into a commit, `node_modules` entire, and nothing in the repository refuses it — the only guard that noticed read five French PATH SEGMENTS, and they were the MAQUETTE's own ignored screenshots, not the vendored tree | by L14 | `open` |
 | B-305 | An open swipe survives a store write that changed nothing about the rows — D-L14-3, flagged for the operator, living only in a state-file cell the next wave overwrites | by audit | `closed` |
 | B-306 | A GRANDFATHERED file may grow without limit: the size arm reads the label and never a recorded count, so the engine gained 77 lines under a decision titled « dies by subtraction » and the guard printed clean | by audit | `fixed #558` |
-| B-307 | Three rules have fallen under the recorder's parallel load and passed alone; the register holds one of them, under a title naming a fourth rule and a diagnosis that does not transfer | by audit | `open` |
+| B-307 | **Four** rules have now fallen under the recorder's parallel load and passed alone; the register holds one of them, under a title naming a fourth rule and a diagnosis that does not transfer | by audit | `open` |
 | B-308 | The maquette draws six schedulers and the machine now runs seven — `machine.py`'s count fell the day `personalscraper-index-full` was scheduled on `main`, and nothing in that pull request could have told it | by L19 | `fixed #567` |
 | B-309 | « Récupérer maintenant » on a medium's own panel THROWS and takes nothing: the release screen's `data-take` branch is checked first, has no guard, and swallows every `data-take` in the document | by L19 | `to confirm` |
 | B-310 | Opening a media sheet from a bottom panel shows the PANEL again briefly before the sheet comes back — B-249's family, reported by the operator on the L19 head | 1× | `open` |
@@ -1465,7 +1465,24 @@ happened twice. Owner: whoever next reads a fall under load. What would settle i
 expected green, then three runs at `TM_HARNESS_JOBS=8` on an idle machine, reading whether the fall
 is a frame count or a timeout.
 
-<sub>`grep -n 'exits.py' BUGS.md` names B-277 · `rg -n -g '*.md' 'outbox\.py|drag\.py' BUGS.md` → no fall recorded</sub>
+**A FOURTH, read on 2026-09-06 during #567's round-four gate, and recorded here because this entry's
+own rule is « whoever next reads a fall under load ».** `touch.py` FAILED inside
+`harness-hold-counts.py --compare` at `TM_HARNESS_JOBS=2` — « harness: 1 of 92 rule(s) FAILED —
+touch.py (exit 1) » — with its hold count **unchanged at 25** and « 0 rule(s) changed hold count »
+in the same run, so nothing about the count moved. Run ALONE immediately afterwards on the same
+head and the same served copy: **25 rules EXECUTED — no violation, exit 0**.
+
+**Said in the same breath as the verdict, as B-277 requires**: running it alone removed the load the
+failure needed, so that green is not proof the rule is sound — it is only proof the fall did not
+survive isolation. The branch touches neither `touch.py` nor anything it reads.
+
+**It is a fourth rule and it does NOT print what its diagnosis needs.** The repair B-307 asks for —
+each of the three printing, when it falls, the evidence that separates a frame count from a timeout
+— was never made, so this fall carries no reading at all beyond « exit 1 ». That is the whole cost
+of the debt, arriving on a fourth instrument: three waves have now met this shape and none can say
+which mechanism it was.
+
+<sub>`grep -n 'exits.py' BUGS.md` names B-277 · `rg -n -g '*.md' 'outbox\.py|drag\.py' BUGS.md` → no fall recorded · #567's round-four gate: « harness: 1 of 92 rule(s) FAILED — touch.py (exit 1) » then `python3 frontend/maquette/harness/touch.py` alone → « 25 rules EXECUTED — no violation »</sub>
 
 **READ on 2026-09-04 by the steward, at `cb2128220`, and the protocol above is replaced.** It asked for
 three runs at `TM_HARNESS_JOBS=8` « on an idle machine », which the office forbids for arithmetic (eight
