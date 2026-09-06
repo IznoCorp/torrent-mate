@@ -16,9 +16,10 @@ the chat gets compacted and this file does not.
 continuing? » If the answer is yes and the next phase exists, and none of the three STOPs below is
 the reason, **continue**. The only permitted halts are:
 
-- **STOP A** — B-316's drawing decision (the operator's, relayed by the steward). It blocks
-  ONLY the part of phase 4 that touches Découvrir's card nodes; everything else in phase 4 and
-  every other phase continues around it.
+- ~~**STOP A** — B-316's drawing decision.~~ **LIFTED 2026-09-06**: the operator chose
+  reading (i) — a tap opens the media sheet, a long press opens the suggestion panel, reusing
+  L14's gesture. B-315 (a), the button's size, was dictated in the same breath and is now this
+  wave's. Both are written into phase 4; neither is a halt any more.
 - **STOP B** — the oracle diverging on a state this wave did not touch.
 - **STOP C** — the pull request.
 
@@ -58,7 +59,7 @@ folder (B-304 — `git add -f` on a path swept `node_modules` into a commit).
 | 1   | [The contract](phase-01-contract.md)                                    | three operations declared, types generated, three demands recorded | —            |
 | 2   | [« Récupérer cette saison »](phase-02-season-grab.md)                   | B-301's verb on the seasons panel                                  | B-301        |
 | 3   | [The journey's two verbs](phase-03-journey-verbs.md)                    | « Remettre en file », « Re-scraper »                               | B-302        |
-| 4   | [The five acts](phase-04-five-acts.md)                                  | follow · dropsug · sugmore · pause · remove leave the engine       | B-315 (b)(c) |
+| 4   | [The five acts](phase-04-five-acts.md)                                  | follow · dropsug · sugmore · pause · remove leave the engine       | B-315, B-316 |
 | 5   | [The release screen's take](phase-05-release-take.md)                   | `data-take`'s index half, one sentence, the 260 ms gone            | B-322, B-323 |
 | 6   | [DOIT-4's pastille](phase-06-pastille.md)                               | the « En file » pastille of a MEDIUM, drawn                        | DOIT-4       |
 | 7   | [The panel's doubled action, and the close](phase-07-b313-and-close.md) | B-313, B-247's list, the register, the report                      | B-313, B-247 |

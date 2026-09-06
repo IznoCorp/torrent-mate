@@ -54,17 +54,29 @@ NAMES THE RIGHT DEFECT, restore. Commit before every mutation (B-303).
 - **`legacy.js` shrinks**, and `scripts/frontend_size_ledger.py` re-records DOWNWARD from 31 591 in
   the same commit as each subtraction.
 
-## STOP A lives here, and it blocks only part of this phase
+## B-316 and B-315 (a) — the operator ruled on 2026-09-06, and both are now IN
 
-B-316: on Découvrir's poster tile `data-panel="sug:N"` and `data-mediasheet` sit on the SAME node;
-on the deck card the media verb is on the tile's child — the media SCREEN opens every time, so the
-suggestion panel is reachable by no finger. This phase moves `data-follow`, `data-dropsug` and
-`data-sugmore` on those very cards, so it opens that file. **Which of the two a tap means is a
-drawing decision on a surface the mission of 2026-08-19 declares validated, and it is the
-operator's.** The two readings and their costs are with the steward. **Everything in this phase
-that does not depend on it proceeds**; only the card's tap semantics wait.
+**STOP A is lifted.** On Découvrir's poster tile `data-panel="sug:N"` and `data-mediasheet` sit on
+the SAME node; on the deck card the media verb is on the tile's child — so the media SCREEN opened
+on all ten finger points and the suggestion panel was reachable by no finger at all. The operator
+chose **reading (i)**:
 
-**B-315 (a) — the button's SIZE — is not touched** unless the operator dictates it.
+- **A TAP opens the media sheet**, on the poster tile and the deck card alike.
+- **A LONG PRESS opens the suggestion panel** — « Ajouter / Voir la fiche / Pas intéressé » —
+  **reusing the gesture the library's rows have carried since L14, not a second mechanism.**
+- **The two attributes stop sharing a node.**
+
+**The rule, seen red first**: a finger path on BOTH card kinds — tap → the sheet, with
+`panelOpen: false`; long press → the panel produced, its three actions counted BY LABEL. Red on
+`main`, where the long press raises nothing. B-316 reads `fixed` under it. The oracle's divergence
+on those states is accepted with B-316 as its reason (D8).
+
+**B-315 (a) is now this wave's too** — « Adapte la taille du bouton » (the operator dictates the
+amendment). Découvrir's « charger 30 de plus » button is drawn **at the scale the component
+catalogue already gives a secondary action in a feed footer** — its `variants.ts`, never a new
+size. The state is named, the oracle divergence is accepted with B-315 (a) as its reason, and the
+report says what it read BEFORE and AFTER with the command that read it. The operator judges it on
+his phone through the design host; **a divergence on any other state stays a defect.**
 
 ## Gate
 
