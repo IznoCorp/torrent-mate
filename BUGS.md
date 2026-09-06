@@ -1476,6 +1476,12 @@ head and the same served copy: **25 rules EXECUTED — no violation, exit 0**.
 failure needed, so that green is not proof the rule is sound — it is only proof the fall did not
 survive isolation. The branch touches neither `touch.py` nor anything it reads.
 
+**And the SUITE was re-run whole, at the same fan-out, before the wave called anything green: 92
+rules, no violation, « 0 rule(s) changed hold count ».** So the fall reproduced neither alone nor
+under the load it appeared in — which is a stronger reading than the isolated re-run, because it
+did not remove the condition. Two readings, one of each kind, and neither shows a defect in the
+rule; what they show is an instrument that fails intermittently and says nothing about why.
+
 **It is a fourth rule and it does NOT print what its diagnosis needs.** The repair B-307 asks for —
 each of the three printing, when it falls, the evidence that separates a frame count from a timeout
 — was never made, so this fall carries no reading at all beyond « exit 1 ». That is the whole cost
