@@ -972,6 +972,10 @@
       "rescrapeQueued": "Re-scrape demandé — en file, pipeline en cours.",
       "rescrapeHeld": "Re-scrape demandé — en attente du réseau.",
       "rescrapeRefused": "Le re-scrape n'a pas abouti."
+    },
+    "follows": {
+      "added": "« {{title}} » ajouté à votre liste — il apparaît en tête de « Suivis », marqué Nouveau.",
+      "followed": "« {{title}} » ajouté à vos suivis — il apparaît en tête de « Suivis », marqué Nouveau."
     }
   },
   "discover": {

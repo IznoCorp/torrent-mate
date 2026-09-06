@@ -5564,19 +5564,6 @@ import {
     });
   }
 
-  function actionFollow(title, kind) {
-    if (follows().some((follow) => baseTitle(follow.t) === baseTitle(title))) return;
-    window.__followActions?.add({
-      t: title,
-      k: kind === "Film" ? "movie" : "show",
-      st: "unverified",
-      fresh: true,
-    });
-    toast(
-      `« ${title} » ${kind === "Film" ? "ajouté à votre liste" : "ajouté à vos suivis"} — il apparaît en tête de « Suivis », marqué Nouveau.`,
-    );
-  }
-
   function actionDelete(titres) {
     /* THE REMOVAL IS THE LAYER'S SINCE L09. `world.lib` stopped holding the
        library when the listing converted, so this filtered an empty array and
@@ -9135,44 +9122,6 @@ import {
       dismissSug(index);
       return;
     }
-    if (closest.dataset.follow) {
-      const idx = closest.dataset.sugidx;
-      const suggestion =
-        idx != null
-          ? suggestions()[Number(idx)]
-          : closest.dataset.fkind
-            ? { k: closest.dataset.fkind }
-            : null;
-      const verb =
-        suggestion && suggestion.k === "Film"
-          ? "ajouté à votre liste"
-          : "ajouté à vos suivis";
-      panel.close();
-      if (idx != null) {
-        // No render() follows on this branch: the sheet close and the
-        // follow-up screens draw directly, so the bump has to be explicit
-        // or React never learns this suggestion left the deck.
-        currentState().sugGone.add(Number(idx));
-        store.touch();
-        const element = document.querySelector(`[data-dismissable="${idx}"]`);
-        if (element) {
-          element.style.height = element.getBoundingClientRect().height + "px";
-          requestAnimationFrame(() => element.classList.add("gone"));
-          setTimeout(() => element.remove(), 320);
-        }
-      }
-      actionFollow(closest.dataset.follow, suggestion?.k ?? "Série");
-      // The media sheet used to REOPEN itself here so its button would toggle
-      // under the finger — an action whose screen does not change reads as a
-      // failed action. The sheet is a React screen now and re-renders from
-      // the store instead, but `actionFollow` writes the follows cache IN
-      // PLACE and no `render()` follows on this branch: the bump has to be
-      // explicit, exactly as it is for the dismissed suggestion above, or
-      // the button never learns the follow happened.
-      store.touch();
-      return;
-    }
-
     if (closest.dataset.manual != null) {
       // The way out is not a sentence, it is a pre-filled screen.
       // Clean the folder name to turn it into a query.
@@ -9585,7 +9534,7 @@ import {
       // any more.
       currentState().added.add(index);
       store.touch();
-      actionFollow(result.t, result.k);
+      window.__followVerbs?.follow(result.t, result.k);
       return;
     }
     if (closest.dataset.confirmadd) {
@@ -31877,7 +31826,7 @@ Object.assign(window, {
   STRIP_LABELS, ST_LABEL,
   ST_LABEL_MOVIE, ST_TONE,
   URGENCY, VIA_LABEL, actionLeave, actionPause,
-  actionTake, actionResolve, actionRetirer, actionFollow,
+  actionTake, actionResolve, actionRetirer,
   actionDelete, addVerb, showSignIn, showStartup,
   showInstallation, applyState,
   baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,

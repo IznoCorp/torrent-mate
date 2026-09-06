@@ -1279,6 +1279,26 @@ class TestPanelVerbs:
             == 0
         )
 
+    def test_a_read_in_a_FEATURE_answers_too(self, tmp_path, monkeypatch) -> None:
+        """The widening the first move taught this arm.
+
+        `data-sugidx` sits in the same target map as `data-follow` and is not a
+        verb: it is the suggestion's POSITION, read by the act's own handler
+        through `element.dataset.sugidx`. When `follow` moved onto the registry
+        and the engine's branch went, the answer moved with it — into a feature
+        — and an arm looking only in the engine refused a datum that was read
+        two lines from where it was emitted.
+        """
+        assert (
+            self._read(
+                tmp_path,
+                monkeypatch,
+                'const a = { text: "x", target: { follow: t, sugidx: at } };\n'
+                'registerVerb("follow", (title, element) => act(element.dataset.sugidx));',
+            )
+            == 0
+        )
+
     def test_an_answer_a_comment_gives_is_no_answer(self, tmp_path, monkeypatch) -> None:
         """Prose naming a verb answers no tap.
 

@@ -109,6 +109,7 @@ import {
   installFollowActions,
   installSuggestionsLookup,
 } from "../features/acquisition/queries";
+import { installFollowVerbs } from "../features/acquisition/follow-verbs";
 import { installJourneyVerbs } from "../features/acquisition/journey-verbs";
 import { installVerbs } from "../lib/verbs";
 import { installQueueActions } from "../lib/queue";
@@ -338,6 +339,7 @@ installFollowActions(queryClient);
 // can be raised, which is why they sit here and not inside a component.
 installVerbs();
 installJourneyVerbs(queryClient);
+installFollowVerbs();
 installReleasesLookup(queryClient);
 installSearchLookup(queryClient);
 // The engine draws surfaces that read the cache, and it draws them once.

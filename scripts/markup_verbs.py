@@ -34,12 +34,23 @@ suite that never happens to press that particular button.
 WHAT COUNTS AS AN ANSWER, and there are exactly two:
 
   * `registerVerb("name", …)` — a feature declaring what the tap does.
-  * A read in the ENGINE: `closest.dataset.name`, `[data-name]` in a
-    selector, or `getAttribute("data-name")`. The engine still answers
-    most of these verbs and dies by subtraction (D5); when a branch of
-    its delegation goes, the verb it answered must have arrived on the
-    registry first, or this arm falls on it. That is the arm working, not
-    the arm getting in the way.
+  * A READ, anywhere in the tree: `closest.dataset.name`, `[data-name]`
+    in a selector, or `getAttribute("data-name")`. The engine still
+    answers most of these verbs and dies by subtraction (D5); when a
+    branch of its delegation goes, the verb it answered must have arrived
+    on the registry first, or this arm falls on it. That is the arm
+    working, not the arm getting in the way.
+
+AND THE READ IS NOT THE ENGINE'S ALONE, which this arm had to be taught
+by the first move it governed. It accepted a read only in
+`engine/legacy.js`, because on the day it was written the engine was the
+only reader there was. Then `data-follow` moved onto the registry and its
+branch was deleted — and the arm refused `data-sugidx`, which sits in the
+SAME target map and is not a verb at all: it is the suggestion's POSITION,
+a datum the act's own handler reads through `element.dataset.sugidx`. The
+answer had moved with the verb, into a feature, and the arm was still
+looking in the engine. « Does anything read this name » is the question;
+where the reader lives is not part of it.
 
 WHICH MAPS IT HOLDS, AND WHICH IT SETS ASIDE. A `DialogAction` carries a
 `target` too, and the dialog is not the panel: it spreads those keys
@@ -80,9 +91,15 @@ from markup_text import (  # noqa: E402
     COMMENT, HARNESS, ROOT, SOURCES, attribute_of,
 )
 
-# The extractor, and where the engine's own answers are read from.
+# The extractor, and the file the size ledger is watching shrink. `ENGINE`
+# is named rather than derived because the message below tells an author
+# NOT to answer a verb there; the reading itself spans the whole tree.
 VERB_EXTRACTOR = HARNESS / "panel_verbs.mjs"
 ENGINE = SOURCES / "engine" / "legacy.js"
+
+# What a read can be written in. The engine is JavaScript and everything
+# that has left it is TypeScript, so the corpus is all three.
+READING_SUFFIXES = (".ts", ".tsx", ".js")
 
 # The floor beneath what the extractor reads. A parse that returned
 # nothing agrees, word for word, with a tree whose panels offer no action
@@ -173,24 +190,32 @@ def registered_verbs() -> tuple[set[str], int]:
     return names, calls
 
 
-def engine_answers() -> set[str]:
-    """Every attribute the dying engine reads.
+def read_attributes() -> set[str]:
+    """Every attribute something in the tree READS.
 
-    Comments are stripped, by the JavaScript reader rather than the
-    Python one — see `registered_verbs`. The engine's own prose names
-    attributes it no longer reads, and an answer a comment gives is no
-    answer.
+    The engine included, and not the engine alone: a verb that has moved
+    onto the registry takes its handler's own reads with it, and the data
+    the handler reads beside the verb — a position, a kind — are in the
+    same target map and are answered exactly there. Restricting this to
+    `engine/legacy.js` made the arm refuse a datum on the first move it
+    governed; see this module's header.
+
+    Comments are stripped, by the JavaScript reader rather than the Python
+    one — see `registered_verbs`. Prose names attributes nothing reads any
+    more, and an answer a comment gives is no answer.
 
     Returns:
         The attribute names, in their markup spelling.
     """
-    if not ENGINE.is_file():
-        return set()
-    text = COMMENT.sub(" ", ENGINE.read_text(encoding="utf-8"))
-    names = {attribute_of(match.group("name"))
-             for match in ENGINE_DATASET.finditer(text)}
-    names.update(match.group("name") for match in ENGINE_SELECTED.finditer(text))
-    names.update(match.group("name") for match in ENGINE_NAMED.finditer(text))
+    names: set[str] = set()
+    for path in SOURCES.rglob("*"):
+        if path.suffix not in READING_SUFFIXES:
+            continue
+        text = COMMENT.sub(" ", path.read_text(encoding="utf-8"))
+        names.update(attribute_of(match.group("name"))
+                     for match in ENGINE_DATASET.finditer(text))
+        names.update(match.group("name") for match in ENGINE_SELECTED.finditer(text))
+        names.update(match.group("name") for match in ENGINE_NAMED.finditer(text))
     return names
 
 
@@ -244,7 +269,7 @@ def check_panel_verbs() -> int:
         return 1
 
     registered, calls = registered_verbs()
-    answered = registered | engine_answers()
+    answered = registered | read_attributes()
 
     violations = 0
     if len(reading["maps"]) < VERB_FLOOR:
@@ -306,8 +331,8 @@ def check_panel_verbs() -> int:
 
     print(f"check-markup-contracts: {held} panel verb(s) over "
           f"{len(reading['maps'])} action target(s), every one answered — "
-          f"{len(registered)} by a `registerVerb` declaration, the rest by the "
-          f"dying engine. {set_aside} dialog action(s) set aside (their keys "
+          f"{len(registered)} by a `registerVerb` declaration, the rest by a "
+          f"read in the tree. {set_aside} dialog action(s) set aside (their keys "
           f"are spread verbatim and the dialog attaches its own handler), "
           f"{reading['computed']} computed key(s) and "
           f"{reading['unresolved']} unresolved target(s) skipped.")
