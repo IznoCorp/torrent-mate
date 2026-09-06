@@ -9057,12 +9057,6 @@ import {
       dismissSug(Number(closest.dataset.dismiss));
       return;
     }
-    if (closest.dataset.sugmore) {
-      store.write({ sugGone: new Set(), sugOrder: null });
-      render();
-      toast("Nouveau lot chargé — 30 suggestions de plus.");
-      return;
-    }
     if (closest.dataset.signout) {
       signOut();
       return;

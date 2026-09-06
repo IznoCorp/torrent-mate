@@ -980,6 +980,12 @@
       "searchStopped": "« {{title}} » ne sera plus cherché.",
       "paused": "« {{title}} » mis en pause.",
       "removed": "« {{title}} » retiré de vos suivis."
+    },
+    "deck": {
+      "loaded": "{{count}} suggestions de plus — la réserve en compte {{total}}.",
+      "loadedOne": "1 suggestion de plus — la réserve en compte {{total}}.",
+      "spent": "Réserve épuisée — les {{total}} suggestions chargées ont toutes été vues.",
+      "refused": "Le chargement n'a pas abouti."
     }
   },
   "discover": {

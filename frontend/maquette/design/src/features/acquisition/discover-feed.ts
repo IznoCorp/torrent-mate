@@ -60,21 +60,34 @@ const uiState = () => window.__store.read().state;
 /**
  * The order the pile is spent in, minus what has been dismissed.
  *
- * THE ORDER IS DERIVED FROM THE LIST, and it is re-derived while the two
- * disagree in LENGTH. It used to be computed once, on the first draw — safe
- * while the list was a fixture that existed before anything ran. It is a query
- * now: the first draw happens before the cards land, so an order computed then
- * is empty and stays empty, and the deck draws nothing for ever. Re-deriving on
- * a length mismatch keeps what a shuffle or a dismissal put there, and fills it
- * the moment the cards arrive.
+ * THE ORDER IS DERIVED FROM THE LIST, and it is kept in step with it. It used
+ * to be computed once, on the first draw — safe while the list was a fixture
+ * that existed before anything ran. It is a query now: the first draw happens
+ * before the cards land, so an order computed then is empty and stays empty,
+ * and the deck draws nothing for ever.
+ *
+ * A GROWN RESERVE IS APPENDED TO, NEVER REBUILT. Asking for more suggestions
+ * adds pages at the end, and a wholesale re-derivation there would throw away
+ * what « Passer » had arranged — the operator would press a button that says
+ * it loads more and watch the pile they had ordered shuffle itself. Only a
+ * reserve that SHRANK or was never ordered is derived from scratch, which is
+ * the case the first draw needs.
  *
  * Returns:
  *     The positions still to be shown, in the order they will be.
  */
 export function deckOrder(): number[] {
   const state = uiState();
-  if (!state.sugOrder || (state.sugOrder as number[]).length !== reserve().length)
+  const order = state.sugOrder as number[] | undefined;
+  const held = reserve().length;
+  if (!order || order.length > held) {
     window.__store.write({ sugOrder: reserve().map((one, index) => index) });
+  } else if (order.length < held) {
+    const arrived = [];
+    for (let position = order.length; position < held; position += 1)
+      arrived.push(position);
+    window.__store.write({ sugOrder: [...order, ...arrived] });
+  }
   const gone = uiState().sugGone as Set<number>;
   return (uiState().sugOrder as number[]).filter((one) => !gone.has(one));
 }

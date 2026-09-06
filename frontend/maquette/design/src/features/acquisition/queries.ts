@@ -24,31 +24,57 @@ import { queueNow } from "../../lib/queue";
  */
 export const suggestionsQuery = {
   queryKey: ["/api/acquisition/suggestions"],
-  queryFn: async () => {
-    // THE WHOLE RESERVE, batch after batch, because the deck INDEXES into it.
-    // The layer pages by the last title seen and the deck's own paging is by
-    // index into a list it holds: handed one batch it would hold 30 of 38, and
-    // its end mark — « the reserve loaded in this prototype » — would announce
-    // a reserve two thirds the size, having reached the end of a list nobody
-    // shortened. Its own paging is drawing, and goes at L13; until then it is
-    // given what it expects to have.
-    const held: unknown[] = [];
-    for (let asked = 0; asked < 20; asked += 1) {
-      const parameters = new URLSearchParams();
-      const last = held[held.length - 1] as { title?: string } | undefined;
-      if (last?.title !== undefined) parameters.set("after", last.title);
-      const batch = await read<unknown[]>("/api/acquisition/suggestions", parameters);
-      if (batch.length === 0) break;
-      held.push(...batch);
-      if (batch.length < SUGGESTION_BATCH) break;
-    }
-    return toEngineShape<unknown[]>("SUGGESTIONS", held);
-  },
+  queryFn: async () =>
+    // ONE BATCH, and the rest is asked for. This drained the layer — twenty
+    // pages in a loop — so that the deck, which indexes into a list it holds,
+    // would never run out. The cost was that « Charger 30 de plus » had
+    // nothing left to load: the engine's branch answered it by CLEARING what
+    // the operator had dismissed and reshuffling the same reserve, then saying
+    // « 30 suggestions de plus », which was true of nothing it did.
+    //
+    // So the reserve GROWS instead. `loadMoreSuggestions` appends the next
+    // page, indices already held keep their meaning, and what was dismissed
+    // stays dismissed because `sugGone` holds positions into this same list.
+    toEngineShape<unknown[]>(
+      "SUGGESTIONS",
+      await read<unknown[]>("/api/acquisition/suggestions", new URLSearchParams())),
 };
 
-// How many the layer answers with in one batch. Named so the loop above can
-// tell a full batch from the last one; the layer states the same number.
-const SUGGESTION_BATCH = 30;
+// The cache the deck's paging reads, captured where it is already handed over.
+// A module-level hold rather than another `window.__` seam: the verb that asks
+// for more lives in this same feature and can simply be given a function, and
+// a seam that does not have to exist is one L13 does not have to remove.
+let suggestionsCache: QueryClient | null = null;
+
+/**
+ * Asks the layer for the next page of suggestions and appends it.
+ *
+ * IT APPENDS, and everything about the deck depends on that. `sugGone` and
+ * `sugOrder` hold POSITIONS into the reserve, so a list that grew at the end
+ * leaves every position already spoken for meaning what it meant — which is
+ * how « nothing already dismissed comes back » is true by construction rather
+ * than by a step that puts it back.
+ *
+ * Returns:
+ *     How many arrived. ZERO means the reserve is spent, and the caller says
+ *     so rather than announcing a number nobody added.
+ */
+export async function loadMoreSuggestions(): Promise<number> {
+  if (suggestionsCache === null) return 0;
+  const held =
+    suggestionsCache.getQueryData<unknown[]>(suggestionsQuery.queryKey) ?? [];
+  const parameters = new URLSearchParams();
+  // THE ENGINE'S OWN FIELD NAME, because what is held has already been
+  // converted; the value is the same title either way, and asking for `title`
+  // here would page from the beginning for ever.
+  const last = held[held.length - 1] as { t?: string } | undefined;
+  if (last?.t !== undefined) parameters.set("after", last.t);
+  const batch = await read<unknown[]>("/api/acquisition/suggestions", parameters);
+  if (batch.length === 0) return 0;
+  const arrived = toEngineShape<unknown[]>("SUGGESTIONS", batch);
+  suggestionsCache.setQueryData(suggestionsQuery.queryKey, [...held, ...arrived]);
+  return arrived.length;
+}
 
 /**
  * Publishes the suggestions for the dying engine's deck to read synchronously.
@@ -61,6 +87,7 @@ const SUGGESTION_BATCH = 30;
  * @param queryClient The cache the surfaces read.
  */
 export function installSuggestionsLookup(queryClient: QueryClient): void {
+  suggestionsCache = queryClient;
   window.__suggestions = () =>
     (queryClient.getQueryData(suggestionsQuery.queryKey) as unknown[] | undefined) ?? [];
   // AND IT IS ASKED FOR, because nothing else will. Every other read in this

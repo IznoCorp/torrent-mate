@@ -83,6 +83,7 @@ armed
 arr
 arrival
 arrivals
+arrived
 arriving
 artwork
 as
@@ -768,6 +769,7 @@ port
 portrait
 portraits
 pos
+position
 positions
 post
 poster
