@@ -389,6 +389,7 @@ when the defect comes back.
 | B-327 | « Réglages » draws SIX scheduled jobs while the machine runs seven, and the same six are named twice in two French vocabularies that disagree on five of them — the row cannot be added until `SETTINGS` leaves the engine | by L13 | `open` |
 | B-328 | `features/system/page.tsx` heads itself with a path that does not exist and describes a state field (`state.panne`) the code does not have | by the next wave that opens `features/system/page.tsx` | `open` |
 | B-329 | The backend's GENERATED contract does not declare the `409` its own route raises, so no diff between the two contracts can read it — the demand register is structurally blind to a refusal NE-DOIT-PAS-3 forbids the interface to show | by the backend brief | `open` |
+| B-330 | `scripts/mutate.sh` answers « no hold fell » when the RULE PATH it was given does not exist — a typo and a rule that does not bite are the same sentence, and the second is a finding while the first is a mistake | by the instruments' debts block | `open` |
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
 
@@ -415,6 +416,31 @@ in **B-302** for that reason.
 It is the BACKEND's own defect and L21 does not open `personalscraper/` (D7). The repair is one
 `responses=` declaration on each route, and it belongs with whoever writes the backend brief —
 alongside **B-324**, which is the same species on the other end: a backend fact no guard reads.
+
+**B-330 — `mutate.sh` cannot tell a typo from a rule that does not bite.**
+
+It runs each rule as `python3 "$RULE"` and decides by grepping the output for `^  FAIL` or
+`violation(s)`. A `$RULE` that names no file makes Python print « can't open file » — no `FAIL`
+line — and the script announces:
+
+    (no hold fell — the rule does not catch this mutation)
+    mutate: NO RULE FELL. That is the finding.
+
+**Measured, and it cost a false finding that was nearly written down.** A mutation of
+`data-part="season/grab"` was reported as caught by nothing, over a rule that catches it with
+SIX violations naming the right defects — verified by applying the same mutation by hand,
+publishing the served copy, and running the rule directly. The only difference was the argument:
+`season_grab` instead of `frontend/maquette/harness/season_grab.py`. The tool did exactly what
+it was told; what it cannot do is say that it was told something impossible.
+
+**It is B-273's family**, and the shape is the same one: a verdict that reads identically whether
+the instrument measured something or nothing at all. B-273 records the two known forms — a GUARD's
+exit code it cannot read, and a mutation that breaks the build, which also exits silently. This is
+the third: a rule path that does not resolve.
+
+**The repair is one line and it is not a refinement**: refuse a `$RULE` that is not an existing
+file, before mutating anything. `NO RULE FELL` is the strongest sentence this tool prints, and it
+must be reachable only when a rule really ran.
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same

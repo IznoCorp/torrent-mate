@@ -146,8 +146,16 @@ them apart). Three demands come out of it, and you record them rather than recon
 ### 2. Where each verb lands — and the seam it replaces
 
 **The season grab** lands in `features/media/panel-seasons.tsx` (200 lines; a `saisons` block
-registered through `ui/panel/contract`'s `registerBlock`, one action per season row printed
-`to_grab`). Invariant 7: the media feature never imports `features/acquisition/`; it calls the
+registered through `ui/panel/contract`'s `registerBlock`, one action per season row **printed
+short**). ⚠ **« printed `to_grab` » was this paragraph's wording and it is wrong — corrected here
+after measuring it.** No `to_grab` episode cell exists anywhere in the fixture:
+`grep -c "to_grab" /tmp/tm-refonte/vite/*.js` finds the token, but `epState` colours a missing
+episode by the FOLLOW's status, so the one follow that has a hole (`Silo`, `pending`) draws it
+`pending` and every other follow is `up_to_date` with nothing missing. What the panel prints over
+a hole is `[data-part="season/missing"]` — « Saison 3 · 6/7 · 1 manquant » — drawn exactly when
+owned is short of what aired, and that is what a season grab is for. A rule written to the old
+wording is red for a reason unrelated to the verb, stays red after the repair, and is then
+« fixed » into a green that reads nothing. Invariant 7: the media feature never imports `features/acquisition/`; it calls the
 OPERATION through its own `features/media/queries.ts`, exactly as the plan says. **The verb is a
 new file beside the block**, never a growth of `panel-seasons.tsx`.
 
