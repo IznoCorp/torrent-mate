@@ -289,23 +289,14 @@ async def declared_tones(page, source):
         return None, "answered with something that is not a list of facts"
 
 
-# THE TWO VOCABULARIES, AND WHAT IS ACCEPTED BETWEEN THEM (B-327). The
-# prototype names these jobs twice — « Système » draws one label, the schedule's
-# own table carries another — and five of the six pre-existing pairs disagree.
-# Those five are ACCEPTED here BY NAME, not tolerated by a count: a sixth
-# disagreement is a new one and is refused. The two that agree are named too,
-# so a name that stops agreeing is a fall rather than a silence.
-# A MAPPING AND NOT A LIST, and the difference is a defect this caught. Held as
-# names alone, the hold asked « is this label one of the labels drawn », which a
-# label belonging to a DIFFERENT scheduler satisfies: the table naming the wrong
-# job — the one case this half exists to refuse — passed green. The label is the
-# one « Système » draws FOR THAT NAME, and it is compared per name.
-# WHAT « Système » DRAWS FOR EACH PROCESS THE MACHINE RUNS. This is the join —
-# the only one in the tree, since neither surface carries the other's key — and
-# it is a MAPPING because a label belongs to a NAMED job: held as a list of
-# names, the agreement hold asked « is this label one of the labels drawn »,
-# which a label belonging to a DIFFERENT scheduler satisfies, so the table
-# naming the wrong job passed green.
+# WHAT « Système » DRAWS FOR EACH PROCESS THE MACHINE RUNS — the join, and the
+# only one in the tree, since neither surface carries the other's key.
+#
+# IT IS A MAPPING BECAUSE A LABEL BELONGS TO A NAMED JOB. Held as a list of
+# names, the agreement hold below asked « is this label one of the labels
+# drawn », which a label belonging to a DIFFERENT scheduler satisfies — so the
+# table naming the wrong job, the one case that hold exists to refuse, passed
+# green.
 SCHEDULERS_AS_SYSTEM_DRAWS = {
     "personalscraper-health-check": "Contrôle de santé",
     "personalscraper-grab": "Récupération des releases",
@@ -526,9 +517,23 @@ async def main():
                 else:
                     unpaired_real.append(f"{name} (expects {label!r})" if label
                                          else f"{name} (this rule has no name for it)")
-            unpaired_drawn = sorted(drawn_labels - set(SCHEDULERS_AS_SYSTEM_DRAWS.values()))
-            journal.check("as many schedulers drawn as PM2 schedules",
-                             schedulers_drawn == len(real_schedulers),
+            # THE DRAWN SIDE SUBTRACTS WHAT IS SCHEDULED, NOT THE WHOLE MAPPING.
+            # Subtracting every label this rule knows made a row « accounted
+            # for » the moment its name was written here, so a scheduler
+            # removed from `ecosystem.config.js` while its row stayed drawn was
+            # named NOWHERE — B-308's own family with the sign turned round,
+            # inside B-308's own rule.
+            scheduled_labels = {SCHEDULERS_AS_SYSTEM_DRAWS[name]
+                                for name in real_schedulers
+                                if name in SCHEDULERS_AS_SYSTEM_DRAWS}
+            unpaired_drawn = sorted(drawn_labels - scheduled_labels)
+            # AND IT HOLDS THE JOIN IT COMPUTED, not a count beside it. Equal
+            # counts with an unmatched name on each side is a green hold naming
+            # an unmatched job in its own sentence — which is what a scheduler
+            # renamed in `pm2 jlist` produced. Two empty sets is the same claim
+            # when nothing is wrong and a different one when something is.
+            journal.check("every scheduler the machine schedules is drawn, and every row drawn is scheduled",
+                             not unpaired_real and not unpaired_drawn,
                              f"{schedulers_drawn} drawn vs {len(real_schedulers)} real · "
                              f"paired {len(paired)}: {paired} · scheduled and not drawn: "
                              f"{unpaired_real} · drawn and not scheduled: {unpaired_drawn}")
@@ -780,7 +785,7 @@ async def main():
         # falls back to the humanised key, which LOOKS like a label on screen.
         if pm2 is not None:
             labels = setting_labels()
-            drawn_names = {x["l"] for x in (sys_view["schedulers"] or [])}
+            drawn_labels = {x["l"] for x in (sys_view["schedulers"] or [])}
             if labels is None:
                 journal.check(
                     "every scheduler the machine runs is named in the schedule's LABEL TABLE",
@@ -810,18 +815,29 @@ async def main():
                 unread = [f"{name}: {SCHEDULERS_AS_SYSTEM_DRAWS[name]!r} is not drawn"
                           for name in sorted(real_schedulers)
                           if name in SCHEDULERS_AS_SYSTEM_DRAWS
-                          and SCHEDULERS_AS_SYSTEM_DRAWS[name] not in drawn_names]
+                          and SCHEDULERS_AS_SYSTEM_DRAWS[name] not in drawn_labels]
                 unplaced = [name for name in sorted(real_schedulers)
                             if name not in SCHEDULERS_AS_SYSTEM_DRAWS]
                 journal.check(
                     "a scheduler the LABEL TABLE names as « Système » does keeps that name, "
                     "and a new one is placed",
-                    not drifted and not unread and not unplaced,
-                    f"drifted: {drifted} · not drawn: {unread} · unplaced: {unplaced}"
-                    if (drifted or unread or unplaced)
+                    not drifted and not unplaced,
+                    f"drifted: {drifted} · unplaced: {unplaced}"
+                    if (drifted or unplaced)
                     else f"{len(alike)} named alike, "
                          f"{len([n for n in SCHEDULERS_NAMED_TWICE if n in real_schedulers])} "
                          f"named twice and accepted (B-327)")
+                # ITS OWN HOLD, because it is its own question. Folded into the
+                # one above, a fall could mean three things and the name
+                # described two — and the arm fires for schedulers the table
+                # deliberately does NOT name as « Système » does, so its reading
+                # contradicted the hold it was printed under.
+                journal.check(
+                    "the mapping this rule joins by still describes what « Système » draws",
+                    not unread,
+                    str(unread) if unread
+                    else f"{len([n for n in real_schedulers if n in SCHEDULERS_AS_SYSTEM_DRAWS])} "
+                         f"name(s) drawn as this rule expects")
 
         journal.check("no JS error", not errors, str(errors))
         await ctx.close()
