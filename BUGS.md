@@ -403,6 +403,7 @@ when the defect comes back.
 | B-351 | `check-maquette-comments.py` reads five suffixes and `.mjs` is not one of them, so every `.mjs` under `frontend/maquette/` is invisible to the comment rule AND to the corpus count the floor is derived from — one real occupant measured, `vite.config.mjs:143`'s « (L08) » | by L21 | `open` |
 | B-352 | `engine/states.js` is grandfathered at 786 non-blank lines and the size arm refuses both the growth AND the raise of its record, so NO surface born after L19 can be given a named state — and a state nobody names is a surface the oracle never measures | by L21 | `open` |
 | B-353 | UNDOING A REMOVAL DOES NOT RESTORE THE FOLLOW, it creates a new one wearing the same name: the layer's delete DROPS the record and the only way back is a CREATE, so the year, « suivi depuis » and the search count are lost and the status comes back right only by coincidence | by L21 | `fixed #572` |
+| B-354 | A CLOSED LAYER'S SCRIM STAYS HIT-TESTABLE for the length of its visibility delay: it reaches `opacity: 0` at once but keeps `visibility: visible` and `pointer-events: auto`, so for ~450 ms a finger landing on an interface that LOOKS uncovered is eaten by a scrim nobody can see | by L13 | `open` |
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
 
@@ -522,6 +523,40 @@ phone rather than reproduced beside it.
 <sub>L21, 2026-09-06 · `harness/pause_verb.py` — swipe leftward (the pause and the removal are in
 `data-side="right"`, uncovered by the card travelling left), then one `Input.dispatchTouchEvent`
 pair at the action's hit-tested centre</sub>
+
+**B-354 — the scrim you cannot see still eats the tap.**
+
+Measured on `feat/maquette-l21`, by probe, immediately after a panel closed:
+
+    after long press: panelOpen True,  sheets 1, scrim opacity 1, visibility visible
+    after __go:       panelOpen False, sheets 0, scrim opacity 0, visibility VISIBLE
+    after 1.5 s more: panelOpen False, sheets 0, scrim opacity 0, visibility hidden
+
+The scrim's class carries `transition-[opacity,visibility]` with
+`[transition-delay:0s,450ms]`: opacity goes to zero immediately and visibility waits. While it
+waits the element is still `visibility: visible` with `pointer-events: auto`, so
+`document.elementFromPoint` answers **the scrim** over an interface that is, to the eye, entirely
+uncovered. Every state the reader can see says the layer is closed.
+
+**Why it matters beyond a rule.** A tap in that window does not reach the control under it. The
+symptom is « the first press does nothing, the second works » — which is the shape of **B-337**
+(« il faut 2 clics sur le bouton pour que ça soit pris en compte ») and of the operator's
+« le bouton récupérer saison 3 de Silo ne semble rien faire ». **This is a CANDIDATE mechanism for
+those, not a demonstration of them**: neither has been reproduced through this path, and saying so
+is the difference between a lead and a conclusion.
+
+**How it was found**, because the route matters: a harness rule hit-tested a card 500 ms after
+closing a panel and reported the card unreachable, naming `scrim` as the covering element. The
+first reading of that was « my rule is impatient » — true, and it was repaired — but a rule being
+impatient and a finger being early are the same event, and only one of them is a test.
+
+**Owner: L13**, with the layers. The repair is the scrim's own: an element that is not to be seen
+is not to be touched, so `pointer-events` belongs on the same side of the transition as opacity,
+not on the same side as visibility.
+
+<sub>L21, 2026-09-06 · probed with a CDP touch on `acq-discover-posters`, reading
+`getComputedStyle` on `.scrim` at three instants · the rule that surfaced it is
+`harness/discover_gestures.py`, which now waits for the scrim rather than assuming it has gone</sub>
 
 **B-353 — the undo of a removal restores a stranger.**
 

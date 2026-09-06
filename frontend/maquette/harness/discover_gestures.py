@@ -55,7 +55,13 @@ from playwright.async_api import async_playwright
 # fault (`check-markup-contracts` holds that at a hard zero).
 SURFACES = [
     ("acq-discover-posters", '[data-part="tile"]', "the poster tile"),
-    ("acq-discover-deck", '[data-part="deck/card"]', "the deck card"),
+    # THE CARD ON TOP, by its depth, and NOT the first in document order. The
+    # pile draws three and reverses them, so `querySelector` answers the card
+    # at the BOTTOM — covered by the two above it. Measured: hit-testing its
+    # centre reported an `IMG` belonging to another card and the hold fell,
+    # naming a defect in this rule rather than in the interface.
+    ("acq-discover-deck", '[data-part="deck/card"][data-depth="0"]',
+     "the deck card"),
 ]
 
 # WHERE A FINGER MAY LAND ON IT, and whether anything covers that point.
@@ -81,6 +87,31 @@ AFTER = """()=>({
     .map((one) => (one.textContent || '').trim()),
   mediaScreen: !!document.querySelector('[data-part="media/add"], [data-part="media/trailer"]'),
 })"""
+
+
+async def settled_after_a_layer(page):
+    """Waits until no closing scrim can still eat a touch.
+
+    A CLOSED LAYER IS NOT AN UNCOVERED PAGE. The scrim's visibility is
+    transitioned with a DELAY — it reaches `opacity: 0` at once and stays
+    `visibility: visible` with `pointer-events: auto` until the delay expires —
+    so for that window `elementFromPoint` answers the scrim over an interface
+    that looks, to the eye, entirely uncovered.
+
+    Measured: after the panel closed, `panelOpen` read false and `sheets` read
+    zero while the scrim still reported `visibility: visible`; hit-testing a
+    card there named the scrim and the hold fell on a defect that was this
+    rule's own impatience. It is worth knowing beyond this rule: a finger
+    landing in that window is eaten the same way.
+
+    Args:
+        page: The page.
+    """
+    await page.wait_for_function(
+        """()=>[...document.querySelectorAll('[data-part="scrim"]')].every(
+             (one) => getComputedStyle(one).visibility === 'hidden'
+                      || getComputedStyle(one).opacity !== '0')""",
+        timeout=3000)
 
 
 async def finger(page, point, dwell, drift=0):
@@ -131,6 +162,7 @@ async def main():
             # ── THE TAP ────────────────────────────────────────────────────
             await page.evaluate("(id)=>window.__go(id)", state)
             await page.wait_for_timeout(SETTLED)
+            await settled_after_a_layer(page)
             aim = await page.evaluate(AIM, selector)
             journal.check(
                 f"{what}: a finger reaches it — hit-tested at its centre, with "
@@ -151,6 +183,7 @@ async def main():
             # ── THE LONG PRESS ─────────────────────────────────────────────
             await page.evaluate("(id)=>window.__go(id)", state)
             await page.wait_for_timeout(SETTLED)
+            await settled_after_a_layer(page)
             aim = await page.evaluate(AIM, selector)
             if not (aim.get("found") and aim.get("reachable")):
                 journal.check(f"{what}: the card is still reachable for the "

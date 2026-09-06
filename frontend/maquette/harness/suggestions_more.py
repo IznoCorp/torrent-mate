@@ -34,6 +34,7 @@ the end mark, and `engine/states.js` is grandfathered so one cannot be added
 """
 import asyncio
 import pathlib
+import re
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -54,6 +55,19 @@ GONE = "()=>[...(window.__store.read().state.sugGone || [])].sort((a,b)=>a-b)"
 # few is thrown away, which is what a reader who has worked through the deck
 # leaves behind — and it is the only way to reach the end mark, since no named
 # state does (B-352).
+# LEAVING THE DECK, so that coming back REBUILDS the pile. The deck branch
+# refuses to rewrite a pile that is already drawn — « rewriting it destroys the
+# gesture in flight » — so writing `sugGone` under a live pile changes the
+# state and leaves stale cards on screen. Measured: the second spend read
+# `order: 0`, `cards: 3` and no end mark at all.
+#
+# IT IS A SEPARATE EVALUATION FROM THE SPEND, and that is the whole of why the
+# first repair did not work: two `write` calls in one task are batched into one
+# commit, so the interface never renders the mode it was asked to leave to.
+# Leaving and returning is a thing the interface itself offers; it only has to
+# actually happen.
+LEAVE_DECK = """()=>window.__store.write({sugMode: 'poster'})"""
+
 SPEND = """()=>{
   const total = (window.__suggestions?.() || []).length;
   const gone = new Set();
@@ -78,6 +92,26 @@ THE_BUTTON = """()=>{
                   && box.left >= 0 && box.right <= window.innerWidth,
           covering: hit ? (hit.className || hit.tagName) : null,
           reachable: !!hit && (hit === one || one.contains(hit))};}"""
+
+
+def names_the_number(message, count):
+    """Whether a message names this number, as a NUMBER and not as digits.
+
+    `str(0) in "30 suggestions de plus"` is TRUE, and that is not a curiosity:
+    it is exactly how this rule passed the engine's own defect. The engine
+    announced « 30 suggestions de plus » having added none, and the hold that
+    exists to catch that sentence read « 0 » inside « 30 » and called it a
+    match. A substring test on a figure agrees with any figure that contains
+    it.
+
+    Args:
+        message: What the interface said.
+        count: The number it ought to name.
+
+    Returns:
+        True when the number appears on its own digit boundaries.
+    """
+    return re.search(rf"(?<!\d){count}(?!\d)", message) is not None
 
 
 async def finger_tap(page, point, dwell=60):
@@ -127,6 +161,8 @@ async def main():
         await page.evaluate("(id)=>window.__go(id)", DISCOVER_STATE)
         await page.wait_for_timeout(SETTLED)
 
+        await page.evaluate(LEAVE_DECK)
+        await page.wait_for_timeout(SETTLED)
         spent = await page.evaluate(SPEND)
         await page.wait_for_timeout(SETTLED)
         journal.check(
@@ -173,10 +209,12 @@ async def main():
             "and the MESSAGE names the number that ARRIVED, not the number on "
             "the button — a page at the end of the reserve is smaller than a "
             "full one",
-            str(arrived) in message,
+            names_the_number(message, arrived),
             f"{arrived} arrived, message « {message} »")
 
         # ── THE SECOND PRESS: the reserve is spent, and it says so ─────────
+        await page.evaluate(LEAVE_DECK)
+        await page.wait_for_timeout(SETTLED)
         spent_again = await page.evaluate(SPEND)
         await page.wait_for_timeout(SETTLED)
         journal.check("the grown reserve can be spent in turn",
@@ -195,7 +233,7 @@ async def main():
             "pressing it on a SPENT reserve adds nothing and SAYS so, rather "
             "than announcing a count of nothing",
             exhausted_reserve == after_reserve
-            and str(after_reserve) in exhausted_message,
+            and names_the_number(exhausted_message, after_reserve),
             f"{after_reserve} → {exhausted_reserve}, "
             f"message « {exhausted_message} »")
 
