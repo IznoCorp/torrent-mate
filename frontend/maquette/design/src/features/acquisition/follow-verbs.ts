@@ -160,10 +160,11 @@ function pause(title: string): void {
 /**
  * Takes a medium out of the follows, and offers to put it back.
  *
- * THE WHOLE FOLLOW IS HELD, not its title. The undo restores what was
- * removed, and a follow rebuilt from a title alone would come back without its
- * year, without « suivi depuis » and without how many times it had been looked
- * for — a different medium wearing the same name.
+ * THE WHOLE FOLLOW IS HELD, not its title, and the undo RESTORES rather than
+ * adds. A follow rebuilt by a create comes back without its year, without
+ * « suivi depuis » and without how many times it had been looked for — a
+ * different medium wearing the same name, which is what this did until the
+ * layer gained an operation that puts one back (B-353).
  *
  * IT RETURNS TO THE HEAD OF THE LIST rather than to the position it held.
  * That is what the act has always done and this move does not change it: the
@@ -182,7 +183,7 @@ function removeFollow(title: string): void {
   window.__toast?.show({
     message: i18next.t("verbs.follows.removed", { title: removed.t }),
     undo: () => {
-      window.__followActions?.add(removed);
+      window.__followActions?.restore(removed);
       window.__store.touch();
     },
   });

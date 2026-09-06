@@ -53,6 +53,22 @@ type Schemas = components["schemas"];
  */
 export type MockState = {
   follows: Schemas["Follow"][];
+  /**
+   * THE FOLLOWS A REMOVAL TOOK AWAY, whole, so that an undo can put one back.
+   *
+   * A removal used to DROP the record, which left the interface only one road
+   * back — a create — and a create carries a title and a kind and nothing
+   * else. So « Retirer », then « Annuler », returned a medium with no year, no
+   * « suivi depuis » and no search count: a stranger wearing the same name
+   * (B-353). The removal is soft here for that reason, and the record waits
+   * intact until something restores it.
+   *
+   * IT IS HELD ASIDE RATHER THAN FLAGGED IN PLACE, so that `follows` keeps the
+   * exact shape the contract declares. A tombstone field on a follow would be
+   * a field every reader of the listing has to know to ignore, and one of them
+   * eventually would not.
+   */
+  removedFollows: Schemas["Follow"][];
   pendingDecisions: Schemas["PendingDecision"][];
   settledDecisions: Schemas["SettledDecision"][];
   pipeline: Schemas["Pipeline"];
@@ -174,6 +190,7 @@ function copyOf<Value>(value: unknown): Value {
 
 const seeded = (): MockState => ({
   follows: copyOf<Schemas["Follow"][]>(FOLLOWS),
+  removedFollows: [],
   pendingDecisions: copyOf<Schemas["PendingDecision"][]>(PENDING_DECISIONS),
   settledDecisions: copyOf<Schemas["SettledDecision"][]>(SETTLED_DECISIONS),
   pipeline: copyOf<Schemas["Pipeline"]>(PIPELINE),

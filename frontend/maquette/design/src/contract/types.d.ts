@@ -194,6 +194,26 @@ export interface paths {
         patch: operations["updateFollow"];
         trace?: never;
     };
+    "/api/acquisition/followed/{followedId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Put a removed follow back, as it was
+         * @description Undoes a removal. It is NOT a create: a follow put back keeps the year it was followed under, the date it was followed since and how many times it has been looked for. A create cannot carry any of those, so an undo built on one restores a new medium wearing the same name.
+         */
+        post: operations["restoreFollow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/followed/{followedId}/search": {
         parameters: {
             query?: never;
@@ -1762,6 +1782,44 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    restoreFollow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the follow */
+                followedId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the follow, as it was before it was removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Follow"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            /** @description nothing removed under that name is still restorable */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];

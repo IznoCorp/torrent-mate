@@ -149,6 +149,24 @@ export function installFollowActions(queryClient: QueryClient): void {
               // re-synced against the server that refused it.
               () => { refresh(); });
     },
+    // PUTTING A REMOVED FOLLOW BACK IS NOT ADDING ONE. `add` posts a title and
+    // a kind, which is all a NEW follow has; a restored one has a year, a date
+    // it has been followed since and a count of searches, and a create cannot
+    // carry any of them — so an undo built on `add` returned a stranger
+    // wearing the same name (B-353). This calls the operation that restores.
+    //
+    // THE WHOLE FOLLOW IS PASSED, not its title, because the optimistic write
+    // happens here: the row is back in the same task as the tap, and the
+    // layer's own record replaces it when the refetch lands.
+    restore: (follow) => {
+      const before = held();
+      write([follow as Follow, ...before]);
+      void send("POST",
+                `/api/acquisition/followed/${encodeURIComponent(follow.t)}/restore`)
+        .catch((refusal) => { write(before); throw refusal; })
+        .then((outcome) => { if (outcome !== HELD) refresh(); },
+              () => { refresh(); });
+    },
     add: (follow) => {
       const before = held();
       write([follow as Follow, ...before]);
@@ -183,6 +201,8 @@ declare global {
        * one with no year and no « suivi depuis ».
        */
       add: (follow: Partial<Follow> & Pick<Follow, "t" | "k" | "st">) => void;
+      /** Puts a removed follow back as it was — never a create (B-353). */
+      restore: (follow: Follow) => void;
       all: () => Follow[];
     };
     /** The discover deck's cards, read synchronously by the dying engine. */

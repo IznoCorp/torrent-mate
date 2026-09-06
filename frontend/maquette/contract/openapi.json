@@ -922,6 +922,68 @@
         "x-unseeded": "an acknowledgement."
       }
     },
+    "/api/acquisition/followed/{followedId}/restore": {
+      "post": {
+        "operationId": "restoreFollow",
+        "summary": "Put a removed follow back, as it was",
+        "description": "Undoes a removal. It is NOT a create: a follow put back keeps the year it was followed under, the date it was followed since and how many times it has been looked for. A create cannot carry any of those, so an undo built on one restores a new medium wearing the same name.",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "200": {
+            "description": "the follow, as it was before it was removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Follow"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "nothing removed under that name is still restorable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "followedId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the follow"
+          }
+        ],
+        "x-unseeded": "the follow the removal set aside, read back whole. It originates in the seeded follows and is not served from them: what comes back is the record as it stood when it was removed, which is the whole point of the operation."
+      }
+    },
     "/api/acquisition/followed/{followedId}/search": {
       "post": {
         "operationId": "searchForFollow",

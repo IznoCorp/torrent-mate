@@ -83,16 +83,48 @@ export function acquisitionRoutes(): MockRoute[] {
         return found;
       },
     ),
+    // THE REMOVAL IS SOFT, and that is not a mock's convenience — it is what
+    // makes the undo possible at all. Dropping the record left one road back,
+    // a create, and a create carries a title and a kind: the year, « suivi
+    // depuis » and the search count were lost every time (B-353). What is
+    // taken out of the listing waits here, whole.
     route(
       "deleteFollow",
       DELETE,
       "/api/acquisition/followed/{followedId}",
       (request) => {
         const state = mockState();
+        const removed = state.follows.filter(
+          (follow) => follow.title === request.parameters.followedId,
+        );
         state.follows = state.follows.filter(
           (follow) => follow.title !== request.parameters.followedId,
         );
+        // NEWEST FIRST, so a title removed twice restores the record that left
+        // last. Anything else would put back a version the operator has not
+        // seen since before the one they just removed.
+        state.removedFollows = [...removed, ...state.removedFollows];
         return { ok: true };
+      },
+    ),
+    // AND PUTTING ONE BACK IS ITS OWN OPERATION, never a create. It answers
+    // the record as it WAS: same year, same date, same count of searches.
+    route(
+      "restoreFollow",
+      POST,
+      "/api/acquisition/followed/{followedId}/restore",
+      (request) => {
+        const state = mockState();
+        const at = state.removedFollows.findIndex(
+          (follow) => follow.title === request.parameters.followedId,
+        );
+        // NOTHING RESTORABLE UNDER THAT NAME. Answering a made-up record here
+        // would be the same lie the create told, arrived at from the layer's
+        // side; the contract declares a 404 for it.
+        if (at === -1) return null;
+        const [restored] = state.removedFollows.splice(at, 1);
+        state.follows = [restored, ...state.follows];
+        return restored;
       },
     ),
     route(
