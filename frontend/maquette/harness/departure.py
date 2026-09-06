@@ -393,7 +393,31 @@ def hold_the_scrim_lets_go(journal, frames, motion):
 
 
 async def hold_the_departure_is_complete(journal, browser, errors):
-    """Reads the departing snapshot on the transition's own last frames."""
+    """Reads the departing snapshot on the transition's own last frames.
+
+    TWO KINDS OF HOLD LIVE HERE, and the difference is the point rather than an
+    accident of grouping.
+
+    The panel's own snapshot is held by its APPEARANCE: what it draws on the
+    frames where the transition is still active and `panel-down` is over. That
+    is the defect a reader sees, and it is readable because an OLD snapshot's
+    un-animated state is the image as it was captured — a picture of something.
+
+    The two arriving snapshots are held by their DECLARATION: the
+    `animation-fill-mode` the browser resolved on each pseudo-element. They
+    carry the identical defect and it draws NOTHING, because a NEW snapshot's
+    un-animated state happens to be its final one — so no reading of the picture
+    can find it, on any frame, under any preference. A hold that waited for an
+    appearance there would be a hold that can never fail, and a repair whose
+    effect is invisible is a repair the next edit removes in silence. Saying
+    which of the two a hold does is what keeps the second from being read as a
+    weaker version of the first.
+
+    Args:
+        journal: The rule's journal.
+        browser: A launched Playwright browser.
+        errors: The collector this walk's page errors are appended to.
+    """
     context, page = await open_page(browser)
     page.on("pageerror", lambda error: errors.append(str(error)))
     raised, frames = await walk(page, journal, "no-preference")
