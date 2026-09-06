@@ -12,10 +12,10 @@ What this holds to:
    and belongs to Arrivées; drawn here it would be reported twice and answered
    nowhere.
 2. **A scheduler between two runs is not stopped.** PM2 reports `stopped` and
-   that is the literal truth about the process and a lie about the system: six
-   red rows on a machine in perfect health. A service is judged on whether it
-   is UP, a scheduler on whether it RAN, and the two lists never share a
-   vocabulary.
+   that is the literal truth about the process and a lie about the system:
+   seven red rows on a machine in perfect health. A service is judged on
+   whether it is UP, a scheduler on whether it RAN, and the two lists never
+   share a vocabulary.
 3. **Every service and scheduler shown really exists**, checked against
    `pm2 jlist` rather than against a list written beside it.
 4. **Maintenance is navigated by what one wants to DO**, and every command it
@@ -31,7 +31,6 @@ What this holds to:
 """
 import asyncio
 import json
-import os
 import pathlib
 import subprocess
 import sys
@@ -39,7 +38,20 @@ import sys
 from common import Journal, open_page
 from playwright.async_api import async_playwright
 
-ROOT = pathlib.Path(os.path.expanduser("~/dev/PersonalScraper"))
+# THE TREE THIS FILE LIVES IN, never a path typed out. It read
+# `expanduser("~/dev/PersonalScraper")`, which was wrong for a REPOSITORY file:
+# every neighbour that reads the maquette resolves from `__file__`. Two files
+# still type the checkout path and are right to — `arrivals.py` and `content.py`
+# reach the operator's LIVE databases, which live at one address and are not
+# under test — and the second use here (`sys.path`, for the engine's registry)
+# is legitimate for the same reason. The consequence was not stylistic.
+# This office reviews on a WORKTREE pinned at a pull request's head, so a rule
+# reading an absolute path measures the main checkout while the reader believes
+# it is measuring the branch — a hold below went green over a label deleted in
+# the tree under test, and only passed honestly because the main checkout
+# happened to sit on the same commit. Off that path the module raised at import
+# and printed no verdict at all.
+ROOT = pathlib.Path(__file__).resolve().parents[3]
 
 # THE VOCABULARY BELONGS TO THE RULE, not to the data.
 #
@@ -70,9 +82,19 @@ CONTRAST_FLOOR = 4.5
 # list and passes. Naming the heading here, and generating the reading from the
 # same tuples, is what makes the lookup and the verdict share one spelling —
 # and the rung that follows is what makes a list that was not found say so.
+#
+# THE DECLARED SOURCE IS AN EXPRESSION, not a fixture name, and the schedulers
+# are why. Four of these lists are still declared by the dying engine and
+# republished on `window`; the schedulers are the layer's answer, held in the
+# query cache. Comparing the drawn tone against `window.SCHEDULERS` after the
+# family left the engine would not read a stale list — it would raise, which is
+# the honest failure. Naming the CACHE keeps the comparison against what the
+# page was actually given, which is the whole point of a declared source.
+SCHEDULERS_SOURCE = "window.__queries.getQueryData(['/api/maintenance/schedulers'])"
+
 BLOCKS = (
     ("Services", "services", "service", "SERVICES"),
-    ("Planificateurs", "schedulers", "scheduler", "SCHEDULERS"),
+    ("Planificateurs", "schedulers", "scheduler", SCHEDULERS_SOURCE),
     ("Disques", "disks", "disk", "DISKS"),
     ("Index de la médiathèque", "index", "index row", "INDEX"),
     ("Dépendances", "dependencies", "dependency", "DEPENDENCIES"),
@@ -227,6 +249,97 @@ PANEL = """() => ({
 })"""
 
 
+# HOW LONG A DECLARED SOURCE IS GIVEN TO ANSWER. Four of the five are synchronous
+# `window` globals that exist before any rule can look; the schedulers' is a
+# query cache entry, so it is the one read that has to arrive. The page itself
+# is settled with a fixed wait above, and this is the same discipline applied to
+# the one source that is not the document.
+DECLARED_SOURCE_TIMEOUT_MILLISECONDS = 4000
+
+
+async def declared_tones(page, source):
+    """Reads a declared source's tones, waiting for it and never raising.
+
+    A rule must always print its verdict. `getQueryData` answers `undefined`
+    until its query settles, and `undefined.map` raises a TypeError out of
+    `main()` — so `Journal.summary()` never runs and the run prints no « N
+    rules » line at all, handing its reader a traceback naming `.map` instead
+    of the schedulers. A source that never answers is a FAILED hold, with the
+    expression named; it is not an exception.
+
+    Args:
+        page: The page.
+        source: The JavaScript expression naming the declared list.
+
+    Returns:
+        `(tones, None)` when it answered, and `(None, why)` when it did not —
+        the two failures being different facts: a source that never arrived and
+        a source that arrived carrying something else are not one defect, and
+        reporting both as « never answered » would say the false one half the
+        time.
+    """
+    try:
+        await page.wait_for_function(f"()=>{source} != null",
+                                     timeout=DECLARED_SOURCE_TIMEOUT_MILLISECONDS)
+    except Exception:  # noqa: BLE001 — a source that never arrives is a verdict
+        return None, "never answered"
+    try:
+        return await page.evaluate(f"()=>{source}.map((x) => x.ton)"), None
+    except Exception:  # noqa: BLE001 — it answered, and with the wrong thing
+        return None, "answered with something that is not a list of facts"
+
+
+# WHAT « Système » DRAWS FOR EACH PROCESS THE MACHINE RUNS — the join, and the
+# only one in the tree, since neither surface carries the other's key.
+#
+# IT IS A MAPPING BECAUSE A LABEL BELONGS TO A NAMED JOB. Held as a list of
+# names, the agreement hold below asked « is this label one of the labels
+# drawn », which a label belonging to a DIFFERENT scheduler satisfies — so the
+# table naming the wrong job, the one case that hold exists to refuse, passed
+# green.
+SCHEDULERS_AS_SYSTEM_DRAWS = {
+    "personalscraper-health-check": "Contrôle de santé",
+    "personalscraper-grab": "Récupération des releases",
+    "personalscraper-search": "Recherche de releases",
+    "personalscraper-follow-detect": "Détection des suivis",
+    "personalscraper-index-enrich": "Enrichissement de l'index",
+    "personalscraper-backfill-ids": "Complétion des identifiants",
+    "personalscraper-index-full": "Analyse complète de l'index",
+}
+
+# THE FIVE WHOSE SECOND NAME DISAGREES, accepted BY NAME and not by a count
+# (B-327): the schedule's own label table calls these jobs something else —
+# « Contrôle de santé du système » for the first — and the prototype naming one
+# job twice is a debt with an owner. A SIXTH disagreement is a new one and is
+# refused; the two absent from this tuple must keep the name above.
+SCHEDULERS_NAMED_TWICE = (
+    "personalscraper-health-check",
+    "personalscraper-grab",
+    "personalscraper-search",
+    "personalscraper-follow-detect",
+    "personalscraper-backfill-ids",
+)
+
+
+def setting_labels():
+    """The schedule's own label table, read from the tree this file lives in.
+
+    READ WHEN THE HOLD RUNS, never at import. A module-level read makes a
+    missing file raise before any hold, and this rule runs on import — so an
+    absent resource printed no verdict at all instead of one failing hold,
+    which is the silence B-273 is about.
+
+    Returns:
+        The table, or None when it cannot be read.
+    """
+    try:
+        return json.loads(
+            (ROOT / "frontend" / "maquette" / "design" / "src" / "i18n" / "fr.json")
+            .read_text(encoding="utf-8"))["settings"]["labels"]
+    except Exception:  # noqa: BLE001 — an unreadable resource is a verdict
+        return None
+
+
 def real_processes():
     """The process names PM2 really runs, or None when pm2 cannot be read."""
     try:
@@ -251,7 +364,7 @@ def real_commands():
     return {a.id: a for a in REGISTRY}
 
 
-async def on_page(pg, page, **patch):
+async def on_page(pg, page, settle=None, **patch):
     """Drives a named state and reads it, blocks flattened to their rows.
 
     Every hold below reads a list, so the reading is flattened here — and what
@@ -262,6 +375,20 @@ async def on_page(pg, page, **patch):
     await pg.evaluate(
         f"()=>{{applyState({{page: '{page}', phase: 'ready'{', ' + fields if fields else ''}}});}}")
     await pg.wait_for_timeout(320)
+    # AND THEN WAIT FOR WHAT THE FIXED PAUSE CANNOT PROMISE. The pause above is
+    # a guess about the DOCUMENT; a list the layer answers arrives when the
+    # query settles, which is a different clock. Reading the page before it and
+    # the declared source after it made the two halves of every tone comparison
+    # come from two different instants: at half a second of latency the hold
+    # read « rendered [] vs declared [success x7] » and accused the page of a
+    # hand-written colour, when what happened is that the rows were not there
+    # yet. Both halves are read after this wait, so they describe one moment.
+    if settle:
+        try:
+            await pg.wait_for_function(f"()=>{settle} != null",
+                                       timeout=DECLARED_SOURCE_TIMEOUT_MILLISECONDS)
+        except Exception:  # noqa: BLE001 — the holds below report it, by name
+            pass
     seen = await pg.evaluate(READ)
     seen["blocks"] = {key: seen[key] for _, key, _, _ in ALL_BLOCKS}
     for _, key, _, _ in ALL_BLOCKS:
@@ -283,7 +410,7 @@ async def main():
         # whatever the previous one left. The reading below is the one the rung
         # and every badge hold rest on, so it is pinned exactly like the one on
         # the way back from the fault.
-        sys_view = await on_page(pg, "sys", fault=False)
+        sys_view = await on_page(pg, "sys", settle=SCHEDULERS_SOURCE, fault=False)
 
         # 0. THE RUNG EVERYTHING BELOW STANDS ON: a list that was not FOUND is
         # not a list that is fine. The five blocks are located by their French
@@ -357,10 +484,59 @@ async def main():
                              services == len(real_services),
                              f"{services} drawn vs {len(real_services)} real: "
                              + ", ".join(sorted(real_services)))
-            journal.check("as many schedulers drawn as PM2 schedules",
-                             schedulers_drawn == len(real_schedulers),
-                             f"{schedulers_drawn} drawn vs {len(real_schedulers)} real: "
-                             + ", ".join(sorted(real_schedulers)))
+            # IT COMPARES COUNTS, AND SAYS BOTH SIDES WHEN IT FALLS. A
+            # drawn label and a PM2 process name are two vocabularies, and the
+            # rows this hold reads carry no key — so it can say that one row is
+            # unaccounted for and not WHICH. Printing both lists is what lets a
+            # reader do that join by eye; « 6 vs 7 » alone sent its reader back
+            # to `pm2 jlist`.
+            #
+            # « NOTHING IN THE TREE JOINS THEM » IS WHAT THIS NOTE USED TO SAY,
+            # AND IT WAS FALSE. `settings.labels` is keyed by the exact process
+            # names, six of the seven, in the resource file the interface reads
+            # — the join exists and is one table away. What is true is smaller
+            # and worse: the prototype names these jobs TWICE, in two French
+            # vocabularies that disagree on five of the six (« Contrôle de
+            # santé » against « Contrôle de santé du système »), so joining
+            # this list to the machine needs the prototype to name a job ONCE
+            # first. That is a debt with an owner, written in B-327, and it is
+            # why section 6 reads the table. The row below still COUNTS —
+            # that is what it holds — but it reports through the join.
+            # SORTING BOTH LISTS IS NOT A JOIN, and printing them side by side
+            # invited one: they sort on different keys, so pointed at a build
+            # drawing six, a reader pairing them by position reads the WRONG
+            # name as missing — six of seven positions mispair. The join is the
+            # mapping above, and what has no partner on either side is printed
+            # apart rather than left to be inferred from an ordering.
+            drawn_labels = {x["l"] for x in (sys_view["schedulers"] or [])}
+            paired, unpaired_real = [], []
+            for name in sorted(real_schedulers):
+                label = SCHEDULERS_AS_SYSTEM_DRAWS.get(name)
+                if label in drawn_labels:
+                    paired.append(f"{name} = {label}")
+                else:
+                    unpaired_real.append(f"{name} (expects {label!r})" if label
+                                         else f"{name} (this rule has no name for it)")
+            # THE DRAWN SIDE SUBTRACTS WHAT IS SCHEDULED, NOT THE WHOLE MAPPING.
+            # Subtracting every label this rule knows made a row « accounted
+            # for » the moment its name was written here, so a scheduler
+            # removed from `ecosystem.config.js` while its row stayed drawn was
+            # named NOWHERE — B-308's own family with the sign turned round,
+            # inside B-308's own rule.
+            scheduled_labels = {SCHEDULERS_AS_SYSTEM_DRAWS[name]
+                                for name in real_schedulers
+                                if name in SCHEDULERS_AS_SYSTEM_DRAWS}
+            unpaired_drawn = sorted(drawn_labels - scheduled_labels)
+            # AND IT HOLDS THE JOIN IT COMPUTED, not a count beside it. Equal
+            # counts with an unmatched name on each side is a green hold naming
+            # an unmatched job in its own sentence — which is what a scheduler
+            # renamed in `pm2 jlist` produced. Two empty sets is the same claim
+            # when nothing is wrong and a different one when something is.
+            journal.check("every scheduler the machine schedules is drawn, and every row drawn is scheduled",
+                             not unpaired_real and not unpaired_drawn,
+                             f"{schedulers_drawn} drawn vs {len(real_schedulers)} real · "
+                             f"paired {len(paired)}: {paired} · scheduled and not drawn: "
+                             f"{unpaired_real} · drawn and not scheduled: {unpaired_drawn}")
 
         # 3bis. Every service and scheduler carries a pastille, and the
         # pastille AGREES with the sentence beside it. Deriving the colour from
@@ -382,10 +558,13 @@ async def main():
             rows = sys_view[key]
             without_badge = [x["l"] for x in (rows or []) if x["tone"] is None]
             journal.check(f"every {name} carries a badge", not without_badge, str(without_badge) or "all of them")
-            declared = await pg.evaluate(f"()=>{source}.map((x) => x.ton)")
+            declared, why = await declared_tones(pg, source)
             rendered = [x["tone"] for x in (rows or [])]
             journal.check(f"a {name}'s badge follows the declared state, never a hand-written colour",
-                          rendered == declared, f"rendered {rendered} vs declared {declared}")
+                          declared is not None and rendered == declared,
+                          f"rendered {rendered} vs declared {declared}"
+                          if declared is not None else
+                          f"rendered {rendered} vs a declared source that {why}: {source}")
             # And the tone matches what the WORD means. This is the half that
             # a comparison against the data cannot do.
             misworded = [
@@ -446,7 +625,7 @@ async def main():
             await pg.evaluate(apply)
             await pg.wait_for_timeout(220)
             for state_ in (False, True):
-                await on_page(pg, "sys", fault=state_)
+                await on_page(pg, "sys", settle=SCHEDULERS_SOURCE, fault=state_)
                 contrasts = await pg.evaluate(CONTRAST)
                 journal.check(
                     f"there are badges to read — {theme} theme"
@@ -467,7 +646,7 @@ async def main():
         # `fault` is NAMED on the way back: a state driven without naming every
         # dial inherits whatever the previous one left, which is the defect R10
         # found in the interface and which this probe had just repeated.
-        sys_view = await on_page(pg, "sys", fault=False)
+        sys_view = await on_page(pg, "sys", settle=SCHEDULERS_SOURCE, fault=False)
 
         # The rung again, on the reading « at rest » is judged from: that hold
         # says « nothing alerts », which is true of an empty list too.
@@ -493,7 +672,7 @@ async def main():
         # 3ter. A screen that can only be green cannot be judged, so a named
         # state replays a fault — and SAYS it is simulated, or the operator
         # would read an invented outage as a real one (§13).
-        fault = await on_page(pg, "sys", fault=True)
+        fault = await on_page(pg, "sys", settle=SCHEDULERS_SOURCE, fault=True)
         red_services = [x for x in (fault["services"] or []) if x["tone"] == "alert"]
         red_schedulers = [x for x in (fault["schedulers"] or []) if x["tone"] == "alert"]
         journal.check("a named state shows what an alert looks like, on the services side",
@@ -576,6 +755,89 @@ async def main():
                 str([a["why"] for a in real_run]))
             await pg.evaluate("()=>closeSheet()")
             await pg.wait_for_timeout(180)
+
+        # 6. THE SAME MACHINE IS DESCRIBED BY TWO SURFACES, AND ONLY ONE OF
+        # THEM WAS EVER JOINED TO IT. « Système » says WHICH schedulers exist;
+        # « Réglages », under « Les passages programmés », says WHEN each of
+        # them runs. They are drawn from different fixtures, and `pm2 jlist`
+        # was read against the first alone — which is how a repair that made
+        # « Système » agree with the machine left « Réglages » a job behind
+        # with every tier green. A rule that holds one drawing of a list and
+        # not the other holds the drawing, not the list.
+        #
+        # THE ROW ITSELF IS NOT HELD HERE, AND B-327 CARRIES THE RULE THAT
+        # WOULD. That surface is one job behind on the branch point too — its
+        # seed is byte-identical there and the machine already ran seven — so
+        # it is not a defect this change introduced; what this change did was
+        # make the disagreement visible. Adding the row needs either the engine
+        # to grow, which the size ledger refuses with an exit code, or a
+        # 1 461-line family to leave it, and that family is read by the
+        # engine's own `allSettings` and by eleven places in `settings.py`.
+        # The hold that reads the drawn set against PM2 is written out in
+        # B-327 with the two lines it printed, so the wave that converts the
+        # family inherits a rule rather than a description.
+        #
+        # WHAT IS HELD IS THE JOIN — the thing this rule's own note used to say
+        # did not exist. `settings.labels` is keyed by the PM2 process name, so
+        # a scheduler the machine runs either has a name written for it there
+        # or it does not, and that is readable today. It is read from the
+        # resource file rather than from the drawing because an absent key
+        # falls back to the humanised key, which LOOKS like a label on screen.
+        if pm2 is not None:
+            labels = setting_labels()
+            drawn_labels = {x["l"] for x in (sys_view["schedulers"] or [])}
+            if labels is None:
+                journal.check(
+                    "every scheduler the machine runs is named in the schedule's LABEL TABLE",
+                    False, "the label table could not be read from " + str(ROOT))
+            else:
+                unnamed = [name for name in sorted(real_schedulers)
+                           if name not in labels]
+                journal.check(
+                    "every scheduler the machine runs is named in the schedule's LABEL TABLE",
+                    not unnamed, str(unnamed) if unnamed else "all of them")
+                # AND THE TWO VOCABULARIES DO NOT GAIN A THIRD. Presence is not
+                # agreement: the label may be present and say something « Système »
+                # never says, which is what the repair this hold serves promised
+                # not to do. The five that already disagree are accepted by name;
+                # a scheduler that is named ALIKE stays that way, and a new one
+                # has to be placed in one list or the other before it can pass.
+                alike = [n for n in sorted(real_schedulers)
+                         if n in SCHEDULERS_AS_SYSTEM_DRAWS
+                         and n not in SCHEDULERS_NAMED_TWICE]
+                drifted = [f"{name}: the table says {labels.get(name)!r}, "
+                           f"« Système » draws {SCHEDULERS_AS_SYSTEM_DRAWS[name]!r}"
+                           for name in alike
+                           if labels.get(name) != SCHEDULERS_AS_SYSTEM_DRAWS[name]]
+                # AND THE EXPECTATION IS ITSELF READ, never only written here:
+                # a mapping nobody checks against the page is a second fixture,
+                # and it would drift in silence exactly as the label table did.
+                unread = [f"{name}: {SCHEDULERS_AS_SYSTEM_DRAWS[name]!r} is not drawn"
+                          for name in sorted(real_schedulers)
+                          if name in SCHEDULERS_AS_SYSTEM_DRAWS
+                          and SCHEDULERS_AS_SYSTEM_DRAWS[name] not in drawn_labels]
+                unplaced = [name for name in sorted(real_schedulers)
+                            if name not in SCHEDULERS_AS_SYSTEM_DRAWS]
+                journal.check(
+                    "a scheduler the LABEL TABLE names as « Système » does keeps that name, "
+                    "and a new one is placed",
+                    not drifted and not unplaced,
+                    f"drifted: {drifted} · unplaced: {unplaced}"
+                    if (drifted or unplaced)
+                    else f"{len(alike)} named alike, "
+                         f"{len([n for n in SCHEDULERS_NAMED_TWICE if n in real_schedulers])} "
+                         f"named twice and accepted (B-327)")
+                # ITS OWN HOLD, because it is its own question. Folded into the
+                # one above, a fall could mean three things and the name
+                # described two — and the arm fires for schedulers the table
+                # deliberately does NOT name as « Système » does, so its reading
+                # contradicted the hold it was printed under.
+                journal.check(
+                    "the mapping this rule joins by still describes what « Système » draws",
+                    not unread,
+                    str(unread) if unread
+                    else f"{len([n for n in real_schedulers if n in SCHEDULERS_AS_SYSTEM_DRAWS])} "
+                         f"name(s) drawn as this rule expects")
 
         journal.check("no JS error", not errors, str(errors))
         await ctx.close()

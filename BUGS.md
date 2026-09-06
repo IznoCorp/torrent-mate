@@ -366,8 +366,8 @@ when the defect comes back.
 | B-304 | `git add -f` applied to a PATH rather than to the ignored files it was needed for swept 28 375 files into a commit, `node_modules` entire, and nothing in the repository refuses it — the only guard that noticed read five French PATH SEGMENTS, and they were the MAQUETTE's own ignored screenshots, not the vendored tree | by L14 | `open` |
 | B-305 | An open swipe survives a store write that changed nothing about the rows — D-L14-3, flagged for the operator, living only in a state-file cell the next wave overwrites | by audit | `closed` |
 | B-306 | A GRANDFATHERED file may grow without limit: the size arm reads the label and never a recorded count, so the engine gained 77 lines under a decision titled « dies by subtraction » and the guard printed clean | by audit | `fixed #558` |
-| B-307 | Three rules have fallen under the recorder's parallel load and passed alone; the register holds one of them, under a title naming a fourth rule and a diagnosis that does not transfer | by audit | `open` |
-| B-308 | The maquette draws six schedulers and the machine now runs seven — `machine.py`'s count fell the day `personalscraper-index-full` was scheduled on `main`, and nothing in that pull request could have told it | by L19 | `open` |
+| B-307 | **Four** rules have now fallen under the recorder's parallel load and passed alone; the register holds one of them, under a title naming a fourth rule and a diagnosis that does not transfer | by audit | `open` |
+| B-308 | The maquette draws six schedulers and the machine now runs seven — `machine.py`'s count fell the day `personalscraper-index-full` was scheduled on `main`, and nothing in that pull request could have told it | by L19 | `fixed #567` |
 | B-309 | « Récupérer maintenant » on a medium's own panel THROWS and takes nothing: the release screen's `data-take` branch is checked first, has no guard, and swallows every `data-take` in the document | by L19 | `to confirm` |
 | B-310 | Opening a media sheet from a bottom panel shows the PANEL again briefly before the sheet comes back — B-249's family, reported by the operator on the L19 head | 1× | `open` |
 | B-311 | Coming back to a list after a medium's sheet does not restore the scroll position the list was left at | 1× | `open` |
@@ -383,6 +383,11 @@ when the defect comes back.
 | B-321 | An evicted `setting:`/`action:` panel entry leaves the address naming a panel that never comes back | 1× | `fixed #558` |
 | B-322 | The release screen fires TWO take toasts into one element in the same tick, and the first is never seen | 1× | `open` |
 | B-323 | Two `setTimeout(…, 260)` sites were never counted — the inventory reads one line — and one of them is the release screen's `data-take`, a verb moved by half with no lot named for the other half | by audit | `open` |
+| B-324 | The BACKEND's own mirror of the PM2 crons names three of the seven the machine runs, and nothing reads it against `pm2 jlist` — B-308's finding on the end that has no guard at all | by the backend brief | `open` |
+| B-325 | No harness rule can be pointed at a build: `common.PROTOTYPE` is hard-coded to 8899 with no override, every rule self-runs on import, and a rule rebound elsewhere is still certified by the B-256 stamp of the copy it did NOT read | by the instruments' debts block | `open` |
+| B-326 | `heavy.sh` offers no way to ask who holds its lock, so the natural probe — `cat` on what is a DIRECTORY — reads « free » whether the lock is held or not, and two sessions reached for it independently on the same night | by the steward's office | `open` |
+| B-327 | « Réglages » draws SIX scheduled jobs while the machine runs seven, and the same six are named twice in two French vocabularies that disagree on five of them — the row cannot be added until `SETTINGS` leaves the engine | by L13 | `open` |
+| B-328 | `features/system/page.tsx` heads itself with a path that does not exist and describes a state field (`state.panne`) the code does not have | by the next wave that opens `features/system/page.tsx` | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -690,6 +695,84 @@ red in the full suite, and owed by whoever draws Système's schedulers next.
 
 <sub>`python3 frontend/maquette/harness/machine.py` → « FAIL as many schedulers drawn as PM2 schedules — 6 drawn vs 7 real: … personalscraper-index-full … » · `git log --oneline -1 origin/main -- ecosystem.config.js`</sub>
 
+
+**REPAIRED, and the row could not go where the list lived.** `SCHEDULERS` was a fixture in
+`engine/legacy.js`; D5 has the engine dying by subtraction and the size ledger refuses that file
+growing by one line (B-306's arm, with its exit code). So the FAMILY left rather than the rule
+bending: the Système page already read `/api/maintenance/schedulers` from the mock layer, and the
+seed is where the seventh row belongs — it should have carried it since L08. The register marks the
+family `converted`, which is the mechanism that already exists for a family the engine no longer
+declares: `--arm correspondence` names it instead of comparing it against a literal that is gone,
+while `--arm schema` and the oracle still hold it. Its overdue twin `SCHEDULERS_DOWN` had to go with
+it — it MAPPED over the list — and is derived beside the list it alters, in
+`features/system/fault.ts`, its **three** French words moved to `i18n/fr.json` — the badge word, the sub-line, and the LABEL the row is now chosen by, which the identity repair added. `legacy.js` reads 31 645 →
+**31 591** non-blank and the ledger's record is re-recorded downward in the same commit.
+
+**The seventh row is a SNAPSHOT of `pm2 jlist` taken on 2026-09-05, not an invention and not a
+live reading.** `personalscraper-index-full`, cron `0 1 * * 1`, registered 2026-09-04 18:18,
+`restart_time` **0** on that day — so its sub-line says « dernier passage : aucun », which is what
+the rule requires a sub-line to say and what was true when it was written.
+
+**It stops being true on Monday 2026-09-07 at 01:00**, when the job first fires, and no rule falls
+then. That is not a defect of this row; it is the condition every row in this seed is already in,
+and the round-one reader measured it: the six others' CADENCES all match the live crons, and their
+pass counts do not — 261 drawn against 533 live, 24 against 44, 15 against 37, 11 against 19, 2
+against 3, 2 against 3. Those six readings are byte-identical on `main`, so they are pre-existing
+and not this wave's. A fixture is a snapshot; saying « what is true » of one, undated, is the
+sentence that was wrong here.
+
+**THE FINDING BEYOND THE MISSING ROW STANDS, and this wave measured its other end and FILED it.**
+The fixture and the machine are one contract with two ends and only one end has a guard — and the
+end with no guard is further from the machine than this entry assumed: the BACKEND's own mirror of
+the crons names three of the seven, and nothing reads it against anything. That is **B-324**, owned
+by the backend brief and not repaired here.
+
+**And the rule cannot say WHICH row is unaccounted for**, only that one is: a drawn label and a PM2
+process name are two vocabularies, and the rows the hold reads carry no key. Its fall prints both
+lists now, so a reader does that join by eye instead of going back to `pm2 jlist`.
+
+**« WITH NOTHING IN THE TREE JOINING THEM » WAS WRITTEN HERE, AND IT IS FALSE.** `settings.labels`
+in `i18n/fr.json` is keyed by the exact PM2 process names — six of the seven, in the file this wave
+edited — and « Réglages » draws the two vocabularies side by side in one row. The join exists. What
+is true is smaller and worse: **the prototype names these jobs TWICE, in two French vocabularies
+that disagree on five of the six** (« Contrôle de santé » against « Contrôle de santé du système »,
+« Détection des suivis » against « Détection des épisodes diffusés »), and the seventh was in
+neither. So a rule joining a drawn list to the machine does not need the backend and does not need
+D7; it needs the prototype to name a job ONCE. **That is a debt, and its owner is L13** — the wave
+that converts `SETTINGS` — recorded in full in **B-327**. This wave adds the seventh name to that
+table in « Système »'s own words, so the two vocabularies gain no third.
+
+**AND THE LIMITATION IS LARGER THAN « WHICH ROW », which round one measured rather than argued.**
+A row can be WHOLLY INVENTED: the reader relabelled the seventh to a job that does not exist, with
+a cadence nothing runs, rebuilt, and the whole suite went green — 89 holds, exit 0. Nothing in the
+tree reads a scheduler's TEXT. `machine.py` holds the count, that the sub-line CONTAINS
+« dernier passage », and that the badge word is one of two; `--arm correspondence` no longer
+re-derives a converted family; `--arm schema` reads the shape; and the oracle reads rectangles and
+computed style, never text. So the count is held and the WORDS are held by nothing.
+
+**A rule that the drawn list IS the backend's is a D7 demand, not this wave's** — the backend
+follows the interface, the interface is not frozen, and B-324 records the end that would have to
+answer such a rule. Written here so the next reader meets the whole limitation rather than the
+half of it that fits in a fall's message.
+
+**AND IT REPAIRED ONE OF TWO DRAWINGS OF THE SAME LIST.** « Réglages », under « Les passages
+programmés », draws six scheduled jobs and still does. That is PRE-EXISTING and measured: its seed
+is byte-identical at the branch point and the machine already ran seven then, so both surfaces were
+wrong together before this repair. **What this repair created is the visible DISAGREEMENT** —
+« Système » right, « Réglages » still a job behind — which is why the row is OWED and is not this
+wave's to add: adding it needs `SETTINGS` to leave the engine, and that family is 1 461 lines read
+by `allSettings` and by eleven places in `settings.py`. Filed with the hold that catches it, the
+four measured refusals and the two-vocabulary half, as **B-327**, owner L13. What this wave does
+add is the seventh name to `settings.labels`, in « Système »'s own words, held by a rule.
+
+**ONE UNIT OF B-085's SPECIES, found by the removal.** « A scheduler's badge follows the declared
+state » compared the drawn tones against `window.SCHEDULERS` — the ENGINE's fixture, which the page
+stopped reading at L08. The hold was green because the fixture and the seed happened to agree byte
+for byte; drifted in tone, it would have reported about a list the surface never touched. Taking the
+fixture out made the expression RAISE, which is what named it. The declared source is the query
+cache now. Counted in § Guards green over what they do not read: **1**, total **239**.
+
+<sub>`python3 frontend/maquette/harness/machine.py` → « PASS as many schedulers drawn as PM2 schedules — 7 drawn vs 7 real · paired 7: [… `personalscraper-index-full = Analyse complète de l'index` …] · scheduled and not drawn: [] · drawn and not scheduled: [] », **91 rules**, no violation — the reading is a JOIN since round four, not two lists side by side: sorted separately they sort on different keys, and a reader pairing them by position mispaired six of seven · the mutation, `scripts/mutate.sh` on the seed with the seventh row removed → « FAIL … 6 drawn vs 7 real » · the derivation's own mutation, `fault.test.ts` with the key put back to the row's RANK → 4 of 10 red, the three « reversed » holds and the no-match one; and on the harness side, the seed's first label renamed → « and on the schedulers side — [] » with two more · `pm2 jlist` → 7 processes carrying a `cron_restart`</sub>
 
 **IT BLOCKS THE POST-MERGE GESTURE, and that is written HERE because the file that first said it
 does not survive.** L19's report states the obligation in its § 9 (`docs/features/maquette-l19/REPORT.md@9fa13da57`); that folder
@@ -1184,6 +1267,192 @@ instruments' debts block** (the next wave touching `exits.py`). **Owner of the v
 
 <sub>steward's audit of L19, 2026-09-05, on `main` at `427ea2bc8` · `grep -c ', 260)' frontend/maquette/design/src/engine/legacy.js` → 7 · `git show 4c0e274a7:frontend/maquette/design/src/engine/legacy.js | grep -c ', 260)'` → 9 · `grep -c "setTimeout(.*260)" …` → 5 (7 at the base) · `grep -c "closest\.dataset\.take" …` → 3</sub>
 
+**B-324 — the backend's mirror of the PM2 crons names three of the seven, and nothing reads it.**
+`personalscraper/web/schedulers/registry.py`'s `CRON_JOBS` is, by its own header, « a static mirror
+of the scheduled personalscraper crons » — the web process may not shell out to `pm2` nor read
+`ecosystem.config.js`, so it hard-codes them. It holds **three**: `follow-detect`, `grab`,
+`library-index --mode enrich`. The machine runs **seven** with a `cron_restart`, so `search`,
+`health-check`, `backfill-ids` and `index-full` are absent from the list the production Dashboard's
+schedulers panel is built from, and the header still says « the three crons here » under a comment
+dated « verified 2026-07-15 ». `GET /api/maintenance/schedulers` therefore answers a watcher row
+plus three cron rows on a machine running eight processes.
+
+**IT IS B-308'S FINDING, on the end that has no guard at all.** B-308 says the fixture and the
+machine are one contract with two ends and only one end has a guard; the maquette's end is now held
+by `machine.py`, which reads `pm2 jlist` on the operator's machine. NOTHING reads `CRON_JOBS`
+against anything — not a test, not a guard, not a startup check — so a cron added to
+`ecosystem.config.js` is invisible here exactly as it was invisible to the maquette, and this list
+has been four crons behind for longer than B-308's row was missing. The shape of the repair is the
+same as `machine.py`'s and cannot be: the web process is forbidden `pm2`, so what it can hold is
+the list against the deployed `ecosystem.config.js`, or a single declaration both read.
+
+**Not repaired in the B-308 micro-wave**, and the reason is D7's: the backend follows the interface,
+and the interface is not frozen. Owner: **the backend brief** —
+`docs/reference/backend-demands-architecture.md` is where the backend's demands are gathered, and
+this is one of them. Filed rather than left in a report because a defect with no entry is nobody's.
+
+<sub>`python3 -c "from personalscraper.web.schedulers.registry import CRON_JOBS; print(len(CRON_JOBS), [j.name for j in CRON_JOBS])"` → `3 [...]` · `pm2 jlist | python3 -c "import sys,json;print(sorted(p['name'] for p in json.load(sys.stdin) if p['pm2_env'].get('cron_restart')))"` → 7 names</sub>
+
+**B-325 — no rule can be pointed at a build, which is what reading a wave independently requires.**
+`frontend/maquette/harness/common.py`'s `PROTOTYPE` is a module constant hard-coded to
+`http://127.0.0.1:8899/` with no environment override, and every rule ends in an unguarded
+`asyncio.run(main())`, so a rule module cannot even be IMPORTED without running. An independent
+reader cannot run a rule against its own copy without rebinding the constant from a wrapper
+outside the tree.
+
+**AND THE REBINDING IS WORSE THAN THE OBSTACLE.** `served_copy.assert_unchanged` and
+`Journal.summary`'s B-256 stamp read `/tmp/tm-refonte` unconditionally. So a rule pointed at
+another port measures ONE build and is certified against ANOTHER — the stamp says « the copy did
+not change under this run » about a copy the run never read. B-256's whole subject is a reading
+that spans two builds; this is that reading, arrived at through the door the repair left open.
+
+**Its cost is already paid once**: round one of #567 was reviewed by a reader who had to run
+`machine.py` against its own served copy on another port, and could only do so through a wrapper.
+The instruction « run it against your head port » cannot be followed as written.
+
+**Owner: the instruments' debts block of `frontend-architecture.md` § 5** — the harness belongs to
+no lot, and the rule is that the next wave that opens `common.py` takes its debt. The shape: an
+environment override for `PROTOTYPE`, a `if __name__ == "__main__":` guard on the rules, and the
+served-copy assertions reading the SAME root the rule was pointed at, so a stamp cannot certify a
+build nobody measured.
+
+<sub>`grep -n "PROTOTYPE" frontend/maquette/harness/common.py` → the constant and its use, no `os.environ` · `tail -1 frontend/maquette/harness/machine.py` → `asyncio.run(main())` · reported by the independent reader of #567, round one, 2026-09-06</sub>
+
+**B-326 — the lock's own probe reads « free » whether it is held or not.**
+`scripts/heavy.sh` takes its lock with `mkdir "$LOCK"` (`:95`) and writes the holder's name to
+`"$LOCK/who"` (`:96`), so `/private/tmp/tm-heavy/holder` is a **directory**. The script offers no
+query — no `--held`, no `--holder` — so the natural way to ask « is anyone running » is
+`cat /private/tmp/tm-heavy/holder`, which reads a directory as a file: it fails, and with the
+`2>/dev/null` everyone writes it with, it prints NOTHING. **Empty output means « I could not read
+this », and it is indistinguishable from « nobody holds it ».**
+
+**Measured, on a private lock so no running work was touched** —
+`HEAVY_LOCK=/private/tmp/tm-heavy-probe/holder sh scripts/heavy.sh probe-demo sleep 6`, probed two
+seconds in, while HELD:
+
+    cat holder        -> []            <- reads EMPTY while HELD
+    cat holder/who    -> [probe-demo]
+    test -d holder    -> HELD
+    (after release)   -> free
+
+**THE PROBES THAT READ** are `test -d "$LOCK"` for « is it held » and `cat "$LOCK/who"` for « by
+whom ». Neither is written down anywhere, which is why neither was used.
+
+**It cost twice in one night, in both directions**, which is what makes it an entry rather than a
+note. The B-308 micro-wave reported « heavy lock free » twice to the steward as evidence that the
+machine was clear, on a probe that cannot fail — a proof that certified nothing, offered as a
+proof. The steward's own hygiene sweep read the same empty output and reported a `run.sh
+--contracts` running UNLOCKED, which it was not: `heavy.sh` prints its own `starts` / `done` lines
+around the command it holds the lock for, and every one of that wave's logs carries them. **One bad
+probe produced a false clean and a false accusation in the same hour, and neither reader could tell
+from the output.**
+
+**Owner: the steward's office.** `heavy.sh` is the office's own instrument — the exception § 5's
+« the steward does not carry code » carves — so the `--held` query, its hold in
+`tests/scripts/test_heavy.py`, and the correction of the hygiene paragraph's probe are the office's,
+not a wave's. This entry carries the reading; it changes nothing under `scripts/`.
+
+<sub>`grep -n 'mkdir "\$LOCK"' scripts/heavy.sh` → `:95` · `grep -n '\$LOCK/who' scripts/heavy.sh` → `:96` and `:99` · the demonstration above · `grep -c '^heavy: ' <log>` on the wave's kept logs → the `starts`/`done` pair in each</sub>
+
+**B-327 — « Réglages » is a job behind the machine, and names the others twice.**
+« Système » draws **7** scheduler rows, « Réglages » under « Les passages programmés » draws **6**,
+and `pm2 jlist` reports **7** processes carrying a `cron_restart`. `personalscraper-index-full` is
+in neither the `passages` topic of `mocks/seeds/settings.json` nor — until #567 — the
+`settings.labels` table that names its rows.
+
+**IT IS PRE-EXISTING, and that is measured rather than conceded.** `seeds/settings.json` is
+byte-identical at the branch point (`git diff be460fb79..HEAD -- …/seeds/settings.json` → empty)
+and the machine already ran seven schedulers then. So « Réglages » was a job behind before B-308's
+repair and is a job behind after it. **What the repair created is the VISIBLE DISAGREEMENT** —
+« Système » right, « Réglages » still behind — where before the two surfaces were wrong together.
+A wave that corrects one of two drawings of the same list does not own the other; it owes the
+entry, which is this one.
+
+**THE HOLD THAT WOULD CATCH IT IS WRITTEN, AND IT RAN.** It was added to `harness/machine.py`,
+seen RED on the head, and taken out again because the defect it names cannot be repaired here. It
+is kept whole so the wave that can inherits a rule rather than a description:
+
+    await pg.evaluate("()=>{window.SETTINGS_STATE.topic='passages';"
+                      " applyState({page:'cfg', phase:'ready'});}")
+    await pg.wait_for_timeout(320)
+    passages = await pg.evaluate('''
+        ()=>[...document.querySelectorAll('[data-part="setting/row"]')].map((r) => ({
+          key: (r.querySelector('[data-part="setting/origin"]') || {}).textContent || '',
+        }))''')
+    drawn_keys = sorted({row["key"] for row in passages})
+    journal.check(
+        "every scheduler the machine runs has a row on Réglages, and no row names one it does not",
+        drawn_keys == sorted(real_schedulers),
+        f"drawn: {drawn_keys} vs real: {sorted(real_schedulers)}")
+
+**The hold above is B-327's; the LABEL half of that run is not.** The second violation of the same run was the label hold, and #567 keeps it — renamed « every scheduler the machine runs is named in the schedule's LABEL TABLE », because it reads the TABLE and not the surface, and a hold named for a surface it never opens reads as a certificate for it.
+
+It reads the drawn keys as a SET and not a count, because a name that is WRONG and a name that is
+MISSING are different defects a count cannot tell apart. What it printed, on `0ab9c9f29`:
+
+    FAIL every scheduler the machine runs has a row on Réglages, and no row names one it does not
+         — drawn: ['personalscraper-backfill-ids', 'personalscraper-follow-detect',
+           'personalscraper-grab', 'personalscraper-health-check',
+           'personalscraper-index-enrich', 'personalscraper-search']
+           vs real: [… the same six …, 'personalscraper-index-full']
+    91 rules EXECUTED — 2 violation(s)
+
+**WHY THE ROW WAS NOT ADDED — four refusals, each measured, so nobody re-derives them.**
+
+1. `SETTINGS` is not `converted` in `fixture-register.json`, so `check-mock-seeds.py --arm
+   correspondence` re-derives `seeds/settings.json` from `legacy.js` byte for byte. Editing the
+   seed alone fails that arm.
+2. Adding the row to the engine fixture as well: the edit was made, the arm run and the edit
+   reverted — « `engine/legacy.js` — recorded at 31 591 non-blank lines and reads **31 600, 9
+   more**. A grandfathered file is one that may not be EXTENDED », exit 1. D5's exception covers
+   only a defect that DESTROYS the operator's data; a row missing from a fixture is not one.
+3. Marking the family `converted` while the engine still declares it: `--arm classification` fails
+   — « the register calls it converted and the engine still declares it ».
+4. Removing it: `const SETTINGS` spans **1 461 lines** (`legacy.js:5812-7272`) and is read by the
+   engine's own `allSettings()` (`:7359`) and by **eleven** `window.SETTINGS` reads in
+   `harness/settings.py`.
+
+**AND THE SECOND HALF, which is why the first is not merely a missing line.** `settings.labels` is
+keyed by the exact process names, and those are NOT the names « Système » draws: five of the six
+differ — « Contrôle de santé » against « Contrôle de santé du système », « Détection des suivis »
+against « Détection des épisodes diffusés », and so on. **The prototype names the same six jobs
+twice, in two French vocabularies, in one file, with nothing holding them together.** A rule
+joining a drawn list to `pm2` therefore needs neither the backend nor D7 — it needs the prototype
+to name a job once. #567 adds the seventh to that table in « Système »'s own words, so the two
+vocabularies gain no third. **Two holds in `machine.py` carry that**, and they are two because
+presence and agreement are two questions: « every scheduler the machine runs is named in the
+schedule's LABEL TABLE » reads that a name EXISTS for each, and « a scheduler the LABEL TABLE names
+as « Système » does keeps that name, and a new one is placed » reads that it is the RIGHT one,
+against a mapping of process name to the label « Système » draws — the five that disagree accepted
+by name here, a sixth refused.
+
+**Owner: L13**, the wave that converts `SETTINGS` — the family, its 1 461 lines, `allSettings` and
+the eleven harness reads move together, and the row and the single vocabulary are that wave's to
+land. **Done when** « Réglages » draws seven, the hold above is in `machine.py` and green, and one
+job has one name.
+
+<sub>**the FAIL line above is the attested one**, and it is corroborated outside this wave: the
+independent reader of round three replayed this snippet verbatim on its own build of `512673ccf`
+and read « drawn keys on « Les passages programmés »: 6 vs real: 7 → would FAIL ». **The run also
+printed a SECOND violation — the label half — and that line is NOT quoted here, because no kept
+artefact carries it**: it was in the wave's own session and in no report, probe or transcript a
+later reader can open, and a sentence nobody can corroborate does not belong in an entry someone
+else inherits. What became of that half IS checkable: #567 kept it in `machine.py` as the two holds
+named above, both green, both mutation-proven. — on `0ab9c9f29` · `git diff be460fb79..HEAD -- frontend/maquette/design/src/mocks/seeds/settings.json` → empty · `python3 scripts/check-frontend-boundaries.py --arm size` with the row added → « 31 600, 9 more » · `grep -c "SETTINGS" frontend/maquette/harness/settings.py` → the eleven reads · reported by the independent reader of #567, round two, 2026-09-06</sub>
+
+**B-328 — `features/system/page.tsx` names a path and a field that do not exist.**
+Its first line heads the file « design/src/pages/system.tsx », a path no commit holds, and its
+tenth describes the surface's inputs as « `state.phase` … and `state.panne` » while the component
+reads `state.fault` (`:90`). Both are byte-identical at the branch point, so neither is #567's —
+that wave edited this file eight lines below the second of them and did not read up. A header that
+names the wrong file and a comment that names a field the code does not have are the species
+`CLAUDE.md` § Language calls out: prose that outlives its subject reads as current to the next
+session, and this one has outlived two renames.
+
+Owner: **the next wave that opens `features/system/page.tsx`**. Two lines.
+
+<sub>`sed -n '1p;10p' frontend/maquette/design/src/features/system/page.tsx` · `grep -n "state.fault" …/page.tsx` → `:90` · `git diff be460fb79..HEAD -- …/page.tsx | grep -c "pages/system\|panne"` → 0</sub>
+
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
 milliseconds. Since then `outbox.py` fell during L14's close and `drag.py` fell during the steward's
@@ -1196,7 +1465,30 @@ happened twice. Owner: whoever next reads a fall under load. What would settle i
 expected green, then three runs at `TM_HARNESS_JOBS=8` on an idle machine, reading whether the fall
 is a frame count or a timeout.
 
-<sub>`grep -n 'exits.py' BUGS.md` names B-277 · `rg -n -g '*.md' 'outbox\.py|drag\.py' BUGS.md` → no fall recorded</sub>
+**A FOURTH, read on 2026-09-06 during #567's round-four gate, and recorded here because this entry's
+own rule is « whoever next reads a fall under load ».** `touch.py` FAILED inside
+`harness-hold-counts.py --compare` at `TM_HARNESS_JOBS=2` — « harness: 1 of 92 rule(s) FAILED —
+touch.py (exit 1) » — with its hold count **unchanged at 25** and « 0 rule(s) changed hold count »
+in the same run, so nothing about the count moved. Run ALONE immediately afterwards on the same
+head and the same served copy: **25 rules EXECUTED — no violation, exit 0**.
+
+**Said in the same breath as the verdict, as B-277 requires**: running it alone removed the load the
+failure needed, so that green is not proof the rule is sound — it is only proof the fall did not
+survive isolation. The branch touches neither `touch.py` nor anything it reads.
+
+**And the SUITE was re-run whole, at the same fan-out, before the wave called anything green: 92
+rules, no violation, « 0 rule(s) changed hold count ».** So the fall reproduced neither alone nor
+under the load it appeared in — which is a stronger reading than the isolated re-run, because it
+did not remove the condition. Two readings, one of each kind, and neither shows a defect in the
+rule; what they show is an instrument that fails intermittently and says nothing about why.
+
+**It is a fourth rule and it does NOT print what its diagnosis needs.** The repair B-307 asks for —
+each of the three printing, when it falls, the evidence that separates a frame count from a timeout
+— was never made, so this fall carries no reading at all beyond « exit 1 ». That is the whole cost
+of the debt, arriving on a fourth instrument: three waves have now met this shape and none can say
+which mechanism it was.
+
+<sub>`grep -n 'exits.py' BUGS.md` names B-277 · `rg -n -g '*.md' 'outbox\.py|drag\.py' BUGS.md` → no fall recorded · #567's round-four gate: « harness: 1 of 92 rule(s) FAILED — touch.py (exit 1) » then `python3 frontend/maquette/harness/touch.py` alone → « 25 rules EXECUTED — no violation »</sub>
 
 **READ on 2026-09-04 by the steward, at `cb2128220`, and the protocol above is replaced.** It asked for
 three runs at `TM_HARNESS_JOBS=8` « on an idle machine », which the office forbids for arithmetic (eight
@@ -4900,7 +5192,8 @@ absence of a row can mean either.
 | L11 (offline and the PWA) | **5 by the wave, 13 by four readers** | **The wave's own five were all found by MUTATING its rules, and two are the same rule going green twice over a shell that was not there.** R105 passed with the document deliberately dropped from the precache — the page had been loaded twice, so Chrome's DISK cache answered the reload after the server was gone. With the browser cache turned off it passed AGAIN: on the harness host `/offline.html` has no file behind it, the fallback folds it onto the document, and the worker's LAST-RESORT entry was a full copy of the prototype. **The consequence held while the mechanism was gone**, which is the difference between a rule and a coincidence. **R107 was silent about the client's half of « at least once »**: with the network up, an envelope forgotten BEFORE its request answered and one forgotten after are indistinguishable, so a client promising at MOST once passed eleven green holds. **R109 passed with the standalone check deleted from the application**, because in a desktop context the banner never appears anyway — « not offered » was « never offered ». And **B-258**, a Makefile announcing nine rules where `run.sh` held twelve. *(The wave first counted six here and included R105 CRASHING rather than naming its defect. A crash is RED; B-085 is « green because of what it does not read », so counting it inflated the figure in the flattering direction. It is repaired below instead.)* **THEN FOUR ADVERSARIAL READERS ON THE GREEN GATE RETURNED SOME FORTY MORE**, and the shape is L15's arriving on a wave that wrote BEHAVIOUR rather than conversions: the instruments were sound and the SUBJECT was not. A security regression — the cached shell outlived the session (B-261). An update discipline that reloaded without ever swapping the worker, and then never swapped again (B-262). A queue a refused replay jammed forever, over an optimistic write the server had rejected (B-263). **B-256 still open** through the two tools most likely to run beside a suite, one of them the tool that recorded this wave's own baseline. **R104 reading three substrings and never the comparison** — two survived on the assignment line alone. **`_code_of` stripping `#` and not docstrings**, so its own arm was satisfiable by moving an assertion's sentence into a docstring. **Five properties recorded as `false` that the wave had made true**, § 7.1's duty skipped. And **the coverage figures the register published as B-256's proof were stale the day they were written** — « 75 of 75 » was 79, in the entry that closes the finding about readings nobody can trust. **RECOUNTED BY THE STEWARD (2026-08-31): the readers' share of THIS table is 13, not « 40+ ».** The ~40, 13 and 7 of the four rounds are PRODUCT defects and belong to the rounds, not to this table, whose species is an instrument green over what it does not read. The thirteen, each named in this cell or in the archived report: B-256 left open through `mutate.sh` and `harness-hold-counts.py` · R104's three substrings · `_code_of` blind to docstrings · R104 satisfied by its own source · R111's queue hold that never queued · the corpus floors aimed at the loud corpora · `mutate.sh`'s lock leaked on the `set -e` path its comment claimed · the address pairing matching one end · R104 holding the wrong half after the repair · `_code_of` eating real code under two negative holds with no floor · the `INT` handler resuming past the released lock (B-256 re-opened) · round three's two repairs shipped with no regression hold · `mutate.sh`'s restore not idempotent under a comment asserting it. Excluded, and said so: the five stale `false` properties and the stale « 75 of 75 » — directive drift (B-243's species), not an instrument reading. **And the archived `REPORT.md` still opens its count with « Six for this wave »**: the cut to five and that sentence entered in the SAME squash (`39363e1d`) — B-239's shape, wrong the moment it was written — and the MECHANISM is on record (the wave's author, 2026-08-31): the report's correction was two `str.replace` calls whose patterns matched nothing, in an edit script where every OTHER change carried an `assert old in s` and those two did not, so they were silent no-ops reported as done — « une commande en échec est une édition qui n'a pas eu lieu », inside the very correction fixing figures nobody had compared. The archive stays frozen and this cell is the living correction. |
 | **L14** (#547, the surfaces that outgrew their file)| **7 by the wave, 30 by twenty-one readers** | **A unit is credited to whoever found it, and this row got that wrong twice — first by crediting three reader majors to the wave, then by leaving out five the wave HAD found.** The wave's seven, all the RED form or found by reading the figures its own new holds print: R119's CONTROL, written as « the complete placeholder draws ZERO skeletons » and red over the design working as drawn · `check-component-once.py`'s first floor, at 50 declarations against a corpus of 69 · and the five vacuities caught while mutating its own rules — a branch unreachable for an owned series, so the mutation fell nothing; one latency for two reads, so the interval the hold names did not exist; a thinning naming one title while the walk opened another, so it measured a COMPLETE placeholder and printed zero skeletons (the number said so and the hold did not read it); « in flight » read as the mock layer's total, true on a page whose sheet landed long ago; and a walk on the leanest placeholder that cannot decide « field by field » at all. **The readers' sixteen**, each an instrument whose READING did not decide what it claimed: R119's floor of 6 against 11 with a part name worn by 2 of 9 sites · `export default function` refused by a regex under a docstring saying « exported or not » · hold (f) driving `touch()` alone · its selector never naming a `path` · its floor of ten met by the page beneath a screen · `acq-follows-group` undriven · the incomplete lens's memo read by no driven state · **R117's delete hold GREEN on the code it was written against** · « in flight » read as `data === undefined`, which is also a failed read · an action counted as a CHILD · a floor standing in for reading that a walk's thinning applied · hold (e) reading that an error surface was PRESENT, never what it said · **hold (e-i) reading a counter the reducer resets, 1 before the click and 1 after** · R119's error walk driving the COMPLETE placeholder only, so the failure's own thin case was outside it · R100 (g) green without a replacement, on a window that keeps every row · and hold (i) reading three sentences while six skeletons shimmered beside them forever. **A FOURTH ROUND, on the third round's repairs, returned NINE MORE — every one of them an instrument this wave had just written or just repaired.** R117's new selection-mode hold measured a walk no reader can take (a click driver scrolls a static control into view, so the mode change it timed happened at the top of the list) and compared no place at all, holding « the port is past zero » over a repair that walked the reader four rows up each time · R100's (g-i), written in round 3 to close a vacuity in its own sibling, was green with the delete stubbed to a no-op — the same vacuity, reproduced by the repair for it · R119's (e-iii) walked a title the fixture records no owned numbers for, so the season bodies it was written to hold are empty whatever the code says · and its four terms are all maskable by one row's branch, leaving the hold nothing to fall on · hold (i)'s `aria-busy` read descendants only, so the attribute moved one level up would leave it green over a busy screen · the `season/missing` name was worn by an air date as well as by a shortfall, so the term counting « missing chips » read seven on a sheet missing nothing · `<details open>` was read by no hold, and a mutant opening every season row at rest stayed green · hold (g) REFUSED « Saison annoncée : aucun épisode diffusé », a sentence the seasons read had answered — the rule falling on the screen being right · and `virtual.py`'s two numbers read out of a TypeScript source failed as an attribute error on `None`, naming neither the file nor the declaration that moved. **Two more were found by the wave and are NOT counted here, because neither is this species**: an exclusion typed as a French substring stopped excluding anything the day the sentence was reworded, which is a rule going RED; and the anchoring suppression written beside the place restore fell no rule when mutated, which is a repair with no subject rather than a gate with a blind spot — it was removed. **A FIFTH ROUND, on the fourth's repairs, returned TWO MORE of this species.** (e-iii-a), the term written in round 4 to refuse the sentences that speak for the provider, walks a title the fixture gives a trailer — so that sentence cannot be printed there whatever the code says, and a build printing it over a 502 passed all twenty-nine holds of its rule. And the wave's own hold list still counted its walks in three different numbers, in the rule's header, in the report and in the pull request, while the file made ten cold loads. **A SIXTH ROUND added THREE more, all of them in what the fifth round had just written.** The 300 px hold compared the top row's TITLE, and at three hundred pixels and at the container's own start that is the same row — so it passed on the code it was written against, which is the exact species of R117's round-2 finding repeated by the rule written to close it. The bare-unknown term was written over ELEMENTS while the kind's word lives in a text node inside a fragment, so its first form was green over the one site it existed for. And no rule read OWNERSHIP at all: reverting `ownershipKnown` to the form that classed a null answer as known left all thirty-two holds of R119 green, on the screen whose whole subject is what may be claimed about data nobody has. |
 | **L19** (the producers) | **27 across three rounds** — 11 by the wave, 7 by round one's readers, 9 more from rounds two and three | **THE ASYMMETRY THIS TABLE PREDICTS, ARRIVING ON SCHEDULE.** The row read « 9 by the wave, 0 by readers yet » and said so as a claim awaiting readers; four readers on the green gate returned seven more, and every one of the seven is in an instrument, not in a product surface. **The seven, each named: (1)** the size ledger is its own oracle — the FILE is compared with the record and the RECORD with nothing, so a growth is legalised by moving the number in the same commit, which is B-306's species one level up. **(2)** `check-state-ownership.py`'s engine-owned exemption proved by SUBSTRING, so a comment spelling the path keeps it alive after the import goes — in a file full of comments naming feature paths. **(3)** `panel.py`'s boot needle, likewise: a commented-out `import "./panel-field";` left the hold green, exit 0, where the deleted line fails it. **(4)** `paths_to_sheets.py`, twice over — four of its five reachability branches select nothing on all six surfaces, so the rule had narrowed to one attribute with nobody reading it, and its message counted the four-item SAMPLE as the number of dead ends. **(5)** `fanout.py` holds the invalidation map against ITSELF: a key dropped from the declaration is invisible (B-319). **(6)** `hold-counts-baseline.json` is compared by nothing at all — no guard, no CI job — and now carries eleven rows that are wrong or absent. **(7)** `busy.py` raises its panels through the SEAM, which is the exact vacuity this wave had already caught in R103's journey hold, reproduced one rule along. **Six of the seven are in guards, and three of those six are the same shape: a fact asserted by searching a file's text rather than parsing it.** The wave's own nine follow — **and REPAIRING those seven turned up two more of the wave's own**, which is why this row reads eleven: `app/focus.ts` asserting « `[autofocus]` first » over a selector LIST, where `querySelector` answers in DOCUMENT order and the comment had been wrong for as long as it existed; and this wave's own new history hold, which cleared the whole query cache and was therefore refused by the engine's `resolves` before it reached the suppression it measures — `open=False · history.length 4 -> 4`, identically with the repair and with the repair mutated away. This row is the wave's own count and it is the count a wave has been wrong about three times in a row, so it was written as a claim awaiting readers rather than as a total — and it was right to be. **Four are in the wave's OWN new rules**, caught by their own mutations: R120's refusal check accepted ANY throw, so a `TypeError` from the crash it was written to prevent passed it; R103's new journey hold drove the SEAM, so the 260 ms wait it refuses was never on its path; R122's reachability was satisfied by a second path, which is why its first mutation was survived CORRECTLY and a second was needed; and `pop.py` read the popover's text while `SssEnn` is composed from the CELL, so it is right whichever episode was looked up. **Two are older rules asserting the very defect they sat beside**: `page_host.py` held « a real tap on the restart offer TAKES it », which is B-300 written down as a requirement; and `pop.py`'s `main()` computed a verdict and never reached the exit code, so that half could print « needs review » and pass the suite. **Three are product surfaces no instrument reached at all**: a destructive maintenance command could have worn the SUCCESS tone, §5's film/series distinction was drawn and read by nothing, and the settings panel could have told the operator their edit did not take. **And one more that is not counted here because it is an instrument of this wave's own making rather than a gate going green**: a probe for B-311 read « 900 → 900 KEPT » twice, on two builds, having never scrolled at all. It is written into that entry. |
-| **Total** | **238** | 130 by the waves through L11's own five, plus the four readers' 13 recounted above — at 2026-08-31, after L10-bis, its review, L10-ter's survey and its review, **L15 with its own review**, and **L11 with FOUR readers**. **L11's FIVE are the mutation half of the curve, and they say what mutation IS good for**: every one was found by breaking the wave's own rules on purpose, and two of them are the same rule going green twice over a shell that was not there. A rule can hold a CONSEQUENCE while the mechanism it names is gone, and only a mutation asks. **What mutation could not reach is the other forty**: four readers on that same green gate found a security regression, an update discipline that never swapped the worker, and a queue a refused replay jammed forever — none of them a defect the author had thought to break. The ratio is this table's oldest argument, arriving on a wave that wrote BEHAVIOUR rather than conversions: 5 by mutation, some 40 by reading. **And a second round on the REPAIRS found thirteen more, then a third found seven** — the two later rounds are where the sharpest findings are, not the first. Round two: the repair for a jammed queue had made a refused mutation vanish SILENTLY instead, and its classifier destroyed the operator's action on a 503, a 429 and a 401 — the very outage the queue exists for. Round three: that repair's own replacement still treated **401 as final**, so an expired session destroyed every queued mutation one after another when a re-login would have saved them all; and the notice's button said « Réessayer maintenant » while doing something else, because its name, its words and its action were written as three ladders that tested their conditions in different orders. **Each round's worst finding was in the previous round's repair**, and none of the three was found by a gate. **L12 adds 30 — 143 + 30 = 173 — and the addition is the itemisation's, not a counter's.** For two days this cell read 151 while the itemisation read 15 and `main` read 143, because the figure had been incremented ONCE PER REGISTER ENTRY FILED as B-271 to B-278 landed: 144, 145, … 151. Four of those eight entries are not units of this species at all, and the itemisation moved 6 → 14 → 15 without the total moving with it. A total that tracks a different quantity from the table under it is the drift this whole page is about, and it took an adversarial reader to do the subtraction. **docs-cleanup adds 1 — 173 + 1 = 174** (B-293, the 38 dead `Design:` markers the design-gaps pair is green over; found by the wave's inventory, 0 by readers). **L14 adds 37 — 174 + 37 = 211**, seven found by the wave and thirty by twenty-one independent readers across SIX rounds, on a gate green in every tier each time. **The fourth round's nine are all in instruments the third round had just written or just repaired** — including the hold written to close a vacuity, carrying the same vacuity — which is this table's oldest reading arriving from the closest possible range. **The wave counted itself three times and was wrong three times**: 2 when the readers had already returned three more; « 5 by the wave » when three of those five were reader majors; and 2 again when its own report named five vacuities it had caught in its own new holds — the species this table exists for, uncounted in either column. The lesson is not that the counting is careless. It is that a wave cannot audit its own instruments: every correction here came from someone else reading the same tree. **L19 adds 27 — 211 + 27 = 238**, over THREE rounds, and the shape of the curve is the reading. Eleven by the wave — nine by its own mutations, and two found REPAIRING the readers' findings. **Seven by round one's four readers, all seven in instruments.** **Nine more by rounds two and three**, and every one of those nine is in an instrument too: the comment arm's corpus floor placed below anything that could happen; the CI-depth hold blind to the second job that runs the guard, then asking a SUBSTRING of `run.sh` where it needed the array; R124 calling a `row.click()` a finger; R82's own new hold evicting a query key this interface does not have, so it walked a warm cache and passed with the repair removed; the comment reader's two cases asserting that string literals are safe over shapes containing no `//` at all; R120's order hold comparing `None` with « danger »; the same hold reading UNSCOPED over a tree that persists, so a produce that opened nothing answered about the previous panel; and `add`, the one registered kind nothing drove — ten moved, nine walked. **TWO were deliberately NOT counted**, and saying so is the rule this row has been wrong about before: `PANEL_OUT`'s banner claiming more than its constants did, and R124's toast helper named for a gesture it does not perform, are false CLAIMS rather than instruments green over what they do not read. **The count trebled after the wave declared itself done, and every one of the sixteen added since came from someone else looking** — which is this table's oldest argument, arriving three times in one pull request. The row above wrote the nine as « a claim awaiting readers » rather than as a total, on this table's own evidence that the reader half arrives later — and it did, at 78 % of the wave's own count, on a gate green in every tier. What it did NOT predict is the shape: L11's readers found product defects the author had not thought to break, and L19's found guards. **Three of round one's seven are one shape — a fact asserted by SEARCHING a file's text instead of parsing it** — and that shape had already shipped twice in this wave under its own author's review. A wave cannot audit its own instruments, and it cannot see its own habits either. |
+| **maquette-schedulers** (#567, the B-308 micro-wave) | **1** | **One, and it is the rule this wave repaired, on the half nobody was looking at.** `machine.py`'s « a scheduler's badge follows the declared state » compares the DRAWN tones against a declared source, and for the schedulers that source was `window.SCHEDULERS` — the engine's fixture. The page stopped reading that fixture at L08 and has read the mock layer since. So the hold compared what the surface drew against an object the surface never touched, and it was green because the two happened to agree byte for byte: the day the seed and the fixture drifted in tone, it would have reported agreement or disagreement about the wrong list. Found by the removal rather than by reading — taking the fixture out made the expression RAISE, which is what named it. The source is the query cache now. **Counted 1, not 2**: the backend mirror B-324 files is not an instrument green over what it does not read, it is a list no instrument reads at all, and D5's stale `254` is a figure with no guard behind it — neither is a unit of this species, and saying so is this table's own rule |
+| **Total** | **239** | 130 by the waves through L11's own five, plus the four readers' 13 recounted above — at 2026-08-31, after L10-bis, its review, L10-ter's survey and its review, **L15 with its own review**, and **L11 with FOUR readers**. **L11's FIVE are the mutation half of the curve, and they say what mutation IS good for**: every one was found by breaking the wave's own rules on purpose, and two of them are the same rule going green twice over a shell that was not there. A rule can hold a CONSEQUENCE while the mechanism it names is gone, and only a mutation asks. **What mutation could not reach is the other forty**: four readers on that same green gate found a security regression, an update discipline that never swapped the worker, and a queue a refused replay jammed forever — none of them a defect the author had thought to break. The ratio is this table's oldest argument, arriving on a wave that wrote BEHAVIOUR rather than conversions: 5 by mutation, some 40 by reading. **And a second round on the REPAIRS found thirteen more, then a third found seven** — the two later rounds are where the sharpest findings are, not the first. Round two: the repair for a jammed queue had made a refused mutation vanish SILENTLY instead, and its classifier destroyed the operator's action on a 503, a 429 and a 401 — the very outage the queue exists for. Round three: that repair's own replacement still treated **401 as final**, so an expired session destroyed every queued mutation one after another when a re-login would have saved them all; and the notice's button said « Réessayer maintenant » while doing something else, because its name, its words and its action were written as three ladders that tested their conditions in different orders. **Each round's worst finding was in the previous round's repair**, and none of the three was found by a gate. **L12 adds 30 — 143 + 30 = 173 — and the addition is the itemisation's, not a counter's.** For two days this cell read 151 while the itemisation read 15 and `main` read 143, because the figure had been incremented ONCE PER REGISTER ENTRY FILED as B-271 to B-278 landed: 144, 145, … 151. Four of those eight entries are not units of this species at all, and the itemisation moved 6 → 14 → 15 without the total moving with it. A total that tracks a different quantity from the table under it is the drift this whole page is about, and it took an adversarial reader to do the subtraction. **docs-cleanup adds 1 — 173 + 1 = 174** (B-293, the 38 dead `Design:` markers the design-gaps pair is green over; found by the wave's inventory, 0 by readers). **L14 adds 37 — 174 + 37 = 211**, seven found by the wave and thirty by twenty-one independent readers across SIX rounds, on a gate green in every tier each time. **The fourth round's nine are all in instruments the third round had just written or just repaired** — including the hold written to close a vacuity, carrying the same vacuity — which is this table's oldest reading arriving from the closest possible range. **The wave counted itself three times and was wrong three times**: 2 when the readers had already returned three more; « 5 by the wave » when three of those five were reader majors; and 2 again when its own report named five vacuities it had caught in its own new holds — the species this table exists for, uncounted in either column. The lesson is not that the counting is careless. It is that a wave cannot audit its own instruments: every correction here came from someone else reading the same tree. **L19 adds 27 — 211 + 27 = 238**, over THREE rounds, and the shape of the curve is the reading. Eleven by the wave — nine by its own mutations, and two found REPAIRING the readers' findings. **Seven by round one's four readers, all seven in instruments.** **Nine more by rounds two and three**, and every one of those nine is in an instrument too: the comment arm's corpus floor placed below anything that could happen; the CI-depth hold blind to the second job that runs the guard, then asking a SUBSTRING of `run.sh` where it needed the array; R124 calling a `row.click()` a finger; R82's own new hold evicting a query key this interface does not have, so it walked a warm cache and passed with the repair removed; the comment reader's two cases asserting that string literals are safe over shapes containing no `//` at all; R120's order hold comparing `None` with « danger »; the same hold reading UNSCOPED over a tree that persists, so a produce that opened nothing answered about the previous panel; and `add`, the one registered kind nothing drove — ten moved, nine walked. **TWO were deliberately NOT counted**, and saying so is the rule this row has been wrong about before: `PANEL_OUT`'s banner claiming more than its constants did, and R124's toast helper named for a gesture it does not perform, are false CLAIMS rather than instruments green over what they do not read. **The count trebled after the wave declared itself done, and every one of the sixteen added since came from someone else looking** — which is this table's oldest argument, arriving three times in one pull request. The row above wrote the nine as « a claim awaiting readers » rather than as a total, on this table's own evidence that the reader half arrives later — and it did, at 78 % of the wave's own count, on a gate green in every tier. What it did NOT predict is the shape: L11's readers found product defects the author had not thought to break, and L19's found guards. **Three of round one's seven are one shape — a fact asserted by SEARCHING a file's text instead of parsing it** — and that shape had already shipped twice in this wave under its own author's review. A wave cannot audit its own instruments, and it cannot see its own habits either. **maquette-schedulers adds 1 — 238 + 1 = 239**, and it is the only kind of unit a one-entry micro-wave can honestly contribute: found by the removal, in the rule it was repairing, with two adjacent findings deliberately NOT counted because neither is an instrument. |
 | **L12** (#540, merged 2026-09-01) | **30** | itemised below, one named unit per line with the proof that establishes it — the count follows the itemisation rather than the itemisation following a number. **Fifteen before the adversarial rounds and fifteen more after them** — twelve returned by readers, three the wave found itself, which is this table's oldest reading arriving again: the sharpest findings are in the round that reads the previous round's work, and thirteen of the second fifteen are in instruments this wave had already repaired once |
 | **docs-cleanup** (#539, the documentation model's first application) | **1** | found by the wave: 1 (B-293 — 38 `Design:` markers naming paths that left the tree, `update_feature_map.py --check` and `audit_design_coverage.py --strict` green over every one) · found by readers: 0 |
 

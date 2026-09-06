@@ -446,8 +446,11 @@ the fixture is exactly what did NOT happen — see the refreshed figure above, a
 the measurement.
 
 **What is cross-cutting and does NOT strangle surface by surface**: the document-level event
-delegation, the boot handshake, and the 254 top-level declarations republished on `window` for the
-harness to drive through. **Navigation was on this list and is LIFTED**: L05 took the address
+delegation, the boot handshake, and the **156** top-level declarations republished on `window` for
+the harness to drive through — a figure that read **254** until 2026-09-05 and had been false for
+several lots: `main` carried **158** before the B-308 micro-wave took two of them away.
+<sub>method: the names of the single `Object.assign(window, {…})` block of `engine/legacy.js`, split
+on commas</sub> **Navigation was on this list and is LIFTED**: L05 took the address
 model out of the engine — `URL_DEFAULTS`, `urlFromState`, `stateFromUrl` and the `baseAddress`
 plumbing — leaving it the navigation LOGIC (when to record an arrival, what the entry carries, how
 a back unwinds the layers). `openScreen` went with them, having lost every caller. `__go` and the
@@ -1934,6 +1937,11 @@ its report.
   bigger run: `exits.py`, `outbox.py` and `drag.py` PRINT, when they fall, the evidence their diagnosis
   needs (frames sampled against milliseconds drawn; wait elapsed against timeout given), so the next
   fall under the suite carries its own reading. The next wave that touches any of the three takes it.
+- **B-325** — no rule can be pointed at a build. `common.PROTOTYPE` is hard-coded to 8899 with no
+  override and every rule self-runs on import, so an independent reader cannot run one against its
+  own copy without rebinding the constant from outside the tree — and once rebound, the B-256 stamp
+  certifies `/tmp/tm-refonte`, a build the run never read. The next wave that opens `common.py`
+  takes it.
 - **B-323** — the inventory of the engine's `setTimeout(…, 260)` sites in `exits.py`'s own comment is
   taken by a command that reads one line (`grep -n "setTimeout(.*260)"`), so it names five where seven
   remain; the two it cannot see span several lines and are named in the register. The next wave that
