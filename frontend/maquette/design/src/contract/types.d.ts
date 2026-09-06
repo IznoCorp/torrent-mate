@@ -211,6 +211,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/follows/{followedId}/seasons/{season}/grab": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Take one season of a follow */
+        post: operations["grabSeasonForFollow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/followed/{followedId}/grab": {
         parameters: {
             query?: never;
@@ -324,6 +341,40 @@ export interface paths {
         get: operations["readJourney"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/journeys/{infoHash}/requeue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Put one journey back in the queue */
+        post: operations["requeueJourney"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/journeys/{infoHash}/rescrape": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Re-scrape one journey's tracked item */
+        post: operations["rescrapeJourney"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1748,6 +1799,46 @@ export interface operations {
             503: components["responses"]["Problem"];
         };
     };
+    grabSeasonForFollow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the follow. The interface knows it by TITLE */
+                followedId: string;
+                /** @description the season, 1-based */
+                season: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the season is taken — and the state the interface draws from it */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description the season that was asked for, 1-based */
+                        season: number;
+                        /** @description how many episode-level asks this season's ask absorbed */
+                        absorbedCount: number;
+                        /** @description whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs, or while §20's parallelism bound is met, is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». The backend has no such field and answers 409 for the case instead, which NE-DOIT-PAS-3 forbids the interface to show: that difference is a demand, not a shape to reconcile here. */
+                        queued: boolean;
+                        /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
+                        runUid: string | null;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
     grabForFollow: {
         parameters: {
             query?: never;
@@ -1967,6 +2058,74 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    requeueJourney: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the journey. The interface knows it by the medium's TITLE */
+                infoHash: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the ask is accepted — running now, or visibly in file */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs, or while §20's parallelism bound is met, is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». The backend has no such field and answers 409 for the case instead, which NE-DOIT-PAS-3 forbids the interface to show: that difference is a demand, not a shape to reconcile here. */
+                        queued: boolean;
+                        /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
+                        runUid: string | null;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    rescrapeJourney: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the journey. The interface knows it by the medium's TITLE */
+                infoHash: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the ask is accepted — running now, or visibly in file */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs, or while §20's parallelism bound is met, is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». The backend has no such field and answers 409 for the case instead, which NE-DOIT-PAS-3 forbids the interface to show: that difference is a demand, not a shape to reconcile here. */
+                        queued: boolean;
+                        /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
+                        runUid: string | null;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };

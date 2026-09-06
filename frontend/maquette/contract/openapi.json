@@ -982,6 +982,93 @@
         "x-unseeded": "how many conforming releases were found. The engine has no fixture for a search RESULT COUNT; the figure is derived from the seeded releases."
       }
     },
+    "/api/acquisition/follows/{followedId}/seasons/{season}/grab": {
+      "post": {
+        "operationId": "grabSeasonForFollow",
+        "summary": "Take one season of a follow",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "201": {
+            "description": "the season is taken — and the state the interface draws from it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "season": {
+                      "type": "integer",
+                      "description": "the season that was asked for, 1-based"
+                    },
+                    "absorbedCount": {
+                      "type": "integer",
+                      "description": "how many episode-level asks this season's ask absorbed"
+                    },
+                    "queued": {
+                      "type": "boolean",
+                      "description": "whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs, or while §20's parallelism bound is met, is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». The backend has no such field and answers 409 for the case instead, which NE-DOIT-PAS-3 forbids the interface to show: that difference is a demand, not a shape to reconcile here."
+                    },
+                    "runUid": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "the run to follow, when one was started. Null when the ask is queued and nothing runs yet."
+                    }
+                  },
+                  "required": [
+                    "season",
+                    "absorbedCount",
+                    "queued",
+                    "runUid"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "followedId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the follow. The interface knows it by TITLE"
+          },
+          {
+            "name": "season",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "the season, 1-based"
+          }
+        ],
+        "x-unseeded": "an acknowledgement and a queued flag. No fixture covers either: the maquette's engine printed a season as to_grab and offered nothing at all, so there is no recorded answer to seed from. The season number is the request's own and `absorbedCount` is derived from the episodes the fixture holds for that season."
+      }
+    },
     "/api/acquisition/followed/{followedId}/grab": {
       "post": {
         "operationId": "grabForFollow",
@@ -1446,6 +1533,142 @@
         "x-seeded-from": [
           "openJourneySheet.steps"
         ]
+      }
+    },
+    "/api/acquisition/journeys/{infoHash}/requeue": {
+      "post": {
+        "operationId": "requeueJourney",
+        "summary": "Put one journey back in the queue",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "202": {
+            "description": "the ask is accepted — running now, or visibly in file",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "queued": {
+                      "type": "boolean",
+                      "description": "whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs, or while §20's parallelism bound is met, is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». The backend has no such field and answers 409 for the case instead, which NE-DOIT-PAS-3 forbids the interface to show: that difference is a demand, not a shape to reconcile here."
+                    },
+                    "runUid": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "the run to follow, when one was started. Null when the ask is queued and nothing runs yet."
+                    }
+                  },
+                  "required": [
+                    "queued",
+                    "runUid"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "infoHash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the journey. The interface knows it by the medium's TITLE"
+          }
+        ],
+        "x-unseeded": "an acknowledgement. §20: a blocked tunnel « reprend là où il s'est arrêté, par l'opérateur ». No fixture covers it: the journey's own fixture holds STAGES and no record of a verb ever having been asked for, because until this lot no verb existed to ask."
+      }
+    },
+    "/api/acquisition/journeys/{infoHash}/rescrape": {
+      "post": {
+        "operationId": "rescrapeJourney",
+        "summary": "Re-scrape one journey's tracked item",
+        "tags": [
+          "acquisition"
+        ],
+        "responses": {
+          "202": {
+            "description": "the ask is accepted — running now, or visibly in file",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "queued": {
+                      "type": "boolean",
+                      "description": "whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs, or while §20's parallelism bound is met, is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». The backend has no such field and answers 409 for the case instead, which NE-DOIT-PAS-3 forbids the interface to show: that difference is a demand, not a shape to reconcile here."
+                    },
+                    "runUid": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "the run to follow, when one was started. Null when the ask is queued and nothing runs yet."
+                    }
+                  },
+                  "required": [
+                    "queued",
+                    "runUid"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "infoHash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the journey. The interface knows it by the medium's TITLE"
+          }
+        ],
+        "x-unseeded": "an acknowledgement. The tunnel's scrape, re-run for one tracked staging item — NOT the media sheet's metadata re-scrape, which is another subject. No fixture covers it: the journey's own fixture holds STAGES and no record of a verb ever having been asked for, because until this lot no verb existed to ask."
       }
     },
     "/api/acquisition/releases": {

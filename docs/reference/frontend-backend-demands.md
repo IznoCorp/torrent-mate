@@ -19,13 +19,13 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 54 |
+| operations the interface requires | 57 |
 | operations the backend has | 65 |
 | required and missing | 13 |
-| declared by both, different response shape | 41 |
-| declared by both, path parameter spelled differently | 11 |
+| declared by both, different response shape | 44 |
+| declared by both, path parameter spelled differently | 14 |
 | fields carried pre-formatted | 25 |
-| the backend has and the interface does not use | 24 |
+| the backend has and the interface does not use | 21 |
 
 ---
 
@@ -80,6 +80,9 @@ reports a difference for every optional field and drowns the real findings.
 | `POST /api/acquisition/followed` (`createFollow`) | `aired`, `fresh`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `id`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
 | `POST /api/acquisition/followed/{followedId}/grab` (`grabForFollow`) | `releaseName` | `run_uid` |
 | `POST /api/acquisition/followed/{followedId}/search` (`searchForFollow`) | `found` | `run_uid` |
+| `POST /api/acquisition/follows/{followedId}/seasons/{season}/grab` (`grabSeasonForFollow`) | `absorbedCount`, `queued`, `runUid` | `absorbed_count`, `reused`, `run_started`, `run_uid`, `season_wanted_id` |
+| `POST /api/acquisition/journeys/{infoHash}/requeue` (`requeueJourney`) | `queued`, `runUid` | `run_uid` |
+| `POST /api/acquisition/journeys/{infoHash}/rescrape` (`rescrapeJourney`) | `queued`, `runUid` | `run_uid` |
 | `POST /api/auth/login` (`signIn`) | `avatar`, `email`, `name` | — |
 | `POST /api/auth/logout` (`signOut`) | `ok` | — |
 | `POST /api/config/restart-web` (`restartWeb`) | `ok` | `status` |
@@ -109,6 +112,9 @@ operator's call rather than this file's.
 | `PATCH /api/acquisition/followed/{followedId}` | `PATCH /api/acquisition/followed/{followed_id}` |
 | `POST /api/acquisition/followed/{followedId}/grab` | `POST /api/acquisition/followed/{followed_id}/grab` |
 | `POST /api/acquisition/followed/{followedId}/search` | `POST /api/acquisition/followed/{followed_id}/search` |
+| `POST /api/acquisition/follows/{followedId}/seasons/{season}/grab` | `POST /api/acquisition/follows/{followed_id}/seasons/{season}/grab` |
+| `POST /api/acquisition/journeys/{infoHash}/requeue` | `POST /api/acquisition/journeys/{info_hash}/requeue` |
+| `POST /api/acquisition/journeys/{infoHash}/rescrape` | `POST /api/acquisition/journeys/{info_hash}/rescrape` |
 | `POST /api/decisions/{decisionId}/dismiss` | `POST /api/decisions/{decision_id}/dismiss` |
 | `POST /api/decisions/{decisionId}/resolve` | `POST /api/decisions/{decision_id}/resolve` |
 | `POST /api/decisions/{decisionId}/search` | `POST /api/decisions/{decision_id}/search` |
@@ -176,9 +182,6 @@ production app, by a script, or by the operator.
 - `GET /api/pipeline/stages`
 - `GET /api/registry/status`
 - `GET /api/staging/media/{media_id}/poster`
-- `POST /api/acquisition/follows/{followed_id}/seasons/{season}/grab`
-- `POST /api/acquisition/journeys/{info_hash}/requeue`
-- `POST /api/acquisition/journeys/{info_hash}/rescrape`
 - `POST /api/acquisition/ranking/preview`
 - `POST /api/config/validate`
 - `POST /api/pipeline/watcher`
