@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refuses six defect classes — six arms, each naming the corpus it
+"""Refuses seven defect classes — seven arms, each naming the corpus it
 reads. Read the arm whose scope you are touching.
 
 ARM 1 — a `data-*` value the markup emits and no reader understands.
@@ -54,6 +54,16 @@ parser. The sibling of ARM 5: one asks which variants are never called,
 the other which elements never call one. Not a count — an allow-list
 with a reason per site, because six bare elements are not six of the
 same thing and a ratchet on a number permits trading one for another.
+
+ARM 7 — a `data-*` verb a panel action emits and nothing answers.
+Corpus: the emitting side is every `.ts` and `.tsx` under `design/src`,
+read through the TypeScript parser; the answering side is that tree's
+`registerVerb` declarations and the dying engine. The arm lives in
+`markup_verbs.py`, beside this file, and that file's header describes the
+contract and the two answerers it accepts. A panel draws an action's
+target attributes and attaches NO handler, by contract — so a verb no
+delegation reads is a button that takes the tap and does nothing, in
+silence, which is the state `lib/verbs.ts` was created to end.
 
 ARM 2 — a rule selection anchored on a style class.
 Corpus: `frontend/maquette/harness`, every `*.py` file, read as text.
@@ -191,6 +201,10 @@ from markup_dressing import (  # noqa: E402, F401
     BARE_ALLOWED, check_bare_elements, check_orphan_variants,
     variant_declaring_files, variant_reading_files,
 )
+# ARM 7, next door. Its corpus is the emitting side read through the TypeScript
+# parser — see that module's header for the contract it holds and the two
+# answerers it accepts.
+from markup_verbs import check_panel_verbs  # noqa: E402
 
 # `store.write({ pipe: closest.dataset.pipe })` — the handler that FORWARDS a
 # markup value into a store field. The two names differ often enough
@@ -822,7 +836,7 @@ def check_harness_parses() -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Runs the precondition and all four arms.
+    """Runs the precondition and every arm.
 
     The precondition runs FIRST. A corpus one file short measures one file
     short, and 4.1 is the day that mattered: every instrument read
@@ -870,6 +884,8 @@ def main(argv: list[str] | None = None) -> int:
     if check_orphan_variants():
         rc = 1
     if check_bare_elements():
+        rc = 1
+    if check_panel_verbs():
         rc = 1
     return rc
 

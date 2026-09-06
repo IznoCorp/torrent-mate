@@ -50,6 +50,11 @@ anchors = sys.modules["markup_anchors"]
 # consequence: its corpus is DERIVED, so the derivation's tests patch the module
 # that reads the harness rather than the entry point that calls the arm.
 states = sys.modules["markup_states"]
+# ARM 7 lives in `markup_verbs.py`. Its emission side is PARSED — by
+# `harness/panel_verbs.mjs`, through node — so the tests below build a small
+# tree on disk and let the real extractor read it: a mocked parse would hold
+# nothing about the shapes that made this arm necessary.
+verbs = sys.modules["markup_verbs"]
 
 
 class TestReadersOf:
@@ -1164,7 +1169,7 @@ class TestHarnessParses:
         source = (guard.__file__ and Path(guard.__file__).read_text(encoding="utf-8")) or ""
         body = source[source.index("\ndef main(") :]
         arms = [name for name in re.findall(r"if (check_\w+)\(\)", body) if name != "check_harness_parses"]
-        assert len(arms) >= 6, f"main calls {len(arms)} arms; the guard has six"
+        assert len(arms) >= 7, f"main calls {len(arms)} arms; the guard has seven"
 
         ran = []
         monkeypatch.setattr(guard, "check_harness_parses", lambda: 1)
@@ -1183,3 +1188,182 @@ class TestHarnessParses:
         reads the tree.
         """
         assert guard.parse_failures(guard.harness_files()) == []
+
+
+class TestPanelVerbs:
+    """ARM 7: a `data-*` verb a panel action emits and nothing answers.
+
+    THE DEFECT IS SILENT AND THAT IS THE WHOLE POINT. `ui/panel` draws an
+    action's target attributes and attaches no handler, by contract, so a verb
+    no delegation reads is a button that takes the tap, looks pressed, and does
+    nothing — no error, no message, nothing in the console. B-302's two verbs
+    were in exactly that state until `lib/verbs.ts` existed.
+
+    The tree is built on disk and read by the REAL extractor. Mocking the parse
+    would leave untested the two shapes that actually cost something: a `target`
+    written as a conditional, and the dialog's action, which looks identical to
+    a regular expression and is answered by its own component.
+    """
+
+    def _tree(self, tmp_path, panel: str, engine: str = "") -> None:
+        """Writes a source tree the two corpora can be pointed at."""
+        (tmp_path / "features").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "features" / "panel.ts").write_text(panel, encoding="utf-8")
+        (tmp_path / "engine").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "engine" / "legacy.js").write_text(engine, encoding="utf-8")
+
+    def _read(self, tmp_path, monkeypatch, panel: str, engine: str = "") -> int:
+        """Runs the arm over a tree of exactly what a case is about.
+
+        The floor is lowered to zero here and held by its own case below: every
+        other case reads one or two actions, and a floor meant to catch an
+        extractor that stopped working would refuse all of them.
+        """
+        self._tree(tmp_path, panel, engine)
+        monkeypatch.setattr(verbs, "SOURCES", tmp_path)
+        monkeypatch.setattr(verbs, "ENGINE", tmp_path / "engine" / "legacy.js")
+        monkeypatch.setattr(verbs, "VERB_FLOOR", 0)
+        return verbs.check_panel_verbs()
+
+    def test_a_verb_nothing_answers_is_refused_and_named(
+            self, tmp_path, monkeypatch, capsys) -> None:
+        """The arm's subject, and the state B-302's verbs shipped in."""
+        assert self._read(
+            tmp_path, monkeypatch,
+            'const a = { text: "x", icone: "i", '
+            'target: { "journey-requeue": t } };') == 1
+        err = capsys.readouterr().err
+        assert "data-journey-requeue" in err
+        assert "registerVerb" in err
+
+    def test_a_registered_verb_is_answered(self, tmp_path, monkeypatch) -> None:
+        """The registry answers, and the arm accepts it."""
+        assert self._read(
+            tmp_path, monkeypatch,
+            'registerVerb("journey-requeue", act);\n'
+            'const a = { text: "x", target: { "journey-requeue": t } };') == 0
+
+    def test_the_dying_engine_answers_too(self, tmp_path, monkeypatch) -> None:
+        """A verb the engine still reads is answered until its branch goes.
+
+        The engine dies by SUBTRACTION (D5), so this arm falls the day a branch
+        is deleted before its verb reaches the registry — which is the arm doing
+        its work, not the arm getting in the way.
+        """
+        assert self._read(
+            tmp_path, monkeypatch,
+            'const a = { text: "x", target: { mediasheet: t } };',
+            "if (closest.dataset.mediasheet) openSheet(closest.dataset.mediasheet);"
+        ) == 0
+
+    def test_the_engine_spellings_are_the_same_name(
+            self, tmp_path, monkeypatch) -> None:
+        """`dataset.journeyRequeue` answers `data-journey-requeue`.
+
+        The two spellings are one name. Comparing them as written would refuse a
+        verb the engine reads every time it is tapped.
+        """
+        assert self._read(
+            tmp_path, monkeypatch,
+            'const a = { text: "x", target: { "journey-requeue": t } };',
+            "act(closest.dataset.journeyRequeue);") == 0
+
+    def test_an_answer_a_comment_gives_is_no_answer(
+            self, tmp_path, monkeypatch) -> None:
+        """Prose naming a verb answers no tap.
+
+        The engine's own comments name attributes it no longer reads, which is
+        how a corpus read as raw text reports an answer that is not there.
+        """
+        assert self._read(
+            tmp_path, monkeypatch,
+            'const a = { text: "x", target: { standby: t } };',
+            "// the engine used to read closest.dataset.standby here") == 1
+
+    def test_a_dialog_action_is_set_aside(
+            self, tmp_path, monkeypatch, capsys) -> None:
+        """The dialog spreads its keys verbatim and attaches its own handler."""
+        assert self._read(
+            tmp_path, monkeypatch,
+            'const a = { text: "x", tone: "danger", '
+            'target: { "data-confirmrestart": "1" } };') == 0
+        assert "1 dialog action(s) set aside" in capsys.readouterr().out
+
+    def test_a_panel_action_asking_for_the_prefix_is_refused(
+            self, tmp_path, monkeypatch, capsys) -> None:
+        """`ui/panel` writes `data-` itself, so `data-x` renders `data-data-x`.
+
+        The same defect from the other direction: an attribute nothing reads and
+        a button that does nothing. On a DIALOG action the spelling is right,
+        which is why this refusal waits until the two surfaces are told apart —
+        the sibling `ton` below is the panel's own spelling of `tone`.
+        """
+        assert self._read(
+            tmp_path, monkeypatch,
+            'const a = { text: "x", ton: "danger", '
+            'target: { "data-confirmrestart": "1" } };') == 1
+        assert "data-data-confirmrestart" in capsys.readouterr().err
+
+    def test_a_registration_whose_name_is_not_a_literal_is_refused(
+            self, tmp_path, monkeypatch, capsys) -> None:
+        """An answer the arm cannot read would refuse a verb that IS answered."""
+        assert self._read(
+            tmp_path, monkeypatch,
+            "registerVerb(NAME, act);\n"
+            'const a = { text: "x", target: { mediasheet: t } };',
+            "act(closest.dataset.mediasheet);") == 1
+        assert "not a string literal" in capsys.readouterr().err
+
+    def test_a_conditional_target_is_read_whole(
+            self, tmp_path, monkeypatch, capsys) -> None:
+        """Both branches of `cond ? { … } : { … }`, through an `as`.
+
+        The sort panel writes its target that way ON PURPOSE — two shapes rather
+        than one with an undefined field, because an undefined value still emits
+        the attribute. The first version of this arm matched only a bare object
+        literal, skipped that map whole, and reported one fewer verb with no
+        sign that it had.
+        """
+        assert self._read(
+            tmp_path, monkeypatch,
+            'const a = { text: "x", target: (r ? { setsort: k, reversed: "1" } '
+            ': { setsort: k }) as Record<string, string> };') == 1
+        err = capsys.readouterr().err
+        assert "data-setsort" in err
+        assert "data-reversed" in err
+
+    def test_an_empty_corpus_is_refused_rather_than_reported_green(
+            self, tmp_path, monkeypatch, capsys) -> None:
+        """A parse that read nothing prints the same line as one that read all.
+
+        The arm starts at zero violations, so its floor is what tells « no
+        defect » from « the extractor stopped working ».
+        """
+        self._tree(tmp_path, "export const nothing = 1;")
+        monkeypatch.setattr(verbs, "SOURCES", tmp_path)
+        monkeypatch.setattr(verbs, "ENGINE", tmp_path / "engine" / "legacy.js")
+
+        assert verbs.check_panel_verbs() == 1
+        assert "under the floor" in capsys.readouterr().err
+
+    def test_an_extractor_that_cannot_run_has_not_passed(
+            self, monkeypatch, capsys) -> None:
+        """« Did not run » and « no violation » must not print the same word."""
+        monkeypatch.setattr(verbs, "typescript_package", lambda: None)
+
+        assert verbs.check_panel_verbs() == 1
+        assert "not installed" in capsys.readouterr().err
+
+    def test_this_repository_answers_every_verb_it_emits(self) -> None:
+        """Green on the real tree, and the counts are READ, not written here.
+
+        A figure typed beside the thing it describes goes stale — which is why
+        the assertions below compare the arm's own readings instead of a number
+        this test remembers.
+        """
+        reading = verbs.emitted_maps()
+        assert reading is not None
+        assert len(reading["maps"]) >= verbs.VERB_FLOOR
+        registered, calls = verbs.registered_verbs()
+        assert calls == len(registered)
+        assert verbs.check_panel_verbs() == 0
