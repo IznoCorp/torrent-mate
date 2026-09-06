@@ -369,7 +369,7 @@ when the defect comes back.
 | B-307 | **Four** rules have now fallen under the recorder's parallel load and passed alone; the register holds one of them, under a title naming a fourth rule and a diagnosis that does not transfer | by audit | `open` |
 | B-308 | The maquette draws six schedulers and the machine now runs seven — `machine.py`'s count fell the day `personalscraper-index-full` was scheduled on `main`, and nothing in that pull request could have told it | by L19 | `fixed #567` |
 | B-309 | « Récupérer maintenant » on a medium's own panel THROWS and takes nothing: the release screen's `data-take` branch is checked first, has no guard, and swallows every `data-take` in the document | by L19 | `to confirm` |
-| B-310 | Opening a media sheet from a bottom panel shows the PANEL again briefly before the sheet comes back — L12's drawn departure slides the panel's snapshot over the arriving sheet for 450 ms while the root cross-fades in 300 ms; a design amendment for the operator | 2× | `open` |
+| B-310 | Opening a media screen from a bottom panel paints the PANEL again for one frame, open and opaque, after the crossing — the departing snapshot's `animation:` shorthand resets its fill mode, so `panel-down` ends and the snapshot snaps back to the captured (open) state until the transition is torn down one frame later; proven on the operator's phone and reversed there by one line | 2× | `open` |
 | B-311 | Coming back to a list after a medium's sheet does not restore the scroll position the list was left at | 1× | `open` |
 | B-312 | Changing the library's lens during a selection DROPS it — L14's own decision, RULED against by the operator on 2026-09-05 | 1× | `open` |
 | B-313 | The follow sheet offers « Voir le parcours » TWICE — once as the primary act, once in the secondary row — whenever the primary falls through to it | 1× | `open` |
@@ -388,6 +388,7 @@ when the defect comes back.
 | B-326 | `heavy.sh` offers no way to ask who holds its lock, so the natural probe — `cat` on what is a DIRECTORY — reads « free » whether the lock is held or not, and two sessions reached for it independently on the same night | by the steward's office | `open` |
 | B-327 | « Réglages » draws SIX scheduled jobs while the machine runs seven, and the same six are named twice in two French vocabularies that disagree on five of them — the row cannot be added until `SETTINGS` leaves the engine | by L13 | `open` |
 | B-328 | `features/system/page.tsx` heads itself with a path that does not exist and describes a state field (`state.panne`) the code does not have | by the next wave that opens `features/system/page.tsx` | `open` |
+| B-330 | After a panel's departure the invisible scrim stays hit-testable over the media screen for ~380 ms — `opacity 0`, `visibility` still `visible` until its delayed flip — so a tap on the fresh screen lands on nothing | by the steward | `open` |
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
@@ -906,6 +907,42 @@ as the one layer it cannot hold (« its closed state is the variant's BASE and i
 residue rule the engine toggles »).
 
 <sub>reported through the steward, 2026-09-04 · probe on 8899 and on a control of `4c0e274a7` served on 8902</sub>
+
+**THE MECHANISM ABOVE IS SUPERSEDED — measured on the operator's own phone on 2026-09-06, and it
+is one frame, not 450 ms.** The operator refused the reading (« la fiche est ouverte complètement, au
+premier plan, mais le panel bottom réapparaît par-dessus … pas un comportement normal »), sent a
+screenshot and a screen recording, and the recording settled the shape: the panel slides down over
+the arriving screen, the screen stands clean for four frames, and then **the panel is painted again,
+open, opaque, at rest, for ONE frame** — not a slide, not a fade. Read then on the device itself
+(Chrome 152 on Android 16, `adb` wireless pairing, raw DevTools protocol on the `tm-design` tab, a
+reading per animation frame):
+
+    frame N     ::view-transition-old(leaving-panel)   opacity 0.0003   transform translateY(594px)   panel-down at 436 ms
+    frame N+1   ::view-transition-old(leaving-panel)   opacity 1        transform none                panel-down FINISHED, transition still active
+    frame N+2   the transition is torn down; the live #sheet is off-screen and hidden throughout
+
+`base.css` declares the departure with the SHORTHAND — `animation: panel-down var(--duration-4)
+var(--ease-standard)` — and a shorthand resets `animation-fill-mode` to `none` (the user-agent
+stylesheet gives every `::view-transition-*` pseudo-element `both` by inheritance; the shorthand throws
+it away — read as `none` on the device with `getComputedStyle(html, '::view-transition-old(leaving-panel)')`).
+So when `panel-down` ends the snapshot returns to its un-animated state, which is the panel as it was
+captured — open — and stays drawn there, z-index 20 above the root, until the browser tears the
+transition down one frame later. **Every run has that frame** (the Mac's readings too: the last
+active frame of the transition, `panel-down` absent from `getAnimations()`), and the operator sees it
+in Chrome on macOS as well: two sessions of DOM probes had described the 450 ms before it, because a
+DOM sampler does not see a painted frame — only the snapshot's own computed style on that frame does.
+**Counterfactual on the device**: `::view-transition-old(leaving-panel) { animation-fill-mode:
+forwards }` injected into the operator's page → last frame at opacity 0, and the operator: « parti,
+plus de clignotement ». The live `#sheet` is never on screen after the close (its silence rule holds);
+the root cross-fade and the 450 ms departure L12 drew are not the defect and are not amended.
+
+**Owner: the micro-wave `maquette-departure`** (`docs/features/maquette-departure/BRIEF.md`),
+decided by the operator the same day, with B-330 beside it: the line, its rule (R126, red on `main`
+without the line), and the two new snapshots with the same shorthand (`banner-in`, `body-rise`) fixed
+in the same move. **Done when** the rule reads opacity 0 on the transition's last active frame, red
+with the line reverted, and the operator no longer sees the frame.
+
+<sub>steward, 2026-09-06 · operator's screen recording (24 fps, the frame at 6.83 s) · device readings `cdp-fill.py` on the phone's Chrome over `adb forward tcp:9333 localabstract:chrome_devtools_remote` · `grep -n "animation: panel-down" frontend/maquette/design/src/styles/base.css` · `grep -c "fill-mode" …/base.css` → 0 · counterfactual confirmed by the operator</sub>
 
 **B-311 — a list does not come back at the place it was left.**
 Reported by the operator on 2026-09-04, verbatim: « quand je reviens sur la liste après avoir vu
@@ -1486,6 +1523,24 @@ session, and this one has outlived two renames.
 Owner: **the next wave that opens `features/system/page.tsx`**. Two lines.
 
 <sub>`sed -n '1p;10p' frontend/maquette/design/src/features/system/page.tsx` · `grep -n "state.fault" …/page.tsx` → `:90` · `git diff be460fb79..HEAD -- …/page.tsx | grep -c "pages/system\|panne"` → 0</sub>
+
+**B-330 — the departed panel's scrim stays under the finger for ~380 ms after the screen is in.**
+When « Voir la fiche » leaves a bottom panel for the media screen, the scrim fades over 450 ms and its
+`visibility` flips 450 ms after that — B-249's idiom, which keeps a leaving layer visible until it has
+finished leaving. But `visibility: visible` is also hit-testable: once the view transition has ended and
+the media screen is fully in, `document.elementFromPoint` at the screen's centre answers `#scrim` —
+opacity **0**, z-index 46, above the screen — on every frame until the flip. Measured: 567 → 948 ms
+after the tap on a build of `main` on the Mac, 1083 → 1434 ms on the operator's phone. A tap on the
+fresh screen in that window lands on an invisible scrim, whose click handler closes layers that are
+already closed: the tap is simply lost. Found while measuring B-310 on the same frames; the same seam,
+the same shape — a departing layer outliving the crossing — seen from the finger's side.
+
+Owner: **the micro-wave `maquette-departure`**, beside B-310. The repair keeps the fade (R103 reads
+the scrim's visibility and stays green) and removes the target: a closed scrim takes no pointer events.
+**Done when** R126 reads, after the transition ends, that the element under the media screen's centre
+is never `#scrim`, red on `main` before the repair.
+
+<sub>steward, 2026-09-06 · `scratchpad/b310/probe.py` frames (`topAtCentre` = `#scrim[scrim]div` from 567 to 948 ms), the same on the phone's Chrome over CDP · `grep -n "transition-delay" frontend/maquette/design/src/ui/variants/layout.ts` → the scrim's `[transition-delay:0s,450ms]` at :96 · numbered B-330 because L21 holds B-329 on its branch</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
