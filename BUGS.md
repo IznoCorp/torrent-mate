@@ -369,7 +369,7 @@ when the defect comes back.
 | B-307 | **Four** rules have now fallen under the recorder's parallel load and passed alone; the register holds one of them, under a title naming a fourth rule and a diagnosis that does not transfer | by audit | `open` |
 | B-308 | The maquette draws six schedulers and the machine now runs seven — `machine.py`'s count fell the day `personalscraper-index-full` was scheduled on `main`, and nothing in that pull request could have told it | by L19 | `fixed #567` |
 | B-309 | « Récupérer maintenant » on a medium's own panel THROWS and takes nothing: the release screen's `data-take` branch is checked first, has no guard, and swallows every `data-take` in the document | by L19 | `to confirm` |
-| B-310 | Opening a media screen from a bottom panel paints the PANEL again for one frame, open and opaque, after the crossing — the departing snapshot's `animation:` shorthand resets its fill mode, so `panel-down` ends and the snapshot snaps back to the captured (open) state until the transition is torn down one frame later; proven on the operator's phone and reversed there by one line | 2× | `open` |
+| B-310 | Opening a media screen from a bottom panel paints the PANEL again for one frame, open and opaque, after the crossing — the departing snapshot's `animation:` shorthand resets its fill mode, so `panel-down` ends and the snapshot snaps back to the captured (open) state until the transition is torn down one frame later; proven on the operator's phone and reversed there by one line | 2× | `fixed #573` |
 | B-311 | Coming back to a list after a medium's sheet does not restore the scroll position the list was left at | 1× | `open` |
 | B-312 | Changing the library's lens during a selection DROPS it — L14's own decision, RULED against by the operator on 2026-09-05 | 2× | `open` |
 | B-313 | The follow sheet offers « Voir le parcours » TWICE — once as the primary act, once in the secondary row — whenever the primary falls through to it | 1× | `open` |
@@ -388,7 +388,8 @@ when the defect comes back.
 | B-326 | `heavy.sh` offers no way to ask who holds its lock, so the natural probe — `cat` on what is a DIRECTORY — reads « free » whether the lock is held or not, and two sessions reached for it independently on the same night | by the steward's office | `open` |
 | B-327 | « Réglages » draws SIX scheduled jobs while the machine runs seven, and the same six are named twice in two French vocabularies that disagree on five of them — the row cannot be added until `SETTINGS` leaves the engine | by L13 | `open` |
 | B-328 | `features/system/page.tsx` heads itself with a path that does not exist and describes a state field (`state.panne`) the code does not have | by the next wave that opens `features/system/page.tsx` | `open` |
-| B-338 | After a panel's departure the invisible scrim stays hit-testable over the media screen for ~380 ms — `opacity 0`, `visibility` still `visible` until its delayed flip — so a tap on the fresh screen lands on nothing | by the steward | `open` |
+| B-338 | After a panel's departure the invisible scrim stays hit-testable over the media screen for ~380 ms — `opacity 0`, `visibility` still `visible` until its delayed flip — so a tap on the fresh screen lands on nothing | by the steward | `fixed #573` |
+| B-346 | A paragraph that OPENS with another entry's identifier is read as that entry's body head, so it truncates the entry it lives in and — being the first such head in the file — makes the real entry's body the discarded one; `check-bug-register`'s closure arm was blind to B-310 and B-249 at once, and 25 second-or-later heads sit in the register today | by the micro-wave | `open` |
 | B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens » | 1× | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
@@ -888,7 +889,7 @@ a media screen that is already fully in.
 
 <sub>steward, 2026-09-06 · `b310_probe.py` on a served copy of `ec3a978ef` at 8973, 100 frames sampled over 1 658 ms, motion `no-preference` and `reduce`</sub>
 
-**B-249's FAMILY, and its own half of it.** B-249 is « the screen flashes when a sheet action
+**THE FAMILY IS B-249's, and this is its own half of it.** B-249 is « the screen flashes when a sheet action
 closes the sheet AND opens a page », and this is the same seam from the other side: what returns
 is the PANEL rather than a bare page. The producer half of B-249 is L19's, and five of the seven
 `setTimeout(…, 260)` sites remain in `legacy.js` at that head — `data-mediasheet` is NOT one of
@@ -1730,6 +1731,43 @@ revealed actions ARE those verbs, and a rule that taps them once is the rule the
 otherwise **L13**, with the engine's swipe.
 
 <sub>operator, 2026-09-06 · `grep -n "clickAfterDrag" frontend/maquette/design/src/engine/legacy.js` · `grep -n "swallowClick" frontend/maquette/design/src/lib/press-arbitration.ts` · to measure: a touch swipe then ONE touch tap on `[data-part="swipe/action"]`, reading which listener consumed the click</sub>
+
+**B-346 — an entry's body ends at the first paragraph that opens with another entry's identifier.**
+`check-bug-register.py`'s `BODY_HEAD` is `^\*\*([BE]-\d{3})\b`, and `entry_bodies` splits the
+register on it with `spans.setdefault`, so the FIRST head wins. A paragraph inside one entry that
+begins `**B-249's FAMILY…` is therefore a body head: it ends the entry it lives in, and it claims
+the identifier it names.
+
+**MEASURED, and it had blinded the arm to two entries at once.** B-310's entry carried such a
+paragraph at its line 891. B-249's own entry is at line 6954 — LATER in the file — so `setdefault`
+kept the paragraph as « B-249's body » and discarded B-249's real body entirely, while B-310's body
+was truncated from 9 740 characters to 3 065, cutting off the mechanism that stands, the device
+readings taken on the operator's phone, and everything written after them. The arm then refused a
+`fixed #573` on B-310 for a body it could not see, and would have accepted a silent closure of
+B-249 for the same reason, from the other direction.
+
+    python3 - <<'PY'
+    import re, pathlib
+    text = pathlib.Path("BUGS.md").read_text(encoding="utf-8")
+    heads = [m.group(1) for m in re.finditer(r"^\*\*([BE]-\d{3})\b", text, re.M)]
+    seen = set()
+    print(sum(1 for h in heads if h in seen or seen.add(h)), "of", len(heads), "heads are second-or-later")
+    PY
+
+**25 of 278 heads are second-or-later today.** Most are legitimate — a wave's summary section names
+the entries it closed — and each one still ends the span before it and discards its own. The one
+occurrence this wave met is reworded in place (« THE FAMILY IS B-249's »), which restores both
+spans; the other twenty-four are not read here and their cost is unmeasured.
+
+**NOT REPAIRED, and the cost is one line either way.** The arm could require the delimiter the
+convention already uses — a head is `**B-NNN —` or `**B-NNN** —`, never `**B-NNN's` — or
+`entry_bodies` could keep the LONGEST span per identifier rather than the first. Both are a line;
+choosing between them is a decision about the register's grammar and belongs to whoever owns that
+arm, not to a micro-wave that came across it. What is recorded here is that the hole is real, that
+it silently damages two entries per occurrence, and that a wave closing an entry whose body sits
+behind such a paragraph will be refused for a reason that has nothing to do with its work.
+
+<sub>found by this wave's own `fixed #573` being refused · `grep -n "^\*\*B-249" BUGS.md` → 891 and 6954 · body length read through the arm's own `entry_bodies`, 3 065 → 9 740 characters after the rewording</sub>
 
 **B-339 — a disabled panel action looks enabled.**
 Reported by the operator on 2026-09-06 with a screenshot, verbatim: « Le bouton ajouter ne fait rien
