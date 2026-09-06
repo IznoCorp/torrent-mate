@@ -11,7 +11,11 @@
 // (`.ep[data-ep]`) keeps working unchanged.
 import { useTranslation } from "react-i18next";
 import { useMediaReference, type MediaReference } from "./reference";
+import { useQueryClient } from "@tanstack/react-query";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
+import { actionButton } from "../../ui/variants/controls";
+import { seasonGrabSpacing } from "./variants";
+import { grabSeason } from "./season-grab";
 
 // The slice of a "follow" record the season blocks read: `t` for lookups
 // against the référentiel (`sheetFor`/`ownedFor`), `st` as the fallback state
@@ -100,6 +104,7 @@ function SeasonDetails({
   reference: MediaReference;
 }) {
   const { t } = useTranslation();
+  const client = useQueryClient();
   const [num, rawAired, owned] = season;
   const aired = rawAired ?? 0;
   const complete = owned >= aired;
@@ -156,6 +161,38 @@ function SeasonDetails({
       <div className="eps" data-part="episode/set">
         {cells}
       </div>
+      {/* THE VERB, DRAWN ONLY OVER A HOLE (B-301). The matrix showed « 1
+          manquant » and offered nothing; DOIT-3 is « agir là où l'on observe ».
+          A complete season carries no button, because a button that can only
+          say « nothing to do » is worse than no button.
+
+          `data-grab-season` is what the RULE anchors on (D4) and what says WHICH
+          season the finger was on — a rule counting calls alone would take a
+          call to the wrong one. The act itself is a React handler and NOT a
+          delegation target: the engine dies by subtraction (D5), and a verb
+          that needed a line in `legacy.js` would be a verb that has not moved. */}
+      {complete ? null : (
+        <button
+          type="button"
+          className={`${actionButton()} ${seasonGrabSpacing()}`}
+          data-part="season/grab"
+          data-grab-season={`${follow.t}|${num}`}
+          onClick={() => {
+            void grabSeason(follow.t, num).then(() => {
+              // THE FOLLOWS ARE RE-READ, because the ask moved them on the
+              // server and nothing else would tell this interface. Invalidating
+              // by the ADDRESS the verb just mutated is not importing the
+              // acquisition feature — invariant 7 forbids the import, and this
+              // file calls that feature's OPERATION by contract already.
+              void client.invalidateQueries({
+                queryKey: ["/api/acquisition/followed"],
+              });
+            });
+          }}
+        >
+          {t("panels.follow.grabSeason", { season: num })}
+        </button>
+      )}
     </details>
   );
 }

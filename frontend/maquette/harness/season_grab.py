@@ -8,8 +8,8 @@ gives no way to ask for it, while
 DOIT-3 is « agir là où l'on observe », and this is the clearest place in the
 application where one cannot.
 
-⚠ THE HOLE IS NOT A `to_grab` CELL, whatever the lot's brief says. Measured on
-2026-09-06: the fixture contains **no `to_grab` episode cell anywhere**, because
+⚠ THE HOLE IS NOT A `to_grab` CELL, whatever a brief may say. Measured: the
+fixture contains **no `to_grab` episode cell anywhere**, because
 `epState` colours a missing episode by the FOLLOW's status and the one follow
 with a hole is `pending`. The subject this rule walks is the only one that
 exists — « Silo », season 3, six of seven aired episodes held — and it is chosen
@@ -18,8 +18,8 @@ about the interface and never about the walk.
 
 THIS RULE IS WRITTEN BEFORE THE VERB EXISTS and is RED against `main` with no
 mutation needed — the strongest form of « seen red first » this repository asks
-for, and the form L19 proved the value of on `data-take`: a repair held by
-nothing came back with its sign turned round.
+for: a repair held by nothing comes back with its sign turned round, which is
+what `data-take` cost before a rule read it.
 
 WHAT IT READS, and each fails differently:
 
@@ -61,11 +61,19 @@ from playwright.async_api import async_playwright
 # no row there at all — the correction R124 paid for, taken here from the start.
 FOLLOWS_STATE = "acq-follows-list"
 
-# The operation, as the contract names it. The path is matched on these two
-# segments rather than on a whole URL, so a parameter spelled differently does
-# not turn a real call into a silent miss.
-GRAB_PATH = "/seasons/"
-GRAB_SUFFIX = "/grab"
+# The operation, as the CONTRACT names it. It is read by operationId rather than
+# by URL, so a path parameter spelled differently cannot turn a real call into a
+# silent miss.
+GRAB_OPERATION = "grabSeasonForFollow"
+
+# WHAT THE LAYER ANSWERED, and why it is not read on the network. The mock layer
+# REPLACES `globalThis.fetch`, so a mocked call reaches no network at all:
+# measured, a verb that demonstrably ran — the follow moved from `pending` to
+# `acquiring` — produced ZERO Playwright request events. A hold listening on
+# `page.on("request")` or `page.on("response")` for one of these operations is
+# therefore green whatever the interface does, which is a guard certifying what
+# it cannot see. The layer records what it answered; this reads that.
+ANSWERED = "()=>(window.__mocks?.answered?.() || [])"
 
 # THE WORDS A REFUSAL WEARS. « occupé » is the constitution's own; the others
 # are what the same refusal reads like when it is dressed differently.
@@ -93,8 +101,18 @@ THE_MEDIUM_WITH_A_HOLE = """()=>{
   }
   return null;}"""
 
-SAID = """()=>[...document.querySelectorAll('#toast, #view')]
-  .map((node) => node.textContent || '').join(' ')"""
+# WHAT THE INTERFACE SAID, read through the door the message host publishes FOR
+# a rule. It is NOT `#toast`: that element is the dying engine's, and the
+# message layer is React — measured, `#toast` stayed EMPTY through a verb whose
+# message was on screen the whole time. A hold reading the old element would
+# have been green for « never says occupé » while saying nothing at all, and red
+# for « says En file » while the interface said it perfectly.
+SAID = """()=>{
+  const held = window.__toast?.read?.();
+  const message = held && held.message ? held.message.message || '' : '';
+  const page = [...document.querySelectorAll('#view')]
+    .map((node) => node.textContent || '').join(' ');
+  return {said: message, shown: !!(held && held.shown), page: page};}"""
 
 # PUTS THE LAYER TO WORK, through the operation the application itself calls.
 # `runPipeline` moves the mock's own pipeline state to running (or to queued
@@ -163,7 +181,7 @@ SEASON_WITH_A_HOLE = """()=>{
       label: ((season.querySelector("summary") || {}).textContent || "").trim(),
       wanted: (hole.textContent || "").trim(),
       offered: !!act,
-      value: act ? (act.dataset.grabseason || "") : "",
+      value: act ? (act.dataset.grabSeason || "") : "",
       x: box ? box.left + box.width / 2 : 0,
       y: box ? box.top + box.height / 2 : 0,
       reachable: !!hit && (hit === act || (act && act.contains(hit)))};
@@ -191,7 +209,7 @@ async def raise_by_finger(page, title):
     return aim
 
 
-async def open_a_season_panel(page, journal, when):
+async def open_a_season_panel(page, journal, when, put_to_work=False):
     """Drives the follows list and raises the panel of the one medium with a hole.
 
     THE SUBJECT IS CHOSEN FROM THE DATA, AND ONE FINGER GOES TO IT. An earlier
@@ -204,10 +222,19 @@ async def open_a_season_panel(page, journal, when):
     any gesture, so the walk is one tap and the failure — if it comes — is about
     the interface rather than about the walk.
 
+    THE MACHINE IS PUT TO WORK AFTER THE STATE IS DRIVEN, never before, and
+    that ordering is the whole of the busy half. `window.__go` RE-SEEDS the mock
+    layer, so a pipeline set running before it is idle again by the time the act
+    lands: the walk then measured a clause it had switched off, and the hold
+    saying « the pipeline really is busy » was green over a reading already
+    discarded. It is checked here, after the state, where it still means
+    something.
+
     Args:
         page: The page.
         journal: Where the holds are recorded.
         when: What this half is measuring, for the hold's own words.
+        put_to_work: Whether to start the pipeline once the state is driven.
 
     Returns:
         The medium's title, and the season reading, or ("", None) when the
@@ -215,6 +242,18 @@ async def open_a_season_panel(page, journal, when):
     """
     await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
     await page.wait_for_timeout(SETTLED)
+    if put_to_work:
+        started = await page.evaluate(RUN_THE_PIPELINE)
+        await page.evaluate("""()=>window.__store.write({pipe: "running"})""")
+        await page.wait_for_timeout(SETTLED)
+        journal.check(
+            "the LAYER really has the pipeline busy at the moment of the act — "
+            "the half that decides whether an ask is queued",
+            started in ("running", "queued"), str(started))
+        journal.check(
+            "and the interface is drawing it busy too, so this half measures "
+            "the clause and not the verb",
+            await page.evaluate("()=>window.__store.read().state.pipe") == "running")
     subject = await page.evaluate(THE_MEDIUM_WITH_A_HOLE)
     journal.check(
         f"the fixture really holds a season with a hole, so this walk has a "
@@ -249,12 +288,23 @@ async def main():
         context, page = await open_page(browser)
         errors: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))
-        asked: list[str] = []
-        refused: list[str] = []
-        page.on("request", lambda call: asked.append(call.url)
-                if GRAB_PATH in call.url and call.url.endswith(GRAB_SUFFIX) else None)
-        page.on("response", lambda answer: refused.append(
-            f"{answer.status} {answer.url}") if answer.status == 409 else None)
+
+        async def grabs_since(mark):
+            """Every season-grab call the layer answered after a mark.
+
+            Args:
+                mark: How many calls had been answered before the act.
+
+            Returns:
+                The calls, as the layer recorded them.
+            """
+            every = await page.evaluate(ANSWERED)
+            return [call for call in every[mark:]
+                    if call["operationId"] == GRAB_OPERATION]
+
+        async def answered_so_far():
+            """How many calls the layer has answered, as a mark."""
+            return len(await page.evaluate(ANSWERED))
 
         # ── THE VERB, ON AN IDLE PIPELINE ──────────────────────────────────
         title, season = await open_a_season_panel(page, journal, "the pipeline idle")
@@ -272,25 +322,27 @@ async def main():
                 "(t)=>(window.__followActions?.all() || []).find((one) => one.t === t)?.st",
                 title)
             errors.clear()
-            asked.clear()
+            mark = await answered_so_far()
             if season["offered"] and season["reachable"]:
                 await page.touchscreen.tap(season["x"], season["y"])
                 await page.wait_for_timeout(ACTED)
             # THE OPERATION IS CALLED, and the call is read on the NETWORK. A
             # hold reading the screen alone passes a build that toasted and
             # sent nothing.
+            grabs = await grabs_since(mark)
             journal.check(
-                "the season grab OPERATION is called — read on the network, not "
-                "on the screen (B-301)",
-                len(asked) == 1, f"{len(asked)} call(s): {asked[:2]}")
+                "the season grab OPERATION is called — read on what the LAYER "
+                "answered, never on the screen (B-301)",
+                len(grabs) == 1, f"{len(grabs)} call(s): {grabs[:2]}")
             # AND FOR THE SEASON THE FINGER WAS ON. A call to the wrong season
             # is a call, and a hold counting calls alone would take it.
             wanted_season = season["value"].split("|")[-1] if season["value"] else ""
             journal.check(
                 "and it names the season the finger was on, not another",
                 bool(wanted_season) and any(
-                    call.endswith(f"/seasons/{wanted_season}/grab") for call in asked),
-                f"season {wanted_season!r} against {asked[:2]}")
+                    call["path"].endswith(f"/seasons/{wanted_season}/grab")
+                    for call in grabs),
+                f"season {wanted_season!r} against {[c['path'] for c in grabs]}")
             journal.check(
                 "tapping it raises no error",
                 not errors, str(errors))
@@ -318,40 +370,37 @@ async def main():
         # is a rule measuring its own leftovers.
         await page.evaluate("()=>window.__panel.close()")
         await page.wait_for_timeout(PANEL_OUT + SETTLED)
-        started = await page.evaluate(RUN_THE_PIPELINE)
-        await page.evaluate("""()=>window.__store.write({pipe: "running"})""")
-        await page.wait_for_timeout(SETTLED)
-        journal.check(
-            "the LAYER really has the pipeline busy — the half that decides "
-            "whether an ask is queued",
-            started in ("running", "queued"), str(started))
-        journal.check(
-            "and the interface is drawing it busy too, so this half measures "
-            "the clause and not the verb",
-            await page.evaluate("()=>window.__store.read().state.pipe") == "running")
         busy_title, busy_season = await open_a_season_panel(
-            page, journal, "the pipeline busy")
+            page, journal, "the pipeline busy", put_to_work=True)
         if busy_season is not None:
-            asked.clear()
+            busy_mark = await answered_so_far()
             errors.clear()
             if busy_season["offered"] and busy_season["reachable"]:
                 await page.touchscreen.tap(busy_season["x"], busy_season["y"])
                 await page.wait_for_timeout(ACTED)
+            busy_grabs = await grabs_since(busy_mark)
             journal.check(
                 f"« {busy_title} »'s season can still be asked for while the "
                 "pipeline runs — the ask is ACCEPTED (NE-DOIT-PAS-3)",
-                len(asked) == 1, f"{len(asked)} call(s)")
-            said = (await page.evaluate(SAID)).lower()
+                len(busy_grabs) == 1, f"{len(busy_grabs)} call(s)")
+            spoken = await page.evaluate(SAID)
+            said = spoken["said"].lower()
             journal.check(
                 "and the interface says it is IN FILE — DOIT-4's own words, "
                 "« En file — pipeline en cours »",
-                "en file" in said,
-                said[-160:] if said else "nothing said")
+                spoken["shown"] and "en file" in said,
+                f"shown={spoken['shown']} said={spoken['said']!r}")
+            everywhere = (said + " " + spoken["page"]).lower()
             journal.check(
                 "never « occupé », nor any other dress of the same refusal",
-                not any(word in said for word in REFUSALS),
-                next((word for word in REFUSALS if word in said), ""))
+                not any(word in everywhere for word in REFUSALS),
+                next((word for word in REFUSALS if word in everywhere), ""))
 
+        # READ ON WHAT THE LAYER ANSWERED, for the reason above: a `page.on
+        # ("response")` listener cannot see a status this layer never put on a
+        # wire, so a 409 hold written that way is green by construction.
+        every = await page.evaluate(ANSWERED)
+        refused = [call for call in every if call["status"] == 409]
         journal.check(
             "and no ask anywhere was answered 409 (NE-DOIT-PAS-3)",
             not refused, str(refused[:3]))

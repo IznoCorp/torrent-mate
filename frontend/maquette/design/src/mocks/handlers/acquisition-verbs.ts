@@ -16,8 +16,7 @@
 // THE IDENTIFIERS ARE TITLES. The interface knows a follow by its title and a
 // journey by the title too; the backend wants a rowid and an info hash. The
 // demand register carries that (§ 2b), and no identifier is invented here.
-import MEDIA_SHEETS from "../seeds/media-sheets.json";
-import OWNED_EPISODES from "../seeds/owned-episodes.json";
+import SEASONS from "../seeds/seasons.json";
 import JOURNEY_STAGES from "../seeds/journey-stages.json";
 import { POST, route } from "./shared";
 import { mockState } from "../state";
@@ -43,11 +42,10 @@ const BEING_ACQUIRED = "acquiring";
 
 // The seeds this module derives from, named at their shapes. A handler holds no
 // data literal: what it answers traces to one of these or to the request.
-const SEASON_CATALOGUE = MEDIA_SHEETS as Record<
+const SEASON_COUNT = SEASONS as Record<
   string,
-  { seasons?: { number: number; episodes: number }[] }
+  { season: number; aired: number; owned: number }[]
 >;
-const OWNED = OWNED_EPISODES as Record<string, Record<string, number[]>>;
 const SEEDED_STAGES = JOURNEY_STAGES as {
   label: string;
   when: string;
@@ -122,20 +120,27 @@ function restart(subject: string): void {
 /**
  * How many episode-level asks a season's ask absorbs.
  *
- * DERIVED, NEVER TYPED. What aired comes from the sheet's own catalogue and
- * what is held comes from the owned-episode seed; the difference is what a
- * season grab takes on. A season nothing is known about absorbs nothing, which
- * is the honest answer rather than a guess.
+ * DERIVED FROM THE SEED THE INTERFACE ITSELF DRAWS FROM, and that is the whole
+ * correction. A first version crossed the sheet's provider CATALOGUE with the
+ * owned-episode seed and answered **10** for Silo's season 3 — while the panel
+ * beside it printed « 6/7 · 1 manquant ». The catalogue says how many episodes
+ * a season will have (ten announced); `seasons.json` says how many have AIRED
+ * and how many are held, which is what the matrix is drawn from and what a
+ * season grab is actually for. An interface that says « 1 manquant » and then
+ * « 10 épisodes à récupérer » contradicts itself in two adjacent sentences.
+ *
+ * A season nothing is known about absorbs nothing, which is the honest answer
+ * rather than a guess.
  *
  * @param title The follow.
  * @param season The season, 1-based.
  * @returns How many episodes the ask covers.
  */
 function episodesMissingFromSeason(title: string, season: number): number {
-  const catalogue = SEASON_CATALOGUE[title]?.seasons ?? [];
-  const aired = catalogue.find((one) => one.number === season)?.episodes ?? 0;
-  const held = (OWNED[title] ?? {})[String(season)] ?? [];
-  const missing = aired - held.filter((number) => number <= aired).length;
+  const counted = (SEASON_COUNT[title] ?? []).find(
+    (one) => one.season === season);
+  if (counted === undefined) return 0;
+  const missing = counted.aired - counted.owned;
   return missing > 0 ? missing : 0;
 }
 

@@ -156,3 +156,17 @@ export const trailerSource = cva(
   "tsrc flex-none inline-flex items-center gap-2 ml-auto text-1 font-bold tracking-[0.02em] " +
     "py-1 px-3 rounded-full bg-muted text-muted-foreground",
 );
+
+/**
+ * « Récupérer cette saison » — the verb a season with a hole carries (B-301).
+ *
+ * IT REUSES THE CATALOGUE'S ACTION SCALE rather than inventing one: it is an
+ * action inside the panel, and the panel's actions are `ui/variants/controls`'s
+ * `actionButton`. What is added here is placement alone — the gap that separates
+ * it from the episode grid above it — and nothing outside the scale
+ * (invariant 3).
+ *
+ * It is drawn ONLY on a season the interface has just said is short, so it never
+ * offers to take what is already held.
+ */
+export const seasonGrabSpacing = cva("mt-4 mb-1");

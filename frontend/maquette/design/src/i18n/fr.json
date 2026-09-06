@@ -947,12 +947,19 @@
       "removeFilm": "Retirer de la liste",
       "removeSeries": "Retirer le suivi",
       "deleteFromLibrary": "Supprimer de la médiathèque",
-      "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste (§5)."
+      "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
+      "grabSeason": "Récupérer la saison {{season}}"
     }
   },
   "verbs": {
     "arrivals": {
       "taken": "« {{title}} » récupéré — suivez-le dans « En vol »."
+    },
+    "media": {
+      "seasonAsked": "Saison {{season}} demandée — {{count}} épisode(s) à récupérer.",
+      "seasonQueued": "Saison {{season}} en file — pipeline en cours.",
+      "seasonHeld": "Saison {{season}} demandée — en attente du réseau, elle partira au retour.",
+      "seasonRefused": "Saison {{season}} : la demande n'a pas abouti."
     }
   },
   "discover": {
