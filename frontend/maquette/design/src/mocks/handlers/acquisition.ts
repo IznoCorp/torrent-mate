@@ -163,12 +163,26 @@ export function acquisitionRoutes(): MockRoute[] {
     })),
     route("readAcquisitionQueue", GET, "/api/acquisition/to-handle", (request) => {
       const state = mockState();
-      // THE SCENARIO PICKS THE WORLD, exactly as the engine's `derived` does —
-      // and « exactly » includes the empties. Under the REAL scenario there is
-      // nothing to take and nothing blocked: that run found what it found, and
-      // a layer answering the dense lists there would put a queue on screen
-      // that no run produced. Answering them unconditionally is what this
-      // route used to do, and no surface read it yet, so nothing said so.
+      // THE SCENARIO PICKS THE WORLD, exactly as the engine's `derived` does.
+      // It used to pick the EMPTIES too — under the real scenario nothing was
+      // takeable and nothing blocked, on the reasoning that a run found what it
+      // found and a dense queue there would show cards no run produced.
+      //
+      // THE OPERATOR OVERRULED THAT, and the ruling is his rather than a
+      // wave's: « the data the design host serves AT REST holds at least one
+      // subject in every state every surface can draw ». At rest, on his phone,
+      // IS this branch — the dial sits here unless something moves it — so a
+      // state served only under `loaded` is a state he cannot try at all. He
+      // found that out through « Récupérer maintenant »: the verb was repaired,
+      // measured and green, and unreachable to his hand because no arrival was
+      // takeable here.
+      //
+      // WHAT DID NOT CHANGE is D7: these are the shapes the running backend
+      // answers, seeded from it and not invented. What changed is which of them
+      // this branch admits to holding. The lists in-flight, not-found and done
+      // keep their real-world counterparts, because those ARE a mutation's
+      // record — « nothing has moved yet » is true of a run just read off the
+      // disk, and filling them would claim movements that never happened.
       if (request.query.get("scenario") === LOADED) {
         return {
           takeable: state.takeable,
@@ -179,8 +193,8 @@ export function acquisitionRoutes(): MockRoute[] {
         };
       }
       return {
-        takeable: [],
-        blocked: [],
+        takeable: state.takeable,
+        blocked: state.blocked,
         inFlight: state.inFlightReel,
         notFound: state.notFoundReal,
         doneToday: state.doneReel,
