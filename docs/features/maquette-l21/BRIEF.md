@@ -99,11 +99,12 @@ SHEET's metadata rescrape, another subject — B-302 says so); the two grandfath
 baseline at `64c43d0e7` with 87 rules and `failed: 0`; `--next` says **B-324**.
 
 **Two of those readings decide whether you may start.** The B-308 micro-wave
-(`docs/features/maquette-schedulers/BRIEF.md`, branch `fix/maquette-schedulers`) runs BEFORE you: it
-turns `machine.py` green and re-records the hold-count baseline with `failed` read first. If
-`machine.py` still fails, or the baseline's `taken_at_commit` is still `64c43d0e7`, that wave has
-not landed — **STOP, tell the steward, and wait**: a wave that opens over a red suite inherits « one
-red, it is known », which is B-277's habit and the reason the micro-wave exists.
+(`docs/features/maquette-schedulers/BRIEF.md@e9820e6a4`, PR #567) LANDED on 2026-09-06: it turned
+`machine.py` green and the hold-count baseline was re-recorded at its post-merge gesture with `failed`
+read first. Verify both anyway — `machine.py` green, the baseline's `taken_at_commit` an ancestor of
+`origin/main` and later than `64c43d0e7`, `failed: 0`. If either reading disagrees, **STOP, tell the
+steward, and wait**: a wave that opens over a red suite inherits « one red, it is known », which is
+B-277's habit and the reason the micro-wave existed.
 
 ---
 
