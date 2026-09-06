@@ -394,6 +394,7 @@ when the defect comes back.
 | B-341 | A settings field commits its edit only when the finger LEAVES it — no validation affordance in the panel — which the operator reads as counter-intuitive; the pending edit then says « Valeur actuelle » for the value not yet written | 1× | `open` |
 | B-342 | « Enregistrer » says « Enregistré — torrent.json5 » and the row shows the ORIGINAL value again: the mock's write records the file name and never the value, so the next read contradicts the toast | 1× | `open` |
 | B-343 | After a real save the restart banner does not appear: the flag is raised on the engine's `SETTINGS_STATE` object and nothing re-renders the page, so « Redémarrer maintenant » is reachable from a named state and not from a save | 1× | `open` |
+| B-344 | On a desktop browser the design host shows the prototype inside the phone frame only — the operator cannot test the interface's desktop layout there; he asks for a desktop-only switch out of the frame and back | 1× | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
@@ -1793,6 +1794,23 @@ the banner a reader of it); the rule's own debt — a hold that reaches the bann
 with it.
 
 <sub>operator's screenshots, 2026-09-06 10:24 · `grep -n "redemarrage" frontend/maquette/design/src/features/settings/panel-setting.ts frontend/maquette/design/src/features/settings/page.tsx` → set at `:195`, read at `:149`, no render between</sub>
+
+**B-344 — the design host has no way out of the phone frame on a desktop.**
+The operator's aside on 2026-09-06, verbatim: « Quand on est sur tm-design sur desktop, le design
+s'affiche dans un template de téléphone pour pouvoir voir le rendu sur téléphone, c'est très bien, c'est
+ce qu'il faut, mais du coup je peux pas tester l'aspect « compatible desktop » de l'interface. Ce qui
+serait utile c'est que sur desktop et seulement sur desktop, en dehors du template téléphone, on ait un
+bouton qui permet de switcher en mode desktop (et du coup un bouton pour revenir dans le template
+téléphone, toujours uniquement si on est sur desktop !) ». What he asks for is TOOLING on the design
+host, not a surface of the application: the phone frame is the harness's measuring apparatus
+(`styles/harness.css`, in the maquette's own build and in no production build — `CLAUDE.md` § Design
+Reference), and a switch that leaves it lives with the frame, outside the frame, shown only when the
+viewport is a desktop's. Its rule reads that the switch is absent on a phone-sized viewport and that
+the desktop layout it reveals is the one the oracle would measure without the frame. Owner: **the next
+wave that opens `harness.css` or the design host's wrapper**, or a steward instrument if none does
+before the freeze — it touches no application code.
+
+<sub>operator, 2026-09-06 · `grep -n "harness" CLAUDE.md` → the frame's status · `ls frontend/maquette/design/src/styles/harness.css`</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in
