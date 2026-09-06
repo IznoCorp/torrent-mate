@@ -24,6 +24,7 @@ than a blank page.
 | required and missing | 13 |
 | declared by both, different response shape | 44 |
 | declared by both, path parameter spelled differently | 14 |
+| declared by both, answered with a different status | 12 |
 | fields carried pre-formatted | 25 |
 | the backend has and the interface does not use | 21 |
 
@@ -121,6 +122,35 @@ operator's call rather than this file's.
 | `POST /api/maintenance/actions/{actionId}/run` | `POST /api/maintenance/actions/{action_id}/run` |
 | `POST /api/staging/media/{mediaId}/continue` | `POST /api/staging/media/{media_id}/continue` |
 | `POST /api/staging/media/{mediaId}/discard` | `POST /api/staging/media/{media_id}/discard` |
+
+## 2c. Operations both declare, answered with a different status
+
+**A STATUS IS A DEMAND, and it was invisible here until 2026-09-06.** The comparison
+above reads property NAMES; two documents can agree on every name and still disagree
+on what the answer means. `POST /api/acquisition/journeys/{infoHash}/requeue` is the
+case this table was built for: the backend answers **409** when a requeue for the item
+is already in flight, and NE-DOIT-PAS-3 with §20 forbid the interface showing that — an
+ask at the bound is QUEUED, visibly, never refused. So the interface declares a queued
+202 and the difference is recorded rather than reconciled.
+
+**Most rows here predate the lot that built the table.** Twelve operations already
+disagreed, and they are the backend's own business — a 202 where the interface expects
+a 200 is not a defect in either document, it is a decision nobody had written down.
+
+| operation | operationId | the interface requires | the backend answers |
+| --- | --- | --- | --- |
+| `DELETE /api/acquisition/followed/{followedId}` | `deleteFollow` | `200` | `204` |
+| `POST /api/acquisition/detect` | `runDetection` | `200` | `202` |
+| `POST /api/acquisition/followed` | `createFollow` | `200` | `201` |
+| `POST /api/acquisition/followed/{followedId}/grab` | `grabForFollow` | `200` | `202` |
+| `POST /api/acquisition/followed/{followedId}/search` | `searchForFollow` | `200` | `202` |
+| `POST /api/auth/login` | `signIn` | `200` | `204` |
+| `POST /api/auth/logout` | `signOut` | `200` | `204` |
+| `POST /api/config/restart-web` | `restartWeb` | `200` | `202` |
+| `POST /api/decisions/{decisionId}/resolve` | `resolveDecision` | `200` | `202` |
+| `POST /api/maintenance/actions/{actionId}/run` | `runMaintenanceAction` | `200` | `202` |
+| `POST /api/pipeline/run` | `runPipeline` | `200` | `202` |
+| `POST /api/staging/media/{mediaId}/continue` | `continueStagedMedia` | `200` | `202` |
 
 ## 3. Fields the interface carries pre-formatted
 

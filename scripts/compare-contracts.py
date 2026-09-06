@@ -88,6 +88,20 @@ def operations(document: dict) -> dict:
     return found
 
 
+def success_codes(operation: dict) -> list:
+    """Names the 2xx statuses one operation answers with.
+
+    Args:
+        operation: One operation.
+
+    Returns:
+        Its success statuses, sorted, so two readings are comparable.
+    """
+    return sorted(
+        code for code in (operation.get("responses") or {}) if code.startswith("2")
+    )
+
+
 def response_properties(document: dict, operation: dict) -> set:
     """Collects every property name a SUCCESSFUL response can carry.
 
@@ -218,6 +232,22 @@ def compute() -> str:
         if key != theirs_by_shape[shape_of(key)]
     )
 
+    # WHICH STATUS EACH SIDE ANSWERS ON SUCCESS, and it is a demand of its own.
+    # Reading every 2xx made the SHAPES comparable; it says nothing about one
+    # side answering 202 where the other says 200, and that is exactly the
+    # difference NE-DOIT-PAS-3 turns on: the backend refuses a second ask with a
+    # 409 where §20 requires the interface to show it QUEUED. A demand nobody
+    # computes is a demand that drifts, so it is computed.
+    status = sorted(
+        (key, ours[key]["operationId"], mine, yours)
+        for key, mine, yours in (
+            (key, success_codes(ours[key]),
+             success_codes(theirs[theirs_by_shape[shape_of(key)]]))
+            for key in shared
+        )
+        if mine != yours
+    )
+
     shape = []
     for key in shared:
         counterpart = theirs[theirs_by_shape[shape_of(key)]]
@@ -256,6 +286,7 @@ def compute() -> str:
         f"| required and missing | {len(missing)} |",
         f"| declared by both, different response shape | {len(shape)} |",
         f"| declared by both, path parameter spelled differently | {len(spelling)} |",
+        f"| declared by both, answered with a different status | {len(status)} |",
         f"| fields carried pre-formatted | {len(formatted)} |",
         f"| the backend has and the interface does not use | {len(unused)} |",
         "",
@@ -305,6 +336,34 @@ def compute() -> str:
         lines += ["| the interface requires | the backend has |", "| --- | --- |"]
         for mine, yours in spelling:
             lines.append(f"| `{mine}` | `{yours}` |")
+    else:
+        lines.append("None.")
+
+    lines += [
+        "",
+        "## 2c. Operations both declare, answered with a different status",
+        "",
+        "**A STATUS IS A DEMAND, and it was invisible here until 2026-09-06.** The comparison",
+        "above reads property NAMES; two documents can agree on every name and still disagree",
+        "on what the answer means. `POST /api/acquisition/journeys/{infoHash}/requeue` is the",
+        "case this table was built for: the backend answers **409** when a requeue for the item",
+        "is already in flight, and NE-DOIT-PAS-3 with §20 forbid the interface showing that — an",
+        "ask at the bound is QUEUED, visibly, never refused. So the interface declares a queued",
+        "202 and the difference is recorded rather than reconciled.",
+        "",
+        "**Most rows here predate the lot that built the table.** Twelve operations already",
+        "disagreed, and they are the backend's own business — a 202 where the interface expects",
+        "a 200 is not a defect in either document, it is a decision nobody had written down.",
+        "",
+    ]
+    if status:
+        lines += ["| operation | operationId | the interface requires | the backend answers |",
+                  "| --- | --- | --- | --- |"]
+        for key, operation_id, mine, yours in status:
+            lines.append(
+                f"| `{key}` | `{operation_id}` | "
+                f"{', '.join(f'`{code}`' for code in mine) or '—'} | "
+                f"{', '.join(f'`{code}`' for code in yours) or '—'} |")
     else:
         lines.append("None.")
 
