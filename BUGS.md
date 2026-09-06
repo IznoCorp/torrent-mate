@@ -390,6 +390,7 @@ when the defect comes back.
 | B-328 | `features/system/page.tsx` heads itself with a path that does not exist and describes a state field (`state.panne`) the code does not have | by the next wave that opens `features/system/page.tsx` | `open` |
 | B-329 | The backend's GENERATED contract does not declare the `409` its own route raises, so no diff between the two contracts can read it — the demand register is structurally blind to a refusal NE-DOIT-PAS-3 forbids the interface to show | by the backend brief | `open` |
 | B-330 | `scripts/mutate.sh` answers « no hold fell » when the RULE PATH it was given does not exist — a typo and a rule that does not bite are the same sentence, and the second is a finding while the first is a mistake | by the instruments' debts block | `open` |
+| B-350 | A PAUSED SERIES is dimmed in the follows grid with no word saying why: the tile's caption is `stFraction(follow) ?? paused`, so a fraction always outranks the word — a paused FILM says « en pause » only because it has no fraction | by L13 | `open` |
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
 
@@ -441,6 +442,32 @@ the third: a rule path that does not resolve.
 **The repair is one line and it is not a refinement**: refuse a `$RULE` that is not an existing
 file, before mutating anything. `NO RULE FELL` is the strongest sentence this tool prints, and it
 must be reachable only when a rule really ran.
+
+**B-350 — a paused series says nothing; a paused film says « en pause ».**
+
+Reported by the operator from the design host: « on dirait que le suivi est stoppé mais rien ne
+l'indique ». Measured on the follows GRID (`acq-follows-grid`), driving one status at a time:
+
+    Silo  disabled   tile off   "Silo 26/27"        ← dimmed, no word, no badge
+    Wicker disabled  tile off   "Wicker en pause"   ← dimmed, and it SAYS so
+    Silo  acquiring  tile       "1 Silo 26/27"      ← not dimmed, badge names the state
+
+The cause is one `??` in `features/acquisition/follows-tab.tsx`'s `tileOf`:
+
+    stFraction(follow) ?? (follow.st === "disabled" ? t("…paused") : String(follow.y))
+
+`stFraction` answers `null` for a FILM and `"26/27"` for a series with a catalogue, so the word is
+reachable only for the follows that have no fraction. The badge cannot rescue it either:
+`gridBadge` answers `null` for `disabled` by design — « NOTHING when there is nothing to do,
+absence IS the signal ». Absence is the signal for two different things at once.
+
+**Two follows in the same state read differently, and the one that goes silent is the series** —
+the kind the operator has most of. It is NE-DOIT-PAS-1's shape seen from the other side: not a
+message that is wrong, but a state that is drawn and never named.
+
+**It is not this lot's doing** — measured against a status this wave introduces, `acquiring` draws
+undimmed with a badge that names it — and the repair belongs with whoever owns that tile's
+drawing: the caption has to carry BOTH, or the dimming needs a word of its own.
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
