@@ -399,7 +399,8 @@ when the defect comes back.
 | B-335 | The secret panel's « Retirer la clé » does nothing and asks nothing: the same `data-toast` shape as B-334, on a destructive act that owes a confirmation (B-300's form) | 1× | `open` |
 | B-336 | The library's kind chips (« Tout · Films · Séries », with counts) scroll horizontally with a VISIBLE scrollbar on the phone; the strip should hide it as `pillscroll` does | 1× | `open` |
 | B-337 | A follow card swiped open: the first tap on a revealed action does nothing, the second acts — systematic on the phone | 1× | `open` |
-| B-350 | A PAUSED SERIES is dimmed in the follows grid with no word saying why: the tile's caption is `stFraction(follow) ?? paused`, so a fraction always outranks the word — a paused FILM says « en pause » only because it has no fraction | by L13 | `open` |
+| B-350 | A PAUSED SERIES is dimmed in the follows grid with no word saying why: the tile's caption is `stFraction(follow) ?? paused`, so a fraction always outranks the word — a paused FILM says « en pause » only because it has no fraction | by L13 | `fixed #572` |
+| B-351 | `check-maquette-comments.py` reads five suffixes and `.mjs` is not one of them, so every `.mjs` under `frontend/maquette/` is invisible to the comment rule AND to the corpus count the floor is derived from — one real occupant measured, `vite.config.mjs:143`'s « (L08) » | by L21 | `open` |
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
 
@@ -477,6 +478,61 @@ message that is wrong, but a state that is drawn and never named.
 **It is not this lot's doing** — measured against a status this wave introduces, `acquiring` draws
 undimmed with a badge that names it — and the repair belongs with whoever owns that tile's
 drawing: the caption has to carry BOTH, or the dimming needs a word of its own.
+
+**REPAIRED HERE, on the operator's ruling of 2026-09-06** — the caption carries BOTH. `tileOf`
+assembles the two instead of choosing: a paused series reads « 4/9 · en pause », a film is
+untouched, and the year stays the fallback for a tile with nothing else to say.
+
+**The seeds had to move first, and that reading is the entry's missing half**: there was no paused
+follow at rest at all — 12 follows, `up_to_date` ×7 and `pending` ×5, nothing `disabled` — so the
+defect could be reached only by driving a status by hand, which is why it took the operator's own
+phone to find. Two follows were ADDED rather than a status mutated (changing one would have moved
+the « À jour » group another rule reads, in silence): a paused SERIES with a fraction and a paused
+FILM without one, because the defect lives between the two.
+
+**Held by R129** (`harness/paused_tile.py`), six holds, of which two are the proof rather than the
+subject: a paused series must KEEP its figure beside the word, and a tile that is NOT paused must
+not carry it — without the second, the rule is green over a build writing « en pause » everywhere.
+It anchors on no class: which tiles are paused comes from the LAYER, each found by the address its
+own markup carries.
+
+<sub>L21, 2026-09-06 · `harness/paused_tile.py` green at 6 holds over 14 tiles, stamp unchanged at
+both ends — `{'Terminus Nord': '4/9 · en pause', 'Le Dernier Quai': 'en pause'}`, none of the other
+12 carrying the word</sub>
+
+**B-351 — the comment rule cannot see a `.mjs`, and does not say so.**
+
+`scripts/check-maquette-comments.py` refuses a maquette source comment that references a lot, a
+phase, a session or a date — those comments must still read years from now, out of context. Its
+corpus is `SUFFIXES = (".py", ".ts", ".tsx", ".css", ".js")` (`:46`), and **`.mjs` is not in the
+tuple**. So a `.mjs` file under `frontend/maquette/` is not exempt, it is INVISIBLE: no arm reads
+it, and the `read` count the floor is derived from never moves for it either — the guard prints
+`clean` over a file it never opened, which is exactly the class it exists to prevent elsewhere.
+
+**Measured, not reasoned.** Four files sit in the hole:
+
+    frontend/maquette/design/vite.config.mjs        2 references — one is REAL
+    frontend/maquette/harness/rename.mjs            3 — all prose or code (`ecmaVersion: 2024`)
+    frontend/maquette/harness/bare_elements.mjs     0
+    frontend/maquette/harness/panel_verbs.mjs       0
+
+The real one is `vite.config.mjs:143`: « WHETHER THE MOCK LAYER IS BUILT IN (L08) » — a lot
+reference in a maquette source, which is precisely what the rule refuses, standing under a green
+gate since L08.
+
+**How it surfaced**, and it is worth recording because no gate produced it: the departure micro-wave
+warned that any new file under `frontend/maquette/` takes the comment corpus past the recorded
+`read` count and falls the guard's TEST (never the guard, which prints clean). Three files were
+added here — `harness/panel_verbs.mjs` and two rules — and only the two `.py` moved the count. The
+`.mjs` not moving it was read as « outside the corpus »; it is not outside anything, it is unread.
+
+**The repair looks like one line and the measurement says it is**: add `".mjs"` to `SUFFIXES` and
+correct that single reference. It is not taken here because widening a guard's corpus is outside
+L21's contract; recorded so the next wave that opens that file does it deliberately.
+
+<sub>L21, 2026-09-06 · `grep -n "SUFFIXES" scripts/check-maquette-comments.py` → `:46` · the four
+files and their counts from `find frontend/maquette -name '*.mjs' -not -path '*/node_modules/*'`
+with a reference grep over each</sub>
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same

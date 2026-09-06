@@ -3,8 +3,13 @@
 Written at 54 % context by the session that opened the lot. Read `BRIEF.md`, `DESIGN.md` and
 `plan/INDEX.md` first — this file says only what is TRUE NOW and what the plan does not.
 
-**Branch** `feat/maquette-l21`. **Version** 0.98.74. **Base** `origin/main` at `7fecb0258`;
-main has since moved to `ae1b8de48` (PR #570) and **this branch has not merged it yet**.
+**Branch** `feat/maquette-l21`, pull request **#572** (draft). **Version** 0.98.75 — it was
+0.98.74 and moved because the departure micro-wave, which merges first, holds that number;
+**re-read `main` and bump past it at the close**, whatever else has merged meanwhile. **Base**
+`origin/main` at `ae1b8de48`, which commit `27a2ef6a9` on this branch has ALREADY MERGED —
+`git merge-base HEAD origin/main` answers `ae1b8de48` and `git diff --name-only <base>
+origin/main` answers zero files. § 6's « merge `main` first » is therefore discharged; it said
+the opposite until this line, and a sentence that outlives its subject is read as current.
 
 ---
 
@@ -154,7 +159,10 @@ are plausibly the same defect, and B-337 is already ratified into this lot.
   whose actions ARE `pause` and `remove`, this phase's verbs. **Measure with a real touch which
   listener eats the click**; if it is the swipe rather than the tap path, it goes back to L13 and
   the steward is told.
-- **Merge `main` into this branch first** — it has moved by a whole pull request.
+- ~~**Merge `main` into this branch first**~~ — **DISCHARGED, and it was already false when
+  written here.** `git merge-base HEAD origin/main` answers `ae1b8de48`, which IS `main`'s
+  head, and `git diff --name-only <base> origin/main` answers ZERO files: commit `27a2ef6a9`
+  on this branch merged it. No merge was run for phase 4 and none was needed.
 - **B-316 is RULED**: a TAP opens the media sheet, a LONG PRESS opens the suggestion panel,
   reusing L14's gesture, and the two attributes stop sharing a node. **B-315 (a) is now in
   scope** — the button's size, at the catalogue's scale for a secondary action in a feed footer.
