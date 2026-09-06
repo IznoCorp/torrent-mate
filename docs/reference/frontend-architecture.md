@@ -2097,21 +2097,23 @@ wave that found none says so, in its row, with the same authority as a wave that
 before it is coded, with named states and a rule that bites.
 
 **Placed here by the operator's rulings of 2026-09-06 — the first ones from his test session on the design
-host, the rest from the decision round of the same day (round 2, question 1) — each with its reading in
+host, the rest from the decision round of the same day (round 2, questions 1 and 8) — each with its reading in
 `BUGS.md`, none reopening what this entry already says**: **B-312** (the library's selection survives a lens
 change — RULED 2026-09-05; the two writers of `selected: new Set()`, the engine's and `library-head.tsx`'s,
 are one fact here), **B-327** (« Réglages » draws the seventh scheduler when the `SETTINGS` family converts —
-option E refused), **B-331** (the pull indicator's 1 100 ms pretence and its centring), **B-332** and
-**B-361** (a topic is an ARRIVAL, on Réglages and on Maintenance alike: it pushes, and draws its back — both
-confirmed on the operator's phone by the real path), **B-336** (the kind chips hide their scrollbar as
-`pillscroll` does), **B-340** (the « + » opens a FRESH add screen; `addQ`, `addMode` and `added` leave the
-engine with the add screen's state). **Done when** each reads `fixed` under a rule seen red first, or is
-placed elsewhere by a ruling written here. **What the same round placed ELSEWHERE, on purpose**: the
-settings defects that are React's or the mock's — **B-334**, **B-335**, **B-341**, **B-342**, **B-343** and
-the settings half of **B-345** — go to a « settings » MICRO-WAVE after L21 merges and before L20, because
-they repair without an engine edit on the verb registry L21 built and because they are what keeps B-299 and
-B-300 unconfirmable by hand; **B-344** to a tooling micro-wave of its own; and the library's share of
-**B-345** stays here with the fixture clause.
+option E refused), **B-331** (the pull indicator's 1 100 ms pretence and its centring), **B-336** (the kind
+chips hide their scrollbar as `pillscroll` does), **B-340** (the « + » opens a FRESH add screen; `addQ`,
+`addMode` and `added` leave the engine with the add screen's state). **Done when** each reads `fixed` under
+a rule seen red first, or is placed elsewhere by a ruling written here. **What the same round placed
+ELSEWHERE, on purpose**: the settings defects that are React's, the mock's, or a verb the registry can take
+off the engine — **B-334**, **B-335**, **B-341**, **B-342**, **B-343**, **B-332** and **B-361** (a rubric of
+Réglages or Maintenance is an ARRIVAL: it pushes and draws its back — both confirmed on the operator's
+phone by the real path) and the settings half of **B-345** — go to the **`maquette-settings` micro-wave**
+(`docs/features/maquette-settings/BRIEF.md`) after L21 merges and before L20, because they repair without
+an engine edit on the verb registry L21 built and because they are what keeps B-299 and B-300 unconfirmable
+by hand; **B-344** to the **`maquette-desktop-frame` tooling micro-wave**
+(`docs/features/maquette-desktop-frame/BRIEF.md`) after the departure micro-wave merges; and the library's
+share of **B-345** stays here with the fixture clause.
 
 ### One lot at a time
 
