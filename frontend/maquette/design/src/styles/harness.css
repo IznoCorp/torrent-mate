@@ -201,7 +201,6 @@ html.measuring .note {
   }
 }
 
-
 /* THE WAY OUT OF THE FRAME, AND BACK — harness chrome, and desktop only.
    The operator reads the prototype on a desktop browser and the frame draws a
    phone there, so the desktop presentation his own stylesheet describes is the
