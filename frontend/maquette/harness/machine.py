@@ -39,8 +39,12 @@ from common import Journal, open_page
 from playwright.async_api import async_playwright
 
 # THE TREE THIS FILE LIVES IN, never a path typed out. It read
-# `expanduser("~/dev/PersonalScraper")` and was the only harness file that did:
-# every neighbour resolves from `__file__`. The consequence was not stylistic.
+# `expanduser("~/dev/PersonalScraper")`, which was wrong for a REPOSITORY file:
+# every neighbour that reads the maquette resolves from `__file__`. Two files
+# still type the checkout path and are right to — `arrivals.py` and `content.py`
+# reach the operator's LIVE databases, which live at one address and are not
+# under test — and the second use here (`sys.path`, for the engine's registry)
+# is legitimate for the same reason. The consequence was not stylistic.
 # This office reviews on a WORKTREE pinned at a pull request's head, so a rule
 # reading an absolute path measures the main checkout while the reader believes
 # it is measuring the branch — a hold below went green over a label deleted in
@@ -291,10 +295,32 @@ async def declared_tones(page, source):
 # Those five are ACCEPTED here BY NAME, not tolerated by a count: a sixth
 # disagreement is a new one and is refused. The two that agree are named too,
 # so a name that stops agreeing is a fall rather than a silence.
-SCHEDULERS_NAMED_ALIKE = (
-    "personalscraper-index-enrich",
-    "personalscraper-index-full",
-)
+# A MAPPING AND NOT A LIST, and the difference is a defect this caught. Held as
+# names alone, the hold asked « is this label one of the labels drawn », which a
+# label belonging to a DIFFERENT scheduler satisfies: the table naming the wrong
+# job — the one case this half exists to refuse — passed green. The label is the
+# one « Système » draws FOR THAT NAME, and it is compared per name.
+# WHAT « Système » DRAWS FOR EACH PROCESS THE MACHINE RUNS. This is the join —
+# the only one in the tree, since neither surface carries the other's key — and
+# it is a MAPPING because a label belongs to a NAMED job: held as a list of
+# names, the agreement hold asked « is this label one of the labels drawn »,
+# which a label belonging to a DIFFERENT scheduler satisfies, so the table
+# naming the wrong job passed green.
+SCHEDULERS_AS_SYSTEM_DRAWS = {
+    "personalscraper-health-check": "Contrôle de santé",
+    "personalscraper-grab": "Récupération des releases",
+    "personalscraper-search": "Recherche de releases",
+    "personalscraper-follow-detect": "Détection des suivis",
+    "personalscraper-index-enrich": "Enrichissement de l'index",
+    "personalscraper-backfill-ids": "Complétion des identifiants",
+    "personalscraper-index-full": "Analyse complète de l'index",
+}
+
+# THE FIVE WHOSE SECOND NAME DISAGREES, accepted BY NAME and not by a count
+# (B-327): the schedule's own label table calls these jobs something else —
+# « Contrôle de santé du système » for the first — and the prototype naming one
+# job twice is a debt with an owner. A SIXTH disagreement is a new one and is
+# refused; the two absent from this tuple must keep the name above.
 SCHEDULERS_NAMED_TWICE = (
     "personalscraper-health-check",
     "personalscraper-grab",
@@ -483,13 +509,29 @@ async def main():
             # santé » against « Contrôle de santé du système »), so joining
             # this list to the machine needs the prototype to name a job ONCE
             # first. That is a debt with an owner, written in B-327, and it is
-            # why the row below reads a count while section 6 reads the table.
+            # why section 6 reads the table. The row below still COUNTS —
+            # that is what it holds — but it reports through the join.
+            # SORTING BOTH LISTS IS NOT A JOIN, and printing them side by side
+            # invited one: they sort on different keys, so pointed at a build
+            # drawing six, a reader pairing them by position reads the WRONG
+            # name as missing — six of seven positions mispair. The join is the
+            # mapping above, and what has no partner on either side is printed
+            # apart rather than left to be inferred from an ordering.
+            drawn_labels = {x["l"] for x in (sys_view["schedulers"] or [])}
+            paired, unpaired_real = [], []
+            for name in sorted(real_schedulers):
+                label = SCHEDULERS_AS_SYSTEM_DRAWS.get(name)
+                if label in drawn_labels:
+                    paired.append(f"{name} = {label}")
+                else:
+                    unpaired_real.append(f"{name} (expects {label!r})" if label
+                                         else f"{name} (this rule has no name for it)")
+            unpaired_drawn = sorted(drawn_labels - set(SCHEDULERS_AS_SYSTEM_DRAWS.values()))
             journal.check("as many schedulers drawn as PM2 schedules",
                              schedulers_drawn == len(real_schedulers),
-                             f"{schedulers_drawn} drawn vs {len(real_schedulers)} real: "
-                             + ", ".join(sorted(real_schedulers))
-                             + " — drawn: "
-                             + ", ".join(sorted(x["l"] for x in (sys_view["schedulers"] or []))))
+                             f"{schedulers_drawn} drawn vs {len(real_schedulers)} real · "
+                             f"paired {len(paired)}: {paired} · scheduled and not drawn: "
+                             f"{unpaired_real} · drawn and not scheduled: {unpaired_drawn}")
 
         # 3bis. Every service and scheduler carries a pastille, and the
         # pastille AGREES with the sentence beside it. Deriving the colour from
@@ -755,18 +797,31 @@ async def main():
                 # not to do. The five that already disagree are accepted by name;
                 # a scheduler that is named ALIKE stays that way, and a new one
                 # has to be placed in one list or the other before it can pass.
-                drifted = [name for name in SCHEDULERS_NAMED_ALIKE
-                           if name in real_schedulers
-                           and labels.get(name) not in drawn_names]
+                alike = [n for n in sorted(real_schedulers)
+                         if n in SCHEDULERS_AS_SYSTEM_DRAWS
+                         and n not in SCHEDULERS_NAMED_TWICE]
+                drifted = [f"{name}: the table says {labels.get(name)!r}, "
+                           f"« Système » draws {SCHEDULERS_AS_SYSTEM_DRAWS[name]!r}"
+                           for name in alike
+                           if labels.get(name) != SCHEDULERS_AS_SYSTEM_DRAWS[name]]
+                # AND THE EXPECTATION IS ITSELF READ, never only written here:
+                # a mapping nobody checks against the page is a second fixture,
+                # and it would drift in silence exactly as the label table did.
+                unread = [f"{name}: {SCHEDULERS_AS_SYSTEM_DRAWS[name]!r} is not drawn"
+                          for name in sorted(real_schedulers)
+                          if name in SCHEDULERS_AS_SYSTEM_DRAWS
+                          and SCHEDULERS_AS_SYSTEM_DRAWS[name] not in drawn_names]
                 unplaced = [name for name in sorted(real_schedulers)
-                            if name not in SCHEDULERS_NAMED_ALIKE
-                            and name not in SCHEDULERS_NAMED_TWICE]
+                            if name not in SCHEDULERS_AS_SYSTEM_DRAWS]
                 journal.check(
-                    "a scheduler named alike on both surfaces stays that way, and a new one is placed",
-                    not drifted and not unplaced,
-                    f"drifted: {drifted} · unplaced: {unplaced}" if (drifted or unplaced)
-                    else f"{len(SCHEDULERS_NAMED_ALIKE)} alike, "
-                         f"{len(SCHEDULERS_NAMED_TWICE)} accepted as disagreeing (B-327)")
+                    "a scheduler the LABEL TABLE names as « Système » does keeps that name, "
+                    "and a new one is placed",
+                    not drifted and not unread and not unplaced,
+                    f"drifted: {drifted} · not drawn: {unread} · unplaced: {unplaced}"
+                    if (drifted or unread or unplaced)
+                    else f"{len(alike)} named alike, "
+                         f"{len([n for n in SCHEDULERS_NAMED_TWICE if n in real_schedulers])} "
+                         f"named twice and accepted (B-327)")
 
         journal.check("no JS error", not errors, str(errors))
         await ctx.close()

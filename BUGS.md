@@ -1419,15 +1419,26 @@ against « Détection des épisodes diffusés », and so on. **The prototype nam
 twice, in two French vocabularies, in one file, with nothing holding them together.** A rule
 joining a drawn list to `pm2` therefore needs neither the backend nor D7 — it needs the prototype
 to name a job once. #567 adds the seventh to that table in « Système »'s own words, so the two
-vocabularies gain no third, and holds it (`machine.py`, « every scheduler the machine runs is NAMED
-where the schedule is drawn »).
+vocabularies gain no third. **Two holds in `machine.py` carry that**, and they are two because
+presence and agreement are two questions: « every scheduler the machine runs is named in the
+schedule's LABEL TABLE » reads that a name EXISTS for each, and « a scheduler the LABEL TABLE names
+as « Système » does keeps that name, and a new one is placed » reads that it is the RIGHT one,
+against a mapping of process name to the label « Système » draws — the five that disagree accepted
+by name here, a sixth refused.
 
 **Owner: L13**, the wave that converts `SETTINGS` — the family, its 1 461 lines, `allSettings` and
 the eleven harness reads move together, and the row and the single vocabulary are that wave's to
 land. **Done when** « Réglages » draws seven, the hold above is in `machine.py` and green, and one
 job has one name.
 
-<sub>the FAIL line above and the second of the two that run printed — « FAIL and every one of them is NAMED there rather than falling back to its process name — ['personalscraper-index-full'] », the label half, which #567 KEPT in `machine.py` (renamed « every scheduler the machine runs is named in the schedule's LABEL TABLE ») and which is green there; only the row half above is owed here — on `0ab9c9f29` · `git diff be460fb79..HEAD -- frontend/maquette/design/src/mocks/seeds/settings.json` → empty · `python3 scripts/check-frontend-boundaries.py --arm size` with the row added → « 31 600, 9 more » · `grep -c "SETTINGS" frontend/maquette/harness/settings.py` → the eleven reads · reported by the independent reader of #567, round two, 2026-09-06</sub>
+<sub>**the FAIL line above is the attested one**, and it is corroborated outside this wave: the
+independent reader of round three replayed this snippet verbatim on its own build of `512673ccf`
+and read « drawn keys on « Les passages programmés »: 6 vs real: 7 → would FAIL ». **The run also
+printed a SECOND violation — the label half — and that line is NOT quoted here, because no kept
+artefact carries it**: it was in the wave's own session and in no report, probe or transcript a
+later reader can open, and a sentence nobody can corroborate does not belong in an entry someone
+else inherits. What became of that half IS checkable: #567 kept it in `machine.py` as the two holds
+named above, both green, both mutation-proven. — on `0ab9c9f29` · `git diff be460fb79..HEAD -- frontend/maquette/design/src/mocks/seeds/settings.json` → empty · `python3 scripts/check-frontend-boundaries.py --arm size` with the row added → « 31 600, 9 more » · `grep -c "SETTINGS" frontend/maquette/harness/settings.py` → the eleven reads · reported by the independent reader of #567, round two, 2026-09-06</sub>
 
 **B-328 — `features/system/page.tsx` names a path and a field that do not exist.**
 Its first line heads the file « design/src/pages/system.tsx », a path no commit holds, and its
