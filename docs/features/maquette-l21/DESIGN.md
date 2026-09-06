@@ -192,10 +192,36 @@ inventing a mechanism at that moment, and **L13 inherits it**: when the engine's
 its branches move here. It is therefore a decision for `frontend-architecture.md` § 2, not a file —
 the steward writes it in at the audit under § 7.1.
 
-**What it still OWES, and this wave did not land it**: a contract rule refusing a `data-*` verb that
-markup emits and no feature registers — the same shape as the invented anchors
-`check-markup-contracts` caught from the markup end — seen red once on purpose. It is phase 4's
-first task.
+**What it OWED, and phase 4 landed first**: a contract rule refusing a `data-*` verb that markup
+emits and no feature registers — the same shape as the invented anchors `check-markup-contracts`
+caught from the markup end. It is **ARM 7** of that guard (`scripts/markup_verbs.py`, emitting side
+parsed by `harness/panel_verbs.mjs`), and it accepts two answers and no others: a `registerVerb`
+declaration, or a read in the dying engine — `dataset.name`, `[data-name]`,
+`getAttribute("data-name")`, the two spellings resolved to one name. **The engine dies by
+subtraction, so the day a branch goes before its verb reaches the registry, this arm falls on it.**
+
+**Seen red on purpose, on the real tree**: the `registerVerb("journey-requeue", …)` declaration was
+removed by hand, the guard exited **1** naming `features/acquisition/panel-journey.ts:92` and
+« nothing answers a tap on `data-journey-requeue` », and it returned to **0** on restore. By hand
+rather than through `scripts/mutate.sh`, which cannot judge a guard (B-273): a guard's exit code is
+read by hand.
+
+**Reading on this tree**: 34 verbs over 33 action targets, every one answered — 2 by a declaration,
+the rest by the engine; 1 dialog action set aside, 0 computed keys and 0 unresolved targets skipped.
+
+**Three refusals came with it**, each because the alternative is silence: a panel action asking for
+an already-prefixed `data-x` (`ui/panel` writes the prefix itself, so it renders `data-data-x`,
+which nothing reads); a `registerVerb` call whose name is not a literal (an answer the arm cannot
+see would refuse a verb that IS answered); and a corpus under its floor (a parse that read nothing
+prints the same line as one that read every panel).
+
+**And two shapes it had to be taught, both measured rather than foreseen.** A regular expression
+over the same corpus answered `add` for ``target: { act: `add:${position}` }`` and
+`panels.maintenance.launchedDry` for a translated value — keys that exist nowhere — which is why
+the emitting side is parsed. And `panel-sort.ts` writes its target as a conditional through an
+`as`, deliberately (two shapes rather than one with an undefined field, because an undefined value
+still emits the attribute): a reader matching only a bare object literal skipped that map whole and
+was one verb short with no sign that it had.
 
 ### 3.1e A correction to this document and to a commit message
 

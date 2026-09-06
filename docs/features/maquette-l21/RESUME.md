@@ -99,12 +99,14 @@ measured, not this lot's doing).
 
 ## 5b. What phase 3 OWES, and it is phase 4's first task
 
-**The registry has no rule of its own.** The steward approved `lib/verbs.ts` on two conditions: the
-decision recorded (done — DESIGN.md § 3.1d, with the alternatives refused) and **a contract rule
-refusing a `data-*` verb that markup emits and no feature registers**, seen red once on purpose.
-That rule is NOT written: this session reached its rotation gate first. It is the same shape as the
-invented anchors `check-markup-contracts` caught from the markup end, and it belongs before any
-further verb is moved onto the registry.
+**The registry now has its rule — LANDED, 2026-09-06.** The steward approved `lib/verbs.ts` on two
+conditions: the decision recorded (DESIGN.md § 3.1d, with the alternatives refused) and a contract
+rule refusing a `data-*` verb that markup emits and no feature registers, seen red once on purpose.
+Both are done. The rule is **ARM 7** of `check-markup-contracts` (`scripts/markup_verbs.py`, the
+emitting side parsed by `harness/panel_verbs.mjs`); it reads 34 verbs over 33 action targets, all
+answered, and it was seen red by removing the `journey-requeue` declaration on the real tree — exit
+1, naming `panel-journey.ts:92`, back to 0 on restore. **By hand, not through `mutate.sh`, which
+cannot judge a guard (B-273).** Detail and the two shapes it had to be taught: DESIGN.md § 3.1d.
 
 **And one correction to carry**: the phase-3 commit calls `ui/variants/controls`'s `actionButton`
 an ORPHAN. It is not — it has two users (`app/not-found.tsx`,
