@@ -38,7 +38,7 @@ the window and there is no gutter, so it moves to bottom-left — the one corner
 the app's fixed chrome never claims — lifted by `--tm-bottom-bar-h`, the height
 the tab bar publishes, which reads 0 where the app hides the bar.
 
-**R140** — `frontend/maquette/harness/desktop_frame.py`, 326 lines, eleven holds,
+**R140** — `frontend/maquette/harness/desktop_frame.py`, 326 lines, **fourteen holds**,
 at 390 × 844 and 1280 × 800. Its expected values are MEASURED, not typed: the
 frame's whole contribution is written `.device …`, so the same page with that
 class removed from the device is the app's own cascade, at the same width, in
@@ -79,40 +79,65 @@ ran there was a throwaway probe, kept at
   tightest, not only where the operator works.
 - **Accessible name**: `- checkbox "Sortir du cadre"` framed,
   `- checkbox "Revenir au cadre" [checked]` out.
-- Cheap repository guards: all 23 green, including `check-no-french` (15 arms),
+- Cheap repository guards: all green, including `check-no-french` (15 arms),
   `check-markup-contracts`, `check-bug-register`, `check-implementation-state`.
+  (This line read « all 23 green ». `run.sh` prints its own count and the full
+  suite reported **27** on 2026-09-07 — a number written into prose goes stale,
+  which is the trap `CLAUDE.md` names twice about this very script. The count is
+  the script's to print, not this file's to record.)
 - `npm run typecheck` clean; vitest 6 files / 104 tests passed. Both are weak
   here — this wave touches no TypeScript.
 - The pre-push gate ran all five checks green on `5b15d2cd6`.
 
-## What is NOT done — the whole remaining gate list
+## What has been READ, and on what — the gate list, run 2026-09-07
 
-None of these has been run, because every one of them reads the shared served
-copy on 8899 and the machine holds ONE harness:
+The steward gave this session the served copy and 8899 for the whole list, in order.
+The machine had rebooted: `/tmp/tm-refonte` was gone and nothing listened on 8899, so
+the first run rebuilt both from this branch. Every run wrapped —
+`HEAVY_FREE_FLOOR_MB=3072 sh scripts/heavy.sh desktop-frame …` — output to a file.
 
-1. **R140 on 8899**, through `run.sh`, `TM_HARNESS_JOBS=1`. It has never been
-   executed against the served copy. What it read on the private port is not a
-   certification.
-2. **The mutation pair**, `scripts/mutate.sh`, committed first (B-303):
-   - remove the small-breakpoint guard →
-     `'t.replace(".desktop-switch {\n  display: none;\n}", ".desktop-switch {\n  display: flex;\n}")'`
-     — hold (a) must fall naming the box it found;
-   - unscope one re-assertion →
-     `'t.replace(":root:not(:has(#desktop-switch:checked)) .device .bottombar", ".device .bottombar")'`
-     — the « the app's own stylesheet answers » hold must fall naming the
-     property that still reads the frame's value.
-3. **The full suite**, `frontend/maquette/harness/run.sh`, expected no failure.
-4. **`run.sh --a11y`** — expected 0 with the light ceiling unmoved. Note, and it
-   is this wave's own « guard green over what it does not read »: the
-   accessibility tier audits at 390 px, where the control is deliberately absent,
-   so it reads NOTHING of this change. R140 holds the naming and the labelling
-   instead.
-5. **The oracle** — expected **zero divergence**, and the reference is NOT
-   re-recorded. It measures at 390 px where the control is `display: none`.
-6. **`scripts/harness-hold-counts.py --compare`**, `failed` read FIRST —
-   expected one new row (R140) and no other movement. The baseline this branch
-   carries is `f70ca0295`, 93 rules / 2 199 holds / failed 0.
-7. **`make check`** — 0 failed, 0 errors.
+1. **R140 on 8899**, against the shared served copy: `14 rules EXECUTED — no violation`.
+   The stamp read `41862-1788805584169005000` before AND after, so the reading spans
+   one build. `run.sh` has no single-rule mode — its argument parsing accepts only
+   `--oracle`, `--a11y`, `--contracts` — so this was its own preamble invoked for one
+   rule: the same lock, the same single assembly point, the same stamp check.
+2. **The mutation pair**, `scripts/mutate.sh`, tree clean. The small-breakpoint guard
+   opened → the phone hold falls ALONE, naming the box it found: `client rects 1,
+   area 2516.3125, takes focus True`. One re-assertion unscoped → the « the app's own
+   stylesheet answers » hold falls ALONE, naming the property still reading the frame's
+   value: `tab-bar: flex` against an unframed `none`. One violation each.
+3. **The full suite**: `harness: 94 rule(s) and 27 repository guard(s), no violation.`
+4. **`--a11y`**: `87 states, 0 violation(s)`; light tier `166 against a ceiling of 166`,
+   exactly unmoved. It audits at 390 px where this control is deliberately absent, so it
+   reads NOTHING of this change — reported as a gate that passed, never as evidence.
+5. **The oracle**: `87 states x 34 regions, 2958 measurements`, `reference taken at
+   f70ca029`, **`no divergence`**. The reference is NOT re-recorded.
+6. **`harness-hold-counts.py --compare`**, `failed` read FIRST: **0**. Then
+   `0 changed · 0 missing · 1 new` — `NEW desktop_frame.py (14)`. 93 rules / 2 199 holds
+   at `f70ca0295` become 94 / 2 213. The baseline is NOT re-recorded here: the steward
+   does it at the post-merge gesture.
+7. **`make check`** — see the pull request.
+
+**The « eleven holds » this file carried until now was WRONG**, and a second instrument
+caught it: the compare parses the count from the rule's own journal, independently of
+anyone reading the rule's output. The figure predates the three holds the probe's finding
+added. It is fourteen.
+
+## Two defects in the instruments, found by running them
+
+**`scripts/mutate.sh` said « NO RULE FELL. That is the finding. » over a rule that had
+CRASHED.** The first mutation ran with nothing serving 8899: the rule died on
+`net::ERR_CONNECTION_REFUSED` with exit 1, and the tool — which discards the exit status
+(`|| true`) and greps only for journal `FAIL` lines — reported it in the exact words of a
+rule that read the page and was unmoved. The reading was false and was believed for one
+command. Filed as **B-273's third case**, on the steward's ruling that `main` already
+holds the species; the repair is B-273's owner's, not this wave's.
+
+**The 8899 host does not survive the invocation that starts it under the wrapper.**
+`run.sh` forks the host inside its own run; `scripts/heavy.sh` runs that command under
+`set -m`, in a process group it signals on release. Harmless for `run.sh`, which restarts
+what is not listening — harmful for `mutate.sh`, which starts no host. Filed as **B-371**.
+The host is now started with `nohup` OUTSIDE the wrapper and stays up.
 
 ## The two arbitrations, and how they were ruled
 
@@ -160,19 +185,14 @@ connection label, has no naming attribute of its own — its owner is in `app/`,
 which this wave may not touch — so it is reached structurally,
 `[data-part="shell/connection-mark"] > span:last-child`.
 
-## The exact next step
+## What remains
 
-1. Ask the steward for the served copy and 8899. Nothing on that copy without it.
-2. Rebuild it from this branch, then run items 1 to 7 above in that order.
-3. **The « In flight » row is NOT written, deliberately.** The single row in
-   `IMPLEMENTATION.md` names L21 (PR #572, draft), and this micro-wave runs
-   BESIDE L21 rather than in its place. Overwriting another wave's row is not a
-   call this session was willing to make alone, and `check-implementation-state`
-   reads clean as it stands. **Ask the steward where a beside-a-lot micro-wave's
-   row goes**, then write it.
-4. Close **B-344** with `fixed #576` — the closure arm requires the entry's BODY
-   to change in the same commit, not only its status.
-5. Recount « guards green over what they do not read » for this wave on the final
-   head, zero included, and write the figures ONCE, there.
-6. Then the steward launches its independent reader; the operator judges on his
-   Mac and his word closes B-344.
+1. The steward's independent reader, on a worktree pinned at this head against a control
+   of `main`, and its own reading of the switch in a browser.
+2. The operator opens the design host in Chrome on his Mac, toggles it himself, and his
+   word closes B-344 in fact. This file records what the rules read; the walk is his.
+3. The post-merge gesture: the hold-count baseline re-recorded on the squash with `failed`
+   read FIRST, the oracle's reference re-anchored, this folder leaving the tree cited by
+   the squash, and the trace written into `IMPLEMENTATION.md`'s « Between L19 and L21 »
+   row beside the schedulers' and the departure's — a micro-wave running BESIDE a lot
+   writes no « In flight » row, which is L21's.
