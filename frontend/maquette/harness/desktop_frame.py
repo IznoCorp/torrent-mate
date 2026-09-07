@@ -58,6 +58,7 @@ import pathlib
 import re
 import sys
 
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -384,6 +385,23 @@ HARNESS_CHROME = '[data-part^="harness/"]'
 # click that happened before the loop. `checked` is the state itself; the
 # device filling the window is what that state is FOR, and reading both means
 # a press that silently stopped working cannot pass as a corner that is free.
+# THE ONE LAYER ALLOWED OVER IT, named by STATE and by COVERER together so
+# that a different layer in the same state still falls the hold, and the same
+# layer in another state does too.
+#
+# `startup` draws the boot splash, and a splash is transient by construction:
+# it covers the whole window for as long as the application is starting and
+# then it is gone. Nothing can be reached under it — that is what it is FOR —
+# and the way back into the frame is no more entitled to be reachable during
+# the boot than the app's own controls are. The operator meets it for the
+# moment the prototype loads and never again in that session.
+#
+# It is an exemption and not a discovery, so it is written here rather than
+# absorbed: the reading that produced it was ONE state out of 87, and the
+# other twelve that once appeared beside it were this rule's own settle
+# reading the page mid-transition, not layers of the app's.
+TRANSIENT_COVERERS = {"startup": ["splash"]}
+
 # THE OTHER DIRECTION, and the sweep asked only one of them. « What does the
 # control cover » and « what covers the control » are different questions with
 # different answers: a layer the app paints AFTER the control, at the same
@@ -486,28 +504,62 @@ DEVICE_SURVIVES = {"position": "relative",
 # red out of the frame with every hold green, which is the shape this rule
 # exists to refuse, sitting inside the hold written to refuse it.
 #
-# Each is held to what its own declaration MEANS, computed in the page at the
-# moment of reading — the window's width for `width: 100%`, its height for
-# `height: 100svh`, and the token's own resolved colour for
-# `background: var(--color-background)`. Measured, never typed, and wrong the
-# moment the value stops being what the declaration says.
+# Each is held to what its own declaration MEANS — and « means » is resolved by
+# the browser rather than worked out here. A first version computed the
+# meanings by hand (the window's width for `width: 100%`, its height for
+# `height: 100svh`) and got `max-width` wrong on the first run: percentages
+# stay percentages in a computed reading, so the expected `1280px` met a real
+# `100%` and the hold fell on a correct tree. Working out what a declaration
+# resolves to is the browser's job, and asking it is one probe element.
 DEVICE_SURVIVES_DYNAMIC = ("width", "max-width", "height", "background-color")
 
-# What each of those declarations RESOLVES to, asked of the same document. The
-# colour goes through a probe element rather than through the raw custom
-# property, because the property's text is a token and the reading is a
-# resolved colour: comparing them would compare two different languages.
-WHAT_THE_DECLARATIONS_MEAN = """()=>{
+# THE PROBE CARRIES THE FRAME'S OWN DECLARATIONS, read from the stylesheet, and
+# is mounted in the device's own parent so that a percentage resolves against
+# the same containing block. Whatever the browser computes for it is what the
+# declaration means; the device must read the same, or the declaration has
+# stopped arriving. `background: red` then differs from the token's colour and
+# the hold falls, which « differs from the control document » could never see.
+WHAT_THE_DECLARATIONS_MEAN = """(argument)=>{
+  const [device, declarations, wanted] = argument;
+  const el = document.querySelector(device);
   const probe = document.createElement('div');
-  probe.style.background = 'var(--color-background)';
-  document.body.appendChild(probe);
-  const background = getComputedStyle(probe).backgroundColor;
+  for (const [name, value] of Object.entries(declarations))
+    probe.style.setProperty(name, value);
+  el.parentElement.appendChild(probe);
+  const style = getComputedStyle(probe);
+  const out = {};
+  for (const property of wanted) out[property] = style.getPropertyValue(property);
   probe.remove();
-  return {'width': window.innerWidth + 'px',
-          'max-width': window.innerWidth + 'px',
-          'height': window.innerHeight + 'px',
-          'background-color': background};
+  return out;
 }"""
+
+
+def frame_own_declarations(device_classes):
+    """The frame's own block as `name: value`, read from the stylesheet.
+
+    Args:
+        device_classes: The classes the device element carries.
+
+    Returns:
+        A mapping of declared property to declared value, verbatim, so that a
+        probe can be given the same declarations and the browser can say what
+        they resolve to.
+    """
+    text = HARNESS_STYLESHEET.read_text(encoding="utf-8")
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+    spellings = set(device_spellings(device_classes))
+    declarations = {}
+    for selectors, body in re.findall(r"([^{}]+)\{([^{}]*)\}", text):
+        targets = [one.strip() for one in selectors.split(",")]
+        if len(targets) != 1 or targets[0] not in spellings:
+            continue
+        for declaration in body.split(";"):
+            if ":" not in declaration:
+                continue
+            name, _, value = declaration.partition(":")
+            if name.strip() and not name.strip().startswith("-"):
+                declarations[name.strip()] = value.strip()
+    return declarations
 
 
 def declared_by_the_frame_itself(device_classes):
@@ -815,7 +867,10 @@ async def measure_desktop(browser, journal):
                     for k in DEVICE_SURVIVES_DYNAMIC}
     dynamic_control = {k: unframed_box["dynamic:" + k]
                        for k in DEVICE_SURVIVES_DYNAMIC}
-    meant = await page.evaluate(WHAT_THE_DECLARATIONS_MEAN)
+    meant = await page.evaluate(
+        WHAT_THE_DECLARATIONS_MEAN,
+        [DEVICE, frame_own_declarations(device_classes),
+         list(DEVICE_SURVIVES_DYNAMIC)])
     still_arriving = [k for k in DEVICE_SURVIVES_DYNAMIC
                       if dynamic_left[k] == meant[k]]
     declared_own = declared_by_the_frame_itself(device_classes)
@@ -939,6 +994,27 @@ async def measure_tightest(browser, journal):
     await context.close()
 
 
+# THE SETTLE IS THE DRAWN DURATION, not a number that felt long enough. The
+# walk waited 120 ms while the prototype's longest transition is 450 ms
+# (`--duration-4`), so sixteen states were read mid-transition: their topmost
+# element at the control's own centre came back as `HTML` — nothing hit-testable
+# there yet — and the hold that asks « what covers the way back » was about to
+# report fifteen coverers that do not exist. A delay set by hand in an
+# instrument outliving the drawn duration it was set against is this
+# register's B-276, and it produced a reading, not just a risk.
+#
+# BUT A NUMBER IS STILL A NUMBER. 470 cleared eleven of the sixteen and left
+# five, four of them media sheets that animate for longer than the constant
+# anyone would have written down — which is B-276 again, one raise later. So
+# the wait is not a duration at all: the page is asked whether anything is
+# still animating, and the reading is taken when nothing is. The ceiling below
+# is a refusal to hang, not an expectation.
+SETTLE_FLOOR = 120
+SETTLE_CEILING = 3000
+NOTHING_IS_MOVING = """()=>document.getAnimations()
+  .every((one)=>one.playState !== 'running')"""
+
+
 async def measure_every_state(browser, journal):
     """Holds that the way out of the frame covers no control the app draws.
 
@@ -970,9 +1046,21 @@ async def measure_every_state(browser, journal):
     # once before the loop.
     not_out = {}
     covered = {}
+    still_moving = []
     for state in states:
         await page.evaluate("(one)=>window.__go(one)", state)
-        await page.wait_for_timeout(120)
+        # THE FLOOR FIRST, THEN THE QUESTION, and the order is the whole of
+        # it: asked immediately, « is anything animating? » answers YES —
+        # nothing has started yet — so waiting on that alone read the page
+        # EARLIER than the fixed delay did and the count went up rather than
+        # down. The floor lets the transition begin; the question then waits
+        # out whatever its real duration is, which no constant here can know.
+        await page.wait_for_timeout(SETTLE_FLOOR)
+        try:
+            await page.wait_for_function(NOTHING_IS_MOVING,
+                                         timeout=SETTLE_CEILING)
+        except PlaywrightTimeoutError:
+            still_moving.append(state)
         where = await page.evaluate(OUT_OF_THE_FRAME, [CHECKBOX, DEVICE])
         if not (where["checked"] and where["fillsTheWindow"]):
             not_out[state] = where
@@ -982,7 +1070,7 @@ async def measure_every_state(browser, journal):
         if hits:
             crossed[state] = hits
         over = await page.evaluate(WHAT_COVERS_IT, [SWITCH, LABEL])
-        if over:
+        if over and over != TRANSIENT_COVERERS.get(state):
             covered[state] = over
     journal.check(
         "and every one of those readings was taken OUT of the frame — the "
@@ -994,7 +1082,8 @@ async def measure_every_state(browser, journal):
 
     journal.check(
         "and nothing of the app's covers the way BACK — the control answers "
-        "the finger at its centre and its four corners, in every state",
+        "the finger at its centre and its four corners, in every state but "
+        "the boot, whose splash is named and transient",
         not covered,
         f"at {width}px, out of the frame — {len(covered)} of {len(states)} "
         f"state(s) put something over it: "
@@ -1002,7 +1091,9 @@ async def measure_every_state(browser, journal):
         f"{' …' if len(covered) > 6 else ''}. The control is the way BACK into "
         f"the frame: a layer that takes its press strands the operator in the "
         f"state that draws it, and a keyboard that still reaches it is a "
-        f"consolation rather than an answer")
+        f"consolation rather than an answer"
+        + (f". Still animating after {SETTLE_CEILING}ms and read anyway: "
+           f"{still_moving}" if still_moving else ""))
     journal.check(
         "out of the frame the way back covers no control the app draws NOR "
         "any other piece of harness chrome, in ANY named state — the class, "
