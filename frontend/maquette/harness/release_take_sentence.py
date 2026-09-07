@@ -46,6 +46,23 @@ from playwright.async_api import async_playwright
 # THE RELEASE PICKER, as a named state the oracle also measures.
 RELEASES_STATE = "screen-releases"
 
+# THE PROTOTYPE'S WELCOME HINT IS SPENT FIRST, and this rule fell over it.
+#
+# The engine offers « touch the ⓘ » through the SAME message element, on a
+# timer after boot, and that timer outlived this rule's opening: the hint
+# landed AFTER the take's own sentence and was counted as a second write, so a
+# perfectly correct message read as B-322 itself. An instrument that cannot
+# tell the application's voice from the prototype's is measuring the harness.
+#
+# It is spent through the engine's OWN contract — the welcome hint disappears
+# on first interaction — by making that interaction happen before the watch
+# begins. Waiting out its delay instead would have meant copying the engine's
+# constant into this file, and a constant copied into a rule is right on the
+# day it is typed and silently wrong ever after.
+SPEND_THE_HINT = """()=>{
+  document.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+  window.__toast?.hide();}"""
+
 # EVERY VALUE THE MESSAGE ELEMENT CARRIES, from now until it is read back.
 #
 # The observer is on `#toast` and not on `#toastmsg`: the host re-renders, and
@@ -84,7 +101,12 @@ SAID = """()=>{
 # offered.
 #
 # THE SUBJECT comes from the OPEN picker's bar, selected through the screen's
-# own key so a bar belonging to some other screen cannot answer.
+# own key so a bar belonging to some other screen cannot answer — AND THE WAY
+# BACK IS SUBTRACTED FROM IT. The bar holds two things: the back action and the
+# medium's name. Read whole it answers « Retour Silo », which appears in no
+# sentence, and this rule fell on a message that was correct. The back action
+# carries a naming attribute; the name does not, so the name is what is left of
+# the bar once the way back is taken out of it.
 #
 # THE ROW IS FOUND BY `data-part` AND ITS VERB READ FROM THE DATASET, never
 # selected by `[data-pick-release]`'s presence. The value is an INDEX and the
@@ -101,8 +123,11 @@ THE_OFFER = """()=>{
                .find((one) => 'pickRelease' in one.dataset);
   if (!offered || !screen || !foot) return null;
   const bar = screen.querySelector('[data-part="screen/bar"]');
+  const back = bar?.querySelector('[data-part="screen/back"]');
+  const whole = (bar?.textContent || '').trim();
+  const wayBack = (back?.textContent || '').trim();
   return {resolution: offered.res,
-          subject: (bar?.textContent || '').trim()};}"""
+          subject: (wayBack ? whole.replace(wayBack, '') : whole).trim()};}"""
 
 TAP = """()=>{
   [...document.querySelectorAll('[data-part="card/foot"]')]
@@ -133,6 +158,8 @@ async def main():
             journal.summary()
             return
 
+        await page.evaluate(SPEND_THE_HINT)
+        await page.wait_for_timeout(SETTLED)
         watching = await page.evaluate(WATCH)
         journal.check(
             "the message element is being watched BEFORE the tap — a sentence "
