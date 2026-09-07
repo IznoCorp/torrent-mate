@@ -401,6 +401,7 @@ when the defect comes back.
 | B-361 | A Maintenance rubric cannot be left either — entering it writes `?topic=…` by replacement, pushes no entry and draws no back, so the system Back leaves « Maintenance » for Acquisition; B-332's shape on the second page that has rubrics, measured on the operator's phone by the real path | 1× | `open` |
 | B-370 | R51 promises « the prototype's own controls never sit on top of the app's » and reads ONE piece of harness chrome by literal — `[data-part="harness/bar"]` — so a second piece is outside it whatever the docstring says; the property now holds by two rules each naming its own subject, and a third would be held by neither | by audit | `open` |
 | B-371 | The 8899 harness host does not survive the invocation that starts it when that invocation runs under `scripts/heavy.sh` — `set -m` puts the run in its own process group and the release signals the group, so `mutate.sh`, which starts no host, runs its rule against a refused port and B-273 reads the crash as « no hold fell » | by audit | `open` |
+| B-372 | No arm of `check-no-french.py` reads TEXT in `frontend/maquette/design/index.html` — the Strings and Identifiers arms are rooted on `design/src`, and the only arm that opens the file reads attributes — so « the guard does not refuse these labels » was never evidence that an arm had read them | by audit | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
@@ -2105,6 +2106,32 @@ cheapest shape is for the host to be started outside the signalled group, or for
 start one the way `run.sh` does.
 
 <sub>audit, desktop-frame micro-wave · `grep -n 'server.py --serve' frontend/maquette/harness/run.sh` · `grep -n 'set -m' -A3 scripts/heavy.sh` and the `kill -TERM -"$child"` beneath it · after a wrapped run: `lsof -nP -iTCP:8899 -sTCP:LISTEN` empty</sub>
+
+**B-372 — the guard that was cited as confirming a ruling reads no text in the file the ruling is about.**
+The wave put its two French labels in `design/index.html` rather than in `fr.json`, on the steward's
+ruling that the file is static markup served raw and no markup i18n exists anywhere — that part
+stands and was re-checked. What does not stand is the sentence written to support it, in
+`RESUME.md` and in the pull request: « `check-no-french` does not refuse them, which is the tree
+confirming the ruling ».
+
+`scripts/nofrench_lexicon.py` roots the Strings and Identifiers arms on `SHELL = MAQUETTE /
+"design" / "src"`, and `index.html` sits at `design/`, one level above it. The only arm that opens
+that file at all is the `data-*` arm in `scripts/nofrench_values.py`, which reads ATTRIBUTES and
+never text nodes. So the guard is silent about those two strings because **no arm reads text in
+that file**, not because an arm read them and allowed them. Fifteen arms, exit 0, and the file's
+visible French was never in front of any of them.
+
+This is B-085's species aimed at a ruling rather than at a behaviour: a green gate cited as
+positive evidence, where the green means « not looked at ». The ruling may well be right — it was
+argued from the tree, not from the guard — but the sentence supporting it has been struck from both
+documents rather than left to be read as proof in two years.
+
+**What would settle it**: an arm that reads text nodes in the maquette's own `index.html`, or an
+explicit statement in the guard's own output that the file is outside every text arm. Owner: **the
+next wave that touches `check-no-french.py`**. Found by round one's independent reader, outside its
+lens, and confirmed on the tree before it was written down.
+
+<sub>audit, desktop-frame micro-wave, reader A round one · `grep -n "SHELL = " scripts/nofrench_lexicon.py` → rooted on `design/src` · `python3 scripts/check-no-french.py` → exit 0, « 15 arms … no violation » over two French labels in `design/index.html`</sub>
 
 **B-307 — three rules have fallen under the recorder's parallel load, and the register holds one.**
 `exits.py` is B-277, diagnosed as a frame sampler counting against an animation measured in

@@ -149,8 +149,15 @@ place and none is in `fr.json` — checked: « Aller au contenu », « Se connec
 « Identifiants invalides », « Notes de conception », « Harnais », zero hits.
 Adding a namespace nothing reads would be a dead resource AND a retyped string.
 **Ruled by the steward: write the two labels in `index.html`**, beside the
-harness's other strings, and say so in the pull request. `check-no-french` does
-not refuse them, which is the tree confirming the ruling rather than an argument.
+harness's other strings, and say so in the pull request.
+
+This paragraph ended « `check-no-french` does not refuse them, which is the tree
+confirming the ruling rather than an argument », and that sentence has been
+STRUCK. It was not evidence. The guard's text arms are rooted on `design/src`
+and `index.html` sits above it, so no arm reads text in that file at all — the
+silence means « not looked at », not « looked at and allowed ». The ruling stands
+on the argument above it, which is about the tree; **B-372** carries the guard's
+blind spot.
 
 **2 — the machine.** A build is a heavy run and goes under
 `sh scripts/heavy.sh`; a static server on a private port is not and runs
@@ -178,6 +185,15 @@ name that never changes and over a control announcing two contradictory verbs at
 once: B-085's shape written into a brand-new rule on its first day. It reads the
 accessibility tree now, and a hold was ADDED that the name must DIFFER between
 the two states.
+
+**And round one's reader showed that repair was HALF of one.** Moving from
+`textContent` to the accessibility tree closes « the name never changes ». It does
+not close « both verbs at once », because an accessible name is computed from the
+label's RENDERED subtree: with the CSS that hides one span defeated, the name
+becomes « Sortir du cadre Revenir au cadre » and BOTH holds stay green — one word
+and two words are never equal. The name is held against the single VISIBLE span
+now, in both states. A repair that closes one of a defect's two halves and is
+written up as closing the defect is the shape this wave paid for twice.
 
 **`check-markup-contracts` refused four class-anchored selectors in the rule**
 (D4, and it was right). Three of them now anchor on `data-part`; the fourth, the

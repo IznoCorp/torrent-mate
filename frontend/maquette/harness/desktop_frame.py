@@ -35,14 +35,27 @@ WHAT IT REFUSES, hold by hold:
     chrome into a capture the oracle takes as the reference.
 
 THE CONTROL DOCUMENT, and why it is built by removing a class. « What the app
-would draw here » is exactly « what this page draws with no `.device` in it »:
-every declaration the frame contributes is written `.device ...` in the one
+would draw here » is « what this page draws with no `.device` in it »: every
+declaration the frame contributes is written `.device ...` in the one
 stylesheet that does not ship, so dropping that class from the element leaves
 the app's own cascade answering, on the same page, in the same browser, at the
 same width. Nothing is served twice and nothing is assumed.
+
+AND ITS LIMIT, which is not a detail. Removing the class also removes the
+element's `width: 100%`, `height: 100svh` and `position: relative`, so the
+control document's device is a 312 x 427 un-positioned box rather than a
+shell. For a property driven by a `@media` query on the WINDOW that changes
+nothing — the window is the same width either way, which is every property
+this rule compares. It would stop being harmless the day a property driven by
+a CONTAINER query joined them: the app draws `@container/port` containers, and
+a container query would answer about 312px in the control document and about
+the window out of the frame. So this control document is the app's cascade
+FOR WINDOW-DRIVEN PROPERTIES, and a container-driven one may not be added to
+`FORCED` without giving it a control of its own.
 """
 import asyncio
 import pathlib
+import re
 import sys
 
 from playwright.async_api import async_playwright
@@ -59,6 +72,12 @@ PHONE_WIDTH = PHONE["viewport"]["width"]
 DESKTOP = {"viewport": {"width": 1280, "height": 800},
            "is_mobile": False, "has_touch": False}
 
+# The frame's own breakpoint, which is the tightest width it is ever drawn at
+# and the only place the control's arithmetic can go wrong. One pixel below it
+# the frame is not drawn and the control is not in the layout.
+TIGHTEST = {"viewport": {"width": 520, "height": 800},
+            "is_mobile": False, "has_touch": False}
+
 SWITCH = '[data-part="harness/desktop-switch"]'
 LABEL = '[data-part="harness/desktop-switch-label"]'
 CHECKBOX = "#desktop-switch"
@@ -72,15 +91,123 @@ FIXED_CHROME = ('[data-part="avatar"], [data-part="shell/header"] button, '
                 '[data-part="shell/tab-bar"] button, #fab, '
                 '[data-part="shell/add-action"]')
 
-# The three the frame forces, each on the element the frame names. They are not
-# a sample: they are every property the re-assertion block declares, so a
-# re-assertion left behind has nowhere to hide.
+# EVERY property the frame re-asserts on an element inside the device, each on
+# the element the frame names — and « every » is not a claim this list makes
+# about itself. An earlier version of this comment said « they are not a
+# sample: they are every property the re-assertion block declares » while
+# reading three of the four the blocks declared, and `padding-right` sat
+# behind that sentence unread. A claim no hold reads is where the defect is,
+# so the claim is measured now: `declared_reassertions()` parses the
+# stylesheet and the completeness hold refuses the day a scoped declaration
+# appears that this list does not carry.
+#
 # The connection label has no naming attribute of its own — it is the second
 # of the two spans the mark draws, and the mark is the named element — so it is
 # reached STRUCTURALLY rather than by the class the stylesheets select it with.
 FORCED = [('[data-part="shell/tab-bar"]', "display"),
+          ('[data-part="shell/tab-bar"]', "position"),
+          ('[data-part="shell/tab-bar"]', "inset-inline-start"),
+          ('[data-part="shell/tab-bar"]', "inset-inline-end"),
+          ('[data-part="shell/tab-bar"]', "bottom"),
           ('[data-part="shell/header"]', "padding-left"),
-          ('[data-part="shell/connection-mark"] > span:last-child', "display")]
+          ('[data-part="shell/header"]', "padding-right"),
+          ('[data-part="shell/connection-mark"] > span:last-child', "display"),
+          ('[data-part="shell/add-action"]', "position"),
+          ('[data-part="selection/bar"]', "position")]
+
+# The three elements this page always draws. The others in FORCED may be absent
+# from a given screen — the FAB and the selection bar are not on every one — and
+# an absent element is REPORTED rather than silently dropped, because a
+# comparison over a shrinking set of keys is the vacuity this rule exists to
+# refuse.
+ALWAYS_DRAWN = ('[data-part="shell/tab-bar"]',
+                '[data-part="shell/header"]',
+                '[data-part="shell/connection-mark"] > span:last-child')
+
+# The stylesheet the frame is written in, read as TEXT by the completeness
+# hold. It is the same file the served copy is built from; the hold asks what
+# it DECLARES, which no browser reading can answer once the cascade has
+# resolved it.
+HARNESS_STYLESHEET = (pathlib.Path(__file__).resolve().parents[1]
+                      / "design" / "src" / "styles" / "harness.css")
+
+# The condition every scoped block carries. A block that has it is the frame
+# speaking; a block without it is the shell's own and outlives the switch.
+SCOPE = ":root:not(:has(#desktop-switch:checked))"
+
+# `getComputedStyle` answers longhands. A shorthand in the stylesheet is
+# therefore expanded here, so that the completeness hold compares like with
+# like instead of reporting a difference that is only a spelling.
+LONGHANDS = {"inset-inline": ("inset-inline-start", "inset-inline-end"),
+             "border": ("border-top-width",),
+             "padding": ("padding-left", "padding-right")}
+
+# THE STYLESHEET AND THIS RULE NAME THE SAME THING, and that is why no table
+# stands between them. The frame's re-assertions used to select the app's
+# elements by their style class — `.device .bottombar` — so a rule comparing
+# what the stylesheet declares against what it reads needed a class-to-anchor
+# map, and that map IS a class-anchored selector spelled sideways (D4 refuses
+# it, and was right to). The selectors are written on `data-part` now, which
+# every one of those five elements already carried, so the leaf this parser
+# lifts out of the stylesheet is character-for-character the anchor `FORCED`
+# reads. The completeness hold compares them directly.
+
+
+def declared_reassertions():
+    """Every declaration the frame scopes onto an element inside the device.
+
+    The stylesheet is parsed rather than the rendered page, because the
+    question is what the frame DECLARES: once the cascade has resolved, a
+    declaration that was left behind and one that was never written look
+    identical.
+
+    Returns:
+        A set of `(class selector, longhand property)` pairs, shorthands
+        expanded, covering every rule whose selector carries the switch's
+        scope and names a DESCENDANT of the device. The device's own blocks
+        are excluded — they are the frame itself, held by the geometry and
+        skin holds rather than by `FORCED`.
+    """
+    text = HARNESS_STYLESHEET.read_text(encoding="utf-8")
+    # Comments carry example selectors and whole declaration blocks; parsing
+    # them would have the hold refuse the day someone documents a rule.
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+    declared = set()
+    for selectors, body in re.findall(r"([^{}]+)\{([^{}]*)\}", text):
+        targets = [one.strip() for one in selectors.split(",")]
+        if not all(SCOPE in one for one in targets):
+            continue
+        # THE FRAME'S OWN ELEMENTS ARE TOLD APART BY SHAPE, not by name. A
+        # block that scopes ONE token — the device, the stage — is the frame
+        # itself; a block that scopes a token INSIDE another is a re-assertion
+        # on the app. Naming them here would put the style classes this rule
+        # is forbidden to hold (D4) back into it through the side door.
+        #
+        # Neither of the frame's own is unread: the device carries the
+        # phone's dimensions and skin, held against the control document by
+        # the geometry and skin holds, and the stage carries the gutter,
+        # whose departure the device's own rect reads — a stage still padding
+        # 24px by 16px cannot contain a device whose box starts at (0, 0) and
+        # measures the whole window.
+        inside = [one for one in targets
+                  if len(one.split(SCOPE, 1)[1].split()) > 1]
+        if not inside:
+            continue
+        for target in inside:
+            # Everything after the scope and the device token: the anchor
+            # whole, compound selectors included, so
+            # `[data-part="shell/connection-mark"] > span:last-child` arrives
+            # as one string rather than as its last word.
+            after = target.split(SCOPE, 1)[1].split(None, 1)[1].strip()
+            for declaration in body.split(";"):
+                if ":" not in declaration:
+                    continue
+                name = declaration.split(":", 1)[0].strip()
+                if not name or name.startswith("-"):
+                    continue
+                for longhand in LONGHANDS.get(name, (name,)):
+                    declared.add((after, longhand))
+    return declared
 
 READ_FORCED = """(forced)=>{
   const out = {};
@@ -146,6 +273,80 @@ LABELLED = """(argument)=>{
          === document.querySelector(checkbox);
 }"""
 
+# THE FRAME IS FIVE DECLARATIONS AND THE WIDTH IS ONE OF THEM. Reading the
+# width alone let the whole SKIN stay behind — a rounded, bordered,
+# drop-shadowed slab stopping 48px short of the window's bottom — while every
+# hold in this rule read green and the header claimed it refused exactly that.
+# So the device is read as a BOX plus the skin, both against the control
+# document, and the width is no longer asked to speak for four properties it
+# says nothing about.
+DEVICE_SKIN = ["height", "border-top-width", "border-radius", "box-shadow",
+               "overflow"]
+
+# What the harness declares on the device and does NOT take back at the
+# switch, each with the reason it stays. They are held by name so that
+# « nothing says so » can never again be the answer to « why is this still
+# firing out of the frame? ».
+#
+#   position: relative   `app/shell.tsx` re-parents the React root into
+#                        `#device` before the first render, and a layer inside
+#                        it resolves `position: absolute` against this element.
+#                        Scoping it away would move every such layer to the
+#                        viewport — the harness changing what the app draws,
+#                        which is the one thing this file may never do.
+DEVICE_SURVIVES = {"position": "relative"}
+
+DEVICE_BOX = """(argument)=>{
+  const [device, skin, survives] = argument;
+  const el = document.querySelector(device);
+  const box = el.getBoundingClientRect();
+  const style = getComputedStyle(el);
+  const out = {rect: [Math.round(box.x), Math.round(box.y),
+                      Math.round(box.width), Math.round(box.height)]};
+  for (const property of skin) out[property] = style.getPropertyValue(property);
+  for (const property of survives)
+    out['survives:' + property] = style.getPropertyValue(property);
+  return out;
+}"""
+
+# The same removal the FORCED control document uses, on the device itself: the
+# frame's whole contribution is written `.device …`, so the element with that
+# class off is what the app's cascade alone says about it.
+UNFRAMED_DEVICE = """(argument)=>{
+  const [device, skin] = argument;
+  const el = document.querySelector(device);
+  el.classList.remove('device');
+  const style = getComputedStyle(el);
+  const out = {};
+  for (const property of skin) out[property] = style.getPropertyValue(property);
+  el.classList.add('device');
+  return out;
+}"""
+
+# THE NAME AGAINST THE WORD ON SCREEN. An accessible name is computed from the
+# label's RENDERED subtree, so the hold that only asked the two states to
+# differ was green over a control announcing « Sortir du cadre Revenir au
+# cadre » — one word against two are never equal. The question is not whether
+# the name changes; it is whether the name is the word the operator can read.
+VISIBLE_WORDS = """(label)=>{
+  return [...document.querySelector(label).querySelectorAll('span')]
+    .filter((span)=>span.getClientRects().length > 0)
+    .map((span)=>span.textContent.trim());
+}"""
+
+# The label's right edge against the frame's left edge. Read at the TIGHTEST
+# width rather than at 1280, where the gutter is 332px wide and any constant
+# between 195 and 500 would pass — a hold placed where nothing can go wrong
+# measures nothing.
+GEOMETRY = """(argument)=>{
+  const [switchSelector, device] = argument;
+  const control = document.querySelector(switchSelector).getBoundingClientRect();
+  const frame = document.querySelector(device).getBoundingClientRect();
+  return {labelRight: Math.round(control.right),
+          frameLeft: Math.round(frame.left),
+          gap: Math.round(frame.left - control.right)};
+}"""
+
 OUTSIDE = """(argument)=>{
   const [switchSelector, device] = argument;
   return !document.querySelector(device)
@@ -194,29 +395,67 @@ async def measure_desktop(browser, journal):
     # device, so the expected values below are measured rather than declared.
     unframed = await page.evaluate(UNFRAMED, FORCED)
     framed = await page.evaluate(READ_FORCED, FORCED)
-    missing = [selector for selector, _ in FORCED if framed[selector] is None]
+    missing = sorted({selector for selector, _ in FORCED
+                      if framed[selector] is None})
+
     journal.check(
-        "the three properties the frame forces are readable on the elements "
-        "the frame names",
-        not missing,
+        "every property the frame forces is readable on the element the frame "
+        "names, and the ones this screen does not draw are NAMED",
+        all(selector not in missing for selector in ALWAYS_DRAWN),
         f"at {width}px — {framed}; a hold over an element that is not there "
-        f"measures nothing. Missing: {missing or 'none'}")
-    moved = {selector for selector, _ in FORCED
+        f"measures nothing, so absence is reported rather than dropped. "
+        f"Not drawn on this screen: {missing or 'none'}; of the three this "
+        f"page always draws, missing: "
+        f"{[s for s in ALWAYS_DRAWN if s in missing] or 'none'}")
+    # ONLY WHERE BOTH SIDES ANSWERED. An element this screen does not draw
+    # reads `None` on both, and `None != None` is False — so an absent element
+    # would silently shrink the set this hold counts over, which is the
+    # vacuity the hold exists to refuse.
+    answered = [selector for selector, _ in FORCED if selector not in missing]
+    moved = {selector for selector in answered
              if framed[selector] != unframed[selector]}
     journal.check(
         "and the frame really is forcing them: each reads differently with the "
         "device's own class removed",
-        len(moved) == len(FORCED),
+        len(moved) == len(answered) and len(answered) >= len(ALWAYS_DRAWN),
         f"at {width}px — framed {framed}, unframed {unframed}. A property the "
-        f"frame does not move cannot show that the frame left: {sorted(moved)}")
+        f"frame does not move cannot show that the frame left: {sorted(moved)} "
+        f"of {len(answered)} answered")
 
-    device = page.locator(DEVICE)
-    framed_width = await device.evaluate(
-        "(el)=>el.getBoundingClientRect().width")
+    # THE LIST IS COMPLETE, AND THAT IS MEASURED. `FORCED` used to carry a
+    # sentence claiming it held every property the re-assertion blocks
+    # declare, while reading three of four. The stylesheet is parsed and
+    # compared here, so the sentence is a reading rather than a promise.
+    declared = declared_reassertions()
+    read = {(selector, property_name) for selector, property_name in FORCED}
+    unread = sorted(pair for pair in declared if pair not in read)
     journal.check(
-        "the frame is drawn on a desktop window",
-        round(framed_width) == 390,
-        f"at {width}px — the device measures {framed_width:.0f}px")
+        "every declaration the frame scopes onto an element inside the device "
+        "is one this rule reads, and the STYLESHEET is what says how many "
+        "there are",
+        not unread,
+        f"{len(declared)} declared in {HARNESS_STYLESHEET.name}, "
+        f"{len(FORCED)} read — unread: {unread or 'none'}. The list is not "
+        f"trusted to be complete: it is compared against the file, so a "
+        f"declaration added there without a reading here falls this hold")
+
+    framed_box = await page.evaluate(
+        DEVICE_BOX, [DEVICE, DEVICE_SKIN, list(DEVICE_SURVIVES)])
+    unframed_box = await page.evaluate(UNFRAMED_DEVICE, [DEVICE, DEVICE_SKIN])
+    journal.check(
+        "the frame is drawn on a desktop window — its dimensions AND its skin",
+        framed_box["rect"][2] == 390,
+        f"at {width}px — the device box is {framed_box['rect']} and its skin "
+        f"reads { {k: framed_box[k] for k in DEVICE_SKIN} }")
+
+    skin_moved = [k for k in DEVICE_SKIN if framed_box[k] != unframed_box[k]]
+    journal.check(
+        "and every one of those skin properties really is the frame's: each "
+        "reads differently with the device's own class removed",
+        len(skin_moved) == len(DEVICE_SKIN),
+        f"at {width}px — framed { {k: framed_box[k] for k in DEVICE_SKIN} }, "
+        f"unframed {unframed_box}. A skin property the frame does not move "
+        f"could not show the frame leaving: {sorted(skin_moved)}")
 
     journal.check(
         "and the way out of it sits OUTSIDE the shell, which is a measured "
@@ -230,12 +469,18 @@ async def measure_desktop(browser, journal):
     # green over a control whose name never changes, and green over a control
     # announcing two contradictory verbs at once.
     framed_name = await page.locator(CHECKBOX).aria_snapshot()
+    framed_words = await page.evaluate(VISIBLE_WORDS, LABEL)
     journal.check(
-        "and it is a named control, not a bare box",
+        "and it is a named control, not a bare box, and the name is the word "
+        "ON SCREEN — one word in the layout, and the tree saying that word",
         await page.evaluate(LABELLED, [CHECKBOX, LABEL])
-        and "checkbox" in framed_name and framed_name.strip() != "- checkbox",
-        f"the label names the checkbox, which the tree reads as "
-        f"{framed_name.strip()!r}")
+        and "checkbox" in framed_name
+        and len(framed_words) == 1
+        and framed_words[0] in framed_name,
+        f"the label names the checkbox; the tree reads {framed_name.strip()!r} "
+        f"and the spans in the layout are {framed_words}. Two of them would be "
+        f"a control announcing both verbs at once, which a hold asking only "
+        f"that the name be non-empty cannot see")
 
     covers = await page.evaluate(COVERS, [SWITCH, FIXED_CHROME])
     journal.check(
@@ -246,11 +491,32 @@ async def measure_desktop(browser, journal):
     # ONE PRESS.
     await page.click(LABEL)
     await page.wait_for_timeout(200)
-    left_width = await device.evaluate("(el)=>el.getBoundingClientRect().width")
+    left_box = await page.evaluate(
+        DEVICE_BOX, [DEVICE, DEVICE_SKIN, list(DEVICE_SURVIVES)])
+    height = DESKTOP["viewport"]["height"]
     journal.check(
-        "one press and the device is the window, not a phone drawn inside it",
-        round(left_width) == width,
-        f"at {width}px — the device measures {left_width:.0f}px")
+        "one press and the device is the window, not a phone drawn inside it "
+        "— the whole box, not its width alone",
+        left_box["rect"] == [0, 0, width, height],
+        f"at {width}px — the device box is {left_box['rect']}, against the "
+        f"window's [0, 0, {width}, {height}]")
+
+    skin_left = {k: left_box[k] for k in DEVICE_SKIN}
+    journal.check(
+        "and the frame's SKIN went with its dimensions — no border, no "
+        "radius, no shadow, nothing clipped, on a device the app alone draws",
+        skin_left == unframed_box,
+        f"at {width}px — read {skin_left}, and a document with no frame reads "
+        f"{unframed_box}")
+
+    stayed = {k: left_box["survives:" + k] for k in DEVICE_SURVIVES}
+    journal.check(
+        "and what the harness keeps out of the frame is what it SAYS it "
+        "keeps, and nothing besides",
+        stayed == DEVICE_SURVIVES,
+        f"at {width}px — read {stayed}, declared {DEVICE_SURVIVES}. These "
+        f"survive on purpose and each carries its reason where it is "
+        f"declared; a fourth one appearing here is the defect")
 
     left = await page.evaluate(READ_FORCED, FORCED)
     journal.check(
@@ -261,12 +527,18 @@ async def measure_desktop(browser, journal):
         f"{unframed}")
 
     left_name = await page.locator(CHECKBOX).aria_snapshot()
+    left_words = await page.evaluate(VISIBLE_WORDS, LABEL)
     journal.check(
         "and the control now names the way BACK, so the word says what the "
-        "next press does rather than what the last one did",
-        left_name != framed_name,
-        f"out of the frame the tree reads {left_name.strip()!r}, against "
-        f"{framed_name.strip()!r} inside it")
+        "next press does rather than what the last one did — and that word is "
+        "again the only one in the layout",
+        left_name != framed_name
+        and len(left_words) == 1
+        and left_words[0] in left_name
+        and left_words != framed_words,
+        f"out of the frame the tree reads {left_name.strip()!r} over the span "
+        f"{left_words}, against {framed_name.strip()!r} over {framed_words} "
+        f"inside it")
 
     covers_left = await page.evaluate(COVERS, [SWITCH, FIXED_CHROME])
     journal.check(
@@ -277,14 +549,18 @@ async def measure_desktop(browser, journal):
     # AND BACK.
     await page.click(LABEL)
     await page.wait_for_timeout(200)
-    back_width = await device.evaluate("(el)=>el.getBoundingClientRect().width")
+    back_box = await page.evaluate(
+        DEVICE_BOX, [DEVICE, DEVICE_SKIN, list(DEVICE_SURVIVES)])
     back = await page.evaluate(READ_FORCED, FORCED)
     journal.check(
-        "a second press and the frame is back, dimensions and re-assertions "
-        "together",
-        round(back_width) == 390 and back == framed,
-        f"at {width}px — the device measures {back_width:.0f}px and the three "
-        f"read {back}, against {framed} before the first press")
+        "a second press and the frame is back WHOLE — the box, the skin and "
+        "the re-assertions together",
+        back_box == framed_box and back == framed,
+        f"at {width}px — the device box is {back_box['rect']} and its skin "
+        f"{ {k: back_box[k] for k in DEVICE_SKIN} }, against "
+        f"{framed_box['rect']} and { {k: framed_box[k] for k in DEVICE_SKIN} } "
+        f"before the first press; the re-assertions read {back} against "
+        f"{framed}")
 
     # AND IT IS NOT IN A CAPTURE.
     await page.evaluate("()=>window.__measure(true)")
@@ -301,8 +577,38 @@ async def measure_desktop(browser, journal):
     await context.close()
 
 
+async def measure_tightest(browser, journal):
+    """Holds the label's edge against the frame's at the width that decides it.
+
+    The arithmetic that keeps the control off the prototype is
+    `left + max-width` against the frame's left edge, and it is tight for
+    exactly one band of widths — from the frame's own breakpoint up to the
+    width at which the label reaches its natural size. At 1280 the gutter is
+    332px and any constant between 195 and 500 would pass, so a hold placed
+    there reads nothing about the property it claims to hold.
+
+    Args:
+        browser: A launched Playwright browser.
+        journal: The run's journal.
+    """
+    context, page = await open_page(browser, **TIGHTEST)
+    width = TIGHTEST["viewport"]["width"]
+    reading = await page.evaluate(GEOMETRY, [SWITCH, DEVICE])
+    journal.check(
+        "at the tightest width the frame is drawn at, the way out of it does "
+        "not sit on the prototype",
+        reading["gap"] >= 0,
+        f"at {width}px — the label's right edge is at "
+        f"{reading['labelRight']}, the frame's left edge at "
+        f"{reading['frameLeft']}, gap {reading['gap']}px. It ABUTS by "
+        f"arithmetic (`16px + (50% - 211px)` = `50% - 195px`) and must never "
+        f"cross; the stylesheet's comment claimed 16px of clearance for a "
+        f"while and the true figure is 0")
+    await context.close()
+
+
 async def hold(journal):
-    """Runs both viewports against one browser.
+    """Runs all three viewports against one browser.
 
     Args:
         journal: The run's journal.
@@ -311,6 +617,7 @@ async def hold(journal):
         browser = await playwright.chromium.launch(channel="chrome")
         await measure_phone(browser, journal)
         await measure_desktop(browser, journal)
+        await measure_tightest(browser, journal)
         await browser.close()
     journal.summary()
 
