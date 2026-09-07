@@ -349,18 +349,26 @@ INTERACTIVE = ('button, a[href], input, select, textarea, summary, '
                '[role="button"], [role="link"], [role="tab"], [role="menuitem"], '
                '[role="checkbox"], [role="switch"], [contenteditable="true"]')
 
-# The harness's own subtree is not the app's, so the control crossing its own
-# label is not a finding. Everything else that answers a finger is.
+# The control crossing its OWN label is not a finding, so its own subtree is
+# excluded — but every OTHER piece of harness chrome is read beside the app's
+# controls, and that is deliberate. Nothing in this harness holds that two
+# pieces of its own chrome do not cover each other: B-370 is exactly R51
+# reading ONE of them by literal. And this wave's placement depends on it —
+# the harness bar sits at the top bar's empty middle while the frame is drawn
+# and moves to the top right out of it, which is the whole reason top centre
+# is free out there. A comment saying so is not a reading; this is.
+HARNESS_CHROME = '[data-part^="harness/"]'
+
 CROSSED = """(argument)=>{
-  const [switchSelector, interactive] = argument;
+  const [switchSelector, interactive, harness] = argument;
   const node = document.querySelector(switchSelector);
   if (!node) return ['ABSENT'];
   const a = node.getBoundingClientRect();
   if (!a.width || !a.height) return ['NOT DRAWN'];
   const crosses = (b) => !(a.right <= b.left || b.right <= a.left
                            || a.bottom <= b.top || b.bottom <= a.top);
-  return [...document.querySelectorAll(interactive)]
-    .filter((el) => !el.closest('[data-part^="harness/"]'))
+  return [...document.querySelectorAll(interactive + ', ' + harness)]
+    .filter((el) => el !== node && !node.contains(el) && !el.contains(node))
     .filter((el) => el.getClientRects().length > 0)
     .filter((el) => crosses(el.getBoundingClientRect()))
     .map((el) => el.getAttribute('data-part') || el.id
@@ -646,6 +654,7 @@ async def measure_desktop(browser, journal):
         f"reads { {k: framed_box[k] for k in DEVICE_SKIN} }")
 
     skin_moved = [k for k in DEVICE_SKIN if framed_box[k] != unframed_box[k]]
+
     journal.check(
         "and every one of those skin properties really is the frame's: each "
         "reads differently with the device's own class removed",
@@ -699,13 +708,18 @@ async def measure_desktop(browser, journal):
         f"at {width}px — the device box is {left_box['rect']}, against the "
         f"window's [0, 0, {width}, {height}]")
 
+    # BOTH SIDES RESTRICTED TO THE SKIN'S OWN KEYS. The control document is
+    # asked for the window-relative survivors too, so comparing the whole
+    # dictionaries compared a four-key reading with an eight-key one and fell
+    # over a difference that was entirely the question's shape.
     skin_left = {k: left_box[k] for k in DEVICE_SKIN}
+    skin_control = {k: unframed_box[k] for k in DEVICE_SKIN}
     journal.check(
         "and the frame's SKIN went with its dimensions — no border, no "
         "radius, no shadow, nothing clipped, on a device the app alone draws",
-        skin_left == unframed_box,
+        skin_left == skin_control,
         f"at {width}px — read {skin_left}, and a document with no frame reads "
-        f"{unframed_box}")
+        f"{skin_control}")
 
     stayed = {k: left_box["survives:" + k] for k in DEVICE_SURVIVES}
     dynamic_left = {k: left_box["dynamic:" + k]
@@ -857,12 +871,14 @@ async def measure_every_state(browser, journal):
     for state in states:
         await page.evaluate("(one)=>window.__go(one)", state)
         await page.wait_for_timeout(120)
-        hits = await page.evaluate(CROSSED, [SWITCH, INTERACTIVE])
+        hits = await page.evaluate(
+            CROSSED, [SWITCH, INTERACTIVE, HARNESS_CHROME])
         if hits:
             crossed[state] = hits
     journal.check(
-        "out of the frame the way back covers no control the app draws, in "
-        "ANY named state — the class, not five members of it",
+        "out of the frame the way back covers no control the app draws NOR "
+        "any other piece of harness chrome, in ANY named state — the class, "
+        "not five members of it",
         not crossed,
         f"at {width}px, out of the frame, over {len(states)} named state(s) — "
         f"{len(crossed)} cross something interactive: "

@@ -288,9 +288,40 @@ html.measuring .note {
      app's own 768px breakpoint and is gone above it; the height it publishes
      for exactly this kind of question lifts the control clear of it either
      way, and reads 0 when there is no bar. */
-  :root:has(#desktop-switch:checked) .desktop-switch {
-    top: auto;
-    bottom: calc(16px + var(--tm-bottom-bar-h, 0px));
+  /* OUT OF THE FRAME IT GOES TO THE TOP CENTRE, and that is a measurement
+   rather than a preference. Out of the frame there is no gutter — the device
+   IS the window — so wherever the control sits, it sits on the app. The
+   question « which corner is free » is not a property of a corner: it is a
+   property of what is on screen, which is what a named state changes. So all
+   87 named states were walked out of the frame and every candidate counted
+   against every button, link, input and ARIA control the app draws:
+
+     bottom-left (where it was)  60 states crossed
+     bottom-centre               46
+     top-left                    87
+     top-right                   87
+     bottom-right                87
+     TOP-CENTRE                   0
+     an icon-sized box changes none of this — 61 / 87 / 87
+
+   Top centre is the only candidate free in all 87, and shrinking the control
+   does not rescue any of the others: the app fills the window and its corners
+   are where its content and its chrome live. The bottom-left corner it used to
+   occupy put the app's « Annuler » under it in the library's selection state,
+   and a poster or a sheet action under it in fifty-nine more.
+
+   AND IT DOES NOT COLLIDE WITH THE HARNESS'S OWN BAR, which is the other thing
+   at the top of this page: the bar sits at the top bar's empty middle while the
+   frame is drawn (measured [678, 37, 56, 26], which top centre WOULD cross) and
+   moves to the top right out of the frame ([1124, 12, 56, 26], which it does
+   not). The control is only ever at top centre out of the frame, so the two are
+   never in the same place at the same time — and the rule reads that too, at
+   every state, rather than leaving it to this comment. */
+:root:has(#desktop-switch:checked) .desktop-switch {
+    top: 16px;
+    bottom: auto;
+    left: 50%;
+    transform: translateX(-50%);
     max-width: calc(100% - 32px);
   }
 }
