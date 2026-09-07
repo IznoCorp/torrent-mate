@@ -13,8 +13,9 @@ import { useTranslation } from "react-i18next";
 import { useMediaReference, type MediaReference } from "./reference";
 import { useQueryClient } from "@tanstack/react-query";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
-import { seasonGrabSpacing } from "./variants";
+import { queuedMark, seasonGrabSpacing } from "./variants";
 import { grabSeason } from "./season-grab";
+import { markSeasonQueued, useQueuedSeasons } from "./queued-seasons";
 
 // The slice of a "follow" record the season blocks read: `t` for lookups
 // against the référentiel (`sheetFor`/`ownedFor`), `st` as the fallback state
@@ -104,6 +105,9 @@ function SeasonDetails({
 }) {
   const { t } = useTranslation();
   const client = useQueryClient();
+  // WHICH SEASONS ARE WAITING on the pipeline, read from the cache so the row
+  // redraws the moment one is answered « queued ».
+  const waiting = useQueuedSeasons(follow.t);
   const [num, rawAired, owned] = season;
   const aired = rawAired ?? 0;
   const complete = owned >= aired;
@@ -150,6 +154,18 @@ function SeasonDetails({
         <span className="sfr">
           {owned}/{aired}
         </span>{" "}
+        {/* DOIT-4's VISIBLE HALF, ON THE SURFACE THE ASK WAS MADE FROM. The
+            button below is where the operator acts, so this is where he looks
+            afterwards: the verb's message is gone in four seconds and the
+            pastille is what he can come back to. Drawn on the sheet's own
+            season list too, because the two are one fact about one season and a
+            fact stated on only one of two surfaces is a fact the reader has to
+            know where to look for. */}
+        {waiting.includes(num) ? (
+          <span className={queuedMark()} data-part="season/queued">
+            {t("screens.media.seasonWaitingOnPipeline")}
+          </span>
+        ) : null}{" "}
         {complete ? null : (
           <span className="miss" data-part="season/missing">
             {missing}{" "}
@@ -186,7 +202,12 @@ function SeasonDetails({
           data-part="season/grab"
           data-grab-season={`${follow.t}|${num}`}
           onClick={() => {
-            void grabSeason(follow.t, num).then(() => {
+            void grabSeason(follow.t, num).then((waiting) => {
+              // DOIT-4's VISIBLE HALF. The verb has already SAID it is queued;
+              // recording it is what makes the season go on saying so once the
+              // message has gone, which is the difference between « said » and
+              // « visible ».
+              if (waiting) markSeasonQueued(client, follow.t, num);
               // THE FOLLOWS ARE RE-READ, because the ask moved them on the
               // server and nothing else would tell this interface. Invalidating
               // by the ADDRESS the verb just mutated is not importing the

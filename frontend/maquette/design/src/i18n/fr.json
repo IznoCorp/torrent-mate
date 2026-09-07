@@ -307,7 +307,8 @@
       "castHeadingUnread": "Distribution",
       "creditUnread": "Crédit non lu",
       "unread": "non lu",
-      "unreadFeminine": "non lue"
+      "unreadFeminine": "non lue",
+      "seasonWaitingOnPipeline": "En file — pipeline en cours"
     },
     "profile": {
       "back": "Retour",

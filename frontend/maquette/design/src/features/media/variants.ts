@@ -169,3 +169,22 @@ export const trailerSource = cva(
  * offers to take what is already held.
  */
 export const seasonGrabSpacing = cva("mt-4 mb-1");
+
+/**
+ * A season whose grab is WAITING on the pipeline — DOIT-4's pastille.
+ *
+ * IT IS NOT THE SHORTFALL CHIP. `.miss` counts what a reader is short of; this
+ * states what the machine is doing about it, and the two appear side by side on
+ * the same row. Giving it the shortfall's own look would have made one fact
+ * read as two of the other — the mistake `season/aired-on` was pulled out of.
+ *
+ * The information tone rather than the warning one: a queued ask is the system
+ * working as promised, not something the operator must attend to. The clause is
+ * « queued VISIBLY, and never refused »; drawn as a warning it would read as
+ * the refusal the clause forbids.
+ */
+export const queuedMark = cva(
+  "inline-flex items-center rounded-full py-1 px-3 text-1 font-semibold " +
+    "[background:color-mix(in_oklab,var(--color-info)_20%,transparent)] " +
+    "text-info-text",
+);

@@ -45,8 +45,14 @@ type SeasonGrab = {
  *         wants a rowid; that is a demand on the register (§ 2b), not something
  *         to invent here.
  *     season: The season number, 1-based.
+ *
+ * Returns:
+ *     Whether the ask is WAITING on the pipeline rather than under way. The
+ *     caller records it so the season can go on saying so after the message
+ *     has gone (DOIT-4's visible half): a sentence shown for four seconds
+ *     tells the operator who was looking, and nobody else.
  */
-export async function grabSeason(title: string, season: number): Promise<void> {
+export async function grabSeason(title: string, season: number): Promise<boolean> {
   const say = (key: string, values?: Record<string, unknown>) =>
     i18next.t(`verbs.media.${key}`, values ?? {});
   try {
@@ -56,7 +62,7 @@ export async function grabSeason(title: string, season: number): Promise<void> {
     );
     if (answered === HELD) {
       window.__toast?.show({ message: say("seasonHeld", { season }) });
-      return;
+      return false;
     }
     const grab = answered as SeasonGrab | undefined;
     window.__toast?.show({
@@ -64,10 +70,12 @@ export async function grabSeason(title: string, season: number): Promise<void> {
         ? say("seasonQueued", { season })
         : say("seasonAsked", { season, count: grab?.absorbedCount ?? 0 }),
     });
+    return grab?.queued === true;
   } catch {
     // THE REFUSAL IS SAID, and it is said as a refusal. Swallowing it would
     // leave the operator looking at a season that never moved with no reason
     // given — the silent failure this interface's own constitution refuses.
     window.__toast?.show({ message: say("seasonRefused", { season }) });
+    return false;
   }
 }

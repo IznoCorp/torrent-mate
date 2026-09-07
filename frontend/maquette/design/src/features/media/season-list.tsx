@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import { useMediaReference } from "./reference";
 import { SkeletonLine } from "../../ui/state-surfaces";
 import { factsPanel } from "../../ui/variants";
+import { queuedMark } from "./variants";
+import { useQueuedSeasons } from "./queued-seasons";
 import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields";
 
 export function SeasonList({
@@ -48,6 +50,9 @@ export function SeasonList({
     TODAY,
   } = useMediaReference();
   const { t } = useTranslation();
+  // WHICH SEASONS ARE WAITING, read from the cache like every other fact on
+  // this sheet, so the row redraws when one arrives.
+  const waiting = useQueuedSeasons(title);
   const eps = sheet?.eps ?? {};
   // WHICH ROWS EXIST is the SEASONS read's answer; how full each one is, is the
   // sheet's. With ownership still out the rows are drawn from what has landed —
@@ -236,6 +241,23 @@ export function SeasonList({
                       ? `${nbOwn}/${row.aired ?? "?"}`
                       : `${row.aired ?? "?"} ${t("screens.media.episodesShort")}`}
               </span>{" "}
+              {/* DOIT-4's VISIBLE HALF, and it is the only thing this lot
+                  draws. An ask that arrived while the pipeline was running is
+                  queued — never refused — and the clause's word is VISIBLY.
+                  The verb already says it in a message; a message is gone in
+                  four seconds, and after it goes nothing distinguishes a season
+                  whose ask is waiting from one nobody asked for. The pastille
+                  is what the operator can come back to.
+
+                  IT SITS BEFORE THE SHORTFALL, because it is the newer fact and
+                  the one that explains why the shortfall has not moved. */}
+              {waiting.includes(row.n) ? (
+                <span className={queuedMark()} data-part="season/queued">
+                  {t("screens.media.seasonWaitingOnPipeline")}
+                </span>
+              ) : (
+                ""
+              )}{" "}
               {ownershipKnown && owns && missing != null && missing > 0 ? (
                 <span className="miss" data-part="season/missing">
                   {missing}{" "}
