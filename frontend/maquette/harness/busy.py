@@ -68,6 +68,34 @@ SAID = """()=>[...document.querySelectorAll('#toast, #view')]
   .map((node) => node.textContent || '').join(' ')"""
 
 
+# AND THE ACTION INSIDE THE PANEL, HIT-TESTED THE WAY THE ROW IS.
+#
+# THE RESIDUE THE FINGER-DRIVING DID NOT COVER. The row was already raised by a
+# hit test — `elementFromPoint` at its own centre — while the action inside the
+# panel it raised was still reached with `act.click()`, which is a call and not
+# a press: it lands on a node the document has, whether or not anything covers
+# it. A button under a message, under a scrim, or under a panel still leaving
+# was invisible to this rule, and the clause it holds is precisely about acts
+# that must LAND while the machine is busy.
+#
+# It returns what it found rather than a boolean, so a failure says whether the
+# action was absent or covered, and by what.
+PRESS_THE_ACTION = """(verb)=>{
+  const act = [...document.querySelectorAll(
+                '#sheetin [data-part="sheet/action"]')]
+              .find((one) => verb in one.dataset);
+  if (!act) return {found: false, pressed: false};
+  const box = act.getBoundingClientRect();
+  const x = box.left + box.width / 2;
+  const y = box.top + box.height / 2;
+  const hit = document.elementFromPoint(x, y);
+  const mine = !!hit && (hit === act || act.contains(hit));
+  if (mine) hit.click();
+  return {found: true, pressed: mine,
+          covering: hit ? (hit.className || hit.tagName) : null,
+          inside: box.top >= 0 && box.bottom <= window.innerHeight};}"""
+
+
 # WHERE THE ROW IS AND WHETHER A FINGER WOULD REACH IT — read, never assumed.
 # `elementFromPoint` at the row's own centre answers what a tap there would
 # actually hit, which is a different question from « is the node in the tree ».
@@ -166,10 +194,13 @@ async def main():
             aim["tapped"],
             f"found={aim['found']} reachable={aim.get('reachable')} "
             f"at ({aim.get('x')}, {aim.get('y')}) hits {aim.get('covering')}")
-        await page.evaluate(
-            """()=>{const act = [...document.querySelectorAll(
-                     '#sheetin [data-part="sheet/action"]')]
-                     .find((one) => 'take' in one.dataset); if (act) act.click();}""")
+        press = await page.evaluate(PRESS_THE_ACTION, "take")
+        journal.check(
+            f"and « {title} »'s own TAKE is reachable by a finger inside that "
+            "panel — not merely present in it: a button under a message or "
+            "under a panel still leaving takes no press, and a call would land "
+            "on it anyway",
+            press.get("found") and press.get("pressed"), str(press))
         await page.wait_for_timeout(ACTED)
         after = await page.evaluate(QUEUE)
         journal.check(
@@ -215,15 +246,13 @@ async def main():
             bool(watched) and follow_aim["tapped"],
             f"{len(drawn)} row(s) drawn, found={follow_aim['found']} "
             f"reachable={follow_aim.get('reachable')} hits {follow_aim.get('covering')}")
-        paused = await page.evaluate(
-            """()=>{const act = [...document.querySelectorAll(
-                     '#sheetin [data-part="sheet/action"]')]
-                     .find((one) => 'pause' in one.dataset);
-                    if (!act) return false; act.click(); return true;}""")
+        press = await page.evaluate(PRESS_THE_ACTION, "pause")
         await page.wait_for_timeout(ACTED)
         journal.check(
-            f"« {watched} »'s panel offers to pause it while the pipeline runs",
-            paused, watched)
+            f"« {watched} »'s panel offers to pause it while the pipeline runs, "
+            "and a FINGER reaches that action — hit-tested at its own centre, "
+            "like the row that raised the panel",
+            press.get("found") and press.get("pressed"), f"{watched}: {press}")
         # THE STATE MOVED, whatever it moved TO. « paused » was this rule's
         # first guess and it is the app's `disabled` — the act toggles between
         # `disabled` and the medium's resting state. What the clause is about is that the act LANDED, so the hold
