@@ -372,16 +372,25 @@ path_, and it is not: it is an offer to carry on reading, made by the list, afte
 operator reported it too big and he is describing that mismatch, not a number of pixels.
 
 **What it is now.** It is drawn at the scale a footer's actions carry — one step down the type
-scale, the footer's padding step, an outline instead of a fill — and it takes that scale **from the
-catalogue's own constant**, `footerActionScale` in `ui/variants/surfaces.ts`, which the load
-footer's retry already wore. One constant, two actions, and they are the same offer in two moods:
-the foot of a list holding out one control. Sharing the constant is what makes « the same scale »
-true by construction instead of by two people remembering.
+scale, the footer's padding step, an outline instead of a fill — as `loadFooterAction` in
+`ui/variants/surfaces.ts`, beside the load footer's retry, which already wore that scale. They are
+the same offer in two moods: the foot of a list holding out one control.
 
-**`loadErrorAction`'s rendering does not move**, and that is deliberate: it is drawn on states the
-oracle measures, and a divergence there would be a divergence on a surface this wave did not
-touch — Stop B. The constant was extracted from its own class string, so what it emits is
-unchanged, character for character.
+**THE TWO SPELL THE SCALE OUT SEPARATELY, and the first attempt to share it is the lesson.** A
+`footerActionScale` constant, with both factories built from it, is the obvious shape and it BLINDS
+AN INSTRUMENT: `residue.py` reads a factory's base through its string LITERALS, so a template
+literal leaves that base empty — it read both as unreadable and said so, which is the behaviour its
+own docstring promises (« a factory the reader could not read is a pair that silently stops being
+compared »). The repair that suggests itself — concatenating one literal with the constant — is
+worse than the disease: the reader would then see one token, report nothing, and go on comparing a
+pair it no longer reads. **A gate quieted is not a gate passed.** So the scale is written twice and
+the two are held equal by a hold that fails out loud (`ui/variants.test.ts`, three holds: the same
+scale token for token, what distinguishes each of them, and the step being the footer's and not the
+screen's).
+
+**`loadErrorAction` is untouched, character for character**, and that is deliberate: it is drawn on
+states the oracle measures, and a divergence there would be a divergence on a surface this wave did
+not touch — Stop B.
 
 **THE HOLD, AND WHY IT IS SHAPED LIKE B-352's.** `[data-sugmore]` is reachable from **no named
 state** and `engine/states.js` is grandfathered, so one cannot be added (B-352). The oracle
@@ -408,6 +417,39 @@ accessibility tier reads, and it is the size the catalogue's other footer action
 but it IS smaller under a thumb, and that trade is the substance of the amendment rather than a
 side effect of it. The operator judges it on his Mac; if he wants the target back, the answer is a
 floor on this constant and not a return to the screen's scale.
+
+---
+
+### 3.3e A DECISION the take produced: `data-take` STOPS BEING SHARED
+
+**Ruled by the orchestrator during phase 5, and it rewrites that phase's mechanism paragraph.**
+
+The plan had the picker keep `data-take` and the two readers tell themselves apart by what the
+value NAMES — an index is the screen's, a title is the panel's. That is B-309's guard, generalised.
+**It cannot reach § 9.3's « reads 0 »**: if two features answer one attribute, the engine has to
+call both doors, so it goes on naming the attribute. The two sentences were written at different
+moments and only meet here.
+
+**And the registry says why, in its own header.** `lib/verbs.ts` holds ONE handler per attribute
+name and states that a name in both places is a defect rather than an arbitration. So a name two
+features claim can NEVER move onto it — which is precisely what kept this verb in the engine while
+the five acts left.
+
+**So the collision is removed instead of guarded.** The picker emits **`data-pick-release`** and
+answers from `features/releases/verbs.ts`; the medium's panel keeps **`data-take`** and moves onto
+the same registry from `features/arrivals/verbs.ts`. Each name has one meaning and one reader, both
+answer on the registry, the engine's branch goes entirely, and the six-verb grep reads 0.
+
+**B-309 IS NOT REOPENED — its root cause is closed.** What B-309 recorded was a symptom: two
+branches for one attribute, the first unguarded, swallowing the second. The guard that shipped for
+it was right and is now unnecessary, because the thing it guarded no longer exists. Two different
+subjects wore one name; each wears its own.
+
+**The debt this leaves, said rather than discovered later.** An attribute name is a contract with
+more ends than a source grep shows, and one of this rename's six is in no source file at all:
+`frontend/maquette/a11y-light-debt.json` records accessibility debt KEYED BY SELECTOR, and carried
+three spelled `button[data-take="1|2|3"]`. A rename that missed it would have left three recorded
+debts pointing at nothing while the file went on parsing and the gate went on passing.
 
 ---
 

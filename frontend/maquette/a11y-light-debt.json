@@ -492,9 +492,9 @@
           "article:nth-child(4) > .rt.flex-wrap.gap-2 > .sc.font-bold.ml-auto",
           "article:nth-child(5) > .rt.flex-wrap.gap-2 > .sc.font-bold.ml-auto",
           "article:nth-child(6) > .rt.flex-wrap.gap-2 > .sc.font-bold.ml-auto",
-          "button[data-take=\"1\"]",
-          "button[data-take=\"2\"]",
-          "button[data-take=\"3\"]"
+          "button[data-pick-release=\"1\"]",
+          "button[data-pick-release=\"2\"]",
+          "button[data-pick-release=\"3\"]"
         ]
       }
     ],

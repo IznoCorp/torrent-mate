@@ -986,6 +986,9 @@
       "loadedOne": "1 suggestion de plus — la réserve en compte {{total}}.",
       "spent": "Réserve épuisée — les {{total}} suggestions chargées ont toutes été vues.",
       "refused": "Le chargement n'a pas abouti."
+    },
+    "releases": {
+      "taken": "« {{quality}} » retenue pour « {{title}} » — suivez-le dans « En vol »."
     }
   },
   "discover": {

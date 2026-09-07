@@ -164,36 +164,41 @@ export const loadError = cva(
     "rounded-3 p-5 text-3 leading-[1.45] [&_b]:text-danger-text",
 );
 
-/**
- * THE SCALE OF A FOOTER'S ACTION, written once because two of them share it.
- *
- * A control at the foot of a list is SECONDARY to the list: it is offered
- * after the reading, not competing with it, so it is set below the
- * action-button system — one step down the type scale, a lighter box, an
- * outline instead of a fill. The action-button system is for what a screen
- * asks the operator to do; this is for what a list offers once it runs out.
- *
- * It is a TOKEN and not a measurement: `text-3` is the scale's step, and
- * whoever reads this size back reads that step resolved on the page rather
- * than the pixels it happens to produce on one device.
- */
-const footerActionScale =
-  "w-full border border-border bg-transparent text-foreground text-3 font-semibold p-4 rounded-2";
-
 /** Its retry. */
-export const loadErrorAction = cva(`mt-4 ${footerActionScale}`);
+export const loadErrorAction = cva(
+  "mt-4 w-full border border-border bg-transparent text-foreground text-3 font-semibold p-4 rounded-2",
+);
 
 /**
  * The footer's own action — what a spent list offers to load more.
  *
- * IT SHARES THE RETRY'S SCALE, from the same constant, because they are the
- * same offer in two moods: the foot of a list holding out one control. It
- * carries an ICON where the retry does not, so it centres its content itself;
- * the `:has(> svg)` rule of the base layer left-aligns the action-button
- * system, and this is deliberately not part of that system.
+ * A CONTROL AT THE FOOT OF A LIST IS SECONDARY TO THE LIST: it is offered
+ * after the reading rather than competing with it, so it is set below the
+ * action-button system — one step down the type scale, a lighter box, an
+ * outline instead of a fill. The action-button system is for what a SCREEN
+ * asks the operator to do; this is for what a list offers once it runs out.
+ * The retry above is the same offer in another mood and carries the same
+ * scale.
+ *
+ * The size is a TOKEN and not a measurement: `text-3` is the scale's step,
+ * and whoever reads this size back reads that step resolved on the page
+ * rather than the pixels it happens to produce on one device (R136).
+ *
+ * IT SPELLS THE SCALE OUT INSTEAD OF SHARING A CONSTANT WITH THE RETRY, and
+ * that is not a preference. A shared constant makes the base of both factories
+ * a template literal, and `residue.py` reads a factory's base by its string
+ * LITERALS: both came out empty and it said so. Concatenating a literal with
+ * the constant would have quieted the complaint and been worse — the reader
+ * would have gone on comparing the one token it could still see, silently, on
+ * a pair it no longer read. The two are held together by a hold instead
+ * (`variants.test.ts`), which is a thing that fails out loud.
+ *
+ * It carries an ICON where the retry does not, so it centres its content
+ * itself; the `:has(> svg)` rule of the base layer left-aligns the
+ * action-button system, and this is deliberately not part of that system.
  */
 export const loadFooterAction = cva(
-  `flex items-center justify-center gap-4 ${footerActionScale}`,
+  "flex items-center justify-center gap-4 w-full border border-border bg-transparent text-foreground text-3 font-semibold p-4 rounded-2",
 );
 
 /**

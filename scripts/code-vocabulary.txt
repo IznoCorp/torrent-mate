@@ -176,6 +176,7 @@ child
 chip
 choice
 choose
+chosen
 claimed
 clean
 clear

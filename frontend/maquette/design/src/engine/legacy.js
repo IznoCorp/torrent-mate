@@ -5444,10 +5444,6 @@ import {
     return window.__searchResults?.() ?? { total: 0, shown: 0, results: [] };
   }
 
-  function releases() {
-    return window.__releases?.() ?? [];
-  }
-
   function follows() {
     return window.__followActions?.all() ?? [];
   }
@@ -9177,24 +9173,10 @@ import {
       }
       return;
     }
-    // THE PANEL'S TAKE, TOLD APART FROM THE RELEASE SCREEN'S (B-309):
-    // an INDEX is the screen's, a TITLE is a medium's panel. The arrivals
-    // feature says which values are its own, and does the act.
-    if (window.__arrivalsVerbs?.take(closest.dataset.take)) return;
-    if (closest.dataset.take) {
-      const release = releases()[Number(closest.dataset.take)];
-      // One router pop — the release-choice screen is a route now, and the
-      // dispatcher's own `layer`/`tm: "nav"` checks no-op harmlessly on the
-      // entry it wrote, so the screen simply unmounts.
-      bridge.back();
-      setTimeout(() => {
-        actionTake(currentState().relatedTitle);
-        toast(
-          `« ${release.res} ${release.src} ${release.lang} » retenue — récupération lancée.`,
-        );
-      }, 260);
-      return;
-    }
+    // `data-take` HAS NO BRANCH HERE ANY MORE (B-309). It had two, told apart
+    // by guessing at the value. The release picker says `data-pick-release`
+    // now and the panel's take kept this name, so each has one meaning and one
+    // reader, and both answer on the tap registry.
     if (closest.dataset.standby) {
       panel.close();
       toast(

@@ -1647,6 +1647,27 @@ sentence moves with the verb.
 
 <sub>found in round two of PR #558, 2026-09-05 · `engine/legacy.js:5542` and `:9361-9363`, toast sampled every 180 ms on head and control, only the second observed on either</sub>
 
+**WHAT L21's PHASE 5 BUILT, and its reading is OWED rather than claimed.** The clean repair the
+paragraph above calls impossible was impossible only while the act stayed in the engine. It does
+not: choosing a release is `features/releases/verbs.ts` now, declared to the tap registry under a
+name of its own, so the act is written where adding a line costs nothing and `engine/legacy.js`
+goes DOWN. It says ONE sentence, and the sentence carries both halves the two used to carry
+separately — the candidate retained, and where the medium went — because « one sentence » is
+otherwise satisfied by deleting either of them and losing half the decision.
+
+**Its hold is R137** (`harness/release_take_sentence.py`), and its shape is the whole point: it
+installs a MutationObserver on the message element BEFORE the tap and reads back the sequence of
+distinct sentences the element carried. A hold reading the message afterwards sees ONE whether one
+or two were written — which is this defect exactly, so such a hold measures nothing. Counting calls
+into `window.__toast.show` would have been easier and would have measured the seam instead of the
+element, while patching the thing under measurement.
+
+**NOT YET READ.** The served copy was held by another wave when this landed, so R137 is written and
+has not run. Owed before this entry closes: R137 seen RED on a build that still writes both — no
+mutation needed, two writes are observable there — and then green.
+
+
+
 **B-323 — the 260 ms inventory reads one line, and the release screen's take has no owner.**
 L19's report (§ 4), its entry in `frontend-architecture.md` § 4 and `harness/exits.py`'s own
 comment count the engine's hand-set waits with `grep -n "setTimeout(.*260)" legacy.js`: **7 before
@@ -1682,6 +1703,30 @@ is a stale figure in three places and a verb with no owner. **Owner of the count
 instruments' debts block** (the next wave touching `exits.py`). **Owner of the verb: L21, ratified.**
 
 <sub>steward's audit of L19, 2026-09-05, on `main` at `427ea2bc8` · `grep -c ', 260)' frontend/maquette/design/src/engine/legacy.js` → 7 · `git show 4c0e274a7:frontend/maquette/design/src/engine/legacy.js | grep -c ', 260)'` → 9 · `grep -c "setTimeout(.*260)" …` → 5 (7 at the base) · `grep -c "closest\.dataset\.take" …` → 3</sub>
+
+**BOTH HALVES ADDRESSED IN L21's PHASE 5.**
+
+**The verb has an owner and has left the engine.** `grep -cE "closest\.dataset\.(follow|pause|
+remove|dropsug|sugmore|take)\b"` reads **0**, from 3 for `take` alone. It took removing the
+COLLISION rather than guarding it: the registry holds one handler per attribute name, so a name two
+features claim can never move onto it. The picker emits `data-pick-release` and the panel keeps
+`data-take`; each has one meaning and one reader, and both answer on the registry. B-309's root
+cause — two different subjects wearing one name — is closed with it, and its guard is not reopened
+but made unnecessary. The 260 ms wait on that path is gone; the act happens in the tap's own commit.
+
+**The inventory is re-taken with a command that can see every site.** `grep -n ', 260)'` reads
+**six** remaining, and `harness/exits.py` now names each by the CALL it wraps —
+`screens.add(…, "identify")`, `screens.releases(…)`, `screens.profile(…)` twice,
+`screens.resolution(…)`, and `actionResolve(…)` after `bridge.rewind`, which nothing had ever
+named — and says IN THE COMMENT which command counts them, so the next reader can re-take it. The
+command written there before it saw a site only when its call and its delay shared a line, which is
+why it answered five when there were six: « the count agrees with the comment » was true of both
+numbers. R103 is deliberately NOT widened into a blanket refusal — five of the six are L13's.
+
+**NOT YET READ.** The harness was held by another wave when this landed: `exits.py` and R123 have
+not been re-run, and R123's hold count must be read unchanged after its selector moved.
+
+
 
 **B-324 — the backend's mirror of the PM2 crons names three of the seven, and nothing reads it.**
 `personalscraper/web/schedulers/registry.py`'s `CRON_JOBS` is, by its own header, « a static mirror
