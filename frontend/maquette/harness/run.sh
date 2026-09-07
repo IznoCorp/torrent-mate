@@ -234,7 +234,16 @@ elif [ "${1:-}" = "--contracts" ]; then
 else
   scripts=()
   for s in "$HERE"/*.py; do
-    [ "$(basename "$s")" = common.py ] && continue   # shared plumbing, not a rule
+    # Shared plumbing, not rules. `desktop_frame_page.py` holds the page
+    # scripts R140 evaluates and defines no holds; left in, it is RUN as a
+    # rule, exits 0 having done nothing, and reports for ever as a rule whose
+    # hold count cannot be parsed — a permanent unparseable row and a rule
+    # count one too high. Named here rather than detected, because « a rule
+    # has a main() » is false for 71 of the 96 files in this directory and a
+    # clever test that drops a real rule is worse than a list.
+    case "$(basename "$s")" in
+      common.py|desktop_frame_page.py) continue ;;
+    esac
     scripts+=("$(basename "$s")")
   done
   label="full suite (${#scripts[@]} rules)"

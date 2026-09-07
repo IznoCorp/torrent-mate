@@ -1983,7 +1983,9 @@ paragraph read « bottom-left, lifted by `--tm-bottom-bar-h` » until the table 
 sentence it rested on — « the one corner the app's fixed chrome never claims » — was false: out of
 the frame the app fills the window and claims every corner.
 
-**R140**, `frontend/maquette/harness/desktop_frame.py`, **14 holds** at 390 x 844 and 1280 x 800, read
+**R140**, `frontend/maquette/harness/desktop_frame.py` and its page scripts in
+`desktop_frame_page.py` (928 + 222 lines), **23 holds** at 390 x 844, 1280 x 800 and
+520 x 800 — the frame's own breakpoint, the tightest width it is ever drawn at — read
 on the shared served copy on 8899: no violation. Its expected values are MEASURED and never typed —
 the frame's whole contribution is written `.device …`, so the same page with that class off the
 device is the app's own cascade, at the same width, in the same browser — and one hold exists only

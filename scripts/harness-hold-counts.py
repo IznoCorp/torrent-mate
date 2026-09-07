@@ -161,16 +161,25 @@ COUNT_PATTERNS = (
 )
 
 
+# The files in `harness/` that are not rules, and the same list `run.sh`
+# carries. `common.py` is the shared plumbing; `desktop_frame_page.py` holds
+# the page scripts R140 evaluates and defines no holds, so counted as a rule it
+# is a permanent unparseable row and a rule count one too high.
+NOT_RULES = frozenset({"common.py", "desktop_frame_page.py"})
+
+
 def rule_scripts():
     """Returns the rule scripts, in the order run.sh runs them.
 
     Returns:
-        The basenames of every `harness/*.py` file except `common.py`,
-        sorted — bash glob expansion and `Path.glob` both order
-        alphabetically, so this is the order run.sh's loop uses.
+        The basenames of every `harness/*.py` file that is a rule, sorted —
+        bash glob expansion and `Path.glob` both order alphabetically, so this
+        is the order run.sh's loop uses. The exclusions are run.sh's own and
+        the two lists have to agree: a file counted here and not run there
+        reports as a rule that vanished.
     """
     return sorted(p.name for p in HARNESS.glob("*.py")
-                  if p.name != "common.py")
+                  if p.name not in NOT_RULES)
 
 
 def select_rules(spec, allowed):
