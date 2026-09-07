@@ -479,6 +479,43 @@ gesture — a hold reading it only at the end sees one sentence whether or not t
 
 ## 4. DOIT-4's pastille — the one surface this lot DRAWS
 
+### 4.0 HOW IT IS REACHED — and the named state the plan asked for does not exist
+
+**The plan's step 1 was « a named state FIRST, in `engine/states.js` ». It cannot be done, and the
+refusal is right.** Measured: `states.js` is 786 non-blank lines and its ledger record is 786, so an
+entry is refused twice over — once as growth, once as a raise of the record in the commit that
+commits it. That is B-352 exactly, and B-352 names **L13** as its owner. Funding a state by
+subtracting elsewhere in the same file was considered and REFUSED by the orchestrator: it would
+either drop a live state out of the oracle's corpus or subtract formatting, which is the
+ledger-gaming the ratchet exists to prevent.
+
+**So the pastille has no named state, the oracle never sees it, and no divergence is « accepted »
+for it.** Its drawing is held by R138's own walk (`harness/queued_ask_mark.py`), the way B-315 (a)'s
+is held by R136's — B-352's shape, twice in one wave.
+
+**But the plan leaned on the state for a REASON, and the reason survives**: « the state named here
+is the state he sees ». What the operator needs is not an address, it is a PATH — and there is one,
+by hand, with no engine edit and no contract change:
+
+1. **Arrivées**, and start the pipeline with the button already drawn there.
+2. **Suivis**, open a follow that has a season with a hole.
+3. **Ask for that season.** The layer answers `queued` — `mocks/handlers/acquisition-verbs.ts`
+   decides it from `mockState().pipelineState !== IDLE`, not from `setOperationOutcome` — and the
+   season keeps saying « En file — pipeline en cours » after the message has gone.
+
+**That is the same fact R138 arranges**, and the rule says so in its own docstring rather than
+implying its walk is his: the ACT it measures is a finger's (the panel raised by a hit test at the
+row's centre, the grab pressed), while the busy-ness is arranged through the layer's run endpoint —
+because `window.__go` re-seeds the layer, so a pipeline started before the state is driven is idle
+again by the time the act lands. R125 paid for that ordering.
+
+**Where the fact lives, and why it is a debt.** The queued ask is remembered in the cache, keyed by
+medium, read by both season surfaces. The durable answer is the SERVER saying so — a queued season
+coming back queued, the way one being acquired comes back with its status — and on that day
+`features/media/queued-seasons.ts` is deleted rather than adapted. Until then the interface
+remembers its own ask, which is honest about what it knows and asserts nothing it has not been told.
+
+
 The map's DOIT-4 row reads `partly`: R124 proves a legitimate act under a busy pipeline is
 ACCEPTED; the VISIBLE half — the constitution's own « En file — pipeline en cours » said of a
 MEDIUM — does not exist. Measured: `fr.json` holds one key, `screens.arrivals.queuedBold` =
