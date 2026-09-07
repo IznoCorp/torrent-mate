@@ -141,7 +141,7 @@ argued, at length and persuasively, against the very design the mutation then fo
    lines above it: that sibling's first version read response events too and was rewritten to
    read the layer's own record; the repair did not travel next door.
 
-⚠ **EIGHT, RECOUNTED — and the recount changed the composition and not the figure.** `DESIGN.md` § 3.1c records FOUR instrument
+⚠ **NINE, RECOUNTED — and the recount changed the composition before a bisect changed the figure.** `DESIGN.md` § 3.1c records FOUR instrument
 defects **phase 2** found, and the first version of this count — assembled from the rotation's
 hand-over without reading that section underneath it — got two things wrong in opposite
 directions. It carried B-365 as a **discovery**, where § 3.1c names that hold outright —
@@ -150,7 +150,7 @@ owns `busy.py` and repairs it there** » — so it is an obligation this lot wro
 and missed while the design document went on saying it would be met. And it missed « the
 message is not in `#toast` » entirely, which is a unit. **The two errors cancelled in the
 total and in nothing else.** The units are itemised one line each in `BUGS.md` § « L21's
-eight, itemised », and that itemisation is the count; this paragraph is not. One of § 3.1c's
+nine, itemised », and that itemisation is the count; this paragraph is not. One of § 3.1c's
 four is excluded with its reason: a wrong answer in a mock handler is not a hold green over
 what it does not read.
 
