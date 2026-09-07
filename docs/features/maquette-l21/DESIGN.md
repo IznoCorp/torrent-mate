@@ -181,11 +181,11 @@ Features declare what they own; `lib/` carries the SHAPE and never the subject (
 
 **The alternatives, and why they were refused:**
 
-| Refused | Why |
-| --- | --- |
+| Refused                                                             | Why                                                                                                                                                                                                 |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | a branch in `legacy.js` calling a feature door, as `data-take` does | D5: the engine dies by SUBTRACTION. It is the right shape for MOVING a verb that already has a branch; it is the wrong shape for creating one, because it grows the file the ledger refuses upward. |
-| a listener per feature | Every feature would own a document listener, their order would decide who wins a shared node, and the engine's death would leave nine of them to reconcile. One listener, many declarations. |
-| a handler on the `Action` itself (`onSelect`) | `ui/panel`'s contract says a target IS its data attributes and the component adds no `onClick`. Changing that makes the panel know what a verb is. |
+| a listener per feature                                              | Every feature would own a document listener, their order would decide who wins a shared node, and the engine's death would leave nine of them to reconcile. One listener, many declarations.        |
+| a handler on the `Action` itself (`onSelect`)                       | `ui/panel`'s contract says a target IS its data attributes and the component adds no `onClick`. Changing that makes the panel know what a verb is.                                                  |
 
 **What it commits the next lots to.** Phase 4 moves the five acts onto this registry instead of
 inventing a mechanism at that moment, and **L13 inherits it**: when the engine's delegation dies,
@@ -360,6 +360,57 @@ Mac at the review.
 
 ---
 
+### 3.3d B-315 (a) — the button's size, and it is held against a TOKEN
+
+**The plan says (a) is « not touched » (§ 6). It is touched: the orchestrator ruled it in, as the
+adjacent case of B-352**, and this section is the reading § 6 now points at.
+
+**What it was.** « Charger 30 de plus » wore `.btnprimary` — the action-button system, the one
+scale shared by every primary action in the product: full width, 44 px of touch target, the
+screen's type step, a filled ground. At the foot of a spent pile that reads as _the screen's main
+path_, and it is not: it is an offer to carry on reading, made by the list, after the reading. The
+operator reported it too big and he is describing that mismatch, not a number of pixels.
+
+**What it is now.** It is drawn at the scale a footer's actions carry — one step down the type
+scale, the footer's padding step, an outline instead of a fill — and it takes that scale **from the
+catalogue's own constant**, `footerActionScale` in `ui/variants/surfaces.ts`, which the load
+footer's retry already wore. One constant, two actions, and they are the same offer in two moods:
+the foot of a list holding out one control. Sharing the constant is what makes « the same scale »
+true by construction instead of by two people remembering.
+
+**`loadErrorAction`'s rendering does not move**, and that is deliberate: it is drawn on states the
+oracle measures, and a divergence there would be a divergence on a surface this wave did not
+touch — Stop B. The constant was extracted from its own class string, so what it emits is
+unchanged, character for character.
+
+**THE HOLD, AND WHY IT IS SHAPED LIKE B-352's.** `[data-sugmore]` is reachable from **no named
+state** and `engine/states.js` is grandfathered, so one cannot be added (B-352). The oracle
+therefore never sees this button, no divergence is « accepted » for it, and the operator judges it
+on his Mac. Its drawing is held by a rule's own reading instead: **R136**
+(`harness/load_more_scale.py`) builds the spent pile itself, then reads the button's RENDERED size
+against the token — **no pixel count is written in that file**. A probe element wearing
+`font-size: var(--text-N)` is laid out by the same engine that lays out the button, so the rule
+compares _the same step_, never « 12 pixels ». A size typed into the rule would be a second source
+of truth for the scale: move the token and the rule would go on asserting the old number while the
+interface moved — which is the failure the whole token discipline exists to prevent.
+
+Four holds, each failing differently: the button is drawn and a finger reaches it (its geometry,
+for the B-352 reason above); its type is the footer's step; **it is NOT the screen's step** — the
+two are one apart on the scale, so a hold that only asserted « small » would have passed the very
+button this was written against; and its box carries the footer's padding step.
+
+**It is red on a build that still draws the old button, with no mutation needed** — the cheapest
+proof there is, and the one § 7 of the hand-over asks for.
+
+**One thing said plainly rather than implied.** The footer scale has no 44 px floor: the box is
+about a third shorter than the action-button system's. That clears the 24 px target minimum the
+accessibility tier reads, and it is the size the catalogue's other footer action already ships at —
+but it IS smaller under a thumb, and that trade is the substance of the amendment rather than a
+side effect of it. The operator judges it on his Mac; if he wants the target back, the answer is a
+floor on this constant and not a return to the screen's scale.
+
+---
+
 ### 3.4 `data-take`'s release-screen half — B-323, B-322
 
 `legacy.js:9295` asks the arrivals door (`window.__arrivalsVerbs?.take(…)`,
@@ -439,8 +490,9 @@ sheet. Then one condition, mirroring the `seeSheet` guard.
 - **B-247's producer half.** Every panel this wave touches is added to `persistence.py` (f)'s list:
   a moved surface keeps its nodes across a store write.
 - **B-305.** Ruled 2026-09-04: an open swipe stays open. Not restored, not relitigated.
-- **B-315.** Three parts, not confused: (a) the button's SIZE is the operator's amendment and is
-  **not touched**; (b) one press adds thirty and the reserve is intact — the `sugmore` rule reads
+- **B-315.** Three parts, not confused: (a) the button's SIZE — **the plan wrote « not touched »,
+  and the operator's ruling of 2026-09-06 overturns it: it is drawn in this wave, and § 3.3d says
+  how**; (b) one press adds thirty and the reserve is intact — the `sugmore` rule reads
   that on a NAMED STATE for the deck's empty state, **which does not exist yet**
   (`[data-sugmore]` is reachable from no state), so this wave gives it one; (c) the end mark on
   `acq-discover-exhausted` says the reserve is spent, and the rule reads it there too.

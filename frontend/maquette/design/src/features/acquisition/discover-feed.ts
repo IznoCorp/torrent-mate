@@ -18,6 +18,7 @@
 // click delegation and its swipe handlers all still call them by name, and the
 // day it goes this file loses an importer rather than a subject.
 import i18next from "i18next";
+import { loadFooterAction } from "../../ui/variants";
 import { deckCard, deckHints, suggestionRow, suggestionTile, type Suggestion } from "./discover-cards";
 
 /** How many more the footer asks for at a time. */
@@ -108,6 +109,13 @@ export function passerSug(position: number): void {
 /**
  * The pile, as markup — or the end mark when it has been spent.
  *
+ * ITS « LOAD MORE » IS A FOOTER'S ACTION, NOT THE SCREEN'S (B-315 a). It wore
+ * `.btnprimary` — the action-button system, one scale with every primary
+ * action in the product — and at the foot of a spent pile that reads as the
+ * screen's main path when it is an offer to carry on reading. The operator
+ * judged it too big; it is drawn at the footer scale instead, from the
+ * catalogue's own constant, so its size cannot drift from the token.
+ *
  * Returns:
  *     The deck's markup.
  */
@@ -117,7 +125,7 @@ export function deckHTML(): string {
     const reference = drawing();
     return `<div class="empty" data-part="empty-state"><b>${say("allSeenLead")}</b>
         <p>${say("allSeenRest", { count: reserve().length })}</p>
-        <button class="btnprimary" data-sugmore="1">${reference.svgIcon(reference.icons.refresh)}${say("loadThirtyMore")}</button></div>`;
+        <button class="${loadFooterAction()}" data-sugmore="1">${reference.svgIcon(reference.icons.refresh)}${say("loadThirtyMore")}</button></div>`;
   }
   const pile = remaining
     .slice(0, 3)
