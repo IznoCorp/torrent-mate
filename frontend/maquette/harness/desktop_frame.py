@@ -208,6 +208,64 @@ LONGHANDS = {"inset-inline": ("inset-inline-start", "inset-inline-end"),
 # reads. The completeness hold compares them directly.
 
 
+def names_the_device(selector, spelling):
+    """Whether a selector really names the device and not a longer name.
+
+    `spelling in selector` is a SUBSTRING test, so `.device-frame` and
+    `#device-shell` both answered yes to `.device` and `#device`, and a
+    declaration on a differently-named element would have been read as one on
+    this one. A CSS name ends where a name character stops.
+
+    Args:
+        selector: One selector, as the stylesheet writes it.
+        spelling: A way of naming the device — `#device` or `.<class>`.
+
+    Returns:
+        True when the spelling appears as a whole name.
+    """
+    return re.search(re.escape(spelling) + r"(?![A-Za-z0-9_-])",
+                     selector) is not None
+
+
+def declared_breakpoints():
+    """Every `min-width` the harness stylesheet declares, ascending.
+
+    The presence of the control was read at 520 and at 1280 — the frame's own
+    breakpoint and a desktop width — and nothing between them. A band hidden
+    in the middle (`@media (min-width: 600px) and (max-width: 900px)`) would
+    have passed both readings and left the operator without a way out of the
+    frame at 800. The widths are taken from the file rather than typed so that
+    a breakpoint added to it is read the day it is added.
+
+    Returns:
+        The declared widths in pixels, ascending and without repeats.
+    """
+    text = HARNESS_STYLESHEET.read_text(encoding="utf-8")
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+    return sorted({int(one) for one in
+                   re.findall(r"min-width:\s*(\d+)px", text)})
+
+
+def widths_the_frame_is_drawn_at():
+    """The widths presence is read at: every breakpoint, and between them.
+
+    A breakpoint is where behaviour changes, so it is read; the midpoint
+    between two of them is where a band would hide, so that is read too. The
+    last width is well above the largest declared breakpoint, because a band
+    can also start after the last one anybody thought about.
+
+    Returns:
+        The widths, ascending.
+    """
+    declared = declared_breakpoints()
+    frame = declared[0]
+    widths = [frame]
+    for lower, upper in zip(declared, declared[1:]):
+        widths.extend([(lower + upper) // 2, upper])
+    widths.extend([declared[-1] + (declared[-1] - declared[0]) // 2, 1280])
+    return sorted(set(widths))
+
+
 def device_spellings(device_classes):
     """Every way this stylesheet can name the device element.
 
@@ -280,7 +338,7 @@ def declared_reassertions(device_classes):
         inside = []
         for one in targets:
             token = next((spelling for spelling in device_spellings(
-                device_classes) if spelling in one), None)
+                device_classes) if names_the_device(one, spelling)), None)
             if token is None:
                 continue
             after = one.split(token, 1)[1].strip()
@@ -759,8 +817,33 @@ async def measure_tightest(browser, journal):
         browser: A launched Playwright browser.
         journal: The run's journal.
     """
+    # EVERY WIDTH THE FRAME IS DRAWN AT, not the two ends of the range. The
+    # presence was read at 520 and at 1280 and nowhere between, so a band
+    # hidden in the middle would have passed both and left the operator with
+    # no way out of the frame at 800. The widths are derived from the
+    # stylesheet's own breakpoints and the midpoints between them.
+    absent_at = {}
+    for one in widths_the_frame_is_drawn_at():
+        band_context, band_page = await open_page(
+            browser, viewport={"width": one, "height": 800},
+            is_mobile=False, has_touch=False)
+        band = await band_page.evaluate(GEOMETRY, [SWITCH, DEVICE])
+        if not (band["drawn"] and band["focusable"]):
+            absent_at[one] = {"rects": band["rects"], "area": band["area"],
+                              "focusable": band["focusable"]}
+        await band_context.close()
+
     context, page = await open_page(browser, **TIGHTEST)
     width = TIGHTEST["viewport"]["width"]
+    journal.check(
+        "the way out of the frame is drawn at EVERY width the frame is drawn "
+        "at, not merely at the two ends of the range",
+        not absent_at,
+        f"read at {widths_the_frame_is_drawn_at()} — derived from the "
+        f"stylesheet's own breakpoints {declared_breakpoints()} and the "
+        f"midpoints between them, because a band hidden between two readings "
+        f"passes both. Not drawn at: {absent_at or 'none'}")
+
     reading = await page.evaluate(GEOMETRY, [SWITCH, DEVICE])
     # PRESENCE FIRST, and it is not a formality. Every other hold in this rule
     # requires the control to be ABSENT (at 390) or reads it where the gutter
