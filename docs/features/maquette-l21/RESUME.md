@@ -1,6 +1,6 @@
 # L21 — where the wave stands, for whoever picks it up
 
-Rewritten at 47 % context by the session that landed item 4 and phases 5 and 6-part-one.
+Rewritten at the rotation by the session that landed item 4 and phases 5 and 6.
 Read `BRIEF.md`, `DESIGN.md` and `plan/INDEX.md` first — this file says only what is TRUE NOW and
 what the plan does not.
 
@@ -8,8 +8,10 @@ what the plan does not.
 and bump again at the close if it has moved. `origin/main` at `163cbfcbb` IS MERGED into this
 branch.
 
-**HEAD is `131b7b51d`. The remote is at `a58c1e6e7`** — the last three commits (`e1b2a1838`,
-`b0cb73555`, `131b7b51d`) are LOCAL ONLY and must be pushed. See § 6.1.
+**HEAD is `767c19bfd`, and everything through it IS PUSHED** — `git ls-remote --heads origin
+feat/maquette-l21` was read against the local sha at the hand-over. Nothing is local-only.
+**Phase 6 is COMPLETE**; phase 7 has not been started, by the orchestrator's instruction at the
+rotation.
 
 ---
 
@@ -23,7 +25,7 @@ branch.
 | 4 — the five acts                   | **DONE**        | the act grep reads 0                                          |
 | **4b — B-315 (a)**                  | **DONE, READ**  | R136 red-then-green, § 2                                      |
 | **5 — the release take**            | **DONE, READ**  | R137 + R123 + `exits.py`, § 3                                 |
-| **6 — the pastille**                | **HALF DONE**   | R138 green + mutated; R124's three new holds NOT written, § 5 |
+| **6 — the pastille**                | **DONE, READ**  | R138 green + mutated; R124 15 holds, § 5                      |
 | 7 — B-313 + close                   | **not started** | —                                                             |
 
 **Register**: B-315, B-322, B-323 read `fixed #572`. **B-363 filed** (`residue.py` cannot read a
@@ -31,7 +33,7 @@ factory built from a shared constant). Free in this block: **B-364…B-369**, **
 
 **Readings on the current head**, all on the served copy after `run.sh --contracts` republished it:
 `--contracts` 18 rules + 27 repository guards no violation · R136 6 holds · R137 5 holds · R138
-7 holds · R123 9 holds (count unmoved) · `exits.py` 18 holds · R124 11 holds · `tsc` 0 · maquette
+7 holds · R123 9 holds (count unmoved) · `exits.py` 18 holds · R124 15 holds · `tsc` 0 · maquette
 unit suite 107/107 (floors raised to 7 files / 107 tests) · the 27 cheap guards clean.
 
 **The numbers that gate the wave**: `legacy.js` **31 467** non-blank, ledger recorded at 31 467
@@ -134,20 +136,35 @@ state by subtracting inside the file) was REFUSED by the orchestrator; road C is
 a season — which works because the mock decides `queued()` from `pipelineState`, not from
 `setOperationOutcome`.
 
-**OWED, and it is the plan's « then add this wave's holds »**: the THREE new operations
-(`grabSeasonForFollow`, `requeueJourney`, `rescrapeJourney`) under `busy.py`'s scenario, each
-queued, said, and never 409 / never « occupé ». R125 and R126 already cover the season grab and the
-journey verbs under a busy pipeline; what phase 6 asks is that `busy.py` read them too.
+**LANDED**: the three new operations under `busy.py`'s scenario. `grabSeasonForFollow` is asked
+THROUGH ITS OWN BUTTON while the pipeline runs — panel raised by a finger, grab pressed by a
+finger — and all three are swept by operationId whatever they were answered. R124 is **15 holds**.
+R125 and R126 already cover the season grab's own walk and the requeue under a busy pipeline; what
+this adds is that the same refusal sweep covers all three.
+
+⚠ **THE NON-VACUITY GUARD WAS RED ON A CLEAN TREE, and that is its proof.** « An operation was
+really ASKED » is written before the hold that reads the answers, and it FAILED on the first run:
+the first version collected Playwright response events, and the layer answers IN THE PAGE, so an ask
+that really happened produced no response event at all. The « no refusal » hold would have been
+green over an empty list, for ever and invisibly. It reads `window.__mocks.answered()` now — the
+layer's own record, keyed by operationId.
+
+⚠ **OWED: a mutation for the « no refusal » hold itself.** It is guarded by the non-vacuity hold
+(`bool(asked) and all(...)`), so it cannot be green over nothing — but it has not been seen fall.
+Producing the 409 it refuses means making a mock handler answer one, and these three operations have
+no refusal path: it needs the route helper's error shape. **One mutation tried and REJECTED as the
+wrong subject**: forcing `queued()` to `false` in `acquisition-verbs.ts` changes whether the ask is
+QUEUED, not whether it is REFUSED, so R124 stayed green — correctly. That is R138's subject, not
+this hold's.
 
 ---
 
 ## 6. What is OWED, in order
 
-### 6.1 FIRST, AND BEFORE ANYTHING ELSE
+### 6.1 HOW TO PUSH, because it is not what it looks like
 
-**Push.** Three commits are local only: `e1b2a1838`, `b0cb73555`, `131b7b51d`. A push in this
-repository runs the parallel suite through its pre-push hook, so **it IS a heavy run and is wrapped
-like one, every time**:
+A push in this repository runs the parallel suite through its pre-push hook, so **it IS a heavy run
+and is wrapped like one, every time**:
 
     PYTEST_XDIST_AUTO_NUM_WORKERS=3 HEAVY_FREE_FLOOR_MB=3072 sh scripts/heavy.sh l21 \
       git push origin feat/maquette-l21 > <a file> 2>&1
@@ -158,13 +175,12 @@ orchestrator killed it.
 
 ### 6.2 Then
 
-1. **Phase 6's remaining holds** — § 5.
-2. **Phase 7** — B-313 (a panel's actions counted BY LABEL, a label twice refused; red on `main`'s
+1. **Phase 7** — not started, and the rotation forbade starting it — B-313 (a panel's actions counted BY LABEL, a label twice refused; red on `main`'s
    follow panel for a medium with no sheet), B-247's producer half in `persistence.py`, then the
    close: the intent map's DOIT-3/DOIT-4 rows to `served`, the « guards green over what they do not
    read » recount (**zero included**), `IMPLEMENTATION.md`'s In-flight row, `REPORT.md`, the patch
    bump.
-3. **The wave gate**: full `run.sh`, `--a11y`, `harness-hold-counts.py --compare` with `failed`
+2. **The wave gate**: full `run.sh`, `--a11y`, `harness-hold-counts.py --compare` with `failed`
    read FIRST, the oracle, `make check`, the ledger, the six-verb grep.
 
 ---
