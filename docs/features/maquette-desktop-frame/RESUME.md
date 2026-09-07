@@ -31,12 +31,31 @@ control's own block, `display: none` below 520 px and `position: fixed` above it
 No script anywhere: the state is the checkbox's, read by `:has()`, so neither the
 engine (D5) nor `app/shell.tsx` (invariant 6) learns the control exists.
 
-**Where it sits, and it is arithmetic rather than a measured number.** Framed:
-top-left, `max-width: calc(50% - 211px)`, so its right edge cannot cross the
-frame's left edge at `50% - 195px` at any width. Out of the frame the app fills
-the window and there is no gutter, so it moves to bottom-left — the one corner
-the app's fixed chrome never claims — lifted by `--tm-bottom-bar-h`, the height
-the tab bar publishes, which reads 0 where the app hides the bar.
+**Where it sits. Framed it is arithmetic; out of the frame it is a table.**
+Framed: top-left, `max-width: calc(50% - 211px)`, so its right edge ABUTS the
+frame's left edge at `50% - 195px` at any width and never crosses it.
+
+Out of the frame it goes to the **top centre**, and the sentence this paragraph
+used to carry — « bottom-left, the one corner the app's fixed chrome never
+claims » — was false. Out of the frame the app fills the window, so there is no
+corner it does not claim: all 87 named states were walked and every candidate
+counted against every button, link, input and ARIA control the app draws.
+
+| candidate | states crossed |
+| --- | --- |
+| bottom-left (where it was) | **60** |
+| bottom-centre | 46 |
+| top-left · top-right · bottom-right | 87 each |
+| **top-centre** | **0** |
+| icon-sized, bottom-left / top-left / top-right | 61 / 87 / 87 |
+
+Top centre is the only one free in all 87, and an icon-sized box rescues none of
+the others. It does not collide with the harness's own bar either: the bar is at
+the top bar's empty middle while the frame is drawn — which top centre WOULD
+cross — and at the top right out of it. The control is only ever at top centre
+out of the frame, so the two are never in the same place at once, and the sweep
+reads other harness chrome beside the app's controls rather than leaving that to
+a comment.
 
 **R140** — `frontend/maquette/harness/desktop_frame.py`, 326 lines, **fourteen holds**,
 at 390 × 844 and 1280 × 800. Its expected values are MEASURED, not typed: the

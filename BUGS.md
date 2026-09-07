@@ -1974,9 +1974,14 @@ breakpoints scoped on `:root:not(:has(#desktop-switch:checked))`, the control it
 below 520 px and `position: fixed` above it, and added to the `html.measuring` hide list. **No script
 anywhere**: the state is the checkbox's and is read by `:has()`, so neither the dying engine (D5) nor
 `app/shell.tsx` (invariant 6) learns the control exists, and neither file was opened. The label sits
-top-left while the frame is drawn, at `max-width: calc(50% - 211px)` so its right edge cannot cross
-the frame's left edge at `50% - 195px` at any width, and bottom-left out of the frame, lifted by
-`--tm-bottom-bar-h`.
+top-left while the frame is drawn, at `max-width: calc(50% - 211px)` so its right edge ABUTS the
+frame's left edge at `50% - 195px` at any width and never crosses it, and at the **top centre** out
+of the frame — the one placement of nine that is free in all 87 named states, measured against every
+button, link, input and ARIA control the app draws (bottom-left, where it first sat, crosses 60;
+bottom-centre 46; the three other corners 87 each; an icon-sized box rescues none of them). This
+paragraph read « bottom-left, lifted by `--tm-bottom-bar-h` » until the table was taken, and the
+sentence it rested on — « the one corner the app's fixed chrome never claims » — was false: out of
+the frame the app fills the window and claims every corner.
 
 **R140**, `frontend/maquette/harness/desktop_frame.py`, **14 holds** at 390 x 844 and 1280 x 800, read
 on the shared served copy on 8899: no violation. Its expected values are MEASURED and never typed —

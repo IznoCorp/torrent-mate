@@ -359,6 +359,20 @@ INTERACTIVE = ('button, a[href], input, select, textarea, summary, '
 # is free out there. A comment saying so is not a reading; this is.
 HARNESS_CHROME = '[data-part^="harness/"]'
 
+# WHERE THE PAGE ACTUALLY IS, asked of the page rather than assumed from a
+# click that happened before the loop. `checked` is the state itself; the
+# device filling the window is what that state is FOR, and reading both means
+# a press that silently stopped working cannot pass as a corner that is free.
+OUT_OF_THE_FRAME = """(argument)=>{
+  const [checkbox, device] = argument;
+  const box = document.querySelector(device).getBoundingClientRect();
+  return {checked: document.querySelector(checkbox).checked,
+          fillsTheWindow: Math.round(box.width) === window.innerWidth
+                          && Math.round(box.height) === window.innerHeight,
+          box: [Math.round(box.x), Math.round(box.y),
+                Math.round(box.width), Math.round(box.height)]};
+}"""
+
 CROSSED = """(argument)=>{
   const [switchSelector, interactive, harness] = argument;
   const node = document.querySelector(switchSelector);
@@ -868,13 +882,33 @@ async def measure_every_state(browser, journal):
     await page.wait_for_timeout(200)
     states = await page.evaluate("()=>window.__states()")
     crossed = {}
+    # NOT OUT OF THE FRAME IS NOT A PASS. This walk counts what the control
+    # covers, and framed it covers nothing at all — the control is in the
+    # frame's gutter and the app is a 390px phone in the middle of the page —
+    # so a sweep that never checked WHERE it was reported zero crossings over
+    # a page that had not left the frame, and the reading would have been the
+    # same if the press had silently stopped working. A named state can also
+    # re-render the shell, so the question is asked at EVERY state rather than
+    # once before the loop.
+    not_out = {}
     for state in states:
         await page.evaluate("(one)=>window.__go(one)", state)
         await page.wait_for_timeout(120)
+        where = await page.evaluate(OUT_OF_THE_FRAME, [CHECKBOX, DEVICE])
+        if not (where["checked"] and where["fillsTheWindow"]):
+            not_out[state] = where
+            continue
         hits = await page.evaluate(
             CROSSED, [SWITCH, INTERACTIVE, HARNESS_CHROME])
         if hits:
             crossed[state] = hits
+    journal.check(
+        "and every one of those readings was taken OUT of the frame — the "
+        "checkbox checked and the device filling the window, in each state",
+        not not_out,
+        f"at {width}px — {len(states) - len(not_out)} of {len(states)} state(s) "
+        f"were read out of the frame; the rest were not and their crossings "
+        f"mean nothing: {dict(list(not_out.items())[:4])}")
     journal.check(
         "out of the frame the way back covers no control the app draws NOR "
         "any other piece of harness chrome, in ANY named state — the class, "

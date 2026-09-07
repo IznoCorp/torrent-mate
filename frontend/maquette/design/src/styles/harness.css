@@ -280,14 +280,6 @@ html.measuring .note {
     max-width: calc(50% - 211px);
   }
 
-  /* OUT OF THE FRAME, THE APP FILLS THE WINDOW, so there is no gutter left to
-     stand in and the control has to move to a corner the app's own fixed chrome
-     does not claim. The header spans the top — burger on the left, status dot
-     and avatar on the right — and the action button sits bottom-RIGHT, so
-     bottom-left is the free corner. The tab bar spans the bottom below the
-     app's own 768px breakpoint and is gone above it; the height it publishes
-     for exactly this kind of question lifts the control clear of it either
-     way, and reads 0 when there is no bar. */
   /* OUT OF THE FRAME IT GOES TO THE TOP CENTRE, and that is a measurement
    rather than a preference. Out of the frame there is no gutter — the device
    IS the window — so wherever the control sits, it sits on the app. The
