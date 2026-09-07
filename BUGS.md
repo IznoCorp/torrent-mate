@@ -2769,6 +2769,20 @@ same words for both. **The proof shape for whoever repairs it**: point a mutatio
 nothing serving 8899, and the tool must say the run FAILED rather than that nothing was caught —
 four lines, reading `$?` beside the journal.
 
+**A fourth instance, 2026-09-07, and it is the one that defeats the obvious repair.** The third
+case is a rule that printed NOTHING before dying, and « no output at all » is at least a visible
+oddity. This one printed **two `FAIL` lines and then died**: a mutation hid a control at every
+desktop width, `page.click` on it timed out, and the rule was killed partway — after two holds had
+already reported. `mutate.sh` matched those two lines, printed them, and reported the run as a
+mutation the rule catches. **Two failures from a crashed rule are indistinguishable from two
+failures from a rule that finished**, and the second is a finding while the first is a broken
+measurement. So reading `$?` is necessary and not sufficient on its own to make the OUTPUT
+trustworthy: what tells the two apart is the JOURNAL's own closing line — `common.Journal.summary`
+prints « N rules EXECUTED … », and a rule that died before it prints no such line. A tool that reads
+the exit status AND requires that line before believing any verdict cannot be fooled by either
+shape. Caught only because the agent had, an hour earlier, given that exact check to another session
+and then had to apply it to itself.
+
 <sub>`scripts/mutate.sh frontend/maquette/design/src/lib/feedback.ts 't.replace("export function feedback(", "export function acknowledge(")' scripts/check-feedback-seam.py`</sub>
 
 ---
