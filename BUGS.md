@@ -402,6 +402,7 @@ when the defect comes back.
 | B-370 | R51 promises « the prototype's own controls never sit on top of the app's » and reads ONE piece of harness chrome by literal — `[data-part="harness/bar"]` — so a second piece is outside it whatever the docstring says; the property now holds by two rules each naming its own subject, and a third would be held by neither | by audit | `open` |
 | B-371 | The 8899 harness host does not survive the invocation that starts it when that invocation runs under `scripts/heavy.sh` — `set -m` puts the run in its own process group and the release signals the group, so `mutate.sh`, which starts no host, runs its rule against a refused port and B-273 reads the crash as « no hold fell » | by audit | `open` |
 | B-372 | No arm of `check-no-french.py` reads TEXT in `frontend/maquette/design/index.html` — the Strings and Identifiers arms are rooted on `design/src`, and the only arm that opens the file reads attributes — so « the guard does not refuse these labels » was never evidence that an arm had read them | by audit | `open` |
+| B-373 | The DECLARED HARNESS DEVIATION block calls itself « the ONLY accepted divergence in the shell » and makes FIVE declarations, of which ONE diverges — the other four restate what the app's own variants already declare, so they can witness nothing and hid a dead comparison in the rule that reads them | by audit | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
@@ -2106,6 +2107,34 @@ cheapest shape is for the host to be started outside the signalled group, or for
 start one the way `run.sh` does.
 
 <sub>audit, desktop-frame micro-wave · `grep -n 'server.py --serve' frontend/maquette/harness/run.sh` · `grep -n 'set -m' -A3 scripts/heavy.sh` and the `kill -TERM -"$child"` beneath it · after a wrapped run: `lsof -nP -iTCP:8899 -sTCP:LISTEN` empty</sub>
+
+**B-373 — the frame's « only accepted divergence » is one declaration inside a block of five.**
+`frontend/maquette/design/src/styles/harness.css`, the DECLARED HARNESS DEVIATION: it repositions
+the tab bar, the action button and the selection bar to `absolute` within the frame, and sets the
+bar's `inset-inline: 0; bottom: 0`. Its comment says « This is the ONLY accepted divergence in the
+shell », and the parity probe carries it as a justified allowlist entry.
+
+Four of those five declarations diverge from nothing. Read in the app's own variants rather than
+guessed: `ui/variants/frame.ts:60` draws the tab bar as `bottombar fixed inset-x-0 bottom-0`, so the
+frame's `inset-inline: 0` and `bottom: 0` restate what the app already says; `:111` draws the action
+button as `fab absolute …` and `:124` the selection bar as `selbar absolute …`, so `position:
+absolute` on those two changes nothing at all. **The real deviation is one property on one element**
+— the tab bar's `position`, `fixed` in the app and `absolute` in the frame — and that one is
+genuine, measured `fixed` against `absolute` at 1280 px.
+
+**How it was found, and why it is filed rather than fixed here.** R140 compares every property the
+frame re-asserts against a document with no frame, and holds that each must read DIFFERENTLY — a
+property the frame does not move cannot show the frame leaving. With the list grown from three
+properties to ten, that hold fell on the four that cannot move. The tempting repair is to relax the
+hold; the honest one is to name them, which is what the rule does now (`REDUNDANT`, each with the
+variant line it was read from), so a NEW dead comparison and a listed one coming alive both fall it.
+Deleting the four declarations is the real repair and it is not this wave's: they are the frame's
+behaviour at 390 px, which this micro-wave's brief forbids it to touch.
+
+Owner: **the next wave that opens the deviation block**, or the parity probe's owner — the allowlist
+entry describes a block whose justification covers one fifth of it.
+
+<sub>audit, desktop-frame micro-wave · `sed -n '30,52p' frontend/maquette/design/src/styles/harness.css` · `grep -n "bottombar fixed\|fab absolute\|selbar absolute" frontend/maquette/design/src/ui/variants/frame.ts` → the three lines that make four of the five redundant</sub>
 
 **B-372 — the guard that was cited as confirming a ruling reads no text in the file the ruling is about.**
 The wave put its two French labels in `design/index.html` rather than in `fr.json`, on the steward's

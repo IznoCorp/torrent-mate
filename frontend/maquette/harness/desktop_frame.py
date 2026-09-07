@@ -120,6 +120,47 @@ FORCED = [('[data-part="shell/tab-bar"]', "display"),
 # an absent element is REPORTED rather than silently dropped, because a
 # comparison over a shrinking set of keys is the vacuity this rule exists to
 # refuse.
+# DECLARATIONS THE FRAME MAKES THAT THE APP ALREADY MAKES, so they read the
+# same on both sides and can witness nothing. They are listed rather than
+# tolerated: a property that cannot move is where a dead hold hides, and the
+# hold below refuses BOTH a new one appearing and a listed one coming alive.
+#
+# Each was read in the app's own variants, not guessed:
+#   `ui/variants/frame.ts:60`  the tab bar is `bottombar fixed inset-x-0
+#                              bottom-0` — so the frame's `inset-inline: 0`
+#                              and `bottom: 0` restate what the app declares,
+#                              and only `position` is a real deviation;
+#   `ui/variants/frame.ts:111` the action button is `fab absolute …`;
+#   `ui/variants/frame.ts:124` the selection bar is `selbar absolute …`.
+#
+# So of the five declarations in the DECLARED HARNESS DEVIATION block, ONE
+# deviates and four restate. The file's own comment calls that block « the
+# ONLY accepted divergence in the shell », and the divergence is narrower than
+# the block implementing it — B-373.
+REDUNDANT = {('[data-part="shell/tab-bar"]', "inset-inline-start"),
+             ('[data-part="shell/tab-bar"]', "inset-inline-end"),
+             ('[data-part="shell/tab-bar"]', "bottom"),
+             ('[data-part="shell/add-action"]', "position"),
+             ('[data-part="selection/bar"]', "position")}
+
+
+def key(selector, property_name):
+    """The key one reading of one property is stored under.
+
+    A dict keyed by the SELECTOR alone kept the last property written and
+    silently dropped the four before it, so five readings on the tab bar
+    became one and two holds compared a value nobody had asked for.
+
+    Args:
+        selector: The anchor the element is reached by.
+        property_name: The CSS property read on it.
+
+    Returns:
+        The composite key, matching what the page script builds.
+    """
+    return f"{selector} · {property_name}"
+
+
 ALWAYS_DRAWN = ('[data-part="shell/tab-bar"]',
                 '[data-part="shell/header"]',
                 '[data-part="shell/connection-mark"] > span:last-child')
@@ -213,7 +254,8 @@ READ_FORCED = """(forced)=>{
   const out = {};
   for (const [selector, property] of forced) {
     const el = document.querySelector(selector);
-    out[selector] = el ? getComputedStyle(el).getPropertyValue(property) : null;
+    out[selector + " · " + property] =
+      el ? getComputedStyle(el).getPropertyValue(property) : null;
   }
   return out;
 }"""
@@ -227,7 +269,8 @@ UNFRAMED = """(forced)=>{
   const out = {};
   for (const [selector, property] of forced) {
     const el = document.querySelector(selector);
-    out[selector] = el ? getComputedStyle(el).getPropertyValue(property) : null;
+    out[selector + " · " + property] =
+      el ? getComputedStyle(el).getPropertyValue(property) : null;
   }
   device.classList.add('device');
   return out;
@@ -280,8 +323,14 @@ LABELLED = """(argument)=>{
 # So the device is read as a BOX plus the skin, both against the control
 # document, and the width is no longer asked to speak for four properties it
 # says nothing about.
-DEVICE_SKIN = ["height", "border-top-width", "border-radius", "box-shadow",
-               "overflow"]
+# `height` is NOT here, and the first version of this list had it. Out of the
+# frame the device is `height: 100svh` — the window — while the control
+# document, which has no `.device` at all, is as tall as its content (861px
+# against 800). The two are not comparable and the hold fell saying so. The
+# device's height is held where it belongs: by the BOX hold, against the
+# viewport's own rectangle, which is the reading that actually says « the
+# device is the window ».
+DEVICE_SKIN = ["border-top-width", "border-radius", "box-shadow", "overflow"]
 
 # What the harness declares on the device and does NOT take back at the
 # switch, each with the reason it stays. They are held by name so that
@@ -395,8 +444,8 @@ async def measure_desktop(browser, journal):
     # device, so the expected values below are measured rather than declared.
     unframed = await page.evaluate(UNFRAMED, FORCED)
     framed = await page.evaluate(READ_FORCED, FORCED)
-    missing = sorted({selector for selector, _ in FORCED
-                      if framed[selector] is None})
+    missing = sorted({selector for selector, property_name in FORCED
+                      if framed[key(selector, property_name)] is None})
 
     journal.check(
         "every property the frame forces is readable on the element the frame "
@@ -411,16 +460,21 @@ async def measure_desktop(browser, journal):
     # reads `None` on both, and `None != None` is False — so an absent element
     # would silently shrink the set this hold counts over, which is the
     # vacuity the hold exists to refuse.
-    answered = [selector for selector, _ in FORCED if selector not in missing]
-    moved = {selector for selector in answered
-             if framed[selector] != unframed[selector]}
+    answered = [(selector, property_name) for selector, property_name in FORCED
+                if selector not in missing]
+    moved = {pair for pair in answered
+             if framed[key(*pair)] != unframed[key(*pair)]}
+    redundant = {pair for pair in answered if pair not in moved}
     journal.check(
         "and the frame really is forcing them: each reads differently with the "
         "device's own class removed",
-        len(moved) == len(answered) and len(answered) >= len(ALWAYS_DRAWN),
-        f"at {width}px — framed {framed}, unframed {unframed}. A property the "
-        f"frame does not move cannot show that the frame left: {sorted(moved)} "
-        f"of {len(answered)} answered")
+        redundant == {pair for pair in REDUNDANT if pair in answered}
+        and len(answered) >= len(ALWAYS_DRAWN),
+        f"at {width}px — {len(moved)} of {len(answered)} answered move. A "
+        f"property the frame does not move cannot show that the frame left, "
+        f"so the ones that cannot are DECLARED: expected "
+        f"{sorted(REDUNDANT)}, read {sorted(redundant)}. Framed {framed}, "
+        f"unframed {unframed}")
 
     # THE LIST IS COMPLETE, AND THAT IS MEASURED. `FORCED` used to carry a
     # sentence claiming it held every property the re-assertion blocks
