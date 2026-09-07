@@ -205,6 +205,27 @@ LONGHANDS = {"inset-inline": ("inset-inline-start", "inset-inline-end"),
 # reads. The completeness hold compares them directly.
 
 
+def device_spellings(device_classes):
+    """Every way this stylesheet can name the device element.
+
+    The parser matched the CLASS alone, so a re-assertion written on the ID —
+    `#device [data-part="shell/header"]` — was invisible to it while applying
+    perfectly in the browser. And the ID is not an exotic spelling somebody
+    would have to invent: it is this rule's own `DEVICE` constant, the anchor
+    every reading here goes through.
+
+    Args:
+        device_classes: The classes the device element carries, read from the
+            document.
+
+    Returns:
+        The spellings, longest first so that a compound selector is matched at
+        its most specific occurrence rather than at a prefix of it.
+    """
+    return sorted([DEVICE] + [f".{name}" for name in device_classes],
+                  key=len, reverse=True)
+
+
 def declared_reassertions(device_classes):
     """Every declaration the harness makes on an element inside the device.
 
@@ -255,8 +276,8 @@ def declared_reassertions(device_classes):
         # caller refuses an unscoped one the list does not carry.
         inside = []
         for one in targets:
-            token = next((f".{name}" for name in device_classes
-                          if f".{name}" in one), None)
+            token = next((spelling for spelling in device_spellings(
+                device_classes) if spelling in one), None)
             if token is None:
                 continue
             after = one.split(token, 1)[1].strip()
@@ -427,12 +448,35 @@ DEVICE_SURVIVES = {"position": "relative",
                    "flex-direction": "column"}
 
 # The rest of what that block declares survives too, and cannot be held by a
-# TYPED value because every one of them is relative to the window: `width` and
-# `max-width` are `100%`, `height` is `100svh`, `background` is a token. They
-# are held by the other end instead — each must read DIFFERENTLY from the
-# control document, which proves the declaration is still arriving rather than
-# that it happens to equal a number somebody wrote down.
+# TYPED value because every one of them is relative to the window or to a
+# token. They were held by « each must read DIFFERENTLY from the control
+# document », and that is not a hold: a WRONG value differs from the control
+# just as well as the right one does. `.device{background:red}` left the window
+# red out of the frame with every hold green, which is the shape this rule
+# exists to refuse, sitting inside the hold written to refuse it.
+#
+# Each is held to what its own declaration MEANS, computed in the page at the
+# moment of reading — the window's width for `width: 100%`, its height for
+# `height: 100svh`, and the token's own resolved colour for
+# `background: var(--color-background)`. Measured, never typed, and wrong the
+# moment the value stops being what the declaration says.
 DEVICE_SURVIVES_DYNAMIC = ("width", "max-width", "height", "background-color")
+
+# What each of those declarations RESOLVES to, asked of the same document. The
+# colour goes through a probe element rather than through the raw custom
+# property, because the property's text is a token and the reading is a
+# resolved colour: comparing them would compare two different languages.
+WHAT_THE_DECLARATIONS_MEAN = """()=>{
+  const probe = document.createElement('div');
+  probe.style.background = 'var(--color-background)';
+  document.body.appendChild(probe);
+  const background = getComputedStyle(probe).backgroundColor;
+  probe.remove();
+  return {'width': window.innerWidth + 'px',
+          'max-width': window.innerWidth + 'px',
+          'height': window.innerHeight + 'px',
+          'background-color': background};
+}"""
 
 
 def declared_by_the_frame_itself(device_classes):
@@ -458,8 +502,8 @@ def declared_by_the_frame_itself(device_classes):
     names = set()
     for selectors, body in re.findall(r"([^{}]+)\{([^{}]*)\}", text):
         targets = [one.strip() for one in selectors.split(",")]
-        if len(targets) != 1 or targets[0] not in {f".{name}"
-                                                   for name in device_classes}:
+        if len(targets) != 1 or targets[0] not in set(
+                device_spellings(device_classes)):
             continue
         for declaration in body.split(";"):
             if ":" not in declaration:
@@ -740,8 +784,9 @@ async def measure_desktop(browser, journal):
                     for k in DEVICE_SURVIVES_DYNAMIC}
     dynamic_control = {k: unframed_box["dynamic:" + k]
                        for k in DEVICE_SURVIVES_DYNAMIC}
+    meant = await page.evaluate(WHAT_THE_DECLARATIONS_MEAN)
     still_arriving = [k for k in DEVICE_SURVIVES_DYNAMIC
-                      if dynamic_left[k] != dynamic_control[k]]
+                      if dynamic_left[k] == meant[k]]
     declared_own = declared_by_the_frame_itself(device_classes)
     held_own = set(DEVICE_SURVIVES) | set(DEVICE_SURVIVES_DYNAMIC)
     journal.check(
@@ -753,8 +798,10 @@ async def measure_desktop(browser, journal):
         f"at {width}px — the block declares {sorted(declared_own)} and this "
         f"rule holds {sorted(held_own)}; the static ones read {stayed} "
         f"against {DEVICE_SURVIVES}; the window-relative ones read "
-        f"{dynamic_left} against a frameless {dynamic_control}, still "
-        f"arriving: {sorted(still_arriving)}. An eighth declaration appearing "
+        f"{dynamic_left} against what their own declarations mean here, "
+        f"{meant} (a frameless document reads {dynamic_control}, which is a "
+        f"different question and was the wrong one). Still arriving: "
+        f"{sorted(still_arriving)}. An eighth declaration appearing "
         f"in that block, or one of these quietly ceasing to arrive, is the "
         f"defect this reads")
 
