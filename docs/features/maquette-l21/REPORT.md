@@ -141,14 +141,22 @@ argued, at length and persuasively, against the very design the mutation then fo
    lines above it: that sibling's first version read response events too and was rewritten to
    read the layer's own record; the repair did not travel next door.
 
-⚠ **EIGHT IS A CLAIM UNDER RECOUNT, not a total.** `DESIGN.md` § 3.1c records FOUR instrument
-defects **phase 2** found, and at least two of the eight above are those same units seen again:
-« `window.__go` re-seeds the mock layer » is § 3.1c's third, and the eighth is an instance of
-its first. Worse for the eighth: § 3.1c names it outright — « `busy.py`'s « no mutation was
-answered 409 » hold is vacuous for this reason … **Phase 6 owns `busy.py` and repairs it
-there** » — so it is not a discovery at all but an obligation this lot wrote down, owned and
-missed, while the design document went on saying it would be met. The recount is owed before
-the squash.
+⚠ **EIGHT, RECOUNTED — and the recount changed the composition and not the figure.** `DESIGN.md` § 3.1c records FOUR instrument
+defects **phase 2** found, and the first version of this count — assembled from the rotation's
+hand-over without reading that section underneath it — got two things wrong in opposite
+directions. It carried B-365 as a **discovery**, where § 3.1c names that hold outright —
+« `busy.py`'s « no mutation was answered 409 » hold is vacuous for this reason … **Phase 6
+owns `busy.py` and repairs it there** » — so it is an obligation this lot wrote down, owned
+and missed while the design document went on saying it would be met. And it missed « the
+message is not in `#toast` » entirely, which is a unit. **The two errors cancelled in the
+total and in nothing else.** The units are itemised one line each in `BUGS.md` § « L21's
+eight, itemised », and that itemisation is the count; this paragraph is not. One of § 3.1c's
+four is excluded with its reason: a wrong answer in a mock handler is not a hold green over
+what it does not read.
+
+**A wave that records an instrument defect, assigns it, and then reads its own document as
+though the assignment were the repair has invented a new way to be green over what it does not
+read** — one level up, in the prose. That is what B-365 is really about.
 
 **What the eighth is still worth taking away is HOW it was established**: one mutation moved
 its sibling and not it. The question that
