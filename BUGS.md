@@ -374,15 +374,15 @@ when the defect comes back.
 | B-312 | Changing the library's lens during a selection DROPS it — L14's own decision, RULED against by the operator on 2026-09-05 | 2× | `open` |
 | B-313 | The follow sheet offers « Voir le parcours » TWICE — once as the primary act, once in the secondary row — whenever the primary falls through to it | 1× | `open` |
 | B-314 | The add screen's search shows no example result to try the flow with | 1× | `open` |
-| B-315 | Découvrir's « charger plus »: the button is too big, one press should show more, and the feed must say when the reserve is spent | 1× | `open` |
+| B-315 | Découvrir's « charger plus »: the button is too big, one press should show more, and the feed must say when the reserve is spent | 1× | `fixed #572` |
 | B-316 | The suggestion producer is registered and no finger reaches it — the media screen takes every point of the card. RULED closed on a measurement: the ten recorded points were TAPS, and a real long press raises the panel on both card kinds | 1× | `fixed #572` |
 | B-317 | The prototype's greeting toast covers the settings save bar, so a finger there does nothing while it lives | 1× | `open` |
 | B-318 | The build races its own output on a fresh `dist` again — B-098's shape, in two hooks this time | 1× | `open` |
 | B-319 | `fanout.py` holds the invalidation map against itself: a key dropped from the declaration is invisible to it | 1× | `open` |
 | B-320 | React #300 and #310 on the two non-ready acquisition surfaces, from a cold page, on head and on `main` alike | 1× | `open` |
 | B-321 | An evicted `setting:`/`action:` panel entry leaves the address naming a panel that never comes back | 1× | `fixed #558` |
-| B-322 | The release screen fires TWO take toasts into one element in the same tick, and the first is never seen | 1× | `open` |
-| B-323 | Two `setTimeout(…, 260)` sites were never counted — the inventory reads one line — and one of them is the release screen's `data-take`, a verb moved by half with no lot named for the other half | by audit | `open` |
+| B-322 | The release screen fires TWO take toasts into one element in the same tick, and the first is never seen | 1× | `fixed #572` |
+| B-323 | Two `setTimeout(…, 260)` sites were never counted — the inventory reads one line — and one of them is the release screen's `data-take`, a verb moved by half with no lot named for the other half | by audit | `fixed #572` |
 | B-324 | The BACKEND's own mirror of the PM2 crons names three of the seven the machine runs, and nothing reads it against `pm2 jlist` — B-308's finding on the end that has no guard at all | by the backend brief | `open` |
 | B-325 | No harness rule can be pointed at a build: `common.PROTOTYPE` is hard-coded to 8899 with no override, every rule self-runs on import, and a rule rebound elsewhere is still certified by the B-256 stamp of the copy it did NOT read | by the instruments' debts block | `open` |
 | B-326 | `heavy.sh` offers no way to ask who holds its lock, so the natural probe — `cat` on what is a DIRECTORY — reads « free » whether the lock is held or not, and two sessions reached for it independently on the same night | by the steward's office | `open` |
@@ -401,6 +401,7 @@ when the defect comes back.
 | B-345 | The seeded data does not show every state a surface can take — the operator could not find a single medium « à prendre » to try « Récupérer maintenant » on; his ruling: the test data must always hold enough simulated states to exercise every case by hand | 1× | `open` |
 | B-360 | The pre-push gate refuses a push over a GREEN suite and shows the reason to nobody: each check runs silently first and, when that pytest dies of a signal, is rerun visibly — the rerun's « 11 325 passed » is printed and its result discarded, so the reader gets a green summary, then « Push aborted », and the failure in no output; three refusals in one morning on two branches, the same push landing on its next attempt | 1× | `open` |
 | B-361 | A Maintenance rubric cannot be left either — entering it writes `?topic=…` by replacement, pushes no entry and draws no back, so the system Back leaves « Maintenance » for Acquisition; B-332's shape on the second page that has rubrics, measured on the operator's phone by the real path | 1× | `open` |
+| B-363 | `residue.py` reads a typed variant's base through its string LITERALS, so a factory built from a shared constant reads EMPTY and is reported unreadable — a token scale cannot be written once and shared between two variants while that is true, and the repair that suggests itself (concatenating a literal with the constant) silences the report and leaves the reader comparing one token | 1× | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
@@ -1409,10 +1410,22 @@ of thirty-eight, and the operator ruled that consequence accepted**: the oracle'
 the discover states carry this ruling as their reason (D8). Held by R134, nine holds, RED on a
 build of `main` at four violations with no mutation needed.
 
-**(a) IS NOT DONE.** The button's size is drawn at the component catalogue's secondary-footer scale
-BY ITS TOKEN, and its hold reads the rendered size against the same token the catalogue resolves to
-— measured on the page, never typed. No named state, so the oracle never sees it and no divergence
-is « accepted »; the operator judges it on his Mac.
+**(a) IS DELIVERED, and READ.** The button is drawn at the load footer's own scale
+(`loadFooterAction`, beside the retry that already wore it) instead of `.btnprimary`, the
+action-button system. **R136** (`harness/load_more_scale.py`) builds the spent pile itself — no
+named state reaches `[data-sugmore]` (B-352) — and reads the RENDERED size against the token,
+with NO pixel count written in the rule: a probe element wearing `font-size: var(--text-N)` is
+laid out by the same engine that lays out the button, so it compares the STEP.
+
+**RED FIRST, WITH NO MUTATION, ON A BUILD THAT PREDATES IT** — three violations naming this exact
+subject: type `13` where the step resolves to `12`, type equal to the SCREEN's step, padding `10`
+where the footer's step resolves to `8`. Green after: 6 holds, no violation. The operator judges
+the drawing on his Mac.
+
+**One thing said rather than left to be discovered**: the footer scale carries no 44 px floor, so
+the box is about a third shorter than the action-button system's. It clears the 24 px target
+minimum and is the size the catalogue's other footer action already ships at — but it IS smaller
+under a thumb, and that trade is the substance of the amendment rather than a side effect of it.
 Reported by the operator on 2026-09-05: « Dans Découvrir, le bouton "charger plus" est trop gros,
 et il devrait permettre de voir plus de suggestions et prévenir s'il n'y a plus de suggestions à
 voir. »
@@ -1662,9 +1675,24 @@ or two were written — which is this defect exactly, so such a hold measures no
 into `window.__toast.show` would have been easier and would have measured the seam instead of the
 element, while patching the thing under measurement.
 
-**NOT YET READ.** The served copy was held by another wave when this landed, so R137 is written and
-has not run. Owed before this entry closes: R137 seen RED on a build that still writes both — no
-mutation needed, two writes are observable there — and then green.
+**READ, AND THE RULE HAD TO BE REPAIRED TWICE BEFORE IT MEASURED ANYTHING.** R137 is green at 5
+holds. Getting there produced the finding worth keeping:
+
+**A HOLD READING THE ELEMENT CANNOT SEE THIS DEFECT AT ALL.** The rule first watched the message
+element with a MutationObserver, and a mutation — a second sentence written into the verb on
+purpose — made only the « both halves » hold fall while « exactly one sentence » stayed GREEN over
+two writes. Both writes land in ONE task; the message host is a component, so they are batched into
+a single render and the DOM never holds the first value. **Nothing that reads the element can tell
+two writes from one.** That is why this entry's own first reading says « sampled every 180 ms, only
+the second is ever observed »: the sentence describes the limit of the instrument it was taken
+with. The count is now taken at the seam — `window.__toast.show` wrapped for the gesture,
+forwarding every call unchanged — and the element is read only for the half it can answer, what the
+operator is left looking at. Re-mutated after the repair: the count hold falls and prints both
+sentences.
+
+**The rule also fell twice on itself before that**: it counted the prototype's own welcome hint as
+a sentence of the gesture, and it read the screen bar whole, so the subject came out « Retour Silo »
+and appeared in no message. Both were the instrument, not the product.
 
 
 
@@ -1723,8 +1751,10 @@ command written there before it saw a site only when its call and its delay shar
 why it answered five when there were six: « the count agrees with the comment » was true of both
 numbers. R103 is deliberately NOT widened into a blanket refusal — five of the six are L13's.
 
-**NOT YET READ.** The harness was held by another wave when this landed: `exits.py` and R123 have
-not been re-run, and R123's hold count must be read unchanged after its selector moved.
+**READ.** `exits.py` green at 18 holds with the inventory re-taken; R123 (`take.py`) green at 9
+holds after its picker-half selector moved to the new name, its count unmoved, which is what the
+phase protects: the panel's take and the picker's are still read by ONE rule, because they were
+once the same button.
 
 
 
@@ -2353,6 +2383,36 @@ this shape (it runs the suite once and shows it). Numbered from the steward's bl
 B-351+ and the departure wave B-346+ on their branches.
 
 <sub>steward, 2026-09-06 · the two pushes' logs (`push-reports.log`: `Terminated: 15`, then 11 307 passed, then « Push aborted »; `push-reports-2.log`: landed) · the L21 agent's report of 11:2x (`Abort trap: 6`, 11 325 passed, « Push aborted », `heavy: l21 done (exit 141)`) · `sed -n '32,42p' hooks/pre-push` · `find ~/Library/Logs/DiagnosticReports -newermt "-90 minutes"` → nothing</sub>
+
+**B-363 — a shared token constant cannot be read by the instrument that compares variants.**
+
+`harness/residue.py`'s `read_factories` builds a `cva()` factory's base from the STRING LITERALS
+of its first argument. A factory written as `cva(`mt-4 ${scale}`)` therefore has an empty base, and
+the reader says so rather than passing — `unread` is a violation and never a skip, exactly as its
+own docstring promises: « a factory the reader could not read is a pair that silently stops being
+compared ».
+
+**Measured** when the load footer's two actions — the retry and « load more » — were given one
+`footerActionScale` constant to share, which is the shape the catalogue wants for a scale used
+twice: `tests/scripts/test_residue.py::TestFactoryReading::test_the_repository_accounts_for_every_call`
+named both factories as unread.
+
+**THE OBVIOUS REPAIR IS WORSE THAN THE DEFECT, and that is the part to remember.** Writing
+`cva("mt-4 " + scale)` gives the reader a literal, so the complaint goes away — and the base it
+then reads is the single token `mt-4`. It would go on comparing that one token, report nothing, and
+have stopped reading the pair. A gate quieted is not a gate passed.
+
+**Worked around, not fixed.** The scale is spelled out in both variants and the two are held equal
+by a unit test (`ui/variants.test.ts`), which fails out loud when one moves without the other. The
+cost is a duplicated string; the alternative was a blind instrument.
+
+**What a fix would take**: reading the first argument through the TypeScript parser rather than by
+literal extraction, and following a same-file constant to its own literal — the parser is already
+used by `check-markup-contracts`, so the capability exists and is not wired here. **Owner: the next
+wave that touches `residue.py`.**
+
+<sub>L21 · `python -m pytest tests/scripts/test_residue.py::TestFactoryReading::test_the_repository_accounts_for_every_call` → `assert ['loadErrorAction() in surfaces.ts', 'loadFooterAction() in surfaces.ts'] == []`</sub>
+
 
 **B-361 — a Maintenance rubric cannot be left either.**
 B-332's shape on the second page that has rubrics, found by B-333's inventory on the operator's phone
