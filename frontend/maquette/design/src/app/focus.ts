@@ -180,8 +180,16 @@ function reconcile(): void {
     //
     // The fallback is the main region rather than nothing: the reader lands
     // back in the content they came from instead of at the top of the document.
-    if (closed.trigger?.isConnected) closed.trigger.focus();
-    else document.getElementById("port")?.focus();
+    // `preventScroll`, ON BOTH BRANCHES. Restoring focus is right; moving the
+    // PAGE to do it is not. The browser scrolls a focused element into view by
+    // default, so closing a layer opened from a row near the top of a list sent
+    // the list back to its top — one scroll event, no re-render, nothing
+    // rebuilt, and no instrument saw it for as long as the boot page was too
+    // short to scroll. The focus still moves; only the browser's scroll is
+    // suppressed. `ui/virtual-rows.tsx` already answers this the same way.
+    if (closed.trigger?.isConnected)
+      closed.trigger.focus({ preventScroll: true });
+    else document.getElementById("port")?.focus({ preventScroll: true });
   }
 
   if (!top) {
