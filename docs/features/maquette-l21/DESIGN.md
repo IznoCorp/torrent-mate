@@ -146,6 +146,21 @@ and the subject is chosen from `window.SEASONS` (owned < aired) BEFORE a finger 
 **The fixture offers exactly one subject**: `Silo`, season 3, 7 aired, 6 held. Thin, and
 said so here rather than discovered by the next reader.
 
+**And two paused follows were RENAMED, late in the lot, for a reason worth writing down.** A phase
+seeded « Terminus Nord » and « Le Dernier Quai » to give the paused-tile rule a paused series and a
+paused film — the first follows in this prototype's history with no media sheet. The grid's tile
+emits `data-mediasheet` for every follow, so both posters promised a sheet that does not exist, and
+`audit.py`'s R1 said so. **Neither the tile nor the sheet could be repaired here**: the tile is the
+dying engine's drawing, and `SHEETS_RAW` is a 20 538-line literal inside `legacy.js` of which
+`mocks/seeds/media-sheets.json` is a DERIVED copy — so giving a title a sheet also means adding
+lines to the engine, which the size ledger refuses. The rows were therefore renamed to
+« The Venture Bros » and « Premier Contact », which already have complete sheets and no
+`seasons.json` entry — so `THE_MEDIUM_WITH_A_HOLE` still chooses `Silo` and the rules that depend on
+it are unmoved. Only the title, the year and the show status moved; the status, kind, owned and
+aired are the phase's own, because the paused-tile rule reads the LAYER by STATUS and never by
+title. **The defect is B-366 and it survives the rename** — with nothing sheetless left in the
+fixture, R1 stops reading the case entirely.
+
 ### 3.1c Four instrument defects phase 2 found, none of them by a gate
 
 1. **A mocked call reaches no network.** `mocks/index.ts` replaces `globalThis.fetch`, so

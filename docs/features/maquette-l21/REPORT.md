@@ -134,11 +134,36 @@ argued, at length and persuasively, against the very design the mutation then fo
    all — « nothing was refused » would have been green over an empty list, for ever and invisibly.
    It reads the layer's own record now, keyed by operationId.
 
-**Seven, and every one is in this wave's own new holds.** Two adjacent findings are named and
-NOT counted, because saying which is which is the difference between a count that means something
-and a count that flatters: **B-363** (`residue.py` cannot read a factory built from a shared
-constant) and **B-364** (a hit test that throws on an SVG instead of pressing it) are both LOUD.
-One reports, the other raises; this table's species is a hold that PASSES.
+8. **R124's « no mutation was answered 409 » hold reads a network the refusal never crosses.**
+   It fills its list from Playwright's `page.on("response")`, and the mock layer replaces
+   `globalThis.fetch` and answers IN THE PAGE — so no response event can ever carry a 409 from
+   it. Green over nothing, permanently, and it is the SAME defect as the one repaired three
+   lines above it: that sibling's first version read response events too and was rewritten to
+   read the layer's own record; the repair did not travel next door.
+
+⚠ **EIGHT IS A CLAIM UNDER RECOUNT, not a total.** `DESIGN.md` § 3.1c records FOUR instrument
+defects **phase 2** found, and at least two of the eight above are those same units seen again:
+« `window.__go` re-seeds the mock layer » is § 3.1c's third, and the eighth is an instance of
+its first. Worse for the eighth: § 3.1c names it outright — « `busy.py`'s « no mutation was
+answered 409 » hold is vacuous for this reason … **Phase 6 owns `busy.py` and repairs it
+there** » — so it is not a discovery at all but an obligation this lot wrote down, owned and
+missed, while the design document went on saying it would be met. The recount is owed before
+the squash.
+
+**What the eighth is still worth taking away is HOW it was established**: one mutation moved
+its sibling and not it. The question that
+finds these is not « did a hold fall? » but **« did EVERY hold that claims this clause fall? »**
+— the fallen set against the set of holds whose text names the clause, which is a set difference
+on strings `common.Journal` already prints. A third hold on that same clause was unmoved too and
+is **legitimately orthogonal**: it reads whether the INTERFACE says « occupé », which a caught
+409 need not. Saying which of the two an unmoved hold is, is the whole difference.
+
+**Three adjacent findings are named and NOT counted**, because saying which is which is the
+difference between a count that means something and a count that flatters: **B-363**
+(`residue.py` cannot read a factory built from a shared constant) and **B-364** (a hit test that
+throws on an SVG instead of pressing it) are both LOUD — one reports, the other raises, and this
+table's species is a hold that PASSES; and **B-366** (a grid tile promising a media sheet a
+follow has not) is a PRODUCT defect that `audit.py` CAUGHT, so the instrument worked.
 
 **And `check-markup-contracts` caught an eighth that was the wave's, not an instrument's**:
 selecting `[data-pick-release]` by CSS attribute PRESENCE enrols a VALUE attribute in the derived
