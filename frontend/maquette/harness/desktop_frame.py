@@ -384,6 +384,37 @@ HARNESS_CHROME = '[data-part^="harness/"]'
 # click that happened before the loop. `checked` is the state itself; the
 # device filling the window is what that state is FOR, and reading both means
 # a press that silently stopped working cannot pass as a corner that is free.
+# THE OTHER DIRECTION, and the sweep asked only one of them. « What does the
+# control cover » and « what covers the control » are different questions with
+# different answers: a layer the app paints AFTER the control, at the same
+# stacking rank, wins on document order and takes the press while every
+# crossing count reads zero. The control is the way BACK into the frame — if a
+# finger cannot reach it, the operator is stranded in the state that covers it,
+# and the keyboard still working is a consolation rather than an answer.
+#
+# Read at the centre AND the four corners, because a layer that covers half of
+# a control leaves it half usable, which is not a state worth shipping either.
+WHAT_COVERS_IT = """(argument)=>{
+  const [switchSelector, label] = argument;
+  const node = document.querySelector(switchSelector);
+  if (!node) return ['ABSENT'];
+  const a = node.getBoundingClientRect();
+  if (!a.width || !a.height) return ['NOT DRAWN'];
+  const ours = document.querySelector(label);
+  const points = [[a.left + a.width / 2, a.top + a.height / 2],
+                  [a.left + 1, a.top + 1], [a.right - 1, a.top + 1],
+                  [a.left + 1, a.bottom - 1], [a.right - 1, a.bottom - 1]];
+  const strangers = [];
+  for (const [x, y] of points) {
+    const top = document.elementFromPoint(x, y);
+    if (!top) { strangers.push('nothing'); continue; }
+    if (node.contains(top) || (ours && ours.contains(top))) continue;
+    strangers.push(top.getAttribute('data-part') || top.id
+                   || top.className || top.tagName);
+  }
+  return [...new Set(strangers)];
+}"""
+
 OUT_OF_THE_FRAME = """(argument)=>{
   const [checkbox, device] = argument;
   const box = document.querySelector(device).getBoundingClientRect();
@@ -938,6 +969,7 @@ async def measure_every_state(browser, journal):
     # re-render the shell, so the question is asked at EVERY state rather than
     # once before the loop.
     not_out = {}
+    covered = {}
     for state in states:
         await page.evaluate("(one)=>window.__go(one)", state)
         await page.wait_for_timeout(120)
@@ -949,6 +981,9 @@ async def measure_every_state(browser, journal):
             CROSSED, [SWITCH, INTERACTIVE, HARNESS_CHROME])
         if hits:
             crossed[state] = hits
+        over = await page.evaluate(WHAT_COVERS_IT, [SWITCH, LABEL])
+        if over:
+            covered[state] = over
     journal.check(
         "and every one of those readings was taken OUT of the frame — the "
         "checkbox checked and the device filling the window, in each state",
@@ -956,6 +991,18 @@ async def measure_every_state(browser, journal):
         f"at {width}px — {len(states) - len(not_out)} of {len(states)} state(s) "
         f"were read out of the frame; the rest were not and their crossings "
         f"mean nothing: {dict(list(not_out.items())[:4])}")
+
+    journal.check(
+        "and nothing of the app's covers the way BACK — the control answers "
+        "the finger at its centre and its four corners, in every state",
+        not covered,
+        f"at {width}px, out of the frame — {len(covered)} of {len(states)} "
+        f"state(s) put something over it: "
+        f"{dict(list(covered.items())[:6])}"
+        f"{' …' if len(covered) > 6 else ''}. The control is the way BACK into "
+        f"the frame: a layer that takes its press strands the operator in the "
+        f"state that draws it, and a keyboard that still reaches it is a "
+        f"consolation rather than an answer")
     journal.check(
         "out of the frame the way back covers no control the app draws NOR "
         "any other piece of harness chrome, in ANY named state — the class, "
