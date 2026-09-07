@@ -2100,6 +2100,21 @@ wrapped run that started it and absent the moment it ended; the mutation that fo
 « no hold fell » over a Playwright traceback and exit 1. The same mutation, re-run against a host
 started with `nohup` OUTSIDE the wrapper, fell correctly on one hold and named the box it found.
 
+**Re-measured on `run.sh` ITSELF, later the same day, and the first version of this entry needed
+it.** What the paragraph above measured was a host forked inside a script of the agent's own —
+the same shape and the same wrapper, but not this file. By then a `nohup` host was already
+listening, so every `run.sh` invocation took its `lsof` branch and forked nothing at all: the
+sentence naming `run.sh` was an inference from a mechanism, written as though it were a reading.
+L21's agent noticed the gap from the other side — it measured the NOHUP host surviving a wrapped
+`run.sh --contracts` (pid 52469, ppid 1) and asked which sentence was true.
+
+Both are. The reading that settles it: the nohup host was killed and the port confirmed empty,
+then `sh scripts/heavy.sh desktop-frame frontend/maquette/harness/run.sh --contracts` was run — so
+`run.sh` had to fork its own host, and it did, the tier passing 18 rules and 27 guards with no
+violation. **The moment the wrapped invocation ended, nothing was listening on 8899.** A host
+forked INSIDE the signalled group dies with it; one started outside that group does not; and
+`mutate.sh` starts neither, which is how it comes to run a rule against a refused port.
+
 **The office's sentence needs a clause.** `frontend/maquette/design/…` aside, the brief and the
 harness's own comment say « the host on 8899 is `run.sh`'s and is left running ». That is true only
 of an UNWRAPPED invocation. Owner: **the next wave that touches `heavy.sh` or `run.sh`** — the
