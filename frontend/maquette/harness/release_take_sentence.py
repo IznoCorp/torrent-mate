@@ -9,16 +9,32 @@ RACE — and each of the two carried only half of what they needed to know.
 **RED WITH NO MUTATION NEEDED against a build that still writes both.** Two
 writes are observable there, and neither surviving sentence carries both facts.
 
-WHY IT WATCHES THE ELEMENT AND NOT THE SEAM. A hold that read the message
-after the gesture sees ONE sentence whether one or two were written — which is
-the whole defect, so such a hold measures nothing. This one records every
-value the element carries ACROSS the gesture, through a MutationObserver
-installed before the tap: an overwrite is a second record, and a lost sentence
-leaves its trace there even though nothing on screen ever showed it.
+WHY IT COUNTS AT THE SEAM, AND WHY THE ELEMENT CANNOT ANSWER THIS.
 
-Counting calls into `window.__toast.show` would have been easier and worse. It
-would measure the seam rather than the element, and it would require patching
-the thing under measurement — a rule that alters what it reads.
+The first version of this rule watched the message ELEMENT across the gesture
+with a MutationObserver, on the reasoning that an overwrite would leave a second
+record. **A mutation proved that reasoning wrong**: a second message written
+deliberately into the verb made only the « both halves » hold fall, and « exactly
+one sentence » stayed green over two writes — the hold that exists for this
+defect, vacuous against the defect itself.
+
+The cause is that both writes land in ONE task. The message host is a component,
+so the two are batched into a single render and the DOM never holds the first
+value at all; an observer's callback then reads a document that has only ever
+shown the second. **Nothing that reads the element can distinguish two writes
+from one** — which is exactly why B-322's own entry records « sampled every
+180 ms, only the second is ever observed ». That sentence describes the limit of
+the instrument the entry was written with, and repeating it here would have
+reproduced it.
+
+So the count is taken where the writes exist: `window.__toast.show` is wrapped
+for the duration of the gesture and forwards every call unchanged. A spy that
+alters nothing is not « patching the thing under measurement » — and the
+objection this docstring used to make against it was written before the
+mutation, which is the whole reason a rule is mutated rather than reasoned about.
+
+THE ELEMENT IS STILL READ, for the other half. What the operator ends up seeing
+is a question about the document, and only the document can answer it.
 
 WHAT IT READS, and each fails differently:
 
@@ -63,31 +79,33 @@ SPEND_THE_HINT = """()=>{
   document.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
   window.__toast?.hide();}"""
 
-# EVERY VALUE THE MESSAGE ELEMENT CARRIES, from now until it is read back.
+# EVERY SENTENCE WRITTEN INTO THE MESSAGE LAYER, from now until it is read back.
 #
-# The observer is on `#toast` and not on `#toastmsg`: the host re-renders, and
-# an observer bound to a node the renderer replaces stops recording without
-# ever saying so. Consecutive identical readings are collapsed — React commits
-# more often than the message changes — so what comes back is the SEQUENCE of
-# distinct sentences the element held, which is what « two writes » means.
+# It FORWARDS every call unchanged and records what was said. Two writes in one
+# task are indistinguishable at the document — the host batches them and only
+# the second is ever rendered — so this is the one place where « how many times
+# did the interface speak » has an answer at all.
+#
+# It wraps ONCE: a rule that installed two wrappers would count every sentence
+# twice and report a defect the interface does not have.
 WATCH = """()=>{
-  const host = document.querySelector('#toast');
-  if (!host) return false;
+  const layer = window.__toast;
+  if (!layer || layer.__counted) return false;
   window.__sentences = [];
-  const readNow = () => {
-    const said = (document.querySelector('#toastmsg')?.textContent || '').trim();
-    const seen = window.__sentences;
-    if (said !== '' && said !== seen[seen.length - 1]) seen.push(said);
+  const underneath = layer.show;
+  layer.show = (descriptor) => {
+    window.__sentences.push(String(descriptor?.message ?? '').trim());
+    return underneath(descriptor);
   };
-  readNow();
-  window.__sentenceWatch = new MutationObserver(readNow);
-  window.__sentenceWatch.observe(host, {
-    childList: true, subtree: true, characterData: true});
+  layer.__counted = true;
   return true;}"""
 
-SAID = """()=>{
-  window.__sentenceWatch?.disconnect();
-  return window.__sentences || [];}"""
+SAID = """()=>window.__sentences || []"""
+
+# AND WHAT THE OPERATOR IS LEFT LOOKING AT. The count above says how many times
+# the interface spoke; this says what it left on screen, which is a question
+# about the document and can be answered nowhere else.
+SHOWN = """()=>(document.querySelector('#toastmsg')?.textContent || '').trim()"""
 
 # WHAT THE FIRST ROW OFFERS AND WHOM IT IS FOR, both read before the tap so
 # the sentence can be held against them afterwards.
@@ -162,29 +180,29 @@ async def main():
         await page.wait_for_timeout(SETTLED)
         watching = await page.evaluate(WATCH)
         journal.check(
-            "the message element is being watched BEFORE the tap — a sentence "
-            "overwritten by the next one is invisible to anything that looks "
-            "afterwards",
+            "every sentence the interface says is counted BEFORE the tap — two "
+            "writes in one task never both reach the document, so counting "
+            "them anywhere else answers « one » to either",
             watching, str(watching))
 
         await page.evaluate(TAP)
         await page.wait_for_timeout(ACTED)
         said = await page.evaluate(SAID)
+        shown = await page.evaluate(SHOWN)
 
         journal.check(
-            "EXACTLY ONE sentence is written across the whole gesture — two is "
-            "B-322, and which of them the operator read was a race",
+            "the interface speaks EXACTLY ONCE across the whole gesture — two "
+            "is B-322, and which of them the operator read was a race",
             len(said) == 1, f"{len(said)} sentence(s): {said}")
 
         journal.check(
-            "and it carries BOTH halves: the release retained, and the medium "
-            "it was retained for. « One sentence » is otherwise satisfied by "
-            "deleting either of the two, which loses half of the decision",
-            len(said) == 1
-            and offer["resolution"] in said[0]
-            and offer["subject"] in said[0],
-            f"« {said[0] if said else ''} » against resolution "
-            f"« {offer['resolution']} » and subject « {offer['subject']} »")
+            "and what it LEFT ON SCREEN carries both halves: the release "
+            "retained, and the medium it was retained for. « Once » is "
+            "otherwise satisfied by dropping either of the two, which loses "
+            "half of the decision",
+            offer["resolution"] in shown and offer["subject"] in shown,
+            f"« {shown} » against resolution « {offer['resolution']} » and "
+            f"subject « {offer['subject']} »")
 
         journal.check("and choosing raised no error", not errors, str(errors))
 
