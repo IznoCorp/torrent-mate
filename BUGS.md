@@ -403,6 +403,7 @@ when the defect comes back.
 | B-371 | The 8899 harness host does not survive the invocation that starts it when that invocation runs under `scripts/heavy.sh` — `set -m` puts the run in its own process group and the release signals the group, so `mutate.sh`, which starts no host, runs its rule against a refused port and B-273 reads the crash as « no hold fell » | by audit | `open` |
 | B-372 | No arm of `check-no-french.py` reads TEXT in `frontend/maquette/design/index.html` — the Strings and Identifiers arms are rooted on `design/src`, and the only arm that opens the file reads attributes — so « the guard does not refuse these labels » was never evidence that an arm had read them | by audit | `open` |
 | B-373 | The DECLARED HARNESS DEVIATION block calls itself « the ONLY accepted divergence in the shell » and makes FIVE declarations, of which ONE diverges — the other four restate what the app's own variants already declare, so they can witness nothing and hid a dead comparison in the rule that reads them | by audit | `open` |
+| B-374 | `features/library/page.tsx` says in the present tense that the legacy owns the selection bar « from creation to removal » — `paintSelBar()` is an empty function and React draws the bar; it is the sentence a reader uses to judge who owns that node | by audit | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
@@ -2122,6 +2123,31 @@ cheapest shape is for the host to be started outside the signalled group, or for
 start one the way `run.sh` does.
 
 <sub>audit, desktop-frame micro-wave · `grep -n 'server.py --serve' frontend/maquette/harness/run.sh` · `grep -n 'set -m' -A3 scripts/heavy.sh` and the `kill -TERM -"$child"` beneath it · after a wrapped run: `lsof -nP -iTCP:8899 -sTCP:LISTEN` empty</sub>
+
+**B-374 — the comment that says who owns the selection bar names an owner that no longer draws it.**
+`frontend/maquette/design/src/features/library/page.tsx:16-20`, under the heading « WHAT DOES NOT
+MOVE »: « `paintSelBar()` creates and removes a `.selbar` inside `#device`, a node React never draws
+— so the legacy owns it from creation to removal, and this component only asks for a repaint after
+it renders ». Every clause of that is in the present tense and none of it is true now.
+`engine/legacy.js:7843` reads `function paintSelBar() {}` — empty, creating and removing nothing —
+and `features/library/selection-bar.tsx:54-62` draws the bar in React, with `data-part="selection/bar"`,
+`role="region"` and its own translated label.
+
+It was true when it was written and it was emptied by a later conversion without the sentence
+moving with it, which is this repository's most frequently paid shape.
+
+**Why it is filed by a wave that never opened that file.** It is the sentence a reader reaches for
+when judging whether the harness's re-assertion on `[data-part="selection/bar"]` names a node React
+owns — the desktop-frame micro-wave re-anchored the frame's five re-assertion selectors on
+`data-part`, and round two's reader had to establish the bar's real owner from the tree because this
+comment said the opposite. A stale ownership comment costs every later reader the same detour.
+
+**Not repaired here, deliberately**: `features/` is outside this micro-wave's brief by name, and a
+one-line comment is not an exemption from a boundary. Owner: **the next wave that opens
+`features/library/page.tsx`** — the repair is to say that React draws the bar and that
+`paintSelBar` is a remaining empty seam, or to remove the seam with the sentence.
+
+<sub>audit, desktop-frame micro-wave, reader B round two · `sed -n '16,20p' frontend/maquette/design/src/features/library/page.tsx` · `grep -n "function paintSelBar" frontend/maquette/design/src/engine/legacy.js` → `function paintSelBar() {}` · `grep -n "data-part=\"selection/bar\"" frontend/maquette/design/src/features/library/selection-bar.tsx`</sub>
 
 **B-373 — the frame's « only accepted divergence » is one declaration inside a block of five.**
 `frontend/maquette/design/src/styles/harness.css`, the DECLARED HARNESS DEVIATION: it repositions
