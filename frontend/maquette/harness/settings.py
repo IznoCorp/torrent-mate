@@ -168,6 +168,183 @@ async def main():
               pending["marked"] >= 1, f"{pending['marked']} row(s)")
         check("the bar stays inside the frame", pending["insideFrame"])
 
+        # ── AND THE PANEL SAYS THE EDIT, not the file ─────────────────────
+        # The panel of an EDITED setting must show what the operator typed as
+        # « Valeur actuelle » and the file's own value as « Valeur écrite ». It
+        # is one derivation — `valueShown` — and NOTHING read it: a mutation
+        # making it answer `setting.v` unconditionally fell no hold in this file
+        # and none in R120, and what it produces is a panel telling the operator
+        # their edit did not take. The two rows are read TOGETHER, because
+        # either alone passes over a panel showing the same value twice.
+        edited = await pg.evaluate("""()=>{
+          const row = document.querySelector('[data-part="setting/row"][data-edited]');
+          if (!row) return null;
+          row.click();
+          return true;}""")
+        await pg.wait_for_timeout(400)
+        shown = await pg.evaluate(r"""()=>{
+          const rows = [...document.querySelectorAll('#sheetin [data-part="key-value"]')]
+            .map(r => r.textContent.replace(/\s+/g, ' ').trim());
+          return {rows, pending: [...(window.__referentiel.SETTINGS_STATE.modifs || new Map())
+            .values()].map(String)};}""")
+        current = next((r for r in shown["rows"] if r.startswith("Valeur actuelle")), "")
+        written = next((r for r in shown["rows"] if r.startswith("Valeur écrite")), "")
+        check("an edited setting's panel says the EDIT as its current value",
+              bool(edited) and bool(shown["pending"])
+              and any(value in current for value in shown["pending"]),
+              f"{current!r} · pending {shown['pending']}")
+        check("and the file's own value beside it, as the written one",
+              bool(written) and current != written,
+              f"current {current!r} · written {written!r}")
+
+        # ── « Annuler la modification » DROPS THAT EDIT, and only that one ──
+        #
+        # NO RULE READ THIS VERB. `grep -ln 'cancelsetting'
+        # frontend/maquette/harness/*.py` returned nothing, and it
+        # is emitted by a producer and read by a delegation branch — a contract
+        # with two ends and no reader. It is written HERE, against the engine's
+        # own branch, and seen red under a mutation of it BEFORE the reader
+        # moves into this feature: a rule written after a move proves only that
+        # it agrees with the move.
+        #
+        # TWO EDITS ARE MADE, and that is the whole shape. Cancelling one must
+        # leave the other standing; a hold that cancels the only pending edit
+        # passes over a branch that clears the map.
+        await pg.evaluate("()=>window.__go('settings-edited')")
+        await pg.wait_for_timeout(350)
+        before_cancel = await pg.evaluate(
+            "()=>[...window.__referentiel.SETTINGS_STATE.modifs.keys()]")
+        check("the walk really starts with more than one pending edit, so "
+              "« only that one » is a question",
+              len(before_cancel) > 1, str(before_cancel))
+        opened = await pg.evaluate("""(id)=>{
+          window.__panel.produce("setting", id); return true;}""", before_cancel[0])
+        await pg.wait_for_timeout(400)
+        cancel_present = await pg.evaluate(
+            """()=>{const b = document.querySelector('#sheetin [data-cancelsetting]');
+                    return b ? {id: b.dataset.cancelsetting, text: b.textContent.trim()} : null;}""")
+        check("an edited setting's panel offers to cancel THAT edit",
+              bool(opened) and cancel_present is not None
+              and cancel_present["id"] == before_cancel[0],
+              f"{cancel_present} · expected {before_cancel[0]}")
+        await pg.click("#sheetin [data-cancelsetting]")
+        await pg.wait_for_timeout(500)
+        after_cancel = await pg.evaluate(
+            "()=>[...window.__referentiel.SETTINGS_STATE.modifs.keys()]")
+        check("cancelling drops that edit",
+              before_cancel[0] not in after_cancel,
+              f"{before_cancel} → {after_cancel}")
+        check("and leaves every other edit standing",
+              sorted(after_cancel) == sorted(before_cancel[1:]),
+              f"{before_cancel} → {after_cancel}")
+        check("and the panel is gone",
+              not await pg.evaluate("()=>window.__panel.isOpen()"))
+
+        # ── THE VERSION CONFLICT SAYS SO, AND OFFERS A WAY OUT (B-299) ────
+        #
+        # `SettingsState.conflict` was declared, set to `false` at boot, and
+        # NEVER raised, drawn or copied — the copy names « three banners » and
+        # the page drew two. What it stands for is the file having moved under
+        # the editor: the contract's `updateConfigurationFile` answers
+        # `{ restartRequired, conflict }` and the second field had no reader.
+        #
+        # THIS HOLD IS WRITTEN BEFORE THE BANNER EXISTS and is RED against the
+        # tree as it stands. It walks the save — a real tap on the save bar —
+        # against a layer that answers `conflict: true`, and reads:
+        #   1. the banner, by the SAME `data-part` the other two banners wear,
+        #      so a third shape would be a third banner nobody styled;
+        #   2. that it OFFERS RELOAD — the only honest verb, because the
+        #      editor's copy is stale and there is nothing local to keep;
+        #   3. that nothing was lost silently: the flag really came from the
+        #      LAYER's answer and not from a local guess.
+        await pg.evaluate("()=>window.__go('settings-edited')")
+        await pg.wait_for_timeout(400)
+        await pg.evaluate(
+            """()=>window.__mocks.setConfigurationConflict(true)""")
+        saved = await pg.evaluate("""()=>{
+          const act = document.querySelector('#savebar [data-save]');
+          if (!act) return false; act.click(); return true;}""")
+        await pg.wait_for_timeout(700)
+        check("the save bar is really there to be tapped", saved)
+        conflicted = await pg.evaluate(r"""()=>{
+          const banners = [...document.querySelectorAll('[data-part="load-error"]')]
+            .map((one) => ({text: one.textContent.replace(/\s+/g,' ').trim(),
+                            actions: [...one.querySelectorAll('button')]
+                              .map((b) => b.textContent.trim())}));
+          return {banners, flag: !!window.__referentiel.SETTINGS_STATE.conflict};}""")
+        conflict_banner = next(
+            (one for one in conflicted["banners"] if "conflit" in one["text"].lower()),
+            None)
+        check("a file that moved under the editor RAISES the conflict (B-299)",
+              conflicted["flag"], str(conflicted["flag"]))
+        check("and the page SAYS so, in the shape the other banners wear",
+              conflict_banner is not None,
+              str([one["text"][:40] for one in conflicted["banners"]]))
+        check("and it offers to reload rather than leaving the reader stuck",
+              conflict_banner is not None and len(conflict_banner["actions"]) >= 1,
+              str((conflict_banner or {}).get("actions")))
+
+        # ── RESTARTING IS CONFIRMED FIRST (B-300, §17) ────────────────────
+        #
+        # « Redémarrer maintenant » restarted ON THE TAP: the flag dropped and a
+        # toast said « Service redémarré ». A restart cuts the service for EVERY
+        # account of the household (§17), which is the case NE-DOIT-PAS-6's
+        # spirit covers even though nothing is destroyed. Production confirms.
+        #
+        # THE WALK GOES THROUGH THE CANCEL, and that is the half that separates
+        # a confirmation from a delay: a build that raised a dialog and
+        # restarted anyway would satisfy every check that only tapped through.
+        await pg.evaluate("()=>window.__go('settings-restart')")
+        await pg.wait_for_timeout(400)
+        raised = await pg.evaluate("""()=>{
+          const act = document.querySelector('[data-restart]');
+          if (!act) return false; act.click(); return true;}""")
+        await pg.wait_for_timeout(500)
+        confirmation = await pg.evaluate(r"""()=>{
+          const dialog = document.querySelector('#dlg');
+          if (!dialog || !dialog.hasAttribute('data-open')) return null;
+          return {text: dialog.textContent.replace(/\s+/g,' ').trim(),
+                  actions: [...dialog.querySelectorAll('button')]
+                    .map((b) => b.textContent.trim())};}""")
+        check("« Redémarrer maintenant » is there to be tapped", raised)
+        check("and it asks BEFORE it restarts (B-300, §17)",
+              confirmation is not None, str(confirmation))
+        check("the confirmation says the service goes down for everyone",
+              confirmation is not None and "service" in confirmation["text"].lower(),
+              (confirmation or {}).get("text", "")[:120])
+        check("and it offers a way out as well as a way through",
+              confirmation is not None and len(confirmation["actions"]) >= 2,
+              str((confirmation or {}).get("actions")))
+
+        # CANCELLING LEAVES THE RESTART OWED, and says nothing about it having
+        # happened.
+        await pg.evaluate("""()=>{const out = [...document.querySelectorAll('#dlg button')]
+          .find((b) => !('confirmrestart' in b.dataset)); if (out) out.click();}""")
+        await pg.wait_for_timeout(400)
+        after_cancel = await pg.evaluate("""()=>({
+          owed: !!window.__referentiel.SETTINGS_STATE.redemarrage,
+          said: (document.querySelector('#toast') || {}).textContent || ''})""")
+        check("cancelling leaves the restart OWED (B-300)",
+              after_cancel["owed"], str(after_cancel["owed"]))
+        check("and says nothing about a restart having happened",
+              "redémarré" not in after_cancel["said"].lower(),
+              after_cancel["said"][:80])
+
+        # CONFIRMING RESTARTS, and only then.
+        await pg.evaluate("""()=>{const act = document.querySelector('[data-restart]');
+          if (act) act.click();}""")
+        await pg.wait_for_timeout(400)
+        await pg.evaluate("""()=>{const go = document.querySelector('#dlg [data-confirmrestart]');
+          if (go) go.click();}""")
+        await pg.wait_for_timeout(500)
+        after_confirm = await pg.evaluate("""()=>({
+          owed: !!window.__referentiel.SETTINGS_STATE.redemarrage,
+          said: (document.querySelector('#toast') || {}).textContent || ''})""")
+        check("confirming restarts (B-300)", not after_confirm["owed"],
+              str(after_confirm["owed"]))
+        check("and says so", "redémarré" in after_confirm["said"].lower(),
+              after_confirm["said"][:80])
+
         # ── a secret is never shown ────────────────────────────────────────
         await pg.evaluate("()=>window.__go('settings-secrets')")
         await pg.wait_for_timeout(320)
@@ -367,7 +544,7 @@ async def main():
           const x = SETTINGS.flatMap(r => r.r)
             .find(y => y.type === 'list' && (y.brut || []).length > 1);
           SETTINGS_STATE.topic = SETTINGS.find(r => r.r.includes(x)).id;
-          render(); openSetting(settingId(x));}""")
+          render(); window.__panel.produce("setting", settingId(x));}""")
         await pg.wait_for_timeout(330)
         before = await pg.evaluate("""()=>document.querySelectorAll('#sheetin [data-part="field/list-item"]').length""")
         await pg.click('#sheetin [data-part="field/list-remove"]')
@@ -389,7 +566,7 @@ async def main():
           const texts = SETTINGS.flatMap(r => r.r).filter(x => x.type === 'text');
           const x = texts[n];
           SETTINGS_STATE.topic = SETTINGS.find(r => r.r.includes(x)).id;
-          render(); openSetting(settingId(x));
+          render(); window.__panel.produce("setting", settingId(x));
           return {id: settingId(x), own: String(x.brut ?? '')};}"""
         read_field = """() => {const e = document.querySelector('#sheetin [data-part="field/input"]');
           return e ? {value: e.value, field: e.dataset.field} : null;}"""

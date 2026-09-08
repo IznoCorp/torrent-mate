@@ -112,9 +112,23 @@ def _scan_disk_full(
     walk and always recreated in a ``try/finally`` block, regardless of whether an
     exception occurs during the walk.
 
-    New rows are accumulated in the visitor's ``insert_buffer`` and drained once
-    the walk returns via :func:`_flush_insert_buffer` (a single ``executemany``),
-    exactly like the legacy ``_walk_dir_full_buffered`` post-walk flush.
+    Rows are accumulated in the visitor's ``insert_buffer`` and drained by
+    :func:`_flush_insert_buffer` (one ``executemany``) ONCE, below, after the
+    walk returns — exactly as the legacy ``_walk_dir_full_buffered`` did.
+
+    That single late flush is what implements DESIGN §15.5 for ``media_file``
+    rows, and it does so by accident rather than by design: the scanner runs in
+    autocommit with no BEGIN anywhere, so ``worker_conn.rollback()`` on the EIO
+    path rolls back nothing, and what actually keeps a vanished disk's rows out
+    of the index is that they are still in a Python list when the ``OSError``
+    propagates out of :func:`walk` and skips this line. The ``path`` rows are
+    not buffered and are therefore already durable when it happens.
+
+    The cost is that the whole walk is retained (98 506 rows, 37.2 MB measured
+    for the operator's library) and lost outright on a hard kill, while
+    ``scan_run.last_path`` has already recorded that those files were walked.
+    Both are consequences of the missing transaction, and neither can be fixed
+    from inside this function.
 
     Args:
         conn: Open SQLite connection.

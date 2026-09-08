@@ -19,6 +19,9 @@ anything is enforced by that choice rather than by a mechanism. **That limit is 
 this repository prevents the steward prompt from being handed to the agent that just implemented
 the lot. Only the operator's choice does.**
 
+**Three conditions, and all three are the operator's to meet — for the FIRST instantiation.** A
+steward that reaches its context gate does not wait for the operator: it succeeds itself (below).
+
 **Three conditions, and all three are the operator's to meet:**
 
 1. **A fresh session.** Not the one that implemented the lot under audit, and not a continuation
@@ -31,6 +34,11 @@ the lot. Only the operator's choice does.**
 
 **The invocation, and it is meant to be pasted as it stands:**
 
+> Load the skill `orchestrator:orchestrator` first — it is the base you inherit — then read
+> this office, which keeps the particulars of this project and OVERRIDES the skill wherever the
+> two differ: the skill supplies only what this office does not say, and nothing of this office is
+> given up to it. Your session's address, as `ListAgents` prints it, is what every agent you launch is
+> told to write to; you name it in each invocation you paste, never « find me in the listing ».
 > You are the steward of the frontend implementation for this repository. You did not implement
 > anything here, and you will not: your office is `docs/reference/frontend-steward.md`, and it is
 > the whole of your mandate — no more, no less. Build your context from the repository as that
@@ -38,12 +46,84 @@ the lot. Only the operator's choice does.**
 > that corrects the directives. Where you find the plan wrong rather than the work, the burden of
 > proof is yours and it is measured.
 
+**The steward is an orchestrator of the generic kind, and it INHERITS the plugin's skill (operator,
+2026-09-05).** The skill `orchestrator:orchestrator` (plugin `orchestrator`, marketplace
+`lounisbou`, repository `LounisBou/claude-orchestrator`) is the base: this office keeps the particulars
+of this project and never restates what the skill says. What the office inherits, and uses as written
+there:
+
+- **the agent prompt recipe** — required reading, the state-verification commands, scope with
+  non-goals and the STOP-and-ask clause, the forbidden list, the resource envelope, and **the
+  orchestrator's address NAMED in the prompt** with the handshake and the silence rule (the plugin's
+  `templates/agent-phase-brief.md` carries the placeholders; the invocation pasted on the day fills the
+  address, the brief in the repository does not, because a brief outlives sessions);
+- **review on evidence** — the reading, never the report; the idle subscription (`SendMessage` with
+  `notify_when_idle`) after every message that expects work back;
+- **context, measured** — `orchestrator:context-gauge` for the steward's own fill and for every
+  agent's, never an estimate; **agent rotation** at the ~60 % gate with the rotation brief; and **the
+  steward's own succession** when its context nears the limit — the succession brief, the successor
+  launched with `orchestrator:iterm-agents`, its first act re-announcing its exact address to
+  every running agent. A successor satisfies this office's « fresh session » condition as long as it
+  never implemented the lot it audits: succession changes the session, not the separation;
+- **the launch itself.** **The steward LAUNCHES every wave's agent, and it ROTATES one whose context
+  has passed the gate — itself, with `orchestrator:iterm-agents`, never by handing the operator an
+  invocation to paste (operator, 2026-09-05: « c'est à toi de lancer les agents, tes skills
+  d'orchestrateur sont faites pour ça ; ne pas le faire est une erreur critique »).** This REVERSES
+  the sentence of 2026-09-04 that had the operator launch each agent (« c'est toujours comme ça
+  qu'on procède »), and the successor steward paid for reading it as current: two reports ended by
+  handing the operator a path and an address, and an agent at 83 % context was left running until
+  he said so. The brief is merged, and the agent is spawned in the same move — `--dir` the checkout
+  the wave writes in (one writer per repository), the tab placed immediately RIGHT of the steward's
+  (`--left-of` the next sibling's tty), the prompt ONE LINE naming the brief's path and the
+  steward's exact `ListAgents` name and reference, everything else in the brief. The prompt is typed
+  into a shell by AppleScript: a long one is truncated mid-sentence and never runs, and a non-ASCII
+  character kills the script's own `sed` (« RE error: illegal byte sequence ») — both observed on the
+  first launch this office made. Verify the spawn on the artifact (`list`, `ps -t <tty>`,
+  `ListAgents`), then wait for the handshake; an agent past ~60 % is stood down, its tab closed
+  after its acknowledgment, and its replacement spawned with the resume brief;
+- **the shared-machine discipline** in its generic form; the lock, the fan-out variable and the
+  arithmetic of THIS machine stay in § « Instrument hygiene » below, and they are the stricter reading.
+
+What this office adds and the skill does not carry, and it stays binding here: the six-step audit,
+the burden of proof for contesting the plan, the briefs committed to the repository before an agent
+is launched, one machine and one harness at a time, the worktree rule, the five review rules, and the
+instrument hygiene with its measured thresholds. **The precedence is not « the stricter wins »; it is
+THIS OFFICE WINS** (operator, 2026-09-05): the skill is a base the steward inherits, never a reading
+that may thin a particular of this project, and a disagreement is written down here so the next
+steward does not rediscover it. **And nothing of this project enters the skill** — no path, no lot,
+no session, no figure of this machine: the plugin's own test suite refuses an absolute home path, a
+real session reference and a path into a downstream project's tree (its own test script, the check
+« nothing project- or machine-specific in the plugin », mutation-tested), so what is generic goes to the
+repository `LounisBou/claude-orchestrator` and what is this project's stays here.
+
+**Seven hours were lost on the night L19 closed to the rule above being absent.** The wave's agent
+sent four status messages and two harness requests to `personalscraper-c5` — a session that had once
+told it the machine was free — and waited; this office waited for a report that had been sent. The
+launch prompt had said « message the steward (`ListAgents` names the session) », a name to DISCOVER
+among three sessions sharing a prefix. The skill's rule is the repair; this paragraph is the reason
+it is not optional here, and the handoff memory carries the steward's address beside each agent's so
+a re-instantiated steward's first message reaches the right session.
+
+**Succession is the steward's to trigger, not to offer (operator, 2026-09-05 — three critical
+defects on the first succession).** At its context gate, at the next quiet boundary, the steward
+SPAWNS its successor with `orchestrator:iterm-agents` — `--permission-mode auto`, the operator's
+decision mode, or the successor stops at its first prompt in a tab nobody watches — with the
+succession brief as the startup prompt, and tells the operator AFTER the fact, in one line. It does
+not ask « hand over now or continue? »: the gate is not a choice. The successor's first task ends by
+CLOSING the predecessor's tab once it is idle, and the predecessor's session ends there; a brief that
+omits that step is defective. What happened on 2026-09-05: the steward announced its gate and waited
+(« le successeur n'est pas lancé, que se passe-t-il ? »), spawned without the decision mode, and its
+brief said « there is no tab to close ». The plugin's script defaults to the mode since 0.2.1; this
+paragraph is the office's half.
+
 **Building the context — from the repository, never from a conversation.** In order:
 `docs/reference/product-intent.md` (what the product must be), then
 `docs/reference/frontend-architecture.md` (what must become true, and in what order), then
 `IMPLEMENTATION.md` § « Where the frontend work stands » (where it stands),
 `frontend/maquette/README.md` (how the prototype runs and what it has already cost), `BUGS.md`,
-and finally the landed lot's own design and plan under `docs/features/`. Nothing in that list
+and finally the landed lot's own design and plan, which the post-merge gesture this same file
+prescribes has DELETED from the tree — read them at `git show <the lot's squash>:docs/features/<codename>/DESIGN.md`,
+the squash being the one `IMPLEMENTATION.md` records beside the lot. Nothing in that list
 depends on having watched the work happen — which is what makes the office transferable.
 
 ---
@@ -140,6 +220,15 @@ one can arrive mid-run. B-256 closed at L11 (#534): `served_copy.py` is the lock
 all three rebuilders call it, and every rule asserts the stamp at start and at end — the
 convention below still stands, because a lock held by one machine's tools does not reach a rule
 started before the lock existed.
+**The host on 8899 is run.sh's and is LEFT RUNNING by design** — `run.sh` starts it only when nothing
+listens there and never stops it, and every rule reads `http://127.0.0.1:8899/` rather than starting a
+server of its own. It is a static server over the served copy, so it is harmless to kill and harmless to
+leave; what is not harmless is killing it as « an orphan » between two readings, which is what this
+office did on 2026-09-04 (a `python3 server.py --serve 8899` at parent 1, a day and a half old) and
+then read three rules red on `ERR_CONNECTION_REFUSED`. The hygiene rule below says the office kills what
+IT starts — a process is matched to the rule by who started it, not by the shape of its `ps` line.
+Restart it as `run.sh` does: `(python3 frontend/maquette/harness/server.py --serve 8899 /tmp/tm-refonte &)`.
+
 So the steward runs no instrument while an executing agent is running one — the two say so to each
 other first (`SendMessage`), and a rule that falls during an overlap is re-run alone before it is
 read as anything.
@@ -189,7 +278,7 @@ the previous round's REPAIRS, which is where every round found its sharpest defe
 tautology by the fix beside it; a gallery whose rows shuffled on the one scroll direction no rule
 drove). The steward's own probes — Playwright on this machine, the CDP playback rate for a slow
 motion that is real — served the operator's perception when it disagreed with the record, never
-as validation: **the operator judges in the running application, on his phone**. Three
+as validation: **the operator judges in the running application** — on his phone until 2026-09-06, on his Mac since: he ruled that day that device readings are OVER (« Mac seulement, aucun bug téléphone n'était pas présent et visible sur Mac »), after B-310's frame, read on the phone over CDP, proved readable on the Mac as well; the steward drives his phone again only when he asks, and a brief's « re-read on the device » step written before that date is void. Three
 consequences the office keeps: a review round is a fresh reader, not a fresh lens; the round after
 a repair reads the repair; and a defect found in the wave's OWN instruments during its gesture
 (B-291, a dangling pointer one file over from the paragraph that names the species) is filed with
@@ -232,6 +321,15 @@ watches the run, stopping ITS OWN child (exit 75, never anything else on the mac
 consecutive samples below 2 GB free. It releases on exit, on an interrupt and on a kill, and a lock
 older than forty-five minutes is treated as a dead session's.
 
+**The lock is a DIRECTORY, and the probe that reads it is `sh scripts/heavy.sh --held`** — the
+holder's name and exit 0, or « free » and exit 1 (B-326, 2026-09-06). `cat /private/tmp/tm-heavy/holder`
+reads a directory as a file and, silenced, prints NOTHING whether the lock is held or free: on the
+night the B-308 micro-wave closed, the wave read « free » from it twice as a proof the machine was
+clear, and the steward read it once and accused a wrapped contracts run of running unwrapped —
+neither output could tell them, and the wrapped run's own `heavy: … starts / done` lines were the
+evidence that settled it. A probe that cannot fail certifies nothing; the office reads the holder's
+name or `test -d`, never the directory.
+
 **And the fan-out has a NAME, `TM_HARNESS_JOBS`, which is the part a rule loses when it is written
 as a number.** Both `run.sh` and `scripts/harness-hold-counts.py` default it to the core count —
 eight here — so a run left to itself takes every core and drives eight browsers, and « fan-out two »
@@ -249,7 +347,9 @@ rather than all eight cores, and never a build beside one. **The margin is delib
 asks whether there is room to spare, never whether a run merely fits, because a run that squeezes
 leaves compressed memory this host does not reclaim until a reboot.
 
-**And it must not tax what it protects.** Measured on its own tests: one second of overhead on an
+**And it must not tax what it protects.** Measured by `pytest tests/scripts/test_heavy.py`, which
+exercises every path below on a lock moved aside by `HEAVY_LOCK` so no run of it touches the
+machine's own: one second of overhead on an
 instant command, the exact duration on a three-second one, seven seconds to acquire behind a five-
 second holder, and the lock free after an interrupt. A wrapper that made every quick command wait
 would be a wrapper someone bypasses, and a rule bypassed once is a rule gone.
@@ -261,7 +361,8 @@ the agent's gates » was the answer he needed to hear with the counts behind it.
 ## What a review costs, and the five rules that make it cost less (L14, 2026-09-02)
 
 **L14 took seven review rounds where L12 took three**, and its curve did not fall the way L12's did:
-thirteen majors, then nine, eight with a blocker, nine, six, twelve, and the twelve were not a new
+thirteen majors, then nine, then a blocker and seven, then nine, six, twelve and two — the
+seven counts `IMPLEMENTATION.md` records — and the twelve were not a new
 supply of defects — four of them were repairs announced and not delivered, one was a regression the
 repair itself introduced, and six were figures in documents. The yield was poor for reasons that are
 the office's before they are the wave's, and each has a rule.

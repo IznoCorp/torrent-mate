@@ -38,7 +38,11 @@ from typing import Literal
 from xml.etree import ElementTree as ET
 
 from personalscraper.core.artwork_naming import ArtworkStatus, artwork_status
-from personalscraper.core.media_types import TV_TRAILER_SUBFOLDER, VIDEO_EXTENSIONS
+from personalscraper.core.media_types import (
+    TV_TRAILER_SUBFOLDER,
+    VIDEO_EXTENSIONS,
+    find_trailer_in_media_dir,
+)
 from personalscraper.naming_patterns import PATTERNS
 from personalscraper.nfo_utils import is_nfo_complete, parse_title_year
 
@@ -290,12 +294,17 @@ def _trailer_present(directory: Path, media_type: MediaType) -> bool:
     Returns:
         ``True`` iff a trailer file exists at the expected placement.
     """
+    if media_type == "tvshow":
+        # The SHARED rule, not a fourth copy of it. This predicate derives the
+        # ``trailer_found`` attribute, which is what SELECTS items for download
+        # (``find_items_without_trailer``). If it answers a narrower question
+        # than the downloader's own check, a show the downloader refuses to
+        # download stays in the missing query forever, run after run.
+        return find_trailer_in_media_dir(directory) is not None
+
     name = directory.name
     for ext in _TRAILER_EXTENSIONS:
-        if media_type == "tvshow":
-            candidate = directory / _TV_TRAILER_SUBFOLDER / f"{name}.{ext}"
-        else:
-            candidate = directory / f"{name}-trailer.{ext}"
+        candidate = directory / f"{name}-trailer.{ext}"
         if candidate.is_file():
             return True
     return False

@@ -128,6 +128,19 @@ def _maybe_checkpoint(
         budget_seconds: Maximum wall-clock seconds allowed for the scan; ``None``
             means unlimited.
 
+    .. warning::
+       This commits MID-DISK, and the counter it is driven by is scan-wide
+       rather than per-disk, so a checkpoint can fall anywhere inside a disk's
+       transaction. What is committed there survives the per-disk rollback that
+       DESIGN §15.5 performs when a disk raises ``EIO`` mid-walk — the ``path``
+       rows written so far, and the ``last_path`` this writes, both outlive it.
+       So a resumed scan can skip files belonging to a disk whose walk was
+       rolled back. Draining full mode's ``insert_buffer`` here would have made
+       the committed position honest but would also have made the ``media_file``
+       rows survive that rollback, which
+       ``test_indexer_unplug_during_scan.py`` refuses — the two guarantees are
+       in tension and choosing between them is not a scanner-local decision.
+
     Returns:
         A ``(new_counter, budget_exhausted)`` tuple.  ``new_counter`` resets to
         ``0`` when a checkpoint was written, otherwise increments by one.

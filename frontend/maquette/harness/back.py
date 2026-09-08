@@ -115,7 +115,7 @@ async def main():
               step is not None and step["lens"] == "cat", str(step and step["lens"]))
 
         # ── a layer is what a back closes first ────────────────────────────
-        await pg.evaluate("()=>openFollowSheet('Silo')")
+        await pg.evaluate("()=>window.__panel.produce('follow', 'Silo')")
         await pg.wait_for_timeout(350)
         opened = await where(pg)
         check("a sheet opens", bool(opened and opened["sheet"]))

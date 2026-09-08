@@ -120,6 +120,44 @@ module.exports = {
     // All run from the PROD clone binary + cwd, with the canonical config dir passed
     // explicitly. Decoupled from the dev checkout branch.
 
+    // The ONLY mode that retires a file the filesystem no longer has: miss strikes
+    // are raised in `full` alone (quick/incremental do not walk every file, so
+    // striking there would mark visited-but-not-walked rows as missed), and three
+    // strikes tombstone a row. Nothing had ever scheduled it, so ~838 rows for
+    // paths deleted or renamed months ago sat in the index indefinitely. Three
+    // Mondays retire a given row.
+    //
+    // Monday 01:00, measured rather than guessed — a full walk of the library took
+    // 22 min 00 on 2026-09-04 (97 672 files: 5 min 15 of library-wide item staging,
+    // then disk_1's 16 min 44 as the critical path while the other three share the
+    // second worker). That leaves 1 h 38 before `follow-detect` at 03:00, and the
+    // weekly 05:00 reboot reclaims the wired memory the walk grows — which is why
+    // Monday small hours beat Sunday evening.
+    //
+    // `--no-budget` is not decoration: 22 min against the 1800 s default leaves 27 %,
+    // and a slower night would truncate the walk. A truncated walk no longer strikes
+    // anything (the run-level guard in `library_index_command`), so the failure mode
+    // is a wasted pass rather than a false tombstone — but a pass that completes is
+    // the point of scheduling one.
+    //
+    // `--wait-for-lock 600` because the watch daemon's post-dispatch scans take the
+    // indexer writer lock at unpredictable times; the default 0 would abandon the
+    // run instead of waiting. The only neighbour at 01:00 is the hourly health check
+    // at :15, which merely stats `pipeline.lock`.
+    {
+      name: "personalscraper-index-full",
+      script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",
+      args: "library-index --mode full --no-budget --wait-for-lock 600",
+      interpreter: "none",
+      cwd: "/Users/izno/deploy/torrentmate",
+      autorestart: false,
+      cron_restart: "0 1 * * 1", // Mondays 01:00 local — ~22 min, ends well before 03:00
+      env: {
+        PYTHONUNBUFFERED: "1",
+        PERSONALSCRAPER_CONFIG: "/Users/izno/.torrentmate/config",
+      },
+    },
+
     {
       name: "personalscraper-index-enrich",
       script: "/Users/izno/deploy/torrentmate-venv/bin/personalscraper",

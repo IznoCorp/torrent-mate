@@ -127,6 +127,35 @@ SERVER_STATE_CEILING = 7
 # green, while the component share went 4 → 5.
 COMPONENT_SHARE_CEILING = 0
 
+# THE ENGINE'S OWN CODE, LIVING IN A FEATURE'S DIRECTORY. L19 moved the dying
+# engine's producers and its Découvrir feed to the features that own their
+# subject, and the engine IMPORTS THEM BACK — `app/icons.ts`'s arrangement: one
+# copy of every answer, read by both worlds, and the day the engine goes the
+# feature loses an importer rather than a subject.
+#
+# Such a module is not a COMPONENT. It renders nothing, it is called from the
+# engine's own render and its own delegation, and the store writes it carries
+# are the writes the engine was already making, at the same moments. Counting
+# them as « the interface copying server state » would be counting a relocation
+# as a defect, and the wave that relocates would have to either leave the code
+# in a file it is meant to empty or rewrite the paging — which is drawing, and
+# L13's.
+#
+# WHAT MAKES THIS EXEMPTION CHECKABLE RATHER THAN A CLAIM, and it is the whole
+# of it: an entry is honoured only while `engine/legacy.js` REALLY IMPORTS the
+# module. Nobody can grant it to themselves by editing this list — the engine
+# has to reach for the file — and the day the engine goes, every entry here
+# stops being honoured on the same day, loudly, because the import goes with it.
+# An entry naming a file the tree does not hold is refused outright.
+ENGINE_OWNED = {
+    "features/acquisition/discover-feed.ts": (
+        "the discovery feed — the reserve, the pile and the gesture that spends "  # french-ok: none, and the page's own name is not written here for that reason
+        "them. Its paging is by INDEX into a list it holds, and rewriting that "
+        "is rewriting the deck (features/acquisition/queries.ts says so in its "
+        "own words); it dies with the engine at L13."
+    ),
+}
+
 # How many `useEffect` call sites the second arm must find before it may report
 # anything at all. Raised as the tree grows; a corpus below it means the reader
 # stopped reading, not that the tree got cleaner.
@@ -305,6 +334,60 @@ def keys_written(source: str) -> tuple[list[str], list[str]]:
     return keys, unreadable
 
 
+# How an import specifier is spelled, in either of the two forms that reach one:
+# `import … from "spec"` and the side-effect `import "spec"`. Read on the BLANKED
+# text and captured, never searched for as a substring of the whole file — see
+# `engine_imports`.
+IMPORT_SPECIFIER = re.compile(r"""(?:^|[\s;}])(?:from|import)\s*["']([^"']+)["']""",
+                              re.M)
+
+
+def imported_specifiers(source: str) -> set[str]:
+    """Every module specifier a source file really imports.
+
+    Args:
+        source: The module's text, comments and all.
+
+    Returns:
+        The specifiers, comments excluded.
+    """
+    return set(IMPORT_SPECIFIER.findall(blanked(source)))
+
+
+def engine_imports(root: pathlib.Path, relative: str) -> bool:
+    """Whether the dying engine really imports a module claiming to be its own.
+
+    THE EXEMPTION IS ONLY AS GOOD AS THIS. A module may be listed in
+    `ENGINE_OWNED` and mean nothing: what makes it the engine's is that the
+    engine reaches for it. That is a fact in a file, not a claim in a list, and
+    it expires by itself the day `legacy.js` goes.
+
+    WHICH IS WHY THE FACT IS PARSED AND NOT SEARCHED FOR. This read used to ask
+    whether the specifier appeared ANYWHERE in the engine's text, which a
+    comment naming the path satisfies just as well as an import — and the engine
+    is full of comments naming feature paths, so the exemption would have
+    outlived the import that justifies it, silently, in the one file whose whole
+    purpose is to shrink. The specifiers are extracted from the blanked source,
+    so a commented-out import is exactly as dead here as a deleted one.
+
+    Args:
+        root: The tree being read.
+        relative: The module's path, as `ENGINE_OWNED` writes it.
+
+    Returns:
+        True when `engine/legacy.js` imports it.
+    """
+    engine = root / "engine" / "legacy.js"
+    if not engine.is_file():
+        return False
+    stem = "../" + relative.removesuffix(".ts").removesuffix(".tsx")
+    # The same module can be spelled four ways by a resolver that fills in the
+    # extension and the folder index; all four name one file, and none of them
+    # is a prose mention.
+    wanted = {stem, stem + ".js", stem + ".ts", stem + "/index"}
+    return bool(wanted & imported_specifiers(engine.read_text(encoding="utf-8")))
+
+
 def arm_server_state(root: pathlib.Path) -> int:
     """Counts the store keys that name server state, and refuses the count going up."""
     by_component: dict[str, set[str]] = {}
@@ -316,8 +399,12 @@ def arm_server_state(root: pathlib.Path) -> int:
         keys, unreadable = keys_written(blanked(text))
         computed.extend(f"{relative}: {site} — this arm cannot classify it, "
                         f"so it refuses it" for site in unreadable)
+        engine_owned = relative in ENGINE_OWNED and engine_imports(root, relative)
         for key in keys:
             if key in SERVER_STATE_KEYS:
+                if engine_owned:
+                    by_engine.add(key)
+                    continue
                 by_component.setdefault(key, set()).add(relative)
             elif key not in INTERFACE_STATE_KEYS:
                 unclassified.append(f"{relative}: `{key}` is on neither list — "
@@ -346,7 +433,22 @@ def arm_server_state(root: pathlib.Path) -> int:
         where = sorted(by_component.get(key, set())) or ["the engine"]
         print(f"      {key}: {SERVER_STATE_KEYS[key]} — {', '.join(where)}")
 
-    violations = sorted(set(unclassified)) + sorted(set(computed))
+    # AN EXEMPTION NOBODY COUNTS is indistinguishable from an oversight, so the
+    # list is PRINTED on every run — and an entry naming a file the tree does
+    # not hold, or one the engine has stopped importing, is refused rather than
+    # quietly skipped: a stale exemption has stopped describing anything.
+    stale = sorted(
+        name for name in ENGINE_OWNED
+        if not (root / name).is_file() or not engine_imports(root, name))
+    print(f"  engine-owned: {len(ENGINE_OWNED)} module(s) exempt because the dying "
+          f"engine imports them back, {len(stale)} stale")
+    for name in sorted(ENGINE_OWNED):
+        print(f"      {name}: {ENGINE_OWNED[name]}")
+
+    violations = sorted(set(unclassified)) + sorted(set(computed)) + [
+        f"{name}: recorded as the engine's own and the engine does not import it "
+        f"(or the file is gone) — the exemption has stopped describing anything"
+        for name in stale]
     if count > SERVER_STATE_CEILING:
         violations.append(
             f"{count} server-state key(s) against a ceiling of {SERVER_STATE_CEILING}: "

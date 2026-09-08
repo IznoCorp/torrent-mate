@@ -74,7 +74,9 @@ selection rule must not reach it. **Where and when its findings are converted is
 decide**, and it may amend this file's lots and their order under § 7.1. Invariant 10 had been
 binding since L09 with its subject — the frame — never modelled; **that was the debt, and this
 phase paid it**: the frame is modelled in thirteen parts in `docs/reference/frame-model.md` § 2, as the paragraph below
-records. Its definition and its agent's brief are `docs/features/maquette-l10-ter/`.
+records. Its definition and its agent's brief are read at
+`git show d3892d18:docs/features/maquette-l10-ter/DESIGN.md` — the folder left the tree at that
+wave's own post-merge gesture, as every wave's does.
 
 **It RAN on 2026-08-29, and this is what it decided** — its products are `docs/reference/frame-survey.md`, `docs/reference/frame-model.md`,
 `QUESTIONS.md` under that folder and `docs/reference/product-intent-map.md`; the lots below are
@@ -382,13 +384,46 @@ file reveals.
 cross-cutting parts are lifted once and early; the rest dies with each surface as that surface is
 converted and wired.
 
+**AMENDED 2026-09-03, and the amendment is the operator's to overrule.** L14 (`9ce9b0508`) ADDED to
+the engine: `legacy.js` +68 non-blank lines and `states.js` +9, against a decision whose title is «
+dies by subtraction ». The reason is good and the edit should stand: the library's bulk delete keyed
+its selection by a row's POSITION in the listing on screen and read that position back as an index
+into the source array, so under any sort or search a confirmed delete named and destroyed media the
+reader had never ticked. Keying by title, dropping the selection when the listing's question
+changes, and counting the media each title names is the repair of a data-destroying defect, and «
+file it for L13 » would have been the wrong call.
+
+**What the amendment costs, said plainly.** D5 is BINDING, and for a day the tree contradicted it
+with the only living record inside a state-file cell the next wave overwrites. So the rule stands
+with one exception written into it: **the engine may be added to only to stop a defect that destroys
+or loses the operator's data, and every such edit is amended here with its commit.** Anything else
+waits for the surface that kills the code. **The size arm holds this since 2026-09-05** — B-306 said
+a grandfathered file had no recorded count, so it could grow without limit and the guard still
+printed clean; L19 gave each of the four a count in `scripts/frontend_size_ledger.py`, refused
+upward and re-recorded downward, so an addition to the engine now has to be declared to land.
+
+**Declared here, because that is the rule's own letter: L19 (`9fa13da57`) ADDED two branches to the
+engine's delegation — `closest.dataset.reloadsettings` and `closest.dataset.confirmrestart`, the
+readers of B-299's reload offer and B-300's confirmation — inside a net −816 non-blank lines.**
+Neither stops a data-destroying defect in the exception's strict sense: B-299 keeps the operator's
+edits from being thrown away on a conflict, B-300 keeps a household's service from one tap. The
+ledger read the file DOWNWARD, so no arm could have asked, and the lot's own entry names them only to
+explain a count. Recorded by the steward's audit of 2026-09-05 so the exception is not widened in
+silence. **The operator ruled the same day that the exception COVERS them** (« D5 couvert »): the
+edits stand, declared here with their commit as the rule asks, and both leave with the settings'
+other verbs when `legacy.js` no longer exists (L13's first clause).
+
 **Why, and this is a measurement rather than a preference.** `legacy.js` was 34 650 lines when
 this was decided, of which **27 678 (79 %) are fixtures** — `SHEETS_RAW` alone is 20 538 lines of
 episode catalogue — and the engine's actual code about **6 949 lines**. **Re-measured on
-2026-08-29 (L10-ter)**: 33 449 lines, **33 026 non-blank**
-(`grep -cve '^\s*$' frontend/maquette/design/src/engine/legacy.js`), of which **26 366** sit in
-the **9** declarations over 100 lines the method below finds — L09's « sixty families » counts
-every fixture constant whatever its size, which is a different figure and not this one.
+2026-09-05, at the close of L19**: **31 645 non-blank** (`grep -cve '^[[:space:]]*$' frontend/maquette/design/src/engine/legacy.js`),
+816 fewer than the 32 461 read on 2026-09-03, which was itself 565 fewer than L10-ter read on
+2026-08-29 — and those earlier aggregates CONCEALED a growth, see the amendment above. Of the
+31 645, **26 375** sit in the **9** declarations over 100 lines the method below finds. **That
+second figure did not move across L19 at all**, and the reason is written into that lot's entry: a
+producer was never a family's last reader, so a fixture family dies with the DRAWING and not with
+the producing. L09's « sixty families » counts every fixture constant whatever its size, which is a
+different figure and not this one.
 <sub>method: bracket-match every `const X = [` / `const X = {` declaration and sum the spans over 100 lines</sub>
 Most of that fixture stops existing when real data arrives. Killing the engine before the data
 layer means facing 34 650 lines; killing it as surfaces convert means facing seven thousand,
@@ -396,15 +431,26 @@ in pieces, each with the oracle green.
 
 **Measured again on 2026-08-29, at L10-ter, and the subtraction has a shape nobody had drawn.**
 The engine draws no page and no screen any more; it still draws the FRAME (tab bar, drawer,
-dialog, toast — `docs/reference/frame-survey.md` § 1.2) and still PRODUCES every sheet's content (ten `panel.open`
+dialog, toast — `docs/reference/frame-survey.md` § 1.2) and still PRODUCED every sheet's content (ten `panel.open`
 producers, zero on the React side) — which is why sixty fixture families outlived L09: their
 readers are producers, not markup. « Surface by surface » therefore has two more passes to make,
 and they are lots: **L15** for the frame's chrome and entry, **L19** for the producers. What stays
 cross-cutting is smaller than this decision first said, and it is L13's.
 
+**Both passes have landed, and the producing half is measured out.** L15 took the frame; L19 took
+the producers, and `grep -c "panel\.open(" frontend/maquette/design/src/engine/legacy.js` reads
+**0** since 2026-09-05 — the ten are ten React producers in their features, and the two remaining
+`panel.open` call sites are the harness's own. **The sentence above is kept in the past tense
+rather than deleted**: it is the reasoning that scheduled the two lots, and what it predicted about
+the fixture is exactly what did NOT happen — see the refreshed figure above, and L19's entry for
+the measurement.
+
 **What is cross-cutting and does NOT strangle surface by surface**: the document-level event
-delegation, the boot handshake, and the 254 top-level declarations republished on `window` for the
-harness to drive through. **Navigation was on this list and is LIFTED**: L05 took the address
+delegation, the boot handshake, and the **156** top-level declarations republished on `window` for
+the harness to drive through — a figure that read **254** until 2026-09-05 and had been false for
+several lots: `main` carried **158** before the B-308 micro-wave took two of them away.
+<sub>method: the names of the single `Object.assign(window, {…})` block of `engine/legacy.js`, split
+on commas</sub> **Navigation was on this list and is LIFTED**: L05 took the address
 model out of the engine — `URL_DEFAULTS`, `urlFromState`, `stateFromUrl` and the `baseAddress`
 plumbing — leaving it the navigation LOGIC (when to record an arrival, what the entry carries, how
 a back unwinds the layers). `openScreen` went with them, having lost every caller. `__go` and the
@@ -1411,6 +1457,11 @@ field is ever missing during priming, and the real backend's projection carries 
 repair is a line in `features/media/media-screen.tsx`, one of the four files this lot decomposes
 and that no earlier wave may extend — which is why L12 filed it rather than fixing it.
 
+**One consequence of B-247's surface half was RULED on 2026-09-04** (B-305, D-L14-3): a row
+opened by a swipe stays open across a store write that did not concern it. The old snap was the
+engine's redraw, not a design; it is not restored, and the hold that keeps the ruling true is in
+§ 5's debts block.
+
 **Done when.** No file under `frontend/maquette/design/src` is at or over 400 non-blank lines with
 the sole exception of the dying engine's two, `engine/legacy.js` and `engine/states.js`, which
 L13 removes; no component is written out twice; every extraction is proved by the oracle, whose
@@ -1439,7 +1490,10 @@ the engine's accessors; each moved producer takes its `installX` seam out of `ap
 **One kind of change.** A descriptor rendered by `ui/panel` from a React producer is the same
 descriptor rendered from the engine's — the oracle proves each move at zero divergence, surface
 by surface, in L07's order. A verb that moves is a behaviour move and lands in its own commit with
-the rule that held it before, unchanged in count.
+the rule that held it before, unchanged in count. **Measured on 2026-09-04: no rule holds either verb**
+— `grep -ln 'data-take' frontend/maquette/harness/*.py` and `grep -ln 'cancelsetting' …` return nothing —
+so the rule is written FIRST, on the engine's side, seen red under a mutation of the engine's branch, and
+the move is then read green by it; a rule written after the move proves only that it agrees with the move.
 
 **What it must not do.** Extend a grandfathered file (L14's four) — a producer becomes a new file
 beside its page. Add a feature: DOIT-4, DOIT-8, NE-DOIT-PAS-3 and NE-DOIT-PAS-9's missing
@@ -1473,6 +1527,84 @@ the difference); the delegation handles only the frame's verbs; the four map row
 `served` with a rule that bit; the oracle is green or its divergences accepted with reasons. The
 settings' two banners draw (B-299, B-300), each with a rule seen red.
 
+**Measured at the close of L19, 2026-09-05. The « Done when » above is not edited** (§ 7.1) — three
+of its clauses are discharged here instead, and they are discharged differently: one is a
+measurement the plan asked for, one is a departure from it, and the third — a surface measured
+absent and placed — was recorded by the wave in the clause map and in `IMPLEMENTATION.md` and not
+here, and is written in by the steward's audit of 2026-09-05.
+
+**« The fixture families that fed the producers are gone » — the MEASUREMENT.** They are not.
+D5's bracket-match method reads **9 declarations over 100 lines, 26 375 lines, unchanged** across
+the wave, while the register records **four families converted** — `RISQUES`, `TRIS`, `SUG_BATCH`
+and `openJourneySheet`'s steps — and `legacy.js` loses **816** non-blank lines (32 461 → 31 645).
+<sub>method: D5's bracket-match on `frontend/maquette/design/src/engine/legacy.js`, run at both ends · `grep -cve '^[[:space:]]*$'` on the same file · the converted count is `fixture-register.json`, 27 → 31</sub>
+**A producer was never their last reader.** `SHEETS_RAW`, `OWNED` and `CAST` sit behind `sheetFor`
+/ `seasonsOf` / `ownedFor`, which the media feature reads; `SETTINGS` behind `allSettings`, which
+the engine's own field verbs still call; `LIBRARY`, `POSTERS`, `HERO_IMAGES` and `trailerIds`
+behind `cardHTML`, `tileHTML` and `posterBox` — the shared emitters every list and every gallery
+still goes through; `MAINT_ACTIONS` behind the maintenance PAGE's own read. **The families that die
+with a producer are the ones a producer ALONE read, and there were four.** This is the measurement
+the clause asked for, not a change to it: L13's entry already inherits « only what L19 MEASURES it
+could not remove », and what was missing was the measurement. **L09 was told the sixty families
+« belong to surfaces the ENGINE still draws » and L10-ter corrected it to « surfaces the engine
+still PRODUCES ». Both are half of it, and this is the half neither said: a family's last reader is
+whoever DRAWS it, and drawing outlived producing.**
+
+**« The delegation handles only the frame's verbs » — a DEPARTURE, ratified.** It does not, and
+this lot did not attempt it. `grep -c "closest\.dataset\." frontend/maquette/design/src/engine/legacy.js`
+reads **133**, over **73** distinct names
+(`grep -o "closest\.dataset\.[A-Za-z0-9_]*" … | sed 's/.*\.//' | sort -u | wc -l`; 132 over 71 on
+`main`). **Neither figure is a verb count, and no lot has ever produced one**: `index`, `ep`,
+`sugidx` and `selectedTitle` are data the handler reads off the tapped node, not acts. This lot
+moved **two** verbs — `data-cancelsetting` and `data-take`, the two its own objective names — and
+added the two its two behaviour phases required, `data-confirmrestart` and `data-reloadsettings`,
+which is where the +1 comes from. **`data-take` moved by HALF, said here so nobody reads it as
+gone**: the panel's take carries a TITLE and is the arrivals feature's since B-309; the release
+screen's take carries an INDEX and is still the engine's branch on the line after the arrivals
+door — `grep -c "closest\.dataset\.take" frontend/maquette/design/src/engine/legacy.js` reads
+**3**, not 0 — with its own `setTimeout(…, 260)` and B-322's two toasts. It had no owner in any lot
+until the steward's audit of 2026-09-05 placed it with L21 — **ratified by the operator the same day** (B-323).
+
+**Why the rest were not moved.** « One kind of change per wave » (§ 0) forbids a conversion wave
+carrying a behaviour repair, and a verb reader IS behaviour: moving ONE — `data-take` — uncovered a
+defect nobody had measured, where an unguarded branch swallowed every `data-take` in the document
+and « Récupérer maintenant » threw and took nothing (**B-309**). Sixty-odd of those in one wave is
+not a conversion.
+
+**RATIFIED BY THE OPERATOR, 2026-09-05** — « OK pour le placement L13 et L21 » — so the remainder
+is placed rather than left, and written into those two lots' **Done when** on the same word:
+
+- the verbs that OPEN a surface — `data-mediasheet`, `data-journey`, `data-resolve`,
+  `data-releases`, `data-profile` — move with the delegation itself, and that is **L13**;
+- the acquisition's own acts — `data-follow`, `data-pause`, `data-remove`, `data-dropsug`,
+  `data-sugmore` — are behaviour on producers L19 has just placed in their features, and that is
+  **L21**.
+
+**« The four map rows above read `served` with a rule that bit » — THREE DO, and the fourth is
+placed.** DOIT-8, NE-DOIT-PAS-3 and NE-DOIT-PAS-9 read `served` in
+`docs/reference/product-intent-map.md`, held by R121, R124 and R122. DOIT-4 reads `partly`: R124
+serves the ACCEPTANCE half of every mutation, and the resolve queue's own « En file » pastille — the
+VISIBLE half — was measured not to exist (`grep -n "en file" frontend/maquette/design/src/i18n/fr.json`
+finds one key, `arrivals.queuedBold`, the pipeline pass's own sentence), and drawing it is a surface
+change this contract forbids. **It is L21's, written into that lot's « Done when » below**; the map
+row said so on the day, and this file did not.
+<sub>steward's audit, 2026-09-05: `python3 scripts/check-intent-map.py` clean; the four rows read in the map</sub>
+
+**And R103's promised reversal, in the same shape — with its COUNT re-taken by the steward's audit
+of 2026-09-05.** The wave wrote « two of the seven `setTimeout(…, 260)` sites left with this lot;
+five did not », counting with `grep -c "setTimeout(.*260)"` — a command that reads a site only
+when its call and its delay share a line. Counting the delay wherever it sits,
+`grep -c ', 260)' frontend/maquette/design/src/engine/legacy.js` reads **9 at `4c0e274a7` and 7 on
+`main`**: two callbacks span several lines and were never in the inventory — the release screen's
+`data-take` branch (`actionTake(currentState().relatedTitle)` after `bridge.back()`) and the `add:`
+identify branch (`actionResolve(target, result.t)` after `bridge.rewind`). Both predate this lot.
+So two of NINE left with it — `data-journey`'s, which R103 refuses, and the panel's `data-take`,
+which R123 reads at 120 ms — and **seven remain**: five named by the call they wrap in
+`frontend/maquette/harness/exits.py` rather than swept into a blanket refusal, and two named nowhere
+until **B-323**. `docs/reference/frame-survey.md` § 1.1 had already named the species, about the
+`innerHTML` count: a count that depends on where a line breaks. The reversal is complete when the
+last site goes, and the last site is not this lot's.
+
 #### L21 — The tunnel's verbs · *depends on L19*
 
 **Objective.** DOIT-3 — « agir là où l'on observe » — applied to a tunnel (§20). Three verbs the
@@ -1503,6 +1635,52 @@ does not draw a right it cannot yet read. NE-DOIT-PAS-9 is untouched: nothing he
 **Done when.** The three operations are called and mocked (seeded from the running backend's shapes,
 D7); each verb has a rule that walks it and reads the queued state; the map's DOIT-3 row names the
 three as `served`; B-301 and B-302 read `fixed`.
+
+**Carried here by L19, ratified by the operator on 2026-09-05, and it is a fourth thing this lot
+finishes**: the acquisition's own delegation verbs — `data-follow`, `data-pause`, `data-remove`,
+`data-dropsug`, `data-sugmore` — move out of the engine's delegation onto the producers L19 has
+just placed in `features/acquisition/`. They are behaviour, which is why L19's contract could not
+carry them and why this lot can. **Done when** each of the five is read by its feature and by no
+engine branch (`grep -c "closest\.dataset\.follow" frontend/maquette/design/src/engine/legacy.js`
+and its four siblings read 0), each landing with the rule that held it before.
+
+**Two more placed here by the steward's audit of L19 (2026-09-05), both RATIFIED by the operator
+the same day — the first said by the clause map on the day and only now written where the lots
+are; the second placed by the audit.** (1) **DOIT-4's « En file » pastille on the resolve queue.** L19 measured it absent and
+could not draw it — a surface change its contract forbade — and the map's DOIT-4 row reads `partly`
+for exactly that half. (2) **`data-take`'s release-screen half.** An INDEX into the offered releases,
+still read by the engine's delegation on the line after the arrivals door, carrying its own
+`setTimeout(…, 260)` and B-322's two toasts, which move with it (B-323). It is an act of
+acquisition on a surface React already emits, which is this lot's shape; the other reading placed it
+with the delegation in L13, and the operator chose this one (« OK L21 pour data-take »). **Done
+when**, for both: the map's DOIT-4 row
+reads `served` with a rule that reads the pastille on a queued mutation, and
+`grep -c "closest\.dataset\.take" frontend/maquette/design/src/engine/legacy.js` reads **0** like the
+five above, each landing with its rule seen red first.
+
+**And B-313, ratified by the operator on 2026-09-05** (« OK B-313 pour L21 »): the follow panel
+offers « Voir le parcours » twice whenever its primary ladder falls through to the journey, because
+the secondary row emits it unconditionally where « Voir la fiche » beside it is guarded. One
+condition, mirroring that guard, on the producer this lot already opens — and the rule its entry
+names: a panel's actions are counted BY LABEL, a label appearing twice is refused, written first and
+red on `main`'s panel for a medium with no sheet. **Done when** B-313 reads `fixed` under that rule.
+
+**Two more, ratified by the operator on 2026-09-06 from his own test session on the design host, both
+read on this lot's head.** **B-337** — a follow card swiped open ignores the FIRST tap on its revealed
+action; those actions are `data-pause` and `data-remove`, the verbs this lot moves, so the rule that
+moves them taps each ONCE with a real touch and holds that the act happened (if the reading shows the
+swipe itself eats the click rather than the tap's path, the lot says so and the entry goes back to L13).
+**B-339** — a disabled panel action is drawn like an enabled one (`.sact` carries no `:disabled` rule);
+this lot draws a not-available state for DOIT-4's queued button, and that state's floor is the
+disabled drawing: the action's variant leaves the residue for `ui/variants` with its `disabled:` half,
+in its own commit. **Done when** both read `fixed` under their rules.
+
+**Two more, ruled by the operator on 2026-09-06 (round 2, questions 2 and 3).** **B-350** — a paused SERIES
+tile on the follows grid is dimmed and says nothing where a paused film says « en pause » (one `??` in
+`tileOf`: fraction OR word): the caption carries both, with a rule reading « a dimmed tile carries a word ».
+**B-345's acquisition half** — the acquisition seeds offer AT REST a takeable arrival for a followed medium,
+a blocked one, a paused follow and a season with a hole, with a rule that counts them, so every verb of this
+lot can be tried by a hand without a named state. **Done when** both read `fixed` under their rules.
 
 #### L20 — The global levers and the history · *depends on L15, L19, L10*
 
@@ -1658,6 +1836,27 @@ harness's driving seams (`__go`, `__states`, `__queries`, `__relay`, `__mocks`) 
 module and die at switchover with `harness.css`; the suite is green at unchanged hold counts; the
 oracle is green.
 
+**Two inheritances written in here by L19, ratified by the operator on 2026-09-05** (§ 7.1: an
+addition, not an edit of the sentence above).
+
+- **The nine fixture families L19 measured it could not kill** — 9 declarations over 100 lines,
+  26 375 lines, unchanged across that wave. They survived because a producer was never their last
+  reader: they sit behind `sheetFor`, `allSettings`, `cardHTML`, `tileHTML` and `posterBox`, so
+  they die with the DRAWING, and the drawing is this lot's. The measurement and its method are in
+  L19's entry.
+- **The delegation's surface-opening verbs** — `data-mediasheet`, `data-journey`, `data-resolve`,
+  `data-releases`, `data-profile`. The objective above gives this lot « the document-level
+  delegation's FRAME verbs »; these five are not the frame's, and they move with the delegation
+  rather than with the producers that emit them, because what they do is open a surface.
+
+**Done when**, for both, and it is written as a command because the two bullets above are not
+ones: `python3 scripts/check-frontend-boundaries.py --arm size` no longer lists `engine/legacy.js`
+in `GRANDFATHERED` at all — the file is gone, which is this lot's own first clause, and nine
+declarations of 26 375 lines inside a file that does not exist is zero by construction; and
+`grep -cE "closest\.dataset\.(mediasheet|journey|resolve|releases|profile)"
+frontend/maquette/design/src/engine/legacy.js` reads **0**, which is L21's own addendum written the
+same way.
+
 **Carried here by L12, 2026-09-01 — B-290, the ladder's two shapes.** A layer closed inside a
 navigation's commit keeps its history entry, so Back from a media screen opened that way crosses TWO
 entries where every sibling action crosses one. The outcome is the same and the mechanism is not,
@@ -1738,6 +1937,40 @@ its report.
   totals, the count the rule printed while falling, and a zero exit). The form: refuse a pointer
   that is not an ancestor of `main`, as `oracle.py --check` refuses a dangling one, and refuse to
   write when `failed > 0`.
+- **B-306 — DISCHARGED by L19 in #558, and the line is kept saying so rather than deleted.** A
+  grandfathered file could grow without limit: the size arm read the label and never a count, so the
+  engine gained 77 non-blank lines at L14 under « dies by subtraction » and the arm printed clean.
+  It records a count per `GRANDFATHERED` entry now, refused upward and re-recorded downward — **and
+  the record itself is compared with the record at the branch's base**, which is the level the first
+  repair was missing: a growth was otherwise legalised by moving the number in the same commit.
+  Both halves are mutation-proven and the register carries the readings (B-306). **Nothing is owed
+  here.**
+- **B-305's hold** — the operator ruled on 2026-09-04 that a swipe left open survives an unrelated
+  store write; nothing reads that property. The next wave that opens `virtual.py` writes the hold
+  (open a swipe, `window.__store.write({})`, the swipe still open), and sees it red on a component
+  that re-keys its rows.
+- **B-307** — three rules have fallen under the suite's parallel load and passed alone, and nine
+  passes at the largest fan-out this machine allows (three) reproduced nothing. The instrument is not a
+  bigger run: `exits.py`, `outbox.py` and `drag.py` PRINT, when they fall, the evidence their diagnosis
+  needs (frames sampled against milliseconds drawn; wait elapsed against timeout given), so the next
+  fall under the suite carries its own reading. The next wave that touches any of the three takes it.
+- **B-325** — no rule can be pointed at a build. `common.PROTOTYPE` is hard-coded to 8899 with no
+  override and every rule self-runs on import, so an independent reader cannot run one against its
+  own copy without rebinding the constant from outside the tree — and once rebound, the B-256 stamp
+  certifies `/tmp/tm-refonte`, a build the run never read. The next wave that opens `common.py`
+  takes it.
+- **B-323** — the inventory of the engine's `setTimeout(…, 260)` sites in `exits.py`'s own comment is
+  taken by a command that reads one line (`grep -n "setTimeout(.*260)"`), so it names five where seven
+  remain; the two it cannot see span several lines and are named in the register. The next wave that
+  touches `exits.py` re-takes the inventory with `grep -n ', 260)'` and names all seven by the call
+  they wrap.
+- **B-346** — `check-bug-register.py`'s closure arm reads an entry's body up to the first paragraph that
+  OPENS with another entry's identifier (`**B-249's FAMILY…`), so that paragraph ends the entry it lives
+  in and claims the body of the entry it names: measured by the departure micro-wave, which the arm
+  refused an honest `fixed #573` on B-310 while it would have accepted a silent closure of B-249; 25 of
+  278 heads were second-or-later on the day, one reworded, twenty-four unread. The repair is one line
+  either way (a head is `**B-NNN —`, never `**B-NNN's`; or the LONGEST span wins). The next wave that
+  touches the guard takes it, and re-takes the 25 with the command in the entry.
 
 **The gate.** Before every wave's closing commit: `make lint` at zero errors, `make test` with no
 failure and **no error** (an error means collection crashed and everything after it was skipped),
@@ -1808,6 +2041,24 @@ audit at `b4b75a67a`). Nothing reads that pointer, which is why it could die in 
 `harness-hold-counts.py` refuses a pointer that is not an ancestor of `main`, the gesture checks it
 by hand: `git merge-base --is-ancestor $(python3 -c "import json;print(json.load(open('frontend/maquette/hold-counts-baseline.json'))['taken_at_commit'])") origin/main`.
 
+**And both pointers read `HEAD` at the moment of the recording — so `HEAD` IS the squash when they
+are recorded, not a commit of the gesture's own branch** (added 2026-09-06, on the first recording of
+#573's gesture, which named the gesture's docs commit: a commit its own squash would have erased, B-291
+one gesture later with a green `--is-ancestor` on the day). The gesture's worktree is checked out at the
+squash, the references are recorded there, and the gesture's edits are committed AFTER — or, if the
+docs commit came first, it is soft-reset onto the squash and the recording taken again before one
+commit carries everything. A pointer that names the squash survives the gesture's own merge; any other
+survives nothing.
+
+**AND THE BASELINE IS NOT RE-RECORDED WHILE A RULE IS FAILING** — added 2026-09-05, on B-291's
+second form, which L19 met and could not repair. Re-recording runs the whole suite and writes what
+it read; run over a suite with `failed > 0`, the row it writes is indistinguishable from a good one
+and every later comparison rests on it. **So the gesture reads `failed` FIRST.** If it is not zero,
+the failing rule is repaired before the gesture, or the reason it is failing is written into the
+baseline's own record and into the register entry that owns it — and the gesture says which of the
+two it did. At the time this was written the standing case is **B-308**, `machine.py`'s « as many
+schedulers drawn as PM2 schedules », which reads 6 drawn against 7 real and is nobody's lot yet.
+
 **And re-record the reference after the squash merge.** The reference names the commit it
 measured; squashing replaces that commit, so on a fresh clone the pointer names nothing and
 `--check` refuses to run at all. **It is two commands, and the first is not optional:**
@@ -1860,6 +2111,25 @@ wave that found none says so, in its row, with the same authority as a wave that
 
 **The maquette first.** Nothing about a surface is decided anywhere else. A surface is drawn
 before it is coded, with named states and a rule that bites.
+
+**Placed here by the operator's rulings of 2026-09-06 — the first ones from his test session on the design
+host, the rest from the decision round of the same day (round 2, questions 1 and 8) — each with its reading in
+`BUGS.md`, none reopening what this entry already says**: **B-312** (the library's selection survives a lens
+change — RULED 2026-09-05; the two writers of `selected: new Set()`, the engine's and `library-head.tsx`'s,
+are one fact here), **B-327** (« Réglages » draws the seventh scheduler when the `SETTINGS` family converts —
+option E refused), **B-331** (the pull indicator's 1 100 ms pretence and its centring), **B-336** (the kind
+chips hide their scrollbar as `pillscroll` does), **B-340** (the « + » opens a FRESH add screen; `addQ`,
+`addMode` and `added` leave the engine with the add screen's state). **Done when** each reads `fixed` under
+a rule seen red first, or is placed elsewhere by a ruling written here. **What the same round placed
+ELSEWHERE, on purpose**: the settings defects that are React's, the mock's, or a verb the registry can take
+off the engine — **B-334**, **B-335**, **B-341**, **B-342**, **B-343**, **B-332** and **B-361** (a rubric of
+Réglages or Maintenance is an ARRIVAL: it pushes and draws its back — both confirmed on the operator's
+phone by the real path) and the settings half of **B-345** — go to the **`maquette-settings` micro-wave**
+(`docs/features/maquette-settings/BRIEF.md`) after L21 merges and before L20, because they repair without
+an engine edit on the verb registry L21 built and because they are what keeps B-299 and B-300 unconfirmable
+by hand; **B-344** to the **`maquette-desktop-frame` tooling micro-wave**
+(`docs/features/maquette-desktop-frame/BRIEF.md`) after the departure micro-wave merges; and the library's
+share of **B-345** stays here with the fixture clause.
 
 ### One lot at a time
 

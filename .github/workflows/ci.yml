@@ -225,7 +225,23 @@ jobs:
     name: no-french
     runs-on: ubuntu-latest
     steps:
+      # FULL HISTORY, and it is `check-frontend-boundaries.py` that needs it.
+      # Its size arm compares each grandfathered file's RECORD with the record
+      # at the revision the branch grew from — the level B-306's first repair
+      # was missing, where a growth is legalised by moving the number in the
+      # same commit. With a shallow checkout there is no base to read, the arm
+      # says so on its own line and refuses nothing.
+      #
+      # TWO JOBS RUN THAT GUARD, and only one of them is this line's subject.
+      # This one runs it directly; `harness-contracts` runs it as the first of
+      # `run.sh --contracts`'s repository guards, and that job already takes the
+      # full history — for `check-bug-register.py`'s closure arm, which is a
+      # different reason for the same depth. `tests/scripts/
+      # test_ci_filter_covers_the_guards.py` holds BOTH, so removing either
+      # line is loud rather than silent.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

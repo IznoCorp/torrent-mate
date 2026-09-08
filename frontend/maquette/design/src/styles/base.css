@@ -533,7 +533,7 @@
    else (D9 rule 1). No source file is touched to place them: each is keyed on a
    naming attribute the surface already emits, which is also how the media
    screen keeps its name without a line being added to
-   `features/media/media-screen.tsx` — one of L14's four files this lot may not
+   `features/media/media-screen.tsx` — the media screen, which this lot may not
    extend.
 
    A NAME MUST BE UNIQUE IN THE DOCUMENT, and each of these resolves to at most
@@ -596,7 +596,7 @@
    skeletons; they enter as they arrive now.
 
    `@starting-style` IS THE WHOLE MECHANISM, and it is why this needs no module
-   and no line in `features/media/media-screen.tsx` — one of L14's four. It
+   and no line in `features/media/media-screen.tsx`. It
    declares the style an element has for the frame it is INSERTED in, so the
    transition beside it runs from there to the resting value.
 
@@ -754,14 +754,35 @@
 
    The screen is named separately from the root so the fanart and the body can
    be given different curves; the root keeps the plain cross-fade above. */
+/* THE FILL MODE IS WRITTEN OUT, and an `animation:` SHORTHAND on one of these
+   pseudo-elements is a trap.
+
+   The user-agent stylesheet gives every `::view-transition-*` pseudo-element
+   `animation-fill-mode: both`, and a shorthand RESETS it to `none`. So a
+   snapshot animated through the shorthand snaps back to its UN-ANIMATED state
+   the moment its animation ends, and is drawn there — above the root — until
+   the browser tears the transition down a frame later.
+
+   FOR A NEW SNAPSHOT the un-animated state happens to be the final one, so
+   nothing shows: the two arrivals below carried this and got away with it.
+   FOR AN OLD SNAPSHOT it is the image as it was CAPTURED, and that is B-310 —
+   the panel the reader has just watched leave, painted again, open and opaque,
+   at rest, for one frame. Three rules of one species, declared alike, so the
+   next reader of this file does not have to work out which of them is safe.
+
+   `both` and not `forwards`, because `both` is what the user agent had and the
+   shorthand took away. `banner-cover` above spells its own fill mode inside the
+   shorthand, which is the other honest way to write it. */
 @media (prefers-reduced-motion: no-preference) {
   ::view-transition-new(screen-banner) {
     animation: banner-in var(--duration-4) var(--ease-standard);
+    animation-fill-mode: both;
   }
 
 
   ::view-transition-new(screen-body) {
     animation: body-rise var(--duration-4) var(--ease-emphasized);
+    animation-fill-mode: both;
   }
 }
 
@@ -806,6 +827,11 @@
 @media (prefers-reduced-motion: no-preference) {
   ::view-transition-old(leaving-panel) {
     animation: panel-down var(--duration-4) var(--ease-standard);
+    /* The fill mode, for the reason written above the screen's arrival — and
+       here it is the one a reader SEES. Without it `panel-down` ends and the
+       snapshot returns to the panel as it was captured, open and at rest, over
+       a media screen that is already fully in (B-310). */
+    animation-fill-mode: both;
   }
 }
 

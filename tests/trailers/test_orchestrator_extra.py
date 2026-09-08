@@ -23,7 +23,11 @@ from unittest.mock import MagicMock, patch
 
 from personalscraper.api.metadata.registry import ProviderRegistry
 from personalscraper.core.event_bus import EventBus
-from personalscraper.trailers.orchestrator import TrailersOrchestrator, _LibraryEntry
+from personalscraper.trailers.orchestrator import (
+    TrailersOrchestrator,
+    _LibraryEntry,
+    _trailer_already_on_disk,
+)
 from personalscraper.trailers.scanner import ScanItem
 
 
@@ -570,3 +574,87 @@ class TestLookupLibraryItemNoneIndex:
             tmdb_id=None,
         )
         assert orch._lookup_library_item(item) is None
+
+
+class TestTrailerAlreadyOnDisk:
+    """Tests for _trailer_already_on_disk() — the decision that guards a download.
+
+    A show whose trailer was placed by an earlier release keeps it in a
+    lowercase ``trailers/`` folder. The storage mounts are case-sensitive, so
+    the canonical path never names that folder; calling such a show
+    trailer-less downloads a second copy beside the one it already owns, and a
+    viewer then sees the same trailer twice in the Plex extras row.
+    """
+
+    @staticmethod
+    def _show_with_legacy_trailer(tmp_path: Path) -> tuple[Path, Path]:
+        """Return a show dir holding only a legacy trailer, and its canonical path."""
+        show_dir = tmp_path / "Ahsoka (2023)"
+        (show_dir / "trailers").mkdir(parents=True)
+        (show_dir / "trailers" / "Ahsoka - Saison 1 - trailer.mp4").write_bytes(b"\0" * 4096)
+        return show_dir, show_dir / "Trailers" / "Ahsoka (2023).mp4"
+
+    def test_legacy_folder_counts_as_present(self, tmp_path: Path) -> None:
+        """The regression: the download that duplicated the trailer is not taken."""
+        show_dir, canonical = self._show_with_legacy_trailer(tmp_path)
+        assert (
+            _trailer_already_on_disk(
+                show_dir,
+                canonical,
+                media_type="tvshow",
+                season_number=None,
+                min_size_bytes=1024,
+            )
+            is True
+        )
+
+    def test_canonical_placement_still_counts_as_present(self, tmp_path: Path) -> None:
+        """The exact path keeps answering first — nothing about it changes."""
+        show_dir = tmp_path / "Ahsoka (2023)"
+        canonical = show_dir / "Trailers" / "Ahsoka (2023).mp4"
+        canonical.parent.mkdir(parents=True)
+        canonical.write_bytes(b"\0" * 4096)
+        assert (
+            _trailer_already_on_disk(show_dir, canonical, media_type="tvshow", season_number=None, min_size_bytes=1024)
+            is True
+        )
+
+    def test_a_show_without_any_trailer_is_still_absent(self, tmp_path: Path) -> None:
+        """The broadening cannot suppress a download that is genuinely due."""
+        show_dir = tmp_path / "Ahsoka (2023)"
+        (show_dir / "Saison 01").mkdir(parents=True)
+        assert (
+            _trailer_already_on_disk(
+                show_dir,
+                show_dir / "Trailers" / "Ahsoka (2023).mp4",
+                media_type="tvshow",
+                season_number=None,
+                min_size_bytes=1024,
+            )
+            is False
+        )
+
+    def test_a_season_item_reads_its_exact_path_only(self, tmp_path: Path) -> None:
+        """Season layout is opt-in and was never written elsewhere — no broadening."""
+        show_dir, _ = self._show_with_legacy_trailer(tmp_path)
+        season_path = show_dir / "Saison 02" / "Trailers" / "Ahsoka (2023) - Saison 02.mp4"
+        assert (
+            _trailer_already_on_disk(show_dir, season_path, media_type="tvshow", season_number=2, min_size_bytes=1024)
+            is False
+        )
+
+    def test_a_movie_reads_its_exact_path_only(self, tmp_path: Path) -> None:
+        """Movies place flat, have no trailer folder, and never changed layout."""
+        movie_dir = tmp_path / "Fight Club (1999)"
+        (movie_dir / "trailers").mkdir(parents=True)
+        (movie_dir / "trailers" / "whatever.mp4").write_bytes(b"\0" * 4096)
+        assert (
+            _trailer_already_on_disk(
+                movie_dir,
+                movie_dir / "Fight Club (1999)-trailer.mp4",
+                media_type="movie",
+                season_number=None,
+                min_size_bytes=1024,
+            )
+            is False
+        )

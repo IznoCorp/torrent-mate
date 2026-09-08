@@ -46,8 +46,8 @@ DESIGN = ROOT / "frontend" / "maquette" / "design"
 # wrote them watched fall. A floor 37 % below what it guards is a floor nothing
 # stands on: the smallest of the four files is 7 tests, so the file floor is the
 # file count and the test floor is the test count.
-TEST_FLOOR = 93
-FILE_FLOOR = 5
+TEST_FLOOR = 104
+FILE_FLOOR = 6
 
 
 # THE PER-PULL-REQUEST TIER'S COMPOSITION, and it is this module's second

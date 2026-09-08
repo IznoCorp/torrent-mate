@@ -10,13 +10,24 @@ import { read } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
 import type { DeletionJournal, MaintenanceAction } from "./reference";
 
+/**
+ * The actions maintenance offers, as a query DEFINITION.
+ *
+ * A DEFINITION AND NOT ONLY A HOOK because two readers want it and only one of
+ * them renders: the page subscribes, and the command PANEL is produced from a
+ * click — and from a cold load at `?panel=action:<id>`, where no page has
+ * mounted at all. Asking through the same definition is what stops the two from
+ * drifting into two shapes of one answer (§13).
+ */
+export const maintenanceActionsQuery = {
+  queryKey: ["/api/maintenance/actions"],
+  queryFn: async () =>
+    toEngineShape<MaintenanceAction[]>("MAINT_ACTIONS", await read("/api/maintenance/actions")),
+};
+
 /** The actions maintenance offers. */
 export function useMaintenanceActions() {
-  return useQuery({
-    queryKey: ["/api/maintenance/actions"],
-    queryFn: async () =>
-      toEngineShape<MaintenanceAction[]>("MAINT_ACTIONS", await read("/api/maintenance/actions")),
-  });
+  return useQuery(maintenanceActionsQuery);
 }
 
 /** What deleting has already done. */

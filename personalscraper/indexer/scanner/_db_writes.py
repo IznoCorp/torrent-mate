@@ -24,6 +24,14 @@ from personalscraper.logger import get_logger
 log = get_logger("indexer.scan")
 
 # Batch size for executemany inserts during full-mode walk (DESIGN §11.7).
+#
+# READ BEFORE USING IT AS A RUNNING CEILING. Nothing compares the buffer's
+# length against this, and that is deliberate: the scanner runs in autocommit
+# with no BEGIN anywhere, so any mid-walk drain is durable immediately and a
+# disk raising EIO stops contributing nothing. Enforcing it here was tried and
+# withdrawn, measured at 5 000 leaked rows against
+# ``test_indexer_unplug_during_scan`` with a fixture one batch deep. The
+# constant still documents the size of the single post-walk ``executemany``.
 _INSERT_BATCH_SIZE: int = 5000
 
 
@@ -99,14 +107,17 @@ def _upsert_file_row(
 ) -> None:
     """Insert or update a ``media_file`` row for a discovered file.
 
-    In full mode the caller passes a pre-computed ``oshash_value`` and may
-    optionally pass an ``insert_buffer`` list.  When a buffer is provided and
-    the file is **new**, the row tuple is appended to the buffer instead of
-    being inserted immediately — the caller flushes the buffer via
-    :func:`_flush_insert_buffer` when it reaches :data:`_INSERT_BATCH_SIZE`.
+    In full mode the caller passes a pre-computed ``oshash_value`` and an
+    ``insert_buffer`` list.  When a buffer is provided the row tuple is appended
+    to it instead of being written immediately, and ``_scan_disk_full`` drains
+    it once, after the walk returns.
 
-    When the file already exists, the row is updated in-place (no buffering
-    for updates; they are rare during a cold full scan).
+    :data:`_INSERT_BATCH_SIZE` is NOT applied as a running ceiling, and the
+    comment on the append explains why: holding the rows in memory is what makes
+    a disk that vanishes mid-walk contribute none of them, because the scanner
+    runs in autocommit and its EIO ``rollback()`` is inert.
+
+    Without a buffer the row is written immediately, upserted in place.
 
     The ``oshash`` is set to ``oshash_value`` (``None`` for non-video or symlink
     files — stored as SQL NULL, see migration 002).  ``release_id`` is ``None``
@@ -144,8 +155,25 @@ def _upsert_file_row(
         None,  # deleted_at
     )
     if insert_buffer is not None:
-        # Buffered new-row path — caller flushes via _flush_insert_buffer.
-        # Used only during cold full-scan when no row collisions are expected.
+        # Buffered path, taken by full mode for EVERY file it walks (new or
+        # already known — the flush carries an ON CONFLICT clause for that).
+        #
+        # The buffer is NOT drained here, and that is load-bearing rather than
+        # an oversight. Every scanner connection is opened with
+        # ``isolation_level=None`` (``_concurrency.py``, ``core/sqlite/_open.py``)
+        # and nothing in this package issues a BEGIN, so each statement commits
+        # the instant it runs and ``worker_conn.rollback()`` on the EIO path
+        # (``_scan_orchestrator.py``) rolls back nothing. What actually makes a
+        # disk that vanished mid-walk contribute no rows is that its rows are
+        # still in THIS list when the OSError propagates out of ``walk()``,
+        # skipping the post-walk flush. Draining at any interval publishes them
+        # durably and that guarantee is gone — measured at 5 000 leaked rows
+        # with a fixture one batch deep.
+        #
+        # So the memory this retains (98 506 rows, 37.2 MB for the operator's
+        # library) is the price of the rollback, until the scanner opens a real
+        # per-disk transaction. ``tests/indexer/scanner/test_checkpoint_durability.py``
+        # holds the line.
         insert_buffer.append(row_tuple)
         return
 

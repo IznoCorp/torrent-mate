@@ -14,6 +14,7 @@ import pytest
 
 from personalscraper.trailers.placement import (
     find_existing_trailer,
+    find_show_trailer,
     trailer_exists,
     trailer_path_for,
     trailer_path_for_season,
@@ -408,3 +409,84 @@ class TestFindExistingTrailerTvShows:
         result = find_existing_trailer(movie_dir, "Fight Club (1999)", media_type="movie")
 
         assert result == flat
+
+
+# ── layout-tolerant presence (the legacy lowercase folder) ───────────────────
+
+
+class TestFindShowTrailer:
+    """Tests for find_show_trailer() — presence across every layout ever written.
+
+    Storage mounts here are case-sensitive, so a show-level trailer folder
+    written under the older lowercase name is a directory of its own rather
+    than the canonical one, and a presence check that names a single exact
+    path reads it as absent.
+    """
+
+    @staticmethod
+    def _make_show(tmp_path: Path, folder: str, filename: str, size: int) -> Path:
+        """Create a show dir holding one file inside the named subfolder."""
+        show_dir = tmp_path / "Ahsoka (2023)"
+        (show_dir / folder).mkdir(parents=True)
+        (show_dir / folder / filename).write_bytes(b"\0" * size)
+        return show_dir
+
+    def test_finds_the_canonical_placement(self, tmp_path: Path) -> None:
+        """The Plex-conformant Trailers/{show}.mp4 is found."""
+        show_dir = self._make_show(tmp_path, "Trailers", "Ahsoka (2023).mp4", 2048)
+        assert find_show_trailer(show_dir, 1024) == show_dir / "Trailers" / "Ahsoka (2023).mp4"
+
+    def test_finds_a_trailer_in_the_legacy_lowercase_folder(self, tmp_path: Path) -> None:
+        """The defect: a legacy folder read as absent triggers a second download."""
+        show_dir = self._make_show(tmp_path, "trailers", "Ahsoka - Saison 1 - trailer.mp4", 2048)
+        expected = show_dir / "trailers" / "Ahsoka - Saison 1 - trailer.mp4"
+        assert find_show_trailer(show_dir, 1024) == expected
+
+    def test_finds_a_trailer_whose_name_does_not_match_the_folder(self, tmp_path: Path) -> None:
+        """A hand-placed trailer counts as present; naming it again duplicates it."""
+        show_dir = self._make_show(tmp_path, "Trailers", "Trailer - The One with the Trailer.mkv", 2048)
+        assert find_show_trailer(show_dir, 1024) is not None
+
+    def test_ignores_a_file_below_the_minimum_size(self, tmp_path: Path) -> None:
+        """A truncated download is not a trailer, whatever folder holds it."""
+        show_dir = self._make_show(tmp_path, "trailers", "Ahsoka - Saison 1 - trailer.mp4", 10)
+        assert find_show_trailer(show_dir, 1024) is None
+
+    def test_ignores_a_non_video_extension(self, tmp_path: Path) -> None:
+        """Sidecars living beside a trailer never stand in for one."""
+        show_dir = self._make_show(tmp_path, "trailers", "Ahsoka.nfo", 2048)
+        assert find_show_trailer(show_dir, 1024) is None
+
+    def test_ignores_a_folder_that_is_not_a_trailer_folder(self, tmp_path: Path) -> None:
+        """Only the trailer folder answers — other Plex extras dirs do not."""
+        show_dir = self._make_show(tmp_path, "Behind The Scenes", "Gag Reel.mkv", 2048)
+        assert find_show_trailer(show_dir, 1024) is None
+
+    def test_returns_none_when_no_trailer_folder_exists(self, tmp_path: Path) -> None:
+        """A show with seasons and no trailer folder is genuinely without one."""
+        show_dir = tmp_path / "Ahsoka (2023)"
+        (show_dir / "Saison 01").mkdir(parents=True)
+        assert find_show_trailer(show_dir, 1024) is None
+
+    def test_returns_none_when_the_media_dir_is_absent(self, tmp_path: Path) -> None:
+        """An unmounted or moved media dir reads as absent, never raising."""
+        assert find_show_trailer(tmp_path / "nothing here", 1024) is None
+
+    def test_finds_a_trailer_that_carries_no_extension(self, tmp_path: Path) -> None:
+        """128 of this library's 670 trailer files have none (measured 2026-09-05) — a yt-dlp artefact.
+
+        Skipping them reads each of those shows as trailer-less and downloads a
+        second trailer, which is the defect this function exists to end.
+        """
+        show_dir = self._make_show(tmp_path, "trailers", "trailer #1", 2048)
+        assert find_show_trailer(show_dir, 1024) == show_dir / "trailers" / "trailer #1"
+
+    def test_still_ignores_a_sidecar_that_does_carry_an_extension(self, tmp_path: Path) -> None:
+        """Admitting extensionless files must not admit every file."""
+        show_dir = self._make_show(tmp_path, "Trailers", "poster.jpg", 2048)
+        assert find_show_trailer(show_dir, 1024) is None
+
+    def test_an_extensionless_file_below_the_floor_is_not_a_trailer(self, tmp_path: Path) -> None:
+        """With no suffix to judge by, the size floor is the only guard left."""
+        show_dir = self._make_show(tmp_path, "trailers", "trailer #1", 10)
+        assert find_show_trailer(show_dir, 1024) is None

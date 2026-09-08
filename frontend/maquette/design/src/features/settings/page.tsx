@@ -113,6 +113,54 @@ function SearchField(): ReactElement {
 // settings never scrolls it away — and it exists only when there is something to
 // save. Its host is `#device`, a sibling of the page's own container, so this
 // page has a second portal: the one piece of it that renders outside its host.
+// THE THREE BANNERS THE COPY NAMES, in one place and drawn on every branch of
+// this page.
+//
+// They were written inline in the RUBRIC LIST alone, so a read-only instance
+// said so on the list and said nothing once a rubric was open — and the save
+// bar, which is what raises the third of them, exists on every branch. B-299's
+// banner would have been invisible exactly where the operator taps « Enregistrer ».
+function SettingsBanners(): ReactElement {
+  const { SETTINGS_STATE, changedFiles } = useSettingsReference();
+  const { t } = useTranslation();
+  return (
+    <>
+      {SETTINGS_STATE.readOnly ? (
+        <div className={loadError()} data-part="load-error">
+          <b>{t("screens.settings.readOnlyLead")}</b>
+          {t("screens.settings.readOnlyRest")}
+        </div>
+      ) : null}
+      {/* THE THIRD BANNER — the one the copy named and the page never drew
+          (B-299). The file moved on disk while it was being edited, so what is
+          on screen no longer describes what is stored. The edits are NOT thrown
+          away by the banner appearing: losing the operator's work on top of the
+          surprise would be the second loss, and reloading is offered as a
+          decision rather than taken as one. */}
+      {SETTINGS_STATE.conflict ? (
+        <div className={loadError()} data-part="load-error">
+          <b>{t("screens.settings.conflictLead")}</b>
+          {t("screens.settings.conflictRest")}{" "}
+          <button className={loadErrorAction()} data-reloadsettings="1">
+            {t("screens.settings.conflictReload")}
+          </button>
+        </div>
+      ) : null}
+      {SETTINGS_STATE.redemarrage ? (
+        <div className={loadError()} data-part="load-error">
+          <b>{t("screens.settings.restartLead")}</b>{" "}
+          {changedFiles().join(", ") ||
+            t("screens.settings.restartSomeSettings")}
+          {t("screens.settings.restartRest")}{" "}
+          <button className={loadErrorAction()} data-restart="1">
+            {t("screens.settings.restartNow")}
+          </button>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 function SaveBar(): ReactElement | null {
   const {
     SETTINGS_STATE,
@@ -200,6 +248,7 @@ export function SettingsPage(): ReactElement | null {
   if (SETTINGS_STATE.topic === "secrets") {
     return (
       <>
+        <SettingsBanners />
         <h2 className={sectionHeading()} data-part="heading">{t("screens.settings.secretsTitle")}</h2>
         <p className={qualityHint()}>{t("screens.settings.secretsHint")}</p>
         <div className={factsPanel()} data-part="panel">
@@ -250,6 +299,7 @@ export function SettingsPage(): ReactElement | null {
     }
     return (
       <>
+        <SettingsBanners />
         <TopicView topic={topic} />
         <SaveBar />
       </>
@@ -267,6 +317,7 @@ export function SettingsPage(): ReactElement | null {
     return (
       <>
         <SearchField />
+        <SettingsBanners />
         {found.length === 0 ? (
           <Markup
             className={emptyNote()} data-part="empty-state"
@@ -304,23 +355,7 @@ export function SettingsPage(): ReactElement | null {
   return (
     <>
       <SearchField />
-      {SETTINGS_STATE.readOnly ? (
-        <div className={loadError()} data-part="load-error">
-          <b>{t("screens.settings.readOnlyLead")}</b>
-          {t("screens.settings.readOnlyRest")}
-        </div>
-      ) : null}
-      {SETTINGS_STATE.redemarrage ? (
-        <div className={loadError()} data-part="load-error">
-          <b>{t("screens.settings.restartLead")}</b>{" "}
-          {changedFiles().join(", ") ||
-            t("screens.settings.restartSomeSettings")}
-          {t("screens.settings.restartRest")}{" "}
-          <button className={loadErrorAction()} data-restart="1">
-            {t("screens.settings.restartNow")}
-          </button>
-        </div>
-      ) : null}
+      <SettingsBanners />
       {SETTINGS.map((topic) => (
         <button className={topicRow()} data-part="topic" data-topic={topic.id} key={topic.id}>
           <span style={{ minWidth: 0, flex: 1 }}>

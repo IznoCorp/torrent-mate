@@ -98,6 +98,12 @@ SAMPLE = """([frames, layers])=>new Promise((done)=>{
     for (const [name, selector] of Object.entries(layers)) frame[name] = of(selector);
     frame.screens = [...document.querySelectorAll('[data-part="screen"]')]
       .filter((node) => node.hasAttribute('data-open')).length;
+    // WHETHER THE JOURNEY IS THE PANEL BEING DRAWN, read per frame. A journey
+    // REPLACES the panel it was reached from, so « the sheet is up » is true
+    // throughout and says nothing; what a producer's wait delays is the moment
+    // the CONTENT becomes the journey's, which is what a reader sees.
+    frame.journeyDrawn = !!document.querySelector(
+      '#sheetin [data-part="key-value"]');
     seen.push(frame);
     if (seen.length >= frames) return done(seen);
     requestAnimationFrame(read);
@@ -175,9 +181,69 @@ async def main():
         print(f"  note the scrim reaches zero at frame {gone} and the "
               f"destination arrives at frame {arrived} — "
               f"{'' if gone is None or arrived is None else arrived - gone} "
-              "frame(s) of bare page between them. The wait is the PRODUCER's "
-              "(`setTimeout(…, 260)` beside `data-mediasheet`) and moves with "
-              "it at L19; this rule prints it and refuses nothing about it.")
+              "frame(s) of bare page between them. This walk's own path carries "
+              "no producer wait; the sites that still do are named below.")
+
+        # ── THE WAIT, REFUSED WHERE ITS PRODUCER HAS MOVED ────────────────
+        #
+        # B-249's SHAPE, and the line this rule used to carry said the wait
+        # « moves with the producer ». Two of the seven `setTimeout(…,
+        # 260)` sites did: `data-journey` and `data-take`. On those paths the
+        # panel now leaves inside the navigation's own commit — the arrangement
+        # `data-mediasheet` already had — and this rule REFUSES the gap
+        # rather than printing it.
+        #
+        # THE OTHER FIVE ARE NOT THIS LOT's, and naming them is the point.
+        # They are named by the CALL they wrap, never by a line number: a line
+        # number in a comment is right on the day it is typed and wrong on the
+        # next edit, and the first version of this block named five that had
+        # already moved. `grep -n "setTimeout(.*260)" legacy.js` finds them:
+        # `screens.add(…, "identify")`, `screens.releases(…)`,
+        # `screens.profile(…)` twice and `screens.resolution(…)`. The reversal
+        # this rule was promised is complete when the LAST site goes, and the
+        # last site is not this lot's. A blanket refusal here would have been a
+        # rule against the wrong subject.
+        # DRIVEN THROUGH THE DELEGATION, NEVER THROUGH THE SEAM. The first
+        # version of this walk called `window.__panel.produce("journey", …)`
+        # directly and was VACUOUS: putting the 260 ms wait back beside
+        # `data-journey` fell nothing, because the wait lives in the branch the
+        # seam call steps over. A rule must cover the path actually walked, and
+        # the path is a finger on an action carrying `data-journey`.
+        for verb, drive, tap in (
+            ("journey",
+             """()=>{window.__go('followsheet-complete');}""",
+             """()=>{const a = document.querySelector('#sheet [data-journey]');
+                     if (!a) return false; a.click(); return true;}"""),
+        ):
+            await page.evaluate(drive)
+            await page.wait_for_timeout(600)
+            reachable = await page.evaluate(
+                f"""()=>!!document.querySelector('#sheet [data-{verb}]')""")
+            journal.check(
+                f"a « {verb} » action is REACHABLE from a panel, so this walk "
+                "drives the delegation and not the seam",
+                reachable)
+            sampling = asyncio.create_task(page.evaluate(SAMPLE, [24, LAYERS]))
+            await asyncio.sleep(0.02)
+            await page.evaluate(tap)
+            walked = await sampling
+            # THE PANEL IS REPLACED, not raised: one panel closes and the
+            # journey's opens. So what is read is the moment its CONTENT is the
+            # journey's, which is what a wait delays and what a reader sees.
+            landed = next(
+                (at for at, frame in enumerate(walked) if frame["journeyDrawn"]),
+                None)
+            journal.check(
+                f"« {verb} » draws its panel inside the window this walk samples",
+                landed is not None, f"journey drawn at frame {landed}")
+            up = landed
+            # THE PANEL IS ALREADY THERE, or it arrived without a wait. 260 ms
+            # at 60 Hz is about 16 frames; anything under a third of that is the
+            # navigation's own commit rather than a timer.
+            journal.check(
+                f"and with no producer wait before it (B-249, « {verb} »)",
+                up is not None and up <= 5,
+                f"frame {up} — a 260 ms wait would put it past 15")
 
         # EVERY OTHER LAYER OF THE FRAME, each driven into its OWN exit. The
         # first version of this rule read the two above and nothing else —

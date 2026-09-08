@@ -55,7 +55,12 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # adjusting it — which is exactly what happened the day the shell moved into
 # `app/`, and the contract tier does not run this rule, so only the full
 # suite before the merge said so.
-BOOT_FILE = "app/shell.tsx"
+# WHERE THE BOOT NAMES WHAT THE FEATURES CONTRIBUTE. It was `app/shell.tsx`,
+# and the list moved to a file of its own because it gains an entry
+# per feature converted while the shell may only lose lines. A pointer that
+# silently misses its target is how a rule goes quiet; this one fell loudly,
+# which is the arrangement working.
+BOOT_FILE = "app/panel-contributions.ts"
 
 # What the boot logs when an addressed panel was accepted and then failed to
 # open. A value the address model REFUSES never reaches the opener, so this
@@ -124,6 +129,62 @@ READ = """() => {
 
 
 
+def side_effect_imports(path):
+    """The local modules one file imports for their side effect, RESOLVED.
+
+    Read on the text with its comments blanked, so a dead import is exactly as
+    dead here as a deleted one, and returned as resolved paths rather than as
+    the strings the importer happened to type.
+
+    Args:
+        path: The importing file.
+
+    Yields:
+        Each existing local module it imports for a side effect.
+    """
+    text = re.sub(r"/\*.*?\*/", " ", path.read_text(encoding="utf-8"), flags=re.S)
+    text = re.sub(r"//[^\n]*", " ", text)
+    for specifier in re.findall(r'\bimport\s+"([^"]+)"', text):
+        if not specifier.startswith("."):
+            continue
+        target = (path.parent / specifier).resolve()
+        for candidate in (target.with_suffix(".ts"), target.with_suffix(".tsx"),
+                          target / "index.ts", target / "index.tsx"):
+            if candidate.is_file():
+                yield candidate
+                break
+
+
+def boot_reach(source_root):
+    """Every source the boot's side-effect imports reach, as resolved paths.
+
+    THE BOOT NAMES ONE MODULE PER FEATURE and a feature gathers its own
+    siblings, so « imported at boot » is a question about REACH rather than
+    about one file's text. One level of indirection is followed — enough for
+    the arrangement that exists, and shallow enough that a reader can say what
+    it read.
+
+    THIS USED TO RETURN THE TEXT, and the caller looked for the module's name
+    inside it. Two things answered that needle without being an import: a
+    COMMENTED-OUT import — measured, and the hold stayed green over it — and
+    any file of the same basename anywhere in the tree. A path either is in the
+    reach or it is not, and that is a fact this returns rather than a string a
+    reader searches.
+
+    Args:
+        source_root: `design/src`.
+
+    Returns:
+        The set of resolved paths the boot reaches, itself included.
+    """
+    boot_path = (source_root / BOOT_FILE).resolve()
+    reached = {boot_path}
+    for named in side_effect_imports(boot_path):
+        reached.add(named)
+        reached.update(side_effect_imports(named))
+    return reached
+
+
 def block_kind_ends():
     """Reads the three ends of every panel block kind, from the sources.
 
@@ -140,7 +201,7 @@ def block_kind_ends():
     """
     source_root = ROOT / "design" / "src"
     declared, registered, unimported = set(), set(), []
-    boot = (source_root / BOOT_FILE).read_text(encoding="utf-8")
+    boot = boot_reach(source_root)
     for file in sorted(source_root.rglob("*.ts")) + sorted(source_root.rglob("*.tsx")):
         text = file.read_text(encoding="utf-8")
         # A `PanelBlockMap` body, wherever it is declared or augmented. Its
@@ -151,10 +212,13 @@ def block_kind_ends():
         registered |= set(calls)
         if calls and "ui/panel" not in file.as_posix():
             stem = file.relative_to(source_root).as_posix().rsplit(".", 1)[0]
-            # The boot writes its import RELATIVE TO ITSELF, so the needle is
-            # built the same way rather than assumed to start at the root.
-            up = "../" * (len(pathlib.PurePosixPath(BOOT_FILE).parts) - 1) or "./"
-            if f'"{up}{stem}"' not in boot:
+            # READ AGAINST WHAT THE BOOT REACHES, not against the boot's own
+            # text. A feature with more than one panel gathers its siblings in a
+            # module of its own and the boot names that module — so a file
+            # imported one level down IS imported at boot, and a reader that
+            # stopped at the first file called it absent. The answer is this
+            # file's own resolved path, present in the reach or absent from it.
+            if file.resolve() not in boot:
                 unimported.append(stem)
     return declared, registered, unimported
 
@@ -185,7 +249,21 @@ async def main():
     not_facts = [a.strip()[:24] for a in calls if not a.lstrip().startswith("{")]
     check("no caller hands markup", not not_facts,
           " · ".join(not_facts))
-    check("there really are callers", len(calls) >= 6, f"{len(calls)} calls")
+    # AND THE PRODUCERS, which are how a panel is asked for. A
+    # producer does not CALL `open`: it is registered against a kind and RETURNS
+    # a descriptor, which `app/panel-host.ts` opens. Counting only the call form
+    # read ZERO the day the producers moved — the same shape this hold caught
+    # when the engine converted its forty call sites, one layer along, and the
+    # reason the floor is here at all.
+    registrations = re.findall(
+        r'registerProducer\(\s*"([^"]+)"\s*,\s*(.{0,12})', source, re.S)
+    envelopes = [f"{kind}: {rest.strip()[:12]}" for kind, rest in registrations
+                 if not rest.lstrip().startswith("{")]
+    check("no producer is registered as anything but a declaration",
+          not envelopes, " · ".join(envelopes))
+    check("there really are callers",
+          len(calls) + len(registrations) >= 6,
+          f"{len(calls)} call(s), {len(registrations)} producer(s)")
 
     # 2. One builder, not two. A fallback builder is the one that rots. The
     #    engine's own builder must not come back either: two constructors are
@@ -272,7 +350,7 @@ async def main():
         await pg2.evaluate("()=>window.__loadingDone?.()")
         await pg2.wait_for_timeout(300)
 
-        await pg2.evaluate("()=>window.openFollowSheet('Silo')")
+        await pg2.evaluate("()=>window.__panel.produce('follow', 'Silo')")
         await pg2.wait_for_timeout(400)
         addressed = pg2.url
         check("an addressed panel writes its address",
@@ -486,7 +564,7 @@ async def main():
         await pg10.goto(PROTOTYPE + "acquisition", wait_until="load")
         await pg10.evaluate("()=>window.__loadingDone?.()")
         await pg10.wait_for_timeout(600)
-        await pg10.evaluate(f"()=>window.openFollowSheet({FOLLOW_TITLE!r})")
+        await pg10.evaluate(f"()=>window.__panel.produce('follow', {FOLLOW_TITLE!r})")
         await pg10.wait_for_timeout(500)
         # The tab the tap goes to is read off the BAR, never written down: which
         # pages are tabs is the bar's own decision, and a constant here would
@@ -662,7 +740,7 @@ async def main():
         await pg7.wait_for_timeout(300)
         await pg7.evaluate(f"()=>window.__screens.mediaSheet({SHEET_TITLE!r})")
         await pg7.wait_for_timeout(500)
-        await pg7.evaluate(f"()=>window.openFollowSheet({FOLLOW_TITLE!r})")
+        await pg7.evaluate(f"()=>window.__panel.produce('follow', {FOLLOW_TITLE!r})")
         await pg7.wait_for_timeout(500)
         check("a panel opened in-app over a screen leaves the screen standing",
               await pg7.evaluate("()=>window.__panel.isOpen()")
@@ -698,7 +776,7 @@ async def main():
         await pg4.evaluate("()=>window.__loadingDone?.()")
         await pg4.wait_for_timeout(300)
         before = pg4.url
-        await pg4.evaluate("()=>window.openUserSheet()")
+        await pg4.evaluate('()=>window.__panel.produce("account")')
         await pg4.wait_for_timeout(400)
         check("a transient layer writes NO address",
               pg4.url == before and await pg4.evaluate("()=>window.__panel.isOpen()"),

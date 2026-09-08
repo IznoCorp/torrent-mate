@@ -142,7 +142,7 @@ PAGE_WALKS = {
     "sys": ['#nav button[data-page="sys"]'],
     "maint": ['#nav button[data-page="sys"]', '[data-page="maint"]'],
     "cfg": ['#nav button[data-page="sys"]', '[data-page="cfg"]'],
-    "profile": ["JS:window.openUserSheet()", '[data-go="profile"]'],
+    "profile": ['JS:window.__panel.produce("account")', '[data-go="profile"]'],
 }
 
 # The four kinds the boot's REOPEN table carries, and where the SUBJECT of

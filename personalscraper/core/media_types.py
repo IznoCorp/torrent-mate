@@ -219,3 +219,127 @@ def is_archive_filename(name: str) -> bool:
     if ext in ARCHIVE_EXTENSIONS:
         return True
     return bool(_RAR_VOLUME_RE.search(name))
+
+
+# ---------------------------------------------------------------------------
+# Trailer presence — THE shared rule
+# ---------------------------------------------------------------------------
+
+
+#: Extensions yt-dlp may produce for a trailer, in Plex-preference order.
+TRAILER_EXTENSIONS: tuple[str, ...] = ("mp4", "mkv", "webm")
+
+#: A yt-dlp per-format fragment left behind by an interrupted download —
+#: ``{stem}.f137.mp4``, a video-only stream that was never merged. ``.part`` is
+#: swept by the downloader's own cleanup; this residue is not, and a reboot or
+#: a SIGKILL mid-download leaves it beside the trailer folder's real contents.
+_FORMAT_FRAGMENT = re.compile(r"\.f\d+$")
+
+#: Longest run of alphanumerics still readable as a file extension. ``suffix``
+#: returns everything after the LAST dot in the name, so a dotted title with no
+#: extension ("Mr. Robot - Saison 1 - trailer") yields a whole phrase; judging
+#: that as an unknown extension would hide the file.
+_LONGEST_EXTENSION = 5
+
+
+def canonical_spelling_first(folder: Path) -> tuple[bool, str]:
+    """Sort key putting the exact canonical trailer folder ahead of any variant.
+
+    A plain ``sorted()`` would not do: it orders by codepoint, so ``TRAILERS``
+    sorts BEFORE ``Trailers`` and the canonical spelling loses. Keying on exact
+    equality states the intent instead of relying on where a spelling happens to
+    fall in the alphabet, and it keeps the answer stable from run to run
+    whatever variants a directory holds.
+
+    Args:
+        folder: A trailer-extras directory.
+
+    Returns:
+        A key ordering the exact canonical name first, then the rest by name.
+    """
+    return (folder.name != TV_TRAILER_SUBFOLDER, folder.name)
+
+
+def trailer_folders_in(media_dir: Path) -> list[Path]:
+    """Return every trailer-extras folder directly under *media_dir*.
+
+    Matched case-insensitively against :data:`TV_TRAILER_SUBFOLDER`, because the
+    storage mounts are case-sensitive and an earlier release wrote the folder in
+    lowercase — so a show can carry two, which are two real directories. The
+    canonical spelling sorts first when both are present.
+
+    Args:
+        media_dir: The media directory to look inside.
+
+    Returns:
+        Matching directories, canonical spelling first; empty when *media_dir*
+        cannot be read.
+    """
+    wanted = TV_TRAILER_SUBFOLDER.casefold()
+    try:
+        folders = [entry for entry in media_dir.iterdir() if entry.is_dir() and entry.name.casefold() == wanted]
+    except OSError:
+        return []
+    return sorted(folders, key=canonical_spelling_first)
+
+
+def find_trailer_in_media_dir(media_dir: Path, minimum_size_bytes: int = 0) -> Path | None:
+    """Return a show-level trailer already on disk, whatever layout wrote it.
+
+    THE single rule for "does this show already have a trailer". It exists
+    because the question was answered independently in four places — the
+    download decision, the derived ``trailer_found`` index, the audit command
+    and the orphan classifier — each naming one exact path,
+    ``{show}/Trailers/{show}.{ext}``. A show whose trailer was placed by an
+    earlier release keeps it in a lowercase ``trailers/`` under a different file
+    name, so every one of them read it as absent. Four answers that must agree
+    and do not is how a show gets a second trailer downloaded beside the one it
+    owns, and how the shows that stop being downloaded for stay in the
+    "missing" query forever.
+
+    A file answers when it is not a sidecar and not an interrupted download.
+    A name carrying no extension is NOT a sidecar: 128 of this library's 670
+    trailer files have none (measured 2026-09-05), and the size floor is what
+    keeps junk out.
+
+    Args:
+        media_dir: The show directory on disk.
+        minimum_size_bytes: Smallest size counting as a trailer. ``0`` (the
+            default) asks only whether a file is there, which is what a
+            read-model wants; the downloader passes its configured floor.
+
+    Returns:
+        The trailer found, or ``None`` — including when *media_dir* is
+        unreadable.
+    """
+    for folder in trailer_folders_in(media_dir):
+        try:
+            candidates = sorted(folder.iterdir())
+        except OSError:
+            continue
+        for candidate in candidates:
+            if not candidate.is_file() or _is_not_a_trailer(candidate.name):
+                continue
+            try:
+                if candidate.stat().st_size >= minimum_size_bytes:
+                    return candidate
+            except OSError:
+                continue
+    return None
+
+
+def _is_not_a_trailer(name: str) -> bool:
+    """Return True for a sidecar or an interrupted download, never for a video.
+
+    Args:
+        name: Bare filename inside a trailer folder.
+
+    Returns:
+        True when the file must not answer for the show's trailer.
+    """
+    if _FORMAT_FRAGMENT.search(Path(name).stem):
+        return True  # {stem}.f137.mp4 — a stream that was never merged
+    suffix = Path(name).suffix.lstrip(".").casefold()
+    if not suffix or not suffix.isalnum() or len(suffix) > _LONGEST_EXTENSION:
+        return False  # no extension to judge by — the size floor decides
+    return suffix not in TRAILER_EXTENSIONS
