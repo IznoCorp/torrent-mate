@@ -4,8 +4,22 @@ Rewritten by the session that repaired B-365, answered the operator's four rulin
 took the wave gate twice. Read `BRIEF.md`, `DESIGN.md` and `plan/INDEX.md` first — this file says
 only what is TRUE NOW and what those do not.
 
-**Branch** `feat/maquette-l21`, pull request **#572** (draft). **Version** 0.98.75 — `main` carries
-0.98.74, so it has not moved past this branch; re-read it at the close.
+**Branch** `feat/maquette-l21`, pull request **#572** (draft). **Version** 0.98.79 — `main` reached
+0.98.77 with the ci-draft merge and its post-merge gesture takes 0.98.78, so this branch sits above
+both. Re-read `main` before touching it again.
+
+⚠ **A DRAFT PULL REQUEST NOW DISPATCHES NO CI**, by the operator's decision of 2026-09-08: every job
+in `.github/workflows/ci.yml` stands down on a draft. So « zero check-runs » has TWO causes now — a
+run that never started (no pull request, a `paths-ignore`, or a `CONFLICTING` pull request) and a
+pull request that is simply a draft. **This branch met BOTH within one hour.** Read the draft state
+FIRST. CI is read after `ready_for_review`, or on a draft by adding the **`run-ci-on-draft`** label,
+which dispatches the run without leaving draft.
+
+⚠ **`scripts/check-implementation-state.py:271` infers « that wave has landed » from a VERSION
+COMPARISON**, so a micro-wave overtaking a lot makes it declare this live « In flight » row stale
+and ask for its deletion. The premise is false and the row is true. **It is not this lot's to
+repair** — the ci-draft wave filed it and repairs it in its own gesture — but it runs in
+`harness-contracts`, so it can fire on a run of yours for a reason that is not yours.
 
 **HEAD is the sha the last commit of this file carries, and it IS pushed** — proven by
 `git ls-remote --heads origin feat/maquette-l21` against the local sha, never by a push's own
