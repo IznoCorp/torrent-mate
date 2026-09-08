@@ -73,6 +73,21 @@ ANSWERED = """(names)=>(window.__mocks?.answered?.() || [])
   .filter((call) => names.includes(call.operationId))
   .map((call) => call.status + " " + call.method + " " + call.operationId)"""
 
+# EVERY REFUSAL THE LAYER ANSWERED, whatever was asked of it. The hold below
+# reads ALL of the record and not the three operations named above: the clause
+# is « a legitimate action is never refused », and an action refused by an
+# operation this wave did not add breaks it exactly as one of these three does.
+# It is a SEPARATE probe rather than a wider `ANSWERED`, because the hold above
+# it is about this wave's three operations having been asked at all, and one
+# probe answering two questions makes a failure ambiguous about which.
+EVERY_REFUSAL = """()=>(window.__mocks?.answered?.() || [])
+  .filter((call) => call.status === 409)
+  .map((call) => call.status + " " + call.method + " " + call.operationId)"""
+
+# HOW MANY CALLS THE LAYER ANSWERED, for the guard. A refusal read off an empty
+# record is the same green-over-nothing the network read was.
+EVERY_ANSWER_COUNT = """()=>(window.__mocks?.answered?.() || []).length"""
+
 # THE MESSAGE LAYER IS `#toast`, and `[data-part="message"]` is emitted nowhere
 # — `check-markup-contracts` said so, which is the three-ends contract caught
 # from the markup end. The page itself is read beside it, because a refusal need
@@ -358,9 +373,25 @@ async def main():
             str(asked[:3]))
 
         # ── AND NEITHER REFUSAL EVER ARRIVED ───────────────────────────────
+        #
+        # READ FROM THE LAYER'S RECORD, AND THE NETWORK KEPT BESIDE IT. This
+        # hold used to read `refused` alone, which Playwright fills from
+        # response events — and the mock layer answers IN THE PAGE, so that
+        # list is empty whatever the layer answers, which made this hold green
+        # over a refusal it had just been handed. The
+        # network read stays because a build that reaches a real server would
+        # refuse THERE, where the record cannot see it; the two together cover
+        # both doors, and neither alone covers either.
+        answered_count = await page.evaluate(EVERY_ANSWER_COUNT)
+        journal.check(
+            "the layer answered something at all, so the refusal hold below "
+            "reads a record and not an empty list",
+            answered_count > 0, f"{answered_count} call(s) answered")
+        recorded_refusals = await page.evaluate(EVERY_REFUSAL)
         journal.check(
             "no mutation was answered 409 (NE-DOIT-PAS-3)",
-            not refused, str(refused[:3]))
+            answered_count > 0 and not recorded_refusals and not refused,
+            str((recorded_refusals + refused)[:3]))
         said = (await page.evaluate(SAID)).lower()
         journal.check(
             "and nothing anywhere said the machine was busy",
