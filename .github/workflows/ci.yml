@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
     # No paths-ignore: doc-only PRs (archive, README updates, plan files) would
     # otherwise skip the workflow entirely. Required-status-check rules on main
     # then leave the PR stuck in "expected" state forever (no run = no result).
@@ -13,6 +13,12 @@ on:
     # dispatched the run — adding the label after `opened` changed nothing until
     # a new event re-dispatched with it. #488 was refused by its own version-bump
     # job while correctly carrying the label, because nothing re-triggered.
+    #
+    # `ready_for_review` is NOT optional: it is half of the draft gate below.
+    # Every job stands down while the pull request is a draft, so the event
+    # that takes it OUT of draft is the one that has to dispatch the run.
+    # Without this type, leaving draft fires nothing and the checks never run
+    # at all — a naive « skip when draft » is that dead end.
 
 permissions:
   contents: read
@@ -22,6 +28,23 @@ concurrency:
   group: ci-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
+# ── The draft gate ────────────────────────────────────
+# A draft pull request costs no runner minute: EVERY job carries the same
+# condition, so a draft dispatches a run whose jobs all report `skipped` and
+# whose steps never start. CI is read after `ready_for_review`, or on a draft
+# by adding the `run-ci-on-draft` label — the escape hatch for a branch that
+# needs a green reading before it leaves draft. It needs no new trigger:
+# `labeled` is already among the types above, so adding the label is itself
+# the event that dispatches the run.
+#
+# The gate is at JOB level and never at the trigger, for the reason recorded
+# above `changes`: a skipped job reports a conclusion, while a run that never
+# starts reports nothing and leaves a required check « expected » for ever.
+#
+# A JOB ADDED WITHOUT THIS CONDITION SILENTLY RE-ENABLES DRAFT RUNS, and no
+# reading of the pull request shows it — one job running among thirteen
+# skipped ones is not a shape anyone inspects.
+# `tests/scripts/test_ci_skips_draft_pull_requests.py` refuses it instead.
 jobs:
   # ── Stage 0: What changed? ────────────────────────────
   # Path filtering happens at the JOB level, never at the trigger: every job
@@ -32,6 +55,9 @@ jobs:
   changes:
     name: changes
     runs-on: ubuntu-latest
+    if: >-
+      github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     outputs:
       python: ${{ steps.raffine.outputs.python }}
       deps: ${{ steps.filtre.outputs.deps }}
@@ -192,6 +218,9 @@ jobs:
     name: lint
     runs-on: ubuntu-latest
     needs: [changes]
+    if: >-
+      github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
       - uses: actions/checkout@v4
         if: needs.changes.outputs.python == 'true'
@@ -224,6 +253,9 @@ jobs:
   no-french:
     name: no-french
     runs-on: ubuntu-latest
+    if: >-
+      github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
       # FULL HISTORY, and it is `check-frontend-boundaries.py` that needs it.
       # Its size arm compares each grandfathered file's RECORD with the record
@@ -277,6 +309,9 @@ jobs:
   guards:
     name: guards
     runs-on: ubuntu-latest
+    if: >-
+      github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -308,6 +343,9 @@ jobs:
     name: harness-contracts
     runs-on: ubuntu-latest
     needs: [changes]
+    if: >-
+      github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
       # The filter is per STEP, never on the job — see the note above `changes`:
       # a job-level `if` yields a SKIPPED job, and a required check that is
@@ -386,6 +424,9 @@ jobs:
     name: typecheck
     runs-on: ubuntu-latest
     needs: [changes]
+    if: >-
+      github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
       - uses: actions/checkout@v4
         if: needs.changes.outputs.python == 'true'
@@ -409,6 +450,9 @@ jobs:
   secrets:
     name: secrets
     runs-on: ubuntu-latest
+    if: >-
+      github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
       - uses: actions/checkout@v4
         with:
@@ -438,6 +482,9 @@ jobs:
     name: licenses
     runs-on: ubuntu-latest
     needs: [changes]
+    if: >-
+      github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
       - uses: actions/checkout@v4
         if: needs.changes.outputs.deps == 'true'
@@ -461,6 +508,9 @@ jobs:
     name: test
     runs-on: ubuntu-latest
     needs: [changes, lint, typecheck]
+    if: >-
+      github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     # config-home (#326): the live config left the repo; fixtures that resolve a config
     # dir (CWD fallback) get the tracked config.example via the resolver's env-first seam.
     env:
@@ -535,6 +585,9 @@ jobs:
     name: security
     runs-on: ubuntu-latest
     needs: [changes, lint, typecheck]
+    if: >-
+      github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
       - uses: actions/checkout@v4
         if: needs.changes.outputs.deps == 'true'
@@ -565,6 +618,9 @@ jobs:
     name: frontend
     runs-on: ubuntu-latest
     needs: [changes, lint, typecheck]
+    if: >-
+      github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
       - uses: actions/checkout@v4
         if: needs.changes.outputs.frontend_app == 'true' || needs.changes.outputs.maquette == 'true'
@@ -627,7 +683,10 @@ jobs:
     name: coverage-merge
     runs-on: ubuntu-latest
     needs: [changes, test]
-    if: always() && !cancelled()
+    if: >-
+      (github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')) &&
+      always() && !cancelled()
     # EVERY STEP ASKS « DID THE JOB THAT PRODUCES THE ARTEFACT RUN? », not only
     # « did Python change? ». That second question was the only one asked, and
     # `always()` carries this job past a SKIPPED dependency: when `lint` failed,
@@ -703,6 +762,8 @@ jobs:
     # Operator rule (constitution §10-3): every PR bumps the version. A
     # genuinely version-neutral PR opts out with the 'no-version-bump' label.
     if: >-
+      (github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')) &&
       github.event_name == 'pull_request' &&
       !contains(github.event.pull_request.labels.*.name, 'no-version-bump')
     steps:
@@ -721,6 +782,9 @@ jobs:
     name: design-gaps
     runs-on: ubuntu-latest
     needs: [changes]
+    if: >-
+      github.event.pull_request.draft == false ||
+      contains(github.event.pull_request.labels.*.name, 'run-ci-on-draft')
     steps:
       - uses: actions/checkout@v4
         if: needs.changes.outputs.python == 'true' || needs.changes.outputs.docs == 'true'

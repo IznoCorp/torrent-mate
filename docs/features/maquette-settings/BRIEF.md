@@ -213,9 +213,10 @@ what you start, delete what you build, prove with `ps`.
 
 ## How you deliver
 
-Branch `fix/maquette-settings`, one pull request opened as a DRAFT at your first push (CI runs on
-pull requests only), English title and body, the version bumped after reading `main`'s at that
-moment. Write the « In flight » row when the pull request opens (number first, then version).
+Branch `fix/maquette-settings`, one pull request opened as a DRAFT at your first push (a draft
+runs NO CI since the operator's decision of 2026-09-08 — read it after `ready_for_review`, or on
+the draft itself by adding the `run-ci-on-draft` label), English title and body, the version
+bumped after reading `main`'s at that moment. Write the « In flight » row when the pull request opens (number first, then version).
 B-334, B-335, B-341, B-342, B-343, B-332, B-361 read `fixed #<n>` by rule 3; B-345's settings half
 is written into B-345's entry with the rule that counts it; B-299 and B-300 gain the sentence that
 makes them confirmable by hand. Recount « guards green over what they do not read » for your wave,
