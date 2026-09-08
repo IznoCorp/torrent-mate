@@ -228,7 +228,19 @@ def names_the_device(selector, spelling):
 
 
 def declared_breakpoints():
-    """Every `min-width` the harness stylesheet declares, ascending.
+    """Every width the harness stylesheet turns on a breakpoint at, ascending.
+
+    BOTH `min-width` and `max-width`, because a band can be written either way
+    and a reading that knows only one of them has a hole exactly the width of
+    the other. `max-width: 900px` was such a hole: nothing in the seven widths
+    read fell inside a band ending there.
+
+    THE LIMIT, and it is the header's job to say it: this reads ONE file,
+    `harness.css`. It is the only stylesheet that may draw harness chrome —
+    the control is the harness's and no application sheet names it — so a band
+    hidden anywhere else would be an application stylesheet reaching into the
+    harness, which is a different defect with a different guard. If that ever
+    becomes possible, this function is where it stops being enough.
 
     The presence of the control was read at 520 and at 1280 — the frame's own
     breakpoint and a desktop width — and nothing between them. A band hidden
@@ -243,7 +255,7 @@ def declared_breakpoints():
     text = HARNESS_STYLESHEET.read_text(encoding="utf-8")
     text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
     return sorted({int(one) for one in
-                   re.findall(r"min-width:\s*(\d+)px", text)})
+                   re.findall(r"(?:min|max)-width:\s*(\d+)px", text)})
 
 
 def widths_the_frame_is_drawn_at():
@@ -570,6 +582,24 @@ SHORTHAND_ON_THE_DEVICE = {"background": ("background-color",)}
 
 
 
+def accessible_name(snapshot):
+    """The name out of an aria snapshot line, as a bare string.
+
+    The holds compared with `in`, so a name carrying the visible word PLUS
+    anything else satisfied them — which is the very defect the visible-span
+    reading was added to catch, surviving one layer further in. Equality needs
+    the name on its own.
+
+    Args:
+        snapshot: A `locator.aria_snapshot()` result, `- checkbox "Name"`.
+
+    Returns:
+        The quoted name, or the snapshot stripped when it carries none.
+    """
+    found = re.search(r'"(.*)"', snapshot, re.S)
+    return found.group(1) if found else snapshot.strip()
+
+
 async def measure_phone(browser, journal):
     """Holds that the control does not exist on a phone-sized viewport.
 
@@ -711,7 +741,7 @@ async def measure_desktop(browser, journal):
         await page.evaluate(LABELLED, [CHECKBOX, LABEL])
         and "checkbox" in framed_name
         and len(framed_words) == 1
-        and framed_words[0] in framed_name,
+        and accessible_name(framed_name) == framed_words[0],
         f"the label names the checkbox; the tree reads {framed_name.strip()!r} "
         f"and the spans in the layout are {framed_words}. Two of them would be "
         f"a control announcing both verbs at once, which a hold asking only "
@@ -799,7 +829,7 @@ async def measure_desktop(browser, journal):
         "again the only one in the layout",
         left_name != framed_name
         and len(left_words) == 1
-        and left_words[0] in left_name
+        and accessible_name(left_name) == left_words[0]
         and left_words != framed_words,
         f"out of the frame the tree reads {left_name.strip()!r} over the span "
         f"{left_words}, against {framed_name.strip()!r} over {framed_words} "
@@ -928,6 +958,14 @@ async def measure_tightest(browser, journal):
 # is a refusal to hang, not an expectation.
 SETTLE_FLOOR = 120
 SETTLE_CEILING = 3000
+# AND THE CEILING IS REACHED, in the states that animate for ever: a spinner
+# or a pulsing placeholder never lets `getAnimations()` go quiet, so there the
+# wait IS this constant and the reading is taken while something is still
+# moving. Those states are named in the hold's own detail rather than left to
+# be inferred. It also bounds the boot exemption below: the splash outruns
+# this ceiling, so `startup` is covered for the whole of the window this rule
+# can see, and « transient » is a statement about the application rather than
+# something this reading establishes.
 
 
 async def measure_every_state(browser, journal):

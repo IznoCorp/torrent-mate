@@ -165,7 +165,30 @@ COUNT_PATTERNS = (
 # carries. `common.py` is the shared plumbing; `desktop_frame_page.py` holds
 # the page scripts R140 evaluates and defines no holds, so counted as a rule it
 # is a permanent unparseable row and a rule count one too high.
-NOT_RULES = frozenset({"common.py", "desktop_frame_page.py"})
+def not_rules():
+    """The files in `harness/` that are not rules, READ FROM run.sh.
+
+    The two discoverers used to carry the same list and agree by comment. A
+    list duplicated in a shell script and a Python one is a list that will
+    disagree, and the disagreement is invisible until a rule reports as having
+    vanished. So there is one source and this is the reader of it.
+
+    Returns:
+        The excluded basenames.
+
+    Raises:
+        SystemExit: If run.sh's exclusion cannot be found — a silent empty set
+            would put the page scripts back among the rules.
+    """
+    text = (HARNESS / "run.sh").read_text(encoding="utf-8")
+    found = re.search(r"^\s*([A-Za-z0-9_.|]+)\)\s*continue\s*;;",
+                      text, re.MULTILINE)
+    if not found:
+        print("harness-hold-counts: run.sh no longer states which files are "
+              "not rules; the two discoverers cannot be kept in step by "
+              "guesswork.", file=sys.stderr)
+        raise SystemExit(2)
+    return frozenset(found.group(1).split("|"))
 
 
 def rule_scripts():
@@ -179,7 +202,7 @@ def rule_scripts():
         reports as a rule that vanished.
     """
     return sorted(p.name for p in HARNESS.glob("*.py")
-                  if p.name not in NOT_RULES)
+                  if p.name not in not_rules())
 
 
 def select_rules(spec, allowed):

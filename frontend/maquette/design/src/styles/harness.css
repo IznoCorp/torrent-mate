@@ -198,8 +198,12 @@ html.measuring .note {
      `height: 100svh`      out of the frame the device IS the window, and a
                            shell root that is the window's height is what the
                            app wants. It is the frame's `min(844px, …)` that
-                           is the deviation, and that one is scoped.
-     `display: flex`       the shell's own column, not the frame's.
+                           is the deviation, and that one is scoped. Held by
+                           the BOX hold against the viewport, with `width` and
+                           `max-width`, rather than by a value this file
+                           supplies.
+     `display: flex`       the shell's own column — with `flex-direction`,
+                           which this list omitted while the rule held it.
 
    `overflow` is NOT among them and is scoped below: clipping is the frame's,
    it belongs to a phone drawn inside a page, and out of the frame the app's
@@ -309,7 +313,7 @@ html.measuring .note {
    not). The control is only ever at top centre out of the frame, so the two are
    never in the same place at the same time — and the rule reads that too, at
    every state, rather than leaving it to this comment. */
-:root:has(#desktop-switch:checked) .desktop-switch {
+  :root:has(#desktop-switch:checked) .desktop-switch {
     top: 16px;
     bottom: auto;
     left: 50%;
