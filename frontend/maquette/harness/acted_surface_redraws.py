@@ -24,6 +24,14 @@ Both halves also hold that the surface MOVED across the act, so a build where
 the verb does nothing at all cannot pass by agreeing with a cache that never
 changed.
 
+⚠ A STRIP WHOSE STATE LIVES IN A DOT IS INVISIBLE TO TEXT, and the next person
+to write this probe will write it the same way. A stage says « Scrapé » before
+the act and « Scrapé » after it; what moves is the tone of the dot beside it.
+The first version of this rule read `textContent` alone and reported the strip
+unchanged on a build where it had changed — a rule agreeing with the defect it
+was written to catch. The dots are read too, selected by their `data-part` and
+their tone taken as a VALUE.
+
 AND THE THIRD HOLD IS THE DOUBLE PRESS. Two presses with no settle between them
 sent two identical requests and produced one message: the interface asked twice
 and said so once. It is held on what the LAYER answered, never on the screen.

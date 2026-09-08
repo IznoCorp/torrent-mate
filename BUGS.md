@@ -409,6 +409,7 @@ when the defect comes back.
 | B-368 | The Découvrir feed is drawn BELOW the « charger plus » action: a pile spent before the mode leaves the deck outlives that mode, because the sweep that clears the deck's imperative markup knows the pile and not the SPENT pile, and React appends its own children after the node it never rendered | 1× | `fixed #572` |
 | B-369 | A fixture rename made a named state's own premise false: a paused follow was renamed to « The Venture Bros » to give it a media sheet, and that title is the subject of the state « Fiche — suggestion NON possédée (série) » — so the sheet drew the disabled « already followed » button, and the rule reading that state's offer fell on an emitter with no data | 1× | `fixed #572` |
 | B-370 | `harness-hold-counts.py --compare` with no FILE exits 2 on an argparse usage error, which a gate reading exit codes cannot tell from a comparison that found drift — one pass of L21's gate compared nothing while looking like it ran | 1× | `open` |
+| B-371 | DOIT-4's « En file » pastille is reachable by NO path a finger can take: it reads the layer's `pipelineState`, which only the pipeline operations write and which no surface calls, while Arrivées' « Lancer le pipeline » writes the engine's interface store and touches no network — two pipeline notions, and the hand can move only the one the pastille does not read | 1× | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
@@ -2767,6 +2768,36 @@ the suite falls if one resolves to nothing — which keeps the state out while i
 DESCRIBABLE. Making it unrepresentable is the ruling, and it is still owed.
 
 <sub>`audit.py` → `■ R1 hollow sheet behind a poster — 2` on `acq-follows-grid` · `legacy.js:7732` (the tile), `:5314` and `:5322` (the card, which guards it) · `const SHEETS_RAW = {` at `legacy.js:9897`</sub>
+
+
+**B-371 — the queued pastille is reachable by no hand.**
+DOIT-4's « En file — pipeline en cours » is drawn, and its rules pass, and no path a person can
+take makes it appear. **There are TWO pipeline notions in this prototype and nothing joins them.**
+
+- The layer's `pipelineState`. `mocks/handlers/acquisition-verbs.ts:67` gates the queued answer on
+  `mockState().pipelineState !== IDLE`. That field is written ONLY by the mock handlers for
+  `POST /api/pipeline/{run,pause,resume,kill}` and by maintenance's own — and **no surface calls
+  any of them**: over the whole of `design/src`, `runPipeline` and `/api/pipeline/run` appear in
+  `contract/types.d.ts`, in the handler that declares the route, and in comments. Nowhere else.
+- The engine's interface store `pipe`. Arrivées' « Lancer le pipeline » emits `data-pipe`,
+  `legacy.js:9207` reads it, writes `store.write({pipe: …})`, renders and toasts — and **touches no
+  network at all**.
+
+So the hand moves the second and the pastille reads the first. What EXISTS is the drawing and its
+rules, which drive the layer directly: R138 arranges the busy-ness through the layer's run endpoint
+and says so in its own docstring rather than implying its walk is the operator's.
+
+⚠ **AND A SENTENCE IN THE TREE CLAIMED THE PATH WORKED.** `DESIGN.md` § 4.0 carried a three-step
+hand path — Arrivées, start the pipeline; open a follow with a season that has a hole; ask for it,
+and the layer answers `queued` — whose FIRST step cannot set the precondition the third needs. That
+sentence is corrected where it stands. A false claim in the tree is the species this lot counted
+itself, and this one was written by the lot that counted it.
+
+**RULED BY THE OPERATOR: it waits for L20**, whose subject the pipeline levers are. Owner **L20**.
+No engine line is added for it here, and DOIT-4 drops from `served` to `partly` in the clause map
+for exactly this reason: the drawing is served and the path is not.
+
+<sub>`grep -rn "runPipeline\|/api/pipeline/run" frontend/maquette/design/src` → `types.d.ts`, `mocks/handlers/staging.ts:143`, and comments · `grep -rn "pipelineState = " …` → `mocks/handlers/staging.ts` and `mocks/handlers/maintenance.ts` only · `legacy.js:9207` `if (closest.dataset.pipe) { store.write({pipe: …`</sub>
 
 
 **B-370 — a gate that exits on a usage error looks exactly like a gate that ran.**

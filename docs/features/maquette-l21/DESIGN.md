@@ -577,9 +577,10 @@ the precondition**, and the pastille is therefore reachable by no finger. What E
 and its rules, which drive the layer directly — R138 arranges the busy-ness through the layer's run
 endpoint, and says so in its own docstring rather than implying its walk is the operator's.
 
-**The disposition is the operator's and is not yet given.** This paragraph records what is true;
-what to do about it — join the two notions, or accept that the pastille has no hand path until the
-surface calls the operation — is not decided here.
+**RULED BY THE OPERATOR: it waits for L20**, whose subject the pipeline levers are. Filed as
+**B-371** with the three readings that establish it, and DOIT-4 drops from `served` to `partly` in
+the clause map for the same reason — the drawing is served and the path is not. No engine line is
+added for it here.
 
 **That is the same fact R138 arranges**, and the rule says so in its own docstring rather than
 implying its walk is his: the ACT it measures is a finger's (the panel raised by a hit test at the
