@@ -140,3 +140,43 @@ def test_the_escape_hatch_is_spelled_one_way() -> None:
         "author which label to add — a label nobody spells the same way twice is "
         "a hatch that opens for nobody."
     )
+
+
+# The events whose payload carries a `pull_request` object. On any other event
+# `github.event.pull_request` is null, `null.draft == false` evaluates false,
+# and the escape hatch's `contains(…labels.*.name, …)` finds nothing either — so
+# EVERY job stands down and the run reports `skipped`, which reads exactly like
+# the draft case this file exists to protect.
+EVENTS_CARRYING_A_PULL_REQUEST = {"pull_request", "pull_request_target"}
+
+
+def test_no_trigger_reaches_the_condition_without_a_pull_request() -> None:
+    """A trigger with no pull request in its payload would stand every job down.
+
+    THE QUESTION THIS FILE DID NOT ASK. The holds above check the condition and
+    the trigger's types, and both are about the pull request that IS there. The
+    condition is an expression, though, and an expression is evaluated for every
+    event that reaches it: add a `push` trigger and `github.event.pull_request`
+    is null on it, so the whole disjunction is false and the pipeline stands down
+    on every push — reporting `skipped`, which is a legitimate conclusion, under
+    a green checks tab.
+
+    **If you are here because this hold refuses a trigger you added**, it is not
+    asking you to remove it: it is saying the draft condition on every job has no
+    meaning under that event and would disable the pipeline there. Give those
+    jobs a condition that answers your event, or guard the draft clause with the
+    event name, and this hold's list is where the decision is recorded.
+    """
+    declared = set(trigger())
+    foreign = declared - EVENTS_CARRYING_A_PULL_REQUEST
+    assert not foreign, (
+        f"the workflow declares the trigger(s) {sorted(foreign)}, whose payload "
+        "carries no `pull_request`. The draft condition on every job reads "
+        "`github.event.pull_request.draft`, which is null there, so the whole "
+        "disjunction is false and EVERY job stands down — a pipeline disabled "
+        f"under a green `skipped`. Declared: {sorted(declared)}."
+    )
+    assert "pull_request" in declared, (
+        f"the workflow declares {sorted(declared)} and not `pull_request`, and "
+        "every hold in this file is about a pull request's draft state"
+    )

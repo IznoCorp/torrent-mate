@@ -268,12 +268,37 @@ def arm_in_flight() -> int:
 
     print(f"check-implementation-state[in-flight]: the row names version "
           f"{named.group(1)}, `main` carries {main_version}")
+    if pull_request is not None:
+        # THE VERSION IS A PROXY, AND THE ROW'S PULL REQUEST IS THE QUESTION.
+        # « `main` has reached this version » implies « this wave has landed »
+        # only while the only way `main` can reach it is that wave merging.
+        # A micro-wave that merges past an open lot falsifies that in one
+        # squash: ci-draft took 0.98.77 deliberately, to sit past every branch
+        # in flight whichever landed first, and the arm then refused L21's row
+        # — naming an OPEN #572 at 0.98.75 — as stale. The row was true in
+        # every particular and the guard told a wave to delete it.
+        #
+        # The pull-request hold above asks the real question, offline and
+        # exactly: a squash writes `(#NNN)` into the subject `main` carries.
+        # Reaching this point with a number in hand means that hold has ALREADY
+        # answered « not landed », so the version cannot be evidence of the
+        # contrary — it can only be evidence that something else merged.
+        # The comparison is still printed, because a row whose version `main`
+        # has passed is worth seeing even when it is legitimate.
+        print(f"check-implementation-state[in-flight]: #{number} is not in "
+              f"`main`'s history, so the row is in flight whatever the "
+              f"versions say — another wave merging past an open one is what "
+              f"moves `main` here (B-377)")
+        return 0
     if as_ordered(main_version) >= as_ordered(named.group(1)):
         print(f"    IMPLEMENTATION.md: the « In flight » row names version "
-              f"{named.group(1)} and `main` carries {main_version}, which has "
-              f"reached it, so that wave has landed and the row is stale. Move "
-              f"it back to *none* and write the wave's trace into its own row "
-              f"— the first post-merge gesture of § 5.", file=sys.stderr)
+              f"{named.group(1)} and no pull request, and `main` carries "
+              f"{main_version}, which has reached it — with no number to ask "
+              f"the exact question with, that is the only reading left and the "
+              f"wave has landed. Move the row back to *none* and write the "
+              f"wave's trace into its own row — the first post-merge gesture "
+              f"of § 5. Writing the pull request's number in the row is what "
+              f"makes this arm exact rather than inferred.", file=sys.stderr)
         return 1
     return 0
 
