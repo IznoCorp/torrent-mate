@@ -57,10 +57,12 @@ out of the frame, so the two are never in the same place at once, and the sweep
 reads other harness chrome beside the app's controls rather than leaving that to
 a comment.
 
-**R140** — `frontend/maquette/harness/desktop_frame.py` (928 lines) and its page
-scripts in `desktop_frame_page.py` (222), **twenty-three holds**,
-at 390 × 844, 1280 × 800 and 520 × 800. Its expected values are MEASURED, not
-typed: the
+**R140** — `frontend/maquette/harness/desktop_frame.py` and its page scripts in
+`desktop_frame_page.py`, **twenty-four holds**,
+at 390 × 844, 1280 × 800 and 520 × 800, plus a presence sweep over seven widths
+derived from the stylesheet's own breakpoints and an 87-state walk out of the
+frame. Its expected values are MEASURED, not typed — and, since round four, they
+are measured against something the frame does not itself declare: the
 frame's whole contribution is written `.device …`, so the same page with that
 class removed from the device is the app's own cascade, at the same width, in
 the same browser. One hold exists only to keep that honest — each of the three
