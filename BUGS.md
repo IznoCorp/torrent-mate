@@ -449,24 +449,41 @@ first mutation and again after the last was restored; each mutation was applied 
 **And the readings from the runner, which are the ones B-151's exception says a CI condition usually
 cannot have.** This one can, and by the fact that makes a workflow change awkward everywhere else: a
 `pull_request` run comes from the MERGE REF, so this pull request ran the workflow it changes and the
-gate under test gated it. Five runs, ALL ON `e3caa6a87` — one commit, five answers. They are written as a table rather than
-a story, because that is what turns a claim into a measurement: the condition is
-`draft == false || label`, so the readings are the four cells of `draft × label`, and all four were
-read on the runner.
+gate under test gated it. Seven runs on this branch, written as a table rather than a story because that is what turns a
+claim into a measurement. Five of them are on ONE commit, `e3caa6a87` — the condition is
+`draft == false || label`, so those five are the four cells of `draft × label`, all read on the
+runner — and two are on the head this entry ships with, `b78e6ad77`.
 
-| Time (UTC) | Event | Draft? | Label? | Run | The fourteen jobs |
-| --- | --- | --- | --- | --- | --- |
-| 08:58:21 | `opened` | yes | no | `34207410331` | **`skipped`** |
-| 08:58:52 | `labeled` | yes | yes | `34207452936` | `success` |
-| 09:09:19 | `ready_for_review` | no | yes | `34208418988` | `success` |
-| 09:20:55 | `unlabeled` | yes | no | `34209493485` | **`skipped`** |
-| 09:21:02 | `ready_for_review` | no | no | `34209503652` | `success` |
+| Time (UTC) | Event | Draft? | Label? | Head | Run | The fourteen jobs |
+| --- | --- | --- | --- | --- | --- | --- |
+| 08:58:21 | `opened` | yes | no | `e3caa6a87` | `34207410331` | **`skipped`** |
+| 08:58:52 | `labeled` | yes | yes | `e3caa6a87` | `34207452936` | `success` |
+| 09:09:19 | `ready_for_review` | no | yes | `e3caa6a87` | `34208418988` | `success` |
+| 09:20:55 | `unlabeled` | yes | no | `e3caa6a87` | `34209493485` | **`skipped`** |
+| 09:21:02 | `ready_for_review` | no | no | `e3caa6a87` | `34209503652` | `success` |
+| 09:44:52 | **`synchronize`** | yes | no | `b78e6ad77` | `34212179825` | **`skipped`** |
+| 09:47:03 | `labeled` | yes | yes | `b78e6ad77` | `34212231213` | `success` |
+
+**THE SIXTH ROW IS THE ONE THIS ENTRY'S TITLE IS ABOUT**, and it was not planned: pushing this
+entry's own commits dispatched `synchronize` on the draft, and it skipped. The defect was never
+« CI runs when a draft is opened » — it is that every intermediate PUSH to a draft paid the whole
+pipeline, which is what the operator said and what the four events above do not contain. This row
+is a push, on this branch, unasked.
+
+**The seventh is why the head that merges is green and not merely its ancestor.** The five readings
+were taken on `e3caa6a87`, and the commits after it touch precisely the files CI's own guards read
+(`BUGS.md`, `CLAUDE.md`, `IMPLEMENTATION.md`, `docs/reference/feature-lifecycle.md`). Those guards
+were run locally green, and a local gate reads a different machine than the runner — so the hatch
+was used once for what it exists for, all fourteen jobs `success`, and the label taken straight back
+off. **The pull request is left a draft with NO label**, which is the state its own subject asks
+for: merge day dispatches on `ready_for_review`, and anyone wanting a reading before it adds the
+label back in one gesture.
 
 The fourteen are the whole list every time: changes, coverage-merge, design-gaps, frontend, guards,
 harness-contracts, licenses, lint, no-french, secrets, security, test, typecheck, version-bump.
 
 **Row 1 is the saving**, measured on the runner rather than argued: not one step started. **Row 4
-was not planned and is the control** — take the hatch away and the skip comes back, so row 2 is the
+is the control** — take the hatch away and the skip comes back, so row 2 is the
 label doing the work and not the day being lucky. **Row 5 is the isolated proof of the first
 clause**: the label was removed BEFORE the ready gesture, so nothing but `draft == false` accounts
 for those jobs running. **Row 3 is kept and marked**: with the label still attached, the second
