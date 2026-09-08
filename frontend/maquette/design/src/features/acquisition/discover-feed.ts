@@ -18,7 +18,8 @@
 // click delegation and its swipe handlers all still call them by name, and the
 // day it goes this file loses an importer rather than a subject.
 import i18next from "i18next";
-import { loadFooterAction } from "../../ui/variants";
+import { actionButton, loadFooterAction } from "../../ui/variants";
+import { cx } from "../../ui/cva";
 import { deckCard, deckHints, suggestionRow, suggestionTile, type Suggestion } from "./discover-cards";
 
 /** How many more the footer asks for at a time. */
@@ -113,8 +114,19 @@ export function passerSug(position: number): void {
  * `.btnprimary` — the action-button system, one scale with every primary
  * action in the product — and at the foot of a spent pile that reads as the
  * screen's main path when it is an offer to carry on reading. The operator
- * judged it too big; it is drawn at the footer scale instead, from the
- * catalogue's own constant, so its size cannot drift from the token.
+ * judged it too big.
+ *
+ * IT ASKS THE BUTTON SYSTEM FOR A SIZE RATHER THAN SPELLING ONE. The set of
+ * sizes is closed in `ui/variants/controls.ts`, so this call site cannot
+ * invent a thirty-fifth height and cannot be handed one; what it adds here is
+ * the mood. The two halves are `actionButton({ size: "footer" })` and
+ * `loadFooterAction()`, in that order, and neither sets what the other sets.
+ *
+ * THE FIRST REPAIR LEFT THE ICON OUT, and the icon was most of the complaint:
+ * this button wears none of the legacy classes whose descendant rules size the
+ * action-button system's icons, so its `<svg>` fell back to the
+ * replaced-element default and the flex box stretched it to 227 px inside a
+ * 245 px-tall button. The `footer` branch sizes it.
  *
  * Returns:
  *     The deck's markup.
@@ -125,7 +137,7 @@ export function deckHTML(): string {
     const reference = drawing();
     return `<div class="empty" data-part="empty-state"><b>${say("allSeenLead")}</b>
         <p>${say("allSeenRest", { count: reserve().length })}</p>
-        <button class="${loadFooterAction()}" data-sugmore="1">${reference.svgIcon(reference.icons.refresh)}${say("loadThirtyMore")}</button></div>`;
+        <button class="${cx(actionButton({ size: "footer" }), loadFooterAction())}" data-sugmore="1">${reference.svgIcon(reference.icons.refresh)}${say("loadThirtyMore")}</button></div>`;
   }
   const pile = remaining
     .slice(0, 3)

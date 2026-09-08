@@ -173,32 +173,24 @@ export const loadErrorAction = cva(
  * The footer's own action — what a spent list offers to load more.
  *
  * A CONTROL AT THE FOOT OF A LIST IS SECONDARY TO THE LIST: it is offered
- * after the reading rather than competing with it, so it is set below the
- * action-button system — one step down the type scale, a lighter box, an
- * outline instead of a fill. The action-button system is for what a SCREEN
- * asks the operator to do; this is for what a list offers once it runs out.
- * The retry above is the same offer in another mood and carries the same
- * scale.
+ * after the reading rather than competing with it, so it takes the button
+ * system's `footer` size rather than the `screen` size a primary action
+ * carries. What is left here is its MOOD — an outline, a transparent ground —
+ * and the mood is all this factory spells.
  *
- * The size is a TOKEN and not a measurement: `text-3` is the scale's step,
- * and whoever reads this size back reads that step resolved on the page
- * rather than the pixels it happens to produce on one device (R136).
+ * ITS SIZE IS NOT WRITTEN HERE, AND THAT IS THE POINT. It used to be, and the
+ * duplicate spelling was held equal to the retry's by a test because the size
+ * lived in two places. It now lives in one: the call site asks
+ * `actionButton({ size: "footer" })` for it, so a size this catalogue does not
+ * offer cannot be given to a button at all — the operator's ruling, enforced
+ * by the type rather than by a reviewer.
  *
- * IT SPELLS THE SCALE OUT INSTEAD OF SHARING A CONSTANT WITH THE RETRY, and
- * that is not a preference. A shared constant makes the base of both factories
- * a template literal, and `residue.py` reads a factory's base by its string
- * LITERALS: both came out empty and it said so. Concatenating a literal with
- * the constant would have quieted the complaint and been worse — the reader
- * would have gone on comparing the one token it could still see, silently, on
- * a pair it no longer read. The two are held together by a hold instead
- * (`variants.test.ts`), which is a thing that fails out loud.
- *
- * It carries an ICON where the retry does not, so it centres its content
- * itself; the `:has(> svg)` rule of the base layer left-aligns the
- * action-button system, and this is deliberately not part of that system.
+ * The icon it carries is sized by that same branch. Left to itself an `<svg>`
+ * takes the replaced-element default and the flex box stretches it: measured
+ * at 227 px, in a button 245 px tall.
  */
 export const loadFooterAction = cva(
-  "flex items-center justify-center gap-4 w-full border border-border bg-transparent text-foreground text-3 font-semibold p-4 rounded-2",
+  "border border-border bg-transparent text-foreground",
 );
 
 /**
