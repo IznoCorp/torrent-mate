@@ -403,8 +403,10 @@ when the defect comes back.
 | B-361 | A Maintenance rubric cannot be left either — entering it writes `?topic=…` by replacement, pushes no entry and draws no back, so the system Back leaves « Maintenance » for Acquisition; B-332's shape on the second page that has rubrics, measured on the operator's phone by the real path | 1× | `open` |
 | B-363 | `residue.py` reads a typed variant's base through its string LITERALS, so a factory built from a shared constant reads EMPTY and is reported unreadable — a token scale cannot be written once and shared between two variants while that is true, and the repair that suggests itself (concatenating a literal with the constant) silences the report and leaves the reader comparing one token | 1× | `open` |
 | B-364 | Two hit-test helpers in `busy.py` press `hit.click()` on whatever `elementFromPoint` returns, and an SVG element has no `click` — so a rule that hit-tests an ICON-ONLY action throws `hit.click is not a function` instead of pressing it, and the same helpers print `hit.className` as the coverer, which on an SVG is an `SVGAnimatedString` and reads `[object SVGAnimatedString]` | 1× | `open` |
-| B-365 | R124's « no mutation was answered 409 » hold reads Playwright's response events, and the mock layer replaces `globalThis.fetch` and answers IN THE PAGE — so no response event can ever carry a 409 from it and the hold is green over nothing, permanently. Proven by a mutation that really did answer 409: the sibling hold fell, this one did not | 1× | `open` |
-| B-366 | A grid tile emits `data-mediasheet` for a follow that has no media sheet — a poster that leads nowhere. The follow PANEL guards exactly this (B-313's `seeSheet` ladder) and the tile does not; the tile is the engine's drawing, so the repair is L13's | by audit | `open` |
+| B-365 | R124's « no mutation was answered 409 » hold reads Playwright's response events, and the mock layer replaces `globalThis.fetch` and answers IN THE PAGE — so no response event can ever carry a 409 from it and the hold is green over nothing, permanently. Proven by a mutation that really did answer 409: the sibling hold fell, this one did not | 1× | `fixed #572` |
+| B-366 | A follow with NO MEDIA SHEET is drawn at all — a grid tile emits `data-mediasheet` for it, a poster that leads nowhere. RE-RULED by the operator: a follow without a sheet is not a state the product may represent, so the repair is to make it unrepresentable rather than to guard the tile | by audit | `open` |
+| B-367 | The drawer's appearance control applies the theme and does not move its selection: pressing one of the three writes the choice and repaints the document, and `aria-pressed` stays on whatever was drawn when the drawer opened — so the operator reads « Clair » selected over a dark interface. Closing and reopening the drawer draws it correctly | 1× | `open` |
+| B-368 | The Découvrir feed is drawn BELOW the « charger plus » action: a pile spent before the mode leaves the deck outlives that mode, because the sweep that clears the deck's imperative markup knows the pile and not the SPENT pile, and React appends its own children after the node it never rendered | 1× | `fixed #572` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
@@ -2557,41 +2559,115 @@ so it is a set difference on strings already in hand.
 the network read beside it, and keep the whole guarded by the non-vacuity hold so an empty
 `answered()` is a failure and never a green.
 
-<sub>L21 · `scripts/mutate.sh frontend/maquette/design/src/mocks/scenario.ts` forcing 409 on `grabSeasonForFollow` → `15 rules EXECUTED — 1 violation(s)`, the sibling naming `['409 POST grabSeasonForFollow']`, this hold unmoved</sub>
+**REPAIRED.** The hold reads `window.__mocks.answered()` across EVERY operation — not
+the three one wave added, because the clause is about any legitimate action refused — and the
+network read stays beside it, which is the door a build reaching a real server would be refused
+at. A guard hold above it fails on an empty record, so the reading cannot go green over no calls.
+Re-run under the same mutation, BOTH refusal holds now fall and each names
+`409 POST grabSeasonForFollow`; the third hold on the clause does not move, and that is correct —
+it reads whether the INTERFACE says « occupé », which a caught 409 need not.
 
-**B-366 — a poster that leads nowhere, on a follow with no media sheet.**
-`legacy.js`'s tile drawing puts `data-mediasheet="<title>"` on every follow's poster in the grid.
-For a follow whose title has no sheet, that poster promises one that does not exist — and
-`audit.py`'s R1 (« every tappable poster leads to a FILLED-IN sheet ») is the instrument that says
-so. Measured on `acq-follows-grid`, two violations, on the two paused follows a phase of this lot
-had seeded.
+⚠ **AND THE MUTATION PROVED THE OLD HOLD COULD NOT FALL AT ALL**, which reading the code only
+suggested: the fallen detail listed the layer's record and NOTHING from the network, so `refused`
+was empty while a real 409 was being answered.
 
-**THE PANEL GUARDS EXACTLY THIS AND THE TILE DOES NOT.** `features/acquisition/follow-actions.ts`
-carries the sentence in its own comment — « AN UNIDENTIFIED RELEASE HAS NO SHEET. Offering to open
-one is the same broken promise as a poster that leads nowhere » — and falls through to the journey.
-The card drawing does the same thing correctly too: a card with no sheet wears
-`data-nonmedia="dossier"` and offers a FOLDER button instead of a poster. It is the grid TILE alone
-that does not ask.
+<sub>L21 · `scripts/mutate.sh frontend/maquette/design/src/mocks/scenario.ts` forcing 409 on `grabSeasonForFollow` → before: `15 rules EXECUTED — 1 violation(s)`, the sibling naming `['409 POST grabSeasonForFollow']`, this hold unmoved · after: `16 rules EXECUTED — 2 violation(s)`, both naming it</sub>
 
-**WHY IT IS NOT FIXED HERE, and the number is the reason.** The fix belongs in the tile's drawing,
-which is `legacy.js`'s, and D5 has the engine dying by subtraction — `frontend_size_ledger.py`
-refuses it upward against its record. The fixture route is the same wall wearing other clothes:
-`SHEETS_RAW` is a **20 538-line object literal inside `legacy.js`** (`:9897` to `:30434`), and
-`mocks/seeds/media-sheets.json` is a DERIVED copy that `check-mock-seeds`'s correspondence arm
-re-derives and refuses drift on — so giving a title a sheet ALSO means adding lines to the engine.
-**Owner: L13**, with the tile's drawing.
+**B-366 — a follow with no media sheet is not a state this product has.**
 
-⚠ **THE INSTRUMENT GOES QUIET AND THE DEFECT DOES NOT.** The two follows were renamed to titles
-that already have sheets, so after this lot **nothing in the prototype carries a sheetless FOLLOW**
-and R1 stops reading this case entirely. That is the fixture no longer producing the subject, not
-the defect being repaired, and it is written here because a register entry is the only thing that
-can say so.
+**THE OPERATOR RULED, and the ruling changes what the defect IS:** « il ne doit pas y avoir de
+suivi sans fiche, si on a un suivi c'est qu'on a identifié le média, si on a identifié le média
+alors on peut afficher sa fiche, le suivi sans fiche n'est pas un état possible ».
 
-**The product question is open and is the operator's**: should a sheetless follow be a tappable
-poster at all? If he rules that the state must be SHOWN, the fixture gets one back and R1 is taught
-the case — an L13-adjacent unit, not this lot's.
+So this is not a tile that must ask a question before it offers a poster. **Following a title IS
+having identified the medium**, and an identified medium has a sheet; the sheetless follow is not a
+case to be handled, it is a case that must not exist. The repair is to make the state
+UNREPRESENTABLE — the contract and the mock unable to produce it, and a guard that refuses one —
+rather than to teach one more drawing to guard against it.
 
-<sub>L21 · `audit.py` → `■ R1 hollow sheet behind a poster — 2` on `acq-follows-grid` · `legacy.js:7732` (the tile), `:5314` and `:5322` (the card, which guards it) · `const SHEETS_RAW = {` at `legacy.js:9897`</sub>
+⚠ **A FOLLOW WITH NO EPISODE DATA IS A DIFFERENT THING AND STAYS LEGITIMATE.** A show whose
+provider offers no episode listing is identified, has a sheet, and is followed on purpose; the
+prototype carries such a case deliberately. « No sheet » and « no episodes » are not the same
+absence, and a guard that conflated them would refuse a state the product needs.
+
+**WHAT WAS MEASURED, and it stands.** `audit.py`'s R1 (« every tappable poster leads to a
+FILLED-IN sheet ») read two violations on `acq-follows-grid`: `legacy.js`'s tile drawing puts
+`data-mediasheet="<title>"` on every follow's poster, and two follows had titles no sheet answers
+to. The follow PANEL already refuses the same offer — `features/acquisition/follow-actions.ts`
+carries the sentence in its own comment, « AN UNIDENTIFIED RELEASE HAS NO SHEET. Offering to open
+one is the same broken promise as a poster that leads nowhere » — and the card drawing refuses it
+too, with `data-nonmedia="dossier"` and a FOLDER button in place of the poster. Under the ruling
+those two guards are no longer the model to copy: they are handling a state that should never
+reach them.
+
+⚠ **THE INSTRUMENT IS QUIET AND THE DEFECT IS NOT REPAIRED.** The two follows were renamed to
+titles that already have sheets, so nothing in the prototype now carries a sheetless follow and R1
+stops reading the case entirely. That is the fixture no longer producing the subject. A register
+entry is the only thing that can say so, which is why this one exists.
+
+**WHY IT IS NOT MADE UNREPRESENTABLE HERE, and the number is the reason.** Every route runs into
+the same wall. The tile's drawing is `legacy.js`'s, and D5 has the engine dying by subtraction —
+`frontend_size_ledger.py` refuses it upward against its record. Giving a title a sheet is the same
+wall in other clothes: `SHEETS_RAW` is a **20 538-line object literal inside `legacy.js`**
+(`:9897` to `:30434`) and `mocks/seeds/media-sheets.json` is a DERIVED copy that
+`check-mock-seeds`'s correspondence arm re-derives and refuses drift on, so seeding a sheet adds
+lines to the engine as surely as editing the tile would. And making the state unrepresentable in
+the CONTRACT — a follow that cannot be described without a sheet — is surgery on the contract, its
+types, its handlers and the engine that reads them, which is a lot's worth of work and not a
+guard.
+
+**Owner: L13**, with the tile's drawing, and the shape of the repair is now dictated: not a guard
+on the tile, but a follow that cannot be built without a sheet.
+
+<sub>`audit.py` → `■ R1 hollow sheet behind a poster — 2` on `acq-follows-grid` · `legacy.js:7732` (the tile), `:5314` and `:5322` (the card, which guards it) · `const SHEETS_RAW = {` at `legacy.js:9897`</sub>
+
+
+**B-367 — the appearance control paints the theme and leaves its selection behind.**
+The drawer offers three appearances. Pressing one writes the choice, repaints the document — and
+does not move which of the three is shown as chosen. The operator reads « Clair » selected over a
+dark interface, which is exactly what a stale selection looks like after a second choice.
+
+**MEASURED, and the mechanism is not the one the storage key suggests.** Both halves of the write
+work. Pressing in turn `light`, `dark`, `system`, `light`, the stored value and the painted theme
+follow every press — `stored` goes `light`, `dark`, `system`, `light` and `data-theme` goes
+`light`, none, none, `light`. `aria-pressed` does not move once: it reads
+`system=true light=false dark=false` at every one of those four readings, which is the state the
+drawer was drawn in. Closing the drawer and reopening it reads `system=false light=true
+dark=false` — correct, and against the theme in force.
+
+**SO IT IS A REDRAW THAT DOES NOT HAPPEN, and the code says the opposite in a comment.** The
+handler calls `window.__store.touch()` beside a comment reading « The bump is what redraws the
+pressed state ». The measurement above says that bump does not reach this control: the pressed
+state is read from `currentAppearance()` at render, and nothing re-renders the drawer until it is
+mounted again.
+
+**Owner: the « settings » MICRO-WAVE** (`docs/features/maquette-settings/BRIEF.md`), with B-332 and
+B-361 — the drawer's own behaviour, not the surface this lot draws. Filed, not repaired.
+
+<sub>operator, on the design host · a real drawer open, four presses through the control: `{"theme": null, "stored": null, "pressed": ["system=true", "light=false", "dark=false"]}` at rest, then `stored` `light` / `dark` / `system` / `light` with `pressed` unchanged at every reading, then after a close and a reopen `["system=false", "light=true", "dark=false"]` · `app/appearance.ts` (`chooseAppearance`, `STORAGE_KEY = "tm-apparence"`), `app/drawer.tsx` (the control, and the comment)</sub>
+
+
+**B-368 — the Découvrir feed drawn below the offer to load more.**
+Seen once by the operator and not reproduced by him. It reproduces from a SPENT pile: the action
+stands at the top of the surface and the whole feed is drawn under it — measured in the list mode
+at `action y=286, #sugitems y=626`.
+
+**IT IS A STALE NODE, not an ordering bug.** The deck's body is filled imperatively, because a
+node React re-renders cannot animate and the pile's gesture is an animation; React therefore draws
+that container empty and never learns what is inside it. When the mode leaves the deck, React
+REUSES that element and appends its own children to it, so anything the fragment left there stays
+FIRST — above the feed, above everything.
+
+**AND THE SWEEP WRITTEN FOR EXACTLY THIS KNEW HALF THE CASE.** It removed `.body > .deck`. But
+`deckHTML` returns one of two shapes, and a pile that has been SPENT is not a `.deck` at all: it is
+the end mark carrying the offer to load more — the very node the operator was looking at. The same
+shape as the two repairs recorded beside it: a fix that stops at the edge of the case it was
+written for.
+
+**REPAIRED**, with R155 (`harness/spent_deck_cleared.py`), which walks both modes the surface can
+leave the deck for, because the sweep is one line and covering one of them would look complete.
+
+<sub>operator, on the design host, seen once · reproduced: `{action: true, actionTop: 286}` with the feed at 626 · repaired and mutated back → `7 rules EXECUTED — 4 violation(s)`, « action at 286, the feed at 421 » on both modes · `features/acquisition/discover-tab.tsx` (the sweep), `features/acquisition/discover-feed.ts` (`deckHTML`'s two shapes)</sub>
 
 
 **B-361 — a Maintenance rubric cannot be left either.**
