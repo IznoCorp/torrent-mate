@@ -449,15 +449,47 @@ DEVICE_SURVIVES = {"position": "relative",
 # red out of the frame with every hold green, which is the shape this rule
 # exists to refuse, sitting inside the hold written to refuse it.
 #
-# Each is held to what its own declaration MEANS — and « means » is resolved by
-# the browser rather than worked out here. A first version computed the
-# meanings by hand (the window's width for `width: 100%`, its height for
-# `height: 100svh`) and got `max-width` wrong on the first run: percentages
-# stay percentages in a computed reading, so the expected `1280px` met a real
-# `100%` and the hold fell on a correct tree. Working out what a declaration
-# resolves to is the browser's job, and asking it is one probe element.
-DEVICE_SURVIVES_DYNAMIC = ("width", "max-width", "height", "background-color")
+# WHAT THE READING MUST NOT DEPEND ON, and this is the third time this hold has
+# been wrong in the same direction, so it is written as a rule rather than as a
+# repair:
+#
+#   an expectation derived from the thing under test is not an expectation.
+#
+# Round two held these « differently from the control document » — a WRONG
+# value differs as well as a right one. Round three computed the meanings by
+# hand and got `max-width` wrong. Round four fed a probe THE FRAME'S OWN
+# DECLARATIONS and compared the device against it: `background: red` written
+# into the block made the probe red too, so the hold read red against red and
+# passed with the window red. Each repair moved the tautology rather than
+# removing it.
+#
+# So each expectation now comes from somewhere the frame does not speak:
+#
+#   width, max-width, height   NOT held here at all. They are held by the BOX
+#                              hold, against the VIEWPORT's own rectangle —
+#                              the device out of the frame must measure
+#                              [0, 0, innerWidth, innerHeight]. A frame that
+#                              clamped any of the three would fail that
+#                              reading, and the window is not something
+#                              `harness.css` can declare.
+#   background-color           held against the TOKEN, resolved from the
+#                              document root. `--color-background` is the
+#                              app's, not the frame's; the frame merely spends
+#                              it. A block mutated to `red` then reads red
+#                              against the app's colour and falls.
+DEVICE_SURVIVES_DYNAMIC = ("background-color",)
 
+# Declared by the same block and held by the BOX hold rather than here, which
+# is the whole point of moving them: the viewport is not something
+# `harness.css` can declare, so a reading against it cannot be fed by the
+# thing under test. Named so that the « every declaration of its own block,
+# and nothing besides » hold can account for them instead of missing them.
+HELD_BY_THE_BOX = ("width", "max-width", "height")
+
+# The token the app paints its background with. Naming it here is naming a
+# contract end, not typing a value: what it RESOLVES to is asked of the page,
+# and the frame cannot change the answer by declaring something else.
+BACKGROUND_TOKEN = "--color-background"
 
 
 def frame_own_declarations(device_classes):
@@ -467,9 +499,13 @@ def frame_own_declarations(device_classes):
         device_classes: The classes the device element carries.
 
     Returns:
-        A mapping of declared property to declared value, verbatim, so that a
-        probe can be given the same declarations and the browser can say what
-        they resolve to.
+        A mapping of declared property to declared value, verbatim.
+
+        It is read for the SET of names the block declares — the hold that
+        refuses an eighth appearing — and never to build an expectation. A
+        probe fed these declarations agrees with the block by construction,
+        which is how `background: red` once passed: see the note on
+        `DEVICE_SURVIVES_DYNAMIC`.
     """
     text = HARNESS_STYLESHEET.read_text(encoding="utf-8")
     text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
@@ -719,22 +755,26 @@ async def measure_desktop(browser, journal):
                     for k in DEVICE_SURVIVES_DYNAMIC}
     dynamic_control = {k: unframed_box["dynamic:" + k]
                        for k in DEVICE_SURVIVES_DYNAMIC}
-    meant = await page.evaluate(
-        WHAT_THE_DECLARATIONS_MEAN,
-        [DEVICE, frame_own_declarations(device_classes),
-         list(DEVICE_SURVIVES_DYNAMIC)])
+    meant = await page.evaluate(WHAT_THE_DECLARATIONS_MEAN,
+                                [DEVICE, BACKGROUND_TOKEN])
     still_arriving = [k for k in DEVICE_SURVIVES_DYNAMIC
                       if dynamic_left[k] == meant[k]]
     declared_own = declared_by_the_frame_itself(device_classes)
-    held_own = set(DEVICE_SURVIVES) | set(DEVICE_SURVIVES_DYNAMIC)
+    held_own = (set(DEVICE_SURVIVES) | set(DEVICE_SURVIVES_DYNAMIC)
+                | set(HELD_BY_THE_BOX))
     journal.check(
         "and what the harness keeps out of the frame is what it SAYS it "
         "keeps — every declaration of its own block, and nothing besides",
         stayed == DEVICE_SURVIVES
         and len(still_arriving) == len(DEVICE_SURVIVES_DYNAMIC)
         and declared_own == held_own,
-        f"at {width}px — the block declares {sorted(declared_own)} and this "
-        f"rule holds {sorted(held_own)}; the static ones read {stayed} "
+        f"at {width}px — the block declares {sorted(declared_own)}; this rule "
+        f"holds {sorted(DEVICE_SURVIVES)} by value here, "
+        f"{sorted(DEVICE_SURVIVES_DYNAMIC)} against the app's own token, and "
+        f"{sorted(HELD_BY_THE_BOX)} in the BOX hold against the viewport — "
+        f"which is where they must be held, because a reading fed by the "
+        f"block agrees with the block whatever the block says. The static "
+        f"ones read {stayed} "
         f"against {DEVICE_SURVIVES}; the window-relative ones read "
         f"{dynamic_left} against what their own declarations mean here, "
         f"{meant} (a frameless document reads {dynamic_control}, which is a "

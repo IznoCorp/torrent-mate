@@ -132,17 +132,14 @@ LABELLED = """(argument)=>{
 # stopped arriving. `background: red` then differs from the token's colour and
 # the hold falls, which « differs from the control document » could never see.
 WHAT_THE_DECLARATIONS_MEAN = """(argument)=>{
-  const [device, declarations, wanted] = argument;
+  const [device, token] = argument;
   const el = document.querySelector(device);
   const probe = document.createElement('div');
-  for (const [name, value] of Object.entries(declarations))
-    probe.style.setProperty(name, value);
+  probe.style.background = 'var(' + token + ')';
   el.parentElement.appendChild(probe);
-  const style = getComputedStyle(probe);
-  const out = {};
-  for (const property of wanted) out[property] = style.getPropertyValue(property);
+  const background = getComputedStyle(probe).backgroundColor;
   probe.remove();
-  return out;
+  return {'background-color': background};
 }"""
 DEVICE_BOX = """(argument)=>{
   const [device, skin, survives, dynamic] = argument;
