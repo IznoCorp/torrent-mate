@@ -229,10 +229,12 @@ jobs all report `skipped` and whose steps never start. **CI is read after `ready
 that type is in the trigger for exactly this reason, and without it leaving draft would dispatch
 nothing at all — **or, on a draft, by adding the `run-ci-on-draft` label**: the escape hatch for a
 branch that needs a green reading before its merge day, and `labeled` being among the types makes
-adding the label itself the dispatching event. **So « zero check-runs » now has a SECOND cause.**
-It used to mean « the run never started » — no pull request, a `paths-ignore`, a stuck required
-check. Read the pull request's draft state before diagnosing anything else. A job added to that
-workflow without the condition silently re-enables draft runs;
+adding the label itself the dispatching event. **A draft now dispatches NOTHING, so « zero
+check-runs » has a SECOND CAUSE.** It used to have one — the run never started: no pull request at
+all, a `paths-ignore`, or a pull request GitHub reports as `CONFLICTING`, which dispatches no
+check-suite. Beside those there is now a pull request that is simply a draft, and from the outside
+the two readings are identical. **Read the pull request's draft state FIRST**, before diagnosing
+anything else. A job added to that workflow without the condition silently re-enables draft runs;
 `tests/scripts/test_ci_skips_draft_pull_requests.py` refuses it.
 
 ### Pipeline Monitoring Rules

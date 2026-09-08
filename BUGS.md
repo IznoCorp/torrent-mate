@@ -406,6 +406,101 @@ when the defect comes back.
 | B-335 | The secret panel's « Retirer la clé » does nothing and asks nothing: the same `data-toast` shape as B-334, on a destructive act that owes a confirmation (B-300's form) | 1× | `open` |
 | B-336 | The library's kind chips (« Tout · Films · Séries », with counts) scroll horizontally with a VISIBLE scrollbar on the phone; the strip should hide it as `pillscroll` does | 1× | `open` |
 | B-337 | A follow card swiped open: the first tap on a revealed action does nothing, the second acts — systematic on the phone | 1× | `open` |
+| B-376 | Every push to a DRAFT pull request ran the whole pipeline, and no trigger answered the pull request leaving draft: a wave that opens its pull request early — which is this repository's own method — paid full CI on each of its intermediate pushes, and `ready_for_review` was in no workflow at all | by operator | `fixed #578` |
+
+**B-376 — a draft paid full CI on every push, and the event that ends a draft was in no trigger.**
+The operator's decision, 2026-09-08: « on ne l'exécute qu'à la sortie de draft, afin d'économiser du
+temps de CI ». Both halves of that sentence were missing, and the second one is why a naive reading
+of the first would have been worse than the defect: **`ready_for_review` appeared in no trigger of
+this repository** (`grep -n ready_for_review .github/workflows/*.yml` returned nothing), so a « skip
+when draft » alone would have meant a pull request leaving draft dispatches NOTHING and its checks
+never run at all — the dead end this workflow already records for a trigger `paths-ignore`.
+
+**What closes it.** The type is added to the trigger, and every one of the fourteen jobs carries the
+same job-level condition, so a draft dispatches a run whose jobs all report `skipped` and whose
+steps never start. **At JOB level and never at the trigger**, for the reason written above `changes`:
+a skipped job reports a conclusion, a run that never starts reports nothing and leaves a required
+check « expected » for ever. The two jobs that already had a condition compose it with `&&`;
+`coverage-merge`'s `always() && !cancelled()` is untouched, because it answers a different question
+and dropping it re-opens B-151.
+
+**The escape hatch, and why it needs no new trigger.** A branch that needs a green reading before it
+leaves draft adds the `run-ci-on-draft` label — created on the repository with this entry, it did not
+exist — and the run dispatches, because `labeled` is already among the types (#488): adding the label
+is itself the dispatching event.
+
+**The rule that bites, and the three mutations it was seen red under.**
+`tests/scripts/test_ci_skips_draft_pull_requests.py` parses the workflow and asks three questions,
+so three defects fail three ways instead of one count going quiet. Green at `16 passed` before the
+first mutation and again after the last was restored; each mutation was applied alone:
+
+- **The condition removed from the `guards` job** → `1 failed, 15 passed`, and only
+  `test_every_job_stands_down_on_a_draft[guards]`: it names `guards` and prints its `if` as `''`.
+  This is the defect the file exists for — GitHub Actions expands no YAML anchor, so the condition is
+  fourteen copies, and a job added later without it runs on drafts while the others stand down.
+- **`ready_for_review` removed from the types** → `1 failed, 15 passed`, and only
+  `test_leaving_draft_dispatches_the_run`, which lists the remaining types and says leaving draft
+  would dispatch nothing.
+- **The label misspelled in the `secrets` job alone** → `1 failed, 15 passed`, and only
+  `test_the_escape_hatch_is_spelled_one_way`, which printed
+  `{'run-ci-on-draft': [thirteen jobs], 'run-ci-on-drafts': ['secrets']}` — a label that disagrees by
+  one character is a job that keeps skipping while the others run, green and silent.
+
+**And the readings from the runner, which are the ones B-151's exception says a CI condition usually
+cannot have.** This one can, and by the fact that makes a workflow change awkward everywhere else: a
+`pull_request` run comes from the MERGE REF, so this pull request ran the workflow it changes and the
+gate under test gated it. Five runs, ALL ON `e3caa6a87` — one commit, five answers. They are written as a table rather than
+a story, because that is what turns a claim into a measurement: the condition is
+`draft == false || label`, so the readings are the four cells of `draft × label`, and all four were
+read on the runner.
+
+| Time (UTC) | Event | Draft? | Label? | Run | The fourteen jobs |
+| --- | --- | --- | --- | --- | --- |
+| 08:58:21 | `opened` | yes | no | `34207410331` | **`skipped`** |
+| 08:58:52 | `labeled` | yes | yes | `34207452936` | `success` |
+| 09:09:19 | `ready_for_review` | no | yes | `34208418988` | `success` |
+| 09:20:55 | `unlabeled` | yes | no | `34209493485` | **`skipped`** |
+| 09:21:02 | `ready_for_review` | no | no | `34209503652` | `success` |
+
+The fourteen are the whole list every time: changes, coverage-merge, design-gaps, frontend, guards,
+harness-contracts, licenses, lint, no-french, secrets, security, test, typecheck, version-bump.
+
+**Row 1 is the saving**, measured on the runner rather than argued: not one step started. **Row 4
+was not planned and is the control** — take the hatch away and the skip comes back, so row 2 is the
+label doing the work and not the day being lucky. **Row 5 is the isolated proof of the first
+clause**: the label was removed BEFORE the ready gesture, so nothing but `draft == false` accounts
+for those jobs running. **Row 3 is kept and marked**: with the label still attached, the second
+clause alone accounts for it, so as evidence for the first clause it proves nothing — it is the
+fourth cell of the matrix, not a second reading of row 5. It is written down rather than dropped,
+because what an instrument establishes and what it appears to establish are one sentence read
+twice.
+
+**And rows 3 and 5 were DISPATCHED AT ALL only because `ready_for_review` is among the trigger's
+types.** That is the half a bare « skip when draft » would have broken, and the reason this change
+is not one line: with every job standing down on a draft, no other type fires when someone clicks
+« Ready for review », so the pull request would have sat with no run and no result for ever.
+
+Afterwards `gh pr ready --undo`: `isDraft` reads `true`, `labels=[]`, and nothing was merged to
+read any of it. **The workflow API serves `event: pull_request` for all five runs and does not
+serve the activity type**, so each run is attributed by what happened in its window — a label
+added, a label removed, a ready gesture, no push between them — and not by a field.
+
+**A reader who does not know the merge-ref rule will think the sha explains those five results.**
+It does not: all five ran on the SAME commit and came out differently, because a `pull_request`
+run takes its workflow from the merge ref — the pull request's own version — so this pull request
+ran the gate it introduces and the gate gated it. That is what makes a workflow change the one
+change that cannot be proved against the base, and here it is the proof rather than the obstacle.
+
+**A draft now dispatches NOTHING, which gives « zero check-runs » a SECOND CAUSE — and that is the
+sentence a future session will need.** Until today the reading had one meaning here: the run never
+started. No pull request at all; a `paths-ignore`; or a pull request GitHub reports as
+`CONFLICTING`, which dispatches no check-suite and is how a stale local `main` has already cost this
+repository a diagnosis. Beside those there is now a pull request that is simply a draft, and from
+the outside the two are indistinguishable — same `total_count: 0` on the branch's head, same empty
+checks tab. The draft state is what tells them apart, and it is read FIRST. The sentence is written into `CLAUDE.md` § Commit Convention,
+`IMPLEMENTATION.md`'s « In flight » row and the two sibling briefs that told their agent « CI runs on
+pull requests only », so the next reader does not rediscover it from a silent pipeline.
+
 
 **B-278 — the drawer's dismiss acknowledges itself twice, and I could not explain it.**
 One leftward swipe on the drawer produces TWO `data-feedback` marks on `#drawer`, at the same
