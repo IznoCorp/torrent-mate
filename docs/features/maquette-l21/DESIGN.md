@@ -407,6 +407,52 @@ screen's).
 states the oracle measures, and a divergence there would be a divergence on a surface this wave did
 not touch — Stop B.
 
+---
+
+#### AND THE OPERATOR REOPENED IT — everything above is the FIRST answer, and it was not enough
+
+**« Le bouton est toujours beaucoup trop gros, pourquoi pas un bouton de la même taille que les
+autres ? Les boutons de l'interface doivent être des composants qui n'autorisent pas toutes les
+tailles, l'icône et le bouton sont énormes. »**
+
+**HE WAS REPORTING A DEFECT, AND EVERYTHING ABOVE TREATED IT AS A SCALE.** Measured before anything
+moved: the button rendered **332 x 245**, with a **227 x 227** icon inside it, on a screen whose
+other controls are 24 to 44 px tall and whose action-button system is 44. `svgIcon` emits an
+`<svg>` with no width and no height; `base.css` records what follows at its `.installkey` rule —
+« it falls back to the replaced-element default of 300x150, and the « add » button came out 313px
+tall » — and the action-button system escapes it only because `.sact / .cfoot / .mediaadd svg` size
+its icons by descendant rule. This button wears none of those classes. **Nobody chose 227.**
+
+**AND THE RULE ABOVE READ EVERY STEP AND MISSED THE BOX.** R136's four holds compare a type step
+and a padding step, and all four were green on that button. A rule that reads what a size was
+DECLARED as cannot see a size that arrives from somewhere else — which is why its fifth hold reads
+the RENDERED BOX against the action-button system's own, measured on a screen that draws one, with
+no figure typed for either.
+
+**THE SECOND ANSWER HAS TWO HALVES, because his sentence has two.**
+
+1. **A BOUNDED SET, ENFORCED BY THE TYPE.** `actionButton` carries a `size` variant — `screen` or
+   `footer` — so a size outside the set is a compile error at the call site and no surface can hand
+   a button one. The size properties leave the base for every branch, per `ui/cva.ts`'s own
+   construction rule, and **every branch stays a string LITERAL**, which is the lesson three
+   paragraphs above arriving from the other side: a shared constant would blind `residue.py`, a
+   `variants` block does not. The type-level hold that proves the set is closed is written as a
+   conditional type rather than as the compiler directive that expects an error — this tree counts
+   every such directive as a typing escape against a floor of hard zero, and reads them inside
+   comments too.
+2. **THE ICON'S SIZE IS PART OF THE SIZE.** The `footer` branch sizes what it contains, so a button
+   wearing no legacy class does not depend on the residue to be legible.
+
+**The height is settled at 40 px with a 16 px icon — the operator's own answer**, not a value this
+document chose. The nearest neighbour in kind on that screen is the 40 px « more » button beside
+the segment. **Width is deliberately unchanged**: a footer action is full width here, as the retry
+beside it is, and what was reported was 245 px of height.
+
+**All 19 `actionButton()` call sites across 9 files pass no argument**, so the default branch is
+what they render, and their emitted class set is unchanged — held token for token by
+`ui/variants.test.ts` rather than asserted, and confirmed by the oracle reading the same divergence
+set as the commit before it, line for line.
+
 **THE HOLD, AND WHY IT IS SHAPED LIKE B-352's.** `[data-sugmore]` is reachable from **no named
 state** and `engine/states.js` is grandfathered, so one cannot be added (B-352). The oracle
 therefore never sees this button, no divergence is « accepted » for it, and the operator judges it

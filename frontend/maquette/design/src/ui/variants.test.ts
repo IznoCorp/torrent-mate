@@ -17,14 +17,22 @@ describe("the button system's sizes", () => {
   // convention cannot deliver that; a union can, and this hold is the proof
   // that it does.
   //
-  // `@ts-expect-error` IS THE ASSERTION, and it fails in the direction that
-  // matters: if the size ever stops being refused, the directive itself
-  // becomes an error and `tsc -b` goes red. A runtime `expect` could not see
-  // this at all — the call would simply emit no size class and draw a button
-  // with no height, silently.
+  // THE ASSERTION IS A TYPE, NOT A CALL, and it had to become one: the obvious
+  // spelling is the compiler directive that expects an error, and this tree
+  // counts every such directive as a typing escape against a floor of hard
+  // zero — the guard reads them in comments too, so even describing one costs
+  // a violation. What is written instead asks the question directly: does an
+  // arbitrary string satisfy the size the factory accepts? If it ever does —
+  // because the union was widened, or replaced by `string` — the conditional
+  // resolves to `never`, nothing can be assigned to it, and `tsc -b` goes red.
+  //
+  // A RUNTIME ASSERTION COULD NOT SEE THIS AT ALL: the call would simply emit
+  // no size class and draw a button with no height, silently.
   it("refuses a size the catalogue does not offer", () => {
-    // @ts-expect-error — an arbitrary size is not a size.
-    expect(() => actionButton({ size: "enormous" })).not.toThrow();
+    type Offered = NonNullable<Parameters<typeof actionButton>[0]>["size"];
+    type UnknownSizeIsRefused = "enormous" extends Offered ? never : true;
+    const refused: UnknownSizeIsRefused = true;
+    expect(refused).toBe(true);
   });
 
   it("offers exactly the two it names, and both are drawable", () => {

@@ -61,8 +61,10 @@ THE_SURFACE = """()=>{
   const feed = document.querySelector('#sugitems');
   const top = (node) => node ? Math.round(node.getBoundingClientRect().top) : null;
   return {action: !!action, actionTop: top(action), feedTop: top(feed),
-          leftovers: [...document.querySelectorAll('.body > .deck, .body > .empty')]
-                     .map((node) => node.className)};}"""
+          leftovers: [...document.querySelectorAll(
+                       '[data-part="surface/body"] > [data-part="deck"], '
+                       + '[data-part="surface/body"] > [data-part="empty-state"]')]
+                     .map((node) => node.dataset.part)};}"""
 
 
 async def main():

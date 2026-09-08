@@ -72,12 +72,21 @@ export function DiscoverTab(): ReactElement {
     // BELOW it. Measured, on the list mode: the action at y=286, `#sugitems`
     // at y=626.
     //
-    // `.empty` IS EXACT HERE, and that is worth a sentence because the class
-    // is shared. Nothing in this surface's React tree renders an empty note as
-    // a direct child of the body — its children are the notes, the live strip,
-    // the skeleton or the error, and the two containers — so the only `.empty`
-    // that can be a direct child of THIS body is the one the fragment wrote.
-    for (const stale of document.querySelectorAll(".body > .deck, .body > .empty")) {
+    // ANCHORED ON `data-part`, NEVER ON A STYLE CLASS. A class token in a
+    // selection dies the day the class is removed, and nothing can then say
+    // whether the anchor or the styling was at fault — the rule that reads
+    // this behaviour is held to a hard zero on exactly that, and the code it
+    // reads has no reason to be held to less.
+    //
+    // THE EMPTY STATE IS EXACT HERE, and that is worth a sentence because the
+    // part is shared. Nothing in this surface's React tree renders an empty
+    // note as a direct child of the body — its children are the notes, the
+    // live strip, the skeleton or the error, and the two containers — so the
+    // only one that can be a direct child of THIS body is the fragment's.
+    for (const stale of document.querySelectorAll(
+      '[data-part="surface/body"] > [data-part="deck"], '
+        + '[data-part="surface/body"] > [data-part="empty-state"]',
+    )) {
       stale.remove();
     }
     if (document.querySelector("#sugitems")) {
