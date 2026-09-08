@@ -1,32 +1,43 @@
 # L21 — where the wave stands, for whoever picks it up
 
-Rewritten by the session that answered the operator's four rulings, took the wave gate, merged
-`main` twice, and answered review round one. Read `BRIEF.md`, `DESIGN.md` and `plan/INDEX.md`
-first — this file says only what is TRUE NOW and what those do not.
+Rewritten at a CLEAN PAUSE called by the operator (« on s'arrête maintenant, on reprendra après le
+reset, on s'arrête proprement »). Read `BRIEF.md`, `DESIGN.md` and `plan/INDEX.md` first — this file
+says only what is TRUE NOW and what those do not.
 
-**Branch** `feat/maquette-l21`, pull request **#572** (draft). **Version** 0.98.79 — `main` reached
-0.98.77 with the ci-draft merge and its post-merge gesture takes 0.98.78, so this branch sits above
-both. Re-read `main` before touching it again.
+**Branch** `feat/maquette-l21`, pull request **#572** (draft). **Version** 0.98.79.
 
-**HEAD is the sha the last commit of this file carries, and it IS pushed** — proven by
-`git ls-remote --heads origin feat/maquette-l21` against the local sha, never by a push's own
-output. **That proof earns its keep**: a push in this session exited the wrapper and did NOT land,
-because the pre-push hook refused it on a failing test, and `ls-remote` is what said so.
+⚠ **#572 CARRIES THE `run-ci-on-draft` LABEL**, put there by the orchestrator. So this branch's
+pushes DO dispatch CI even though the pull request is a draft. « A draft dispatches no CI » is true
+in general and **NOT true of this pull request**: `BLOCKED` on it means checks PENDING, not checks
+missing. Read the label before diagnosing an absent run.
 
-⚠ **`origin/main` at `eaedcd916` IS MERGED, proven by `git merge-base --is-ancestor`.** This branch
-carries FOUR merge commits, so reading any one of their second parents says it is behind.
+⚠ **`origin/main` IS MERGED into this branch**, proven by `git merge-base --is-ancestor origin/main
+HEAD`. This branch carries FOUR merge commits, so reading any one of their second parents says it is
+behind. Re-read `main` before touching it again.
 
-⚠ **A DRAFT PULL REQUEST NOW DISPATCHES NO CI** (operator, 2026-09-08). « Zero check-runs » has TWO
-causes: a run that never started — no pull request, a `paths-ignore`, or a `CONFLICTING` pull
-request — and a pull request that is simply a draft. **This branch met BOTH within one hour.** Read
-the draft state FIRST. CI is read after `ready_for_review`, or on a draft with the
-**`run-ci-on-draft`** label.
+⚠ **B-377 IS FIXED ON `main` (#579).** The old warning here — that
+`scripts/check-implementation-state.py` infers « that wave has landed » from a version comparison and
+would refuse this live « In flight » row — no longer applies. The arm now asks whether the pull
+request merged. **Do not spend time on it.**
 
-⚠ **`scripts/check-implementation-state.py:271` infers « that wave has landed » from a VERSION
-COMPARISON**, so a micro-wave overtaking a lot makes it call this live « In flight » row stale and
-ask for its deletion. The premise is false and the row is true. **NOT this lot's to repair** —
-ci-draft repairs it in its own gesture — but it runs in `harness-contracts` and can fire on a run of
-yours for a reason that is not yours.
+⚠ **`main` HAS MOVED PAST WHAT THE PREVIOUS EDITION OF THIS FILE RECORDED.** It said « next free
+number is B-377 »; `main` has since taken **B-376 and B-377**. **Next free is B-379** — this session
+took B-378. Rules R125–R139, **R155**, **R156**, **R157** are spent; **R158+** are free.
+
+---
+
+## 0. THE PAUSE — read this before anything
+
+**Nothing was left half-done. The tree was CLEAN when the stop came** and no increment was in
+flight: this session had finished a reading, reported it, chosen a shape, had it approved, and was
+reading `scripts/rename-identifiers.py`'s interface when the stop arrived. **No source file under
+`design/src`, `harness/` or `contract/` was edited by this session.** The only commit at the pause is
+documentation: this file and the B-378 register entry.
+
+So the gate figures in § 4 still cover the tree exactly as they did — see the condition there.
+
+**What the next session picks up is a fully specified, fully approved, NOT-YET-STARTED build.** It
+is § 3. Every ruling it needs has been given; nothing in it is awaiting an arbitration.
 
 ---
 
@@ -37,12 +48,13 @@ yours for a reason that is not yours.
 | 1–7                                 | **DONE**       | `REPORT.md` § 1, one row each            |
 | **the operator's four rulings**     | **DONE**       | § 2 — three repaired, one filed          |
 | **the wave gate**                   | **TAKEN**      | § 4                                      |
-| **review round one, six findings**  | **DONE**       | § 3 — five repaired, one filed           |
+| **review round one, six findings**  | **DONE**       | § 5 — five repaired, one filed           |
+| **A5's third surface — the READING**| **DONE**       | § 3.1 — and it inverted the assumption   |
+| **A5's third surface — the BUILD**  | **NOT STARTED**| § 3.3 — approved, specified, untouched   |
 
-**Register**: B-301, B-302, B-313, B-315, B-322, B-323, B-365, B-368 read `fixed #572`. **Filed by
-this lot**: B-329, B-330, B-350, B-351, B-352, B-363, B-364, B-366, **B-367**, **B-369**, **B-370**,
-**B-371**. Next free number is **B-377** (`main` took B-376). Rules R125–R139, **R155**, **R156**,
-**R157** are spent; **R158+** are free.
+**Register**: B-301, B-302, B-313, B-315, B-322, B-323, B-350, B-353, B-365, B-368 read `fixed #572`.
+**Filed by this lot**: B-329, B-330, B-351, B-352, B-363, B-364, B-366, B-367, B-369, B-370, B-371,
+**B-378**.
 
 ---
 
@@ -82,70 +94,146 @@ this lot on all three routes (the engine's drawing, `SHEETS_RAW`'s 20 538 lines,
 
 ---
 
-## 3. Review round one — six findings
+## 3. A5's THIRD SURFACE — the reading, the rulings, and the build that is owed
 
-**A1 + A2 — ONE MECHANISM.** A panel producer is a function from the cache to a descriptor and NOT a
-component: nothing subscribes while the panel is open. A verb pressed inside a panel moved the layer,
-the list BEHIND updated — that one is observed — and the sheet the operator was looking at did not.
-`window.__panel.redraw()` re-produces the open panel from the cache as it is now, history suppressed,
-silent when nothing is open. The season's `invalidateQueries` became a REFETCH.
+This is the live work. Everything in it is settled except the doing.
 
-⚠ **THE FIRST VERSION OF THAT MECHANISM HAD A HOLE, and it is the thing to read twice.**
-`producePanel` recorded what was open only on its SYNCHRONOUS path. The deferred path is not the rare
-one: a named state CLEARS the cache and any kind whose `needs` depends on its subject is excluded
-from the boot's prefill, so **the first ask for any subject is always cold and always defers**. The
-panel was opened by a path that recorded nothing and `redraw` went silently home. Found because the
-rule stayed RED after the repair and that was not explained away.
+### 3.1 The reading — and it inverted round one's assumption
 
-**A2's second half** — one ask in flight per `title|season`, released in a `finally` so a refused ask
-can be made again, answered with silence rather than « occupé » (NE-DOIT-PAS-3).
+Round one asked whether the library's « Incomplets » lens needed the season-grab act ADDED to it.
+**It does not: it already offers the act, and that is the defect.** The premise A5's gate rests on is
+FALSE, and it is written verbatim in the code — `season-list.tsx:318-325`:
 
-**A3 — FILED as B-371, owner L20, by the operator's ruling.** The pastille is reachable by no path a
-finger can take: two pipeline notions, and the hand moves only the one it does not read. DOIT-4 drops
-`served` → `partly` in the clause map. **DESIGN § 4.0 carried a three-step hand path that does not
-work**; it is corrected where it stands.
+> « The operation is `/api/acquisition/follows/{title}/seasons/{n}/grab`: it asks about a FOLLOW.
+> **The panel is only ever drawn for one, so it needs no test**; this list is drawn for any medium. »
 
-**A4** — three sentences chosen by the caller, the deck's own pattern. Three and not two: a season
-nothing is known about absorbs NOTHING, and « 0 épisodes » is wrong in French, where zero takes the
-singular.
+The panel is NOT only ever drawn for a follow. Every step below was read in the source:
 
-**A5** — the media sheet's season list offers the same act, through the shared `askForSeason` so the
-two cannot drift, **gated on `followed`**: the operation asks about a FOLLOW, the panel is only ever
-drawn for one, and this list is drawn for any medium.
-⚠ **THE THIRD SURFACE IS NOT SETTLED AND IS OWED.** The reader named « the panel the library's
-« Incomplets » lens opens ». That lens itself draws TILES and CARDS from the engine's reference and
-has no season rows; the two surfaces that DO draw seasons — the `follow` panel and the sheet's list —
-both now offer the act, and the `follow` producer is only ever given a follow. What a card in that
-lens opens was NOT established (`producePanel('media', …)` raises « unknown panel producer », so the
-`media:` addresses go somewhere else). **Establish that before deciding there is nothing to do.**
+1. `incomplete-lens.tsx:51` draws its cards with `cardHTML({t,s,f,chip})` — **no `panel` key**.
+2. `legacy.js:5327` therefore emits the card body as `data-panel="media:${t}"` (`hasSheet` is true
+   for an owned show). The tile branch, `legacy.js:7733`, emits the same.
+3. `legacy.js:9491` delegates `data-panel` to `openPanel`.
+4. `legacy.js:7807-7811` — `openPanel` splits on the FIRST colon and switches on the genre: `sug` →
+   suggestion, `add` → add, **`else` → `panel.produce("follow", ref)`**. The genre `media` is
+   DISCARDED; only the title travels. **That is why `producePanel('media', …)` raises « unknown panel
+   producer » and yet the addresses work — nothing ever asks for a `media` producer.** The previous
+   edition of this file named that raise as an open thread; this is its answer.
+5. `follow-facts.ts:85-95` — `followFacts` has a THREE-STEP FALLBACK its own docstring names as the
+   engine's: a real follow, **else an INCOMPLETE-SHOW record synthesised `{st:"to_grab", own,
+   aired}`**, else a synthetic `up_to_date`. `isFollowed` is computed SEPARATELY and is false for
+   both fallbacks.
+6. `panel-seasons.tsx:200-212` draws the grab verb over any incomplete season with **no `followed`
+   test at all**.
 
-**A6** — an emptied list draws the deck's own end mark.
+**MEASURED AGAINST THE FIXTURE, not reasoned:** the intersection of `incomplete-shows.json` and
+`follows.json` is **EMPTY** — 12 titles and 14, zero overlap — so **every** card in that lens reaches
+this path. Of the twelve, exactly two carry `SEASONS` data and therefore actually draw the matrix and
+the verb: **« Les Animaniacs »** and **« Les aventures de Tintin »**, both also present in
+`seasons.json` so `absorbedCount` is genuinely non-zero for them. The other ten fall to the
+`noSeasonData` note — **which is why nobody met this by accident, and why those two are the named
+subjects of the hold.**
 
-**R157** (`harness/acted_surface_redraws.py`, 10 holds) holds A1 and A2 on the OPEN surface. Its
-discriminator is the operator's own test: the panel on screen must say what a panel produced fresh
-from the cache says. It also holds the surface MOVED, so a build where the verb does nothing cannot
-pass by agreeing with a cache that never changed. Mutation (the redraw's body emptied): 4 holds fall.
+**So the « third surface » is not a third surface — it IS the follow panel, reached from that lens.**
+Round one looked for season rows inside the lens, found tiles and cards, and stopped. The rows are
+one tap further in.
 
-⚠ **WHAT R157 DOES NOT HOLD**: any refusal branch, and the picker reached by hand from « En cours » —
-`window.__releases()` is `[]` for every medium the queue holds, on both builds. **Do not manufacture
-a repair for either.**
+### 3.2 The defect found on the way — B-378, FILED, NOT REPAIRED
 
-⚠ **R155 WAS FALSIFIED BY A6 AND IS SHARPENED.** It held « the offer is GONE after leaving the deck »;
-an emptied list now draws an offer of its own, correctly, so that hold went red on a build that is
-RIGHT. Presence was never the property — CONTAINMENT is.
+`acquisition-verbs.ts:165` moves the follow's status only `if (found !== undefined)`. For a
+non-follow `found` is `undefined`, so **the handler answers 201 with a real `absorbedCount` and moves
+NOTHING** — success reported over an unchanged world, which is exactly the shape this lot's phase-1
+rule refuses. The interface says « Saison 3 demandée — 5 épisodes à récupérer », refetches the
+follows, gets the identical list, and redraws the identical panel. Full entry in `BUGS.md` § B-378.
+
+### 3.3 THE RULINGS — all given, none awaiting anybody
+
+**THE OPERATOR, and he overruled BOTH this session's recommendation and the orchestrator's:**
+**« Offer it — the backend follows. »** The act is NOT hidden. From « Incomplets », a person who owns
+an incomplete show and does not follow it may ask for a missing season, and the CONTRACT grows to
+accept that rather than the interface drawing less. That is his standing rule applied literally — a
+backend limitation is not a reason to draw less.
+
+**THE ORCHESTRATOR, on the two points left open:**
+
+- **The sheet's gate: DELETE the `followed &&` clause. « The true test is no test » is correct
+  here** — the list is drawn only where a sheet exists, so the subject is identified by construction,
+  and the row already carries `!complete`, which IS the hole. **Adding a test to look careful would
+  be a second false premise with a better disguise.** Trace the prop's callers and leave nothing
+  unused behind.
+- **Three parallel sentence keys, never one appended sentence.** The discipline is chosen sentences,
+  never composed ones, and this repository has just paid for the other way: A4 of round one was
+  « 1 épisode(s) », a parenthesis stuck onto a sentence that should have been chosen. Six keys for
+  one act is cheap; a composed sentence is a defect that renders correctly. A follow started is a
+  second FACT, and the answer's new field is what SELECTS the sentence — NE-DOIT-PAS-1 exactly.
+
+**THE SHAPE, chosen by this session and APPROVED: (a) THE ACT IMPLIES THE FOLLOW.** The address
+stays; the operation follows-then-grabs. Four reasons, **the third decisive**:
+
+1. It makes the address TRUE rather than merely tolerated: by the time the season is taken the
+   subject IS a follow, so `/api/acquisition/follows/{followedId}/…` stops lying. Under (b) the route
+   is renamed and one is left with « take a season of something nothing tracks », which has nowhere
+   to record that the ask happened.
+2. It is the operator's own identification ruling applied — « si on a un suivi, c'est qu'on a
+   identifié le média ». An incomplete library show is identified by construction: sheet, year,
+   owned/aired counts.
+3. **IT IS THE ONLY ONE OF THE TWO THAT CAN SATISFY PHASE 1'S MOCK RULE.** Under (a) the mock APPENDS
+   the follow with status BEING_ACQUIRED: the refetch returns a longer list, `isFollowed` flips true,
+   `window.__panel.redraw()` redraws a genuinely different panel — all observable, all readable by a
+   hold. **Under (b) there is still nothing to move**, the grab of an untracked medium stays an
+   acknowledgement over an unchanged world, and the rule would be UNSATISFIABLE.
+4. Smaller instrument surface: the operation id is unchanged, so `season_grab.py:67`, `busy.py:68`
+   and `acted_surface_redraws.py:220,246` keep reading the name they read now.
+
+### 3.4 THE BUILD — in committable increments, in this order
+
+The orchestrator's instruction, and it is the shape to keep: **never leave the tree in a state where
+the next session must reconstruct what you were in the middle of.**
+
+1. **Untangle the name that lies about its type.** The `saisons` block payload is
+   `{ isFollowed: Follow; seasons: Season[] }` — a field named `isFollowed` that **holds the follow
+   RECORD**, destructured `const { isFollowed: follow } = block`. Rename that field to `follow`.
+   ⚠ **`FollowFacts.isFollowed` is a GENUINE boolean and must NOT be touched** — `follow-facts.ts:53,
+   101,116` and `follow-actions.ts:50,83,88,96,113,119`. Only four sites move: `contract.ts:62` (a doc
+   comment), `panel-seasons.tsx:32` and `:224`, `panel-follow.ts:54`. **This is done FIRST**, because
+   a gate written near a field named `isFollowed` reads as already present when it is not.
+   ⚠ A rename goes through `scripts/rename-identifiers.py` — but the tool takes a JSON mapping FILE as
+   `sys.argv[1]` and has no `--help`; it refuses chained and merging tables. Since the same property
+   name must SURVIVE elsewhere, check whether `--properties` can be scoped to these files before
+   running it, and **verify by re-reading the diff, not the « N file(s) touched » line.**
+2. **Contract + its two generated artefacts, ONE commit** — `--check` refuses them separated, and the
+   commit message should say they move as one. `grabSeasonForFollow` gains one required response
+   field saying whether the act started the follow. Summary and the `followedId` description change
+   from « the follow » to « the medium; it is followed by this act if it was not already ». The
+   operation carries **`x-unseeded`** (not `x-seeded-from`) and its text already explains why —
+   EXTEND that text rather than adding a second annotation. Then `npm run generate-contract-types` in
+   `design/`, then `python3 scripts/compare-contracts.py --write`.
+3. **The mock MOVES STATE** — `acquisition-verbs.ts`. Create the follow when absent, then grab; the
+   answer says it did. A follow record's fields, from `follows.json`: `title, showStatus, since,
+   searches, kind, year, status, fresh` (`owned`/`aired` appear on some). This repairs B-378.
+4. **The surfaces.** Delete `followed &&` in `season-list.tsx:326` and the now-dead prop
+   (`season-list.tsx:15,25-26`); kill the false comment at `:318-325` — **it must not survive, it is
+   the kind of sentence a later session reads as established fact.** Three parallel i18n keys beside
+   `seasonAsked`/`seasonAskedOne`/`seasonAskedNone` in `verbs.media`.
+5. **The hold, SEEN RED FIRST**, reading BOTH surfaces: the act offered and answered on an incomplete
+   NON-follow. Subjects « Les Animaniacs » and « Les aventures de Tintin » — **and the rule must SAY
+   why those two** (the only incomplete shows with `SEASONS` data; the other ten fall to the
+   no-season note), so the next reader does not think the choice arbitrary.
+6. **The backend demand** in `docs/reference/backend-demands-architecture.md`: what the operation
+   must accept, and why the interface asks it.
+7. **The on-screen confirmation, LAST** — watch the button appear and answer for real on a build, on
+   one of the two subjects. It is required before calling the unit done; it is **not** the gate for
+   increments 1–6.
 
 ---
 
 ## 4. The wave gate
 
-⚠ **WHICH SHA THE GREEN COVERS, said plainly because it is not this file's own commit.** Every tier
-below was run on **`00ee56ae3`**. The commit after it is a DOCUMENTATION MERGE of `origin/main` at
-`b46643abf` — two conflicts, `IMPLEMENTATION.md`'s row pair and the version — touching no source the
-suite, the oracle or the a11y audit reads. **The gate was deliberately not re-run for it**, and the
-one repository guard that merge actually changed (`check-implementation-state.py`, repaired there
-because a version comparison had made it call this live row stale) was run alone and exits 0. If you
-touch anything under `frontend/maquette/design/src` or `frontend/maquette/harness`, the figures below
-stop covering your tree.
+⚠ **WHICH SHA THE GREEN COVERS.** Every tier below was run on **`00ee56ae3`**. The commits after it
+are DOCUMENTATION ONLY — a merge of `origin/main` at `b46643abf`, and this pause's own commit
+(this file plus the B-378 register entry). **None of them touches any source the suite, the oracle or
+the a11y audit reads**, so the figures still stand. **If you touch anything under
+`frontend/maquette/design/src` or `frontend/maquette/harness`, the figures below stop covering your
+tree** — which increment 1 of § 3.4 does immediately.
 
 Every tier was written to a FILE and its verdict lines read out of it — never piped.
 
@@ -155,7 +243,7 @@ Every tier was written to a FILE and its verdict lines read out of it — never 
 - **`--contracts`: exit 0.**
 - **a11y: 87 states, 0 violations.** Light **162 against a ceiling of 162** — the ceiling was lowered
   by this wave and the count now sits exactly on it.
-- **Oracle: 44 divergences.** Forty-three are the wave's, unchanged; **ONE is new and it is A5's**:
+- **Oracle: 44 divergences.** Forty-three are the wave's, unchanged; **ONE is A5's**:
   `mediasheet-series` · `screen-media/body` 1960 → 2014, **+54 px, one button**, on the one surface
   the repair draws on and on no other. That is D8's accepted shape — a divergence carrying the
   finding it serves. **A divergence on any other state is a defect and a STOP.** The reference is
@@ -184,7 +272,55 @@ earned the room, on a wave-level reading, which is the only kind that file can s
 
 ---
 
-## 5. Two corrections this wave owes its own record
+## 5. Review round one — six findings
+
+**A1 + A2 — ONE MECHANISM.** A panel producer is a function from the cache to a descriptor and NOT a
+component: nothing subscribes while the panel is open. A verb pressed inside a panel moved the layer,
+the list BEHIND updated — that one is observed — and the sheet the operator was looking at did not.
+`window.__panel.redraw()` re-produces the open panel from the cache as it is now, history suppressed,
+silent when nothing is open. The season's `invalidateQueries` became a REFETCH.
+
+⚠ **THE FIRST VERSION OF THAT MECHANISM HAD A HOLE, and it is the thing to read twice.**
+`producePanel` recorded what was open only on its SYNCHRONOUS path. The deferred path is not the rare
+one: a named state CLEARS the cache and any kind whose `needs` depends on its subject is excluded
+from the boot's prefill, so **the first ask for any subject is always cold and always defers**. The
+panel was opened by a path that recorded nothing and `redraw` went silently home. Found because the
+rule stayed RED after the repair and that was not explained away.
+
+**A2's second half** — one ask in flight per `title|season`, released in a `finally` so a refused ask
+can be made again, answered with silence rather than « occupé » (NE-DOIT-PAS-3).
+
+**A3 — FILED as B-371, owner L20, by the operator's ruling.** The pastille is reachable by no path a
+finger can take: two pipeline notions, and the hand moves only the one it does not read. DOIT-4 drops
+`served` → `partly` in the clause map. **DESIGN § 4.0 carried a three-step hand path that does not
+work**; it is corrected where it stands.
+
+**A4** — three sentences chosen by the caller, the deck's own pattern. Three and not two: a season
+nothing is known about absorbs NOTHING, and « 0 épisodes » is wrong in French, where zero takes the
+singular.
+
+**A5** — the media sheet's season list offers the same act, through the shared `askForSeason` so the
+two cannot drift. ⚠ **ITS `followed` GATE IS NOW RULED WRONG AND IS TO BE DELETED — see § 3.** The
+justification written beside it is false, and the reading that falsified it is § 3.1.
+
+**A6** — an emptied list draws the deck's own end mark.
+
+**R157** (`harness/acted_surface_redraws.py`, 10 holds) holds A1 and A2 on the OPEN surface. Its
+discriminator is the operator's own test: the panel on screen must say what a panel produced fresh
+from the cache says. It also holds the surface MOVED, so a build where the verb does nothing cannot
+pass by agreeing with a cache that never changed. Mutation (the redraw's body emptied): 4 holds fall.
+
+⚠ **WHAT R157 DOES NOT HOLD**: any refusal branch, and the picker reached by hand from « En cours » —
+`window.__releases()` is `[]` for every medium the queue holds, on both builds. **Do not manufacture
+a repair for either.**
+
+⚠ **R155 WAS FALSIFIED BY A6 AND IS SHARPENED.** It held « the offer is GONE after leaving the deck »;
+an emptied list now draws an offer of its own, correctly, so that hold went red on a build that is
+RIGHT. Presence was never the property — CONTAINMENT is.
+
+---
+
+## 6. Two corrections this wave owes its own record
 
 **« eslint 0 » in `55c375c14`'s message is FALSE, twice over.** The maquette is outside eslint's scope
 BY NAME — `frontend/eslint.config.js` ignores `maquette/**`, it being a separate npm project held by
@@ -196,17 +332,25 @@ read the verdict lines out of it.
 
 **One gate pass compared NOTHING while looking like it ran.** `harness-hold-counts.py --compare`
 takes a FILE; without one it exits **2** on an argparse usage error, which a gate reading exit codes
-cannot tell from a comparison that found drift. **B-370**, filed, not repaired.
+cannot tell from a comparison that found drift. **B-370, filed, NOT to be repaired here** — the
+orchestrator ruled it stays filed: a tool repair in a lot's diff is the mixed-nature change this
+office splits waves to avoid, and the defect predates this lot. **Pass the file explicitly to
+`--compare` every time**, which sidesteps the failure mode entirely.
 
 ---
 
-## 6. What is OWED
+## 7. What is OWED
 
-1. **The pull request out of draft**, and **the review rounds** — the orchestrator's word, and only
-   his. Round one is answered; rounds two and three are where this repository's sharpest findings
-   have always been.
-2. **A5's third surface** — § 3, and it is a reading before it is a repair.
-3. **B-366's real repair** (L13) · **B-367** (settings micro-wave) · **B-371** (L20) · **B-370**.
+1. **§ 3.4's seven increments** — approved, specified, not started. This is the work.
+2. **The pull request out of draft**, and **rounds two and three** — the orchestrator's word, and
+   only his. **Round two's reader is spawned by the office**, fresh, one lens, in a worktree pinned
+   at this head with a control at round one's. **An agent here dispatches no reviewer and no writing
+   delegate**; read-only search subagents are the one thing that may be forked. A round the author
+   runs inline is not adversarial whatever its rigour — measured on L12, where the wave's own lenses
+   found four findings and the office's independent readers found about forty on the same head, two
+   of them blockers.
+3. **B-366's real repair** (L13) · **B-367** (settings micro-wave) · **B-371** (L20) · **B-370** ·
+   **B-378** (repaired by § 3.4 increment 3).
 
 ### How to push, because it is not what it looks like
 
@@ -217,6 +361,8 @@ one, every time**:
       git push origin feat/maquette-l21 > <a file> 2>&1
 
 then prove it with `git ls-remote --heads origin feat/maquette-l21` against the local sha (B-360).
+**That proof earns its keep**: a push once exited the wrapper and did NOT land, because the pre-push
+hook refused it on a failing test, and `ls-remote` is what said so.
 
 ### The design host the operator walks
 
@@ -229,7 +375,7 @@ after a commit touching nothing under `design/src` is the instrument working, no
 
 ---
 
-## 7. The machine, and the traps that live in it
+## 8. The machine, and the traps that live in it
 
 **One served copy machine-wide**, on 8899 from `/tmp/tm-refonte`. The host is a **nohup process
 started OUTSIDE the wrapper** — read `lsof -nP -iTCP:8899 -sTCP:LISTEN`, never trust a number written
@@ -262,16 +408,27 @@ the gate exists to refuse.
 `check-maquette-comments.py --record` is run. Diff that record before committing it: only `read`
 should move.
 
+⚠ **The gauge is the LAST tool call before any message carrying a figure**, or the message says
+« not measured this turn » and carries none. **The weekly quota moved 92 % → 95 % in the span of two
+message exchanges** — about three points an hour under this wave's load, not the one and a half
+previously estimated. Budget accordingly.
+
 ---
 
-## 8. The two things not to repeat
+## 9. The two things not to repeat
 
 **A fixture edit is not a contained edit.** B-366's workaround renamed two paused follows precisely
 BECAUSE it touched no code — and one of the new titles is the subject of the state « Fiche —
 suggestion NON possédée (série) ». One rename, two instruments: it silenced the one it was made for
 and falsified another two files away, and only the FULL suite could see it (B-369).
 
-**A rule that stays red after a repair is telling the truth.** Both of this round's sharpest findings
+**A rule that stays red after a repair is telling the truth.** Both of round one's sharpest findings
 came from refusing to explain one away: the deferred-open branch that recorded nothing, and a strip
 whose state lives in a DOT and is invisible to `textContent`. A rule agreeing with the defect it was
 written to catch reads exactly like a rule that passed.
+
+**And the one this session adds: a COMMENT stating a premise is not evidence of it.**
+`season-list.tsx:318-325` asserted « the panel is only ever drawn for one » in a carefully argued
+paragraph, and it was false — the delegation four files away discards the genre and produces a follow
+panel for anything. The paragraph was written by someone who had reasoned about the gate and not
+walked the path into it. **Follow the address to the code that answers it, every time.**

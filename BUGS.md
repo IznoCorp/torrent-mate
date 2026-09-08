@@ -423,6 +423,7 @@ when the defect comes back.
 | B-353 | UNDOING A REMOVAL DOES NOT RESTORE THE FOLLOW, it creates a new one wearing the same name: the layer's delete DROPS the record and the only way back is a CREATE, so the year, « suivi depuis » and the search count are lost and the status comes back right only by coincidence | by L21 | `fixed #572` |
 | B-376 | Every push to a DRAFT pull request ran the whole pipeline, and no trigger answered the pull request leaving draft: a wave that opens its pull request early — which is this repository's own method — paid full CI on each of its intermediate pushes, and `ready_for_review` was in no workflow at all | by operator | `fixed #578` |
 | B-377 | `check-implementation-state`'s in-flight arm infers « that wave has landed » from a VERSION COMPARISON — `main >= the row's version` — which holds only while every merge to `main` comes from the in-flight wave itself; a micro-wave merging past it makes the arm refuse a row that is perfectly true, and it was refusing L21's row on `main` | by gate | `fixed #579` |
+| B-378 | `grabSeasonForFollow`'s mock moves a follow's status only when one is FOUND, so for a medium that is NOT followed it answers 201 with a real `absorbedCount` and changes nothing at all — success reported over an unchanged world, on a path the « Incomplets » lens reaches with a single tap | by L21 | `open` |
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
@@ -488,6 +489,36 @@ and « refused for some other reason » are otherwise the same exit code.
 that broke it and would have refused L21's next run — for a reason that was not L21's, on a row L21
 had written correctly. The wave that falsifies a guard's premise and the wave that meets its refusal
 are not the same wave, and nothing in the failure would have said so.
+
+**B-378 — the season grab answers 201 over an unchanged world for every non-follow.**
+`design/src/mocks/handlers/acquisition-verbs.ts:165` reads the follow it is about and moves its
+status only when it finds one:
+
+    const found = state.follows.find((follow) => follow.title === title);
+    if (found !== undefined && !queued()) found.status = BEING_ACQUIRED;
+
+For a medium nobody follows `found` is `undefined`, so the guard is silent and the handler falls
+through to its answer: **201, with a real `absorbedCount` computed from `seasons.json`, over a world
+in which nothing whatever has changed.** The interface then says « Saison 3 demandée — 5 épisodes à
+récupérer », refetches the follows, gets back the identical list, and redraws the identical panel.
+The operator is told an act succeeded and can see, correctly, that nothing happened.
+
+**It is not hypothetical and it is not hard to reach.** A card in the library's « Incomplets » lens
+carries `data-panel="media:<title>"`; `legacy.js:7807-7811` discards the genre and produces the
+**follow** panel for any of them; `follow-facts.ts:85-95` synthesises a record for an incomplete
+show, and `panel-seasons.tsx:200` draws the grab verb over any season with a hole with no test on
+whether the medium is followed. The intersection of `incomplete-shows.json` and `follows.json` is
+EMPTY — twelve titles and fourteen, no overlap — so **every** card in that lens reaches this path.
+Two of the twelve carry `SEASONS` data and so actually draw the verb: « Les Animaniacs » and « Les
+aventures de Tintin ». The other ten fall to the `noSeasonData` note, which is why nobody met this
+by accident.
+
+**The right repair is not to hide the verb**, which was this session's recommendation and the
+orchestrator's, and the operator overruled both: « offer it — the backend follows ». The act is
+legitimate, so the mock must MOVE STATE — the follow is created by the act and the answer says it
+was — and the contract must accept a subject that is not yet followed. That work is L21's and is
+described in `docs/features/maquette-l21/RESUME.md`; this entry records only the defect as it stands
+today, which is that the present handler reports success and does nothing.
 
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
