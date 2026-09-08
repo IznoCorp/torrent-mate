@@ -14,8 +14,8 @@ import { useMediaReference, type MediaReference } from "./reference";
 import { useQueryClient } from "@tanstack/react-query";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
 import { queuedMark, seasonGrabSpacing } from "./variants";
-import { grabSeason } from "./season-grab";
-import { markSeasonQueued, useQueuedSeasons } from "./queued-seasons";
+import { askForSeason } from "./season-grab";
+import { useQueuedSeasons } from "./queued-seasons";
 
 // The slice of a "follow" record the season blocks read: `t` for lookups
 // against the référentiel (`sheetFor`/`ownedFor`), `st` as the fallback state
@@ -202,21 +202,7 @@ function SeasonDetails({
           data-part="season/grab"
           data-grab-season={`${follow.t}|${num}`}
           onClick={() => {
-            void grabSeason(follow.t, num).then((waiting) => {
-              // DOIT-4's VISIBLE HALF. The verb has already SAID it is queued;
-              // recording it is what makes the season go on saying so once the
-              // message has gone, which is the difference between « said » and
-              // « visible ».
-              if (waiting) markSeasonQueued(client, follow.t, num);
-              // THE FOLLOWS ARE RE-READ, because the ask moved them on the
-              // server and nothing else would tell this interface. Invalidating
-              // by the ADDRESS the verb just mutated is not importing the
-              // acquisition feature — invariant 7 forbids the import, and this
-              // file calls that feature's OPERATION by contract already.
-              void client.invalidateQueries({
-                queryKey: ["/api/acquisition/followed"],
-              });
-            });
+            void askForSeason(client, follow.t, num);
           }}
         >
           {t("panels.follow.grabSeason", { season: num })}

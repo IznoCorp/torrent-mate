@@ -80,6 +80,14 @@ async function resumeJourney(
     await client.refetchQueries({
       queryKey: ["/api/acquisition/journeys", subject],
     });
+    // AND THE SHEET IS PUT BACK FROM WHAT THE REFETCH BROUGHT. The refetch
+    // above moves the CACHE, and the paragraph above says why nothing
+    // subscribes to it: the sheet the operator is looking at was produced once,
+    // at open, and stays exactly as it was. Measured before this line existed —
+    // the strip was byte-identical after a full settle, and closing and
+    // reopening the same journey showed the stage that had moved. Re-reading
+    // without redrawing tells everyone except the person who acted.
+    window.__panel?.redraw();
   } catch {
     // SAID AS A REFUSAL. Swallowing it would leave the operator watching a
     // tunnel that never resumed, with no reason given.

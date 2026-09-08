@@ -959,7 +959,9 @@
       "taken": "« {{title}} » récupéré — suivez-le dans « En vol »."
     },
     "media": {
-      "seasonAsked": "Saison {{season}} demandée — {{count}} épisode(s) à récupérer.",
+      "seasonAsked": "Saison {{season}} demandée — {{count}} épisodes à récupérer.",
+      "seasonAskedOne": "Saison {{season}} demandée — 1 épisode à récupérer.",
+      "seasonAskedNone": "Saison {{season}} demandée — aucun épisode à récupérer.",
       "seasonQueued": "Saison {{season}} en file — pipeline en cours.",
       "seasonHeld": "Saison {{season}} demandée — en attente du réseau, elle partira au retour.",
       "seasonRefused": "Saison {{season}} : la demande n'a pas abouti."

@@ -131,13 +131,17 @@ export function passerSug(position: number): void {
  * Returns:
  *     The deck's markup.
  */
+export function nothingLeftHTML(): string {
+  const reference = drawing();
+  return `<div class="empty" data-part="empty-state"><b>${say("allSeenLead")}</b>
+        <p>${say("allSeenRest", { count: reserve().length })}</p>
+        <button class="${cx(actionButton({ size: "footer" }), loadFooterAction())}" data-sugmore="1">${reference.svgIcon(reference.icons.refresh)}${say("loadThirtyMore")}</button></div>`;
+}
+
 export function deckHTML(): string {
   const remaining = deckOrder().map((position) => [reserve()[position], position] as const);
   if (!remaining.length) {
-    const reference = drawing();
-    return `<div class="empty" data-part="empty-state"><b>${say("allSeenLead")}</b>
-        <p>${say("allSeenRest", { count: reserve().length })}</p>
-        <button class="${cx(actionButton({ size: "footer" }), loadFooterAction())}" data-sugmore="1">${reference.svgIcon(reference.icons.refresh)}${say("loadThirtyMore")}</button></div>`;
+    return nothingLeftHTML();
   }
   const pile = remaining
     .slice(0, 3)
@@ -264,7 +268,13 @@ export function fillSug(): void {
   // replaces every node, and a tap between press and click is then lost.
   if (markup === lastList && box.innerHTML !== "") return;
   lastList = markup;
-  box.innerHTML = markup;
+  // AN EMPTY LIST SAYS SO. Dismissing every drawn suggestion left this
+  // container holding nothing at all — no rows and no word — which reads as a
+  // surface that has broken rather than one that has run out. It is the SAME
+  // situation the pile ends in and it gets the same sentence and the same
+  // offer: the deck's own end mark, so a reader meets one wording for one
+  // fact whichever way he was browsing.
+  box.innerHTML = markup === "" ? nothingLeftHTML() : markup;
 }
 
 /**

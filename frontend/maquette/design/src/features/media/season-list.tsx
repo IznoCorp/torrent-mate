@@ -5,11 +5,14 @@ import { useTranslation } from "react-i18next";
 import { useMediaReference } from "./reference";
 import { SkeletonLine } from "../../ui/state-surfaces";
 import { factsPanel } from "../../ui/variants";
-import { queuedMark } from "./variants";
+import { queuedMark, seasonGrabSpacing } from "./variants";
 import { useQueuedSeasons } from "./queued-seasons";
+import { askForSeason } from "./season-grab";
+import { useQueryClient } from "@tanstack/react-query";
 import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields";
 
 export function SeasonList({
+  followed,
   sheet,
   sheetInFlight,
   failed,
@@ -19,6 +22,8 @@ export function SeasonList({
   catalog,
   title,
 }: {
+  /** Whether the medium is followed — the grab's own precondition. */
+  followed: boolean;
   sheet: MediaSheetFields | null;
   seasons: [number, number | null, number][];
   owns: boolean;
@@ -53,6 +58,10 @@ export function SeasonList({
   // WHICH SEASONS ARE WAITING, read from the cache like every other fact on
   // this sheet, so the row redraws when one arrives.
   const waiting = useQueuedSeasons(title);
+  // The cache the shared ask re-reads and redraws from. Taken here
+  // rather than threaded through props: this component is rendered, so
+  // it has a hook to read it from, which the panel's producer does not.
+  const client = useQueryClient();
   const eps = sheet?.eps ?? {};
   // WHICH ROWS EXIST is the SEASONS read's answer; how full each one is, is the
   // sheet's. With ownership still out the rows are drawn from what has landed —
@@ -300,6 +309,33 @@ export function SeasonList({
               ""
             )}
             {body}
+            {/* THE SAME ACTION THE FOLLOW PANEL OFFERS, on the surface that
+                draws the same hole. The queued pastille was deliberately put on
+                BOTH season surfaces; an offer drawn on only one of them makes
+                the other a place where the operator can see what is missing and
+                do nothing about it, which is DOIT-3 read backwards.
+
+                GATED ON `followed`, and that is the honest half of the answer
+                to « why do the two differ ». The operation is
+                `/api/acquisition/follows/{title}/seasons/{n}/grab`: it asks
+                about a FOLLOW. The panel is only ever drawn for one, so it
+                needs no test; this list is drawn for any medium, and offering
+                the act on a medium nobody follows would draw a button whose
+                own address does not exist. The behaviour itself is shared —
+                `askForSeason` — so the two surfaces cannot drift apart. */}
+            {followed && !complete ? (
+              <button
+                type="button"
+                className={`sact ${seasonGrabSpacing()}`}
+                data-part="season/grab"
+                data-grab-season={`${title}|${row.n}`}
+                onClick={() => {
+                  void askForSeason(client, title, row.n);
+                }}
+              >
+                {t("panels.follow.grabSeason", { season: row.n })}
+              </button>
+            ) : null}
           </details>
         );
       })}

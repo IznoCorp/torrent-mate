@@ -18,8 +18,13 @@ WHAT THIS RULE READS, and each says something different:
 
   1. THE PILE IS REALLY SPENT and the offer is really drawn — otherwise every
      hold below is green about a state the walk never reached.
-  2. LEAVING THE DECK TAKES THE OFFER WITH IT. This is the defect, and it is
-     read as the operator saw it: is the action still on the page?
+  2. LEAVING THE DECK LEAVES NO OFFER ABOVE THE FEED. This is the defect, read
+     as the operator saw it — except that « is the action still on the page? »
+     is NOT the question, and holding it that way was wrong for one commit. An
+     emptied LIST draws an offer of its own, inside the feed, and it should:
+     it is the same words for the same fact whichever way one was browsing.
+     What must never happen again is an offer OUTSIDE the feed's own container,
+     with the feed drawn under it. So the hold reads containment, not presence.
   3. AND NOTHING THE FRAGMENT WROTE IS LEFT ABOVE THE FEED. The stronger form
      of the same question, because a repair that removed the button and left
      its container would still draw the feed too low.
@@ -61,6 +66,7 @@ THE_SURFACE = """()=>{
   const feed = document.querySelector('#sugitems');
   const top = (node) => node ? Math.round(node.getBoundingClientRect().top) : null;
   return {action: !!action, actionTop: top(action), feedTop: top(feed),
+          actionInsideFeed: !!(action && feed && feed.contains(action)),
           leftovers: [...document.querySelectorAll(
                        '[data-part="surface/body"] > [data-part="deck"], '
                        + '[data-part="surface/body"] > [data-part="empty-state"]')]
@@ -95,11 +101,12 @@ async def main():
             await page.wait_for_timeout(SETTLED)
             after = await page.evaluate(THE_SURFACE)
             journal.check(
-                f"leaving the deck for « {mode} » takes the spent pile's "
-                "offer with it — it used to stay, and the feed was drawn under "
-                "it",
-                not after["action"],
-                f"action at {after['actionTop']}, the feed at {after['feedTop']}")
+                f"leaving the deck for « {mode} » leaves no offer ABOVE the "
+                "feed — the spent pile's own used to stay there, with the whole "
+                "feed drawn under it",
+                not after["action"] or after["actionInsideFeed"],
+                f"action at {after['actionTop']}, the feed at "
+                f"{after['feedTop']}, inside it: {after['actionInsideFeed']}")
             journal.check(
                 f"and « {mode} » is left with nothing the fragment wrote above "
                 "its feed",

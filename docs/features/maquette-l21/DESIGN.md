@@ -554,15 +554,32 @@ ledger-gaming the ratchet exists to prevent.
 for it.** Its drawing is held by R138's own walk (`harness/queued_ask_mark.py`), the way B-315 (a)'s
 is held by R136's — B-352's shape, twice in one wave.
 
-**But the plan leaned on the state for a REASON, and the reason survives**: « the state named here
-is the state he sees ». What the operator needs is not an address, it is a PATH — and there is one,
-by hand, with no engine edit and no contract change:
+**The plan leaned on the state for a REASON, and the reason survives**: « the state named here is
+the state he sees ». What the operator needs is not an address, it is a PATH.
 
-1. **Arrivées**, and start the pipeline with the button already drawn there.
-2. **Suivis**, open a follow that has a season with a hole.
-3. **Ask for that season.** The layer answers `queued` — `mocks/handlers/acquisition-verbs.ts`
-   decides it from `mockState().pipelineState !== IDLE`, not from `setOperationOutcome` — and the
-   season keeps saying « En file — pipeline en cours » after the message has gone.
+⚠ **THE PATH WRITTEN HERE DOES NOT WORK, AND THIS SECTION SAID IT DID.** It read: Arrivées, start
+the pipeline with the button already drawn there; Suivis, open a follow with a season that has a
+hole; ask for that season, and the layer answers `queued`. **The first step cannot set the
+precondition the third step needs**, and the reason is that there are TWO pipeline notions in this
+prototype which no path joins:
+
+- The layer's `pipelineState`, which is what `mocks/handlers/acquisition-verbs.ts` reads to decide
+  the queued answer. It is written by the mock handlers for `POST /api/pipeline/{run,pause,resume,kill}`
+  and by maintenance's own — and **no surface calls any of them**: `runPipeline` and
+  `/api/pipeline/run` appear in `design/src` only in `contract/types.d.ts`, in the handler that
+  declares the route, and in comments.
+- The engine's interface store `pipe`, which is what Arrivées' « Lancer le pipeline » writes.
+  That button emits `data-pipe`, `legacy.js:9207` reads it, writes `store.write({pipe: …})`,
+  renders and toasts, and **touches no network at all**.
+
+So the hand can move the second and the pastille reads the first. **No path a person can take sets
+the precondition**, and the pastille is therefore reachable by no finger. What EXISTS is the drawing
+and its rules, which drive the layer directly — R138 arranges the busy-ness through the layer's run
+endpoint, and says so in its own docstring rather than implying its walk is the operator's.
+
+**The disposition is the operator's and is not yet given.** This paragraph records what is true;
+what to do about it — join the two notions, or accept that the pastille has no hand path until the
+surface calls the operation — is not decided here.
 
 **That is the same fact R138 arranges**, and the rule says so in its own docstring rather than
 implying its walk is his: the ACT it measures is a finger's (the panel raised by a hit test at the

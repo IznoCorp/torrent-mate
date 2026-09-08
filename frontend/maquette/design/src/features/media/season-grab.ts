@@ -13,6 +13,8 @@
 // A FILE OF ITS OWN beside the block it serves, never a growth of
 // `panel-seasons.tsx`: a verb is behaviour, the block is drawing, and invariant
 // 6 asks for the cut before the ceiling rather than after it.
+import type { QueryClient } from "@tanstack/react-query";
+import { markSeasonQueued } from "./queued-seasons";
 import i18next from "i18next";
 import { HELD, send } from "../../lib/query-client";
 
@@ -52,9 +54,59 @@ type SeasonGrab = {
  *     has gone (DOIT-4's visible half): a sentence shown for four seconds
  *     tells the operator who was looking, and nobody else.
  */
+/**
+ * Asks for a season and settles every surface that shows it.
+ *
+ * WHY IT EXISTS RATHER THAN LIVING IN A HANDLER. Two surfaces draw the same
+ * season with the same hole — the follow panel and the media sheet's own list —
+ * and the queued mark was deliberately put on BOTH. An action drawn on one of
+ * them with its behaviour written inline is an action the other cannot offer
+ * without copying four steps, and a copied sequence is one that stops agreeing
+ * the first time either end moves.
+ *
+ * THE FOUR STEPS ARE ONE UNIT: ask, remember the wait so the season goes on
+ * saying so after the message has gone, re-read the follows the ask moved, and
+ * put the open panel back from what came. The last one is the whole of it —
+ * without it the surface the operator pressed is the only one that does not
+ * know, which is where he was looking.
+ *
+ * Args:
+ *     client: The cache both surfaces read.
+ *     title: The followed medium.
+ *     season: The season number, 1-based.
+ */
+export async function askForSeason(
+  client: QueryClient,
+  title: string,
+  season: number,
+): Promise<void> {
+  const waiting = await grabSeason(title, season);
+  if (waiting) markSeasonQueued(client, title, season);
+  await client.refetchQueries({ queryKey: ["/api/acquisition/followed"] });
+  window.__panel?.redraw();
+}
+
+/* THE ASKS IN FLIGHT, keyed `title|season`. Module state and not a React ref:
+   the same season is reachable from two surfaces, and a guard held by one
+   component would not see a press on the other. */
+const inFlight = new Set<string>();
+
 export async function grabSeason(title: string, season: number): Promise<boolean> {
   const say = (key: string, values?: Record<string, unknown>) =>
     i18next.t(`verbs.media.${key}`, values ?? {});
+  // ONE ASK AT A TIME PER SEASON. Two presses with no settle between them sent
+  // two identical requests and produced ONE message, because the second answer
+  // replaced the first — so the interface asked twice and said so once. A
+  // second press while the first is in flight is not a second intention: it is
+  // the same one, made again because nothing had visibly happened yet. It is
+  // answered with silence rather than a refusal, because a refusal would say
+  // « occupé » to a legitimate act, which is the clause NE-DOIT-PAS-3 refuses.
+  //
+  // KEYED BY TITLE AND SEASON, never by title alone: asking for season 2 while
+  // season 3 is in flight is a different ask and must land.
+  const asked = `${title}|${season}`;
+  if (inFlight.has(asked)) return false;
+  inFlight.add(asked);
   try {
     const answered = await send<SeasonGrab>(
       "POST",
@@ -65,10 +117,20 @@ export async function grabSeason(title: string, season: number): Promise<boolean
       return false;
     }
     const grab = answered as SeasonGrab | undefined;
+    // THE SENTENCE IS CHOSEN, NOT PLURALISED WITH A PARENTHESIS. « 1
+    // épisode(s) » makes the reader do the grammar, and this file's own
+    // neighbour — the deck's « 1 suggestion de plus » beside « N suggestions de
+    // plus » — already writes each number's sentence out. Three and not two,
+    // because a season nothing is known about absorbs NOTHING and « 0 épisodes
+    // à récupérer » is both wrong in French, where zero takes the singular, and
+    // a worse thing to read than saying so.
+    const count = grab?.absorbedCount ?? 0;
+    const messageKey =
+      count === 0 ? "seasonAskedNone" : count === 1 ? "seasonAskedOne" : "seasonAsked";
     window.__toast?.show({
       message: grab?.queued
         ? say("seasonQueued", { season })
-        : say("seasonAsked", { season, count: grab?.absorbedCount ?? 0 }),
+        : say(messageKey, { season, count }),
     });
     return grab?.queued === true;
   } catch {
@@ -77,5 +139,11 @@ export async function grabSeason(title: string, season: number): Promise<boolean
     // given — the silent failure this interface's own constitution refuses.
     window.__toast?.show({ message: say("seasonRefused", { season }) });
     return false;
+  } finally {
+    // IN A `finally`, so a refused ask can be made again. Released on the
+    // throwing path as much as on the answering one: a guard that survived a
+    // failure would make the second press — the one that follows a refusal and
+    // is the operator's whole recourse — do nothing, for ever.
+    inFlight.delete(asked);
   }
 }
