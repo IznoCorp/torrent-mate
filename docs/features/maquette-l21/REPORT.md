@@ -20,12 +20,31 @@ où l'on observe », and these were the clearest places in the application where
 | 3     | « Remettre en file » and « Re-scraper » on the journey                   | R126, 16 holds                    | B-302            |
 | 4     | `follow · dropsug · sugmore · pause · remove` leave the engine           | ARM 7 of `check-markup-contracts` | B-315 (a), B-316 |
 | 5     | The release screen's take, one sentence, the 260 ms gone                 | R137 + `exits.py`                 | B-322, B-323     |
-| 6     | DOIT-4's « En file » pastille, and R124 repaired                         | R138, 7 holds · R124, 15          | DOIT-4           |
+| 6     | DOIT-4's « En file » pastille, and R124 repaired                         | R138, 7 holds · R124, 16          | DOIT-4           |
 | 7     | The panel's doubled action, and B-247's producer half                    | R139, 3 holds                     | B-313, B-247     |
+| 8     | The operator's four rulings: the button system's bounded sizes, the spent pile, the refusal hold, and a follow's sheet | R136 +1 hold · R155, 7 · R156, 3 · R124, 16 | B-315 (a), B-365, B-366, B-367, B-368, B-369, B-370 |
 
 **The numbers that gate the wave**: `legacy.js` **31 467** non-blank against a record of 31 467 ·
 `grep -cE "closest\.dataset\.(follow|pause|remove|dropsug|sugmore|take)\b"` reads **0**, from 12 ·
-**107 rule files**, 103 at the wave base — R136, R137, R138 and R139 are the four added.
+**109 rule files**, 103 at the wave base — R136, R137, R138, R139, **R155** and **R156** are the six
+added.
+
+**AND A PHASE 8 THAT WAS NOT PLANNED**, because the operator ruled four things on the branch after
+phase 7 closed. Three were repaired and one filed; what they cost is `RESUME.md` § 2, and the two
+that changed how this lot is read are these. **B-315 (a) was REOPENED and was a DEFECT, not a
+scale**: the button rendered 332 x 245 with a 227 x 227 icon, because an `<svg>` with no size takes
+the replaced-element default — and R136's four holds read a type step and a padding step and passed
+all of it. The button system now carries a BOUNDED `size` the type enforces, the `footer` branch
+sizes its own icon, and R136's fifth hold reads the RENDERED BOX against the system's own. **B-368
+reproduced from a spent pile** and is a stale node the deck's own sweep did not know: it knew the
+pile and not the SPENT pile.
+
+⚠ **ONE FIGURE IN THIS REPORT'S LINEAGE WAS NEVER MEASURED.** « eslint 0 », reported for the
+button commit, is false twice: `frontend/eslint.config.js` ignores `maquette/**` BY NAME — the
+maquette is a separate npm project held by its own harness and typecheck — and the command was
+piped through `tail`, so the exit code captured was TAIL's, not the gate's. **A gate piped into
+anything yields the last command's status**, and `set -o pipefail` or `${PIPESTATUS[0]}` is the
+answer.
 
 ---
 

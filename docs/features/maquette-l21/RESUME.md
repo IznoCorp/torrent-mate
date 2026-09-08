@@ -1,24 +1,23 @@
 # L21 — where the wave stands, for whoever picks it up
 
-Rewritten at the quota pause by the session that landed phase 7, the close, and the two repairs the
-gate uncovered. Read `BRIEF.md`, `DESIGN.md` and `plan/INDEX.md` first — this file says only what is
-TRUE NOW and what the plan does not.
+Rewritten by the session that repaired B-365, answered the operator's four rulings of the day, and
+took the wave gate twice. Read `BRIEF.md`, `DESIGN.md` and `plan/INDEX.md` first — this file says
+only what is TRUE NOW and what those do not.
 
-**Branch** `feat/maquette-l21`, pull request **#572** (draft). **Version** 0.98.75 — re-read `main`
-and bump again at the close if it has moved.
+**Branch** `feat/maquette-l21`, pull request **#572** (draft). **Version** 0.98.75 — `main` carries
+0.98.74, so it has not moved past this branch; re-read it at the close.
 
 **HEAD is the sha the last commit of this file carries, and it IS pushed** — proven by
 `git ls-remote --heads origin feat/maquette-l21` against the local sha, never by a push's own
 output.
 
-⚠ **`origin/main` at `163cbfcbb` IS MERGED, and the proof is a COMMAND, not a merge commit.**
-`git merge-base --is-ancestor origin/main HEAD` succeeds; `git log --oneline HEAD..origin/main` is
-empty. **There are TWO merge commits on this branch** — `27a2ef6a9` brought `ae1b8de48`, and
-`e6fbdb7c4` brought `163cbfcbb` — so reading the first one's second parent says the branch is three
-pull requests behind, which is false. That reading was made, an order to re-merge followed it, and
-it was withdrawn on these four readings. **« Merged » is proven by `--is-ancestor` on the branch's
-HEAD; never by one merge commit's parent, and never on a shared checkout another session has a
-commit checked out in.**
+⚠ **`origin/main` at `7c0db3719` IS MERGED, and the proof is a COMMAND, not a merge commit.**
+`git merge-base --is-ancestor origin/main HEAD` succeeds. **There are THREE merge commits on this
+branch now**, so reading any one of their second parents says the branch is behind, which is false.
+« Merged » is proven by `--is-ancestor` on HEAD, never by a merge commit's parent.
+
+**The wave base is `7fecb0258`** — computed, not assumed: the parent of the branch's first commit,
+and an ancestor of `origin/main`. Every « did this branch earn it » reading uses that base.
 
 ---
 
@@ -30,79 +29,138 @@ commit checked out in.**
 | 2 — the season grab (B-301)         | **DONE**       | R125, 16 holds · `fixed #572`                 |
 | 3 — the journey's two verbs (B-302) | **DONE**       | R126, 16 holds · `fixed #572`                 |
 | 4 — the five acts                   | **DONE**       | the act grep reads 0                          |
-| 4b — B-315 (a)                      | **DONE**       | R136 red-then-green                           |
+| 4b — B-315 (a), FIRST answer        | **SUPERSEDED** | reopened by the operator — § 2                |
 | 5 — the release take                | **DONE**       | R137 + R123 + `exits.py`                      |
-| 6 — the pastille                    | **DONE**       | R138 green + mutated; R124 15 holds           |
-| **7 — B-313 + the close**           | **DONE, READ** | R139 red on `main`'s producer then green, § 2 |
-| **the wave gate**                   | **NOT TAKEN**  | § 4 — it is the next unit                     |
+| 6 — the pastille                    | **DONE**       | R138 green + mutated; R124 16 holds           |
+| 7 — B-313 + the close               | **DONE**       | R139 red on `main`'s producer then green      |
+| **the operator's four rulings**     | **DONE**       | § 2 — three repaired, one filed               |
+| **the wave gate**                   | **TAKEN**      | § 3 — every tier, with its figure             |
 
-**Register**: B-301, B-302, B-313, B-315, B-322, B-323 read `fixed #572`. **Filed by this lot**:
-B-329, B-330, B-350, B-351, B-352, **B-363**, **B-364**, **B-365**, **B-366**. Free in this block:
-**B-367…B-369**. Rules R136–R139 are spent; **R140+ are the desktop-frame wave's, not yours**.
-
-**Readings on the current head**: `--contracts` 18 rules + 27 guards, no violation · R139 3 holds ·
-`persistence.py` 57 holds · `drawer.py` **30** holds (was 28) · `tsc` 0 · unit suite 107/107 ·
-`check-mock-seeds` clean · the cheap guards clean.
-
-**The numbers that gate the wave**: `legacy.js` **31 467** non-blank against a record of 31 467 ·
-the six-verb grep reads **0** · **107 rule files** (103 at the wave base).
+**Register**: B-301, B-302, B-313, B-315, B-322, B-323, **B-365**, **B-368** read `fixed #572`.
+**Filed by this lot**: B-329, B-330, B-350, B-351, B-352, B-363, B-364, B-366, **B-367**, **B-369**,
+**B-370**. Next free number is **B-371**. Rules R125–R139, **R155** and **R156** are spent; **R157+**
+are free.
 
 ---
 
-## 2. Phase 7 — what landed
+## 2. The operator's four rulings of the day, and what each cost
 
-**B-313.** The secondary journey action carries the guard « Voir la fiche » already had beside it.
-**R139** (`harness/panel_label_once.py`) raises EVERY panel a finger can reach on two surfaces —
-eighteen — and refuses a repeated label in any, which is the FAMILY the register asked for.
-**RED on `main`'s producer with no mutation** (`git diff origin/main HEAD` over
-`follow-actions.ts` was empty at the reading), naming « Stuart Fails to Save the Universe (2026) »
-— the operator's own subject. Green after, panel count unchanged at 18. It counts LABELS and not
-destinations because both of his buttons carried the same destination; its subject hold reads
-`data-journey`, never the French word; the panels are raised by a real finger.
+**B-365 — REPAIRED.** « no mutation was answered 409 » read Playwright response events; the mock
+layer replaces `globalThis.fetch` and answers IN THE PAGE, so that list is empty whatever is
+answered. It reads `window.__mocks.answered()` across EVERY operation now — not the three this wave
+added, because the clause is about ANY legitimate action refused — with the network read kept beside
+it and a guard hold that fails on an empty record. Mutation: BOTH refusal holds fall naming
+`409 POST grabSeasonForFollow`, the third does not move, `16 rules EXECUTED`.
+⚠ **The mutation also proved the OLD hold could never fall**: the fallen detail listed the layer's
+record and nothing from the network, so `refused` was empty while a real 409 was answered.
 
-**B-247's producer half.** `persistence.py` reads `followsheet-complete`, `followsheet-gaps`,
-`sheet-journey` and `screen-releases`. Every floor READ by raising it to 999 and taking the
-capture — 423, 63, 14, and 158 on the release screen of which only **7** are the screen's own,
-which is what set that floor rather than the union.
+**B-315 (a) — REOPENED, and it was a DEFECT, not a scale.** « le bouton est toujours beaucoup trop
+gros [...] les boutons de l'interface doivent être des composants qui n'autorisent pas toutes les
+tailles, l'icône et le bouton sont énormes ». Measured first: the button rendered **332 x 245** with
+a **227 x 227** icon, on a screen whose other controls are 24 to 44 px. `svgIcon` emits an `<svg>`
+with no size, and `base.css` already records the consequence at its `.installkey` rule. **R136's
+four holds read steps and passed all of it.**
+Both halves delivered: `actionButton` carries a bounded `size` (`screen` | `footer`, each branch a
+string LITERAL so `residue.py` keeps reading it), so an arbitrary size is a compile error; the
+`footer` branch carries the icon's size. All **19 call sites across 9 files** pass no argument and
+their emitted class set is unchanged — held token for token, not asserted. **Height settled at 40 px
+with a 16 px icon by the operator himself.** R136's fifth hold compares the RENDERED BOX to the
+action-button system's own, measured on a screen that draws one: 40 against 44. Mutation (icon hook
+emptied) brings back `245.328125` with a `227.328125` icon and fells only that hold.
+⚠ **The type-level hold is a CONDITIONAL TYPE, not the compiler directive that expects an error**:
+this tree counts every such directive as a typing escape against a floor of hard zero, and its guard
+reads them INSIDE COMMENTS too. Proven to bite by widening the union — `error TS2322: Type 'true' is
+not assignable to type 'never'` at the assertion itself.
 
-**The close.** The register rows, DOIT-4 → `served` (DOIT-3 stays `partly`: L20 and L16 still owe
-halves), `REPORT.md`, the guards recount. The « Next » row still names L21 and says why.
+**B-367 — FILED ONLY**, owner the settings micro-wave. The drawer's appearance control applies the
+theme and does not move its selection. Measured rather than described, because the storage key made
+a wrong mechanism plausible: pressing `light`, `dark`, `system`, `light`, the stored value follows
+every press and `data-theme` follows every press, and `aria-pressed` moves NOT ONCE — it reads
+`system=true light=false dark=false` at all four readings. A close and a reopen draws it correctly.
+So it is a redraw that never happens, and `drawer.tsx`'s own comment beside `window.__store.touch()`
+says « The bump is what redraws the pressed state », which the measurement contradicts.
+
+**B-368 — REPRODUCED and REPAIRED.** It reproduces from a SPENT pile: the offer stood at y=286 and
+the feed's container at y=626, under it. A stale node, not an ordering bug — the deck's body is
+filled imperatively, React reuses that element when the mode leaves the deck and appends its own
+children after what it never rendered. **The sweep written for exactly this knew `.body > .deck`,
+and a SPENT pile is not a `.deck`**: it is the end mark carrying the offer. R155 walks both modes;
+mutation puts the selector back and fells 4 holds, « action at 286, the feed at 421 ».
+
+**B-366 — RE-RULED, and the repair is NOT done.** « il ne doit pas y avoir de suivi sans fiche [...]
+le suivi sans fiche n'est pas un état possible ». The entry is rewritten around that. **R156 refuses
+one in the prototype** by asking the DRAWING'S OWN resolver (`window.__referentiel.sheetFor`) for
+every followed title — green at 14 follows, mutation on a seed title fells it.
+⚠ **R156 IS A GATE, NOT THE REPAIR**, and the entry says so in its own sentence. Making the state
+UNREPRESENTABLE leaves this lot on all three routes: the tile is the dying engine's drawing and the
+ledger refuses it upward; seeding a sheet grows `SHEETS_RAW`, a 20 538-line literal inside
+`legacy.js` whose derived copy the correspondence arm refuses drift on; and a contract that cannot
+describe a sheetless follow is surgery on contract, types, handlers and engine. **Owner L13.**
+⚠ **A follow with no EPISODE data is a DIFFERENT absence and stays legitimate.**
+⚠ **The first version of R156's check compared titles in Python and reported « Dexter: Resurrection »
+as sheetless. It is not** — `sheetFor` falls back to the base title, then a normalised key, then a
+prefix match. A guard that re-implements the question it asks measures its own arithmetic.
 
 ---
 
-## 3. THE TWO REPAIRS THE GATE UNCOVERED, and both are the same shape
+## 3. The wave gate, taken — every tier with its figure
 
-**A repair that stops at the edge of the file it was written in.** Both of these are a fix this
-codebase had already made once, in another file, that never travelled.
+- **Full suite: 109 rules, ZERO rule failures.**
+- **`--contracts`: exit 0** (18 rules + the repository's cheap guards).
+- **a11y: 87 states, 0 violations.** Light **162**, and the ceiling was LOWERED to 162 from 166.
+- **Oracle: 43 divergences, the set IDENTICAL LINE FOR LINE** to the commit before this session's
+  first change — verified by diffing captured sets, never by comparing totals. **The reference is
+  NOT re-recorded by this wave.**
+- **Hold counts, `failed` READ FIRST**: the baseline's own `totals.failed` is **0**, so it was
+  recorded over a clean suite. Then: 109 rules, no violation; 4 changed and every one UPWARD —
+  `busy.py` 10 → 16, `cards.py` 65 → 70, `drawer.py` 28 → 30, `persistence.py` 47 → 57 — and 16 new
+  since the baseline. **Exit 1 is drift against a baseline this wave does not re-record, not a
+  failure.**
+- **`make check`: exit 0 — 11 201 passed, 0 failed, 4 skipped, 2 xfailed**; the maquette's own
+  unit tests 110/110 across 7 files, against floors of 7 files and 107 tests.
+- **`legacy.js` 31 467** non-blank against a record of 31 467 · **six-verb grep 0** · ledger exit 0.
+- **109 rule files** (103 at the wave base).
 
-**B-366 / the hollow sheets — CLOSED BY A RENAME, and the defect is NOT repaired.** `audit.py` R1
-read two hollow sheets: a grid tile emits `data-mediasheet` for a follow with no sheet, a poster
-that leads nowhere. **Two roads were ruled and both were blocked by the same wall**: `SHEETS_RAW`
-is a **20 538-line object literal inside `legacy.js`** (`:9897`–`:30434`) and
-`mocks/seeds/media-sheets.json` is a DERIVED copy that `check-mock-seeds` re-derives and refuses
-drift on, so giving a title a sheet grows the engine exactly as changing the tile would. The two
-paused follows were renamed to titles that already have sheets. **Nothing sheetless is left, so R1
-stops reading the case entirely** — the instrument goes quiet and the defect does not. Owner L13.
+### ⚠ What the a11y ceiling cost, because the number lies about its own itemisation
 
-**The scroll loss — REPAIRED.** Closing a layer restored focus to its trigger without
-`preventScroll`, so the browser scrolled that element into view and a list opened near its top went
-back to its top. Measured across the close: scrollHeight 1495 both sides, 8 cards both sides, **no
-mutation at all**, ONE scroll event 300 → 0 at 35 ms. `ui/virtual-rows.tsx:305` already carried
-`focus({ preventScroll: true })` — the only occurrence in the tree — and it had never travelled.
-Both branches of `focus.ts` take it now. **The mutation removing it again fells the panel's hold and
-NOT the drawer's**, which is correct and worth knowing: the drawer's trigger lives in the chrome and
-is always in view, so its close never scrolled.
-
-⚠ **AND THE HOLD THAT CAUGHT IT WAS ITSELF GREEN OVER NOTHING.** On the parent commit the walk asks
-for `scrollTop = 300` and the port takes **18** — the boot page was shorter than its viewport — so
-`after == before` compared 18 with itself. `drawer.py` now holds that the offset it set actually
-TOOK, on both layers, and the rule goes 28 → 30.
+The tool prints « 162 is BELOW the ceiling of 166 — lower it ». **The debt file cannot name the four
+that left.** Recorded and diffed: **no state's entry count moved at all** — 34 selectors before, 34
+after — while `counts.total` went 166 → 162. **Eleven states had their selectors RESPELLED with
+their counts unchanged** (`.chip[data-part="chip"]` → `.waiting.chip`, `.mt-3` →
+`button[data-pipe="stop"]`), which is markup this branch moved; `data-take` → `data-pick-release` is
+the species, since that file is keyed by SELECTOR. **The totals and the selector map are not the
+same quantity.**
+**So it was attributed by measurement instead**: the wave base `7fecb0258` built in a throwaway
+worktree reads **166**, this head reads **162**. The branch earned four. That is a WAVE-level debt
+figure and it is lowered on a wave-level reading — not on a per-phase one, which the file cannot
+support.
 
 ---
 
-## 4. What is OWED, in order
+## 4. Two corrections this session owes its own record
 
-### 4.1 HOW TO PUSH, because it is not what it looks like
+**« eslint 0 » in `55c375c14`'s message is FALSE, twice over.** The maquette is outside eslint's
+scope BY NAME — `frontend/eslint.config.js` ignores `maquette/**`, because it is a separate npm
+project whose conformance is held by its own harness and its own typecheck. And the figure was never
+eslint's anyway: **the command was piped through `tail`, so the exit code captured was TAIL's.** The
+commit is not rewritten — the correction is worth more stated than erased, and a squash composes its
+message fresh. **A gate piped into anything yields the LAST command's status**; `set -o pipefail` or
+`${PIPESTATUS[0]}` is the answer.
+
+**One gate pass compared NOTHING while looking like it ran.** `harness-hold-counts.py --compare`
+takes a FILE; invoked without one it exits **2** on an argparse usage error, which a gate reading
+exit codes cannot tell from a comparison that found drift. Filed as **B-370**, not repaired.
+
+---
+
+## 5. What is OWED
+
+1. **The pull request out of draft** — the orchestrator's word, and only his.
+2. **The review rounds** — his. This wave has had none.
+3. **B-366's real repair**, owner L13. **B-367**, owner the settings micro-wave.
+4. **B-370**, for whoever next opens `harness-hold-counts.py`.
+
+### How to push, because it is not what it looks like
 
 A push runs the parallel suite through its pre-push hook, so **it IS a heavy run and is wrapped like
 one, every time**:
@@ -112,76 +170,41 @@ one, every time**:
 
 then prove it with `git ls-remote --heads origin feat/maquette-l21` against the local sha (B-360).
 
-### 4.2 Then, in this order
-
-1. **B-365's repair** — ruled, not yet done. `busy.py`'s « no mutation was answered 409 » hold reads
-   Playwright response events and the mock layer answers IN THE PAGE, so it can never see one. Read
-   the refusal from `window.__mocks.answered()` across ALL operations, keep the network read beside
-   it, keep it guarded so an empty `answered()` is a failure. **The mutation is the 409 forced in
-   `mocks/scenario.ts`** — `t.replace("status: armed ? (asked.status ?? 200) : 200,",
-"status: operationId === \"grabSeasonForFollow\" ? 409 : (armed ? (asked.status ?? 200) : 200),")`
-   — and it must now fell **BOTH** refusal holds, each naming `409 POST grabSeasonForFollow`.
-   ⚠ A THIRD hold on that clause will NOT fall and must not be made to: « nothing anywhere said the
-   machine was busy » reads whether the INTERFACE says « occupé », which a caught 409 need not.
-   While in the file: its `SAID` reads `'#toast, #view'`, and `#toast` is the dying engine's element
-   that the React message layer never fills — the `#view` half is all that measures.
-2. **The wave gate**, on the final head: full `run.sh`, `--a11y`, `harness-hold-counts.py --compare`
-   with **`failed` read FIRST** against the baseline already on disk
-   (`taken_at_commit f70ca0295`, **93 rules**), the oracle, `make check`, the ledger, the six-verb
-   grep. Expected movement: FOUR new rule rows (R136–R139) plus `drawer.py` 28 → 30 and
-   `persistence.py` +10; the oracle's divergences on the four `acq-follows-*` states carry
-   « fixture: two paused follows renamed to titles that have sheets », and the discover states carry
-   the operator's 30-at-rest ruling (D8). **The reference is NOT re-recorded by this wave.**
-3. **The pull request out of draft**, and only on the orchestrator's word.
-
 ---
 
-## 5. The machine, and the traps that live in it
+## 6. The machine, and the traps that live in it
 
-**One served copy machine-wide**, on 8899 from `/tmp/tm-refonte`. Announce every harness run to the
-orchestrator (`personalscraper-bf`) and to whoever else holds it. The host is a **nohup process
-started OUTSIDE the wrapper** — it was pid 5479 at this pause; read `lsof -nP -iTCP:8899 -sTCP:LISTEN`
-rather than trusting a number written here.
+**One served copy machine-wide**, on 8899 from `/tmp/tm-refonte`. The host is a **nohup process
+started OUTSIDE the wrapper** — read `lsof -nP -iTCP:8899 -sTCP:LISTEN` rather than trusting a number
+written here, and never restart it under the wrapper.
 
-⚠ **B-371 is settled by measurement, both halves true**: a host forked INSIDE a wrapped run dies
-with it, because `heavy.sh` signals its own process group; one started outside that group survives.
-`mutate.sh` starts neither, which is how it runs a rule against a refused port and prints
-« NO RULE FELL » about it.
+⚠ **The heavy lock is SHARED with sibling agents and it works.** `sh scripts/heavy.sh --held` names
+the holder; waiting is correct and is never bypassed.
 
 ⚠ **READ THE `EXECUTED` LINE BEFORE THE `FAIL` LINES.** `mutate.sh` greps only `^  FAIL` and
-`violation(s)`, so a crashed rule and an unmoved rule print identically in its summary. `N rules
-EXECUTED` is what says the rule reached the page. It also **cannot read `audit.py`'s verdict at
-all** — that rule prints `TOTAL: n violations`, plural and unparenthesised — and it **hides the
-build's stderr**, so a mutation that breaks the build prints the mutation line, NO rule banner, and
-« restored », exiting 1 in silence. **A mutation that produces no verdict line is not a mutation
-that found nothing.** All of this is B-273.
+`violation(s)`, so a crashed rule and an unmoved rule print identically. **A mutation that produces
+no verdict line is not a mutation that found nothing.** All of this is B-273.
 
-⚠ **A `str.replace` mutation matches EVERY occurrence.** One written here matched a neighbouring
-ternary that ended in the same three tokens and produced invalid TypeScript. Print the mutated
-region before running the mutation, not after reading its result.
+⚠ **A `str.replace` mutation matches EVERY occurrence.** Print the mutated region BEFORE running it.
 
-⚠ **`mutate.sh` REFUSES a dirty tree**, which is its whole correctness: fix → gates → commit →
-mutate → restore.
+⚠ **`mutate.sh` REFUSES a dirty tree**: fix → gates → commit → mutate → restore.
 
-⚠ **Before any bisect, check that the RULE is unchanged across the range** —
-`git log --oneline <base>..HEAD -- <the rule> <common.py>` must read 0. If the rule moved too, every
-step measures two changes at once. And **do not narrow a bisect by directory**: this one was nearly
-narrowed to the five commits touching `design/src/app` and `design/src/lib`, and the answer was a
-SEEDS commit. Narrowing assumes the mechanism, which is the thing the bisect is for.
+⚠ **A worktree at another commit is the honest way to attribute a figure**, and it was used three
+times here (the oracle set, the a11y base). Symlink `node_modules` from the main checkout, build,
+publish, read, then REMOVE the worktree and republish the main copy — the served copy is one
+machine-wide resource.
 
-⚠ **`drawer.py` is named in B-307/B-277** as a rule that has fallen under parallel load and passed
-alone. In a bisect one flake sends every later step into the wrong half, so the step where the
-verdict FLIPS is re-run once before the flip is accepted. It was, and it held.
+⚠ **`docs/` is globally gitignored**: a file under it needs `git add -f`, one file at a time.
 
 ---
 
-## 6. The one thing not to repeat
+## 7. The one thing not to repeat
 
-**A repair that stops at the edge of its file, and a document that says it will travel.**
-`focus({ preventScroll: true })` existed in `virtual-rows.tsx` and never reached `focus.ts`.
-`answered()` replaced a response-event read in one hold of `busy.py` and not in its neighbour.
-And `DESIGN.md` § 3.1c named that neighbour vacuous and wrote « Phase 6 owns `busy.py` and repairs
-it there » — phase 6 repaired the sibling, left it, and the document went on saying it would be
-met. **A wave that records an instrument defect, assigns it, and then reads its own document as
-though the assignment were the repair has invented a new way to be green over what it does not
-read — one level up, in the prose.**
+**A fixture edit is not a contained edit.** B-366's workaround renamed two paused follows precisely
+BECAUSE it touched no code — and one of the new titles, « The Venture Bros », is the subject of the
+named state « Fiche — suggestion NON possédée (série) ». The state's own premise became false, the
+sheet drew its disabled button, and `follow_verb.py` fell on an emitter with no data. **One rename,
+two instruments: it silenced the one it was made for and falsified another two files away.** Only
+the FULL suite could see it — eighteen contract rules ran in between and none of them reads that
+state. Repaired (B-369) by moving the follow to a title chosen against four filters: it has a sheet,
+it is not followed, it is the subject of no named state, and it is named in no harness rule.
