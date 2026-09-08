@@ -422,6 +422,73 @@ when the defect comes back.
 | B-352 | `engine/states.js` is grandfathered at 786 non-blank lines and the size arm refuses both the growth AND the raise of its record, so NO surface born after L19 can be given a named state — and a state nobody names is a surface the oracle never measures | by L21 | `open` |
 | B-353 | UNDOING A REMOVAL DOES NOT RESTORE THE FOLLOW, it creates a new one wearing the same name: the layer's delete DROPS the record and the only way back is a CREATE, so the year, « suivi depuis » and the search count are lost and the status comes back right only by coincidence | by L21 | `fixed #572` |
 | B-376 | Every push to a DRAFT pull request ran the whole pipeline, and no trigger answered the pull request leaving draft: a wave that opens its pull request early — which is this repository's own method — paid full CI on each of its intermediate pushes, and `ready_for_review` was in no workflow at all | by operator | `fixed #578` |
+| B-377 | `check-implementation-state`'s in-flight arm infers « that wave has landed » from a VERSION COMPARISON — `main >= the row's version` — which holds only while every merge to `main` comes from the in-flight wave itself; a micro-wave merging past it makes the arm refuse a row that is perfectly true, and it was refusing L21's row on `main` | by gate | `fixed #579` |
+
+**B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
+`scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
+as_ordered(row_version)`, and says « that wave has landed and the row is stale ». The inference is
+sound only under an assumption nobody wrote down: that `main`'s version can only reach the in-flight
+wave's number by that wave merging. A micro-wave merging past it falsifies that in one squash.
+
+**Measured, and it is refusing a true row as this is written.** The ci-draft micro-wave took 0.98.77
+deliberately — its brief says so in as many words, « `main` carries 0.98.74, the L21 branch 0.98.75
+and the desktop-frame branch 0.98.76, so 0.98.77 is past all three whichever merges first », which
+is the correct rule for a wave that may land in any order. It merged as `eaedcd916`. The « In
+flight » row still names L21, pull request #572, version 0.98.75, and #572 is open: the row is
+accurate in every particular. The arm reads `main` 0.98.77 against the row's 0.98.75 and refuses:
+
+    IMPLEMENTATION.md: the « In flight » row names version 0.98.75 and `main` carries 0.98.77,
+    which has reached it, so that wave has landed and the row is stale.
+
+**The arm already holds the answer it needs and does not ask it.** Two lines above, the same
+function prints « the row names pull request #572 » — it has parsed the number. « Is #572 merged? »
+is the question this arm exists to ask; the version comparison is a proxy for it that was true until
+a second wave could merge in between. Repairing it is not this entry's to do: the guard is nobody's
+here, and the immediate unblocking is the in-flight wave raising its own row above `main`, which is
+that wave's gesture and not a third party's.
+
+**The repair asks the real question, and OFFLINE.** « Is #572 merged? » through the GitHub API
+would turn a local guard into a network call that fails on an aeroplane and lies behind a proxy. It
+has an offline form the guard was already using for its other arm: a squash writes `(#NNN)` into the
+subject `main` carries, so `subjects_on_main()` answers exactly. Reaching the version comparison
+with a number in hand now means that hold has ALREADY answered « not landed », so the version cannot
+be evidence of the contrary — it can only be evidence that something else merged. The comparison is
+still printed, because a row whose version `main` has passed is worth seeing even when it is
+legitimate.
+
+**The version arm keeps one subject and says so in its refusal**: a row that names a version and NO
+pull request has given the guard no number to ask the exact question with, and there the comparison
+is the only reading left. The refusal now says that rather than implying the certainty it has when
+it can name a pull request — writing the number in the row is what makes the arm exact instead of
+inferred.
+
+**Seen red first, and BOTH halves of it**, because a false refusal traded for a hole is not a fix:
+
+- Removing the repair puts the guard back to refusing L21's true row on the real tree
+  (`1 violation(s)`), and drops exactly one hold —
+  `test_a_version_main_has_passed_is_not_stale_while_the_pull_request_is_open`, `1 failed,
+  15 passed`. Restored: `16 passed`, `check-implementation-state: clean`.
+- Pointing the « In flight » row at a pull request that HAS landed — `#578` in place of `#572`, on
+  the real tree — still falls, with the right message: « names pull request #578, and a subject on
+  `main` already records it as merged … (B-238) ». The hold
+  `test_a_row_whose_pull_request_landed_is_still_refused_with_a_version` keeps that permanently, and
+  it differs from the row above in ONE fact and nothing else: whether `main`'s history holds the
+  number.
+
+**One existing hold had to be re-aimed rather than kept**, and that is worth naming because a test
+changed to make a change pass is the oldest way to lose a guard. B-246's emphasis holds asserted
+that `version **0.98.51**` is refused, using a cell that also named an OPEN pull request — so they
+were reading the arm this entry repairs, not the parsing they are about. Their cells now carry no
+pull request, which is the state where the version arm is still the sole hold, and they assert the
+PRINTED line « the row names version 0.98.51 » beside the exit code, because « parsed and refused »
+and « refused for some other reason » are otherwise the same exit code.
+
+**A guard that fires on the wrong wave is a species of its own**, and this one did: the arm runs in
+`harness-contracts`, whose steps gate on the `maquette` filter, so it did not run in the pull request
+that broke it and would have refused L21's next run — for a reason that was not L21's, on a row L21
+had written correctly. The wave that falsifies a guard's premise and the wave that meets its refusal
+are not the same wave, and nothing in the failure would have said so.
+
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
 

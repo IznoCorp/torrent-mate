@@ -138,8 +138,16 @@ RIGHT. Presence was never the property — CONTAINMENT is.
 
 ## 4. The wave gate
 
-Taken on the head this file's commit carries, every tier written to a FILE and its verdict lines
-read out of it — never piped.
+⚠ **WHICH SHA THE GREEN COVERS, said plainly because it is not this file's own commit.** Every tier
+below was run on **`00ee56ae3`**. The commit after it is a DOCUMENTATION MERGE of `origin/main` at
+`b46643abf` — two conflicts, `IMPLEMENTATION.md`'s row pair and the version — touching no source the
+suite, the oracle or the a11y audit reads. **The gate was deliberately not re-run for it**, and the
+one repository guard that merge actually changed (`check-implementation-state.py`, repaired there
+because a version comparison had made it call this live row stale) was run alone and exits 0. If you
+touch anything under `frontend/maquette/design/src` or `frontend/maquette/harness`, the figures below
+stop covering your tree.
+
+Every tier was written to a FILE and its verdict lines read out of it — never piped.
 
 - **Full suite: 110 rules and 27 repository guards, NO VIOLATION.** Its exit is 1 for one reason
   only: **the full tier runs the oracle inside it**, and the oracle's divergences are this wave's

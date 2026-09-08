@@ -63,10 +63,46 @@ def test_none_row_is_a_legible_silence(guard, capsys) -> None:
     assert "nothing is in flight" in capsys.readouterr().out
 
 
-def test_version_main_has_reached_is_refused(guard) -> None:
-    """`main` at 0.98.53 has passed a row naming 0.98.51: that wave landed."""
+def test_a_version_main_has_passed_is_not_stale_while_the_pull_request_is_open(guard, capsys) -> None:
+    """B-377: the version is a proxy, and the row's pull request is the question.
+
+    This hold asserted the OPPOSITE until a micro-wave falsified the premise on
+    `main`. « `main` has reached this version » implies « this wave landed »
+    only while the sole way `main` can reach it is that wave merging — and a
+    wave that merges past an open one moves `main` without touching it. The
+    ci-draft micro-wave took 0.98.77 to sit past every branch in flight
+    whichever landed first, and the arm then refused L21's row, naming an OPEN
+    #572 at 0.98.75, as stale: true row, false verdict, and the instruction it
+    printed was to delete a live wave's row.
+    """
     module, tmp_path = guard
-    assert _run(module, _state(tmp_path, "L10-bis, version 0.98.51, PR #999")) == 1
+    assert _run(module, _state(tmp_path, "L10-bis, version 0.98.51, PR #999")) == 0
+    assert "#999 is not in `main`'s history" in capsys.readouterr().out
+
+
+def test_a_row_whose_pull_request_landed_is_still_refused_with_a_version(guard, capsys) -> None:
+    """And the hole the repair must not open: a genuinely stale row still falls.
+
+    The row above and this one differ in one fact — whether `main`'s history
+    holds the pull request — and nothing else. If the repair had loosened the
+    arm rather than re-aimed it, this row would pass too, and the guard would
+    have traded a false refusal for a silence over the defect it exists for.
+    """
+    module, tmp_path = guard
+    assert _run(module, _state(tmp_path, "L10-ter, version 0.98.51, PR **#521**")) == 1
+    assert "#521" in capsys.readouterr().err
+
+
+def test_a_version_main_has_reached_with_no_pull_request_is_still_refused(guard, capsys) -> None:
+    """With no number in the row, the version is the only reading left.
+
+    The arm says so in its refusal rather than implying the same certainty it
+    has when it can name a pull request: writing the number in the row is what
+    makes this hold exact instead of inferred.
+    """
+    module, tmp_path = guard
+    assert _run(module, _state(tmp_path, "L10-bis, version 0.98.51, branch `feat/x`")) == 1
+    assert "no pull request" in capsys.readouterr().err
 
 
 def test_version_ahead_of_main_is_in_flight(guard) -> None:
@@ -132,16 +168,25 @@ def test_squash_subject_is_matched_by_its_number_only(guard) -> None:
 @pytest.mark.parametrize(
     "cell",
     [
-        "L10-bis, version 0.98.51, PR #999",
-        "L10-bis, version **0.98.51**, PR #999",
-        "L10-bis, version *0.98.51*, PR #999",
-        "L10-bis, version `0.98.51`, PR #999",
+        "L10-bis, version 0.98.51, branch `feat/x`",
+        "L10-bis, version **0.98.51**, branch `feat/x`",
+        "L10-bis, version *0.98.51*, branch `feat/x`",
+        "L10-bis, version `0.98.51`, branch `feat/x`",
     ],
 )
-def test_emphasis_is_part_of_the_versions_spelling(guard, cell: str) -> None:
-    """A version `main` has passed is refused however the row emphasises it."""
+def test_emphasis_is_part_of_the_versions_spelling(guard, capsys, cell: str) -> None:
+    """A version `main` has passed is refused however the row emphasises it.
+
+    The cells carry NO pull request, and that is deliberate since B-377: the
+    version arm now refuses on its own only when the row gives it no number to
+    ask the exact question with, so a cell naming an open pull request would
+    exercise the other hold and prove nothing about parsing. The printed line
+    is asserted beside the exit code, because « parsed and refused » and
+    « refused for some other reason » are the same exit code otherwise.
+    """
     module, tmp_path = guard
     assert _run(module, _state(tmp_path, cell)) == 1
+    assert "the row names version 0.98.51" in capsys.readouterr().out
 
 
 def test_a_row_naming_no_version_says_so_rather_than_passing_mutely(guard, capsys) -> None:
