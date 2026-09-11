@@ -428,6 +428,7 @@ when the defect comes back.
 | B-380 | The season grab's `absorbedCount` is derived from `seasons.json` while the media sheet draws its season rows from the sheet's own catalogue (`media-sheets.json`): two families at one title that disagree on 13 of the 49 seasons both know, so on « Les Animaniacs »' sheet the row « Saison 5 · 0/23 · 23 manquants » offers the act and the answer says « aucun épisode à récupérer » | by L21 | `open` |
 | B-381 | A message said while a layer is open is drawn UNDER that layer: the frame ranked the message at z-49 beneath the bottom sheet at z-52, so a verb pressed in a panel speaks a sentence the operator cannot see — held by the toast seam, visible and at full opacity in the document, and under the layer at its own centre; and the message was `inert` while any layer was open, so its close and « Annuler » took no finger | by L21 | `fixed #572` |
 | B-382 | The season act on a FOLLOWED show's own media sheet was addressed under the sheet's key: a sheet opened under « Silo (2023) » is followed by « Silo », so the layer found no follow by that title, began a second one beside the real follow it left untouched, and said « Série suivie et saison 3 demandée — aucun épisode à récupérer. » — B-378's shape on an owned-and-followed sheet | by L21 review round two | `fixed #572` |
+| B-383 | Four verbs SAY a sentence and send nothing to the layer: « Re-scraper les métadonnées » on the follow panel, « Remplacer la valeur » on a secret, « Lancer à blanc » on a maintenance action and « Lancer la veille maintenant » in the « more » menu each answer a canned sentence over an unchanged world — the « said, not done » class, identical on round one's candidate | by L21 review round two | `open` |
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
@@ -602,6 +603,31 @@ season 5 aired on 1997-09-08 by the sheet's own catalogue, so its row still offe
 answers « … aucun épisode à récupérer ». The « 23 manquants » mark is untouched by that gate — it is this
 entry's, the sheet counting against the catalogue.
 
+**Its extent is larger than « 13 of 49 »** (L21 review round two, B5; the reader's `b04_twelve_sheets.py`
+on `1e9e7c48e`, control `8f926738a`). That figure counts the seasons BOTH families know; it does not
+count the titles `seasons.json` does not know at all. Each of the twelve « Incomplets » shows, none of
+them in `seasons.json`, opened on its SHEET by a finger on its poster:
+
+| show | season rows | acts offered |
+| --- | --- | --- |
+| SAV des émissions | 6 | 6 (« Saison 6 1/30 29 manquants » … « Saison 1 1/12 11 manquants ») |
+| Monk | 8 | 5 (S8, S7, S6, S5 « 0/16 16 manquants », S1 « 11/12 ») |
+| Earl | 4 | 3 |
+| Stargate SG-1 | 10 | 3 |
+| Regular Show | 8 | 3 (S8 « 0/28 28 manquants ») |
+| Parks and Recreation | 7 | 1 |
+| La cour de récré, Les Zinzins de l'Espace, Friends, Farscape | 6, 2, 10, 4 | 0 |
+
+**21 acts on six shows.** Pressed on SAV des émissions' season 6 (« 1/30 29 manquants »), the answer was
+« Série suivie et saison 6 demandée — aucun épisode à récupérer. »: the grab counts from `seasons.json`,
+which does not know the show, so every one of the 21 answers zero while its row says « N manquants », and
+each first press begins a follow. The control offers no act on any of the twelve sheets. And on
+« Furious » (« 5/5 À jour ») and « President Curtis » (« 3/3 À jour ») the act is offered at all because
+the sheet counts catalogue episodes not yet aired while the date clause is season-level (`b08`). **The
+repair stays this entry's owner's**; L21 records the extent and corrects the two sentences that said the
+ten other shows « draw no matrix and no verb » (RESUME § 3.1, R158's docstring) — true of the follow
+panel, false of the sheet.
+
 **B-381 — a message said while a layer is open is drawn under that layer.**
 Found by L21's increment 7, the on-screen confirmation of the season grab. On L21's head `d65679c0f`
 (build `de36920b9ce9`, served on a port of its own, a finger on every step), the follow panel raised
@@ -739,6 +765,27 @@ panel draws, no error. **Seen red** before the change: 24 executed, 12 violation
 **The mutation**, on a clean tree: the address and the ask put back on the screen's title — 24
 executed, 12 violations, the same phantoms. **The run**: 24 EXECUTED, no violation, with R158 at 56,
 R125 at 16, `queued_ask_mark.py` at 7, R157 at 10 and R159 at 16 unchanged, on build `339930613045`.
+
+**B-383 — four verbs say a sentence and send nothing.**
+
+Found by L21's review round two, outside that round's lens (the reader's `b13_every_producer.py`,
+`b15_other_producers.py` and `b16_launch_verbs.py` on `1e9e7c48e`, control `8f926738a`). Round one's
+question — the panel on screen must say what a panel produced fresh from the cache says — was pointed at
+every kind `__panel.producers()` lists, each verb pressed at its centre. Four of them send NOTHING to the
+layer and answer a canned sentence over an unchanged world:
+
+- « Re-scraper les métadonnées » on the follow panel (Silo, Kyma, Dark Matter from « Suivis », The Hawk
+  from « En cours ») says « métadonnées à re-récupérer au prochain passage », and no call leaves (`b13`);
+- « Remplacer la valeur » on a secret's panel, reached by a finger on `[data-secret]` — a canned
+  sentence, no call, nothing moves (`b15`);
+- « Lancer à blanc » on a maintenance action's panel, reached by a finger on `[data-maintact]` — canned,
+  no call (`b15`);
+- « Lancer la veille maintenant » in the « more » menu closes it with a canned sentence and no call
+  (`b16`).
+
+Identical on the control, so it predates round two's repairs. It is the « said, not done » class this
+wave was opened for — NE-DOIT-PAS-1, a sentence that can be right about nothing. **Filed, not repaired.**
+Owner: a follow-up of L21, scheduled by the operator. Status `open`.
 
 
 **B-329 — the backend's generated contract does not describe what the backend does.**

@@ -138,8 +138,10 @@ The panel is NOT only ever drawn for a follow. Every step below was read in the 
 this path. Of the twelve, exactly two carry `SEASONS` data and therefore actually draw the matrix and
 the verb: **« Les Animaniacs »** and **« Les aventures de Tintin »**, both also present in
 `seasons.json` so `absorbedCount` is genuinely non-zero for them. The other ten fall to the
-`noSeasonData` note — **which is why nobody met this by accident, and why those two are the named
-subjects of the hold.**
+`noSeasonData` note IN THE FOLLOW PANEL — **which is why nobody met this by accident, and why those two
+are the named subjects of the hold.** ⚠ **On the SHEET that is false** (review round two, B5): the sheet
+draws its own catalogue, and six of the ten offer the act — 21 acts, every one answering « aucun
+épisode ». That is B-380's extent, recorded in its entry.
 
 **So the « third surface » is not a third surface — it IS the follow panel, reached from that lens.**
 Round one looked for season rows inside the lens, found tiles and cards, and stopped. The rows are
@@ -249,8 +251,9 @@ the next session must reconstruct what you were in the middle of.**
    `seasonAsked`/`seasonAskedOne`/`seasonAskedNone` in `verbs.media`.
 5. **The hold, SEEN RED FIRST**, reading BOTH surfaces: the act offered and answered on an incomplete
    NON-follow. Subjects « Les Animaniacs » and « Les aventures de Tintin » — **and the rule must SAY
-   why those two** (the only incomplete shows with `SEASONS` data; the other ten fall to the
-   no-season note), so the next reader does not think the choice arbitrary.
+   why those two** (the only incomplete shows with `SEASONS` data; in the follow panel the other ten
+   fall to the no-season note — not on the sheet, B-380), so the next reader does not think the choice
+   arbitrary.
 6. **The backend demand** in `docs/reference/backend-demands-architecture.md`: what the operation
    must accept, and why the interface asks it.
 7. **The on-screen confirmation, LAST** — watch the button appear and answer for real on a build, on
@@ -557,7 +560,11 @@ office splits waves to avoid, and the defect predates this lot. **Pass the file 
    found four findings and the office's independent readers found about forty on the same head, two
    of them blockers.
 3. **B-366's real repair** (L13) · **B-367** (settings micro-wave) · **B-371** (L20) · **B-370** ·
-   **B-378** (repaired by § 3.4 increment 3).
+   **B-378** (repaired by § 3.4 increment 3) · **B-383** (filed by review round two; a follow-up of
+   L21, scheduled by the operator).
+4. **`features/acquisition/discover-feed.ts` sits at 399 non-blank lines against a ceiling of 400**
+   (B7 brought it there): the next change to it SPLITS it first — owner, the lot that touches it. A
+   wave that discovers this by a red `check-frontend-boundaries` has not read this line.
 
 ### How to push, because it is not what it looks like
 

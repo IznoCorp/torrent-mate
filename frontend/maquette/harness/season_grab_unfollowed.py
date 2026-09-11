@@ -13,8 +13,10 @@ implies the follow.
 WHY THESE TWO SUBJECTS, and the rule derives them rather than trusting this
 sentence: « Les Animaniacs » and « Les aventures de Tintin » are the only
 incomplete shows the fixture holds that carry SEASONS data with a hole. The
-other ten fall to the « no season data » note and draw no matrix and no verb,
-which is why nobody met the defect by accident. None of the twelve is followed,
+other ten fall to the « no season data » note and draw no matrix and no verb
+IN THE FOLLOW PANEL, which is why nobody met the defect by accident. The SHEET
+draws its own catalogue, and there six of the ten DO offer the act — 21 acts,
+every one answering « aucun épisode » (B-380's extent). None of the twelve is followed,
 so every card in the lens reaches the non-follow path. If the fixture moves, the
 first hold says so before a finger does.
 
