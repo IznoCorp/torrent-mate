@@ -72,12 +72,19 @@ one placement of nine free in all 87 named states:
 switch; **R141** (`frontend/maquette/harness/desktop_frame_memory.py`, 9 holds)
 holds the memory.
 
-## 2. The measured pass of 2026-09-11 — every figure read on `1ae097a4c`, in one pass
+## 2. The measured pass of 2026-09-11 — every figure read on `2296ec397` (code `1ae097a4c`), in one pass
 
-**Not taken yet.** It is taken on `1ae097a4c`, the final code head, before the
-push, and its figures are written here ONCE — contracts, the full suite,
-`--a11y`, the oracle's divergence list, the hold-count compare with `failed`
-read first, `make check`.
+| tier | reading |
+| --- | --- |
+| `run.sh --contracts` | « harness: 18 rule(s) and 27 repository guard(s), no violation. » EXIT=0, 22:15 → 22:20 |
+| every rule, executed once | « harness: 115 rule(s), no violation. » — « running the full suite (115 rule(s)) — one headless Chrome per rule, 2 at a time », R140 « 24 hold(s) », R141 « 9 hold(s) » |
+| `run.sh --a11y` | « a11y: 87 states, 0 violation(s) over 0 rule(s), in 34.3s » · « a11y[light]: 162 violation(s) under `data-theme=light`, in 34.8s, against a ceiling of 162 » — the ceiling unmoved by this wave, EXIT=0 |
+| `run.sh --oracle` | « 87 states x 34 regions, 2958 measurements in 35.6s » · « reference taken at 2ffdc4ba » (L21's) · « no divergence » — the divergence list is EMPTY, the reference NOT re-recorded, EXIT=0 |
+| hold counts, `failed` read FIRST | **failed 0** (« harness: 115 rule(s), no violation. ») · 0 changed · 0 missing · 2 new: `desktop_frame.py (24)` and `desktop_frame_memory.py (9)` · 115 rules, 104 parseable, 2559 holds against the baseline's 113 / 2526 at `2ffdc4ba3` (L21's) — 2526 + 24 + 9 = 2559. EXIT=1, and that exit is the two NEW rows: the tool returns 1 on any new rule, and nothing else moved |
+| `make check` | « 11202 passed, 8 skipped, 1 xfailed » — no failed, no error, no collection error · mypy « Success: no issues found in 488 source files » · ruff « All checks passed! » · vitest « Test Files 134 passed (134) » · EXIT=0 |
+| `design/dist` | built, `build.json` d920dc3a3cb4 — the same build as the served copy (d920dc3a3cb4) |
+
+The rules' execution is the `harness-hold-counts.py --compare` run's own line, not a separate `run.sh`: that run executes every rule once, and the suite was not run a second time beside it.
 
 **What R141 read, and what fell.** RED first on the served copy of `64bc56670`
 (build `fa1c864f2b5f`), before the script existed: 9 holds, 4 violations, the
