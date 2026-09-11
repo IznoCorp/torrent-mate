@@ -1,6 +1,6 @@
 {
   "$comment": "The recorded oracle's reference — `frontend/maquette/oracle.py`. One entry per (named state x region): a bounding rectangle rounded to one decimal, and the computed properties of `regions.json`'s `probe.computedStyleSubset`. `null` means the region's selector matched nothing in that state, which is data rather than an omission. Regenerate with `--record`; ratify a REVIEWED change with `--accept`, never from a gate.",
-  "baseCommit": "f70ca02951ecc033bbd41022574a02f782afc0a2",
+  "baseCommit": "2ffdc4ba33241be5ac28a05ea0a0b25c9fefac91",
   "platform": "Darwin/arm64",
   "counts": {
     "states": 87,
@@ -1126,7 +1126,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 4626.2
+          "height": 4497.8
         },
         "style": {
           "position": "static",
@@ -3191,7 +3191,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2563.7
+          "height": 2435.2
         },
         "style": {
           "position": "static",
@@ -4261,7 +4261,7 @@
           "x": 0,
           "y": 260,
           "width": 390,
-          "height": 871.4
+          "height": 1084.7
         },
         "style": {
           "position": "static",
@@ -4517,7 +4517,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 1062.4
+          "height": 1275.7
         },
         "style": {
           "position": "static",
@@ -4703,7 +4703,7 @@
           "x": 0,
           "y": 260,
           "width": 390,
-          "height": 1705.5
+          "height": 2007.6
         },
         "style": {
           "position": "static",
@@ -4959,7 +4959,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 1896.4
+          "height": 2198.6
         },
         "style": {
           "position": "static",
@@ -5145,7 +5145,7 @@
           "x": 0,
           "y": 260,
           "width": 390,
-          "height": 1643.1
+          "height": 1911.1
         },
         "style": {
           "position": "static",
@@ -5401,7 +5401,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 1834.1
+          "height": 2102.1
         },
         "style": {
           "position": "static",
@@ -5587,7 +5587,7 @@
           "x": 0,
           "y": 260,
           "width": 390,
-          "height": 125.5
+          "height": 288
         },
         "style": {
           "position": "static",
@@ -5843,7 +5843,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 316.5
+          "height": 479
         },
         "style": {
           "position": "static",
@@ -6884,7 +6884,7 @@
           "x": 0,
           "y": 128.5,
           "width": 390,
-          "height": 661
+          "height": 1363
         },
         "style": {
           "position": "static",
@@ -7111,7 +7111,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 720.5
+          "height": 1422.5
         },
         "style": {
           "position": "static",
@@ -7297,7 +7297,7 @@
           "x": 0,
           "y": 128.5,
           "width": 390,
-          "height": 1964
+          "height": 2101.3
         },
         "style": {
           "position": "static",
@@ -7524,7 +7524,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2023.5
+          "height": 2160.9
         },
         "style": {
           "position": "static",
@@ -11840,7 +11840,7 @@
           "x": 0,
           "y": 260,
           "width": 390,
-          "height": 1643.1
+          "height": 1911.1
         },
         "style": {
           "position": "static",
@@ -12096,7 +12096,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 1834.1
+          "height": 2102.1
         },
         "style": {
           "position": "static",
@@ -22258,7 +22258,7 @@
           "x": 0,
           "y": 45.5,
           "width": 390,
-          "height": 1960
+          "height": 2014
         },
         "style": {
           "position": "static",
@@ -24369,7 +24369,7 @@
           "x": 0,
           "y": 128.5,
           "width": 390,
-          "height": 661
+          "height": 1363
         },
         "style": {
           "position": "static",
@@ -24596,7 +24596,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 720.5
+          "height": 1422.5
         },
         "style": {
           "position": "static",
@@ -24782,7 +24782,7 @@
           "x": 0,
           "y": 128.5,
           "width": 390,
-          "height": 661
+          "height": 1363
         },
         "style": {
           "position": "static",
@@ -25009,7 +25009,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 720.5
+          "height": 1422.5
         },
         "style": {
           "position": "static",
@@ -25195,7 +25195,7 @@
           "x": 0,
           "y": 128.5,
           "width": 390,
-          "height": 661
+          "height": 1363
         },
         "style": {
           "position": "static",
@@ -25422,7 +25422,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 720.5
+          "height": 1422.5
         },
         "style": {
           "position": "static",
@@ -25608,7 +25608,7 @@
           "x": 0,
           "y": 128.5,
           "width": 390,
-          "height": 661
+          "height": 1363
         },
         "style": {
           "position": "static",
@@ -25835,7 +25835,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 720.5
+          "height": 1422.5
         },
         "style": {
           "position": "static",
@@ -26021,7 +26021,7 @@
           "x": 0,
           "y": 128.5,
           "width": 390,
-          "height": 661
+          "height": 1363
         },
         "style": {
           "position": "static",
@@ -26248,7 +26248,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 720.5
+          "height": 1422.5
         },
         "style": {
           "position": "static",
@@ -26434,7 +26434,7 @@
           "x": 0,
           "y": 260,
           "width": 390,
-          "height": 1643.1
+          "height": 1911.1
         },
         "style": {
           "position": "static",
@@ -26719,7 +26719,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 1834.1
+          "height": 2102.1
         },
         "style": {
           "position": "static",
@@ -26905,7 +26905,7 @@
           "x": 0,
           "y": 260,
           "width": 390,
-          "height": 1643.1
+          "height": 1911.1
         },
         "style": {
           "position": "static",
@@ -27190,7 +27190,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 1834.1
+          "height": 2102.1
         },
         "style": {
           "position": "static",
@@ -33933,7 +33933,7 @@
           "x": 0,
           "y": 260,
           "width": 390,
-          "height": 1643.1
+          "height": 1911.1
         },
         "style": {
           "position": "static",
@@ -34189,7 +34189,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 1834.1
+          "height": 2102.1
         },
         "style": {
           "position": "static",
@@ -34249,9 +34249,9 @@
         "matches": 1,
         "rect": {
           "x": 0,
-          "y": 430.9,
+          "y": 330.9,
           "width": 390,
-          "height": 413.1
+          "height": 513.1
         },
         "style": {
           "position": "static",
@@ -34375,7 +34375,7 @@
           "x": 0,
           "y": 260,
           "width": 390,
-          "height": 1643.1
+          "height": 1911.1
         },
         "style": {
           "position": "static",
@@ -34631,7 +34631,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 1834.1
+          "height": 2102.1
         },
         "style": {
           "position": "static",
@@ -34817,7 +34817,7 @@
           "x": 0,
           "y": 260,
           "width": 390,
-          "height": 1643.1
+          "height": 1911.1
         },
         "style": {
           "position": "static",
@@ -35073,7 +35073,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 1834.1
+          "height": 2102.1
         },
         "style": {
           "position": "static",
@@ -35259,7 +35259,7 @@
           "x": 0,
           "y": 128.5,
           "width": 390,
-          "height": 661
+          "height": 1363
         },
         "style": {
           "position": "static",
@@ -35486,7 +35486,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 720.5
+          "height": 1422.5
         },
         "style": {
           "position": "static",
@@ -35672,7 +35672,7 @@
           "x": 0,
           "y": 128.5,
           "width": 390,
-          "height": 661
+          "height": 1363
         },
         "style": {
           "position": "static",
@@ -35899,7 +35899,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 720.5
+          "height": 1422.5
         },
         "style": {
           "position": "static",
@@ -36085,7 +36085,7 @@
           "x": 0,
           "y": 128.5,
           "width": 390,
-          "height": 661
+          "height": 1363
         },
         "style": {
           "position": "static",
@@ -36312,7 +36312,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 720.5
+          "height": 1422.5
         },
         "style": {
           "position": "static",
