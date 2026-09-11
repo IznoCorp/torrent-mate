@@ -1,0 +1,106 @@
+{
+  "permissions": {
+    "additionalDirectories": [
+      "/tmp",
+      "/tmp/claude-work"
+    ],
+    "allow": [
+      "Bash(allowedHosts:claude.ai)",
+      "WebFetch(domain:omdbapi.com)",
+      "WebFetch(domain:*.omdbapi.com)",
+      "Bash(pm2 list)",
+      "Bash(pm2 logs:*)",
+      "Bash(pm2 describe:*)"
+    ],
+    "ask": [
+      "Bash(pm2 restart torrentmate-web)",
+      "Bash(pm2 delete:*)",
+      "Bash(pm2 stop torrentmate-web)",
+      "Bash(crontab -r)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "test -f $HOME/.claude/hooks/bash_logger.py && python3 $HOME/.claude/hooks/bash_logger.py || true"
+          },
+          {
+            "type": "command",
+            "command": "test -f $HOME/.claude/hooks/block_disk_destructive.py && python3 $HOME/.claude/hooks/block_disk_destructive.py || true"
+          },
+          {
+            "type": "command",
+            "command": "test -f $HOME/.claude/hooks/block_ai_attribution.py && python3 $HOME/.claude/hooks/block_ai_attribution.py || true"
+          },
+          {
+            "type": "command",
+            "command": "test -f $HOME/.claude/hooks/block_background_pipeline.py && python3 $HOME/.claude/hooks/block_background_pipeline.py || true"
+          },
+          {
+            "type": "command",
+            "command": "test -f $HOME/.claude/hooks/block_curl_without_timeout.py && python3 $HOME/.claude/hooks/block_curl_without_timeout.py || true"
+          },
+          {
+            "type": "command",
+            "command": "test -f .claude/hooks/block_rg_without_filter.py && python3 .claude/hooks/block_rg_without_filter.py || true"
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "test -f $HOME/.claude/hooks/agent_logger.py && python3 $HOME/.claude/hooks/agent_logger.py || true"
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "test -f $HOME/.claude/hooks/skill_logger.py && python3 $HOME/.claude/hooks/skill_logger.py || true"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "test -f $HOME/.claude/hooks/block_sensitive_files.py && python3 $HOME/.claude/hooks/block_sensitive_files.py || true"
+          },
+          {
+            "type": "command",
+            "command": "test -f $HOME/.claude/hooks/block_media_files.py && python3 $HOME/.claude/hooks/block_media_files.py || true"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "test -f $HOME/.claude/hooks/skill_frontmatter_validator.py && python3 $HOME/.claude/hooks/skill_frontmatter_validator.py || true"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "test -f .claude/hooks/auto_format_project.py && python3 .claude/hooks/auto_format_project.py || true"
+          }
+        ]
+      }
+    ]
+  }
+}
