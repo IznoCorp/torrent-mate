@@ -125,6 +125,62 @@ the pill alone (h1 falls), and the affordance given the pill's old size (h2 fall
 pill; it reads `[data-resolve]` on each candidate card. Its `.click()` on the first `[data-resolve]`, like
 `actions.py`'s, stays true of the card; the finger's proof is the new rule's.
 
-## 6. The gate
+## 6. The two items the orchestrator's GO added
+
+Both were ruled by the operator on 2026-09-11 and built after B-393, never interleaved with it.
+
+### B-394 — the harness's chrome no longer covers the message
+
+**What was wrong.** A message said while a layer is open is drawn along the top of the frame, and the
+harness's two floating buttons — the design note and the states list — sit exactly there.
+`styles/harness.css` declared them at `z-index: 70`, the splash's rank, so chrome that is in NO
+production build was painted over the product's own answer to a verb.
+
+**The drawing.** The buttons are 53: above the surfaces a verb is pressed from (a screen, the tab bar,
+the bottom sheet), under the drawer, the confirmation and the message. The OPENED panel keeps 60 — it
+is the instrument the prototype is driven with, and a message over the control one is reaching for
+would be the same defect in the other direction. `ui/variants/frame.ts`'s ranked list named ONE thing
+where the stylesheet declares two; it carries both entries now, each with the file that declares it.
+
+| State | What is on screen | How it is reached |
+| --- | --- | --- |
+| **chrome at rest** | the two buttons at the frame's top right, over the page | any state, no layer |
+| **answered under a layer** | the message along the top, painted OVER both buttons | a layer open (`sheet-user`), a message shown |
+| **driving** | the states panel filling the frame, above the message | the states button pressed |
+
+**What it costs, and it is a fact rather than a finding**: at 53 the buttons sit under the drawer and
+the confirmation as well, so a drawer's scrim covers them until it is closed. No integer between 56
+and 57 exists without re-spreading the frame's ranks.
+
+**The rule, R163 (`message_above_harness.py`), was GREEN over this defect** until it lifted `inert`:
+the frame marks the background inert while a layer is open, and `inert` takes an element out of
+hit-testing without changing what is PAINTED. Measured both ways on the head declaring 70 — as drawn
+the hit test answers the message on both buttons, inertness lifted it answers the button on both, in
+two states. B-381's lesson, met on its own subject.
+
+### B-395 — the library's selection survives the tab, and its bar stays home
+
+**What was wrong.** `app/bottom-slot.tsx` draws the selection bar with no condition and the bar's own
+reads `selMode` alone, so the selection bar sat over Acquisition — and the tab bar, hidden by that
+same `selMode`, left no way back. Measured before the repair: on `acq` the bar is painted, the
+deletion is under a finger, and the tab bar has no box at all.
+
+**The drawing.** Two halves, and the ruling is that the SELECTION survives while the BAR does not
+follow. The bar is drawn only while the Médiathèque is the page; nothing is cleared by navigating. The
+tab bar hides only where something takes its place, which the navigation table says per page
+(`slotReplacesTabBar`) — the shape `app/action-button.tsx` already reads its own condition with, and
+what keeps the frame from naming a page.
+
+| State | What is on screen | How it is reached |
+| --- | --- | --- |
+| **selecting** | the bar over the Médiathèque, the tab bar replaced by it | `__go("lib-selection")` — three titles ticked |
+| **away** | no bar, the tab bar drawn, the selection untouched | the drawer, then Acquisition |
+| **back** | the bar again, the same three titles ticked | the drawer, then Médiathèque |
+| **emptied** | no bar, no selection | the bar's own cancel |
+
+**The walk is through the DRAWER**, because the tab bar is hidden in selection mode — that is the path
+a finger really has, and a rule taking a path the interface does not offer proves nothing.
+
+## 7. The gate
 
 Written once, on the final code head.
