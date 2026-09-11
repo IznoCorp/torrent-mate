@@ -201,7 +201,12 @@ export function acquisitionVerbRoutes(): MockRoute[] {
         // register carries that as a demand rather than this file inventing
         // one.
         const found = state.follows.find((follow) => follow.title === title);
-        if (found !== undefined && !queued()) found.status = BEING_ACQUIRED;
+        const missing = episodesMissingFromSeason(title, season);
+        // ONLY WHEN THE SEASON HAD SOMETHING TO GET. An answer of zero moved an
+        // up-to-date follow to being acquired: « 5/5 · En cours d'acquisition »
+        // on the follow's row and panel, beside the sentence « aucun épisode à
+        // récupérer » just said. Nothing is acquired, so nothing moves.
+        if (found !== undefined && !queued() && missing > 0) found.status = BEING_ACQUIRED;
         // AND A MEDIUM NOBODY FOLLOWS IS FOLLOWED BY THE ASK (B-378). This
         // handler used to move a status only when it FOUND a follow, so for an
         // incomplete show reached from the library it answered 201 with a real
@@ -213,7 +218,7 @@ export function acquisitionVerbRoutes(): MockRoute[] {
         if (found === undefined) state.follows = [beginFollow(title), ...state.follows];
         return {
           season,
-          absorbedCount: episodesMissingFromSeason(title, season),
+          absorbedCount: missing,
           queued: queued(),
           // NULL, ALWAYS, and it is not a placeholder. The layer holds no run
           // identifier at all — `runPipeline` answers `uid: null` for the same

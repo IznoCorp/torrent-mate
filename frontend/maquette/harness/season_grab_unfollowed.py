@@ -61,7 +61,12 @@ named by no other rule and no named state:
 
   « Agent Elvis » — one season, aired. Once followed it is offered that season,
   the act is answered, the follow resolves a sheet (the question R156 asks), and
-  it is being acquired afterwards.
+  the follow agrees with the answer: being acquired where the season had
+  episodes to get, its status kept where it had none. RE-AIMED, and said here:
+  this hold read « being acquired afterwards » whatever was answered, and the
+  seasons data the layer counts from does not hold « Agent Elvis », so the
+  answer is zero and a status moved over it would be the proxy R160's hold 3
+  was re-aimed away from.
   « Grimsburg » — its third season airs after the referential's TODAY, read in
   the page. Once followed its first two seasons are offered the act and the
   third is not.
@@ -273,6 +278,13 @@ NOT_YET_AIRED = """(title)=>{
           later: ((sheet && sheet.seasons) || []).filter(
             (season) => today && season.air && season.air > today).map((season) => season.n)};}"""
 
+# HOW MANY EPISODES A SEASON HAS TO GET, from the seasons data the follow panel
+# reads — the count the layer answers from. A title that data does not hold
+# has nothing to get.
+MISSING_IN_SEASON = """([title, season])=>{
+  const row = (window.SEASONS[title] || []).find(([number]) => number === season);
+  return row ? Math.max(0, (row[1] || 0) - (row[2] || 0)) : 0;}"""
+
 SAID = """()=>{
   const held = window.__toast?.read?.();
   return held && held.message ? held.message.message || '' : '';}"""
@@ -461,6 +473,15 @@ async def main():
                 act = await page.evaluate(AIM, ["season/grab", "data-grab-season", value])
                 journal.check(f"« {ALL_AIRED} »: a finger opens season {number}'s row and reaches its act",
                               act["found"] and act["reachable"], f"row {row} act {act}")
+                missing = await page.evaluate(MISSING_IN_SEASON, [ALL_AIRED, int(number)])
+                # THE STATUS BEFORE IS THE LAYER'S, re-read rather than taken from the
+                # cache « Suivre » just wrote into: that cache holds the follow as
+                # the interface drew it at the press, and the refetch the act causes
+                # would read as the act having moved it.
+                await page.evaluate("""()=>window.__queries.refetchQueries(
+                  {queryKey: ["/api/acquisition/followed"]})""")
+                await page.wait_for_timeout(SETTLED)
+                status_before = (await page.evaluate(FOLLOWS)).get(ALL_AIRED)
                 mark = len(await page.evaluate(ANSWERED))
                 errors.clear()
                 if act["found"] and act["reachable"]:
@@ -474,8 +495,28 @@ async def main():
                               and 200 <= grabs[0]["status"] < 300,
                               str([(call["path"], call["status"]) for call in grabs]))
                 status = (await page.evaluate(FOLLOWS)).get(ALL_AIRED)
-                journal.check(f"« {ALL_AIRED} »: and it is being acquired afterwards, with no error",
-                              status == "acquiring" and not errors, f"{status!r} {errors}")
+                # THE FOLLOW AGREES WITH WHAT WAS ANSWERED: being acquired only when
+                # the season had something to get, its status kept over an answer of
+                # nothing. RE-AIMED with R160's hold 3, said in the docstring.
+                if missing:
+                    journal.check(f"« {ALL_AIRED} »: and it is being acquired afterwards — the season "
+                                  f"had {missing} episode(s) to get — with no error",
+                                  status == "acquiring" and not errors, f"{status!r} {errors}")
+                else:
+                    journal.check(f"« {ALL_AIRED} »: and it KEEPS its status — the answer had nothing "
+                                  "to get — with no error",
+                                  status == status_before and not errors,
+                                  f"{status_before!r} → {status!r} {errors}")
+                # AND THE SENTENCE ANSWERED: the follow existed before the act (a
+                # finger on « Suivre »), so it is the plain asked sentence, named,
+                # at the count the seasons data holds — never « Série … suivie ».
+                said = await page.evaluate(SAID)
+                key = ("seasonAskedNone" if missing == 0
+                       else "seasonAskedOne" if missing == 1 else "seasonAsked")
+                expected = (SENTENCES[key].replace("{{season}}", number)
+                            .replace("{{count}}", str(missing)).replace("{{title}}", ALL_AIRED))
+                journal.check(f"« {ALL_AIRED} »: the sentence answered is `{key}`, naming the show",
+                              said == expected, f"{said!r} against {expected!r}")
 
         if await follow_from_its_sheet(page, journal, errors, ONE_NOT_AIRED):
             later = await page.evaluate(NOT_YET_AIRED, ONE_NOT_AIRED)

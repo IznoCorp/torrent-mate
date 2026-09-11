@@ -23,7 +23,13 @@ under its DATED key and the act pressed by a finger:
      title — never the sheet's key.
   2. NO FOLLOW IS BEGUN: the follows hold exactly the titles they held before.
      A new title beside the old one is the phantom.
-  3. THE FOLLOW THAT EXISTED MOVES: its status is `acquiring` afterwards.
+  3. THE FOLLOW THAT EXISTED AGREES WITH THE ANSWER: `acquiring` afterwards
+     where the season had episodes to get (Silo), its status UNCHANGED where
+     it had none (Furious, President Curtis). RE-AIMED, and said here: this
+     hold read « moves to `acquiring` » on all three, so it certified a follow
+     « À jour » at 5/5 moved to « En cours d'acquisition » over an answer of
+     zero — a proxy (the status moved) held in place of the property (the
+     follow says what was answered).
   4. THE SENTENCE is the one chosen for a follow that already existed, at the
      count the follow panel draws for that season — read from `fr.json` and from
      the seasons data the panel reads, never retyped.
@@ -185,9 +191,19 @@ async def take_a_season(page, journal, errors, bare, dated):
     journal.check(f"{where}: no follow is begun — the follows hold the same titles",
                   not phantoms and len(after) == len(before),
                   f"{len(before)} → {len(after)}, new: {phantoms}")
-    journal.check(f"{where}: the follow that existed moves to « {BEING_ACQUIRED} »",
-                  after.get(bare) == BEING_ACQUIRED,
-                  f"{before.get(bare)!r} → {after.get(bare)!r}")
+    # THE FOLLOW AGREES WITH WHAT WAS ANSWERED: it moves to being acquired only
+    # when the season had something to get, and keeps its status over an answer
+    # of nothing — never « En cours d'acquisition » beside « 5/5 · À jour ».
+    if count:
+        journal.check(f"{where}: the follow that existed moves to « {BEING_ACQUIRED} » — "
+                      f"the season had {count} episode(s) to get",
+                      after.get(bare) == BEING_ACQUIRED,
+                      f"{before.get(bare)!r} → {after.get(bare)!r}")
+    else:
+        journal.check(f"{where}: the follow that existed KEEPS its status — the answer had "
+                      "nothing to get, so nothing is being acquired",
+                      count is not None and after.get(bare) == before.get(bare),
+                      f"count {count!r}, {before.get(bare)!r} → {after.get(bare)!r}")
     said = await page.evaluate(SAID)
     expected = sentence_for_an_existing_follow(season, count, bare) if count is not None else None
     journal.check(f"{where}: the sentence is the one for a follow that existed, at the panel's count",
