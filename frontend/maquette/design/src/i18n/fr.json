@@ -1004,6 +1004,8 @@
     "onTmdb": " sur TMDB",
     "allSeenLead": "Vous avez tout parcouru.",
     "allSeenRest": "Les {{count}} suggestions du lot ont été vues. La réserve en garde d'autres.",
+    "allSeenRestList": "Les {{count}} suggestions chargées ont été vues — d'autres attendent d'être chargées.",
+    "allSeenRestExhausted": "Les {{count}} suggestions chargées ont toutes été vues — la réserve est épuisée.",
     "loadThirtyMore": "Charger 30 de plus",
     "endOfReserve": "Fin de la réserve chargée dans cette maquette — {{loaded}} des 503 suggestions réellement calculées pour vous. La passe de fond en recalcule après chaque nouvelle note TMDB.",
     "dismissed": "« {{title}} » écarté."

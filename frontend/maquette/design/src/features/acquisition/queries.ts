@@ -46,6 +46,18 @@ export const suggestionsQuery = {
 // a seam that does not have to exist is one L13 does not have to remove.
 let suggestionsCache: QueryClient | null = null;
 
+// WHETHER THE LAYER HAS SAID THE RESERVE IS EXHAUSTED — the last load answered
+// nothing. The deck's message says it once; the end mark has to go on saying
+// it, and it cannot learn it from the reserve's length, which is the same
+// before the empty answer and after. Cleared when a page arrives, and when a
+// named state refills the reserve from its beginning.
+let reserveExhausted = false;
+
+/** Whether the last load of suggestions answered nothing. */
+export function isReserveExhausted(): boolean {
+  return reserveExhausted;
+}
+
 /**
  * Asks the layer for the next page of suggestions and appends it.
  *
@@ -70,7 +82,11 @@ export async function loadMoreSuggestions(): Promise<number> {
   const last = held[held.length - 1] as { t?: string } | undefined;
   if (last?.t !== undefined) parameters.set("after", last.t);
   const batch = await read<unknown[]>("/api/acquisition/suggestions", parameters);
-  if (batch.length === 0) return 0;
+  if (batch.length === 0) {
+    reserveExhausted = true;
+    return 0;
+  }
+  reserveExhausted = false;
   const arrived = toEngineShape<unknown[]>("SUGGESTIONS", batch);
   suggestionsCache.setQueryData(suggestionsQuery.queryKey, [...held, ...arrived]);
   return arrived.length;
@@ -98,7 +114,10 @@ export function installSuggestionsLookup(queryClient: QueryClient): void {
   // named state clears the cache so no measurement inherits a previous one's
   // pages, and a query with an OBSERVER is re-asked by that observer while one
   // without is not. This is the door `__reset` re-asks through.
-  window.__refillSuggestions = () => void queryClient.prefetchQuery(suggestionsQuery);
+  window.__refillSuggestions = () => {
+    reserveExhausted = false;
+    void queryClient.prefetchQuery(suggestionsQuery);
+  };
   window.__refillSuggestions();
 }
 

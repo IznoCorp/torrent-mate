@@ -31,13 +31,27 @@ WHAT THIS RULE READS, and each says something different:
 
 IT MEASURES BOTH MODES the surface can leave the deck for, because the sweep is
 one line and a repair that covered one of them would look complete.
+
+AND THE LIST'S END MARK SAYS WHAT IS TRUE, in its words (review round two, B7).
+The emptied list drew the deck's own « … La réserve en garde d'autres » under a
+footer saying the loaded reserve had ended, and went on saying it after the
+load had answered « Réserve épuisée ». Three states, three chosen sentences:
+
+  4. THE LIST EMPTIED under « Fin de la réserve chargée … » — its mark is the
+     list's sentence, which does not contradict the footer, with its offer.
+  5. THE RESERVE EXHAUSTED — the load pressed until it answered nothing and
+     said so — the mark is the exhausted sentence, with nothing to load.
+
+Both are read in the resource the interface reads. The load is pressed with
+`element.click()`: what is held is the words after the press, not the press.
 """
 import asyncio
+import json
 import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, SETTLED, open_page
+from common import ACTED, Journal, SETTLED, open_page
 
 from playwright.async_api import async_playwright
 
@@ -71,6 +85,92 @@ THE_SURFACE = """()=>{
                        '[data-part="surface/body"] > [data-part="deck"], '
                        + '[data-part="surface/body"] > [data-part="empty-state"]')]
                      .map((node) => node.dataset.part)};}"""
+
+
+# THE WORDS, from the resource the interface reads.
+RESOURCE = json.loads(
+    (pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "i18n"
+     / "fr.json").read_text(encoding="utf-8"))
+DISCOVER = RESOURCE["discover"]
+DECK = RESOURCE["verbs"]["deck"]
+
+# EVERY LOADED SUGGESTION DISMISSED, IN THE LIST, and every loaded one listed —
+# so the footer below the list is the one that says the loaded reserve ended.
+EMPTY_THE_LIST = """()=>{
+  const total = (window.__suggestions?.() || []).length;
+  const gone = new Set();
+  for (let at = 0; at < total; at += 1) gone.add(at);
+  window.__store.write({sugMode: 'list', sugGone: gone, sugCount: total});
+  return total;}"""
+
+THE_END = """()=>{
+  const text = (node) => node ? (node.textContent || '').replace(/\\s+/g, ' ').trim() : '';
+  const held = window.__toast?.read?.();
+  return {mark: text(document.querySelector('#sugitems [data-part="empty-state"]')),
+          footer: text(document.querySelector('#sugload')),
+          offer: !!document.querySelector('#sugitems [data-sugmore]'),
+          total: (window.__suggestions?.() || []).length,
+          said: held && held.message ? held.message.message || '' : ''};}"""
+
+PRESS_THE_OFFER = """()=>{
+  const offer = document.querySelector('#sugitems [data-sugmore]');
+  if (!offer) return false;
+  offer.click();
+  return true;}"""
+
+# At most this many loads to exhaust the fixture's reserve.
+LOADS = 6
+
+
+async def hold_the_end_mark(page, journal):
+    """Holds the list's end mark to the footer and to an exhausted reserve.
+
+    Args:
+        page: The page under test.
+        journal: Where the holds are recorded.
+    """
+    await page.evaluate("(id)=>window.__go(id)", DISCOVER_STATE)
+    await page.wait_for_timeout(SETTLED)
+    await page.evaluate(SET_MODE, "list")
+    await page.wait_for_timeout(SETTLED)
+    await page.evaluate(EMPTY_THE_LIST)
+    await page.wait_for_timeout(SETTLED)
+    end = await page.evaluate(THE_END)
+    footer = DISCOVER["endOfReserve"].replace("{{loaded}}", str(end["total"]))
+    journal.check(
+        "the emptied list sits under the footer saying the loaded reserve ended "
+        "— else the next hold reads nothing",
+        end["footer"] == footer, repr(end["footer"]))
+    listed = DISCOVER["allSeenRestList"].replace("{{count}}", str(end["total"])) \
+        if "allSeenRestList" in DISCOVER else None
+    journal.check(
+        "and its mark does not contradict that footer: the LIST's sentence, not "
+        "the deck's « … La réserve en garde d'autres », with its offer to load",
+        listed is not None and listed in end["mark"] and end["offer"],
+        f"mark {end['mark']!r}, offer {end['offer']}")
+
+    for _ in range(LOADS):
+        if end["said"] == DECK["spent"].replace("{{total}}", str(end["total"])):
+            break
+        if not await page.evaluate(PRESS_THE_OFFER):
+            break
+        await page.wait_for_timeout(ACTED)
+        await page.evaluate(EMPTY_THE_LIST)
+        await page.wait_for_timeout(SETTLED)
+        end = await page.evaluate(THE_END)
+    spent = DECK["spent"].replace("{{total}}", str(end["total"]))
+    journal.check(
+        "the load was pressed until it answered nothing and said « Réserve "
+        "épuisée » — else the next hold reads nothing",
+        end["said"] == spent, repr(end["said"]))
+    exhausted = DISCOVER["allSeenRestExhausted"].replace("{{count}}", str(end["total"])) \
+        if "allSeenRestExhausted" in DISCOVER else None
+    journal.check(
+        "and the emptied list's mark now says the reserve is EXHAUSTED, and "
+        "offers nothing to load — it used to go on saying « La réserve en garde "
+        "d'autres » with « Charger 30 de plus »",
+        exhausted is not None and exhausted in end["mark"] and not end["offer"],
+        f"mark {end['mark']!r}, offer {end['offer']}")
 
 
 async def main():
@@ -111,6 +211,8 @@ async def main():
                 f"and « {mode} » is left with nothing the fragment wrote above "
                 "its feed",
                 not after["leftovers"], str(after["leftovers"]))
+
+        await hold_the_end_mark(page, journal)
 
         journal.check("and none of it raised an error", not errors, str(errors))
 

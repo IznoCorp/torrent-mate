@@ -21,6 +21,7 @@ import i18next from "i18next";
 import { actionButton, loadFooterAction } from "../../ui/variants";
 import { cx } from "../../ui/cva";
 import { deckCard, deckHints, suggestionRow, suggestionTile, type Suggestion } from "./discover-cards";
+import { isReserveExhausted } from "./queries";
 
 /** How many more the footer asks for at a time. */
 const BATCH = 30;
@@ -128,14 +129,26 @@ export function passerSug(position: number): void {
  * replaced-element default and the flex box stretched it to 227 px inside a
  * 245 px-tall button. The `footer` branch sizes it.
  *
+ * THREE STATES, THREE CHOSEN SENTENCES: the pile with more to load keeps the
+ * deck's words; the LIST says its own, which its « end of the loaded reserve »
+ * footer does not contradict; an exhausted reserve says so and offers nothing.
+ *
+ * Args:
+ *     inList: Whether the mark ends the list or the gallery rather than the pile.
+ *
  * Returns:
  *     The deck's markup.
  */
-export function nothingLeftHTML(): string {
+export function nothingLeftHTML(inList = false): string {
   const reference = drawing();
+  const exhausted = isReserveExhausted();
+  const restKey = exhausted ? "allSeenRestExhausted" : inList ? "allSeenRestList" : "allSeenRest";
+  const offer = exhausted
+    ? ""
+    : `<button class="${cx(actionButton({ size: "footer" }), loadFooterAction())}" data-sugmore="1">${reference.svgIcon(reference.icons.refresh)}${say("loadThirtyMore")}</button>`;
   return `<div class="empty" data-part="empty-state"><b>${say("allSeenLead")}</b>
-        <p>${say("allSeenRest", { count: reserve().length })}</p>
-        <button class="${cx(actionButton({ size: "footer" }), loadFooterAction())}" data-sugmore="1">${reference.svgIcon(reference.icons.refresh)}${say("loadThirtyMore")}</button></div>`;
+        <p>${say(restKey, { count: reserve().length })}</p>
+        ${offer}</div>`;
 }
 
 export function deckHTML(): string {
@@ -264,17 +277,17 @@ export function fillSug(): void {
     .slice(0, state.sugCount as number)
     .map((suggestion, position) => (gone.has(position) ? "" : draw(suggestion, position)))
     .join("");
-  // ONLY WHEN IT CHANGES. See `lastList` above: rewriting identical markup
-  // replaces every node, and a tap between press and click is then lost.
-  if (markup === lastList && box.innerHTML !== "") return;
-  lastList = markup;
   // AN EMPTY LIST SAYS SO. Dismissing every drawn suggestion left this
   // container holding nothing at all — no rows and no word — which reads as a
-  // surface that has broken rather than one that has run out. It is the SAME
-  // situation the pile ends in and it gets the same sentence and the same
-  // offer: the deck's own end mark, so a reader meets one wording for one
-  // fact whichever way he was browsing.
-  box.innerHTML = markup === "" ? nothingLeftHTML() : markup;
+  // surface that has broken rather than one that has run out. It gets the
+  // pile's end mark, with the list's own sentence.
+  const drawn = markup === "" ? nothingLeftHTML(true) : markup;
+  // ONLY WHEN IT CHANGES. See `lastList` above: rewriting identical markup
+  // replaces every node, and a tap between press and click is then lost. The
+  // MARK is compared too, or it went on offering a load after « Réserve épuisée ».
+  if (drawn === lastList && box.innerHTML !== "") return;
+  lastList = drawn;
+  box.innerHTML = drawn;
 }
 
 /**

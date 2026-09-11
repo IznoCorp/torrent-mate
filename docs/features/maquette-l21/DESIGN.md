@@ -509,6 +509,16 @@ than left standing: a directive whose subject has gone is removed, not executed 
 plan's L21 paragraph takes the same correction at the audit. The operator walks Découvrir on his
 Mac at the review.
 
+**The end mark says what is true, in three chosen sentences** (review round two, B7). Round one gave
+the emptied list the deck's own end mark, and with it the deck's « … La réserve en garde d'autres » —
+under a footer saying the loaded reserve had ended, and still after the load had answered « Réserve
+épuisée », with « Charger 30 de plus » still offered. The pile spent with more to load keeps the deck's
+words; the LIST emptied says « Les N suggestions chargées ont été vues — d'autres attendent d'être
+chargées. », which the footer does not contradict; and once a load has answered nothing, either mode
+says « Les N suggestions chargées ont toutes été vues — la réserve est épuisée. » and offers nothing.
+`features/acquisition/queries.ts` remembers the empty answer, which the reserve's length cannot tell.
+**The wording is this lot's; the operator may reword all three.**
+
 ---
 
 ### 3.3d B-315 (a) — the button's size, and it is held against a TOKEN
