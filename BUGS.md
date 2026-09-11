@@ -426,7 +426,7 @@ when the defect comes back.
 | B-378 | `grabSeasonForFollow`'s mock moves a follow's status only when one is FOUND, so for a medium that is NOT followed it answers a success (200 today — the layer ignores the declared code, B-379) with a real `absorbedCount` and changes nothing at all — success reported over an unchanged world, on a path the « Incomplets » lens reaches with a single tap | by L21 | `fixed #572` |
 | B-379 | The mock layer answers **200** to every call unless a scenario arms a failure (`mocks/scenario.ts:145`), whatever code the contract declares — `grabSeasonForFollow` declares 201, `requeueJourney` and `rescrapeJourney` 202 — so no rule can hold a declared success code, and a sentence saying the layer « answers 201 » is false on the code | by L21 | `open` |
 | B-380 | The season grab's `absorbedCount` is derived from `seasons.json` while the media sheet draws its season rows from the sheet's own catalogue (`media-sheets.json`): two families at one title that disagree on 13 of the 49 seasons both know, so on « Les Animaniacs »' sheet the row « Saison 5 · 0/23 · 23 manquants » offers the act and the answer says « aucun épisode à récupérer » | by L21 | `open` |
-| B-381 | A message said while a layer is open is drawn UNDER that layer: the frame ranks the message at z-49 beneath the bottom sheet at z-52, and the media screen covers it too, so a verb pressed in a panel or on the sheet speaks a sentence the operator cannot see — held by the toast seam, visible and at full opacity in the document, and under the layer at its own centre | by L21 | `open` |
+| B-381 | A message said while a layer is open is drawn UNDER that layer: the frame ranked the message at z-49 beneath the bottom sheet at z-52, so a verb pressed in a panel speaks a sentence the operator cannot see — held by the toast seam, visible and at full opacity in the document, and under the layer at its own centre; and the message was `inert` while any layer was open, so its close and « Annuler » took no finger | by L21 | `fixed #572` |
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
@@ -612,8 +612,14 @@ four delays.
 order: the message 49, the tab bar 50, the bottom slot's bar 51, **the bottom sheet 52** (raised from
 47 for B-248 without the message's rank being decided again), the drawer 55, the confirmation 56, the
 popover and the sign-in gate 60. So every verb pressed INSIDE the sheet speaks under the sheet. **The
-media screen covers the message too, and that half is not explained**: `layout.ts` ranks the screen at
-z-[45], below the message's 49 — probably a stacking context, not measured.
+media screen DOES NOT cover the message, and the first reading of this entry said it did.** Measured
+after: `#toast` (49) and the screen (45) are both children of `#shell` with no stacking context between
+them, and with `inert` lifted a hit test at the message's text returns the message; the screenshot shows
+it painted over the screen. What read as « covered » was `inert`: `app/focus.ts`'s `setBackgroundInert`
+marks every child of the shell except the open layer, the message among them, and `inert` removes an
+element from hit-testing without changing what is painted. **That is a second defect under the first**:
+a message raised above the sheet would have been SEEN with a close and an « Annuler » that no finger
+could reach.
 
 **Three instruments were green over it.** R125 (`season_grab.py`) and R158
 (`season_grab_unfollowed.py`) read `window.__toast.read()` — what the layer HOLDS, not what is painted.
@@ -626,19 +632,30 @@ message shown over `sheet-user` is covered at its own centre by `BUTTON.sact[she
 press (B-301 is unmerged), so the dating reading is the frame's property itself: **the defect predates
 L21** and belongs to the wave that ranked the sheet above the message.
 
-**Owner: pending the operator's ruling.** Changing the message's rank is a frame decision, not L21's
-unit; the orchestrator's recommendation to the operator is the message above every layer a verb can be
-pressed on, below the sign-in gate and the splash.
+**Ruled by the operator on 2026-09-11 — repaired in L21**: the message rises above every layer a verb
+can be pressed on, below the sign-in gate and the splash. The touch half was ruled in by the
+orchestrator as depth on the same ruling: a message above the sheet with an « Annuler » that cannot be
+tapped is a visible control that does nothing.
 
-**The hold the repair lands with is written and NOT committed** — a red rule cannot enter the suite.
-R159 hit-tests the centre of the element carrying the message's text. **It is kept as text at
-`docs/features/maquette-l21/message_over_layers.py.txt`**; the repairing wave moves it into
-`frontend/maquette/harness/message_over_layers.py` and deletes that copy in the same commit. Read red on L21's build `de36920b9ce9`, **5 holds EXECUTED, 3 violations, each naming what covers
-the message**: over `sheet-user` a probe message is hit as `BUTTON.sact[sheet/action]`; on Silo's follow
-panel, after the panel's own « Récupérer la saison 3 », the sentence « Saison 3 demandée — 1 épisode à
-récupérer. » is hit as `BUTTON.sact[sheet/action]`; on `mediasheet-series` a probe message is hit as
-`DIV.kv[key-value]`. Its first version was red for the wrong reason — the design note's greeting still
-held the host, so the probe was never carried — and it now takes the message on screen off first.
+**Fixed #572** (`0e2c25bc1`). The layers a verb is pressed from were enumerated first — a screen (45),
+the bottom slot's bar (51), the bottom sheet (52), the drawer (55), the confirmation (56); the popover
+(60) carries facts and no verb — and the message is ranked **57** in `ui/variants/frame.ts`'s list, with
+its reason written there. `app/focus.ts` exempts the message from the background it marks `inert`,
+exactly as it exempts the scrim.
+
+**The rule is R159**, `harness/message_over_layers.py`. It reads PAINT with `inert` lifted for the hit
+test — over an open sheet, over Silo's follow panel after its own season verb, and on the media screen
+as the witness that the screen never covered the message — and TOUCH with nothing lifted, a real finger
+on the message's close over an open sheet. It was first kept as text while the ruling was pending, and
+its first version read `inert` as paint. **The mutations**, each on a clean tree: the rank put back to
+49, 7 holds EXECUTED and 4 violations — both paint legs, covered by `BUTTON.sact[sheet/action]`, and both
+touch holds, the close under the sheet — with the screen witness green; the exemption removed, 7
+EXECUTED and 2 violations — the touch holds only, `inert: True`, every paint leg green. **The run**: 7
+holds EXECUTED, no violation, on build `6bc3e1d72aef` (`0e2c25bc1`).
+
+**And on screen**, increment 7 retaken on the same build on a port of its own: from « Incomplets », « Les
+aventures de Tintin »' follow panel, « Récupérer la saison 3 » tapped, and « Série suivie et saison 3
+demandée — 6 épisodes à récupérer. » is on top at its own text at +400 and +1200 ms, not `inert`.
 
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
