@@ -1,8 +1,8 @@
 {
-  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 102 of 113 rule(s) report a hold count; the other 11 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
-  "taken_at_commit": "2ffdc4ba33241be5ac28a05ea0a0b25c9fefac91",
+  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 104 of 115 rule(s) report a hold count; the other 11 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
+  "taken_at_commit": "33cb259d9d49c826af3797d89fd6350c5782d6fc",
   "taken_on": "2026-09-11",
-  "suite": "113 of 113 rule(s)",
+  "suite": "115 of 115 rule(s)",
   "host": "http://127.0.0.1:8899/",
   "rules": {
     "acted_surface_redraws.py": {
@@ -123,6 +123,16 @@
     "departure.py": {
       "exit": 0,
       "count": 19,
+      "source": "common.Journal summary"
+    },
+    "desktop_frame.py": {
+      "exit": 0,
+      "count": 24,
+      "source": "common.Journal summary"
+    },
+    "desktop_frame_memory.py": {
+      "exit": 0,
+      "count": 9,
       "source": "common.Journal summary"
     },
     "dest.py": {
@@ -572,10 +582,10 @@
     }
   },
   "totals": {
-    "rules": 113,
-    "parseable": 102,
+    "rules": 115,
+    "parseable": 104,
     "unparseable": 11,
-    "holds": 2526,
+    "holds": 2559,
     "failed": 0
   }
 }
