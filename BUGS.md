@@ -868,6 +868,18 @@ separately with the reason beside each, and a hit test where the message overlap
 the message — held by R163 (`message_above_harness.py`), seen red on the head that declares 70.
 Owner: maquette-resolution-card.
 
+**THE RULE WAS GREEN OVER THIS DEFECT until it lifted `inert` for its hit test.** The frame marks the
+background inert while a layer is open, and `inert` takes an element out of hit-testing without
+changing what is PAINTED — B-381's own lesson, met again on its own subject. Measured both ways on the
+head declaring 70: as drawn the hit test answers the message on both buttons; with the bar's
+inertness lifted it answers the button on both, in two states. R163 lifts the attribute, asks what is
+in front, and puts it back.
+
+**What rank 53 costs, and it is a fact rather than a finding**: the two buttons now sit under the
+drawer (55) and the confirmation (56) as well as under the message, where at 70 they sat over
+everything — so a drawer's scrim covers them until the drawer is closed. No integer between 56 and 57
+exists without re-spreading the frame's ranks, which is a decision nobody asked for.
+
 **B-393 — a candidate is chosen by a pill, not by its card.**
 
 On a phone screenshot of « Candidats ambigus » for « Lucky » (2026-09-11) the operator ruled, verbatim:
