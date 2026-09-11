@@ -73,6 +73,14 @@ idle pipeline only.
 
 THE HIT TEST IS INLINED, as it is in the other rules that tap: moving it to
 `common.py` needs a rule to be pointable at a build first (B-325).
+
+THE MESSAGE IS CLOSED, NEVER WIPED — RE-AIMED, and said here. This rule used to
+empty `#toast` by hand before each walk, on the ground that no gesture dismissed
+the greeting. That became false when the message took a finger (R159), and
+wiping the node blinded every hold to the message on screen. Each walk now
+closes it through the host's own `hide()`, waits the exit's drawn duration, and
+holds it gone from paint before a finger aims at anything. The close comes
+BEFORE the act; every hold on a sentence reads what the act says, after it.
 """
 import asyncio
 import json
@@ -141,15 +149,37 @@ THE_SUBJECTS = """()=>{
       ([number, aired, owned]) => (owned || 0) < (aired || 0))),
   };}"""
 
-# The greeting toast sits over the surface (B-317) and no gesture dismisses it,
-# so it is emptied: this walk does not prove the toast can be dismissed, only
-# that what is under it is reachable once it is gone.
-EMPTY_THE_TOAST = """()=>{const one = document.querySelector('#toast');
-  if (!one) return false;
-  one.textContent = "";
-  one.className = "";
-  one.removeAttribute("data-open");
-  return true;}"""
+# THE MESSAGE ON SCREEN IS CLOSED THE WAY THE INTERFACE CLOSES IT — the host's
+# own `hide()` — and read gone from PAINT, not wiped from the document.
+CLOSE_THE_MESSAGE = "()=>window.__toast?.hide?.()"
+MESSAGE_GONE = """()=>{
+  const host = document.querySelector('#toast');
+  if (!host) return {gone: true};
+  const style = getComputedStyle(host);
+  const held = window.__toast?.read?.();
+  return {gone: !(held && held.shown)
+            && (style.visibility === 'hidden' || Number(style.opacity) === 0),
+          shown: !!(held && held.shown), visibility: style.visibility,
+          opacity: style.opacity};}"""
+# The exit's drawn duration — the fade and the visibility step behind it,
+# 400 ms — and a frame.
+MESSAGE_EXIT = 450
+
+
+async def close_the_message(page, journal, where):
+    """Closes the message on screen through its host, and holds it gone from paint.
+
+    Args:
+        page: The page.
+        journal: Where the holds are recorded.
+        where: The walk, for the hold's own text.
+    """
+    await page.evaluate(CLOSE_THE_MESSAGE)
+    await page.wait_for_timeout(MESSAGE_EXIT)
+    gone = await page.evaluate(MESSAGE_GONE)
+    journal.check(f"{where}: the message on screen is closed by its host and gone from paint "
+                  "before a finger aims at anything",
+                  gone["gone"], str(gone))
 
 # WHAT A TAP AT THE ELEMENT'S CENTRE WOULD HIT, after bringing it into view.
 AIM = """([part, attribute, value])=>{
@@ -295,7 +325,7 @@ async def take_a_season(page, journal, errors, title, surface):
     # (B-316), so the grid cannot reach the panel by finger at all.
     await page.evaluate("""()=>window.__store.write({libMode: "list"})""")
     await page.wait_for_timeout(SETTLED)
-    await page.evaluate(EMPTY_THE_TOAST)
+    await close_the_message(page, journal, where)
     before = await page.evaluate(FOLLOWS)
     journal.check(f"{where}: nobody follows it before the act", title not in before,
                   f"status before: {before.get(title)!r}")
@@ -362,7 +392,7 @@ async def follow_from_its_sheet(page, journal, errors, title):
     """
     await page.evaluate("(id)=>window.__go(id)", DISCOVER_STATE)
     await page.wait_for_timeout(SETTLED)
-    await page.evaluate(EMPTY_THE_TOAST)
+    await close_the_message(page, journal, f"« {title} »")
     before = await page.evaluate(FOLLOWS)
     journal.check(f"« {title} »: nobody follows it before the finger does", title not in before,
                   f"status before: {before.get(title)!r}")
