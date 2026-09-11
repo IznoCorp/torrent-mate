@@ -433,6 +433,7 @@ when the defect comes back.
 | B-385 | `hooks/pre-push` runs `pytest -n auto` at every core on every push, beside whatever gate a wave is running; nothing sets `PYTEST_XDIST_AUTO_NUM_WORKERS` | by the steward | `open` |
 | B-386 | `scripts/heavy.sh` has ONE readiness floor for every run — a `make check` and a single-rule replay wait behind the same 4 GB and load 6 | by the steward | `open` |
 | B-387 | The project's PostToolUse formatter rewrote a `.py` a reader wrote under an untracked `.review/` directory: a hook that formats outside the tracked tree edits instruments it was never asked to | by L21's round-three reader | `open` |
+| B-393 | A resolution candidate is chosen by a full-width « C'est celui-ci » pill while the card itself answers no tap: the act takes more room than the medium it chooses, and the card a finger aims at does nothing | by the operator, 2026-09-11 | `open` |
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
@@ -844,6 +845,21 @@ round three, 2026-09-11). An instrument rewritten by a hook is an instrument its
 **Closes when** the hook skips git-ignored and untracked paths, held by a test that writes a file under
 an ignored directory and reads it unchanged after the hook. Owner: the configuration's session, not a
 lot.
+
+**B-393 — a candidate is chosen by a pill, not by its card.**
+
+On a phone screenshot of « Candidats ambigus » for « Lucky » (2026-09-11) the operator ruled, verbatim:
+« Le bouton de sélection prend trop de place, c'est toute la carte média qui doit être cliquable. »
+Reading A — the whole card is the tap target, a compact affordance at the button system's icon size
+replaces the pill, and the message's « Annuler » is the safety net — was put to him and validated
+(« À validé »). On `main` the candidate card (`ReleaseCard`, `features/arrivals/resolution-cards.tsx`)
+is a `div` with a full-width `actionButton()` pill under it carrying `data-resolve`; the engine's
+delegation answers `closest("button, a[data-navgo]")` only, so a tap on the poster, the title or the
+synopsis reaches nothing. The same class as B-315: a control drawn at a size its act does not need.
+**Closes when** a tap at the centre of the card's body resolves the folder, the affordance's box is no
+larger than the one size `iconButton` offers, the message's « Annuler » puts the folder back in the
+queue, and every tied candidate offers the act — held by the wave's rule, seen red on the unrepaired
+head. Owner: maquette-resolution-card.
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
 
