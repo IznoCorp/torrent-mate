@@ -29,10 +29,11 @@ import { cva } from "../cva";
      50  the tab bar             `tabBar`
      51  the bottom slot's bar   `selectionBar`
      52  the bottom sheet        `bottomSheet` (ui/variants/layout.ts)
+     53  the harness's buttons   `.hbtn` (styles/harness.css)
      55  the drawer              `drawer`
      56  the confirmation        `dialog`
      57  the message             `messageHost`
-     60  the popover, the harness panel, the sign-in gate
+     60  the popover, the harness's opened panel, the sign-in gate
      70  the splash
 
    THE MESSAGE IS THE ANSWER TO A VERB, so it ranks above every layer a verb is
@@ -46,6 +47,16 @@ import { cva } from "../cva";
    which cover everything by definition. `app/focus.ts` leaves the message out
    of the background it marks `inert`, for the same reason: a message a finger
    cannot close is a control that does nothing.
+
+   THE HARNESS HAS TWO ENTRIES, and it used to have one. This list said « the
+   harness panel » at 60 and did not distinguish the two floating buttons from
+   the panel they open — while `styles/harness.css` declared the buttons at 70,
+   the splash's rank. So a message drawn along the top of the frame, which is
+   exactly where those buttons sit, was painted UNDER chrome that is in no
+   production build (B-394). The buttons are 53 now: above the surfaces a verb
+   is pressed from, under the drawer, the confirmation and the message. The
+   opened panel stays 60, because it is the instrument the prototype is driven
+   with and a message over it would hide the control one is reaching for.
 
    AND THE MESSAGE HAS TWO POSITIONS FOR ITS ONE RANK. A rank decides what is
    painted where two layers meet; it cannot keep them from meeting. The sheet

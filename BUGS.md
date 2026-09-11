@@ -434,6 +434,7 @@ when the defect comes back.
 | B-386 | `scripts/heavy.sh` has ONE readiness floor for every run — a `make check` and a single-rule replay wait behind the same 4 GB and load 6 | by the steward | `open` |
 | B-387 | The project's PostToolUse formatter rewrote a `.py` a reader wrote under an untracked `.review/` directory: a hook that formats outside the tracked tree edits instruments it was never asked to | by L21's round-three reader | `open` |
 | B-393 | A resolution candidate is chosen by a full-width « C'est celui-ci » pill while the card itself answers no tap: the act takes more room than the medium it chooses, and the card a finger aims at does nothing | by the operator, 2026-09-11 | `open` |
+| B-394 | The harness's two floating buttons (the design note ⓘ and the states list ≡) are painted OVER a message shown at the top of the frame, so the sentence answering a verb pressed inside a layer is covered by chrome that is in no production build | by the operator, 2026-09-11 | `open` |
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
@@ -845,6 +846,27 @@ round three, 2026-09-11). An instrument rewritten by a hook is an instrument its
 **Closes when** the hook skips git-ignored and untracked paths, held by a test that writes a file under
 an ignored directory and reads it unchanged after the hook. Owner: the configuration's session, not a
 lot.
+
+**B-394 — the harness's floating buttons are painted over the message.**
+
+The operator read it on the journey sheet of « Wicker »: a message said while a layer is open is
+drawn at the top of the frame (L21's placement), and the harness's two buttons sit exactly there —
+`.hbtn` in `styles/harness.css`, anchored `right: 100px` under the safe area, 26 × 26 each. Measured
+on this head: **`.hbtn` declares `z-index: 70`**, the splash's rank, while the message host is 57.
+`ui/variants/frame.ts`'s ranked list says « 60 the popover, the harness panel, the sign-in gate » and
+**does not distinguish the buttons from the opened panel**, which is why the rank read as 60 and is
+in fact 70 — a list that names one thing where the stylesheet declares two.
+
+It is chrome that ships nowhere: `harness.css` is in the maquette's own build and in no production
+build, and `html.measuring` hides it before any capture. So it must not cover the product's own
+answer to a verb. **Ruled by the operator, 2026-09-11**: the floating buttons rank BELOW the message
+— the message covers them for its seconds — and the OPENED panel stays at 60, above everything,
+because it is the instrument one drives the prototype with.
+
+**Closes when** the buttons' rank is below the message's, the ranked list names the two entries
+separately with the reason beside each, and a hit test where the message overlaps a button answers
+the message — held by R163 (`message_above_harness.py`), seen red on the head that declares 70.
+Owner: maquette-resolution-card.
 
 **B-393 — a candidate is chosen by a pill, not by its card.**
 
