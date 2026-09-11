@@ -3017,7 +3017,7 @@ toggles it himself. This entry records what the rule read, not what the hand fou
 
 <sub>operator, 2026-09-06 · `grep -n "harness" CLAUDE.md` → the frame's status · `ls frontend/maquette/design/src/styles/harness.css`</sub>
 
-Brief: `docs/features/maquette-desktop-frame/BRIEF.md` (steward, 2026-09-06); launched after the
+Brief: `docs/features/maquette-desktop-frame/BRIEF.md@33cb259d9` (steward, 2026-09-06); launched after the
 `maquette-departure` micro-wave merges.
 
 **RULED by the operator on 2026-09-06 (round 2, question 6): a TOOLING micro-wave of its own**, in its own
