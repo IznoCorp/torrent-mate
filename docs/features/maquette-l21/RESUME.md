@@ -30,12 +30,21 @@ R155–**R160** are spent; **R161+** are free.
 
 ## 0. WHERE IT STANDS — read this before anything
 
-**Review round two's repairs are IN FLIGHT, and this file was written at the context gate between two
-of them.** The placement unit (§ 3.6) is built. Round two reported eight findings; **B1 and B2 are
-repaired, committed and pushed** with the commit that adds this text; **B3 to B8 are RULED and NOT
-built**, in the order and with the holds § 3.7 copies. **Nothing is half-done in the tree.** One ruling
-is waiting on the orchestrator — B6, which as written contradicts a hold that is green (§ 3.7). A
-session that picks this file up confirms that answer with the orchestrator before B6, and starts at B3.
+**A ROTATION, at a clean boundary. Nothing is half-done in the tree.** The head is the commit that adds
+this text, on top of `0ad30191f` (docs), `fadd79086` (B2) and `a056d6330` (B1), all pushed.
+
+- **Done**: the placement unit (§ 3.6); round two's **B1** (B-382, R160) and **B2** (B-381's third half,
+  R159's screen legs), each with its rule seen red, its mutation and its run (§ 3.7 and the entries).
+- **Owed, in the orchestrator's order**: **B3 → B6 → B4 → B8 → B7 → the docs** (B5's two corrections,
+  B-380's extent, B-383 filed). Each is specified in § 3.7 with its hold and its mutation. **B6 is
+  RULED** — the leave-and-reappear version, § 3.7.
+- **Next free**: **B-383** (already assigned by the ruling to the « said, not done » entry), **R161**.
+- **Gates**: contracts + oracle **per commit** (the oracle's accepted list is 44 over the same 23
+  states, none on the message); **no full suite has run since `1e9e7c48e`** — ONE on the final head at
+  the end of the list, then hold-counts with the baseline file, `make check`, `design/dist` rebuilt, the
+  wrapped push, the report with each mutation line, the gauge last.
+- **Mutate only on a clean tree**, and write `.md`/`.ts` changes by script or re-read `git diff --stat`
+  before every commit (§ 3.7's hook note).
 
 ---
 
@@ -368,14 +377,15 @@ control `8f926738a`); its walks `b01`…`b16` are the shape of the holds below. 
    across `window.__panel.redraw()` — restore an index or offset, not a pixel guess; `preventScroll` on
    any focus. Hold in R157: `scrollTop` unchanged after the verb on a panel scrolled by a real touch
    stream; mutation = the restore removed.
-2. **B6 — ⚠ ASK FIRST.** Ruled « a shown message keeps its edge until it leaves, for screens as for
-   layers; hold: the edge does not change while a message is shown; mutation = `followTheLayers` moving
-   a shown message at once ». **As written it undoes R159's leg 5** (a message up BEFORE a sheet opens
-   moves off it) **and re-breaks the four rules the placement unit turned green** — their covering
-   message is exactly the boot hint shown before the sheet opens. The reader's closing criterion is
-   different: « a shown message that changes edge does so without a jump the reader watches » (for
-   instance leaving and re-entering at the new edge). The question went to the orchestrator with the
-   commits of B1/B2; do not build B6 before the answer.
+2. **B6 — repair, RULED.** A screen that closes while its message is up threw the message from the top
+   to the bottom in one frame at full opacity (y 16 → 724). **The property is the reader's**: a shown
+   message that must change edge LEAVES (its fade) and reappears at the new edge — never a teleport at
+   full opacity. Hold in R159: during a layer change, no frame shows the message at full opacity outside
+   both its old and its new edge; mutation = the immediate move in `followTheLayers`. **The four rules
+   the placement unit turned green (`deck_verbs.py`, `journey_verbs.py`, `remove_verb.py`,
+   `stacking.py`) and R159's leg 5 stay green** — a message up before a sheet opens still moves off it.
+   ⚠ **The orchestrator's first rule (keep the edge) was withdrawn: it would re-cover the layer's bottom
+   actions** — the boot hint back over « Pas intéressé » and the four rules felled again.
 3. **B4 — repair, minimal.** Under `__mocks.setOperationOutcome('grabSeasonForFollow',
    {latencyMilliseconds: 2500})` the pressed act shows nothing and further presses vanish. Draw it as
    TAKEN while its ask is in flight — the button system's existing busy affordance if one exists
