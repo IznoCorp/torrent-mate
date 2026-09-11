@@ -569,10 +569,31 @@ episodes that have not aired, and move the follow panel's figures with it. The r
 in how the sheet counts, and a fixture edit is not a contained edit (B-369) — a decision of its own,
 with a full-suite run behind it.
 
-**The question under it is the operator's**: does « manquants » count the episodes that have AIRED, or
-the episodes in the CATALOGUE? The answer decides which family is the seed to correct — `seasons.json`
-if the catalogue is the truth, the sheet's count if airing is. **Provisional owner: the « mock layer »
-micro-wave, beside B-379.**
+**The question under it was the operator's** — does « manquants » count the episodes that have AIRED,
+or the episodes in the CATALOGUE? — because the answer decides which family is the seed to correct.
+**Ruled on 2026-09-11**: « Manquant : les épisodes diffusés et non possédés ! S'il n'existe pas (pas
+encore diffusé) alors je ne peux pas les avoir donc ils ne manquent pas encore, mais ils sont là pour
+informer l'utilisateur de sorties à venir d'épisodes. »
+
+What follows from it, and **none of it is built in L21**:
+
+1. **The follow panel counts correctly** (aired minus owned). **The SHEET's row is the wrong one**: it
+   takes the catalogue total as its denominator, so « Saison 3 · 6/10 · 4 manquants » on Silo is a
+   defect. The right reading is « 1 manquant », with the three episodes not yet aired shown as
+   UPCOMING information and never counted as missing.
+2. **The seed families are reconciled towards the AIRED counts**, and the sheet catalogue says which
+   episodes have aired — a date or a flag — so the upcoming ones can be drawn as information. Both
+   belong to the « mock layer » micro-wave, with B-379. How the sheet DRAWS « à venir » is a surface
+   decision for the lot that owns the media sheet, drawn in the maquette first.
+3. **Status stays `open`. Owner: the « mock layer » micro-wave** (the seed and the catalogue); the
+   sheet's counting follows it.
+
+**Read on screen on L21's head `d65679c0f`** (build `de36920b9ce9`, served on a port of its own, a
+finger on every step): from « Incomplets », « Les Animaniacs »' poster opens the sheet; the row reads
+« Saison 5 0/23 23 manquants » and offers « Récupérer la saison 5 »; the tap answers « Série suivie et
+saison 5 demandée — aucun épisode à récupérer. » and the show is followed afterwards (`acquiring`). On
+the same build, « Les aventures de Tintin »' follow panel — whose families agree — reads « Saison 3
+7/13 6 manquants » and answers « Série suivie et saison 3 demandée — 6 épisodes à récupérer. »
 
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
