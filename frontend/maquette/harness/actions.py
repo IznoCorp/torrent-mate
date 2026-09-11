@@ -48,6 +48,8 @@ async def main():
     a=await pg.evaluate(cnt); print("\nbefore pick          :", {k:a[k] for k in ('stuck','moving')})
     nb=await pg.evaluate("()=>document.querySelectorAll('[data-nonmedia=candidat]').length")
     assert nb==5, f"expected the five real candidates, got {nb}"
+    # The candidate CARD carries `data-resolve` since B-393, so this click lands
+    # on the card rather than on the pill it replaced; a finger's proof is R161's.
     await pg.evaluate("()=>document.querySelector('[data-resolve]').click()"); await pg.wait_for_timeout(700)
     b2b=await pg.evaluate(cnt); print("after pick           :", {k:b2b[k] for k in ('stuck','moving')})
     # The folder was on « À traiter », the acquisition side of the same queue.

@@ -9,8 +9,10 @@ import { useTranslation } from "react-i18next";
 // sentence, and `t()` would only wrap the lookup in a second one.
 import fr from "../../i18n/fr.json";
 import { useArrivalsReference, type PendingDecision, type SettledDecision } from "./reference";
-import { actionButton, ruleNote } from "../../ui/variants";
+import { iconButton, ruleNote } from "../../ui/variants";
+import { Icon } from "../../ui/icon";
 import { Markup } from "../../ui/markup";
+import { candidateCard, candidatePick } from "./variants";
 
 // A RELEASE is not a medium, and its card is deliberately a different object.
 // A release has no media sheet and no panel — it is one candidate among
@@ -20,9 +22,10 @@ import { Markup } from "../../ui/markup";
 // It is marked `data-nonmedia` so the contract check can tell the two apart by
 // construction rather than by knowing which screens draw which.
 //
-// The legacy twin is `releaseCardHTML(titre, meta, confiance, opts)`; the
-// props below are that signature, and the emission is the same tags, classes
-// and attributes. The poster's inner markup comes from the published
+// The legacy twin was `releaseCardHTML(titre, meta, confiance, opts)`; the
+// props below are that signature. Its emission stopped being the twin's the
+// day the card became the gesture, below. The poster's inner markup comes from
+// the published
 // `posterBox` rather than from a re-implementation: its image-or-initials
 // fallback is exactly what a second copy would drift on.
 export function ReleaseCard({
@@ -42,11 +45,25 @@ export function ReleaseCard({
     overview?: string;
   };
 }) {
-  const { posterBox } = useArrivalsReference();
+  const { posterBox, icons } = useArrivalsReference();
   const { t } = useTranslation();
+  // THE CARD IS THE GESTURE: one tap anywhere on it picks the candidate. It is a
+  // BUTTON because the engine's delegation answers `button` and nothing else —
+  // a `div` carrying `data-resolve` is reached by no finger — and the attribute
+  // sits on the element tapped, never on a child. Its top row is a `span`
+  // because a button holds phrasing content only. What stays at the right edge
+  // is a MARK at the icon button's one size, never a control: a button inside
+  // this one would be invalid markup and a control nobody can name. Pressed, it
+  // wears the base layer's `:active`, like every button.
   return (
-    <div className="card" data-part="card" data-nonmedia={opts.genre || "release"}>
-      <div className="ctop" data-part="card/top">
+    <button
+      type="button"
+      className={`card ${candidateCard()}`}
+      data-part="card"
+      data-nonmedia={opts.genre || "release"}
+      data-resolve={title || undefined}
+    >
+      <span className="ctop" data-part="card/top">
         <Markup tag="span"
           className="poster"
           data-part="card/poster"
@@ -76,11 +93,11 @@ export function ReleaseCard({
             ""
           )}
         </span>
-      </div>
-      <button className={`cfoot solid ${actionButton()}`} data-part="card/foot" data-solid="" data-resolve={title || undefined}>
-        {t("screens.resolution.pickThis")}
-      </button>
-    </div>
+        <span className={`${iconButton()} ${candidatePick()}`} data-part="card/pick" aria-hidden="true">
+          <Icon paths={icons.check} />
+        </span>
+      </span>
+    </button>
   );
 }
 
