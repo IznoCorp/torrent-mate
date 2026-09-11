@@ -363,6 +363,90 @@ async def hold_the_taken_act(page, journal):
     await page.wait_for_timeout(PANEL_IN)
 
 
+# THE SAME ACT ON THE MEDIA SCREEN, by the season it asks for: whether it is
+# drawn as taken, its text, what a finger at its centre would meet, and how many
+# of the screen's acts are drawn as taken.
+MEDIA_SCREEN_STATE = "mediasheet-series"
+SCREEN_ACT = """(asked)=>{
+  const screens = [...document.querySelectorAll('[data-part="screen"][data-open]')];
+  const screen = screens[screens.length - 1];
+  if (!screen) return {found: false, screen: false};
+  const taken = screen.querySelectorAll('[data-grab-season][aria-busy="true"]').length;
+  const act = [...screen.querySelectorAll('[data-grab-season]')]
+    .find((one) => one.dataset.grabSeason === asked);
+  if (!act) return {found: false, screen: true, taken};
+  const box = act.getBoundingClientRect();
+  const x = box.left + box.width / 2;
+  const y = box.top + box.height / 2;
+  const hit = document.elementFromPoint(x, y);
+  return {found: true, screen: true, taken, busy: act.getAttribute('aria-busy'), x, y,
+          reached: !!hit && (hit === act || act.contains(hit)),
+          text: (act.textContent || '').trim()};}"""
+
+# THE SCREEN'S FIRST SEASON ACT OPENED UNDER A FINGER: its season row opened if
+# it is folded — the fold is not what is read — and the act scrolled to the
+# middle of the screen.
+OPEN_THE_SCREEN_ACT = """()=>{
+  const screens = [...document.querySelectorAll('[data-part="screen"][data-open]')];
+  const act = screens.length ? screens[screens.length - 1].querySelector('[data-grab-season]') : null;
+  if (!act) return '';
+  const row = act.closest('details');
+  if (row && !row.open) row.open = true;
+  act.scrollIntoView({block: 'center'});
+  return act.dataset.grabSeason;}"""
+
+
+async def hold_the_screen_act_taken(page, journal):
+    """Holds that the media screen's season act is drawn as TAKEN while its ask is in flight.
+
+    The follow panel's act is held above, and the screen draws the same act
+    through `features/media/season-list.tsx` — which no rule read: with its
+    `aria-busy` dropped every rule stayed green and the screen's act went back to
+    showing nothing in flight (review round three). Read the same way: true after
+    a finger's press while the answer is held, the text unchanged, and no act on
+    the screen drawn as taken once it is answered.
+
+    Args:
+        page: The page under test.
+        journal: Where the holds are recorded.
+    """
+    await page.evaluate("()=>window.__panel?.close?.()")
+    await page.evaluate("(id)=>window.__go(id)", MEDIA_SCREEN_STATE)
+    await page.wait_for_timeout(SETTLED * 3)
+    await page.evaluate("()=>window.__toast?.hide?.()")
+    asked = await page.evaluate(OPEN_THE_SCREEN_ACT)
+    await page.wait_for_timeout(SETTLED)
+    before = await page.evaluate(SCREEN_ACT, asked) if asked else {"found": False}
+    journal.check(
+        "the media screen offers a season act under a finger, not drawn as taken",
+        before.get("found") and before.get("reached") and before.get("busy") != "true",
+        str(before))
+    if not (before.get("found") and before.get("reached")):
+        return
+
+    await page.evaluate(
+        """(milliseconds)=>window.__mocks.setOperationOutcome(
+             'grabSeasonForFollow', {latencyMilliseconds: milliseconds})""",
+        HELD_BACK_MS)
+    await page.touchscreen.tap(before["x"], before["y"])
+    await page.wait_for_timeout(PANEL_IN)
+    during = await page.evaluate(SCREEN_ACT, asked)
+    journal.check(
+        "WHILE ITS ASK IS IN FLIGHT the media screen's act is drawn as TAKEN — "
+        "aria-busy true, its text unchanged",
+        during.get("busy") == "true" and during.get("text") == before.get("text"),
+        f"aria-busy {during.get('busy')!r}, text {during.get('text')!r}")
+
+    await page.wait_for_timeout(HELD_BACK_MS + ACTED)
+    after = await page.evaluate(SCREEN_ACT, asked)
+    journal.check(
+        "once answered, no season act on the media screen is drawn as taken",
+        after.get("screen") and after.get("taken", 0) == 0, str(after))
+    await page.evaluate(
+        """()=>window.__mocks.setOperationOutcome(
+             'grabSeasonForFollow', {latencyMilliseconds: 0})""")
+
+
 # EVERY SENTENCE A SEASON ASK CAN SPEAK, read from the resource the interface
 # reads — a retyped sentence renders correctly in a rule while the reference is
 # broken.
@@ -620,6 +704,7 @@ async def main():
         await hold_the_place(page, journal)
         await hold_the_taken_act(page, journal)
         await hold_the_named_answer(page, journal)
+        await hold_the_screen_act_taken(page, journal)
 
         await context.close()
         await browser.close()

@@ -41,6 +41,10 @@ load had answered « Réserve épuisée ». Three states, three chosen sentences
      list's sentence, which does not contradict the footer, with its offer.
   5. THE RESERVE EXHAUSTED — the load pressed until it answered nothing and
      said so — the mark is the exhausted sentence, with nothing to load.
+  6. THE PILE after that exhaustion — its own mark, drawn by the same function
+     through its own branch — says the exhausted sentence too, with nothing to
+     load. Only the list was read, and a pile that went on offering to load
+     after « Réserve épuisée » left this rule green (review round three).
 
 Both are read in the resource the interface reads. The load is pressed with
 `element.click()`: what is held is the words after the press, not the press.
@@ -112,6 +116,16 @@ THE_END = """()=>{
           total: (window.__suggestions?.() || []).length,
           said: held && held.message ? held.message.message || '' : ''};}"""
 
+# THE PILE'S OWN END MARK — the empty state drawn outside the list — and whether
+# any offer to load is drawn on screen.
+THE_PILE_END = """()=>{
+  const text = (node) => node ? (node.textContent || '').replace(/\\s+/g, ' ').trim() : '';
+  const drawn = (node) => { const box = node.getBoundingClientRect(); return box.width > 0 && box.height > 0; };
+  const mark = [...document.querySelectorAll('[data-part="empty-state"]')]
+    .find((one) => !one.closest('#sugitems') && drawn(one));
+  return {mode: window.__store.read().state.sugMode, mark: text(mark),
+          offer: [...document.querySelectorAll('[data-sugmore]')].some(drawn)};}"""
+
 PRESS_THE_OFFER = """()=>{
   const offer = document.querySelector('#sugitems [data-sugmore]');
   if (!offer) return false;
@@ -171,6 +185,23 @@ async def hold_the_end_mark(page, journal):
         "d'autres » with « Charger 30 de plus »",
         exhausted is not None and exhausted in end["mark"] and not end["offer"],
         f"mark {end['mark']!r}, offer {end['offer']}")
+
+    # 6. The pile, spent after the exhaustion: left and re-entered first, so the
+    # deck redraws its body rather than keeping the list's.
+    await page.evaluate(SET_MODE, "poster")
+    await page.wait_for_timeout(SETTLED)
+    await page.evaluate(SPEND)
+    await page.wait_for_timeout(SETTLED)
+    pile = await page.evaluate(THE_PILE_END)
+    journal.check(
+        "after the reserve is exhausted, the pile is spent and draws its own end "
+        "mark — else the next hold reads nothing",
+        pile["mode"] == "deck" and bool(pile["mark"]), str(pile))
+    journal.check(
+        "and the PILE's mark says the reserve is EXHAUSTED too, and offers "
+        "nothing to load — it went on offering « Charger 30 de plus »",
+        exhausted is not None and exhausted in pile["mark"] and not pile["offer"],
+        f"mark {pile['mark']!r}, offer {pile['offer']}")
 
 
 async def main():
