@@ -111,22 +111,25 @@ SAID = """()=>{const held = window.__toast?.read?.();
   return held && held.message ? held.message.message || '' : '';}"""
 
 
-def sentence_for_an_existing_follow(season, count):
+def sentence_for_an_existing_follow(season, count, title):
     """The sentence the act chooses for a follow that already existed.
 
     Args:
         season: The season asked for.
         count: The episodes the season is missing.
+        title: The show the sentence names.
 
     Returns:
         The sentence, from the interface's own resource.
     """
     if count == 0:
-        return SENTENCES["seasonAskedNone"].replace("{{season}}", str(season))
-    if count == 1:
-        return SENTENCES["seasonAskedOne"].replace("{{season}}", str(season))
-    return (SENTENCES["seasonAsked"].replace("{{season}}", str(season))
-            .replace("{{count}}", str(count)))
+        key = "seasonAskedNone"
+    elif count == 1:
+        key = "seasonAskedOne"
+    else:
+        key = "seasonAsked"
+    return (SENTENCES[key].replace("{{season}}", str(season))
+            .replace("{{count}}", str(count)).replace("{{title}}", title))
 
 
 async def take_a_season(page, journal, errors, bare, dated):
@@ -186,7 +189,7 @@ async def take_a_season(page, journal, errors, bare, dated):
                   after.get(bare) == BEING_ACQUIRED,
                   f"{before.get(bare)!r} → {after.get(bare)!r}")
     said = await page.evaluate(SAID)
-    expected = sentence_for_an_existing_follow(season, count) if count is not None else None
+    expected = sentence_for_an_existing_follow(season, count, bare) if count is not None else None
     journal.check(f"{where}: the sentence is the one for a follow that existed, at the panel's count",
                   expected is not None and said == expected, f"{said!r} against {expected!r}")
     journal.check(f"{where}: pressing raises no error", not errors, str(errors))

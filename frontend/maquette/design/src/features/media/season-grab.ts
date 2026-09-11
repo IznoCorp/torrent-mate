@@ -153,7 +153,7 @@ export async function grabSeason(title: string, season: number): Promise<boolean
       `/api/acquisition/follows/${encodeURIComponent(title)}/seasons/${season}/grab`,
     );
     if (answered === HELD) {
-      window.__toast?.show({ message: say("seasonHeld", { season }) });
+      window.__toast?.show({ message: say("seasonHeld", { season, title }) });
       return false;
     }
     const grab = answered as SeasonGrab | undefined;
@@ -170,6 +170,11 @@ export async function grabSeason(title: string, season: number): Promise<boolean
     // answer's `newlyFollowed`. Never a clause appended to one of the others,
     // and never a key assembled from two halves: every key is written out, so
     // a reader searching for one finds the line that chooses it.
+    //
+    // AND EVERY SENTENCE NAMES THE SHOW. An answer held back lands over whatever
+    // panel is open by then: « Saison 3 demandée » said over American Dad!'s
+    // panel read as about American Dad!, where the ask was Silo's. The take's
+    // own sentence already names its show.
     const count = grab?.absorbedCount ?? 0;
     const newly = grab?.newlyFollowed === true;
     const messageKey = grab?.queued
@@ -180,14 +185,14 @@ export async function grabSeason(title: string, season: number): Promise<boolean
           ? newly ? "seasonAskedOneNewlyFollowed" : "seasonAskedOne"
           : newly ? "seasonAskedNewlyFollowed" : "seasonAsked";
     window.__toast?.show({
-      message: say(messageKey, { season, count }),
+      message: say(messageKey, { season, count, title }),
     });
     return grab?.queued === true;
   } catch {
     // THE REFUSAL IS SAID, and it is said as a refusal. Swallowing it would
     // leave the operator looking at a season that never moved with no reason
     // given — the silent failure this interface's own constitution refuses.
-    window.__toast?.show({ message: say("seasonRefused", { season }) });
+    window.__toast?.show({ message: say("seasonRefused", { season, title }) });
     return false;
   } finally {
     // IN A `finally`, so a refused ask can be made again. Released on the

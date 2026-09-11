@@ -133,6 +133,14 @@ on the design host, in the browser console, `__mocks.setOperationOutcome('grabSe
 {latencyMilliseconds: 2500})`, then « Récupérer la saison 3 » in Silo's follow panel — the button dims
 for the wait and comes back with the answer. The media sheet's season list draws its act the same way.
 
+**Every sentence the ask speaks names the show** (review round two, B8): an answer held back lands over
+whatever panel is open by then, and « Saison 3 demandée » said over American Dad!'s panel read as about
+American Dad!. The ten keys — the six asked, the two queued, held and refused — carry `{{title}}`, as
+the take's « … retenue pour « Silo » » already did. **The wording is this session's, and the operator
+may reword every one of them**; the three shapes chosen are « Saison {{season}} de « {{title}} »
+demandée — … », « Série « {{title}} » suivie et saison {{season}} demandée — … » and « Saison
+{{season}} de « {{title}} » en file — pipeline en cours. », held and refused following the first.
+
 **Why not `features/acquisition/`**: the season matrix is drawn on the media side and invariant 7
 is absolute. The acquisition feature is not imported; the OPERATION is called.
 

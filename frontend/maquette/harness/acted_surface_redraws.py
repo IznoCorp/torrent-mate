@@ -37,6 +37,7 @@ sent two identical requests and produced one message: the interface asked twice
 and said so once. It is held on what the LAYER answered, never on the screen.
 """
 import asyncio
+import json
 import pathlib
 import sys
 
@@ -362,6 +363,101 @@ async def hold_the_taken_act(page, journal):
     await page.wait_for_timeout(PANEL_IN)
 
 
+# EVERY SENTENCE A SEASON ASK CAN SPEAK, read from the resource the interface
+# reads — a retyped sentence renders correctly in a rule while the reference is
+# broken.
+SEASON_SENTENCE_KEYS = (
+    "seasonAsked", "seasonAskedOne", "seasonAskedNone",
+    "seasonAskedNewlyFollowed", "seasonAskedOneNewlyFollowed",
+    "seasonAskedNoneNewlyFollowed",
+    "seasonQueued", "seasonQueuedNewlyFollowed",
+    "seasonHeld", "seasonRefused",
+)
+MEDIA_SENTENCES = json.loads(
+    (pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "i18n"
+     / "fr.json").read_text(encoding="utf-8"))["verbs"]["media"]
+
+SAID = """()=>{const held = window.__toast?.read?.();
+  return held && held.message ? held.message.message || '' : '';}"""
+
+OPEN_PANEL_TITLE = """()=>(window.__store.read().state.panelDescriptor || {}).title || ''"""
+
+
+async def hold_the_named_answer(page, journal):
+    """Holds that a season's answer names the show it is about.
+
+    THE DEFECT: Silo's season 3 asked with the answer held back, the panel
+    closed, American Dad!'s opened — and the answer landed over American Dad!'s
+    panel as « Saison 3 demandée — 1 épisode à récupérer. », reading as about
+    American Dad!. The take's own sentence names its show (« … retenue pour
+    « Silo » »); the season's did not.
+
+    TWO READINGS. Every one of the ten sentences a season ask can speak carries
+    the show — read in the resource, because most of the ten are reached by no
+    walk a fixture allows (offline, a busy pipeline, a follow begun). And on the
+    walk B8 was measured on, answered and then refused, the sentence that lands
+    over the OTHER show's panel names the show that was asked for.
+
+    Args:
+        page: The page under test.
+        journal: Where the holds are recorded.
+    """
+    unnamed = [key for key in SEASON_SENTENCE_KEYS
+               if "{{title}}" not in MEDIA_SENTENCES.get(key, "")]
+    journal.check(
+        "every sentence a season ask can speak names its show — each of the ten "
+        "keys carries {{title}}",
+        not unnamed, ", ".join(unnamed) or "all ten")
+
+    for status, label in ((200, "answered"), (409, "refused")):
+        await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
+        await page.wait_for_timeout(SETTLED)
+        followed = await page.evaluate(
+            """()=>(window.__followActions?.all?.() || []).map((one) => one.t)""")
+        asked = ""
+        for title in followed:
+            await page.evaluate("(t)=>window.__panel.produce('follow', t)", title)
+            await page.wait_for_timeout(PANEL_IN)
+            asked = await page.evaluate(A_HOLE)
+            if asked:
+                break
+            await page.evaluate("()=>window.__panel.close()")
+            await page.wait_for_timeout(PANEL_IN)
+        subject = asked.split("|")[0]
+        other = next((title for title in followed if title != subject), "")
+        journal.check(f"{label}: a follow offers a season act, and another follow exists",
+                      bool(asked) and bool(other), f"{asked!r} and {other!r}")
+        if not (asked and other):
+            continue
+
+        await page.evaluate(
+            """(status)=>window.__mocks.setOperationOutcome('grabSeasonForFollow',
+                 {status, latencyMilliseconds: %d})""" % HELD_BACK_MS, status)
+        act = await page.evaluate(TAKEN, asked)
+        if not (act.get("found") and act.get("reached")):
+            journal.check(f"{label}: the act is under a finger", False, str(act))
+            continue
+        await page.touchscreen.tap(act["x"], act["y"])
+        await page.wait_for_timeout(ACTED // 4)
+        await page.evaluate("()=>window.__panel.close()")
+        await page.wait_for_timeout(PANEL_IN)
+        await page.evaluate("(t)=>window.__panel.produce('follow', t)", other)
+        await page.wait_for_timeout(PANEL_IN)
+        opened = await page.evaluate(OPEN_PANEL_TITLE)
+        await page.wait_for_timeout(HELD_BACK_MS + ACTED)
+        said = await page.evaluate(SAID)
+        journal.check(
+            f"{label}: the answer that lands over « {other} »'s panel names "
+            f"« {subject} », the show that was asked for",
+            opened == other and bool(said) and subject in said,
+            f"panel {opened!r}, said {said!r}")
+        await page.evaluate(
+            """()=>window.__mocks.setOperationOutcome('grabSeasonForFollow',
+                 {status: 200, latencyMilliseconds: 0})""")
+        await page.evaluate("()=>window.__panel.close()")
+        await page.wait_for_timeout(PANEL_IN)
+
+
 async def agrees_with_the_cache(page, journal, produce, half):
     """Holds that what is on screen is what a fresh produce would draw.
 
@@ -523,6 +619,7 @@ async def main():
 
         await hold_the_place(page, journal)
         await hold_the_taken_act(page, journal)
+        await hold_the_named_answer(page, journal)
 
         await context.close()
         await browser.close()

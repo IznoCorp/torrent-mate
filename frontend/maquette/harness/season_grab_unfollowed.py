@@ -248,21 +248,23 @@ SAID = """()=>{
 SURFACE_TEXT = "(scope)=>(document.querySelector(scope)?.textContent || '')"
 
 
-def chosen_for_a_follow_begun(said, season):
+def chosen_for_a_follow_begun(said, season, title):
     """Says whether a message is one of the sentences chosen for a follow begun.
 
     Args:
         said: What the interface said.
         season: The season the act was for.
+        title: The show the sentence names.
 
     Returns:
         The matching key, or an empty string.
     """
     for key in NEWLY_FOLLOWED_KEYS:
-        pieces = re.split(r"(\{\{season\}\}|\{\{count\}\})", SENTENCES[key])
+        pieces = re.split(r"(\{\{season\}\}|\{\{count\}\}|\{\{title\}\})", SENTENCES[key])
         pattern = "".join(
             re.escape(str(season)) if piece == "{{season}}"
             else r"\d+" if piece == "{{count}}"
+            else re.escape(title) if piece == "{{title}}"
             else re.escape(piece)
             for piece in pieces)
         if re.fullmatch(pattern, said):
@@ -338,7 +340,7 @@ async def take_a_season(page, journal, errors, title, surface):
                   title in after, f"status after: {after.get(title)!r}")
     said = await page.evaluate(SAID)
     journal.check(f"{where}: the sentence is the one CHOSEN for a follow begun by the act",
-                  bool(chosen_for_a_follow_begun(said, number)), repr(said))
+                  bool(chosen_for_a_follow_begun(said, number, title)), repr(said))
     journal.check(f"{where}: the surface pressed reads differently afterwards",
                   await page.evaluate(SURFACE_TEXT, scope) != looked_at)
     journal.check(f"{where}: tapping raises no error", not errors, str(errors))

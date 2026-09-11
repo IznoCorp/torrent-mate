@@ -959,16 +959,16 @@
       "taken": "« {{title}} » récupéré — suivez-le dans « En vol »."
     },
     "media": {
-      "seasonAsked": "Saison {{season}} demandée — {{count}} épisodes à récupérer.",
-      "seasonAskedOne": "Saison {{season}} demandée — 1 épisode à récupérer.",
-      "seasonAskedNone": "Saison {{season}} demandée — aucun épisode à récupérer.",
-      "seasonAskedNewlyFollowed": "Série suivie et saison {{season}} demandée — {{count}} épisodes à récupérer.",
-      "seasonAskedOneNewlyFollowed": "Série suivie et saison {{season}} demandée — 1 épisode à récupérer.",
-      "seasonAskedNoneNewlyFollowed": "Série suivie et saison {{season}} demandée — aucun épisode à récupérer.",
-      "seasonQueued": "Saison {{season}} en file — pipeline en cours.",
-      "seasonQueuedNewlyFollowed": "Série suivie et saison {{season}} en file — pipeline en cours.",
-      "seasonHeld": "Saison {{season}} demandée — en attente du réseau, elle partira au retour.",
-      "seasonRefused": "Saison {{season}} : la demande n'a pas abouti."
+      "seasonAsked": "Saison {{season}} de « {{title}} » demandée — {{count}} épisodes à récupérer.",
+      "seasonAskedOne": "Saison {{season}} de « {{title}} » demandée — 1 épisode à récupérer.",
+      "seasonAskedNone": "Saison {{season}} de « {{title}} » demandée — aucun épisode à récupérer.",
+      "seasonAskedNewlyFollowed": "Série « {{title}} » suivie et saison {{season}} demandée — {{count}} épisodes à récupérer.",
+      "seasonAskedOneNewlyFollowed": "Série « {{title}} » suivie et saison {{season}} demandée — 1 épisode à récupérer.",
+      "seasonAskedNoneNewlyFollowed": "Série « {{title}} » suivie et saison {{season}} demandée — aucun épisode à récupérer.",
+      "seasonQueued": "Saison {{season}} de « {{title}} » en file — pipeline en cours.",
+      "seasonQueuedNewlyFollowed": "Série « {{title}} » suivie et saison {{season}} en file — pipeline en cours.",
+      "seasonHeld": "Saison {{season}} de « {{title}} » demandée — en attente du réseau, elle partira au retour.",
+      "seasonRefused": "Saison {{season}} de « {{title}} » : la demande n'a pas abouti."
     },
     "journey": {
       "requeueAsked": "Remis en file — le passage reprend où il s'est arrêté.",
