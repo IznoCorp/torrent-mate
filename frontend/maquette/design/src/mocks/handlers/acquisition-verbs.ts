@@ -17,6 +17,7 @@
 // journey by the title too; the backend wants a rowid and an info hash. The
 // demand register carries that (§ 2b), and no identifier is invented here.
 import SEASONS from "../seeds/seasons.json";
+import INCOMPLETE_SHOWS from "../seeds/incomplete-shows.json";
 import JOURNEY_STAGES from "../seeds/journey-stages.json";
 import { POST, route } from "./shared";
 import { mockState } from "../state";
@@ -39,6 +40,15 @@ const UPCOMING = "todo";
 // What a follow being acquired reads as — the contract's own `Follow.status`
 // token, carried like every other token in this layer.
 const BEING_ACQUIRED = "acquiring";
+
+// What a follow begun by a season's ask is, before anything runs for it. The
+// same tokens and blanks `createFollow` gives a follow its request does not
+// fully describe: a value copied off another record would typecheck and read as
+// real, which is worse than a blank.
+const WAITING = "pending";
+const SHOW = "show";
+const NEWLY_FOLLOWED_SINCE = "";
+const UNKNOWN_YEAR = 0;
 
 // The seeds this module derives from, named at their shapes. A handler holds no
 // data literal: what it answers traces to one of these or to the request.
@@ -146,6 +156,34 @@ function episodesMissingFromSeason(title: string, season: number): number {
   return missing > 0 ? missing : 0;
 }
 
+/**
+ * The follow a season's ask begins, for a medium nobody followed.
+ *
+ * BUILT FROM THE LIBRARY'S OWN RECORD OF THE SHOW, and from nothing else. The
+ * only surface that reaches this path is the « Incomplets » lens, and the
+ * incomplete show it drew carries the year and the owned and aired counts; a
+ * medium the library does not hold gets the blanks `createFollow` uses.
+ *
+ * @param title The medium, by title.
+ * @returns A follow record in the contract's shape.
+ */
+function beginFollow(title: string) {
+  const show = (INCOMPLETE_SHOWS as {
+    title: string; owned: number; aired: number; year: number;
+  }[]).find((one) => one.title === title);
+  return {
+    title,
+    kind: SHOW,
+    year: show?.year ?? UNKNOWN_YEAR,
+    status: queued() ? WAITING : BEING_ACQUIRED,
+    showStatus: null,
+    since: NEWLY_FOLLOWED_SINCE,
+    searches: 0,
+    fresh: true,
+    ...(show === undefined ? {} : { owned: show.owned, aired: show.aired }),
+  };
+}
+
 /** Every route the tunnel's verbs answer. */
 export function acquisitionVerbRoutes(): MockRoute[] {
   return [
@@ -164,6 +202,15 @@ export function acquisitionVerbRoutes(): MockRoute[] {
         // one.
         const found = state.follows.find((follow) => follow.title === title);
         if (found !== undefined && !queued()) found.status = BEING_ACQUIRED;
+        // AND A MEDIUM NOBODY FOLLOWS IS FOLLOWED BY THE ASK (B-378). This
+        // handler used to move a status only when it FOUND a follow, so for an
+        // incomplete show reached from the library it answered 201 with a real
+        // count over a world in which nothing had changed — a success the
+        // operator could see was false. The act implies the follow: it is
+        // created here, at the head of the list as `createFollow` puts one, and
+        // the answer says so. Waiting when the machine is busy, since nothing
+        // runs for it yet; being acquired when the ask starts now.
+        if (found === undefined) state.follows = [beginFollow(title), ...state.follows];
         return {
           season,
           absorbedCount: episodesMissingFromSeason(title, season),
@@ -172,6 +219,7 @@ export function acquisitionVerbRoutes(): MockRoute[] {
           // identifier at all — `runPipeline` answers `uid: null` for the same
           // reason — and the register asks the backend for one.
           runUid: null,
+          newlyFollowed: found === undefined,
         };
       },
     ),
