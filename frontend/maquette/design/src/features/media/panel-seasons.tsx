@@ -29,7 +29,7 @@ export type Season = ReturnType<MediaReference["seasonsOf"]>[number];
 // draws it, so the two halves of the contract cannot drift apart.
 declare module "../../ui/panel/contract" {
   interface PanelBlockMap {
-    saisons: { isFollowed: Follow; seasons: Season[] };
+    saisons: { follow: Follow; seasons: Season[] };
   }
 }
 
@@ -221,7 +221,7 @@ function SeasonsBlock({
   block: { type: "saisons" } & PanelBlockMap["saisons"];
 }) {
   const reference = useMediaReference();
-  const { isFollowed: follow, seasons: seasons } = block;
+  const { follow, seasons } = block;
   const hasUpcoming = seasons.some((season) =>
     (catalogFor(reference, follow, season[0]) ?? []).some(
       (episode) => episode.air && episode.air > reference.TODAY,
