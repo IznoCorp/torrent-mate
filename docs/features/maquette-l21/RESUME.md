@@ -21,8 +21,10 @@ would refuse this live « In flight » row — no longer applies. The arm now as
 request merged. **Do not spend time on it.**
 
 ⚠ **`main` HAS MOVED PAST WHAT THE PREVIOUS EDITION OF THIS FILE RECORDED.** It said « next free
-number is B-377 »; `main` has since taken **B-376 and B-377**. **Next free is B-379** — this session
-took B-378. Rules R125–R139, **R155**, **R156**, **R157** are spent; **R158+** are free.
+number is B-377 »; `main` has since taken **B-376 and B-377**. The pause took B-378; the § 3.4 build
+took **B-379, B-380 and B-381**, so **next free is B-382**. Rules R125–R139, R155, R156, R157 and
+**R158** are spent, and **R159 is reserved** for the hold B-381's repair lands with (§ 3.5); **R160+**
+are free.
 
 ---
 
@@ -199,7 +201,8 @@ stays; the operation follows-then-grabs. Four reasons, **the third decisive**:
 **Landed on 2026-09-11**, one commit per increment, each through its gate: 1 `9472524a3` · 2
 `b2036180c` · 3 `c208b0e02` · 4 `5c4277bef` (the gate `owns && !complete`, § 3.3) · 5 `6a871adaa`
 (R158, `harness/season_grab_unfollowed.py`) and the register `b84f4e7ce` (B-378 fixed, B-379 and B-380
-filed) · 6 the backend demand, `backend-demands-architecture.md` § 7. Increment 7 is below.
+filed) · 6 `b197632ff`, the backend demand, `backend-demands-architecture.md` § 7 · docs `d65679c0f` ·
+register `6087237ae` and `959d3719a` · **7 PARTIAL**, § 3.5.
 
 The orchestrator's instruction, and it is the shape to keep: **never leave the tree in a state where
 the next session must reconstruct what you were in the middle of.**
@@ -239,9 +242,43 @@ the next session must reconstruct what you were in the middle of.**
    one of the two subjects. It is required before calling the unit done; it is **not** the gate for
    increments 1–6.
 
+### 3.5 Increment 7 — PARTIAL, and the three entries the build filed
+
+**Read on screen** on `d65679c0f` (build `de36920b9ce9`, a port of its own, a finger on every step):
+from « Incomplets », « Les aventures de Tintin »' follow panel offers « Récupérer la saison 3 », the tap
+calls the operation, the show is followed (`acquiring`) and the panel redraws « En cours
+d'acquisition ». **The sentence the act chose is NOT visible**: it is in the document, visible, at full
+opacity, and a finger at its centre lands on the panel's own button — **B-381**, the message ranked
+under the bottom sheet, dated on `origin/main` and not L21's; owner pending the operator's ruling. The
+second reading, « Les Animaniacs »' sheet, season 5, reads « Saison 5 0/23 23 manquants » and answers
+« … aucun épisode à récupérer » — **B-380**.
+
+- **B-379** (`open`, « mock layer » micro-wave): the layer answers 200 whatever the contract declares.
+  R158 holds a success as `2xx` for that reason.
+- **B-380** (`open`, « mock layer »): the season grab counts `seasons.json`, the sheet draws its own
+  catalogue; 13 of 49 seasons disagree. The operator ruled « manquant » = aired and not owned, so the
+  SHEET's count is the defect. Not built here.
+- **B-381** (`open`, owner pending): R125 and R158 read `window.__toast.read()` and cannot see it.
+  **R159**, `message_over_layers.py`, hit-tests the message's own text over `sheet-user`, over the
+  follow panel after its season verb, and over `mediasheet-series`: read RED, 5 holds, 3 violations
+  naming the covering layer. **It is not in `harness/`**, because a red rule cannot enter the suite and
+  every harness file is read by `make check` and the push: it is committed as TEXT at
+  `docs/features/maquette-l21/message_over_layers.py.txt` (the orchestrator's ruling), and the
+  repairing wave moves it into `harness/` and deletes that copy in the same commit.
+
+Still open and not built: whether a FOLLOWED show with nothing owned is offered the act from its sheet
+(`(owns || followed) && !complete`) — put to the operator.
+
 ---
 
 ## 4. The wave gate
+
+**Gated on `6087237ae` after the § 3.4 build** (the commits after it touch `BUGS.md` only), verdicts:
+full suite « 111 rule(s) and 27 repository guard(s), no violation » (exit 1 is the oracle inside it) ·
+a11y 87 states 0 violations, light 162 against 162 · oracle 44 divergences, the list identical to the
+one below · hold counts `--compare frontend/maquette/hold-counts-baseline.json` on `959d3719a`: baseline
+`failed` 0, 111 rules no violation, the same 4 upward changes, 18 new (R158 at 41) · `make check` exit 0,
+11 220 passed, 0 failed. The figures below are the pause's and are rewritten once, on the final head.
 
 ⚠ **WHICH SHA THE GREEN COVERS.** Every tier below was run on **`00ee56ae3`**. The commits after it
 are DOCUMENTATION ONLY — a merge of `origin/main` at `b46643abf`, and this pause's own commit

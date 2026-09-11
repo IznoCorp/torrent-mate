@@ -631,8 +631,9 @@ unit; the orchestrator's recommendation to the operator is the message above eve
 pressed on, below the sign-in gate and the splash.
 
 **The hold the repair lands with is written and NOT committed** — a red rule cannot enter the suite.
-R159, `harness/message_over_layers.py`, hit-tests the centre of the element carrying the message's
-text. Read red on L21's build `de36920b9ce9`, **5 holds EXECUTED, 3 violations, each naming what covers
+R159 hit-tests the centre of the element carrying the message's text. **It is kept as text at
+`docs/features/maquette-l21/message_over_layers.py.txt`**; the repairing wave moves it into
+`frontend/maquette/harness/message_over_layers.py` and deletes that copy in the same commit. Read red on L21's build `de36920b9ce9`, **5 holds EXECUTED, 3 violations, each naming what covers
 the message**: over `sheet-user` a probe message is hit as `BUTTON.sact[sheet/action]`; on Silo's follow
 panel, after the panel's own « Récupérer la saison 3 », the sentence « Saison 3 demandée — 1 épisode à
 récupérer. » is hit as `BUTTON.sact[sheet/action]`; on `mediasheet-series` a probe message is hit as
