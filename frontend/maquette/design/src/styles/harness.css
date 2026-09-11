@@ -34,13 +34,19 @@
    WINDOW. The prototype therefore repositions it to `absolute` within the
    frame. This is the ONLY accepted divergence in the shell, and the
    parity probe carries it as a justified allowlist entry — not as a gap
-   someone discovers. Same for the FAB and the selection bar. */
-.device .bottombar,
-.device .fab,
-.device .selbar {
+   someone discovers. Same for the FAB and the selection bar.
+
+   AND IT IS SCOPED ON THE FRAME, because it exists only because the frame
+   does. Out of the frame there is no frame to be `absolute` within: the
+   device IS the window, `fixed` means what it says again, and leaving this
+   applied would be the deviation outliving its own justification — a
+   desktop window still wearing one of the phone's arrangements. */
+:root:not(:has(#desktop-switch:checked)) .device [data-part="shell/tab-bar"],
+:root:not(:has(#desktop-switch:checked)) .device [data-part="shell/add-action"],
+:root:not(:has(#desktop-switch:checked)) .device [data-part="selection/bar"] {
   position: absolute;
 }
-.device .bottombar {
+:root:not(:has(#desktop-switch:checked)) .device [data-part="shell/tab-bar"] {
   inset-inline: 0;
   bottom: 0;
 }
@@ -92,6 +98,7 @@
   height: 13px;
 }
 html.measuring .hbtn,
+html.measuring .desktop-switch,
 html.measuring .toast,
 html.measuring .note {
   display: none !important;
@@ -150,18 +157,25 @@ html.measuring .note {
    is CORRECT — a real desktop does get the rail. It must be revisited
    whenever a breakpoint is added: a rule that only holds for the breakpoints
    that existed when it was written rots quietly. */
+/* AND THEY HOLD ONLY WHILE THE FRAME IS DRAWN. The switch below leaves the
+   frame, and leaving it means both halves: the phone's dimensions AND these
+   re-assertions. A device that fills a desktop window while these still fire
+   is a desktop window wearing a phone's presentation — the exact thing the
+   operator cannot test today, moved rather than removed. So each of them is
+   scoped to the frame's own condition, and the app's stylesheet answers when
+   the condition is false. */
 @media (min-width: 640px) {
-  .device .ps-dot__label {
+  :root:not(:has(#desktop-switch:checked)) .device [data-part="shell/connection-mark"] > span:last-child {
     display: none;
   }
 }
 
 @media (min-width: 768px) {
-  .device .bottombar {
+  :root:not(:has(#desktop-switch:checked)) .device [data-part="shell/tab-bar"] {
     display: flex;
   }
 
-  .device .topbar {
+  :root:not(:has(#desktop-switch:checked)) .device [data-part="shell/header"] {
     padding-left: 14px;
     padding-right: 14px;
   }
@@ -180,6 +194,33 @@ html.measuring .note {
   padding: 0;
   overflow-x: clip;
 }
+/* WHAT THIS BLOCK DECLARES SURVIVES THE WAY OUT OF THE FRAME, and that is a
+   decision rather than an oversight. The rule holds every declaration of it so
+   that « nothing says so » can never be the answer again — `position`,
+   `display` and `flex-direction` by value, `background` against the app's own
+   token, and `width`, `max-width` and `height` by the box the device draws
+   against the viewport. The three that need a reason:
+
+     `position: relative`  `app/shell.tsx` re-parents the React root into
+                           `#device` before the first render, and a layer
+                           inside it resolves `position: absolute` against
+                           this element. Scoping it away would move every
+                           such layer to the viewport out of the frame — a
+                           change to what the app draws, made by the harness,
+                           which is the one thing this file may never do.
+     `height: 100svh`      out of the frame the device IS the window, and a
+                           shell root that is the window's height is what the
+                           app wants. It is the frame's `min(844px, …)` that
+                           is the deviation, and that one is scoped. Held by
+                           the BOX hold against the viewport, with `width` and
+                           `max-width`, rather than by a value this file
+                           supplies.
+     `display: flex`       the shell's own column — with `flex-direction`,
+                           which this list omitted while the rule held it.
+
+   `overflow` is NOT among them and is scoped below: clipping is the frame's,
+   it belongs to a phone drawn inside a page, and out of the frame the app's
+   own cascade answers. */
 .device {
   position: relative;
   width: 100%;
@@ -188,13 +229,15 @@ html.measuring .note {
   background: var(--color-background);
   display: flex;
   flex-direction: column;
+}
+:root:not(:has(#desktop-switch:checked)) .device {
   overflow: clip;
 }
 @media (min-width: 520px) {
-  .stage {
+  :root:not(:has(#desktop-switch:checked)) .stage {
     padding: 24px 16px;
   }
-  .device {
+  :root:not(:has(#desktop-switch:checked)) .device {
     width: 390px;
     height: min(844px, calc(100svh - 48px));
     border: 1px solid var(--color-border);
@@ -203,3 +246,140 @@ html.measuring .note {
   }
 }
 
+/* THE WAY OUT OF THE FRAME, AND BACK — harness chrome, and desktop only.
+   The operator reads the prototype on a desktop browser and the frame draws a
+   phone there, so the desktop presentation his own stylesheet describes is the
+   one surface he cannot look at. This gives him a way out of the frame and a
+   way back into it, and it exists exactly where the frame does: `display: none`
+   below 520px, which is the width at which `.device` becomes a phone. Below
+   that the device already fills the window, so there is nothing to leave — and
+   nothing must be in the layout, in the focus order or under a finger on the
+   operator's own phone.
+
+   NO SCRIPT OF THE APP'S. The state is the checkbox's, read by `:has()`, so the
+   engine and the shell never learn this control exists — which is the point:
+   one is dying by subtraction and the other may only lose lines. The one script
+   that touches it is the harness's own, inline beside it in `index.html`, and
+   all it does is keep the checkbox across a reload. */
+.desktop-switch {
+  display: none;
+}
+
+@media (min-width: 520px) {
+  .desktop-switch {
+    /* FIXED, and never a grid item: `.stage` centres its tracks, and a second
+       in-flow child would move the frame it is drawn beside. */
+    position: fixed;
+    display: flex;
+    left: 16px;
+    top: 16px;
+    z-index: 70;
+    /* THE RIGHT EDGE CANNOT CROSS THE FRAME'S LEFT EDGE, at any width, by
+       arithmetic rather than by a number somebody measured once: the frame is
+       390px wide and centred, so its left edge is at `50% - 195px`, and the
+       right edge here is `left + max-width` = `16px + (50% - 211px)` =
+       `50% - 195px` — the frame's left edge EXACTLY. It ABUTS; it does not
+       stop short.
+
+       This comment said « stops 16px short of it » and that was false: the
+       arithmetic dropped the `left: 16px` offset, and for 16px of real
+       clearance the constant would have to be 227. Abutting is the choice —
+       227 would clip the label harder at the widths where it is already
+       clipped, and zero overlap is what the property needs — but the comment
+       has to describe the choice that was made rather than a safer one that
+       was not. A reader in two years has only this line.
+
+       Between 520px and the width at which the gutter opens the label is
+       clipped rather than allowed to sit on the prototype — R51's lesson is
+       that harness chrome anchored to the WINDOW misses the frame it was
+       computed against. The tightest width is 520, where the label shows 47
+       of the 95px the words need and its border touches the frame's; that is
+       where the rule reads the gap, because at 1280 any constant between 195
+       and 500 passes. */
+    max-width: calc(50% - 211px);
+  }
+
+  /* OUT OF THE FRAME IT GOES TO THE TOP CENTRE, and that is a measurement
+   rather than a preference. Out of the frame there is no gutter — the device
+   IS the window — so wherever the control sits, it sits on the app. The
+   question « which corner is free » is not a property of a corner: it is a
+   property of what is on screen, which is what a named state changes. So all
+   87 named states were walked out of the frame and every candidate counted
+   against every button, link, input and ARIA control the app draws:
+
+     bottom-left (where it was)  60 states crossed
+     bottom-centre               46
+     top-left                    87
+     top-right                   87
+     bottom-right                87
+     TOP-CENTRE                   0
+     an icon-sized box changes none of this — 61 / 87 / 87
+
+   Top centre is the only candidate free in all 87, and shrinking the control
+   does not rescue any of the others: the app fills the window and its corners
+   are where its content and its chrome live. The bottom-left corner it used to
+   occupy put the app's « Annuler » under it in the library's selection state,
+   and a poster or a sheet action under it in fifty-nine more.
+
+   AND IT DOES NOT COLLIDE WITH THE HARNESS'S OWN BAR, which is the other thing
+   at the top of this page: the bar sits at the top bar's empty middle while the
+   frame is drawn (measured [678, 37, 56, 26], which top centre WOULD cross) and
+   moves to the top right out of the frame ([1124, 12, 56, 26], which it does
+   not). The control is only ever at top centre out of the frame, so the two are
+   never in the same place at the same time — and the rule reads that too, at
+   every state, rather than leaving it to this comment. */
+  :root:has(#desktop-switch:checked) .desktop-switch {
+    top: 16px;
+    bottom: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: calc(100% - 32px);
+  }
+}
+
+/* The checkbox carries the state and is never the affordance: it is taken out
+   of the paint and left in the focus order, and the label is what is seen,
+   pressed and named. */
+.desktop-switch__control {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.desktop-switch__label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-background) 80%, transparent);
+  color: var(--color-muted-foreground);
+  font-size: var(--text-2);
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  backdrop-filter: blur(4px);
+}
+.desktop-switch__control:focus-visible + .desktop-switch__label {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ONE CONTROL, AND THE WORD FOR WHAT THE NEXT PRESS DOES. Only one of the two
+   is ever in the layout, so the accessible name computed from the label is the
+   text on screen and never a second string that drifted away from it. */
+.desktop-switch__enter {
+  display: none;
+}
+:root:has(#desktop-switch:checked) .desktop-switch__leave {
+  display: none;
+}
+:root:has(#desktop-switch:checked) .desktop-switch__enter {
+  display: inline;
+}

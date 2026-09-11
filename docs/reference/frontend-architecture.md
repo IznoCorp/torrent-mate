@@ -2128,7 +2128,7 @@ phone by the real path) and the settings half of **B-345** — go to the **`maqu
 (`docs/features/maquette-settings/BRIEF.md`) after L21 merges and before L20, because they repair without
 an engine edit on the verb registry L21 built and because they are what keeps B-299 and B-300 unconfirmable
 by hand; **B-344** to the **`maquette-desktop-frame` tooling micro-wave**
-(`docs/features/maquette-desktop-frame/BRIEF.md`) after the departure micro-wave merges; and the library's
+(`docs/features/maquette-desktop-frame/BRIEF.md@33cb259d9`) after the departure micro-wave merges; and the library's
 share of **B-345** stays here with the fixture clause.
 
 ### One lot at a time
