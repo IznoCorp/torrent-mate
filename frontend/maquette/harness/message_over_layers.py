@@ -61,6 +61,20 @@ TWO QUESTIONS, READ SEPARATELY, because each half can be broken alone:
        at the top of the frame lay over it, and the tap did nothing for the
        message's five seconds, after every verb answered on a screen and after
        the boot hint on any address that opens one.
+   11. A MESSAGE THE READER HAS SEEN NEVER JUMPS between the two edges. When a
+       screen closes, or a sheet opens, under a message already drawn, it fades
+       out where it is and appears at the other edge — read frame by frame, and
+       no two consecutive frames at full opacity show it in two places. Moved at
+       once, it crossed the frame in one frame while it was being read.
+       RE-AIMED BEFORE IT WAS WRITTEN, and said here: the wording first given
+       was « no frame shows the message at full opacity outside both its old and
+       its new edge ». That wording cannot fall — each frame of the jump sits at
+       one of the two edges — so it would hold over the defect. What is read
+       instead: no two CONSECUTIVE frames at full opacity in two places; a frame
+       at the first place partly faded; and the message whole at the other edge.
+       WITHIN ONE EDGE it is not read: a message on a screen when a sheet opens
+       over it follows the layer's bar by a slide, measured 46 px, at full
+       opacity — not an edge change, and not what this leg holds.
 
 WHAT IT DOES NOT READ: whether the message covers something it should not on a
 bare screen — R101 holds the message against the tab bar.
@@ -228,6 +242,80 @@ A_TALL_CONFIRMATION = """()=>window.__dialog.open({
   actions: [{text: 'Annuler', dismiss: true}]})"""
 
 
+# EVERY FRAME OF THE MESSAGE ACROSS ONE LAYER CHANGE — where its box is, its
+# opacity and whether it is visible, sampled on each animation frame. The first
+# sample is taken BEFORE the change, so the place the message left is in the
+# record; the change is spliced in where the placeholder stands.
+ACROSS_THE_CHANGE = """(span)=>new Promise((resolve)=>{
+  const host = document.querySelector('#toast');
+  const samples = [];
+  const started = performance.now();
+  const take = () => {
+    const box = host.getBoundingClientRect();
+    const style = getComputedStyle(host);
+    samples.push({at: Math.round(performance.now() - started), top: Math.round(box.top),
+                  opacity: Number(style.opacity), visible: style.visibility === 'visible'});
+  };
+  take();
+  /*CHANGE*/
+  const next = () => {
+    take();
+    if (performance.now() - started < span) requestAnimationFrame(next);
+    else resolve(samples);
+  };
+  requestAnimationFrame(next);})"""
+
+# How long the frames are sampled: the leave, the move and the return all fit.
+SAMPLED_FOR = 1200
+
+# AT FULL OPACITY — what a reader reads as the message itself, not its fade.
+FULL = 0.99
+
+# HOW FAR A BOX MUST TRAVEL BETWEEN TWO FRAMES TO BE A JUMP rather than the
+# fourteen pixels of its own entrance.
+JUMP = 20
+
+# HOW FAR APART THE TWO EDGES ARE, at the least, for « it changed edge ».
+ACROSS = 100
+
+
+def hold_no_jump(journal, change, samples):
+    """Holds that a message seen across a layer change leaves and comes back.
+
+    THE DEFECT: a message up on a screen that closed crossed the frame from its
+    top to its bottom between two frames at full opacity, while it was being
+    read (y 16 → 724). The property is the reader's: a shown message that must
+    change edge fades out where it is and appears at the other edge. So the
+    hold is on CONSECUTIVE frames — no two frames at full opacity with the box
+    in two places. « No frame at full opacity outside both edges » would not
+    fall: each frame of that jump is at one of the two edges.
+
+    Args:
+        journal: Where the holds are recorded.
+        change: What changed the layers, for the holds' own text.
+        samples: The frames `ACROSS_THE_CHANGE` recorded.
+    """
+    def full(one):
+        return one["visible"] and one["opacity"] >= FULL
+
+    first, last = samples[0], samples[-1]
+    journal.check(f"{change}: the message is fully drawn at its first place before the change",
+                  full(first), str(first))
+    journal.check(f"{change}: and it ends fully drawn at the OTHER edge",
+                  full(last) and abs(last["top"] - first["top"]) >= ACROSS,
+                  f"{first['top']} → {last['top']}, opacity {last['opacity']}")
+    # « There » is within the fade's own travel: a leaving message slides the
+    # fourteen pixels of its exit while its opacity falls.
+    faded = [one for one in samples
+             if abs(one["top"] - first["top"]) <= JUMP and 0.05 < one["opacity"] < 0.95]
+    journal.check(f"{change}: it LEFT its first place through its fade — a frame drawn there partly faded",
+                  bool(faded), f"{len(faded)} of {len(samples)} frame(s)")
+    jumps = [(one, other) for one, other in zip(samples, samples[1:])
+             if full(one) and full(other) and abs(one["top"] - other["top"]) > JUMP]
+    journal.check(f"{change}: NEVER A JUMP — no two consecutive frames at full opacity in two places",
+                  not jumps, str(jumps[:2]))
+
+
 async def show_over(page, state, wait):
     """Drives a state, clears the message on screen and shows the probe.
 
@@ -389,6 +477,25 @@ async def main():
             journal.check(f"and the finger on « Retour » leaves the {kind} screen",
                           under.get("screen") is not None and left != under.get("screen"),
                           f"{under.get('screen')!r} → {left!r}")
+
+        # 11. A message the reader has seen, across a layer change: never a jump.
+        await show_over(page, SCREEN_STATE, SETTLED * 3)
+        closing = await page.evaluate(
+            ACROSS_THE_CHANGE.replace("/*CHANGE*/", "history.back();"), SAMPLED_FOR)
+        hold_no_jump(journal, "a screen closes", closing)
+
+        await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
+        await page.wait_for_timeout(SETTLED)
+        await page.evaluate(HIDE)
+        await page.wait_for_timeout(SETTLED)
+        await page.evaluate(SHOW, PROBE)
+        await page.wait_for_timeout(SETTLED)
+        first = await page.evaluate("()=>(window.__followActions?.all() || [])[0]?.t || ''")
+        opening = await page.evaluate(
+            ACROSS_THE_CHANGE.replace(
+                "/*CHANGE*/", f"window.__panel.produce('follow', {first!r});"),
+            SAMPLED_FOR)
+        hold_no_jump(journal, "a sheet opens", opening)
 
         await context.close()
         await browser.close()

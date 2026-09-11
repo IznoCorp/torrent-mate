@@ -386,6 +386,9 @@ control `8f926738a`); its walks `b01`…`b16` are the shape of the holds below. 
    `stacking.py`) and R159's leg 5 stay green** — a message up before a sheet opens still moves off it.
    ⚠ **The orchestrator's first rule (keep the edge) was withdrawn: it would re-cover the layer's bottom
    actions** — the boot hint back over « Pas intéressé » and the four rules felled again.
+   ⚠ **Known, not repaired, by ruling**: WITHIN one edge a shown message still follows the layer's bar by
+   a slide at full opacity — a screen with a sheet opened over it, 62 → 16, measured 46 px. Not an edge
+   change and not the ruled property; a hand that finds it a defect brings it back with a measurement.
 3. **B4 — repair, minimal.** Under `__mocks.setOperationOutcome('grabSeasonForFollow',
    {latencyMilliseconds: 2500})` the pressed act shows nothing and further presses vanish. Draw it as
    TAKEN while its ask is in flight — the button system's existing busy affordance if one exists

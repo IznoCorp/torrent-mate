@@ -15,7 +15,9 @@
 // the frame lay over it, and the tap did nothing for the message's five seconds.
 // The offset is a MEASUREMENT, published the way `app/bar-height.ts` publishes
 // the tab bar's height, and the message's `edge` reads it; it is zero whenever
-// the layer on top is not a screen.
+// the layer on top is not a screen, and LEFT AS IT WAS when no layer is open:
+// the message is at the bottom then and reads none of it — except a message
+// still LEAVING the top, which must leave from the box it was drawn in.
 
 let open = false;
 let observer: ResizeObserver | null = null;
@@ -37,6 +39,10 @@ const listeners = new Set<() => void>();
 function publishScreenBarBottom(layer: Element | null): void {
   observer?.disconnect();
   observer = null;
+  // NOT RESET WHEN THE LAST LAYER CLOSES. Written back to zero there, a message
+  // up on a closing screen crossed from below the bar to the frame's top in one
+  // frame at full opacity, before its own fade had begun.
+  if (layer === null) return;
   const bar = layer?.matches('[data-part="screen"]')
     ? layer.querySelector<HTMLElement>('[data-part="screen/bar"]')
     : null;

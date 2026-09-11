@@ -23,6 +23,13 @@
 // `ui/variants/frame.ts`'s ranked list says why. It follows the layers only
 // while the message is SHOWN — a message up before a sheet opens moves off it —
 // and a leaving message keeps its place until its exit has run.
+//
+// A MESSAGE THE READER HAS SEEN NEVER JUMPS. Moved at once, a message up on a
+// screen that closed crossed the frame from its top to its bottom in one frame
+// at full opacity, while it was being read. So a message already drawn that must
+// change edge LEAVES — its own fade — and comes back at the other edge. One not
+// yet drawn, said in the same task as the layer change, simply takes its place:
+// there is nothing to watch move, and making it wait would only delay it.
 import { setMessagePresent } from "./message-presence";
 import { readLayerOpen, subscribeToLayerOpen } from "./layer-presence";
 import type { Message, Edge } from "../ui/toast";
@@ -34,7 +41,9 @@ const MESSAGE_WITH_UNDO_MS = 6000;
 // it delays behind the fade. Until both have run the host is still the leaving
 // message, and moving its box then would move a message the reader watches go.
 // After it, the host at rest is back in the bottom box — the box the oracle
-// measures on every state, none of which draws a message.
+// measures on every state, none of which draws a message. A message changing
+// edge is away for the same length: moving its box before both have run would
+// move a message the reader still sees.
 const MESSAGE_EXIT_MS = 400;
 
 type Layer = { message: Message | null; shown: boolean; edge: Edge };
@@ -46,6 +55,16 @@ type Layer = { message: Message | null; shown: boolean; edge: Edge };
 let layer: Layer = { message: null, shown: false, edge: "bottom" };
 let timer = 0;
 let exitTimer = 0;
+let moveTimer = 0;
+// WHETHER THE MESSAGE IS AWAY BETWEEN TWO EDGES. It is still UP for the frame —
+// its presence stays published, so the action button does not drop and rise —
+// but it is not shown, so nothing a finger or a reader meets is at either edge.
+let moving = false;
+// WHETHER THE MESSAGE HAS BEEN DRAWN WHERE IT IS. Set on the animation frame
+// after it was placed; the token keeps a frame scheduled for an earlier place
+// from speaking for a later one.
+let drawn = false;
+let placeGeneration = 0;
 const listeners = new Set<() => void>();
 
 function edgeNow(): Edge {
@@ -54,8 +73,18 @@ function edgeNow(): Edge {
 
 function announce(next: Layer): void {
   layer = next;
-  setMessagePresent(next.shown);
+  setMessagePresent(next.shown || moving);
   for (const listener of listeners) listener();
+}
+
+/** Announces a shown message at its place, and learns when it has been drawn there. */
+function place(next: Layer): void {
+  const token = ++placeGeneration;
+  drawn = false;
+  announce(next);
+  window.requestAnimationFrame(() => {
+    if (token === placeGeneration) drawn = true;
+  });
 }
 
 /** What the message layer draws right now. */
@@ -77,15 +106,25 @@ export function subscribeToMessage(onChange: () => void): () => void {
 export function showMessage(descriptor: Message): void {
   window.clearTimeout(timer);
   window.clearTimeout(exitTimer);
+  window.clearTimeout(moveTimer);
+  moving = false;
   timer = window.setTimeout(
     hideMessage,
     descriptor.undo ? MESSAGE_WITH_UNDO_MS : MESSAGE_MS,
   );
-  announce({ message: descriptor, shown: true, edge: edgeNow() });
+  place({ message: descriptor, shown: true, edge: edgeNow() });
 }
 
 /** Takes the message off screen, keeping its text and its place for the exit. */
 export function hideMessage(): void {
+  // ITS LIFE ENDED WHILE IT WAS AWAY between two edges: it does not come back.
+  if (moving) {
+    window.clearTimeout(moveTimer);
+    moving = false;
+    announce({ ...layer, shown: false });
+    exitTimer = window.setTimeout(returnToRest, MESSAGE_EXIT_MS);
+    return;
+  }
   if (!layer.shown) return;
   window.clearTimeout(timer);
   announce({ ...layer, shown: false });
@@ -102,7 +141,20 @@ function returnToRest(): void {
 function followTheLayers(): void {
   if (!layer.shown) return;
   const edge = edgeNow();
-  if (edge !== layer.edge) announce({ ...layer, edge });
+  if (edge === layer.edge) return;
+  if (!drawn) {
+    place({ ...layer, edge });
+    return;
+  }
+  moving = true;
+  announce({ ...layer, shown: false });
+  moveTimer = window.setTimeout(showAgain, MESSAGE_EXIT_MS);
+}
+
+/** Shows a message that left one edge at the edge the layers now call for. */
+function showAgain(): void {
+  moving = false;
+  place({ ...layer, shown: true, edge: edgeNow() });
 }
 
 declare global {

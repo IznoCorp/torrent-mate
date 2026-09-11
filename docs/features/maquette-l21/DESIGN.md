@@ -343,6 +343,17 @@ Rank 57 and the `inert` exemption stand.
   not a screen. **Measured before building, as the STOP condition asked**: on all thirteen named states
   that open a screen (add ×3, releases, quality, resolution ×2, media ×6) the bar spans 0–46 and the
   band the message takes below it holds no control at rest.
+- **A message the reader has seen never jumps between the two edges** (review round two, B6, the
+  orchestrator's ruling). Moved at once, a message up on a screen that closed crossed the frame in one
+  frame at full opacity, y 62 → 724, while it was being read. A shown message already drawn that must
+  change edge now LEAVES — its own fade, the exit's 400 ms — and appears at the other edge;
+  `app/toast-host.ts` keeps its presence published meanwhile so the action button does not drop and
+  rise. One said in the same task as the layer change, before any frame drew it, takes its place at
+  once: there is nothing to watch move. `app/layer-presence.ts` leaves `--tm-screen-bar-bottom` as it
+  was when the last layer closes — written back to 0 there, the leaving message crossed from below the
+  bar to the frame's top before its fade began. **Within one edge the message follows the layer's bar by
+  a slide**: a screen with a sheet opened over it moves a shown message from 62 to 16, 46 px at full
+  opacity. That is not an edge change and not the ruled property; it is recorded, not repaired.
 
 **The holds.** R159 (`harness/message_over_layers.py`) gains five, read on boxes with nothing lifted:
 a message up before a sheet opens meets none of the sheet's controls, and each action is what a finger
