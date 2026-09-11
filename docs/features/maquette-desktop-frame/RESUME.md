@@ -9,8 +9,8 @@ sentences, named below.
 ## 0. The state
 
 **Branch `chore/maquette-desktop-frame`, pull request #576 — READY FOR REVIEW,
-no longer a draft — code head `1ae097a4c`**; the head pushed is the
-documentation commit above it, local and `origin` identical, read on
+no longer a draft — code head `1ae097a4c`**; the head pushed carries only
+documentation and a second merge of `main` above it, local and `origin` identical, read on
 `git ls-remote` and never on a wrapper's exit code (B-360). Version **0.98.81**.
 
 The wave paused on 2026-09-08 at the operator's weekly-quota gate and resumed on
@@ -22,6 +22,12 @@ The wave paused on 2026-09-08 at the operator's weekly-quota gate and resumed on
    entries moved as one block to **B-388..B-392** on the steward's ruling; the
    table is in B-344's body. The version is main's 0.98.80 plus this wave's
    patch. The comment baseline was re-recorded by its own command (read 352).
+   **Merged again after the measured pass**, `d3a122ee8`: `main` had moved by
+   `215566598`, the steward's office — `BUGS.md`, `CLAUDE.md` and two documents
+   under `docs/reference/`, no file under `frontend/` or `personalscraper/`.
+   git put the register rows out of order without a conflict, and
+   `check-bug-register` read clean over it; B-384 to B-392 were set ascending
+   and contiguous by hand.
 2. **Reader E's round five, closed.** MAJOR-D1 (the tautology in the survivors
    hold) was reproduced with round four's exact mutation and is CLOSED.
    MAJOR-E1 is closed by § 2 below. MINOR-E1 (the survivors comment announced
@@ -84,7 +90,7 @@ holds the memory.
 | `make check` | « 11202 passed, 8 skipped, 1 xfailed » — no failed, no error, no collection error · mypy « Success: no issues found in 488 source files » · ruff « All checks passed! » · vitest « Test Files 134 passed (134) » · EXIT=0 |
 | `design/dist` | built, `build.json` d920dc3a3cb4 — the same build as the served copy (d920dc3a3cb4) |
 
-The rules' execution is the `harness-hold-counts.py --compare` run's own line, not a separate `run.sh`: that run executes every rule once, and the suite was not run a second time beside it.
+The rules' execution is the `harness-hold-counts.py --compare` run's own line, not a separate `run.sh`: that run executes every rule once, and the suite was not run a second time beside it. **The commits after `1ae097a4c` are documentation and one merge that touches no file the suite reads**: `2296ec397` (this file and `BUGS.md`) and `0d9e6477e` (this file alone), the commit writing this sentence, and `d3a122ee8`, the merge of `215566598` (`BUGS.md`, `CLAUDE.md`, `docs/reference/feature-lifecycle.md`, `docs/reference/frontend-steward.md`). So the figures above stand for the pushed head, and only the tier that reads names and the cheap guards were run again on the merge: `run.sh --contracts` on `d3a122ee8` — « harness: 18 rule(s) and 27 repository guard(s), no violation. », EXIT=0, 22:49 → 22:53.
 
 **What R141 read, and what fell.** RED first on the served copy of `64bc56670`
 (build `fa1c864f2b5f`), before the script existed: 9 holds, 4 violations, the
