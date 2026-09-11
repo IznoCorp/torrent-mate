@@ -50,7 +50,7 @@ is § 3. Every ruling it needs has been given; nothing in it is awaiting an arbi
 | **the wave gate**                   | **TAKEN**      | § 4                                      |
 | **review round one, six findings**  | **DONE**       | § 5 — five repaired, one filed           |
 | **A5's third surface — the READING**| **DONE**       | § 3.1 — and it inverted the assumption   |
-| **A5's third surface — the BUILD**  | **NOT STARTED**| § 3.3 — approved, specified, untouched   |
+| **A5's third surface — the BUILD**  | **1–6 DONE**   | § 3.4 — the commits named there          |
 
 **Register**: B-301, B-302, B-313, B-315, B-322, B-323, B-350, B-353, B-365, B-368 read `fixed #572`.
 **Filed by this lot**: B-329, B-330, B-351, B-352, B-363, B-364, B-366, B-367, B-369, B-370, B-371,
@@ -140,7 +140,7 @@ one tap further in.
 ### 3.2 The defect found on the way — B-378, FILED, NOT REPAIRED
 
 `acquisition-verbs.ts:165` moves the follow's status only `if (found !== undefined)`. For a
-non-follow `found` is `undefined`, so **the handler answers 201 with a real `absorbedCount` and moves
+non-follow `found` is `undefined`, so **the handler answers a success (200 today — the layer ignores the declared code, B-379) with a real `absorbedCount` and moves
 NOTHING** — success reported over an unchanged world, which is exactly the shape this lot's phase-1
 rule refuses. The interface says « Saison 3 demandée — 5 épisodes à récupérer », refetches the
 follows, gets the identical list, and redraws the identical panel. Full entry in `BUGS.md` § B-378.
@@ -155,16 +155,26 @@ backend limitation is not a reason to draw less.
 
 **THE ORCHESTRATOR, on the two points left open:**
 
-- **The sheet's gate: DELETE the `followed &&` clause. « The true test is no test » is correct
-  here** — the list is drawn only where a sheet exists, so the subject is identified by construction,
-  and the row already carries `!complete`, which IS the hole. **Adding a test to look careful would
-  be a second false premise with a better disguise.** Trace the prop's callers and leave nothing
-  unused behind.
+- **The sheet's gate is `owns && !complete`.** The orchestrator's first ruling here was « delete the
+  `followed &&` clause — the true test is no test », on the reasoning that the list is drawn only where
+  a sheet exists and `!complete` IS the hole. **Measurement falsified it**: `complete` is
+  `owns && …`, so `!complete` is true for anything not owned, and a sheet exists for a suggestion too —
+  on `mediasheet-suggestion-series` (The Venture Bros, neither owned nor followed) the list offered
+  **seven** season grabs, invisible to the oracle because they sit inside closed `<details>`, with the
+  contracts tier green over them. Re-ruled `owns && !complete`, the condition the « manquants » mark is
+  already drawn on. The `followed` prop is still deleted, and the false comment with it. Whether a
+  FOLLOWED show with nothing owned should be offered the act from its sheet is put to the operator,
+  not built.
 - **Three parallel sentence keys, never one appended sentence.** The discipline is chosen sentences,
   never composed ones, and this repository has just paid for the other way: A4 of round one was
   « 1 épisode(s) », a parenthesis stuck onto a sentence that should have been chosen. Six keys for
   one act is cheap; a composed sentence is a defect that renders correctly. A follow started is a
   second FACT, and the answer's new field is what SELECTS the sentence — NE-DOIT-PAS-1 exactly.
+- **And a FOURTH key, re-ruled on the same principle — eight keys for the act, not six.** The queued
+  path is a real path (`seasonQueued` is chosen when the answer says `queued`), and the act creates the
+  follow on it too — `pending`, since nothing runs yet. Three parallel keys would leave that fact
+  unsaid there, so `seasonQueuedNewlyFollowed` stands beside `seasonQueued`: one chosen sentence per
+  combination of facts the answer can carry, never a sentence built from two keys.
 
 **THE SHAPE, chosen by this session and APPROVED: (a) THE ACT IMPLIES THE FOLLOW.** The address
 stays; the operation follows-then-grabs. Four reasons, **the third decisive**:
@@ -185,6 +195,11 @@ stays; the operation follows-then-grabs. Four reasons, **the third decisive**:
    and `acted_surface_redraws.py:220,246` keep reading the name they read now.
 
 ### 3.4 THE BUILD — in committable increments, in this order
+
+**Landed on 2026-09-11**, one commit per increment, each through its gate: 1 `9472524a3` · 2
+`b2036180c` · 3 `c208b0e02` · 4 `5c4277bef` (the gate `owns && !complete`, § 3.3) · 5 `6a871adaa`
+(R158, `harness/season_grab_unfollowed.py`) and the register `b84f4e7ce` (B-378 fixed, B-379 and B-380
+filed) · 6 the backend demand, `backend-demands-architecture.md` § 7. Increment 7 is below.
 
 The orchestrator's instruction, and it is the shape to keep: **never leave the tree in a state where
 the next session must reconstruct what you were in the middle of.**
@@ -409,9 +424,7 @@ the gate exists to refuse.
 should move.
 
 ⚠ **The gauge is the LAST tool call before any message carrying a figure**, or the message says
-« not measured this turn » and carries none. **The weekly quota moved 92 % → 95 % in the span of two
-message exchanges** — about three points an hour under this wave's load, not the one and a half
-previously estimated. Budget accordingly.
+« not measured this turn » and carries none.
 
 ---
 

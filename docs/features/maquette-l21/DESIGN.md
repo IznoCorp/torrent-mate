@@ -253,6 +253,30 @@ right. The first reading came from a grep that excluded the wrong paths and conc
 uses it »; a claim about absence is exactly the kind that has to be re-run before it is written
 down.
 
+### 3.1f The grab offered to a medium nobody follows — the operator's ruling, and a gate corrected by measurement
+
+**The premise was false.** The media sheet's season list gated the grab on `followed`, on a comment
+asserting that the follow panel « is only ever drawn for » a follow. It is not: an « Incomplets » card
+carries `data-panel="media:<title>"`, the engine's delegation discards the genre and produces the
+follow panel for any title, and `followFacts` synthesises a record for an incomplete show — so the
+panel's grab was already reachable for a medium nobody follows, and its mock answered a success over an
+unchanged world (B-378). **The operator ruled « offer it — the backend follows »**: the act implies the
+follow. The contract's `grabSeasonForFollow` answers `newlyFollowed`; the mock creates the follow
+(`acquiring`, or `pending` when the ask is queued); the backend demand is
+`backend-demands-architecture.md` § 7.
+
+**The sheet's gate is `owns && !complete`, and the first ruling was not.** It was « the true test is
+no test » — delete `followed &&` and nothing else. **Measured on the build, it offered seven season
+grabs on `mediasheet-suggestion-series`** (The Venture Bros, neither owned nor followed): `complete`
+is `owns && …`, so `!complete` is true for anything not owned. The buttons sat inside closed
+`<details>`, so the oracle read no divergence and the contracts tier stayed green over them. The gate
+now asks what the « manquants » mark already asks. R158 counts the grabs in the DOCUMENT on that state,
+and its mutation (dropping `owns &&`) falls exactly that leg, naming the seven.
+
+**Eight sentence keys, not six.** A follow begun by the act is a second fact, chosen by `newlyFollowed`
+and never composed: three parallel to `seasonAsked` / `seasonAskedOne` / `seasonAskedNone`, and a
+fourth parallel to `seasonQueued`, because the queued path creates the follow too.
+
 ### 3.2 « Remettre en file » and « Re-scraper » — B-302
 
 **Where.** `features/acquisition/panel-journey.ts` (88 non-blank), whose `actions` block offers
