@@ -1,8 +1,8 @@
 # L21 — where the wave stands, for whoever picks it up
 
-Rewritten at a CLEAN PAUSE called by the operator (« on s'arrête maintenant, on reprendra après le
-reset, on s'arrête proprement »). Read `BRIEF.md`, `DESIGN.md` and `plan/INDEX.md` first — this file
-says only what is TRUE NOW and what those do not.
+Rewritten at the end of review round two's repairs, on the head the wave gate was taken on. Read
+`BRIEF.md`, `DESIGN.md` and `plan/INDEX.md` first — this file says only what is TRUE NOW and what those
+do not.
 
 **Branch** `feat/maquette-l21`, pull request **#572** (draft). **Version** 0.98.79.
 
@@ -12,8 +12,9 @@ in general and **NOT true of this pull request**: `BLOCKED` on it means checks P
 missing. Read the label before diagnosing an absent run.
 
 ⚠ **`origin/main` IS MERGED into this branch**, proven by `git merge-base --is-ancestor origin/main
-HEAD`. This branch carries FOUR merge commits, so reading any one of their second parents says it is
-behind. Re-read `main` before touching it again.
+HEAD` — last at `2425df214` (#580, the project's Claude Code settings), merged by `fccc0770b`. This
+branch carries FIVE merge commits, so reading any one of their second parents says it is behind.
+Re-read `main` before touching it again.
 
 ⚠ **B-377 IS FIXED ON `main` (#579).** The old warning here — that
 `scripts/check-implementation-state.py` infers « that wave has landed » from a version comparison and
@@ -22,29 +23,27 @@ request merged. **Do not spend time on it.**
 
 ⚠ **`main` HAS MOVED PAST WHAT THE PREVIOUS EDITION OF THIS FILE RECORDED.** It said « next free
 number is B-377 »; `main` has since taken **B-376 and B-377**. The pause took B-378; the § 3.4 build
-took **B-379, B-380 and B-381**, review round two took **B-382**, so **next free is B-383** — and
-round two's ruling assigns B-383 to the « said, not done » entry (§ 3.7). Rules R125–R139 and
-R155–**R160** are spent; **R161+** are free.
+took **B-379, B-380 and B-381**, review round two took **B-382 and B-383**, so **next free on this
+branch is B-384** — and the steward's own documentation pull request is filing an entry of its own, so
+re-read `main` before taking a number. Rules R125–R139 and R155–**R160** are spent; **R161+** are free.
+Round two added no rule: it grew R155, R157, R158, R159 and R84.
 
 ---
 
 ## 0. WHERE IT STANDS — read this before anything
 
-**A ROTATION, at a clean boundary. Nothing is half-done in the tree.** The head is the commit that adds
-this text, on top of `0ad30191f` (docs), `fadd79086` (B2) and `a056d6330` (B1), all pushed.
+**ROUND TWO'S REPAIRS ARE DONE AND THE WAVE GATE IS TAKEN on `6a56b947e`.** The head is the commit that
+adds this text — documentation only — on top of it, pushed with it. Nothing is half-done in the tree.
 
-- **Done**: the placement unit (§ 3.6); round two's **B1** (B-382, R160) and **B2** (B-381's third half,
-  R159's screen legs), each with its rule seen red, its mutation and its run (§ 3.7 and the entries).
-- **Owed, in the orchestrator's order**: **B3 → B6 → B4 → B8 → B7 → the docs** (B5's two corrections,
-  B-380's extent, B-383 filed). Each is specified in § 3.7 with its hold and its mutation. **B6 is
-  RULED** — the leave-and-reappear version, § 3.7.
-- **Next free**: **B-383** (already assigned by the ruling to the « said, not done » entry), **R161**.
-- **Gates**: contracts + oracle **per commit** (the oracle's accepted list is 44 over the same 23
-  states, none on the message); **no full suite has run since `1e9e7c48e`** — ONE on the final head at
-  the end of the list, then hold-counts with the baseline file, `make check`, `design/dist` rebuilt, the
-  wrapped push, the report with each mutation line, the gauge last.
+- **Done**: round two's eight findings (§ 3.7 — seven repaired, B5 recorded) with **B-383** filed; R158's
+  re-aim owed since B1; `origin/main` merged; and **R84 re-aimed by the gate itself**, which found B2's
+  second `--tm-` publisher unread (§ 4).
+- **Next**: the pull request out of draft and **round three** — the orchestrator's word, and only his.
+  An implementer dispatches no reviewer (§ 7).
+- **Next free**: **B-384** (re-read `main` first), **R161**.
+- **Gates**: § 4, every figure written once, on `6a56b947e`.
 - **Mutate only on a clean tree**, and write `.md`/`.ts` changes by script or re-read `git diff --stat`
-  before every commit (§ 3.7's hook note).
+  before every commit (§ 3.6's hook note).
 
 ---
 
@@ -59,6 +58,8 @@ this text, on top of `0ad30191f` (docs), `fadd79086` (B2) and `a056d6330` (B1), 
 | **A5's third surface — the READING**| **DONE**       | § 3.1 — and it inverted the assumption   |
 | **A5's third surface — the BUILD**  | **1–7 DONE**   | § 3.4 and § 3.5 — the commits named there |
 | **the message's placement**         | **DONE**       | § 3.6 — `cf1677e5e`, its gate there      |
+| **review round two, eight findings**| **DONE**       | § 3.7 — seven repaired, B5 recorded, B-383 filed |
+| **the wave gate, round two**        | **TAKEN**      | § 4 — on `6a56b947e`                      |
 
 **Register**: B-301, B-302, B-313, B-315, B-322, B-323, B-350, B-353, B-365, B-368 read `fixed #572`.
 **Filed by this lot**: B-329, B-330, B-351, B-352, B-363, B-364, B-366, B-367, B-369, B-370, B-371,
@@ -359,7 +360,7 @@ again) · `design/dist/build.json` `c8978713bb5e`,
 served by the design host. The commits after `cf1677e5e` touch documentation and the comment corpus
 record only (`read` 348 → 349 — the new `app/layer-presence.ts`).
 
-### 3.7 Review round two — eight findings, two repaired, six ruled and owed
+### 3.7 Review round two — eight findings, all closed
 
 The reader's report is `/Users/izno/dev/worktrees/review-l21/.review/r2-B.md` (candidate `1e9e7c48e`,
 control `8f926738a`); its walks `b01`…`b16` are the shape of the holds below. **Read it whole.**
@@ -373,7 +374,37 @@ control `8f926738a`); its walks `b01`…`b16` are the shape of the holds below. 
   26 / 10, green 26. DESIGN § 3.1g's « Fermer » sentence corrected in that commit (it was the message's
   own close). Contracts clean and the oracle at the same 44 over the same 23 states on both commits.
 
-**Ruled and NOT built, in this order** (the orchestrator's words, condensed):
+**Built, in the orchestrator's order**, each with its rule seen red on the head before it, its mutation on a
+clean tree and restored, and the contracts tier and the oracle on its commit — the oracle's list identical
+line by line every time:
+
+- **B3** `49d1be48b` — `ui/sheet.tsx` resets a panel's scroll when the layer opens or another panel takes
+  its place, never when the same panel is drawn again; nothing is measured and written back. R157 gains a
+  FINGER leg (a follow panel scrolled by a real touch stream, its last season act tapped at its centre
+  after a hit test): red 15 / 1 (« scrollTop 25 → 0 »), mutation (the key back to the descriptor object)
+  15 / 1 (« 41 → 0 »), green 15.
+- **B6** `bea57a2f4` — `app/toast-host.ts`: a shown message already drawn that must change edge leaves
+  through its fade and is shown again at the other; `app/layer-presence.ts` leaves `--tm-screen-bar-bottom`
+  as it was while no layer is open. R159 leg 11, **re-aimed before it was written**: the given wording
+  cannot fall, so it reads consecutive frames. Red 34 / 4, mutation (the immediate move) 34 / 4, green 34;
+  m2 replayed 34 / 1 (`[30, 76]` against `[738, 784]`); `deck_verbs.py` 8, `journey_verbs.py` 16,
+  `remove_verb.py` 11, `stacking.py` 12 green. The 46 px slide within one edge is recorded, not repaired.
+- **B4** `ca8f95744` — `features/media/season-grab.ts` publishes the asks in flight; both surfaces draw the
+  act `aria-busy` with the controls' disabled look (`seasonGrabTaken`). R157: red 20 / 1 (« aria-busy
+  None »), mutation (the snapshot never replaced) 20 / 1, green 20. DESIGN § 3.1 carries the walk.
+- **B8** `aca66b69f` — **ten** keys, not eight (the queued, held and refused sentences arrive after the wait
+  too, ruled the same): each carries `{{title}}`. R157: red 25 / 3, mutation (ONE key, `seasonRefused`)
+  25 / 2, green 25; R158 56, R160 24, `season_grab.py` 16 and R159 34 green with the title.
+- **B7** `475ab154d` — three chosen end-mark sentences; `features/acquisition/queries.ts` remembers the load
+  that answered nothing; `fillSug`'s memo compares the mark too. R155: red 11 / 2, mutation (the list's
+  key) 11 / 1, mutation (the exhausted key) 11 / 1, green 11. `discover-feed.ts` sits at 399 of 400 (§ 7).
+- **Docs** `01f07e24e` — B5's two sentences corrected, B-380's extent recorded, **B-383 filed**.
+- **R158 re-aimed** `6b5cb05d7` — owed since B1 and said, not done: `EMPTY_THE_TOAST` replaced by the host's
+  own close, held gone from paint; 56 → 62; mutation (the gate back to `owns &&`) 59 / 2.
+- **`origin/main` merged** `fccc0770b` — `.claude/settings.json` and its hook only.
+- **R84 re-aimed** `6a56b947e` — by the gate: § 4.
+
+**The rulings as they were given** (kept as read; the block above is what was built):
 
 1. **B3 — repair.** The redraw throws the panel's scroll to 0 and moves the pressed control out from
    under the finger (Silo 171 → 0; Animaniacs 698 → 0, button y 764 → 1462). Keep the panel's scroll
@@ -417,21 +448,41 @@ control `8f926738a`); its walks `b01`…`b16` are the shape of the holds below. 
 **Rules re-aimed, said out loud in each commit**: R158 stops running `EMPTY_THE_TOAST` (it blinds every
 hold to the message on screen, and its comment is false since R159's close leg) — B1's press on the three
 twins is already R160's; R157 gains a finger leg (centre tap, hit test, never `element.click`) and B3's
-and B4's legs; R159 gains B6's hold once ruled.
+and B4's legs; R159 gains B6's hold once ruled. **All of it is built** — R158 was the one found undone at
+the end of the list, and built there.
 
-**Gates for the rest**: contracts + oracle per commit; **one** full suite at the END of the list,
-hold-counts with the baseline file, `make check`, `design/dist` rebuilt; wrapped push; report with named
-sections and each mutation line; gauge last. **No full suite has run since `1e9e7c48e`.**
+**Gated**: § 4.
 
 ---
 
 ## 4. The wave gate
 
+**Gated on `6a56b947e`, the final head of round two's repairs** (the commit after it adds this text
+only). Every tier written to a file and its verdict read out of it:
+
+- **Full suite, FIRST run, on `6b5cb05d7`: red on ONE rule.** R84, « exactly one source file publishes a
+  `--tm-` property »: two, `app/bar-height.ts` and `app/layer-presence.ts`. The second came with B2
+  (`fadd79086`, `--tm-screen-bar-bottom`) and went unread: **R84 is not in the contracts tier, and no full
+  suite had run since `1e9e7c48e`** — the cost the previous edition's § 0 named. **That run stopped at the
+  fallen rule, before the a11y and the oracle: the full tier runs the a11y and the oracle only after green
+  rules, so a red run is also a run with no oracle.** R84 re-aimed by ruling — one writer per `--tm-`
+  property, every writer under `app/` — `6a56b947e`: 9 green; mutations, a second writer of
+  `--tm-bottom-bar-h` 9 / 2 and a writer in `engine/` 9 / 1.
+- **Full suite, SECOND run, whole, on `6a56b947e`: « 113 rule(s) and 27 repository guard(s), no violation »**
+  · a11y « 87 states, 0 violation(s) », light 162 against a ceiling of 162 · oracle « 87 states x 34
+  regions », **44 divergences, the list identical line by line to the one read on every commit of the
+  round**, over these 23 states and none on the message: `acq-discover`, `acq-discover-posters`, `acq-follows-grid`, `acq-follows-group`, `acq-follows-list`, `acq-follows-pause-empty`, `acq-now-idle`, `acq-now-loaded`, `followsheet-complete`, `mediasheet-series`, `pwa-android`, `pwa-ios`, `relay-lost`, `relay-reconnecting`, `relay-refused`, `screen-profile`, `screen-releases`, `sheet-journey`, `sheet-more`, `sheet-user`, `signin`, `signin-error`, `startup`. Its exit 1 is those accepted
+  divergences and nothing else.
+- **Contracts tier on every commit**: « 18 rule(s) and 27 repository guard(s), no violation ».
+- **Hold counts**: `python3 scripts/harness-hold-counts.py --compare frontend/maquette/hold-counts-baseline.json` on `6a56b947e`, the baseline's `failed` read FIRST — 0, taken at `f70ca029` — then « harness: 113 rule(s), no violation. »; 5 counts changed and every one UPWARD (`busy.py` 10 → 16, `cards.py` 65 → 70, `drawer.py` 28 → 30, `persistence.py` 47 → 57, `runtime_tokens.py` 8 → 9 — R84's re-aim); 20 new since the baseline, `acted_surface_redraws.py` at 25, `message_over_layers.py` at 34, `season_grab_unfollowed.py` at 62 and `spent_deck_cleared.py` at 11 among them; 11 unparseable on both sides. Its exit 1 is drift against a baseline this wave does not re-record.
+- **`make check`**: `PYTEST_XDIST_AUTO_NUM_WORKERS=3 sh scripts/heavy.sh l21 make check` on `6a56b947e`, 17:35:51 → 17:42:25, no hold-off: exit 0 — 11 220 passed, 4 skipped, 2 xfailed; the maquette's unit suite 110 of 110 over 7 files against floors of 7 and 107; vitest 134 files and 1 374 tests; the no-French guard's fifteen arms, no violation. Its one « Error 1 (ignored) » is the ADVISORY fixture-drift check (`-python3 scripts/refresh-maquette-fixture.py --check`, Makefile line 118), which reads the live database and reported 11 drifts; it gates nothing, by design.
+- **`design/dist`**: built on `6a56b947e` under the heavy lock (it held off once, load 7.11 against 6): `dist/build.json` reads `22c6c46fbb42`, served by the design host.
+
 **Gated again on `cf1677e5e`, after the placement unit — § 3.6 carries those verdicts.** What follows
 is the earlier gate, kept as it was read.
 
 **Gated on `6087237ae` after the § 3.4 build** (the commits after it touch `BUGS.md` only), verdicts:
-full suite « 111 rule(s) and 27 repository guard(s), no violation » (exit 1 is the oracle inside it) ·
+full suite « 111 rule(s) and 27 repository guard(s), no violation » (exit 1 is the oracle it runs after green rules) ·
 a11y 87 states 0 violations, light 162 against 162 · oracle 44 divergences, the list identical to the
 one below · hold counts `--compare frontend/maquette/hold-counts-baseline.json` on `959d3719a`: baseline
 `failed` 0, 111 rules no violation, the same 4 upward changes, 18 new (R158 at 41) · `make check` exit 0,
@@ -551,7 +602,7 @@ office splits waves to avoid, and the defect predates this lot. **Pass the file 
 ## 7. What is OWED
 
 1. ~~**§ 3.4's seven increments**~~ — DONE, and the placement unit after them (§ 3.5, § 3.6).
-2. **Round two's six remaining items** — § 3.7, in its order. Then **the pull request out of draft**
+2. ~~**Round two's six remaining items**~~ — DONE, § 3.7 and § 4. **Next: the pull request out of draft**
    and **round three** — the orchestrator's word, and
    only his. **Round two's reader is spawned by the office**, fresh, one lens, in a worktree pinned
    at this head with a control at round one's. **An agent here dispatches no reviewer and no writing
@@ -571,10 +622,13 @@ office splits waves to avoid, and the defect predates this lot. **Pass the file 
 A push runs the parallel suite through its pre-push hook, so **it IS a heavy run and is wrapped like
 one, every time**:
 
-    PYTEST_XDIST_AUTO_NUM_WORKERS=3 HEAVY_FREE_FLOOR_MB=3072 sh scripts/heavy.sh l21 \
+    PYTEST_XDIST_AUTO_NUM_WORKERS=3 sh scripts/heavy.sh l21 \
       git push origin feat/maquette-l21 > <a file> 2>&1
 
 then prove it with `git ls-remote --heads origin feat/maquette-l21` against the local sha (B-360).
+**Never lower `HEAVY_FREE_FLOOR_MB` on that line**: the 4 GB floor is the office's margin on a host that
+does not reclaim compressed memory until a reboot, and lowering it by environment is the bypass the lock
+exists to refuse. If `heavy` holds off, it waits, and the report says how long.
 **That proof earns its keep**: a push once exited the wrapper and did NOT land, because the pre-push
 hook refused it on a failing test, and `ls-remote` is what said so.
 
