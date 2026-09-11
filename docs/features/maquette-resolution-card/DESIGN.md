@@ -183,4 +183,32 @@ a finger really has, and a rule taking a path the interface does not offer prove
 
 ## 7. The gate
 
-Written once, on the final code head.
+Taken once, on the merged head — `origin/main` was merged BEFORE the gate, because the desktop-frame
+squash re-recorded both the oracle's reference and the hold-counts baseline, and a gate taken first
+would have measured against a reference that is no longer main's.
+
+| Reading | Figure |
+| --- | --- |
+| `run.sh --contracts` | 18 rules and 27 repository guards, no violation |
+| The full suite, `harness-hold-counts.py --compare --jobs 2` | 119 rules, no violation; 0 rule changed its hold count; 4 new since the baseline; 11 unparseable on both sides |
+| `run.sh --a11y` | 87 states, 0 violations; under `data-theme=light`, 162 against a ceiling of 162 |
+| `run.sh --oracle` | 87 states × 34 regions, 2 958 measurements, reference taken at `33cb259d` — no divergence |
+| `make check` (`PYTEST_XDIST_AUTO_NUM_WORKERS=3`) | 11 202 passed, 8 skipped, 1 xfailed; the maquette's own 134 files / 1 374 tests; « All checks passed! » |
+| `design/dist` | built |
+
+**The hold-count tool exits non-zero, and it is the expected shape rather than a failure**: « 0 rule(s)
+changed hold count » with « 4 rule(s) new since the baseline » — R161 (7 holds), R162 (17), R163 (3)
+and R164 (8), which the baseline cannot know. Re-recording it belongs to the post-merge gesture, not
+to this wave.
+
+**One reading was taken twice, and the second is the one that counts.** `make check` fell the first
+time on `tests/scripts/test_check_maquette_comments.py::TestTheCorpusFloor` — 353 recorded against 358
+read — because the comments guard records how many files its corpus held and this wave adds five
+(`lib/held-actions.ts` and the four rules). Measured rather than assumed: the record is consistent on
+`origin/main` (353 = 353), so the staleness is this branch's own. It was re-taken with the guard's own
+`--record`, which moved exactly one line, and no per-file count with it.
+
+**The oracle is silent about the card, and it does read that screen.** `arr-decision` is measured and
+`screen-resolution/body` is non-null there; the card itself is not one of the 34 regions, and the pill
+sat in the card's SECOND grid column — 61 px wide beside the content rather than under it — so
+removing it moves a width the oracle does not read.
