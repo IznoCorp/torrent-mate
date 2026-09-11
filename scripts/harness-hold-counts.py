@@ -161,16 +161,48 @@ COUNT_PATTERNS = (
 )
 
 
+# The files in `harness/` that are not rules, and the same list `run.sh`
+# carries. `common.py` is the shared plumbing; `desktop_frame_page.py` holds
+# the page scripts R140 evaluates and defines no holds, so counted as a rule it
+# is a permanent unparseable row and a rule count one too high.
+def not_rules():
+    """The files in `harness/` that are not rules, READ FROM run.sh.
+
+    The two discoverers used to carry the same list and agree by comment. A
+    list duplicated in a shell script and a Python one is a list that will
+    disagree, and the disagreement is invisible until a rule reports as having
+    vanished. So there is one source and this is the reader of it.
+
+    Returns:
+        The excluded basenames.
+
+    Raises:
+        SystemExit: If run.sh's exclusion cannot be found — a silent empty set
+            would put the page scripts back among the rules.
+    """
+    text = (HARNESS / "run.sh").read_text(encoding="utf-8")
+    found = re.search(r"^\s*([A-Za-z0-9_.|]+)\)\s*continue\s*;;",
+                      text, re.MULTILINE)
+    if not found:
+        print("harness-hold-counts: run.sh no longer states which files are "
+              "not rules; the two discoverers cannot be kept in step by "
+              "guesswork.", file=sys.stderr)
+        raise SystemExit(2)
+    return frozenset(found.group(1).split("|"))
+
+
 def rule_scripts():
     """Returns the rule scripts, in the order run.sh runs them.
 
     Returns:
-        The basenames of every `harness/*.py` file except `common.py`,
-        sorted — bash glob expansion and `Path.glob` both order
-        alphabetically, so this is the order run.sh's loop uses.
+        The basenames of every `harness/*.py` file that is a rule, sorted —
+        bash glob expansion and `Path.glob` both order alphabetically, so this
+        is the order run.sh's loop uses. The exclusions are run.sh's own and
+        the two lists have to agree: a file counted here and not run there
+        reports as a rule that vanished.
     """
     return sorted(p.name for p in HARNESS.glob("*.py")
-                  if p.name != "common.py")
+                  if p.name not in not_rules())
 
 
 def select_rules(spec, allowed):
