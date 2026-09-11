@@ -289,6 +289,67 @@ over « Suivis » moves.
 and never composed: three parallel to `seasonAsked` / `seasonAskedOne` / `seasonAskedNone`, and a
 fourth parallel to `seasonQueued`, because the queued path creates the follow too.
 
+### 3.1g The message's rank, and the placement ruled after it — B-381
+
+**The rank.** Ruled by the operator on 2026-09-11: the message rises above every layer a verb is
+pressed from — rank 57, above the bottom sheet (52), the drawer (55) and the confirmation (56), below
+the popover, the sign-in gate and the splash — and `app/focus.ts` leaves it out of the background it
+marks `inert`, so its close and « Annuler » take a finger (`0e2c25bc1`, R159).
+
+**The measurement that forced a second ruling.** After that repair the full suite went red on four
+rules that were green while the message sat under the sheet (`6087237ae`, 49 < 52):
+`deck_verbs.py` 8 executed / 5 violations, `journey_verbs.py` 16 / 2, `remove_verb.py` 11 / 4,
+`stacking.py` 12 / 1. Each hit a `SPAN` of the message at the covered control's centre — « Pas
+intéressé » y=737, « Re-scraper ce passage » y=740, « Retirer de la liste » y=750 — and
+`stacking.py` (b)'s probe point, the selection bar's top edge + 4 px, fell inside the message's box
+with the confirmation open. The message's box is the whole bottom band: x 14→376, about 54 px tall.
+**A layer was open at all four covered taps**, measured on the head's build before any code — the
+bottom sheet three times, the confirmation once — and the message on all four was the design note's
+boot hint, which appears about 0.6 s after load and stays 5 s while each rule's first tap lands 1–2 s
+after load. A person meets it the same way, and a verb's answer covers the band for 5–6 s, so a
+second act in the same layer within that time is covered. The four rules read right and were not
+touched.
+
+**The operator's ruling, 2026-09-11, second decision round** — the option as he read it, worded by
+the steward: « A. En haut de l'écran quand une couche est ouverte, en bas comme aujourd'hui sinon ».
+Rank 57 and the `inert` exemption stand.
+
+**The mechanism** (`cf1677e5e`).
+
+- **The signal is the decision `app/focus.ts` already makes.** `setBackgroundInert` publishes whether
+  a layer is open through `app/layer-presence.ts` — one fact, one subscriber, outside the store for
+  B-247's reason. A layer is what that function counts: the drawer, a screen, the bottom sheet, the
+  confirmation.
+- **The message's host follows it** (`app/toast-host.ts`). A SHOWN message follows the layers, so one
+  up before a sheet opens moves off it. A leaving message keeps its place through its exit (400 ms:
+  the fade and the visibility step behind it), then the hidden host returns to the bottom box — the
+  box the oracle measures on every state, none of which draws a message.
+- **The drawing is `messageHost`'s `edge` variant** (`ui/variants/frame.ts`): the bottom as before, or
+  `top-[calc(env(safe-area-inset-top)+16px)]` — same width, same type, same rank — with the reason
+  beside it, and the ranked list says why one rank has two positions. It is named `edge` because
+  `placement` is not a word of `scripts/code-vocabulary.txt`, and a word is not added to let one's
+  own identifier through.
+- **On a screen, the top position covers « Retour » where the bottom one covered « Fermer »** —
+  measured on `mediasheet-series`, « Retour » at y 10 and « Fermer » at y 731 — so one way out stays
+  free in either place.
+
+**The holds.** R159 (`harness/message_over_layers.py`) gains five, read on boxes with nothing lifted:
+a message up before a sheet opens meets none of the sheet's controls, and each action is what a finger
+at its centre lands on; the verb's own answer on the follow panel meets none of the panel's controls
+and its close takes a finger; over a confirmation whose button sits in the bottom band, the message
+meets none of its buttons; with no layer open, the message is at the bottom; at rest, a message
+hidden while a layer is open is back in the bottom box. **Seen red** on the build before the change,
+4 of 16; green after, 16 of 16. **Mutation m1** (the `top` branch given the bottom string): R159's
+four placement holds fall, AND `deck_verbs.py` 8 / 5, `journey_verbs.py` 16 / 2, `remove_verb.py`
+11 / 4 and `stacking.py` 12 / 1 — the four rules at their recorded red counts. **Mutation m2** (the
+return to rest disarmed): the at-rest hold alone falls, `[30, 76]` against `[738, 784]`.
+
+**The confirmation leg was aimed three times**, said here because re-aiming a hold is how a guard is
+lost. A forty-line confirmation is taller than the screen, so its button lay below the fold and a hold
+on its buttons was green over the defect. A hold on the whole confirmation is unsatisfiable: a centred
+layer tall enough to reach the bottom band reaches the top band too. It reads the buttons of a
+twenty-six-line confirmation, and first holds that the button is in the bottom band.
+
 ### 3.2 « Remettre en file » and « Re-scraper » — B-302
 
 **Where.** `features/acquisition/panel-journey.ts` (88 non-blank), whose `actions` block offers

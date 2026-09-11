@@ -662,6 +662,35 @@ holds EXECUTED, no violation, on build `6bc3e1d72aef` (`0e2c25bc1`).
 aventures de Tintin »' follow panel, « Récupérer la saison 3 » tapped, and « Série suivie et saison 3
 demandée — 6 épisodes à récupérer. » is on top at its own text at +400 and +1200 ms, not `inert`.
 
+**The second half — the PLACEMENT, ruled after the rank and repaired in L21** (`cf1677e5e`). Ranked
+above the layers, the message still lay along the bottom band, where every layer a verb is pressed
+from anchors its own controls. The full suite read it on four rules green before the rank moved:
+`deck_verbs.py` 8 / 5, `journey_verbs.py` 16 / 2, `remove_verb.py` 11 / 4, `stacking.py` 12 / 1, each
+hitting the message at the covered control's centre. Measured before any code, a layer was open at all
+four covered taps (the sheet three times, the confirmation once), and the message was the boot hint.
+**The operator ruled** « A. En haut de l'écran quand une couche est ouverte, en bas comme aujourd'hui
+sinon »; rank 57 and the exemption stand. `app/focus.ts`'s `setBackgroundInert` publishes whether a
+layer is open (`app/layer-presence.ts`); the message's host follows it while the message is shown, keeps
+its place through the exit, and returns the hidden host to the bottom box, which is the box the oracle
+measures at rest; `messageHost` draws the `edge`.
+
+**The rule is still R159**, five holds added on boxes with nothing lifted — a message up before a sheet
+opens meets none of its controls and each action takes the finger at its centre; the verb's answer on
+the follow panel meets none of the panel's controls and its close takes a finger; over a confirmation
+whose button is in the bottom band, it meets none of the buttons; with no layer, it is at the bottom;
+at rest it is back in the bottom box. **Seen red** before the change, 4 of 16. **The mutations**, each
+on a clean tree: the `top` branch given the bottom string — R159's four placement holds fall AND the four
+rules at the counts above; the return to rest disarmed — the at-rest hold alone, `[30, 76]` against
+`[738, 784]`. **The run**: 16 holds EXECUTED, no violation, and the four rules green at 8, 16, 11 and
+12, on build `c8978713bb5e` (`cf1677e5e`).
+
+**And on screen**, increment 7 retaken on that build, a finger on every step from « Médiathèque » and
+« Incomplets »: on « Les aventures de Tintin », a tap opens its media screen and a long press its
+follow panel, and on both « Récupérer la saison 3 » tapped says « Série suivie et saison 3 demandée — 6
+épisodes à récupérer. » at the TOP — `edge` `top`, box 16–70 — on top at its own text at +400 and
++1200 ms and not `inert`; a finger on its close at (351, 43) takes it off screen; the show is followed
+(`acquiring`).
+
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
 

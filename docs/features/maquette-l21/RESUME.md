@@ -27,18 +27,13 @@ spent; **R160+** are free.
 
 ---
 
-## 0. THE PAUSE — read this before anything
+## 0. WHERE IT STANDS — read this before anything
 
-**Nothing was left half-done. The tree was CLEAN when the stop came** and no increment was in
-flight: this session had finished a reading, reported it, chosen a shape, had it approved, and was
-reading `scripts/rename-identifiers.py`'s interface when the stop arrived. **No source file under
-`design/src`, `harness/` or `contract/` was edited by this session.** The only commit at the pause is
-documentation: this file and the B-378 register entry.
-
-So the gate figures in § 4 still cover the tree exactly as they did — see the condition there.
-
-**What the next session picks up is a fully specified, fully approved, NOT-YET-STARTED build.** It
-is § 3. Every ruling it needs has been given; nothing in it is awaiting an arbitration.
+**Nothing is in flight.** § 3's build is done, and the unit that followed it — the message's
+placement, § 3.6 — is BUILT, gated and pushed with the commit that adds this text; § 3.6 carries its
+head and its gate. **The next move is the office's, not an implementer's**: the pull request out of
+draft and review round two (§ 7). A session that picks this file up waits for the orchestrator's
+word before touching anything.
 
 ---
 
@@ -51,7 +46,8 @@ is § 3. Every ruling it needs has been given; nothing in it is awaiting an arbi
 | **the wave gate**                   | **TAKEN**      | § 4                                      |
 | **review round one, six findings**  | **DONE**       | § 5 — five repaired, one filed           |
 | **A5's third surface — the READING**| **DONE**       | § 3.1 — and it inverted the assumption   |
-| **A5's third surface — the BUILD**  | **1–6 DONE**   | § 3.4 — the commits named there          |
+| **A5's third surface — the BUILD**  | **1–7 DONE**   | § 3.4 and § 3.5 — the commits named there |
+| **the message's placement**         | **DONE**       | § 3.6 — `cf1677e5e`, its gate there      |
 
 **Register**: B-301, B-302, B-313, B-315, B-322, B-323, B-350, B-353, B-365, B-368 read `fixed #572`.
 **Filed by this lot**: B-329, B-330, B-351, B-352, B-363, B-364, B-366, B-367, B-369, B-370, B-371,
@@ -270,7 +266,7 @@ followed (`acquiring`). The second reading, « Les Animaniacs »' sheet, season 
   layer a verb is pressed from, and is left out of the background `app/focus.ts` marks `inert` so its
   close and « Annuler » take a finger. **The media screen never covered it** — that first reading was
   `inert`. **R159**, `harness/message_over_layers.py`, holds paint and touch; its two mutations (the rank,
-  the exemption) are in the entry.
+  the exemption) are in the entry. **Its second half, the placement, is § 3.6** (`cf1677e5e`).
 
 **After the build, two ruled units landed**: B-381's repair (`0e2c25bc1`, above) and the sheet's act on a
 followed show nothing is owned of, never on an unaired season (`1e89d7688`, § 3.3). R158 holds 56 holds
@@ -279,7 +275,7 @@ and the gate back to `owns &&` (Agent Elvis offered nothing, 2 violations over 5
 later holds do not run once nothing is offered) — are recorded here.
 
 
-### 3.6 The message's placement — RULED, NOT BUILT (the next unit, for a fresh session)
+### 3.6 The message's placement — RULED and BUILT (`cf1677e5e`)
 
 **The operator's ruling, 2026-09-11, second decision round** — the option as he read it, worded by the
 steward: « A. En haut de l'écran quand une couche est ouverte, en bas comme aujourd'hui sinon ». Rank
@@ -301,45 +297,60 @@ act in the same layer within that time is covered. `stacking.py` (b)'s probe poi
 top edge + 4 px) falls inside the message's box: it read the message painted ABOVE the confirmation
 (57 > 56), which is real, not a probe error. **The four rules read right and are not to be touched.**
 
-**The unit's shape, from the orchestrator** (copied, not re-derived):
+**What was built** — `cf1677e5e`, one commit, the build and its rule together. DESIGN § 3.1g is the
+full account; B-381's entry carries its second half.
 
-0. **FIRST, one reading per red rule, before any code**: is a LAYER open at the moment of the covered
-   tap (sheet / drawer / confirmation)? **If any of the four taps on the bare screen, STOP** — there the
-   cause would be the `inert` exemption over screen content and it needs a different answer. *Prepared
-   by reading the code only, NOT by a run — re-take it as a measurement*: `deck_verbs.py` and
-   `journey_verbs.py` aim inside `#sheetin [data-part="sheet/action"]`; `remove_verb.py` taps after
-   `window.__panel.produce('follow', …)`; `stacking.py` (b) hit-tests while `window.__dialog` is open.
-1. **Maquette first**: the message host gains a placement that follows the layer signal
-   `setBackgroundInert` already has (a layer open → top; none → bottom). Draw the top position in the
-   variants (below the safe area, over the screen's header, same width and type as the bottom one), the
-   reason beside the class; the ranked list's comment says the message has two positions and why. No
-   line in `legacy.js`; the engine's hint goes through the same host, so it follows.
-2. **R159 gains the placement hold**: with a layer open and a message shown, the message's box does not
-   intersect the layer's bottom action band (read the boxes); the four rules stay untouched. Mutation:
-   placement reverted → R159's placement hold falls AND the same four rules fall (record both lines).
-3. **Oracle**: any divergence on a state at rest is a STOP (no message at rest is expected); a11y 87/0
-   (the live region moving must not change its role); contracts + guards; then the FULL suite once on
-   the head, hold-counts with the file, `make check` — verdict lines with the sha.
-4. **Retake increment 7's confirmation** with the sentence at the top and touchable; the design host
-   rebuilt; DESIGN carries the ruling verbatim with the measurement that forced it; § 3.5 here; B-381's
-   entry gains the second half.
-5. **Push wrapped, `ls-remote`, final report, gauge last.**
+- **Step 0, MEASURED before any code**, on the served copy of `cc96f981b` (the head's sources): a
+  layer was open at every covered tap — `deck_verbs.py` the sheet (the hit a `SPAN` in `#toast` at
+  195, 737), `journey_verbs.py` the sheet (195, 740), `remove_verb.py` the sheet (195, 750),
+  `stacking.py` (b) the confirmation (probe 195, 793, inside the message's box 774–828). None on a bare
+  screen, so no STOP.
+- **The signal**: `app/focus.ts`'s `setBackgroundInert` publishes whether a layer is open through
+  `app/layer-presence.ts` — the drawer, a screen, the sheet, the confirmation. **The host**
+  (`app/toast-host.ts`) moves a SHOWN message with it, keeps a leaving message's place through its
+  400 ms exit, then returns the hidden host to the bottom box the oracle measures. **The drawing**:
+  `messageHost`'s `edge` variant — `edge` because `placement` is not in the code vocabulary, and no
+  word was added. No line in `legacy.js`.
+- ⚠ **A screen is a layer**, as `setBackgroundInert` counts it: on `mediasheet-series` the top
+  position covers « Retour » (y 10) where the bottom one covered « Fermer » (y 731). One way out stays
+  free in either place. Written here so a reader does not meet it as a surprise.
+- **R159** gains five holds on boxes, nothing lifted: seen RED 4 of 16 before the change, green 16 of
+  16 after. **m1** (the `top` branch given the bottom string): R159's four placement holds fall AND
+  `deck_verbs.py` 8 / 5, `journey_verbs.py` 16 / 2, `remove_verb.py` 11 / 4, `stacking.py` 12 / 1.
+  **m2** (the return to rest disarmed): the at-rest hold alone, `[30, 76]` against `[738, 784]`. **The
+  confirmation leg was aimed three times**; the rule and DESIGN say why.
+- **Increment 7 retaken** on build `c8978713bb5e`, a finger on every step from « Médiathèque » and
+  « Incomplets », on « Les aventures de Tintin »: a TAP opens its media screen, a LONG PRESS its follow
+  panel. On both, « Récupérer la saison 3 » says « Série suivie et saison 3 demandée — 6 épisodes à
+  récupérer. » at the top (box 16–70), on top at its own text at +400 and +1200 ms, not `inert`; a
+  finger on its close takes it off screen; the show is `acquiring`.
+- ⚠ **The editing tool's formatter hook** (it arrived with the `.claude` move of 2026-09-11) rewrote
+  `BUGS.md` whole — 1 152 changed lines — for two added paragraphs, and reflowed this file. Every
+  document of this unit was rebuilt from `HEAD` with its own text inserted by script. The hook was
+  then narrowed by the maintenance session (`.md`, `.json`, `.yaml` are no longer formatted); **read
+  `git diff --stat` before every commit anyway** — it still formats `.py`, `.ts`, `.css` and `.html`.
 
-**The exact state this session leaves** (it stood down at the 60 % context gate): the head is the
-commit that adds this section, on top of `cc96f981b`; **pushed with it** are, unpushed until then,
-`0e2c25bc1` (B-381: rank 57, `#toast` exempt from `inert`, R159 in `harness/`), `aa978f2f2` (register:
-B-381 fixed), `d6512e20f` (R159 as text, since moved), `1e89d7688` (the sheet's act on a followed show
-nothing is owned of, never on an unaired season; R158 at 56 holds) and `cc96f981b` (docs). Last reading
-on `cc96f981b`: **full suite RED on the four rules above** (108 of 112 green), oracle 44 over the same 23
-states, a11y 87/0 and light 162/162 (read on `0e2c25bc1`'s tree), hold-counts « 4 of 112 rule(s) FAILED »
-with the same four, **`make check` green — 11 220 passed**, 4 skipped, 2 xfailed, maquette units 110/110,
-vitest 1 374; `design/dist/build.json` `f9b4feef34f4`. **B-381 reads `fixed #572` in the register while
-the suite is red because of its repair** — the placement unit closes that, and its entry gains the
-second half then.
+**Gated on `cf1677e5e`**, every tier written to a file and its verdict read out of it: contracts
+« 18 rule(s) and 27 repository guard(s), no violation » · oracle 44 divergences over 23 states, none
+naming the message's region · a11y 87 states, 0 violations, light 162 against 162 · **full suite
+« 112 rule(s) and 27 repository guard(s), no violation »** (exit 1 is the oracle inside it: the same
+44, no `toast`) · hold counts `--compare frontend/maquette/hold-counts-baseline.json`, the baseline's
+`failed` read FIRST — 0, taken at `f70ca0295` — then « 112 rule(s), no violation », the same 4 upward
+changes (`busy.py` 10 → 16, `cards.py` 65 → 70, `drawer.py` 28 → 30, `persistence.py` 47 → 57), 19 new
+since the baseline (R159 at 16, R158 at 56), 11 unparseable on both sides; its exit 1 is drift against
+a baseline this wave does not re-record · `make check` exit 0 — 11 220 passed, 4 skipped, 2 xfailed,
+maquette units 110 of 110 over 7 files, vitest 134 files and 1 374 tests (its first pass fell ONE
+test, the comment corpus floor, `read` 348 against 349: re-recorded, only `read` moved, then whole
+again) · `design/dist/build.json` `c8978713bb5e`,
+served by the design host. The commits after `cf1677e5e` touch documentation and the comment corpus
+record only (`read` 348 → 349 — the new `app/layer-presence.ts`).
 
 ---
 
 ## 4. The wave gate
+
+**Gated again on `cf1677e5e`, after the placement unit — § 3.6 carries those verdicts.** What follows
+is the earlier gate, kept as it was read.
 
 **Gated on `6087237ae` after the § 3.4 build** (the commits after it touch `BUGS.md` only), verdicts:
 full suite « 111 rule(s) and 27 repository guard(s), no violation » (exit 1 is the oracle inside it) ·
@@ -461,7 +472,7 @@ office splits waves to avoid, and the defect predates this lot. **Pass the file 
 
 ## 7. What is OWED
 
-1. **§ 3.4's seven increments** — approved, specified, not started. This is the work.
+1. ~~**§ 3.4's seven increments**~~ — DONE, and the placement unit after them (§ 3.5, § 3.6).
 2. **The pull request out of draft**, and **rounds two and three** — the orchestrator's word, and
    only his. **Round two's reader is spawned by the office**, fresh, one lens, in a worktree pinned
    at this head with a control at round one's. **An agent here dispatches no reviewer and no writing
