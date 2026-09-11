@@ -65,6 +65,13 @@ there:
   launched with `orchestrator:iterm-agents`, its first act re-announcing its exact address to
   every running agent. A successor satisfies this office's « fresh session » condition as long as it
   never implemented the lot it audits: succession changes the session, not the separation;
+- **the tiers, and this project's one rule about them.** `orchestrator:model-routing` routes a
+  dispatch to `deep`, `standard` or `light` through `~/.claude/claude-orchestrator/models.json`; on
+  this machine that map is EMPTY (`resolve-tier` prints nothing, and the launcher then types no
+  model, so the host's default applies). So this office names the model on every launch —
+  `--model opus` for an implementer, a reader and a successor — and **no tier of this project is
+  ever bound to Sonnet** (`CLAUDE.md` § Implementation Workflow). The model and the reading that
+  chose it go in the launch report, as the skill asks;
 - **the launch itself.** **The steward LAUNCHES every wave's agent, and it ROTATES one whose context
   has passed the gate — itself, with `orchestrator:iterm-agents`, never by handing the operator an
   invocation to paste (operator, 2026-09-05: « c'est à toi de lancer les agents, tes skills
@@ -73,14 +80,43 @@ there:
   qu'on procède »), and the successor steward paid for reading it as current: two reports ended by
   handing the operator a path and an address, and an agent at 83 % context was left running until
   he said so. The brief is merged, and the agent is spawned in the same move — `--dir` the checkout
-  the wave writes in (one writer per repository), the tab placed immediately RIGHT of the steward's
-  (`--left-of` the next sibling's tty), the prompt ONE LINE naming the brief's path and the
-  steward's exact `ListAgents` name and reference, everything else in the brief. The prompt is typed
-  into a shell by AppleScript: a long one is truncated mid-sentence and never runs, and a non-ASCII
-  character kills the script's own `sed` (« RE error: illegal byte sequence ») — both observed on the
-  first launch this office made. Verify the spawn on the artifact (`list`, `ps -t <tty>`,
-  `ListAgents`), then wait for the handshake; an agent past ~60 % is stood down, its tab closed
-  after its acknowledgment, and its replacement spawned with the resume brief;
+  the wave writes in (one writer per repository), `--right-of self` so the tab lands after the
+  steward's last open agent, or beside the steward when it has none (the launcher keeps that chain
+  itself, on the app's tab id, never on a tty, which is recycled: L21's round-three reader was
+  spawned on the tty the operator's closed session had held an hour before; `--left-of` and `move`
+  remain for repairing a layout after the fact), **`--trust` on every launch of this office, without
+  exception** (the host records trust per exact path, a worktree inherits nothing from its
+  repository, and every directory this office launches into is one it prepared itself), `--model`
+  named explicitly (the tiers, below), the title in the operator's format — `Implementer : <phase>`,
+  `Reviewer : <round>`, `Orchestrator : <feature>` — because the title becomes the session's
+  `--name`, so it is the address `ListAgents` prints and the one `close --expect-title` guards on,
+  the prompt ONE LINE naming the brief's path and the steward's exact `ListAgents` name and
+  reference, everything else in the brief. Since plugin 0.22.1 the prompt is handed to the app
+  rather than typed: its length and its bytes are no hazard, and the truncation and the « illegal
+  byte sequence » this office met on its first launch belonged to the typed path, gone with it. The
+  launch runs the operator's login shell: `~/.zprofile` carries the PATH the agents need (brew,
+  pyenv, nvm, `~/.local/bin`) since 2026-09-11, and a spawned session that lacks `pm2`, `gh`,
+  `node` or the pinned `python3` is a defect of that file, measured on the session, never worked
+  around. Verify the spawn on the artifact (`list`, `verify --tty`, `ListAgents`), then wait for
+  the handshake; an agent past ~60 % is stood down at its unit boundary, its resume brief pushed
+  and proved by `ls-remote` BEFORE it stops, and `rotate` spawns its replacement first and closes
+  its tab after. **The steward's own succession passes `--successor`** (the tab lands immediately
+  right of the steward and takes its agent chain) with the title `Orchestrator : <feature>`; the
+  2026-09-11 succession was spawned under the bare title `steward-successor`, and the plugin neither
+  derived a title from the predecessor nor refused one out of format — reported to the operator that
+  day as a plugin defect, to be repaired upstream, never here;
+- **the brief lint, with its known noise.** The skill lints every brief before a spawn
+  (`brief-lint.sh`, run with `bash`: it uses process substitution and dies under `sh`), and the
+  office runs it. On this repository's briefs it reads three things wrongly, measured on 2026-09-11
+  against L21's RESUME and round three's reader brief: an API route between backticks
+  (`/api/acquisition/follows/{title}/seasons/{n}/grab`) is taken for an absolute path that does not
+  exist; a shell array reference inside a fenced block (`${PIPESTATUS[0]}`) for an unexpanded
+  variable; and an i18n placeholder quoted in prose (`{{title}}`) for an unfilled placeholder of the
+  brief. The first two are named as false positives in the launch report, never repaired — a brief is
+  not rewritten to please a script; the third is avoided by writing `<title>`. A reader's brief is
+  held to the non-goals and STOP-and-ask checks like an implementer's: this office writes a
+  « Non-goals » section in both, and the lint reads 0 findings before any spawn. The generalisation
+  belongs to the plugin, not here;
 - **the shared-machine discipline** in its generic form; the lock, the fan-out variable and the
   arithmetic of THIS machine stay in § « Instrument hygiene » below, and they are the stricter reading.
 
@@ -228,6 +264,9 @@ office did on 2026-09-04 (a `python3 server.py --serve 8899` at parent 1, a day 
 then read three rules red on `ERR_CONNECTION_REFUSED`. The hygiene rule below says the office kills what
 IT starts — a process is matched to the rule by who started it, not by the shape of its `ps` line.
 Restart it as `run.sh` does: `(python3 frontend/maquette/harness/server.py --serve 8899 /tmp/tm-refonte &)`.
+**« Left running » is true of an UNWRAPPED invocation**: under `scripts/heavy.sh` the wrapper stops
+what it started when the run ends, so a wrapped `run.sh` leaves no host and the next unwrapped rule
+starts one — read `lsof -nP -iTCP:8899 -sTCP:LISTEN` before attributing a refused connection.
 
 So the steward runs no instrument while an executing agent is running one — the two say so to each
 other first (`SendMessage`), and a rule that falls during an overlap is re-run alone before it is
@@ -237,6 +276,19 @@ read as anything.
 same day: a `git checkout` in the shared tree carried the agent's uncommitted files onto the steward's
 branch and recreated one as a stray. `git worktree add` gives the office its own tree; the
 pre-push hook's test suite needs `npm ci` in both `frontend/` and `frontend/maquette/design/` there.
+
+**Worktrees are this project's reading, by the operator's ruling of 2026-09-11.** The plugin's
+`workspace.sh` makes a CLONE per phase so the one-writer rule is a fact of the file system; here the
+harness reads ONE served copy and ONE 8899 host per machine whatever the number of checkouts, and a
+TorrentMate clone would also need `hooks/install.sh`, two `npm ci` and the config overlay. The
+operator relaxed the plugin's rule himself that day (« dans certains cas les worktrees sont
+suffisants »), so this is a particular of the project, not a disagreement: the steward and its
+readers work in `git worktree add --detach` trees under `~/dev/worktrees/`, `npm ci` in
+`frontend/maquette/design/` of each, and a wave's agent in the main checkout — the only writer
+there. **A worktree is removed as soon as its round is judged and its `.review/` is archived**
+(`diff -rq` against the archive first, then `git worktree remove --force`, then `git worktree
+list`), and `iterm-agent.sh trust prune --apply` follows, so the host's trust record does not keep
+the directory's name.
 
 
 **A brief that a wave will execute lives in the REPOSITORY before that wave is launched.** Under
@@ -357,6 +409,21 @@ would be a wrapper someone bypasses, and a rule bypassed once is a rule gone.
 **And the same holds for a wave's agent.** The office measures the load before it accuses, names
 what the measurement attributes to whom, and says it plainly: the operator asked whose it was, and «
 the agent's gates » was the answer he needed to hear with the counts behind it.
+
+**A marker that is a DIRECTORY prints nothing when read as a file — twice in one day.** `heavy.sh`'s
+holder (B-326) was the first; the host's plugin-cache markers `…/<version>/.in_use/` were the second,
+on 2026-09-11: `ls` on one prints its empty contents and `cat` prints nothing, and this office read
+« the marker is gone » from both while one held a pid file. Read `ls -A <dir> | wc -l`, never the
+directory. **An idle subscription taken on a session already idle fires at once and never reports
+its exit** — subscribe while the session is busy, or read `ps -p <pid>` when the decision needs the
+exit.
+
+**Never `cd` into `frontend/maquette/design/src`, from any session.** The command-logging hook
+writes `.claude/logs/bash-commands.log` under the current directory, and `vite.config.mjs`'s
+`buildIdentity()` hashes all of `src/`, that log included: the build id moved (`c133d97cc1ff` →
+`22c6c46fbb42`) with no source change, from two of this office's own greps. « An unchanged build
+id proves an unchanged build » holds only while nobody shells there. Filed as B-384; until it
+closes, absolute paths from the repository root.
 
 ## What a review costs, and the five rules that make it cost less (L14, 2026-09-02)
 

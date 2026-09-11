@@ -410,11 +410,6 @@ when the defect comes back.
 | B-369 | A fixture rename made a named state's own premise false: a paused follow was renamed to « The Venture Bros » to give it a media sheet, and that title is the subject of the state « Fiche — suggestion NON possédée (série) » — so the sheet drew the disabled « already followed » button, and the rule reading that state's offer fell on an emitter with no data | 1× | `fixed #572` |
 | B-370 | `harness-hold-counts.py --compare` with no FILE exits 2 on an argparse usage error, which a gate reading exit codes cannot tell from a comparison that found drift — one pass of L21's gate compared nothing while looking like it ran | 1× | `open` |
 | B-371 | DOIT-4's « En file » pastille is reachable by NO path a finger can take: it reads the layer's `pipelineState`, which only the pipeline operations write and which no surface calls, while Arrivées' « Lancer le pipeline » writes the engine's interface store and touches no network — two pipeline notions, and the hand can move only the one the pastille does not read | 1× | `open` |
-| B-388 | R51 promises « the prototype's own controls never sit on top of the app's » and reads ONE piece of harness chrome by literal — `[data-part="harness/bar"]` — so a second piece is outside it whatever the docstring says; the property now holds by two rules each naming its own subject, and a third would be held by neither | by audit | `open` |
-| B-389 | The 8899 harness host does not survive the invocation that starts it when that invocation runs under `scripts/heavy.sh` — `set -m` puts the run in its own process group and the release signals the group, so `mutate.sh`, which starts no host, runs its rule against a refused port and B-273 reads the crash as « no hold fell » | by audit | `open` |
-| B-390 | No arm of `check-no-french.py` reads TEXT in `frontend/maquette/design/index.html` — the Strings and Identifiers arms are rooted on `design/src`, and the only arm that opens the file reads attributes — so « the guard does not refuse these labels » was never evidence that an arm had read them | by audit | `open` |
-| B-391 | The DECLARED HARNESS DEVIATION block calls itself « the ONLY accepted divergence in the shell » and makes FIVE declarations, of which ONE diverges — the other four restate what the app's own variants already declare, so they can witness nothing and hid a dead comparison in the rule that reads them | by audit | `open` |
-| B-392 | `features/library/page.tsx` says in the present tense that the legacy owns the selection bar « from creation to removal » — `paintSelBar()` is an empty function and React draws the bar; it is the sentence a reader uses to judge who owns that node | by audit | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
@@ -434,6 +429,15 @@ when the defect comes back.
 | B-381 | A message said while a layer is open is drawn UNDER that layer: the frame ranked the message at z-49 beneath the bottom sheet at z-52, so a verb pressed in a panel speaks a sentence the operator cannot see — held by the toast seam, visible and at full opacity in the document, and under the layer at its own centre; and the message was `inert` while any layer was open, so its close and « Annuler » took no finger | by L21 | `fixed #572` |
 | B-382 | The season act on a FOLLOWED show's own media sheet was addressed under the sheet's key: a sheet opened under « Silo (2023) » is followed by « Silo », so the layer found no follow by that title, began a second one beside the real follow it left untouched, and said « Série suivie et saison 3 demandée — aucun épisode à récupérer. » — B-378's shape on an owned-and-followed sheet | by L21 review round two | `fixed #572` |
 | B-383 | Four verbs SAY a sentence and send nothing to the layer: « Re-scraper les métadonnées » on the follow panel, « Remplacer la valeur » on a secret, « Lancer à blanc » on a maintenance action and « Lancer la veille maintenant » in the « more » menu each answer a canned sentence over an unchanged world — the « said, not done » class, identical on round one's candidate | by L21 review round two | `open` |
+| B-384 | `buildIdentity()` hashes every file under `design/src/`, the command-logging hook's `.claude/logs/bash-commands.log` included, so the build id the design host publishes follows shell commands, not code | by L21's implementer | `open` |
+| B-385 | `hooks/pre-push` runs `pytest -n auto` at every core on every push, beside whatever gate a wave is running; nothing sets `PYTEST_XDIST_AUTO_NUM_WORKERS` | by the steward | `open` |
+| B-386 | `scripts/heavy.sh` has ONE readiness floor for every run — a `make check` and a single-rule replay wait behind the same 4 GB and load 6 | by the steward | `open` |
+| B-387 | The project's PostToolUse formatter rewrote a `.py` a reader wrote under an untracked `.review/` directory: a hook that formats outside the tracked tree edits instruments it was never asked to | by L21's round-three reader | `open` |
+| B-388 | R51 promises « the prototype's own controls never sit on top of the app's » and reads ONE piece of harness chrome by literal — `[data-part="harness/bar"]` — so a second piece is outside it whatever the docstring says; the property now holds by two rules each naming its own subject, and a third would be held by neither | by audit | `open` |
+| B-389 | The 8899 harness host does not survive the invocation that starts it when that invocation runs under `scripts/heavy.sh` — `set -m` puts the run in its own process group and the release signals the group, so `mutate.sh`, which starts no host, runs its rule against a refused port and B-273 reads the crash as « no hold fell » | by audit | `open` |
+| B-390 | No arm of `check-no-french.py` reads TEXT in `frontend/maquette/design/index.html` — the Strings and Identifiers arms are rooted on `design/src`, and the only arm that opens the file reads attributes — so « the guard does not refuse these labels » was never evidence that an arm had read them | by audit | `open` |
+| B-391 | The DECLARED HARNESS DEVIATION block calls itself « the ONLY accepted divergence in the shell » and makes FIVE declarations, of which ONE diverges — the other four restate what the app's own variants already declare, so they can witness nothing and hid a dead comparison in the rule that reads them | by audit | `open` |
+| B-392 | `features/library/page.tsx` says in the present tense that the legacy owns the selection bar « from creation to removal » — `paintSelBar()` is an empty function and React draws the bar; it is the sentence a reader uses to judge who owns that node | by audit | `open` |
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
@@ -802,6 +806,49 @@ Identical on the control, so it predates round two's repairs. It is the « said,
 wave was opened for — NE-DOIT-PAS-1, a sentence that can be right about nothing. **Filed, not repaired.**
 Owner: a follow-up of L21, scheduled by the operator. Status `open`.
 
+
+**B-384 — the build identity hashes the hook's command log.**
+
+`frontend/maquette/design/vite.config.mjs`'s `buildIdentity()` walks all of `src/` and hashes every
+file it finds. The command-logging hook writes `.claude/logs/bash-commands.log` under the current
+directory of any session that shells there, and that log is under `src/` when the session's directory
+is `design/src`. Measured 2026-09-11 by L21's implementer: `dist/build.json` changed from
+`c133d97cc1ff` to `22c6c46fbb42` between two builds of an unchanged source, the two last lines of the
+log being the steward's own greps. The identity the design host publishes (and the oracle's served-copy
+stamp reads) therefore follows shell commands, not code, and « an unchanged id across a rebuild is
+proof » holds only while nobody shells there. **Closes when** `buildIdentity()` skips `.claude/` and
+every git-ignored path, held by a rule that writes a file there and reads the id unchanged. Owner: a
+tooling micro-wave, not a lot.
+
+**B-385 — the pre-push hook takes every core.**
+
+`hooks/pre-push` runs `python -m pytest -v -n auto` on every push: eight workers on this host, beside
+whatever gate a wave is running under `scripts/heavy.sh`, and outside the lock. `pytest-xdist` honours
+`PYTEST_XDIST_AUTO_NUM_WORKERS` when it is set on the command line, and nothing in the repository sets
+it — every wave since L19 has been told to set it to 3 by hand, and the instruction lives in briefs, not
+in the hook. **Closes when** the hook caps its workers (three on this host) unless the variable says
+otherwise, and says so in its own output. Owner: a tooling micro-wave.
+
+**B-386 — the heavy wrapper has one readiness floor for every run.**
+
+`scripts/heavy.sh` waits for 4 GB free and a one-minute load at or below 6 before any run it wraps,
+and stops its child under 2 GB — the same numbers for a full harness suite driving two browsers, for
+`make check`, and for the replay of a single rule. The margin is deliberate for the first and a wait
+nobody needs for the last; on 2026-09-11 a wave asked to lower the floor by environment for a `make
+check`, which is the bypass the rule exists to forbid. **Closes when** the floor is read from the
+command's class (browser run, test run, single rule), with the arithmetic of the office's
+§ Instrument hygiene, and the bypass by environment is refused. Owner: a tooling micro-wave. (A memory
+believed this filed as B-362; no such entry exists on either register.)
+
+**B-387 — the formatter hook edits files outside the tracked tree.**
+
+The project's PostToolUse formatter (`.claude/hooks/auto_format_project.py`, merged by #580) drops
+Markdown and data files and forwards the rest to the global `auto_format.py`, which rewrote a `.py`
+walk a review reader had written under the untracked `.review/` directory of its worktree (L21's
+round three, 2026-09-11). An instrument rewritten by a hook is an instrument its author did not write.
+**Closes when** the hook skips git-ignored and untracked paths, held by a test that writes a file under
+an ignored directory and reads it unchanged after the hook. Owner: the configuration's session, not a
+lot.
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
 

@@ -98,8 +98,8 @@ gate, which only runs `make check`.
 
 ### Who runs it
 
-The `/implement:feature-pr` skill triggers re-exercise as part of the local
-quality gate. If run manually, the operator iterates the `ACC-NN` commands from
+`/implement:close` runs the local quality gate, and re-exercise is part of
+it. If run manually, the operator iterates the `ACC-NN` commands from
 `docs/features/{codename}/ACCEPTANCE.md` by hand, comparing each output to its
 `Expected:` annotation. There is no repo-wide acceptance-check script (see
 `docs/reference/runbook-post-merge.md` §Step 10) — if a feature ships its own
@@ -172,19 +172,21 @@ is `git show <sha>:<path>`; the citation form is `docs/reference/documentation-m
 
 ## 7. Implementation Workflow — the `implement:*` skills
 
-12 `implement:*` skills manage the full feature lifecycle, with per-skill model
-allocation (see each skill's description; **Sonnet is forbidden as a dispatch
-target**). Original design (archived):
+The lifecycle is the plugin `implement@lounisbou` (0.1.1 on 2026-09-11) — five skills, each
+announcing itself and running the project's own gate; **Sonnet is forbidden as a dispatch
+target**. The twelve-skill layout and the eleven local variants this section used to describe were
+retired with the project's `.claude/` migration of 2026-09-11. Original design (archived):
 `docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md@79ccebe2`.
 
-**Entry point**: `/implement:feature` — archive prev, brainstorm, derive codename
-+ SemVer type, create branch, generate plan.
+**Entry point**: `/implement:feature` — archive the previous feature, brainstorm, derive codename
++ SemVer type, create the branch, generate the plan. `/implement:prepare` does a future feature's
+design and plan ahead of time, on the roadmap, without a branch.
 
-**Per phase**: `/implement:phase` — loop on sub-phases, dispatching
-`/implement:sub-phase` + `/implement:check` (verification). Auto-invokes
-`/implement:feature-pr` at the last phase (gate + push + PR + CI poll), then
-`/implement:pr-review` (review + track-scaled fix cycles: full=5, lite=2,
-express=1 + squash merge).
+**Per phase**: `/implement:phase` — every phase not done, in order, without pausing; each
+sub-phase inline (failing tests, the code, the gate, one commit), then `/implement:check` on the
+commit range against the plan and the design. **At the end**: `/implement:close` — the full gate,
+the declared bump, the branch's summary; it never pushes, opens, merges or deletes. The pull
+request and its CI reading follow, by hand or by the orchestrator, and the merge is a squash.
 
 **The CI poll reads the pull request's DRAFT STATE first, since 2026-09-08.** A draft dispatches no
 run at all — every job in `.github/workflows/ci.yml` stands down on one — so a poll waiting for
