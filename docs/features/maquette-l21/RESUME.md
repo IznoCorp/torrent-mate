@@ -32,19 +32,17 @@ Round two added no rule: it grew R155, R157, R158, R159 and R84.
 
 ## 0. WHERE IT STANDS — read this before anything
 
-⚠ **ROUND THREE IS IN FLIGHT, AND § 3.8 IS THE RESUME BRIEF.** It was written at a rotation after C1, and
-it supersedes the « Next » bullet below. **Read § 3.8 first.**
+**ROUND THREE'S REPAIRS ARE DONE AND THE WAVE GATE IS TAKEN on `8e040c789`** (code head `b52e462d0`). The
+head is the commit that adds this text — documentation only — on top of it, pushed with it. Nothing is
+half-done in the tree.
 
-**ROUND TWO'S REPAIRS ARE DONE AND THE WAVE GATE IS TAKEN on `6a56b947e`.** The head is the commit that
-adds this text — documentation only — on top of it, pushed with it. Nothing is half-done in the tree.
-
-- **Done**: round two's eight findings (§ 3.7 — seven repaired, B5 recorded) with **B-383** filed; R158's
-  re-aim owed since B1; `origin/main` merged; and **R84 re-aimed by the gate itself**, which found B2's
-  second `--tm-` publisher unread (§ 4).
-- **Next**: the pull request out of draft and **round three** — the orchestrator's word, and only his.
-  An implementer dispatches no reviewer (§ 7).
-- **Next free**: **B-384** (re-read `main` first), **R161**.
-- **Gates**: § 4, every figure written once, on `6a56b947e`.
+- **Done**: round three's four findings (§ 3.8) — C1 and C2 repaired, C3 and C4 holds added — and the docs
+  item, B-380's entry read again.
+- **Next**: the pull request out of draft, or a round four — the orchestrator's word, and only his. An
+  implementer dispatches no reviewer (§ 7).
+- **Next free**: **B-384** (re-read `main` first), **R161** — round three filed no entry and added no rule:
+  it grew R155, R157, R158, R159 and R160.
+- **Gates**: § 4, every figure written once, on `8e040c789`.
 - **Mutate only on a clean tree**, and write `.md`/`.ts` changes by script or re-read `git diff --stat`
   before every commit (§ 3.6's hook note).
 
@@ -63,6 +61,8 @@ adds this text — documentation only — on top of it, pushed with it. Nothing 
 | **the message's placement**         | **DONE**       | § 3.6 — `cf1677e5e`, its gate there      |
 | **review round two, eight findings**| **DONE**       | § 3.7 — seven repaired, B5 recorded, B-383 filed |
 | **the wave gate, round two**        | **TAKEN**      | § 4 — on `6a56b947e`                      |
+| **review round three, four findings**| **DONE**      | § 3.8 — two repaired, two holds added     |
+| **the wave gate, round three**      | **TAKEN**      | § 4 — on `8e040c789`                      |
 
 **Register**: B-301, B-302, B-313, B-315, B-322, B-323, B-350, B-353, B-365, B-368 read `fixed #572`.
 **Filed by this lot**: B-329, B-330, B-351, B-352, B-363, B-364, B-366, B-367, B-369, B-370, B-371,
@@ -548,8 +548,63 @@ rewritten once, the wrapped push, `ls-remote`, the report — and the closing re
 
 ## 4. The wave gate
 
-**Gated on `6a56b947e`, the final head of round two's repairs** (the commit after it adds this text
-only). Every tier written to a file and its verdict read out of it:
+**Gated on `8e040c789`, the final head of round three's repairs** — its code head is `b52e462d0`; the commit
+after it adds this text only. Every tier ran in sequence under `sh scripts/heavy.sh l21`, its output written
+to a file and its verdict read out of it:
+
+- **Full suite, on `8e040c789`, whole, 19:35:40 → 19:52:03: « 113 rule(s) and 27 repository guard(s), no
+  violation »** · a11y « 87 states, 0 violation(s) », light 162 against a ceiling of 162 · oracle « 87 states x
+  34 regions », **44 divergences, the list identical line by line to the one read on every commit of the
+  round** — over these 23 states and none on the message: `acq-discover`, `acq-discover-posters`, `acq-follows-grid`, `acq-follows-group`, `acq-follows-list`, `acq-follows-pause-empty`, `acq-now-idle`, `acq-now-loaded`, `followsheet-complete`, `mediasheet-series`, `pwa-android`, `pwa-ios`, `relay-lost`, `relay-reconnecting`, `relay-refused`, `screen-profile`, `screen-releases`, `sheet-journey`, `sheet-more`, `sheet-user`, `signin`, `signin-error`, `startup`. Its exit 1 is those accepted divergences and
+  nothing else.
+- **Contracts tier on every commit of the round**: « 18 rule(s) and 27 repository guard(s), no violation ».
+- **Hold counts**: `python3 scripts/harness-hold-counts.py --compare frontend/maquette/hold-counts-baseline.json`
+  on `8e040c789`, 19:52:03 → 20:05:46, the baseline's `failed` read FIRST — 0, taken at `f70ca029` — then
+  « harness: 113 rule(s), no violation. »; 5 counts changed and every one UPWARD, the same five as round two
+  (`busy.py` 10 → 16, `cards.py` 65 → 70, `drawer.py` 28 → 30, `persistence.py` 47 → 57, `runtime_tokens.py`
+  8 → 9); 20 new since the baseline — `message_over_layers.py` at 45 (34 at round two: C2's nine, C3's
+  two), `acted_surface_redraws.py` at 28 (25: C4's three), `spent_deck_cleared.py` at 13 (11: C4's two),
+  `season_grab_unfollowed.py` at 63 and `followed_sheet_act.py` at 24 (C1's) among them; 11 unparseable on
+  both sides. Its exit 1 is drift against a baseline this wave does not re-record.
+- **`make check`**: `PYTEST_XDIST_AUTO_NUM_WORKERS=3 sh scripts/heavy.sh l21 make check` on `8e040c789`,
+  20:05:46 → 20:12:19, no hold-off: exit 0 — 11 220 passed, 4 skipped, 2 xfailed; the maquette's unit suite
+  110 of 110 over 7 files against floors of 7 and 107; vitest 134 files and 1 374 tests; the no-French
+  guard's fifteen arms, no violation. Its one « Error 1 (ignored) » is the ADVISORY fixture-drift check
+  (`-python3 scripts/refresh-maquette-fixture.py --check`), which reads the live database and reported 11
+  drifts; it gates nothing, by design.
+- **`design/dist`**: built on `8e040c789` under the heavy lock (it held off once, load 9.36 against 6):
+  `dist/build.json` reads `58bec183b97d` — the build the closing readings were taken on — served by the
+  design host.
+
+**The closing readings** — the reader's own walks, replayed unchanged but for the port on the final build
+(`58bec183b97d`, served on 8899), each beside what the same walk read on the reader's candidate
+`0526e5e03`:
+
+- **`c01` L2, the life ending while the message is away** — a screen closed 4 669 ms into a message's
+  5 000: it fades at the top (1 → 0 by 168 ms) and never comes back. Reader: 4 667 ms, the same.
+- **`c01` L2, the crossing that flashed (C2)** — closed at 4 420 ms: it fades at the top by 163 ms, is
+  back at the bottom from 413 ms, WHOLE from 563 ms to 1 197 ms, then fades. Reader, closed at 4 419 ms:
+  back from 424 ms and whole only from 573 to 592 ms — the flash.
+- **`c01` L4, « Annuler » under a finger 50 ms into the crossing** — the finger met `#toastundo`, the undo
+  ran once, the message did not come back (`shown` false). Reader: the same.
+- **`c02` L2, « Voir la fiche » inside the flight (B4, C4 (a))** — the SCREEN's act `Silo|3` and the panel's
+  both `aria-busy="true"` at opacity 0.5, both `null` / 1 once answered « Saison 3 de « Silo » demandée — 1
+  épisode à récupérer. », one POST. Reader: the same.
+- **`c04`, the pile after the reserve is exhausted (B7, C4 (b))** — the pile's mark « Vous avez tout parcouru.
+  Les 38 suggestions chargées ont toutes été vues — la réserve est épuisée. », no offer, and list, poster and
+  back to the pile say the same with no offer. Reader: the same on the candidate.
+- **`c05`, the twin's sheet act (C1)** — « Furious » from « Suivis » → « Voir la fiche » → `Furious|1`
+  pressed twice: « Saison 1 de « Furious » demandée — aucun épisode à récupérer. » both times, two POSTs,
+  and the follow stays **`up_to_date`** — row and panel « À jour ». Reader: `Furious [acquiring]`, row and
+  panel « En cours d'acquisition ». The offer itself stays B-380's.
+
+⚠ **A waiting condition that matched too early, said so it is not repeated.** The gate's tiers were queued
+behind the closing readings by a loop waiting for an `exit ` line in the readings' log — and that log
+carries one per walk, so the queue released after `c01`. **The heavy lock held the full suite off**
+(« heavy: waiting for l21 to finish », started 19:35:40 after the readings ended at 19:35:37): nothing ran
+side by side. Wait on a line only the END writes.
+
+**Gated on `6a56b947e`, round two's final head — kept as it was read.**
 
 - **Full suite, FIRST run, on `6b5cb05d7`: red on ONE rule.** R84, « exactly one source file publishes a
   `--tm-` property »: two, `app/bar-height.ts` and `app/layer-presence.ts`. The second came with B2
@@ -693,9 +748,9 @@ office splits waves to avoid, and the defect predates this lot. **Pass the file 
 ## 7. What is OWED
 
 1. ~~**§ 3.4's seven increments**~~ — DONE, and the placement unit after them (§ 3.5, § 3.6).
-2. ~~**Round two's six remaining items**~~ — DONE, § 3.7 and § 4. **Next: the pull request out of draft**
-   and **round three** — the orchestrator's word, and
-   only his. **Round two's reader is spawned by the office**, fresh, one lens, in a worktree pinned
+2. ~~**Round two's six remaining items**~~ — DONE, § 3.7 and § 4. ~~**Round three's four findings**~~ —
+   DONE, § 3.8 and § 4. **Next: the pull request out of draft**, or a round four — the orchestrator's
+   word, and only his. **Round two's reader is spawned by the office**, fresh, one lens, in a worktree pinned
    at this head with a control at round one's. **An agent here dispatches no reviewer and no writing
    delegate**; read-only search subagents are the one thing that may be forked. A round the author
    runs inline is not adversarial whatever its rigour — measured on L12, where the wave's own lenses
