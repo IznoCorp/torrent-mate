@@ -423,7 +423,9 @@ when the defect comes back.
 | B-353 | UNDOING A REMOVAL DOES NOT RESTORE THE FOLLOW, it creates a new one wearing the same name: the layer's delete DROPS the record and the only way back is a CREATE, so the year, « suivi depuis » and the search count are lost and the status comes back right only by coincidence | by L21 | `fixed #572` |
 | B-376 | Every push to a DRAFT pull request ran the whole pipeline, and no trigger answered the pull request leaving draft: a wave that opens its pull request early — which is this repository's own method — paid full CI on each of its intermediate pushes, and `ready_for_review` was in no workflow at all | by operator | `fixed #578` |
 | B-377 | `check-implementation-state`'s in-flight arm infers « that wave has landed » from a VERSION COMPARISON — `main >= the row's version` — which holds only while every merge to `main` comes from the in-flight wave itself; a micro-wave merging past it makes the arm refuse a row that is perfectly true, and it was refusing L21's row on `main` | by gate | `fixed #579` |
-| B-378 | `grabSeasonForFollow`'s mock moves a follow's status only when one is FOUND, so for a medium that is NOT followed it answers 201 with a real `absorbedCount` and changes nothing at all — success reported over an unchanged world, on a path the « Incomplets » lens reaches with a single tap | by L21 | `open` |
+| B-378 | `grabSeasonForFollow`'s mock moves a follow's status only when one is FOUND, so for a medium that is NOT followed it answers a success (200 today — the layer ignores the declared code, B-379) with a real `absorbedCount` and changes nothing at all — success reported over an unchanged world, on a path the « Incomplets » lens reaches with a single tap | by L21 | `fixed #572` |
+| B-379 | The mock layer answers **200** to every call unless a scenario arms a failure (`mocks/scenario.ts:145`), whatever code the contract declares — `grabSeasonForFollow` declares 201, `requeueJourney` and `rescrapeJourney` 202 — so no rule can hold a declared success code, and a sentence saying the layer « answers 201 » is false on the code | by L21 | `open` |
+| B-380 | The season grab's `absorbedCount` is derived from `seasons.json` while the media sheet draws its season rows from the sheet's own catalogue (`media-sheets.json`): two families at one title that disagree on 13 of the 49 seasons both know, so on « Les Animaniacs »' sheet the row « Saison 5 · 0/23 · 23 manquants » offers the act and the answer says « aucun épisode à récupérer » | by L21 | `open` |
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
@@ -490,7 +492,7 @@ that broke it and would have refused L21's next run — for a reason that was no
 had written correctly. The wave that falsifies a guard's premise and the wave that meets its refusal
 are not the same wave, and nothing in the failure would have said so.
 
-**B-378 — the season grab answers 201 over an unchanged world for every non-follow.**
+**B-378 — the season grab answers a success over an unchanged world for every non-follow.**
 `design/src/mocks/handlers/acquisition-verbs.ts:165` reads the follow it is about and moves its
 status only when it finds one:
 
@@ -498,7 +500,7 @@ status only when it finds one:
     if (found !== undefined && !queued()) found.status = BEING_ACQUIRED;
 
 For a medium nobody follows `found` is `undefined`, so the guard is silent and the handler falls
-through to its answer: **201, with a real `absorbedCount` computed from `seasons.json`, over a world
+through to its answer: **a success — 200 today, because the layer ignores the declared code (B-379) — with a real `absorbedCount` computed from `seasons.json`, over a world
 in which nothing whatever has changed.** The interface then says « Saison 3 demandée — 5 épisodes à
 récupérer », refetches the follows, gets back the identical list, and redraws the identical panel.
 The operator is told an act succeeded and can see, correctly, that nothing happened.
@@ -519,6 +521,58 @@ legitimate, so the mock must MOVE STATE — the follow is created by the act and
 was — and the contract must accept a subject that is not yet followed. That work is L21's and is
 described in `docs/features/maquette-l21/RESUME.md`; this entry records only the defect as it stands
 today, which is that the present handler reports success and does nothing.
+
+**Fixed #572**, in the order § 3.4 of the lot's RESUME set. The handler creates the follow when none
+exists (`c208b0e02`), built from the library's incomplete-show record — status `acquiring` when the ask
+starts now, `pending` when the machine is busy — and the answer carries `newlyFollowed` (`b2036180c`).
+**The rule is R158** (`harness/season_grab_unfollowed.py`, `6a871adaa`): on both surfaces, for both
+subjects, the medium is followed after the act. **The mutation**: the creation line removed from the
+handler, 8 holds fall — « IS FOLLOWED afterwards » and « reads differently » on all four walks. **The
+run**: 41 holds EXECUTED, no violation, on `6a871adaa`.
+
+**B-379 — the mock layer answers 200 whatever the contract declares.**
+`design/src/mocks/scenario.ts:145` computes every outcome as `status: armed ? (asked.status ?? 200) :
+200`, and `mocks/index.ts` answers `json(outcome.status, payload)` with it. The contract declares
+**201** for `grabSeasonForFollow` and **202** for `requeueJourney` and `rescrapeJourney`; the layer
+answers 200 to all three. Measured by R158 on its first run: four season grabs, four `status: 200` in
+`window.__mocks.answered()` — and every hold on the literal code red for a reason that was not the act.
+It predates L21 and it is layer-wide, so **it is not repaired in L21** (the orchestrator's ruling,
+2026-09-11): changing the code every operation answers is a mixed-nature change. **Owner: the next
+mock/contract micro-wave, « mock layer ».** Until it lands a rule holds a success as `2xx` and says why,
+as R158 does. B-378's entry said « answers 201 », which was the contract's word and not the layer's.
+
+**B-380 — the season grab counts one family of seasons and the sheet draws another.**
+`episodesMissingFromSeason` (`design/src/mocks/handlers/acquisition-verbs.ts`) derives `absorbedCount`
+from `seeds/seasons.json`, while `readMediaSeasons` (`handlers/media.ts:151`) answers the SHEET's own
+catalogue from `media-sheets.json` first. The follow panel draws from `SEASONS` and agrees with the
+count; the media sheet does not. The same class as B-088 — two families keyed the same way are not the
+same answer.
+
+Measured over every title both families hold, every title variant the handler can match: **49 seasons
+compared, 13 disagree.** The sheet's catalogue is LARGER than what `seasons.json` says has aired on
+Silo S3 (10 / 7), Furious S1 (8 / 5), President Curtis S1 (10 / 3), Strange New Worlds S4 (10 / 3), Ted
+Lasso S4 (10 / 1), Les Animaniacs S1 (172 / 134) and S3 (46 / 26), American Dad! S22 (13 / 11); it is
+SMALLER on Les Animaniacs S2 (12 / 15) and American Dad! S16 (20 / 24); and it carries seasons
+`seasons.json` does not have at all — Silo S4 (0), Les Animaniacs S4 (22) and S5 (23). **They agree
+everywhere else they overlap**: American Dad! S1–S15 and S17–S21, Les aventures de Tintin S1–S3, Silo
+S1–S2, House of the Dragon S1–S3, Strange New Worlds S1–S3, Ted Lasso S1–S3.
+
+What it does on screen: on « Les Animaniacs »' sheet, reached from « Incomplets », the row « Saison 5 ·
+0/23 · 23 manquants » offers the act and the answer says « Série suivie et saison 5 demandée — aucun
+épisode à récupérer. » **The disagreement is the SEED's and it predates L21**: on Silo, the media sheet
+(`mediasheet-series`) prints « Saison 3 · 6/10 · 4 manquants » while the follow panel raised from
+« Suivis » (`acq-follows-list`) prints « Saison 3 · 6/7 · 1 manquant » for the same season — two surfaces
+disagreeing about one hole before this lot drew any verb over either.
+
+**Not repaired by deriving the count from the sheet**: that would agree with the sheet's row and count
+episodes that have not aired, and move the follow panel's figures with it. The repair is at the seed or
+in how the sheet counts, and a fixture edit is not a contained edit (B-369) — a decision of its own,
+with a full-suite run behind it.
+
+**The question under it is the operator's**: does « manquants » count the episodes that have AIRED, or
+the episodes in the CATALOGUE? The answer decides which family is the seed to correct — `seasons.json`
+if the catalogue is the truth, the sheet's count if airing is. **Provisional owner: the « mock layer »
+micro-wave, beside B-379.**
 
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
