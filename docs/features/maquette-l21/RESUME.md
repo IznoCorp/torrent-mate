@@ -515,10 +515,8 @@ none (B-273), so every blind spot below was run by hand with its output kept.
 - **Docs** — this section, and B-380's entry gains the round-three reading of `c05` (the offer on
   Furious and President Curtis stays B-380's; the status C1 repaired).
 
-**Next**: ONE gate on the final code head, `b52e462d0` — the full suite (the orchestrator told before),
-hold-counts `--compare frontend/maquette/hold-counts-baseline.json`, `make check`, `design/dist`, § 4
-rewritten once, the wrapped push, `ls-remote`, the report — and the closing readings on that build:
-`c01` L2 and L4, `c02` L2, `c04` and `c05`, their lines given.
+**The gate is TAKEN** on `8e040c789` (code head `b52e462d0`), pushed at `4310a112f` with the closing
+readings — every figure is in § 4.
 
 **Traps this round paid for**, beyond § 6 and § 8:
 
@@ -548,8 +546,8 @@ rewritten once, the wrapped push, `ls-remote`, the report — and the closing re
 
 ## 4. The wave gate
 
-**Gated on `8e040c789`, the final head of round three's repairs** — its code head is `b52e462d0`; the commit
-after it adds this text only. Every tier ran in sequence under `sh scripts/heavy.sh l21`, its output written
+**Gated on `8e040c789`, the final head of round three's repairs** — its code head is `b52e462d0`, and every
+figure below is that head's; the commits after it touch this file only. Every tier ran in sequence under `sh scripts/heavy.sh l21`, its output written
 to a file and its verdict read out of it:
 
 - **Full suite, on `8e040c789`, whole, 19:35:40 → 19:52:03: « 113 rule(s) and 27 repository guard(s), no
