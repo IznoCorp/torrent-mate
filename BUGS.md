@@ -429,6 +429,10 @@ when the defect comes back.
 | B-381 | A message said while a layer is open is drawn UNDER that layer: the frame ranked the message at z-49 beneath the bottom sheet at z-52, so a verb pressed in a panel speaks a sentence the operator cannot see — held by the toast seam, visible and at full opacity in the document, and under the layer at its own centre; and the message was `inert` while any layer was open, so its close and « Annuler » took no finger | by L21 | `fixed #572` |
 | B-382 | The season act on a FOLLOWED show's own media sheet was addressed under the sheet's key: a sheet opened under « Silo (2023) » is followed by « Silo », so the layer found no follow by that title, began a second one beside the real follow it left untouched, and said « Série suivie et saison 3 demandée — aucun épisode à récupérer. » — B-378's shape on an owned-and-followed sheet | by L21 review round two | `fixed #572` |
 | B-383 | Four verbs SAY a sentence and send nothing to the layer: « Re-scraper les métadonnées » on the follow panel, « Remplacer la valeur » on a secret, « Lancer à blanc » on a maintenance action and « Lancer la veille maintenant » in the « more » menu each answer a canned sentence over an unchanged world — the « said, not done » class, identical on round one's candidate | by L21 review round two | `open` |
+| B-384 | `buildIdentity()` hashes every file under `design/src/`, the command-logging hook's `.claude/logs/bash-commands.log` included, so the build id the design host publishes follows shell commands, not code | by L21's implementer | `open` |
+| B-385 | `hooks/pre-push` runs `pytest -n auto` at every core on every push, beside whatever gate a wave is running; nothing sets `PYTEST_XDIST_AUTO_NUM_WORKERS` | by the steward | `open` |
+| B-386 | `scripts/heavy.sh` has ONE readiness floor for every run — a `make check` and a single-rule replay wait behind the same 4 GB and load 6 | by the steward | `open` |
+| B-387 | The project's PostToolUse formatter rewrote a `.py` a reader wrote under an untracked `.review/` directory: a hook that formats outside the tracked tree edits instruments it was never asked to | by L21's round-three reader | `open` |
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
@@ -797,6 +801,49 @@ Identical on the control, so it predates round two's repairs. It is the « said,
 wave was opened for — NE-DOIT-PAS-1, a sentence that can be right about nothing. **Filed, not repaired.**
 Owner: a follow-up of L21, scheduled by the operator. Status `open`.
 
+
+**B-384 — the build identity hashes the hook's command log.**
+
+`frontend/maquette/design/vite.config.mjs`'s `buildIdentity()` walks all of `src/` and hashes every
+file it finds. The command-logging hook writes `.claude/logs/bash-commands.log` under the current
+directory of any session that shells there, and that log is under `src/` when the session's directory
+is `design/src`. Measured 2026-09-11 by L21's implementer: `dist/build.json` changed from
+`c133d97cc1ff` to `22c6c46fbb42` between two builds of an unchanged source, the two last lines of the
+log being the steward's own greps. The identity the design host publishes (and the oracle's served-copy
+stamp reads) therefore follows shell commands, not code, and « an unchanged id across a rebuild is
+proof » holds only while nobody shells there. **Closes when** `buildIdentity()` skips `.claude/` and
+every git-ignored path, held by a rule that writes a file there and reads the id unchanged. Owner: a
+tooling micro-wave, not a lot.
+
+**B-385 — the pre-push hook takes every core.**
+
+`hooks/pre-push` runs `python -m pytest -v -n auto` on every push: eight workers on this host, beside
+whatever gate a wave is running under `scripts/heavy.sh`, and outside the lock. `pytest-xdist` honours
+`PYTEST_XDIST_AUTO_NUM_WORKERS` when it is set on the command line, and nothing in the repository sets
+it — every wave since L19 has been told to set it to 3 by hand, and the instruction lives in briefs, not
+in the hook. **Closes when** the hook caps its workers (three on this host) unless the variable says
+otherwise, and says so in its own output. Owner: a tooling micro-wave.
+
+**B-386 — the heavy wrapper has one readiness floor for every run.**
+
+`scripts/heavy.sh` waits for 4 GB free and a one-minute load at or below 6 before any run it wraps,
+and stops its child under 2 GB — the same numbers for a full harness suite driving two browsers, for
+`make check`, and for the replay of a single rule. The margin is deliberate for the first and a wait
+nobody needs for the last; on 2026-09-11 a wave asked to lower the floor by environment for a `make
+check`, which is the bypass the rule exists to forbid. **Closes when** the floor is read from the
+command's class (browser run, test run, single rule), with the arithmetic of the office's
+§ Instrument hygiene, and the bypass by environment is refused. Owner: a tooling micro-wave. (A memory
+believed this filed as B-362; no such entry exists on either register.)
+
+**B-387 — the formatter hook edits files outside the tracked tree.**
+
+The project's PostToolUse formatter (`.claude/hooks/auto_format_project.py`, merged by #580) drops
+Markdown and data files and forwards the rest to the global `auto_format.py`, which rewrote a `.py`
+walk a review reader had written under the untracked `.review/` directory of its worktree (L21's
+round three, 2026-09-11). An instrument rewritten by a hook is an instrument its author did not write.
+**Closes when** the hook skips git-ignored and untracked paths, held by a test that writes a file under
+an ignored directory and reads it unchanged after the hook. Owner: the configuration's session, not a
+lot.
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
 
