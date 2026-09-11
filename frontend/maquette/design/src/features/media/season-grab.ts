@@ -24,6 +24,7 @@ type SeasonGrab = {
   absorbedCount: number;
   queued: boolean;
   runUid: string | null;
+  newlyFollowed: boolean;
 };
 
 /**
@@ -124,13 +125,23 @@ export async function grabSeason(title: string, season: number): Promise<boolean
     // because a season nothing is known about absorbs NOTHING and « 0 épisodes
     // à récupérer » is both wrong in French, where zero takes the singular, and
     // a worse thing to read than saying so.
+    //
+    // AND A FOLLOW BEGUN BY THE ASK IS A SECOND FACT, so it has sentences of its
+    // own: the same four, each with the follow said in it, chosen by the
+    // answer's `newlyFollowed`. Never a clause appended to one of the others,
+    // and never a key assembled from two halves: every key is written out, so
+    // a reader searching for one finds the line that chooses it.
     const count = grab?.absorbedCount ?? 0;
-    const messageKey =
-      count === 0 ? "seasonAskedNone" : count === 1 ? "seasonAskedOne" : "seasonAsked";
+    const newly = grab?.newlyFollowed === true;
+    const messageKey = grab?.queued
+      ? newly ? "seasonQueuedNewlyFollowed" : "seasonQueued"
+      : count === 0
+        ? newly ? "seasonAskedNoneNewlyFollowed" : "seasonAskedNone"
+        : count === 1
+          ? newly ? "seasonAskedOneNewlyFollowed" : "seasonAskedOne"
+          : newly ? "seasonAskedNewlyFollowed" : "seasonAsked";
     window.__toast?.show({
-      message: grab?.queued
-        ? say("seasonQueued", { season })
-        : say(messageKey, { season, count }),
+      message: say(messageKey, { season, count }),
     });
     return grab?.queued === true;
   } catch {

@@ -12,7 +12,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields";
 
 export function SeasonList({
-  followed,
   sheet,
   sheetInFlight,
   failed,
@@ -22,8 +21,6 @@ export function SeasonList({
   catalog,
   title,
 }: {
-  /** Whether the medium is followed — the grab's own precondition. */
-  followed: boolean;
   sheet: MediaSheetFields | null;
   seasons: [number, number | null, number][];
   owns: boolean;
@@ -315,15 +312,20 @@ export function SeasonList({
                 the other a place where the operator can see what is missing and
                 do nothing about it, which is DOIT-3 read backwards.
 
-                GATED ON `followed`, and that is the honest half of the answer
-                to « why do the two differ ». The operation is
-                `/api/acquisition/follows/{title}/seasons/{n}/grab`: it asks
-                about a FOLLOW. The panel is only ever drawn for one, so it
-                needs no test; this list is drawn for any medium, and offering
-                the act on a medium nobody follows would draw a button whose
-                own address does not exist. The behaviour itself is shared —
-                `askForSeason` — so the two surfaces cannot drift apart. */}
-            {followed && !complete ? (
+                GATED ON OWNERSHIP, NOT ON A FOLLOW. The hole is a season the
+                reader OWNS and holds less of than has aired — the same
+                condition the « manquants » mark above is drawn on — and taking
+                it follows the medium when nothing did: the operation answers
+                whether the act began the follow, and the message says so.
+
+                `!complete` ALONE IS NOT THAT TEST, although it reads like it:
+                `complete` is false for anything not owned, so it offered a grab
+                on every season of a suggestion nobody owns — seven of them on
+                The Venture Bros, inside closed rows, where no measurement of
+                geometry can see a button. Having a sheet does not make a medium
+                one of the reader's. The behaviour is shared — `askForSeason` —
+                so the two surfaces cannot drift apart. */}
+            {owns && !complete ? (
               <button
                 type="button"
                 className={`sact ${seasonGrabSpacing()}`}

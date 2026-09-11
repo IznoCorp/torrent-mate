@@ -221,7 +221,6 @@ export function MediaLibraryFacts({
       )}
       </div>
       <SeasonList
-        followed={followed}
         failed={failed}
         ownershipKnown={ownershipKnown}
         sheetInFlight={sheetInFlight}
