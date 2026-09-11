@@ -47,6 +47,23 @@ beside it Silo's owned sheet is held to offer the act exactly where it prints a
 shortfall, so the count of zero reads a gate and not a list that stopped
 drawing.
 
+AND A FOLLOWED SHOW THE READER HOLDS NOTHING OF, on its sheet. The same act is
+offered wherever the show is looked at, so a followed show with no episode owned
+is offered its seasons — and a season that has not aired yet is offered nothing,
+on any show, because what has not aired is not missing. No fixture datum carries
+such a follow: one added to the follows seed would redraw every state drawn over
+« Suivis ». So the rule CREATES it, by a finger on « Suivre » on the show's own
+sheet — the path the operator takes by hand: open a show from Découvrir, follow
+it, look at its seasons. Two subjects, both suggestions nobody owns or follows,
+named by no other rule and no named state:
+
+  « Agent Elvis » — one season, aired. Once followed it is offered that season,
+  the act is answered, the follow resolves a sheet (the question R156 asks), and
+  it is being acquired afterwards.
+  « Grimsburg » — its third season airs after the referential's TODAY, read in
+  the page. Once followed its first two seasons are offered the act and the
+  third is not.
+
 WHAT IT DOES NOT READ: the QUEUED path of a follow begun by the act — the
 pipeline busy, `seasonQueuedNewlyFollowed` said, the follow created `pending`.
 R125 holds the queued clause on a medium already followed; this rule walks the
@@ -73,6 +90,11 @@ LENS_STATE = "lib-incomplete"
 SUGGESTION_STATE = "mediasheet-suggestion-series"
 # An owned series with a hole — the negative leg's control.
 OWNED_SHEET_STATE = "mediasheet-series"
+# Where the two suggestions are drawn as posters a finger opens a sheet from.
+DISCOVER_STATE = "acq-discover-posters"
+# A followed show nothing is owned of: every season aired, and one not yet.
+ALL_AIRED = "Agent Elvis"
+ONE_NOT_AIRED = "Grimsburg"
 
 # The operation, as the contract names it, read by operationId.
 GRAB_OPERATION = "grabSeasonForFollow"
@@ -167,6 +189,57 @@ COUNT_ON_THE_SHEET = """()=>{
     labels: rows.filter((row) => row.querySelector('[data-part="season/grab"]'))
       .map((row) => ((row.querySelector("summary") || {}).textContent || "").trim()),
   };}"""
+
+# ANY ELEMENT CARRYING AN ATTRIBUTE WITH A VALUE, aimed at like `AIM`.
+AIM_BY_ATTRIBUTE = """([attribute, value])=>{
+  const target = [...document.querySelectorAll(`[${attribute}]`)].find(
+    (one) => one.getAttribute(attribute) === value);
+  if (!target) return {found: false};
+  target.scrollIntoView({block: "center"});
+  const box = target.getBoundingClientRect();
+  const x = box.left + box.width / 2;
+  const y = box.top + box.height / 2;
+  const hit = document.elementFromPoint(x, y);
+  return {found: true, x, y,
+          reachable: !!hit && (hit === target || target.contains(hit)),
+          covering: hit === null ? "nothing" :
+            (hit.tagName + (hit.className ? "." + String(hit.className).split(" ")[0] : ""))};}"""
+
+# EVERY SEASON ROW ON THE SHEET: its number (the summary's first figure), and
+# whether it offers the act.
+ROWS_ON_THE_SHEET = """()=>{
+  const root = document.querySelector('[data-region="screen-media/body"]');
+  return root ? [...root.querySelectorAll('[data-part="season"]')].map((row) => {
+    const figure = ((row.querySelector("summary") || {}).textContent || "").match(/\\d+/);
+    const act = row.querySelector('[data-part="season/grab"]');
+    return {season: figure ? Number(figure[0]) : null, offered: !!act,
+            value: act ? act.dataset.grabSeason || "" : ""};
+  }) : [];}"""
+
+# THE SUMMARY OF THE ROW WHOSE ACT CARRIES A VALUE — a row of a show the reader
+# does not own is drawn CLOSED, and a button inside a closed row has no box, so
+# the finger opens the row first, the way the operator does.
+AIM_AT_THE_ROW_OF = """(value)=>{
+  const act = document.querySelector(`[data-grab-season="${CSS.escape(value)}"]`);
+  const row = act && act.closest('[data-part="season"]');
+  const summary = row && row.querySelector("summary");
+  if (!summary) return {found: false};
+  summary.scrollIntoView({block: "center"});
+  const box = summary.getBoundingClientRect();
+  const x = box.left + box.width / 2;
+  const y = box.top + box.height / 2;
+  const hit = document.elementFromPoint(x, y);
+  return {found: true, x, y, open: row.open,
+          reachable: !!hit && (hit === summary || summary.contains(hit))};}"""
+
+# WHICH OF THE SHOW'S SEASONS AIR AFTER TODAY, from the referential the sheet reads.
+NOT_YET_AIRED = """(title)=>{
+  const reference = window.__referentiel;
+  const sheet = reference && reference.sheetFor(title);
+  const today = reference && reference.TODAY;
+  return {today: today || null, resolved: !!sheet,
+          later: ((sheet && sheet.seasons) || []).filter(
+            (season) => today && season.air && season.air > today).map((season) => season.n)};}"""
 
 SAID = """()=>{
   const held = window.__toast?.read?.();
@@ -271,6 +344,47 @@ async def take_a_season(page, journal, errors, title, surface):
     journal.check(f"{where}: tapping raises no error", not errors, str(errors))
 
 
+async def follow_from_its_sheet(page, journal, errors, title):
+    """Opens a suggestion's sheet from Découvrir and follows it by finger.
+
+    Args:
+        page: The page.
+        journal: Where the holds are recorded.
+        errors: The page errors collected so far.
+        title: The suggestion.
+
+    Returns:
+        Whether the show is followed and its sheet is open.
+    """
+    await page.evaluate("(id)=>window.__go(id)", DISCOVER_STATE)
+    await page.wait_for_timeout(SETTLED)
+    await page.evaluate(EMPTY_THE_TOAST)
+    before = await page.evaluate(FOLLOWS)
+    journal.check(f"« {title} »: nobody follows it before the finger does", title not in before,
+                  f"status before: {before.get(title)!r}")
+    poster = await page.evaluate(AIM_BY_ATTRIBUTE, ["data-mediasheet", title])
+    journal.check(f"« {title} »: a finger reaches its poster on Découvrir",
+                  poster["found"] and poster["reachable"], str(poster))
+    if not (poster["found"] and poster["reachable"]):
+        return False
+    await page.touchscreen.tap(poster["x"], poster["y"])
+    await page.wait_for_timeout(SETTLED * 3)
+    follow = await page.evaluate(AIM_BY_ATTRIBUTE, ["data-follow", title])
+    journal.check(f"« {title} »: its sheet offers « Suivre » to a finger",
+                  follow["found"] and follow["reachable"], str(follow))
+    if not (follow["found"] and follow["reachable"]):
+        return False
+    errors.clear()
+    await page.touchscreen.tap(follow["x"], follow["y"])
+    await page.wait_for_timeout(ACTED)
+    after = await page.evaluate(FOLLOWS)
+    resolved = await page.evaluate("(t)=>window.__referentiel?.sheetFor(t) != null", title)
+    journal.check(f"« {title} »: followed afterwards, and the follow resolves a sheet — "
+                  "never a sheetless follow (R156's question)",
+                  title in after and resolved, f"status {after.get(title)!r}, sheet {resolved}")
+    return title in after
+
+
 async def main():
     journal = Journal("R158 — a season is taken from « Incomplets » by someone who does not follow the show")
     async with async_playwright() as playwright:
@@ -296,6 +410,52 @@ async def main():
         for title in sorted(EXPECTED_SUBJECTS):
             for surface in (PANEL, SHEET):
                 await take_a_season(page, journal, errors, title, surface)
+
+        # ── A FOLLOWED SHOW THE READER HOLDS NOTHING OF ──────────────────────
+        if await follow_from_its_sheet(page, journal, errors, ALL_AIRED):
+            rows = await page.evaluate(ROWS_ON_THE_SHEET)
+            offered = [row for row in rows if row["offered"]]
+            journal.check(f"« {ALL_AIRED} », followed and not owned, is offered its aired seasons",
+                          bool(rows) and len(offered) == len(rows), str(rows))
+            if offered:
+                value = offered[0]["value"]
+                number = value.split("|")[-1]
+                row = await page.evaluate(AIM_AT_THE_ROW_OF, value)
+                if row.get("found") and row.get("reachable") and not row.get("open"):
+                    await page.touchscreen.tap(row["x"], row["y"])
+                    await page.wait_for_timeout(SETTLED)
+                act = await page.evaluate(AIM, ["season/grab", "data-grab-season", value])
+                journal.check(f"« {ALL_AIRED} »: a finger opens season {number}'s row and reaches its act",
+                              act["found"] and act["reachable"], f"row {row} act {act}")
+                mark = len(await page.evaluate(ANSWERED))
+                errors.clear()
+                if act["found"] and act["reachable"]:
+                    await page.touchscreen.tap(act["x"], act["y"])
+                    await page.wait_for_timeout(ACTED)
+                grabs = [call for call in (await page.evaluate(ANSWERED))[mark:]
+                         if call["operationId"] == GRAB_OPERATION]
+                journal.check(f"« {ALL_AIRED} »: a finger takes season {number} and the season grab "
+                              "is called once for it, answered as a success",
+                              len(grabs) == 1 and grabs[0]["path"].endswith(f"/seasons/{number}/grab")
+                              and 200 <= grabs[0]["status"] < 300,
+                              str([(call["path"], call["status"]) for call in grabs]))
+                status = (await page.evaluate(FOLLOWS)).get(ALL_AIRED)
+                journal.check(f"« {ALL_AIRED} »: and it is being acquired afterwards, with no error",
+                              status == "acquiring" and not errors, f"{status!r} {errors}")
+
+        if await follow_from_its_sheet(page, journal, errors, ONE_NOT_AIRED):
+            later = await page.evaluate(NOT_YET_AIRED, ONE_NOT_AIRED)
+            journal.check(f"« {ONE_NOT_AIRED} » has a season that airs after the referential's "
+                          "TODAY, read in the page, so the leg below reads a clause",
+                          bool(later["later"]), str(later))
+            rows = await page.evaluate(ROWS_ON_THE_SHEET)
+            unaired = [row for row in rows if row["season"] in later["later"]]
+            aired = [row for row in rows if row["season"] not in later["later"]]
+            journal.check(f"« {ONE_NOT_AIRED} »: a season not yet aired is offered NO act — what has "
+                          "not aired is not missing",
+                          bool(unaired) and not any(row["offered"] for row in unaired), str(unaired))
+            journal.check(f"« {ONE_NOT_AIRED} »: while its aired seasons are offered it",
+                          bool(aired) and all(row["offered"] for row in aired), str(aired))
 
         # ── NOT ON A SHOW NOBODY OWNS ────────────────────────────────────────
         await page.evaluate("(id)=>window.__go(id)", SUGGESTION_STATE)

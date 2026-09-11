@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields";
 
 export function SeasonList({
+  followed,
   sheet,
   sheetInFlight,
   failed,
@@ -21,6 +22,12 @@ export function SeasonList({
   catalog,
   title,
 }: {
+  /**
+   * Whether the medium is followed. With ownership, it is what the season act
+   * asks: a followed show the reader holds nothing of is offered its seasons
+   * too, the same act wherever the show is looked at.
+   */
+  followed: boolean;
   sheet: MediaSheetFields | null;
   seasons: [number, number | null, number][];
   owns: boolean;
@@ -95,6 +102,13 @@ export function SeasonList({
           : row.own;
         const complete = owns && row.aired != null && nbOwn >= row.aired;
         const missing = row.aired != null ? row.aired - nbOwn : null;
+        // WHEN THE SEASON AIRS, read from the catalogue for an owned row too: the
+        // owned numbers carry no date. A season that has not aired yet is not
+        // missing — nothing of it can be held — so it is offered no act; one
+        // that has STARTED airing keeps it, because the comparison is on the
+        // season's date and not on every episode's.
+        const seasonAirDate = row.air ?? catalog.find((season) => season.n === row.n)?.air;
+        const seasonUpcoming = seasonAirDate != null && seasonAirDate > TODAY;
         /* With no known total, reason up to the highest owned episode: a
            hole BELOW that maximum is a genuine gap, above it nothing is
            known. */
@@ -312,20 +326,23 @@ export function SeasonList({
                 the other a place where the operator can see what is missing and
                 do nothing about it, which is DOIT-3 read backwards.
 
-                GATED ON OWNERSHIP, NOT ON A FOLLOW. The hole is a season the
-                reader OWNS and holds less of than has aired — the same
-                condition the « manquants » mark above is drawn on — and taking
-                it follows the medium when nothing did: the operation answers
-                whether the act began the follow, and the message says so.
+                GATED ON OWNERSHIP OR A FOLLOW, AND ON THE SEASON HAVING AIRED.
+                A season the reader owns and holds less of than has aired is a
+                hole, and taking it follows the medium when nothing did: the
+                operation answers whether the act began the follow, and the
+                message says so. A followed show the reader holds nothing of is
+                offered the same act, because it is the same show wherever it is
+                looked at. A season not yet aired is offered nothing on any
+                show: what has not aired is not missing.
 
                 `!complete` ALONE IS NOT THAT TEST, although it reads like it:
                 `complete` is false for anything not owned, so it offered a grab
-                on every season of a suggestion nobody owns — seven of them on
-                The Venture Bros, inside closed rows, where no measurement of
-                geometry can see a button. Having a sheet does not make a medium
-                one of the reader's. The behaviour is shared — `askForSeason` —
-                so the two surfaces cannot drift apart. */}
-            {owns && !complete ? (
+                on every season of a suggestion nobody owns or follows — seven
+                of them on The Venture Bros, inside closed rows, where no
+                measurement of geometry can see a button. Having a sheet does not
+                make a medium one of the reader's. The behaviour is shared —
+                `askForSeason` — so the two surfaces cannot drift apart. */}
+            {(owns || followed) && !complete && !seasonUpcoming ? (
               <button
                 type="button"
                 className={`sact ${seasonGrabSpacing()}`}
