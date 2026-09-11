@@ -107,9 +107,9 @@ function openLayers(): Element[] {
  * @param layer The layer that owns focus, or null to clear every mark.
  */
 function setBackgroundInert(layer: Element | null): void {
-  // THE SAME DECISION, PUBLISHED: the message is placed by whether a layer is
-  // open (`app/layer-presence.ts`), and this is where that is decided.
-  setLayerOpen(layer !== null);
+  // THE SAME DECISION, PUBLISHED: the message is placed by which layer is on
+  // top (`app/layer-presence.ts`), and this is where that is decided.
+  setLayerOpen(layer);
   const frame = document.getElementById("device");
   if (!frame) return;
   for (const child of Array.from(frame.children)) {

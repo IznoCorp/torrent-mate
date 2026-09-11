@@ -329,16 +329,29 @@ Rank 57 and the `inert` exemption stand.
   beside it, and the ranked list says why one rank has two positions. It is named `edge` because
   `placement` is not a word of `scripts/code-vocabulary.txt`, and a word is not added to let one's
   own identifier through.
-- **On a screen, the top position covers « Retour » where the bottom one covered « Fermer »** —
-  measured on `mediasheet-series`, « Retour » at y 10 and « Fermer » at y 731 — so one way out stays
-  free in either place.
+- **On a SCREEN, the top position is below the screen's own bar** (review round two, B2). The first
+  version of this section said the top position covered a screen's « Retour » « where the bottom one
+  covered « Fermer », so one way out stays free in either place ». **That was false, and the reading
+  behind it was wrong**: the « Fermer » measured at y 731 on `mediasheet-series` was the MESSAGE'S OWN
+  close, still under the hit test during its exit. A screen has no « Fermer »; its way out is
+  « Retour », in a bar along its top, and a message at the top of the frame lay over it — a finger on
+  « Retour » reached the message and the tap did nothing for the message's five seconds, after every
+  verb answered on a screen and after the boot hint on any address that opens one. `app/layer-presence.ts`
+  now measures how far down the frame the open screen's bar reaches — from the top of the message's own
+  offset parent, since a first measurement from `#shell` read -798 px and moved nothing — and publishes
+  it as `--tm-screen-bar-bottom`; the `top` edge sits 16 px below it, and at 0 when the layer on top is
+  not a screen. **Measured before building, as the STOP condition asked**: on all thirteen named states
+  that open a screen (add ×3, releases, quality, resolution ×2, media ×6) the bar spans 0–46 and the
+  band the message takes below it holds no control at rest.
 
 **The holds.** R159 (`harness/message_over_layers.py`) gains five, read on boxes with nothing lifted:
 a message up before a sheet opens meets none of the sheet's controls, and each action is what a finger
 at its centre lands on; the verb's own answer on the follow panel meets none of the panel's controls
 and its close takes a finger; over a confirmation whose button sits in the bottom band, the message
 meets none of its buttons; with no layer open, the message is at the bottom; at rest, a message
-hidden while a layer is open is back in the bottom box. **Seen red** on the build before the change,
+hidden while a layer is open is back in the bottom box; and on each kind of screen — media, releases,
+quality, add, resolution — a message up sits below the screen's bar, and « Retour » takes a finger and
+leaves the screen. **Seen red** on the build before the change,
 4 of 16; green after, 16 of 16. **Mutation m1** (the `top` branch given the bottom string): R159's
 four placement holds fall, AND `deck_verbs.py` 8 / 5, `journey_verbs.py` 16 / 2, `remove_verb.py`
 11 / 4 and `stacking.py` 12 / 1 — the four rules at their recorded red counts. **Mutation m2** (the

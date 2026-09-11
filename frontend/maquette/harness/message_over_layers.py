@@ -55,6 +55,12 @@ TWO QUESTIONS, READ SEPARATELY, because each half can be broken alone:
     9. AT REST, a message hidden while a layer is open goes back to the bottom
        box. The oracle measures the hidden host on every state, so a box left at
        the top would be a divergence on states that draw no message at all.
+   10. On EVERY KIND OF SCREEN — media, releases, quality, add, resolution — a
+       message up sits below the screen's own bar, and « Retour » takes a finger
+       and leaves the screen. A screen keeps its way out in that bar: a message
+       at the top of the frame lay over it, and the tap did nothing for the
+       message's five seconds, after every verb answered on a screen and after
+       the boot hint on any address that opens one.
 
 WHAT IT DOES NOT READ: whether the message covers something it should not on a
 bare screen — R101 holds the message against the tab bar.
@@ -184,6 +190,37 @@ EXITED = 700
 
 # Twenty-six lines put the button at the foot of a 390 x 844 screen, the
 # confirmation still whole on it.
+# ONE STATE PER KIND OF SCREEN, each drawing its bar and its « Retour ».
+SCREEN_STATES = {
+    "media": "mediasheet-series",
+    "releases": "screen-releases",
+    "quality": "screen-profile",
+    "add": "acq-add-empty",
+    "resolution": "arr-resolution",
+}
+
+# THE OPEN SCREEN'S WAY OUT, AND WHAT A FINGER ON IT LANDS ON — nothing lifted.
+BACK_UNDER = """()=>{
+  const screens = [...document.querySelectorAll('[data-part="screen"][data-open]')];
+  const screen = screens[screens.length - 1];
+  if (!screen) return {screen: null};
+  const back = screen.querySelector('[data-part="screen/back"]');
+  const bar = screen.querySelector('[data-part="screen/bar"]');
+  if (!back || !bar) return {screen: screen.dataset.key || '', back: !!back, bar: !!bar};
+  const message = document.querySelector('#toast').getBoundingClientRect();
+  const box = back.getBoundingClientRect();
+  const x = box.left + box.width / 2, y = box.top + box.height / 2;
+  const hit = document.elementFromPoint(x, y);
+  return {screen: screen.dataset.key || '', x, y, shown: window.__toast.read().shown,
+          message: [Math.round(message.top), Math.round(message.bottom)],
+          barBottom: Math.round(bar.getBoundingClientRect().bottom),
+          reachable: !!hit && (hit === back || back.contains(hit)),
+          hit: hit ? hit.tagName + (hit.closest('#toast') ? ' in the message' : '') : null};}"""
+
+OPEN_SCREEN = """()=>{
+  const screens = [...document.querySelectorAll('[data-part="screen"][data-open]')];
+  return screens.length ? screens[screens.length - 1].dataset.key || '' : null;}"""
+
 A_TALL_CONFIRMATION = """()=>window.__dialog.open({
   heading: 'probe',
   body: [{type: 'manifest', entries: Array.from({length: 26},
@@ -336,6 +373,22 @@ async def main():
                       over_dialog["shown"] and over_dialog["controls"] > 0 and not over_dialog["met"],
                       str(over_dialog))
         await page.evaluate("()=>window.__dialog.close()")
+
+        # 10. On every kind of screen, « Retour » takes a finger with a message up.
+        for kind, state in SCREEN_STATES.items():
+            await show_over(page, state, SETTLED * 3)
+            under = await page.evaluate(BACK_UNDER)
+            journal.check(f"on the {kind} screen, a message up sits below the screen's bar and "
+                          "« Retour » takes a finger — nothing lifted",
+                          under.get("shown") is True and under.get("reachable") is True
+                          and under["message"][0] >= under["barBottom"], str(under))
+            if under.get("reachable"):
+                await page.touchscreen.tap(under["x"], under["y"])
+                await page.wait_for_timeout(SETTLED * 2)
+            left = await page.evaluate(OPEN_SCREEN)
+            journal.check(f"and the finger on « Retour » leaves the {kind} screen",
+                          under.get("screen") is not None and left != under.get("screen"),
+                          f"{under.get('screen')!r} → {left!r}")
 
         await context.close()
         await browser.close()
