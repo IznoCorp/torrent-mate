@@ -628,6 +628,16 @@ repair stays this entry's owner's**; L21 records the extent and corrects the two
 ten other shows « draw no matrix and no verb » (RESUME § 3.1, R158's docstring) — true of the follow
 panel, false of the sheet.
 
+**Read again in review round three** (the reader's `c05_twin_again.py` on `0526e5e03`, control `1e9e7c48e`):
+from « Suivis », « Furious » (« 5/5 · À jour », no season act on its panel) → « Voir la fiche » →
+`/media/tvdb/468000`, which still offers `Furious|1`. A finger on it asked the operator's own follow
+(`POST …/follows/Furious/seasons/1/grab` 200) and answered « Saison 1 de « Furious » demandée — aucun
+épisode à récupérer. », and pressed again 6.5 s later it asked and said the same; « President Curtis »
+(3/3) identically. On that head the follow then read « En cours d'acquisition » on its row and its panel —
+round three's C1, repaired by `21390f6c5`, which leaves a follow's status as it was when the season had
+nothing to get. **The offer itself stays this entry's**: the sheet still offers an act on a show with
+nothing aired to get.
+
 **B-381 — a message said while a layer is open is drawn under that layer.**
 Found by L21's increment 7, the on-screen confirmation of the season grab. On L21's head `d65679c0f`
 (build `de36920b9ce9`, served on a port of its own, a finger on every step), the follow panel raised

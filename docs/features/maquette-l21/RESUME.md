@@ -456,17 +456,16 @@ the end of the list, and built there.
 
 **Gated**: § 4.
 
-### 3.8 Review round three — four findings, C1 built, C2–C4 and the docs owed (RESUME BRIEF)
-
-**Written at a ROTATION**: the implementer's gauge read 60 % after C1. Nothing is half-done in the tree. The
-head is the commit adding this section, on top of `21390f6c5` (C1). **NOT pushed**: `origin` is at
-`0526e5e03`.
+### 3.8 Review round three — four findings, all closed
 
 The reader's report is `/Users/izno/dev/review-archive/l21-572/round-3/r3-C.md` (candidate `0526e5e03`,
-control `1e9e7c48e`), with its walks `c01`…`c06` and `r3_*` beside it — reuse them as the closing readings,
-never rebuild. **Read it whole.** Every repair of round two held on the paths it walked.
+control `1e9e7c48e`), with its walks `c01`…`c06` and `r3_*` beside it — the closing readings replay them
+(§ 4), never rebuilt. **Read it whole.** Every repair of round two held on the paths it walked.
 
-**Built**
+**Built, in the orchestrator's order** — one commit each, the rule seen red (or its blind spot shown) on
+the head before it, its mutations on a clean tree and restored, the contracts tier on each commit. A
+mutation that falls prints its « EXECUTED » line through `scripts/mutate.sh`; one that does not prints
+none (B-273), so every blind spot below was run by hand with its output kept.
 
 - **C1** `21390f6c5` — the layer's season-grab handler moves a found follow to `acquiring` only when the
   season had episodes to get (the local is `missing`; `absorbed` is not in the code vocabulary, the contract
@@ -477,50 +476,67 @@ never rebuild. **Read it whole.** Every repair of round two held on the paths it
   (Furious and President Curtis `up_to_date → acquiring`); mutation (the unconditional write restored)
   R160 24 / 2 and R158 63 / 1 (Agent Elvis `pending → acquiring`); green R160 24, R158 63, R157 25,
   `season_grab.py` 16. Contracts clean; oracle 44, the list identical line by line.
+- **C2** `e0643bacf` — a crossing between two edges takes nothing from the message's life.
+  `app/toast-host.ts` reads what the message is still owed as it starts to leave and stops its clock
+  there; `showAgain` starts it again with that owed life plus the 200 ms entrance (`MESSAGE_ENTRY_MS`), so
+  it is whole at the other edge for everything it was owed. **A message owed less than its own exit
+  (`MESSAGE_EXIT_MS`) ends by leaving** — the orchestrator's ruling on the gap the pause alone left: a
+  message owing 20 ms would come back as the same flash. DESIGN § 3.1g says both. R159 leg 12, +9 holds:
+  a screen closed 560 ms before the end of a life, with and without « Annuler », and 150 ms before it,
+  each owed life measured on the page's own clock. Red on the unrepaired host 43 / 2 (both 560 ms legs,
+  « whole there for 0 ms »; the 150 ms leg green there, its life already expiring while away). Green 43 —
+  whole there 566 ms for 559 owed, 568 ms with « Annuler », and owed 147 never drawn at the other edge.
+  Mutations: `showAgain` against the running timer 43 / 2 (the two 560 ms legs); the floor removed
+  (`remaining < 0`) 43 / 1 (the 150 ms leg, the message rising 0.23 → 0.59 at the bottom). Contracts
+  « 18 rule(s) and 27 repository guard(s), no violation »; oracle 87 states x 34 regions, 44 divergences,
+  its 23 state headers identical in order to § 4's list, none on the message.
+- **C3** `f918aced8` — test-only. R159 leg 11 RE-AIMED a second time, said in both docstrings and the
+  commit: between the last frame at the first place and the first frame at the other edge, each above
+  0.05 opacity, a frame shows the message wholly gone (`GONE`). Blind spot on the rule before it, the
+  mutation `setTimeout(showAgain, 50)`: 43 / 0. Green 45 — wholly gone between frames 9 → 27 when a
+  screen closes, 8 → 27 when a sheet opens. Mutations after it: the 50 ms move 45 / 2 (the new hold on
+  both crossings, no frame between 3 → 4 and 5 → 6); the immediate move (`if (!drawn || edge !==
+  layer.edge) {`) 45 / 7 (partly-faded, never-a-jump and wholly-gone on both crossings, and leg 12's
+  floor leg). Contracts clean.
+- **C4** `b52e462d0` — test-only, two holds on a second surface no rule read. (a) R157
+  `hold_the_screen_act_taken`: on `mediasheet-series`, « Récupérer la saison 3 » under a finger with the
+  answer held 2.5 s — `aria-busy` true in flight, its text unchanged, none taken once answered. Blind spot
+  (the `aria-busy` line dropped from `features/media/season-list.tsx`) R157 25 / 0; green 28; mutation
+  (that line dropped) 28 / 1, « aria-busy None » in flight. (b) R155's sixth hold: after the reserve is
+  exhausted, the pile spent draws « Vous avez tout parcouru. Les 38 suggestions chargées ont toutes été vues — la réserve est épuisée. » and no offer.
+  Blind spot (`const exhausted = inList && isReserveExhausted();`) R155 11 / 0; green 13; mutation (the same
+  line) 13 / 1, the pile back to « … La réserve en garde d'autres » with its offer.
+  `discover-feed.ts` untouched at 399 of 400. Contracts « 18 rule(s) and 27
+  repository guard(s), no violation ».
+- **One oracle for C3 and C4**, by the orchestrator's agreement: nothing under `frontend/maquette/design`
+  changed after `e0643bacf` — `git diff --name-only e0643bacf b52e462d0` is three harness files — so both
+  builds are C2's. Run on `b52e462d0`: 87 states x 34 regions, 44 divergences, identical line by
+  line to C2's oracle — the same 23 state headers and 44 measurements, none on the message.
+- **Docs** — this section, and B-380's entry gains the round-three reading of `c05` (the offer on
+  Furious and President Curtis stays B-380's; the status C1 repaired).
 
-**Owed, in this order** — the orchestrator's DECIDED list: one commit each, contracts + oracle per commit
-(ask for each oracle slot), the mutation on a clean tree.
+**Next**: ONE gate on the final code head, `b52e462d0` — the full suite (the orchestrator told before),
+hold-counts `--compare frontend/maquette/hold-counts-baseline.json`, `make check`, `design/dist`, § 4
+rewritten once, the wrapped push, `ls-remote`, the report — and the closing readings on that build:
+`c01` L2 and L4, `c02` L2, `c04` and `c05`, their lines given.
 
-2. **C2 — repair, B6's own edge case.** A crossing must not eat the life: pause the life clock while the
-   message is away and resume it at the re-show, so a message that changes edge at 4 419 ms of 5 000 comes
-   back for what it was owed, never as a flash; « Annuler » (6 s) the same. In `app/toast-host.ts` today
-   `timer` runs through `followTheLayers`' 400 ms away, `showAgain` re-shows whatever is left of it, and
-   `hideMessage`'s `moving` branch ends a life that expires while away. **Hold in R159**: a layer change
-   inside the last 600 ms of a life, with and without an undo — the message is either whole for at least
-   its remaining readable life, or never shown again. **Mutation**: `showAgain` against the running timer
-   restored. DESIGN § 3.1g: the crossing extends the life by what it took. Readings: `c01` L2 (its 4 419 ms
-   and 4 667 ms leads) and L4.
-3. **C3 — test-only.** R159 leg 11 RE-AIMED again, said out loud: between the last frame at the first place
-   with opacity > 0.05 and the first frame at the other edge with opacity > 0.05, a frame with the message
-   wholly gone (≤ 0.05). **Mutation** `setTimeout(showAgain, 50)` in `followTheLayers` → falls; the previous
-   mutation (the immediate move, `if (!drawn) {` → `if (!drawn || edge !== layer.edge) {`) still falls.
-4. **C4 — test-only, two holds.** R157 (or R160) holds the media SCREEN's season act `aria-busy="true"` in
-   flight and null after — R157's `TAKEN` reads `#sheetin` only; **mutation** `aria-busy` dropped from
-   `features/media/season-list.tsx`. R155 holds the PILE's mark after exhaustion — the exhausted sentence and
-   NO offer; **mutation** `const exhausted = inList && isReserveExhausted();` in `discover-feed.ts`, which
-   sits at 399 of 400 lines (a mutation adds none; a repair there splits the file first).
-5. **Docs, then the gate.** This section rewritten as what was built, each finding with its red, mutation
-   and green; B-380's entry gains one line citing `c05` (the offer on Furious and President Curtis stays
-   B-380's). Then ONE gate on the final code head: the full suite (tell the orchestrator before),
-   hold-counts `--compare frontend/maquette/hold-counts-baseline.json`, `make check`, `design/dist`, § 4
-   rewritten once, the wrapped push, `ls-remote`, the report. **Closing readings** on the final build:
-   replay `c01` L2 and L4, `c02` L2, `c04` and `c05`, and give their lines.
-
-**The rotation rule**, the orchestrator's: the gauge after each item; at or past 60 %, finish the item in
-hand, rewrite this section as the resume brief, and stop.
-
-**Traps this rotation paid for**, beyond § 6 and § 8:
+**Traps this round paid for**, beyond § 6 and § 8:
 
 - The orchestrator is `steward-successor [7e2cc4]`: handshake first, silence rule 15 min, and tell it
   BEFORE the full suite, the oracle and hold-counts — it answers « clear ».
 - A heavy run past ten minutes (the full suite, hold-counts, `make check`, the push) goes to the background
   with its output and exit code written to a file, and is read when it ends — never through `tail`.
-- `run.sh` has no single-rule mode. A single rule was run by a small script: build, `served_copy.py
-  --acquire` / `--publish`, the named rules, `--release`, wrapped `TM_HARNESS_JOBS=2 sh scripts/heavy.sh
-  l21 bash <script> <rules…>`. It lived in a session's scratch directory and is gone: write it again.
+- `run.sh` has no single-rule mode. A single rule is run by a small script: acquire the served copy, build,
+  `served_copy.py --publish`, export `STAMP_TOKEN`, the named rules, the stamp re-read, `--release` —
+  wrapped `TM_HARNESS_JOBS=2 sh scripts/heavy.sh l21 bash <script> <rules…>`. It lives in a session's
+  scratch directory and is gone with it: write it again.
+- **`scripts/mutate.sh` prints no « EXECUTED » line when nothing falls.** Its grep keeps `FAIL` and
+  « violation(s) » only, so « no hold fell » cannot be told from a rule that never ran. A blind spot is
+  run by hand: mutate with an assertion on the match count, run the rule with its output kept, `git
+  checkout` the file (the tree was clean), and read the executed line.
 - **The full tier runs the a11y and the oracle ONLY after green rules**; a red run stops at the fallen rule.
-- `check-no-french` refuses an identifier built from a word the vocabulary lacks — met four times here
-  (`placement`, `comeBack`, `asksInFlight`, `absorbedCount` as a local). Rename; never add a word.
+- `check-no-french` refuses an identifier built from a word the vocabulary lacks — met again here (`bring`,
+  and `life`, `readable`, `whole` are absent too). Rename; never add a word.
 - `docs/` needs `git add -f`, one file at a time, and a `set -e` chain stops at a refused add with nothing
   committed.
 - The editing tool's formatter rewrites `.ts` / `.tsx` hunks it was not asked to: write `.ts` changes by
