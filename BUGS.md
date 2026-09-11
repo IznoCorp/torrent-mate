@@ -426,6 +426,7 @@ when the defect comes back.
 | B-378 | `grabSeasonForFollow`'s mock moves a follow's status only when one is FOUND, so for a medium that is NOT followed it answers a success (200 today — the layer ignores the declared code, B-379) with a real `absorbedCount` and changes nothing at all — success reported over an unchanged world, on a path the « Incomplets » lens reaches with a single tap | by L21 | `fixed #572` |
 | B-379 | The mock layer answers **200** to every call unless a scenario arms a failure (`mocks/scenario.ts:145`), whatever code the contract declares — `grabSeasonForFollow` declares 201, `requeueJourney` and `rescrapeJourney` 202 — so no rule can hold a declared success code, and a sentence saying the layer « answers 201 » is false on the code | by L21 | `open` |
 | B-380 | The season grab's `absorbedCount` is derived from `seasons.json` while the media sheet draws its season rows from the sheet's own catalogue (`media-sheets.json`): two families at one title that disagree on 13 of the 49 seasons both know, so on « Les Animaniacs »' sheet the row « Saison 5 · 0/23 · 23 manquants » offers the act and the answer says « aucun épisode à récupérer » | by L21 | `open` |
+| B-381 | A message said while a layer is open is drawn UNDER that layer: the frame ranks the message at z-49 beneath the bottom sheet at z-52, and the media screen covers it too, so a verb pressed in a panel or on the sheet speaks a sentence the operator cannot see — held by the toast seam, visible and at full opacity in the document, and under the layer at its own centre | by L21 | `open` |
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
@@ -594,6 +595,49 @@ finger on every step): from « Incomplets », « Les Animaniacs »' poster opens
 saison 5 demandée — aucun épisode à récupérer. » and the show is followed afterwards (`acquiring`). On
 the same build, « Les aventures de Tintin »' follow panel — whose families agree — reads « Saison 3
 7/13 6 manquants » and answers « Série suivie et saison 3 demandée — 6 épisodes à récupérer. »
+
+**B-381 — a message said while a layer is open is drawn under that layer.**
+Found by L21's increment 7, the on-screen confirmation of the season grab. On L21's head `d65679c0f`
+(build `de36920b9ce9`, served on a port of its own, a finger on every step), the follow panel raised
+from « Incomplets » on « Les aventures de Tintin » offers « Récupérer la saison 3 », the tap takes it,
+the show is followed and the panel redraws « En cours d'acquisition » — and the sentence the act chose,
+« Série suivie et saison 3 demandée — 6 épisodes à récupérer. », is nowhere on screen. It is in the
+document: a `span` at [27, 727, 302 × 32], `visibility: visible`, cumulative opacity 1, and
+`window.__toast.read()` says it is shown. **`elementFromPoint` at its centre answers
+`BUTTON.sact[season/grab]`** — the panel's own button — at +300, +900, +1800 and +3000 ms. On « Les
+Animaniacs »' media sheet the same act's sentence is covered by `DIV.eprow[episode/row]` at the same
+four delays.
+
+**The cause, read and not repaired.** `ui/variants/frame.ts` ranks the frame's layers in one written
+order: the message 49, the tab bar 50, the bottom slot's bar 51, **the bottom sheet 52** (raised from
+47 for B-248 without the message's rank being decided again), the drawer 55, the confirmation 56, the
+popover and the sign-in gate 60. So every verb pressed INSIDE the sheet speaks under the sheet. **The
+media screen covers the message too, and that half is not explained**: `layout.ts` ranks the screen at
+z-[45], below the message's 49 — probably a stacking context, not measured.
+
+**Three instruments were green over it.** R125 (`season_grab.py`) and R158
+(`season_grab_unfollowed.py`) read `window.__toast.read()` — what the layer HOLDS, not what is painted.
+R101 (`stacking.py`, hold (d)) shows the message on `lib-list`, with no layer open. The oracle measures
+no paint order.
+
+**Dated on `origin/main` `b46643abf`** (build `68f722fa363a`, a throwaway worktree, removed after): a
+message shown over `sheet-user` is covered at its own centre by `BUTTON.sact[sheet/action]`, over
+`mediasheet-series` by `DIV.kv[key-value]`, and is on top over `lib-list`. `main` has no season verb to
+press (B-301 is unmerged), so the dating reading is the frame's property itself: **the defect predates
+L21** and belongs to the wave that ranked the sheet above the message.
+
+**Owner: pending the operator's ruling.** Changing the message's rank is a frame decision, not L21's
+unit; the orchestrator's recommendation to the operator is the message above every layer a verb can be
+pressed on, below the sign-in gate and the splash.
+
+**The hold the repair lands with is written and NOT committed** — a red rule cannot enter the suite.
+R159, `harness/message_over_layers.py`, hit-tests the centre of the element carrying the message's
+text. Read red on L21's build `de36920b9ce9`, **5 holds EXECUTED, 3 violations, each naming what covers
+the message**: over `sheet-user` a probe message is hit as `BUTTON.sact[sheet/action]`; on Silo's follow
+panel, after the panel's own « Récupérer la saison 3 », the sentence « Saison 3 demandée — 1 épisode à
+récupérer. » is hit as `BUTTON.sact[sheet/action]`; on `mediasheet-series` a probe message is hit as
+`DIV.kv[key-value]`. Its first version was red for the wrong reason — the design note's greeting still
+held the host, so the probe was never carried — and it now takes the message on screen off first.
 
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
