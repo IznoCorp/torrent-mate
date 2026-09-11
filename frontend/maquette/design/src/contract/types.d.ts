@@ -240,7 +240,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Take one season of a follow */
+        /** Take one season of a medium, following it first if it is not followed yet */
         post: operations["grabSeasonForFollow"];
         delete?: never;
         options?: never;
@@ -1862,7 +1862,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description the follow. The interface knows it by TITLE */
+                /** @description the medium; it is followed by this act if it was not already. The interface knows it by TITLE */
                 followedId: string;
                 /** @description the season, 1-based */
                 season: number;
@@ -1886,6 +1886,8 @@ export interface operations {
                         queued: boolean;
                         /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
                         runUid: string | null;
+                        /** @description whether THIS act began the follow — true when the medium was not followed before the ask, on the queued path as on the direct one. An owned show with a hole is identified by construction (its sheet, its year, its owned and aired counts), so the library's « Incomplets » lens offers its missing seasons to a medium nobody follows, and taking a season follows it: after the act the address's `followedId` names a follow. The interface CHOOSES its sentence by this field — a follow begun is a second fact, said in a sentence of its own and never appended to another (NE-DOIT-PAS-1). */
+                        newlyFollowed: boolean;
                     };
                 };
             };
