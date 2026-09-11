@@ -122,6 +122,15 @@ function setBackgroundInert(layer: Element | null): void {
         node.removeAttribute("inert");
         continue;
       }
+      // THE MESSAGE IS NEVER INERT EITHER. It is not background: it answers a
+      // verb pressed IN the layer, and it is ranked above every layer a verb is
+      // pressed from so the answer is seen there. Marked inert it painted on top
+      // and took no finger, so its close and its « Annuler » were controls that
+      // did nothing while the layer that caused them was still open (B-381).
+      if (node.id === "toast") {
+        node.removeAttribute("inert");
+        continue;
+      }
       const contains = layer ? node === layer || node.contains(layer) : false;
       if (layer && !contains) node.setAttribute("inert", "");
       else node.removeAttribute("inert");
