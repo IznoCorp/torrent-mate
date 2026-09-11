@@ -278,6 +278,65 @@ since; its two new mutations — the date clause dropped (Grimsburg's third seas
 and the gate back to `owns &&` (Agent Elvis offered nothing, 2 violations over 53 executed: the leg's
 later holds do not run once nothing is offered) — are recorded here.
 
+
+### 3.6 The message's placement — RULED, NOT BUILT (the next unit, for a fresh session)
+
+**The operator's ruling, 2026-09-11, second decision round** — the option as he read it, worded by the
+steward: « A. En haut de l'écran quand une couche est ouverte, en bas comme aujourd'hui sinon ». Rank
+57 and the `inert` exemption of B-381's repair STAND.
+
+**The measurement that forced it.** After B-381's repair (`0e2c25bc1`) the full suite went RED on four
+rules that were green on `6087237ae` (the message sat UNDER the sheet there, 49 < 52):
+`deck_verbs.py` 8 EXECUTED / 5 violations, `journey_verbs.py` 16 / 2, `remove_verb.py` 11 / 4,
+`stacking.py` 12 / 1. Each, run alone, hit a `SPAN` of the message at the covered button's centre:
+« Pas intéressé » y=737, « Re-scraper ce passage » y=740, « Retirer de la liste » y=750. The message's box
+is the whole bottom band — x 14→376, about 54 px tall, y ≈716–784 depending on the state
+(`acq-now-loaded` 716–770, `acq-follows-list` 730–784, `lib-selection` 788–842). The message covering
+them in the rules is the design-note boot hint, emitted by the engine at `engine/legacy.js:31650`
+through the same `window.__toast.show` as any verb's answer: measured on a fresh page, it appears ~0.6 s
+after load and stays 5.0 s (`MESSAGE_MS` 5000, 6000 with an undo), and each rule's first tap lands 1–2 s
+after load. A hand meets it too (`app/message-presence.ts` already records « the first tap of a session
+did nothing while the boot hint was up »), and any verb's answer covers the band for 5–6 s, so a second
+act in the same layer within that time is covered. `stacking.py` (b)'s probe point (the selection bar's
+top edge + 4 px) falls inside the message's box: it read the message painted ABOVE the confirmation
+(57 > 56), which is real, not a probe error. **The four rules read right and are not to be touched.**
+
+**The unit's shape, from the orchestrator** (copied, not re-derived):
+
+0. **FIRST, one reading per red rule, before any code**: is a LAYER open at the moment of the covered
+   tap (sheet / drawer / confirmation)? **If any of the four taps on the bare screen, STOP** — there the
+   cause would be the `inert` exemption over screen content and it needs a different answer. *Prepared
+   by reading the code only, NOT by a run — re-take it as a measurement*: `deck_verbs.py` and
+   `journey_verbs.py` aim inside `#sheetin [data-part="sheet/action"]`; `remove_verb.py` taps after
+   `window.__panel.produce('follow', …)`; `stacking.py` (b) hit-tests while `window.__dialog` is open.
+1. **Maquette first**: the message host gains a placement that follows the layer signal
+   `setBackgroundInert` already has (a layer open → top; none → bottom). Draw the top position in the
+   variants (below the safe area, over the screen's header, same width and type as the bottom one), the
+   reason beside the class; the ranked list's comment says the message has two positions and why. No
+   line in `legacy.js`; the engine's hint goes through the same host, so it follows.
+2. **R159 gains the placement hold**: with a layer open and a message shown, the message's box does not
+   intersect the layer's bottom action band (read the boxes); the four rules stay untouched. Mutation:
+   placement reverted → R159's placement hold falls AND the same four rules fall (record both lines).
+3. **Oracle**: any divergence on a state at rest is a STOP (no message at rest is expected); a11y 87/0
+   (the live region moving must not change its role); contracts + guards; then the FULL suite once on
+   the head, hold-counts with the file, `make check` — verdict lines with the sha.
+4. **Retake increment 7's confirmation** with the sentence at the top and touchable; the design host
+   rebuilt; DESIGN carries the ruling verbatim with the measurement that forced it; § 3.5 here; B-381's
+   entry gains the second half.
+5. **Push wrapped, `ls-remote`, final report, gauge last.**
+
+**The exact state this session leaves** (it stood down at the 60 % context gate): the head is the
+commit that adds this section, on top of `cc96f981b`; **pushed with it** are, unpushed until then,
+`0e2c25bc1` (B-381: rank 57, `#toast` exempt from `inert`, R159 in `harness/`), `aa978f2f2` (register:
+B-381 fixed), `d6512e20f` (R159 as text, since moved), `1e89d7688` (the sheet's act on a followed show
+nothing is owned of, never on an unaired season; R158 at 56 holds) and `cc96f981b` (docs). Last reading
+on `cc96f981b`: **full suite RED on the four rules above** (108 of 112 green), oracle 44 over the same 23
+states, a11y 87/0 and light 162/162 (read on `0e2c25bc1`'s tree), hold-counts « 4 of 112 rule(s) FAILED »
+with the same four, **`make check` green — 11 220 passed**, 4 skipped, 2 xfailed, maquette units 110/110,
+vitest 1 374; `design/dist/build.json` `f9b4feef34f4`. **B-381 reads `fixed #572` in the register while
+the suite is red because of its repair** — the placement unit closes that, and its entry gains the
+second half then.
+
 ---
 
 ## 4. The wave gate
@@ -453,6 +512,10 @@ line is not a mutation that found nothing.
 ⚠ **A `str.replace` mutation matches EVERY occurrence.** Print the mutated region BEFORE running it.
 
 ⚠ **`mutate.sh` REFUSES a dirty tree**: fix → gates → commit → mutate → restore.
+
+⚠ **A docs chain without `set -e` commits a subject its message does not deliver**: an assertion failed
+on one file, the chain went on, and the commit carried one file of the three its message named. Stop the
+chain on the first failure, and read the commit's `--stat` before trusting its message.
 
 ⚠ **A worktree at another commit is the honest way to attribute a figure**, used three times here.
 Symlink `node_modules` from the main checkout, build, publish, read, then REMOVE the worktree and
