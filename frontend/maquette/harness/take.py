@@ -108,21 +108,26 @@ async def main():
             title in after["inFlight"],
             f"{before['inFlight']} → {after['inFlight']}")
 
-        # ── AND THE RELEASE SCREEN'S TAKE, which shares the attribute ──────
-        # A repair that fixed one branch by breaking the other would leave a
-        # rule reading only the panel's side perfectly green.
+        # ── AND THE RELEASE SCREEN'S OWN PICK ──────────────────────────────
+        # The two USED TO SHARE ONE ATTRIBUTE, and a repair that fixed one
+        # branch by breaking the other would have left a rule reading only the
+        # panel's side perfectly green. They wear separate names now (B-309's
+        # root cause rather than its symptom), so this half selects the
+        # picker's — and it still belongs in THIS rule, because « the panel's
+        # take still works » and « the picker still works » is one question as
+        # long as anyone remembers they were once the same button.
         await page.evaluate("()=>window.__go('screen-releases')")
         await page.wait_for_timeout(SETTLED)
         rows = await page.evaluate(
             """()=>[...document.querySelectorAll('[data-part="card/foot"]')]
-                    .filter((one) => 'take' in one.dataset).length""")
+                    .filter((one) => 'pickRelease' in one.dataset).length""")
         journal.check(
             "the release screen really offers releases to take",
             rows > 0, f"{rows} row(s)")
         errors.clear()
         await page.evaluate(
             """()=>{[...document.querySelectorAll('[data-part="card/foot"]')]
-                     .find((one) => 'take' in one.dataset).click();}""")
+                     .find((one) => 'pickRelease' in one.dataset).click();}""")
         await page.wait_for_timeout(ACTED)
         journal.check(
             "choosing a release raises no error either",

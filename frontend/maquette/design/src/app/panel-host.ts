@@ -73,6 +73,19 @@ function panelAddress(address: string): string {
    without taking the panel's address off. */
 let onCurrentEntry = false;
 
+/* WHAT IS ON SCREEN, so it can be produced again from a cache that has moved.
+   A producer reads the cache once, at open; nothing subscribes to that key
+   while the panel is up. So a verb pressed INSIDE a panel — which refetches
+   what the panel reads — moved the layer and left the surface it was pressed
+   on saying what it said before the act. The surface BEHIND the panel updated,
+   because that one is observed, which is exactly what made the defect read as
+   « nothing happened » from the only place the operator was looking.
+
+   Kind and subject and not a descriptor: a descriptor is the answer from the
+   cache as it WAS, and putting that back would redraw the same stale sheet. */
+let openKind: string | null = null;
+let openSubject = "";
+
 /**
  * Runs a producer's open with the history write suppressed.
  *
@@ -162,6 +175,8 @@ function closePanel(pop?: boolean): void {
   // Guarded per LAYER, exactly as `closeSheet` was: closing an already-closed
   // sheet would consume a history entry that belongs to someone else.
   if (!isPanelOpen()) return;
+  openKind = null;
+  openSubject = "";
   flushSync(() => store.write({ panelOpen: false }));
   // `pop` means the entry is already being popped by the gesture that got us
   // here; otherwise the layer unwinds its own, through the engine's latch.
@@ -190,6 +205,8 @@ function producePanel(kind: string, subject = ""): void {
   if (produce === null) refuseProducer(kind);
   const descriptor = produce(subject, { held });
   if (descriptor !== null) {
+    openKind = kind;
+    openSubject = subject;
     openPanel(descriptor);
     return;
   }
@@ -240,6 +257,16 @@ function producePanel(kind: string, subject = ""): void {
         kind, subject);
       return;
     }
+    /* RECORDED HERE AS WELL AS ON THE SYNCHRONOUS PATH, and leaving it out
+       made `redraw` silently do nothing on the path it matters most. This
+       branch is not the rare one: a named state CLEARS the cache, and any kind
+       whose `needs` depends on its subject is excluded from the boot's prefill
+       by construction — the paragraph above says so — so THE FIRST ASK FOR ANY
+       SUBJECT IS ALWAYS COLD and always arrives here. Measured: producing the
+       same panel by hand redrew it, and `redraw` did not, because the panel on
+       screen had been opened down this branch and nothing knew what it was. */
+    openKind = kind;
+    openSubject = subject;
     if (addressed) openPanelOnCurrentEntry(() => openPanel(landed));
     else openPanel(landed);
   });
@@ -308,12 +335,27 @@ function panelHolds(kind: string, subject: string): boolean {
   );
 }
 
+/* PUTS THE OPEN PANEL BACK, produced from the cache as it is NOW.
+   `openOnCurrentEntry` because the entry this panel pushed is the one being
+   stood on: producing again without it would push a duplicate the next Back
+   spends without taking the panel's address off. It is silent when nothing is
+   open, so a verb may call it unconditionally — the verb cannot know whether
+   it was pressed inside a panel or on a screen, and making it ask would put
+   that question in every caller. */
+function redrawPanel(): void {
+  if (openKind === null || !isPanelOpen()) return;
+  const kind = openKind;
+  const subject = openSubject;
+  openPanelOnCurrentEntry(() => producePanel(kind, subject));
+}
+
 window.__panel = {
   open: openPanel,
   close: closePanel,
   isOpen: isPanelOpen,
   openOnCurrentEntry: openPanelOnCurrentEntry,
   produce: producePanel,
+  redraw: redrawPanel,
   holds: panelHolds,
   /* WHICH KINDS HAVE A PRODUCER, for the rule that reads the seam from
      outside. It is a reading rather than an assertion: the rule compares it

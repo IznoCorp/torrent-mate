@@ -97,7 +97,36 @@ refused. The fix is one side's reshaping, and it is the binding lot's first gest
 entry is `BUGS.md` B-267. The mocks emit the right shape, which is why nothing is wrong today
 and why nothing will warn tomorrow.
 
-## 7. What the existing operation-level registers already ask, and this file does not repeat
+## 7. A season is asked of a medium nobody follows — DOIT-3, §17, NE-DOIT-PAS-1
+
+- **What the interface does.** The library's « Incomplets » lens and the media sheet both print a
+  season an owned show is short of, and both offer « Récupérer la saison N » on it — **whether or not
+  the show is followed**. The operator ruled it on 2026-09-11: « offer it — the backend follows ». The
+  act IMPLIES the follow: taking a season of an owned show nobody follows begins following it, then
+  asks for the season. DOIT-3 is « agir là où l'on observe », and the hole is observed in the library
+  long before anyone has followed the show; an owned, incomplete show is identified by construction
+  (its sheet, its year, what is held against what has aired), so there is nothing to resolve first.
+- **What the backend has.** `POST /api/acquisition/follows/{followed_id}/seasons/{season}/grab`
+  takes an INTEGER follow rowid and enqueues a season wanted « for a followed series ». A medium
+  nobody follows has no rowid at all, so the operation cannot even be addressed for it — this is
+  not only § 2b's spelling demand (a title where a rowid is wanted), it is a subject the operation
+  does not accept.
+- **What it must accept.** The season of a medium the library OWNS, followed or not. When no follow
+  exists the operation creates one — a show follow, attributed to the requester (§17) — and then
+  enqueues the season, as ONE act: a follow created and a season not enqueued must never be answered
+  as the act having happened (NE-DOIT-PAS-1). Addressing the medium rather than a follow row is the
+  brief's to design; the maquette's contract keeps the follow address and says, in
+  `grabSeasonForFollow`'s `followedId`, « the medium; it is followed by this act if it was not
+  already ».
+- **What it must answer.** Whether THIS act began the follow — `newlyFollowed` in the maquette's
+  contract, true on the queued path as on the direct one. The interface chooses its sentence by it:
+  a follow begun is a second fact and is said, never left for the reader to infer.
+- **An input the brief needs first**: `absorbed_count` must count the same « manquants » the
+  surfaces print. Today the maquette's own two season families disagree on 13 of 49 seasons, and
+  which one is right — episodes AIRED or episodes in the CATALOGUE — is the operator's question
+  (`BUGS.md` B-380).
+
+## 8. What the existing operation-level registers already ask, and this file does not repeat
 
 `frontend-backend-demands.md` § 1–3 (operations the interface requires and the backend lacks,
 renamed properties, pre-formatted fields) and `frontend-backend-demands-stream.md` § 1–7 (the

@@ -3,8 +3,8 @@ import GRAB_CADENCE from "../seeds/grab-cadence.json";
 import RELEASES from "../seeds/releases.json";
 import SEARCH_RESULTS from "../seeds/search-results.json";
 import SUGGESTIONS from "../seeds/suggestions.json";
-import JOURNEY_STAGES from "../seeds/journey-stages.json";
 import { DELETE, GET, PATCH, POST, field, route, text } from "./shared";
+import { stagesOf } from "./acquisition-verbs";
 import { mockState } from "../state";
 import type { MockRequest, MockRoute } from "../router";
 
@@ -83,16 +83,48 @@ export function acquisitionRoutes(): MockRoute[] {
         return found;
       },
     ),
+    // THE REMOVAL IS SOFT, and that is not a mock's convenience — it is what
+    // makes the undo possible at all. Dropping the record left one road back,
+    // a create, and a create carries a title and a kind: the year, « suivi
+    // depuis » and the search count were lost every time (B-353). What is
+    // taken out of the listing waits here, whole.
     route(
       "deleteFollow",
       DELETE,
       "/api/acquisition/followed/{followedId}",
       (request) => {
         const state = mockState();
+        const removed = state.follows.filter(
+          (follow) => follow.title === request.parameters.followedId,
+        );
         state.follows = state.follows.filter(
           (follow) => follow.title !== request.parameters.followedId,
         );
+        // NEWEST FIRST, so a title removed twice restores the record that left
+        // last. Anything else would put back a version the operator has not
+        // seen since before the one they just removed.
+        state.removedFollows = [...removed, ...state.removedFollows];
         return { ok: true };
+      },
+    ),
+    // AND PUTTING ONE BACK IS ITS OWN OPERATION, never a create. It answers
+    // the record as it WAS: same year, same date, same count of searches.
+    route(
+      "restoreFollow",
+      POST,
+      "/api/acquisition/followed/{followedId}/restore",
+      (request) => {
+        const state = mockState();
+        const at = state.removedFollows.findIndex(
+          (follow) => follow.title === request.parameters.followedId,
+        );
+        // NOTHING RESTORABLE UNDER THAT NAME. Answering a made-up record here
+        // would be the same lie the create told, arrived at from the layer's
+        // side; the contract declares a 404 for it.
+        if (at === -1) return null;
+        const [restored] = state.removedFollows.splice(at, 1);
+        state.follows = [restored, ...state.follows];
+        return restored;
       },
     ),
     route(
@@ -163,12 +195,26 @@ export function acquisitionRoutes(): MockRoute[] {
     })),
     route("readAcquisitionQueue", GET, "/api/acquisition/to-handle", (request) => {
       const state = mockState();
-      // THE SCENARIO PICKS THE WORLD, exactly as the engine's `derived` does —
-      // and « exactly » includes the empties. Under the REAL scenario there is
-      // nothing to take and nothing blocked: that run found what it found, and
-      // a layer answering the dense lists there would put a queue on screen
-      // that no run produced. Answering them unconditionally is what this
-      // route used to do, and no surface read it yet, so nothing said so.
+      // THE SCENARIO PICKS THE WORLD, exactly as the engine's `derived` does.
+      // It used to pick the EMPTIES too — under the real scenario nothing was
+      // takeable and nothing blocked, on the reasoning that a run found what it
+      // found and a dense queue there would show cards no run produced.
+      //
+      // THE OPERATOR OVERRULED THAT, and the ruling is his rather than a
+      // wave's: « the data the design host serves AT REST holds at least one
+      // subject in every state every surface can draw ». At rest, on his phone,
+      // IS this branch — the dial sits here unless something moves it — so a
+      // state served only under `loaded` is a state he cannot try at all. He
+      // found that out through « Récupérer maintenant »: the verb was repaired,
+      // measured and green, and unreachable to his hand because no arrival was
+      // takeable here.
+      //
+      // WHAT DID NOT CHANGE is D7: these are the shapes the running backend
+      // answers, seeded from it and not invented. What changed is which of them
+      // this branch admits to holding. The lists in-flight, not-found and done
+      // keep their real-world counterparts, because those ARE a mutation's
+      // record — « nothing has moved yet » is true of a run just read off the
+      // disk, and filling them would claim movements that never happened.
       if (request.query.get("scenario") === LOADED) {
         return {
           takeable: state.takeable,
@@ -179,8 +225,8 @@ export function acquisitionRoutes(): MockRoute[] {
         };
       }
       return {
-        takeable: [],
-        blocked: [],
+        takeable: state.takeable,
+        blocked: state.blocked,
         inFlight: state.inFlightReel,
         notFound: state.notFoundReal,
         doneToday: state.doneReel,
@@ -210,7 +256,13 @@ export function acquisitionRoutes(): MockRoute[] {
         return { ok: true };
       },
     ),
-    route("readJourney", GET, "/api/acquisition/journeys/{infoHash}", () => JOURNEY_STAGES),
+    // THE STAGES THE VERBS MOVE, not the seed itself. This answered the
+    // imported list to every journey ever asked for, which was enough while the
+    // sheet only displayed them; « Remettre en file » and « Re-scraper » are
+    // proved by the stages MOVING, and a shared constant moves for nobody — it
+    // would also have been mutated in place for every other medium at once.
+    route("readJourney", GET, "/api/acquisition/journeys/{infoHash}",
+          (request) => stagesOf(request.parameters.infoHash)),
     // THE RELEASES OF THE TITLE ASKED FOR. The contract declares `title`,
     // `season` and `episode`; this answered the same eight releases to every
     // question, so the picker opened on « Ted Lasso » and then on « Silo »

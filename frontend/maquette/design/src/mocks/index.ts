@@ -26,12 +26,14 @@ import {
   setDefaultLatency,
   setOperationOutcome,
 } from "./scenario";
+import { answeredCalls, clearAnswered, recordAnswered } from "./answered";
 import { mockState, resetMockState } from "./state";
 import { installMockStream, resetStream, type StreamDriver } from "./stream";
 import { routes } from "./handlers";
 
 /** The signature this module replaces. */
 type NetworkCall = typeof globalThis.fetch;
+
 
 // Whether the seam is already in place. NOT the previous implementation: there
 // is no uninstall, so keeping one would be a claim nothing honours.
@@ -153,6 +155,17 @@ async function answer(input: RequestInfo | URL, options?: RequestInit): Promise<
     return json(seenBefore.status, seenBefore.payload);
   }
   const outcome = outcomeFor(found.route.operationId);
+  // WHAT WAS ASKED FOR, RECORDED — `mocks/answered.ts` says why a rule cannot
+  // read this off the network. It REUSES the outcome above rather than asking
+  // for it again, and that is not tidiness: `outcomeFor` COUNTS the call it
+  // answers, so asking twice would make every scenario set to fail on the
+  // second call fail on the first.
+  recordAnswered({
+    operationId: found.route.operationId,
+    method: request.method.toUpperCase(),
+    path: address.pathname,
+    status: outcome.status,
+  });
   if (outcome.latencyMilliseconds > 0) {
     await new Promise((settle) => {
       globalThis.setTimeout(settle, outcome.latencyMilliseconds);
@@ -289,6 +302,7 @@ export function installMockNetwork(): void {
 
   window.__mocks = {
     routes: () => routes().map((route) => `${route.method} ${route.template}`),
+    answered: answeredCalls,
     stream,
     scenario,
     outcomeFor,
@@ -298,6 +312,7 @@ export function installMockNetwork(): void {
       resetScenario();
       resetMockState();
       resetStream();
+      clearAnswered();
       networkIsDown = false;
       applied.clear();
       // AND THE COUNTERS, under a new generation. `reset()` used to leave them
@@ -350,6 +365,15 @@ declare global {
      */
     __mocks?: {
       routes: () => string[];
+      /**
+       * Every call this layer answered, in order.
+       *
+       * The layer replaces `globalThis.fetch`, so a mocked call reaches no
+       * network and the browser's own request events never fire for one. A
+       * rule asking « was this operation CALLED » reads it here.
+       */
+      answered: () => { operationId: string; method: string; path: string;
+                        status: number }[];
       /** The event stream's driving surface — emit, drop, refuse, replay. */
       stream: StreamDriver;
       scenario: typeof scenario;

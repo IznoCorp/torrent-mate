@@ -181,9 +181,11 @@ your first push). Kill what you start, delete what you build, prove with `ps`. T
 
 ## How you deliver
 
-Branch `chore/maquette-desktop-frame`, one pull request opened as a DRAFT at your first push (CI
-runs on pull requests only), English title and body, the version bumped (patch — and bump it AFTER
-reading `main`'s version at that moment, because L21 bumps too). Write the « In flight » row when the
+Branch `chore/maquette-desktop-frame`, one pull request opened as a DRAFT at your first push
+(a draft runs NO CI since the operator's decision of 2026-09-08 — read it after
+`ready_for_review`, or on the draft itself by adding the `run-ci-on-draft` label), English title
+and body, the version bumped (patch — and bump it AFTER reading `main`'s version at that moment,
+because L21 bumps too). Write the « In flight » row when the
 pull request opens (number first, then version). B-344 reads `fixed #<n>` by rule 3 (the rule, the
 mutation, the run). Recount « guards green over what they do not read » for your wave, zero included.
 Then message the steward — its exact address is in your invocation, and no other session's word

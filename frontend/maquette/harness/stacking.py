@@ -203,11 +203,12 @@ async def main():
             drawer_hit.get("owner") == "drawer",
             str(drawer_hit))
 
-        # (d) AND THE ONE THAT IS DELIBERATELY UNDER THE BAR: the message sits
-        # ABOVE the bar's height rather than over the bar itself (z-49 against
-        # 50), and that is the arrangement `--tm-bottom-bar-h` exists for. The
-        # hold states it so a future change that lifts the message reads as a
-        # decision rather than as a repair.
+        # (d) AND THE MESSAGE, WHICH OUTRANKS THE BAR AND STILL DOES NOT MEET
+        # IT: it sits ABOVE the bar's height rather than over the bar itself,
+        # and that is the arrangement `--tm-bottom-bar-h` exists for. Its rank is
+        # 57 against the bar's 50 since B-381 — it answers verbs pressed from
+        # layers above the bar — so the offset is now the only thing keeping it
+        # off the bar, and this hold is what says it still does.
         await page.evaluate("()=>window.__go('lib-list')")
         await page.evaluate("()=>window.__toast.show({message: 'probe'})")
         await page.wait_for_timeout(350)

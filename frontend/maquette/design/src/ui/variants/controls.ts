@@ -12,18 +12,61 @@ import { cva } from "../cva";
  * left-aligned sheet rows like a menu; the product decision is the opposite,
  * and a product decision outranks the original component.
  *
- * One scale everywhere: height 44 — the touch target — radius 8, weight 600,
- * 13px. Before this rule, heights ranged from 35 to 45px depending on the
+ * ONE SCALE PER KIND OF ASK, AND THE SET IS CLOSED — see `size` below.
+ * A screen's own action is height 44 — the touch target — radius 8, weight
+ * 600, 13px. Before this rule, heights ranged from 35 to 45px depending on the
  * surface, and the same gesture did not look the same in two places, which is
- * exactly what « uniform » means.
+ * exactly what « uniform » means. The set being closed is the other half of
+ * that sentence: a button nobody can hand an arbitrary size to cannot drift
+ * back into a thirty-fifth height.
  *
  * A button carrying an ICON is left-aligned instead, and that is held by a
  * `:has()` rule in the base layer rather than by a variant: it follows
  * STRUCTURE, so nobody has to remember to add a label.
  */
 export const actionButton = cva(
-  "flex items-center justify-center gap-4 w-full min-h-[44px] py-5 px-6 " +
-    "rounded-3 text-4 font-semibold text-center",
+  "flex items-center justify-center gap-4 w-full rounded-3 font-semibold text-center",
+  {
+    variants: {
+      /**
+       * THE SIZES A BUTTON IS ALLOWED TO HAVE, and there are two.
+       *
+       * A button is a COMPONENT, and a component that accepts any size is a
+       * class attribute with a factory in front of it. The operator asked for
+       * the opposite in as many words, so the set is closed here and the type
+       * is what closes it: a size outside this object is a compile error at
+       * the call site, not a convention someone has to remember.
+       *
+       * EVERY BRANCH IS A STRING LITERAL, and that is not a style. A shared
+       * constant, or a template built from one, makes the branch unreadable to
+       * `residue.py`, which reads a factory through its literals and says so
+       * when it cannot — the pair then silently stops being compared. That
+       * lesson was paid for once already, at the price of a gate quieted
+       * rather than passed.
+       *
+       * `screen` is what a SCREEN asks the operator to do: the one scale every
+       * primary action shares, 44 px of touch target. `footer` is what a LIST
+       * offers once it runs out — smaller, because it is read after the
+       * reading rather than competing with it.
+       *
+       * THE ICON SIZE IS PART OF THE SIZE, in the branch that needs it. An
+       * `<svg>` with no size does not come out unstyled: it falls back to the
+       * replaced-element default and is then stretched by the flex box —
+       * measured at 227 px inside a 245 px-tall button, which is what the
+       * operator was looking at. `screen`'s icons are sized by the base
+       * layer's `.sact / .cfoot / .mediaadd` descendant rules, which every
+       * surface drawing one already wears; `footer` wears no such class, so
+       * it carries its own and does not depend on the residue to be legible.
+       */
+      size: {
+        screen: "min-h-[44px] py-5 px-6 text-4",
+        footer:
+          "min-h-[40px] p-4 text-3 " +
+          "[&>svg]:w-[16px] [&>svg]:h-[16px] [&>svg]:flex-none",
+      },
+    },
+    defaultVariants: { size: "screen" },
+  },
 );
 
 /**

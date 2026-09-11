@@ -5,9 +5,15 @@ import { useTranslation } from "react-i18next";
 import { useMediaReference } from "./reference";
 import { SkeletonLine } from "../../ui/state-surfaces";
 import { factsPanel } from "../../ui/variants";
+import { queuedMark, seasonGrabSpacing, seasonGrabTaken } from "./variants";
+import { useQueuedSeasons } from "./queued-seasons";
+import { askForSeason, useAskedInFlight } from "./season-grab";
+import { useQueryClient } from "@tanstack/react-query";
 import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields";
 
 export function SeasonList({
+  followed,
+  followTitle,
   sheet,
   sheetInFlight,
   failed,
@@ -17,6 +23,22 @@ export function SeasonList({
   catalog,
   title,
 }: {
+  /**
+   * Whether the medium is followed. With ownership, it is what the season act
+   * asks: a followed show the reader holds nothing of is offered its seasons
+   * too, the same act wherever the show is looked at.
+   */
+  followed: boolean;
+  /**
+   * The title the season act ADDRESSES: the follow's own when the show is
+   * followed — found by the base title `followed` matches on — and the sheet's
+   * otherwise. A sheet is keyed by the title it was opened under, and one show
+   * can carry two keys: addressing the act to the sheet's asked about a follow
+   * that does not exist, and the answer began a second one (B-382). The waiting
+   * seasons are read under the same title, so the mark the follow panel sets is
+   * the mark this list shows.
+   */
+  followTitle: string;
   sheet: MediaSheetFields | null;
   seasons: [number, number | null, number][];
   owns: boolean;
@@ -48,6 +70,14 @@ export function SeasonList({
     TODAY,
   } = useMediaReference();
   const { t } = useTranslation();
+  // WHICH SEASONS ARE WAITING, read from the cache like every other fact on
+  // this sheet, so the row redraws when one arrives.
+  const waiting = useQueuedSeasons(followTitle);
+  const askedInFlight = useAskedInFlight();
+  // The cache the shared ask re-reads and redraws from. Taken here
+  // rather than threaded through props: this component is rendered, so
+  // it has a hook to read it from, which the panel's producer does not.
+  const client = useQueryClient();
   const eps = sheet?.eps ?? {};
   // WHICH ROWS EXIST is the SEASONS read's answer; how full each one is, is the
   // sheet's. With ownership still out the rows are drawn from what has landed —
@@ -84,6 +114,13 @@ export function SeasonList({
           : row.own;
         const complete = owns && row.aired != null && nbOwn >= row.aired;
         const missing = row.aired != null ? row.aired - nbOwn : null;
+        // WHEN THE SEASON AIRS, read from the catalogue for an owned row too: the
+        // owned numbers carry no date. A season that has not aired yet is not
+        // missing — nothing of it can be held — so it is offered no act; one
+        // that has STARTED airing keeps it, because the comparison is on the
+        // season's date and not on every episode's.
+        const seasonAirDate = row.air ?? catalog.find((season) => season.n === row.n)?.air;
+        const seasonUpcoming = seasonAirDate != null && seasonAirDate > TODAY;
         /* With no known total, reason up to the highest owned episode: a
            hole BELOW that maximum is a genuine gap, above it nothing is
            known. */
@@ -236,6 +273,23 @@ export function SeasonList({
                       ? `${nbOwn}/${row.aired ?? "?"}`
                       : `${row.aired ?? "?"} ${t("screens.media.episodesShort")}`}
               </span>{" "}
+              {/* DOIT-4's VISIBLE HALF, and it is the only thing this lot
+                  draws. An ask that arrived while the pipeline was running is
+                  queued — never refused — and the clause's word is VISIBLY.
+                  The verb already says it in a message; a message is gone in
+                  four seconds, and after it goes nothing distinguishes a season
+                  whose ask is waiting from one nobody asked for. The pastille
+                  is what the operator can come back to.
+
+                  IT SITS BEFORE THE SHORTFALL, because it is the newer fact and
+                  the one that explains why the shortfall has not moved. */}
+              {waiting.includes(row.n) ? (
+                <span className={queuedMark()} data-part="season/queued">
+                  {t("screens.media.seasonWaitingOnPipeline")}
+                </span>
+              ) : (
+                ""
+              )}{" "}
               {ownershipKnown && owns && missing != null && missing > 0 ? (
                 <span className="miss" data-part="season/missing">
                   {missing}{" "}
@@ -278,6 +332,42 @@ export function SeasonList({
               ""
             )}
             {body}
+            {/* THE SAME ACTION THE FOLLOW PANEL OFFERS, on the surface that
+                draws the same hole. The queued pastille was deliberately put on
+                BOTH season surfaces; an offer drawn on only one of them makes
+                the other a place where the operator can see what is missing and
+                do nothing about it, which is DOIT-3 read backwards.
+
+                GATED ON OWNERSHIP OR A FOLLOW, AND ON THE SEASON HAVING AIRED.
+                A season the reader owns and holds less of than has aired is a
+                hole, and taking it follows the medium when nothing did: the
+                operation answers whether the act began the follow, and the
+                message says so. A followed show the reader holds nothing of is
+                offered the same act, because it is the same show wherever it is
+                looked at. A season not yet aired is offered nothing on any
+                show: what has not aired is not missing.
+
+                `!complete` ALONE IS NOT THAT TEST, although it reads like it:
+                `complete` is false for anything not owned, so it offered a grab
+                on every season of a suggestion nobody owns or follows — seven
+                of them on The Venture Bros, inside closed rows, where no
+                measurement of geometry can see a button. Having a sheet does not
+                make a medium one of the reader's. The behaviour is shared —
+                `askForSeason` — so the two surfaces cannot drift apart. */}
+            {(owns || followed) && !complete && !seasonUpcoming ? (
+              <button
+                type="button"
+                className={`sact ${seasonGrabSpacing()} ${seasonGrabTaken()}`}
+                data-part="season/grab"
+                data-grab-season={`${followTitle}|${row.n}`}
+                aria-busy={askedInFlight.has(`${followTitle}|${row.n}`) || undefined}
+                onClick={() => {
+                  void askForSeason(client, followTitle, row.n);
+                }}
+              >
+                {t("panels.follow.grabSeason", { season: row.n })}
+              </button>
+            ) : null}
           </details>
         );
       })}

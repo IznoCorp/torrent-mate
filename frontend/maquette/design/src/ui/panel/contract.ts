@@ -59,7 +59,7 @@ export type FactLine = {
  *
  *     declare module "…/ui/panel/contract" {
  *       interface PanelBlockMap {
- *         saisons: { isFollowed: Follow; seasons: Season[] };
+ *         saisons: { follow: Follow; seasons: Season[] };
  *       }
  *     }
  *

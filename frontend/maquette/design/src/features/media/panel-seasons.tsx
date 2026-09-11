@@ -11,7 +11,11 @@
 // (`.ep[data-ep]`) keeps working unchanged.
 import { useTranslation } from "react-i18next";
 import { useMediaReference, type MediaReference } from "./reference";
+import { useQueryClient } from "@tanstack/react-query";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
+import { queuedMark, seasonGrabSpacing, seasonGrabTaken } from "./variants";
+import { askForSeason, useAskedInFlight } from "./season-grab";
+import { useQueuedSeasons } from "./queued-seasons";
 
 // The slice of a "follow" record the season blocks read: `t` for lookups
 // against the référentiel (`sheetFor`/`ownedFor`), `st` as the fallback state
@@ -25,7 +29,7 @@ export type Season = ReturnType<MediaReference["seasonsOf"]>[number];
 // draws it, so the two halves of the contract cannot drift apart.
 declare module "../../ui/panel/contract" {
   interface PanelBlockMap {
-    saisons: { isFollowed: Follow; seasons: Season[] };
+    saisons: { follow: Follow; seasons: Season[] };
   }
 }
 
@@ -100,6 +104,11 @@ function SeasonDetails({
   reference: MediaReference;
 }) {
   const { t } = useTranslation();
+  const client = useQueryClient();
+  // WHICH SEASONS ARE WAITING on the pipeline, read from the cache so the row
+  // redraws the moment one is answered « queued ».
+  const waiting = useQueuedSeasons(follow.t);
+  const askedInFlight = useAskedInFlight();
   const [num, rawAired, owned] = season;
   const aired = rawAired ?? 0;
   const complete = owned >= aired;
@@ -146,6 +155,18 @@ function SeasonDetails({
         <span className="sfr">
           {owned}/{aired}
         </span>{" "}
+        {/* DOIT-4's VISIBLE HALF, ON THE SURFACE THE ASK WAS MADE FROM. The
+            button below is where the operator acts, so this is where he looks
+            afterwards: the verb's message is gone in four seconds and the
+            pastille is what he can come back to. Drawn on the sheet's own
+            season list too, because the two are one fact about one season and a
+            fact stated on only one of two surfaces is a fact the reader has to
+            know where to look for. */}
+        {waiting.includes(num) ? (
+          <span className={queuedMark()} data-part="season/queued">
+            {t("screens.media.seasonWaitingOnPipeline")}
+          </span>
+        ) : null}{" "}
         {complete ? null : (
           <span className="miss" data-part="season/missing">
             {missing}{" "}
@@ -156,6 +177,39 @@ function SeasonDetails({
       <div className="eps" data-part="episode/set">
         {cells}
       </div>
+      {/* THE VERB, DRAWN ONLY OVER A HOLE (B-301).
+
+          IT WEARS `sact`, the class the panel's own actions wear, because that
+          is what it IS — an action inside a panel. A first version used
+          `ui/variants/controls`'s `actionButton`, which turns out to be an
+          ORPHAN: nothing in the application uses it and it carries layout with
+          no colour at all, so the button drew with no border, no background and
+          the inherited text colour — a pale label on a pale panel, which is how
+          the operator saw it on his phone. `.sact` is the residue that paints
+          every other action here, and it dies when they do. The matrix showed « 1
+          manquant » and offered nothing; DOIT-3 is « agir là où l'on observe ».
+          A complete season carries no button, because a button that can only
+          say « nothing to do » is worse than no button.
+
+          `data-grab-season` is what the RULE anchors on (D4) and what says WHICH
+          season the finger was on — a rule counting calls alone would take a
+          call to the wrong one. The act itself is a React handler and NOT a
+          delegation target: the engine dies by subtraction (D5), and a verb
+          that needed a line in `legacy.js` would be a verb that has not moved. */}
+      {complete ? null : (
+        <button
+          type="button"
+          className={`sact ${seasonGrabSpacing()} ${seasonGrabTaken()}`}
+          data-part="season/grab"
+          data-grab-season={`${follow.t}|${num}`}
+          aria-busy={askedInFlight.has(`${follow.t}|${num}`) || undefined}
+          onClick={() => {
+            void askForSeason(client, follow.t, num);
+          }}
+        >
+          {t("panels.follow.grabSeason", { season: num })}
+        </button>
+      )}
     </details>
   );
 }
@@ -169,7 +223,7 @@ function SeasonsBlock({
   block: { type: "saisons" } & PanelBlockMap["saisons"];
 }) {
   const reference = useMediaReference();
-  const { isFollowed: follow, seasons: seasons } = block;
+  const { follow, seasons } = block;
   const hasUpcoming = seasons.some((season) =>
     (catalogFor(reference, follow, season[0]) ?? []).some(
       (episode) => episode.air && episode.air > reference.TODAY,

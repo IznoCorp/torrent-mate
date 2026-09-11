@@ -29,9 +29,13 @@ export type Message = {
   undo?: () => void;
 };
 
+/** Which edge of the screen the message is placed along — its host decides. */
+export type Edge = "top" | "bottom";
+
 export function Toast({
   message,
   shown,
+  edge,
   onClose,
 }: {
   // The last message stays rendered while the host is hidden: the message
@@ -39,6 +43,10 @@ export function Toast({
   // the text mid-exit — the same reason the sheet keeps its descriptor.
   message: Message | null;
   shown: boolean;
+  // The place moves the box and nothing else: the element, its role and its
+  // live region stay where they are in the document, so what is announced is
+  // unchanged wherever the message is drawn.
+  edge: Edge;
   onClose: () => void;
 }): ReactElement {
   const { t } = useTranslation();
@@ -48,7 +56,7 @@ export function Toast({
       role="status"
       aria-live="polite"
       data-shown={shown || undefined}
-      className={messageHost({ shown })}
+      className={messageHost({ shown, edge })}
     >
       <span id="toastmsg">
         {message?.message ?? ""}

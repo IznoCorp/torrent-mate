@@ -307,7 +307,8 @@
       "castHeadingUnread": "Distribution",
       "creditUnread": "Crédit non lu",
       "unread": "non lu",
-      "unreadFeminine": "non lue"
+      "unreadFeminine": "non lue",
+      "seasonWaitingOnPipeline": "En file — pipeline en cours"
     },
     "profile": {
       "back": "Retour",
@@ -901,7 +902,9 @@
     "journey": {
       "metaBefore": "Parcours de l'acquisition · release ",
       "provenanceNote": "Les dates viennent de la spine de provenance. Une étape non encore atteinte affiche « à venir » — jamais une date reconstruite.",
-      "seeSheet": "Voir la fiche"
+      "seeSheet": "Voir la fiche",
+      "requeue": "Remettre en file",
+      "rescrape": "Re-scraper ce passage"
     },
     "standby": {
       "title": "Veille et obligations",
@@ -947,12 +950,52 @@
       "removeFilm": "Retirer de la liste",
       "removeSeries": "Retirer le suivi",
       "deleteFromLibrary": "Supprimer de la médiathèque",
-      "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste (§5)."
+      "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
+      "grabSeason": "Récupérer la saison {{season}}"
     }
   },
   "verbs": {
     "arrivals": {
       "taken": "« {{title}} » récupéré — suivez-le dans « En vol »."
+    },
+    "media": {
+      "seasonAsked": "Saison {{season}} de « {{title}} » demandée — {{count}} épisodes à récupérer.",
+      "seasonAskedOne": "Saison {{season}} de « {{title}} » demandée — 1 épisode à récupérer.",
+      "seasonAskedNone": "Saison {{season}} de « {{title}} » demandée — aucun épisode à récupérer.",
+      "seasonAskedNewlyFollowed": "Série « {{title}} » suivie et saison {{season}} demandée — {{count}} épisodes à récupérer.",
+      "seasonAskedOneNewlyFollowed": "Série « {{title}} » suivie et saison {{season}} demandée — 1 épisode à récupérer.",
+      "seasonAskedNoneNewlyFollowed": "Série « {{title}} » suivie et saison {{season}} demandée — aucun épisode à récupérer.",
+      "seasonQueued": "Saison {{season}} de « {{title}} » en file — pipeline en cours.",
+      "seasonQueuedNewlyFollowed": "Série « {{title}} » suivie et saison {{season}} en file — pipeline en cours.",
+      "seasonHeld": "Saison {{season}} de « {{title}} » demandée — en attente du réseau, elle partira au retour.",
+      "seasonRefused": "Saison {{season}} de « {{title}} » : la demande n'a pas abouti."
+    },
+    "journey": {
+      "requeueAsked": "Remis en file — le passage reprend où il s'est arrêté.",
+      "requeueQueued": "Remise en file demandée — en file, pipeline en cours.",
+      "requeueHeld": "Remise en file demandée — en attente du réseau.",
+      "requeueRefused": "La remise en file n'a pas abouti.",
+      "rescrapeAsked": "Passage re-scrapé — le pipeline reprend depuis le scrape.",
+      "rescrapeQueued": "Re-scrape demandé — en file, pipeline en cours.",
+      "rescrapeHeld": "Re-scrape demandé — en attente du réseau.",
+      "rescrapeRefused": "Le re-scrape n'a pas abouti."
+    },
+    "follows": {
+      "added": "« {{title}} » ajouté à votre liste — il apparaît en tête de « Suivis », marqué Nouveau.",
+      "followed": "« {{title}} » ajouté à vos suivis — il apparaît en tête de « Suivis », marqué Nouveau.",
+      "resumed": "« {{title}} » réactivé.",
+      "searchStopped": "« {{title}} » ne sera plus cherché.",
+      "paused": "« {{title}} » mis en pause.",
+      "removed": "« {{title}} » retiré de vos suivis."
+    },
+    "deck": {
+      "loaded": "{{count}} suggestions de plus — la réserve en compte {{total}}.",
+      "loadedOne": "1 suggestion de plus — la réserve en compte {{total}}.",
+      "spent": "Réserve épuisée — les {{total}} suggestions chargées ont toutes été vues.",
+      "refused": "Le chargement n'a pas abouti."
+    },
+    "releases": {
+      "taken": "« {{quality}} » retenue pour « {{title}} » — suivez-le dans « En vol »."
     }
   },
   "discover": {
@@ -961,6 +1004,8 @@
     "onTmdb": " sur TMDB",
     "allSeenLead": "Vous avez tout parcouru.",
     "allSeenRest": "Les {{count}} suggestions du lot ont été vues. La réserve en garde d'autres.",
+    "allSeenRestList": "Les {{count}} suggestions chargées ont été vues — d'autres attendent d'être chargées.",
+    "allSeenRestExhausted": "Les {{count}} suggestions chargées ont toutes été vues — la réserve est épuisée.",
     "loadThirtyMore": "Charger 30 de plus",
     "endOfReserve": "Fin de la réserve chargée dans cette maquette — {{loaded}} des 503 suggestions réellement calculées pour vous. La passe de fond en recalcule après chaque nouvelle note TMDB.",
     "dismissed": "« {{title}} » écarté."

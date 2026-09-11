@@ -87,7 +87,7 @@ died.
 ## The machine
 
 - **Host on 8899: pid 5479**, `nohup`, ppid 1, started OUTSIDE the wrapper. Leave
-  it. **B-371**: a host forked INSIDE a `scripts/heavy.sh` run dies with it
+  it. **B-389**: a host forked INSIDE a `scripts/heavy.sh` run dies with it
   (`set -m`, the group is signalled on release) — harmless for `run.sh`, which
   restarts what is not listening, and lethal for `mutate.sh`, which starts none
   and then runs its rule against a refused port.
@@ -125,11 +125,11 @@ died.
 
 ## Registers
 
-**B-371+ and R141-R149 are this wave's block.** Filed: **B-371** (the host under
-the wrapper), **B-372** (no arm of `check-no-french` reads text in
+**B-389+ and R141-R149 are this wave's block.** Filed: **B-389** (the host under
+the wrapper), **B-390** (no arm of `check-no-french` reads text in
 `design/index.html`, so the guard's silence was never evidence for the label
-ruling), **B-373** (the « ONLY accepted divergence » makes five declarations and
-one diverges), **B-374** (`features/library/page.tsx` says the legacy owns the
+ruling), **B-391** (the « ONLY accepted divergence » makes five declarations and
+one diverges), **B-392** (`features/library/page.tsx` says the legacy owns the
 selection bar; `paintSelBar` is empty and React draws it). **B-273 extended
 twice.** **B-344 closed `fixed #576`**, body and status in the same commit.
 

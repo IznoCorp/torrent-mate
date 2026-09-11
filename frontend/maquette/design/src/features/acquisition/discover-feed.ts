@@ -18,7 +18,10 @@
 // click delegation and its swipe handlers all still call them by name, and the
 // day it goes this file loses an importer rather than a subject.
 import i18next from "i18next";
+import { actionButton, loadFooterAction } from "../../ui/variants";
+import { cx } from "../../ui/cva";
 import { deckCard, deckHints, suggestionRow, suggestionTile, type Suggestion } from "./discover-cards";
+import { isReserveExhausted } from "./queries";
 
 /** How many more the footer asks for at a time. */
 const BATCH = 30;
@@ -60,21 +63,34 @@ const uiState = () => window.__store.read().state;
 /**
  * The order the pile is spent in, minus what has been dismissed.
  *
- * THE ORDER IS DERIVED FROM THE LIST, and it is re-derived while the two
- * disagree in LENGTH. It used to be computed once, on the first draw — safe
- * while the list was a fixture that existed before anything ran. It is a query
- * now: the first draw happens before the cards land, so an order computed then
- * is empty and stays empty, and the deck draws nothing for ever. Re-deriving on
- * a length mismatch keeps what a shuffle or a dismissal put there, and fills it
- * the moment the cards arrive.
+ * THE ORDER IS DERIVED FROM THE LIST, and it is kept in step with it. It used
+ * to be computed once, on the first draw — safe while the list was a fixture
+ * that existed before anything ran. It is a query now: the first draw happens
+ * before the cards land, so an order computed then is empty and stays empty,
+ * and the deck draws nothing for ever.
+ *
+ * A GROWN RESERVE IS APPENDED TO, NEVER REBUILT. Asking for more suggestions
+ * adds pages at the end, and a wholesale re-derivation there would throw away
+ * what « Passer » had arranged — the operator would press a button that says
+ * it loads more and watch the pile they had ordered shuffle itself. Only a
+ * reserve that SHRANK or was never ordered is derived from scratch, which is
+ * the case the first draw needs.
  *
  * Returns:
  *     The positions still to be shown, in the order they will be.
  */
 export function deckOrder(): number[] {
   const state = uiState();
-  if (!state.sugOrder || (state.sugOrder as number[]).length !== reserve().length)
+  const order = state.sugOrder as number[] | undefined;
+  const held = reserve().length;
+  if (!order || order.length > held) {
     window.__store.write({ sugOrder: reserve().map((one, index) => index) });
+  } else if (order.length < held) {
+    const arrived = [];
+    for (let position = order.length; position < held; position += 1)
+      arrived.push(position);
+    window.__store.write({ sugOrder: [...order, ...arrived] });
+  }
   const gone = uiState().sugGone as Set<number>;
   return (uiState().sugOrder as number[]).filter((one) => !gone.has(one));
 }
@@ -95,16 +111,50 @@ export function passerSug(position: number): void {
 /**
  * The pile, as markup — or the end mark when it has been spent.
  *
+ * ITS « LOAD MORE » IS A FOOTER'S ACTION, NOT THE SCREEN'S (B-315 a). It wore
+ * `.btnprimary` — the action-button system, one scale with every primary
+ * action in the product — and at the foot of a spent pile that reads as the
+ * screen's main path when it is an offer to carry on reading. The operator
+ * judged it too big.
+ *
+ * IT ASKS THE BUTTON SYSTEM FOR A SIZE RATHER THAN SPELLING ONE. The set of
+ * sizes is closed in `ui/variants/controls.ts`, so this call site cannot
+ * invent a thirty-fifth height and cannot be handed one; what it adds here is
+ * the mood. The two halves are `actionButton({ size: "footer" })` and
+ * `loadFooterAction()`, in that order, and neither sets what the other sets.
+ *
+ * THE FIRST REPAIR LEFT THE ICON OUT, and the icon was most of the complaint:
+ * this button wears none of the legacy classes whose descendant rules size the
+ * action-button system's icons, so its `<svg>` fell back to the
+ * replaced-element default and the flex box stretched it to 227 px inside a
+ * 245 px-tall button. The `footer` branch sizes it.
+ *
+ * THREE STATES, THREE CHOSEN SENTENCES: the pile with more to load keeps the
+ * deck's words; the LIST says its own, which its « end of the loaded reserve »
+ * footer does not contradict; an exhausted reserve says so and offers nothing.
+ *
+ * Args:
+ *     inList: Whether the mark ends the list or the gallery rather than the pile.
+ *
  * Returns:
  *     The deck's markup.
  */
+export function nothingLeftHTML(inList = false): string {
+  const reference = drawing();
+  const exhausted = isReserveExhausted();
+  const restKey = exhausted ? "allSeenRestExhausted" : inList ? "allSeenRestList" : "allSeenRest";
+  const offer = exhausted
+    ? ""
+    : `<button class="${cx(actionButton({ size: "footer" }), loadFooterAction())}" data-sugmore="1">${reference.svgIcon(reference.icons.refresh)}${say("loadThirtyMore")}</button>`;
+  return `<div class="empty" data-part="empty-state"><b>${say("allSeenLead")}</b>
+        <p>${say(restKey, { count: reserve().length })}</p>
+        ${offer}</div>`;
+}
+
 export function deckHTML(): string {
   const remaining = deckOrder().map((position) => [reserve()[position], position] as const);
   if (!remaining.length) {
-    const reference = drawing();
-    return `<div class="empty" data-part="empty-state"><b>${say("allSeenLead")}</b>
-        <p>${say("allSeenRest", { count: reserve().length })}</p>
-        <button class="btnprimary" data-sugmore="1">${reference.svgIcon(reference.icons.refresh)}${say("loadThirtyMore")}</button></div>`;
+    return nothingLeftHTML();
   }
   const pile = remaining
     .slice(0, 3)
@@ -227,11 +277,17 @@ export function fillSug(): void {
     .slice(0, state.sugCount as number)
     .map((suggestion, position) => (gone.has(position) ? "" : draw(suggestion, position)))
     .join("");
+  // AN EMPTY LIST SAYS SO. Dismissing every drawn suggestion left this
+  // container holding nothing at all — no rows and no word — which reads as a
+  // surface that has broken rather than one that has run out. It gets the
+  // pile's end mark, with the list's own sentence.
+  const drawn = markup === "" ? nothingLeftHTML(true) : markup;
   // ONLY WHEN IT CHANGES. See `lastList` above: rewriting identical markup
-  // replaces every node, and a tap between press and click is then lost.
-  if (markup === lastList && box.innerHTML !== "") return;
-  lastList = markup;
-  box.innerHTML = markup;
+  // replaces every node, and a tap between press and click is then lost. The
+  // MARK is compared too, or it went on offering a load after « Réserve épuisée ».
+  if (drawn === lastList && box.innerHTML !== "") return;
+  lastList = drawn;
+  box.innerHTML = drawn;
 }
 
 /**

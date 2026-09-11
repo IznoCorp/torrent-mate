@@ -139,7 +139,7 @@ FORCED = [('[data-part="shell/tab-bar"]', "display"),
 # So of the five declarations in the DECLARED HARNESS DEVIATION block, ONE
 # deviates and four restate. The file's own comment calls that block « the
 # ONLY accepted divergence in the shell », and the divergence is narrower than
-# the block implementing it — B-373.
+# the block implementing it — B-391.
 REDUNDANT = {('[data-part="shell/tab-bar"]', "inset-inline-start"),
              ('[data-part="shell/tab-bar"]', "inset-inline-end"),
              ('[data-part="shell/tab-bar"]', "bottom"),
@@ -380,7 +380,7 @@ def declared_reassertions(device_classes):
 # `display: none`, the header is at the top and the FAB is at the bottom RIGHT,
 # so not one of the five can ever be where the control parks. The hold reading
 # them was at its most vacuous in the state it was written for: it answered
-# « nothing » while the app's « Annuler » sat underneath. That is B-370's
+# « nothing » while the app's « Annuler » sat underneath. That is B-388's
 # species — a promise about a CLASS held by a reading of named members — and
 # the answer is to ask the class.
 INTERACTIVE = ('button, a[href], input, select, textarea, summary, '
@@ -390,7 +390,7 @@ INTERACTIVE = ('button, a[href], input, select, textarea, summary, '
 # The control crossing its OWN label is not a finding, so its own subtree is
 # excluded — but every OTHER piece of harness chrome is read beside the app's
 # controls, and that is deliberate. Nothing in this harness holds that two
-# pieces of its own chrome do not cover each other: B-370 is exactly R51
+# pieces of its own chrome do not cover each other: B-388 is exactly R51
 # reading ONE of them by literal. And this wave's placement depends on it —
 # the harness bar sits at the top bar's empty middle while the frame is drawn
 # and moves to the top right out of it, which is the whole reason top centre

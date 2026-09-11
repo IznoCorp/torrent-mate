@@ -19,13 +19,14 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 54 |
+| operations the interface requires | 58 |
 | operations the backend has | 65 |
-| required and missing | 13 |
-| declared by both, different response shape | 41 |
-| declared by both, path parameter spelled differently | 11 |
+| required and missing | 14 |
+| declared by both, different response shape | 44 |
+| declared by both, path parameter spelled differently | 14 |
+| declared by both, answered with a different status | 12 |
 | fields carried pre-formatted | 25 |
-| the backend has and the interface does not use | 24 |
+| the backend has and the interface does not use | 21 |
 
 ---
 
@@ -45,6 +46,7 @@ than a blank page.
 | `GET /api/system/dependencies` | `readDependencies` | The external dependencies, and whether each answers |
 | `GET /api/system/errors` | `readErrors` | How many errors, out of how many runs, and the latest |
 | `GET /api/system/services` | `readServices` | The services, and whether each answers |
+| `POST /api/acquisition/followed/{followedId}/restore` | `restoreFollow` | Put a removed follow back, as it was |
 | `POST /api/acquisition/to-handle/{mediaId}/take` | `takeQueued` | Restart one item that was waiting to be acquired |
 
 ## 2. Operations both declare, whose response carries different property names
@@ -76,22 +78,25 @@ reports a difference for every optional field and drowns the real findings.
 | `GET /api/staging/media` (`readStaging`) | `chip`, `moving`, `secondaryLine`, `settled`, `strip`, `stuck`, `text`, `tone`, `withoutPoster` | `absent`, `ambiguous`, `awaiting_action`, `blocked_reason`, `category`, `category_id`, `continuation_requested_at`, `counts`, `decision_id`, `decision_trigger`, `disk`, `dispatch_target`, `episode_count`, `folder`, `has_nfo`, `has_poster`, `has_trailer`, `id`, `items`, `key`, `label`, `match`, `matched`, `media_kind`, `mode`, `modified_at`, `overview`, `page`, `page_size`, `position_stage`, `position_state`, `poster_url`, `provider_ids`, `relative_path`, `scraped`, `season`, `seasons`, `size_bytes`, `stages`, `state`, `total`, `video_count`, `with_trailer`, `year` |
 | `GET /api/version` (`readVersion`) | `commit` | `build_commit` |
 | `PATCH /api/acquisition/followed/{followedId}` (`updateFollow`) | `aired`, `fresh`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `id`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
-| `POST /api/acquisition/detect` (`runDetection`) | `available`, `detected`, `grabbed` | — |
-| `POST /api/acquisition/followed` (`createFollow`) | `aired`, `fresh`, `kind`, `owned`, `searches`, `showStatus`, `since`, `status`, `title`, `year` | — |
-| `POST /api/acquisition/followed/{followedId}/grab` (`grabForFollow`) | `releaseName` | — |
-| `POST /api/acquisition/followed/{followedId}/search` (`searchForFollow`) | `found` | — |
+| `POST /api/acquisition/detect` (`runDetection`) | `available`, `detected`, `grabbed` | `run_uid` |
+| `POST /api/acquisition/followed` (`createFollow`) | `aired`, `fresh`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `id`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
+| `POST /api/acquisition/followed/{followedId}/grab` (`grabForFollow`) | `releaseName` | `run_uid` |
+| `POST /api/acquisition/followed/{followedId}/search` (`searchForFollow`) | `found` | `run_uid` |
+| `POST /api/acquisition/follows/{followedId}/seasons/{season}/grab` (`grabSeasonForFollow`) | `absorbedCount`, `newlyFollowed`, `queued`, `runUid` | `absorbed_count`, `reused`, `run_started`, `run_uid`, `season_wanted_id` |
+| `POST /api/acquisition/journeys/{infoHash}/requeue` (`requeueJourney`) | `queued`, `runUid` | `run_uid` |
+| `POST /api/acquisition/journeys/{infoHash}/rescrape` (`rescrapeJourney`) | `queued`, `runUid` | `run_uid` |
 | `POST /api/auth/login` (`signIn`) | `avatar`, `email`, `name` | — |
 | `POST /api/auth/logout` (`signOut`) | `ok` | — |
-| `POST /api/config/restart-web` (`restartWeb`) | `ok` | — |
+| `POST /api/config/restart-web` (`restartWeb`) | `ok` | `status` |
 | `POST /api/decisions/{decisionId}/dismiss` (`dismissDecision`) | `state` | `candidates`, `candidates_count`, `created_at`, `extracted_title`, `extracted_year`, `id`, `media_kind`, `overview`, `poster_url`, `provider`, `provider_id`, `resolution_json`, `score`, `staging_path`, `status`, `title`, `trigger`, `year` |
-| `POST /api/decisions/{decisionId}/resolve` (`resolveDecision`) | `state` | — |
+| `POST /api/decisions/{decisionId}/resolve` (`resolveDecision`) | `state` | `run_uid` |
 | `POST /api/decisions/{decisionId}/search` (`searchForDecision`) | `id`, `withoutPoster` | `candidates`, `poster_url`, `provider_id` |
-| `POST /api/maintenance/actions/{actionId}/run` (`runMaintenanceAction`) | `state`, `uid` | — |
+| `POST /api/maintenance/actions/{actionId}/run` (`runMaintenanceAction`) | `state`, `uid` | `queued`, `run_uid` |
 | `POST /api/pipeline/kill` (`killPipeline`) | — | `paused`, `pid`, `run_uid`, `step`, `watcher_enabled` |
 | `POST /api/pipeline/pause` (`pausePipeline`) | — | `paused`, `pid`, `run_uid`, `step`, `watcher_enabled` |
 | `POST /api/pipeline/resume` (`resumePipeline`) | — | `paused`, `pid`, `run_uid`, `step`, `watcher_enabled` |
-| `POST /api/pipeline/run` (`runPipeline`) | `state`, `uid` | — |
-| `POST /api/staging/media/{mediaId}/continue` (`continueStagedMedia`) | `ok` | — |
+| `POST /api/pipeline/run` (`runPipeline`) | `state`, `uid` | `queued`, `run_uid` |
+| `POST /api/staging/media/{mediaId}/continue` (`continueStagedMedia`) | — | `deferred`, `detail`, `media_id`, `run_uid` |
 | `POST /api/staging/media/{mediaId}/discard` (`discardStagedMedia`) | — | `detail`, `journaled`, `media_id`, `quarantine_path` |
 | `PUT /api/config/files/{name}` (`updateConfigurationFile`) | `conflict`, `restartRequired` | `restart_required`, `warnings` |
 | `PUT /api/config/secrets` (`updateSecrets`) | `restartRequired` | `restart_required`, `warnings` |
@@ -109,12 +114,44 @@ operator's call rather than this file's.
 | `PATCH /api/acquisition/followed/{followedId}` | `PATCH /api/acquisition/followed/{followed_id}` |
 | `POST /api/acquisition/followed/{followedId}/grab` | `POST /api/acquisition/followed/{followed_id}/grab` |
 | `POST /api/acquisition/followed/{followedId}/search` | `POST /api/acquisition/followed/{followed_id}/search` |
+| `POST /api/acquisition/follows/{followedId}/seasons/{season}/grab` | `POST /api/acquisition/follows/{followed_id}/seasons/{season}/grab` |
+| `POST /api/acquisition/journeys/{infoHash}/requeue` | `POST /api/acquisition/journeys/{info_hash}/requeue` |
+| `POST /api/acquisition/journeys/{infoHash}/rescrape` | `POST /api/acquisition/journeys/{info_hash}/rescrape` |
 | `POST /api/decisions/{decisionId}/dismiss` | `POST /api/decisions/{decision_id}/dismiss` |
 | `POST /api/decisions/{decisionId}/resolve` | `POST /api/decisions/{decision_id}/resolve` |
 | `POST /api/decisions/{decisionId}/search` | `POST /api/decisions/{decision_id}/search` |
 | `POST /api/maintenance/actions/{actionId}/run` | `POST /api/maintenance/actions/{action_id}/run` |
 | `POST /api/staging/media/{mediaId}/continue` | `POST /api/staging/media/{media_id}/continue` |
 | `POST /api/staging/media/{mediaId}/discard` | `POST /api/staging/media/{media_id}/discard` |
+
+## 2c. Operations both declare, answered with a different status
+
+**A STATUS IS A DEMAND, and it was invisible here until 2026-09-06.** The comparison
+above reads property NAMES; two documents can agree on every name and still disagree
+on what the answer means. `POST /api/acquisition/journeys/{infoHash}/requeue` is the
+case this table was built for: the backend answers **409** when a requeue for the item
+is already in flight, and NE-DOIT-PAS-3 with §20 forbid the interface showing that — an
+ask at the bound is QUEUED, visibly, never refused. So the interface declares a queued
+202 and the difference is recorded rather than reconciled.
+
+**Most rows here predate the lot that built the table.** Twelve operations already
+disagreed, and they are the backend's own business — a 202 where the interface expects
+a 200 is not a defect in either document, it is a decision nobody had written down.
+
+| operation | operationId | the interface requires | the backend answers |
+| --- | --- | --- | --- |
+| `DELETE /api/acquisition/followed/{followedId}` | `deleteFollow` | `200` | `204` |
+| `POST /api/acquisition/detect` | `runDetection` | `200` | `202` |
+| `POST /api/acquisition/followed` | `createFollow` | `200` | `201` |
+| `POST /api/acquisition/followed/{followedId}/grab` | `grabForFollow` | `200` | `202` |
+| `POST /api/acquisition/followed/{followedId}/search` | `searchForFollow` | `200` | `202` |
+| `POST /api/auth/login` | `signIn` | `200` | `204` |
+| `POST /api/auth/logout` | `signOut` | `200` | `204` |
+| `POST /api/config/restart-web` | `restartWeb` | `200` | `202` |
+| `POST /api/decisions/{decisionId}/resolve` | `resolveDecision` | `200` | `202` |
+| `POST /api/maintenance/actions/{actionId}/run` | `runMaintenanceAction` | `200` | `202` |
+| `POST /api/pipeline/run` | `runPipeline` | `200` | `202` |
+| `POST /api/staging/media/{mediaId}/continue` | `continueStagedMedia` | `200` | `202` |
 
 ## 3. Fields the interface carries pre-formatted
 
@@ -176,9 +213,6 @@ production app, by a script, or by the operator.
 - `GET /api/pipeline/stages`
 - `GET /api/registry/status`
 - `GET /api/staging/media/{media_id}/poster`
-- `POST /api/acquisition/follows/{followed_id}/seasons/{season}/grab`
-- `POST /api/acquisition/journeys/{info_hash}/requeue`
-- `POST /api/acquisition/journeys/{info_hash}/rescrape`
 - `POST /api/acquisition/ranking/preview`
 - `POST /api/config/validate`
 - `POST /api/pipeline/watcher`

@@ -23,6 +23,7 @@
 //
 // THE BACKGROUND IS THE FRAME'S OTHER CHILDREN, never the layer's ancestors.
 // Marking `document.body` inert would mark the layer too.
+import { setLayerOpen } from "./layer-presence";
 
 // The layer roots, in the stacking order the engine already unwinds — drawer,
 // then screen, then sheet — so the topmost open layer is the last one here that
@@ -106,6 +107,9 @@ function openLayers(): Element[] {
  * @param layer The layer that owns focus, or null to clear every mark.
  */
 function setBackgroundInert(layer: Element | null): void {
+  // THE SAME DECISION, PUBLISHED: the message is placed by which layer is on
+  // top (`app/layer-presence.ts`), and this is where that is decided.
+  setLayerOpen(layer);
   const frame = document.getElementById("device");
   if (!frame) return;
   for (const child of Array.from(frame.children)) {
@@ -119,6 +123,15 @@ function setBackgroundInert(layer: Element | null): void {
       // drawer did nothing: `drawer.py` caught it as history that would not
       // move, which is what that hold is for.
       if (node.id === "scrim") {
+        node.removeAttribute("inert");
+        continue;
+      }
+      // THE MESSAGE IS NEVER INERT EITHER. It is not background: it answers a
+      // verb pressed IN the layer, and it is ranked above every layer a verb is
+      // pressed from so the answer is seen there. Marked inert it painted on top
+      // and took no finger, so its close and its « Annuler » were controls that
+      // did nothing while the layer that caused them was still open (B-381).
+      if (node.id === "toast") {
         node.removeAttribute("inert");
         continue;
       }
@@ -180,8 +193,16 @@ function reconcile(): void {
     //
     // The fallback is the main region rather than nothing: the reader lands
     // back in the content they came from instead of at the top of the document.
-    if (closed.trigger?.isConnected) closed.trigger.focus();
-    else document.getElementById("port")?.focus();
+    // `preventScroll`, ON BOTH BRANCHES. Restoring focus is right; moving the
+    // PAGE to do it is not. The browser scrolls a focused element into view by
+    // default, so closing a layer opened from a row near the top of a list sent
+    // the list back to its top — one scroll event, no re-render, nothing
+    // rebuilt, and no instrument saw it for as long as the boot page was too
+    // short to scroll. The focus still moves; only the browser's scroll is
+    // suppressed. `ui/virtual-rows.tsx` already answers this the same way.
+    if (closed.trigger?.isConnected)
+      closed.trigger.focus({ preventScroll: true });
+    else document.getElementById("port")?.focus({ preventScroll: true });
   }
 
   if (!top) {
