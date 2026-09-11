@@ -151,6 +151,17 @@ async def measure_desktop(browser, journal):
         f"{left['checked']}, device {left['box']} at {left['viewport']}, "
         f"stored {left['stored']!r}")
 
+    await context.close()
+
+    # THE WAY BACK IS READ ON A PAGE OF ITS OWN. Driven on from the page above,
+    # its premise would be that page's reload: a restore that failed would leave
+    # the box unchecked, the press below would check it, and the way back would
+    # fall too — one defect named twice. Here the operator leaves the frame by
+    # hand and comes back, whatever the reload above did.
+    context, page = await open_page(browser, **DESKTOP)
+    await context.add_init_script(script=f"({FIRST_FRAMES})({CHECKBOX!r})")
+    await page.click(LABEL)
+    await page.wait_for_timeout(AFTER_A_PRESS)
     await page.click(LABEL)
     await page.wait_for_timeout(AFTER_A_PRESS)
     back = await read(page)
