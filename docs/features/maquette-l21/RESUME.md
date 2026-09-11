@@ -32,6 +32,9 @@ Round two added no rule: it grew R155, R157, R158, R159 and R84.
 
 ## 0. WHERE IT STANDS — read this before anything
 
+⚠ **ROUND THREE IS IN FLIGHT, AND § 3.8 IS THE RESUME BRIEF.** It was written at a rotation after C1, and
+it supersedes the « Next » bullet below. **Read § 3.8 first.**
+
 **ROUND TWO'S REPAIRS ARE DONE AND THE WAVE GATE IS TAKEN on `6a56b947e`.** The head is the commit that
 adds this text — documentation only — on top of it, pushed with it. Nothing is half-done in the tree.
 
@@ -452,6 +455,78 @@ and B4's legs; R159 gains B6's hold once ruled. **All of it is built** — R158 
 the end of the list, and built there.
 
 **Gated**: § 4.
+
+### 3.8 Review round three — four findings, C1 built, C2–C4 and the docs owed (RESUME BRIEF)
+
+**Written at a ROTATION**: the implementer's gauge read 60 % after C1. Nothing is half-done in the tree. The
+head is the commit adding this section, on top of `21390f6c5` (C1). **NOT pushed**: `origin` is at
+`0526e5e03`.
+
+The reader's report is `/Users/izno/dev/review-archive/l21-572/round-3/r3-C.md` (candidate `0526e5e03`,
+control `1e9e7c48e`), with its walks `c01`…`c06` and `r3_*` beside it — reuse them as the closing readings,
+never rebuild. **Read it whole.** Every repair of round two held on the paths it walked.
+
+**Built**
+
+- **C1** `21390f6c5` — the layer's season-grab handler moves a found follow to `acquiring` only when the
+  season had episodes to get (the local is `missing`; `absorbed` is not in the code vocabulary, the contract
+  field stays `absorbedCount`). R160's hold 3 and R158's « Agent Elvis » hold RE-AIMED — the follow agrees
+  with the answer. R158 reads the status before the act from the LAYER (a refetch of
+  `/api/acquisition/followed`), because « Suivre » had just written an optimistic `unverified` into the
+  cache; it also holds the sentence answered (`seasonAskedNone`, naming the show); 62 → 63. Red R160 24 / 2
+  (Furious and President Curtis `up_to_date → acquiring`); mutation (the unconditional write restored)
+  R160 24 / 2 and R158 63 / 1 (Agent Elvis `pending → acquiring`); green R160 24, R158 63, R157 25,
+  `season_grab.py` 16. Contracts clean; oracle 44, the list identical line by line.
+
+**Owed, in this order** — the orchestrator's DECIDED list: one commit each, contracts + oracle per commit
+(ask for each oracle slot), the mutation on a clean tree.
+
+2. **C2 — repair, B6's own edge case.** A crossing must not eat the life: pause the life clock while the
+   message is away and resume it at the re-show, so a message that changes edge at 4 419 ms of 5 000 comes
+   back for what it was owed, never as a flash; « Annuler » (6 s) the same. In `app/toast-host.ts` today
+   `timer` runs through `followTheLayers`' 400 ms away, `showAgain` re-shows whatever is left of it, and
+   `hideMessage`'s `moving` branch ends a life that expires while away. **Hold in R159**: a layer change
+   inside the last 600 ms of a life, with and without an undo — the message is either whole for at least
+   its remaining readable life, or never shown again. **Mutation**: `showAgain` against the running timer
+   restored. DESIGN § 3.1g: the crossing extends the life by what it took. Readings: `c01` L2 (its 4 419 ms
+   and 4 667 ms leads) and L4.
+3. **C3 — test-only.** R159 leg 11 RE-AIMED again, said out loud: between the last frame at the first place
+   with opacity > 0.05 and the first frame at the other edge with opacity > 0.05, a frame with the message
+   wholly gone (≤ 0.05). **Mutation** `setTimeout(showAgain, 50)` in `followTheLayers` → falls; the previous
+   mutation (the immediate move, `if (!drawn) {` → `if (!drawn || edge !== layer.edge) {`) still falls.
+4. **C4 — test-only, two holds.** R157 (or R160) holds the media SCREEN's season act `aria-busy="true"` in
+   flight and null after — R157's `TAKEN` reads `#sheetin` only; **mutation** `aria-busy` dropped from
+   `features/media/season-list.tsx`. R155 holds the PILE's mark after exhaustion — the exhausted sentence and
+   NO offer; **mutation** `const exhausted = inList && isReserveExhausted();` in `discover-feed.ts`, which
+   sits at 399 of 400 lines (a mutation adds none; a repair there splits the file first).
+5. **Docs, then the gate.** This section rewritten as what was built, each finding with its red, mutation
+   and green; B-380's entry gains one line citing `c05` (the offer on Furious and President Curtis stays
+   B-380's). Then ONE gate on the final code head: the full suite (tell the orchestrator before),
+   hold-counts `--compare frontend/maquette/hold-counts-baseline.json`, `make check`, `design/dist`, § 4
+   rewritten once, the wrapped push, `ls-remote`, the report. **Closing readings** on the final build:
+   replay `c01` L2 and L4, `c02` L2, `c04` and `c05`, and give their lines.
+
+**The rotation rule**, the orchestrator's: the gauge after each item; at or past 60 %, finish the item in
+hand, rewrite this section as the resume brief, and stop.
+
+**Traps this rotation paid for**, beyond § 6 and § 8:
+
+- The orchestrator is `steward-successor [7e2cc4]`: handshake first, silence rule 15 min, and tell it
+  BEFORE the full suite, the oracle and hold-counts — it answers « clear ».
+- A heavy run past ten minutes (the full suite, hold-counts, `make check`, the push) goes to the background
+  with its output and exit code written to a file, and is read when it ends — never through `tail`.
+- `run.sh` has no single-rule mode. A single rule was run by a small script: build, `served_copy.py
+  --acquire` / `--publish`, the named rules, `--release`, wrapped `TM_HARNESS_JOBS=2 sh scripts/heavy.sh
+  l21 bash <script> <rules…>`. It lived in a session's scratch directory and is gone: write it again.
+- **The full tier runs the a11y and the oracle ONLY after green rules**; a red run stops at the fallen rule.
+- `check-no-french` refuses an identifier built from a word the vocabulary lacks — met four times here
+  (`placement`, `comeBack`, `asksInFlight`, `absorbedCount` as a local). Rename; never add a word.
+- `docs/` needs `git add -f`, one file at a time, and a `set -e` chain stops at a refused add with nothing
+  committed.
+- The editing tool's formatter rewrites `.ts` / `.tsx` hunks it was not asked to: write `.ts` changes by
+  script, and read `git diff --stat` before every commit.
+- Keep the shell at the repository root with absolute paths: a hook writes a command log under any
+  session's working directory, and `design/src` is hashed into the build identity.
 
 ---
 
