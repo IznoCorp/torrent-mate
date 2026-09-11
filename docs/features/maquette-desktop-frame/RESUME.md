@@ -137,6 +137,12 @@ withdrawn. § 2 above is the pass this pull request merges on.
   cut the row and drew its tail as a stray table row, and
   `scripts/check-bug-register.py` read clean over it. Repaired at the merge of
   `main`, not counted. Owner: **the register guard's tooling micro-wave**.
+- **The register guard does not read row ORDER.** At the second merge of
+  `main`, git set this wave's B-388..B-392 after B-371 and the steward's
+  B-384..B-387 at the table's end, with no conflict, and
+  `scripts/check-bug-register.py` read clean over rows neither ascending nor
+  contiguous; they were set in order by hand in `d3a122ee8`. Owner: **the
+  register guard's tooling micro-wave**.
 - **Reader E's V3, not run.** Reader E named a spelling it could not settle —
   `:root[data-theme="light"]{--color-background:red}` written into
   `harness.css` — which would say whether the survivors hold's tautology moved
