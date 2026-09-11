@@ -297,11 +297,16 @@ was skipped. Post-deletion and post-signature-change grep rules:
 
 ### Implementation Workflow (feature-oriented)
 
-12 `implement:*` skills cover the feature lifecycle; **Sonnet is forbidden as a dispatch
-target**. Entry point `/implement:feature` (brainstorm → codename + SemVer → branch → plan),
-then `/implement:phase` until the PR. Branches `feat/{codename}` / `fix/{codename}`, commits
-scoped with the codename, squash merge. Full flow, model allocation, milestone commits and the
-KanbanMate claim procedure: `docs/reference/feature-lifecycle.md` §7.
+The feature lifecycle is the plugin `implement@lounisbou`'s, five skills: `/implement:feature`
+(brainstorm → codename + SemVer → branch → plan), `/implement:phase` (every phase not done, inline —
+failing tests, the code, the project's gate, one commit and a check per sub-phase), `/implement:check`
+(a delivery or a commit range against the plan and the design), `/implement:close` (the full gate,
+the declared bump and the branch's summary — never a push, a pull request or a merge) and
+`/implement:prepare` (a future feature's design and plan on the roadmap). The pull request, its CI
+reading and the squash merge come after `/implement:close`, by the operator or the orchestrator.
+**Sonnet is forbidden as a dispatch target.** Branches `feat/{codename}` / `fix/{codename}`, commits
+scoped with the codename, squash merge. Full flow, milestone commits and the KanbanMate claim
+procedure: `docs/reference/feature-lifecycle.md` §7.
 
 **Claim a ticket that ALREADY EXISTS on the board before coding it** — `/kanban-work <ticket>`,
 so the autonomous KanbanMate daemon stays out of the way, and advance the card as you go.
