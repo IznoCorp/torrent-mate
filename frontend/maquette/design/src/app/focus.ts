@@ -23,6 +23,7 @@
 //
 // THE BACKGROUND IS THE FRAME'S OTHER CHILDREN, never the layer's ancestors.
 // Marking `document.body` inert would mark the layer too.
+import { setLayerOpen } from "./layer-presence";
 
 // The layer roots, in the stacking order the engine already unwinds — drawer,
 // then screen, then sheet — so the topmost open layer is the last one here that
@@ -106,6 +107,9 @@ function openLayers(): Element[] {
  * @param layer The layer that owns focus, or null to clear every mark.
  */
 function setBackgroundInert(layer: Element | null): void {
+  // THE SAME DECISION, PUBLISHED: the message is placed by whether a layer is
+  // open (`app/layer-presence.ts`), and this is where that is decided.
+  setLayerOpen(layer !== null);
   const frame = document.getElementById("device");
   if (!frame) return;
   for (const child of Array.from(frame.children)) {

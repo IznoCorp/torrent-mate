@@ -47,6 +47,15 @@ import { cva } from "../cva";
    of the background it marks `inert`, for the same reason: a message a finger
    cannot close is a control that does nothing.
 
+   AND THE MESSAGE HAS TWO POSITIONS FOR ITS ONE RANK. A rank decides what is
+   painted where two layers meet; it cannot keep them from meeting. Every layer
+   a verb is pressed from anchors its own controls along the bottom band — a
+   sheet's actions, a confirmation's buttons, a screen's close — which is where
+   the message sat, so ranked above them it lay OVER them: the boot hint over
+   the action a finger was going for, a verb's answer over the next verb of the
+   same layer. So the message is at the top while a layer is open, and at the
+   bottom otherwise. `messageHost`'s `edge` says which.
+
    THE BOTTOM SHEET USED TO BE 47 — under the tab bar (B-248), so it rose BEHIND
    the chrome and reserved the bar's height in its own body. It is 52: above the
    bar and above the slot's own bar, below the drawer and the confirmation. The
@@ -180,12 +189,22 @@ export const selectionAction = cva(
    here now, so the residue keeps nothing. Rank 57 — see the ranked list at the
    top of this file for why it is above every layer a verb is pressed from. */
 export const messageHost = cva(
-  "toast absolute left-[14px] right-[14px] "
-    + "bottom-[calc(var(--tm-bottom-bar-h,0px)+16px)] z-[57] flex items-center gap-5 "
+  "toast absolute left-[14px] right-[14px] z-[57] flex items-center gap-5 "
     + "bg-popover border border-border rounded-3 py-5 px-6 text-3 "
     + "[box-shadow:var(--mq-shadow-toast)] duration-200 ease-standard",
   {
     variants: {
+      // WHERE IT IS PLACED — the ranked list above says why it moves at all.
+      // At the bottom, above the published bar height, as it always was. At the
+      // TOP while a layer is open: below the safe area and over the page's own
+      // header, which that layer has already made background. Same width, same
+      // type, same rank; only the edge it is measured from changes. On a
+      // screen it covers the screen's back button instead of its close, so one
+      // way out stays free in either place.
+      edge: {
+        bottom: "bottom-[calc(var(--tm-bottom-bar-h,0px)+16px)]",
+        top: "top-[calc(env(safe-area-inset-top)+16px)]",
+      },
       shown: {
         true: "show opacity-100 visible transition-[opacity,transform]",
         // B-249's idiom, on the CLOSED state only — see `sheetScrim` in
@@ -195,7 +214,7 @@ export const messageHost = cva(
           + "[transition-delay:0s,0s,200ms]",
       },
     },
-    defaultVariants: { shown: false },
+    defaultVariants: { edge: "bottom", shown: false },
   },
 );
 

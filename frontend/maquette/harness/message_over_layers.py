@@ -36,8 +36,28 @@ TWO QUESTIONS, READ SEPARATELY, because each half can be broken alone:
     4. Over an open bottom sheet, a finger on the message's close takes the
        message off screen.
 
-WHAT IT DOES NOT READ: whether the message covers something it should not —
-R101 holds the message against the tab bar.
+  PLACEMENT — at the top of the screen while a layer is open, at the bottom
+  otherwise. Ranked above the layer and taking a finger, a message along the
+  bottom band still covered the very controls a layer anchors there: the boot
+  hint lay over « Pas intéressé », « Re-scraper ce passage » and « Retirer de la
+  liste » at the moment a finger went for them, and a verb's answer lies over
+  the next verb of the same layer for five seconds. Read on BOXES, nothing
+  lifted:
+    5. A message up BEFORE a layer opens — the boot hint's shape — moves off
+       the layer: its box meets none of the sheet's controls, and each action
+       is what a finger at its centre lands on.
+    6. The verb's own answer, on leg 2's follow panel: its box meets none of the
+       panel's controls, and a finger on its close takes it off screen.
+    7. Over a confirmation whose button sits in the bottom band, its box meets
+       none of the confirmation's buttons.
+    8. With no layer open, the message is at the bottom, as it always was:
+       above the tab bar, in the lower half of the screen.
+    9. AT REST, a message hidden while a layer is open goes back to the bottom
+       box. The oracle measures the hidden host on every state, so a box left at
+       the top would be a divergence on states that draw no message at all.
+
+WHAT IT DOES NOT READ: whether the message covers something it should not on a
+bare screen — R101 holds the message against the tab bar.
 """
 import asyncio
 import pathlib
@@ -118,6 +138,58 @@ AIM = """([selector, predicate])=>{
 SAID = """()=>{const held = window.__toast?.read?.();
   return held && held.message ? held.message.message || '' : '';}"""
 
+# WHERE THE MESSAGE'S BOX IS, AND WHICH OF A LAYER'S CONTROLS IT MEETS. A box
+# with no size is not a control a finger can reach, so it meets nothing.
+MEETS = """(controls)=>{
+  const box = document.querySelector('#toast').getBoundingClientRect();
+  const every = controls ? [...document.querySelectorAll(controls)] : [];
+  const met = every.filter((one) => {
+    const other = one.getBoundingClientRect();
+    return other.width > 0 && other.height > 0 && other.left < box.right
+      && other.right > box.left && other.top < box.bottom && other.bottom > box.top;})
+    .map((one) => (one.textContent || one.getAttribute('aria-label') || '').trim().slice(0, 30)
+      + '@' + Math.round(one.getBoundingClientRect().top));
+  const bar = document.querySelector('#nav')?.getBoundingClientRect();
+  return {shown: window.__toast.read().shown, box: [Math.round(box.top), Math.round(box.bottom)],
+          controls: every.length, met, barTop: bar ? Math.round(bar.top) : null,
+          height: window.innerHeight};}"""
+
+# EACH ACTION OF THE OPEN SHEET IS WHAT A FINGER AT ITS CENTRE LANDS ON — the
+# property the four rules that met the message read, asked of every action.
+ACTIONS_REACHABLE = """()=>{
+  const actions = [...document.querySelectorAll('#sheetin [data-part="sheet/action"]')];
+  const missed = actions.filter((one) => {
+    const box = one.getBoundingClientRect();
+    const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    return !hit || !(hit === one || one.contains(hit));})
+    .map((one) => (one.textContent || '').trim().slice(0, 30));
+  return {actions: actions.length, missed};}"""
+
+SHEET_CONTROLS = "#sheetin button"
+# THE CONFIRMATION'S BUTTONS, on a confirmation whose button REALLY sits in the
+# bottom band. This leg has been aimed three times, and the first two are the
+# reason for the third. It read the buttons of a forty-line confirmation, which
+# is taller than the screen: its button lay below the fold and the hold was
+# green over the defect. It then read the whole confirmation, which no edge can
+# keep clear of: a confirmation is CENTRED, so one tall enough to reach the
+# bottom band reaches the top band too. What a message must not cover is a
+# verb — so the buttons, and the hold first shows the button is in the band.
+CONFIRMATION_BUTTONS = '#dlg [data-part="dialog/button"]'
+BARE_STATE = "lib-list"
+SELECTION_STATE = "lib-selection"
+
+# The exit is a fade and a visibility step after it; a box read before both have
+# run is still the leaving message, not the host at rest.
+EXITED = 700
+
+# Twenty-six lines put the button at the foot of a 390 x 844 screen, the
+# confirmation still whole on it.
+A_TALL_CONFIRMATION = """()=>window.__dialog.open({
+  heading: 'probe',
+  body: [{type: 'manifest', entries: Array.from({length: 26},
+    (_, n) => ({text: 'line ' + n, value: String(n)}))}],
+  actions: [{text: 'Annuler', dismiss: true}]})"""
+
 
 async def show_over(page, state, wait):
     """Drives a state, clears the message on screen and shows the probe.
@@ -171,6 +243,19 @@ async def main():
                 journal.check("and the sentence the verb chose is painted on top, over the panel it was pressed in",
                               bool(said) and seen.get("onTop") is True, f"{said!r} {seen}")
 
+                # 6. The verb's own answer is placed off the panel it was pressed in.
+                placed = await page.evaluate(MEETS, SHEET_CONTROLS)
+                journal.check("the verb's answer meets none of the panel's controls — the next verb stays free",
+                              placed["shown"] and placed["controls"] > 0 and not placed["met"], str(placed))
+                close = await page.evaluate(AIM_AT_THE_CLOSE)
+                journal.check("and its close takes a finger where it is placed — nothing lifted",
+                              close.get("found") and close.get("reachable"), str(close))
+                if close.get("found") and close.get("reachable"):
+                    await page.touchscreen.tap(close["x"], close["y"])
+                    await page.wait_for_timeout(SETTLED)
+                journal.check("and the finger takes the verb's answer off screen",
+                              await page.evaluate(SHOWN) is False)
+
         # 3. On the media screen — the witness.
         await page.evaluate("()=>window.__panel?.close?.()")
         await show_over(page, SCREEN_STATE, SETTLED * 3)
@@ -190,6 +275,67 @@ async def main():
             await page.wait_for_timeout(SETTLED)
         journal.check("and the finger takes the message off screen",
                       await page.evaluate(SHOWN) is False)
+
+        # ── PLACEMENT ────────────────────────────────────────────────────────
+        # 8. No layer open: at the bottom, as it always was. Read FIRST, because
+        # its box at rest is what leg 9 compares with.
+        await page.evaluate("()=>window.__panel?.close?.()")
+        await show_over(page, BARE_STATE, SETTLED)
+        bare = await page.evaluate(MEETS, None)
+        journal.check("with no layer open, the message is at the bottom — above the tab bar, in the lower half",
+                      bare["shown"] and bare["barTop"] is not None and bare["box"][1] <= bare["barTop"]
+                      and bare["box"][0] > bare["height"] / 2, str(bare))
+        await page.evaluate(HIDE)
+        await page.wait_for_timeout(EXITED)
+        bare_at_rest = (await page.evaluate(MEETS, None))["box"]
+
+        # 5. A message up before the layer opens — the boot hint's shape.
+        await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
+        await page.wait_for_timeout(SETTLED)
+        await page.evaluate(HIDE)
+        await page.wait_for_timeout(SETTLED)
+        await page.evaluate(SHOW, PROBE)
+        await page.wait_for_timeout(SETTLED)
+        first = await page.evaluate("()=>(window.__followActions?.all() || [])[0]?.t || ''")
+        await page.evaluate("(t)=>window.__panel.produce('follow', t)", first)
+        await page.wait_for_timeout(PANEL_IN)
+        before = await page.evaluate(MEETS, SHEET_CONTROLS)
+        journal.check("a message up before a sheet opens meets none of the sheet's controls once it is open",
+                      before["shown"] and before["controls"] > 0 and not before["met"], str(before))
+        reach = await page.evaluate(ACTIONS_REACHABLE)
+        journal.check("and each of the sheet's actions is what a finger at its centre lands on",
+                      reach["actions"] > 0 and not reach["missed"], str(reach))
+
+        # 9. At rest, hidden while the layer is still open: back to the bottom box.
+        await page.evaluate(HIDE)
+        await page.wait_for_timeout(EXITED)
+        at_rest = await page.evaluate(MEETS, None)
+        journal.check("at rest, a message hidden while a layer is open is back in the bottom box",
+                      at_rest["box"] == bare_at_rest, f"{at_rest['box']} against {bare_at_rest}")
+
+        # 7. Over a confirmation.
+        await page.evaluate("()=>window.__panel?.close?.()")
+        await page.evaluate("(id)=>window.__go(id)", SELECTION_STATE)
+        await page.wait_for_timeout(SETTLED)
+        await page.evaluate(A_TALL_CONFIRMATION)
+        await page.wait_for_timeout(SETTLED)
+        await page.evaluate(SHOW, PROBE)
+        await page.wait_for_timeout(SETTLED)
+        button = await page.evaluate("""(selector)=>{
+          const one = document.querySelector(selector);
+          if (!one) return null;
+          const box = one.getBoundingClientRect();
+          return [Math.round(box.top), Math.round(box.bottom)];}""", CONFIRMATION_BUTTONS)
+        # The band starts where the bottom message's box starts (leg 8) and runs
+        # to the foot of the screen.
+        journal.check("the confirmation's button is on screen and in the bottom band — else the next hold reads nothing",
+                      button is not None and button[1] > bare["box"][0] and button[1] <= bare["height"],
+                      f"button {button}, band from {bare['box'][0]} to {bare['height']}")
+        over_dialog = await page.evaluate(MEETS, CONFIRMATION_BUTTONS)
+        journal.check("over a confirmation, the message meets none of its buttons",
+                      over_dialog["shown"] and over_dialog["controls"] > 0 and not over_dialog["met"],
+                      str(over_dialog))
+        await page.evaluate("()=>window.__dialog.close()")
 
         await context.close()
         await browser.close()
