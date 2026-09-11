@@ -88,7 +88,14 @@ export function secondaryActions(facts: FollowFacts): (Action | null)[] {
     facts.hasSheet && (facts.toResolve || facts.toTake || facts.incomplete || facts.isFollowed)
       ? { text: say("seeSheet"), icone: icons().eye, target: { mediasheet: follow.t } }
       : null,
-    { text: say("seeJourney"), icone: icons().refresh, target: { journey: follow.t } },
+    // « Voir le parcours » is guarded exactly as « Voir la fiche » is, and for
+    // the same reason: it is omitted only when it is ALREADY the primary
+    // action, which happens for a medium with no sheet that nothing is
+    // chasing. Without this condition the panel drew the same words twice and
+    // gave the reader two buttons he could not tell apart (B-313).
+    facts.hasSheet || facts.toResolve || facts.toTake || facts.incomplete || facts.isFollowed
+      ? { text: say("seeJourney"), icone: icons().refresh, target: { journey: follow.t } }
+      : null,
     // Chasing a release only means something for a medium still being acquired.
     // Offered on a complete one it is a button that can only disappoint.
     beingAcquired

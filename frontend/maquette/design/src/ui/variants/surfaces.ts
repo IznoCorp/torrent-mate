@@ -170,6 +170,30 @@ export const loadErrorAction = cva(
 );
 
 /**
+ * The footer's own action — what a spent list offers to load more.
+ *
+ * A CONTROL AT THE FOOT OF A LIST IS SECONDARY TO THE LIST: it is offered
+ * after the reading rather than competing with it, so it takes the button
+ * system's `footer` size rather than the `screen` size a primary action
+ * carries. What is left here is its MOOD — an outline, a transparent ground —
+ * and the mood is all this factory spells.
+ *
+ * ITS SIZE IS NOT WRITTEN HERE, AND THAT IS THE POINT. It used to be, and the
+ * duplicate spelling was held equal to the retry's by a test because the size
+ * lived in two places. It now lives in one: the call site asks
+ * `actionButton({ size: "footer" })` for it, so a size this catalogue does not
+ * offer cannot be given to a button at all — the operator's ruling, enforced
+ * by the type rather than by a reviewer.
+ *
+ * The icon it carries is sized by that same branch. Left to itself an `<svg>`
+ * takes the replaced-element default and the flex box stretches it: measured
+ * at 227 px, in a button 245 px tall.
+ */
+export const loadFooterAction = cva(
+  "border border-border bg-transparent text-foreground",
+);
+
+/**
  * A topic — a rubric of settings, or of maintenance actions, or a jump from
  * Système into either.
  *

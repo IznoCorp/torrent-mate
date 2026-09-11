@@ -53,6 +53,22 @@ type Schemas = components["schemas"];
  */
 export type MockState = {
   follows: Schemas["Follow"][];
+  /**
+   * THE FOLLOWS A REMOVAL TOOK AWAY, whole, so that an undo can put one back.
+   *
+   * A removal used to DROP the record, which left the interface only one road
+   * back — a create — and a create carries a title and a kind and nothing
+   * else. So « Retirer », then « Annuler », returned a medium with no year, no
+   * « suivi depuis » and no search count: a stranger wearing the same name
+   * (B-353). The removal is soft here for that reason, and the record waits
+   * intact until something restores it.
+   *
+   * IT IS HELD ASIDE RATHER THAN FLAGGED IN PLACE, so that `follows` keeps the
+   * exact shape the contract declares. A tombstone field on a follow would be
+   * a field every reader of the listing has to know to ignore, and one of them
+   * eventually would not.
+   */
+  removedFollows: Schemas["Follow"][];
   pendingDecisions: Schemas["PendingDecision"][];
   settledDecisions: Schemas["SettledDecision"][];
   pipeline: Schemas["Pipeline"];
@@ -119,6 +135,21 @@ export type MockState = {
    * `x-unseeded` saying so.
    */
   pipelineState: PipelineState;
+  /**
+   * The stages of each journey the operator has opened, PER MEDIUM.
+   *
+   * WHY PER MEDIUM AND WHY MUTABLE. The layer answered ONE seeded list to every
+   * journey ever asked for, which was enough while the sheet only displayed
+   * them. It is not enough once the tunnel has verbs: « Remettre en file » and
+   * « Re-scraper » are proved by the stages MOVING — a `now` pip where a `todo`
+   * was — and a static answer moves for nobody. A rule reading a literal
+   * instead would pass over a build that called the operation and ignored what
+   * it answered, which is the shape this wave exists to refuse.
+   *
+   * FILLED ON FIRST READ, never at seeding: a journey is read per medium and
+   * nothing knows in advance which media will be asked for.
+   */
+  journeyStages: Record<string, Schemas["JourneyStage"][]>;
   /** Whether a configuration change is waiting for a restart. */
   restartRequired: boolean;
   /**
@@ -159,6 +190,7 @@ function copyOf<Value>(value: unknown): Value {
 
 const seeded = (): MockState => ({
   follows: copyOf<Schemas["Follow"][]>(FOLLOWS),
+  removedFollows: [],
   pendingDecisions: copyOf<Schemas["PendingDecision"][]>(PENDING_DECISIONS),
   settledDecisions: copyOf<Schemas["SettledDecision"][]>(SETTLED_DECISIONS),
   pipeline: copyOf<Schemas["Pipeline"]>(PIPELINE),
@@ -182,6 +214,7 @@ const seeded = (): MockState => ({
   settings: copyOf<Schemas["SettingsTopic"][]>(SETTINGS),
   secrets: copyOf<Schemas["Secret"][]>(SECRETS),
   pipelineState: IDLE,
+  journeyStages: {},
   restartRequired: false,
   changedFiles: [],
   conflict: false,

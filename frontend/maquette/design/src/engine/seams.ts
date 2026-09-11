@@ -72,6 +72,14 @@ export type Panel = {
   // a producer answering `null` opens nothing, which is the honest reply for a
   // subject the cache does not hold yet.
   produce: (kind: string, subject?: string) => void;
+  // RE-PRODUCING THE PANEL THAT IS ALREADY OPEN, from a cache that has moved
+  // under it. A producer is a function from the cache to a descriptor and NOT
+  // a component: nothing subscribes while the panel is open, so a verb that
+  // refetched what the panel reads left the operator looking at the answer
+  // from before his own act. It re-runs the same kind and subject with the
+  // history write suppressed — the entry it would push is the one being stood
+  // on — and does nothing at all when no panel is open.
+  redraw: () => void;
   // Which kinds have a producer, read by the rule that holds the seam from
   // outside. A reading rather than an assertion — see `registeredProducers`.
   producers: () => string[];

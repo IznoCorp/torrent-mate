@@ -1,8 +1,13 @@
 """R84 — the runtime token is published, it follows the bar, and it has ONE publisher.
 
-`--tm-bottom-bar-h` is the only custom property in this interface that is a
-MEASUREMENT rather than a design decision: the bottom bar's drawn height, safe
-area included, known only once the bar is on screen. Everything that must clear
+`--tm-bottom-bar-h` is one of the two custom properties in this interface that
+are a MEASUREMENT rather than a design decision: the bottom bar's drawn height,
+safe area included, known only once the bar is on screen. The other,
+`--tm-screen-bar-bottom`, is how far down the frame an open screen's bar
+reaches, and it has one publisher of its own, `app/layer-presence.ts`; that it
+is published and follows the bar is held by R159's screen legs, where the
+message placed below it is read — this rule holds only that nobody else writes
+it. Everything that must clear
 the bar reads it — eight `var(--tm-bottom-bar-h, 0px)` uses — and the fallback
 in each of them is what makes the failure quiet. A token nobody publishes
 resolves to `0px` at every use, the interface still lays out, and the only
@@ -19,9 +24,18 @@ grep of one file. The publisher moved out of the legacy engine into the shell so
 that the engine's removal has nothing to rescue; a rule checking « the engine
 does not publish » would stay green over a SECOND publisher added anywhere
 else, and two writers of one property agree until they do not. What is held
-instead is the count over the whole source tree: exactly one file writes a
-`--tm-` property, and it is under `app/`. That is the shape the plan names as
+instead is the count over the whole source tree: for each `--tm-` property,
+exactly one file writes it, and every such file is under `app/`. That is the shape the plan names as
 the trap — a rule that greps one file while the evidence moves to another.
+
+RE-AIMED, and said here. The count was once « exactly one file writes a `--tm-`
+property ». It fell the day a SECOND measurement got a publisher of its own —
+`--tm-screen-bar-bottom`, how far down the frame an open screen's bar reaches,
+written by `app/layer-presence.ts` — while nothing it guards had moved: that
+property has one writer, and the bar's token still has one. What two writers
+break is ONE property, so what is held now is per property: every `--tm-`
+property written in the source tree has exactly one writer, the bar's token
+among them, and every writer is under `app/`.
 """
 import asyncio
 import re
@@ -49,7 +63,7 @@ SOURCE_SUFFIXES = (".ts", ".tsx", ".js", ".jsx")
 # A WRITE of a `--tm-` property, in any of the shapes the sources use: the
 # property name may sit on the call's own line or on the next one, and it may be
 # quoted any of the three ways JavaScript quotes a string.
-WRITE = re.compile(r"""setProperty\(\s*["'`]--tm-""")
+WRITE = re.compile(r"""setProperty\(\s*["'`](--tm-[A-Za-z0-9-]+)""")
 
 # The bar is forced to this height, which no state draws it at, so a value that
 # merely happened to be right stays wrong afterwards.
@@ -93,11 +107,12 @@ def check(name, condition, detail=""):
 
 
 def publishers():
-    """Returns every source file that WRITES a `--tm-` custom property.
+    """Returns every `--tm-` custom property written, with the files that write it.
 
     Returns:
-        The list of paths, relative to the maquette root, sorted so a refusal
-        names the same files in the same order on every run.
+        A mapping from each property to the paths that write it, relative to the
+        maquette root, sorted so a refusal names the same files in the same
+        order on every run.
 
     Raises:
         SystemExit: If the source tree holds no file of a language that could
@@ -111,9 +126,11 @@ def publishers():
         raise SystemExit(
             f"{SOURCE_TREE} holds no source file: this rule would search "
             "nothing and report on nothing.")
-    return [path.relative_to(ROOT)
-            for path in files
-            if WRITE.search(path.read_text(encoding="utf-8"))]
+    written = {}
+    for path in files:
+        for token in sorted(set(WRITE.findall(path.read_text(encoding="utf-8")))):
+            written.setdefault(token, []).append(path.relative_to(ROOT))
+    return written
 
 
 def pixels(value):
@@ -147,21 +164,26 @@ async def main():
     global _journal
     _journal = Journal("R84 — the bottom bar's height, published once and kept current")
 
-    # ── the source tree: exactly one publisher, and it is the shell's ────────
-    found = publishers()
+    # ── the source tree: one writer per property, and it is the shell's ──────
+    written = publishers()
+    found = sorted({path for paths in written.values() for path in paths})
     named = " · ".join(str(path) for path in found)
-    if not found:
-        check("exactly one source file publishes a `--tm-` property",
-              False,
-              f"NO file under {SOURCE_TREE.relative_to(ROOT)} writes one — "
-              f"`{TOKEN}` is never published; everything above the bar sits "
-              "on its fallback")
-    else:
-        check("exactly one source file publishes a `--tm-` property",
-              len(found) == 1,
-              named if len(found) == 1
-              else f"the runtime token has {len(found)} publishers, and the "
-                   f"engine is the one that dies — {named}")
+    bar_writers = written.get(TOKEN, [])
+    check(f"exactly one source file publishes `{TOKEN}`",
+          len(bar_writers) == 1,
+          str(bar_writers[0]) if len(bar_writers) == 1
+          else f"NO file under {SOURCE_TREE.relative_to(ROOT)} writes it — everything "
+               "above the bar sits on its fallback" if not bar_writers
+          else f"the runtime token has {len(bar_writers)} publishers, and two "
+               f"writers of one property agree until they do not — "
+               f"{' · '.join(str(path) for path in bar_writers)}")
+    doubled = {token: paths for token, paths in written.items() if len(paths) > 1}
+    check("no `--tm-` property has a second writer",
+          bool(written) and not doubled,
+          " · ".join(f"{token} by {len(paths)}" for token, paths in sorted(written.items()))
+          if not doubled else
+          " · ".join(f"{token} by {' and '.join(str(path) for path in paths)}"
+                     for token, paths in sorted(doubled.items())))
     # Held apart from the count: one publisher in the wrong place and one
     # publisher in the right place are different defects, and a single verdict
     # over both would name whichever the reader guessed.

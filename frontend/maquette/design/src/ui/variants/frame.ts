@@ -24,15 +24,38 @@ import { cva } from "../cva";
    class name, so the list is the record and the variants are the spelling.
 
      30  the action button        `addAction`
+     45  a screen                `screen` (ui/variants/layout.ts)
      46  the scrim               `sheetScrim` (ui/variants/layout.ts)
-     49  the message             `messageHost`
      50  the tab bar             `tabBar`
      51  the bottom slot's bar   `selectionBar`
      52  the bottom sheet        `bottomSheet` (ui/variants/layout.ts)
      55  the drawer              `drawer`
      56  the confirmation        `dialog`
+     57  the message             `messageHost`
      60  the popover, the harness panel, the sign-in gate
      70  the splash
+
+   THE MESSAGE IS THE ANSWER TO A VERB, so it ranks above every layer a verb is
+   pressed from: a screen, the bottom slot's bar, the bottom sheet, the drawer
+   and the confirmation. It used to be 49 — under the sheet — so a verb pressed
+   in a panel spoke a sentence painted beneath the panel that caused it, and
+   the operator saw nothing (B-381). Above the confirmation too, because a
+   confirmed act is answered after the confirmation has closed and, while one
+   is still open, what it answers must not hide under it. Below the popover,
+   which carries facts and no verb, and below the sign-in gate and the splash,
+   which cover everything by definition. `app/focus.ts` leaves the message out
+   of the background it marks `inert`, for the same reason: a message a finger
+   cannot close is a control that does nothing.
+
+   AND THE MESSAGE HAS TWO POSITIONS FOR ITS ONE RANK. A rank decides what is
+   painted where two layers meet; it cannot keep them from meeting. The sheet
+   and the confirmation anchor their own controls along the bottom band — the
+   sheet's actions, the confirmation's buttons — which is where the message sat,
+   so ranked above them it lay OVER them: the boot hint over the action a finger
+   was going for, a verb's answer over the next verb of the same layer. So the
+   message is at the top while a layer is open, and at the bottom otherwise.
+   A SCREEN keeps its way out in a bar along ITS top, so there the top position
+   is below that bar. `messageHost`'s `edge` says which.
 
    THE BOTTOM SHEET USED TO BE 47 — under the tab bar (B-248), so it rose BEHIND
    the chrome and reserved the bar's height in its own body. It is 52: above the
@@ -164,14 +187,27 @@ export const selectionAction = cva(
    Its box came verbatim from `index.html`, where the element was static markup
    the engine wrote into. `show` is the identity class the residue's one rule
    used and rules still select; what it MEANT — opaque, visible, at rest — is
-   here now, so the residue keeps nothing. */
+   here now, so the residue keeps nothing. Rank 57 — see the ranked list at the
+   top of this file for why it is above every layer a verb is pressed from. */
 export const messageHost = cva(
-  "toast absolute left-[14px] right-[14px] "
-    + "bottom-[calc(var(--tm-bottom-bar-h,0px)+16px)] z-[49] flex items-center gap-5 "
+  "toast absolute left-[14px] right-[14px] z-[57] flex items-center gap-5 "
     + "bg-popover border border-border rounded-3 py-5 px-6 text-3 "
     + "[box-shadow:var(--mq-shadow-toast)] duration-200 ease-standard",
   {
     variants: {
+      // WHERE IT IS PLACED — the ranked list above says why it moves at all.
+      // At the bottom, above the published bar height, as it always was. At the
+      // TOP while a layer is open: below the safe area and over the page's own
+      // header, which that layer has already made background — and, when the
+      // layer on top is a SCREEN, below that screen's own bar, whose reach
+      // `app/layer-presence.ts` measures and publishes. The bar holds the
+      // screen's « Retour », and a message over it made the way out a control
+      // that did nothing. Same width, same type, same rank; only the edge it is
+      // measured from changes.
+      edge: {
+        bottom: "bottom-[calc(var(--tm-bottom-bar-h,0px)+16px)]",
+        top: "top-[calc(max(env(safe-area-inset-top),var(--tm-screen-bar-bottom,0px))+16px)]",
+      },
       shown: {
         true: "show opacity-100 visible transition-[opacity,transform]",
         // B-249's idiom, on the CLOSED state only — see `sheetScrim` in
@@ -181,7 +217,7 @@ export const messageHost = cva(
           + "[transition-delay:0s,0s,200ms]",
       },
     },
-    defaultVariants: { shown: false },
+    defaultVariants: { edge: "bottom", shown: false },
   },
 );
 
