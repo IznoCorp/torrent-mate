@@ -185,8 +185,11 @@ html.measuring .note {
   overflow-x: clip;
 }
 /* WHAT THIS BLOCK DECLARES SURVIVES THE WAY OUT OF THE FRAME, and that is a
-   decision rather than an oversight — the rule holds each of these three by
-   name so that « nothing says so » can never be the answer again:
+   decision rather than an oversight. The rule holds every declaration of it so
+   that « nothing says so » can never be the answer again — `position`,
+   `display` and `flex-direction` by value, `background` against the app's own
+   token, and `width`, `max-width` and `height` by the box the device draws
+   against the viewport. The three that need a reason:
 
      `position: relative`  `app/shell.tsx` re-parents the React root into
                            `#device` before the first render, and a layer

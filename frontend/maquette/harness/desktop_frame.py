@@ -227,6 +227,11 @@ def names_the_device(selector, spelling):
                      selector) is not None
 
 
+# A media query's `em` and `rem` are the INITIAL font size, which no stylesheet
+# can change — 16px in the browser this rule launches.
+PIXELS_PER_UNIT = {"px": 1, "em": 16, "rem": 16}
+
+
 def declared_breakpoints():
     """Every width the harness stylesheet turns on a breakpoint at, ascending.
 
@@ -242,6 +247,12 @@ def declared_breakpoints():
     harness, which is a different defect with a different guard. If that ever
     becomes possible, this function is where it stops being enough.
 
+    THE UNIT, a limit of the same kind. Only `@media` preludes are read — a
+    `max-width` declared on an element is a size, not a breakpoint — and a
+    width there is converted by `PIXELS_PER_UNIT`. A unit that table does not
+    know is REFUSED, never skipped: `@media (min-width: 55em)` used to read as
+    nothing at all, which is a band the widths below would never visit.
+
     The presence of the control was read at 520 and at 1280 — the frame's own
     breakpoint and a desktop width — and nothing between them. A band hidden
     in the middle (`@media (min-width: 600px) and (max-width: 900px)`) would
@@ -251,11 +262,21 @@ def declared_breakpoints():
 
     Returns:
         The declared widths in pixels, ascending and without repeats.
+
+    Raises:
+        ValueError: A breakpoint is written in a unit `PIXELS_PER_UNIT` lacks.
     """
     text = HARNESS_STYLESHEET.read_text(encoding="utf-8")
     text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
-    return sorted({int(one) for one in
-                   re.findall(r"(?:min|max)-width:\s*(\d+)px", text)})
+    preludes = " ".join(re.findall(r"@media[^{]*", text))
+    features = re.findall(r"(?:min|max)-width:\s*([\d.]+)\s*([a-z%]*)",
+                          preludes)
+    unreadable = [number + unit for number, unit in features
+                  if unit not in PIXELS_PER_UNIT]
+    if unreadable:
+        raise ValueError(f"breakpoints in a unit this cannot read: {unreadable}")
+    return sorted({round(float(number) * PIXELS_PER_UNIT[unit])
+                   for number, unit in features})
 
 
 def widths_the_frame_is_drawn_at():
