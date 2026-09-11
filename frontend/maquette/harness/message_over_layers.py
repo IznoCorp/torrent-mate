@@ -72,6 +72,13 @@ TWO QUESTIONS, READ SEPARATELY, because each half can be broken alone:
        one of the two edges — so it would hold over the defect. What is read
        instead: no two CONSECUTIVE frames at full opacity in two places; a frame
        at the first place partly faded; and the message whole at the other edge.
+       RE-AIMED A SECOND TIME, and said here: those three stayed green over a
+       message moved 50 ms into its fade — at the first place at 0.4 opacity,
+       the next frame at the other edge rising from 0.4, a 660 px teleport never
+       at full opacity in two consecutive frames. The leg now also holds that
+       between the last frame at the first place and the first frame at the
+       other edge, each above 0.05 opacity, a frame shows the message wholly
+       gone.
        WITHIN ONE EDGE it is not read: a message on a screen when a sheet opens
        over it follows the layer's bar by a slide, measured 46 px, at full
        opacity — not an edge change, and not what this leg holds.
@@ -302,6 +309,11 @@ def hold_no_jump(journal, change, samples):
     in two places. « No frame at full opacity outside both edges » would not
     fall: each frame of that jump is at one of the two edges.
 
+    RE-AIMED A SECOND TIME: those holds stayed green over a message moved 50 ms
+    into its fade, never at full opacity in two consecutive frames. So it also
+    holds a frame WHOLLY GONE between the last frame seen at the first place
+    and the first frame seen at the other edge.
+
     Args:
         journal: Where the holds are recorded.
         change: What changed the layers, for the holds' own text.
@@ -326,6 +338,21 @@ def hold_no_jump(journal, change, samples):
              if full(one) and full(other) and abs(one["top"] - other["top"]) > JUMP]
     journal.check(f"{change}: NEVER A JUMP — no two consecutive frames at full opacity in two places",
                   not jumps, str(jumps[:2]))
+    # WHOLLY GONE BETWEEN ITS TWO PLACES. Moved 50 ms into its fade, the message
+    # sat at the first place at 0.4 opacity and the next frame at the other edge
+    # rose from 0.4: never two full frames apart, so the hold above was green
+    # over a teleport. A frame showing nothing of it must come between.
+    arrived = next((index for index, one in enumerate(samples)
+                    if abs(one["top"] - first["top"]) >= ACROSS and one["opacity"] > GONE), None)
+    left = None
+    if arrived is not None:
+        left = max((index for index, one in enumerate(samples[:arrived])
+                    if abs(one["top"] - first["top"]) <= JUMP and one["opacity"] > GONE), default=None)
+    gap = samples[left + 1:arrived] if left is not None else []
+    journal.check(f"{change}: WHOLLY GONE between its two places — a frame at or under {GONE} opacity after "
+                  "the last seen at the first place and before the first seen at the other edge",
+                  arrived is not None and any(one["opacity"] <= GONE for one in gap),
+                  f"frames {left} → {arrived}, opacities {[one['opacity'] for one in gap][:6]}")
 
 
 # THE HOST'S OWN LENGTHS, `app/toast-host.ts`: a message's life, one offering an
