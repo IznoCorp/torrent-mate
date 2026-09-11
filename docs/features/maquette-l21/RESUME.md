@@ -22,18 +22,20 @@ request merged. **Do not spend time on it.**
 
 ⚠ **`main` HAS MOVED PAST WHAT THE PREVIOUS EDITION OF THIS FILE RECORDED.** It said « next free
 number is B-377 »; `main` has since taken **B-376 and B-377**. The pause took B-378; the § 3.4 build
-took **B-379, B-380 and B-381**, so **next free is B-382**. Rules R125–R139 and R155–**R159** are
-spent; **R160+** are free.
+took **B-379, B-380 and B-381**, review round two took **B-382**, so **next free is B-383** — and
+round two's ruling assigns B-383 to the « said, not done » entry (§ 3.7). Rules R125–R139 and
+R155–**R160** are spent; **R161+** are free.
 
 ---
 
 ## 0. WHERE IT STANDS — read this before anything
 
-**Nothing is in flight.** § 3's build is done, and the unit that followed it — the message's
-placement, § 3.6 — is BUILT, gated and pushed with the commit that adds this text; § 3.6 carries its
-head and its gate. **The next move is the office's, not an implementer's**: the pull request out of
-draft and review round two (§ 7). A session that picks this file up waits for the orchestrator's
-word before touching anything.
+**Review round two's repairs are IN FLIGHT, and this file was written at the context gate between two
+of them.** The placement unit (§ 3.6) is built. Round two reported eight findings; **B1 and B2 are
+repaired, committed and pushed** with the commit that adds this text; **B3 to B8 are RULED and NOT
+built**, in the order and with the holds § 3.7 copies. **Nothing is half-done in the tree.** One ruling
+is waiting on the orchestrator — B6, which as written contradicts a hold that is green (§ 3.7). A
+session that picks this file up confirms that answer with the orchestrator before B6, and starts at B3.
 
 ---
 
@@ -345,6 +347,66 @@ again) · `design/dist/build.json` `c8978713bb5e`,
 served by the design host. The commits after `cf1677e5e` touch documentation and the comment corpus
 record only (`read` 348 → 349 — the new `app/layer-presence.ts`).
 
+### 3.7 Review round two — eight findings, two repaired, six ruled and owed
+
+The reader's report is `/Users/izno/dev/worktrees/review-l21/.review/r2-B.md` (candidate `1e9e7c48e`,
+control `8f926738a`); its walks `b01`…`b16` are the shape of the holds below. **Read it whole.**
+
+**Repaired**, each with its rule seen red, its mutation and its run — the entries carry the lines:
+
+- **B1 → B-382** (`a056d6330`): the season act on a followed show's sheet addresses THAT follow. R160,
+  `harness/followed_sheet_act.py`: red 24 / 12, mutation 24 / 12 (the phantoms named), green 24.
+- **B2 → B-381's third half** (`fadd79086`): on a screen the message sits below the screen's bar, via
+  `--tm-screen-bar-bottom` published by `app/layer-presence.ts`. R159 +10 holds: red 26 / 10, mutation
+  26 / 10, green 26. DESIGN § 3.1g's « Fermer » sentence corrected in that commit (it was the message's
+  own close). Contracts clean and the oracle at the same 44 over the same 23 states on both commits.
+
+**Ruled and NOT built, in this order** (the orchestrator's words, condensed):
+
+1. **B3 — repair.** The redraw throws the panel's scroll to 0 and moves the pressed control out from
+   under the finger (Silo 171 → 0; Animaniacs 698 → 0, button y 764 → 1462). Keep the panel's scroll
+   across `window.__panel.redraw()` — restore an index or offset, not a pixel guess; `preventScroll` on
+   any focus. Hold in R157: `scrollTop` unchanged after the verb on a panel scrolled by a real touch
+   stream; mutation = the restore removed.
+2. **B6 — ⚠ ASK FIRST.** Ruled « a shown message keeps its edge until it leaves, for screens as for
+   layers; hold: the edge does not change while a message is shown; mutation = `followTheLayers` moving
+   a shown message at once ». **As written it undoes R159's leg 5** (a message up BEFORE a sheet opens
+   moves off it) **and re-breaks the four rules the placement unit turned green** — their covering
+   message is exactly the boot hint shown before the sheet opens. The reader's closing criterion is
+   different: « a shown message that changes edge does so without a jump the reader watches » (for
+   instance leaving and re-entering at the new edge). The question went to the orchestrator with the
+   commits of B1/B2; do not build B6 before the answer.
+3. **B4 — repair, minimal.** Under `__mocks.setOperationOutcome('grabSeasonForFollow',
+   {latencyMilliseconds: 2500})` the pressed act shows nothing and further presses vanish. Draw it as
+   TAKEN while its ask is in flight — the button system's existing busy affordance if one exists
+   (`aria-busy`, what `busy.py` reads), else `aria-busy="true"` with the disabled look and no text
+   change, and one sentence in DESIGN for the operator's walk. Hold: `aria-busy` true between press and
+   answer, false after; mutation = the state never set.
+4. **B8 — repair.** The season sentence names no show, so a held answer lands over another show's panel
+   reading as about it. The eight keys name the show, as the take's sentence does (« … pour « Silo » »);
+   say in DESIGN the operator may reword. Hold: the sentence contains the subject's title; mutation = the
+   placeholder removed. R158 and R160 build their expected sentences from `fr.json` and will follow.
+5. **B7 — repair.** The emptied list's end mark says « La réserve en garde d'autres » under a footer
+   saying the loaded reserve ended, and after « Réserve épuisée ». Chosen sentences: three states, three
+   keys, the deck's own pattern. R155 or the list's rule reads the words; mutation = the wrong key.
+6. **Docs.** B5 — record only: RESUME § 3.1 and R158's docstring say the ten other « Incomplets » shows
+   « draw no matrix and no verb », TRUE of the panel and FALSE of the sheet (21 acts on six shows, every
+   one answering « aucun épisode »; Furious and President Curtis offered because the sheet counts unaired
+   catalogue episodes) — correct both sentences and extend B-380's entry with the reader's table; the
+   repair stays B-380's owner's. **File B-383**, not repaired: the « said, not done » class identical on
+   the control — « Re-scraper les métadonnées » on the follow panel, « Remplacer la valeur » (secret),
+   « Lancer à blanc » (action), « Lancer la veille maintenant » (more) — citing `b13`/`b15`/`b16`; owner a
+   follow-up of this lot, scheduled by the operator.
+
+**Rules re-aimed, said out loud in each commit**: R158 stops running `EMPTY_THE_TOAST` (it blinds every
+hold to the message on screen, and its comment is false since R159's close leg) — B1's press on the three
+twins is already R160's; R157 gains a finger leg (centre tap, hit test, never `element.click`) and B3's
+and B4's legs; R159 gains B6's hold once ruled.
+
+**Gates for the rest**: contracts + oracle per commit; **one** full suite at the END of the list,
+hold-counts with the baseline file, `make check`, `design/dist` rebuilt; wrapped push; report with named
+sections and each mutation line; gauge last. **No full suite has run since `1e9e7c48e`.**
+
 ---
 
 ## 4. The wave gate
@@ -473,7 +535,8 @@ office splits waves to avoid, and the defect predates this lot. **Pass the file 
 ## 7. What is OWED
 
 1. ~~**§ 3.4's seven increments**~~ — DONE, and the placement unit after them (§ 3.5, § 3.6).
-2. **The pull request out of draft**, and **rounds two and three** — the orchestrator's word, and
+2. **Round two's six remaining items** — § 3.7, in its order. Then **the pull request out of draft**
+   and **round three** — the orchestrator's word, and
    only his. **Round two's reader is spawned by the office**, fresh, one lens, in a worktree pinned
    at this head with a control at round one's. **An agent here dispatches no reviewer and no writing
    delegate**; read-only search subagents are the one thing that may be forked. A round the author

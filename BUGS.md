@@ -427,6 +427,7 @@ when the defect comes back.
 | B-379 | The mock layer answers **200** to every call unless a scenario arms a failure (`mocks/scenario.ts:145`), whatever code the contract declares — `grabSeasonForFollow` declares 201, `requeueJourney` and `rescrapeJourney` 202 — so no rule can hold a declared success code, and a sentence saying the layer « answers 201 » is false on the code | by L21 | `open` |
 | B-380 | The season grab's `absorbedCount` is derived from `seasons.json` while the media sheet draws its season rows from the sheet's own catalogue (`media-sheets.json`): two families at one title that disagree on 13 of the 49 seasons both know, so on « Les Animaniacs »' sheet the row « Saison 5 · 0/23 · 23 manquants » offers the act and the answer says « aucun épisode à récupérer » | by L21 | `open` |
 | B-381 | A message said while a layer is open is drawn UNDER that layer: the frame ranked the message at z-49 beneath the bottom sheet at z-52, so a verb pressed in a panel speaks a sentence the operator cannot see — held by the toast seam, visible and at full opacity in the document, and under the layer at its own centre; and the message was `inert` while any layer was open, so its close and « Annuler » took no finger | by L21 | `fixed #572` |
+| B-382 | The season act on a FOLLOWED show's own media sheet was addressed under the sheet's key: a sheet opened under « Silo (2023) » is followed by « Silo », so the layer found no follow by that title, began a second one beside the real follow it left untouched, and said « Série suivie et saison 3 demandée — aucun épisode à récupérer. » — B-378's shape on an owned-and-followed sheet | by L21 review round two | `fixed #572` |
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
@@ -690,6 +691,54 @@ follow panel, and on both « Récupérer la saison 3 » tapped says « Série su
 épisodes à récupérer. » at the TOP — `edge` `top`, box 16–70 — on top at its own text at +400 and
 +1200 ms and not `inert`; a finger on its close at (351, 43) takes it off screen; the show is followed
 (`acquiring`).
+
+
+**The third half — on a SCREEN** (`fadd79086`, found by L21's review round two, B2). At the top of the
+frame, the message lay over a screen's bar, where a screen keeps its way out: on `mediasheet-series`,
+`screen-releases` and `screen-profile` a finger on « Retour » reached the message and the tap did
+nothing for its five seconds — after every verb answered on a screen, and after the boot hint on an
+address that opens one. The second half's DESIGN sentence, « one way out stays free in either place »,
+rested on a « Fermer » at y 731 that was the message's own close measured during its exit; a screen has
+no « Fermer ». Ruled: on a screen, the top position sits below the header row. `app/layer-presence.ts`
+measures how far down the frame the open screen's bar reaches, from the message's own offset parent (a
+first measurement from `#shell` read -798 px), and publishes `--tm-screen-bar-bottom`; the `top` edge
+sits 16 px below it. Measured first: on the thirteen named states that open a screen the bar spans 0–46
+and the band below it holds no control. **The rule is R159**, one leg per kind of screen — media,
+releases, quality, add, resolution — a message up, « Retour » taking a finger and leaving the screen.
+**Seen red** before the change, 26 executed and 10 violations. **The mutation**, on a clean tree: the
+offset removed from the `top` edge — the ten screen holds fall, every other hold green. **The run**: 26
+EXECUTED, no violation, with `deck_verbs.py` 8, `journey_verbs.py` 16, `remove_verb.py` 11,
+`stacking.py` 12 and R160 24, on build `f7e1ce975847`.
+
+
+**B-382 — the season act on a followed show's own sheet began a second follow.**
+
+Found by L21's review round two (B1), the reader's `.review/b07_followed_sheet_act.py` and
+`b08_twin_titles.py` on `1e9e7c48e`. From « Suivis », Silo's panel, « Voir la fiche »: the media screen
+`/media/tvdb/403245` offers « Récupérer la saison 3 » carrying `data-grab-season="Silo (2023)|3"`. After
+a finger on it, the follows hold « Silo (2023) [acquiring] » AND « Silo [pending] », unchanged, and the
+message is « Série suivie et saison 3 demandée — aucun épisode à récupérer. » — the show was already
+followed and its panel counts one missing aired episode. Identical on « Furious » and « President
+Curtis », the other two follows whose sheet is keyed twice in `media-sheets.json`. Control `8f926738a`:
+no act on that sheet.
+
+**The cause.** One show, three identities. The screen's title is `titleForProviderId`'s, the dated key;
+its `followed` test matches on the referential's `baseTitle`, so it found « Silo » and offered the act;
+the act was addressed under the screen's title, and the layer's handler, which finds a follow by its
+exact identity, found none and began one.
+
+**Fixed #572** (`a056d6330`). The screen keeps the follow its `baseTitle` test finds and hands its title
+to the season list, which addresses the act, asks for the season and reads the waiting seasons under
+it — the title the follow panel already uses. The handler keeps its exact match: it plays the backend,
+which finds a follow by identity, and sending that identity is the interface's job.
+
+**The rule is R160**, `harness/followed_sheet_act.py`: on the three twins, the sheet opened under its
+dated key and the act pressed by a finger — the act addressed to the follow, no follow begun, the
+existing follow moved to `acquiring`, the sentence for a follow that existed at the count the follow
+panel draws, no error. **Seen red** before the change: 24 executed, 12 violations, the phantoms named.
+**The mutation**, on a clean tree: the address and the ask put back on the screen's title — 24
+executed, 12 violations, the same phantoms. **The run**: 24 EXECUTED, no violation, with R158 at 56,
+R125 at 16, `queued_ask_mark.py` at 7, R157 at 10 and R159 at 16 unchanged, on build `339930613045`.
 
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
