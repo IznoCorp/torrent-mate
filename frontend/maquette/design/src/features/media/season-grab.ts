@@ -14,6 +14,7 @@
 // `panel-seasons.tsx`: a verb is behaviour, the block is drawing, and invariant
 // 6 asks for the cut before the ceiling rather than after it.
 import type { QueryClient } from "@tanstack/react-query";
+import { useSyncExternalStore } from "react";
 import { markSeasonQueued } from "./queued-seasons";
 import i18next from "i18next";
 import { HELD, send } from "../../lib/query-client";
@@ -92,6 +93,43 @@ export async function askForSeason(
    component would not see a press on the other. */
 const inFlight = new Set<string>();
 
+/* AND WHAT IS IN FLIGHT IS DRAWN. The guard below answers a second press with
+   silence, and the operator saw a button that had taken nothing: with the answer
+   held back 2.5 s the pressed act read no state at all, the same text at full
+   opacity, while three more presses did nothing visible. So the asks in flight
+   are published, and both surfaces draw their act as TAKEN while its ask is out.
+
+   A SNAPSHOT REPLACED ON EVERY CHANGE, never the live set: the subscription
+   compares what it is handed, so a set mutated in place would report no change
+   and a fresh copy on every read would report one on every render. */
+let flightSnapshot: ReadonlySet<string> = new Set();
+const flightListeners = new Set<() => void>();
+
+function announceFlight(): void {
+  flightSnapshot = new Set(inFlight);
+  for (const listener of flightListeners) listener();
+}
+
+/**
+ * The season asks in flight, keyed `title|season`, for a surface drawing acts.
+ *
+ * Not the store, for `app/message-presence.ts`'s measured reason: a store write
+ * re-renders every page, and a node replaced between a press and its click
+ * loses the click (B-247).
+ *
+ * Returns:
+ *     The asks under way right now.
+ */
+export function useAskedInFlight(): ReadonlySet<string> {
+  return useSyncExternalStore(
+    (onChange) => {
+      flightListeners.add(onChange);
+      return () => flightListeners.delete(onChange);
+    },
+    () => flightSnapshot,
+  );
+}
+
 export async function grabSeason(title: string, season: number): Promise<boolean> {
   const say = (key: string, values?: Record<string, unknown>) =>
     i18next.t(`verbs.media.${key}`, values ?? {});
@@ -108,6 +146,7 @@ export async function grabSeason(title: string, season: number): Promise<boolean
   const asked = `${title}|${season}`;
   if (inFlight.has(asked)) return false;
   inFlight.add(asked);
+  announceFlight();
   try {
     const answered = await send<SeasonGrab>(
       "POST",
@@ -156,5 +195,6 @@ export async function grabSeason(title: string, season: number): Promise<boolean
     // failure would make the second press — the one that follows a refusal and
     // is the operator's whole recourse — do nothing, for ever.
     inFlight.delete(asked);
+    announceFlight();
   }
 }

@@ -171,6 +171,16 @@ export const trailerSource = cva(
 export const seasonGrabSpacing = cva("mt-4 mb-1");
 
 /**
+ * A season act whose ask is IN FLIGHT, drawn as taken.
+ *
+ * The look is the controls' own disabled one, keyed on `aria-busy` rather than
+ * `disabled`: a disabled button drops the focus it holds, where this one keeps
+ * it and answers a second press with silence (NE-DOIT-PAS-3). Its text does not
+ * change.
+ */
+export const seasonGrabTaken = cva("aria-busy:opacity-50");
+
+/**
  * A season whose grab is WAITING on the pipeline — DOIT-4's pastille.
  *
  * IT IS NOT THE SHORTFALL CHIP. `.miss` counts what a reader is short of; this

@@ -13,8 +13,8 @@ import { useTranslation } from "react-i18next";
 import { useMediaReference, type MediaReference } from "./reference";
 import { useQueryClient } from "@tanstack/react-query";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
-import { queuedMark, seasonGrabSpacing } from "./variants";
-import { askForSeason } from "./season-grab";
+import { queuedMark, seasonGrabSpacing, seasonGrabTaken } from "./variants";
+import { askForSeason, useAskedInFlight } from "./season-grab";
 import { useQueuedSeasons } from "./queued-seasons";
 
 // The slice of a "follow" record the season blocks read: `t` for lookups
@@ -108,6 +108,7 @@ function SeasonDetails({
   // WHICH SEASONS ARE WAITING on the pipeline, read from the cache so the row
   // redraws the moment one is answered « queued ».
   const waiting = useQueuedSeasons(follow.t);
+  const askedInFlight = useAskedInFlight();
   const [num, rawAired, owned] = season;
   const aired = rawAired ?? 0;
   const complete = owned >= aired;
@@ -198,9 +199,10 @@ function SeasonDetails({
       {complete ? null : (
         <button
           type="button"
-          className={`sact ${seasonGrabSpacing()}`}
+          className={`sact ${seasonGrabSpacing()} ${seasonGrabTaken()}`}
           data-part="season/grab"
           data-grab-season={`${follow.t}|${num}`}
+          aria-busy={askedInFlight.has(`${follow.t}|${num}`) || undefined}
           onClick={() => {
             void askForSeason(client, follow.t, num);
           }}

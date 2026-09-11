@@ -126,6 +126,13 @@ episodes read `to_grab` — the state `epState` already computes.
 calling `grabSeasonForFollow` through `features/media/queries.ts`. `panel-seasons.tsx` gains the
 button and its `data-*`, nothing else.
 
+**While its ask is in flight the act is drawn as TAKEN** (review round two, B4): `aria-busy="true"`,
+the controls' disabled look, its text unchanged, and a second press still answered with silence. The
+fixture answers in about fifteen milliseconds, so **the operator walks it with the answer held back**:
+on the design host, in the browser console, `__mocks.setOperationOutcome('grabSeasonForFollow',
+{latencyMilliseconds: 2500})`, then « Récupérer la saison 3 » in Silo's follow panel — the button dims
+for the wait and comes back with the answer. The media sheet's season list draws its act the same way.
+
 **Why not `features/acquisition/`**: the season matrix is drawn on the media side and invariant 7
 is absolute. The acquisition feature is not imported; the OPERATION is called.
 

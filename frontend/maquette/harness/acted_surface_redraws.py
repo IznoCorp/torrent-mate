@@ -263,6 +263,105 @@ async def hold_the_place(page, journal):
     await page.wait_for_timeout(PANEL_IN)
 
 
+# HOW LONG THE LAYER HOLDS THE SEASON'S ANSWER BACK, as any real backend does.
+# The fixture answers in about fifteen milliseconds, so no rule and no hand met
+# the wait this leg is about until the answer was held on purpose.
+HELD_BACK_MS = 2500
+
+# ONE SEASON ACT, BY THE SEASON IT ASKS FOR: whether it is drawn as taken, its
+# text, and what a finger at its centre would meet.
+TAKEN = """(asked)=>{
+  const act = [...document.querySelectorAll('#sheetin [data-grab-season]')]
+    .find((one) => one.dataset.grabSeason === asked);
+  if (!act) return {found: false};
+  const box = act.getBoundingClientRect();
+  const x = box.left + box.width / 2;
+  const y = box.top + box.height / 2;
+  const hit = document.elementFromPoint(x, y);
+  return {found: true, busy: act.getAttribute('aria-busy'), x, y,
+          reached: !!hit && (hit === act || act.contains(hit)),
+          text: (act.textContent || '').trim(),
+          taken: document.querySelectorAll(
+            '#sheetin [data-grab-season][aria-busy="true"]').length};}"""
+
+
+async def hold_the_taken_act(page, journal):
+    """Holds that a season act whose ask is in flight is drawn as TAKEN.
+
+    THE DEFECT, measured with the answer held back 2.5 s: the pressed act read
+    `aria-busy` null, the same text, full opacity, for the whole wait, and three
+    further presses did nothing visible. The guard was right — one ask — and the
+    operator saw a button that had taken nothing. NE-DOIT-PAS-3 refuses
+    « occupé »; it does not refuse a pending state.
+
+    Read on `aria-busy`, the attribute the drawing keys its look on: true after
+    the press while the answer is held, the text unchanged, and no act drawn as
+    taken once it is answered — so a build that sets the state and never clears
+    it falls too. The second press during the wait is a finger's, and it asks
+    nothing.
+
+    Args:
+        page: The page under test.
+        journal: Where the holds are recorded.
+    """
+    await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
+    await page.wait_for_timeout(SETTLED)
+    followed = await page.evaluate(
+        """()=>(window.__followActions?.all?.() || []).map((one) => one.t)""")
+    asked = ""
+    for title in followed:
+        await page.evaluate("(t)=>window.__panel.produce('follow', t)", title)
+        await page.wait_for_timeout(PANEL_IN)
+        asked = await page.evaluate(A_HOLE)
+        if asked:
+            break
+        await page.evaluate("()=>window.__panel.close()")
+        await page.wait_for_timeout(PANEL_IN)
+    journal.check("a follow panel offers a season act whose answer can be held back",
+                  bool(asked), asked or f"none of {len(followed)} follows offers one")
+    if not asked:
+        return
+
+    await page.evaluate(
+        """(milliseconds)=>window.__mocks.setOperationOutcome(
+             'grabSeasonForFollow', {latencyMilliseconds: milliseconds})""",
+        HELD_BACK_MS)
+    before = await page.evaluate(TAKEN, asked)
+    journal.check(
+        "before the press, the act is under a finger and not drawn as taken",
+        before.get("found") and before.get("reached") and before.get("busy") != "true",
+        str(before))
+    if not (before.get("found") and before.get("reached")):
+        return
+
+    asked_before = await page.evaluate(ANSWERED, "grabSeasonForFollow")
+    await page.touchscreen.tap(before["x"], before["y"])
+    await page.wait_for_timeout(PANEL_IN)
+    during = await page.evaluate(TAKEN, asked)
+    journal.check(
+        "WHILE ITS ASK IS IN FLIGHT the pressed act is drawn as TAKEN — "
+        "aria-busy true, its text unchanged — where it used to show nothing",
+        during.get("busy") == "true" and during.get("text") == before.get("text"),
+        f"aria-busy {during.get('busy')!r}, text {during.get('text')!r}")
+
+    await page.touchscreen.tap(before["x"], before["y"])
+    await page.wait_for_timeout(HELD_BACK_MS + ACTED)
+    asked_after = await page.evaluate(ANSWERED, "grabSeasonForFollow")
+    journal.check(
+        "a second finger press during the wait asked nothing — one ask",
+        asked_after - asked_before == 1, f"{asked_after - asked_before} ask(s)")
+    after = await page.evaluate(TAKEN, asked)
+    journal.check(
+        "once answered, no season act is drawn as taken",
+        after.get("taken", 0) == 0, str(after))
+
+    await page.evaluate(
+        """()=>window.__mocks.setOperationOutcome(
+             'grabSeasonForFollow', {latencyMilliseconds: 0})""")
+    await page.evaluate("()=>window.__panel.close()")
+    await page.wait_for_timeout(PANEL_IN)
+
+
 async def agrees_with_the_cache(page, journal, produce, half):
     """Holds that what is on screen is what a fresh produce would draw.
 
@@ -423,6 +522,7 @@ async def main():
                 "the season panel")
 
         await hold_the_place(page, journal)
+        await hold_the_taken_act(page, journal)
 
         await context.close()
         await browser.close()

@@ -5,9 +5,9 @@ import { useTranslation } from "react-i18next";
 import { useMediaReference } from "./reference";
 import { SkeletonLine } from "../../ui/state-surfaces";
 import { factsPanel } from "../../ui/variants";
-import { queuedMark, seasonGrabSpacing } from "./variants";
+import { queuedMark, seasonGrabSpacing, seasonGrabTaken } from "./variants";
 import { useQueuedSeasons } from "./queued-seasons";
-import { askForSeason } from "./season-grab";
+import { askForSeason, useAskedInFlight } from "./season-grab";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields";
 
@@ -73,6 +73,7 @@ export function SeasonList({
   // WHICH SEASONS ARE WAITING, read from the cache like every other fact on
   // this sheet, so the row redraws when one arrives.
   const waiting = useQueuedSeasons(followTitle);
+  const askedInFlight = useAskedInFlight();
   // The cache the shared ask re-reads and redraws from. Taken here
   // rather than threaded through props: this component is rendered, so
   // it has a hook to read it from, which the panel's producer does not.
@@ -356,9 +357,10 @@ export function SeasonList({
             {(owns || followed) && !complete && !seasonUpcoming ? (
               <button
                 type="button"
-                className={`sact ${seasonGrabSpacing()}`}
+                className={`sact ${seasonGrabSpacing()} ${seasonGrabTaken()}`}
                 data-part="season/grab"
                 data-grab-season={`${followTitle}|${row.n}`}
+                aria-busy={askedInFlight.has(`${followTitle}|${row.n}`) || undefined}
                 onClick={() => {
                   void askForSeason(client, followTitle, row.n);
                 }}
