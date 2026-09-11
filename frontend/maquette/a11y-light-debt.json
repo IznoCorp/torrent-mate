@@ -1,13 +1,13 @@
 {
   "$comment": "The accessibility findings under `data-theme=\"light\"`, which this tier drove for nobody until L10-bis: it measured the DEFAULT theme only, so 154 findings counted by hand during L06 were invisible to it (B-055). THIS FILE IS READ BY `--check` AND THAT IS DELIBERATE — it is a RATCHET, a ceiling that may fall and may not rise, not the tolerance `a11y-debt.json` refuses to be. The dark floor stays a hard zero; remediating this list is a campaign with its own design, and what is held here meanwhile is that nothing is ADDED to it.",
-  "takenAtCommit": "ce67554839b597c2c08b85976418d98da5764572",
+  "takenAtCommit": "4773b43b5460efdf1b04b432db98ebcb29e419b0",
   "platform": "Darwin/arm64",
   "counts": {
     "states": 87,
     "byRule": {
-      "color-contrast": 166
+      "color-contrast": 162
     },
-    "total": 166
+    "total": 162
   },
   "states": {
     "acq-add-empty": [
@@ -119,11 +119,11 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
-          ".mt-3",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Wicker\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]"
+          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          ".cbody[data-panel=\"media:Wicker\"][data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "section:nth-child(3) > .card[data-part=\"card\"] > .ccol > .cfoot[data-part=\"card/foot\"][data-act=\"\"]"
         ]
       }
     ],
@@ -133,7 +133,6 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".mt-3",
           "button[data-panel=\"media:Dead Landes\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
           "button[data-panel=\"media:I Will Find You\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
           "section:nth-child(3) > .card[data-part=\"card\"] > .ccol > .cfoot[data-part=\"card/foot\"][data-act=\"\"]"
@@ -184,7 +183,7 @@
         "targets": [
           ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(3) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]",
           ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(4) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]",
-          ".min-h-\\[44px\\]"
+          "button[data-pipe=\"stop\"]"
         ]
       }
     ],
@@ -218,7 +217,7 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".dh > span > em"
+          ".\\[font-style\\:normal\\]"
         ]
       }
     ],
@@ -239,9 +238,6 @@
           "button[aria-label=\"S01E08 — En médiathèque\"]",
           "button[aria-label=\"S01E09 — À récupérer\"]",
           "button[aria-label=\"S01E10 — En médiathèque\"]",
-          "button[aria-label=\"S01E11 — À récupérer\"]",
-          "button[aria-label=\"S01E12 — En médiathèque\"]",
-          "button[aria-label=\"S01E13 — À récupérer\"]",
           "button[aria-label=\"S02E01 — En médiathèque\"]",
           "button[aria-label=\"S02E02 — En médiathèque\"]",
           "button[aria-label=\"S02E03 — À récupérer\"]",
@@ -407,11 +403,11 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
-          ".mt-3",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Wicker\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]"
+          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          ".cbody[data-panel=\"media:Wicker\"][data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "section:nth-child(3) > .card[data-part=\"card\"] > .ccol > .cfoot[data-part=\"card/foot\"][data-act=\"\"]"
         ]
       }
     ],
@@ -421,11 +417,11 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
-          ".mt-3",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Wicker\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]"
+          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          ".cbody[data-panel=\"media:Wicker\"][data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "section:nth-child(3) > .card[data-part=\"card\"] > .ccol > .cfoot[data-part=\"card/foot\"][data-act=\"\"]"
         ]
       }
     ],
@@ -435,11 +431,11 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
-          ".mt-3",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Wicker\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]"
+          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          ".cbody[data-panel=\"media:Wicker\"][data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "section:nth-child(3) > .card[data-part=\"card\"] > .ccol > .cfoot[data-part=\"card/foot\"][data-act=\"\"]"
         ]
       }
     ],
@@ -449,11 +445,11 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
-          ".mt-3",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Wicker\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]"
+          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          ".cbody[data-panel=\"media:Wicker\"][data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "section:nth-child(3) > .card[data-part=\"card\"] > .ccol > .cfoot[data-part=\"card/foot\"][data-act=\"\"]"
         ]
       }
     ],
@@ -463,11 +459,11 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
-          ".mt-3",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Wicker\"] > .cmeta[data-part=\"card/meta\"] > .chip[data-part=\"chip\"][data-tone=\"waiting\"]"
+          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          ".cbody[data-panel=\"media:Wicker\"][data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
+          "section:nth-child(3) > .card[data-part=\"card\"] > .ccol > .cfoot[data-part=\"card/foot\"][data-act=\"\"]"
         ]
       }
     ],
@@ -492,9 +488,9 @@
           "article:nth-child(4) > .rt.flex-wrap.gap-2 > .sc.font-bold.ml-auto",
           "article:nth-child(5) > .rt.flex-wrap.gap-2 > .sc.font-bold.ml-auto",
           "article:nth-child(6) > .rt.flex-wrap.gap-2 > .sc.font-bold.ml-auto",
-          "button[data-take=\"1\"]",
-          "button[data-take=\"2\"]",
-          "button[data-take=\"3\"]"
+          "button[data-pick-release=\"1\"]",
+          "button[data-pick-release=\"2\"]",
+          "button[data-pick-release=\"3\"]"
         ]
       }
     ],
@@ -505,8 +501,8 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".panel.py-1.px-5:nth-child(6) > .modified.\\[\\&_\\.rv\\]\\:text-primary.before\\:w-\\[3px\\] > .rv[data-part=\"setting/value\"]",
-          ".panel.py-1.px-5:nth-child(8) > .modified.\\[\\&_\\.rv\\]\\:text-primary.before\\:w-\\[3px\\] > .rv[data-part=\"setting/value\"]"
+          ".panel.py-1[data-part=\"panel\"]:nth-child(6) > .modified.\\[\\&_\\.rv\\]\\:text-primary.before\\:w-\\[3px\\] > .rv[data-part=\"setting/value\"]",
+          ".panel.py-1[data-part=\"panel\"]:nth-child(8) > .modified.\\[\\&_\\.rv\\]\\:text-primary.before\\:w-\\[3px\\] > .rv[data-part=\"setting/value\"]"
         ]
       }
     ],

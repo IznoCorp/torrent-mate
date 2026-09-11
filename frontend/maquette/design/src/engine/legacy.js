@@ -5444,10 +5444,6 @@ import {
     return window.__searchResults?.() ?? { total: 0, shown: 0, results: [] };
   }
 
-  function releases() {
-    return window.__releases?.() ?? [];
-  }
-
   function follows() {
     return window.__followActions?.all() ?? [];
   }
@@ -5524,56 +5520,6 @@ import {
     render();
     toast(
       `Identifié comme « ${choice ?? title} » — le pipeline reprend jusqu'à la médiathèque.`,
-    );
-  }
-
-  /* THE STATE IS THE LAYER'S SINCE L09; what stays here is the sentence the
-     operator reads and the undo it offers. */
-  function actionPause(title) {
-    const found = follows().find((follow) => follow.t === title);
-    if (!found) return;
-    const before = found.st;
-    const after =
-      found.st === "disabled"
-        ? found.k === "movie"
-          ? "pending"
-          : "up_to_date"
-        : "disabled";
-    window.__followActions?.setStatus(title, after);
-    const remis = after !== "disabled";
-    render();
-    toastUndo(
-      remis
-        ? `« ${found.t} » réactivé.`
-        : `« ${found.t} » ${found.k === "movie" ? "ne sera plus cherché" : "mis en pause"}.`,
-      () => {
-        window.__followActions?.setStatus(title, before);
-        render();
-      },
-    );
-  }
-
-  function actionRetirer(title) {
-    const removed = follows().find((follow) => follow.t === title);
-    if (!removed) return;
-    window.__followActions?.remove(title);
-    render();
-    toastUndo(`« ${removed.t} » retiré de vos suivis.`, () => {
-      window.__followActions?.add(removed);
-      render();
-    });
-  }
-
-  function actionFollow(title, kind) {
-    if (follows().some((follow) => baseTitle(follow.t) === baseTitle(title))) return;
-    window.__followActions?.add({
-      t: title,
-      k: kind === "Film" ? "movie" : "show",
-      st: "unverified",
-      fresh: true,
-    });
-    toast(
-      `« ${title} » ${kind === "Film" ? "ajouté à votre liste" : "ajouté à vos suivis"} — il apparaît en tête de « Suivis », marqué Nouveau.`,
     );
   }
 
@@ -9107,12 +9053,6 @@ import {
       dismissSug(Number(closest.dataset.dismiss));
       return;
     }
-    if (closest.dataset.sugmore) {
-      store.write({ sugGone: new Set(), sugOrder: null });
-      render();
-      toast("Nouveau lot chargé — 30 suggestions de plus.");
-      return;
-    }
     if (closest.dataset.signout) {
       signOut();
       return;
@@ -9129,50 +9069,6 @@ import {
       panel.produce("suggestion", closest.dataset.sug);
       return;
     }
-    if (closest.dataset.dropsug) {
-      const index = Number(closest.dataset.dropsug);
-      panel.close();
-      dismissSug(index);
-      return;
-    }
-    if (closest.dataset.follow) {
-      const idx = closest.dataset.sugidx;
-      const suggestion =
-        idx != null
-          ? suggestions()[Number(idx)]
-          : closest.dataset.fkind
-            ? { k: closest.dataset.fkind }
-            : null;
-      const verb =
-        suggestion && suggestion.k === "Film"
-          ? "ajouté à votre liste"
-          : "ajouté à vos suivis";
-      panel.close();
-      if (idx != null) {
-        // No render() follows on this branch: the sheet close and the
-        // follow-up screens draw directly, so the bump has to be explicit
-        // or React never learns this suggestion left the deck.
-        currentState().sugGone.add(Number(idx));
-        store.touch();
-        const element = document.querySelector(`[data-dismissable="${idx}"]`);
-        if (element) {
-          element.style.height = element.getBoundingClientRect().height + "px";
-          requestAnimationFrame(() => element.classList.add("gone"));
-          setTimeout(() => element.remove(), 320);
-        }
-      }
-      actionFollow(closest.dataset.follow, suggestion?.k ?? "Série");
-      // The media sheet used to REOPEN itself here so its button would toggle
-      // under the finger — an action whose screen does not change reads as a
-      // failed action. The sheet is a React screen now and re-renders from
-      // the store instead, but `actionFollow` writes the follows cache IN
-      // PLACE and no `render()` follows on this branch: the bump has to be
-      // explicit, exactly as it is for the dismissed suggestion above, or
-      // the button never learns the follow happened.
-      store.touch();
-      return;
-    }
-
     if (closest.dataset.manual != null) {
       // The way out is not a sentence, it is a pre-filled screen.
       // Clean the folder name to turn it into a query.
@@ -9247,18 +9143,6 @@ import {
       }, 240);
       return;
     }
-    if (closest.dataset.pause) {
-      const pause = closest.dataset.pause;
-      panel.close();
-      setTimeout(() => actionPause(pause), 240);
-      return;
-    }
-    if (closest.dataset.remove) {
-      const retirer = closest.dataset.remove;
-      panel.close();
-      setTimeout(() => actionRetirer(retirer), 240);
-      return;
-    }
     if (closest.dataset.releases) {
       panel.close();
       setTimeout(() => screens.releases(closest.dataset.releases), 260);
@@ -9289,24 +9173,10 @@ import {
       }
       return;
     }
-    // THE PANEL'S TAKE, TOLD APART FROM THE RELEASE SCREEN'S (B-309):
-    // an INDEX is the screen's, a TITLE is a medium's panel. The arrivals
-    // feature says which values are its own, and does the act.
-    if (window.__arrivalsVerbs?.take(closest.dataset.take)) return;
-    if (closest.dataset.take) {
-      const release = releases()[Number(closest.dataset.take)];
-      // One router pop — the release-choice screen is a route now, and the
-      // dispatcher's own `layer`/`tm: "nav"` checks no-op harmlessly on the
-      // entry it wrote, so the screen simply unmounts.
-      bridge.back();
-      setTimeout(() => {
-        actionTake(currentState().relatedTitle);
-        toast(
-          `« ${release.res} ${release.src} ${release.lang} » retenue — récupération lancée.`,
-        );
-      }, 260);
-      return;
-    }
+    // `data-take` HAS NO BRANCH HERE ANY MORE (B-309). It had two, told apart
+    // by guessing at the value. The release picker says `data-pick-release`
+    // now and the panel's take kept this name, so each has one meaning and one
+    // reader, and both answer on the tap registry.
     if (closest.dataset.standby) {
       panel.close();
       toast(
@@ -9585,7 +9455,7 @@ import {
       // any more.
       currentState().added.add(index);
       store.touch();
-      actionFollow(result.t, result.k);
+      window.__followVerbs?.follow(result.t, result.k);
       return;
     }
     if (closest.dataset.confirmadd) {
@@ -9672,8 +9542,9 @@ import {
       if (closest.classList.contains("remove"))
         return currentState().page === "lib"
           ? openDeleteDialog(textContent)
-          : actionRetirer(textContent);
-      if (closest.classList.contains("pause")) return actionPause(textContent);
+          : window.__followVerbs?.removeFollow(textContent);
+      if (closest.classList.contains("pause"))
+        return window.__followVerbs?.pause(textContent);
       toast(`${closest.textContent.trim()} — ${textContent}`);
       return;
     }
@@ -31876,8 +31747,8 @@ Object.assign(window, {
   SEASONS, SECRETS, SERVICES, SERVICES_PANNE,
   STRIP_LABELS, ST_LABEL,
   ST_LABEL_MOVIE, ST_TONE,
-  URGENCY, VIA_LABEL, actionLeave, actionPause,
-  actionTake, actionResolve, actionRetirer, actionFollow,
+  URGENCY, VIA_LABEL, actionLeave,
+  actionTake, actionResolve,
   actionDelete, addVerb, showSignIn, showStartup,
   showInstallation, applyState,
   baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,

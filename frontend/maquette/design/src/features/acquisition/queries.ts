@@ -24,31 +24,73 @@ import { queueNow } from "../../lib/queue";
  */
 export const suggestionsQuery = {
   queryKey: ["/api/acquisition/suggestions"],
-  queryFn: async () => {
-    // THE WHOLE RESERVE, batch after batch, because the deck INDEXES into it.
-    // The layer pages by the last title seen and the deck's own paging is by
-    // index into a list it holds: handed one batch it would hold 30 of 38, and
-    // its end mark — « the reserve loaded in this prototype » — would announce
-    // a reserve two thirds the size, having reached the end of a list nobody
-    // shortened. Its own paging is drawing, and goes at L13; until then it is
-    // given what it expects to have.
-    const held: unknown[] = [];
-    for (let asked = 0; asked < 20; asked += 1) {
-      const parameters = new URLSearchParams();
-      const last = held[held.length - 1] as { title?: string } | undefined;
-      if (last?.title !== undefined) parameters.set("after", last.title);
-      const batch = await read<unknown[]>("/api/acquisition/suggestions", parameters);
-      if (batch.length === 0) break;
-      held.push(...batch);
-      if (batch.length < SUGGESTION_BATCH) break;
-    }
-    return toEngineShape<unknown[]>("SUGGESTIONS", held);
-  },
+  queryFn: async () =>
+    // ONE BATCH, and the rest is asked for. This drained the layer — twenty
+    // pages in a loop — so that the deck, which indexes into a list it holds,
+    // would never run out. The cost was that « Charger 30 de plus » had
+    // nothing left to load: the engine's branch answered it by CLEARING what
+    // the operator had dismissed and reshuffling the same reserve, then saying
+    // « 30 suggestions de plus », which was true of nothing it did.
+    //
+    // So the reserve GROWS instead. `loadMoreSuggestions` appends the next
+    // page, indices already held keep their meaning, and what was dismissed
+    // stays dismissed because `sugGone` holds positions into this same list.
+    toEngineShape<unknown[]>(
+      "SUGGESTIONS",
+      await read<unknown[]>("/api/acquisition/suggestions", new URLSearchParams())),
 };
 
-// How many the layer answers with in one batch. Named so the loop above can
-// tell a full batch from the last one; the layer states the same number.
-const SUGGESTION_BATCH = 30;
+// The cache the deck's paging reads, captured where it is already handed over.
+// A module-level hold rather than another `window.__` seam: the verb that asks
+// for more lives in this same feature and can simply be given a function, and
+// a seam that does not have to exist is one L13 does not have to remove.
+let suggestionsCache: QueryClient | null = null;
+
+// WHETHER THE LAYER HAS SAID THE RESERVE IS EXHAUSTED — the last load answered
+// nothing. The deck's message says it once; the end mark has to go on saying
+// it, and it cannot learn it from the reserve's length, which is the same
+// before the empty answer and after. Cleared when a page arrives, and when a
+// named state refills the reserve from its beginning.
+let reserveExhausted = false;
+
+/** Whether the last load of suggestions answered nothing. */
+export function isReserveExhausted(): boolean {
+  return reserveExhausted;
+}
+
+/**
+ * Asks the layer for the next page of suggestions and appends it.
+ *
+ * IT APPENDS, and everything about the deck depends on that. `sugGone` and
+ * `sugOrder` hold POSITIONS into the reserve, so a list that grew at the end
+ * leaves every position already spoken for meaning what it meant — which is
+ * how « nothing already dismissed comes back » is true by construction rather
+ * than by a step that puts it back.
+ *
+ * Returns:
+ *     How many arrived. ZERO means the reserve is spent, and the caller says
+ *     so rather than announcing a number nobody added.
+ */
+export async function loadMoreSuggestions(): Promise<number> {
+  if (suggestionsCache === null) return 0;
+  const held =
+    suggestionsCache.getQueryData<unknown[]>(suggestionsQuery.queryKey) ?? [];
+  const parameters = new URLSearchParams();
+  // THE ENGINE'S OWN FIELD NAME, because what is held has already been
+  // converted; the value is the same title either way, and asking for `title`
+  // here would page from the beginning for ever.
+  const last = held[held.length - 1] as { t?: string } | undefined;
+  if (last?.t !== undefined) parameters.set("after", last.t);
+  const batch = await read<unknown[]>("/api/acquisition/suggestions", parameters);
+  if (batch.length === 0) {
+    reserveExhausted = true;
+    return 0;
+  }
+  reserveExhausted = false;
+  const arrived = toEngineShape<unknown[]>("SUGGESTIONS", batch);
+  suggestionsCache.setQueryData(suggestionsQuery.queryKey, [...held, ...arrived]);
+  return arrived.length;
+}
 
 /**
  * Publishes the suggestions for the dying engine's deck to read synchronously.
@@ -61,6 +103,7 @@ const SUGGESTION_BATCH = 30;
  * @param queryClient The cache the surfaces read.
  */
 export function installSuggestionsLookup(queryClient: QueryClient): void {
+  suggestionsCache = queryClient;
   window.__suggestions = () =>
     (queryClient.getQueryData(suggestionsQuery.queryKey) as unknown[] | undefined) ?? [];
   // AND IT IS ASKED FOR, because nothing else will. Every other read in this
@@ -71,7 +114,10 @@ export function installSuggestionsLookup(queryClient: QueryClient): void {
   // named state clears the cache so no measurement inherits a previous one's
   // pages, and a query with an OBSERVER is re-asked by that observer while one
   // without is not. This is the door `__reset` re-asks through.
-  window.__refillSuggestions = () => void queryClient.prefetchQuery(suggestionsQuery);
+  window.__refillSuggestions = () => {
+    reserveExhausted = false;
+    void queryClient.prefetchQuery(suggestionsQuery);
+  };
   window.__refillSuggestions();
 }
 
@@ -98,15 +144,22 @@ export function useFollows() {
 const followsKey = followsQuery.queryKey;
 
 /**
- * Installs the follows' verbs, for the dying engine's delegation to call.
+ * Installs the follows' verbs — the one place a follow is written.
+ *
+ * THE CALLERS ARE ON BOTH SIDES NOW: the acts that left the engine call
+ * these directly, and what is left of the engine's delegation still calls
+ * them for the surfaces it has not given up.
  *
  * EACH ONE WRITES THE CACHE FIRST. Pausing a follow, removing one, adding one:
  * the list on screen changes in the same task as the tap, and the layer is
  * asked afterwards. If it refuses, what was there goes back — which is the only
  * way an optimistic path is honest rather than a lie that usually holds.
  *
- * THE UNDO IS THE ENGINE'S AND IT STAYS. A toast that offers to put something
- * back is interface, and it calls these verbs again to do it.
+ * THE UNDO BELONGS TO THE VERB IT UNDOES, and it moved with it. This said the
+ * opposite while the acts were the engine's, and it was true then; the pause
+ * and the removal offer their own undo now, from the feature that performs
+ * them, and each calls back through here to do it. What a message DRAWS is
+ * still the shell's.
  *
  * @param queryClient The cache the surfaces read.
  */
@@ -142,6 +195,24 @@ export function installFollowActions(queryClient: QueryClient): void {
               // re-synced against the server that refused it.
               () => { refresh(); });
     },
+    // PUTTING A REMOVED FOLLOW BACK IS NOT ADDING ONE. `add` posts a title and
+    // a kind, which is all a NEW follow has; a restored one has a year, a date
+    // it has been followed since and a count of searches, and a create cannot
+    // carry any of them — so an undo built on `add` returned a stranger
+    // wearing the same name (B-353). This calls the operation that restores.
+    //
+    // THE WHOLE FOLLOW IS PASSED, not its title, because the optimistic write
+    // happens here: the row is back in the same task as the tap, and the
+    // layer's own record replaces it when the refetch lands.
+    restore: (follow) => {
+      const before = held();
+      write([follow as Follow, ...before]);
+      void send("POST",
+                `/api/acquisition/followed/${encodeURIComponent(follow.t)}/restore`)
+        .catch((refusal) => { write(before); throw refusal; })
+        .then((outcome) => { if (outcome !== HELD) refresh(); },
+              () => { refresh(); });
+    },
     add: (follow) => {
       const before = held();
       write([follow as Follow, ...before]);
@@ -166,7 +237,18 @@ declare global {
     __followActions?: {
       setStatus: (title: string, status: string) => void;
       remove: (title: string) => void;
-      add: (follow: { t: string; k: string; st: string; fresh: boolean }) => void;
+      /**
+       * Adds a follow, or puts a removed one back.
+       *
+       * THE PARAMETER IS A WHOLE FOLLOW MINUS WHAT A NEW ONE CANNOT KNOW. A
+       * medium followed for the first time has no year the caller holds and
+       * no history; a medium being RESTORED has both, and handing back only
+       * the three fields an addition needs would restore a different follow —
+       * one with no year and no « suivi depuis ».
+       */
+      add: (follow: Partial<Follow> & Pick<Follow, "t" | "k" | "st">) => void;
+      /** Puts a removed follow back as it was — never a create (B-353). */
+      restore: (follow: Follow) => void;
       all: () => Follow[];
     };
     /** The discover deck's cards, read synchronously by the dying engine. */

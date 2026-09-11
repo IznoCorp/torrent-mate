@@ -156,3 +156,45 @@ export const trailerSource = cva(
   "tsrc flex-none inline-flex items-center gap-2 ml-auto text-1 font-bold tracking-[0.02em] " +
     "py-1 px-3 rounded-full bg-muted text-muted-foreground",
 );
+
+/**
+ * « Récupérer cette saison » — the verb a season with a hole carries (B-301).
+ *
+ * PLACEMENT ONLY. The button itself wears `sact`, the class every other action
+ * in a panel wears, so it is painted by the same rules and dies when they do.
+ * What is added here is the gap separating it from the episode grid above it,
+ * and nothing outside the scale (invariant 3).
+ *
+ * It is drawn ONLY on a season the interface has just said is short, so it never
+ * offers to take what is already held.
+ */
+export const seasonGrabSpacing = cva("mt-4 mb-1");
+
+/**
+ * A season act whose ask is IN FLIGHT, drawn as taken.
+ *
+ * The look is the controls' own disabled one, keyed on `aria-busy` rather than
+ * `disabled`: a disabled button drops the focus it holds, where this one keeps
+ * it and answers a second press with silence (NE-DOIT-PAS-3). Its text does not
+ * change.
+ */
+export const seasonGrabTaken = cva("aria-busy:opacity-50");
+
+/**
+ * A season whose grab is WAITING on the pipeline — DOIT-4's pastille.
+ *
+ * IT IS NOT THE SHORTFALL CHIP. `.miss` counts what a reader is short of; this
+ * states what the machine is doing about it, and the two appear side by side on
+ * the same row. Giving it the shortfall's own look would have made one fact
+ * read as two of the other — the mistake `season/aired-on` was pulled out of.
+ *
+ * The information tone rather than the warning one: a queued ask is the system
+ * working as promised, not something the operator must attend to. The clause is
+ * « queued VISIBLY, and never refused »; drawn as a warning it would read as
+ * the refusal the clause forbids.
+ */
+export const queuedMark = cva(
+  "inline-flex items-center rounded-full py-1 px-3 text-1 font-semibold " +
+    "[background:color-mix(in_oklab,var(--color-info)_20%,transparent)] " +
+    "text-info-text",
+);

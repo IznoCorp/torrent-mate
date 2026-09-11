@@ -51,7 +51,7 @@ function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
     blocs: [
       { type: "actions", actions: [primaryAction(facts)] },
       seasons.length
-        ? { type: "saisons", isFollowed: follow, seasons }
+        ? { type: "saisons", follow, seasons }
         : {
             type: "note",
             text: translate(isFilm

@@ -17,6 +17,7 @@ export function MessageLayer(): ReactElement {
     <Toast
       message={state.message}
       shown={state.shown}
+      edge={state.edge}
       onClose={hideMessage}
     />
   );

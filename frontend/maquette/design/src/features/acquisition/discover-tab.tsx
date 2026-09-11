@@ -62,7 +62,31 @@ export function DiscoverTab(): ReactElement {
     // was not rendered, so a re-render leaves it in place — the pile stayed at
     // the top of the page under every other state, measured. The legacy got
     // this for free by rewriting `#view` wholesale; here it is said out loud.
-    for (const stale of document.querySelectorAll(".body > .deck")) {
+    //
+    // A SPENT PILE IS NOT A PILE, AND THE FIRST VERSION OF THIS SWEEP ONLY
+    // KNEW ABOUT PILES. `deckHTML` returns one of two shapes — the pile, or
+    // the end mark offering to load more — and only the first wears `.deck`.
+    // So a deck spent before the mode changed left its end mark standing, and
+    // React appended its own children after the node it did not know about:
+    // the load-more action stayed at the top and the whole feed was drawn
+    // BELOW it. Measured, on the list mode: the action at y=286, `#sugitems`
+    // at y=626.
+    //
+    // ANCHORED ON `data-part`, NEVER ON A STYLE CLASS. A class token in a
+    // selection dies the day the class is removed, and nothing can then say
+    // whether the anchor or the styling was at fault — the rule that reads
+    // this behaviour is held to a hard zero on exactly that, and the code it
+    // reads has no reason to be held to less.
+    //
+    // THE EMPTY STATE IS EXACT HERE, and that is worth a sentence because the
+    // part is shared. Nothing in this surface's React tree renders an empty
+    // note as a direct child of the body — its children are the notes, the
+    // live strip, the skeleton or the error, and the two containers — so the
+    // only one that can be a direct child of THIS body is the fragment's.
+    for (const stale of document.querySelectorAll(
+      '[data-part="surface/body"] > [data-part="deck"], '
+        + '[data-part="surface/body"] > [data-part="empty-state"]',
+    )) {
       stale.remove();
     }
     if (document.querySelector("#sugitems")) {

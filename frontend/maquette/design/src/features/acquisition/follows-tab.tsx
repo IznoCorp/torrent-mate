@@ -154,15 +154,32 @@ export function FollowsTab(): ReactElement {
         : "",
     );
 
-  const tileOf = (follow: Follow) =>
-    tileHTML(
+  // THE PAUSE IS SAID, AND IT USED TO BE SAID ONLY BY HALF THE TILES (B-350,
+  // operator-reported). The subtitle was `stFraction(follow) ?? (disabled ? …)`,
+  // and `stFraction` answers null for a FILM and only for a film: every series
+  // has a fraction, so the `??` never reached its second branch for one. A
+  // paused film therefore read « en pause » and a paused series read « 6/7 » —
+  // the same state, one of them announced and the other left to the dimming
+  // alone, which says « something » and never says what.
+  //
+  // The two are ASSEMBLED rather than chosen between: the fraction is what the
+  // tile is for and the pause is what changes how to read it, so a paused series
+  // keeps its figure AND carries the word. A film has no fraction and the join
+  // leaves it exactly as it was.
+  const tileOf = (follow: Follow) => {
+    const paused = follow.st === "disabled";
+    const said = [
+      stFraction(follow),
+      paused ? t("screens.acquisition.paused") : null,
+    ].filter(Boolean);
+    return tileHTML(
       follow,
-      stFraction(follow) ??
-        (follow.st === "disabled"
-          ? t("screens.acquisition.paused")
-          : String(follow.y)),
-      { muted: follow.st === "disabled", badge: gridBadge(follow) },
+      // The year remains the fallback for a tile with nothing else to say — a
+      // film that is neither paused nor counted.
+      said.length ? said.join(" · ") : String(follow.y),
+      { muted: paused, badge: gridBadge(follow) },
     );
+  };
 
   // EACH BRANCH DRAWS ITS OWN CONTAINER and fills it. The legacy interpolated a
   // complete element here — a `.sec`, a `.gallery`, an `.empty`, a skeleton or an

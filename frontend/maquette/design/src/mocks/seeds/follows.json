@@ -123,5 +123,25 @@
     "status": "up_to_date",
     "owned": 35,
     "aired": 35
+  },
+  {
+    "title": "Dark Matter",
+    "showStatus": "Annulée",
+    "since": "12 juin",
+    "searches": 9,
+    "kind": "show",
+    "year": 2004,
+    "status": "disabled",
+    "owned": 4,
+    "aired": 9
+  },
+  {
+    "title": "Premier Contact",
+    "showStatus": null,
+    "since": "27 mai",
+    "searches": 6,
+    "kind": "movie",
+    "year": 2016,
+    "status": "disabled"
   }
 ]

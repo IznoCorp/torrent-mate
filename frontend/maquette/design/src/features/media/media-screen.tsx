@@ -181,9 +181,16 @@ export function MediaScreen() {
   // « Informations » block below asks the SAME question with a STRICTER test
   // — the asymmetry is the legacy sheet's, transplanted rather than
   // reconciled here.
-  const followed = follows.some(
-    (follow) => baseTitle(follow.t) === baseTitle(title),
+  const follow = follows.find(
+    (one) => baseTitle(one.t) === baseTitle(title),
   );
+  const followed = follow !== undefined;
+  // AND THE FOLLOW IT FINDS IS THE ONE THE SEASON ACT ADDRESSES (B-382). A sheet
+  // opened under « Silo (2023) » is followed by « Silo »: the act addressed to
+  // the sheet's own key asked about a follow that does not exist, and the
+  // answer began a second one beside it. One show, one identity — the test, the
+  // address and the waiting seasons all read the follow this line found.
+  const followTitle = follow?.t ?? title;
   const catalog = (sheet?.seasons ?? [])
     .slice()
     .sort((slice, index) => index.n - slice.n);
@@ -321,6 +328,7 @@ export function MediaScreen() {
             isFilm={isFilm}
             owns={owns}
             followed={followed}
+            followTitle={followTitle}
             seasons={sorted}
             own={own}
             aired={aired}

@@ -186,6 +186,12 @@ target**). Original design (archived):
 `/implement:pr-review` (review + track-scaled fix cycles: full=5, lite=2,
 express=1 + squash merge).
 
+**The CI poll reads the pull request's DRAFT STATE first, since 2026-09-08.** A draft dispatches no
+run at all — every job in `.github/workflows/ci.yml` stands down on one — so a poll waiting for
+check-runs on a draft waits for ever and reports « zero check-runs », which used to mean the run
+never started. Read it after `ready_for_review`, or add the `run-ci-on-draft` label to dispatch a
+run on the draft itself.
+
 | Aspect         | Rule                                                      |
 | -------------- | --------------------------------------------------------- |
 | Branches       | `feat/{codename}` or `fix/{codename}`                     |

@@ -109,6 +109,8 @@ import {
   installFollowActions,
   installSuggestionsLookup,
 } from "../features/acquisition/queries";
+import { installJourneyVerbs } from "../features/acquisition/journey-verbs";
+import { installVerbs } from "../lib/verbs";
 import { installQueueActions } from "../lib/queue";
 import { installReleasesLookup } from "../features/releases/queries";
 import { installSearchLookup } from "../features/acquisition/search-queries";
@@ -332,6 +334,10 @@ installLibraryDelete(queryClient);
 installQueueActions(queryClient);
 installSuggestionsLookup(queryClient);
 installFollowActions(queryClient);
+// The tap registry, and the verbs registering into it — both before a panel
+// can be raised, which is why they sit here and not inside a component.
+installVerbs();
+installJourneyVerbs(queryClient);
 installReleasesLookup(queryClient);
 installSearchLookup(queryClient);
 // The engine draws surfaces that read the cache, and it draws them once.

@@ -222,6 +222,21 @@ failed for a second, adjacent reason**: the trigger did not yet include `labeled
 added after the PR opened changed nothing until this file's own PR (#488) added it — read the
 failing run before trusting the label alone.
 
+**A DRAFT pull request runs NO CI, since 2026-09-08 by the operator's decision** (« on l'exécute
+qu'à la sortie de draft, afin d'économiser du temps de CI »). Every job in
+`.github/workflows/ci.yml` carries the same job-level condition, so a draft dispatches a run whose
+jobs all report `skipped` and whose steps never start. **CI is read after `ready_for_review`** —
+that type is in the trigger for exactly this reason, and without it leaving draft would dispatch
+nothing at all — **or, on a draft, by adding the `run-ci-on-draft` label**: the escape hatch for a
+branch that needs a green reading before its merge day, and `labeled` being among the types makes
+adding the label itself the dispatching event. **A draft now dispatches NOTHING, so « zero
+check-runs » has a SECOND CAUSE.** It used to have one — the run never started: no pull request at
+all, a `paths-ignore`, or a pull request GitHub reports as `CONFLICTING`, which dispatches no
+check-suite. Beside those there is now a pull request that is simply a draft, and from the outside
+the two readings are identical. **Read the pull request's draft state FIRST**, before diagnosing
+anything else. A job added to that workflow without the condition silently re-enables draft runs;
+`tests/scripts/test_ci_skips_draft_pull_requests.py` refuses it.
+
 ### Pipeline Monitoring Rules
 
 When running `personalscraper run` or any long-running command with user observation:

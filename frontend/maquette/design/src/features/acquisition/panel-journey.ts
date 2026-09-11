@@ -2,9 +2,11 @@
 //
 // It lives with Acquisitions because a journey is one acquisition's own
 // history: what was taken, when, and where it has got to. §20 says a blocked
-// tunnel « reprend là où il s'est arrêté, par l'opérateur » — the verbs that do
-// the resuming belong to the lot that wires the tunnel's verbs, and this
-// producer offers exactly what the engine's offered.
+// tunnel « reprend là où il s'est arrêté, par l'opérateur », and the two verbs
+// that do the resuming are offered here — `features/acquisition/journey-verbs.ts`
+// does them. This header used to say they « belong to the lot that wires the
+// tunnel's verbs »; that lot is this one and the sentence has stopped being
+// true.
 //
 // ITS STEPS COME FROM THE LAYER, not from a literal inside the function. The
 // engine's producer carried the five stages inline; the mock layer already
@@ -78,6 +80,22 @@ function journeyPanel(title: string, cache: PanelCache): PanelDescriptor | null 
       {
         type: "actions",
         actions: [
+          // THE TUNNEL'S OWN VERBS (B-302, §20: it « reprend là où il s'est
+          // arrêté, par l'opérateur »). Their `data-*` names are answered by
+          // `lib/verbs`, not by the dying engine: a verb that never existed
+          // there has no branch to move, and giving it one would add a line to
+          // `legacy.js`, which D5 forbids.
+          {
+            text: translate("panels.journey.requeue"),
+            icone: icons().refresh,
+            ton: "primary",
+            target: { "journey-requeue": title },
+          },
+          {
+            text: translate("panels.journey.rescrape"),
+            icone: icons().search,
+            target: { "journey-rescrape": title },
+          },
           {
             text: translate("panels.journey.seeSheet"),
             icone: icons().eye,

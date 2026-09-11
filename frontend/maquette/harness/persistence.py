@@ -76,7 +76,7 @@ CAPTURE = """() => {
 # `{ __html }` recreated its children on every render (B-295, `ui/markup.tsx`);
 # and the library's window was keyed on the store's version, so every bump
 # emptied it. The states below cover the two acquisition tabs React draws,
-# the library in both modes, and the two screens over a page; a floor on the
+# the library in both modes, and the three screens over a page; a floor on the
 # nodes captured keeps a state that draws nothing from passing as kept.
 # THE GROUPED FOLLOWS ARE HERE BECAUSE THE MEASUREMENT THAT OPENED THIS SUBJECT
 # NAMED THEM — 12 nodes of 77 kept — and the first version of this hold drove the
@@ -91,6 +91,14 @@ PAGE_STATES = (
     ("acq-now-loaded", 10), ("acq-follows-list", 10), ("acq-follows-grid", 10),
     ("acq-follows-group", 10), ("lib-list", 10), ("lib-grid", 10),
     ("lib-incomplete", 10), ("mediasheet-series", 10), ("arr-resolution", 10),
+    # THE RELEASE SCREEN, added when its picker got a verb of its own. It is
+    # the one entry here whose floor is NOT set by the union: the state
+    # captures 158 nodes and only 7 of them are the SCREEN's own, so the
+    # `SCREEN_STATES` hold beside it — the one that refuses a floor met by
+    # the page underneath — is what this number has to clear. 5 leaves two
+    # nodes of margin over a fixture and still falls the moment the picker's
+    # own actions stop being drawn, which is the failure the floor is for.
+    ("screen-releases", 5),
 )
 # `path` IS IN THIS LIST, and it is not thoroughness. An icon's paths are markup
 # handed to React like any other, so they were rebuilt on every parent render —
@@ -110,7 +118,7 @@ PAGE_SELECTOR = (
 )
 # The states whose subject is a SCREEN over a page: their floor is read on the
 # screen's own nodes as well as on the union.
-SCREEN_STATES = ("mediasheet-series", "arr-resolution")
+SCREEN_STATES = ("mediasheet-series", "arr-resolution", "screen-releases")
 
 # (h) THE PANEL'S OWN NODES — B-247's PRODUCER half, the one an earlier lot left
 # open and said so in this docstring. A producer that has moved into its feature
@@ -131,6 +139,23 @@ SCREEN_STATES = ("mediasheet-series", "arr-resolution")
 PANEL_STATES = (
     ("sheet-user", 5),
     ("maintenance-delete", 5),
+    # THE FOLLOW SHEET AND THE JOURNEY, added when their verbs moved onto
+    # the registry. Both are React producers now, so both are subject to the
+    # mechanism above; nothing read them before.
+    #
+    # THE FLOORS ARE READ, by the means this docstring prescribes — raised
+    # to 999 and the capture taken from what the hold printed:
+    # `followsheet-complete` captures 423, `followsheet-gaps` 63,
+    # `sheet-journey` 14. The floors are NOT those numbers: most of the
+    # first two is the season list, which is a fixture and moves with it.
+    # What does not move is the actions row — a follow sheet offers one
+    # primary act and up to seven secondary ones, with their icon strokes —
+    # so 8 is under every fixture and above a panel whose actions have gone,
+    # which is the failure the floor exists for. The journey sheet is small
+    # enough to take the 5 its neighbours use.
+    ("followsheet-complete", 8),
+    ("followsheet-gaps", 8),
+    ("sheet-journey", 5),
 )
 
 # (i) THE DÉCOUVRIR CONTAINERS — B-247's last unread surface, and the one this

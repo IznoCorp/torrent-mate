@@ -5,6 +5,7 @@
 // would capture the state object that existed then instead of the one a reset
 // has just replaced.
 import { acquisitionRoutes } from "./acquisition";
+import { acquisitionVerbRoutes } from "./acquisition-verbs";
 import { authenticationRoutes } from "./authentication";
 import { configurationRoutes } from "./configuration";
 import { decisionRoutes } from "./decisions";
@@ -22,6 +23,7 @@ export function routes(): MockRoute[] {
     ...libraryRoutes(),
     ...mediaRoutes(),
     ...acquisitionRoutes(),
+    ...acquisitionVerbRoutes(),
     ...stagingRoutes(),
     ...decisionRoutes(),
     ...systemRoutes(),

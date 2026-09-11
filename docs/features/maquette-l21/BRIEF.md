@@ -146,8 +146,16 @@ them apart). Three demands come out of it, and you record them rather than recon
 ### 2. Where each verb lands — and the seam it replaces
 
 **The season grab** lands in `features/media/panel-seasons.tsx` (200 lines; a `saisons` block
-registered through `ui/panel/contract`'s `registerBlock`, one action per season row printed
-`to_grab`). Invariant 7: the media feature never imports `features/acquisition/`; it calls the
+registered through `ui/panel/contract`'s `registerBlock`, one action per season row **printed
+short**). ⚠ **« printed `to_grab` » was this paragraph's wording and it is wrong — corrected here
+after measuring it.** No `to_grab` episode cell exists anywhere in the fixture:
+`grep -c "to_grab" /tmp/tm-refonte/vite/*.js` finds the token, but `epState` colours a missing
+episode by the FOLLOW's status, so the one follow that has a hole (`Silo`, `pending`) draws it
+`pending` and every other follow is `up_to_date` with nothing missing. What the panel prints over
+a hole is `[data-part="season/missing"]` — « Saison 3 · 6/7 · 1 manquant » — drawn exactly when
+owned is short of what aired, and that is what a season grab is for. A rule written to the old
+wording is red for a reason unrelated to the verb, stays red after the repair, and is then
+« fixed » into a green that reads nothing. Invariant 7: the media feature never imports `features/acquisition/`; it calls the
 OPERATION through its own `features/media/queries.ts`, exactly as the plan says. **The verb is a
 new file beside the block**, never a growth of `panel-seasons.tsx`.
 
@@ -240,11 +248,21 @@ what would leave it green over nothing:
 - **B-247's hold** (`persistence.py` (f)): the panels you touch are added to its list; a producer
   that re-keys its rows falls it.
 
-**And `busy.py` is yours to repair, not to extend as it is.** L19's report § 9 and § 6 row 16 say
-it: R124 raises its panels THROUGH THE SEAM (`window.__panel.produce`), so a `data-panel` lost on a
-busy page is invisible to it. The correction is the one R103 took (`exits.py:208`): drive the
-delegation — a finger on the row, never the seam. Do it before you add your holds to it, or you add
-holds to a rule that does not walk the path a finger takes.
+**⚠ `busy.py`'s repair HAS LANDED — this paragraph ordered one with no subject, and is corrected
+here (2026-09-06, on `feat/maquette-l21`).** It read « `busy.py` is yours to repair, not to extend
+as it is », on L19's report § 9. **The repair landed inside L19 itself** (`raise_by_finger`,
+`3d67325f9`, squashed into `9fa13da57`): both walks raise their panel with a hit test at the row's
+own centre via `elementFromPoint`, the covering toast emptied first, and the tap's own answer held
+so a missing path FAILS rather than opening nothing quietly. It shows in one command —
+`grep -n "__panel.produce" frontend/maquette/harness/busy.py` answers ONE hit and it is a COMMENT.
+**L19's report contradicts itself and § 9 is the stale half**: § 6 row 16 records the repair and
+the finding under it (driven by a finger it went red, because the pause half had been walking the
+acquisitions page, where a followed medium not in flight has no row; it runs on
+`acq-follows-list` now), while § 9 was written before that round and says it was left undone.
+**What remains is a residue, and it IS yours**: the action inside the raised panel is still
+`act.click()` (`:172`, `:222`), not hit-tested, so a button covered on a busy page is invisible to
+R124. Hit-test the action the way the row is hit-tested, and prove the existing repair still bites
+BY MUTATION before adding holds to it.
 
 ### 5. R103's inventory, and B-323's instrument half
 

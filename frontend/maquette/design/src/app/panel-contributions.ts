@@ -29,3 +29,13 @@ import "../features/acquisition/panels";
 // Arrivals contributes no PANEL — it contributes the verb `data-take` reads
 // (B-309), and the boot is where a side effect is named whatever it is.
 import "../features/arrivals/verbs";
+// And the release picker contributes its own — `data-pick-release`, declared
+// to the tap registry. It is named beside the arrivals verb because the two
+// used to be ONE attribute read by two branches, and telling them apart by
+// their values is what B-309 cost; each wears its own name now.
+import "../features/releases/verbs";
+// And acquisition contributes verbs beside its panels: the follows' own act,
+// which two surfaces emit, and the deck's drop. Both declare themselves to the
+// tap registry at module evaluation, so naming them here is the whole wiring.
+import "../features/acquisition/follow-verbs";
+import "../features/acquisition/deck-verbs";

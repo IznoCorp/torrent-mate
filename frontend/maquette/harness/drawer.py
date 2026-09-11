@@ -245,6 +245,20 @@ async def main():
             await pg.wait_for_timeout(150)
             before_scroll = await pg.evaluate(
                 "() => Math.round(document.querySelector('#port').scrollTop)")
+            # THE OFFSET THIS WALK ASKED FOR HAS TO HAVE TAKEN, and it is held
+            # here rather than assumed. A page shorter than its viewport clamps
+            # `scrollTop` to whatever it can give — eighteen pixels, once — and
+            # the comparison below then reads that same number on both sides and
+            # passes with nothing to lose. The hold underneath was green that way
+            # for as long as the boot page was short, and what changed was the
+            # fixture, not the interface.
+            journal.check(
+                f"the page under {name} can really be scrolled, so the hold "
+                "below has something to lose — a page shorter than its "
+                "viewport clamps the offset and makes that hold compare one "
+                "number with itself",
+                before_scroll == 300, f"asked for 300, the port took "
+                f"{before_scroll}")
             await close_via_scrim(pg, *outside)
             after = await pg.evaluate("""() => ({
               marker: !!document.querySelector('#r65-marker'),
