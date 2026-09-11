@@ -13,6 +13,7 @@ import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields"
 
 export function SeasonList({
   followed,
+  followTitle,
   sheet,
   sheetInFlight,
   failed,
@@ -28,6 +29,16 @@ export function SeasonList({
    * too, the same act wherever the show is looked at.
    */
   followed: boolean;
+  /**
+   * The title the season act ADDRESSES: the follow's own when the show is
+   * followed — found by the base title `followed` matches on — and the sheet's
+   * otherwise. A sheet is keyed by the title it was opened under, and one show
+   * can carry two keys: addressing the act to the sheet's asked about a follow
+   * that does not exist, and the answer began a second one (B-382). The waiting
+   * seasons are read under the same title, so the mark the follow panel sets is
+   * the mark this list shows.
+   */
+  followTitle: string;
   sheet: MediaSheetFields | null;
   seasons: [number, number | null, number][];
   owns: boolean;
@@ -61,7 +72,7 @@ export function SeasonList({
   const { t } = useTranslation();
   // WHICH SEASONS ARE WAITING, read from the cache like every other fact on
   // this sheet, so the row redraws when one arrives.
-  const waiting = useQueuedSeasons(title);
+  const waiting = useQueuedSeasons(followTitle);
   // The cache the shared ask re-reads and redraws from. Taken here
   // rather than threaded through props: this component is rendered, so
   // it has a hook to read it from, which the panel's producer does not.
@@ -347,9 +358,9 @@ export function SeasonList({
                 type="button"
                 className={`sact ${seasonGrabSpacing()}`}
                 data-part="season/grab"
-                data-grab-season={`${title}|${row.n}`}
+                data-grab-season={`${followTitle}|${row.n}`}
                 onClick={() => {
-                  void askForSeason(client, title, row.n);
+                  void askForSeason(client, followTitle, row.n);
                 }}
               >
                 {t("panels.follow.grabSeason", { season: row.n })}

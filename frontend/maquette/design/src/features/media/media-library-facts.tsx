@@ -15,6 +15,7 @@ export function MediaLibraryFacts({
   ownershipKnown,
   inFlight,
   followed,
+  followTitle,
   seasons,
   own,
   aired,
@@ -42,6 +43,8 @@ export function MediaLibraryFacts({
    */
   ownershipKnown: boolean;
   followed: boolean;
+  /** The title the season act addresses — see `SeasonList`. */
+  followTitle: string;
   seasons: [number, number | null, number][];
   own: number;
   aired: number;
@@ -222,6 +225,7 @@ export function MediaLibraryFacts({
       </div>
       <SeasonList
         followed={followed}
+        followTitle={followTitle}
         failed={failed}
         ownershipKnown={ownershipKnown}
         sheetInFlight={sheetInFlight}
