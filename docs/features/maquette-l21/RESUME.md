@@ -163,9 +163,18 @@ backend limitation is not a reason to draw less.
   on `mediasheet-suggestion-series` (The Venture Bros, neither owned nor followed) the list offered
   **seven** season grabs, invisible to the oracle because they sit inside closed `<details>`, with the
   contracts tier green over them. Re-ruled `owns && !complete`, the condition the « manquants » mark is
-  already drawn on. The `followed` prop is still deleted, and the false comment with it. Whether a
-  FOLLOWED show with nothing owned should be offered the act from its sheet is put to the operator,
-  not built.
+  already drawn on. The false comment is still deleted.
+- **And the operator ruled it wider** (decision round of 2026-09-11, question 2, answer « B »): the
+  sheet offers the act on a FOLLOWED show nothing is owned of, the same act wherever the show is looked
+  at — and **a season not yet aired is not offered, on any show — the operator's definition of
+  missing**: « Manquant : les épisodes diffusés et non possédés ! S'il n'existe pas (pas encore diffusé)
+  alors je ne peux pas les avoir donc ils ne manquent pas encore, mais ils sont là pour informer
+  l'utilisateur de sorties à venir d'épisodes. » The gate is `(owns || followed) && !complete &&
+  !seasonUpcoming` (`1e89d7688`); the `followed` prop is back, from its one caller. Three readings, in
+  order: no test → `owns` → `owns || followed`, with the date clause.
+  **The operator can walk it by hand on the design host**: open « Agent Elvis » from Découvrir, tap
+  « Suivre », open its season 1 — « Récupérer la saison 1 » is there; do the same on « Grimsburg » and
+  its third season, not yet aired, offers nothing.
 - **Three parallel sentence keys, never one appended sentence.** The discipline is chosen sentences,
   never composed ones, and this repository has just paid for the other way: A4 of round one was
   « 1 épisode(s) », a parenthesis stuck onto a sentence that should have been chosen. Six keys for
@@ -262,6 +271,12 @@ followed (`acquiring`). The second reading, « Les Animaniacs »' sheet, season 
   close and « Annuler » take a finger. **The media screen never covered it** — that first reading was
   `inert`. **R159**, `harness/message_over_layers.py`, holds paint and touch; its two mutations (the rank,
   the exemption) are in the entry.
+
+**After the build, two ruled units landed**: B-381's repair (`0e2c25bc1`, above) and the sheet's act on a
+followed show nothing is owned of, never on an unaired season (`1e89d7688`, § 3.3). R158 holds 56 holds
+since; its two new mutations — the date clause dropped (Grimsburg's third season offered, 1 violation)
+and the gate back to `owns &&` (Agent Elvis offered nothing, 2 violations over 53 executed: the leg's
+later holds do not run once nothing is offered) — are recorded here.
 
 ---
 

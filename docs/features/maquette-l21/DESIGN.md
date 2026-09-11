@@ -273,6 +273,18 @@ is `owns && …`, so `!complete` is true for anything not owned. The buttons sat
 now asks what the « manquants » mark already asks. R158 counts the grabs in the DOCUMENT on that state,
 and its mutation (dropping `owns &&`) falls exactly that leg, naming the seven.
 
+**Then the operator ruled the gate wider, and the date narrower** (the decision round of 2026-09-11 —
+question 2, answer « B »): the media sheet offers « Récupérer la saison N » on a FOLLOWED show nothing is
+owned of, the same act wherever the show is looked at. And **a season not yet aired is not offered, on
+any show — the operator's definition of missing**: « Manquant : les épisodes diffusés et non possédés !
+S'il n'existe pas (pas encore diffusé) alors je ne peux pas les avoir donc ils ne manquent pas encore,
+mais ils sont là pour informer l'utilisateur de sorties à venir d'épisodes. » So the gate has been read
+three times, in this order: no test (falsified by measurement), `owns && !complete` (measured), and
+`(owns || followed) && !complete && !seasonUpcoming` (`1e89d7688`), where the date clause compares the
+SEASON's air date with the referential's TODAY and applies to owned shows too. R158 holds it without a
+fixture datum: it follows « Agent Elvis » and « Grimsburg » by a finger on « Suivre », so no state drawn
+over « Suivis » moves.
+
 **Eight sentence keys, not six.** A follow begun by the act is a second fact, chosen by `newlyFollowed`
 and never composed: three parallel to `seasonAsked` / `seasonAskedOne` / `seasonAskedNone`, and a
 fourth parallel to `seasonQueued`, because the queued path creates the follow too.

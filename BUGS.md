@@ -596,6 +596,11 @@ saison 5 demandée — aucun épisode à récupérer. » and the show is followe
 the same build, « Les aventures de Tintin »' follow panel — whose families agree — reads « Saison 3
 7/13 6 manquants » and answers « Série suivie et saison 3 demandée — 6 épisodes à récupérer. »
 
+**And under the date gate** (`1e89d7688`, a season not yet aired offers no act): « Les Animaniacs »'
+season 5 aired on 1997-09-08 by the sheet's own catalogue, so its row still offers the act and still
+answers « … aucun épisode à récupérer ». The « 23 manquants » mark is untouched by that gate — it is this
+entry's, the sheet counting against the catalogue.
+
 **B-381 — a message said while a layer is open is drawn under that layer.**
 Found by L21's increment 7, the on-screen confirmation of the season grab. On L21's head `d65679c0f`
 (build `de36920b9ce9`, served on a port of its own, a finger on every step), the follow panel raised
