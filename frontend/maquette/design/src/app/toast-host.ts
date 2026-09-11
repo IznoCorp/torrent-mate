@@ -30,12 +30,24 @@
 // change edge LEAVES — its own fade — and comes back at the other edge. One not
 // yet drawn, said in the same task as the layer change, simply takes its place:
 // there is nothing to watch move, and making it wait would only delay it.
+//
+// A CROSSING TAKES NOTHING FROM THE MESSAGE'S LIFE. Its clock stops when it
+// starts to leave and runs again once it is whole at the other edge, so the
+// reader gets back every moment it was away. One owed less than its own exit
+// when it starts to leave does not come back: returning for less than that is
+// a flash, at one edge, of a sentence the reader has just watched go at the
+// other.
 import { setMessagePresent } from "./message-presence";
 import { readLayerOpen, subscribeToLayerOpen } from "./layer-presence";
 import type { Message, Edge } from "../ui/toast";
 
 const MESSAGE_MS = 5000;
 const MESSAGE_WITH_UNDO_MS = 6000;
+
+// THE ENTRANCE: `messageHost`'s 200 ms fade in. A message shown again at the
+// other edge is not whole until it has run, so the life it is given back
+// carries it.
+const MESSAGE_ENTRY_MS = 200;
 
 // THE EXIT'S WHOLE LENGTH: `messageHost`'s 200 ms fade, and the visibility step
 // it delays behind the fade. Until both have run the host is still the leaving
@@ -54,6 +66,11 @@ type Layer = { message: Message | null; shown: boolean; edge: Edge };
 // reports a change on every render and loops for ever.
 let layer: Layer = { message: null, shown: false, edge: "bottom" };
 let timer = 0;
+// WHEN THE LIFE RUNS OUT, on the page's monotonic clock — and, while the
+// message is away between two edges, what it is still owed. The clock does not
+// run while it is away.
+let deadline = 0;
+let owed = 0;
 let exitTimer = 0;
 let moveTimer = 0;
 // WHETHER THE MESSAGE IS AWAY BETWEEN TWO EDGES. It is still UP for the frame —
@@ -87,6 +104,13 @@ function place(next: Layer): void {
   });
 }
 
+/** Starts the message's life clock: it is taken off screen once `duration` has run. */
+function startTheClock(duration: number): void {
+  window.clearTimeout(timer);
+  deadline = window.performance.now() + duration;
+  timer = window.setTimeout(hideMessage, duration);
+}
+
 /** What the message layer draws right now. */
 export function readMessage(): Layer {
   return layer;
@@ -104,20 +128,17 @@ export function subscribeToMessage(onChange: () => void): () => void {
  *     descriptor: What happened, and optionally what undoes it.
  */
 export function showMessage(descriptor: Message): void {
-  window.clearTimeout(timer);
   window.clearTimeout(exitTimer);
   window.clearTimeout(moveTimer);
   moving = false;
-  timer = window.setTimeout(
-    hideMessage,
-    descriptor.undo ? MESSAGE_WITH_UNDO_MS : MESSAGE_MS,
-  );
+  startTheClock(descriptor.undo ? MESSAGE_WITH_UNDO_MS : MESSAGE_MS);
   place({ message: descriptor, shown: true, edge: edgeNow() });
 }
 
 /** Takes the message off screen, keeping its text and its place for the exit. */
 export function hideMessage(): void {
-  // ITS LIFE ENDED WHILE IT WAS AWAY between two edges: it does not come back.
+  // TAKEN OFF WHILE IT WAS AWAY between two edges — by its close, its undo or
+  // a caller, since its own clock does not run meanwhile: it does not come back.
   if (moving) {
     window.clearTimeout(moveTimer);
     moving = false;
@@ -146,15 +167,26 @@ function followTheLayers(): void {
     place({ ...layer, edge });
     return;
   }
+  // WHAT IT IS OWED is read as it starts to leave, and its clock stops there.
+  // Owed less than its own exit, it ends by leaving: coming back for less than
+  // that is a flash.
+  const remaining = deadline - window.performance.now();
+  if (remaining < MESSAGE_EXIT_MS) {
+    hideMessage();
+    return;
+  }
+  window.clearTimeout(timer);
+  owed = remaining;
   moving = true;
   announce({ ...layer, shown: false });
   moveTimer = window.setTimeout(showAgain, MESSAGE_EXIT_MS);
 }
 
-/** Shows a message that left one edge at the edge the layers now call for. */
+/** Shows a message that left one edge at the edge the layers now call for, owed what it had left. */
 function showAgain(): void {
   moving = false;
   place({ ...layer, shown: true, edge: edgeNow() });
+  startTheClock(owed + MESSAGE_ENTRY_MS);
 }
 
 declare global {

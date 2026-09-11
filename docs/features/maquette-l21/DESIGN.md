@@ -369,6 +369,15 @@ Rank 57 and the `inert` exemption stand.
   bar to the frame's top before its fade began. **Within one edge the message follows the layer's bar by
   a slide**: a screen with a sheet opened over it moves a shown message from 62 to 16, 46 px at full
   opacity. That is not an edge change and not the ruled property; it is recorded, not repaired.
+- **A crossing takes nothing from the message's life** (review round three, C2, the orchestrator's
+  ruling). The clock ran through the 400 ms away, so a message changing edge at 4 419 ms of its 5 000
+  came back with 181 ms left: about 170 ms above half opacity and 20 ms whole, then gone — a blink at
+  the bottom of a sentence the reader had just watched leave the top; « Annuler » (6 s) the same.
+  `app/toast-host.ts` now stops the clock when the message starts to leave, reading what it is still
+  owed, and starts it again when the message is shown at the other edge, with that owed life plus its
+  200 ms entrance — so it is whole there for everything it was owed. **A message owed less than its
+  own exit (`MESSAGE_EXIT_MS`, 400 ms) when it starts to leave ends by leaving**: it does not come
+  back, since coming back for less than that is the same flash. R159 holds both, leg 12.
 
 **The holds.** R159 (`harness/message_over_layers.py`) gains five, read on boxes with nothing lifted:
 a message up before a sheet opens meets none of the sheet's controls, and each action is what a finger

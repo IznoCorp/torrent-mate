@@ -75,6 +75,15 @@ TWO QUESTIONS, READ SEPARATELY, because each half can be broken alone:
        WITHIN ONE EDGE it is not read: a message on a screen when a sheet opens
        over it follows the layer's bar by a slide, measured 46 px, at full
        opacity — not an edge change, and not what this leg holds.
+   12. A CROSSING TAKES NOTHING FROM THE MESSAGE'S LIFE. A screen closes inside
+       the last 600 ms of a life — five seconds, and six with « Annuler » — and
+       the message is read frame by frame. Owed 560 ms when it starts to leave,
+       it comes back at the other edge and is whole there for at least those
+       560 ms, with and without « Annuler ». Owed 150 ms, less than its own
+       400 ms exit, it ends by leaving and is never drawn at the other edge.
+       With the clock running through the crossing, a message that changed edge
+       at 4 419 ms came back with 181 ms left — whole for about twenty
+       milliseconds, a flash of a sentence the reader had just watched go.
 
 WHAT IT DOES NOT READ: whether the message covers something it should not on a
 bare screen — R101 holds the message against the tab bar.
@@ -271,6 +280,9 @@ SAMPLED_FOR = 1200
 # AT FULL OPACITY — what a reader reads as the message itself, not its fade.
 FULL = 0.99
 
+# WHOLLY GONE FROM PAINT — at or under it, nothing of the message is read.
+GONE = 0.05
+
 # HOW FAR A BOX MUST TRAVEL BETWEEN TWO FRAMES TO BE A JUMP rather than the
 # fourteen pixels of its own entrance.
 JUMP = 20
@@ -314,6 +326,94 @@ def hold_no_jump(journal, change, samples):
              if full(one) and full(other) and abs(one["top"] - other["top"]) > JUMP]
     journal.check(f"{change}: NEVER A JUMP — no two consecutive frames at full opacity in two places",
                   not jumps, str(jumps[:2]))
+
+
+# THE HOST'S OWN LENGTHS, `app/toast-host.ts`: a message's life, one offering an
+# undo, and the exit — the floor below which a message owed that little ends by
+# leaving.
+MESSAGE_MS = 5000
+MESSAGE_WITH_UNDO_MS = 6000
+EXIT_MS = 400
+
+# WHERE THE CROSSING LANDS in the life: owed a readable length, and owed less
+# than the exit — both inside the last 600 ms.
+LAST_OF_A_LIFE = 600
+OWED_BACK = 560
+OWED_LESS_THAN_THE_EXIT = 150
+
+# What a whole return may fall short of what it was owed: the frames its
+# entrance and its exit take to cross full opacity, with room for a loaded host.
+TOLERANCE = 100
+# The away, the entrance, the owed life and the exit all fit.
+SAMPLED_TO_THE_END = 2000
+
+# THE MESSAGE SHOWN, A SCREEN CLOSED `lead` MILLISECONDS LATER, AND EVERY FRAME
+# AFTER — sampled as `ACROSS_THE_CHANGE` does. The moment of the change is read
+# on the same clock as the moment of the show, so what the message was owed is
+# measured, never assumed from a timer that may fire late on a loaded host.
+AT_THE_END_OF_ITS_LIFE = """([text, undo, lead, span])=>new Promise((resolve)=>{
+  const host = document.querySelector('#toast');
+  const samples = [];
+  const shownAt = performance.now();
+  window.__toast.show(undo ? {message: text, undo: () => {}} : {message: text});
+  const take = () => {
+    const box = host.getBoundingClientRect();
+    const style = getComputedStyle(host);
+    samples.push({at: Math.round(performance.now() - shownAt), top: Math.round(box.top),
+                  opacity: Number(style.opacity), visible: style.visibility === 'visible'});
+  };
+  setTimeout(() => {
+    take();
+    const changedAt = performance.now() - shownAt;
+    history.back();
+    const next = () => {
+      take();
+      if (performance.now() - shownAt - changedAt < span) requestAnimationFrame(next);
+      else resolve({changedAt: Math.round(changedAt), samples});
+    };
+    requestAnimationFrame(next);
+  }, lead);})"""
+
+
+def hold_what_is_owed(journal, change, duration, reading, comes_back):
+    """Holds that a crossing near the end of a message's life takes nothing from it.
+
+    THE DEFECT: the life clock ran through the crossing's 400 ms away, so a
+    message that changed edge at 4 419 ms of its 5 000 came back with 181 ms
+    left — about twenty milliseconds whole, a flash at the other edge. The
+    clock now stops while the message is away, and a message owed less than
+    its own exit ends by leaving.
+
+    Args:
+        journal: Where the holds are recorded.
+        change: What changed the layers, and when, for the holds' own text.
+        duration: The life the message was shown with.
+        reading: What `AT_THE_END_OF_ITS_LIFE` recorded.
+        comes_back: Whether the owed life is one the message comes back for.
+    """
+    owed = duration - reading["changedAt"]
+    samples = reading["samples"]
+    first = samples[0]
+
+    def whole(one):
+        return one["visible"] and one["opacity"] >= FULL
+
+    there = [one for one in samples[1:] if abs(one["top"] - first["top"]) >= ACROSS]
+    journal.check(f"{change}: the message is whole at its first place when the screen closes",
+                  whole(first), str(first))
+    if comes_back:
+        journal.check(f"{change}: the change lands inside the last {LAST_OF_A_LIFE} ms, owing no less than the exit",
+                      EXIT_MS <= owed <= LAST_OF_A_LIFE, f"owed {owed} ms")
+        drawn = [one["at"] for one in there if whole(one)]
+        kept = drawn[-1] - drawn[0] if drawn else 0
+        journal.check(f"{change}: it comes back at the other edge WHOLE for at least the {owed} ms it was owed",
+                      kept >= owed - TOLERANCE, f"whole there for {kept} ms over {len(drawn)} frame(s)")
+    else:
+        journal.check(f"{change}: the change lands owing less than the {EXIT_MS} ms exit",
+                      0 < owed < EXIT_MS, f"owed {owed} ms")
+        seen = [one for one in there if one["opacity"] > GONE]
+        journal.check(f"{change}: owed {owed} ms, it ends by leaving — never drawn at the other edge",
+                      not seen, str(seen[:3]))
 
 
 async def show_over(page, state, wait):
@@ -496,6 +596,23 @@ async def main():
                 "/*CHANGE*/", f"window.__panel.produce('follow', {first!r});"),
             SAMPLED_FOR)
         hold_no_jump(journal, "a sheet opens", opening)
+
+        # 12. A crossing near the end of a life takes nothing from it.
+        for undo, duration, owed, comes_back in (
+                (False, MESSAGE_MS, OWED_BACK, True),
+                (True, MESSAGE_WITH_UNDO_MS, OWED_BACK, True),
+                (False, MESSAGE_MS, OWED_LESS_THAN_THE_EXIT, False)):
+            await page.evaluate("()=>window.__panel?.close?.()")
+            await page.evaluate("(id)=>window.__go(id)", SCREEN_STATE)
+            await page.wait_for_timeout(SETTLED * 3)
+            await page.evaluate(HIDE)
+            await page.wait_for_timeout(EXITED)
+            reading = await page.evaluate(
+                AT_THE_END_OF_ITS_LIFE, [PROBE, undo, duration - owed, SAMPLED_TO_THE_END])
+            with_undo = " with « Annuler »" if undo else ""
+            hold_what_is_owed(journal, f"a screen closes {owed} ms before the end of a message{with_undo}",
+                              duration, reading, comes_back)
+            await page.wait_for_timeout(EXITED)
 
         await context.close()
         await browser.close()
