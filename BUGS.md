@@ -435,6 +435,7 @@ when the defect comes back.
 | B-387 | The project's PostToolUse formatter rewrote a `.py` a reader wrote under an untracked `.review/` directory: a hook that formats outside the tracked tree edits instruments it was never asked to | by L21's round-three reader | `open` |
 | B-393 | A resolution candidate is chosen by a full-width « C'est celui-ci » pill while the card itself answers no tap: the act takes more room than the medium it chooses, and the card a finger aims at does nothing | by the operator, 2026-09-11 | `open` |
 | B-394 | The harness's two floating buttons (the design note ⓘ and the states list ≡) are painted OVER a message shown at the top of the frame, so the sentence answering a verb pressed inside a layer is covered by chrome that is in no production build | by the operator, 2026-09-11 | `open` |
+| B-395 | The library's selection bar stays drawn on every other tab: `app/bottom-slot.tsx` renders it unconditionally and its own condition reads `selMode` alone, so « N sélectionnés · Annuler · Supprimer » sits over Acquisition — and the tab bar, hidden by that same `selMode`, leaves no way back | by the operator, 2026-09-11 | `open` |
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
@@ -846,6 +847,29 @@ round three, 2026-09-11). An instrument rewritten by a hook is an instrument its
 **Closes when** the hook skips git-ignored and untracked paths, held by a test that writes a file under
 an ignored directory and reads it unchanged after the hook. Owner: the configuration's session, not a
 lot.
+
+**B-395 — the library's selection bar follows the operator off its own page.**
+
+The operator photographed it on Acquisition › Suivis: the bottom bar still said « N sélectionnés »
+with « Annuler » and « Supprimer », over a page that holds no selection and offers no deletion.
+Measured on this head: `app/frame.tsx` draws `<BottomSlot />`, `app/bottom-slot.tsx` draws
+`<SelectionBar />` with no condition at all, and the bar's own condition is `state.selMode === true`
+— the page is named nowhere in it. So the bar draws wherever the operator goes.
+
+**And the way back is gone with it.** `app/tab-bar.tsx` hides the tab bar while `selMode` is true
+(`tabBar`'s `selecting` variant), which is right on the library — the selection bar takes the bar's
+place — and wrong everywhere else: off the library the operator has neither the tab bar nor a bar
+that belongs to the page he is on. The drawer is what is left, which is how a finger can change page
+at all in selection mode (`a[data-navgo]`).
+
+**Ruled by the operator, 2026-09-11**: the selection SURVIVES a tab change. The bar hides off the
+Médiathèque and comes back, with the same selection, when the tab is back — so nothing is cleared by
+navigating, and « Annuler » on return is what clears it.
+
+**Closes when** the bar is drawn only while the Médiathèque is the page, the selection and its titles
+survive the round trip, the tab bar is drawn on the other tab, and « Annuler » on return empties the
+selection — held by R164 (`selection_survives_the_tab.py`), seen red on the head that draws the bar
+everywhere. Owner: maquette-resolution-card.
 
 **B-394 — the harness's floating buttons are painted over the message.**
 
