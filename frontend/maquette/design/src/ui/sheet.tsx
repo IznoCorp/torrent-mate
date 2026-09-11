@@ -70,18 +70,29 @@ export function Sheet({
   // A panel opens at its TOP. The legacy layer got that for free — replacing
   // `#sheetin`'s innerHTML reset its scroll — and the persistent node does
   // not: a long panel left scrolled down would hand its offset to the next
-  // one, which then opens in its own middle. Keyed on the DESCRIPTOR's
-  // identity, so it fires once per open (a new descriptor object) and not on
-  // the unrelated store writes that re-render this layer. Before the paint,
-  // not after, so the offset is never briefly visible.
+  // one, which then opens in its own middle. Before the paint, not after, so
+  // the offset is never briefly visible.
+  //
+  // AND A PANEL DRAWN AGAIN IS NOT A PANEL OPENED. A verb pressed inside a
+  // panel redraws it from the cache, which hands this layer a NEW descriptor
+  // for the SAME panel — and keyed on the descriptor object, the reset threw
+  // the reader back to the top with the pressed act out from under the finger
+  // (698 px → 0, the act from y 764 to y 1462). So it is keyed on what makes a
+  // different panel: the layer opening, or another panel taking this one's
+  // place — its address, or its title for a panel that has none. The offset
+  // is KEPT, never restored: nothing is measured and written back.
+  const panelIdentity = descriptor
+    ? (descriptor.address ?? descriptor.title)
+    : null;
   useLayoutEffect(() => {
+    if (!open) return;
     if (innerRef.current) innerRef.current.scrollTop = 0;
     // AND THE FLAG WITH IT. The offset is reset here, so a panel opened after
     // a scrolled one would otherwise start with `atTop` false and its first
     // gesture would scroll instead of dismissing — the sheet would open unable
     // to be closed by the gesture that just closed the previous one.
     setAtTop(true);
-  }, [descriptor]);
+  }, [open, panelIdentity]);
 
   // The drag writes the DOM directly, through the ref, exactly as the legacy
   // handler did — and deliberately NOT through the store. `dragging` has to

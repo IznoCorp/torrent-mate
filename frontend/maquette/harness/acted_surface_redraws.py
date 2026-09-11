@@ -108,6 +108,161 @@ PRESS_JOURNEY_VERB = """()=>{
   return {found: true, pressed: true};}"""
 
 
+# WHERE A READER IS IN THE OPEN PANEL, and what a finger at the last season
+# act's centre would meet. The LAST act, because it is the one a reader has to
+# scroll to — the first one of a long panel is often in view at the top, where
+# no place can be lost.
+PLACE = """()=>{
+  const port = document.querySelector('#sheetin');
+  const acts = port
+    ? [...port.querySelectorAll('[data-part="season/grab"]')] : [];
+  const act = acts[acts.length - 1];
+  if (!port || !act) return null;
+  const portBox = port.getBoundingClientRect();
+  const box = act.getBoundingClientRect();
+  const x = box.left + box.width / 2;
+  const y = box.top + box.height / 2;
+  const hit = document.elementFromPoint(x, y);
+  return {scrollTop: port.scrollTop,
+          room: port.scrollHeight - port.clientHeight,
+          offset: box.top - portBox.top + port.scrollTop,
+          portHeight: port.clientHeight,
+          left: portBox.left, top: portBox.top,
+          inView: box.top >= portBox.top && box.bottom <= portBox.bottom,
+          x, y, reached: !!hit && (hit === act || act.contains(hit)),
+          meets: String(hit && (hit.textContent || '').trim().slice(0, 40)
+                        || '')};}"""
+
+# THE LEAST A PANEL MUST SCROLL to have a place worth keeping, in pixels.
+SCROLL_ROOM = 80
+
+# WHAT A DRAG TRAVELS BEFORE THE BROWSER CALLS IT A SCROLL, in pixels.
+TOUCH_SLOP = 16
+
+
+async def scroll_by_finger(page, start, distance):
+    """Scrolls the panel with a real touch stream, the way a reader moves it.
+
+    Never `scrollTop =`: a written offset is not what a finger does, and the
+    defect this holds was measured after a finger's scroll. The finger is held
+    still before it lifts, so no fling carries the offset on past the reading.
+
+    Args:
+        page: The page under test.
+        start: Where the finger lands, as an (x, y) pair.
+        distance: How far the content travels upward, in pixels.
+    """
+    session = await page.context.new_cdp_session(page)
+    x, y = start
+    await session.send("Input.dispatchTouchEvent", {
+        "type": "touchStart", "touchPoints": [{"x": x, "y": y, "id": 1}]})
+    steps = 12
+    for step in range(1, steps + 1):
+        await session.send("Input.dispatchTouchEvent", {
+            "type": "touchMove",
+            "touchPoints": [{"x": x, "y": y - distance * step / steps, "id": 1}]})
+        await page.wait_for_timeout(24)
+    await page.wait_for_timeout(160)
+    await session.send("Input.dispatchTouchEvent",
+                       {"type": "touchEnd", "touchPoints": []})
+    await session.detach()
+
+
+async def hold_the_place(page, journal):
+    """Holds that the redraw a verb causes keeps the reader's place in the panel.
+
+    THE DEFECT, measured by a finger: Silo's follow panel scrolled 171 px, the
+    season act pressed, and 100 ms later the panel was back at 0 with the act
+    171 px lower; on a panel longer than the screen the act left the view
+    entirely (698 → 0, the button from y 764 to y 1462). The redraw is the
+    same panel produced again, and a panel produced again is not a panel
+    opened: the reset belongs to an open.
+
+    The press is a FINGER at the act's centre, after a hit test says nothing
+    covers that point — never `element.click()`, which presses a button a
+    finger could not reach and would measure a place nobody was standing at.
+
+    Args:
+        page: The page under test.
+        journal: Where the holds are recorded.
+    """
+    await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
+    await page.wait_for_timeout(SETTLED)
+    followed = await page.evaluate(
+        """()=>(window.__followActions?.all?.() || []).map((one) => one.t)""")
+    subject = ""
+    place = None
+    for title in followed:
+        await page.evaluate("(t)=>window.__panel.produce('follow', t)", title)
+        await page.wait_for_timeout(PANEL_IN)
+        place = await page.evaluate(PLACE)
+        if place and place["room"] >= SCROLL_ROOM:
+            subject = title
+            break
+        await page.evaluate("()=>window.__panel.close()")
+        await page.wait_for_timeout(PANEL_IN)
+    journal.check(
+        "a followed medium's panel offers a season act and is taller than the "
+        "sheet — the only kind of panel whose place a redraw can lose",
+        bool(subject),
+        subject or f"none of {len(followed)} follow panels scrolls "
+                   f"{SCROLL_ROOM} px and offers an act")
+    if not subject:
+        return
+
+    # SCROLLED SO THE ACT STAYS IN VIEW, near the middle of the port: the offset
+    # must be non-zero for the hold to mean anything, and the act must still be
+    # under a finger once it is.
+    # The browser's touch slop swallows the first pixels of a drag before it
+    # becomes a scroll, so the finger travels that much further than the offset
+    # it is meant to leave.
+    wanted = min(place["room"],
+                 max(SCROLL_ROOM / 2, place["offset"] - place["portHeight"] / 2))
+    await scroll_by_finger(
+        page,
+        (place["left"] + 14, place["top"] + place["portHeight"] * 0.8),
+        wanted - place["scrollTop"] + TOUCH_SLOP)
+    await page.wait_for_timeout(PANEL_IN)
+    scrolled = await page.evaluate(PLACE)
+    journal.check(
+        f"a real touch stream scrolled {subject!r}'s panel, and its last season "
+        "act is in view with nothing covering its centre",
+        scrolled is not None and scrolled["scrollTop"] > 0
+        and scrolled["inView"] and scrolled["reached"],
+        str({key: (scrolled or {}).get(key)
+             for key in ("scrollTop", "inView", "reached", "meets")}))
+    if not (scrolled and scrolled["scrollTop"] > 0 and scrolled["reached"]):
+        return
+
+    before = await page.evaluate(ON_SCREEN)
+    asked_before = await page.evaluate(ANSWERED, "grabSeasonForFollow")
+    await page.touchscreen.tap(scrolled["x"], scrolled["y"])
+    await page.wait_for_timeout(ACTED)
+    asked = await page.evaluate(ANSWERED, "grabSeasonForFollow")
+    journal.check(
+        "a finger's tap at the act's centre was taken — one ask",
+        asked - asked_before == 1, f"{asked - asked_before} ask(s)")
+
+    after = await page.evaluate(ON_SCREEN)
+    journal.check(
+        "the panel was redrawn by the act — without it the place below would "
+        "be kept by a panel that never moved",
+        before is not None and after is not None
+        and (before["text"] != after["text"]
+             or before["queued"] != after["queued"]),
+        f"texts {'differ' if before and after and before['text'] != after['text'] else 'AGREE'}")
+
+    kept = await page.evaluate(PLACE)
+    journal.check(
+        "the redraw KEPT THE READER'S PLACE — the panel's scroll offset is "
+        "where the finger left it, not thrown back to the top with the act "
+        "out from under the finger",
+        kept is not None and abs(kept["scrollTop"] - scrolled["scrollTop"]) <= 1,
+        f"scrollTop {scrolled['scrollTop']} → {(kept or {}).get('scrollTop')}")
+    await page.evaluate("()=>window.__panel.close()")
+    await page.wait_for_timeout(PANEL_IN)
+
+
 async def agrees_with_the_cache(page, journal, produce, half):
     """Holds that what is on screen is what a fresh produce would draw.
 
@@ -266,6 +421,8 @@ async def main():
                 page, journal,
                 f"()=>window.__panel.produce('follow', {holed!r})",
                 "the season panel")
+
+        await hold_the_place(page, journal)
 
         await context.close()
         await browser.close()
