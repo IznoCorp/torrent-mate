@@ -246,9 +246,11 @@ html.measuring .note {
    nothing must be in the layout, in the focus order or under a finger on the
    operator's own phone.
 
-   NOT ONE LINE OF SCRIPT. The state is the checkbox's, read by `:has()`, so the
+   NO SCRIPT OF THE APP'S. The state is the checkbox's, read by `:has()`, so the
    engine and the shell never learn this control exists — which is the point:
-   one is dying by subtraction and the other may only lose lines. */
+   one is dying by subtraction and the other may only lose lines. The one script
+   that touches it is the harness's own, inline beside it in `index.html`, and
+   all it does is keep the checkbox across a reload. */
 .desktop-switch {
   display: none;
 }

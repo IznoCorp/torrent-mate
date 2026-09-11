@@ -112,11 +112,13 @@
        below that the device already fills the window, so there is nothing to
        leave and the control is not in the layout at all.
 
-       IT IS WIRED BY THE STYLESHEET AND BY NOTHING ELSE. A checkbox and its
-       label, read by `:root:has(#desktop-switch:checked)`, which is why neither
-       the engine nor the shell ever learns this control exists: no handler, no
-       import, no line in a module that may only lose lines. The state lives in
-       the checkbox, where the browser already keeps it.
+       IT IS DRAWN BY THE STYLESHEET, AND ONLY REMEMBERED BY A SCRIPT. A
+       checkbox and its label, read by `:root:has(#desktop-switch:checked)`,
+       which is why neither the engine nor the shell ever learns this control
+       exists: no handler in either, no import, no line in a module that may
+       only lose lines. The state lives in the checkbox; the one script that
+       touches it is the harness's own, right below, and all it does is keep
+       the checkbox across a reload.
 
        TWO WORDS, ONE CONTROL. The label carries both, and the stylesheet shows
        the one that names what the next press will do — so the accessible name
@@ -133,6 +135,39 @@
       <span class="desktop-switch__enter">Revenir au cadre</span>
     </label>
   </div>
+  <script>
+    // THE CHOICE IS REMEMBERED. A reload used to put the operator back inside
+    // the phone every time he had left it; the choice is a preference now,
+    // kept in `localStorage` the way the appearance is, and restored HERE —
+    // inline, right after the control, so the box is already checked when the
+    // document is parsed and before any module runs. The key is the harness's:
+    // no module of the app reads it, and it goes when the frame goes.
+    //
+    // AND ONLY WHERE THE CONTROL IS DRAWN. Where the frame is not drawn the
+    // control is `display: none` and there is nothing to leave — but a checked
+    // box would still take `overflow: clip` off the device, which the frame
+    // declares outside any breakpoint. So a narrow window neither applies the
+    // choice nor forgets it. Whether the control is drawn is asked of the
+    // stylesheet, never typed a second time here: the build links it in the
+    // head, and a script waits for a pending stylesheet before it runs.
+    (function () {
+      var key = "tm-desktop-switch";
+      var control = document.getElementById("desktop-switch");
+      try {
+        if (
+          localStorage.getItem(key) === "out-of-the-frame" &&
+          getComputedStyle(control.parentElement).display !== "none"
+        )
+          control.checked = true;
+      } catch (error) {}
+      control.addEventListener("change", function () {
+        try {
+          if (control.checked) localStorage.setItem(key, "out-of-the-frame");
+          else localStorage.removeItem(key);
+        } catch (error) {}
+      });
+    })();
+  </script>
   <div class="device" id="device" data-part="shell/device">
     <!-- login:splash:start -->
     <!-- The startup screen, and it is FIRST on purpose.
