@@ -3896,6 +3896,33 @@ debts block for the next wave that touches those rules.
 
 <sub>`TM_HARNESS_JOBS=3 sh scripts/heavy.sh <who> sh passes.sh` — each target rule three times with `virtual.py` and `persistence.py` started 3 s before it; the nine logs read `N rules EXECUTED — no violation` and exit 0</sub>
 
+**A FIFTH INSTRUMENT, 2026-09-12 at `88b5e2f84`, by the tooling micro-wave — and this one PRINTS what
+its diagnosis needs.** `virtual.py` fell in the full suite and the fall carries its own reading:
+
+    FAIL a reader three hundred pixels down keeps their row through the mode and back
+         — the first row is a place like any other
+         — top row "On l'appelait Robin des Bois" at 300px, "On l'appelait Robin des Bois"
+           at 0px after — the port moved 300px, and a row measures 134px
+
+So the ROW is the same on both sides and the PORT is not: the reader was put back at the container's
+start instead of 300 pixels down, which is the exact distinction the hold's own comment says a title
+comparison cannot make. The hold waits 500 ms after the scroll, 600 ms after entering selection mode
+and 700 ms after leaving it; under the suite's load those three waits are what gives way, and the
+restoration lands before the port has been written. **The load, from the wrapper's own line**:
+`heavy: tooling-hygiene starts (4547MB free, load 5.73)`, `TM_HARNESS_JOBS=2`, 119 rules, two at a
+time, beside two other waves on the machine.
+
+**Replayed ALONE immediately afterwards, same head, same served copy: `36 rules EXECUTED — no
+violation`, exit 0.** Said in the same breath, as B-277 requires: running it alone removed the load
+the failure needed, so that green says nothing about the rule's soundness — only that the fall did
+not survive isolation. **And the suite was NOT re-run whole**, by the steward's ruling of the same
+day: a re-run that comes back green has removed the condition and proves nothing about the fall,
+while costing twenty minutes of a mutex two waves were queued on. The record is what is kept instead.
+
+The wave that met it touches no surface — `git diff --stat origin/main -- frontend/maquette/design/src
+| wc -l` → 0 — and that is recorded as a fact rather than offered as an alibi: what this entry needs
+is the reading, and for the first time in five instances it has one.
+
 **B-293 — 38 `Design:` markers point at paths that left the tree, and nothing says so.**
 `grep -rhoE 'Design: docs/[^#[:space:]]+' --include='*.py' tests | sort | uniq -c` shows 16 for
 « docs/features/api-unify/DESIGN.md », 13 for `torrent-fetch`, 5 for `watch-seed`, 2 for
