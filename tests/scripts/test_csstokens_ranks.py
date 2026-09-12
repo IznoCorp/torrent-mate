@@ -33,15 +33,13 @@ arm = load()
 LIST = """/* ── THE RANKED LIST, AND IT IS ONE LIST ──────────
 
      30  the action button          `addAction` (ui/variants/frame.ts)
-     50  the tab bar                `tabBar` (ui/variants/frame.ts)
-     53  the harness's buttons      `.hbtn` (styles/harness.css)
      40  the shell's top bar        `.topbar` (index.html)
-
-   And what is not a frame rank:
-
-     30  the view tabs, sticky      `viewTabs` (ui/variants/controls.ts)
+     50  the tab bar `tabBar` (ui/variants/frame.ts) · the harness's buttons `.hbtn` (styles/harness.css)
 */
 """
+
+# The stacking details a tree of this size has: none, unless a case says so.
+NO_EXEMPTION: dict[tuple[str, int], str] = {}
 
 
 def tree(root: Path, css: str = "", variants: str = "", markup: str = "",
@@ -72,22 +70,28 @@ class TestWhatTheListRecords:
     """The parse, because everything else rests on it."""
 
     def test_every_entry_is_read_with_its_file(self, tmp_path: Path) -> None:
-        """Four frame ranks and one local detail, each with its file."""
+        """Four sites over three lines, each with its file.
+
+        SEVERAL SITES PER LINE is the shape the list is written in — four things
+        share rank 60 — and a reader that took one entry per line saw the first
+        of each line and silently lost the rest.
+        """
         entries, findings = arm.recorded(tree(tmp_path)[0])
 
         assert findings == []
         assert entries[("addAction", 30)] == "ui/variants/frame.ts"
-        assert entries[(".hbtn", 53)] == "styles/harness.css"
-        assert entries[("viewTabs", 30)] == "ui/variants/controls.ts"
-        assert len(entries) == 5
+        assert entries[(".topbar", 40)] == "index.html"
+        assert entries[("tabBar", 50)] == "ui/variants/frame.ts"
+        assert entries[(".hbtn", 50)] == "styles/harness.css"
+        assert len(entries) == 4
 
     def test_one_site_recorded_at_two_ranks_is_a_finding(self, tmp_path: Path) -> None:
         """A list that says two things about one site records neither."""
-        entry = "     50  the tab bar                `tabBar` (ui/variants/frame.ts)"
-        twice = LIST.replace(entry, entry.replace("50", "51", 1) + "\n" + entry)
+        entry = "     30  the action button          `addAction` (ui/variants/frame.ts)"
+        twice = LIST.replace(entry, entry.replace("30", "31", 1) + "\n" + entry)
         _, findings = arm.recorded(tree(tmp_path, ranked=twice)[0])
 
-        assert any("recorded at 51 and at 50" in one for one in findings)
+        assert any("recorded at 31 and at 30" in one for one in findings)
 
 
 class TestWhatTheSourcesDeclare:
@@ -125,15 +129,31 @@ class TestWhatItRefuses:
         """The baseline, so a tightening cannot quietly refuse a true list."""
         ranked, design = tree(
             tmp_path,
-            css=".hbtn {\n  z-index: 53;\n}\n",
+            css=".hbtn {\n  z-index: 50;\n}\n",
             variants='export const tabBar = cva("bottombar z-50");\n',
             markup='<header class="topbar z-40"></header>\n',
             ranked=LIST.replace("     30  the action button          `addAction`"
-                                " (ui/variants/frame.ts)\n", "")
-                       .replace("     30  the view tabs, sticky      `viewTabs`"
-                                " (ui/variants/controls.ts)\n", ""))
+                                " (ui/variants/frame.ts)\n", ""))
 
-        assert arm.ranks_arm(ranked, design) == 0
+        assert arm.ranks_arm(ranked, design, NO_EXEMPTION) == 0
+
+    def test_a_stacking_detail_the_arm_exempts_is_not_refused(self, tmp_path: Path) -> None:
+        """The exemption's whole purpose, and it is not a blanket."""
+        ranked, design = tree(tmp_path, css=".st .d {\n  z-index: 1;\n}\n",
+                              ranked="/* ── THE RANKED LIST ──\n\n     30  x `y` (z)\n*/\n")
+
+        assert arm.disagreements({}, [(".st .d", 1, "styles/legacy.css:2")],
+                                 {(".st .d", 1): "a dot on its own connector"}) == []
+        assert arm.disagreements({}, [(".st .d", 9, "styles/legacy.css:2")],
+                                 {(".st .d", 1): "a dot on its own connector"}) != []
+
+    def test_a_site_both_ranked_and_exempt_is_refused(self, tmp_path: Path) -> None:
+        """One or the other: two records of one site is how they drift apart."""
+        findings = arm.disagreements({("viewTabs", 30): "ui/variants/controls.ts"},
+                                     [("viewTabs", 30, "ui/variants/controls.ts:1")],
+                                     {("viewTabs", 30): "sticky over its own body"})
+
+        assert any("BOTH a frame rank" in one for one in findings)
 
     def test_a_rank_declared_and_not_recorded_is_refused(self, tmp_path: Path) -> None:
         """The finding the whole arm exists for: a rank nobody wrote down.
@@ -145,21 +165,22 @@ class TestWhatItRefuses:
         entries = {(".newthing", 99): "somewhere"}
         sites = [(".newthing", 58, "styles/harness.css:2")]
 
-        findings = arm.disagreements(entries, sites)
+        findings = arm.disagreements(entries, sites, NO_EXEMPTION)
 
         assert len(findings) == 2
         assert "declares 58, the ranked list records 99" in findings[0]
 
     def test_a_rank_nobody_recorded_at_all_is_refused(self, tmp_path: Path) -> None:
         """A site the list has never heard of, so only one half can speak."""
-        findings = arm.disagreements({}, [(".newthing", 58, "styles/harness.css:2")])
+        findings = arm.disagreements({}, [(".newthing", 58, "styles/harness.css:2")],
+                                     NO_EXEMPTION)
 
         assert len(findings) == 1
         assert "declares 58 and the ranked list does not name it" in findings[0]
 
     def test_a_recorded_rank_nothing_declares_is_refused(self, tmp_path: Path) -> None:
         """The direction that rots silently: the sources moved, the list did not."""
-        findings = arm.disagreements({(".hbtn", 53): "styles/harness.css"}, [])
+        findings = arm.disagreements({(".hbtn", 53): "styles/harness.css"}, [], NO_EXEMPTION)
 
         assert len(findings) == 1
         assert "outlived its subject" in findings[0]
@@ -168,10 +189,10 @@ class TestWhatItRefuses:
         """And the arm still refuses end to end, over files rather than tuples."""
         ranked, design = tree(tmp_path, css=".newthing {\n  z-index: 58;\n}\n")
 
-        assert arm.ranks_arm(ranked, design) == 1
+        assert arm.ranks_arm(ranked, design, NO_EXEMPTION) == 1
 
     def test_a_list_that_records_nothing_is_refused(self, tmp_path: Path) -> None:
         """A parse that reads zero entries would otherwise report « all clear »."""
         ranked, design = tree(tmp_path, ranked="/* the shape moved */\n")
 
-        assert arm.ranks_arm(ranked, design) == 1
+        assert arm.ranks_arm(ranked, design, NO_EXEMPTION) == 1

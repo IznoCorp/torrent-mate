@@ -23,56 +23,27 @@ import { cva } from "../cva";
    with a pointer back to this list — Tailwind cannot read a constant into a
    class name, so the list is the record and the variants are the spelling.
 
-     30  the action button          `addAction` (ui/variants/frame.ts)
-     40  the shell's top bar        `.topbar` (index.html)
-     40  the settings save bar      `saveBar` (features/settings/variants.ts)
-     45  a screen                   `screen` (ui/variants/layout.ts)
-     46  the scrim                  `sheetScrim` (ui/variants/layout.ts)
-     50  the tab bar                `tabBar` (ui/variants/frame.ts)
-     51  the bottom slot's bar      `selectionBar` (ui/variants/frame.ts)
-     52  the bottom sheet           `bottomSheet` (ui/variants/layout.ts)
-     53  the harness's buttons      `.hbtn` (styles/harness.css)
-     55  the drawer                 `drawer` (ui/variants/frame.ts)
-     55  the install proposal       `.installbar` (index.html)
-     56  the confirmation           `dialog` (ui/variants/frame.ts)
-     57  the message                `messageHost` (ui/variants/frame.ts)
-     60  the popover                `popover` (ui/variants/frame.ts)
-     60  the skip link              `.skip-link` (styles/base.css)
-     60  the harness's opened panel `.hpanel` (styles/legacy.css)
-     60  the sign-in gate           `.loginscreen` (styles/legacy.css)
-     70  the splash                 `.splash` (styles/legacy.css)
-     70  the harness's desktop switch `.desktop-switch` (styles/harness.css)
+     30  the action button        `addAction` (ui/variants/frame.ts)
+     40  the shell's top bar `.topbar` (index.html) · the settings save bar `saveBar` (features/settings/variants.ts)
+     45  a screen                `screen` (ui/variants/layout.ts)
+     46  the scrim               `sheetScrim` (ui/variants/layout.ts)
+     50  the tab bar             `tabBar` (ui/variants/frame.ts)
+     51  the bottom slot's bar   `selectionBar` (ui/variants/frame.ts)
+     52  the bottom sheet        `bottomSheet` (ui/variants/layout.ts)
+     53  the harness's buttons   `.hbtn` (styles/harness.css)
+     55  the drawer `drawer` (ui/variants/frame.ts) · the install proposal `.installbar` (index.html)
+     56  the confirmation        `dialog` (ui/variants/frame.ts)
+     57  the message             `messageHost` (ui/variants/frame.ts)
+     60  the popover `popover` (ui/variants/frame.ts) · the skip link `.skip-link` (styles/base.css) · the harness's opened panel `.hpanel` (styles/legacy.css) · the sign-in gate `.loginscreen` (styles/legacy.css)
+     70  the splash `.splash` (styles/legacy.css) · the harness's desktop switch `.desktop-switch` (styles/harness.css)
 
-   TWO OF THOSE LIVE IN `index.html`, and that is where the shell's markup is:
-   the engine captures its containers before React renders anything, so the
-   frame's own header and the install proposal are written there. Neither had
-   ever been in this list, and neither was in the finding that asked for it —
-   they were found by the arm below on its first run over the markup, which is
-   the argument for the arm in one line.
-
-   EVERY ENTRY NAMES ITS FILE, and that is what makes the list readable by
-   something other than a person: `scripts/csstokens_ranks.py` parses these
-   lines, reads every `z-index` in the maquette's stylesheets and every `z-`
-   utility in its sources, and refuses a declaration this list does not name at
-   that number — and an entry this list names that nothing declares any more.
-   The claim « every rank the frame paints is named here once » was false for
-   four ranks a finger meets while the sentence sat above them, which is what
-   an unarmed claim becomes.
-
-   AND WHAT IS NOT A FRAME RANK IS NAMED TOO, because the arm has to tell them
-   apart and because « it is only local » is exactly the sentence a real rank
-   hides behind. Each of these compares with its own siblings inside one box and
-   with nothing the frame paints:
-
-     1   the stepper's dot          `.st .d` (styles/legacy.css)
-     1   the sheet's drag band      `sheetDragBand` (ui/variants/layout.ts)
-     10  the tab bar's crossing     `::view-transition-group(shell-tab-bar)` (styles/base.css)
-     20  the leaving panel's        `::view-transition-group(leaving-panel)` (styles/base.css)
-     30  the view tabs, sticky      `viewTabs` (ui/variants/controls.ts)
-
-   The two at 10 and 20 are not even in the frame's stacking space: they order
-   the GROUPS of a view transition, which is a space of its own that exists for
-   the length of a crossing.
+   EVERY ENTRY NAMES ITS FILE, which is what makes the claim above readable by something other than a
+   person: `scripts/csstokens_ranks.py` parses these lines against every `z-index` and `z-` utility the
+   maquette declares — stylesheets, sources, the shell's markup — and refuses BOTH a rank this list does
+   not name and a rank it names that nothing declares any more. The claim was false for six ranks a
+   finger meets, two of them (`.topbar`, `.installbar`) in `index.html` and in no finding at all: the arm
+   found those on its first run. A stacking detail local to one box is not a frame rank; it is named in
+   that arm's own table, with its reason.
 
    THE MESSAGE IS THE ANSWER TO A VERB, so it ranks above every layer a verb is
    pressed from: a screen, the bottom slot's bar, the bottom sheet, the drawer
@@ -86,15 +57,12 @@ import { cva } from "../cva";
    of the background it marks `inert`, for the same reason: a message a finger
    cannot close is a control that does nothing.
 
-   THE HARNESS HAS TWO ENTRIES, and it used to have one. This list said « the
-   harness panel » at 60 and did not distinguish the two floating buttons from
-   the panel they open — while `styles/harness.css` declared the buttons at 70,
-   the splash's rank. So a message drawn along the top of the frame, which is
-   exactly where those buttons sit, was painted UNDER chrome that is in no
-   production build (B-394). The buttons are 53 now: above the surfaces a verb
-   is pressed from, under the drawer, the confirmation and the message. The
-   opened panel stays 60, because it is the instrument the prototype is driven
-   with and a message over it would hide the control one is reaching for.
+   THE HARNESS HAS TWO ENTRIES, and it used to have one — « the harness panel » at 60, while
+   `styles/harness.css` declared the buttons at 70, the splash's rank. So a message drawn along the top
+   of the frame, exactly where those buttons sit, was painted UNDER chrome that is in no production
+   build (B-394). The buttons are 53: above the surfaces a verb is pressed from, under the drawer, the
+   confirmation and the message. The opened panel stays 60, because it is the instrument the prototype
+   is driven with and a message over it would hide the control one is reaching for.
 
    AND THE MESSAGE HAS TWO POSITIONS FOR ITS ONE RANK. A rank decides what is
    painted where two layers meet; it cannot keep them from meeting. The sheet

@@ -42,9 +42,12 @@ more is a record that outlived its subject. The second half is the one that
 would otherwise rot silently — and it is the half that catches a rank MOVED
 rather than added.
 
-WHAT IS NOT A FRAME RANK is named in the same list, under its own heading, and
-read the same way: a stacking detail local to one box is still a number someone
-chose, and « it is only local » is the sentence a real rank would hide behind.
+WHAT IS NOT A FRAME RANK is named in `LOCAL_DETAILS` below, each with the reason
+it is not: a stacking detail local to one box is still a number someone chose,
+and « it is only local » is the sentence a real rank would hide behind. It lives
+here rather than in the frame's list because that list's claim is about what the
+FRAME paints — and because `ui/variants/frame.ts` is 400 non-blank lines from
+its own ceiling, which is a real constraint and not a preference.
 """
 import pathlib
 import re
@@ -62,10 +65,29 @@ SHELL_MARKUP = ("index.html", "refonte.html")
 # proposal's rank, which is on the attribute's second line.
 CLASS_ATTRIBUTE = re.compile(r'class="([^"]*)"', re.DOTALL)
 
-# ONE ENTRY OF THE RANKED LIST: the rank, what it is, its site in backticks, and
-# the file that declares it. The site is a variant's exported name or a CSS
-# selector; the two are told apart by the leading `.` or `:` of a selector.
-ENTRY = re.compile(r"^\s{5}(\d+)\s+\S.*?\s+`([^`]+)`\s+\(([^)]+)\)\s*$")
+# ONE LINE OF THE RANKED LIST: the rank at its head, then one or more sites, each
+# in backticks with the file that declares it. SEVERAL PER LINE, because four
+# things share rank 60 and the list is written one line per RANK — a reader
+# comparing two layers looks up a number, not a name, and `ui/variants/frame.ts`
+# is 400 non-blank lines from its own ceiling with no room for a line each.
+LINE = re.compile(r"^\s{5}(\d+)\s+\S")
+SITE = re.compile(r"`([^`]+)`\s+\(([^)]+)\)")
+
+# WHAT IS NOT A FRAME RANK, and why each one is not. A stacking detail compares
+# with its own siblings inside one box and with nothing the frame paints, so the
+# frame's list would be lying if it carried them — but « it is only local » is
+# exactly the sentence a real rank would hide behind, so they are written down
+# here, where the arm reads them, rather than left to be recognised.
+LOCAL_DETAILS = {
+    (".st .d", 1): "a dot on the stepper's own connector line",
+    ("sheetDragBand", 1): "the sheet's drag band over the sheet's own head",
+    ("::view-transition-group(shell-tab-bar)", 10):
+        "the ORDER OF TRANSITION GROUPS, a stacking space of its own that exists "
+        "for the length of a crossing",
+    ("::view-transition-group(leaving-panel)", 20):
+        "the same crossing's other group, ranked above the bar's",
+    ("viewTabs", 30): "tabs sticky over the body they scroll with",
+}
 
 # A `z-index` declaration, and the opening of a block, so the selector that
 # carries one can be found by walking back to the nearest block that opened.
@@ -138,14 +160,16 @@ def recorded(list_file: pathlib.Path | None = None) -> tuple[dict[tuple[str, int
     entries: dict[tuple[str, int], str] = {}
     seen: dict[str, int] = {}
     for line in list_file.read_text(encoding="utf-8").split("\n"):
-        found = ENTRY.match(line)
-        if not found:
+        head = LINE.match(line)
+        if not head:
             continue
-        rank, site, where = int(found.group(1)), found.group(2), found.group(3)
-        if site in seen and seen[site] != rank:
-            findings.append(f"`{site}` is recorded at {seen[site]} and at {rank}.")
-        seen[site] = rank
-        entries[(site, rank)] = where
+        rank = int(head.group(1))
+        for site, where in SITE.findall(line):
+            if site in seen and seen[site] != rank:
+                findings.append(f"`{site}` is recorded at {seen[site]} and at {rank}.")
+            seen[site] = rank
+            entries[(site, rank)] = where
+
     if not entries:
         findings.append(f"{list_file.name} records no rank — the list's shape has moved.")
     return entries, findings
@@ -225,7 +249,8 @@ def declared(design: pathlib.Path | None = None) -> list[tuple[str, int, str]]:
 
 
 def disagreements(entries: dict[tuple[str, int], str],
-                  sites: list[tuple[str, int, str]]) -> list[str]:
+                  sites: list[tuple[str, int, str]],
+                  exempt: dict[tuple[str, int], str] | None = None) -> list[str]:
     """Where the record and the sources do not say the same thing.
 
     A FUNCTION OF ITS OWN, and it was not: both halves lived inside the arm,
@@ -238,14 +263,24 @@ def disagreements(entries: dict[tuple[str, int], str],
     Args:
         entries: The ranked list, as `(site, rank) -> file`.
         sites: What the sources declare, as `(site, rank, where)`.
+        exempt: The stacking details that are not frame ranks, as
+            `(site, rank) -> reason`; `LOCAL_DETAILS` by default, and an empty
+            table for a caller reading a tree of its own.
 
     Returns:
         One finding per disagreement, in reading order.
     """
+    exempt = LOCAL_DETAILS if exempt is None else exempt
     findings: list[str] = []
+    for (site, rank) in exempt:
+        if (site, rank) in entries:
+            findings.append(
+                f"`{site}` at {rank} is BOTH a frame rank in the list and a local stacking "
+                "detail in the arm's own table. It is one or the other.")
+    known = {**exempt, **entries}
     for site, rank, where in sites:
-        if (site, rank) not in entries:
-            recorded_rank = next((other for name, other in entries if name == site), None)
+        if (site, rank) not in known:
+            recorded_rank = next((other for name, other in known if name == site), None)
             if recorded_rank is None:
                 findings.append(
                     f"{where} — `{site}` declares {rank} and the ranked list does not "
@@ -257,31 +292,34 @@ def disagreements(entries: dict[tuple[str, int], str],
                     f"{where} — `{site}` declares {rank}, the ranked list records "
                     f"{recorded_rank}. A rank moves in the list and in the source in "
                     "one step, or the record is the previous version.")
-    for (site, rank), where in sorted(entries.items()):
+    for (site, rank), where in sorted(known.items()):
         if not any(name == site and other == rank for name, other, _ in sites):
             findings.append(
-                f"the ranked list records `{site}` at {rank} in {where}, and nothing "
-                "declares it there any more — a record that outlived its subject is "
-                "read as current by the next session.")
+                f"`{site}` is recorded at {rank} ({where}) and nothing declares it "
+                "there any more — a record that outlived its subject is read as "
+                "current by the next session.")
     return findings
 
 
 def ranks_arm(list_file: pathlib.Path | None = None,
-              design: pathlib.Path | None = None) -> int:
+              design: pathlib.Path | None = None,
+              exempt: dict[tuple[str, int], str] | None = None) -> int:
     """Holds the frame's ranked list to what the maquette declares.
 
     Args:
         list_file: The file the list is read from; the frame's variants by
             default.
         design: The sources' root; the maquette's `src` by default.
+        exempt: The stacking details that are not frame ranks; `LOCAL_DETAILS`
+            by default.
 
     Returns:
-        1 when a rank is declared that the list does not name, or named that
-        nothing declares; 0 otherwise.
+        1 when a rank is declared that neither the list nor the exemptions name,
+        or named that nothing declares; 0 otherwise.
     """
     entries, findings = recorded(list_file)
     sites = declared(design)
-    findings = findings + disagreements(entries, sites)
+    findings = findings + disagreements(entries, sites, exempt)
     for finding in findings:
         print(f"  {finding}", file=sys.stderr)
     if findings:
@@ -289,8 +327,8 @@ def ranks_arm(list_file: pathlib.Path | None = None,
               "list is the frame's z-order record, and it is only a record while it "
               "says the same thing as the stylesheets.", file=sys.stderr)
         return 1
-    print(f"ranks: {len(entries)} recorded, {len(sites)} declared — the list and the "
-          "sources say the same thing.")
+    print(f"ranks: {len(entries)} recorded and {len(LOCAL_DETAILS if exempt is None else exempt)} "
+          f"exempt, {len(sites)} declared — the list and the sources say the same thing.")
     return 0
 
 
