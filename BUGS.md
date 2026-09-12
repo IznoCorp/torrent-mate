@@ -462,8 +462,23 @@ reports success is the shape this register counts, and here it sits beside an ar
 so the two together tell a reader that the register has 365 rows and one backtick problem, when it
 has 366 rows and one wrapped line.
 
-**Closes when** the arm names the offending line and separates the two causes — a row it could not
-parse at all, and a row whose status cell is not backticked are not the same finding.
+**Closed by this same wave.** `arm_unparsed_row` reads the register line by line now: a line that
+opens a cell with an identifier and is not a well-formed index row is named with its line number and
+with the cause that applies — « this index row is WRAPPED … does not end its last cell on the same
+line », or « this index row's status cell is not backticked ». The historical table is recognised by
+its last cell being a DATE rather than by the constant `12`, which was the other way the reader could
+be wrong without saying so. The subtraction stays as a residual: when the count and the line-by-line
+read DISAGREE, the arm says that too, because a row malformed in a way neither describes is exactly
+what this file is for.
+
+The corpus arm still prints one row fewer over a wrapped register, and that is left as it is: the
+figure is now attributable, because the arm beside it names the line that explains it.
+
+Held by four holds in `tests/scripts/test_check_bug_register.py` — a wrapped row named « WRAPPED »
+with the backtick cause absent from the message, an unbackticked status named with ITS cause and
+without « WRAPPED », the historical table's date rows not refused, and the real `BUGS.md` clean as
+the control that stops an arm which refuses everything from passing the other three. Seen RED
+against the pre-repair arm put back in place: 2 failed, 8 passed.
 
 <sub>Probed on copies, arm by arm, with `--register` (added by this wave for exactly this): a row
 wrapped after its second pipe and a row wrapped before it both give `unparsed-row` exit 1 with « 378

@@ -237,18 +237,54 @@ def arm_invariant_numbers(numbers):
     return violations
 
 
-# The historical table at the foot of the file: twelve rows whose last column is
-# a DATE and which carry no status at all. They are the only index rows
-# `INDEX_ROW` is meant not to take.
-HISTORICAL_ROWS = 12
+# THE TWO INDEX TABLES, found by their headings rather than counted. The open
+# index carries a status per row; the historical table at the foot of the file
+# carries a DATE and no status at all, which is why `INDEX_ROW` is meant not to
+# take it. A heading that is reworded empties a span here and the arms below say
+# so loudly — the direction a corpus reader must always fail in.
+INDEX_TABLE_HEADINGS = (re.compile(r"^## Open\s*$"),
+                        re.compile(r"^## Closed entries — index\s*$"))
+
+# Any LINE that opens with an identifier in a table cell, whether or not the
+# reader could finish it. Line-anchored on purpose: `ANY_INDEX_ROW` below uses
+# `\s*`, which crosses a newline, and that is what made a wrapped row still
+# count as « opened » while nothing said which line it was (B-420).
+ANY_ROW_LINE = re.compile(r"^\|\s*([BE]-\d{3})\b")
+
+# A historical row: the last cell is a date, unbackticked, and that is the whole
+# difference between it and a row whose status cell lost its backticks.
+HISTORICAL_ROW = re.compile(r"^\|\s*[BE]-\d{3}\s*\|.*\|\s*\d{4}-\d{2}-\d{2}\s*\|\s*$")
 
 # Any row that OPENS with an identifier, whether or not the reader could finish
 # it. The difference between the two is the arm below.
 ANY_INDEX_ROW = re.compile(r"^\|\s*([BE]-\d{3})\s*\|", re.MULTILINE)
 
 
+def index_table_lines(lines):
+    """The line numbers each index table occupies.
+
+    Args:
+        lines: `BUGS.md` split into lines, without their endings.
+
+    Returns:
+        A set of zero-based line indexes belonging to one of the index tables.
+    """
+    inside = set()
+    for index, line in enumerate(lines):
+        if not any(heading.match(line) for heading in INDEX_TABLE_HEADINGS):
+            continue
+        start = index + 1
+        while start < len(lines) and not lines[start].startswith("|"):
+            start += 1
+        end = start
+        while end < len(lines) and lines[end].startswith("|"):
+            end += 1
+        inside.update(range(start, end))
+    return inside
+
+
 def arm_unparsed_row(text, rows):
-    """Refuses an index row the status reader could not take.
+    r"""Refuses an index row the status reader could not take, BY NAME.
 
     THE BACKTICK IS A LOAD-BEARING PARSING TOKEN, and nothing read what it made
     the reader miss. `INDEX_ROW` requires the last cell backticked; a row that
@@ -257,32 +293,58 @@ def arm_unparsed_row(text, rows):
 
     That is not theoretical: re-injecting B-102's own defect — a second `open`
     row for B-079 — with the backticks left off gave `214 index row(s) read` and
-    `clean`, exit 0. The same line WITH backticks gives one violation. The
-    defect this file was written for walks back in through the spelling of its
-    own status cell.
+    `clean`, exit 0. The same line WITH backticks gives one violation.
 
-    The corpus floor was supposed to cover it and cannot: at 150 against 214 it
-    takes SIXTY-FIVE rows breaking at once before it speaks, and sixty of them
-    stripped still read `154 … clean`.
+    AND IT USED TO GIVE THAT ONE DIAGNOSIS FOR EVERY CAUSE (B-420). A row wrapped
+    over two lines is also refused here — `ANY_INDEX_ROW`'s `\s*` crosses the
+    newline, so the row still opens with an identifier while `INDEX_ROW`, whose
+    `.` does not, no longer reads it. The arm then said « a status cell without
+    backticks » about a row whose backticks were all present, and named no line,
+    on a file of nine thousand seven hundred. The two causes are separated now
+    and the offending line is named.
 
     Args:
         text: The whole of `BUGS.md`.
         rows: The rows `INDEX_ROW` did take.
 
     Returns:
-        1 when more rows open with an identifier than the reader could finish.
+        The number of violations.
     """
+    lines = text.splitlines()
+    historical = 0
+    named = 0
+    for number, line in enumerate(lines, start=1):
+        if not ANY_ROW_LINE.match(line):
+            continue
+        if INDEX_ROW.match(line):
+            continue
+        if HISTORICAL_ROW.match(line):
+            historical += 1
+            continue
+        named += 1
+        if not line.rstrip().endswith("|"):
+            print(f"  BUGS.md:{number}: this index row is WRAPPED — it opens "
+                  f"« {line.strip()[:60]}… » and does not end its last cell on "
+                  "the same line. A table row is one line: wrapped, it is read "
+                  "by no arm and rendered by no reader.", file=sys.stderr)
+        else:
+            print(f"  BUGS.md:{number}: this index row's status cell is not "
+                  f"backticked — « {line.strip()[-60:]} ». The backtick is what "
+                  "the reader parses on: without it the row is not refused, it "
+                  "DISAPPEARS, and B-102's duplicate walks back in through the "
+                  "spelling of its own status cell.", file=sys.stderr)
+
     opened = len(ANY_INDEX_ROW.findall(text))
-    unparsed = opened - len(rows) - HISTORICAL_ROWS
-    if unparsed > 0:
+    residual = opened - len(rows) - historical - named
+    if residual > 0:
         print(f"  BUGS.md: {opened} row(s) open with an identifier, {len(rows)} "
-              f"were read as index rows and {HISTORICAL_ROWS} are the historical "
-              f"table — {unparsed} could not be read at all. A row whose status "
-              "cell is not backticked is not refused, it is INVISIBLE: it leaves "
-              "no violation, no count and no trace, and B-102's duplicate walks "
-              "back in through it.", file=sys.stderr)
-        return 1
-    return 0
+              f"were read as index rows, {historical} are the historical table "
+              f"and {named} were named above — {residual} could not be "
+              "accounted for at all. The subtraction and the line-by-line read "
+              "disagree, which means a row is malformed in a way neither "
+              "describes.", file=sys.stderr)
+        named += 1
+    return named
 
 
 def arm_corpus(rows, numbers):
@@ -440,12 +502,21 @@ def entry_bodies(register):
     return {identifier: span for identifier, (_, span) in ranked.items()}
 
 
-def base_register():
-    """Reads `BUGS.md` as it stands at the branch point with origin/main.
+def base_register(path):
+    """Reads the register as it stands at the branch point with origin/main.
+
+    Args:
+        path: The register being checked. A copy outside the repository has no
+            branch point, and this says so by answering None rather than
+            silently comparing against `BUGS.md`.
 
     Returns:
         The base text, or None when git cannot reach it.
     """
+    try:
+        tracked = path.resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        return None
     for base in ("origin/main", "main"):
         merge = subprocess.run(["git", "merge-base", "HEAD", base],
                                capture_output=True, text=True, check=False,
@@ -453,14 +524,14 @@ def base_register():
         if merge.returncode != 0:
             continue
         show = subprocess.run(
-            ["git", "show", f"{merge.stdout.strip()}:BUGS.md"],
+            ["git", "show", f"{merge.stdout.strip()}:{tracked}"],
             capture_output=True, text=True, check=False, cwd=ROOT)
         if show.returncode == 0:
             return show.stdout
     return None
 
 
-def arm_closure(register):
+def arm_closure(register, path):
     """Refuses an entry whose status moved to `fixed` with its body untouched.
 
     THIS IS THE ARM FOR RULE 3 ITSELF, and it exists because the wave that
@@ -476,12 +547,13 @@ def arm_closure(register):
     can answer that.
 
     Args:
-        register: The whole of `BUGS.md`, as it stands.
+        register: The whole of the register, as it stands.
+        path: Where it was read from, so the branch point is the same file's.
 
     Returns:
         The number of violations.
     """
-    base = base_register()
+    base = base_register(path)
     if base is None:
         print("  [closure] git could not reach the branch point, so this arm "
               "read nothing. It refuses rather than passes: an arm that cannot "
@@ -538,12 +610,18 @@ def main():
                         help="run one arm instead of all of them")
     parser.add_argument("--next", action="store_true", dest="next_identifier",
                         help="print the next free identifier of each family")
+    # THE DOOR A PROBE NEEDS. Every arm here reads one hard-coded file, so the
+    # only way to ask « would this guard catch that? » was to damage the real
+    # register and hope to undo it. A copy is the honest way to ask, and an arm
+    # nobody can point at a copy is an arm nobody tests.
+    parser.add_argument("--register", type=pathlib.Path, default=REGISTER,
+                        help="read this register instead of BUGS.md")
     arguments = parser.parse_args()
 
     if arguments.next_identifier:
         return print_next_identifier()
 
-    register = REGISTER.read_text(encoding="utf-8")
+    register = arguments.register.read_text(encoding="utf-8")
     rows = read_index_rows(register)
     numbers = read_invariant_numbers(ARCHITECTURE.read_text(encoding="utf-8"))
     selected = (arguments.arm,) if arguments.arm else ARMS
@@ -561,7 +639,7 @@ def main():
         elif arm == "corpus":
             violations += arm_corpus(rows, numbers)
         elif arm == "closure":
-            violations += arm_closure(register)
+            violations += arm_closure(register, arguments.register)
 
     if violations:
         print(f"check-bug-register: {violations} violation(s)", file=sys.stderr)

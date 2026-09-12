@@ -116,3 +116,82 @@ def test_the_real_register_still_yields_a_body_for_most_of_its_entries() -> None
     bodies = module.entry_bodies((ROOT / "BUGS.md").read_text(encoding="utf-8"))
 
     assert len(bodies) >= BODY_FLOOR, f"only {len(bodies)} bodies read in BUGS.md"
+
+
+# ── The index table's own lines (B-420) ─────────────────────────────────────
+# `arm_unparsed_row` had ONE diagnosis for every cause and named no line. A row
+# wrapped over two lines is refused by it — `ANY_INDEX_ROW`'s `\s*` crosses a
+# newline while `INDEX_ROW`'s `.` does not — but it was reported as « a status
+# cell without backticks », about a row whose backticks were all present, on a
+# file of nine thousand seven hundred lines.
+
+WELL_FORMED_TABLE = (
+    "## Open\n\n"
+    "| ID    | Defect        | Reported | Status |\n"
+    "| ----- | ------------- | -------- | ------ |\n"
+    "| B-001 | The first one | 1x       | `open` |\n"
+    "| B-002 | The next one  | 1x       | `open` |\n"
+)
+
+
+def run_unparsed_arm(module, register, capsys):
+    """Run the arm on a register and return its violation count and stderr."""
+    violations = module.arm_unparsed_row(register, module.read_index_rows(register))
+    return violations, capsys.readouterr().err
+
+
+def test_a_wrapped_row_is_refused_by_name_and_called_wrapped(capsys) -> None:
+    """THE DEFECT: the line is named, and the cause is the one that applies."""
+    module = load_guard()
+    register = WELL_FORMED_TABLE.replace(
+        "| B-002 | The next one  | 1x       | `open` |\n",
+        "| B-002 | The next one\n  wrapped onto a second line | 1x | `open` |\n",
+    )
+
+    violations, said = run_unparsed_arm(module, register, capsys)
+
+    assert violations == 1, said
+    assert "BUGS.md:6:" in said, said
+    assert "WRAPPED" in said, said
+    assert "backtick" not in said.lower(), f"the wrong cause was named:\n{said}"
+
+
+def test_a_row_whose_status_lost_its_backticks_is_refused_by_name(capsys) -> None:
+    """The cause the arm was written for, still named — and now with its line."""
+    module = load_guard()
+    register = WELL_FORMED_TABLE.replace(
+        "| B-002 | The next one  | 1x       | `open` |",
+        "| B-002 | The next one  | 1x       | open   |",
+    )
+
+    violations, said = run_unparsed_arm(module, register, capsys)
+
+    assert violations == 1, said
+    assert "BUGS.md:6:" in said, said
+    assert "backticked" in said, said
+    assert "WRAPPED" not in said, f"the wrong cause was named:\n{said}"
+
+
+def test_the_historical_table_is_not_refused(capsys) -> None:
+    """Its last cell is a DATE and carries no status — that is not a defect."""
+    module = load_guard()
+    register = WELL_FORMED_TABLE + (
+        "\n## Closed entries — index\n\n"
+        "| ID    | Defect        | Reported | Fixed      |\n"
+        "| ----- | ------------- | -------- | ---------- |\n"
+        "| B-003 | An old one    | 2x       | 2026-08-14 |\n"
+    )
+
+    violations, said = run_unparsed_arm(module, register, capsys)
+
+    assert violations == 0, said
+
+
+def test_the_real_register_passes_the_arm(capsys) -> None:
+    """THE CONTROL: an arm that refused everything would pass the three above."""
+    module = load_guard()
+    register = (ROOT / "BUGS.md").read_text(encoding="utf-8")
+
+    violations, said = run_unparsed_arm(module, register, capsys)
+
+    assert violations == 0, said
