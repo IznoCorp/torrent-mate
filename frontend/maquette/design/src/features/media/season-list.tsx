@@ -5,9 +5,10 @@ import { useTranslation } from "react-i18next";
 import { useMediaReference } from "./reference";
 import { SkeletonLine } from "../../ui/state-surfaces";
 import { factsPanel } from "../../ui/variants";
-import { queuedMark, seasonGrabSpacing, seasonGrabTaken } from "./variants";
+import { queuedMark, seasonGrabSpacing, seasonGrabTaken, upcomingMark } from "./variants";
 import { useQueuedSeasons } from "./queued-seasons";
 import { askForSeason, useAskedInFlight } from "./season-grab";
+import { announcedAfter } from "./queries";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields";
 
@@ -87,7 +88,8 @@ export function SeasonList({
     ? seasons.map(([number, aired, own]) => ({ n: number, aired, own }))
     : catalog.map((season) => ({
         n: season.n,
-        aired: season.ep,
+        // What AIRED, from the seasons read — never the catalogue's total (B-380).
+        aired: seasons.find(([number]) => number === season.n)?.[1] ?? null,
         own: 0,
         air: season.air,
       }));
@@ -121,6 +123,12 @@ export function SeasonList({
         // season's date and not on every episode's.
         const seasonAirDate = row.air ?? catalog.find((season) => season.n === row.n)?.air;
         const seasonUpcoming = seasonAirDate != null && seasonAirDate > TODAY;
+        // ANNOUNCED EPISODES ARE INFORMATION, never a shortfall. A season that aired
+        // nothing says only the date, and nothing when its row already prints it.
+        const ahead = announcedAfter(list, TODAY);
+        const upcomingNote = !ahead.length || (row.aired === 0 && !owns && row.air) ? null
+          : row.aired === 0 ? t("screens.media.upcomingFrom", { date: dateFR(ahead[0]) })
+            : t("screens.media.upcomingEpisodes", { count: ahead.length, date: dateFR(ahead[0]) });
         /* With no known total, reason up to the highest owned episode: a
            hole BELOW that maximum is a genuine gap, above it nothing is
            known. */
@@ -300,6 +308,9 @@ export function SeasonList({
               ) : (
                 ""
               )}{" "}
+              {upcomingNote
+                ? <span className={upcomingMark()} data-part="season/upcoming">{upcomingNote}</span>
+                : ""}{" "}
               {!owns && row.air ? (
                 <span
                   // ITS OWN NAME. It wore `season/missing` — the name of the

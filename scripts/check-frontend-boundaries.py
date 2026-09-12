@@ -218,6 +218,21 @@ OUTSIDE_IMPORTS_ALLOWED = {
     # outside import on this machine at all. This one was refused the moment it
     # was written.
     "mocks/contract-conformance.test.ts": {"frontend/maquette/contract/openapi.json"},
+    # The declared SUCCESS CODE is read from the contract for the same reason,
+    # and B-379 is what a copy costs: the layer answered a literal 200 to every
+    # operation while the contract declared 201 for one and 202 for two, and no
+    # rule could hold a declared code. A table from operation to status written
+    # here would be a second declaration of what the contract already says — and
+    # the day the contract gains an operation answering 201, that table stays
+    # right about everything it already knew, which is the shape of every drift
+    # this repository has paid for. The generated types cannot answer it either:
+    # a TypeScript type carries no status at runtime.
+    #
+    # THE WEIGHT IS THE OBJECTION AND IT IS ANSWERED: the contract is 144 KB
+    # beside the 2.1 MB of seeds this layer already carries, and the module is
+    # dropped with the layer when `__MOCKS_BUILT_IN__` is false, so it ships
+    # nowhere.
+    "mocks/declared-status.ts": {"frontend/maquette/contract/openapi.json"},
 }
 
 # Filled by `build_graph`: importer -> the absolute paths it reaches outside the

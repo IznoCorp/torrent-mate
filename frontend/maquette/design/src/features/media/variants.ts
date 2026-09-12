@@ -198,3 +198,14 @@ export const queuedMark = cva(
     "[background:color-mix(in_oklab,var(--color-info)_20%,transparent)] " +
     "text-info-text",
 );
+
+/**
+ * What a season has ANNOUNCED and not yet aired: information, never a shortfall.
+ *
+ * NOT THE SHORTFALL CHIP, for the reason `queuedMark` gives. An episode that has
+ * not aired cannot be held, so it is not missing, and wearing `.miss`'s look
+ * would read one fact as the other. The muted tone is the one the date a season
+ * airs on already wears, because it is the same kind of fact: when something
+ * comes out. It offers nothing to press.
+ */
+export const upcomingMark = cva("inline-flex items-center py-1 px-3 text-1 text-muted-foreground");
