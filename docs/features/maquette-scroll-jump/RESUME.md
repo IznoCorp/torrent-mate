@@ -1,5 +1,7 @@
 # maquette-scroll-jump — resume note
 
+**Superseded.** The wave resumed from this note and carried every step below; `DESIGN.md` in this folder is the record, and this file is kept only because the brief names it.
+
 Stood down on the operator's ruling of 2026-09-12 23:30 (at most two agents on the machine). Nothing is lost: this file,
 the brief and the branch are the whole state. Read `BRIEF.md` first (its register block now reads B-490..B-494), then this.
 

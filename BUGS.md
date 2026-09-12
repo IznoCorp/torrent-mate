@@ -453,6 +453,7 @@ when the defect comes back.
 | B-466 | `ui/variants/frame.ts` sits at 399 non-blank lines against a hard ceiling of 400, and the arm this wave added is what will demand the four-hundredth | by review | `open` |
 | B-490 | Acquisition › En cours throws the reader back to the top after a return from « Résoudre → »: the scroll restoration's late re-apply fires on a lazy poster's `load` | by operator | `open` |
 | B-491 | Out of the desktop frame the document scrolls beside `#port`: the closed sheet and its drag band overflow `.device` by 89 px once the frame stops clipping | by operator | `open` |
+| B-492 | Out of the desktop frame the overflow B-491 confined is the APP's own cascade — no element of the shell clips its absolute layers — so once `harness.css` ships nowhere a desktop document can scroll beside `#port` again | by the scroll-jump micro-wave | `open` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
 
@@ -1046,7 +1047,7 @@ the four return walks fall — phone finger 490 → 22, phone wheel 480 → 0, d
 **The repair**, inside the one path: the late re-apply runs only if the port still sits where the restore landed
 (`port.scrollTop === landed`) — a clamped offset has not moved since the write, a reader's has.
 
-<sub>maquette-scroll-jump, 2026-09-12 · probe lines in `docs/features/maquette-scroll-jump/RESUME.md` · `harness/scroll_keeps_place.py` (R175)</sub>
+<sub>maquette-scroll-jump, 2026-09-12 · probe lines in `docs/features/maquette-scroll-jump/DESIGN.md` § 1 · `harness/scroll_keeps_place.py` (R175)</sub>
 
 **B-491 — out of the desktop frame, the document is a second scroll container.**
 
@@ -1057,10 +1058,26 @@ the bottom edge, with its 88 px `sheet/drag-band` — overflows it: `document.sc
 the list it moves `#port`. In the frame, at either width, `#port` is the only container. R175's header holds fall out of
 the frame, finger and wheel: « moved ['document'], the document overflows by 89 px ».
 
-**Closes when** the frame's stylesheet confines the scroll to the port out of the frame without moving the absolute
-layers or the switch's shape, and R175's header holds read green.
+**The repair**, in the frame's own stylesheet: `.stage` clips on the y axis beside its `overflow-x: clip`. Not `.device`,
+whose `overflow` out of the frame R140 holds equal to the control document's — a clip there reads `visible clip` and
+falls. The device, the stage, the closed sheet and its translate, the drag band and the switch measure identically in the
+phone, the desktop in the frame and out of it; R175's header holds read green, R140 reads 24 holds and no violation.
 
-<sub>maquette-scroll-jump, 2026-09-12 · private bench measure of every element outside `#port` below the viewport</sub>
+<sub>maquette-scroll-jump, 2026-09-12 · private bench measure of every element outside `#port` below the viewport · `docs/features/maquette-scroll-jump/DESIGN.md` § 2</sub>
+
+**B-492 — out of the desktop frame, what clips the sheet is the harness, not the app.**
+
+B-491's repair confines the scroll in `styles/harness.css`, the one stylesheet that ships in no production build. The
+overflow it confines is not the harness's: out of the frame R140 holds `.device`'s `overflow` equal to the app's own
+cascade, and in that cascade no element of the shell clips its absolute layers — `#sheet` closed sits 43 px below the
+bottom edge with its 88 px drag band, and the document measured 989 against 900 at 1440 × 900 before the stage clipped
+it. At switchover, when the maquette becomes the app and `harness.css` goes, a desktop window reading the shell at full
+size can meet the second scroll container again.
+
+**Closes when** the frame model decides which element of the app owns the clipping of its layers on a desktop window,
+and a hold reads the document's overflow with no harness stylesheet in the page.
+
+<sub>maquette-scroll-jump, 2026-09-13 · owner: the frame model (L13) · `docs/features/maquette-scroll-jump/DESIGN.md` § 5</sub>
 
 **B-466 — `frame.ts` is one line from a hard ceiling, and the arm this wave added is what will demand that line.**
 
