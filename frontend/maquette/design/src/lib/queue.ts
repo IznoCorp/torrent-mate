@@ -26,6 +26,7 @@
 // page, and no amount of animation later repairs it. Each one writes the cache
 // first, remembers what it wrote over, and puts it back if the layer refuses.
 import { useQuery, type QueryClient } from "@tanstack/react-query";
+import { createHeldActions } from "./held-actions";
 import { HELD, read, send } from "./query-client";
 import { toEngineShape } from "../engine/engine-shape";
 import type { QueueCard } from "./engine-queue";
@@ -200,6 +201,51 @@ function putBack(
   if (held.queue) queryClient.setQueryData(queueKey(scenario), held.queue);
 }
 
+/**
+ * Puts ONE card back where an optimistic write took it from.
+ *
+ * NOT THE SNAPSHOT, unlike `putBack`: an undo comes seconds after the act, and
+ * restoring both lists as they were then would also restore a second card taken
+ * out in between, whose own send is still waiting.
+ *
+ * @param queryClient The cache.
+ * @param scenario Which world the act happened in.
+ * @param held What both caches held before the act.
+ * @param title The card's own title.
+ */
+function putOneBack(
+  queryClient: QueryClient,
+  scenario: string,
+  held: ReturnType<typeof takeOutOfQueue>,
+  title: string,
+): void {
+  const restored = (now: QueueCard[], before: QueueCard[] | undefined) => {
+    const index = before?.findIndex((card) => card.t === title) ?? -1;
+    const card = before?.[index];
+    if (card === undefined || now.some((one) => one.t === title)) return now;
+    return [...now.slice(0, index), card, ...now.slice(index)];
+  };
+  const staging = queryClient.getQueryData<Staging>(stagingKey(scenario));
+  const queue = queryClient.getQueryData<NonNullable<typeof held.queue>>(queueKey(scenario));
+  if (staging) {
+    queryClient.setQueryData<Staging>(stagingKey(scenario), {
+      ...staging, stuck: restored(staging.stuck, held.staging?.stuck),
+    });
+  }
+  if (queue) {
+    queryClient.setQueryData<NonNullable<typeof held.queue>>(queueKey(scenario), {
+      ...queue,
+      blocked: restored(queue.blocked, held.queue?.blocked),
+      takeable: restored(queue.takeable, held.queue?.takeable),
+    });
+  }
+}
+
+// THE UNDO WINDOW OF A PICK. The message offering « Annuler » lives six seconds
+// (`app/toast-host.ts`); the send waits one more, which covers the message moving
+// between edges, so an undo on its last frame still finds the act unsent.
+const UNDO_WINDOW_MILLISECONDS = 7000;
+
 // THE TWO ADDRESSES THIS MODULE'S OPTIMISTIC WRITE SPANS.
 //
 // `takeOutOfQueue` removes the card from WHICHEVER of the two lists holds it
@@ -217,7 +263,7 @@ export const ADDRESSES_THAT_MOVE_TOGETHER: readonly (readonly string[])[] = [
 ];
 
 /**
- * Installs the queue's three actions, for the dying engine to call.
+ * Installs the queue's four actions, for the dying engine to call.
  *
  * WHY A SEAM RATHER THAN A HOOK. The engine's document-level delegation is what
  * a tap on a card reaches — that delegation is cross-cutting and belongs to L13
@@ -239,15 +285,16 @@ export function installQueueActions(queryClient: QueryClient): void {
   const scenarioNow = () =>
     String((window.__store?.read().state.scen ?? "") === "loaded" ? "loaded" : "");
 
-  const settle = async (title: string, outcome: string, choice?: string) => {
-    const scenario = scenarioNow();
-    const held = takeOutOfQueue(queryClient, scenario, title);
+  // THE SEND, apart from the optimistic write: a resolve sends at once, a pick
+  // when its window closes, and a refusal puts back what each took, its own way.
+  const deliver = async (scenario: string, title: string, outcome: string,
+                         restore: () => void, choice?: string) => {
     let answer: unknown;
     try {
       answer = await send("POST", `/api/staging/media/${encodeURIComponent(title)}/continue`,
                           { outcome, ...(choice === undefined ? {} : { choice }) });
     } catch (refusal) {
-      putBack(queryClient, scenario, held);
+      restore();
       void queryClient.invalidateQueries({ queryKey: stagingKey(scenario) });
       void queryClient.invalidateQueries({ queryKey: queueKey(scenario) });
       throw refusal;
@@ -262,8 +309,49 @@ export function installQueueActions(queryClient: QueryClient): void {
     void queryClient.invalidateQueries({ queryKey: queueKey(scenario) });
   };
 
+  const settle = async (title: string, outcome: string, choice?: string) => {
+    const scenario = scenarioNow();
+    const held = takeOutOfQueue(queryClient, scenario, title);
+    await deliver(scenario, title, outcome, () => putBack(queryClient, scenario, held), choice);
+  };
+
+  // THE WINDOW STAYS HONEST AGAINST THE CACHE. A FRESH ANSWER of either list is
+  // the server's, which still holds a folder whose send waits: each pick is drawn
+  // again over it. A CLEARED list (a reset, a sign-out) ends the pick's world, so
+  // its send is cancelled — the side a reload falls on. A MANUAL write is this
+  // module's own, and redrawing over it would only answer itself.
+  const heldActions = createHeldActions(UNDO_WINDOW_MILLISECONDS);
+  const addresses = new Set<unknown>([stagingKey("")[0], queueKey("")[0]]);
+  queryClient.getQueryCache().subscribe((event) => {
+    const [address, scenario] = event.query.queryKey;
+    if (!addresses.has(address)) return;
+    if (event.type === "removed") heldActions.cancel(String(scenario));
+    if (event.type === "updated" && event.action.type === "success" && !event.action.manual) {
+      heldActions.drawAgain(String(scenario));
+    }
+  });
+
   window.__queueActions = {
     resolve: (title, choice) => void settle(title, "resolved", choice),
+    // A PICK ON THE CANDIDATE CARD, whose send WAITS: a gesture can be wrong and
+    // the contract cannot put a resolve back, so the folder leaves both lists at
+    // once and its send leaves when the undo window closes. Its undo puts back
+    // THIS card, never the snapshot, which would bring back a later pick too.
+    pick: (title, choice) => {
+      const scenario = scenarioNow();
+      const held = takeOutOfQueue(queryClient, scenario, title);
+      const restore = () => putOneBack(queryClient, scenario, held, title);
+      return heldActions.hold({
+        key: title,
+        scope: scenario,
+        send: () => void deliver(scenario, title, "resolved", restore, choice),
+        putBack: () => {
+          restore();
+          window.__store.touch();
+        },
+        drawAgain: () => void takeOutOfQueue(queryClient, scenario, title),
+      });
+    },
     // IT ANSWERS WHETHER THE FOLDER WAS THERE, synchronously, because the
     // engine's own `actionLeave` did and its caller reads the answer. The
     // optimistic write is what makes that answerable without waiting: the
@@ -314,9 +402,11 @@ declare global {
   interface Window {
     /** The queue's lists, read synchronously by the dying engine. */
     __queue?: () => Record<string, { t?: unknown }[]>;
-    /** The queue's three verbs, called by the dying engine's delegation. */
+    /** The queue's four verbs, called by the dying engine's delegation. */
     __queueActions?: {
       resolve: (title: string, choice?: string) => void;
+      /** Picks a candidate at once and sends it when the undo window closes. */
+      pick: (title: string, choice?: string) => () => void;
       leave: (title: string) => boolean;
       take: (title: string) => void;
     };

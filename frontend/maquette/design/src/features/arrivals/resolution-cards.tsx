@@ -9,8 +9,10 @@ import { useTranslation } from "react-i18next";
 // sentence, and `t()` would only wrap the lookup in a second one.
 import fr from "../../i18n/fr.json";
 import { useArrivalsReference, type PendingDecision, type SettledDecision } from "./reference";
-import { actionButton, ruleNote } from "../../ui/variants";
+import { iconButton, ruleNote } from "../../ui/variants";
+import { Icon } from "../../ui/icon";
 import { Markup } from "../../ui/markup";
+import { candidateCard, candidatePick } from "./variants";
 
 // A RELEASE is not a medium, and its card is deliberately a different object.
 // A release has no media sheet and no panel — it is one candidate among
@@ -20,18 +22,21 @@ import { Markup } from "../../ui/markup";
 // It is marked `data-nonmedia` so the contract check can tell the two apart by
 // construction rather than by knowing which screens draw which.
 //
-// The legacy twin is `releaseCardHTML(titre, meta, confiance, opts)`; the
-// props below are that signature, and the emission is the same tags, classes
-// and attributes. The poster's inner markup comes from the published
+// The legacy twin was `releaseCardHTML(titre, meta, confiance, opts)`; the
+// props below are that signature. Its emission stopped being the twin's the
+// day the card became the gesture, below. The poster's inner markup comes from
+// the published
 // `posterBox` rather than from a re-implementation: its image-or-initials
 // fallback is exactly what a second copy would drift on.
 export function ReleaseCard({
   title,
+  year,
   meta,
   confidence,
   opts,
 }: {
   title: string;
+  year: string | number | null;
   meta: string;
   confidence: string | null;
   opts: {
@@ -42,14 +47,41 @@ export function ReleaseCard({
     overview?: string;
   };
 }) {
-  const { posterBox } = useArrivalsReference();
+  const { posterBox, icons } = useArrivalsReference();
   const { t } = useTranslation();
+  // THE CARD IS THE GESTURE: one tap anywhere on it picks the candidate. It is a
+  // BUTTON because the engine's delegation answers `button` and nothing else —
+  // a `div` carrying `data-resolve` is reached by no finger — and the attribute
+  // sits on the element tapped, never on a child. Its top row is a `span`
+  // because a button holds phrasing content only. What stays at the right edge
+  // is a MARK at the icon button's one size, never a control: a button inside
+  // this one would be invalid markup and a control nobody can name. Pressed, it
+  // wears the base layer's `:active`, like every button.
+  //
+  // AND IT IS NAMED FROM ITS DATA. A button's accessible name is its whole text
+  // when nothing else says otherwise, so the card announced itself with its
+  // subtitle, its synopsis and — where the provider has no picture — the poster
+  // fallback's initial, up to 524 characters opening on a stray letter. What
+  // identifies a candidate to a listener is the title and the year, and both
+  // arrive here as data: the label is assembled from them, never typed. The
+  // year is a prop of its own rather than a slice of `meta`, because re-parsing
+  // a display string to recover a datum the caller already holds is how the two
+  // drift apart. The poster is `aria-hidden`: an image with an empty `alt` is
+  // already silent, its initials fallback is not, and neither is part of a name.
   return (
-    <div className="card" data-part="card" data-nonmedia={opts.genre || "release"}>
-      <div className="ctop" data-part="card/top">
+    <button
+      type="button"
+      className={`card ${candidateCard()}`}
+      data-part="card"
+      data-nonmedia={opts.genre || "release"}
+      data-resolve={title || undefined}
+      aria-label={year ? `${title} ${year}` : title}
+    >
+      <span className="ctop" data-part="card/top">
         <Markup tag="span"
           className="poster"
           data-part="card/poster"
+          aria-hidden="true"
           title={
             opts.noPoster ? t("screens.resolution.noPosterTitle") : undefined
           }
@@ -76,11 +108,11 @@ export function ReleaseCard({
             ""
           )}
         </span>
-      </div>
-      <button className={`cfoot solid ${actionButton()}`} data-part="card/foot" data-solid="" data-resolve={title || undefined}>
-        {t("screens.resolution.pickThis")}
-      </button>
-    </div>
+        <span className={`${iconButton()} ${candidatePick()}`} data-part="card/pick" aria-hidden="true">
+          <Icon paths={icons.check} />
+        </span>
+      </span>
+    </button>
   );
 }
 
@@ -185,6 +217,7 @@ export function Candidates({ decision }: { decision: PendingDecision }) {
         <ReleaseCard
           key={`${candidate.p}:${candidate.id}`}
           title={candidate.t}
+          year={candidate.y ?? null}
           meta={`${candidate.y ? candidate.y + " · " : ""}${decision.k === "movie" ? t("common.film") : t("common.series")} · ${candidate.p.toUpperCase()} ${candidate.id}`}
           /* A score that ties with the others says nothing about this
              candidate, so it is not printed on it. */

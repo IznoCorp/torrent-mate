@@ -437,7 +437,11 @@ when the defect comes back.
 | B-389 | The 8899 harness host does not survive the invocation that starts it when that invocation runs under `scripts/heavy.sh` — `set -m` puts the run in its own process group and the release signals the group, so `mutate.sh`, which starts no host, runs its rule against a refused port and B-273 reads the crash as « no hold fell » | by audit | `open` |
 | B-390 | No arm of `check-no-french.py` reads TEXT in `frontend/maquette/design/index.html` — the Strings and Identifiers arms are rooted on `design/src`, and the only arm that opens the file reads attributes — so « the guard does not refuse these labels » was never evidence that an arm had read them | by audit | `open` |
 | B-391 | The DECLARED HARNESS DEVIATION block calls itself « the ONLY accepted divergence in the shell » and makes FIVE declarations, of which ONE diverges — the other four restate what the app's own variants already declare, so they can witness nothing and hid a dead comparison in the rule that reads them | by audit | `open` |
-| B-392 | `features/library/page.tsx` says in the present tense that the legacy owns the selection bar « from creation to removal » — `paintSelBar()` is an empty function and React draws the bar; it is the sentence a reader uses to judge who owns that node | by audit | `open` |
+| B-392 | `features/library/page.tsx` says in the present tense that the legacy owns the selection bar « from creation to removal » — `paintSelBar()` is an empty function and React draws the bar; it is the sentence a reader uses to judge who owns that node | by audit | `fixed #585` |
+| B-393 | A resolution candidate is chosen by a full-width « C'est celui-ci » pill while the card itself answers no tap: the act takes more room than the medium it chooses, and the card a finger aims at does nothing | by the operator, 2026-09-11 | `fixed #585` |
+| B-394 | The harness's two floating buttons (the design note ⓘ and the states list ≡) are painted OVER a message shown at the top of the frame, so the sentence answering a verb pressed inside a layer is covered by chrome that is in no production build | by the operator, 2026-09-11 | `fixed #585` |
+| B-395 | The library's selection bar stays drawn on every other tab: `app/bottom-slot.tsx` renders it unconditionally and its own condition reads `selMode` alone, so « N sélectionnés · Annuler · Supprimer » sits over Acquisition — and the tab bar, hidden by that same `selMode`, leaves no way back | by the operator, 2026-09-11 | `fixed #585` |
+| B-396 | The mock seed offers exactly ONE folder with candidate cards, so the resolution window's riskiest path — a second pick taken inside the first one's undo window, and a put-back into a list that has moved — is reachable by no finger and is proved through the queue's seam alone | by audit | `open` |
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
@@ -849,6 +853,103 @@ round three, 2026-09-11). An instrument rewritten by a hook is an instrument its
 **Closes when** the hook skips git-ignored and untracked paths, held by a test that writes a file under
 an ignored directory and reads it unchanged after the hook. Owner: the configuration's session, not a
 lot.
+
+**B-396 — a fixture that offers one subject, so the window's riskiest path has no finger proof.**
+Round one's reader swept all eight `arr-*` states of the maquette's seed. In every one, exactly ONE
+folder (« Lucky ») offers candidate cards; every other queued folder opens a resolution screen with
+none. « Pick A, then pick B inside A's window » was attempted with a finger and was impossible for
+that reason — the second folder's screen has nothing to tap.
+
+So the design's most delicate claim, § 4.3's « « Annuler » puts back ONE card », is reachable only
+through `window.__queueActions`, which is what R162's w6 does and says it does. The path where the
+put-back's index, a second pending send and « only the latest message carries an undo » all meet is
+proved by a seam and by no finger. **Related and left unproven in the same reading**: what the
+put-back's index does when the list has MOVED under it. The reader's attempt wrote a newly-arrived
+folder into a cache key the queue's own view did not read, so the list never moved; `putOneBack`'s
+`restored()` splices at the index the card held in the BEFORE snapshot into the NOW list and `slice`
+absorbs an overflow, which makes the worst case look cosmetic — but that is reasoning, and it is
+marked as such rather than recorded as a reading.
+
+**Why it is not repaired by the wave that filed it.** Closing it needs a second ambiguous folder in
+`design/src/mocks/seeds/…`, and a seed edit is B-369's cost: the oracle's reference and the
+hold-counts baseline both move with it. That is the operator's call and a wave of its own.
+**Owner: the mock-layer micro-wave, beside B-379 and B-380** — the three are one subject, the layer
+the rules measure against, and a wave that opens the seeds should close all of what it can reach.
+**Closes when** a second folder offers candidates and w6 is re-taken by a finger, the put-back's
+index read on a list that has really moved.
+
+<sub>audit, resolution-card round one · the reader's `a08_manual_and_two_folders.py` over the eight `arr-*` states · `a02_window.py`'s `second_pick_by_finger` · `harness/resolution_window.py`'s w6, driven through `window.__queueActions`</sub>
+
+**B-395 — the library's selection bar follows the operator off its own page.**
+
+The operator photographed it on Acquisition › Suivis: the bottom bar still said « N sélectionnés »
+with « Annuler » and « Supprimer », over a page that holds no selection and offers no deletion.
+Measured on this head: `app/frame.tsx` draws `<BottomSlot />`, `app/bottom-slot.tsx` draws
+`<SelectionBar />` with no condition at all, and the bar's own condition is `state.selMode === true`
+— the page is named nowhere in it. So the bar draws wherever the operator goes.
+
+**And the way back is gone with it.** `app/tab-bar.tsx` hides the tab bar while `selMode` is true
+(`tabBar`'s `selecting` variant), which is right on the library — the selection bar takes the bar's
+place — and wrong everywhere else: off the library the operator has neither the tab bar nor a bar
+that belongs to the page he is on. The drawer is what is left, which is how a finger can change page
+at all in selection mode (`a[data-navgo]`).
+
+**Ruled by the operator, 2026-09-11**: the selection SURVIVES a tab change. The bar hides off the
+Médiathèque and comes back, with the same selection, when the tab is back — so nothing is cleared by
+navigating, and « Annuler » on return is what clears it.
+
+**Closes when** the bar is drawn only while the Médiathèque is the page, the selection and its titles
+survive the round trip, the tab bar is drawn on the other tab, and « Annuler » on return empties the
+selection — held by R164 (`selection_survives_the_tab.py`), seen red on the head that draws the bar
+everywhere. Owner: maquette-resolution-card.
+
+**B-394 — the harness's floating buttons are painted over the message.**
+
+The operator read it on the journey sheet of « Wicker »: a message said while a layer is open is
+drawn at the top of the frame (L21's placement), and the harness's two buttons sit exactly there —
+`.hbtn` in `styles/harness.css`, anchored `right: 100px` under the safe area, 26 × 26 each. Measured
+on this head: **`.hbtn` declares `z-index: 70`**, the splash's rank, while the message host is 57.
+`ui/variants/frame.ts`'s ranked list says « 60 the popover, the harness panel, the sign-in gate » and
+**does not distinguish the buttons from the opened panel**, which is why the rank read as 60 and is
+in fact 70 — a list that names one thing where the stylesheet declares two.
+
+It is chrome that ships nowhere: `harness.css` is in the maquette's own build and in no production
+build, and `html.measuring` hides it before any capture. So it must not cover the product's own
+answer to a verb. **Ruled by the operator, 2026-09-11**: the floating buttons rank BELOW the message
+— the message covers them for its seconds — and the OPENED panel stays at 60, above everything,
+because it is the instrument one drives the prototype with.
+
+**Closes when** the buttons' rank is below the message's, the ranked list names the two entries
+separately with the reason beside each, and a hit test where the message overlaps a button answers
+the message — held by R163 (`message_above_harness.py`), seen red on the head that declares 70.
+Owner: maquette-resolution-card.
+
+**THE RULE WAS GREEN OVER THIS DEFECT until it lifted `inert` for its hit test.** The frame marks the
+background inert while a layer is open, and `inert` takes an element out of hit-testing without
+changing what is PAINTED — B-381's own lesson, met again on its own subject. Measured both ways on the
+head declaring 70: as drawn the hit test answers the message on both buttons; with the bar's
+inertness lifted it answers the button on both, in two states. R163 lifts the attribute, asks what is
+in front, and puts it back.
+
+**What rank 53 costs, and it is a fact rather than a finding**: the two buttons now sit under the
+drawer (55) and the confirmation (56) as well as under the message, where at 70 they sat over
+everything — so a drawer's scrim covers them until the drawer is closed. No integer between 56 and 57
+exists without re-spreading the frame's ranks, which is a decision nobody asked for.
+
+**B-393 — a candidate is chosen by a pill, not by its card.**
+
+On a phone screenshot of « Candidats ambigus » for « Lucky » (2026-09-11) the operator ruled, verbatim:
+« Le bouton de sélection prend trop de place, c'est toute la carte média qui doit être cliquable. »
+Reading A — the whole card is the tap target, a compact affordance at the button system's icon size
+replaces the pill, and the message's « Annuler » is the safety net — was put to him and validated
+(« À validé »). On `main` the candidate card (`ReleaseCard`, `features/arrivals/resolution-cards.tsx`)
+is a `div` with a full-width `actionButton()` pill under it carrying `data-resolve`; the engine's
+delegation answers `closest("button, a[data-navgo]")` only, so a tap on the poster, the title or the
+synopsis reaches nothing. The same class as B-315: a control drawn at a size its act does not need.
+**Closes when** a tap at the centre of the card's body resolves the folder, the affordance's box is no
+larger than the one size `iconButton` offers, the message's « Annuler » puts the folder back in the
+queue, and every tied candidate offers the act — held by the wave's rule, seen red on the unrepaired
+head. Owner: maquette-resolution-card.
 
 **B-329 — the backend's generated contract does not describe what the backend does.**
 
@@ -3455,10 +3556,19 @@ owns — the desktop-frame micro-wave re-anchored the frame's five re-assertion 
 `data-part`, and round two's reader had to establish the bar's real owner from the tree because this
 comment said the opposite. A stale ownership comment costs every later reader the same detour.
 
-**Not repaired here, deliberately**: `features/` is outside this micro-wave's brief by name, and a
-one-line comment is not an exemption from a boundary. Owner: **the next wave that opens
-`features/library/page.tsx`** — the repair is to say that React draws the bar and that
-`paintSelBar` is a remaining empty seam, or to remove the seam with the sentence.
+**Not repaired by the wave that filed it, deliberately**: `features/` was outside that
+micro-wave's brief by name, and a one-line comment is not an exemption from a boundary. Owner:
+**the next wave that opens `features/library/page.tsx`** — the repair is to say that React draws
+the bar and that `paintSelBar` is a remaining empty seam, or to remove the seam with the sentence.
+
+**Repaired by the wave that made the candidate card the gesture (#585), and it was that wave's by
+right rather than by proximity**: B-395 moved the DECISION of whether the bar is drawn at all into
+that same React component — `content.state.page === "lib"` — so this wave is the one that opened
+the bar's ownership, and left the file that denies it saying so one directory away. Round one's
+reader re-read the sentence on the built head and returned UNCHANGED, adding that it had become
+misleading in a second way for exactly that reason. The comment now says React draws the bar, that
+the bar decides its own drawing since this wave, and that `paintSelBar` is an empty seam left for
+whoever empties the engine — the seam itself is not removed here: its call sites are the engine's.
 
 <sub>audit, desktop-frame micro-wave, reader B round two · `sed -n '16,20p' frontend/maquette/design/src/features/library/page.tsx` · `grep -n "function paintSelBar" frontend/maquette/design/src/engine/legacy.js` → `function paintSelBar() {}` · `grep -n "data-part=\"selection/bar\"" frontend/maquette/design/src/features/library/selection-bar.tsx`</sub>
 
