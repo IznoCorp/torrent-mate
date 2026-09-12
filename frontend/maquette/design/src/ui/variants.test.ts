@@ -5,7 +5,7 @@
 // relationship between two entries of the catalogue, which is true or false in
 // the source and nowhere else.
 import { describe, expect, it } from "vitest";
-import { actionButton, loadErrorAction, loadFooterAction } from "./variants";
+import { actionButton, iconButton, loadErrorAction, loadFooterAction } from "./variants";
 
 /** The utilities that set a control's SIZE, as opposed to its mood. */
 const SIZE = /^(min-h-|py-|px-|p-|text-\d|w-full$)/;
@@ -54,6 +54,27 @@ describe("the button system's sizes", () => {
         "font-semibold", "text-center",
       ].sort(),
     );
+  });
+});
+
+describe("the icon button's size", () => {
+  // THE SAME CLOSED SET AS THE ACTION BUTTON'S, held the same way: a TYPE that
+  // resolves to `never` the day an arbitrary size satisfies the factory, so
+  // `tsc` goes red where a runtime assertion would see a button with no size
+  // and pass.
+  it("refuses a size the catalogue does not offer", () => {
+    type Offered = NonNullable<Parameters<typeof iconButton>[0]>["size"];
+    type UnknownSizeIsRefused = "enormous" extends Offered ? never : true;
+    const refused: UnknownSizeIsRefused = true;
+    expect(refused).toBe(true);
+  });
+
+  // ONE SIZE, AND ITS DRAWING WITH IT: the box a finger aims at and the drawing
+  // inside it, so no wearer depends on a descendant rule to be legible.
+  it("offers one size, a 32 px box with a 16 px drawing", () => {
+    for (const step of ["w-[32px]", "h-[32px]", "[&>svg]:w-[16px]", "[&>svg]:h-[16px]"]) {
+      expect(iconButton()).toContain(step);
+    }
   });
 });
 

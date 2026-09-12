@@ -5513,14 +5513,13 @@ import {
     return true;
   }
 
-  function actionResolve(title, choice) {
+  function actionResolve(title, choice, picked) {
     /* Same as `actionLeave`: the move is the layer's, the sentence is this
-       function's. */
-    window.__queueActions?.resolve(title, choice);
+       function's. A PICK on the candidate card waits and answers an undo. */
+    const undo = window.__queueActions?.[picked ? "pick" : "resolve"](title, choice);
     render();
-    toast(
-      `Identifié comme « ${choice ?? title} » — le pipeline reprend jusqu'à la médiathèque.`,
-    );
+    const message = `Identifié comme « ${choice ?? title} » — le pipeline reprend jusqu'à la médiathèque.`;
+    if (typeof undo === "function") toastUndo(message, undo); else toast(message);
   }
 
   function actionDelete(titres) {
@@ -9100,7 +9099,7 @@ import {
     if (closest.dataset.resolve) {
       const target = currentState().resolveTarget;
       bridge.back();
-      setTimeout(() => actionResolve(target, closest.dataset.resolve), 240);
+      setTimeout(() => actionResolve(target, closest.dataset.resolve, true), 240);
       return;
     }
     /* Agreeing with the machine. It keeps the automatic result and re-scrapes
