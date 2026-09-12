@@ -1707,13 +1707,51 @@ are exactly the STATE of this lot's own levers, plus the tmp-orphan sweep, which
 and renders as a block of Système; its repair stays a Maintenance command, as the index's does today
 (B-297). Who holds the lock behind « En file » remains L19's line.
 
-**Blocking note.** Where the levers land — a page of their own, or a section of Système — is the
-operator's UX question, answered in the wave's design before it opens; the per-media half is no
-longer a question, §20 answers it.
+**Blocking note — LIFTED 2026-09-12, the operator ruled « Q1 : B ».** The levers land in a
+« Pipeline » section of **Système**; the history stays Système's (it already draws « Les passages »
+from `GET /api/pipeline/history`) and gains a run's DETAIL, an addressed screen, with its figures;
+start / stop stay on Arrivées' pilot's bar, which becomes the surface B-371 wires. A page of its
+own was refused: it recreates the destination §20 removed. The design and the nine-phase plan are on
+`main` at `docs/features/maquette-l20/` (#587, squash `d9221ebf9`); the operator reads the drawing
+there before the lot opens, after the `maquette-settings` micro-wave merges.
 
-**Where it lives (invariant 10).** `features/pipeline/` for the levers and the history, or the
-Système feature if the design puts them there; the bound is a setting and reads through the
-settings feature's contract.
+**Amended 2026-09-12 from that design's measurements (§ 8 of `docs/features/maquette-l20/DESIGN.md`),
+and each line below replaces what the entry said before it:**
+
+- **« relancer la veille » is NOT `POST /api/pipeline/watcher`.** That operation takes `{enabled}`
+  and creates or removes the `watcher.paused` sentinel — the directory watcher's on / off, a lever
+  with no figure. The veille with DOIT-6's figures (`{detected, available, grabbed}`) is
+  `POST /api/acquisition/detect`, already in the maquette's contract as `runDetection` and already
+  mocked; its button « Lancer la veille maintenant » is one of B-383's four « said, not done » verbs.
+  **Both are L20's**: the watcher's switch AND the veille's relaunch with its figures — and that half
+  of B-383 moves here from the mock-layer micro-wave, which keeps the other verbs.
+- **DOIT-6 is served by TWO operations, each with the numbers its own run answers**: the veille's
+  (`detect`) and a pipeline run's per-step counts and `reasons[]` in the history's detail
+  (`history/{run_uid}`); the history ROW keeps the composite line it already draws. The map's DOIT-6
+  row says so.
+- **The parallelism bound exists in no configuration file** (`grep -rn "parallel\|concurren\|tunnel"
+  config.example/*.json5` finds only the indexer's disk workers): it is a NEW setting and a backend
+  demand; the design proposes its key, type and settings topic (`service`) so nobody invents a
+  seventh topic for one key. It is edited by the settings feature's existing `number` field — no
+  new control.
+- **`GET /api/pipeline/stages` — the Flow Board, THE run's eight stations — is not this lot's, by the
+  operator's ruling « Q3 : B » of 2026-09-12**: the pipeline's stages are read PER MEDIA, on the card
+  of a medium in the pipeline (Acquisition › En cours already draws « pris · téléch. · ingéré · scrapé
+  · rangé » on such a card). The map's row moves to the tunnel (L19's family) and the operation becomes
+  a backend demand for a per-media form. Neither L20's Système section nor a write-off.
+- **`engine/states.js` is at its ledger (786 non-blank) and `check-frontend-boundaries.py` refuses
+  the count going up**, so the 26 named states this lot declares cannot enter the engine's table:
+  phase 2 of the plan moves Système's own slice of that table to `design/src/states/system.ts` and
+  re-records the ledger DOWNWARD — the engine shrinks (D5), and `window.__recordStates` (which
+  REPLACES the table, `legacy.js:8683`) is not made to accumulate.
+- **The raw log's fold needs a disclosure primitive that `ui/` does not have**; three feature files
+  write `<details>` raw (`features/acquisition/add-screen.tsx`, `features/media/season-list.tsx`,
+  `features/media/panel-seasons.tsx`, plus `legacy.js:30695`). L20 adds the primitive for its own
+  fold; converting the three sites is a conversion debt in § 5's block, not this behaviour lot's.
+
+**Where it lives (invariant 10).** `features/system/` — the design put the levers and the
+history there (ruled, above); the bound is a setting and reads through the settings feature's
+contract.
 
 **Done when.** DOIT-3's « relancer le watcher », DOIT-5's progress to the library and DOIT-6's
 figures read `served` in the map with a rule; the bound, the pause and the watcher are called and
@@ -1957,8 +1995,10 @@ its report.
 - **B-325** — no rule can be pointed at a build. `common.PROTOTYPE` is hard-coded to 8899 with no
   override and every rule self-runs on import, so an independent reader cannot run one against its
   own copy without rebinding the constant from outside the tree — and once rebound, the B-256 stamp
-  certifies `/tmp/tm-refonte`, a build the run never read. The next wave that opens `common.py`
-  takes it.
+  certifies `/tmp/tm-refonte`, a build the run never read. **Taken by the tooling micro-wave, #589**:
+  `TM_PROTOTYPE_URL` and `TM_SERVED_COPY` move together and a URL override with no root override is
+  refused at import; 84 of 117 rule modules gained an entry-point guard. The residue is bounded and
+  frozen by a hold — 31 rules still carry the address as a literal, and `run.sh` still owns 8899.
 - **B-323** — the inventory of the engine's `setTimeout(…, 260)` sites in `exits.py`'s own comment is
   taken by a command that reads one line (`grep -n "setTimeout(.*260)"`), so it names five where seven
   remain; the two it cannot see span several lines and are named in the register. The next wave that
@@ -1969,8 +2009,21 @@ its report.
   in and claims the body of the entry it names: measured by the departure micro-wave, which the arm
   refused an honest `fixed #573` on B-310 while it would have accepted a silent closure of B-249; 25 of
   278 heads were second-or-later on the day, one reworded, twenty-four unread. The repair is one line
-  either way (a head is `**B-NNN —`, never `**B-NNN's`; or the LONGEST span wins). The next wave that
-  touches the guard takes it, and re-takes the 25 with the command in the entry.
+  either way (a head is `**B-NNN —`, never `**B-NNN's`; or the LONGEST span wins). **Taken by the
+  tooling micro-wave, #589**, and it took BOTH plus a third rule: each candidate is wrong alone — the
+  delimiter alone takes a body away from the twelve entries written as a sentence, and the longest
+  span alone picks a wave's recap over the entry it recaps. The count re-taken there: the old regex
+  reads 26 of 320, the parser now reads 17 of 311, and 294 identifiers keep a body, exactly as many
+  as before.
+- **Round two's minors of the resolution-card micro-wave (B-460 to B-466, filed by its post-merge
+  gesture)** — five instrument debts (R161's floor hold green over an invisible mark; R162's
+  `LAST_FRAME` sentence and its one armed direction; the ranks arm's site attribution and its three
+  unread scopes; `ui/variants/frame.ts` at 399 of 400), one stale engine comment (L13's), and the
+  card's accessible name, RULED by the operator on 2026-09-12 to announce the confidence and the
+  provider. Owner: the next wave that opens each file, named in each entry.
+- **Three raw `<details>` sites** (`features/acquisition/add-screen.tsx`, `features/media/season-list.tsx`,
+  `features/media/panel-seasons.tsx`) are converted to the disclosure primitive L20 adds to `ui/`, by a
+  conversion wave after L20 — never inside a behaviour lot.
 
 **The gate.** Before every wave's closing commit: `make lint` at zero errors, `make test` with no
 failure and **no error** (an error means collection crashed and everything after it was skipped),

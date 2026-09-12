@@ -384,14 +384,14 @@ when the defect comes back.
 | B-322 | The release screen fires TWO take toasts into one element in the same tick, and the first is never seen | 1× | `fixed #572` |
 | B-323 | Two `setTimeout(…, 260)` sites were never counted — the inventory reads one line — and one of them is the release screen's `data-take`, a verb moved by half with no lot named for the other half | by audit | `fixed #572` |
 | B-324 | The BACKEND's own mirror of the PM2 crons names three of the seven the machine runs, and nothing reads it against `pm2 jlist` — B-308's finding on the end that has no guard at all | by the backend brief | `open` |
-| B-325 | No harness rule can be pointed at a build: `common.PROTOTYPE` is hard-coded to 8899 with no override, every rule self-runs on import, and a rule rebound elsewhere is still certified by the B-256 stamp of the copy it did NOT read | by the instruments' debts block | `open` |
+| B-325 | No harness rule can be pointed at a build: `common.PROTOTYPE` is hard-coded to 8899 with no override, every rule self-runs on import, and a rule rebound elsewhere is still certified by the B-256 stamp of the copy it did NOT read | by the instruments' debts block | `fixed #589` |
 | B-326 | `heavy.sh` offers no way to ask who holds its lock, so the natural probe — `cat` on what is a DIRECTORY — reads « free » whether the lock is held or not, and two sessions reached for it independently on the same night | by the steward's office | `open` |
 | B-327 | « Réglages » draws SIX scheduled jobs while the machine runs seven, and the same six are named twice in two French vocabularies that disagree on five of them — the row cannot be added until `SETTINGS` leaves the engine | by L13 | `open` |
 | B-328 | `features/system/page.tsx` heads itself with a path that does not exist and describes a state field (`state.panne`) the code does not have | by the next wave that opens `features/system/page.tsx` | `open` |
 | B-329 | The backend's GENERATED contract does not declare the `409` its own route raises, so no diff between the two contracts can read it — the demand register is structurally blind to a refusal NE-DOIT-PAS-3 forbids the interface to show | by the backend brief | `open` |
 | B-330 | `scripts/mutate.sh` answers « no hold fell » when the RULE PATH it was given does not exist — a typo and a rule that does not bite are the same sentence, and the second is a finding while the first is a mistake | by the instruments' debts block | `open` |
 | B-338 | After a panel's departure the invisible scrim stays hit-testable over the media screen for ~380 ms — `opacity 0`, `visibility` still `visible` until its delayed flip — so a tap on the fresh screen lands on nothing | by the steward | `fixed #573` |
-| B-346 | A paragraph that OPENS with another entry's identifier is read as that entry's body head, so it truncates the entry it lives in and — being the first such head in the file — makes the real entry's body the discarded one; `check-bug-register`'s closure arm was blind to B-310 and B-249 at once, and 25 second-or-later heads sit in the register today | by the micro-wave | `open` |
+| B-346 | A paragraph that OPENS with another entry's identifier is read as that entry's body head, so it truncates the entry it lives in and — being the first such head in the file — makes the real entry's body the discarded one; `check-bug-register`'s closure arm was blind to B-310 and B-249 at once, and 25 second-or-later heads sit in the register today | by the micro-wave | `fixed #589` |
 | B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens » | 1× | `open` |
 | B-340 | The « + » button reopens the add screen with the LAST query and mode still in place — after identifying an arrival, a new search starts on « Marvels Spider-Man 2 v1 526 0 -Mephis… », 0 results, and the « 2 médias ajoutés » strip of the previous visit | 1× | `open` |
 | B-341 | A settings field commits its edit only when the finger LEAVES it — no validation affordance in the panel — which the operator reads as counter-intuitive; the pending edit then says « Valeur actuelle » for the value not yet written | 1× | `open` |
@@ -429,10 +429,10 @@ when the defect comes back.
 | B-381 | A message said while a layer is open is drawn UNDER that layer: the frame ranked the message at z-49 beneath the bottom sheet at z-52, so a verb pressed in a panel speaks a sentence the operator cannot see — held by the toast seam, visible and at full opacity in the document, and under the layer at its own centre; and the message was `inert` while any layer was open, so its close and « Annuler » took no finger | by L21 | `fixed #572` |
 | B-382 | The season act on a FOLLOWED show's own media sheet was addressed under the sheet's key: a sheet opened under « Silo (2023) » is followed by « Silo », so the layer found no follow by that title, began a second one beside the real follow it left untouched, and said « Série suivie et saison 3 demandée — aucun épisode à récupérer. » — B-378's shape on an owned-and-followed sheet | by L21 review round two | `fixed #572` |
 | B-383 | Four verbs SAY a sentence and send nothing to the layer: « Re-scraper les métadonnées » on the follow panel, « Remplacer la valeur » on a secret, « Lancer à blanc » on a maintenance action and « Lancer la veille maintenant » in the « more » menu each answer a canned sentence over an unchanged world — the « said, not done » class, identical on round one's candidate | by L21 review round two | `open` |
-| B-384 | `buildIdentity()` hashes every file under `design/src/`, the command-logging hook's `.claude/logs/bash-commands.log` included, so the build id the design host publishes follows shell commands, not code | by L21's implementer | `open` |
-| B-385 | `hooks/pre-push` runs `pytest -n auto` at every core on every push, beside whatever gate a wave is running; nothing sets `PYTEST_XDIST_AUTO_NUM_WORKERS` | by the steward | `open` |
-| B-386 | `scripts/heavy.sh` has ONE readiness floor for every run — a `make check` and a single-rule replay wait behind the same 4 GB and load 6 | by the steward | `open` |
-| B-387 | The project's PostToolUse formatter rewrote a `.py` a reader wrote under an untracked `.review/` directory: a hook that formats outside the tracked tree edits instruments it was never asked to | by L21's round-three reader | `open` |
+| B-384 | `buildIdentity()` hashes every file under `design/src/`, the command-logging hook's `.claude/logs/bash-commands.log` included, so the build id the design host publishes follows shell commands, not code | by L21's implementer | `fixed #589` |
+| B-385 | `hooks/pre-push` runs `pytest -n auto` at every core on every push, beside whatever gate a wave is running; nothing sets `PYTEST_XDIST_AUTO_NUM_WORKERS` | by the steward | `fixed #589` |
+| B-386 | `scripts/heavy.sh` has ONE readiness floor for every run — a `make check` and a single-rule replay wait behind the same 4 GB and load 6 | by the steward | `fixed #589` |
+| B-387 | The project's PostToolUse formatter rewrote a `.py` a reader wrote under an untracked `.review/` directory: a hook that formats outside the tracked tree edits instruments it was never asked to | by L21's round-three reader | `fixed #589` |
 | B-388 | R51 promises « the prototype's own controls never sit on top of the app's » and reads ONE piece of harness chrome by literal — `[data-part="harness/bar"]` — so a second piece is outside it whatever the docstring says; the property now holds by two rules each naming its own subject, and a third would be held by neither | by audit | `open` |
 | B-389 | The 8899 harness host does not survive the invocation that starts it when that invocation runs under `scripts/heavy.sh` — `set -m` puts the run in its own process group and the release signals the group, so `mutate.sh`, which starts no host, runs its rule against a refused port and B-273 reads the crash as « no hold fell » | by audit | `open` |
 | B-390 | No arm of `check-no-french.py` reads TEXT in `frontend/maquette/design/index.html` — the Strings and Identifiers arms are rooted on `design/src`, and the only arm that opens the file reads attributes — so « the guard does not refuse these labels » was never evidence that an arm had read them | by audit | `open` |
@@ -442,6 +442,15 @@ when the defect comes back.
 | B-394 | The harness's two floating buttons (the design note ⓘ and the states list ≡) are painted OVER a message shown at the top of the frame, so the sentence answering a verb pressed inside a layer is covered by chrome that is in no production build | by the operator, 2026-09-11 | `fixed #585` |
 | B-395 | The library's selection bar stays drawn on every other tab: `app/bottom-slot.tsx` renders it unconditionally and its own condition reads `selMode` alone, so « N sélectionnés · Annuler · Supprimer » sits over Acquisition — and the tab bar, hidden by that same `selMode`, leaves no way back | by the operator, 2026-09-11 | `fixed #585` |
 | B-396 | The mock seed offers exactly ONE folder with candidate cards, so the resolution window's riskiest path — a second pick taken inside the first one's undo window, and a put-back into a list that has moved — is reachable by no finger and is proved through the queue's seam alone | by audit | `open` |
+| B-420 | A wrapped index row IS refused by `unparsed-row`, and refused for the wrong reason: the message says « a status cell without backticks », names no line, and the `corpus` arm prints one row fewer while reporting clean on its own — a reader is told to look for backticks that are all present | by the tooling micro-wave | `fixed #589` |
+| B-421 | An index row written AFTER the first body head is counted and read by the guard, and invisible to a reader: the Markdown table ends at the first non-row line, so the row is in every figure and on no rendered page — and nothing holds the index's order either, which is how a merge's conflict region re-glued a row twice on 2026-09-08 | by the tooling micro-wave | `fixed #589` |
+| B-460 | R161's h2 floor is green over an affordance made invisible by `opacity: 0`, a clip or an off-screen transform — it reads a box above zero and `visibility`, two of the five ways to take a mark away | by review | `open` |
+| B-461 | `resolution_window.py`'s `LAST_FRAME = 6500` is called « the message's last reachable frame » while the message's opacity is 0 there, so only a SHRUNK window is armed — a message outliving the window passes all eighteen holds | by review | `open` |
+| B-462 | The candidate card's accessible name is its title and year alone, so the confidence, the provider, the kind and the synopsis are announced to nobody on the screen whose whole job is choosing between near-identical candidates | by review | `open` |
+| B-463 | `csstokens_ranks.py` attributes a rank to the nearest `export const` above it, so a rank declared under an unrelated binding passes silently at an already-recorded number and names the wrong site at any other | by review | `open` |
+| B-464 | The same arm never opens three scopes: a `<style>` block in the shell's markup, a `.css` in a subdirectory of `styles/`, and a negative `-z-N` utility | by review | `open` |
+| B-465 | `engine/legacy.js:9344` still says « paintSelBar() below draws the bar directly » four lines above the call to the now-empty function | by review | `open` |
+| B-466 | `ui/variants/frame.ts` sits at 399 non-blank lines against a hard ceiling of 400, and the arm this wave added is what will demand the four-hundredth | by review | `open` |
 | B-470 | The media sheet carries the SAME « Re-scraper les métadonnées » the follow panel does, drawn as `data-toast`, so it too said a sentence and sent nothing — a fifth verb of B-383's class, named in no entry because round two's reader swept panel producers and a sheet is a screen | by the mock-layer micro-wave | `open` |
 | B-471 | `readMediaSeasons` DECLARES `Season[]` (`{season, owned, aired}`) and ANSWERS the sheet's catalogue (`{number, episodes, airDate}`): two different shapes at one operation, and `contract-conformance.test.ts` cannot see it because it reads only a response's first-level required fields, never an element's | by the mock-layer micro-wave | `open` |
 | B-472 | `scripts/heavy.sh` takes its lock with a polled `mkdir` and no queue, so among several waves waiting an old demander has no precedence over a new one: with four agents on the machine the lock, not the work, sets a wave's pace | by the mock-layer micro-wave | `open` |
@@ -450,6 +459,91 @@ when the defect comes back.
 | B-475 | The library holds episode numbers the catalogue does not list — American Dad! S16 holds 1–24 where the catalogue lists 20, Les Animaniacs S2 holds `[1, 4, 7, 9, 76–82]` where it lists 12 — and they are counted and drawn NOWHERE: every surface counts the numbers at or below what aired, so four and seven held files vanish | the operator's ruling on numbering orders, then the wave that draws it | `open` |
 | B-476 | « Dexter: Resurrection » is followed under a title no sheet carries (the sheet is « Dexter Resurrection », and its holdings are keyed there), and the follow's totals 96/96 are not its seasons' sums 10/10: one show, three families, three answers | the wave that next touches the seeds' identity | `open` |
 | B-477 | House of the Dragon, Ted Lasso and Strange New Worlds are followed « à jour » (26/26, 35/35, 33/33) while their media sheets answer `owned: false` — the holdings are keyed under « House of the Dragon (2022) » and « Ted Lasso (2020) », titles the sheet's identity does not name, or absent — so the follow says held and the sheet says not in the library | the wave that next touches the seeds' identity | `open` |
+
+**B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
+
+Filed by the tooling micro-wave, and filed on what was MEASURED rather than on what was supposed.
+The steward's reading of 2026-09-11, taken from a merge's conflict region and never probed, was that
+a wrapped row is « neither counted nor read ». **It is refused.** `ANY_INDEX_ROW` uses `\s*`, which
+crosses a newline, so a row broken over two lines still OPENS with an identifier as far as that regex
+is concerned, while `INDEX_ROW` — whose `.` does not cross one — no longer reads it. The arm's
+subtraction therefore sees one row it could not read, and exits 1.
+
+**What is wrong is the sentence it exits with.** `arm_unparsed_row` has one message and one
+diagnosis: « A row whose status cell is not backticked is not refused, it is INVISIBLE ». For a
+wrapped row that is false in every part — the backticks are all present — and the reader is sent to
+look for a defect that is not there. The message names no line either, so on a 9 700-line register
+the only way to find the row is to re-derive the subtraction by hand.
+
+**And the corpus arm says « clean » about the same file**, printing `365 index row(s) read` where
+366 exist. On its own that arm cannot fail here: the floor is 150. A count that falls by one and
+reports success is the shape this register counts, and here it sits beside an arm that did fire —
+so the two together tell a reader that the register has 365 rows and one backtick problem, when it
+has 366 rows and one wrapped line.
+
+**Closed by this same wave.** `arm_unparsed_row` reads the register line by line now: a line that
+opens a cell with an identifier and is not a well-formed index row is named with its line number and
+with the cause that applies — « this index row is WRAPPED … does not end its last cell on the same
+line », or « this index row's status cell is not backticked ». The historical table is recognised by
+its last cell being a DATE rather than by the constant `12`, which was the other way the reader could
+be wrong without saying so. The subtraction stays as a residual: when the count and the line-by-line
+read DISAGREE, the arm says that too, because a row malformed in a way neither describes is exactly
+what this file is for.
+
+The corpus arm still prints one row fewer over a wrapped register, and that is left as it is: the
+figure is now attributable, because the arm beside it names the line that explains it.
+
+Held by four holds in `tests/scripts/test_check_bug_register.py` — a wrapped row named « WRAPPED »
+with the backtick cause absent from the message, an unbackticked status named with ITS cause and
+without « WRAPPED », the historical table's date rows not refused, and the real `BUGS.md` clean as
+the control that stops an arm which refuses everything from passing the other three. Seen RED
+against the pre-repair arm put back in place: 2 failed, 8 passed.
+
+<sub>Probed on copies, arm by arm, with `--register` (added by this wave for exactly this): a row
+wrapped after its second pipe and a row wrapped before it both give `unparsed-row` exit 1 with « 378
+row(s) open with an identifier, 365 were read as index rows and 12 are the historical table — 1 could
+not be read at all », `duplicate-row` / `status-vocabulary` / `corpus` all exit 0, and `corpus` prints
+`365 index row(s) read in BUGS.md (floor 150)`. Measured 2026-09-12 on `898521548`.</sub>
+
+**B-421 — a row outside the table is in every figure and on no page, and nothing holds the order.**
+
+Filed by the tooling micro-wave, on the measurement rather than on the supposition. The steward's
+reading of 2026-09-11 was that a row pushed below the table by a merge is « unread by every count ».
+**The guard reads it.** `INDEX_ROW` is `re.MULTILINE` and matches anywhere in the file, so a row
+moved under a body is still counted, its status still checked, its duplicate still refused.
+
+**The defect is the other way round.** The Markdown table ends at the first line that is not a row,
+so a row written after a body head is invisible to the READER — it is on no rendered page, in the
+operator's own file, while every figure the guard prints includes it. Nothing refuses that, and
+nothing says where the table ends. On 2026-09-08 a merge of `main` produced one conflict region
+spanning rows and bodies, and concatenating the sides put a row below a body twice in one day.
+
+**Nothing holds the index's ORDER either**, and that is the second half: two rows swapped by hand
+give four clean arms. **The order cannot simply be required**, because the index is not sorted today
+— four descents: B-023 → B-013, B-346 → B-339, B-371 → B-331, and B-392 → B-001 where the open table
+gives way to the historical one. Re-ordering the register is a decision about the operator's own file
+and belongs to him.
+
+**Closed by this same wave, in two arms.** `row-placement` locates both index tables by their
+HEADINGS — « ## Open » and « ## Closed entries — index » — and refuses, by line number, any line that
+opens a cell with an identifier outside them. `index-order` reads each table ON ITS OWN and refuses a
+descent that is not frozen. Reading the two as one list makes the SEAM between them a descent, and
+the arm accused the register of its own boundary the first time it ran; the frozen list is therefore
+three pairs and not four — B-023 → B-013, B-346 → B-339, B-371 → B-331 — the fourth having been the
+seam.
+
+Held by five holds in `tests/scripts/test_check_bug_register.py`: a row re-glued below the table
+refused by name, a new descent refused by name, a reworded heading loud in both of its readings (one
+table lost → its rows refused as outside; both lost → the arm says it has no subject), and two
+controls — the two tables owning their own rows, and the real `BUGS.md` passing both arms, which is
+the one that would fall if either arm simply refused everything. Seen RED with both arms returning
+zero: 3 failed, 12 passed.
+
+<sub>Probed on copies, arm by arm, with `--register`: B-384's row moved below the table and just above
+its own body gives `duplicate-row`, `status-vocabulary`, `unparsed-row` and `corpus` all exit 0, with
+`corpus` printing `366 index row(s) read` — the row is still counted where it stands. Two rows swapped
+in the open table give the same four exit 0. The four descents are the output of
+`re.findall(r"^\| ([BE]-\d{3}) \|", text, re.M)` compared pairwise. Measured 2026-09-12 on `898521548`.</sub>
 
 **B-470 — the media sheet's own « Re-scraper les métadonnées » said a sentence and sent nothing.**
 `features/media/media-details.tsx:105` drew the sheet's re-scrape as
@@ -582,6 +676,7 @@ sheet key shares with those identities — and Strange New Worlds has none at al
 `readMediaSeasons` answers no holdings for any of the three. Latent on screen today: a sheet not owned
 draws its catalogue without a fraction, so nothing contradicts itself on the sheet — but the follow
 and the sheet state opposite facts about one show. B-088's class, beside B-380 and B-476.
+
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
@@ -985,6 +1080,30 @@ proof » holds only while nobody shells there. **Closes when** `buildIdentity()`
 every git-ignored path, held by a rule that writes a file there and reads the id unchanged. Owner: a
 tooling micro-wave, not a lot.
 
+**Closed #589.** `buildIdentity` moved to `frontend/maquette/design/build-identity.mjs` — nothing but
+Node's standard library, which is what lets a test drive it with no `node_modules` — and hashes the
+paths git accounts for (`git ls-files --cached --others --exclude-standard`, so an untracked source
+still counts), keeping `src/` plus the four root files and refusing `.claude/` BY NAME as well: the
+ignore rule that hides it here lives in the operator's global excludes file, which a runner does not
+have. It hashes the RELATIVE path, not the bare file name the walk used.
+
+The hold is Python driving `node`, and that is a decision rather than a convenience: the maquette's
+vitest suite runs NOWHERE in continuous integration — the `frontend` job runs `npm run test` for
+`frontend/` and only `npm run typecheck` for `frontend/maquette/design` — so a hold added there would
+never be read, while the `test` job sets up Node 22. Seen RED with the pre-repair walk put back inside
+the module: 2 failed, 4 passed, the two that fell naming the defect and the four controls green.
+Measured on the real tree: two builds of the unchanged design read `c955d7ff5fc8` twice, and a third
+with `src/.claude/logs/bash-commands.log` present read `c955d7ff5fc8` again.
+
+**AND IT COST A SECOND ROUND, which the FULL suite found and nothing cheaper did.** Extracting the
+function added a file the build cannot start without, and two places assemble a build tree by NAMING
+what they know: `switchover.py`'s scratch root and `serve.py`'s `BUILD_INPUTS`. R73 reported four
+failures and a `FileNotFoundError` about a host that was perfectly fine. Both learned the new input,
+a hold now refuses a `*.mjs` at the design root that either of them does not name, and — the scratch
+tree being under `/tmp`, where git can account for nothing — the identity falls back to the pre-repair
+walk over `src/` with `.claude/` still excluded, saying so on stderr. The two readings give the same
+id on this tree.
+
 **B-385 — the pre-push hook takes every core.**
 
 `hooks/pre-push` runs `python -m pytest -v -n auto` on every push: eight workers on this host, beside
@@ -993,6 +1112,17 @@ whatever gate a wave is running under `scripts/heavy.sh`, and outside the lock. 
 it — every wave since L19 has been told to set it to 3 by hand, and the instruction lives in briefs, not
 in the hook. **Closes when** the hook caps its workers (three on this host) unless the variable says
 otherwise, and says so in its own output. Owner: a tooling micro-wave.
+
+**Closed #589.** The hook exports `PYTEST_XDIST_AUTO_NUM_WORKERS=3` unless the environment already
+names a number, and prints which of the two it applied. Held by
+`tests/scripts/test_pre_push_worker_cap.py`, which runs the real hook with a stub `python` recording
+what reached each of the five checks, in both directions. Seen RED with the hook reverted: 2 failed,
+the stub recording `UNSET` and neither printed line present.
+
+**One thing a reader of this entry needs**: `core.hooksPath` is an absolute path into the MAIN
+checkout, so a worktree's push runs `main`'s copy of the hook — the cap takes effect for everyone on
+the merge, not on the branch. The hold reads the branch's own `scripts/pre-push` directly, so it holds
+the repair either way.
 
 **B-386 — the heavy wrapper has one readiness floor for every run.**
 
@@ -1005,6 +1135,28 @@ command's class (browser run, test run, single rule), with the arithmetic of the
 § Instrument hygiene, and the bypass by environment is refused. Owner: a tooling micro-wave. (A memory
 believed this filed as B-362; no such entry exists on either register.)
 
+**Closed #589.** `--class browser|test|rule` carries the floor, with the arithmetic written beside each
+number in the script (8 cores, 16 GB, a ~6 GB baseline, ~1.1 GB per Playwright browser group):
+`browser` 4 096 MB and load 6 — two groups at 1.1 GB plus a third group's slack, the historical floor
+unmoved; `test` 3 072 MB and load 6 — no browser, three pytest workers and their parent or a Vite build
+peaking near 1.5 GB, twice the peak; `rule` 2 560 MB and load 10 — one group plus the static host, and
+load 10 on 8 cores is no wait at all, because a wait nobody needs is how a mandatory wrapper gets
+bypassed.
+
+Under a NAMED class `HEAVY_FREE_FLOOR_MB` may only RAISE the floor and `HEAVY_LOAD_CEILING` only lower
+the ceiling; below either, exit 64 naming the class and its number. **This replaces the hand-set
+`HEAVY_FREE_FLOOR_MB=2560` of 2026-09-12**, the operator's word for the day four agents shared the
+machine. `HEAVY_LOCK` is untouched — it is the test suite's door and changes no threshold. A run with
+NO class keeps 4 096, load 6 and the historical bypass, so every invocation written before this works
+unchanged, and the watchdog's hard floor (2 048) does not move with the class.
+
+Nine holds added to `tests/scripts/test_heavy.py`, all on the refusal path, which answers BEFORE any
+waiting — so none of them passes or fails on how much room the machine happens to have. Seen RED with
+the script reverted: 9 failed, 16 passed. Mutations: the `rule` floor 2 560 → 2 048 gives 2 failed,
+the refusal naming 2 048 and the arithmetic hold naming the right defect; the whole refusal block
+removed gives 6 failed. The « one second of overhead on an instant command » measure stays green:
+25 passed in 27.13 s.
+
 **B-387 — the formatter hook edits files outside the tracked tree.**
 
 The project's PostToolUse formatter (`.claude/hooks/auto_format_project.py`, merged by #580) drops
@@ -1014,6 +1166,208 @@ round three, 2026-09-11). An instrument rewritten by a hook is an instrument its
 **Closes when** the hook skips git-ignored and untracked paths, held by a test that writes a file under
 an ignored directory and reads it unchanged after the hook. Owner: the configuration's session, not a
 lot.
+
+**Closed #589.** The hook declines a path git ignores, a path git does not track, or a path outside any
+repository at all, and says WHICH of the three on stderr — a hook that declines silently is
+indistinguishable from a hook that did nothing. Its git probes run from the file's own directory with
+`GIT_DIR` / `GIT_WORK_TREE` / `GIT_INDEX_FILE` / `GIT_PREFIX` stripped, because those override `-C`.
+
+**A deliberate consequence, stated rather than hidden**: a file that has never been `git add`-ed is no
+longer formatted either. That is the closing condition above read literally, and `ruff format --check`
+in `make lint` and in continuous integration is what holds a forgotten file — about a file somebody
+chose to track.
+
+Held by `tests/scripts/test_auto_format_project_hook.py`: a throwaway repository per hold, the hook's
+own `main()` driven with a stub standing in for the global formatter, so what is measured is whether
+the payload was HANDED ON. Seen RED with the hook reverted: 4 failed, 1 passed — and the one that
+passed is the control, a TRACKED file still reaching the formatter, which is what stops the other four
+passing over a hook that has simply stopped forwarding. Mutation: both git probes removed → 3 failed,
+each naming its own door.
+**B-466 — `frame.ts` is one line from a hard ceiling, and the arm this wave added is what will demand that line.**
+
+`python3 scripts/check-frontend-boundaries.py` on the wave's head exits **0** with
+`[WARN] ui/variants/frame.ts: 399 non-blank lines`. `BLOCK_LINES = 400`, and a file at or over it
+must be grandfathered against a lot or the guard refuses it
+(`scripts/check-frontend-boundaries.py:294`, `:543`). The ranked list is written **one line per
+RANK**, so a new site at an EXISTING rank costs nothing — but a rank at a NEW number costs exactly
+one line and takes the file to the ceiling.
+
+**The two guards this wave introduced now point opposite ways**: `scripts/csstokens_ranks.py`
+refuses a rank the list does not name, and `check-frontend-boundaries.py` refuses the line that
+would name it. The next reader meets both in the same commit with no room to move.
+
+**This is not a defect in what was built.** The compression from 427 to 399 lost no entry, verified
+by parsing both lists: the pre-compression commit recorded 24 sites, the head records 19, and the
+five missing are exactly `LOCAL_DETAILS`' five (`.st .d`, `sheetDragBand`, the two
+`::view-transition-group` entries, `viewTabs`). **Closes when** `frontend/maquette/design/src/ui/variants/frame.ts`
+is grandfathered against the lot that splits it, or the ranked list moves into the arm's own module
+beside `LOCAL_DETAILS`. Owner: the next wave that opens the file.
+
+<sub>reader B, maquette-resolution-card round two, 2026-09-12 (B7) · `python3 scripts/check-frontend-boundaries.py` → exit 0 with the `[WARN]` line · both lists parsed, 24 → 19 + 5 exempt</sub>
+
+**B-465 — a comment in the dying engine still names the empty function as the painter.**
+
+`frontend/maquette/design/src/engine/legacy.js:9344` says « **paintSelBar() below draws the bar
+directly, not through render()** », four lines above the call to `paintSelBar()`, which is
+`function paintSelBar() {}` at `engine/legacy.js:7788`. React draws the bar
+(`features/library/selection-bar.tsx`), which is what this wave's own repair wrote — truly, clause
+by clause — into `features/library/page.tsx:16-27`.
+
+**OLD, and not charged to that repair**: the sentence is identical on the wave's control head, and
+`engine/` is not the file the repair named. It is **B-392's own species surviving one file away**,
+in the file that holds the seam — the sentence a reader uses to judge who owns that node.
+**Closes when** the comment says who draws the bar, **or it dies with the engine**. Owner: L13, or
+the next wave that opens `legacy.js`.
+
+<sub>reader B, maquette-resolution-card round two, 2026-09-12 (B6) · read against `selection-bar.tsx`, `bottom-slot.tsx`, `navigation.ts` and `engine/legacy.js` on both builds · `frontend/maquette/design/src/engine/legacy.js:9344` and `:7788`</sub>
+
+**B-464 — three scopes `csstokens_ranks.py` never opens.**
+
+Measured on scratch trees, each restored, the repository never touched:
+
+- a `z-index` inside a `<style>` block of the shell's markup → **exit 0**. The markup arm reads
+  `class="…"` attributes only, and **`frontend/maquette/design/refonte.html` has a `<style>` at
+  line 3** — a live file, not a hypothesis (it carries no `z-index` today; the reader checked).
+- a stylesheet in a SUBdirectory of `styles/` → **exit 0**: the arm globs `*.css`, not `rglob`.
+  Every stylesheet the maquette has is `styles/*.css` today, so nothing is missed now.
+- a negative utility `-z-10` → **exit 0**: `UTILITY`'s lookbehind excludes a leading `-`. The
+  docstring deliberately names `z-auto`, `z-full` and `md:z-10` as unread; it does not name this one.
+
+**Expected**: an arm's docstring names what it does not read, so the next reader does not have to
+find out by mutating it. **MINOR — none of the three is occupied today**, which is why this is filed
+rather than repaired. **Closes when** the arm reads a `<style>` block in the shell's markup, walks
+`styles/` recursively, and either reads `-z-N` or names it unread in its own docstring. Owner: the
+next wave that opens `scripts/csstokens_ranks.py`.
+
+<sub>reader B, maquette-resolution-card round two, 2026-09-12 (B5) · three scratch trees under the reader's `.review/scratch/`, each mutated and restored · `scripts/csstokens_ranks.py`, `UTILITY` and the stylesheet glob</sub>
+
+**B-463 — the ranks arm attributes a declaration to the nearest `export const` above it.**
+
+`scripts/csstokens_ranks.py:213-218` takes a rank's SITE to be the nearest `export const` above it
+for sources, and the nearest line ENDING in `{` for stylesheets (`OPENS`, line 96). A declaration
+whose own site is not an export — or whose rule is written on ONE line — inherits its neighbour's
+name. Measured on scratch trees, the repository never touched:
+
+| Scratch tree | The arm says | Should say |
+| --- | --- | --- |
+| `export const tabBar = cva("… z-50")`, then below it `const helper = "newthing z-50"` | `[(tabBar, 50), (tabBar, 50)]`, **exit 0** | a rank at 50 nobody recorded |
+| the same, at `z-58` | exit 1, but « **`tabBar`** declares 58 » | « `helper` declares 58 » |
+| `.hbtn { … }`, then `.newthing { z-index: 58; }` **on one line** | exit 1, but « **`.hbtn`** declares 58 » | « `.newthing` declares 58 » |
+
+So a rank is **smuggled in silently when it matches its neighbour's recorded number**, and is
+reported against the WRONG site at any other number. **Expected**: an arm that refuses « a rank
+nobody recorded » names the thing that declares it.
+
+**This does not weaken what the arm was built for**, and the reader established that independently:
+an enumeration of its own (`rg --pcre2` over the sources, the two markup files and `styles/*.css`)
+finds **exactly 24 declarations — 9 in CSS, 15 utilities** — against the arm's « 24 declared, 19
+recorded, 5 exempt », site by site; and the arm BITES, proved on a copy of the whole design tree by
+three mutations, each naming its own site. Its plumbing was read on all three ends —
+`scripts/check-css-tokens.py:844` imports it, `:878` runs it in the default arm list, and
+`Makefile:86`, `frontend/maquette/harness/run.sh:195` and `.github/workflows/ci.yml:286` each invoke
+that guard on every non-draft pull request.
+
+**Closes when** the site is taken from the declaration's own enclosing binding (any `const`,
+exported or not) and `OPENS` matches a rule opened and closed on one line, with one test per
+direction. Owner: the next wave that opens `scripts/csstokens_ranks.py`.
+
+<sub>reader B, maquette-resolution-card round two, 2026-09-12 (B4) · the arm's own `declared()` and `ranks_arm()` driven over three scratch trees · the reader's independent `rg --pcre2 '(?<![\w-])z-(\[\d+\]|\d+)(?![\w-])'` enumeration, 24 sites, agreeing site by site · `tests/scripts/test_csstokens_ranks.py`, 13 tests</sub>
+
+**B-462 — the candidate card announces its title and year, and nothing else.**
+
+`Accessibility.getPartialAXTree` over every candidate card, both builds: on the wave's head the
+five names are `Lucky! 2022` · `Lucky (2026) 2026` · `Lucky (2006) 2006` · `Lucky (2003) 2003` ·
+`Lucky Chances 1990`, 11 to 18 characters, all distinct. On the control they were the whole card's
+text, 192 to 521 characters, the third opening on the poster's stray `L`.
+
+**The repair is exactly what the decided list asked for and it works.** What it also did, and
+nobody had ruled at the time: the card is a `button` and now carries an `aria-label`, so **the
+confidence, the provider (`TVDB 427619`), the kind and the synopsis are announced to no one** — on
+the screen whose whole job is choosing between near-identical series, the one datum that says which
+candidate the system believes, `confiance 90 %`, was in the control's name and is now in nothing.
+
+**RULED by the operator, 2026-09-12**: the accessible name **announces the confidence and the
+provider** — « Titre Année · 90 % · TMDB ». It is built by the next wave that opens
+`frontend/maquette/design/src/features/arrivals/resolution-cards.tsx`, with a hold that reads the
+**accessibility tree** rather than the markup. **Closes when** that name is emitted and that hold
+holds it. Owner: the next wave that opens the file.
+
+**Two edge cases the fixture cannot put under a finger**, read in the source and marked as reasoned:
+a candidate with **no year** (`aria-label={year ? … : title}` gives the title alone, and R161's
+expected name, parsed off the subtitle, agrees) and a title carrying a quote or an ampersand (the
+label is a React prop, so the DOM escapes it and the protocol returns it literally). All five seeded
+candidates carry a year and none carries either character.
+
+<sub>reader B, maquette-resolution-card round two, 2026-09-12 (B3) · `Accessibility.getPartialAXTree` on every card of both builds · operator's ruling, 2026-09-12 · `frontend/maquette/harness/resolution_card.py` h9 reads the name and not what is announced beside it</sub>
+
+**B-461 — a hold names a relation between two durations and reads one of them.**
+
+`frontend/maquette/harness/resolution_window.py:68-75` calls `LAST_FRAME = 6500` « THE MESSAGE'S
+LAST REACHABLE FRAME, measured at 6 500 ms after the tap: from 7 000 ms the host is hidden », and
+w1's hold says « and is still held on the message's last reachable frame ». **Measured, both builds
+identical**, the message's own opacity sampled every 100 ms after one finger-tap:
+
+| ms after the tap | 5 800 | 6 000 | 6 200 | 6 300 | 6 400 | 6 500 | 6 600 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| the message's opacity | 1.0000 | 1.0000 | 1.0000 | **0.1924** | **0.0023** | **0.0000** | 0.0000 |
+| the undo answers its own hit test | yes | yes | yes | yes | yes | yes | no |
+
+The hold's ARITHMETIC is right — the send is unsent at every mark through 7 100 ms and present at
+7 600 — but the last frame the message is VISIBLE on is ~6 200–6 300 ms. A hit test does not read
+opacity, and the repair inherited its figure from an instrument that hit-tests.
+
+**The consequence, and it is why this is filed rather than noted.** The repair armed ONE direction —
+a window SHRUNK, and its own mutation proves it: 7 000 → 3 000 falls exactly one hold. **The other
+direction is read by none of the eighteen**: if the message's own life grew past the window (6 s →
+10 s, the window untouched), every hold stays green and the interface offers « Annuler » for three
+seconds after the act has gone — the exact asymmetry the design exists to prevent. Nothing in R162
+reads the message's life; nothing in R163 reads the window.
+
+**Closes when** `LAST_FRAME` is derived from the message's own duration constant, or one hold reads
+the message's opacity at `LAST_FRAME` — which would fall today, and is therefore the honest form:
+name the real last frame (~6 200 ms) and hold the send there. Owner: the next wave that opens
+`frontend/maquette/harness/resolution_window.py`.
+
+<sub>reader B, maquette-resolution-card round two, 2026-09-12 (B2) · the opacity sampled every 100 ms on both builds · the send read on the network at nine marks · `frontend/maquette/harness/resolution_window.py:68-75`, w1</sub>
+
+**B-460 — a floor whose subject is « the affordance is drawn » catches two of the five ways to take a mark away.**
+
+R161's own h2 arithmetic (`AFFORDANCE` and the three checks at
+`frontend/maquette/harness/resolution_card.py:342-359`) run over the mark wearing seven disguises,
+on both builds:
+
+| Disguise | h2 size | h2 drawn | h2 nature | **R161 h2** | What a user sees |
+| --- | --- | --- | --- | --- | --- |
+| as shipped | ✓ | ✓ | ✓ | **green** | 32 × 32, opacity 1 |
+| `display: none` | ✗ | ✗ | ✓ | **RED** | 0 × 0 |
+| `visibility: hidden` | ✓ | ✗ | ✓ | **RED** | 32 × 32, invisible |
+| `transform: scale(0)` | ✗ | ✗ | ✓ | **RED** | 0 × 0 |
+| `opacity: 0` | ✓ | ✓ | ✓ | **green** | **invisible** |
+| `clip-path: inset(100%)` | ✓ | ✓ | ✓ | **green** | **invisible** |
+| off-screen (`left: -9999px`) | ✓ | ✓ | ✓ | **green** | **not on the screen** |
+
+**What it reads** is a box above zero and `visibility`. **Expected**: a hold whose subject is « the
+affordance is drawn » falls when the affordance cannot be seen.
+
+**The two mutations the wave named do prove the ground the inert one was aimed at**, and the reader
+says so: the wave's `hidden` was genuinely inert (Tailwind's order, measured at the emitted
+stylesheet's own offsets), and `style={{display:"none"}}` (2 holds) plus `invisible` (1 hold, the
+visibility half alone) together cover it. This entry is what is left BESIDE that ground, not a doubt
+about it. **MINOR — it takes a deliberate edit to reach, and no such edit is in the tree.**
+**Closes when** h2 also reads `opacity` and the mark's own centre answers `document.elementFromPoint`
+as the mark — one more conjunct on a value the browser already computes. Owner: the next wave that
+opens `frontend/maquette/harness/resolution_card.py`.
+
+**Two instruments of the review itself are wrong and are recorded here rather than lost**: round
+one's `.review/a05_edges.py:108` measures `card.textContent.length` for the accessible name, so it
+reports 521 for the third card where the announced name is 17 characters — a reader running it on
+the repaired head would conclude B-462's repair had not happened; and
+`frontend/maquette/harness/desktop_frame.py:132-137` cites `ui/variants/frame.ts:60 / :111 / :124`
+for the tab bar, the action button and the selection bar, which are really at 94 / 145 / 158 on the
+control and 100 / 151 / 164 on this head — already wrong before this wave (B-391 owns that block),
+made one notch staler by its compression.
+
+<sub>reader B, maquette-resolution-card round two, 2026-09-12 (B1, and the two corrected instruments) · h2's own arithmetic run over seven disguises on both builds · `frontend/maquette/harness/resolution_card.py:342-359`</sub>
 
 **B-396 — a fixture that offers one subject, so the window's riskiest path has no finger proof.**
 Round one's reader swept all eight `arr-*` states of the maquette's seed. In every one, exactly ONE
@@ -2718,6 +3072,43 @@ environment override for `PROTOTYPE`, a `if __name__ == "__main__":` guard on th
 served-copy assertions reading the SAME root the rule was pointed at, so a stamp cannot certify a
 build nobody measured.
 
+**Closed by the tooling micro-wave, in three parts.**
+
+`common.PROTOTYPE` reads `TM_PROTOTYPE_URL` and `served_copy.SERVED` reads `TM_SERVED_COPY`. **TWO
+variables and not a mapping from the port to the root**, because a mapping guesses the answer from a
+number: a reader serving two builds from one port over time would get a silent wrong answer where
+this gives a refusal. And the second variable is the half that matters — an override on the URL
+alone would point a rule at one build and certify it against another, which is B-256's own subject
+reached through the door this repair would otherwise have left open. So **a URL override with no
+root override is REFUSED at import**, naming both values.
+
+Every rule module's invocation now sits behind `if __name__ == "__main__":` — 84 modules rewritten
+by `scripts/guard-module-entry-points.py`, which parses with `ast` rather than matching text and
+refuses a shape it does not recognise. 117 modules, 84 changed, 0 refused; the 33 untouched were
+already guarded or define no invocation. `pop.py`, which runs one rule, defines a second and runs
+that, is the one module whose first invocation was not trailing.
+
+**THE TOOL WAS NOT THE PROOF, and this is the entry's most useful line.** Its first version moved
+every top-level call, and every rule opens with `sys.path.insert(0, …)` so that `from common import
+…` resolves: FORTY-ONE files were left unable to import what they depend on. `ruff` passed over all
+of them and the tool reported « 84 of 117 changed, 0 refused ». Reading the diff is what caught it.
+The tool now only takes calls that come AFTER the module's first definition — a module's entry point
+calls something the module DEFINED — and a hold reads that order independently, with a floor under
+the count so a tool that DELETED the plumbing would not leave it with nothing to read.
+
+**What this does NOT reach, measured rather than implied**: 31 of the 117 rules carry
+`http://127.0.0.1:8899` as a literal instead of reading `common.PROTOTYPE`. Rewriting them would
+change rules this wave may not touch, so the number is frozen by a hold: the override's blind spot
+cannot grow, and a rule written tomorrow reads the constant. `run.sh` is likewise untouched — it
+still owns 8899 and `/tmp/tm-refonte`, and the override serves a rule pointed BY HAND, which is the
+reading #567's independent reader could not take.
+
+Held by nine holds in `tests/scripts/test_harness_entry_points.py`, including a fake `playwright`
+that raises on any call, so a module still running itself on import fails loudly instead of quietly
+starting a browser nobody watches. Three mutations, exit codes read by hand: the guard removed from
+one rule → 3 failed; the plumbing moved behind the guard in one file → 1 failed, naming the file;
+the coherence refusal removed → 1 failed. Restored each time: 9 passed.
+
 <sub>`grep -n "PROTOTYPE" frontend/maquette/harness/common.py` → the constant and its use, no `os.environ` · `tail -1 frontend/maquette/harness/machine.py` → `asyncio.run(main())` · reported by the independent reader of #567, round one, 2026-09-06</sub>
 
 **B-326 — the lock's own probe reads « free » whether it is held or not.**
@@ -3103,13 +3494,32 @@ the entries it closed — and each one still ends the span before it and discard
 occurrence this wave met is reworded in place (« THE FAMILY IS B-249's »), which restores both
 spans; the other twenty-four are not read here and their cost is unmeasured.
 
-**NOT REPAIRED, and the cost is one line either way.** The arm could require the delimiter the
-convention already uses — a head is `**B-NNN —` or `**B-NNN** —`, never `**B-NNN's` — or
-`entry_bodies` could keep the LONGEST span per identifier rather than the first. Both are a line;
-choosing between them is a decision about the register's grammar and belongs to whoever owns that
-arm, not to a micro-wave that came across it. What is recorded here is that the hole is real, that
-it silently damages two entries per occurrence, and that a wave closing an entry whose body sits
-behind such a paragraph will be refused for a reason that has nothing to do with its work.
+**REPAIRED by the tooling micro-wave, and it took BOTH lines and a third.** The two candidates
+recorded above were each tried and each was wrong alone. Requiring the delimiter — a head is
+`**B-NNN —` or `**B-NNN** —` — fixes the truncation, and takes a body away from the TWELVE entries
+the register writes as a sentence rather than a title (« **B-165 is the one to keep.** »); an
+identifier with no body at all is one the closure arm never checks, which trades a loud false
+refusal for a silent false pass. Keeping the LONGEST span fixes the theft and not the truncation,
+and it picks the wrong span where a wave's recap is longer than the entry it recaps: « **B-050,
+B-059 and B-070 — three angles on one mechanism** » is 980 characters and B-050's own body is 924.
+
+**What the guard does now**, in three rules that each answer one of those readings: a PROPER head is
+an identifier — optionally followed by more, joined by `,`, ` to ` or ` and ` — then an em dash; a
+bare paragraph is a head only when NOTHING else claims the identifier it names, which is exactly the
+distinction the defect turned on (a paragraph may claim an entry that has no body of its own, never
+one that has); and where an identifier carries two heads, the one naming a SINGLE entry wins over a
+recap naming several, length deciding only between equals.
+
+**The count, re-taken on this branch with the command above**: the old regex reads **26 of 320**
+heads as second-or-later (it read 25 of 278 when this entry was written — the register has grown).
+The parser now reads **17 of 311**, and none of the seventeen damages anything: each is a wave's
+recap standing above entries whose own bodies win. **294 identifiers keep a body, exactly as many as
+before** — the repair took none away.
+
+Held by `tests/scripts/test_check_bug_register.py`: six holds, three of them driving the defect's own
+register (B-310 truncated and B-249 stolen in one text, the recap-versus-body preference) and three
+controls — both spellings of a real head, the dashless entry that must keep its body, and a corpus
+floor on the real `BUGS.md`. Seen RED against `468162dc6`: 3 failed, 3 passed.
 
 <sub>found by this wave's own `fixed #573` being refused · `grep -n "^\*\*B-249" BUGS.md` → 891 and 6954 · body length read through the arm's own `entry_bodies`, 3 065 → 9 740 characters after the rewording</sub>
 
@@ -3840,6 +4250,33 @@ own reading, and « re-run until green » stops being the only habit available. 
 debts block for the next wave that touches those rules.
 
 <sub>`TM_HARNESS_JOBS=3 sh scripts/heavy.sh <who> sh passes.sh` — each target rule three times with `virtual.py` and `persistence.py` started 3 s before it; the nine logs read `N rules EXECUTED — no violation` and exit 0</sub>
+
+**A FIFTH INSTRUMENT, 2026-09-12 at `88b5e2f84`, by the tooling micro-wave — and this one PRINTS what
+its diagnosis needs.** `virtual.py` fell in the full suite and the fall carries its own reading:
+
+    FAIL a reader three hundred pixels down keeps their row through the mode and back
+         — the first row is a place like any other
+         — top row "On l'appelait Robin des Bois" at 300px, "On l'appelait Robin des Bois"
+           at 0px after — the port moved 300px, and a row measures 134px
+
+So the ROW is the same on both sides and the PORT is not: the reader was put back at the container's
+start instead of 300 pixels down, which is the exact distinction the hold's own comment says a title
+comparison cannot make. The hold waits 500 ms after the scroll, 600 ms after entering selection mode
+and 700 ms after leaving it; under the suite's load those three waits are what gives way, and the
+restoration lands before the port has been written. **The load, from the wrapper's own line**:
+`heavy: tooling-hygiene starts (4547MB free, load 5.73)`, `TM_HARNESS_JOBS=2`, 119 rules, two at a
+time, beside two other waves on the machine.
+
+**Replayed ALONE immediately afterwards, same head, same served copy: `36 rules EXECUTED — no
+violation`, exit 0.** Said in the same breath, as B-277 requires: running it alone removed the load
+the failure needed, so that green says nothing about the rule's soundness — only that the fall did
+not survive isolation. **And the suite was NOT re-run whole**, by the steward's ruling of the same
+day: a re-run that comes back green has removed the condition and proves nothing about the fall,
+while costing twenty minutes of a mutex two waves were queued on. The record is what is kept instead.
+
+The wave that met it touches no surface — `git diff --stat origin/main -- frontend/maquette/design/src
+| wc -l` → 0 — and that is recorded as a fact rather than offered as an alibi: what this entry needs
+is the reading, and for the first time in five instances it has one.
 
 **B-293 — 38 `Design:` markers point at paths that left the tree, and nothing says so.**
 `grep -rhoE 'Design: docs/[^#[:space:]]+' --include='*.py' tests | sort | uniq -c` shows 16 for
@@ -7582,7 +8019,8 @@ absence of a row can mean either.
 | **maquette-departure** (#573, the B-310 micro-wave) | **4** — 2 by the wave, 2 by gates refusing its own work | **ALL FOUR ARE INSTRUMENTS, and two of them are the seam's own rules stopping ONE PROPERTY SHORT — which is why both defects reached the operator's phone under a green suite.** `transition.py`'s `hold_the_panel_departs` asserts `panel-down` RUNS on `::view-transition-old(leaving-panel)` — by animation name, so the user-agent cross-fade cannot satisfy it — and never reads what the snapshot does when it ENDS; that is the whole of B-310, held by nothing for the life of the departure. `exits.py` (R103) holds that a leaving layer stays `visible`, and that is all it reads — while the reason the idiom EXISTS is written, in those words, at three other sites: « the layer stays hit-testable until it has finished leaving » (`ui/variants/layout.ts`, `harness/transition.py`, `styles/base.css`). The property the codebase says the idiom is for and the property its rule measures are not the same property, and the gap between them is B-338, read from the finger's side. **The first version of this row put that sentence in `exits.py`'s own header, where it has never been** — a misquotation found by a reader running `git log -S` on it, in the row this table exists to keep honest. **The other two were found by gates refusing this wave's own work, which is the only reason anybody looked at them.** `check-maquette-comments.py` refuses a FILE's reference count going up, and it DOES read the corpus size — as a floor 10 % below the record, against the reader silently stopping. What it never asks is whether the record has gone stale UPWARD: a corpus that GREW is far above that floor, so the guard printed « clean » over a wave that added a source to it while the floor was being derived from a tree that no longer existed. Its TEST is what failed, `assert 318 == 319`. **The first version of this row said the guard reads the corpus size « not at all », which is false and checkable at `scripts/check-maquette-comments.py:279-281`** — a guard read from memory instead of from its source, in the row about guards that are not read. And `check-bug-register.py`'s closure arm refused an honest `fixed #573` on B-310 while standing ready to accept a SILENT closure of B-249, over one paragraph: `BODY_HEAD` is `^\*\*([BE]-\d{3})\b` and `entry_bodies` keeps the FIRST span, so `**B-249's FAMILY…` inside B-310's entry ended B-310's body at 3 065 characters of 9 740 — cutting off the mechanism that stands and every device reading taken on the operator's phone — and, preceding B-249's real entry, took B-249's own body as the discarded one (**B-346**, 25 of 278 heads are second-or-later). **A fifth was found in a sibling wave from this one's finding and is NOT counted here**, because it is not this wave's: `--record` on the comment baseline would have entered a lot code as that file's allowance, freezing a violation as the baseline. |
 | **L21** (#572, the tunnel's verbs) | **22 across three rounds** — 11 by the wave, 11 by independent readers (round one 0, round two 7, round three 4) | **RECOUNTED against the lot's own design document before publication, and the recount changed the COMPOSITION rather than the figure.** A first count of eight was assembled from the rotation's hand-over alone; reading `docs/features/maquette-l21/DESIGN.md@2ffdc4ba` § 3.1c underneath it showed one unit that was not a discovery at all and one the hand-over had never carried. **That first recount came out at eight either way, and the coincidence is exactly why the itemisation is the count and this sentence is not — a NINTH was found afterwards, by a bisect, and the itemisation is where it went.** Itemised in « L21's twenty-two, itemised » — one line per unit with what establishes it. **One of § 3.1c's four is deliberately EXCLUDED**: « two sources for one fact » — the absorbed count crossing the sheet's provider catalogue with the owned-episode seed and answering 10 for a season printed as « 1 manquant » — is a wrong ANSWER in a mock handler, not a hold green over what it does not read, and this table's species is the second. **Zero by independent readers** was written before its readers came, and this table's own evidence said it was a figure awaiting them. **They came: ELEVEN, over three rounds, and ten of them after the wave had declared its instruments sound** — round one's reader found none, round two's seven, round three's four, each one a rule this wave wrote or repaired, and five of round three's and round two's are in the very holds the previous round had just added. **And the wave found an eleventh of its own while repairing C1**: R158's « Agent Elvis » hold certified the same defect as R160's. Recounted at the post-merge gesture, on the steward's ruling of the criterion — the title, « green over what they do not read », with the mechanism that leaves the reading absent not part of it: B4 is IN (a mock answering in ~15 ms is what R157 did not read), B5 and B8 are OUT (a false claim; no rule named) |
 | **maquette-desktop-frame** (#576, the B-344 micro-wave) | **36** — 11 by the wave, 25 by five independent readers over five rounds | **RE-TAKEN ONCE ON THE FINAL HEAD, and the row read 4 while the readers were still reading.** The 4 were honest and they were a quarter of the answer, which is this table's oldest prediction arriving on a micro-wave of one rule. **The wave's 11**: R140's accessible-name hold reading `textContent`, caught by a probe before the rule ever ran; **B-388**, R51 holding a class of thing by one literal; **B-273's third case**, `mutate.sh` printing « NO RULE FELL » over a rule that died on a refused port; the **accessibility tier**, which audits at 390 px and so read nothing of a wave whose subject does not exist there; **B-273's fourth case**, two FAIL lines from a CRASHED rule being indistinguishable from two from a rule that finished; a dictionary keyed by SELECTOR alone, collapsing the tab bar's five readings into one; `height` placed in the device's SKIN where it cannot be compared (800 px against a frameless 861); the skin compared against an eight-key control document by a four-key reading; **B-391**, four declarations of the « ONLY accepted divergence » that restate what the app already says and can therefore witness nothing; the animation-wait that, asked ALONE, read the page EARLIER than the fixed delay and took the count from 5 to 13; and `desktop_frame_page.py` run as a rule by both discoverers after the split, for ever unparseable. **The readers' 24, and every one is in an instrument this wave had just written**: the frame's SKIN able to stay while all fourteen holds read green · the completeness claim reading three of the four declarations it claimed to hold all of · three declarations surviving the press while the hold said none did · the two-verbs-at-once name still green after the repair that claimed to close it · « stops 16px short » held by nothing and false · the control document called the app's cascade without its limit · **B-390**, no arm of `check-no-french` reading text in the file whose ruling cited it · the gap hold green over a control that was not drawn at all · hold 16's five literals, at their most vacuous in the one state they were written for · completeness reading SCOPED declarations only · its parser skipping a selector list that mixed scoped and unscoped · the survivors hold reading ONE key while its comment claimed three and its block declared seven · the sweep green over a page that had never left the frame · « differs from the control document », which a wrong value satisfies as well as a right one · the parser knowing one spelling of the device · the sweep asking what the control covers and never what covers the control · a 120 ms settle against a 450 ms drawn duration, which MANUFACTURED fifteen of sixteen findings · presence read at two widths with the band between them unread · `.device` matched by substring · **the probe FED the declarations it checks**, so `background: red` written into the block read red against red · the derived widths knowing `min-width` only · `getAnimations()` unsatisfiable in 20 states, so the ceiling IS the settle there · two exclusion lists agreeing by comment · and two name holds testing containment where they meant equality. **Three of those are the SAME defect in the same hold, three rounds running** — « differs from the control », then hand-computed meanings, then a self-fed probe — each repair moving the tautology rather than removing it, which is why the rule now carries the sentence « an expectation derived from the thing under test is not an expectation » in its own header. **Reader E's round five adds one, on the steward's ruling of 2026-09-11**: MINOR-E2, the breakpoint derivation R140's presence sweep rests on, which required the unit `px` and so read `@media (min-width: 55em)` as nothing — green over every breakpoint it could not convert, found by a reader and not by the wave. |
-| **Total** | **308** | 130 by the waves through L11's own five, plus the four readers' 13 recounted above — at 2026-08-31, after L10-bis, its review, L10-ter's survey and its review, **L15 with its own review**, and **L11 with FOUR readers**. **L11's FIVE are the mutation half of the curve, and they say what mutation IS good for**: every one was found by breaking the wave's own rules on purpose, and two of them are the same rule going green twice over a shell that was not there. A rule can hold a CONSEQUENCE while the mechanism it names is gone, and only a mutation asks. **What mutation could not reach is the other forty**: four readers on that same green gate found a security regression, an update discipline that never swapped the worker, and a queue a refused replay jammed forever — none of them a defect the author had thought to break. The ratio is this table's oldest argument, arriving on a wave that wrote BEHAVIOUR rather than conversions: 5 by mutation, some 40 by reading. **And a second round on the REPAIRS found thirteen more, then a third found seven** — the two later rounds are where the sharpest findings are, not the first. Round two: the repair for a jammed queue had made a refused mutation vanish SILENTLY instead, and its classifier destroyed the operator's action on a 503, a 429 and a 401 — the very outage the queue exists for. Round three: that repair's own replacement still treated **401 as final**, so an expired session destroyed every queued mutation one after another when a re-login would have saved them all; and the notice's button said « Réessayer maintenant » while doing something else, because its name, its words and its action were written as three ladders that tested their conditions in different orders. **Each round's worst finding was in the previous round's repair**, and none of the three was found by a gate. **L12 adds 30 — 143 + 30 = 173 — and the addition is the itemisation's, not a counter's.** For two days this cell read 151 while the itemisation read 15 and `main` read 143, because the figure had been incremented ONCE PER REGISTER ENTRY FILED as B-271 to B-278 landed: 144, 145, … 151. Four of those eight entries are not units of this species at all, and the itemisation moved 6 → 14 → 15 without the total moving with it. A total that tracks a different quantity from the table under it is the drift this whole page is about, and it took an adversarial reader to do the subtraction. **docs-cleanup adds 1 — 173 + 1 = 174** (B-293, the 38 dead `Design:` markers the design-gaps pair is green over; found by the wave's inventory, 0 by readers). **L14 adds 37 — 174 + 37 = 211**, seven found by the wave and thirty by twenty-one independent readers across SIX rounds, on a gate green in every tier each time. **The fourth round's nine are all in instruments the third round had just written or just repaired** — including the hold written to close a vacuity, carrying the same vacuity — which is this table's oldest reading arriving from the closest possible range. **The wave counted itself three times and was wrong three times**: 2 when the readers had already returned three more; « 5 by the wave » when three of those five were reader majors; and 2 again when its own report named five vacuities it had caught in its own new holds — the species this table exists for, uncounted in either column. The lesson is not that the counting is careless. It is that a wave cannot audit its own instruments: every correction here came from someone else reading the same tree. **L19 adds 27 — 211 + 27 = 238**, over THREE rounds, and the shape of the curve is the reading. Eleven by the wave — nine by its own mutations, and two found REPAIRING the readers' findings. **Seven by round one's four readers, all seven in instruments.** **Nine more by rounds two and three**, and every one of those nine is in an instrument too: the comment arm's corpus floor placed below anything that could happen; the CI-depth hold blind to the second job that runs the guard, then asking a SUBSTRING of `run.sh` where it needed the array; R124 calling a `row.click()` a finger; R82's own new hold evicting a query key this interface does not have, so it walked a warm cache and passed with the repair removed; the comment reader's two cases asserting that string literals are safe over shapes containing no `//` at all; R120's order hold comparing `None` with « danger »; the same hold reading UNSCOPED over a tree that persists, so a produce that opened nothing answered about the previous panel; and `add`, the one registered kind nothing drove — ten moved, nine walked. **TWO were deliberately NOT counted**, and saying so is the rule this row has been wrong about before: `PANEL_OUT`'s banner claiming more than its constants did, and R124's toast helper named for a gesture it does not perform, are false CLAIMS rather than instruments green over what they do not read. **The count trebled after the wave declared itself done, and every one of the sixteen added since came from someone else looking** — which is this table's oldest argument, arriving three times in one pull request. The row above wrote the nine as « a claim awaiting readers » rather than as a total, on this table's own evidence that the reader half arrives later — and it did, at 78 % of the wave's own count, on a gate green in every tier. What it did NOT predict is the shape: L11's readers found product defects the author had not thought to break, and L19's found guards. **Three of round one's seven are one shape — a fact asserted by SEARCHING a file's text instead of parsing it** — and that shape had already shipped twice in this wave under its own author's review. A wave cannot audit its own instruments, and it cannot see its own habits either. **maquette-schedulers adds 1 — 238 + 1 = 239**, and it is the only kind of unit a one-entry micro-wave can honestly contribute: found by the removal, in the rule it was repairing, with two adjacent findings deliberately NOT counted because neither is an instrument. **maquette-schedulers adds 7 to the total — its row moved from 1 to 8 at the post-merge gesture, and the 1 was already inside 239: 239 + 7 = 246.** Three by the wave and five by five fresh readers over six rounds on ONE rule, `machine.py` — every one of the five inside the hold the previous round had just added or repaired, and the sixth round, the steward's own, empty. A micro-wave of one rule produced the same curve a lot does. | **maquette-departure adds 4 — 246 + 4 = 250**, and its shape is the one a micro-wave can honestly produce: two of the seam's own rules measuring a proxy for the property their headers claim, and two gates that could only be seen by being WRONG about this wave — one refusing an honest closure, one printing clean over a corpus it never counts. **Zero by independent readers at the time this row was written**, which this table's own evidence says is a figure awaiting its readers rather than a total. **L21 adds 10 — 250 + 10 = 260**, itemised one line per unit in « L21's ten, itemised », and the itemisation is the count. **The first version of this figure was also eight and was wrong**: it was assembled from the rotation's hand-over without reading the lot's own DESIGN § 3.1c underneath it, so it carried B-365 as a DISCOVERY — where § 3.1c had named that hold vacuous and assigned its repair to phase 6, which repaired the sibling and left it — and it missed « the message is not in `#toast` » entirely. The two errors cancelled in the total and in nothing else, which is the argument for itemising made by the arithmetic rather than by anyone's judgement. One of § 3.1c's four is excluded with its reason. Zero by readers, so far. **L21 is recounted to 22 at its post-merge gesture — 250 + 22 = 272**: the ten, an eleventh the wave found repairing round three's C1, and eleven by independent readers over three rounds — 0, 7, 4 — every one in an instrument, and ten of the eleven arriving after the wave called its gate green. The curve is the one L14 and L19 drew, on a lot that wrote BEHAVIOUR: the first reader found product defects, the next two found the holds written to catch them. **maquette-desktop-frame adds 4 — 272 + 4 = 276**, and three of its four are the instruments the wave's own proof is made with: a hold in its brand-new rule reading `textContent` and so green over a name that never changes, R51 holding a class of thing by one literal (B-388), and `mutate.sh` saying « NO RULE FELL » over a rule that had crashed before reaching the page (B-273's third case) — a false reading that was BELIEVED for one command, on the tool every mutation proof in this register rests on. The fourth is the accessibility tier, which audits at 390 px and therefore certified « the markup is usable » over a wave whose whole subject is a control that does not exist at 390 px. **The recount at the close: 272 + 35 = 307.** The row read « 4 — zero by independent readers » while four readers were still reading; they returned 24, six times the wave's own count at that moment, and every one of the 24 is in an instrument this wave had just written. A micro-wave of ONE rule produced the same curve a lot does, and produced it four times over. **maquette-desktop-frame adds one more — 307 + 1 = 308** — reader E's MINOR-E2, a derivation green over every `em` breakpoint it could not read.
+| **maquette-resolution-card** (#585, the B-393/B-394/B-395 micro-wave) | **13** — 4 by the wave, 9 by two independent readers (round one 5, round two 4) | **COUNTED AT THE POST-MERGE GESTURE, because the wave wrote no row at all** — and a row missing and a row saying zero are not the same statement, which is this table's own rule. **The wave's 4 are its mutations, and three of them are the same shape**: a named mutation that is INERT reads exactly like a rule that does not bite. `hidden` on `candidatePick` changed nothing, because the emitted stylesheet writes `.hidden{display:none}` before `.inline-grid{…}` and `iconButton` puts the second on the same element; `inert` written on the tab bar in JSX never reaches the DOM (React 19.2 drops it), and set through a `ref` it does reach it and the app then removes it, `setBackgroundInert(null)` clearing every `[inert]` when a layer closes; an `[height:20px]` utility, and even an inline `style`, lose to `.card`'s `min-height: 126px` in the dying engine's stylesheet. **The fourth is R163 green over the very defect it was written for**: the frame marks the background `inert` while a layer is open, and `inert` takes an element out of hit-testing without changing what is PAINTED — B-381's lesson met again on its own subject — so the hit test answered « the message » over a button declaring rank 70. The rule lifts the attribute, asks what is in front, and puts it back. **Round one's 5, by one reader on a gate green in every tier**: R161's affordance holds satisfied by an affordance that is not drawn (A1); R162 unable to tell a 7 s window from a ~1.5 s one (A2); the poster's initials fallback announced as part of the card's name, over an accessibility tier that had read 87 states at 0 violations and never read a name (A3); the ranked list not recording every rank, five declarations outside it (A4, old and re-asserted); and no fixture offering two pickable folders, so the window's riskiest path is proved by a seam and by no finger (A5, filed **B-396**). **Round two's 4, by a second reader on round one's repairs, and every one is inside a repair**: the h2 floor green over `opacity: 0`, a clip and an off-screen transform (B1, **B-460**); `LAST_FRAME` named « the message's last reachable frame » where the message's opacity is 0, so only a SHRUNK window is armed and a message outliving the window passes all eighteen holds (B2, **B-461**); the ranks arm attributing a declaration to the nearest `export const` above it (B4, **B-463**); and three scopes that arm never opens (B5, **B-464**). **Three of the readers' findings are deliberately NOT counted, and saying so is this table's rule**: A6, closing the message discarding the undo, is a product behaviour the operator RULED on (option A, keep as built) and no instrument is green over it; A7 and B6 are a false SENTENCE in prose (**B-465**, B-392's species one file away), not a guard reading too little; and B7 (**B-466**) is a ceiling with one line of room — arithmetic, not blindness. **B-462 is excluded too**: the card announcing less than it shows is the measured COST of a repair the decided list asked for, ruled by the operator on 2026-09-12, and R161's h9 reads the name it was written to read. |
+| **Total** | **321** | 130 by the waves through L11's own five, plus the four readers' 13 recounted above — at 2026-08-31, after L10-bis, its review, L10-ter's survey and its review, **L15 with its own review**, and **L11 with FOUR readers**. **L11's FIVE are the mutation half of the curve, and they say what mutation IS good for**: every one was found by breaking the wave's own rules on purpose, and two of them are the same rule going green twice over a shell that was not there. A rule can hold a CONSEQUENCE while the mechanism it names is gone, and only a mutation asks. **What mutation could not reach is the other forty**: four readers on that same green gate found a security regression, an update discipline that never swapped the worker, and a queue a refused replay jammed forever — none of them a defect the author had thought to break. The ratio is this table's oldest argument, arriving on a wave that wrote BEHAVIOUR rather than conversions: 5 by mutation, some 40 by reading. **And a second round on the REPAIRS found thirteen more, then a third found seven** — the two later rounds are where the sharpest findings are, not the first. Round two: the repair for a jammed queue had made a refused mutation vanish SILENTLY instead, and its classifier destroyed the operator's action on a 503, a 429 and a 401 — the very outage the queue exists for. Round three: that repair's own replacement still treated **401 as final**, so an expired session destroyed every queued mutation one after another when a re-login would have saved them all; and the notice's button said « Réessayer maintenant » while doing something else, because its name, its words and its action were written as three ladders that tested their conditions in different orders. **Each round's worst finding was in the previous round's repair**, and none of the three was found by a gate. **L12 adds 30 — 143 + 30 = 173 — and the addition is the itemisation's, not a counter's.** For two days this cell read 151 while the itemisation read 15 and `main` read 143, because the figure had been incremented ONCE PER REGISTER ENTRY FILED as B-271 to B-278 landed: 144, 145, … 151. Four of those eight entries are not units of this species at all, and the itemisation moved 6 → 14 → 15 without the total moving with it. A total that tracks a different quantity from the table under it is the drift this whole page is about, and it took an adversarial reader to do the subtraction. **docs-cleanup adds 1 — 173 + 1 = 174** (B-293, the 38 dead `Design:` markers the design-gaps pair is green over; found by the wave's inventory, 0 by readers). **L14 adds 37 — 174 + 37 = 211**, seven found by the wave and thirty by twenty-one independent readers across SIX rounds, on a gate green in every tier each time. **The fourth round's nine are all in instruments the third round had just written or just repaired** — including the hold written to close a vacuity, carrying the same vacuity — which is this table's oldest reading arriving from the closest possible range. **The wave counted itself three times and was wrong three times**: 2 when the readers had already returned three more; « 5 by the wave » when three of those five were reader majors; and 2 again when its own report named five vacuities it had caught in its own new holds — the species this table exists for, uncounted in either column. The lesson is not that the counting is careless. It is that a wave cannot audit its own instruments: every correction here came from someone else reading the same tree. **L19 adds 27 — 211 + 27 = 238**, over THREE rounds, and the shape of the curve is the reading. Eleven by the wave — nine by its own mutations, and two found REPAIRING the readers' findings. **Seven by round one's four readers, all seven in instruments.** **Nine more by rounds two and three**, and every one of those nine is in an instrument too: the comment arm's corpus floor placed below anything that could happen; the CI-depth hold blind to the second job that runs the guard, then asking a SUBSTRING of `run.sh` where it needed the array; R124 calling a `row.click()` a finger; R82's own new hold evicting a query key this interface does not have, so it walked a warm cache and passed with the repair removed; the comment reader's two cases asserting that string literals are safe over shapes containing no `//` at all; R120's order hold comparing `None` with « danger »; the same hold reading UNSCOPED over a tree that persists, so a produce that opened nothing answered about the previous panel; and `add`, the one registered kind nothing drove — ten moved, nine walked. **TWO were deliberately NOT counted**, and saying so is the rule this row has been wrong about before: `PANEL_OUT`'s banner claiming more than its constants did, and R124's toast helper named for a gesture it does not perform, are false CLAIMS rather than instruments green over what they do not read. **The count trebled after the wave declared itself done, and every one of the sixteen added since came from someone else looking** — which is this table's oldest argument, arriving three times in one pull request. The row above wrote the nine as « a claim awaiting readers » rather than as a total, on this table's own evidence that the reader half arrives later — and it did, at 78 % of the wave's own count, on a gate green in every tier. What it did NOT predict is the shape: L11's readers found product defects the author had not thought to break, and L19's found guards. **Three of round one's seven are one shape — a fact asserted by SEARCHING a file's text instead of parsing it** — and that shape had already shipped twice in this wave under its own author's review. A wave cannot audit its own instruments, and it cannot see its own habits either. **maquette-schedulers adds 1 — 238 + 1 = 239**, and it is the only kind of unit a one-entry micro-wave can honestly contribute: found by the removal, in the rule it was repairing, with two adjacent findings deliberately NOT counted because neither is an instrument. **maquette-schedulers adds 7 to the total — its row moved from 1 to 8 at the post-merge gesture, and the 1 was already inside 239: 239 + 7 = 246.** Three by the wave and five by five fresh readers over six rounds on ONE rule, `machine.py` — every one of the five inside the hold the previous round had just added or repaired, and the sixth round, the steward's own, empty. A micro-wave of one rule produced the same curve a lot does. | **maquette-departure adds 4 — 246 + 4 = 250**, and its shape is the one a micro-wave can honestly produce: two of the seam's own rules measuring a proxy for the property their headers claim, and two gates that could only be seen by being WRONG about this wave — one refusing an honest closure, one printing clean over a corpus it never counts. **Zero by independent readers at the time this row was written**, which this table's own evidence says is a figure awaiting its readers rather than a total. **L21 adds 10 — 250 + 10 = 260**, itemised one line per unit in « L21's ten, itemised », and the itemisation is the count. **The first version of this figure was also eight and was wrong**: it was assembled from the rotation's hand-over without reading the lot's own DESIGN § 3.1c underneath it, so it carried B-365 as a DISCOVERY — where § 3.1c had named that hold vacuous and assigned its repair to phase 6, which repaired the sibling and left it — and it missed « the message is not in `#toast` » entirely. The two errors cancelled in the total and in nothing else, which is the argument for itemising made by the arithmetic rather than by anyone's judgement. One of § 3.1c's four is excluded with its reason. Zero by readers, so far. **L21 is recounted to 22 at its post-merge gesture — 250 + 22 = 272**: the ten, an eleventh the wave found repairing round three's C1, and eleven by independent readers over three rounds — 0, 7, 4 — every one in an instrument, and ten of the eleven arriving after the wave called its gate green. The curve is the one L14 and L19 drew, on a lot that wrote BEHAVIOUR: the first reader found product defects, the next two found the holds written to catch them. **maquette-desktop-frame adds 4 — 272 + 4 = 276**, and three of its four are the instruments the wave's own proof is made with: a hold in its brand-new rule reading `textContent` and so green over a name that never changes, R51 holding a class of thing by one literal (B-388), and `mutate.sh` saying « NO RULE FELL » over a rule that had crashed before reaching the page (B-273's third case) — a false reading that was BELIEVED for one command, on the tool every mutation proof in this register rests on. The fourth is the accessibility tier, which audits at 390 px and therefore certified « the markup is usable » over a wave whose whole subject is a control that does not exist at 390 px. **The recount at the close: 272 + 35 = 307.** The row read « 4 — zero by independent readers » while four readers were still reading; they returned 24, six times the wave's own count at that moment, and every one of the 24 is in an instrument this wave had just written. A micro-wave of ONE rule produced the same curve a lot does, and produced it four times over. **maquette-desktop-frame adds one more — 307 + 1 = 308** — reader E's MINOR-E2, a derivation green over every `em` breakpoint it could not read. **maquette-resolution-card adds 13 — 308 + 13 = 321**, counted at its post-merge gesture because the wave itself wrote no row: four by the wave, of which three are INERT MUTATIONS — a mutation that does not mutate reads exactly like a rule that does not bite, and the wave checked every one of its own for having actually mutated before reading its verdict — and nine by two independent readers over two rounds, five then four, every one of the second round's inside a repair the first round had just demanded. Four are filed here as **B-460**, **B-461**, **B-463** and **B-464**, and A5 was filed by the wave as **B-396**. Four more findings are excluded with their reasons in the row above, which is the discipline this total has been wrong about before.
 | **L12** (#540, merged 2026-09-01) | **30** | itemised below, one named unit per line with the proof that establishes it — the count follows the itemisation rather than the itemisation following a number. **Fifteen before the adversarial rounds and fifteen more after them** — twelve returned by readers, three the wave found itself, which is this table's oldest reading arriving again: the sharpest findings are in the round that reads the previous round's work, and thirteen of the second fifteen are in instruments this wave had already repaired once |
 | **docs-cleanup** (#539, the documentation model's first application) | **1** | found by the wave: 1 (B-293 — 38 `Design:` markers naming paths that left the tree, `update_feature_map.py --check` and `audit_design_coverage.py --strict` green over every one) · found by readers: 0 |
 

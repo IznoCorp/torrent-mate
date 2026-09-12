@@ -15,6 +15,7 @@ lock the machine is actually using while they run.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -256,3 +257,108 @@ def test_the_memory_reader_covers_both_operating_systems() -> None:
     assert "command -v vm_stat" in body, "the Darwin reader is not guarded by a probe"
     assert "/proc/meminfo" in body, "no Linux reader — CI cannot run what it must enforce"
     assert 'if [ -z "$free" ] || [ -z "$load" ]' in body, "an unmeasurable machine still waits"
+
+
+# ── The readiness floor, read from the run's class (B-386) ───────────────────
+# There was ONE floor for every run: a single rule replayed against the served
+# copy waited behind the same 4 GB and load 6 a two-browser suite needs, and a
+# wave asked to lower the floor by environment to get a `make check` started —
+# the bypass the floor exists to forbid. The class carries the floor now, and
+# under a named class the environment may only RAISE it.
+#
+# These drive the refusal path, which answers before any waiting, so no test
+# here passes or fails on how much room the machine happens to have.
+
+CLASS_FLOORS = {"browser": 4096, "test": 3072, "rule": 2560}
+
+
+def run_under_class(lock: Path, name: str, *command: str, timeout: float = 30, **environment: str):
+    """Run the script under a named class, with nothing made permissive.
+
+    Args:
+        lock: The lock this run takes, so the machine's own is untouched.
+        name: The class name passed as `--class`.
+        command: The command to wrap.
+        timeout: Seconds before the subprocess is killed.
+        environment: Extra environment, verbatim.
+
+    Returns:
+        The completed process.
+    """
+    env = {**os.environ, "HEAVY_LOCK": str(lock)}
+    env.pop("HEAVY_FREE_FLOOR_MB", None)
+    env.pop("HEAVY_LOAD_CEILING", None)
+    env.update(environment)
+    return subprocess.run(
+        ["sh", str(SCRIPT), "--class", name, "tester", *command],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        env=env,
+    )
+
+
+@pytest.mark.parametrize(("name", "floor"), sorted(CLASS_FLOORS.items()))
+def test_a_class_refuses_a_floor_the_environment_tries_to_lower(tmp_path: Path, name: str, floor: int) -> None:
+    """Each class names its own floor, and the environment cannot talk it down."""
+    result = run_under_class(
+        tmp_path / "holder",
+        name,
+        "true",
+        HEAVY_FREE_FLOOR_MB=str(floor - 1),
+    )
+    assert result.returncode == 64, result.stderr
+    assert f"class {name} wants {floor}MB free" in result.stderr, result.stderr
+
+
+@pytest.mark.parametrize("name", sorted(CLASS_FLOORS))
+def test_a_class_refuses_a_load_ceiling_the_environment_tries_to_raise(tmp_path: Path, name: str) -> None:
+    """The other half of the same statement: a class's load ceiling only lowers."""
+    result = run_under_class(
+        tmp_path / "holder",
+        name,
+        "true",
+        HEAVY_FREE_FLOOR_MB=str(CLASS_FLOORS[name]),
+        HEAVY_LOAD_CEILING="9999",
+    )
+    assert result.returncode == 64, result.stderr
+    assert "may only lower a class's ceiling" in result.stderr, result.stderr
+
+
+def test_an_unknown_class_is_refused_rather_than_read_as_none(tmp_path: Path) -> None:
+    """A misspelt class must not silently become the historical floor."""
+    result = run_under_class(tmp_path / "holder", "browsers", "true")
+    assert result.returncode == 64, result.stderr
+    assert "unknown class 'browsers'" in result.stderr, result.stderr
+
+
+def test_no_class_keeps_the_historical_floor_and_its_bypass(tmp_path: Path) -> None:
+    """Every invocation written before B-386 must still work, untouched.
+
+    A run with no class keeps 4 096 MB and keeps the environment override that
+    goes with it — which is what the whole suite above, and every wrapped
+    command in every brief, is written against.
+    """
+    result = run(tmp_path / "holder", "sh", "-c", "echo ran")
+    assert result.returncode == 0, result.stderr
+    assert "ran" in result.stdout
+    assert "(class none)" in result.stderr, result.stderr
+    assert "wants 1MB free" in result.stderr, result.stderr
+
+
+def test_the_class_floors_are_written_down_with_their_arithmetic() -> None:
+    """The numbers and the reasoning live together, or the next reader guesses.
+
+    Read rather than executed: a test cannot wait for 4 GB of free memory to
+    observe the browser class's floor without passing or failing on whatever
+    else the machine is doing. The refusals above execute each number; this
+    holds that the number is not a bare constant, and that the watchdog's hard
+    floor did not move with the classes.
+    """
+    body = SCRIPT.read_text()
+    for name, floor in CLASS_FLOORS.items():
+        assert re.search(rf"^\s*{name}\)\s+CLASS_FLOOR_MB={floor};", body, re.MULTILINE), (
+            f"the {name} class does not carry the floor {floor}"
+        )
+    assert "1.1 GB" in body, "the browser group's cost is not written beside the numbers"
+    assert "HARD_FLOOR_MB=${HEAVY_HARD_FLOOR_MB:-2048}" in body, "the hard floor moved with the class"
