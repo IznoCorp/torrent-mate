@@ -88,3 +88,8 @@ fix/maquette-scroll-jump`). Cut from `a2721935f` (0.98.86); `origin/main` NOT me
 5. **A file under `docs/` is globally ignored** (B-251): a new file there is added with `git add -f`, and a citation of a
    file no commit holds fails `check-docs-cited-paths`.
 6. A `cd` inside a compound command moves the session's working directory: absolute paths only.
+7. **The first push was refused by the pre-push suite, 7 failed**: R175 carried an ESCAPED part selection
+   (`[data-part=\"card/foot\"]` inside a Python string), which `check-markup-contracts` refuses, and a new harness file
+   raises the comment corpus's `read` count, re-taken with `check-maquette-comments.py --record` in the same commit. Run
+   ALL 27 cheap guards of `run.sh` by exit code before a push, not the ones that look related — and pass each guard's
+   arguments as separate words.

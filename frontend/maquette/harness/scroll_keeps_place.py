@@ -62,6 +62,7 @@ HEADER = '[data-part="shell/header"]'
 # The blocked card — Lucky in the operator's report — found by the title its own
 # seed carries, read here rather than typed, so the rule follows the fixture.
 BLOCKED_SEED = pathlib.Path(__file__).resolve().parents[1] / "design/src/mocks/seeds/blocked.json"
+FOOT = '[data-part="card/foot"]'
 BLOCKED_TITLE = json.loads(BLOCKED_SEED.read_text(encoding="utf-8"))[0]["title"]
 
 # One gesture's length. The operator's report is a scroll, not a fling; forty
@@ -185,8 +186,8 @@ async def detour(page):
         the list were still to load when it came back.
     """
     await page.evaluate(
-        "(title)=>(" + BLOCKED_CARD + ")(title).querySelector('[data-part=\"card/foot\"]').click()",
-        BLOCKED_TITLE)
+        "({ title, foot }) => (" + BLOCKED_CARD + ")(title).querySelector(foot).click()",
+        {"title": BLOCKED_TITLE, "foot": FOOT})
     await page.evaluate("()=>window.__mocks?.quiet?.()")
     await page.wait_for_timeout(ACTED)
     went = await page.evaluate("()=>location.pathname")
