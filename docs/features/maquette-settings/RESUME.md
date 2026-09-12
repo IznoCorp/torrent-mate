@@ -37,37 +37,34 @@ Eight mutations, each falling on its own holds and nothing else: the table is in
 
 ## What is LEFT, in order
 
-**State at `d7f01f8fa` (2026-09-12, 23:45).** `origin/main` merged once more at `a2721935f`
-(#589), version **0.98.87**; `page_host.py` joined back to 999 after #589's `__main__` guard.
-Done since the previous note, each with its reading:
+**State on 2026-09-13, after the last merge of `main`.** `c5e0b1c58` passed the whole gate and was
+pushed (CI run 34722645096); then #592 merged as `5eafd3cfc` (0.98.87) and #588 went CONFLICTING.
+`origin/main` was merged a last time: seven conflicts — BUGS.md rows (B-396 from main, then
+B-397/B-398), `i18n/fr.json` (both the `secret` and the `maintenance` notice blocks kept),
+`comment-references-baseline.json` (re-recorded), the size ledger (`legacy.js` MEASURED at 31 444),
+the version (**0.98.88**, main at 0.98.87), and the two a11y records (taken from this side, then
+RE-RECORDED on the merged tree under the shared mutex — never hand-resolved). `check-bug-register`
+and the 27 guards + typecheck: 28/28 exit 0.
 
-- `--a11y` — `backAction` → `text-primary-text` (`f0d91157d`), light ceiling 162 → 149 recorded
-  once; mutation 166 against 149. The steward verified the arm stable (six readings, three builds).
-- R74 `bridge.py` repaired (`dd401c957`): `lib/stacked-surface.ts` steps back via
-  `window.__bridge.back()`. 10 holds.
-- R82 `journey.py` RE-AIMED (`1850ddeb4`, ruled): the maintenance topic left `SETTING_WALKS`,
-  74 → 70 holds; mutation 74 holds, exit 1, the two named holds.
-- R128 gained FIVE holds, not four (`3d99639a4`).
-- Full run on `9ecce44d4`: 122 rules and 27 guards, no violation; a11y 149/149; oracle 36
-  divergences, all heights on Réglages/Maintenance, ACCEPTED by the steward and recorded in
-  DESIGN.md (`d7f01f8fa`). **The oracle reference is NOT re-recorded here** — the post-merge
-  gesture is the steward's.
-- Hold-counts on `9ecce44d4`: the two declared movements only (journey 74→70, seeds_at_rest
-  10→15), but `failed = 1` on journey.py, green in the full run and the replay.
+Everything the gate read before that merge still stands, and each reading is in DESIGN.md: the
+`.fback` repair (ceiling 162 → 149), R74 repaired, R82 re-aimed 74 → 70, R128 +5, the 36 oracle
+divergences accepted (reference NOT re-recorded here — the steward's post-merge gesture), hold-counts
+`failed` 0 with the declared movements only, B-307's sixth instance, the three new rules guarded
+under `__main__` for #589's test, `make check` 11 263 passed.
 
 Left:
 
-1. **The single hold-counts re-run, CAPTURED** — `<scratchpad>/holdcounts_capture.py` imports
-   the tool unchanged and keeps the full output, duration, load and free memory of any rule that
-   falls. If journey.py falls: name the mechanism (which hold, its reading, the wait, the load) and
-   record it in B-307's body if it is that class, or as its own row. `failed` first; the two declared
-   movements only. **No re-running until green.**
-2. **`make check`** under `HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder`, two workers, NEVER beside a
-   harness run.
-3. **Push** (under the tests lock), the PR body (draft at `<scratchpad>/pr-addendum.md`: the a11y
-   repair, R74, R82 74 → 70, R128 five holds, the page_host line, the sequenced gates), then report
-   with the CI run id. No reader round (operator, 23:30): a green, verified head is merged by the
-   steward.
+1. **Push** under `HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder` — the pre-push suite is the gate
+   for this merge — re-reading main's version first.
+2. **Read the CI run on the pushed head** (`gh run list --branch fix/maquette-settings`), report its
+   id and each red job with its log to the steward. No reader round (operator, 2026-09-12 23:30):
+   the steward verifies the files and merges a green head.
+3. After the merge: delete the local branch and remove this worktree.
+
+**The steward's address.** `Orch : TM frontend [7d99b6]` — the successor of `[8e18d6]`, which
+answers nothing new since 2026-09-13. Every report, request and handshake goes to that exact name and
+reference. Silence rule: 15 minutes without an answer → a fresh `ListAgents`, re-send to the session
+whose NAME matches, else tell the operator.
 
 ## The envelope
 
