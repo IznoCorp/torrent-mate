@@ -17,7 +17,7 @@
 // build id proves an unchanged build » held only while nobody shelled there.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 // The four files beside `src/` that belong to the built shell. They are named
@@ -38,14 +38,42 @@ function environmentWithoutGitLeaks() {
 
 // Every path git accounts for under `root`: tracked, plus untracked files that
 // no ignore rule covers — a source file written a minute ago and not yet added
-// is still source, and must still move the identity.
+// is still source, and must still move the identity. NULL when git cannot
+// answer at all, which is not an error: a build tree assembled outside any
+// repository is a legitimate thing to build, and `switchover.py` assembles one
+// under /tmp on every run of the suite.
 function pathsGitAccountsFor(root) {
-  const listed = execFileSync(
-    "git",
-    ["-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
-    { encoding: "utf8", env: environmentWithoutGitLeaks() },
+  try {
+    const listed = execFileSync(
+      "git",
+      ["-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+      { encoding: "utf8", env: environmentWithoutGitLeaks(), stdio: ["ignore", "pipe", "ignore"] },
+    );
+    return listed.split("\0").filter((path) => path !== "");
+  } catch {
+    return null;
+  }
+}
+
+// What the walk took before B-384: everything under `src/`,
+// plus the named root files. Used only where git cannot answer, and it says so
+// — a fallback nobody is told about is a fallback that becomes the behaviour.
+function pathsUnderSource(base) {
+  const found = [];
+  const walk = (relative) => {
+    for (const entry of readdirSync(resolve(base, relative), { withFileTypes: true })) {
+      const path = relative ? `${relative}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) walk(path);
+      else found.push(path);
+    }
+  };
+  walk("src");
+  process.stderr.write(
+    "build-identity: git cannot account for this tree, so the identity hashes "
+    + "every file under src/ (`.claude/` excluded by name). Outside a "
+    + "repository this is the most that can be known.\n",
   );
-  return listed.split("\0").filter((path) => path !== "");
+  return [...found, ...ROOT_FILES];
 }
 
 /**
@@ -60,7 +88,8 @@ export function buildIdentity(root) {
   // ignore rule that hides it here lives in the operator's global excludes file
   // and a continuous-integration runner has no such file. A guard that holds on
   // one machine and not on the other is the shape this repository counts.
-  const sources = pathsGitAccountsFor(base)
+  const accounted = pathsGitAccountsFor(base) ?? pathsUnderSource(base);
+  const sources = accounted
     .filter((path) => path.startsWith("src/") || ROOT_FILES.includes(path))
     .filter((path) => !path.split("/").includes(".claude"))
     .sort();

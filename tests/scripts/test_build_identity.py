@@ -154,3 +154,69 @@ def test_the_root_files_are_part_of_the_identity(tmp_path: Path) -> None:
         before = identity(design)
         (design / name).write_text(f"// {name} changed\n", encoding="utf-8")
         assert identity(design) != before, f"{name} is outside the build's identity"
+
+
+# ── A build INPUT is a third end (B-384, learned the expensive way) ─────────
+# Extracting `buildIdentity` into its own module added a file the build cannot
+# start without, and `switchover.py` assembles a scratch design tree by NAMING
+# the files it copies. It did not know about the new one, so the full harness
+# suite went red on four holds and a `FileNotFoundError` — about a host that
+# was perfectly fine. The rule's own comment says it: « A build INPUT is a
+# third end: adding one means every place that assembles a build tree learns
+# about it in the same move. » These holds are that sentence, armed.
+
+SWITCHOVER = ROOT / "frontend" / "maquette" / "harness" / "switchover.py"
+SERVE = ROOT / "frontend" / "maquette" / "serve.py"
+DESIGN = ROOT / "frontend" / "maquette" / "design"
+
+
+def test_every_build_input_at_the_design_root_is_known_to_both_assemblers() -> None:
+    """The scratch tree and the freshness reader must both learn a new input."""
+    inputs = sorted(path.name for path in DESIGN.glob("*.mjs"))
+    assert inputs, "no build input found at the design root — the corpus has emptied"
+
+    scratch = SWITCHOVER.read_text(encoding="utf-8")
+    freshness = SERVE.read_text(encoding="utf-8")
+    missing = [
+        f"{name} is not copied into switchover.py's scratch tree" for name in inputs if f'"{name}"' not in scratch
+    ] + [f"{name} is not in serve.py's BUILD_INPUTS" for name in inputs if f'"{name}"' not in freshness]
+
+    assert missing == [], "; ".join(missing)
+
+
+def test_the_identity_is_computable_outside_any_repository(tmp_path: Path) -> None:
+    """A scratch build tree under /tmp is a legitimate thing to build.
+
+    `switchover.py` assembles one on every run of the suite, and git cannot
+    account for it at all. Refusing there would make the identity's repair a
+    broken build; falling back SILENTLY would make the fallback the behaviour.
+    So it falls back and says so on stderr.
+    """
+    design = tmp_path / "design"
+    (design / "src").mkdir(parents=True)
+    (design / "src" / "index.ts").write_text("export const shell = 1;\n", encoding="utf-8")
+    for name in ROOT_FILES:
+        (design / name).write_text(f"// {name}\n", encoding="utf-8")
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not on PATH — the design build cannot be driven here")
+    result = subprocess.run(
+        [
+            node,
+            "--input-type=module",
+            "-e",
+            "const { buildIdentity } = await import(process.argv[1]);\n"
+            "process.stdout.write(buildIdentity(process.argv[2]));",
+            MODULE.as_uri(),
+            str(design),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert len(result.stdout.strip()) == 12, result.stdout
+    assert "git cannot account for this tree" in result.stderr, result.stderr

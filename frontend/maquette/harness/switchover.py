@@ -58,8 +58,8 @@ def prepare_scratch() -> None:
     # about a host that was perfectly fine. A build INPUT is a third end: adding
     # one means every place that assembles a build tree learns about it in the
     # same move.
-    for name in ("refonte.html", "index.html", "vite.config.mjs", "package.json",
-                 "sw.js"):
+    for name in ("refonte.html", "index.html", "vite.config.mjs",
+                 "build-identity.mjs", "package.json", "sw.js"):
         shutil.copy(design / name, SCRATCH / name)
     # The envelope names a module entry: without its source the scratch build
     # cannot resolve it, and the rule would report a broken host where there is
