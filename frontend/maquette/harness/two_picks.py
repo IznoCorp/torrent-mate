@@ -100,8 +100,11 @@ SENDS = """()=>(window.__mocks?.answered() || [])
 HELD_KEYS = """()=>Object.keys(window.__mocks?.arrivalsByKey?.() || {})"""
 
 # WHAT THE MESSAGE ON SCREEN OFFERS: its sentence, and whether it has a way back.
+# `#toast` ALONE: a second selector `[data-part="message"]` stood beside it and no
+# source emits that value, so `check-markup-contracts.py` refused it — a rule
+# selecting a value nothing draws is a rule selecting nothing.
 MESSAGE = """()=>({
-  text: (document.querySelector('#toast, [data-part="message"]')?.textContent || '').trim(),
+  text: (document.querySelector('#toast')?.textContent || '').trim(),
   undo: !!document.querySelector('#toastundo')})"""
 
 # THE FOLDER THE OPEN RESOLUTION SCREEN IS ABOUT.
