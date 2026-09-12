@@ -60,8 +60,9 @@ Tier: deep (the map binds every tier to opus). No MCP server: the harness drives
    history-driven restore — `scroll-restoration.ts`'s path). Write the mechanism in DESIGN.md § 1 with the probe's lines.
    If Lucky is NOT special (the jump happens at an offset, whatever card sits there), say so: the operator's sentence is
    a reading, not a diagnosis.
-2. **File the entry**: `B-478` in BUGS.md, body = the operator's sentence, the two widths' readings, the mechanism. Your
-   register block is **B-478..B-482**; nothing else uses it tonight.
+2. **File the entry**: `B-490` in BUGS.md, body = the operator's sentence, the two widths' readings, the mechanism. Your
+   register block is **B-490..B-494**; nothing else uses it tonight.
+   (The block moved from B-478..B-482 on the orchestrator's correction: the mock-layer wave reserves B-470..B-489.)
 3. **Repair at the mechanism**, on the surface that owns it, honouring D5 (the engine only shrinks) and the « one path »
    clause of § 1: if the cause is a programmatic scroll outside `scroll-restoration.ts`, the repair routes it through
    that one path or removes it; if it is a height collapse on the live tick, the list keeps its height across the
