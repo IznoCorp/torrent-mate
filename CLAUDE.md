@@ -237,6 +237,15 @@ the two readings are identical. **Read the pull request's draft state FIRST**, b
 anything else. A job added to that workflow without the condition silently re-enables draft runs;
 `tests/scripts/test_ci_skips_draft_pull_requests.py` refuses it.
 
+**A THIRD cause of « zero green reading », met on 2026-09-12 (#584): a pull request opened as a DRAFT
+and made READY within seconds.** The `opened` payload (draft = true) dispatched a run AFTER the
+`ready_for_review` run, the concurrency group's cancel-in-progress killed the real run, and the
+draft-payload run SKIPPED all fourteen jobs — a run whose conclusion is `skipped` reads as pending in
+`gh run view`, and a waiter on it waits for ever. **Open a pull request READY when it is ready, or
+add `run-ci-on-draft` and read the run that label dispatches**; never the two transitions in one
+breath. And after a merge lands on `main`, an open pull request behind it is refused by the ruleset
+(« not up to date with the base ») until `gh pr update-branch`, whose push dispatches the run to read.
+
 ### Pipeline Monitoring Rules
 
 When running `personalscraper run` or any long-running command with user observation:
