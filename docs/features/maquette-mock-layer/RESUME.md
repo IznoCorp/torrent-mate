@@ -101,7 +101,12 @@ That split is NOT yet written into B-383's body — see LEFT, step 3.
 
 ## The envelope (unchanged, and loosened only where the orchestrator said)
 
-- **Own lock** for `npm ci`, builds, `make check`, `pytest`, a push:
+- **Test suites serialize ACROSS WAVES** — the orchestrator's machine rule of 2026-09-12, 21:10:
+  the pre-push suite (i.e. every `git push`), `make check` and ANY `pytest` run go under ONE lock
+  shared by all waves, `HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder`, because three concurrent
+  suites are what the kernel was killing (this session's first push died at 96 %, `Terminated: 15`).
+  Harness runs keep the shared harness mutex below. Never `--no-verify`.
+- **Own lock** for `npm ci`, builds, `typecheck`, the unit tests, a private-bench replay:
   `HEAVY_LOCK=/private/tmp/tm-heavy-mock-layer/holder HEAVY_FREE_FLOOR_MB=2560 HEAVY_LOAD_CEILING=10 PYTEST_XDIST_AUTO_NUM_WORKERS=3 sh scripts/heavy.sh mock-layer <command>`
   — **`HEAVY_LOAD_CEILING=10` is the operator's word for tonight, for OWN-lock runs only; say it in
   the PR.**
@@ -145,3 +150,8 @@ That split is NOT yet written into B-383's body — see LEFT, step 3.
    title**, and of fourteen follows only « Dark Matter » does.
 8. **`runMaintenanceAction` has no GET that reads its state back**; the pipeline state is read by a
    BLANK run's answer, which changes nothing by contract.
+9. **A new file under `frontend/maquette/` moves `comment-references-baseline.json`'s `read`**, and
+   `tests/scripts/test_check_maquette_comments.py` asserts it equals the live corpus — the GUARD
+   exits 0 over the drift and only the pre-push suite sees it. Re-record with
+   `python3 scripts/check-maquette-comments.py --record` IN the commit that adds the file, and read
+   the diff: only `read` may move, never a per-file reference count upward.
