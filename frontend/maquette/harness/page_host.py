@@ -77,6 +77,13 @@ def identities(names):
     return [value.split()[0] if value.split() else "" for value in names]
 
 
+# CONFIGURATION AS IT OPENS: no rubric, no query, no pending edit, and no
+# restart owed — the last through the LAYER, where that fact lives (B-343).
+SETTINGS_FROM_SCRATCH = (
+    "()=>{SETTINGS_STATE.topic = null; SETTINGS_STATE.q = '';"
+    " SETTINGS_STATE.modifs.clear(); window.__mocks.setRestartRequired(false);}")
+
+
 async def main():
     journal = Journal("R77 — one owner per page, and no residue")
     async with async_playwright() as playwright:
@@ -222,7 +229,7 @@ async def main():
         refused = await tap("""#view [data-part="topic"][data-maintopic='scan']""")
         opened = await page.evaluate("""()=>({
           topic: window.__store.read().state.maintTopic,
-          back: !!document.querySelector('#view [data-part="cross-reference"][data-maintopic=""]'),
+          back: !!document.querySelector('#view [data-part="screen/back"]'),
           rows: document.querySelectorAll('#view [data-part="flux"] [data-part="flux/row"]').length,
         })""")
         journal.check(
@@ -265,9 +272,7 @@ async def main():
         # entirely green. Each control is LOOKED UP before it is tapped: a
         # click on a selector that matches nothing times out and crashes the
         # script, which reads as a broken rule instead of a named defect.
-        await page.evaluate(
-            "()=>{SETTINGS_STATE.topic = null; SETTINGS_STATE.q = '';"
-            " SETTINGS_STATE.modifs.clear(); SETTINGS_STATE.redemarrage = false;}")
+        await page.evaluate(SETTINGS_FROM_SCRATCH)
         await page.evaluate("()=>window.__store.write({page: 'cfg'})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
@@ -325,8 +330,11 @@ async def main():
           return id;}""")
         await page.wait_for_timeout(300)
         refused = (await tap("#savebar [data-save]") if staged else "absent")
+        # RE-AIMED (B-343): the property is unchanged, the fact is the LAYER's.
         saved = await page.evaluate(
-            "()=>({pending: SETTINGS_STATE.modifs.size, restart: SETTINGS_STATE.redemarrage,"
+            "()=>({pending: SETTINGS_STATE.modifs.size,"
+            " restart: !!(window.__queries.getQueryData(['/api/config/status'])"
+            "   || {}).restartRequired,"
             " bar: !!document.querySelector('#savebar')})")
         journal.check(
             "a real tap on the save bar files the change and asks for a restart",
@@ -334,7 +342,10 @@ async def main():
             and not saved["bar"],
             str(saved) if not refused else f"data-save {refused}")
 
-        await page.evaluate("()=>{SETTINGS_STATE.topic = null;}")
+        # A rubric's ENTRY carries its name and re-opens it, so driving the
+        # state alone would be undone by the next pop (the dialog closing).
+        await page.evaluate(
+            "()=>{SETTINGS_STATE.topic = null; history.replaceState({}, '');}")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
         refused = await tap("#view [data-restart]")
@@ -350,12 +361,14 @@ async def main():
         # CONFIRMATION, and that is what is read.
         asked = await page.evaluate(
             """()=>!!document.querySelector('#dlg[data-open]')""")
-        restart_left = await page.evaluate("()=>SETTINGS_STATE.redemarrage")
+        restart_left = await page.evaluate(  # re-aimed with the hold above
+            "()=>!!(window.__queries.getQueryData(['/api/config/status'])"
+            " || {}).restartRequired")
         journal.check(
             "and a real tap on the restart offer ASKS before it takes it "
             "(B-300)",
             not refused and asked and restart_left,
-            f"dialog={asked}, redemarrage={restart_left}" if not refused
+            f"dialog={asked}, restart owed={restart_left}" if not refused
             else f"data-restart {refused} (the save above raises it)")
         # AND THE CONFIRMATION IS DISMISSED before the walk goes on: a modal
         # left up makes every tap after it « present but not tappable », which
@@ -540,8 +553,7 @@ async def main():
         console_errors: list[str] = []
         page.on("console", lambda message: console_errors.append(message.text)
                 if message.type == "error" else None)
-        await page.evaluate("()=>{SETTINGS_STATE.topic = null; SETTINGS_STATE.q = '';"
-                            " SETTINGS_STATE.modifs.clear(); SETTINGS_STATE.redemarrage = false;}")
+        await page.evaluate(SETTINGS_FROM_SCRATCH)
         await page.evaluate("()=>window.__store.write({page: 'cfg'})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)

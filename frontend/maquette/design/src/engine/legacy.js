@@ -7267,7 +7267,6 @@ import {
     topic: null,
     q: "",
     readOnly: false,
-    redemarrage: false,
     conflict: false,
   };
 
@@ -7279,7 +7278,7 @@ import {
     SETTINGS_STATE.topic = null;
     SETTINGS_STATE.q = "";
     SETTINGS_STATE.readOnly = false;
-    SETTINGS_STATE.redemarrage = false;
+    window.__mocks?.setRestartRequired(false);
     SETTINGS_STATE.conflict = false;
   }
 
@@ -8857,14 +8856,6 @@ import {
     if (!closest) return;
     if (closest.tagName === "A") event.preventDefault();
 
-    if (closest.dataset.topic) {
-      SETTINGS_STATE.topic = closest.dataset.topic;
-      SETTINGS_STATE.q = "";
-      port.scrollTop = 0;
-      render();
-      replacePath();
-      return;
-    }
     if (closest.dataset.setting) {
       // THE PRODUCER HAS LEFT. `features/settings/panel-setting.ts` answers.
       panel.produce("setting", closest.dataset.setting);
@@ -9190,13 +9181,6 @@ import {
     }
     if (closest.dataset.drawer) {
       openDrawer();
-      return;
-    }
-    if (closest.dataset.maintopic !== undefined) {
-      store.write({ maintTopic: closest.dataset.maintopic || null });
-      port.scrollTop = 0;
-      render();
-      replacePath();
       return;
     }
     if (closest.dataset.maintact) {

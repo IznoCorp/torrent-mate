@@ -7,4 +7,5 @@
 // PRODUCERS register what builds a descriptor.
 import "./panel-field";
 import "./panel-secret";
+import "./panel-secret-field";
 import "./panel-setting";

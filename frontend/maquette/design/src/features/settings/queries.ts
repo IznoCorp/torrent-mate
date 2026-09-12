@@ -39,6 +39,49 @@ export function useSecrets() {
   return useQuery(secretsQuery);
 }
 
+/** What the layer says about the configuration itself, as a DEFINITION. */
+export const configurationStatusQuery = {
+  queryKey: ["/api/config/status"],
+  queryFn: async () => (await read("/api/config/status")) as ConfigurationStatus,
+};
+
+/** What the layer says about the configuration itself. */
+export type ConfigurationStatus = { readOnly: boolean; restartRequired: boolean };
+
+/**
+ * Whether this instance may write, and whether a restart is owed.
+ *
+ * THE RESTART IS A FACT OF THE LAYER, never of the editor (B-343). It used to
+ * be a boolean raised on the engine's `SETTINGS_STATE` after a save — an object
+ * nothing re-renders — so the banner that reads it appeared at the next render
+ * something else happened to cause, or never at all. Read as a query, it
+ * re-renders every reader the moment the answer moves, which is the ordinary
+ * shape every other banner here already has.
+ */
+export function useConfigurationStatus() {
+  return useQuery(configurationStatusQuery);
+}
+
+/**
+ * Writes one secret's value, or clears it.
+ *
+ * A SECRET'S VALUE TRAVELS ONE WAY. The layer answers which keys exist and
+ * whether each is defined, never what one holds, so this is the only direction
+ * a value ever moves — and an EMPTY value is how a key is cleared, which is
+ * what « Retirer la clé » asks for (B-335).
+ *
+ * Args:
+ *     key: The secret's key.
+ *     value: The new value, or the empty string to clear it.
+ *
+ * Returns:
+ *     What the layer answered — or `HELD` when the outbox kept the write.
+ */
+export async function writeSecret(key: string, value: string) {
+  return send<{ restartRequired: boolean }>(
+    "PUT", "/api/config/secrets", { [key]: value });
+}
+
 /** What the layer answers when a configuration file is written. */
 export type WriteOutcome = { restartRequired: boolean; conflict: boolean };
 

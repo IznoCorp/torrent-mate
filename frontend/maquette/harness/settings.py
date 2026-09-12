@@ -321,8 +321,15 @@ async def main():
         await pg.evaluate("""()=>{const out = [...document.querySelectorAll('#dlg button')]
           .find((b) => !('confirmrestart' in b.dataset)); if (out) out.click();}""")
         await pg.wait_for_timeout(400)
+        # RE-AIMED BY THE SETTINGS MICRO-WAVE (B-343). « Cancelling leaves the
+        # restart OWED » is the property, untouched; the fact is the LAYER's
+        # now — `/api/config/status` — because on the engine's own object
+        # nothing re-rendered the banner and B-300 could not be reached through
+        # a save at all. Read from the old place, this hold would have gone
+        # green on `undefined` and said nothing.
         after_cancel = await pg.evaluate("""()=>({
-          owed: !!window.__referentiel.SETTINGS_STATE.redemarrage,
+          owed: !!(window.__queries.getQueryData(['/api/config/status'])
+            || {}).restartRequired,
           said: (document.querySelector('#toast') || {}).textContent || ''})""")
         check("cancelling leaves the restart OWED (B-300)",
               after_cancel["owed"], str(after_cancel["owed"]))
@@ -337,8 +344,10 @@ async def main():
         await pg.evaluate("""()=>{const go = document.querySelector('#dlg [data-confirmrestart]');
           if (go) go.click();}""")
         await pg.wait_for_timeout(500)
+        # RE-AIMED with the hold above, and for the same reason.
         after_confirm = await pg.evaluate("""()=>({
-          owed: !!window.__referentiel.SETTINGS_STATE.redemarrage,
+          owed: !!(window.__queries.getQueryData(['/api/config/status'])
+            || {}).restartRequired,
           said: (document.querySelector('#toast') || {}).textContent || ''})""")
         check("confirming restarts (B-300)", not after_confirm["owed"],
               str(after_confirm["owed"]))

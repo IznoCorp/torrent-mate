@@ -39,3 +39,12 @@ import "../features/releases/verbs";
 // tap registry at module evaluation, so naming them here is the whole wiring.
 import "../features/acquisition/follow-verbs";
 import "../features/acquisition/deck-verbs";
+// And Configuration contributes verbs beside its panels: the rubric one,
+// moved off the engine's own delegation with the branch that answered it
+// (B-332), and the secrets' three — replacing a key, asking before cutting
+// one, and cutting it (B-334, B-335). Maintenance contributes the second
+// rubric verb, which is the same mechanism on the other page that has
+// rubrics (B-361).
+import "../features/settings/topic-verb";
+import "../features/settings/secret-verbs";
+import "../features/maintenance/topic-verb";

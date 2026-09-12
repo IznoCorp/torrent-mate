@@ -23,7 +23,7 @@ import { useMaintenanceReference } from "../../features/maintenance/reference";
 import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
 import { useDeletionJournal, useMaintenanceActions } from "./queries";
-import { crossReference, section, sectionHeading, topicRow } from "../../ui/variants";
+import { backAction, section, sectionHeading, topicRow } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 import { Markup } from "../../ui/markup";
 // The risk vocabulary is the FEATURE's, since its panel lives here: the
@@ -67,7 +67,16 @@ export function MaintenancePage(): ReactElement | null {
     const actions = MAINT_ACTIONS.filter((action) => action.g === topic.id);
     return (
       <>
-        <button className={crossReference()} data-part="cross-reference" data-maintopic="">
+        {/* A RUBRIC IS A SCREEN ONE ENTERS, so it wears the way out every
+            screen of this interface wears (B-361). The row that said « toutes
+            les commandes » took its place: it navigated by writing the rubric
+            away, leaving the entry the reader was standing on untouched, so
+            the system Back gesture went on popping the page. This POPS. */}
+        <button
+          className={backAction()}
+          data-part="screen/back"
+          onClick={() => window.__bridge.back()}
+        >
           {t("screens.maintenance.allCommands")}
         </button>
         <h2 className={sectionHeading()} data-part="heading">{topic.t}</h2>

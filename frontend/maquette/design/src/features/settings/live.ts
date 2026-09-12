@@ -14,10 +14,17 @@ export const settingsLiveRules: readonly LiveRule[] = [];
 /** Why nothing does. */
 export const settingsLiveExemptions: LiveExemptions = {
   types: [],
-  keys: ["/api/config/schema", "/api/config/secrets"],
+  keys: [
+    "/api/config/schema",
+    "/api/config/secrets",
+    "/api/config/status",
+  ],
   because:
     "the configuration changes when someone edits it, and the interface that "
     + "edited it already knows. A second operator's change arriving mid-edit "
     + "would overwrite an unsaved form, which §8's own « rien en silence » "
-    + "forbids more strongly than it asks for freshness",
+    + "forbids more strongly than it asks for freshness. The STATUS is the "
+    + "same answer one level up — whether this instance may write, and whether "
+    + "a restart is owed — and it moves for one reason only: a write this "
+    + "interface just made, which invalidates it where it is made",
 };
