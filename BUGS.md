@@ -4228,20 +4228,6 @@ which mechanism it was.
 
 <sub>`grep -n 'exits.py' BUGS.md` names B-277 · `rg -n -g '*.md' 'outbox\.py|drag\.py' BUGS.md` → no fall recorded · #567's round-four gate: « harness: 1 of 92 rule(s) FAILED — touch.py (exit 1) » then `python3 frontend/maquette/harness/touch.py` alone → « 25 rules EXECUTED — no violation »</sub>
 
-**A FIFTH, read on 2026-09-12 during #588's gate, and this time the next fall was LISTENED FOR.**
-`journey.py` (R82) FAILED inside `harness-hold-counts.py --compare --jobs 2` on `9ecce44d4` —
-« harness: 1 of 122 rule(s) FAILED — journey.py (exit 1) » — while the same head read it green in
-the full suite (« 122 rule(s) and 27 repository guard(s), no violation ») and in a replay (70 holds).
-The tool keeps no rule's output, so that fall carries no reading. The ONE re-run the steward allowed
-was therefore driven through a scratch wrapper that imports the tool unchanged and keeps, for any
-rule that falls, its whole output, its duration, and the load and free memory around it — on
-`a1c1fd553`, under the same compare at the same fan-out, load 5.27 at start: **122 rules, no
-violation, nothing fell**, so nothing was captured. Said with the verdict, as B-277 requires: the
-fall reproduced neither alone nor under the load it appeared in, and that is not proof the rule is
-sound. The mechanism stays unread — and the cheapest repair this entry has not yet named is in the
-TOOL, not the rules: `harness-hold-counts.py` discards the output of a rule that fails, so every
-fall under it arrives with « exit 1 » and nothing else.
-
 **READ on 2026-09-04 by the steward, at `cb2128220`, and the protocol above is replaced.** It asked for
 three runs at `TM_HARNESS_JOBS=8` « on an idle machine », which the office forbids for arithmetic (eight
 browsers ≈ 8.8 GB against ~6 GB free; the watchdog stops the run under 2 GB) — a protocol the office
@@ -4285,6 +4271,20 @@ while costing twenty minutes of a mutex two waves were queued on. The record is 
 The wave that met it touches no surface — `git diff --stat origin/main -- frontend/maquette/design/src
 | wc -l` → 0 — and that is recorded as a fact rather than offered as an alibi: what this entry needs
 is the reading, and for the first time in five instances it has one.
+
+**A SIXTH, 2026-09-12 during #588's gate — and unlike the fifth it carries NO reading.**
+`journey.py` (R82) FAILED once inside `harness-hold-counts.py --compare --jobs 2` on `9ecce44d4` —
+« harness: 1 of 122 rule(s) FAILED — journey.py (exit 1) » — under `heavy: settings starts (5522MB
+free, load 3.94)`, `TM_HARNESS_JOBS=2`; the same head read it green in the full suite (« 122 rule(s)
+and 27 repository guard(s), no violation ») and in a replay (70 holds). The ONE re-run the steward
+allowed was driven through a scratch wrapper that imports the tool unchanged and keeps, for any rule
+that falls, its whole output, its duration and the load and free memory around it — on `a1c1fd553`,
+the same compare at the same fan-out, load 5.27 at start: **122 rules, no violation, nothing fell,
+nothing captured.** Said with the verdict, as B-277 requires: not reproduced alone nor under the
+compare's load, which is no proof the rule is sound; the mechanism is not read. **The cheapest repair
+is in the TOOL, not the rules**: `harness-hold-counts.py` runs each rule with `capture_output` and
+keeps only the parsed count, so a rule that falls under it arrives with « exit 1 » and nothing else —
+the wrapper that kept the output is the repair's shape. Filed, not built: the apparatus is frozen.
 
 **B-293 — 38 `Design:` markers point at paths that left the tree, and nothing says so.**
 `grep -rhoE 'Design: docs/[^#[:space:]]+' --include='*.py' tests | sort | uniq -c` shows 16 for
