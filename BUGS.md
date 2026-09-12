@@ -3693,7 +3693,7 @@ one tap further on. The file is a notifications one rather than a storage one on
 are what one edits first when trying the editor out, and having THAT save answer « le fichier a
 bougé » would make the ordinary case the surprising one.
 
-    the rule            R128, `harness/seeds_at_rest.py`, four holds added — and it calls
+    the rule            R128, `harness/seeds_at_rest.py`, five holds added — and it calls
                         `window.__go` NOWHERE, which is that rule's whole design: the walk is a
                         boot and taps a thumb makes, so what it measures is what a hand reaches
     the run             `python3 frontend/maquette/harness/seeds_at_rest.py` → 15 holds, no

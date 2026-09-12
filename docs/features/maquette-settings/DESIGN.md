@@ -24,7 +24,7 @@ wave holds B-420+ and the L20 design wave B-440+. Gaps are accepted.
 | B-343 | The restart flag leaves `SettingsState` for the layer; the banner reads a query | R166 |
 | B-334 | « Remplacer la valeur » writes the key through the layer, from a field the panel now offers | R167 `harness/secret_acts.py` |
 | B-335 | « Retirer la clé » asks first, in the dictated words, and the walk goes through the CANCEL | R167 |
-| B-345 | At rest one file answers `conflict: true` on its own write; any other save reaches the restart | R128 `harness/seeds_at_rest.py`, four holds added |
+| B-345 | At rest one file answers `conflict: true` on its own write; any other save reaches the restart | R128 `harness/seeds_at_rest.py`, five holds added (10 → 15, measured by `harness-hold-counts.py`) |
 | a11y[light] | `backAction` writes in `text-primary-text`, the token `theme.css` keeps for a LABEL; the light ceiling falls 162 → 149 in the same commit | `a11y.py --check`, the light ratchet |
 
 **ONE VISIBLE CHANGE, and it is the operator's to overturn.** This wave put four back controls on

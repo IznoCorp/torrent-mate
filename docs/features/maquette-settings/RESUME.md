@@ -27,7 +27,7 @@ final push.
 | B-342 — the mock keeps the value; a file changed on disk takes nothing | R166 | ″ |
 | B-343 — the restart flag is the layer's, the banner reads a query | R166 | ″ |
 | B-334, B-335 — both secret acts write the layer; the removal asks first | R167 `harness/secret_acts.py` | 14 |
-| B-345's settings half — the conflict and the restart reachable at rest | R128 `harness/seeds_at_rest.py` | +4 |
+| B-345's settings half — the conflict and the restart reachable at rest | R128 `harness/seeds_at_rest.py` | +5 (10 → 15, measured) |
 | B-398 — the ladder's rewind counts the stack (route C, the operator's D5 exception) | R165 | 3 of the 22 |
 
 **B-397 filed, not repaired** (a panel re-produced after an edit pushes a second entry — L13's).
