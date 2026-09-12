@@ -74,6 +74,36 @@ TITLES_ON_SCREEN = """()=>[...document.querySelectorAll(
   (one) => (one.textContent || '').trim())"""
 
 
+# THE FILE THAT MOVED, and one setting a thumb can open inside it — read off
+# the layer's own answer rather than written down here, so a reseeding that
+# renames a file falls on the seed's own guard and not on this walk.
+MOVED_FILE_SETTING = """()=>{
+  const topics = window.__queries?.getQueryData(['/api/config/schema']) || [];
+  for (const topic of topics) {
+    for (const setting of topic.r) {
+      if (setting.f !== 'notify') continue;
+      return {topic: topic.id, identity: setting.f + ':' + setting.c};
+    }
+  }
+  return null;}"""
+
+# A BOOLEAN SETTING IN A FILE THAT DID NOT MOVE — a switch, because it files
+# its edit on the tap that changes it and the walk needs no keyboard.
+ORDINARY_SETTING = """()=>{
+  const topics = window.__queries?.getQueryData(['/api/config/schema']) || [];
+  for (const topic of topics) {
+    for (const setting of topic.r) {
+      if (setting.f === 'notify' || setting.type !== 'boolean') continue;
+      return {topic: topic.id, identity: setting.f + ':' + setting.c};
+    }
+  }
+  return null;}"""
+
+# The banners the page is drawing, whichever branch of it is on screen.
+BANNERS = """()=>[...document.querySelectorAll('[data-part="load-error"]')]
+  .map((one) => one.textContent.replace(/\\s+/g, ' ').trim())"""
+
+
 async def main():
     journal = Journal("R128 — the seeds offer every state to a hand at rest")
     async with async_playwright() as playwright:
@@ -172,6 +202,97 @@ async def main():
             "and its medium is drawn in « Suivis » too",
             any(one["title"] in drawn_follows for one in holes),
             f"{[one['title'] for one in holes]} against {drawn_follows}")
+
+        # ── 5. THE SETTINGS' SHARE: A CONFLICT, AND A RESTART OWED ─────────
+        #
+        # B-345's settings half — « a conflict and a restart owed ». Both banners
+        # were reachable only from a named state or from a dial — the rule
+        # raised `setConfigurationConflict(true)` and read what it had raised,
+        # which measures the harness and reports it as what a hand can do.
+        #
+        # AT REST, one configuration file answers `conflict: true` on its OWN
+        # write (`mocks/state.ts`'s `movedFiles`), so a hand reaches B-299's
+        # banner by saving a setting that lives in it; and any save at all
+        # raises the restart, so B-300's confirmation is one tap further on.
+        # The dial STAYS a dial — it is a property of the request — and this is
+        # the property of the FILE that a thumb can find.
+        # « RÉGLAGES » IS NOT IN THE TAB BAR — `app/navigation.ts` puts five
+        # pages there and this is not one of them — so the walk goes the way a
+        # thumb goes: Système, then its own row that leads to the settings.
+        await page.click('[data-page="sys"]')
+        await page.wait_for_timeout(SETTLED)
+        await page.click('[data-page="cfg"]')
+        await page.wait_for_timeout(SETTLED)
+        moved = await page.evaluate(MOVED_FILE_SETTING)
+        if journal.check(
+                "a configuration file has MOVED under the editor at rest, with a "
+                "setting in it a thumb can open (B-345)",
+                moved is not None, str(moved)):
+            await page.click(f'[data-topic="{moved["topic"]}"]')
+            await page.wait_for_timeout(SETTLED)
+            await page.click(f'[data-setting="{moved["identity"]}"]')
+            await page.wait_for_timeout(SETTLED)
+            # A SWITCH FILES ITS EDIT ON THE TAP that changes it — there is
+            # nothing held back for a « Valider » to release, which is why the
+            # panel offers none for this kind.
+            await page.click('#sheetin [data-part="field/toggle"]')
+            await page.wait_for_timeout(SETTLED)
+            for _ in range(4):
+                if "panel=" not in await page.evaluate("()=>location.search"):
+                    break
+                await page.evaluate("()=>history.back()")
+                await page.wait_for_timeout(450)
+            saved = await page.query_selector('#savebar [data-save]')
+            if saved is not None:
+                await saved.click()
+                await page.wait_for_timeout(900)
+            banners = await page.evaluate(BANNERS)
+            journal.check(
+                "so SAVING it reaches the version-conflict banner with no dial "
+                "and no named state (B-299, B-345)",
+                any("conflit" in one.lower() for one in banners), str(banners))
+            # AND NOT THE OTHER ONE, in the same breath: the file moved, so
+            # nothing was written, so nothing is owed. A build that raised both
+            # would be telling the operator a restart is needed for an edit the
+            # layer refused.
+            journal.check(
+                "and that save owes no restart, because it wrote nothing",
+                not any("redémarr" in one.lower() for one in banners),
+                str(banners))
+
+            # THE RESTART IS THE OTHER SAVE, and reaching it takes the way out
+            # the conflict banner offers: the editor's copy is stale, so the
+            # edits go with the banner and the settings are asked for again.
+            await page.click('[data-reloadsettings]')
+            await page.wait_for_timeout(SETTLED)
+            ordinary = await page.evaluate(ORDINARY_SETTING)
+            if journal.check(
+                    "a setting in a file that did NOT move is one tap away too",
+                    ordinary is not None, str(ordinary)):
+                await page.evaluate("()=>history.back()")
+                await page.wait_for_timeout(SETTLED)
+                await page.click(f'[data-topic="{ordinary["topic"]}"]')
+                await page.wait_for_timeout(SETTLED)
+                await page.click(f'[data-setting="{ordinary["identity"]}"]')
+                await page.wait_for_timeout(SETTLED)
+                await page.click('#sheetin [data-part="field/toggle"]')
+                await page.wait_for_timeout(SETTLED)
+                for _ in range(4):
+                    if "panel=" not in await page.evaluate("()=>location.search"):
+                        break
+                    await page.evaluate("()=>history.back()")
+                    await page.wait_for_timeout(450)
+                saved = await page.query_selector('#savebar [data-save]')
+                if saved is not None:
+                    await saved.click()
+                    await page.wait_for_timeout(900)
+                banners = await page.evaluate(BANNERS)
+                journal.check(
+                    "and SAVING it reaches the restart the operator has to "
+                    "confirm — B-300's own path, with no named state (B-343, "
+                    "B-345)",
+                    any("redémarr" in one.lower() for one in banners),
+                    str(banners))
 
         journal.check("and the whole walk raises no error", not errors, str(errors))
 

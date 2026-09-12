@@ -738,7 +738,8 @@
       "restartConfirmBody": "Le service s'arrête et repart. Il est indisponible pendant quelques secondes — pour tous les comptes de la maison, pas seulement pour vous, et une acquisition en cours reprendra où elle s'est arrêtée.",
       "restartConfirmGo": "Redémarrer",
       "restartConfirmCancel": "Annuler",
-      "restartDone": "Service redémarré — les réglages sont pris en compte."
+      "restartDone": "Service redémarré — les réglages sont pris en compte.",
+      "allTopics": "Tous les réglages"
     }
   },
   "surfaces": {
@@ -867,19 +868,24 @@
       "neverReturned": "La valeur n'est jamais renvoyée par le serveur, donc elle ne s'affiche pas ici. On sait qu'elle est posée, on ne sait pas ce qu'elle vaut.",
       "readOnly": "Lecture seule sur cette instance",
       "replace": "Remplacer la valeur",
-      "replaceToast": "Un champ masqué s'ouvre ici. Laissé vide, il n'efface rien.",
       "removeKey": "Retirer la clé",
-      "removeKeyToast": "Retirer une clé coupe ce qu'elle autorisait — le service le dira avant."
+      "newKeyLabel": "Nouvelle clé",
+      "newKeyPlaceholder": "Saisir la nouvelle clé",
+      "removeConfirmHeading": "Retirer la clé {{provider}} ?",
+      "removeConfirmBody": "La clé sera retirée pour tous les comptes du foyer. Ce fournisseur ne répondra plus tant qu'une nouvelle clé n'est pas saisie.",
+      "removeConfirmGo": "Retirer la clé",
+      "removeConfirmCancel": "Annuler"
     },
     "setting": {
       "edited": "modifié, pas encore écrit",
-      "currentValue": "Valeur actuelle",
-      "writtenValue": "Valeur écrite",
+      "pendingValue": "Nouvelle valeur",
+      "storedValue": "Valeur enregistrée",
       "readOnly": "Lecture seule sur cette instance",
       "cancelEdit": "Annuler la modification",
       "nothingWritten": "Rien n'est écrit tant que la barre du bas n'est pas utilisée. Elle dit quels fichiers seront touchés.",
       "cancelledToast": "Modification annulée — rien n'avait été écrit.",
-      "savedToast": "Enregistré — {{files}}."
+      "savedToast": "Enregistré — {{files}}.",
+      "commit": "Valider"
     },
     "sort": {
       "title": "Trier la médiathèque",
@@ -996,6 +1002,15 @@
     },
     "releases": {
       "taken": "« {{quality}} » retenue pour « {{title}} » — suivez-le dans « En vol »."
+    },
+    "secret": {
+      "replaceDone": "Clé remplacée.",
+      "replaceHeld": "Clé gardée — elle sera envoyée dès le retour du réseau.",
+      "replaceRefused": "La clé n'a pas pu être remplacée.",
+      "replaceEmpty": "Saisir la nouvelle clé avant de valider.",
+      "removeDone": "Clé retirée.",
+      "removeHeld": "Retrait gardé — il sera envoyé dès le retour du réseau.",
+      "removeRefused": "La clé n'a pas pu être retirée."
     }
   },
   "discover": {

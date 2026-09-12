@@ -338,6 +338,13 @@ export function installMockNetwork(): void {
     setConfigurationConflict: (moved: boolean) => {
       mockState().conflict = moved;
     },
+    // WHETHER A RESTART IS OWED. It became a fact of the LAYER at B-343 — it
+    // was a boolean on the engine's `SETTINGS_STATE`, which nothing
+    // re-rendered — so the named state that stands for « a restart is waiting »
+    // has to raise it here, where the banner reads it.
+    setRestartRequired: (owed: boolean) => {
+      mockState().restartRequired = owed;
+    },
     setOffline: (down: boolean) => {
       networkIsDown = down;
     },
@@ -387,6 +394,8 @@ declare global {
       setLibraryDatabaseAvailable: (available: boolean) => void;
       /** Whether a configuration file has moved under the editor (B-299). */
       setConfigurationConflict: (moved: boolean) => void;
+      /** Whether a restart is owed — the layer's fact since B-343. */
+      setRestartRequired: (owed: boolean) => void;
       /** How many times each idempotency key arrived at the layer. */
       arrivalsByKey: () => Record<string, number>;
       reset: () => void;

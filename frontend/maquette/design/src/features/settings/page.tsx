@@ -32,10 +32,11 @@ import { Icon } from "../../ui/icon";
 import { useSettingsReference, type Setting, type SettingsTopic } from "../../features/settings/reference";
 import { useStoreContent } from "../../lib/store-access";
 import { settingInWords } from "./format";
-import { useSecrets, useSettings } from "./queries";
+import { useConfigurationStatus, useSecrets, useSettings } from "./queries";
 import { settingLabel } from "../../features/settings/labels";
-import { emptyNote, factsPanel, loadError, loadErrorAction, qualityHint, searchClear, searchField, searchInput, sectionHeading, topicRow } from "../../ui/variants";
-import { saveAction, saveBar, settingsRow } from "./variants";
+import { backAction, emptyNote, factsPanel, loadError, loadErrorAction, qualityHint, searchClear, searchField, searchInput, sectionHeading, topicRow } from "../../ui/variants";
+import { SaveBar, SettingsBanners } from "./banners";
+import { settingsRow } from "./variants";
 import { guidance } from "../../ui/variants/layout";
 import { Markup } from "../../ui/markup";
 
@@ -109,97 +110,8 @@ function SearchField(): ReactElement {
   );
 }
 
-// The save bar lives BESIDE the view rather than inside it, so scrolling the
-// settings never scrolls it away — and it exists only when there is something to
-// save. Its host is `#device`, a sibling of the page's own container, so this
-// page has a second portal: the one piece of it that renders outside its host.
-// THE THREE BANNERS THE COPY NAMES, in one place and drawn on every branch of
-// this page.
-//
-// They were written inline in the RUBRIC LIST alone, so a read-only instance
-// said so on the list and said nothing once a rubric was open — and the save
-// bar, which is what raises the third of them, exists on every branch. B-299's
-// banner would have been invisible exactly where the operator taps « Enregistrer ».
-function SettingsBanners(): ReactElement {
-  const { SETTINGS_STATE, changedFiles } = useSettingsReference();
-  const { t } = useTranslation();
-  return (
-    <>
-      {SETTINGS_STATE.readOnly ? (
-        <div className={loadError()} data-part="load-error">
-          <b>{t("screens.settings.readOnlyLead")}</b>
-          {t("screens.settings.readOnlyRest")}
-        </div>
-      ) : null}
-      {/* THE THIRD BANNER — the one the copy named and the page never drew
-          (B-299). The file moved on disk while it was being edited, so what is
-          on screen no longer describes what is stored. The edits are NOT thrown
-          away by the banner appearing: losing the operator's work on top of the
-          surprise would be the second loss, and reloading is offered as a
-          decision rather than taken as one. */}
-      {SETTINGS_STATE.conflict ? (
-        <div className={loadError()} data-part="load-error">
-          <b>{t("screens.settings.conflictLead")}</b>
-          {t("screens.settings.conflictRest")}{" "}
-          <button className={loadErrorAction()} data-reloadsettings="1">
-            {t("screens.settings.conflictReload")}
-          </button>
-        </div>
-      ) : null}
-      {SETTINGS_STATE.redemarrage ? (
-        <div className={loadError()} data-part="load-error">
-          <b>{t("screens.settings.restartLead")}</b>{" "}
-          {changedFiles().join(", ") ||
-            t("screens.settings.restartSomeSettings")}
-          {t("screens.settings.restartRest")}{" "}
-          <button className={loadErrorAction()} data-restart="1">
-            {t("screens.settings.restartNow")}
-          </button>
-        </div>
-      ) : null}
-    </>
-  );
-}
-
-function SaveBar(): ReactElement | null {
-  const {
-    SETTINGS_STATE,
-    changedFiles,
-    fileName,
-  } = useSettingsReference();
-  const { t } = useTranslation();
-  const pending = SETTINGS_STATE.modifs.size;
-  if (pending === 0) return null;
-  const device = document.getElementById("device");
-  if (!device) return null;
-  const files = changedFiles().map(fileName).join(", ");
-  return createPortal(
-    <div
-      className={saveBar()}
-      id="savebar"
-      role="region"
-      aria-label={t("screens.settings.saveBarLabel")}
-    >
-      <span className="sn">
-        <b>
-          {t(
-            pending > 1
-              ? "screens.settings.pendingMany"
-              : "screens.settings.pendingOne",
-            { count: pending },
-          )}
-        </b>{" "}
-        {t("screens.settings.willWrite", { files })}
-      </span>
-      <button className={saveAction()} data-save="1" disabled={SETTINGS_STATE.readOnly}>
-        {t("screens.settings.save")}
-      </button>
-    </div>,
-    device,
-  );
-}
-
 function TopicView({ topic }: { topic: SettingsTopic }): ReactElement {
+  const { t } = useTranslation();
   const byFile = new Map<string, Setting[]>();
   for (const setting of topic.r) {
     if (!byFile.has(setting.f)) byFile.set(setting.f, []);
@@ -207,6 +119,19 @@ function TopicView({ topic }: { topic: SettingsTopic }): ReactElement {
   }
   return (
     <>
+      {/* A RUBRIC IS A SCREEN ONE ENTERS, so it wears the way out every screen
+          of this interface wears (B-332). There was none at all: the rubric
+          was reachable only by the tab bar, which is not Back. It POPS the
+          entry the rubric pushed — `features/settings/topic-verb.ts` — rather
+          than navigating, so a reader who entered three rubrics in a row does
+          not leave three of them behind. */}
+      <button
+        className={backAction()}
+        data-part="screen/back"
+        onClick={() => window.__bridge.back()}
+      >
+        {t("screens.settings.allTopics")}
+      </button>
       <h2 className={sectionHeading()} data-part="heading">{topic.t}</h2>
       <p className={qualityHint()}>{topic.s}</p>
       {[...byFile.entries()].map(([file, settings]) => (
@@ -249,6 +174,13 @@ export function SettingsPage(): ReactElement | null {
     return (
       <>
         <SettingsBanners />
+        <button
+          className={backAction()}
+          data-part="screen/back"
+          onClick={() => window.__bridge.back()}
+        >
+          {t("screens.settings.allTopics")}
+        </button>
         <h2 className={sectionHeading()} data-part="heading">{t("screens.settings.secretsTitle")}</h2>
         <p className={qualityHint()}>{t("screens.settings.secretsHint")}</p>
         <div className={factsPanel()} data-part="panel">
