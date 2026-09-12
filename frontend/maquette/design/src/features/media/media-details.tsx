@@ -16,6 +16,7 @@ export function MediaDetails({
   prov,
   inFlight,
   identified,
+  metadataRefreshedAt,
 }: {
   title: string;
   /** True for a film, false for a series, null while the kind is in flight. */
@@ -28,8 +29,14 @@ export function MediaDetails({
   inFlight: boolean;
   /** Whether a medium was identified at all. With none, ownership is unknown, not false. */
   identified: boolean;
+  /**
+   * When the metadata was last re-read from the providers, or null when it has
+   * not been. The « Métadonnées rafraîchies » row draws it; null keeps the
+   * constant the row showed before this field existed.
+   */
+  metadataRefreshedAt: string | null;
 }) {
-  const { icons } = useMediaReference();
+  const { icons, dateFR } = useMediaReference();
   const { t } = useTranslation();
   return (
     <>
@@ -74,18 +81,22 @@ export function MediaDetails({
               </span>
             </div>
           ))}
-          {/* THIS DATE IS A CONSTANT, and it is printed as a fact in every
-              state — in flight, at rest, over a sheet that answered with
-              nothing and over one that failed. The projection carries no
-              refresh timestamp, so there is nothing here to print instead:
-              correcting it means the backend serving when the metadata was
-              last read, which belongs with the demands in
-              `docs/reference/backend-demands-architecture.md` rather than
-              guessed at here. Named because this screen's whole subject is
-              what a surface may claim about data it has not got. */}
+          {/* THIS DATE WAS A CONSTANT, printed as a fact in every state — in
+              flight, at rest, over a sheet that answered with nothing and over
+              one that failed. The demand it named is SERVED since B-383: the
+              contract carries `metadataRefreshedAt`, the re-scrape verb moves
+              it, and this row reads it. The constant stays as the NULL case and
+              only as that — nothing has been re-read in a session that has just
+              begun, and the row then says what it has always said. Named because
+              this screen's whole subject is what a surface may claim about data
+              it has not got. */}
           <div className={keyValueRow()} data-part="key-value">
             <span>{t("screens.media.metadataRefreshed")}</span>
-            <span>{t("screens.media.metadataRefreshedValue")}</span>
+            <span data-part="media/refreshed">
+              {metadataRefreshedAt
+                ? dateFR(metadataRefreshedAt) ?? metadataRefreshedAt
+                : t("screens.media.metadataRefreshedValue")}
+            </span>
           </div>
         </div>
       </div>
@@ -99,10 +110,15 @@ export function MediaDetails({
           inFlight ? <SkeletonLine width="half" /> : null
         ) : owns ? (
           <>
+            {/* IT SAID A SENTENCE AND SENT NOTHING (B-383). `data-toast` draws a
+                message and does nothing else, so the operator was told the
+                metadata would be re-fetched over a world in which nothing had
+                been asked. `data-rescrape` is the verb both surfaces share —
+                this one and the follow panel's — and it calls the operation. */}
             <button
               className={`sact ${actionButton()}`}
               data-part="sheet/action"
-              data-toast={t("screens.media.rescrapeToast")}
+              data-rescrape={title}
             >
               <Icon paths={icons.refresh} />
               {t("screens.media.rescrape")}

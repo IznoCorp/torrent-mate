@@ -77,8 +77,8 @@
     },
     {
       "season": 16,
-      "aired": 24,
-      "owned": 24
+      "aired": 20,
+      "owned": 20
     },
     {
       "season": 17,
@@ -230,17 +230,17 @@
   "Les Animaniacs": [
     {
       "season": 1,
-      "aired": 134,
+      "aired": 172,
       "owned": 93
     },
     {
       "season": 2,
-      "aired": 15,
-      "owned": 11
+      "aired": 12,
+      "owned": 4
     },
     {
       "season": 3,
-      "aired": 26,
+      "aired": 46,
       "owned": 13
     }
   ]

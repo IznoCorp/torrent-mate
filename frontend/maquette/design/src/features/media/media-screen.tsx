@@ -340,7 +340,7 @@ export function MediaScreen() {
             sheetInFlight={inFlight}
           />
 
-          <MediaDetails title={title} isFilm={isFilm} owns={owns} followed={followed} follows={follows} prov={prov} inFlight={inFlight} identified={identified} />
+          <MediaDetails title={title} isFilm={isFilm} owns={owns} followed={followed} follows={follows} prov={prov} inFlight={inFlight} identified={identified} metadataRefreshedAt={sheet?.metadataRefreshedAt ?? null} />
 
           <div className="note" data-part="note">
             <b>{t("screens.media.noteTitle")}</b> {t("screens.media.noteBody")}

@@ -150,6 +150,19 @@ export type MockState = {
    * nothing knows in advance which media will be asked for.
    */
   journeyStages: Record<string, Schemas["JourneyStage"][]>;
+  /**
+   * When each medium's metadata was last re-read, keyed by TITLE.
+   *
+   * WHAT THE RE-SCRAPE MOVES (B-383). The verb « Re-scraper les métadonnées »
+   * said a sentence and sent nothing; a verb is proved by the state it changes
+   * and never by the message it answers, so the operation writes here and the
+   * sheet's own « Métadonnées rafraîchies » row reads it back.
+   *
+   * EMPTY AT SEEDING, and that is the honest starting point: no medium has been
+   * re-read in a session that has just begun. The sheet then shows what it
+   * always showed, which is why the row keeps a fallback.
+   */
+  metadataRefreshedAt: Record<string, string>;
   /** Whether a configuration change is waiting for a restart. */
   restartRequired: boolean;
   /**
@@ -215,6 +228,7 @@ const seeded = (): MockState => ({
   secrets: copyOf<Schemas["Secret"][]>(SECRETS),
   pipelineState: IDLE,
   journeyStages: {},
+  metadataRefreshedAt: {},
   restartRequired: false,
   changedFiles: [],
   conflict: false,
