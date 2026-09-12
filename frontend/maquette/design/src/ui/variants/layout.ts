@@ -39,9 +39,16 @@ export const screen = cva(
  */
 export const screenBar = cva("screenbar flex-none flex items-center gap-3 py-5 px-6 bg-background");
 
-/** The back control itself. */
+/**
+ * The back control itself.
+ *
+ * ITS INK IS THE BRAND'S TEXT VARIANT, NOT THE MARK. The control is a label on
+ * the bar's ground, and the mark is a fill tone: on the light theme it reads
+ * far under AA against near-white, which is the case `--color-primary-text`
+ * exists for. On the dark theme the two tokens are the same colour.
+ */
 export const backAction = cva(
-  "fback flex items-center gap-2 [border:0] bg-transparent text-primary text-4 font-semibold py-2 px-1",
+  "fback flex items-center gap-2 [border:0] bg-transparent text-primary-text text-4 font-semibold py-2 px-1",
 );
 
 /**

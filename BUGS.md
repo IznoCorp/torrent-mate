@@ -394,13 +394,13 @@ when the defect comes back.
 | B-346 | A paragraph that OPENS with another entry's identifier is read as that entry's body head, so it truncates the entry it lives in and — being the first such head in the file — makes the real entry's body the discarded one; `check-bug-register`'s closure arm was blind to B-310 and B-249 at once, and 25 second-or-later heads sit in the register today | by the micro-wave | `fixed #589` |
 | B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens » | 1× | `open` |
 | B-340 | The « + » button reopens the add screen with the LAST query and mode still in place — after identifying an arrival, a new search starts on « Marvels Spider-Man 2 v1 526 0 -Mephis… », 0 results, and the « 2 médias ajoutés » strip of the previous visit | 1× | `open` |
-| B-341 | A settings field commits its edit only when the finger LEAVES it — no validation affordance in the panel — which the operator reads as counter-intuitive; the pending edit then says « Valeur actuelle » for the value not yet written | 1× | `open` |
-| B-342 | « Enregistrer » says « Enregistré — torrent.json5 » and the row shows the ORIGINAL value again: the mock's write records the file name and never the value, so the next read contradicts the toast | 1× | `open` |
-| B-343 | After a real save the restart banner does not appear: the flag is raised on the engine's `SETTINGS_STATE` object and nothing re-renders the page, so « Redémarrer maintenant » is reachable from a named state and not from a save | 1× | `open` |
+| B-341 | A settings field commits its edit only when the finger LEAVES it — no validation affordance in the panel — which the operator reads as counter-intuitive; the pending edit then says « Valeur actuelle » for the value not yet written | 1× | `fixed #588` |
+| B-342 | « Enregistrer » says « Enregistré — torrent.json5 » and the row shows the ORIGINAL value again: the mock's write records the file name and never the value, so the next read contradicts the toast | 1× | `fixed #588` |
+| B-343 | After a real save the restart banner does not appear: the flag is raised on the engine's `SETTINGS_STATE` object and nothing re-renders the page, so « Redémarrer maintenant » is reachable from a named state and not from a save | 1× | `fixed #588` |
 | B-344 | On a desktop browser the design host shows the prototype inside the phone frame only — the operator cannot test the interface's desktop layout there; he asks for a desktop-only switch out of the frame and back | 1× | `fixed #576` |
 | B-345 | The seeded data does not show every state a surface can take — the operator could not find a single medium « à prendre » to try « Récupérer maintenant » on; his ruling: the test data must always hold enough simulated states to exercise every case by hand | 1× | `open` |
 | B-360 | The pre-push gate refuses a push over a GREEN suite and shows the reason to nobody: each check runs silently first and, when that pytest dies of a signal, is rerun visibly — the rerun's « 11 325 passed » is printed and its result discarded, so the reader gets a green summary, then « Push aborted », and the failure in no output; three refusals in one morning on two branches, the same push landing on its next attempt | 1× | `open` |
-| B-361 | A Maintenance rubric cannot be left either — entering it writes `?topic=…` by replacement, pushes no entry and draws no back, so the system Back leaves « Maintenance » for Acquisition; B-332's shape on the second page that has rubrics, measured on the operator's phone by the real path | 1× | `open` |
+| B-361 | A Maintenance rubric cannot be left either — entering it writes `?topic=…` by replacement, pushes no entry and draws no back, so the system Back leaves « Maintenance » for Acquisition; B-332's shape on the second page that has rubrics, measured on the operator's phone by the real path | 1× | `fixed #588` |
 | B-363 | `residue.py` reads a typed variant's base through its string LITERALS, so a factory built from a shared constant reads EMPTY and is reported unreadable — a token scale cannot be written once and shared between two variants while that is true, and the repair that suggests itself (concatenating a literal with the constant) silences the report and leaves the reader comparing one token | 1× | `open` |
 | B-364 | Two hit-test helpers in `busy.py` press `hit.click()` on whatever `elementFromPoint` returns, and an SVG element has no `click` — so a rule that hit-tests an ICON-ONLY action throws `hit.click is not a function` instead of pressing it, and the same helpers print `hit.className` as the coverer, which on an SVG is an `SVGAnimatedString` and reads `[object SVGAnimatedString]` | 1× | `open` |
 | B-365 | R124's « no mutation was answered 409 » hold reads Playwright's response events, and the mock layer replaces `globalThis.fetch` and answers IN THE PAGE — so no response event can ever carry a 409 from it and the hold is green over nothing, permanently. Proven by a mutation that really did answer 409: the sibling hold fell, this one did not | 1× | `fixed #572` |
@@ -411,10 +411,10 @@ when the defect comes back.
 | B-370 | `harness-hold-counts.py --compare` with no FILE exits 2 on an argparse usage error, which a gate reading exit codes cannot tell from a comparison that found drift — one pass of L21's gate compared nothing while looking like it ran | 1× | `open` |
 | B-371 | DOIT-4's « En file » pastille is reachable by NO path a finger can take: it reads the layer's `pipelineState`, which only the pipeline operations write and which no surface calls, while Arrivées' « Lancer le pipeline » writes the engine's interface store and touches no network — two pipeline notions, and the hand can move only the one the pastille does not read | 1× | `open` |
 | B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
-| B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `open` |
+| B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `fixed #588` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
-| B-334 | The secret panel's « Remplacer la valeur » does nothing: the action's whole effect is a `data-toast` the engine's dead message element answers, and no store, seed or cache moves | 1× | `open` |
-| B-335 | The secret panel's « Retirer la clé » does nothing and asks nothing: the same `data-toast` shape as B-334, on a destructive act that owes a confirmation (B-300's form) | 1× | `open` |
+| B-334 | The secret panel's « Remplacer la valeur » does nothing: the action's whole effect is a `data-toast` the engine's dead message element answers, and no store, seed or cache moves | 1× | `fixed #588` |
+| B-335 | The secret panel's « Retirer la clé » does nothing and asks nothing: the same `data-toast` shape as B-334, on a destructive act that owes a confirmation (B-300's form) | 1× | `fixed #588` |
 | B-336 | The library's kind chips (« Tout · Films · Séries », with counts) scroll horizontally with a VISIBLE scrollbar on the phone; the strip should hide it as `pillscroll` does | 1× | `open` |
 | B-337 | A follow card swiped open: the first tap on a revealed action does nothing, the second acts — systematic on the phone | 1× | `open` |
 | B-350 | A PAUSED SERIES is dimmed in the follows grid with no word saying why: the tile's caption is `stFraction(follow) ?? paused`, so a fraction always outranks the word — a paused FILM says « en pause » only because it has no fraction | by L13 | `fixed #572` |
@@ -442,6 +442,8 @@ when the defect comes back.
 | B-394 | The harness's two floating buttons (the design note ⓘ and the states list ≡) are painted OVER a message shown at the top of the frame, so the sentence answering a verb pressed inside a layer is covered by chrome that is in no production build | by the operator, 2026-09-11 | `fixed #585` |
 | B-395 | The library's selection bar stays drawn on every other tab: `app/bottom-slot.tsx` renders it unconditionally and its own condition reads `selMode` alone, so « N sélectionnés · Annuler · Supprimer » sits over Acquisition — and the tab bar, hidden by that same `selMode`, leaves no way back | by the operator, 2026-09-11 | `fixed #585` |
 | B-396 | The mock seed offers exactly ONE folder with candidate cards, so the resolution window's riskiest path — a second pick taken inside the first one's undo window, and a put-back into a list that has moved — is reachable by no finger and is proved through the queue's seam alone | by audit | `fixed #592` |
+| B-397 | A panel RE-PRODUCED after an edit pushes a second history entry, so shutting it takes as many Backs as the edits made in it — the setting's panel is re-opened by `window.__panel.produce` on every commit, by the native blur path and by « Valider » alike | by rule | `open` |
+| B-398 | A page switch made from the DRAWER over an open rubric left TWO entries for the entry page, so the next Back changed nothing: `switchPageFromLayer` rewound a count that assumed at most one page entry above the floor, and a rubric's own entry makes three | by probe | `fixed #588` |
 | B-420 | A wrapped index row IS refused by `unparsed-row`, and refused for the wrong reason: the message says « a status cell without backticks », names no line, and the `corpus` arm prints one row fewer while reporting clean on its own — a reader is told to look for backticks that are all present | by the tooling micro-wave | `fixed #589` |
 | B-421 | An index row written AFTER the first body head is counted and read by the guard, and invisible to a reader: the Markdown table ends at the first non-row line, so the row is in every figure and on no rendered page — and nothing holds the index's order either, which is how a merge's conflict region re-glued a row twice on 2026-09-08 | by the tooling micro-wave | `fixed #589` |
 | B-460 | R161's h2 floor is green over an affordance made invisible by `opacity: 0`, a clip or an off-screen transform — it reads a box above zero and `visibility`, two of the five ways to take a mark away | by review | `open` |
@@ -459,6 +461,7 @@ when the defect comes back.
 | B-475 | The library holds episode numbers the catalogue does not list — American Dad! S16 holds 1–24 where the catalogue lists 20, Les Animaniacs S2 holds `[1, 4, 7, 9, 76–82]` where it lists 12 — and they are counted and drawn NOWHERE: every surface counts the numbers at or below what aired, so four and seven held files vanish | the operator's ruling on numbering orders, then the wave that draws it | `open` |
 | B-476 | « Dexter: Resurrection » is followed under a title no sheet carries (the sheet is « Dexter Resurrection », and its holdings are keyed there), and the follow's totals 96/96 are not its seasons' sums 10/10: one show, three families, three answers | the wave that next touches the seeds' identity | `open` |
 | B-477 | House of the Dragon, Ted Lasso and Strange New Worlds are followed « à jour » (26/26, 35/35, 33/33) while their media sheets answer `owned: false` — the holdings are keyed under « House of the Dragon (2022) » and « Ted Lasso (2020) », titles the sheet's identity does not name, or absent — so the follow says held and the sheet says not in the library | the wave that next touches the seeds' identity | `open` |
+| B-496 | `hooks/pre-push`'s `run_check` runs a check with its output sent to `/dev/null` and, when it fails, RUNS IT AGAIN to show the output — so a check that falls once and passes on the re-run prints a green summary under « FAILED », and the only reading of the fall is discarded | the next tooling wave | `open` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
 
@@ -667,6 +670,20 @@ the one the sheet and the holdings share. B-088's class. **Not repaired by the m
 it moves the « Suivis » named states, which is B-369's cost and not B-380's subject. R173 holds the
 disagreement as a NAMED exclusion that asserts it still holds, so the day this is repaired R173 falls
 and the exclusion leaves with it.
+
+**B-496 — the pre-push hook throws away the failing pass and shows a re-run.**
+`hooks/pre-push` defines `run_check` as `if "$@" > /dev/null 2>&1; then OK; else FAILED; "$@" 2>&1 |
+sed 's/^/    /'`: the first pass is silenced, and on failure the command is executed a SECOND time for
+its output. For a deterministic check the two passes agree. For one that falls intermittently they
+need not, and on 2026-09-13 they did not: pushing #588's `454bc6a42` under the tests lock at two
+workers, `[5/5] pytest ... FAILED` was printed above « 11400 passed, 8 skipped, 1 xfailed in
+241.48s » and « 1/5 check(s) failed. Push aborted. » — the fall is real, it refused the push, and
+nothing in the output names the test, because the pass that fell is the one sent to `/dev/null`.
+It costs twice: the suite runs twice on a failure (four minutes more on a shared machine), and the
+verdict arrives with a reading that contradicts it. **The repair's shape**: run each check ONCE,
+into a file, and print that file on failure — the failing pass's own output, never a second
+execution. The same blind spot as `harness-hold-counts.py` (B-307's sixth instance), in another
+instrument. Filed, not repaired: the apparatus is frozen.
 
 **B-477 — followed as held, sheet says not in the library.**
 Found by R173 (the mock-layer micro-wave). House of the Dragon (26/26), Ted Lasso (35/35) and Star
@@ -2033,6 +2050,16 @@ happened; only confirming restarts, and then it says so.
 
 <sub>`python3 frontend/maquette/harness/settings.py` → 65 holds, no violation · `python3 frontend/maquette/harness/page_host.py` → 44 holds, no violation</sub>
 
+**CONFIRMABLE BY HAND SINCE #588 (the settings micro-wave), and the confirmation is the operator's
+to make — this entry is NOT closed here.** B-343's two causes are gone: the restart flag is the
+layer's and the banner reads it, so a real save raises it; and B-342's mock keeps the value, so the
+row shows what was written. The path is now: open a rubric, tap a setting, type, tap « Valider »,
+tap « Enregistrer » — the banner comes up, and « Redémarrer maintenant » raises the confirmation
+this entry says is fixed. Walked end to end by R166 (`harness/settings_editing.py`, « so B-300's
+confirmation is reachable by the path a hand walks, and not only from a named state »). B-299's
+banner is reachable the same way, by saving a setting in the file the seeds mark as changed on disk
+(B-345's settings half, held by R128).
+
 **CONFIRMATION ATTEMPTED by the operator on 2026-09-06 and NOT REACHED**: on the design host, editing a
 field and saving showed the toast and no restart banner — the flag is raised on an engine object nothing
 re-renders (B-343), and the value itself was not kept by the layer (B-342). So the confirmation dialog
@@ -3373,6 +3400,32 @@ together with B-361** — the topic verb leaves the engine for the verb registry
 and the view draws its back, on « Réglages » and « Maintenance » in one move. Brief:
 `docs/features/maquette-settings/BRIEF.md`.
 
+**FIXED #588 (the settings micro-wave), with B-361 — one mechanism, one wave.** The verb left the
+engine's delegation for the tap registry (`features/settings/topic-verb.ts`), the branch at
+`legacy.js` was DELETED, and the rubric PUSHES its arrival: the entry carries the rubric's own name,
+because `lib/addresses.ts` declares a `topic` dial for Maintenance and none for Configuration, so
+the entry's STATE is where it travels and a pop reads it back. `TopicView` draws
+`data-part="screen/back"` and it POPS — `window.__bridge.back()`, the affordance every screen of
+this interface wears — and the secrets rubric wears it too.
+
+    the rule            R165, `harness/topics.py`, 16 holds — a real load at the address, a real
+                        click on a rubric row, and THREE readings rather than one: the entry
+                        pushed (`history.length` + 1), the back affordance drawn, and where
+                        `history.back()` lands. A hold on the first alone is green over a rubric
+                        that pushes and draws nothing; a hold on the second alone is green over a
+                        button that pops the wrong entry
+    seen RED first      against the tree as it stood, with no mutation needed — the engine's branch
+                        was still there: « PUSHES an entry » 4 → 4, « DRAWS its way back » False,
+                        « Back lands on the page's OWN list » /acquisition. The operator's own
+                        reading, reproduced
+    the mutation        see the closing § of `docs/features/maquette-settings/DESIGN.md`
+    the run             `python3 frontend/maquette/harness/topics.py` → 16 holds, no violation
+
+**ONE DEFECT THIS RULE FOUND IN ITS OWN REPAIR, and it is worth the line.** The first build closed
+the rubric on ANY pop — so the first Back that shut a panel opened over a rubric also shut the
+rubric under it, and a reader who had just filed an edit landed on the list. A layer's entry has no
+opinion about what it is laid over: the reader ignores one.
+
 **B-333 — « beaucoup de pages n'ont pas de bouton retour et le geste retour ne fonctionne pas non plus ».**
 The operator's reading of 2026-09-06, verbatim, with the sentence that makes it a frame matter: « ça
 devrait être impossible car faisant partie du carcan de l'App ». The frame's model (P3, « Back walks the
@@ -3437,6 +3490,23 @@ merges and before L20** — the act is a producer-side handler registered on the
 (`lib/verbs.ts`), writing the layer, with its rule; the engine is not edited. Placed with B-335, B-341, B-342,
 B-343 and the settings half of B-345.
 
+**FIXED #588 (the settings micro-wave).** The action carries a registered verb
+(`features/settings/secret-verbs.ts`), the panel gained somewhere to TYPE a key
+(`panel-secret-field.tsx`, a `password` input with every browser assistance off — a key in an
+autofill store is a key in one more place), and the tap writes it through the layer. The value is
+read at the moment of the tap and held nowhere else, so a secret exists in one place between the
+keyboard and the write. An EMPTY field is refused rather than sent: the layer clears a key on an
+empty value, so sending one would be the destructive act by the harmless door. A write the outbox
+HELD says so and does not say « remplacée ».
+
+    the rule            R167, `harness/secret_acts.py` — it counts the LAYER's write
+                        (`window.__mocks.answered()`), never the message: a message is what the
+                        defect already produced, so counting it would certify the defect
+    seen RED first      against the tree as it stood: « offers somewhere to PUT a new key » false,
+                        « is an act, not a sentence » false, « WRITES the key through the layer »
+                        `[]`
+    the run             `python3 frontend/maquette/harness/secret_acts.py` → 14 holds, no violation
+
 **B-335 — « Retirer la clé » on a secret does nothing, and asks nothing.**
 Reported by the operator on 2026-09-06, verbatim: « Réglage: bouton retirer la clef ne fait rien, et il
 devrait proposer une confirmation ». Same mechanism as B-334 (`target: { toast: … }` at
@@ -3453,6 +3523,21 @@ the sentence is dictated.** Title « Retirer la clé <fournisseur> ? »; body «
 les comptes du foyer. Ce fournisseur ne répondra plus tant qu'une nouvelle clé n'est pas saisie. »; buttons
 « Annuler » / « Retirer la clé » (danger tone, right); after confirming, the message « Clé retirée. ». The
 walk goes through the cancel first (B-300's form).
+
+**FIXED #588 (the settings micro-wave), in the operator's own words.** « Retirer la clé
+<fournisseur> ? » / « La clé sera retirée pour tous les comptes du foyer. Ce fournisseur ne
+répondra plus tant qu'une nouvelle clé n'est pas saisie. » / « Annuler » · « Retirer la clé »
+(danger, right), and « Clé retirée. » after confirming. The provider is named from the LAYER and
+never from the panel's heading: the question names what stops answering, and reading it off the
+screen would make the sentence depend on how the panel happens to be drawn.
+
+    the rule            R167, `harness/secret_acts.py`, and THE WALK GOES THROUGH THE CANCEL —
+                        the half that separates a confirmation from a delay. Cancelling: the key
+                        still posed, and `updateSecrets` called ZERO times. Confirming: the key
+                        cleared, through the layer
+    seen RED first      against the tree as it stood: « is an act, not a sentence » false, « it
+                        ASKS before it cuts » None
+    the run             `python3 frontend/maquette/harness/secret_acts.py` → 14 holds, no violation
 
 **B-336 — the library's kind chips show their scrollbar.**
 Reported by the operator on 2026-09-06, verbatim: « Filtre médiathèque Tout/films/séries il y a un
@@ -3625,6 +3710,27 @@ panel — the edit is filed on the tap, the field no longer has to lose focus; (
 holds). Owner: the « settings » micro-wave (question 1), with its rule: type, tap « Valider », read the pending
 count; the mutation is the button doing nothing.
 
+**FIXED #588 (the settings micro-wave).** « Valider » is an action of the field's panel, with a
+registered verb that reads the input where it is drawn and files the edit on the tap. THE NATIVE
+PATH STAYS, unchanged and for its three measured reasons — this is a second way to one act, never
+a replacement — and the button is offered for the kinds one TYPES into: a switch and a list file
+their edit on the tap that changes them, so a « Valider » there would file what is already filed.
+The two labels say what they are: « Nouvelle valeur » for the pending one and « Valeur
+enregistrée » for the file's, and the first line only calls itself new when there IS something new.
+
+    the rule            R166, `harness/settings_editing.py` — a real keyboard, one tap, and the
+                        NATIVE COMMIT PATH CUT while the button is measured. That last part is
+                        what makes the hold mean anything: the button sits in the same panel as
+                        the field, so tapping it blurs the field and the native listener commits —
+                        a hold that merely typed and tapped would be GREEN over a « Valider » that
+                        does nothing at all, which is the defect. It is also the real case B-341
+                        reports: a keyboard that commits without blurring
+    seen RED first      against the tree as it stood: « the field's panel offers « Valider » »
+                        false, « a tap on it files the edit WITHOUT the field losing focus » false,
+                        « the panel names the typed value « nouvelle » » false
+    the run             `python3 frontend/maquette/harness/settings_editing.py` → 15 holds, no
+                        violation
+
 **B-342 — the save says « Enregistré » and the row shows the old value.**
 Same session, verbatim: « quand on a enregistré sur la liste la valeur est reset à la valeur
 d'origine ». Screenshots: the row « Transmission — Adresse d'écoute » edited to `127.0.0.3`, the bar
@@ -3643,6 +3749,20 @@ earlier takes it (D7: a mock that answers without moving is a mock that certifie
 **RULED by the operator on 2026-09-06 (round 2, question 1): owner the « settings » MICRO-WAVE** — the mock's
 write keeps the value (D7), with the rule reading the value back after « Enregistrer ».
 
+**FIXED #588 (the settings micro-wave).** `updateConfigurationFile` reads the request's body and
+writes each value into `held.settings`, keyed by the identity the row, the address and the save all
+spell — and the identity is taken APART rather than composed a second time. **A file that CHANGED
+ON DISK takes nothing at all**: « rien n'a été écrit » is what the conflict banner says, so a layer
+that recorded the values anyway would make the banner a lie one level down.
+
+    the rule            R166, `harness/settings_editing.py` — it saves and READS BACK through the
+                        LAYER (the query cache's own answer) and through the ROW, never through
+                        the message: the message is what B-342 IS
+    seen RED first      against the tree as it stood: the layer answered the seed after a write it
+                        had acknowledged
+    the run             `python3 frontend/maquette/harness/settings_editing.py` → 15 holds, no
+                        violation
+
 **B-343 — the restart banner does not follow a real save.**
 Same session: « Aucun redémarrer maintenant apparaît ». Read: `panel-setting.ts:195` sets
 `reference.SETTINGS_STATE.redemarrage = true` after the writes, and `page.tsx:149` draws the banner
@@ -3660,6 +3780,26 @@ with it.
 **RULED by the operator on 2026-09-06 (round 2, question 1): owner the « settings » MICRO-WAVE** — the flag
 becomes the layer's or the store's and the banner a reader of it; the rule reaches the banner THROUGH a
 save, which is also what lets B-300 be confirmed by hand at last.
+
+**FIXED #588 (the settings micro-wave).** The flag left `SettingsState` entirely: a restart owed
+is the LAYER's fact, answered by `/api/config/status`, and the banner is a reader of that query, so
+it re-renders the moment the answer moves. `panel-setting.ts` no longer writes an engine object;
+the save invalidates the status, and « Redémarrer maintenant » asks the layer rather than dropping
+a local boolean and saying a restart had happened over a call nobody made.
+
+    the rule            R166, `harness/settings_editing.py` — the banner is reached THROUGH a real
+                        save (edit, « Valider », « Enregistrer »), and the walk goes on to raise
+                        B-300's confirmation from there, which is the path a hand walks
+    seen RED first      against the tree as it stood — and the operator's own attempt is the first
+                        reading: he saved, was told « Enregistré », and no banner came
+    the run             `python3 frontend/maquette/harness/settings_editing.py` → 15 holds, no
+                        violation
+
+**RE-AIMED WITH IT, and said out loud rather than quietly**: the four places `harness/page_host.py`
+and `harness/settings.py` read that flag now read the layer's answer. The property each holds is
+unchanged — « the save asks for a restart », « cancelling leaves the restart OWED » — and only
+where the fact LIVES moved. Left on the old place they would have read `undefined`, gone green, and
+said nothing.
 
 **B-344 — the design host has no way out of the phone frame on a desktop.**
 The operator's aside on 2026-09-06, verbatim: « Quand on est sur tm-design sur desktop, le design
@@ -3747,6 +3887,22 @@ seeds are the first case: a takeable arrival for a followed medium is one line).
 **L21, now**: the acquisition seeds offer at rest a takeable arrival for a followed medium, a blocked one, a
 paused follow and a season with a hole, with a rule that counts them. **The « settings » micro-wave**: a
 conflict and a restart owed. **L13**: the library and the rest, with the fixture clause.
+
+**THE SETTINGS HALF IS DONE #588 (the settings micro-wave), and the register's own words for it
+were « a conflict and a restart owed ».** At rest one configuration file is marked as having
+CHANGED ON DISK (`mocks/state.ts`), so its write answers `conflict: true` and a HAND reaches
+B-299's banner by saving a setting that lives in it — with no dial and no named state. The dial
+(`setConfigurationConflict`) STAYS a dial: it is a property of the REQUEST, and what the seeds add
+is a property of the FILE. Any other save reaches the restart banner, so B-300's confirmation is
+one tap further on. The file is a notifications one rather than a storage one on purpose: the paths
+are what one edits first when trying the editor out, and having THAT save answer « le fichier a
+bougé » would make the ordinary case the surprising one.
+
+    the rule            R128, `harness/seeds_at_rest.py`, five holds added — and it calls
+                        `window.__go` NOWHERE, which is that rule's whole design: the walk is a
+                        boot and taps a thumb makes, so what it measures is what a hand reaches
+    the run             `python3 frontend/maquette/harness/seeds_at_rest.py` → 15 holds, no
+                        violation
 
 **B-360 — the pre-push gate refuses a push over a green suite, and shows the reason to nobody.**
 Measured on 2026-09-06, three refusals in one morning on two branches. `hooks/pre-push` runs every check
@@ -4078,6 +4234,21 @@ the two rubric kinds are one mechanism and should land together, wherever B-332 
 **RULED by the operator on 2026-09-06 (round 2, question 8): owner the « settings » MICRO-WAVE, with
 B-332** — one mechanism, one wave. Brief: `docs/features/maquette-settings/BRIEF.md`.
 
+**FIXED #588 (the settings micro-wave), with B-332 — one mechanism, one wave, and the two halves of
+this one were already apart.** The ADDRESS was already a dial (`lib/addresses.ts` declares `topic`
+for this page), so this verb pushes through `__bridge.record` and the entry restores the rubric on
+its own; what was missing was the push itself and the affordance. The engine's `dataset.maintopic`
+branch is DELETED, the verb is `features/maintenance/topic-verb.ts`, and the row that used to say
+« toutes les commandes » — a cross-reference that navigated by writing the rubric away — is
+`data-part="screen/back"` and POPS.
+
+    the rule            R165, `harness/topics.py`, the same 16 holds walking BOTH pages: what is
+                        one mechanism is held by one rule
+    seen RED first      against the tree as it stood, no mutation needed: « PUSHES an entry »
+                        4 → 4, « DRAWS its way back » False, « Back lands on the page's OWN list »
+                        /acquisition
+    the run             `python3 frontend/maquette/harness/topics.py` → 16 holds, no violation
+
 **B-388 — the rule that keeps harness chrome off the app's controls reads one control by name.**
 `frontend/maquette/harness/chrome.py` opens « The prototype's own controls never sit on top of the
 app's » and then measures `document.querySelector('[data-part="harness/bar"]')` — one literal, the
@@ -4305,6 +4476,20 @@ while costing twenty minutes of a mutex two waves were queued on. The record is 
 The wave that met it touches no surface — `git diff --stat origin/main -- frontend/maquette/design/src
 | wc -l` → 0 — and that is recorded as a fact rather than offered as an alibi: what this entry needs
 is the reading, and for the first time in five instances it has one.
+
+**A SIXTH, 2026-09-12 during #588's gate — and unlike the fifth it carries NO reading.**
+`journey.py` (R82) FAILED once inside `harness-hold-counts.py --compare --jobs 2` on `9ecce44d4` —
+« harness: 1 of 122 rule(s) FAILED — journey.py (exit 1) » — under `heavy: settings starts (5522MB
+free, load 3.94)`, `TM_HARNESS_JOBS=2`; the same head read it green in the full suite (« 122 rule(s)
+and 27 repository guard(s), no violation ») and in a replay (70 holds). The ONE re-run the steward
+allowed was driven through a scratch wrapper that imports the tool unchanged and keeps, for any rule
+that falls, its whole output, its duration and the load and free memory around it — on `a1c1fd553`,
+the same compare at the same fan-out, load 5.27 at start: **122 rules, no violation, nothing fell,
+nothing captured.** Said with the verdict, as B-277 requires: not reproduced alone nor under the
+compare's load, which is no proof the rule is sound; the mechanism is not read. **The cheapest repair
+is in the TOOL, not the rules**: `harness-hold-counts.py` runs each rule with `capture_output` and
+keeps only the parsed count, so a rule that falls under it arrives with « exit 1 » and nothing else —
+the wrapper that kept the output is the repair's shape. Filed, not built: the apparatus is frozen.
 
 **B-293 — 38 `Design:` markers point at paths that left the tree, and nothing says so.**
 `grep -rhoE 'Design: docs/[^#[:space:]]+' --include='*.py' tests | sort | uniq -c` shows 16 for
@@ -10417,3 +10602,64 @@ the diff, because a condition indented into the wrong block is valid yaml that g
 **THE NEXT GENUINELY RED `lint` RUN IS THIS CONDITION'S VERIFICATION**, and it must show `lint` red,
 `test` skipped, and `coverage-merge` green-and-idle. That sentence is written into `ci.yml` beside
 the condition, where the next reader of a red pipeline will be.
+
+**B-397 — a panel re-produced after an edit pushes a second history entry.**
+Measured by R166's own walk (`harness/settings_editing.py`): after typing into a setting's field and
+filing the edit, shutting the panel took MORE THAN ONE `history.back()` — the rule walks the steps
+in a bounded loop rather than driving `__panel.close()`, precisely so the extra steps stay visible
+instead of being hidden by a seam. The cause is that a commit RE-OPENS the panel
+(`window.__panel.produce("setting", identifier)`) and the panel is addressable, so each re-production
+lays another entry carrying the same `?panel=` address.
+
+**IT IS NOT THIS WAVE'S**, and that is the reason it is written down rather than repaired here: the
+field's NATIVE commit path has re-produced the panel the same way since the panel became this
+feature's, so « Valider » walks a road that was already there. What the wave added is a second door
+onto one act, not a second entry.
+
+**What it costs the reader**: a reader who edits three settings in one panel and taps Back finds the
+panel still open, and taps again. B-290's family — a ladder with more than one shape for one gesture —
+and the same owner: the ladder's HANDLER is L13's.
+
+**What would settle it**: re-producing a panel at the SAME address replaces its entry rather than
+pushing one, which is D1b rule 1 read literally (re-drawing an open surface is an adjustment, not an
+arrival). Owner: **L13**, with the ladder; a wave that opens `ui/panel`'s opening path earlier takes it.
+
+<sub>the settings micro-wave · `harness/settings_editing.py`'s « BACK UNTIL THE PANEL IS GONE » loop, and the comment above it · `grep -n "__panel.produce" frontend/maquette/design/src/features/settings/panel-field.tsx frontend/maquette/design/src/features/settings/panel-setting.ts`</sub>
+
+**B-398 — a page switch from the drawer, over an open rubric, left a Back that did nothing.**
+Found by the settings micro-wave's own probe (#588) before the pull request was read, and it was
+that wave's own regression: a rubric is a deliberate arrival and PUSHES its entry (B-332, B-361,
+D1b rule 1), while `switchPageFromLayer` rewinds `leaving === homePage ? 1 : 2` entries — a count
+that ASSUMES at most one page entry above the floor. With a rubric open there are two, so the
+rewind stopped on the page's own entry and `replacePath()` wrote the destination over it, leaving a
+second entry for the entry page and a Back that changed neither the address nor the page.
+
+    inside a rubric        /maintenance?topic=query  depth 5  page=maint
+    drawer open            /maintenance?topic=query  depth 6
+    tap [data-navgo=acq]   /acquisition              depth 6  page=acq   ← lands correctly
+    history.back()         /acquisition              depth 6  page=acq   ← INERT
+    history.back() again   /acquisition              depth 3  page=acq   (the exit guard)
+
+**FIXED #588. RULED « C » by the operator, 2026-09-12 — the engine counts the stack; D5 exception**,
+granted for this wave and this expression only. The rewind adds what the surfaces inside the page
+say they have posed (`window.__stackedSurfaces()`, published by `lib/stacked-surface.ts`) to its own
+two entries. **No line is ADDED to `legacy.js`**: 31 451 non-blank against a record of 31 451, the
+comment beside the expression rewritten to the same length and saying what it now reads.
+
+**THE TAB BAR'S PATH IS THE OTHER HALF and is answered differently**, because there is no layer
+above the rubric for a rewind to unwind: the surface gives its entry back BEFORE the page changes —
+a capturing listener, popping and replaying the same element's tap on the pop, never on a timer.
+
+    the rule            R165, `harness/topics.py`, three holds over both pages, each pressed with a
+                        REAL touch hit-tested at the control's own centre: the tab tapped from
+                        inside a rubric lands on the entry page; the drawer walk leaves no inert
+                        Back; and the rubric is STILL DRAWN when the drawer closes — the price the
+                        road not taken (merging the rubric's entry into the page's) would have paid
+    seen RED first      by the wave's own probe, the reading above, before either repair existed
+    the mutations       the capturing listener returning early → the two tab-bar holds fall and the
+                        drawer holds stay green, which is what says the halves are independent ·
+                        the expression back to the assumed count → the drawer holds fall, printing
+                        `depth 6 → 6`
+    the run             `python3 frontend/maquette/harness/topics.py` → 22 holds, no violation
+
+<sub>the settings micro-wave · its own probe, on its own port with its own copy · `grep -n "entries = (leaving === homePage" frontend/maquette/design/src/engine/legacy.js`</sub>

@@ -7266,7 +7266,6 @@ import {
     topic: null,
     q: "",
     readOnly: false,
-    redemarrage: false,
     conflict: false,
   };
 
@@ -7278,7 +7277,7 @@ import {
     SETTINGS_STATE.topic = null;
     SETTINGS_STATE.q = "";
     SETTINGS_STATE.readOnly = false;
-    SETTINGS_STATE.redemarrage = false;
+    window.__mocks?.setRestartRequired(false);
     SETTINGS_STATE.conflict = false;
   }
 
@@ -8447,14 +8446,14 @@ import {
         homeFloorExists = true;
       return;
     }
-    /* WHAT THE LAYER STANDS ON, counted rather than guessed. Rule 2 leaves at
-       most one page entry above the floor, so the walk is the layer's own entry
-       plus the abandoned page's when the page one is leaving is not the floor
-       itself. A layer opened over a SCREEN would stand deeper — and no finger
-       can open one there: a screen covers the top bar's drawer control and the
-       whole tab bar, measured control by control, exactly as B-024 measured the
-       `data-go` producers. */
-    const entries = leaving === homePage ? 1 : 2;
+    /* WHAT THE LAYER STANDS ON, counted rather than ASSUMED — the second term
+       is the correction. The layer's own entry plus the abandoned page's is
+       what rule 2 leaves, and it was read as the WHOLE stack: a surface inside
+       a page that pushes its own arrival puts a third entry there, the rewind
+       stopped one short, and the reader got two entries for the entry page and
+       a Back that did nothing. What stacks says so, or this is a guess again. */
+    const entries = (leaving === homePage ? 1 : 2)
+      + (window.__stackedSurfaces ? window.__stackedSurfaces() : 0);
     __bridge.rewind(entries);
     /* Armed after the traversal is issued: a pop cannot land before this task
        ends, so this is in time, and a rewind that threw arms nothing. Arriving
@@ -8856,14 +8855,6 @@ import {
     if (!closest) return;
     if (closest.tagName === "A") event.preventDefault();
 
-    if (closest.dataset.topic) {
-      SETTINGS_STATE.topic = closest.dataset.topic;
-      SETTINGS_STATE.q = "";
-      port.scrollTop = 0;
-      render();
-      replacePath();
-      return;
-    }
     if (closest.dataset.setting) {
       // THE PRODUCER HAS LEFT. `features/settings/panel-setting.ts` answers.
       panel.produce("setting", closest.dataset.setting);
@@ -9189,13 +9180,6 @@ import {
     }
     if (closest.dataset.drawer) {
       openDrawer();
-      return;
-    }
-    if (closest.dataset.maintopic !== undefined) {
-      store.write({ maintTopic: closest.dataset.maintopic || null });
-      port.scrollTop = 0;
-      render();
-      replacePath();
       return;
     }
     if (closest.dataset.maintact) {
