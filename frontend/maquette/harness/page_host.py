@@ -342,8 +342,7 @@ async def main():
             str(saved) if not refused else f"data-save {refused}")
 
         # A rubric's ENTRY carries its name: driving the state alone is undone.
-        await page.evaluate(
-            "()=>{SETTINGS_STATE.topic = null; history.replaceState({}, '');}")
+        await page.evaluate("()=>{SETTINGS_STATE.topic = null; history.replaceState({}, '');}")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
         refused = await tap("#view [data-restart]")
@@ -1059,4 +1058,5 @@ async def main():
     journal.summary(errors)
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())

@@ -7,7 +7,8 @@
 #   2. ruff format check — code style (no rewrite)
 #   3. logging audit     — structlog convention compliance
 #   4. mypy              — static type checking
-#   5. pytest            — full test suite
+#   5. pytest            — full test suite, at three workers unless the
+#                          environment already names PYTEST_XDIST_AUTO_NUM_WORKERS
 #
 # Mirrors the CI pipeline (.github/workflows/ci.yml) stage 1 + tests.
 
@@ -45,6 +46,23 @@ run_check() {
     failures=$((failures + 1))
   fi
 }
+
+# ── The worker cap ───────────────────────────────────────────────────────────
+# `pytest -n auto` takes every core — eight on this host — beside whatever gate
+# a wave is already running under scripts/heavy.sh, and outside that lock. The
+# office's arithmetic (docs/reference/frontend-steward.md § Instrument hygiene)
+# caps a parallel test run at three workers on this 8-core, 16 GB machine, and
+# until now that cap lived in briefs: every wave was told to export the variable
+# by hand, so the one push nobody was told about ran at eight (B-385).
+# pytest-xdist reads PYTEST_XDIST_AUTO_NUM_WORKERS for `-n auto`, so the cap is
+# applied here once. An environment that already names a number is honoured
+# untouched — a runner with a different core count knows its own machine.
+if [[ -n "${PYTEST_XDIST_AUTO_NUM_WORKERS:-}" ]]; then
+  echo "pre-push: pytest workers ${PYTEST_XDIST_AUTO_NUM_WORKERS} (from the environment)"
+else
+  export PYTEST_XDIST_AUTO_NUM_WORKERS=3
+  echo "pre-push: pytest workers 3 (capped; export PYTEST_XDIST_AUTO_NUM_WORKERS to override)"
+fi
 
 echo ""
 echo "┌──────────────────────────────────────────────┐"

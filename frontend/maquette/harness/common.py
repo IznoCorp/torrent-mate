@@ -17,13 +17,44 @@ wrapped the boot's writers, and both are answers to « where is the interface? �
 rather than holds about it. A model read in one script is a model the next one
 transcribes, and a transcription drifts.
 """
+import os
 import pathlib
 import re
 
 import served_copy
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-PROTOTYPE = "http://127.0.0.1:8899/"
+
+# WHERE THE RULE IS POINTED, AND IT IS TWO VARIABLES BECAUSE IT IS TWO FACTS
+# (B-325). This used to be one hard-coded string, so a reader wanting to run a
+# rule against ITS OWN build had to rebind a module constant from a wrapper
+# outside the tree — the instruction « run it against your head port » could
+# not be followed as written, and the independent reader of #567 had to build
+# that wrapper.
+#
+# THE SECOND VARIABLE IS THE HALF THAT MATTERS. `served_copy`'s stamp (B-256)
+# answers « is the prototype I am finishing on the prototype I started on? »,
+# and it answers it about the directory it was told to read. An override on the
+# URL alone would therefore point the rule at one build and certify it against
+# ANOTHER — the stamp saying « the copy did not change under this run » about a
+# copy the run never opened. That is worse than the obstacle it removes, so a
+# URL override without a root override is REFUSED rather than honoured.
+#
+# A mapping from the port to the root was the other candidate and is not taken:
+# it would guess the answer from a number, and a reader serving two builds from
+# one port over time would get a silent wrong answer instead of a refusal.
+PROTOTYPE_URL_VARIABLE = "TM_PROTOTYPE_URL"
+PROTOTYPE = os.environ.get(PROTOTYPE_URL_VARIABLE, "http://127.0.0.1:8899/")
+
+if os.environ.get(PROTOTYPE_URL_VARIABLE) and not os.environ.get(served_copy.ROOT_VARIABLE):
+    raise SystemExit(
+        f"{PROTOTYPE_URL_VARIABLE} is set and {served_copy.ROOT_VARIABLE} is not — B-325.\n"
+        f"  pointed at:  {PROTOTYPE}\n"
+        f"  certified against: {served_copy.SERVED}\n"
+        "  The served-copy stamp would vouch for a build this run never read.\n"
+        f"  Set {served_copy.ROOT_VARIABLE} to the directory that URL serves."
+    )
+
 BAR = "─" * 62
 
 # WHICH BUILD THIS RULE STARTED AGAINST (B-256). Read once, at import, because

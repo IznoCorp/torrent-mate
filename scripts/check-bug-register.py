@@ -20,6 +20,15 @@ including a wave's account of its own closures.
                      `frontend-architecture.md`. Same family, same file: those
                      numbers are CITED, and a brief has already instructed a wave
                      on « invariant 10 » meaning the wrong one.
+  row-placement      B-421: an index row written OUTSIDE the two tables. Every
+                     arm here still reads it — `INDEX_ROW` matches anywhere in
+                     the file — and no reader ever will, because the rendered
+                     table ended at the last row above it. A merge's conflict
+                     region put one there twice on 2026-09-08.
+  index-order        B-421's other half, and it is a RATCHET rather than a
+                     sort: the descents the index already carries are frozen by
+                     name and a new one is refused. Re-ordering the register is
+                     the operator's decision about his own file.
   corpus             THE NUMBER OF ROWS READ IS PRINTED, with a floor. An arm
                      that finds zero rows and reports clean is the shape this
                      repository has paid for seventy-three times
@@ -39,6 +48,14 @@ WHAT THIS GUARD DOES NOT READ, and the list is the point:
     a duplicate row: it is two branches taking numbers from a register the other
     is writing. No guard on `main` can see a neighbouring branch. `--next` answers
     that, and it is a tool, not an arm.
+  - IT FINDS A BODY BY ITS HEAD, and three shapes are outside that reading
+    (B-346): a group heading that uses no em dash (« **B-024 to B-029 arrived
+    from an adversarial code review** ») starts no span and folds into the one
+    before it; a paragraph opening with an identifier is a head only when
+    nothing else claims that identifier; and the first of several entries named
+    by one recap is the only one that recap can give a body to. All three
+    LENGTHEN a span or leave one unread — never truncate one, which is the
+    direction that cost this arm two entries at once.
   - IT DOES NOT HOLD RULE 2. « Exactly one bug may hold `fixing` » is a rule of
     the file this guard does not enforce; `status-vocabulary` accepts the word
     wherever it appears.
@@ -229,18 +246,59 @@ def arm_invariant_numbers(numbers):
     return violations
 
 
-# The historical table at the foot of the file: twelve rows whose last column is
-# a DATE and which carry no status at all. They are the only index rows
-# `INDEX_ROW` is meant not to take.
-HISTORICAL_ROWS = 12
+# THE TWO INDEX TABLES, found by their headings rather than counted. The open
+# index carries a status per row; the historical table at the foot of the file
+# carries a DATE and no status at all, which is why `INDEX_ROW` is meant not to
+# take it. A heading that is reworded empties a span here and the arms below say
+# so loudly — the direction a corpus reader must always fail in.
+INDEX_TABLE_HEADINGS = (re.compile(r"^## Open\s*$"),
+                        re.compile(r"^## Closed entries — index\s*$"))
+
+# Any LINE that opens with an identifier in a table cell, whether or not the
+# reader could finish it. Line-anchored on purpose: `ANY_INDEX_ROW` below uses
+# `\s*`, which crosses a newline, and that is what made a wrapped row still
+# count as « opened » while nothing said which line it was (B-420).
+ANY_ROW_LINE = re.compile(r"^\|\s*([BE]-\d{3})\b")
+
+# A historical row: the last cell is a date, unbackticked, and that is the whole
+# difference between it and a row whose status cell lost its backticks.
+HISTORICAL_ROW = re.compile(r"^\|\s*[BE]-\d{3}\s*\|.*\|\s*\d{4}-\d{2}-\d{2}\s*\|\s*$")
 
 # Any row that OPENS with an identifier, whether or not the reader could finish
 # it. The difference between the two is the arm below.
 ANY_INDEX_ROW = re.compile(r"^\|\s*([BE]-\d{3})\s*\|", re.MULTILINE)
 
 
+def index_tables(lines):
+    """Where each index table starts and ends.
+
+    They are located by their HEADINGS rather than counted, so a table that
+    grows does not need a constant updated, and a heading that is reworded
+    empties the span loudly instead of shrinking it in silence.
+
+    Args:
+        lines: `BUGS.md` split into lines, without their endings.
+
+    Returns:
+        A list of `range` objects, one per table, over zero-based line indexes.
+    """
+    tables = []
+    for index, line in enumerate(lines):
+        if not any(heading.match(line) for heading in INDEX_TABLE_HEADINGS):
+            continue
+        start = index + 1
+        while start < len(lines) and not lines[start].startswith("|"):
+            start += 1
+        end = start
+        while end < len(lines) and lines[end].startswith("|"):
+            end += 1
+        if end > start:
+            tables.append(range(start, end))
+    return tables
+
+
 def arm_unparsed_row(text, rows):
-    """Refuses an index row the status reader could not take.
+    r"""Refuses an index row the status reader could not take, BY NAME.
 
     THE BACKTICK IS A LOAD-BEARING PARSING TOKEN, and nothing read what it made
     the reader miss. `INDEX_ROW` requires the last cell backticked; a row that
@@ -249,32 +307,137 @@ def arm_unparsed_row(text, rows):
 
     That is not theoretical: re-injecting B-102's own defect — a second `open`
     row for B-079 — with the backticks left off gave `214 index row(s) read` and
-    `clean`, exit 0. The same line WITH backticks gives one violation. The
-    defect this file was written for walks back in through the spelling of its
-    own status cell.
+    `clean`, exit 0. The same line WITH backticks gives one violation.
 
-    The corpus floor was supposed to cover it and cannot: at 150 against 214 it
-    takes SIXTY-FIVE rows breaking at once before it speaks, and sixty of them
-    stripped still read `154 … clean`.
+    AND IT USED TO GIVE THAT ONE DIAGNOSIS FOR EVERY CAUSE (B-420). A row wrapped
+    over two lines is also refused here — `ANY_INDEX_ROW`'s `\s*` crosses the
+    newline, so the row still opens with an identifier while `INDEX_ROW`, whose
+    `.` does not, no longer reads it. The arm then said « a status cell without
+    backticks » about a row whose backticks were all present, and named no line,
+    on a file of nine thousand seven hundred. The two causes are separated now
+    and the offending line is named.
 
     Args:
         text: The whole of `BUGS.md`.
         rows: The rows `INDEX_ROW` did take.
 
     Returns:
-        1 when more rows open with an identifier than the reader could finish.
+        The number of violations.
     """
+    lines = text.splitlines()
+    historical = 0
+    named = 0
+    for number, line in enumerate(lines, start=1):
+        if not ANY_ROW_LINE.match(line):
+            continue
+        if INDEX_ROW.match(line):
+            continue
+        if HISTORICAL_ROW.match(line):
+            historical += 1
+            continue
+        named += 1
+        if not line.rstrip().endswith("|"):
+            print(f"  BUGS.md:{number}: this index row is WRAPPED — it opens "
+                  f"« {line.strip()[:60]}… » and does not end its last cell on "
+                  "the same line. A table row is one line: wrapped, it is read "
+                  "by no arm and rendered by no reader.", file=sys.stderr)
+        else:
+            print(f"  BUGS.md:{number}: this index row's status cell is not "
+                  f"backticked — « {line.strip()[-60:]} ». The backtick is what "
+                  "the reader parses on: without it the row is not refused, it "
+                  "DISAPPEARS, and B-102's duplicate walks back in through the "
+                  "spelling of its own status cell.", file=sys.stderr)
+
     opened = len(ANY_INDEX_ROW.findall(text))
-    unparsed = opened - len(rows) - HISTORICAL_ROWS
-    if unparsed > 0:
+    residual = opened - len(rows) - historical - named
+    if residual > 0:
         print(f"  BUGS.md: {opened} row(s) open with an identifier, {len(rows)} "
-              f"were read as index rows and {HISTORICAL_ROWS} are the historical "
-              f"table — {unparsed} could not be read at all. A row whose status "
-              "cell is not backticked is not refused, it is INVISIBLE: it leaves "
-              "no violation, no count and no trace, and B-102's duplicate walks "
-              "back in through it.", file=sys.stderr)
+              f"were read as index rows, {historical} are the historical table "
+              f"and {named} were named above — {residual} could not be "
+              "accounted for at all. The subtraction and the line-by-line read "
+              "disagree, which means a row is malformed in a way neither "
+              "describes.", file=sys.stderr)
+        named += 1
+    return named
+
+
+# THE DESCENTS THE INDEX ALREADY CARRIES, frozen by name (B-421). The open
+# index is NOT sorted, and requiring that it be would refuse the register as it
+# stands — re-ordering it is a decision about the operator's own file, not a
+# guard's. What this freezes is the recurrence: on 2026-09-08 a merge of `main`
+# produced one conflict region spanning rows and bodies, and concatenating the
+# sides re-glued a row at the wrong place TWICE in one day. A fifth descent is
+# refused; these three are the file as the operator wrote it.
+FROZEN_DESCENTS = (("B-023", "B-013"), ("B-346", "B-339"), ("B-371", "B-331"))
+
+
+def arm_row_placement(text):
+    """Refuses an index row written outside the two index tables.
+
+    A `| B-NNN |` line after the first body head is READ by every arm here —
+    `INDEX_ROW` is `re.MULTILINE` and matches anywhere in the file — and is
+    invisible to a reader, because the Markdown table ends at the first line
+    that is not a row. So the row is in every figure this guard prints and on no
+    rendered page, which is the worst pair a register can offer: a count nobody
+    can check against the document it describes.
+
+    Args:
+        text: The whole of `BUGS.md`.
+
+    Returns:
+        The number of violations.
+    """
+    lines = text.splitlines()
+    inside = {index for table in index_tables(lines) for index in table}
+    if not inside:
+        print("  BUGS.md: neither index table was found. They are located by "
+              "their headings (« ## Open », « ## Closed entries — index »); a "
+              "heading reworded empties this arm's subject, and an arm with no "
+              "subject reports clean.", file=sys.stderr)
         return 1
-    return 0
+    violations = 0
+    for number, line in enumerate(lines, start=1):
+        if ANY_ROW_LINE.match(line) and number - 1 not in inside:
+            violations += 1
+            print(f"  BUGS.md:{number}: this index row is written OUTSIDE both "
+                  f"index tables — « {line.strip()[:60]}… ». Every arm here "
+                  "still reads it, and no reader ever will: the rendered table "
+                  "ended at the last line above that was a row.", file=sys.stderr)
+    return violations
+
+
+def arm_index_order(text):
+    """Refuses a NEW descent in the open index — a ratchet, not a sort.
+
+    Args:
+        text: The whole of `BUGS.md`.
+
+    Returns:
+        The number of violations.
+    """
+    lines = text.splitlines()
+    frozen = ", ".join(f"{before} -> {after}" for before, after in FROZEN_DESCENTS)
+    violations = 0
+    # PER TABLE, never across them. The open index ends at B-421 today and the
+    # historical one opens at B-001; read as one list, that boundary is a
+    # descent, and the arm accused the register of the seam between its own two
+    # tables the first time it ran.
+    for table in index_tables(lines):
+        identifiers = [ANY_ROW_LINE.match(lines[index]).group(1)
+                       for index in table if ANY_ROW_LINE.match(lines[index])]
+        for before, after in zip(identifiers, identifiers[1:]):
+            if before[0] != after[0] or int(before[2:]) <= int(after[2:]):
+                continue
+            if (before, after) in FROZEN_DESCENTS:
+                continue
+            violations += 1
+            print(f"  BUGS.md: {before} is followed by {after} in the index. "
+                  "The order is held as a ratchet: the descents the register "
+                  f"already carries are frozen by name ({frozen}) and a new "
+                  "one is refused, because a merge's conflict region re-gluing "
+                  "a row at the wrong place is how two rows moved on "
+                  "2026-09-08.", file=sys.stderr)
+    return violations
 
 
 def arm_corpus(rows, numbers):
@@ -338,14 +501,82 @@ def print_next_identifier():
     return 0
 
 
-# The identifier at the head of an entry's BODY: `**B-042 — …**`, or a heading
-# naming a range (`**B-043 to B-048 …**`). A body is where a closure is written;
-# the index row only carries the verdict.
-BODY_HEAD = re.compile(r"^\*\*([BE]-\d{3})\b", re.MULTILINE)
+# THE HEAD OF AN ENTRY'S BODY, AND THE DELIMITER IS PART OF IT (B-346).
+# `^\*\*([BE]-\d{3})\b` alone made a head of any paragraph that merely OPENS with
+# an identifier — `**B-249's FAMILY…` — which ended the entry that paragraph
+# lives in and claimed the identifier it named. Measured: B-310's body was
+# truncated from 9 740 characters to 3 065, B-249's real body was discarded
+# entirely because `entry_bodies` kept the FIRST span, and the closure arm was
+# blind to both entries at once, refusing a `fixed #573` for a body it could not
+# see.
+#
+# THE REGISTER'S OWN GRAMMAR IS THE ANSWER, and it was counted before it was
+# chosen: of 320 paragraphs opening with an identifier, 279 read `**B-NNN — `
+# and one reads `**B-NNN** —`; the rest are prose (« **B-244 is closed with
+# it.** ») or a heading naming several entries (« **B-180 to B-199 — the second
+# review** »). So a PROPER head is an identifier, optionally followed by more
+# identifiers joined by `,`, ` to ` or ` and `, then an em dash.
+PROPER_BODY_HEAD = re.compile(
+    r"^\*\*([BE]-\d{3})(?:(?:,| to | and )\s*[BE]-\d{3})*(?:\*\*)?\s+—",
+    re.MULTILINE)
+
+# Any paragraph opening with an identifier — the old rule, kept for ONE purpose.
+# Twelve entries have never been written with the dash: their whole text is a
+# sentence starting « **B-165 is the one to keep.** ». Refusing those outright
+# would take twelve bodies away from the closure arm, which is a loosening in
+# exchange for a tightening. So a bare paragraph is a head only when the
+# identifier it names has NO proper head anywhere in the file — which is exactly
+# the distinction the defect turned on: a paragraph may claim an entry that has
+# no body of its own, never one that has.
+ANY_BODY_HEAD = re.compile(r"^\*\*([BE]-\d{3})\b", re.MULTILINE)
+
+
+# A head that names SEVERAL entries is a wave's summary section, never one
+# entry's body: « **B-050, B-059 and B-070 — three angles on one mechanism** »
+# stands above the three entries it recaps, and the first of them has a body of
+# its own further down. `entry_bodies` prefers the body over the recap for that
+# reason, and only that reason — the recap is 980 characters and the body 924,
+# so « the longest span » picks the wrong one.
+# re.MULTILINE is LOAD-BEARING here and not decoration: `pattern.match(text,
+# pos)` leaves `^` unmatchable at any pos but zero without it, so the first
+# version of this line answered « names one entry » for every head in the file
+# and the preference below chose by length alone — which is the reading it was
+# written to replace.
+NAMES_SEVERAL = re.compile(r"^\*\*[BE]-\d{3}(?:,| to | and )\s*[BE]-\d{3}",
+                           re.MULTILINE)
+
+
+def body_heads(register):
+    """Every body head in the register, in the order they appear.
+
+    Args:
+        register: The whole of `BUGS.md`.
+
+    Returns:
+        A list of `(identifier, offset, names_one_entry)`, one per head.
+    """
+    with_a_proper_head = {match.group(1)
+                          for match in PROPER_BODY_HEAD.finditer(register)}
+    heads = []
+    for match in ANY_BODY_HEAD.finditer(register):
+        identifier = match.group(1)
+        if (PROPER_BODY_HEAD.match(register, match.start())
+                or identifier not in with_a_proper_head):
+            heads.append((identifier, match.start(),
+                          NAMES_SEVERAL.match(register, match.start()) is None))
+    return heads
 
 
 def entry_bodies(register):
     """Splits the register into one text span per entry body.
+
+    AND IT KEEPS THE LONGEST SPAN, not the first (B-346, the other half). Even
+    under the grammar above, seventeen identifiers carry two heads today: the
+    entry's own body, and a wave-summary section naming several entries at once
+    (« **B-050, B-059 and B-070 — three angles on one mechanism** »). `setdefault`
+    kept whichever came FIRST in the file, so a summary paragraph could stand in
+    for a body it summarises, and the closure arm would then read three lines of
+    recap where nine thousand characters of entry sit further down.
 
     Args:
         register: The whole of `BUGS.md`.
@@ -353,21 +584,32 @@ def entry_bodies(register):
     Returns:
         A dict mapping identifier to the text from its body heading to the next.
     """
-    heads = [(match.group(1), match.start())
-             for match in BODY_HEAD.finditer(register)]
-    spans = {}
-    for index, (identifier, start) in enumerate(heads):
+    heads = body_heads(register)
+    ranked = {}
+    for index, (identifier, start, names_one_entry) in enumerate(heads):
         end = heads[index + 1][1] if index + 1 < len(heads) else len(register)
-        spans.setdefault(identifier, register[start:end])
-    return spans
+        span = register[start:end]
+        rank = (names_one_entry, len(span))
+        if rank > ranked.get(identifier, ((False, -1), ""))[0]:
+            ranked[identifier] = (rank, span)
+    return {identifier: span for identifier, (_, span) in ranked.items()}
 
 
-def base_register():
-    """Reads `BUGS.md` as it stands at the branch point with origin/main.
+def base_register(path):
+    """Reads the register as it stands at the branch point with origin/main.
+
+    Args:
+        path: The register being checked. A copy outside the repository has no
+            branch point, and this says so by answering None rather than
+            silently comparing against `BUGS.md`.
 
     Returns:
         The base text, or None when git cannot reach it.
     """
+    try:
+        tracked = path.resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        return None
     for base in ("origin/main", "main"):
         merge = subprocess.run(["git", "merge-base", "HEAD", base],
                                capture_output=True, text=True, check=False,
@@ -375,14 +617,14 @@ def base_register():
         if merge.returncode != 0:
             continue
         show = subprocess.run(
-            ["git", "show", f"{merge.stdout.strip()}:BUGS.md"],
+            ["git", "show", f"{merge.stdout.strip()}:{tracked}"],
             capture_output=True, text=True, check=False, cwd=ROOT)
         if show.returncode == 0:
             return show.stdout
     return None
 
 
-def arm_closure(register):
+def arm_closure(register, path):
     """Refuses an entry whose status moved to `fixed` with its body untouched.
 
     THIS IS THE ARM FOR RULE 3 ITSELF, and it exists because the wave that
@@ -398,12 +640,13 @@ def arm_closure(register):
     can answer that.
 
     Args:
-        register: The whole of `BUGS.md`, as it stands.
+        register: The whole of the register, as it stands.
+        path: Where it was read from, so the branch point is the same file's.
 
     Returns:
         The number of violations.
     """
-    base = base_register()
+    base = base_register(path)
     if base is None:
         print("  [closure] git could not reach the branch point, so this arm "
               "read nothing. It refuses rather than passes: an arm that cannot "
@@ -446,7 +689,7 @@ def arm_closure(register):
 
 
 ARMS = ("duplicate-row", "status-vocabulary", "invariant-numbers",
-        "unparsed-row", "corpus", "closure")
+        "unparsed-row", "row-placement", "index-order", "corpus", "closure")
 
 
 def main():
@@ -460,12 +703,18 @@ def main():
                         help="run one arm instead of all of them")
     parser.add_argument("--next", action="store_true", dest="next_identifier",
                         help="print the next free identifier of each family")
+    # THE DOOR A PROBE NEEDS. Every arm here reads one hard-coded file, so the
+    # only way to ask « would this guard catch that? » was to damage the real
+    # register and hope to undo it. A copy is the honest way to ask, and an arm
+    # nobody can point at a copy is an arm nobody tests.
+    parser.add_argument("--register", type=pathlib.Path, default=REGISTER,
+                        help="read this register instead of BUGS.md")
     arguments = parser.parse_args()
 
     if arguments.next_identifier:
         return print_next_identifier()
 
-    register = REGISTER.read_text(encoding="utf-8")
+    register = arguments.register.read_text(encoding="utf-8")
     rows = read_index_rows(register)
     numbers = read_invariant_numbers(ARCHITECTURE.read_text(encoding="utf-8"))
     selected = (arguments.arm,) if arguments.arm else ARMS
@@ -480,10 +729,14 @@ def main():
             violations += arm_invariant_numbers(numbers)
         elif arm == "unparsed-row":
             violations += arm_unparsed_row(register, rows)
+        elif arm == "row-placement":
+            violations += arm_row_placement(register)
+        elif arm == "index-order":
+            violations += arm_index_order(register)
         elif arm == "corpus":
             violations += arm_corpus(rows, numbers)
         elif arm == "closure":
-            violations += arm_closure(register)
+            violations += arm_closure(register, arguments.register)
 
     if violations:
         print(f"check-bug-register: {violations} violation(s)", file=sys.stderr)
