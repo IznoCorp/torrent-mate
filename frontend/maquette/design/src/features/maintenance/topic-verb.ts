@@ -11,6 +11,7 @@
 // here reopens the rubric on a reload and restores it on the way back with no
 // state of its own, which is the difference between this verb and Configuration's
 // (`features/settings/topic-verb.ts`, whose rubric is not addressable).
+import { giveTheEntryBackFirst } from "../../lib/stacked-surface";
 import { registerVerb } from "../../lib/verbs";
 
 /**
@@ -38,3 +39,7 @@ function openTopic(rubric: string): void {
 
 /* Declared at module evaluation, and named in `app/panel-contributions.ts`. */
 registerVerb("maintopic", openTopic);
+/* And the entry is given back before the page changes — see the note in
+   `lib/stacked-surface.ts`; the rubric this page draws has the same shape. */
+giveTheEntryBackFirst(
+  () => window.__store.read().state.maintTopic != null);

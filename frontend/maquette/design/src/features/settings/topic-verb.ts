@@ -19,6 +19,7 @@
 // the bridge itself is built over, it fires for the system gesture, the
 // browser's control and `history.back()` alike, and it costs this feature one
 // listener that dies with the surface.
+import { giveTheEntryBackFirst } from "../../lib/stacked-surface";
 import { registerVerb } from "../../lib/verbs";
 
 /** The key the rubric travels under, on the entry this verb pushes. */
@@ -77,3 +78,9 @@ function leaveTopic(): void {
    life of the document, exactly as the tap registry's own is. */
 registerVerb("topic", openTopic);
 window.addEventListener("popstate", leaveTopic);
+/* AND THE ENTRY IS GIVEN BACK BEFORE THE PAGE CHANGES. The switch beneath was
+   written against a stack of « the entry page plus at most one » and steps back
+   exactly one entry; with a rubric open that step lands on the rubric's entry
+   and the page never changes at all. */
+giveTheEntryBackFirst(
+  () => window.__referentiel.SETTINGS_STATE.topic !== null);

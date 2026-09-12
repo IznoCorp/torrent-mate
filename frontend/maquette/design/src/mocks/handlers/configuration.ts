@@ -1,8 +1,11 @@
 // The settings and the secrets.
 import { GET, POST, PUT, route } from "./shared";
-import type { Schemas } from "../../contract/types";
+import type { components } from "../../contract/types";
 import { mockState } from "../state";
 import type { MockRoute } from "../router";
+
+/** The contract's own shapes, as every module that names one reads them. */
+type Schemas = components["schemas"];
 
 /** What separates a setting's file from its key in the identity it is addressed by. */
 const IDENTITY_SEPARATOR = ":";

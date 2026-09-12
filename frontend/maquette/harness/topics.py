@@ -36,7 +36,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, PROTOTYPE, Journal
+from common import HOME, PHONE, PROTOTYPE, Journal
 
 from playwright.async_api import async_playwright
 
@@ -60,6 +60,41 @@ STANDING = """(verb)=>({
     .map((one) => one.textContent.trim()).join(' | '),
   rubrics: [...document.querySelectorAll(`[data-${verb}]`)]
     .map((one) => one.dataset[verb]).filter(Boolean)})"""
+
+# WHERE THE ENTRY PAGE'S TAB IS, and whether a finger really reaches it: the
+# centre of the control, and what `elementFromPoint` answers there. A tap
+# dispatched at a covered control is a tap the reader could not have made.
+TAB_AIM = """()=>{
+  const tab = document.querySelector('#nav button[data-page="acq"]');
+  if (!tab) return {found: false};
+  const box = tab.getBoundingClientRect();
+  const x = box.left + box.width / 2;
+  const y = box.top + box.height / 2;
+  const hit = document.elementFromPoint(x, y);
+  return {found: true, x, y,
+          reachable: !!hit && (hit === tab || tab.contains(hit)),
+          covering: hit === null ? 'nothing' : hit.tagName};}"""
+
+# THE DRAWER'S OWN CONTROL, and one destination inside it, aimed the same way.
+DRAWER_AIM = """()=>{
+  const control = document.querySelector('[data-drawer]');
+  if (!control) return {found: false};
+  const box = control.getBoundingClientRect();
+  const x = box.left + box.width / 2;
+  const y = box.top + box.height / 2;
+  const hit = document.elementFromPoint(x, y);
+  return {found: true, x, y,
+          reachable: !!hit && (hit === control || control.contains(hit))};}"""
+
+NAVGO_AIM = """()=>{
+  const link = document.querySelector('[data-navgo="acq"]');
+  if (!link) return {found: false};
+  const box = link.getBoundingClientRect();
+  const x = box.left + box.width / 2;
+  const y = box.top + box.height / 2;
+  const hit = document.elementFromPoint(x, y);
+  return {found: true, x, y,
+          reachable: !!hit && (hit === link || link.contains(hit))};}"""
 
 
 async def open_at(browser, address):
@@ -169,6 +204,88 @@ async def main():
                     f"depth {entered['depth']} → {by_affordance['depth']} at "
                     f"{by_affordance['path']} back={by_affordance['back']}, "
                     f"forward back={forward['back']}")
+
+            # AND LEAVING THE PAGE FROM INSIDE A RUBRIC STILL LANDS ON THE
+            # ENTRY PAGE. This is the half a pushed entry could break and no
+            # other hold would see: § 16 rule 2 says the stack under a
+            # top-level page is the entry page plus at most one, and Back from
+            # anywhere lands on `/acquisition`. A rubric's entry sits ON TOP of
+            # the page's, so a tab tapped from inside one must not leave the
+            # reader one rung short of the floor.
+            context, page, errors = await open_at(browser, address)
+            standing = await page.evaluate(STANDING, verb)
+            if standing["rubrics"]:
+                await page.click(f'[data-{verb}="{standing["rubrics"][0]}"]')
+                await page.wait_for_timeout(450)
+                # A REAL FINGER ON THE TAB, hit-tested at the control's own
+                # centre and pressed through the touchscreen. What this holds
+                # REPLAYS a click, so a hold that dispatched one itself could
+                # pass over a path a touch never reaches.
+                aim = await page.evaluate(TAB_AIM)
+                if aim.get("reachable"):
+                    await page.touchscreen.tap(aim["x"], aim["y"])
+                    await page.wait_for_timeout(800)
+                left = await page.evaluate(STANDING, verb)
+                journal.check(
+                    "and leaving the page from INSIDE a rubric lands on the "
+                    "entry page, not one rung short of it (§ 16 rule 2)",
+                    bool(aim.get("reachable")) and left["path"] == HOME,
+                    f"{left['path']}{left['query']} · tab {aim}")
+
+            # AND THE SAME FROM THE DRAWER, which is the other half and the one
+            # that needed the ladder's rewind to COUNT rather than assume. A
+            # layer's entry sits above the rubric's, so nothing can be given
+            # back before the switch: the rewind has to know the rubric is
+            # there. Read to DEPTH after ONE Back — an inert step is exactly
+            # what D1b rule 2 forbids — and the rubric must still be drawn when
+            # the drawer is closed, or the price of the repair is the rubric.
+            context, page, errors = await open_at(browser, address)
+            standing = await page.evaluate(STANDING, verb)
+            if standing["rubrics"]:
+                await page.click(f'[data-{verb}="{standing["rubrics"][0]}"]')
+                await page.wait_for_timeout(450)
+                opener = await page.evaluate(DRAWER_AIM)
+                if opener.get("reachable"):
+                    await page.touchscreen.tap(opener["x"], opener["y"])
+                    await page.wait_for_timeout(600)
+                aim = await page.evaluate(NAVGO_AIM)
+                if aim.get("reachable"):
+                    await page.touchscreen.tap(aim["x"], aim["y"])
+                    await page.wait_for_timeout(900)
+                arrived = await page.evaluate(STANDING, verb)
+                await page.evaluate("()=>history.back()")
+                await page.wait_for_timeout(800)
+                after = await page.evaluate(STANDING, verb)
+                journal.check(
+                    "and leaving the page from the DRAWER, over an open rubric, "
+                    "leaves no inert Back behind it (§ 16 rule 2)",
+                    bool(aim.get("reachable")) and arrived["path"] == HOME
+                    and after["depth"] < arrived["depth"],
+                    f"arrived {arrived['path']} depth {arrived['depth']} → "
+                    f"{after['path']} depth {after['depth']}")
+
+                # AND THE RUBRIC SURVIVES THE DRAWER, which is what the road
+                # NOT taken would have cost: merging the rubric's entry into
+                # the page's kept the ladder honest and lost the way back.
+                context2, page2, errors2 = await open_at(browser, address)
+                inside = await page2.evaluate(STANDING, verb)
+                if inside["rubrics"]:
+                    await page2.click(f'[data-{verb}="{inside["rubrics"][0]}"]')
+                    await page2.wait_for_timeout(450)
+                    opener = await page2.evaluate(DRAWER_AIM)
+                    if opener.get("reachable"):
+                        await page2.touchscreen.tap(opener["x"], opener["y"])
+                        await page2.wait_for_timeout(600)
+                    await page2.evaluate("()=>history.back()")
+                    await page2.wait_for_timeout(700)
+                    kept = await page2.evaluate(STANDING, verb)
+                    journal.check(
+                        "and closing the drawer over a rubric leaves the RUBRIC, "
+                        "not the list it was opened from",
+                        kept["back"],
+                        f"back={kept['back']} at {kept['path']}{kept['query']}")
+                errors.extend(errors2)
+                await context2.close()
 
             journal.check(f"no JS error walking « {address} »'s rubrics",
                           not errors, str(errors))
