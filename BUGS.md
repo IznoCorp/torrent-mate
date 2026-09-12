@@ -441,6 +441,7 @@ when the defect comes back.
 | B-393 | A resolution candidate is chosen by a full-width « C'est celui-ci » pill while the card itself answers no tap: the act takes more room than the medium it chooses, and the card a finger aims at does nothing | by the operator, 2026-09-11 | `fixed #585` |
 | B-394 | The harness's two floating buttons (the design note ⓘ and the states list ≡) are painted OVER a message shown at the top of the frame, so the sentence answering a verb pressed inside a layer is covered by chrome that is in no production build | by the operator, 2026-09-11 | `fixed #585` |
 | B-395 | The library's selection bar stays drawn on every other tab: `app/bottom-slot.tsx` renders it unconditionally and its own condition reads `selMode` alone, so « N sélectionnés · Annuler · Supprimer » sits over Acquisition — and the tab bar, hidden by that same `selMode`, leaves no way back | by the operator, 2026-09-11 | `fixed #585` |
+| B-396 | The mock seed offers exactly ONE folder with candidate cards, so the resolution window's riskiest path — a second pick taken inside the first one's undo window, and a put-back into a list that has moved — is reachable by no finger and is proved through the queue's seam alone | by audit | `open` |
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
@@ -852,6 +853,32 @@ round three, 2026-09-11). An instrument rewritten by a hook is an instrument its
 **Closes when** the hook skips git-ignored and untracked paths, held by a test that writes a file under
 an ignored directory and reads it unchanged after the hook. Owner: the configuration's session, not a
 lot.
+
+**B-396 — a fixture that offers one subject, so the window's riskiest path has no finger proof.**
+Round one's reader swept all eight `arr-*` states of the maquette's seed. In every one, exactly ONE
+folder (« Lucky ») offers candidate cards; every other queued folder opens a resolution screen with
+none. « Pick A, then pick B inside A's window » was attempted with a finger and was impossible for
+that reason — the second folder's screen has nothing to tap.
+
+So the design's most delicate claim, § 4.3's « « Annuler » puts back ONE card », is reachable only
+through `window.__queueActions`, which is what R162's w6 does and says it does. The path where the
+put-back's index, a second pending send and « only the latest message carries an undo » all meet is
+proved by a seam and by no finger. **Related and left unproven in the same reading**: what the
+put-back's index does when the list has MOVED under it. The reader's attempt wrote a newly-arrived
+folder into a cache key the queue's own view did not read, so the list never moved; `putOneBack`'s
+`restored()` splices at the index the card held in the BEFORE snapshot into the NOW list and `slice`
+absorbs an overflow, which makes the worst case look cosmetic — but that is reasoning, and it is
+marked as such rather than recorded as a reading.
+
+**Why it is not repaired by the wave that filed it.** Closing it needs a second ambiguous folder in
+`design/src/mocks/seeds/…`, and a seed edit is B-369's cost: the oracle's reference and the
+hold-counts baseline both move with it. That is the operator's call and a wave of its own.
+**Owner: the mock-layer micro-wave, beside B-379 and B-380** — the three are one subject, the layer
+the rules measure against, and a wave that opens the seeds should close all of what it can reach.
+**Closes when** a second folder offers candidates and w6 is re-taken by a finger, the put-back's
+index read on a list that has really moved.
+
+<sub>audit, resolution-card round one · the reader's `a08_manual_and_two_folders.py` over the eight `arr-*` states · `a02_window.py`'s `second_pick_by_finger` · `harness/resolution_window.py`'s w6, driven through `window.__queueActions`</sub>
 
 **B-395 — the library's selection bar follows the operator off its own page.**
 

@@ -106,20 +106,46 @@ attente » (`backend-demands-architecture.md` § 9).
 A new harness file, **`harness/resolution_card.py`**, with a finger for every tap: the aim is hit-tested
 at the element's own centre and the tap is `page.touchscreen.tap`, never `element.click()`.
 
+**The numbering is each rule's own.** This table used to run h1 to h8 across BOTH rules while
+`resolution_card.py` names its holds h1, h2, h4 and `resolution_window.py` names its own w1 to w6.
+Round one's repairs added three holds to the first and one to the second, and a record listing eight
+holds while the rules carry nineteen is the stale figure this project counts. So the rules' own
+naming is what is written here, and the cross-rule numbering is gone rather than replaced by a third
+scheme.
+
+**R161 — `harness/resolution_card.py`, 12 holds** (the tie and the icon size are held first, as
+premises of the rest):
+
 | # | Hold | What it reads |
 | --- | --- | --- |
-| h1 | a tap at the centre of the card's BODY resolves the folder | the element under the finger has a `button` ancestor carrying `data-resolve` equal to the card's title, and the folder leaves the queue |
-| h2 | the affordance is no larger than the icon size the system offers | the rendered box of `card/pick` against `iconButton`'s one branch, read from its declaration |
-| h3 | « Annuler » in the message returns the folder to the ambiguous state | a finger on the undo; the folder back in « À traiter » with its « Candidats ambigus » chip, and no `continueStagedMedia` answered after the window |
 | h4 | a screen with tied candidates offers the act on each card | every tied card is a reachable button carrying its own title in `data-resolve` |
-| h5 | « Associer » still resolves at once | the manual path answers `continueStagedMedia` without waiting for a window |
-| h6 | an invalidation inside the window leaves the card out | the two keys invalidated and refetched, the folder still absent |
-| h7 | `__reset` inside the window sends nothing afterwards | the requests counted past the window |
-| h8 | pick A, pick B, undo A: A at its index, B still out and pending | the lists and the requests, through the queue's seam — the interface shows only the latest message's « Annuler » |
+| h2 | the affordance IS the icon size the system offers, no larger and no smaller, and it is drawn | the rendered box of `card/pick` against `iconButton`'s one branch read from its declaration, bounded BOTH ways within `SUBPIXEL`, plus a box above zero and a `visibility` that has not taken it away |
+| h10 | every card is at least a finger tall | each card's own box against 44 px — the card IS the touch target now |
+| h11 | each card holds exactly one focusable element, itself | the card plus every focusable descendant, `tabindex="-1"` and disabled left out |
+| h9 | every card is announced by its title and its year, and by nothing longer | the accessible name the devtools protocol computes, against a name assembled from what the card displays, and a ceiling of 80 characters |
+| h1 | a tap at the centre of the card's BODY resolves the folder | the element under the finger has a `button` ancestor carrying `data-resolve` equal to the card's title, and the folder leaves the queue |
+
+**R162 — `harness/resolution_window.py`, 18 holds**, in six scenarios:
+
+| # | Hold | What it reads |
+| --- | --- | --- |
+| w1 | the send waits, is still held on the message's LAST reachable frame, then leaves | `SENDS` read three times — right after the act, at `LAST_FRAME` = 6 500 ms, and once the window has closed. The middle reading is the window's LENGTH: every other wait here is `WINDOW_CLOSED`, which a 3 s window satisfies exactly as a 7 s one does |
+| w2 | « Annuler » in the message returns the folder to the ambiguous state | a finger on the undo; the folder back in « À traiter » with its « Candidats ambigus » chip, and no `continueStagedMedia` answered after the window |
+| w3 | « Associer » still resolves at once | the manual path answers `continueStagedMedia` without waiting for a window |
+| w4 | an invalidation inside the window leaves the card out | the two keys invalidated and refetched, the folder still absent |
+| w5 | `__reset` inside the window sends nothing afterwards | the requests counted past the window |
+| w6 | pick A, pick B, undo A: A at its index, B still out and pending | the lists and the requests, through the queue's seam — the interface shows only the latest message's « Annuler », and no fixture offers a second pickable folder (B-396) |
+
+**R164 — `harness/selection_survives_the_tab.py`, 8 holds over five pages.** s3 (« the tab bar is
+under a finger ») lifts NOTHING, where s2 (« the bar is not painted ») lifts every `[inert]` and puts
+it back: paint and reach are two questions and one reading cannot answer both. The walk covers every
+page the drawer offers, read from the drawer at runtime — `acq`, `arr`, `sys`, `maint`, `cfg` today;
+`profile` is a navigation row with no group, so no finger reaches it from here.
 
 **Seen red first on the unrepaired head**: the body does not resolve, the pill's box exceeds the icon
 size. **Two mutations on a clean tree**, each restored with `scripts/mutate.sh`: the tap target back on
-the pill alone (h1 falls), and the affordance given the pill's old size (h2 falls).
+the pill alone (h1 falls), and the affordance given the pill's old size (h2 falls). Round one's own
+mutations, one per repaired hold, are in the commits that carry them.
 
 **Re-aimed**: `decision.py` R57's « one can pick a candidate » counted the sentence « celui-ci » on the
 pill; it reads `[data-resolve]` on each candidate card. Its `.click()` on the first `[data-resolve]`, like
@@ -181,7 +207,52 @@ what keeps the frame from naming a page.
 **The walk is through the DRAWER**, because the tab bar is hidden in selection mode — that is the path
 a finger really has, and a rule taking a path the interface does not offer proves nothing.
 
-## 7. The gate
+## 7. The gate, and what the fixtures cannot show
+
+### What round one read, and what no repair closes
+
+Round one's reader walked the built head at 390 × 844 with a touch finger and found seven items, all
+MINOR, none a shipped defect the operator would meet. Six were repaired in this pull request, one was
+ruled. What follows is the part that no repair closes — the ground the fixtures do not offer — and it
+is recorded so the next reader does not spend the round discovering it again.
+
+- **One pickable folder in the whole seed.** « Lucky » is the only queued folder that offers
+  candidate cards; every other resolution screen opens with none. So two picks inside one window, and
+  a put-back into a list that has MOVED, are proved by w6 through the queue's seam and by no finger.
+  Filed as **B-396**, owner the mock-layer micro-wave beside B-379 and B-380 — closing it needs a
+  second ambiguous folder in the seeds, and a seed edit is B-369's cost, which is the operator's call.
+- **The opened harness panel at 60 covers a message's « Annuler »**, measured on the built head. That
+  is the instrument's own rank and the reason for it — a message over the control one is driving the
+  prototype with would be B-394 in the other direction — but it is a fact beside the drawer's scrim,
+  which § 6 records and this did not.
+- **B-379 leaves the held send's failure path exercised by nothing.** The mock answers 200 whatever
+  the contract declares, so `deliver`'s `catch` → `putOneBack` → invalidate → rethrow is run by no
+  fixture, here or in the suite. An unhandled rejection from a `void`-ed promise seven seconds after
+  a gesture is the shape that would be hardest to notice.
+- **A second message arriving inside the window is read by no rule.** No fixture emits one into
+  `#toast` while a pick is pending, so « the undo replaced by another act's message » is unread.
+- **`:active` under a synthesised touch is invisible in headless Chrome.** It is set for no element,
+  the card and two controls the base layer certainly reaches alike, so every pressed state is
+  invisible to a touch-driven walk. Mouse-down is the substitute and it agrees.
+- **`actions.py` asserts the pick 700 ms after the click**, over the optimistic cache write alone: at
+  that instant nothing has left the layer. The same was true of `resolve` before this wave, so it is
+  not a regression — but the one rule whose title claims « state » reads, for this act, a drawing
+  that is seven seconds from being real.
+- **A named mutation can be inert, and it reads exactly like a rule that does not bite.** Three were,
+  in this round alone. `candidatePick` given Tailwind's `hidden` changes nothing, because the emitted
+  stylesheet writes `.hidden{display:none}` before `.inline-grid{…}` and `iconButton` puts the second
+  on the same element, so the later declaration wins. `inert` written on the tab bar in JSX never
+  reaches the DOM — React 19.2 drops it — and set through a `ref` it does reach the DOM and the app
+  then removes it, because `setBackgroundInert(null)` clears every `[inert]` when a layer closes. An
+  `[height:20px]` utility, and even an inline `style`, lose to `.card`'s `min-height: 126px`. Every
+  mutation in this round was checked for having actually mutated before its verdict was read.
+
+**A6 was put to the operator and ruled, 2026-09-12: option A, keep as built.** Closing the message
+with « × » leaves the held send on its 7 s course. His words: « × » means « seen » everywhere in the
+interface, and the way out is « Annuler », visible and distinct. DOIT-7's exit is that button, not
+the dismissal.
+
+### The gate
 
 Taken once, on the merged head — `origin/main` was merged BEFORE the gate, because the desktop-frame
 squash re-recorded both the oracle's reference and the hold-counts baseline, and a gate taken first
