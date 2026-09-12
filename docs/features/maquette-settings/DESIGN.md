@@ -25,6 +25,17 @@ wave holds B-420+ and the L20 design wave B-440+. Gaps are accepted.
 | B-334 | « Remplacer la valeur » writes the key through the layer, from a field the panel now offers | R167 `harness/secret_acts.py` |
 | B-335 | « Retirer la clé » asks first, in the dictated words, and the walk goes through the CANCEL | R167 |
 | B-345 | At rest one file answers `conflict: true` on its own write; any other save reaches the restart | R128 `harness/seeds_at_rest.py`, four holds added |
+| a11y[light] | `backAction` writes in `text-primary-text`, the token `theme.css` keeps for a LABEL; the light ceiling falls 162 → 149 in the same commit | `a11y.py --check`, the light ratchet |
+
+**ONE VISIBLE CHANGE, and it is the operator's to overturn.** This wave put four back controls on
+pages (`maintenance-topic`, `settings-topic`, `settings-secrets`, `settings-edited`), and each added
+a `color-contrast` finding under `data-theme=light`: 166 against a ceiling of 162. The cause was the
+shared variant, not the pages — `backAction` wrote `text-primary`, the brand's FILL tone, which on
+the light theme is `oklch(0.76 0.155 70)` on a ground of `oklch(0.995 0 0)`, and `.fback` already
+stood in the recorded debt on thirteen screen states. Ruled by the steward: the variant takes
+`text-primary-text`, as `theme.css` prescribes for a label. **The back label is darker on the light
+theme on seventeen states**; the dark theme is unchanged, the two tokens being one colour there.
+The oracle measures boxes, not colour.
 
 **B-299 and B-300 are NOT closed here.** They are made confirmable by hand, and each says so in its
 own entry; the confirmation is the operator's.
@@ -68,6 +79,7 @@ Each was applied to the built tree, the rule replayed, the FAIL line read, and t
 | the restart banner's `restartOwed` forced false | R166 | « the restart banner comes up BECAUSE the save happened », « it offers the restart the operator has to confirm » |
 | both secret actions back to `target: { toast: … }` | R167 | seven holds, from « is an act, not a sentence » to « confirming CLEARS the key through the layer » |
 | `movedFiles` emptied | R128 | « SAVING it reaches the version-conflict banner with no dial and no named state », and « that save owes no restart » with it — the second one is the guard against a build that raises both |
+| `backAction` back to `text-primary` | `a11y.py --check` | the light count alone: 149 → 166 against the ceiling of 149, exit 1; the dark floor stayed at 0 |
 
 Each was applied to the source, rebuilt, re-served, the rule replayed, its FAIL lines read, and the
 tree restored. **One thing that cost an hour and is worth the line**: `git checkout --` restores a
