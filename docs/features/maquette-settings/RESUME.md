@@ -37,9 +37,8 @@ Eight mutations, each falling on its own holds and nothing else: the table is in
 
 ## What is LEFT, in order
 
-1. **`page_host.py` replayed** — queued on the shared lock behind the gesture agent's oracle. Its
-   one red was its own driven state (`maintTopic` left open while the walk promised « EVERY DIAL
-   NAMED »); the dial is named and committed, so this is a confirmation, not a repair.
+1. **`page_host.py` replayed — SKIPPED by the steward**: it passed 44/44 on `127cd4c3d`, and the full
+   suite on the final head covers it.
 2. **`--a11y` — DONE, ruled (A) by the steward.** The CI run 34705845236 had read `ef6a04c8f`, not
    the head. Read locally on the merged head: the four new findings were `color-contrast` on `.fback`
    in `maintenance-topic`, `settings-topic`, `settings-secrets`, `settings-edited`; the cause was the
@@ -62,8 +61,7 @@ Eight mutations, each falling on its own holds and nothing else: the table is in
    **Main moved again (2026-09-12):** #591 landed as `e2a6161a1` at **0.98.85**, with BUGS.md
    rows B-460..B-466 and a re-recorded hold-counts baseline and oracle reference. So merge
    `origin/main` a second time BEFORE items 3–5 (the oracle and the hold counts compare against
-   main's references), and move the version to **0.98.86** — or higher, re-reading main's
-   `__init__.py` at that moment.
+   main's references), and move the version above main's — **0.98.87** once #589 lands at 0.98.86 (item 2).
 7. **Push, and the PR body** — the body is written and posted; add the run at
    `HEAVY_LOAD_CEILING=10` and why (the steward measured 12 of the load external to us).
 
