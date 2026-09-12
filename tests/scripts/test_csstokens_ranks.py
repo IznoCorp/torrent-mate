@@ -42,8 +42,7 @@ LIST = """/* ── THE RANKED LIST, AND IT IS ONE LIST ────────
 NO_EXEMPTION: dict[tuple[str, int], str] = {}
 
 
-def tree(root: Path, css: str = "", variants: str = "", markup: str = "",
-         ranked: str = LIST) -> tuple[Path, Path]:
+def tree(root: Path, css: str = "", variants: str = "", markup: str = "", ranked: str = LIST) -> tuple[Path, Path]:
     """Writes a maquette small enough to reason about.
 
     Args:
@@ -107,16 +106,17 @@ class TestWhatTheSourcesDeclare:
     def test_a_rank_written_in_a_comment_is_not_a_declaration(self, tmp_path: Path) -> None:
         """The list's own prose spends ranks that no longer exist."""
         css = "/* it used to be z-index: 47, under the bar */\n.hbtn {\n  z-index: 53;\n}\n"
-        variants = ('// the sheet was z-47 under the bar\nexport const tabBar = cva(\n'
-                    '  "bottombar fixed z-50",\n);\n')
+        variants = '// the sheet was z-47 under the bar\nexport const tabBar = cva(\n  "bottombar fixed z-50",\n);\n'
         found = arm.declared(tree(tmp_path, css=css, variants=variants)[1])
 
         assert [rank for _, rank, _ in found] == [53, 50]
 
     def test_the_shell_markup_is_read_at_the_utility_s_own_line(self, tmp_path: Path) -> None:
         """A class attribute here wraps, and the rank is rarely on its first line."""
-        markup = ('<!-- a comment\n     over three\n     lines -->\n'
-                  '<header\n  class="topbar relative\n         z-40 flex"\n>\n')
+        markup = (
+            "<!-- a comment\n     over three\n     lines -->\n"
+            '<header\n  class="topbar relative\n         z-40 flex"\n>\n'
+        )
         found = arm.declared(tree(tmp_path, markup=markup)[1])
 
         assert found == [(".topbar", 40, "index.html:6")]
@@ -132,26 +132,33 @@ class TestWhatItRefuses:
             css=".hbtn {\n  z-index: 50;\n}\n",
             variants='export const tabBar = cva("bottombar z-50");\n',
             markup='<header class="topbar z-40"></header>\n',
-            ranked=LIST.replace("     30  the action button          `addAction`"
-                                " (ui/variants/frame.ts)\n", ""))
+            ranked=LIST.replace("     30  the action button          `addAction` (ui/variants/frame.ts)\n", ""),
+        )
 
         assert arm.ranks_arm(ranked, design, NO_EXEMPTION) == 0
 
     def test_a_stacking_detail_the_arm_exempts_is_not_refused(self, tmp_path: Path) -> None:
         """The exemption's whole purpose, and it is not a blanket."""
-        ranked, design = tree(tmp_path, css=".st .d {\n  z-index: 1;\n}\n",
-                              ranked="/* ── THE RANKED LIST ──\n\n     30  x `y` (z)\n*/\n")
+        ranked, design = tree(
+            tmp_path, css=".st .d {\n  z-index: 1;\n}\n", ranked="/* ── THE RANKED LIST ──\n\n     30  x `y` (z)\n*/\n"
+        )
 
-        assert arm.disagreements({}, [(".st .d", 1, "styles/legacy.css:2")],
-                                 {(".st .d", 1): "a dot on its own connector"}) == []
-        assert arm.disagreements({}, [(".st .d", 9, "styles/legacy.css:2")],
-                                 {(".st .d", 1): "a dot on its own connector"}) != []
+        assert (
+            arm.disagreements({}, [(".st .d", 1, "styles/legacy.css:2")], {(".st .d", 1): "a dot on its own connector"})
+            == []
+        )
+        assert (
+            arm.disagreements({}, [(".st .d", 9, "styles/legacy.css:2")], {(".st .d", 1): "a dot on its own connector"})
+            != []
+        )
 
     def test_a_site_both_ranked_and_exempt_is_refused(self, tmp_path: Path) -> None:
         """One or the other: two records of one site is how they drift apart."""
-        findings = arm.disagreements({("viewTabs", 30): "ui/variants/controls.ts"},
-                                     [("viewTabs", 30, "ui/variants/controls.ts:1")],
-                                     {("viewTabs", 30): "sticky over its own body"})
+        findings = arm.disagreements(
+            {("viewTabs", 30): "ui/variants/controls.ts"},
+            [("viewTabs", 30, "ui/variants/controls.ts:1")],
+            {("viewTabs", 30): "sticky over its own body"},
+        )
 
         assert any("BOTH a frame rank" in one for one in findings)
 
@@ -172,8 +179,7 @@ class TestWhatItRefuses:
 
     def test_a_rank_nobody_recorded_at_all_is_refused(self, tmp_path: Path) -> None:
         """A site the list has never heard of, so only one half can speak."""
-        findings = arm.disagreements({}, [(".newthing", 58, "styles/harness.css:2")],
-                                     NO_EXEMPTION)
+        findings = arm.disagreements({}, [(".newthing", 58, "styles/harness.css:2")], NO_EXEMPTION)
 
         assert len(findings) == 1
         assert "declares 58 and the ranked list does not name it" in findings[0]
