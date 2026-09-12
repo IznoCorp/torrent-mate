@@ -438,6 +438,66 @@ when the defect comes back.
 | B-390 | No arm of `check-no-french.py` reads TEXT in `frontend/maquette/design/index.html` — the Strings and Identifiers arms are rooted on `design/src`, and the only arm that opens the file reads attributes — so « the guard does not refuse these labels » was never evidence that an arm had read them | by audit | `open` |
 | B-391 | The DECLARED HARNESS DEVIATION block calls itself « the ONLY accepted divergence in the shell » and makes FIVE declarations, of which ONE diverges — the other four restate what the app's own variants already declare, so they can witness nothing and hid a dead comparison in the rule that reads them | by audit | `open` |
 | B-392 | `features/library/page.tsx` says in the present tense that the legacy owns the selection bar « from creation to removal » — `paintSelBar()` is an empty function and React draws the bar; it is the sentence a reader uses to judge who owns that node | by audit | `open` |
+| B-420 | A wrapped index row IS refused by `unparsed-row`, and refused for the wrong reason: the message says « a status cell without backticks », names no line, and the `corpus` arm prints one row fewer while reporting clean on its own — a reader is told to look for backticks that are all present | by the tooling micro-wave | `open` |
+| B-421 | An index row written AFTER the first body head is counted and read by the guard, and invisible to a reader: the Markdown table ends at the first non-row line, so the row is in every figure and on no rendered page — and nothing holds the index's order either, which is how a merge's conflict region re-glued a row twice on 2026-09-08 | by the tooling micro-wave | `open` |
+
+**B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
+
+Filed by the tooling micro-wave, and filed on what was MEASURED rather than on what was supposed.
+The steward's reading of 2026-09-11, taken from a merge's conflict region and never probed, was that
+a wrapped row is « neither counted nor read ». **It is refused.** `ANY_INDEX_ROW` uses `\s*`, which
+crosses a newline, so a row broken over two lines still OPENS with an identifier as far as that regex
+is concerned, while `INDEX_ROW` — whose `.` does not cross one — no longer reads it. The arm's
+subtraction therefore sees one row it could not read, and exits 1.
+
+**What is wrong is the sentence it exits with.** `arm_unparsed_row` has one message and one
+diagnosis: « A row whose status cell is not backticked is not refused, it is INVISIBLE ». For a
+wrapped row that is false in every part — the backticks are all present — and the reader is sent to
+look for a defect that is not there. The message names no line either, so on a 9 700-line register
+the only way to find the row is to re-derive the subtraction by hand.
+
+**And the corpus arm says « clean » about the same file**, printing `365 index row(s) read` where
+366 exist. On its own that arm cannot fail here: the floor is 150. A count that falls by one and
+reports success is the shape this register counts, and here it sits beside an arm that did fire —
+so the two together tell a reader that the register has 365 rows and one backtick problem, when it
+has 366 rows and one wrapped line.
+
+**Closes when** the arm names the offending line and separates the two causes — a row it could not
+parse at all, and a row whose status cell is not backticked are not the same finding.
+
+<sub>Probed on copies, arm by arm, with `--register` (added by this wave for exactly this): a row
+wrapped after its second pipe and a row wrapped before it both give `unparsed-row` exit 1 with « 378
+row(s) open with an identifier, 365 were read as index rows and 12 are the historical table — 1 could
+not be read at all », `duplicate-row` / `status-vocabulary` / `corpus` all exit 0, and `corpus` prints
+`365 index row(s) read in BUGS.md (floor 150)`. Measured 2026-09-12 on `898521548`.</sub>
+
+**B-421 — a row outside the table is in every figure and on no page, and nothing holds the order.**
+
+Filed by the tooling micro-wave, on the measurement rather than on the supposition. The steward's
+reading of 2026-09-11 was that a row pushed below the table by a merge is « unread by every count ».
+**The guard reads it.** `INDEX_ROW` is `re.MULTILINE` and matches anywhere in the file, so a row
+moved under a body is still counted, its status still checked, its duplicate still refused.
+
+**The defect is the other way round.** The Markdown table ends at the first line that is not a row,
+so a row written after a body head is invisible to the READER — it is on no rendered page, in the
+operator's own file, while every figure the guard prints includes it. Nothing refuses that, and
+nothing says where the table ends. On 2026-09-08 a merge of `main` produced one conflict region
+spanning rows and bodies, and concatenating the sides put a row below a body twice in one day.
+
+**Nothing holds the index's ORDER either**, and that is the second half: two rows swapped by hand
+give four clean arms. **The order cannot simply be required**, because the index is not sorted today
+— four descents: B-023 → B-013, B-346 → B-339, B-371 → B-331, and B-392 → B-001 where the open table
+gives way to the historical one. Re-ordering the register is a decision about the operator's own file
+and belongs to him.
+
+**Closes when** a `| B-NNN |` line found after the first body head is refused by name, and the index's
+order is held as a RATCHET: the four descents above are frozen by name and a fifth is refused.
+
+<sub>Probed on copies, arm by arm, with `--register`: B-384's row moved below the table and just above
+its own body gives `duplicate-row`, `status-vocabulary`, `unparsed-row` and `corpus` all exit 0, with
+`corpus` printing `366 index row(s) read` — the row is still counted where it stands. Two rows swapped
+in the open table give the same four exit 0. The four descents are the output of
+`re.findall(r"^\| ([BE]-\d{3}) \|", text, re.M)` compared pairwise. Measured 2026-09-12 on `898521548`.</sub>
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
