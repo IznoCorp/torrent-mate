@@ -254,6 +254,63 @@ the dismissal.
 
 ### The gate
 
+**The wave's gate**, below, stands as it was taken. Round one's own gate follows it: it is a narrower
+one by design — no oracle, because no repair moves a box, and no full suite, because the wave's ran
+on `579ea2f21` and nothing under it changed behaviour.
+
+#### Round one's gate
+
+Every run wrapped in `scripts/heavy.sh`, its exit code read in the call that ran it. The sha each
+reading was taken on is named, because two of them were taken before a repair the gate itself asked
+for.
+
+| Reading | Figure | Measured on |
+| --- | --- | --- |
+| `run.sh --contracts` | 18 rules and 27 repository guards, no violation | `2a04f4c1e` |
+| R161, R162, R163, R164 alone | 12, 18, 3 and 8 holds, no violation — R161 held 7 before this round and R162 17 | `2a04f4c1e` |
+| `run.sh --a11y` | 87 states, 0 violations over 0 rules; 68 states asked landmark-one-main / page-has-heading-one and 19 had a modal layer whose `inert` background makes those two unanswerable; under `data-theme=light`, 162 against a ceiling of 162 | `2a04f4c1e` |
+| `make check` (`PYTEST_XDIST_AUTO_NUM_WORKERS=3`) | 11 202 → **11 215 passed**, 8 skipped, 1 xfailed in 232 s; « All checks passed! » | `ac4c175f6` |
+| The oracle, the full suite | not taken, and it is a decision: no repair moves a box, and the wave's full suite on `579ea2f21` stands | — |
+
+**THE GATE FOUND TWO THINGS, which is what a gate is for.** `check-frontend-boundaries` refused on
+the first head: `ui/variants/frame.ts` at 427 non-blank lines against a ceiling of 400, because the
+ranked list written one entry per line put 33 lines into a file already at 394. The list is written
+one line per RANK now — which is also how it is read, by number rather than by name — and the five
+stacking details that are not frame ranks moved into the arm's own table with their reasons. No entry
+was lost; the file is at 399. And `ruff format --check` would have reformatted the arm's new tests.
+Both are commits of their own, before the readings above.
+
+**`make check` was read on `ac4c175f6` and the head then moved twice**: `origin/main` was merged
+(#586, the js-yaml bump — `frontend/package-lock.json` and `.claude/settings.json`, neither of which
+the maquette's build reads) and the version was bumped to **0.98.84**, one patch above main, read
+rather than assumed. `run.sh --contracts` was re-run on the final head; its figure is beside this
+table's first row.
+
+#### The closing readings
+
+Round one's own walks re-run on the repaired build, port 8899, so each finding is closed by the
+instrument that opened it rather than by the rule written against it.
+
+- **a01 and a07 re-ran, exit 0.** a07's `r161_blind_spots` still answers `markHiddenHolds: {sizeHold:
+  true, natureHold: true}` over a mark given `display: none` — and that is not a failure of the
+  repair: the walk carries the OLD arithmetic in its own source, so what it re-reads is the blind
+  spot itself, still there in that instrument. R161's h2, on the same mutation, falls on two holds.
+  **One field of that walk is a literal, not a reading**: `anyHoldReadsAHeight: false` is written into
+  the source rather than measured, so it says nothing about either build — R161's h10 reads the height
+  now, and the rule file is what answers that question.
+- **a02 and a05 did not run**, and the reason is the machine rather than the build: `scripts/heavy.sh`
+  held them at its floor for fifty minutes — « holding off — 3970MB free, load 2.48 (wants 4096MB and
+  6) » — and the host went on falling to 1 467 MB unused against 3 551 MB wired. No process of this
+  wave's was alive at the time, the wrapper's wait is unbounded, and `HEAVY_FREE_FLOOR_MB` is
+  forbidden by the wave's brief by name. What those two walks would have read a second time is read
+  by two holds of this gate, each seen red before it was seen green: R162's reading of `SENDS` at
+  `LAST_FRAME` = 6 500 ms, and R161's h9 over every candidate card ([18, 17, 17, 17, 11] characters
+  against 80). They are not re-run later either, and that is a decision: round two's reader replays
+  every round-one walk on its own pinned copy of this head, which is its lens — a second run by the
+  writer would measure nothing the round does not.
+
+#### The wave's gate
+
 Taken once, on the merged head — `origin/main` was merged BEFORE the gate, because the desktop-frame
 squash re-recorded both the oracle's reference and the hold-counts baseline, and a gate taken first
 would have measured against a reference that is no longer main's.
