@@ -401,6 +401,20 @@ no violation.
 | `seasonsHeld`'s denominator back to the catalogue's total (`typeof season.ep === "number" ? season.ep : null`) | **8 violations**, all on the sheet: « 6/10 », « 5/8 », « 11/13 » and their « manquants » against the panel's, and « Reine rouge » S2 drawn « 0/1 · 1 manquant » instead of « à venir » |
 | one seed line back — American Dad! S16 `[16, 20, 20]` → `[16, 24, 24]` in `legacy.js` | **2 violations**: the follow's totals (399, 399) against the seasons' (403, 403), and season 16's aired 24 against the layer's 20. The owned leg stays green, and rightly: it derives against the family's own aired, and 24 numbers at or below 24 are 24 |
 
+### What the seed exposed to the light-theme audit
+
+Moving Silo S3E7 before TODAY turns its row from « announced » into `to_grab`, and the light audit found
+one finding more than its ceiling on `mediasheet-series`: `.to_grab > .en[data-part="episode/number"]`,
+the episode number painted in the warning SIGNAL tone on the light ground. Measured on the private
+bench with both prototype URLs pointed at it (`oracle.PROTOTYPE` is a constant of its own, and a bench
+that re-points only `common`'s audits the shared copy — which one reading of this wave did): two light
+audits of `fed423447` read **163 and 163**, identical target for target, so the instrument is stable and
+the finding is real. The repair is the one `theme.css` prescribes for a LABEL: `.eprow.to_grab .en` reads
+`--color-warning-text`, which is `var(--color-warning)` on the dark theme — no computed style moves there,
+so no oracle divergence — and the label lightness on the light one. Light **162** against its ceiling of
+162, targets identical to the recorded file; default theme **0**; the residue guard unchanged (a value
+replaced in place). No ceiling moved.
+
 ### Named states whose drawn numbers move, and the only divergences accepted (D8)
 
 Predicted from the edits and measured against every named state that opens a sheet or a panel (the
