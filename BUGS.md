@@ -2543,6 +2543,43 @@ environment override for `PROTOTYPE`, a `if __name__ == "__main__":` guard on th
 served-copy assertions reading the SAME root the rule was pointed at, so a stamp cannot certify a
 build nobody measured.
 
+**Closed by the tooling micro-wave, in three parts.**
+
+`common.PROTOTYPE` reads `TM_PROTOTYPE_URL` and `served_copy.SERVED` reads `TM_SERVED_COPY`. **TWO
+variables and not a mapping from the port to the root**, because a mapping guesses the answer from a
+number: a reader serving two builds from one port over time would get a silent wrong answer where
+this gives a refusal. And the second variable is the half that matters — an override on the URL
+alone would point a rule at one build and certify it against another, which is B-256's own subject
+reached through the door this repair would otherwise have left open. So **a URL override with no
+root override is REFUSED at import**, naming both values.
+
+Every rule module's invocation now sits behind `if __name__ == "__main__":` — 84 modules rewritten
+by `scripts/guard-module-entry-points.py`, which parses with `ast` rather than matching text and
+refuses a shape it does not recognise. 117 modules, 84 changed, 0 refused; the 33 untouched were
+already guarded or define no invocation. `pop.py`, which runs one rule, defines a second and runs
+that, is the one module whose first invocation was not trailing.
+
+**THE TOOL WAS NOT THE PROOF, and this is the entry's most useful line.** Its first version moved
+every top-level call, and every rule opens with `sys.path.insert(0, …)` so that `from common import
+…` resolves: FORTY-ONE files were left unable to import what they depend on. `ruff` passed over all
+of them and the tool reported « 84 of 117 changed, 0 refused ». Reading the diff is what caught it.
+The tool now only takes calls that come AFTER the module's first definition — a module's entry point
+calls something the module DEFINED — and a hold reads that order independently, with a floor under
+the count so a tool that DELETED the plumbing would not leave it with nothing to read.
+
+**What this does NOT reach, measured rather than implied**: 31 of the 117 rules carry
+`http://127.0.0.1:8899` as a literal instead of reading `common.PROTOTYPE`. Rewriting them would
+change rules this wave may not touch, so the number is frozen by a hold: the override's blind spot
+cannot grow, and a rule written tomorrow reads the constant. `run.sh` is likewise untouched — it
+still owns 8899 and `/tmp/tm-refonte`, and the override serves a rule pointed BY HAND, which is the
+reading #567's independent reader could not take.
+
+Held by nine holds in `tests/scripts/test_harness_entry_points.py`, including a fake `playwright`
+that raises on any call, so a module still running itself on import fails loudly instead of quietly
+starting a browser nobody watches. Three mutations, exit codes read by hand: the guard removed from
+one rule → 3 failed; the plumbing moved behind the guard in one file → 1 failed, naming the file;
+the coherence refusal removed → 1 failed. Restored each time: 9 passed.
+
 <sub>`grep -n "PROTOTYPE" frontend/maquette/harness/common.py` → the constant and its use, no `os.environ` · `tail -1 frontend/maquette/harness/machine.py` → `asyncio.run(main())` · reported by the independent reader of #567, round one, 2026-09-06</sub>
 
 **B-326 — the lock's own probe reads « free » whether it is held or not.**

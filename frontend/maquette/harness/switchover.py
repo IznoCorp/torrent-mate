@@ -283,4 +283,5 @@ def main():
     journal.summary()
 
 
-main()
+if __name__ == "__main__":
+    main()

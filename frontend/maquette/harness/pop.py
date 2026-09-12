@@ -128,7 +128,6 @@ async def main():
 
     journal.check("no JS error along the walk", not errs, str(errs or "none"))
     await b.close()
-asyncio.run(main())
 
 async def announced():
   async with async_playwright() as p:
@@ -178,4 +177,8 @@ async def announced():
     # runs: it prints the executed count the recorder reads and raises on any
     # failure. Before it existed here, a verdict was printed and discarded.
     journal.summary()
-asyncio.run(announced())
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+    asyncio.run(announced())

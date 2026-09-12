@@ -46,7 +46,15 @@ from pathlib import Path
 # It is the same path `run.sh` and `server.py --serve` use; it is written here
 # rather than imported because this module is the one that may be asked about
 # the copy before anything else has run.
-SERVED = Path("/tmp/tm-refonte")
+#
+# IT IS OVERRIDABLE, and that is half of B-325's repair. The stamp below answers
+# « is the prototype I am finishing on the prototype I started on? » about the
+# directory named here: a rule pointed at another build while this stayed put
+# was certified against a copy it never opened. `common.py` refuses a run that
+# moves the URL and leaves this behind, because the two are one fact split in
+# two places.
+ROOT_VARIABLE = "TM_SERVED_COPY"
+SERVED = Path(os.environ.get(ROOT_VARIABLE, "/tmp/tm-refonte"))
 STAMP = SERVED / "build-stamp.json"
 LOCK = SERVED / ".lock"
 
