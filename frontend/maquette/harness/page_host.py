@@ -77,8 +77,7 @@ def identities(names):
     return [value.split()[0] if value.split() else "" for value in names]
 
 
-# CONFIGURATION AS IT OPENS: no rubric, no query, no pending edit, and no
-# restart owed — the last through the LAYER, where that fact lives (B-343).
+# CONFIGURATION AS IT OPENS — the restart through the LAYER, where it lives.
 SETTINGS_FROM_SCRATCH = (
     "()=>{SETTINGS_STATE.topic = null; SETTINGS_STATE.q = '';"
     " SETTINGS_STATE.modifs.clear(); window.__mocks.setRestartRequired(false);}")
@@ -342,8 +341,7 @@ async def main():
             and not saved["bar"],
             str(saved) if not refused else f"data-save {refused}")
 
-        # A rubric's ENTRY carries its name and re-opens it, so driving the
-        # state alone would be undone by the next pop (the dialog closing).
+        # A rubric's ENTRY carries its name: driving the state alone is undone.
         await page.evaluate(
             "()=>{SETTINGS_STATE.topic = null; history.replaceState({}, '');}")
         await page.evaluate("()=>window.__referentiel.render()")
