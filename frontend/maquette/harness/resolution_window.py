@@ -9,10 +9,12 @@ the send until the window closes, and « Annuler » cancels it.
 WHAT IT READS — the queue's lists (`window.__queue()`) and the calls the mock
 layer answered (`window.__mocks.answered()`), never the message's sentence:
 
-  w1. THE SEND WAITS, THEN LEAVES. A finger picks; no `continueStagedMedia` is
-      answered while the window is open, and exactly one once it has closed.
-      It is also what gives the zeros below a meaning: a count of nothing,
-      where nothing was ever going to leave, would be green over nothing.
+  w1. THE SEND WAITS, IS STILL HELD ON THE MESSAGE'S LAST FRAME, THEN LEAVES.
+      A finger picks; no `continueStagedMedia` is answered while the window is
+      open, none at 6 500 ms — the last frame the undo is reachable on — and
+      exactly one once the window has closed. It is also what gives the zeros
+      below a meaning: a count of nothing, where nothing was ever going to
+      leave, would be green over nothing.
   w2. « ANNULER » RETURNS THE FOLDER TO THE AMBIGUOUS STATE. A finger on the
       message's undo; the folder is back in « À traiter » at the place it held,
       its screen says « Candidats ambigus » again and offers its candidates, and
@@ -39,6 +41,12 @@ THE WINDOW'S LENGTH is named once below against `lib/queue.ts`'s constant. A
 rule that waited less than the window would read the zeros of w2 and w5 before
 a send could leave; w1 sees its ONE call after the same wait, so a window grown
 past this rule's wait falls w1 and names it.
+
+A window SHRUNK, though, was invisible to all seventeen holds — measured, with
+the constant at 3 000: every wait here is `WINDOW_CLOSED`, and a shorter window
+satisfies it exactly as a longer one does. The message would then offer a way
+back for three seconds after the act had left. w1's reading at `LAST_FRAME` is
+the floor that says so.
 """
 import asyncio
 import pathlib
@@ -52,7 +60,17 @@ from playwright.async_api import async_playwright
 
 # THE UNDO WINDOW, `UNDO_WINDOW_MILLISECONDS` in `lib/queue.ts` (7 s: the
 # message's own 6 s with a margin), plus an act's redraw for the send to land.
-WINDOW_CLOSED = 7000 + ACTED
+UNDO_WINDOW = 7000
+WINDOW_CLOSED = UNDO_WINDOW + ACTED
+
+# THE MESSAGE'S LAST REACHABLE FRAME, measured at 6 500 ms after the tap: from
+# 7 000 ms the host is hidden and the point answers whatever is behind it. A
+# send read as ABSENT here is the only thing that tells this window from a
+# shorter one — every other reading below waits `WINDOW_CLOSED`, which any
+# window under 7 s satisfies just as well, so a window silently brought to 3 s
+# would leave the message offering a way back five seconds after the act had
+# gone. Measured: with the constant at 3 000 the whole rule stayed green.
+LAST_FRAME = 6500
 
 # THE STATE WITH A FOLDER NO PROVIDER ANSWERED, where « Associer » is the way out.
 LOADED_STATE = "arr-loaded"
@@ -140,13 +158,22 @@ async def tap(page, selector, word=""):
 
 
 async def send_waits_then_leaves(page, journal):
-    """w1 — no send while the window is open, exactly one once it has closed."""
+    """w1 — no send while the window is open, one once it has closed.
+
+    THE READING AT `LAST_FRAME` IS THE WINDOW'S LENGTH, and it is why this
+    scenario waits in two steps rather than one: the send must still be held on
+    the last frame a finger can reach the undo on, which no other hold reads.
+    """
     screen, _ = await pick_by_finger(page)
     folder = screen["folder"]
     early = await page.evaluate(SENDS)
-    await page.wait_for_timeout(WINDOW_CLOSED)
+    await page.wait_for_timeout(LAST_FRAME - ACTED)
+    on_the_last_frame = await page.evaluate(SENDS)
+    await page.wait_for_timeout(WINDOW_CLOSED - LAST_FRAME)
     late = await page.evaluate(SENDS)
     journal.check("the pick's send waits while the window is open", early == [], str(early))
+    journal.check("and is still held on the message's last reachable frame",
+                  on_the_last_frame == [], f"at {LAST_FRAME} ms: {on_the_last_frame}")
     journal.check("and leaves once, for the folder, when the window closes",
                   len(late) == 1 and late[0].endswith(f"/{folder}/continue"), str(late))
 
