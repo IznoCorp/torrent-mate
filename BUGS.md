@@ -439,7 +439,7 @@ when the defect comes back.
 | B-391 | The DECLARED HARNESS DEVIATION block calls itself « the ONLY accepted divergence in the shell » and makes FIVE declarations, of which ONE diverges — the other four restate what the app's own variants already declare, so they can witness nothing and hid a dead comparison in the rule that reads them | by audit | `open` |
 | B-392 | `features/library/page.tsx` says in the present tense that the legacy owns the selection bar « from creation to removal » — `paintSelBar()` is an empty function and React draws the bar; it is the sentence a reader uses to judge who owns that node | by audit | `open` |
 | B-397 | A panel RE-PRODUCED after an edit pushes a second history entry, so shutting it takes as many Backs as the edits made in it — the setting's panel is re-opened by `window.__panel.produce` on every commit, by the native blur path and by « Valider » alike | by rule | `open` |
-| B-398 | A page switch made from the DRAWER over an open rubric leaves TWO entries for the entry page, so the next Back changes nothing: `switchPageFromLayer` rewinds a count that assumes at most one page entry above the floor, and a rubric's own entry makes three | by probe | `open` |
+| B-398 | A page switch made from the DRAWER over an open rubric left TWO entries for the entry page, so the next Back changed nothing: `switchPageFromLayer` rewound a count that assumed at most one page entry above the floor, and a rubric's own entry makes three | by probe | `fixed #588` |
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
@@ -9860,13 +9860,13 @@ arrival). Owner: **L13**, with the ladder; a wave that opens `ui/panel`'s openin
 
 <sub>the settings micro-wave · `harness/settings_editing.py`'s « BACK UNTIL THE PANEL IS GONE » loop, and the comment above it · `grep -n "__panel.produce" frontend/maquette/design/src/features/settings/panel-field.tsx frontend/maquette/design/src/features/settings/panel-setting.ts`</sub>
 
-**B-398 — a page switch from the drawer, over an open rubric, leaves a Back that does nothing.**
-Introduced by the settings micro-wave (#588) and measured by its own probe before the pull request
-was read. A rubric is a deliberate arrival and PUSHES its entry (B-332, B-361, D1b rule 1);
-`switchPageFromLayer` rewinds `leaving === homePage ? 1 : 2` entries, a count that assumes at most
-ONE page entry above the floor. With a rubric open there are two, so the rewind stops on the page's
-own entry and `replacePath()` writes the destination over it — leaving a second entry for the entry
-page, and a Back that changes neither the address nor the page.
+**B-398 — a page switch from the drawer, over an open rubric, left a Back that did nothing.**
+Found by the settings micro-wave's own probe (#588) before the pull request was read, and it was
+that wave's own regression: a rubric is a deliberate arrival and PUSHES its entry (B-332, B-361,
+D1b rule 1), while `switchPageFromLayer` rewinds `leaving === homePage ? 1 : 2` entries — a count
+that ASSUMES at most one page entry above the floor. With a rubric open there are two, so the
+rewind stopped on the page's own entry and `replacePath()` wrote the destination over it, leaving a
+second entry for the entry page and a Back that changed neither the address nor the page.
 
     inside a rubric        /maintenance?topic=query  depth 5  page=maint
     drawer open            /maintenance?topic=query  depth 6
@@ -9874,18 +9874,26 @@ page, and a Back that changes neither the address nor the page.
     history.back()         /acquisition              depth 6  page=acq   ← INERT
     history.back() again   /acquisition              depth 3  page=acq   (the exit guard)
 
-**THE TAB BAR'S OWN PATH IS REPAIRED** and is not this entry: `lib/stacked-surface.ts` has the
-surface give its entry back before the page changes, and R165 holds it with a real touch. That
-repair deliberately stands ASIDE when a layer is open, because the entry a back would take is then
-the layer's, and closing a layer is the ladder's business.
+**FIXED #588. RULED « C » by the operator, 2026-09-12 — the engine counts the stack; D5 exception**,
+granted for this wave and this expression only. The rewind adds what the surfaces inside the page
+say they have posed (`window.__stackedSurfaces()`, published by `lib/stacked-surface.ts`) to its own
+two entries. **No line is ADDED to `legacy.js`**: 31 451 non-blank against a record of 31 451, the
+comment beside the expression rewritten to the same length and saying what it now reads.
 
-**Owner: L13**, with the ladder — the count is `switchPageFromLayer`'s, the engine's, and D5 lets
-this wave delete from that file and never add to it. **What would settle it**: the rewind counting
-what the stack HOLDS rather than what it assumes, which is the same subject as B-290 (« a ladder
-with two shapes for one gesture ») and lands with the handler's move to `app/layers.ts`.
+**THE TAB BAR'S PATH IS THE OTHER HALF and is answered differently**, because there is no layer
+above the rubric for a rewind to unwind: the surface gives its entry back BEFORE the page changes —
+a capturing listener, popping and replaying the same element's tap on the pop, never on a timer.
 
-**Said plainly rather than filed as something that was already there**: without a rubric's entry the
-same walk leaves one entry for the entry page and one Back reaches the guard. This is a regression
-of #588, bounded to the drawer path over an open rubric, ruled not to hold the wave.
+    the rule            R165, `harness/topics.py`, three holds over both pages, each pressed with a
+                        REAL touch hit-tested at the control's own centre: the tab tapped from
+                        inside a rubric lands on the entry page; the drawer walk leaves no inert
+                        Back; and the rubric is STILL DRAWN when the drawer closes — the price the
+                        road not taken (merging the rubric's entry into the page's) would have paid
+    seen RED first      by the wave's own probe, the reading above, before either repair existed
+    the mutations       the capturing listener returning early → the two tab-bar holds fall and the
+                        drawer holds stay green, which is what says the halves are independent ·
+                        the expression back to the assumed count → the drawer holds fall, printing
+                        `depth 6 → 6`
+    the run             `python3 frontend/maquette/harness/topics.py` → 22 holds, no violation
 
-<sub>the settings micro-wave · its own probe, on its own port with its own copy · `grep -n "entries = leaving === homePage" frontend/maquette/design/src/engine/legacy.js`</sub>
+<sub>the settings micro-wave · its own probe, on its own port with its own copy · `grep -n "entries = (leaving === homePage" frontend/maquette/design/src/engine/legacy.js`</sub>

@@ -170,6 +170,8 @@ cells
 chance
 change
 changed
+changer
+changing
 chart
 check
 child
@@ -218,6 +220,7 @@ containers
 contains
 content
 contract
+control
 controller
 convert
 converted
@@ -430,6 +433,7 @@ generation
 geometry
 gesture
 get
+give
 go
 going
 gone
@@ -526,6 +530,7 @@ is
 issued
 item
 items
+its
 journal
 journey
 json
@@ -773,6 +778,7 @@ port
 portrait
 portraits
 pos
+posed
 position
 positions
 post
@@ -1034,6 +1040,7 @@ splash
 src
 st
 stack
+stacked
 stage
 stages
 staging

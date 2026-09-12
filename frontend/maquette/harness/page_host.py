@@ -717,7 +717,11 @@ async def main():
         # naming half of it is what makes a hold measure a surface nobody asked
         # for.
         await page.evaluate("()=>window.__reset()")
+        # EVERY DIAL NAMED, and `maintTopic` is one — the promise three lines
+        # up, kept for four of five. A rubric left open has an ENTRY now, so the
+        # crossref gives it back before switching and the walk measured the pop.
         await page.evaluate("()=>window.__store.write({page: 'arr',"
+                            " maintTopic: null,"
                             " phase: 'ready', pipe: 'idle', scen: 'loaded'})")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(320)

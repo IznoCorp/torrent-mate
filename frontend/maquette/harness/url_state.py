@@ -726,8 +726,21 @@ async def main():
                 "not only from the address",
                 path(pg.url) == HOME and query(pg.url) == "" and not cleared,
                 f"{pg.url} · maintTopic={cleared!r}")
-            await pg.go_forward()
-            await pg.wait_for_timeout(500)
+            # RE-AIMED BY THE SETTINGS MICRO-WAVE (B-361), and said rather than
+            # quietly re-pointed. THE PROPERTY IS UNCHANGED and is the whole of
+            # the hold: the entry that carries the topic puts it back, in the
+            # address and in the interface both. What moved is HOW FAR FORWARD
+            # that entry is. A rubric is a deliberate arrival now and pushes its
+            # own entry, so the walk out of the page leaves the rubric's entry
+            # AND the page's ahead of the floor where there used to be one. The
+            # steps are walked until the entry is reached rather than counted,
+            # because a count written here would be a second place the ladder's
+            # shape is recorded.
+            for _ in range(3):
+                if await pg.evaluate("()=>state.maintTopic"):
+                    break
+                await pg.go_forward()
+                await pg.wait_for_timeout(500)
             back_topic = await pg.evaluate("()=>state.maintTopic")
             journal.check("and the topic entry puts the topic back, address and interface both",
                           path(pg.url) == "/maintenance"

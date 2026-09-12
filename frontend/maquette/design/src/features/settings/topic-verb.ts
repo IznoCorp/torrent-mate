@@ -44,6 +44,11 @@ function openTopic(rubric: string): void {
       { ...(window.__navigationState?.() ?? {}), [CARRIED]: rubric },
       window.__address.compose(window.__store.read().state),
     );
+    // SAID ONLY WHEN IT REALLY PUSHED. A cold load of a rubric's address opens
+    // one without an entry of its own, and a driven state opens one without
+    // touching history at all; either counted would have the ladder step over
+    // something that is not there.
+    entryPosed();
   } catch (error) {
     console.error("entering a settings rubric: navigation write failed", error);
     window.__navEchec = true;
@@ -82,5 +87,5 @@ window.addEventListener("popstate", leaveTopic);
    written against a stack of « the entry page plus at most one » and steps back
    exactly one entry; with a rubric open that step lands on the rubric's entry
    and the page never changes at all. */
-giveTheEntryBackFirst(
+const entryPosed = giveTheEntryBackFirst(
   () => window.__referentiel.SETTINGS_STATE.topic !== null);

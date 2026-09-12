@@ -36,6 +36,16 @@
 // EVERY SURFACE THAT HAS PUSHED INSIDE A PAGE, asked rather than counted here:
 // each one knows whether it is open and this module never learns what any of
 // them IS. The answer is what the ladder's rewind adds to its own two entries.
+//
+// « OPEN » IS NOT « HAS AN ENTRY », and that distinction is the whole of the
+// `posed` flag. A surface is open at a COLD LOAD of its own address, where
+// nothing was pushed because nothing was navigated; and it is open when a rule
+// DRIVES the state directly, which the harness does constantly. Counting those
+// would have the rewind step over an entry that is not there, and the reader
+// would leave the application from a tab tap. So a surface says it has posed an
+// entry when it pushes one, and the flag goes out by itself the moment the
+// surface is no longer open — read lazily, so nothing has to remember to clear
+// it.
 const stacked: (() => boolean)[] = [];
 
 /**
@@ -83,12 +93,22 @@ function pageChanger(target: EventTarget | null): HTMLElement | null {
  *     isOpen: Whether the surface is open right now, asked at the moment of the
  *         tap — the surface owns that answer, and this module never learns what
  *         the surface IS.
+ *
+ * Returns:
+ *     What to call when the surface has PUSHED an entry of its own. Open is not
+ *     the same as having an entry — see the note on `posed` above — and a
+ *     surface that never calls this is one nothing here will ever step over.
  */
-export function giveTheEntryBackFirst(isOpen: () => boolean): void {
-  stacked.push(isOpen);
+export function giveTheEntryBackFirst(isOpen: () => boolean): () => void {
+  let posed = false;
+  const hasItsOwnEntry = () => {
+    if (!isOpen()) posed = false;
+    return posed;
+  };
+  stacked.push(hasItsOwnEntry);
   window.__stackedSurfaces = stackedSurfaces;
   document.addEventListener("click", (event) => {
-    if (!isOpen()) return;
+    if (!hasItsOwnEntry()) return;
     if ((history.state as { layer?: unknown } | null)?.layer !== undefined) return;
     const control = pageChanger(event.target);
     if (control === null) return;
@@ -101,4 +121,10 @@ export function giveTheEntryBackFirst(isOpen: () => boolean): void {
     }, { once: true });
     history.back();
   }, true);
+  // WHAT THE SURFACE CALLS WHEN IT HAS PUSHED. Handed back rather than
+  // exported, so there is no way to claim an entry for a surface that never
+  // registered one.
+  return () => {
+    posed = true;
+  };
 }

@@ -30,6 +30,10 @@ function openTopic(rubric: string): void {
       window.__navigationState?.() ?? null,
       window.__address.compose(window.__store.read().state),
     );
+    // Only when it really pushed — see the note in `lib/stacked-surface.ts`:
+    // this page's rubric is addressable, so a cold load opens one with no entry
+    // of its own.
+    entryPosed();
   } catch (error) {
     console.error("entering a maintenance rubric: navigation write failed",
                   error);
@@ -41,5 +45,5 @@ function openTopic(rubric: string): void {
 registerVerb("maintopic", openTopic);
 /* And the entry is given back before the page changes — see the note in
    `lib/stacked-surface.ts`; the rubric this page draws has the same shape. */
-giveTheEntryBackFirst(
+const entryPosed = giveTheEntryBackFirst(
   () => window.__store.read().state.maintTopic != null);

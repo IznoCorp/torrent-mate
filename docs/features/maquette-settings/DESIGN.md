@@ -88,6 +88,35 @@ believe one is the exception.
   no service stops. That is the contract's own shape (D7), and it is what makes B-300's
   confirmation walkable at all.
 
+## Two rules RE-AIMED, and the property each holds is unchanged
+
+Said out loud in each rule's own comment, because a test quietly re-pointed is a guard quietly lost.
+
+- `harness/settings.py` — « an edited setting's panel says the EDIT as its current value ». The
+  property is the two lines being DISTINCT and side by side; only what they are CALLED moved, which
+  is B-341's dictated repair. Left on « Valeur actuelle » / « Valeur écrite » the hold looks for two
+  labels that no longer exist and falls on a repair.
+- `harness/url_state.py` R69 hold 10 — « the topic entry puts the topic back ». The property is the
+  entry carrying the dial; what moved is how far FORWARD that entry is, because a rubric is an
+  arrival now. The walk steps forward until it reaches it rather than counting, so the ladder's
+  shape is not written down in a second place.
+- `harness/page_host.py` — four sites, two set-up and two reading, moved from the engine's
+  `SETTINGS_STATE.redemarrage` to the layer's answer (B-343).
+
+## One defect the full suite found in this wave's own repair, and it is the one worth reading
+
+**« The surface is open » is not « the surface pushed an entry », and the first build of
+`lib/stacked-surface.ts` assumed it was.** Both are false in two cases this repository meets
+constantly: a COLD LOAD of a rubric's own address opens one with nothing pushed, and a rule that
+DRIVES the state opens one without touching history at all. In either, the listener popped an entry
+belonging to something else — from a cold link, that is the reader leaving the application on a tab
+tap. `page_host.py`'s « a real tap on the crossref lands on Acquisition » caught it, on a walk that
+had driven the state twenty lines earlier; nothing this wave wrote would have.
+
+The surface says when it has really pushed, and the flag clears itself the moment the surface is no
+longer open — read lazily, so nothing has to remember to clear it. `window.__stackedSurfaces()`
+counts the same flag, so the engine's rewind is not fed a phantom entry either.
+
 ## One defect this wave's own rule found in this wave's own repair
 
 The rubric verb's first build closed the rubric on ANY pop. A panel is addressable and lays its own
