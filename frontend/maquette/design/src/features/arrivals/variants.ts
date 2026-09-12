@@ -53,3 +53,22 @@ export const pilotGauge = cva("gauge h-[4px] rounded-full bg-border overflow-hid
 export const pilotActions = cva(
   "pacts grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4",
 );
+
+/**
+ * A resolution candidate's card, which IS the button that picks it.
+ *
+ * THE BUTTON'S OWN DEFAULTS ARE UNDONE HERE, because this prototype carries no
+ * preflight: a `<button>` arrives with the browser's small control font, its
+ * control text colour, a padding and centred text, while the card's box comes
+ * from `.card` in the residue. Only what makes a button read as the card it was
+ * is written here.
+ *
+ * IT DOES NOT ANCHOR ON `.card`, and that is deliberate: an anchor claims the
+ * residue rule of the same name, and `residue.py` then compares the pair the way
+ * it compares a conversion — this factory converts nothing, it sits beside a rule
+ * three cards still wear. The class stays on the element, where it always was.
+ */
+export const candidateCard = cva("text-left p-0 [font:inherit] text-inherit");
+
+/** The mark at a candidate card's right edge, in the tone of the act it marks. */
+export const candidatePick = cva("text-primary");

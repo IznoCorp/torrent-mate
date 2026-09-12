@@ -841,6 +841,7 @@ def scale_arm() -> int:
 
 from csstokens_login import login_arm  # noqa: E402
 from csstokens_motion import motion_classes_arm, off_curve  # noqa: E402
+from csstokens_ranks import ranks_arm  # noqa: E402
 
 
 
@@ -852,10 +853,13 @@ def main() -> int:
     """
     parser = argparse.ArgumentParser(
         description="Holds the maquette's application CSS to the tokens it can resolve, "
-        "the steps it declares, and the chunks the sign-in page is composed from."
+        "the steps it declares, the chunks the sign-in page is composed from, and the "
+        "frame's ranked list against every z-index the maquette declares."
     )
     parser.add_argument(
-        "--arm", choices=("scale", "login", "motion-classes"), help="run one arm alone; the default runs all of them"
+        "--arm",
+        choices=("scale", "login", "motion-classes", "ranks"),
+        help="run one arm alone; the default runs all of them",
     )
     args = parser.parse_args()
 
@@ -865,9 +869,11 @@ def main() -> int:
         return login_arm()
     if args.arm == "motion-classes":
         return motion_classes_arm()
+    if args.arm == "ranks":
+        return ranks_arm()
     # Every arm runs, even after one has failed: a reader who has to fix and
     # re-run to discover the second finding fixes one thing per round trip.
-    verdicts = [token_arm(), scale_arm(), login_arm(), motion_classes_arm()]
+    verdicts = [token_arm(), scale_arm(), login_arm(), motion_classes_arm(), ranks_arm()]
     return 1 if any(verdicts) else 0
 
 

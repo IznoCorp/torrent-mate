@@ -21,6 +21,12 @@ could quietly stop being true:
     job is to name what is on disk;
   · and answering takes the folder out of the queue, on BOTH lists it appears
     on. « À traiter » on the acquisition side used to keep it forever.
+
+RE-AIMED WITH B-393: the pick is the candidate card itself, so « one can pick a
+candidate » reads `data-resolve` on each card instead of counting the sentence
+« C'est celui-ci » on a pill that no longer exists. The queue hold's `.click()`
+on the first `[data-resolve]` stays true of the card; a finger's proof of the
+tap is R161's (`resolution_card.py`).
 """
 import asyncio
 
@@ -57,6 +63,7 @@ SCREEN = """() => {
     titleMono: !!s.querySelector('[data-part="heading"] code'),
     candidates: candidates.map(c => ({
       title: (c.querySelector('[data-part="card/title"]') || {}).textContent || '',
+      resolve: c.dataset.resolve || null,
       confidence: (c.querySelector('[data-part="chip"]') || {}).textContent || null,
       posterButton: (c.querySelector('[data-part="card/poster"]') || {}).tagName === 'BUTTON',
       panel: (c.querySelector('[data-part="card/body"]') || {}).dataset?.panel || null,
@@ -132,8 +139,10 @@ async def main():
               str([c["title"] for c in with_["candidates"] if c["noPoster"]]))
 
         # ── the three ways out ────────────────────────────────────────────
+        # THE CARD IS THE PICK: each candidate card carries its own title in
+        # `data-resolve`, where this hold used to count the pill's sentence.
         check("one can pick a candidate",
-              sum(1 for x in with_["exits"] if "celui-ci" in x) == 5)
+              sum(1 for c in with_["candidates"] if c["resolve"] == c["title"]) == 5)
         check("one can search by hand",
               any("manuellement" in x for x in with_["exits"]))
         check("one can leave it as it is",

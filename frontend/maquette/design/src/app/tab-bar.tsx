@@ -22,7 +22,7 @@ import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
 import { publishBarHeight } from "./bar-height";
-import { NAVIGATION } from "./navigation";
+import { NAVIGATION, rowFor } from "./navigation";
 import { Icon } from "../ui/icon";
 import { useServerStateVersion } from "../lib/query-client";
 import { useUiState } from "../lib/store-access";
@@ -39,7 +39,12 @@ export function TabBar(): ReactElement {
   const { t } = useTranslation();
   const state = useUiState();
   const current = state.page as string | undefined;
-  const selecting = state.selMode === true;
+  // HIDDEN ONLY WHERE SOMETHING TAKES ITS PLACE, which the table says per page
+  // — the same shape `app/action-button.tsx` reads its own condition with. It
+  // used to read the selection alone, so a selection made in the library hid
+  // the bar on every other page and took the way back with it (B-395).
+  const selecting =
+    state.selMode === true && rowFor(current)?.slotReplacesTabBar === true;
   // SUBSCRIBED TO SERVER STATE, because the badges are derived from it. A
   // synchronous read is not a subscription: without this the bar re-rendered on
   // store writes alone and a badge showed the previous scenario's count until

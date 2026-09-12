@@ -50,6 +50,7 @@ export function Markup({
   hidden?: boolean;
   style?: React.CSSProperties;
   title?: string;
+  "aria-hidden"?: "true";
   [attribute: `data-${string}`]: string | undefined;
 }): ReactElement {
   return createElement(tag, { ...rest, dangerouslySetInnerHTML: useMarkup(html) });

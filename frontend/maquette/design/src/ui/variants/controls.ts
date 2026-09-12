@@ -222,6 +222,36 @@ export const searchClear = cva(
     "[border:0] rounded-full bg-transparent text-muted-foreground",
 );
 
+/**
+ * A button that is an ICON, at the one size the system offers.
+ *
+ * THE SAME CLOSED SET AS `actionButton`, for the same ruling: the interface's
+ * buttons are components that do not accept every size. One branch today,
+ * `standard`: a 32 px box carrying a 16 px drawing, `searchClear`'s figure —
+ * the nearest icon control a finger already uses. A size outside the set is a
+ * compile error at the call site.
+ *
+ * THE DRAWING'S SIZE IS PART OF THE SIZE, as in `actionButton`'s `footer`: an
+ * `<svg>` given no size takes the replaced-element default and is stretched by
+ * the box, which is how a button came out 245 px tall.
+ *
+ * Its first wearer is a MARK rather than a control — the check at a resolution
+ * candidate's right edge, inside the card that is the button — so it sets no
+ * colour: the tone is its wearer's.
+ */
+export const iconButton = cva(
+  "inline-grid flex-none place-items-center rounded-full [border:0] bg-transparent p-0",
+  {
+    variants: {
+      size: {
+        standard:
+          "w-[32px] h-[32px] [&>svg]:w-[16px] [&>svg]:h-[16px] [&>svg]:flex-none",
+      },
+    },
+    defaultVariants: { size: "standard" },
+  },
+);
+
 /** The filter zone under the tabs: the search field, the pills, the switch. */
 export const filterZone = cva("filters pt-0 px-7 pb-4 border-b border-border bg-background");
 

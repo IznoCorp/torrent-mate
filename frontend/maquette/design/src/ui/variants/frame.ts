@@ -23,17 +23,27 @@ import { cva } from "../cva";
    with a pointer back to this list — Tailwind cannot read a constant into a
    class name, so the list is the record and the variants are the spelling.
 
-     30  the action button        `addAction`
+     30  the action button        `addAction` (ui/variants/frame.ts)
+     40  the shell's top bar `.topbar` (index.html) · the settings save bar `saveBar` (features/settings/variants.ts)
      45  a screen                `screen` (ui/variants/layout.ts)
      46  the scrim               `sheetScrim` (ui/variants/layout.ts)
-     50  the tab bar             `tabBar`
-     51  the bottom slot's bar   `selectionBar`
+     50  the tab bar             `tabBar` (ui/variants/frame.ts)
+     51  the bottom slot's bar   `selectionBar` (ui/variants/frame.ts)
      52  the bottom sheet        `bottomSheet` (ui/variants/layout.ts)
-     55  the drawer              `drawer`
-     56  the confirmation        `dialog`
-     57  the message             `messageHost`
-     60  the popover, the harness panel, the sign-in gate
-     70  the splash
+     53  the harness's buttons   `.hbtn` (styles/harness.css)
+     55  the drawer `drawer` (ui/variants/frame.ts) · the install proposal `.installbar` (index.html)
+     56  the confirmation        `dialog` (ui/variants/frame.ts)
+     57  the message             `messageHost` (ui/variants/frame.ts)
+     60  the popover `popover` (ui/variants/frame.ts) · the skip link `.skip-link` (styles/base.css) · the harness's opened panel `.hpanel` (styles/legacy.css) · the sign-in gate `.loginscreen` (styles/legacy.css)
+     70  the splash `.splash` (styles/legacy.css) · the harness's desktop switch `.desktop-switch` (styles/harness.css)
+
+   EVERY ENTRY NAMES ITS FILE, which is what makes the claim above readable by something other than a
+   person: `scripts/csstokens_ranks.py` parses these lines against every `z-index` and `z-` utility the
+   maquette declares — stylesheets, sources, the shell's markup — and refuses BOTH a rank this list does
+   not name and a rank it names that nothing declares any more. The claim was false for six ranks a
+   finger meets, two of them (`.topbar`, `.installbar`) in `index.html` and in no finding at all: the arm
+   found those on its first run. A stacking detail local to one box is not a frame rank; it is named in
+   that arm's own table, with its reason.
 
    THE MESSAGE IS THE ANSWER TO A VERB, so it ranks above every layer a verb is
    pressed from: a screen, the bottom slot's bar, the bottom sheet, the drawer
@@ -46,6 +56,13 @@ import { cva } from "../cva";
    which cover everything by definition. `app/focus.ts` leaves the message out
    of the background it marks `inert`, for the same reason: a message a finger
    cannot close is a control that does nothing.
+
+   THE HARNESS HAS TWO ENTRIES, and it used to have one — « the harness panel » at 60, while
+   `styles/harness.css` declared the buttons at 70, the splash's rank. So a message drawn along the top
+   of the frame, exactly where those buttons sit, was painted UNDER chrome that is in no production
+   build (B-394). The buttons are 53: above the surfaces a verb is pressed from, under the drawer, the
+   confirmation and the message. The opened panel stays 60, because it is the instrument the prototype
+   is driven with and a message over it would hide the control one is reaching for.
 
    AND THE MESSAGE HAS TWO POSITIONS FOR ITS ONE RANK. A rank decides what is
    painted where two layers meet; it cannot keep them from meeting. The sheet

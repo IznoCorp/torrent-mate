@@ -49,7 +49,15 @@ export function SelectionBar(): ReactElement | null {
   const selecting = useStoreContent(
     (content) => content.state.selMode === true,
   );
-  if (!selecting) return null;
+  // ON ITS OWN PAGE, AND THE SELECTION SURVIVES LEAVING IT. The bar said
+  // « N sélectionnés · Annuler · Supprimer » over Acquisition, a page holding no
+  // selection and offering no deletion (B-395). What is conditioned here is the
+  // DRAWING: nothing is cleared by navigating, so coming back finds the same
+  // titles ticked, and « Annuler » stays the only thing that empties them.
+  const pageIsLibrary = useStoreContent(
+    (content) => content.state.page === "lib",
+  );
+  if (!selecting || !pageIsLibrary) return null;
 
   return (
     <div

@@ -66,6 +66,18 @@ export type NavigationRow = {
   group?: NavigationGroup;
   /** Whether it sits in the bottom bar. */
   inBar: boolean;
+  /**
+   * Whether this page's bottom slot REPLACES the tab bar rather than sitting
+   * above it.
+   *
+   * The library's selection bar takes the bar's place while a selection is
+   * being made, which is right there and wrong everywhere else: the bar hid
+   * wherever the operator went, so a selection carried off its own page left
+   * him with neither a tab bar nor a bar belonging to what he was looking at
+   * (B-395). The fact lives in this table because it is a property of a PAGE,
+   * and reading it here is what keeps the frame from naming one.
+   */
+  slotReplacesTabBar?: boolean;
   /** Whether it offers the frame's floating action button. */
   actionButton?: boolean;
   /**
@@ -110,6 +122,7 @@ export const NAVIGATION: readonly NavigationRow[] = [
     icon: icons.library,
     group: "supervision",
     inBar: true,
+    slotReplacesTabBar: true,
   },
   {
     id: "arr",

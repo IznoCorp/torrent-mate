@@ -132,3 +132,7 @@ and why nothing will warn tomorrow.
 renamed properties, pre-formatted fields) and `frontend-backend-demands-stream.md` § 1–7 (the
 event's subject, a progress channel, the §18/§19 events, a service that stopped answering, the
 ownership index, a richer hello). This file adds the decisions those registers cannot express.
+
+## 9. A resolve has an inverse — DOIT-7
+
+- A resolve needs an inverse, « remettre en attente »: the maquette answers a candidate picked on the resolution card with a message carrying « Annuler », and today holds the send back for the undo window because `continueStagedMedia` has no operation that puts a settled folder back in the queue (B-393).
