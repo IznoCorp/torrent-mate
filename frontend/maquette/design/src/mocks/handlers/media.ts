@@ -149,6 +149,54 @@ function refreshedAt(titles: string[]): string | null {
   return null;
 }
 
+/**
+ * How many episodes of each season have AIRED at the layer's frozen clock.
+ *
+ * DERIVED FROM THE CATALOGUE'S OWN EPISODE DATES, never typed a second time. A
+ * « manquant » is an episode that has aired and is not held, so the denominator
+ * of a season row is this count and not the catalogue's total, which counts the
+ * announced episodes too: « Saison 3 · 6/10 · 4 manquants » on a season of which
+ * seven had aired said three episodes were missing that nobody could have. ONE
+ * derivation, here, so the sheet and the follow panel cannot answer two numbers.
+ *
+ * A season the catalogue lists with no episode and no list has aired nothing. A
+ * season with a total and no list is UNKNOWN, and says null rather than guessing.
+ * A title with no sheet answers the counts its season family carries, which is
+ * the catalogue the answer falls back to beside it.
+ *
+ * @param sheet The sheet under whichever title holds it, if any.
+ * @param counted The season family's entries for the same identity, if any.
+ * @returns The aired count, keyed by season number.
+ */
+function airedBySeason(
+  sheet: Record<string, unknown> | undefined,
+  counted: unknown,
+): Record<string, number | null> {
+  const aired: Record<string, number | null> = {};
+  const today = scenario().now;
+  const catalogue = sheet?.seasons as
+    | { number: number; episodes?: number | null }[]
+    | undefined;
+  if (catalogue !== undefined) {
+    const episodes = (sheet?.episodes ?? {}) as Record<string, { airDate?: string }[]>;
+    for (const season of catalogue) {
+      const seasonEpisodes = episodes[String(season.number)];
+      if (seasonEpisodes !== undefined) {
+        aired[String(season.number)] = seasonEpisodes.filter(
+          (episode) => Boolean(episode.airDate) && String(episode.airDate) <= today,
+        ).length;
+      } else {
+        aired[String(season.number)] = season.episodes === 0 ? 0 : null;
+      }
+    }
+    return aired;
+  }
+  for (const season of (counted ?? []) as { season: number; aired: number }[]) {
+    aired[String(season.season)] = season.aired;
+  }
+  return aired;
+}
+
 /** Every route this subject answers. */
 export function mediaRoutes(): MockRoute[] {
   return [
@@ -173,10 +221,12 @@ export function mediaRoutes(): MockRoute[] {
         const found = underAnyTitle(MEDIA_SHEETS as ByTitle, titles) as
           | Record<string, unknown>
           | undefined;
-        const catalogue = found?.seasons ?? underAnyTitle(SEASONS as ByTitle, titles) ?? [];
+        const counted = underAnyTitle(SEASONS as ByTitle, titles);
+        const catalogue = found?.seasons ?? counted ?? [];
         return {
           seasons: catalogue,
           owned: underAnyTitle(OWNED_EPISODES as ByTitle, titles) ?? {},
+          aired: airedBySeason(found, counted),
         };
       },
     ),

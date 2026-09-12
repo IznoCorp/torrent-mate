@@ -1667,6 +1667,10 @@ export interface operations {
                         owned: {
                             [key: string]: number[];
                         };
+                        /** @description how many episodes of each season have AIRED at the server's today, keyed by season number — derived from the catalogue's own episode air dates, never from its total, which counts announced episodes too. A « manquant » is an episode that has aired and is not held, so this is the denominator of every season row. Null when the catalogue gives a total and no episode dates to count. */
+                        aired: {
+                            [key: string]: number | null;
+                        };
                     };
                 };
             };

@@ -15,9 +15,9 @@ travel together.
 | Entry | What was wrong | What closes it | Rule |
 | --- | --- | --- | --- |
 | B-379 | the layer answered 200 whatever the contract declared | the declared success code, read off `contract/openapi.json` | R170 |
-| B-383 | « Re-scraper les métadonnées » (follow panel AND media sheet) and « Lancer à blanc » said a sentence and sent nothing | each verb calls its operation; the mock moves the state it answers about | R171, R172 |
-| B-396 | one queued folder offered candidates, so the undo window's riskiest path had no finger proof | a second ambiguous folder in the seed, and a walk by a real touch | R173 |
-| B-380 | the sheet counted the catalogue's total as « aired » | aired is DERIVED from the catalogue's own episode dates; `seasons.json` corrected on five lines | R174 |
+| B-383 | « Re-scraper les métadonnées » (follow panel AND media sheet) and « Lancer à blanc » said a sentence and sent nothing | each verb calls its operation; the mock moves the state it answers about | R171 |
+| B-396 | one queued folder offered candidates, so the undo window's riskiest path had no finger proof | a second ambiguous folder in the seed, and a walk by a real touch | R172 |
+| B-380 | the sheet counted the catalogue's total as « aired » | aired is DERIVED from the catalogue's own episode dates; the season family and the two families that sum it corrected towards it | R173 |
 
 ---
 
@@ -270,3 +270,136 @@ writing a contract instead of holding one.
 **The run**: 16 holds EXECUTED, no violation.
 
 ---
+
+## 4. B-380 — one season family
+
+### The rulings
+
+The operator, 2026-09-11, quoted in B-380's body: « Manquant : les épisodes diffusés et non possédés !
+S'il n'existe pas (pas encore diffusé) alors je ne peux pas les avoir donc ils ne manquent pas encore,
+mais ils sont là pour informer l'utilisateur de sorties à venir d'épisodes. »
+
+The orchestrator, 2026-09-12, binding on this wave: AIRED is DERIVED from the catalogue's own episode
+`airDate`s at the referential's TODAY (2026-08-10) — no count typed a second time; the season family
+is corrected TOWARDS what really aired, at the SOURCE (`engine/legacy.js`) and then
+`build-mock-seeds.py --write`, never in a generated seed; Silo S3's hole is kept by a DATE only if
+R128 still needs it (it does, below); an owned count above what aired is a trap to read (below);
+the two families that SUM the season family are aligned in the same movement.
+
+### The defect, measured
+
+Over every season both families know, aired-by-dates against `seasons.json`'s `aired`:
+
+```
+$ python3 measure_aired.py        # scratchpad; counts sheet episodes with airDate <= 2026-08-10
+agree=39 disagree=5 without_dates=0
+  American Dad! S16: seasons.json aired=24 owned=24 | aired by dates=20 | catalogue total=20
+  Silo S3: seasons.json aired=7 owned=6 | aired by dates=6 | catalogue total=10
+  Les Animaniacs S1: seasons.json aired=134 owned=93 | aired by dates=172 | catalogue total=172
+  Les Animaniacs S2: seasons.json aired=15 owned=11 | aired by dates=12 | catalogue total=12
+  Les Animaniacs S3: seasons.json aired=26 owned=13 | aired by dates=46 | catalogue total=46
+```
+
+**Eight of the register's thirteen « disagreements » were not data**: Silo S3's 10, Furious S1's 8,
+President Curtis S1's 10, Strange New Worlds S4's 10, Ted Lasso S4's 10 and American Dad! S22's 13
+are catalogue TOTALS, announced episodes included, read in the place of `seasons.json`'s `aired` —
+which agrees with the dates on every one of them. The defect was the sheet's DENOMINATOR:
+`features/media/queries.ts` read `season.ep`, the catalogue's total, as aired.
+
+### The seeds — corrected at the source
+
+| Family (source) | Line | Before | After | Why |
+| --- | --- | --- | --- | --- |
+| `SEASONS` (`legacy.js`) | American Dad! S16 | 24 aired / 24 owned | **20 / 20** | aired by dates; owned by the sheet's derivation, below |
+| `SEASONS` | Les Animaniacs S1 | 134 / 93 | **172** / 93 | aired by dates |
+| `SEASONS` | Les Animaniacs S2 | 15 / 11 | **12 / 4** | aired by dates; owned by the sheet's derivation, below |
+| `SEASONS` | Les Animaniacs S3 | 26 / 13 | **46** / 13 | aired by dates |
+| `SHEETS_RAW` (`legacy.js`), under both `Silo (2023)` and `Silo` | S3E7 « Radio » | airs 2026-08-13 | **2026-08-06** | keeps Silo S3's hole, below |
+| `INCOMPLETE` (`legacy.js`) | Les Animaniacs | 117 / 175 | **110 / 230** | the season family's sums |
+| `follows.json` (converted — the seed is its own source) | American Dad! | 403 / 403 | **399 / 399** | the season family's sums |
+
+Every number is replaced in place; no line is added to `legacy.js`, whose ledger reads
+**31 460 → 31 460**. `build-mock-seeds.py --write` regenerated `seasons.json`, `media-sheets.json`
+and `incomplete-shows.json`; `check-mock-seeds.py` is clean. After the correction the same command
+reads **44 agree / 0 disagree / 0 without dates**.
+
+**Silo S3's hole is kept by its seventh episode's DATE, and the measurement decides it.** After the
+correction the seasons with a hole are Les aventures de Tintin S1–S3 and Les Animaniacs S1–S3 — every
+one of them on a show NOBODY FOLLOWS — and R128 (a season with a hole at rest), R125, R124, R138 and
+R159 all take their subject from `window.SEASONS` filtered on the FOLLOWS. Corrected by its count,
+Silo S3 would read 6/6 and all five would lose their only subject. So `seasons.json` keeps 7 aired / 6
+owned, and the catalogue's seventh episode moves before TODAY so that 7 is what the dates say. The
+sentence is written beside the line in `legacy.js`.
+
+**The trap: owned numbers above what aired.** American Dad! S16's library holds episode numbers
+1–24 where the catalogue lists 20; Les Animaniacs S2 holds `[1, 4, 7, 9, 76–82]` where the catalogue
+lists 12. These are not miscounts: they are two NUMBERING ORDERS — the library's and the catalogue
+provider's — meeting at one season. `seasonsHeld` already counts only the numbers at or below what
+aired (« a season of which ten have aired cannot be eleven-tenths complete »), so the owned count of
+the season family is set to that same derivation, and the sheet and the follow panel agree BY
+CONSTRUCTION. « 24/20 » was refused: it is not a correction. What the correction does NOT do is make
+the four and seven files beyond the catalogue visible — they are counted and drawn nowhere — and that
+is filed as **B-475**, open, a product question about numbering orders the operator rules on.
+
+**The class, and its members now.** B-088's class — two families keyed the same way are not the same
+answer — has two more members beside B-380, found while writing R173 and filed OPEN, owner « the wave
+that next touches the seeds' identity »: **B-476** (« Dexter: Resurrection » is followed under a title
+no sheet carries, and its follow's totals 96/96 are not its seasons' 10/10) and **B-477** (House of the
+Dragon, Ted Lasso and Strange New Worlds are followed « à jour » while their sheets say `owned: false`,
+the holdings keyed under a year-suffixed title the sheet's identity does not name, or absent).
+Repairing B-476 here would move « Suivis » named states, which is B-369's cost and not B-380's subject.
+
+### The layer, the contract and the client — one derivation
+
+- **`mocks/handlers/media.ts`**: `readMediaSeasons` answers `aired: {"<season>": n}` beside its `owned`,
+  derived by `airedBySeason` from the sheet's episode dates against the layer's frozen clock
+  (`scenario().now`). A season the catalogue lists with no episode and no list has aired 0; one with a
+  total and no list is null rather than a guess (measured: none today); a title with no sheet answers
+  its season family's counts.
+- **`contract/openapi.json`**: the field is declared, required, with its derivation in its description;
+  the operation keeps its `x-seeded-from`. Types regenerated; `compare-contracts.py --write` leaves the
+  demand register unchanged — a response field is not an operation.
+- **`features/media/queries.ts`**: `MediaSeasons.aired`, and `seasonsHeld` reads it — the ONE line the
+  defect lived in. `season-list.tsx`'s catalogue branch (a sheet not owned) reads the same answer
+  instead of `season.ep`.
+- **« à venir » (c)**: a season row draws `[data-part="season/upcoming"]` — « 3 à venir · dès le 20 août
+  2026 » — from `announcedAfter`, the dates after TODAY; a season that aired nothing draws only « dès le
+  … », and nothing when its row already prints its date. It offers nothing: `seasonUpcoming` already
+  gates the act. Its look is `upcomingMark` — the muted tone the air date wears, NOT `.miss`'s: an
+  announced episode is not a shortfall. Copy in `i18n/fr.json` (`upcomingEpisodes`, `upcomingFrom`).
+  `season-list.tsx` 372 → 383 non-blank (ceiling 400).
+
+### R160 re-aimed, and said out loud
+
+R160 (`followed_sheet_act.py`) held « the sheet offers the season act » on Silo, Furious and President
+Curtis. Furious and President Curtis hold everything that has aired: their sheets offered the act
+ONLY because they divided by the catalogue's total — « 5/8 · 3 manquants » is what put an act under a
+finger. With the denominator repaired the act is gone, which is right. The hold now reads the season
+family first, and where no aired episode is missing it holds the OPPOSITE — the sheet offers nothing;
+the walk under a finger stays on Silo, the subject with a hole. What is lost, and said: R160 no longer
+presses an act that answers zero; with a correct denominator no finger reaches one on this surface.
+
+### The rule — R173 (`harness/season_family.py`), full suite
+
+| Hold | What it reads |
+| --- | --- |
+| the families | on EVERY followed show the season family holds, through the layer's own answers (`fetch` is the seam): the follow's totals are its seasons' sums; every season's aired count is the layer's derivation; where the sheet is owned, every owned count is the sheet's derivation. On every incomplete show it holds, the totals are the sums |
+| the named exclusion | « Dexter: Resurrection » STILL disagrees (B-476) — asserted, not filtered, so it falls the day B-476 is repaired |
+| the surfaces | on Silo S3, Furious S1, American Dad! S22 — the three followed seasons whose catalogue announces more than has aired, the only ones where the two denominators draw apart: the sheet and the follow panel draw the same « owned/aired » and the same « manquants », equal to the season family, and the sheet says how many are coming and from when |
+| not yet aired | « Reine rouge » S2: drawn « à venir » with its date, no act, nothing missing. NOT « Scrubs », whose unaired S2 holds episodes: its sheet is the revival's and its owned numbers the original show's |
+| aired long ago | « Les Animaniacs » S5 (1997) keeps its act, all 23 missing |
+
+**Seen RED first**, on the private build with the seeds and the layer corrected and the client not:
+48 holds EXECUTED, **10 violations**, all on the sheet — « 6/10 », « 5/8 », « 11/13 », their
+« manquants », no announced information, and « Reine rouge »'s row. **Green** after the client: 48 holds,
+no violation.
+
+### Named states whose drawn numbers move, and the only divergences accepted (D8)
+
+Predicted from the edits and measured against every named state that opens a sheet or a panel (the
+other five sheet states — The Venture Bros, Superman, Marjorie Prime, Broadchurch, Widow's Bay — have no
+row that changes): **`mediasheet-series`** (Silo S3 « 6/7 · 1 manquant · 3 à venir », its seventh
+episode aired), **`followsheet-complete`** (American Dad! S16 « 20/20 »), **`acq-follows-list`**,
+**`acq-follows-group`**, **`acq-follows-grid`** (American Dad!'s totals, summed from its seasons), and
+**`lib-incomplete`** (Les Animaniacs « 110/230 »). Any oracle divergence elsewhere is a STOP.
+

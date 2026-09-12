@@ -447,6 +447,9 @@ when the defect comes back.
 | B-472 | `scripts/heavy.sh` takes its lock with a polled `mkdir` and no queue, so among several waves waiting an old demander has no precedence over a new one: with four agents on the machine the lock, not the work, sets a wave's pace | by the mock-layer micro-wave | `open` |
 | B-473 | `lib/verbs.ts` exports `registeredVerbNames` « for the rule that reads the seam from outside » and NOTHING calls it — not the shell, not a rule, not a test: a seam nothing reaches is a seam that does not exist, and the first rule that wanted it found nothing to ask | by the mock-layer micro-wave | `open` |
 | B-474 | A folder panel's « Résoudre → » carries `data-resolve="<folder>"`, and the engine reads that attribute as the CHOSEN CANDIDATE for `currentState().resolveTarget` — so the act resolves whatever resolution screen was last opened, naming the folder as the pick: measured, « Lucky » was resolved as « S.W.A.T. » by a finger on S.W.A.T.'s own panel | by the mock-layer micro-wave | `open` |
+| B-475 | The library holds episode numbers the catalogue does not list — American Dad! S16 holds 1–24 where the catalogue lists 20, Les Animaniacs S2 holds `[1, 4, 7, 9, 76–82]` where it lists 12 — and they are counted and drawn NOWHERE: every surface counts the numbers at or below what aired, so four and seven held files vanish | the operator's ruling on numbering orders, then the wave that draws it | `open` |
+| B-476 | « Dexter: Resurrection » is followed under a title no sheet carries (the sheet is « Dexter Resurrection », and its holdings are keyed there), and the follow's totals 96/96 are not its seasons' sums 10/10: one show, three families, three answers | the wave that next touches the seeds' identity | `open` |
+| B-477 | House of the Dragon, Ted Lasso and Strange New Worlds are followed « à jour » (26/26, 35/35, 33/33) while their media sheets answer `owned: false` — the holdings are keyed under « House of the Dragon (2022) » and « Ted Lasso (2020) », titles the sheet's identity does not name, or absent — so the follow says held and the sheet says not in the library | the wave that next touches the seeds' identity | `open` |
 
 **B-470 — the media sheet's own « Re-scraper les métadonnées » said a sentence and sent nothing.**
 `features/media/media-details.tsx:105` drew the sheet's re-scrape as
@@ -549,6 +552,36 @@ named folder's arbitration today**; R172 navigates through
 engine's delegation branches, and D5 says the engine only shrinks. It closes
 with the surface that kills that branch, or by an entry of its own. Status
 `open`.
+
+**B-475 — held episodes the catalogue does not list are counted nowhere.**
+Found by the mock-layer micro-wave while correcting B-380's season family. American Dad! S16: the
+library's holdings are episode numbers 1–24, the sheet's catalogue lists 20 episodes and all 20 aired
+by 2026-08-10. Les Animaniacs S2: holdings `[1, 4, 7, 9, 76, 77, 78, 79, 80, 81, 82]`, catalogue 12.
+**These are two NUMBERING ORDERS meeting at one season**, the library's and the catalogue provider's,
+not miscounts. `seasonsHeld` counts only the numbers at or below what aired, and B-380's correction
+set the season family's owned count to that same derivation (20/20 and 4/12) so the sheet and the
+follow panel agree — which is right for « manquant », and leaves the four and seven files beyond the
+catalogue drawn on no surface and counted in no total. Whether they are shown, re-numbered, or
+reported as a mismatch is a product question about numbering orders, and it is the operator's.
+
+**B-476 — one followed show, three families, three answers.**
+Found by R173 (the mock-layer micro-wave). The follow is recorded as « Dexter: Resurrection » with
+totals 96/96; the season family holds `[1, 10, 10]` under that title; no media sheet carries it — the
+sheet is « Dexter Resurrection », without the colon, and the owned episodes are keyed there too. So
+the follow's totals are not its seasons' sums, and the title the follow and the seasons share is not
+the one the sheet and the holdings share. B-088's class. **Not repaired by the micro-wave**: repairing
+it moves the « Suivis » named states, which is B-369's cost and not B-380's subject. R173 holds the
+disagreement as a NAMED exclusion that asserts it still holds, so the day this is repaired R173 falls
+and the exclusion leaves with it.
+
+**B-477 — followed as held, sheet says not in the library.**
+Found by R173 (the mock-layer micro-wave). House of the Dragon (26/26), Ted Lasso (35/35) and Star
+Trek: Strange New Worlds (33/33) are followed « à jour », and their media sheets answer `owned: false`.
+The owned episodes are keyed under « House of the Dragon (2022) » and « Ted Lasso (2020) » — titles no
+sheet key shares with those identities — and Strange New Worlds has none at all, so
+`readMediaSeasons` answers no holdings for any of the three. Latent on screen today: a sheet not owned
+draws its catalogue without a fraction, so nothing contradicts itself on the sheet — but the follow
+and the sheet state opposite facts about one show. B-088's class, beside B-380 and B-476.
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
@@ -757,6 +790,27 @@ from « Suivis », « Furious » (« 5/5 · À jour », no season act on its pan
 round three's C1, repaired by `21390f6c5`, which leaves a follow's status as it was when the season had
 nothing to get. **The offer itself stays this entry's**: the sheet still offers an act on a show with
 nothing aired to get.
+
+**Repaired by the mock-layer micro-wave** (`docs/features/maquette-mock-layer/DESIGN.md` § 4), on the
+orchestrator's rulings of 2026-09-12: AIRED is DERIVED from the catalogue's own episode dates at the
+referential's today, never typed a second time. Measured over every season both families know:
+
+| aired by the dates against `seasons.json` | seasons |
+| --- | --- |
+| agree | 39 |
+| disagree | 5 — American Dad! S16 (24 → 20), Silo S3 (7 → 6), Les Animaniacs S1 (134 → 172), S2 (15 → 12), S3 (26 → 46) |
+| without dates | 0 |
+
+**Eight of the thirteen « disagreements » above were the DENOMINATOR read in the wrong place** — the
+catalogue's total, announced episodes included, compared to `seasons.json`'s aired — and not data. The
+season family is corrected at its source (`engine/legacy.js`, then `build-mock-seeds.py --write`) on
+four lines; Silo S3 keeps its hole by its seventh episode's DATE, because after the correction every
+other hole sits on a show nobody follows and R128, R125, R124, R138 and R159 read the followed; owned
+counts above what aired are set to the sheet's own derivation (B-475); `INCOMPLETE` and the follows'
+totals, which are the family's sums, move with it. `readMediaSeasons` answers the derived `aired`, the
+sheet reads it, and an announced episode is drawn « N à venir · dès le … » with no act. R173
+(`harness/season_family.py`) holds the families and the two surfaces. The fixture-identity class this
+entry belongs to now has **B-476** and **B-477** beside it.
 
 **B-381 — a message said while a layer is open is drawn under that layer.**
 Found by L21's increment 7, the on-screen confirmation of the season grab. On L21's head `d65679c0f`

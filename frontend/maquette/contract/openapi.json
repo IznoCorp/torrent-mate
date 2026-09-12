@@ -627,9 +627,22 @@
                         }
                       },
                       "description": "owned episode numbers, keyed by season number"
+                    },
+                    "aired": {
+                      "type": "object",
+                      "properties": {},
+                      "required": [],
+                      "additionalProperties": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      },
+                      "description": "how many episodes of each season have AIRED at the server's today, keyed by season number — derived from the catalogue's own episode air dates, never from its total, which counts announced episodes too. A « manquant » is an episode that has aired and is not held, so this is the denominator of every season row. Null when the catalogue gives a total and no episode dates to count."
                     }
                   },
                   "required": [
+                    "aired",
                     "owned",
                     "seasons"
                   ]

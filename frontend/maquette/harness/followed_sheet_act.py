@@ -17,6 +17,16 @@ under the bare one. The first hold for each checks that premise on the
 referential and on the follows, so a fixture that moves says so before a finger
 does.
 
+ONLY ONE OF THEM HAS A HOLE, AND THIS RULE WAS RE-AIMED FOR IT (B-380). Furious
+and President Curtis hold every episode that has aired; their sheets offered the
+act only because they divided by the catalogue's total, announced episodes
+included, and « 5/8 · 3 manquants » is what made a finger reachable there. With
+the denominator repaired the act is gone, which is right: what has not aired is
+not missing. So the hold no longer reads « the sheet offers the act » on every
+subject. It reads the season family first, and where no aired episode is missing
+it holds the OPPOSITE — the sheet offers nothing. The walk under a finger stays
+on Silo, the one subject with a hole.
+
 WHAT IT READS, for each subject, on a freshly seeded layer, the sheet opened
 under its DATED key and the act pressed by a finger:
   1. THE OPERATION IS CALLED once, and its address names the FOLLOW — the bare
@@ -106,6 +116,11 @@ AIM = """(value)=>{
   const hit = document.elementFromPoint(x, y);
   return {found: true, x, y, reachable: !!hit && (hit === target || target.contains(hit))};}"""
 
+# WHETHER ANY AIRED EPISODE OF THE FOLLOW IS MISSING, from the data the follow
+# panel reads: a season whose owned count is below its aired count.
+HAS_A_HOLE = """(title)=>(window.SEASONS[title] || []).some(
+  ([, aired, owned]) => (owned || 0) < (aired || 0))"""
+
 # WHAT THE FOLLOW PANEL DRAWS MISSING for one season, from the data it reads.
 MISSING = """([title, season])=>{
   const row = (window.SEASONS[title] || []).find(([number]) => number === season);
@@ -159,6 +174,10 @@ async def take_a_season(page, journal, errors, bare, dated):
     await page.wait_for_timeout(SETTLED * 3)
     await page.evaluate("()=>window.__toast?.hide?.()")
     offered = await page.evaluate(OFFERED)
+    if not await page.evaluate(HAS_A_HOLE, bare):
+        journal.check(f"{where}: nothing that aired is missing, so the sheet offers no season act",
+                      not offered, str(offered))
+        return
     journal.check(f"{where}: the sheet offers the season act", bool(offered), str(offered))
     if not offered:
         return

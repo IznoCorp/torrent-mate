@@ -245,6 +245,8 @@
       "seasonAnnounced": "Saison annoncée : aucun épisode diffusé pour l'instant.",
       "episodesNotDetailed": "Épisodes non détaillés pour cette saison — la fiche le dit plutôt que d'afficher une liste vide.",
       "seasonUpcoming": "à venir",
+      "upcomingEpisodes": "{{count}} à venir · dès le {{date}}",
+      "upcomingFrom": "dès le {{date}}",
       "episodesShort": "ép.",
       "missingList": "Manquants : {{liste}}",
       "yearUnknown": "année inconnue",
