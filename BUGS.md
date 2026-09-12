@@ -437,7 +437,7 @@ when the defect comes back.
 | B-389 | The 8899 harness host does not survive the invocation that starts it when that invocation runs under `scripts/heavy.sh` — `set -m` puts the run in its own process group and the release signals the group, so `mutate.sh`, which starts no host, runs its rule against a refused port and B-273 reads the crash as « no hold fell » | by audit | `open` |
 | B-390 | No arm of `check-no-french.py` reads TEXT in `frontend/maquette/design/index.html` — the Strings and Identifiers arms are rooted on `design/src`, and the only arm that opens the file reads attributes — so « the guard does not refuse these labels » was never evidence that an arm had read them | by audit | `open` |
 | B-391 | The DECLARED HARNESS DEVIATION block calls itself « the ONLY accepted divergence in the shell » and makes FIVE declarations, of which ONE diverges — the other four restate what the app's own variants already declare, so they can witness nothing and hid a dead comparison in the rule that reads them | by audit | `open` |
-| B-392 | `features/library/page.tsx` says in the present tense that the legacy owns the selection bar « from creation to removal » — `paintSelBar()` is an empty function and React draws the bar; it is the sentence a reader uses to judge who owns that node | by audit | `open` |
+| B-392 | `features/library/page.tsx` says in the present tense that the legacy owns the selection bar « from creation to removal » — `paintSelBar()` is an empty function and React draws the bar; it is the sentence a reader uses to judge who owns that node | by audit | `fixed #585` |
 | B-393 | A resolution candidate is chosen by a full-width « C'est celui-ci » pill while the card itself answers no tap: the act takes more room than the medium it chooses, and the card a finger aims at does nothing | by the operator, 2026-09-11 | `fixed #585` |
 | B-394 | The harness's two floating buttons (the design note ⓘ and the states list ≡) are painted OVER a message shown at the top of the frame, so the sentence answering a verb pressed inside a layer is covered by chrome that is in no production build | by the operator, 2026-09-11 | `fixed #585` |
 | B-395 | The library's selection bar stays drawn on every other tab: `app/bottom-slot.tsx` renders it unconditionally and its own condition reads `selMode` alone, so « N sélectionnés · Annuler · Supprimer » sits over Acquisition — and the tab bar, hidden by that same `selMode`, leaves no way back | by the operator, 2026-09-11 | `fixed #585` |
@@ -3529,10 +3529,19 @@ owns — the desktop-frame micro-wave re-anchored the frame's five re-assertion 
 `data-part`, and round two's reader had to establish the bar's real owner from the tree because this
 comment said the opposite. A stale ownership comment costs every later reader the same detour.
 
-**Not repaired here, deliberately**: `features/` is outside this micro-wave's brief by name, and a
-one-line comment is not an exemption from a boundary. Owner: **the next wave that opens
-`features/library/page.tsx`** — the repair is to say that React draws the bar and that
-`paintSelBar` is a remaining empty seam, or to remove the seam with the sentence.
+**Not repaired by the wave that filed it, deliberately**: `features/` was outside that
+micro-wave's brief by name, and a one-line comment is not an exemption from a boundary. Owner:
+**the next wave that opens `features/library/page.tsx`** — the repair is to say that React draws
+the bar and that `paintSelBar` is a remaining empty seam, or to remove the seam with the sentence.
+
+**Repaired by the wave that made the candidate card the gesture (#585), and it was that wave's by
+right rather than by proximity**: B-395 moved the DECISION of whether the bar is drawn at all into
+that same React component — `content.state.page === "lib"` — so this wave is the one that opened
+the bar's ownership, and left the file that denies it saying so one directory away. Round one's
+reader re-read the sentence on the built head and returned UNCHANGED, adding that it had become
+misleading in a second way for exactly that reason. The comment now says React draws the bar, that
+the bar decides its own drawing since this wave, and that `paintSelBar` is an empty seam left for
+whoever empties the engine — the seam itself is not removed here: its call sites are the engine's.
 
 <sub>audit, desktop-frame micro-wave, reader B round two · `sed -n '16,20p' frontend/maquette/design/src/features/library/page.tsx` · `grep -n "function paintSelBar" frontend/maquette/design/src/engine/legacy.js` → `function paintSelBar() {}` · `grep -n "data-part=\"selection/bar\"" frontend/maquette/design/src/features/library/selection-bar.tsx`</sub>
 
