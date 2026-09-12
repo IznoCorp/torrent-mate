@@ -2841,13 +2841,32 @@ the entries it closed — and each one still ends the span before it and discard
 occurrence this wave met is reworded in place (« THE FAMILY IS B-249's »), which restores both
 spans; the other twenty-four are not read here and their cost is unmeasured.
 
-**NOT REPAIRED, and the cost is one line either way.** The arm could require the delimiter the
-convention already uses — a head is `**B-NNN —` or `**B-NNN** —`, never `**B-NNN's` — or
-`entry_bodies` could keep the LONGEST span per identifier rather than the first. Both are a line;
-choosing between them is a decision about the register's grammar and belongs to whoever owns that
-arm, not to a micro-wave that came across it. What is recorded here is that the hole is real, that
-it silently damages two entries per occurrence, and that a wave closing an entry whose body sits
-behind such a paragraph will be refused for a reason that has nothing to do with its work.
+**REPAIRED by the tooling micro-wave, and it took BOTH lines and a third.** The two candidates
+recorded above were each tried and each was wrong alone. Requiring the delimiter — a head is
+`**B-NNN —` or `**B-NNN** —` — fixes the truncation, and takes a body away from the TWELVE entries
+the register writes as a sentence rather than a title (« **B-165 is the one to keep.** »); an
+identifier with no body at all is one the closure arm never checks, which trades a loud false
+refusal for a silent false pass. Keeping the LONGEST span fixes the theft and not the truncation,
+and it picks the wrong span where a wave's recap is longer than the entry it recaps: « **B-050,
+B-059 and B-070 — three angles on one mechanism** » is 980 characters and B-050's own body is 924.
+
+**What the guard does now**, in three rules that each answer one of those readings: a PROPER head is
+an identifier — optionally followed by more, joined by `,`, ` to ` or ` and ` — then an em dash; a
+bare paragraph is a head only when NOTHING else claims the identifier it names, which is exactly the
+distinction the defect turned on (a paragraph may claim an entry that has no body of its own, never
+one that has); and where an identifier carries two heads, the one naming a SINGLE entry wins over a
+recap naming several, length deciding only between equals.
+
+**The count, re-taken on this branch with the command above**: the old regex reads **26 of 320**
+heads as second-or-later (it read 25 of 278 when this entry was written — the register has grown).
+The parser now reads **17 of 311**, and none of the seventeen damages anything: each is a wave's
+recap standing above entries whose own bodies win. **294 identifiers keep a body, exactly as many as
+before** — the repair took none away.
+
+Held by `tests/scripts/test_check_bug_register.py`: six holds, three of them driving the defect's own
+register (B-310 truncated and B-249 stolen in one text, the recap-versus-body preference) and three
+controls — both spellings of a real head, the dashless entry that must keep its body, and a corpus
+floor on the real `BUGS.md`. Seen RED against `468162dc6`: 3 failed, 3 passed.
 
 <sub>found by this wave's own `fixed #573` being refused · `grep -n "^\*\*B-249" BUGS.md` → 891 and 6954 · body length read through the arm's own `entry_bodies`, 3 065 → 9 740 characters after the rewording</sub>
 

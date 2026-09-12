@@ -39,6 +39,14 @@ WHAT THIS GUARD DOES NOT READ, and the list is the point:
     a duplicate row: it is two branches taking numbers from a register the other
     is writing. No guard on `main` can see a neighbouring branch. `--next` answers
     that, and it is a tool, not an arm.
+  - IT FINDS A BODY BY ITS HEAD, and three shapes are outside that reading
+    (B-346): a group heading that uses no em dash (« **B-024 to B-029 arrived
+    from an adversarial code review** ») starts no span and folds into the one
+    before it; a paragraph opening with an identifier is a head only when
+    nothing else claims that identifier; and the first of several entries named
+    by one recap is the only one that recap can give a body to. All three
+    LENGTHEN a span or leave one unread — never truncate one, which is the
+    direction that cost this arm two entries at once.
   - IT DOES NOT HOLD RULE 2. « Exactly one bug may hold `fixing` » is a rule of
     the file this guard does not enforce; `status-vocabulary` accepts the word
     wherever it appears.
@@ -338,14 +346,82 @@ def print_next_identifier():
     return 0
 
 
-# The identifier at the head of an entry's BODY: `**B-042 — …**`, or a heading
-# naming a range (`**B-043 to B-048 …**`). A body is where a closure is written;
-# the index row only carries the verdict.
-BODY_HEAD = re.compile(r"^\*\*([BE]-\d{3})\b", re.MULTILINE)
+# THE HEAD OF AN ENTRY'S BODY, AND THE DELIMITER IS PART OF IT (B-346).
+# `^\*\*([BE]-\d{3})\b` alone made a head of any paragraph that merely OPENS with
+# an identifier — `**B-249's FAMILY…` — which ended the entry that paragraph
+# lives in and claimed the identifier it named. Measured: B-310's body was
+# truncated from 9 740 characters to 3 065, B-249's real body was discarded
+# entirely because `entry_bodies` kept the FIRST span, and the closure arm was
+# blind to both entries at once, refusing a `fixed #573` for a body it could not
+# see.
+#
+# THE REGISTER'S OWN GRAMMAR IS THE ANSWER, and it was counted before it was
+# chosen: of 320 paragraphs opening with an identifier, 279 read `**B-NNN — `
+# and one reads `**B-NNN** —`; the rest are prose (« **B-244 is closed with
+# it.** ») or a heading naming several entries (« **B-180 to B-199 — the second
+# review** »). So a PROPER head is an identifier, optionally followed by more
+# identifiers joined by `,`, ` to ` or ` and `, then an em dash.
+PROPER_BODY_HEAD = re.compile(
+    r"^\*\*([BE]-\d{3})(?:(?:,| to | and )\s*[BE]-\d{3})*(?:\*\*)?\s+—",
+    re.MULTILINE)
+
+# Any paragraph opening with an identifier — the old rule, kept for ONE purpose.
+# Twelve entries have never been written with the dash: their whole text is a
+# sentence starting « **B-165 is the one to keep.** ». Refusing those outright
+# would take twelve bodies away from the closure arm, which is a loosening in
+# exchange for a tightening. So a bare paragraph is a head only when the
+# identifier it names has NO proper head anywhere in the file — which is exactly
+# the distinction the defect turned on: a paragraph may claim an entry that has
+# no body of its own, never one that has.
+ANY_BODY_HEAD = re.compile(r"^\*\*([BE]-\d{3})\b", re.MULTILINE)
+
+
+# A head that names SEVERAL entries is a wave's summary section, never one
+# entry's body: « **B-050, B-059 and B-070 — three angles on one mechanism** »
+# stands above the three entries it recaps, and the first of them has a body of
+# its own further down. `entry_bodies` prefers the body over the recap for that
+# reason, and only that reason — the recap is 980 characters and the body 924,
+# so « the longest span » picks the wrong one.
+# re.MULTILINE is LOAD-BEARING here and not decoration: `pattern.match(text,
+# pos)` leaves `^` unmatchable at any pos but zero without it, so the first
+# version of this line answered « names one entry » for every head in the file
+# and the preference below chose by length alone — which is the reading it was
+# written to replace.
+NAMES_SEVERAL = re.compile(r"^\*\*[BE]-\d{3}(?:,| to | and )\s*[BE]-\d{3}",
+                           re.MULTILINE)
+
+
+def body_heads(register):
+    """Every body head in the register, in the order they appear.
+
+    Args:
+        register: The whole of `BUGS.md`.
+
+    Returns:
+        A list of `(identifier, offset, names_one_entry)`, one per head.
+    """
+    with_a_proper_head = {match.group(1)
+                          for match in PROPER_BODY_HEAD.finditer(register)}
+    heads = []
+    for match in ANY_BODY_HEAD.finditer(register):
+        identifier = match.group(1)
+        if (PROPER_BODY_HEAD.match(register, match.start())
+                or identifier not in with_a_proper_head):
+            heads.append((identifier, match.start(),
+                          NAMES_SEVERAL.match(register, match.start()) is None))
+    return heads
 
 
 def entry_bodies(register):
     """Splits the register into one text span per entry body.
+
+    AND IT KEEPS THE LONGEST SPAN, not the first (B-346, the other half). Even
+    under the grammar above, seventeen identifiers carry two heads today: the
+    entry's own body, and a wave-summary section naming several entries at once
+    (« **B-050, B-059 and B-070 — three angles on one mechanism** »). `setdefault`
+    kept whichever came FIRST in the file, so a summary paragraph could stand in
+    for a body it summarises, and the closure arm would then read three lines of
+    recap where nine thousand characters of entry sit further down.
 
     Args:
         register: The whole of `BUGS.md`.
@@ -353,13 +429,15 @@ def entry_bodies(register):
     Returns:
         A dict mapping identifier to the text from its body heading to the next.
     """
-    heads = [(match.group(1), match.start())
-             for match in BODY_HEAD.finditer(register)]
-    spans = {}
-    for index, (identifier, start) in enumerate(heads):
+    heads = body_heads(register)
+    ranked = {}
+    for index, (identifier, start, names_one_entry) in enumerate(heads):
         end = heads[index + 1][1] if index + 1 < len(heads) else len(register)
-        spans.setdefault(identifier, register[start:end])
-    return spans
+        span = register[start:end]
+        rank = (names_one_entry, len(span))
+        if rank > ranked.get(identifier, ((False, -1), ""))[0]:
+            ranked[identifier] = (rank, span)
+    return {identifier: span for identifier, (_, span) in ranked.items()}
 
 
 def base_register():
