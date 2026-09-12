@@ -102,6 +102,13 @@ SERVED="/tmp/tm-refonte"
 #                    proof rests on, and a phase that unwires it must be the
 #                    phase that hears about it. Its holds are a static read of
 #                    this file and of `common.py`, so it costs no browser.
+#   declared_codes   the SUCCESS CODE each operation declares, held against
+#                    what the layer answers. A code is a NAME the contract
+#                    chose, and B-379 is precisely one that had moved on one
+#                    side only: the contract declared 201 and 202 for three
+#                    operations and the layer answered 200 to all three, for
+#                    as long as nothing read the code. It reads no database
+#                    and costs one page. It joined with the mock-layer wave.
 #   relay_states     the connection's four conditions, read the same way and on
 #                    the same test: `data-part="shell/connection-mark"`, three
 #                    state ids and a `data-connection` value are NAMES, and the
@@ -118,7 +125,7 @@ SERVED="/tmp/tm-refonte"
 # by run_uid. That database is the operator's and a CI runner has none, so the
 # rule would fail there for a reason that has nothing to do with the change
 # under test. It runs in the full suite, on the machine that has the data.
-CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.py boot_order.py settle.py state_surfaces.py relay_states.py scroll_memory.py persistence.py producers.py replacement.py paths_to_sheets.py take.py busy.py served_copy.py)
+CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.py boot_order.py settle.py state_surfaces.py relay_states.py scroll_memory.py persistence.py producers.py replacement.py paths_to_sheets.py take.py busy.py served_copy.py declared_codes.py)
 
 # THE REPOSITORY'S CHEAP GUARDS, run beside the rules (B-063, arbitrated by the
 # operator on 2026-08-25). They read the tree in seconds and they read exactly
