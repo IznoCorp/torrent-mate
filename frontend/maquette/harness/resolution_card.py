@@ -29,6 +29,16 @@ WHAT IT READS, and each hold fails differently:
       could have gone with nothing in the suite falling. So the size is held
       both ways, and a second hold reads that a box exists at all and that
       `visibility` has not taken it away.
+  h10. EVERY CARD IS AT LEAST A FINGER TALL. The act is the whole card now, so
+      the card IS the touch target and it owes the 44 px every other one in this
+      harness owes. It measures 126, and a floor is written for the day the room
+      goes: nothing else in the suite would have caught a card of 20 px.
+  h11. AND EACH HOLDS EXACTLY ONE FOCUSABLE ELEMENT — ITSELF. A second one
+      inside a button is a control the card's own tap swallows, and on the mark
+      it would be worse: `aria-hidden` and focusable is a stop on the keyboard's
+      path that no assistive technology can name. Counted, not asserted: the
+      card itself plus every focusable descendant, `tabindex="-1"` and disabled
+      controls left out because neither takes a tab.
   h9. EVERY CARD IS ANNOUNCED BY ITS TITLE AND ITS YEAR, and by nothing longer.
       The card being the button, its name used to be its whole text — up to 521
       characters, opening on the poster fallback's initial where the provider
@@ -71,6 +81,11 @@ ICON_FACTORY = "iconButton"
 # A RENDERED BOX IS FRACTIONAL; a box equal to the probe's must not fall on a
 # rounding of the layout engine.
 SUBPIXEL = 0.5
+
+# WHAT A FINGER NEEDS, and it is the figure every touch-target rule in this
+# harness holds: 44 px. The card measures 126 today, so this is a floor with
+# eighty px of room — a floor's job is to be there when the room goes.
+TOUCH_FLOOR = 44
 
 # WHAT A LISTENER CAN HOLD IN ONE HEARING. The name a candidate card announced
 # before it was labelled ran 521 characters — the whole card, the poster's
@@ -141,6 +156,28 @@ NAME_SUBJECTS = """() => {
     const subtitle = (card.querySelector('[data-part="card/subtitle"]')?.textContent || '').trim();
     const year = (subtitle.match(/^(\d{4})\s*·/) || [])[1] || '';
     return year ? title + ' ' + year : title;
+  });
+}"""
+
+# EACH CANDIDATE CARD'S OWN BOX, and what can take a finger or a keyboard
+# inside it. A card that is one button has exactly one of the second: a second
+# focusable inside it would be a control the card's own tap swallows, and the
+# mark is `aria-hidden`, which makes a focusable child a node announced by
+# nothing.
+CARD_BOXES = """() => {
+  const screen = """ + SCREEN + """;
+  const cards = [...screen.querySelectorAll('[data-part="card"][data-nonmedia="candidat"]')];
+  const FOCUSABLE = 'a[href], button, input, select, textarea, [tabindex], [contenteditable]';
+  return cards.map((card) => {
+    const box = card.getBoundingClientRect();
+    const inside = [...card.querySelectorAll(FOCUSABLE)]
+      .filter((one) => one.getAttribute('tabindex') !== '-1' && !one.disabled);
+    return {
+      height: box.height, width: box.width,
+      tag: card.tagName,
+      focusable: (card.matches(FOCUSABLE) ? 1 : 0) + inside.length,
+      within: inside.map((one) => one.tagName + '[' + (one.dataset.part || '') + ']'),
+    };
   });
 }"""
 
@@ -319,6 +356,18 @@ async def main():
         journal.check("the affordance is a mark, not a control of its own",
                       mark["tag"] is not None and mark["tag"] != "BUTTON" and mark["hidden"],
                       f"{mark['part']} is a {mark['tag']}, aria-hidden {mark['hidden']}")
+
+        # ── h10, h11: the card's own floor, and its single way in ─────────
+        boxes = await page.evaluate(CARD_BOXES)
+        journal.check("every card is at least a finger tall",
+                      bool(boxes) and all(one["height"] >= TOUCH_FLOOR for one in boxes),
+                      f"{[round(one['height']) for one in boxes]} against {TOUCH_FLOOR}")
+        journal.check("and each holds exactly one focusable element — itself",
+                      bool(boxes) and all(one["focusable"] == 1 and one["tag"] == "BUTTON"
+                                          for one in boxes),
+                      str([{"tag": one["tag"], "focusable": one["focusable"],
+                            "within": one["within"]}
+                           for one in boxes if one["focusable"] != 1 or one["tag"] != "BUTTON"][:2]))
 
         # ── h9: what the card is announced by ─────────────────────────────
         # THE NAME IS COMPUTED BY THE BROWSER, never read off an attribute: a
