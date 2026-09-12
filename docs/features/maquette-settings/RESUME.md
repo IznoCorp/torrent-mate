@@ -40,17 +40,17 @@ Eight mutations, each falling on its own holds and nothing else: the table is in
 1. **`page_host.py` replayed** — queued on the shared lock behind the gesture agent's oracle. Its
    one red was its own driven state (`maintTopic` left open while the walk promised « EVERY DIAL
    NAMED »); the dial is named and committed, so this is a confirmation, not a repair.
-2. **`--a11y`** — THE OPEN QUESTION. CI run 34705845236 read `a11y[light]: 166 against a ceiling of
-   162`: four new violations under `data-theme=light`, this wave's surfaces. **The ceiling is a
-   RATCHET and does not move.** Name the four by selector and rule id from axe-core's own output,
-   repair the ones that are this wave's, and put any that is an existing variant's debt to the
-   steward with its selector.
-   **The hypothesis, and it is not a reading**: `backAction` is `text-primary bg-transparent`,
-   written for a SCREEN's bar, and this wave puts three of them on pages whose ground is
-   `oklch(0.995 0 0)`. The computed pairs are in the steward thread. **A probe built to answer this
-   without the shared lock was CAUGHT LYING** — it resolved `oklch()` through a canvas `fillStyle`,
-   which keeps its previous value when it cannot parse one, so it read 1.00 for dark text on
-   yellow. Discard it; use `--a11y`.
+2. **`--a11y` — DONE, ruled (A) by the steward.** The CI run 34705845236 had read `ef6a04c8f`, not
+   the head. Read locally on the merged head: the four new findings were `color-contrast` on `.fback`
+   in `maintenance-topic`, `settings-topic`, `settings-secrets`, `settings-edited`; the cause was the
+   shared `backAction` writing `text-primary` (a fill tone) where `theme.css` keeps
+   `text-primary-text` for a label, and `.fback` already stood 13 times in the debt. `f0d91157d`
+   repairs the variant and records the light ceiling 162 → 149 in the same commit; the mutation
+   back to `text-primary` reads 166 against 149, exit 1, dark 0. DESIGN.md records the visible
+   change (the back label darker on light, 17 states) for the operator.
+   **NEXT: merge `origin/main` ONCE, after the steward's line « #589 merged »**, then bump to
+   **0.98.87** (re-read main's `__init__.py`). Expected conflicts: BUGS.md rows, and
+   IMPLEMENTATION.md's « In flight » row (main says « None », this branch names #588).
 3. **The full suite once** on the final head (it has not run green end to end since the posed-entry
    repair).
 4. **The oracle** — divergences ACCEPTED only on the states this wave draws (`settings-one`,
