@@ -1995,8 +1995,10 @@ its report.
 - **B-325** — no rule can be pointed at a build. `common.PROTOTYPE` is hard-coded to 8899 with no
   override and every rule self-runs on import, so an independent reader cannot run one against its
   own copy without rebinding the constant from outside the tree — and once rebound, the B-256 stamp
-  certifies `/tmp/tm-refonte`, a build the run never read. The next wave that opens `common.py`
-  takes it.
+  certifies `/tmp/tm-refonte`, a build the run never read. **Taken by the tooling micro-wave, #589**:
+  `TM_PROTOTYPE_URL` and `TM_SERVED_COPY` move together and a URL override with no root override is
+  refused at import; 84 of 117 rule modules gained an entry-point guard. The residue is bounded and
+  frozen by a hold — 31 rules still carry the address as a literal, and `run.sh` still owns 8899.
 - **B-323** — the inventory of the engine's `setTimeout(…, 260)` sites in `exits.py`'s own comment is
   taken by a command that reads one line (`grep -n "setTimeout(.*260)"`), so it names five where seven
   remain; the two it cannot see span several lines and are named in the register. The next wave that
@@ -2007,9 +2009,12 @@ its report.
   in and claims the body of the entry it names: measured by the departure micro-wave, which the arm
   refused an honest `fixed #573` on B-310 while it would have accepted a silent closure of B-249; 25 of
   278 heads were second-or-later on the day, one reworded, twenty-four unread. The repair is one line
-  either way (a head is `**B-NNN —`, never `**B-NNN's`; or the LONGEST span wins). The next wave that
-  touches the guard takes it, and re-takes the 25 with the command in the entry. **Taken by the
-  tooling micro-wave (#589)**, with B-325 above.
+  either way (a head is `**B-NNN —`, never `**B-NNN's`; or the LONGEST span wins). **Taken by the
+  tooling micro-wave, #589**, and it took BOTH plus a third rule: each candidate is wrong alone — the
+  delimiter alone takes a body away from the twelve entries written as a sentence, and the longest
+  span alone picks a wave's recap over the entry it recaps. The count re-taken there: the old regex
+  reads 26 of 320, the parser now reads 17 of 311, and 294 identifiers keep a body, exactly as many
+  as before.
 - **Round two's minors of the resolution-card micro-wave (B-460 to B-466, filed by its post-merge
   gesture)** — five instrument debts (R161's floor hold green over an invisible mark; R162's
   `LAST_FRAME` sentence and its one armed direction; the ranks arm's site attribution and its three

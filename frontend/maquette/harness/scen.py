@@ -55,4 +55,7 @@ async def main():
     # A script that only prints can never fail, and a script that cannot fail
     # proves nothing: the verdict has to reach the exit code.
     if total_bad or errs: raise SystemExit(1)
-asyncio.run(main())
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
