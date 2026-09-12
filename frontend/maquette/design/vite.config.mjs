@@ -2,10 +2,10 @@
 // verbatim, after Vite's own HTML processing, so no minifier and no script
 // extraction ever touches it. The real conversion happens module by module
 // in later sub-projects; this file is the chassis they will move into.
-import { createHash } from "node:crypto";
 import { mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
+import { buildIdentity } from "./build-identity.mjs";
 // Tailwind v4 as a Vite plugin. WHAT CONFINES ITS SCAN IS `source(none)` on
 // the import in `src/styles/theme.css`, and NOT the `@source` rules beside it:
 // v4 scans the project root automatically, and an `@source` rule ADDS to that
@@ -22,30 +22,10 @@ const ROOT = resolve(import.meta.dirname);
 // separately they would eventually disagree, which is the only way a freshness
 // check can go wrong without anybody noticing.
 //
-// IT IS A CONTENT HASH, not a timestamp and not the commit. A timestamp moves
-// when a file is merely touched and would reload every client for nothing. The
-// commit does not move at all across a whole session of edits on a dirty tree,
-// which is the state the design host is normally in — that is the same reading
-// that put the SOURCE stamp rather than the commit at the centre of this lot.
-function buildIdentity() {
-  const hash = createHash("sha256");
-  const walk = (directory) => {
-    for (const entry of readdirSync(directory, { withFileTypes: true }).sort(
-      (a, b) => (a.name < b.name ? -1 : 1),
-    )) {
-      const path = resolve(directory, entry.name);
-      if (entry.isDirectory()) walk(path);
-      else hash.update(entry.name).update(readFileSync(path));
-    }
-  };
-  walk(resolve(ROOT, "src"));
-  for (const root of ["index.html", "refonte.html", "sw.js", "package.json"]) {
-    hash.update(root).update(readFileSync(resolve(ROOT, root)));
-  }
-  return hash.digest("hex").slice(0, 12);
-}
-
-const BUILD_ID = buildIdentity();
+// It lives in its own module because it must be readable without Vite: see
+// `build-identity.mjs` for what it hashes, and for why it asks git rather than
+// walking the directory (B-384).
+const BUILD_ID = buildIdentity(ROOT);
 
 function injectPrototype() {
   return {
