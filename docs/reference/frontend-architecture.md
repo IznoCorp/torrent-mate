@@ -1411,6 +1411,14 @@ behaviour and L19 is a conversion; a passage's raw log and the locks with L20; t
 with L16. **The order is now L14 · L19 · L21 · L20 · L16 · L17 · L18 · L13**, and no dependency
 already written moved.
 
+**Re-ordered on 2026-09-12, by the operator's seventh measure (« L13 — la mort du moteur — en
+priorité après les vagues en vol »).** The engine's death runs NEXT, once the micro-waves in flight
+on that day land, and before L20: **the order is now L14 · L19 · L21 · L13 · L20 · L16 · L17 · L18**,
+and no dependency already written moved — L13's five (L07, L09, L12, L15, L19) are all landed. What
+it makes void: « L20 opens after the `maquette-settings` micro-wave merges » — L20's design and plan
+stay on `main` (#587) and the lot opens after L13. The measure and its six siblings are recorded in
+`docs/reference/frontend-steward.md` § « The operator's measures of 2026-09-12 »; reversal is his.
+
 #### L14 — The surfaces that outgrew their file · *depends on L07, L09*
 
 **Objective.** The four feature surfaces that sit over the 400-line hard ceiling come back under
@@ -2216,7 +2224,7 @@ conflict someone has to resolve. This one arrives as green.
 **Which lot is next is decided by § 0's selection rule** — the first lot in this file's order
 that `IMPLEMENTATION.md` does not record as landed and whose every dependency it does — and never
 by which one happens to be unblocked earliest. Where two are eligible, **this file's order decides,
-not the number**: L14 is written after L13 and runs after it.
+not the number**: L16 is written after L13 and runs after it.
 
 ---
 

@@ -105,7 +105,7 @@ there:
   the handshake; an agent past ~60 % is stood down at its unit boundary, its resume brief pushed
   and proved by `ls-remote` BEFORE it stops, and `rotate` spawns its replacement first and closes
   its tab after. **The steward's own succession passes `--successor`** (the tab lands immediately
-  right of the steward and takes its agent chain) with the title `Orchestrator : <feature>`; the
+  right of the steward and takes its agent chain) with the title `Orch : <subject>`; the
   2026-09-11 succession was spawned under the bare title `steward-successor`, and the plugin neither
   derived a title from the predecessor nor refused one out of format — reported to the operator that
   day as a plugin defect, to be repaired upstream, never here;

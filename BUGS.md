@@ -459,6 +459,7 @@ when the defect comes back.
 | B-475 | The library holds episode numbers the catalogue does not list — American Dad! S16 holds 1–24 where the catalogue lists 20, Les Animaniacs S2 holds `[1, 4, 7, 9, 76–82]` where it lists 12 — and they are counted and drawn NOWHERE: every surface counts the numbers at or below what aired, so four and seven held files vanish | the operator's ruling on numbering orders, then the wave that draws it | `open` |
 | B-476 | « Dexter: Resurrection » is followed under a title no sheet carries (the sheet is « Dexter Resurrection », and its holdings are keyed there), and the follow's totals 96/96 are not its seasons' sums 10/10: one show, three families, three answers | the wave that next touches the seeds' identity | `open` |
 | B-477 | House of the Dragon, Ted Lasso and Strange New Worlds are followed « à jour » (26/26, 35/35, 33/33) while their media sheets answer `owned: false` — the holdings are keyed under « House of the Dragon (2022) » and « Ted Lasso (2020) », titles the sheet's identity does not name, or absent — so the follow says held and the sheet says not in the library | the wave that next touches the seeds' identity | `open` |
+| B-495 | `scripts/heavy.sh` prints « holding off » once and « starts » with no timestamp, so how long a wrapped run WAITED for the lock and the readiness floor is unmeasurable afterwards — on 2026-09-13 the steward could not say whether a classed run held for a minute or an hour behind a host whose own one-minute load ran 9–15 | the next tooling wave (frozen apparatus: not before a defect reaches the operator) | `open` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
 
@@ -676,6 +677,19 @@ sheet key shares with those identities — and Strange New Worlds has none at al
 `readMediaSeasons` answers no holdings for any of the three. Latent on screen today: a sheet not owned
 draws its catalogue without a fraction, so nothing contradicts itself on the sheet — but the follow
 and the sheet state opposite facts about one show. B-088's class, beside B-380 and B-476.
+
+
+**B-495 — the heavy wrapper does not measure the wait it imposes.**
+`scripts/heavy.sh` prints « holding off » once when it first finds the lock held or the floor unmet,
+and « starts » when the run begins — neither line carries a time, and nothing prints the seconds
+between them. So a run's WAIT is not readable after the fact: on 2026-09-13 the tooling wave's `make
+check` sat behind a `test`-class ceiling of load 6 on a host whose own one-minute load ran 9–15
+(fseventsd, Spotlight, a Plex transcode), and neither the wave nor the steward could say for how long;
+memory was never the constraint at any reading that night (4–5 GB free), the concurrency and the
+ceiling were. **Closes when** « starts » prints the seconds waited (and « holding off » its cause —
+lock, memory or load — each time it re-samples), so an accusation of a slow wave can be read against
+the wrapper's own figure. B-386's family. Owner: the next tooling wave — none is opened for it, by
+the operator's first measure of 2026-09-12.
 
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
