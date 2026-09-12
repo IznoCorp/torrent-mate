@@ -170,6 +170,8 @@ cells
 chance
 change
 changed
+changer
+changing
 chart
 check
 child
@@ -191,6 +193,7 @@ closest
 closing
 cls
 code
+codes
 cold
 collapse
 collation
@@ -205,6 +208,7 @@ condition
 conditions
 config
 configuration
+confirm
 confirmadd
 confirmrestart
 conflicted
@@ -217,6 +221,7 @@ containers
 contains
 content
 contract
+control
 controller
 convert
 converted
@@ -292,6 +297,7 @@ directions
 disarm
 discipline
 discover
+disk
 disks
 dismiss
 dismissable
@@ -363,6 +369,7 @@ failure
 fallback
 families
 fast
+feature
 feed
 feedback
 fetch
@@ -428,6 +435,7 @@ generation
 geometry
 gesture
 get
+give
 go
 going
 gone
@@ -524,6 +532,7 @@ is
 issued
 item
 items
+its
 journal
 journey
 json
@@ -621,6 +630,7 @@ members
 message
 meta
 method
+methods
 migrated
 milliseconds
 min
@@ -761,6 +771,7 @@ pipeline
 pitch
 pixels
 place
+plain
 platform
 play
 point
@@ -771,6 +782,7 @@ port
 portrait
 portraits
 pos
+posed
 position
 positions
 post
@@ -836,11 +848,13 @@ reconnection
 record
 recovery
 rect
+redirect
 redraw
 ref
 reference
 refill
 refresh
+refreshed
 refreshing
 refusal
 refuse
@@ -1032,6 +1046,7 @@ splash
 src
 st
 stack
+stacked
 stage
 stages
 staging

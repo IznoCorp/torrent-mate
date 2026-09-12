@@ -30,6 +30,15 @@ import MOVING from "./seeds/moving.json";
 import SETTLED from "./seeds/settled.json";
 import SETTINGS from "./seeds/settings.json";
 import SECRETS from "./seeds/secrets.json";
+
+/**
+ * The configuration file that has MOVED on disk since it was read.
+ *
+ * A notifications file rather than a storage one on purpose: the paths are
+ * what one edits first when trying the editor out, and having THAT save answer
+ * « le fichier a bougé » would make the ordinary case the surprising one.
+ */
+const CHANGED_ON_DISK = "notify";
 import type { components } from "../contract/types";
 
 /** The contract's own vocabulary for what the pipeline is doing. */
@@ -150,6 +159,19 @@ export type MockState = {
    * nothing knows in advance which media will be asked for.
    */
   journeyStages: Record<string, Schemas["JourneyStage"][]>;
+  /**
+   * When each medium's metadata was last re-read, keyed by TITLE.
+   *
+   * WHAT THE RE-SCRAPE MOVES (B-383). The verb « Re-scraper les métadonnées »
+   * said a sentence and sent nothing; a verb is proved by the state it changes
+   * and never by the message it answers, so the operation writes here and the
+   * sheet's own « Métadonnées rafraîchies » row reads it back.
+   *
+   * EMPTY AT SEEDING, and that is the honest starting point: no medium has been
+   * re-read in a session that has just begun. The sheet then shows what it
+   * always showed, which is why the row keeps a fallback.
+   */
+  metadataRefreshedAt: Record<string, string>;
   /** Whether a configuration change is waiting for a restart. */
   restartRequired: boolean;
   /**
@@ -164,6 +186,17 @@ export type MockState = {
    * `x-unseeded`.
    */
   conflict: boolean;
+  /**
+   * Which configuration files have MOVED on disk since they were read.
+   *
+   * THE DIAL ABOVE IS A PROPERTY OF THE REQUEST; this is a property of the
+   * FILE, and B-345's settings half is the difference. A rule can raise the
+   * dial and reach B-299's banner; a HAND has no dial, so at rest one file
+   * answers `conflict: true` on its own write and the banner is reachable by
+   * saving a setting that lives in it — which is what « the seeds hold at
+   * least one subject in every state every surface can draw » means here.
+   */
+  movedFiles: string[];
   /** Whether the configuration refuses writes. Layer state, as above. */
   readOnly: boolean;
 };
@@ -215,9 +248,17 @@ const seeded = (): MockState => ({
   secrets: copyOf<Schemas["Secret"][]>(SECRETS),
   pipelineState: IDLE,
   journeyStages: {},
+  metadataRefreshedAt: {},
   restartRequired: false,
   changedFiles: [],
   conflict: false,
+  // THE FILE A HAND CAN REACH THE CONFLICT BANNER THROUGH (B-345). One file,
+  // and a notifications one rather than a storage one on purpose: the paths
+  // are what an operator edits first when trying the editor out, and having
+  // THAT save answer « le fichier a bougé » would make the ordinary case the
+  // surprising one. Saving anything in `notify` reaches the banner; saving
+  // anything else does not.
+  movedFiles: [CHANGED_ON_DISK],
   readOnly: false,
 });
 

@@ -303,7 +303,7 @@ import {
       [13, 22, 22],
       [14, 22, 22],
       [15, 22, 22],
-      [16, 24, 24],
+      [16, 20, 20],
       [17, 24, 24],
       [18, 22, 22],
       [19, 22, 22],
@@ -342,9 +342,9 @@ import {
       [4, 1, 1],
     ],
     "Les Animaniacs": [
-      [1, 134, 93],
-      [2, 15, 11],
-      [3, 26, 13],
+      [1, 172, 93],
+      [2, 12, 4],
+      [3, 46, 13],
     ],
   };
 
@@ -4472,7 +4472,7 @@ import {
 
   const INCOMPLETE = [
     { t: "SAV des émissions", o: 12, a: 71, y: 2005 },
-    { t: "Les Animaniacs", o: 117, a: 175, y: 1993 },
+    { t: "Les Animaniacs", o: 110, a: 230, y: 1993 },
     { t: "La cour de récré", o: 54, a: 100, y: 1997 },
     { t: "Les Zinzins de l'Espace", o: 78, a: 104, y: 1997 },
     { t: "Les aventures de Tintin", o: 21, a: 39, y: 1991 },
@@ -7266,7 +7266,6 @@ import {
     topic: null,
     q: "",
     readOnly: false,
-    redemarrage: false,
     conflict: false,
   };
 
@@ -7278,7 +7277,7 @@ import {
     SETTINGS_STATE.topic = null;
     SETTINGS_STATE.q = "";
     SETTINGS_STATE.readOnly = false;
-    SETTINGS_STATE.redemarrage = false;
+    window.__mocks?.setRestartRequired(false);
     SETTINGS_STATE.conflict = false;
   }
 
@@ -8447,14 +8446,14 @@ import {
         homeFloorExists = true;
       return;
     }
-    /* WHAT THE LAYER STANDS ON, counted rather than guessed. Rule 2 leaves at
-       most one page entry above the floor, so the walk is the layer's own entry
-       plus the abandoned page's when the page one is leaving is not the floor
-       itself. A layer opened over a SCREEN would stand deeper — and no finger
-       can open one there: a screen covers the top bar's drawer control and the
-       whole tab bar, measured control by control, exactly as B-024 measured the
-       `data-go` producers. */
-    const entries = leaving === homePage ? 1 : 2;
+    /* WHAT THE LAYER STANDS ON, counted rather than ASSUMED — the second term
+       is the correction. The layer's own entry plus the abandoned page's is
+       what rule 2 leaves, and it was read as the WHOLE stack: a surface inside
+       a page that pushes its own arrival puts a third entry there, the rewind
+       stopped one short, and the reader got two entries for the entry page and
+       a Back that did nothing. What stacks says so, or this is a guess again. */
+    const entries = (leaving === homePage ? 1 : 2)
+      + (window.__stackedSurfaces ? window.__stackedSurfaces() : 0);
     __bridge.rewind(entries);
     /* Armed after the traversal is issued: a pop cannot land before this task
        ends, so this is in time, and a rewind that threw arms nothing. Arriving
@@ -8856,14 +8855,6 @@ import {
     if (!closest) return;
     if (closest.tagName === "A") event.preventDefault();
 
-    if (closest.dataset.topic) {
-      SETTINGS_STATE.topic = closest.dataset.topic;
-      SETTINGS_STATE.q = "";
-      port.scrollTop = 0;
-      render();
-      replacePath();
-      return;
-    }
     if (closest.dataset.setting) {
       // THE PRODUCER HAS LEFT. `features/settings/panel-setting.ts` answers.
       panel.produce("setting", closest.dataset.setting);
@@ -9191,13 +9182,6 @@ import {
       openDrawer();
       return;
     }
-    if (closest.dataset.maintopic !== undefined) {
-      store.write({ maintTopic: closest.dataset.maintopic || null });
-      port.scrollTop = 0;
-      render();
-      replacePath();
-      return;
-    }
     if (closest.dataset.maintact) {
       // THE PRODUCER HAS LEFT. `features/maintenance/panel-action.ts` answers.
       panel.produce("action", closest.dataset.maintact);
@@ -9512,12 +9496,6 @@ import {
       return;
     }
 
-    if (closest.dataset.rescrape) {
-      toast(
-        `« ${baseTitle(closest.dataset.rescrape)} » : métadonnées à re-récupérer au prochain passage.`,
-      );
-      return;
-    }
     if (closest.classList.contains("cfoot")) {
       const title =
         closest.closest(".card")?.querySelector(".ctitle")?.textContent ?? "";
@@ -9929,7 +9907,7 @@ import {
           { n: 4, t: "Ne rentre pas chez toi", air: "2026-07-23", d: 48 },
           { n: 5, t: "Souvenirs", air: "2026-07-30", d: 52 },
           { n: 6, t: "La voiture", air: "2026-08-06", d: 55 },
-          { n: 7, t: "Radio", air: "2026-08-13", d: 56 },
+          { n: 7, t: "Radio", air: "2026-08-06", d: 56 }, // aired before TODAY on purpose: every other season with a hole sits on a show nobody follows, and the rules that need a FOLLOWED season with a hole read this one
           { n: 8, t: "Épisode 8", air: "2026-08-20", d: null },
           { n: 9, t: "Épisode 9", air: "2026-08-27", d: null },
           { n: 10, t: "Épisode 10", air: "2026-09-03", d: null },
@@ -9996,7 +9974,7 @@ import {
           { n: 4, t: "Ne rentre pas chez toi", air: "2026-07-23", d: 48 },
           { n: 5, t: "Souvenirs", air: "2026-07-30", d: 52 },
           { n: 6, t: "La voiture", air: "2026-08-06", d: 55 },
-          { n: 7, t: "Radio", air: "2026-08-13", d: 56 },
+          { n: 7, t: "Radio", air: "2026-08-06", d: 56 }, // aired before TODAY on purpose: every other season with a hole sits on a show nobody follows, and the rules that need a FOLLOWED season with a hole read this one
           { n: 8, t: "Épisode 8", air: "2026-08-20", d: null },
           { n: 9, t: "Épisode 9", air: "2026-08-27", d: null },
           { n: 10, t: "Épisode 10", air: "2026-09-03", d: null },

@@ -736,7 +736,7 @@ const STATES = [
       "Réglages — redémarrage nécessaire",
       () => {
         resetSettings();
-        SETTINGS_STATE.redemarrage = true;
+        window.__mocks?.setRestartRequired(true);
         applyState({ page: "cfg", phase: "ready" });
       },
     ],

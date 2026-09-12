@@ -187,15 +187,26 @@ async def main():
             .map(r => r.textContent.replace(/\s+/g, ' ').trim());
           return {rows, pending: [...(window.__referentiel.SETTINGS_STATE.modifs || new Map())
             .values()].map(String)};}""")
-        current = next((r for r in shown["rows"] if r.startswith("Valeur actuelle")), "")
-        written = next((r for r in shown["rows"] if r.startswith("Valeur écrite")), "")
-        check("an edited setting's panel says the EDIT as its current value",
+        # RE-AIMED BY THE SETTINGS MICRO-WAVE (B-341), and said out loud because
+        # a test quietly re-pointed is a guard quietly lost. The PROPERTY is
+        # unchanged and is the whole of the hold: the panel shows the pending
+        # edit and the file's own value BESIDE it, distinct. What moved is what
+        # the two lines are CALLED — the operator read « Valeur actuelle » for a
+        # value not yet written and « Valeur écrite » for the one in the file,
+        # the other way round, and dictated « Nouvelle valeur » and « Valeur
+        # enregistrée ». Left on the old words this hold would look for two
+        # labels that no longer exist and fall on a repair.
+        pending_line = next(
+            (r for r in shown["rows"] if r.startswith("Nouvelle valeur")), "")
+        stored = next(
+            (r for r in shown["rows"] if r.startswith("Valeur enregistrée")), "")
+        check("an edited setting's panel says the EDIT as its NEW value",
               bool(edited) and bool(shown["pending"])
-              and any(value in current for value in shown["pending"]),
-              f"{current!r} · pending {shown['pending']}")
-        check("and the file's own value beside it, as the written one",
-              bool(written) and current != written,
-              f"current {current!r} · written {written!r}")
+              and any(value in pending_line for value in shown["pending"]),
+              f"{pending_line!r} · pending {shown['pending']}")
+        check("and the file's own value beside it, as the STORED one",
+              bool(stored) and pending_line != stored,
+              f"new {pending_line!r} · stored {stored!r}")
 
         # ── « Annuler la modification » DROPS THAT EDIT, and only that one ──
         #
@@ -321,8 +332,15 @@ async def main():
         await pg.evaluate("""()=>{const out = [...document.querySelectorAll('#dlg button')]
           .find((b) => !('confirmrestart' in b.dataset)); if (out) out.click();}""")
         await pg.wait_for_timeout(400)
+        # RE-AIMED BY THE SETTINGS MICRO-WAVE (B-343). « Cancelling leaves the
+        # restart OWED » is the property, untouched; the fact is the LAYER's
+        # now — `/api/config/status` — because on the engine's own object
+        # nothing re-rendered the banner and B-300 could not be reached through
+        # a save at all. Read from the old place, this hold would have gone
+        # green on `undefined` and said nothing.
         after_cancel = await pg.evaluate("""()=>({
-          owed: !!window.__referentiel.SETTINGS_STATE.redemarrage,
+          owed: !!(window.__queries.getQueryData(['/api/config/status'])
+            || {}).restartRequired,
           said: (document.querySelector('#toast') || {}).textContent || ''})""")
         check("cancelling leaves the restart OWED (B-300)",
               after_cancel["owed"], str(after_cancel["owed"]))
@@ -337,8 +355,10 @@ async def main():
         await pg.evaluate("""()=>{const go = document.querySelector('#dlg [data-confirmrestart]');
           if (go) go.click();}""")
         await pg.wait_for_timeout(500)
+        # RE-AIMED with the hold above, and for the same reason.
         after_confirm = await pg.evaluate("""()=>({
-          owed: !!window.__referentiel.SETTINGS_STATE.redemarrage,
+          owed: !!(window.__queries.getQueryData(['/api/config/status'])
+            || {}).restartRequired,
           said: (document.querySelector('#toast') || {}).textContent || ''})""")
         check("confirming restarts (B-300)", not after_confirm["owed"],
               str(after_confirm["owed"]))

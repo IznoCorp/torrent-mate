@@ -1,5 +1,41 @@
 # maquette-settings — the settings the operator could not use by hand, repaired off the engine
 
+## Launch addenda — 2026-09-12, written by the steward at launch; they override the text below where the two differ
+
+1. **Where you write.** In the worktree `/Users/izno/dev/worktrees/wave-settings`, branch
+   `fix/maquette-settings` cut from `origin/main` at `468162dc6` (version 0.98.83) — NOT the main
+   checkout. You are the only writer there. The « L21 still there → STOP » clause is void: L21 merged
+   on 2026-09-11 (#572, squash `2ffdc4ba3`) and its folder is gone.
+2. **Register and rules.** Your block is **B-397 to B-419** and **R165+** — B-393..B-396 and R161..R164
+   are the resolution-card micro-wave's (#585, in flight, not yet on main); the tooling wave holds
+   B-420+, the L20 design wave B-440+. Gaps are accepted; renumbering happens at the merge only on a
+   collision. Verify with `python3 scripts/check-bug-register.py --next` on YOUR branch and say the
+   reserved block in the pull request.
+3. **The « on the operator's phone » sentences are void** (operator, 2026-09-06: device readings are
+   over — a defect must be visible on the Mac; B-333's probe is cited as history, not re-run). Your
+   rules drive the real path with a real touch in the harness's browser; the operator walks the
+   build on his Mac when the steward serves it.
+4. **The pull request is opened READY, not draft** (a draft runs no CI; a PR opened draft and made
+   ready in the same breath dispatches a skipped run — trap of 2026-09-12). Title in English,
+   conventional; the version bump reads `main`'s at that moment (0.98.83 now; #585 will bump to
+   0.98.84 — re-read before you write). Label nothing.
+5. **Figures once**, on the final head, in a DESIGN.md § of your folder (`docs/features/maquette-settings/DESIGN.md`,
+   yours to create: the state measured, the rules and their holds, the mutations, what the fixtures
+   cannot show). Every figure carries its command.
+6. **Gate on the final head, in this order, each exit code read**: contracts tier (shared lock) →
+   the full suite once (shared lock, expected no violation) → `--a11y` → the oracle (divergences
+   accepted ONLY on the states § 6 names, zero elsewhere or STOP B) → hold-counts compare with
+   `failed` read FIRST → `make check` (own lock, 3 workers) → wrapped push. `docs/` is no longer
+   ignored anywhere (`git check-ignore` is clean): add documents by file, `git add <path>`.
+7. **Every heavy run follows the envelope at the end of this file**, which the operator loosened
+   today; the settings text below that names `heavy.sh settings <command>` without the floor is read
+   with it.
+8. **Communication**: your orchestrator's exact name and reference are in your launch prompt, never
+   discovered; handshake first (one message: the state-verification readings, your gauge, and
+   nothing edited before the answer); reports on start, each push, any STOP, and at the end with
+   named sections; silence rule 15 min. **Do not stop between steps to report one done.**
+
+
 You open a **micro-wave of BEHAVIOUR**, decided by the operator on 2026-09-06 (his second decision
 round, questions 1, 3, 4, 5 and 8). His test session on the design host that morning found
 « Réglages » unusable by hand: an edit that only commits when the field loses focus, a save that says
@@ -225,3 +261,40 @@ launches independent readers on a worktree pinned at your head against a control
 the topics' Back on the operator's phone by the same probe that found them. You alone write. The
 operator gives the merge word. Your folder leaves the tree at the post-merge gesture, cited by the
 squash.
+
+## Resource envelope — the machine is shared with three other agents (2026-09-12)
+
+Four agents and the steward run on this 8-core, 16 GB host at once, by the operator's order of
+2026-09-12 (« tout ce qui peut être parallélisé doit l'être ; les agents lancés ne doivent pas être
+bloqués »). The same word loosened the wrapper for this day: the readiness floor of
+`scripts/heavy.sh` is 2 560 MB for every run of this wave (its hard floor stays 2 048 MB — it
+kills its own child under it, never anything else), and B-386 is what turns this into a rule
+by class instead of a number set by hand. Nothing below is optional.
+
+- **Two locks, by what the run reads.** Anything that touches the ONE served copy
+  (`/tmp/tm-refonte`) or the 8899 host — `run.sh` in any tier, the oracle, `harness-hold-counts.py`,
+  `mutate.sh`, a single rule replay — runs under the SHARED lock:
+  `HEAVY_FREE_FLOOR_MB=2560 TM_HARNESS_JOBS=2 sh scripts/heavy.sh <wave> <command>`. Everything
+  else that is heavy — `npm ci`, `npm run build`, `make check`, `pytest`, a `git push` (the pre-push
+  hook runs the test suite) — runs under the wave's OWN lock, so it can proceed beside another
+  wave's harness run:
+  `HEAVY_LOCK=/private/tmp/tm-heavy-<wave>/holder HEAVY_FREE_FLOOR_MB=2560 PYTEST_XDIST_AUTO_NUM_WORKERS=3 sh scripts/heavy.sh <wave> <command>`.
+  `<wave>` is your wave's codename. A run that holds the shared lock is announced to the steward
+  in one line before it starts (« harness run starting ») and one after (« done, exit N »).
+- **Fan-out has a name and a value, every time**: `TM_HARNESS_JOBS=2`,
+  `PYTEST_XDIST_AUTO_NUM_WORKERS=3`. Never a build beside a parallel test run of your own.
+- **Every command runs synchronously in the tool call that waits for it**, output to a FILE
+  (`> /tmp/<wave>-<step>.log 2>&1`), the exit code read in the same call; never `| tail -N` on a
+  long gate, never a turn ended « waiting for » a run. A push landed only when
+  `git ls-remote --heads origin <branch>` prints the ref.
+- **Kill what you start, delete what you build, prove it with `ps`** (`ps -eo pid,etime,command |
+  grep -E "chrom|playwright|vite|node|pytest" | grep -v grep`) before every report. The 8899 host
+  (`server.py --serve 8899`, pid at parent 1) is `run.sh`'s and is left alone.
+- **Never `cd` into `frontend/maquette/design/src`** (B-384): absolute paths from your worktree root.
+- **Read the lock, never the directory**: `sh scripts/heavy.sh --held` (or with `HEAVY_LOCK` set).
+- Context: run `/Users/izno/.claude/plugins/cache/lounisbou/orchestrator/0.26.1/skills/context-gauge/scripts/context-gauge.sh`
+  as the LAST call before every report and paste its `context_percent=` and `source=` lines; past
+  60 %, finish the unit in progress, push a resume note in your folder, and stop.
+- Tier **deep** (the map binds every tier to opus; no tier of this project is ever Sonnet), chosen
+  because every deliverable here is judged by nothing downstream but the steward's reading. Your
+  session was spawned with NO MCP server; the harness needs none.
