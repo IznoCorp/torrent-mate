@@ -1,6 +1,6 @@
 {
   "$comment": "The `color-contrast` findings, kept in a record of their own. D-L03-4 measured them and left them out of the floor, because the repair was a palette decision; D-L06-5 made the repair and armed the rule, so `--check` now counts contrast in the same hard zero as everything else. THIS IS NOT A TOLERANCE — it is the proof that the debt is empty, which « no file » could never be.",
-  "takenAtCommit": "2fb39ce1627fe4a955e70434a5c22fac949375a5",
+  "takenAtCommit": "e876cb9576c6fc32bac61e2efd6f1b91019c4424",
   "platform": "Darwin/arm64",
   "counts": {
     "states": 87,

@@ -1,6 +1,6 @@
 {
   "$comment": "The accessibility findings under `data-theme=\"light\"`, which this tier drove for nobody until L10-bis: it measured the DEFAULT theme only, so 154 findings counted by hand during L06 were invisible to it (B-055). THIS FILE IS READ BY `--check` AND THAT IS DELIBERATE — it is a RATCHET, a ceiling that may fall and may not rise, not the tolerance `a11y-debt.json` refuses to be. The dark floor stays a hard zero; remediating this list is a campaign with its own design, and what is held here meanwhile is that nothing is ADDED to it.",
-  "takenAtCommit": "2fb39ce1627fe4a955e70434a5c22fac949375a5",
+  "takenAtCommit": "e876cb9576c6fc32bac61e2efd6f1b91019c4424",
   "platform": "Darwin/arm64",
   "counts": {
     "states": 87,
