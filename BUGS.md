@@ -424,11 +424,11 @@ when the defect comes back.
 | B-376 | Every push to a DRAFT pull request ran the whole pipeline, and no trigger answered the pull request leaving draft: a wave that opens its pull request early — which is this repository's own method — paid full CI on each of its intermediate pushes, and `ready_for_review` was in no workflow at all | by operator | `fixed #578` |
 | B-377 | `check-implementation-state`'s in-flight arm infers « that wave has landed » from a VERSION COMPARISON — `main >= the row's version` — which holds only while every merge to `main` comes from the in-flight wave itself; a micro-wave merging past it makes the arm refuse a row that is perfectly true, and it was refusing L21's row on `main` | by gate | `fixed #579` |
 | B-378 | `grabSeasonForFollow`'s mock moves a follow's status only when one is FOUND, so for a medium that is NOT followed it answers a success (200 today — the layer ignores the declared code, B-379) with a real `absorbedCount` and changes nothing at all — success reported over an unchanged world, on a path the « Incomplets » lens reaches with a single tap | by L21 | `fixed #572` |
-| B-379 | The mock layer answers **200** to every call unless a scenario arms a failure (`mocks/scenario.ts:145`), whatever code the contract declares — `grabSeasonForFollow` declares 201, `requeueJourney` and `rescrapeJourney` 202 — so no rule can hold a declared success code, and a sentence saying the layer « answers 201 » is false on the code | by L21 | `open` |
-| B-380 | The season grab's `absorbedCount` is derived from `seasons.json` while the media sheet draws its season rows from the sheet's own catalogue (`media-sheets.json`): two families at one title that disagree on 13 of the 49 seasons both know, so on « Les Animaniacs »' sheet the row « Saison 5 · 0/23 · 23 manquants » offers the act and the answer says « aucun épisode à récupérer » | by L21 | `open` |
+| B-379 | The mock layer answers **200** to every call unless a scenario arms a failure (`mocks/scenario.ts:145`), whatever code the contract declares — `grabSeasonForFollow` declares 201, `requeueJourney` and `rescrapeJourney` 202 — so no rule can hold a declared success code, and a sentence saying the layer « answers 201 » is false on the code | by L21 | `fixed #592` |
+| B-380 | The season grab's `absorbedCount` is derived from `seasons.json` while the media sheet draws its season rows from the sheet's own catalogue (`media-sheets.json`): two families at one title that disagree on 13 of the 49 seasons both know, so on « Les Animaniacs »' sheet the row « Saison 5 · 0/23 · 23 manquants » offers the act and the answer says « aucun épisode à récupérer » | by L21 | `fixed #592` |
 | B-381 | A message said while a layer is open is drawn UNDER that layer: the frame ranked the message at z-49 beneath the bottom sheet at z-52, so a verb pressed in a panel speaks a sentence the operator cannot see — held by the toast seam, visible and at full opacity in the document, and under the layer at its own centre; and the message was `inert` while any layer was open, so its close and « Annuler » took no finger | by L21 | `fixed #572` |
 | B-382 | The season act on a FOLLOWED show's own media sheet was addressed under the sheet's key: a sheet opened under « Silo (2023) » is followed by « Silo », so the layer found no follow by that title, began a second one beside the real follow it left untouched, and said « Série suivie et saison 3 demandée — aucun épisode à récupérer. » — B-378's shape on an owned-and-followed sheet | by L21 review round two | `fixed #572` |
-| B-383 | Four verbs SAY a sentence and send nothing to the layer: « Re-scraper les métadonnées » on the follow panel, « Remplacer la valeur » on a secret, « Lancer à blanc » on a maintenance action and « Lancer la veille maintenant » in the « more » menu each answer a canned sentence over an unchanged world — the « said, not done » class, identical on round one's candidate | by L21 review round two | `open` |
+| B-383 | Four verbs SAY a sentence and send nothing to the layer: « Re-scraper les métadonnées » on the follow panel, « Remplacer la valeur » on a secret, « Lancer à blanc » on a maintenance action and « Lancer la veille maintenant » in the « more » menu each answer a canned sentence over an unchanged world — the « said, not done » class, identical on round one's candidate | by L21 review round two | `fixed #592` |
 | B-384 | `buildIdentity()` hashes every file under `design/src/`, the command-logging hook's `.claude/logs/bash-commands.log` included, so the build id the design host publishes follows shell commands, not code | by L21's implementer | `fixed #589` |
 | B-385 | `hooks/pre-push` runs `pytest -n auto` at every core on every push, beside whatever gate a wave is running; nothing sets `PYTEST_XDIST_AUTO_NUM_WORKERS` | by the steward | `fixed #589` |
 | B-386 | `scripts/heavy.sh` has ONE readiness floor for every run — a `make check` and a single-rule replay wait behind the same 4 GB and load 6 | by the steward | `fixed #589` |
@@ -441,7 +441,7 @@ when the defect comes back.
 | B-393 | A resolution candidate is chosen by a full-width « C'est celui-ci » pill while the card itself answers no tap: the act takes more room than the medium it chooses, and the card a finger aims at does nothing | by the operator, 2026-09-11 | `fixed #585` |
 | B-394 | The harness's two floating buttons (the design note ⓘ and the states list ≡) are painted OVER a message shown at the top of the frame, so the sentence answering a verb pressed inside a layer is covered by chrome that is in no production build | by the operator, 2026-09-11 | `fixed #585` |
 | B-395 | The library's selection bar stays drawn on every other tab: `app/bottom-slot.tsx` renders it unconditionally and its own condition reads `selMode` alone, so « N sélectionnés · Annuler · Supprimer » sits over Acquisition — and the tab bar, hidden by that same `selMode`, leaves no way back | by the operator, 2026-09-11 | `fixed #585` |
-| B-396 | The mock seed offers exactly ONE folder with candidate cards, so the resolution window's riskiest path — a second pick taken inside the first one's undo window, and a put-back into a list that has moved — is reachable by no finger and is proved through the queue's seam alone | by audit | `open` |
+| B-396 | The mock seed offers exactly ONE folder with candidate cards, so the resolution window's riskiest path — a second pick taken inside the first one's undo window, and a put-back into a list that has moved — is reachable by no finger and is proved through the queue's seam alone | by audit | `fixed #592` |
 | B-420 | A wrapped index row IS refused by `unparsed-row`, and refused for the wrong reason: the message says « a status cell without backticks », names no line, and the `corpus` arm prints one row fewer while reporting clean on its own — a reader is told to look for backticks that are all present | by the tooling micro-wave | `fixed #589` |
 | B-421 | An index row written AFTER the first body head is counted and read by the guard, and invisible to a reader: the Markdown table ends at the first non-row line, so the row is in every figure and on no rendered page — and nothing holds the index's order either, which is how a merge's conflict region re-glued a row twice on 2026-09-08 | by the tooling micro-wave | `fixed #589` |
 | B-460 | R161's h2 floor is green over an affordance made invisible by `opacity: 0`, a clip or an off-screen transform — it reads a box above zero and `visibility`, two of the five ways to take a mark away | by review | `open` |
@@ -451,10 +451,10 @@ when the defect comes back.
 | B-464 | The same arm never opens three scopes: a `<style>` block in the shell's markup, a `.css` in a subdirectory of `styles/`, and a negative `-z-N` utility | by review | `open` |
 | B-465 | `engine/legacy.js:9344` still says « paintSelBar() below draws the bar directly » four lines above the call to the now-empty function | by review | `open` |
 | B-466 | `ui/variants/frame.ts` sits at 399 non-blank lines against a hard ceiling of 400, and the arm this wave added is what will demand the four-hundredth | by review | `open` |
-| B-470 | The media sheet carries the SAME « Re-scraper les métadonnées » the follow panel does, drawn as `data-toast`, so it too said a sentence and sent nothing — a fifth verb of B-383's class, named in no entry because round two's reader swept panel producers and a sheet is a screen | by the mock-layer micro-wave | `open` |
+| B-470 | The media sheet carries the SAME « Re-scraper les métadonnées » the follow panel does, drawn as `data-toast`, so it too said a sentence and sent nothing — a fifth verb of B-383's class, named in no entry because round two's reader swept panel producers and a sheet is a screen | by the mock-layer micro-wave | `fixed #592` |
 | B-471 | `readMediaSeasons` DECLARES `Season[]` (`{season, owned, aired}`) and ANSWERS the sheet's catalogue (`{number, episodes, airDate}`): two different shapes at one operation, and `contract-conformance.test.ts` cannot see it because it reads only a response's first-level required fields, never an element's | by the mock-layer micro-wave | `open` |
 | B-472 | `scripts/heavy.sh` takes its lock with a polled `mkdir` and no queue, so among several waves waiting an old demander has no precedence over a new one: with four agents on the machine the lock, not the work, sets a wave's pace | by the mock-layer micro-wave | `open` |
-| B-473 | `lib/verbs.ts` exports `registeredVerbNames` « for the rule that reads the seam from outside » and NOTHING calls it — not the shell, not a rule, not a test: a seam nothing reaches is a seam that does not exist, and the first rule that wanted it found nothing to ask | by the mock-layer micro-wave | `open` |
+| B-473 | `lib/verbs.ts` exports `registeredVerbNames` « for the rule that reads the seam from outside » and NOTHING calls it — not the shell, not a rule, not a test: a seam nothing reaches is a seam that does not exist, and the first rule that wanted it found nothing to ask | by the mock-layer micro-wave | `fixed #592` |
 | B-474 | A folder panel's « Résoudre → » carries `data-resolve="<folder>"`, and the engine reads that attribute as the CHOSEN CANDIDATE for `currentState().resolveTarget` — so the act resolves whatever resolution screen was last opened, naming the folder as the pick: measured, « Lucky » was resolved as « S.W.A.T. » by a finger on S.W.A.T.'s own panel | by the mock-layer micro-wave | `open` |
 | B-475 | The library holds episode numbers the catalogue does not list — American Dad! S16 holds 1–24 where the catalogue lists 20, Les Animaniacs S2 holds `[1, 4, 7, 9, 76–82]` where it lists 12 — and they are counted and drawn NOWHERE: every surface counts the numbers at or below what aired, so four and seven held files vanish | the operator's ruling on numbering orders, then the wave that draws it | `open` |
 | B-476 | « Dexter: Resurrection » is followed under a title no sheet carries (the sheet is « Dexter Resurrection », and its holdings are keyed there), and the follow's totals 96/96 are not its seasons' sums 10/10: one show, three families, three answers | the wave that next touches the seeds' identity | `open` |
@@ -792,6 +792,14 @@ It predates L21 and it is layer-wide, so **it is not repaired in L21** (the orch
 mock/contract micro-wave, « mock layer ».** Until it lands a rule holds a success as `2xx` and says why,
 as R158 does. B-378's entry said « answers 201 », which was the contract's word and not the layer's.
 
+**Fixed by the mock-layer micro-wave, #592** (`9da6fd556`, `63fb37de1`; `docs/features/maquette-mock-layer/DESIGN.md` § 1).
+`mocks/declared-status.ts` reads the contract and builds `operationId → the lowest declared 2xx`, and
+`scenario.ts` answers it on BOTH branches of its outcome, so an unarmed call and a call armed only with a
+latency carry the code the contract declares. **R170** (`harness/declared_codes.py`, on the `--contracts`
+tier): 15 holds, no violation — one operation per declared family, what `answered()` records against what
+the response carried, the corpus of non-200 operations, and the latency dial. **Mutation**:
+`const success = 200` → 4 violations, naming the three declared codes and the latency dial.
+
 **B-380 — the season grab counts one family of seasons and the sheet draws another.**
 `episodesMissingFromSeason` (`design/src/mocks/handlers/acquisition-verbs.ts`) derives `absorbedCount`
 from `seeds/seasons.json`, while `readMediaSeasons` (`handlers/media.ts:151`) answers the SHEET's own
@@ -1065,6 +1073,17 @@ layer and answer a canned sentence over an unchanged world:
 Identical on the control, so it predates round two's repairs. It is the « said, not done » class this
 wave was opened for — NE-DOIT-PAS-1, a sentence that can be right about nothing. **Filed, not repaired.**
 Owner: a follow-up of L21, scheduled by the operator. Status `open`.
+
+**Split between three owners** (the operator's ruling of 2026-09-12, and the orchestrator's). This entry's
+row closes on the half the mock-layer micro-wave owns; the other two verbs are not orphaned, they are
+owned elsewhere:
+
+| Verb | Owner | State |
+| --- | --- | --- |
+| « Re-scraper les métadonnées » on the follow panel (and its twin on the media sheet, B-470) | the mock-layer micro-wave | fixed #592 — `rescrapeMedia`, R171 |
+| « Lancer à blanc » on a maintenance action | the mock-layer micro-wave | fixed #592 — `runMaintenanceAction` with `dryRun`, R171 |
+| « Remplacer la valeur » on a secret | the settings wave | B-334, #588 |
+| « Lancer la veille maintenant » in the « more » menu | L20 — it is DOIT-6's operation, `POST /api/acquisition/detect` | L20's plan |
 
 
 **B-384 — the build identity hashes the hook's command log.**
@@ -1394,6 +1413,15 @@ the rules measure against, and a wave that opens the seeds should close all of w
 index read on a list that has really moved.
 
 <sub>audit, resolution-card round one · the reader's `a08_manual_and_two_folders.py` over the eight `arr-*` states · `a02_window.py`'s `second_pick_by_finger` · `harness/resolution_window.py`'s w6, driven through `window.__queueActions`</sub>
+
+**Fixed by the mock-layer micro-wave, #592** (`cbd933f9f`; `docs/features/maquette-mock-layer/DESIGN.md` § 3).
+« S.W.A.T. », already a queued folder whose own card names two candidates, now carries those two as a
+pending decision. **R172** (`harness/two_picks.py`, full suite): 16 holds, no violation — pick A by a
+finger, pick B inside A's window, only the latest message carries the way back, « Annuler » puts back ONE
+card at its index while A's send still leaves, and the put-back on a list a third settled folder really
+moved. **Mutation**: S.W.A.T.'s candidates emptied → 5 violations, the first naming it: « the second
+folder is picked INSIDE the first one's window ». Navigation goes through `window.__screens.resolution`,
+because no finger reaches a named folder's arbitration (B-474).
 
 **B-395 — the library's selection bar follows the operator off its own page.**
 
