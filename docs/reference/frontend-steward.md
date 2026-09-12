@@ -66,12 +66,13 @@ there:
   every running agent. A successor satisfies this office's « fresh session » condition as long as it
   never implemented the lot it audits: succession changes the session, not the separation;
 - **the tiers, and this project's one rule about them.** `orchestrator:model-routing` routes a
-  dispatch to `deep`, `standard` or `light` through `~/.claude/claude-orchestrator/models.json`; on
-  this machine that map is EMPTY (`resolve-tier` prints nothing, and the launcher then types no
-  model, so the host's default applies). So this office names the model on every launch —
-  `--model opus` for an implementer, a reader and a successor — and **no tier of this project is
-  ever bound to Sonnet** (`CLAUDE.md` § Implementation Workflow). The model and the reading that
-  chose it go in the launch report, as the skill asks;
+  dispatch to `deep`, `standard` or `light` through `~/.claude/claude-orchestrator/models.json`.
+  **Since plugin 0.26.1 (installed 2026-09-12) the launcher takes `--tier` and no longer `--model`**,
+  and the map on this machine binds all three tiers to `opus` (written by the steward that day on the
+  operator's « Go »; it had been EMPTY until then, which made the launcher type no model at all) —
+  so every launch of this office says `--tier deep` for an implementer, a reader and a successor,
+  and **no tier of this project is ever bound to Sonnet** (`CLAUDE.md` § Implementation Workflow).
+  The tier and the reading that chose it go in the launch report, as the skill asks;
 - **the launch itself.** **The steward LAUNCHES every wave's agent, and it ROTATES one whose context
   has passed the gate — itself, with `orchestrator:iterm-agents`, never by handing the operator an
   invocation to paste (operator, 2026-09-05: « c'est à toi de lancer les agents, tes skills
@@ -86,9 +87,12 @@ there:
   spawned on the tty the operator's closed session had held an hour before; `--left-of` and `move`
   remain for repairing a layout after the fact), **`--trust` on every launch of this office, without
   exception** (the host records trust per exact path, a worktree inherits nothing from its
-  repository, and every directory this office launches into is one it prepared itself), `--model`
-  named explicitly (the tiers, below), the title in the operator's format — `Implementer : <phase>`,
-  `Reviewer : <round>`, `Orchestrator : <feature>` — because the title becomes the session's
+  repository, and every directory this office launches into is one it prepared itself), `--tier`
+  named explicitly (the tiers, above), the title in the SHAPE the launcher enforces since 0.26.1 —
+  `Agent : <subject>` for anything the steward spawns (an implementer, a reader, a probe) and
+  `Orch : <subject>` for the steward and its successor, the subject at most 25 characters; the
+  spelled-out `Implementer : …` / `Reviewer : …` / `Orchestrator : …` of the older convention are
+  REFUSED before a tab exists — because the title becomes the session's
   `--name`, so it is the address `ListAgents` prints and the one `close --expect-title` guards on,
   the prompt ONE LINE naming the brief's path and the steward's exact `ListAgents` name and
   reference, everything else in the brief. Since plugin 0.22.1 the prompt is handed to the app
@@ -116,7 +120,33 @@ there:
   not rewritten to please a script; the third is avoided by writing `<title>`. A reader's brief is
   held to the non-goals and STOP-and-ask checks like an implementer's: this office writes a
   « Non-goals » section in both, and the lint reads 0 findings before any spawn. The generalisation
-  belongs to the plugin, not here;
+  belongs to the plugin, not here. A third false positive joined the list on 2026-09-12: a glob in
+  prose (`/Users/izno/dev/worktrees/*`) is read as a path that does not exist;
+- **the MCP catalogue is absent on this machine, by design.** 0.26.1 reads
+  `~/.claude/claude-orchestrator/mcp.json` to give a spawned session its servers; the file does not
+  exist here, the launcher says so on stderr, and every agent of this office starts with NO MCP
+  server. The harness needs none: it drives its own Playwright. A brief says so where it names the
+  tier, so an agent never reaches for a tool it was not given;
+- **the launcher can hang, and the fallback is tmux (2026-09-12).** At 13:55 a `close --tty` on a tab
+  whose session still ran printed « closed 1 session » and then hung; the session was NOT closed
+  (its process survived and was ended by `kill`). From then on every launcher call failed — a
+  websocket HTTP 401, then a hang inside the `iterm2` package's `auth.py`, on the AppleScript
+  `request cookie and key` that iTerm2 never answered — and AppleScript itself timed out on
+  `count of windows` and `create tab` while iTerm2's own window kept working. The repair is inside
+  iTerm2 (its Settings › General › Magic « Enable Python API » toggle, or a restart — which kills every
+  live session) and belongs to the operator's hand or to a session he opens for it. Three rules the
+  outage taught: **a launcher's « closed » is a claim, `ps -t <tty>` is the fact**; **never an unbounded
+  `osascript`** (each unanswered AppleEvent waits two minutes in iTerm2's queue and the queue is what
+  hangs; wrap every one in `perl -e 'alarm N; exec @ARGV'`); and **the fallback is a detached tmux
+  session, launched with the launcher's own flags and a CLEAN environment**:
+  `tmux new-session -d -s <name> -c <dir> "env -u CLAUDE_CODE_BRIDGE_SESSION_ID -u CLAUDE_CODE_CHILD_SESSION -u CLAUDE_CODE_MESSAGING_SOCKET -u CLAUDE_CODE_MESSAGING_TOKEN -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT /opt/homebrew/bin/claude --model opus --permission-mode auto --strict-mcp-config --settings '{\"remoteControlAtStartup\":false}' --name 'Agent : <subject>' '<one-line prompt>'"`,
+  the directory's trust recorded by hand first (`~/.claude.json`, `projects[<dir>].hasTrustDialogAccepted`),
+  the screen read with `tmux capture-pane -p -t <name>`, and the session ended with
+  `tmux kill-session` after its stand-down. **The two flags are not optional**: the launcher passes
+  `remoteControlAtStartup:false` to every agent (`iterm_agent.py`, the `--settings` line) and a
+  session spawned from the steward's shell inherits the steward's Remote Control bridge — the first
+  tmux reader of that day appeared in the operator's Remote Control client attached to the steward,
+  for want of both;
 - **the shared-machine discipline** in its generic form; the lock, the fan-out variable and the
   arithmetic of THIS machine stay in § « Instrument hygiene » below, and they are the stricter reading.
 
@@ -368,7 +398,13 @@ its own ports, and the duty to kill what it started and delete what it built BEF
 **The lock, `scripts/heavy.sh`, is what makes the rule hold when two sessions both believe they are
 alone.** Wrap every run that starts browsers, builds or a parallel test run — `sh scripts/heavy.sh
 <who> <command>`. It is a machine-wide mutex plus a readiness check: it waits for whoever is
-running, then waits again until there are 4 GB free and a one-minute load at or below 6, and it
+running, then waits again until there is room — **read from the run's CLASS since the tooling
+micro-wave (B-386, #589): `--class browser` for a harness run, `--class test` for a parallel pytest,
+a `make check` or a build, `--class rule` for a single-rule replay, each with its floor and the
+arithmetic beside it in the script; a run with no class keeps the historical 4 GB and load 6, and a
+lower floor by environment is REFUSED under a named class** (the 2 560 MB the operator allowed by hand
+on 2026-09-12, when four agents ran at once and the fixed floor held two closing walks for fifty
+minutes, is what the classes replaced) — and it
 watches the run, stopping ITS OWN child (exit 75, never anything else on the machine) after three
 consecutive samples below 2 GB free. It releases on exit, on an interrupt and on a kill, and a lock
 older than forty-five minutes is treated as a dead session's.
@@ -390,6 +426,18 @@ to a wave, watched it comply, and then ran the hold-count recorder itself at the
 machine at a load of twenty-seven. Set it explicitly, every time: `TM_HARNESS_JOBS=2 sh
 scripts/heavy.sh <who> <command>`. The lock cannot save a run from its own parallelism — it holds
 the door, it does not hold the room.
+
+**Two locks, by what the run READS (2026-09-12, five agents on one machine).** The mutex exists for
+the ONE served copy and the ONE 8899 host: what touches them — `run.sh` in any tier, the oracle,
+`harness-hold-counts.py`, `mutate.sh`, a single rule replayed against `/tmp/tm-refonte` — runs under
+the shared lock and is announced to the steward in one line before and one after. What is heavy
+and reads neither — `npm ci`, a build into a worktree's own `dist/`, `make check`, `pytest`, a
+`git push` (the pre-push hook runs the suite) — runs under the WAVE'S OWN lock,
+`HEAVY_LOCK=/private/tmp/tm-heavy-<wave>/holder`, so it proceeds beside another wave's harness run
+and the readiness floor, not the mutex, is what paces the machine. The day this was written the
+external load was the host's own (a Plex transcode, Spotlight, `fseventsd` at 74 %), and the fixed
+load ceiling would have held every push of every wave behind it: the steward raised the ceiling to
+10 for own-lock runs and said so, which is the arbitration the class model now carries.
 
 **Its thresholds are arithmetic, not taste.** This host is 8 cores and 16 GB; one Playwright browser
 group costs about 1.1 GB; the baseline holds about 6 GB. A fan-out of eight therefore asks for more
@@ -466,6 +514,32 @@ register's tallies: every repair moves them, so a wave that re-measures them eac
 numbers that are stale before the round ends. L14 paid about two majors a round for six rounds on
 exactly this. **The office does not count a stale figure as a finding during repair rounds**, tells
 its readers so, and requires one measured pass on the head that is about to merge.
+
+**6. A mutation is a claim until it is SEEN to fall — three inert ones in one wave (#585, 2026-09-12).**
+A repair's mutation is named in the commit; the round-one repairs of the resolution card named three
+that removed nothing: `hidden` added to an element whose `inline-grid` wins in Tailwind's canonical
+order; `inert` written in JSX, which React 19.2 drops (and set through a `ref`, the app clears it
+when a layer closes); an inline `height` under `.card`'s `min-height`. Each was proved inert rather
+than assumed — one by a `data-mutationprobe` added in the same edit, which landed while `inert` did
+not — and replaced by two mutations that bite. So a mutation is run and its FALL read, like a rule
+is; « the mutation removes the attribute » is a sentence until the hold's count moves.
+
+**7. Paint and hit-test are two readings, and `inert` separates them (B-381, then R163).** A rule
+that reads « the message is visible » through `elementFromPoint` reads HIT-TESTING, and `inert` on
+the background removes an element from hit-testing without changing its paint: R163 was green over
+the harness buttons painting on the message because the buttons were inert to the probe, not
+hidden. A PAINT hold lifts `inert` before it reads; a TOUCH hold does not, and the two are written as
+two holds. The same lesson had been paid once in L21 (B-381's « the screen also covers the message »
+was false for the same reason); it is written here so the third time is refused by a reader.
+
+**8. A debt is a supposition until it is probed (the register guard, 2026-09-12).** Two debts of
+`check-bug-register.py` were briefed from the SHAPE of a merge conflict the steward had resolved by
+hand — « a wrapped index row is invisible », « a row below the table is unread » — and the wave that
+took them measured both false as stated (the wrapped row IS refused, misdiagnosed and unnamed; the row
+below the table IS counted, invisible only to a Markdown reader) and a third fact nobody had written
+(the index was not in ascending order: three descents). The wave filed what it measured, not what it
+was told, and the office's brief was the defect. A brief carries the PROBE that shows the guard
+green over the defect, never a diagnosis written from memory.
 
 **And the arithmetic worth keeping.** Of L14's sixty-odd majors, roughly a dozen were defects a user
 would meet — a library that went blank, taps lost on icon-only buttons, a three-thousand-pixel jump
