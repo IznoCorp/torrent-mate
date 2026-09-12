@@ -119,7 +119,9 @@ export function giveTheEntryBackFirst(isOpen: () => boolean): () => void {
       // page switch was written against.
       control.click();
     }, { once: true });
-    history.back();
+    // THROUGH THE BRIDGE: the router's history instance is named by the file
+    // that creates it, and a module that steps back asks that file to.
+    window.__bridge.back();
   }, true);
   // WHAT THE SURFACE CALLS WHEN IT HAS PUSHED. Handed back rather than
   // exported, so there is no way to claim an entry for a surface that never
