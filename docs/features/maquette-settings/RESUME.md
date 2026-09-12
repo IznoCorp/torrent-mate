@@ -59,17 +59,25 @@ Eight mutations, each falling on its own holds and nothing else: the table is in
 5. **Hold counts** — `failed` read FIRST.
 6. **`make check`** — last run: 11 201 passed, and it stopped on the version bump, which is now
    0.98.85. Re-run it whole.
+   **Main moved again (2026-09-12):** #591 landed as `e2a6161a1` at **0.98.85**, with BUGS.md
+   rows B-460..B-466 and a re-recorded hold-counts baseline and oracle reference. So merge
+   `origin/main` a second time BEFORE items 3–5 (the oracle and the hold counts compare against
+   main's references), and move the version to **0.98.86** — or higher, re-reading main's
+   `__init__.py` at that moment.
 7. **Push, and the PR body** — the body is written and posted; add the run at
    `HEAVY_LOAD_CEILING=10` and why (the steward measured 12 of the load external to us).
 
 ## The envelope
 
 Shared lock (`sh scripts/heavy.sh <wave> …`) for anything touching `/tmp/tm-refonte` or 8899 —
-`run.sh` in any tier, the oracle, `harness-hold-counts.py`, a rule replay. Own lock
-(`HEAVY_LOCK=/private/tmp/tm-heavy-settings/holder`) for everything else: `npm`, `make check`,
-`pytest`, `git push`. `HEAVY_FREE_FLOOR_MB=2560`, `TM_HARNESS_JOBS=2`,
-`PYTEST_XDIST_AUTO_NUM_WORKERS=3`, and `HEAVY_LOAD_CEILING=10` on the OWN lock only, by the
-steward's measurement. Announce every shared-lock run to the steward, one line before and one
+`run.sh` in any tier, the oracle, `harness-hold-counts.py`, a rule replay. **Every pytest run,
+`make check` and `git push`** (its hook runs the suite) goes under ONE lock shared by all waves,
+`HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder` — the steward's rule of 2026-09-12, after the
+system killed two waves' pushes running side by side. Own lock
+(`HEAVY_LOCK=/private/tmp/tm-heavy-settings/holder`) for the rest: `npm`, the cheap guards. The
+default 4 GB free floor stands (the 2560 override is revoked), `TM_HARNESS_JOBS=2`,
+`PYTEST_XDIST_AUTO_NUM_WORKERS=3` (2 beside a harness run), `HEAVY_LOAD_CEILING=12` on the shared
+mutex and 10 on the others, by the steward's measurement. Announce every shared-lock run to the steward, one line before and one
 after. A replay helper is at `<scratchpad>/replay.sh` (acquires the served-copy lock, builds,
 publishes, runs named rules).
 
