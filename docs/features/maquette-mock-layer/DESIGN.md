@@ -204,3 +204,69 @@ own reading named three, which was read on another scenario.
 **The run**: 15 holds EXECUTED, no violation.
 
 ---
+
+## 3. B-396 — a second subject, so the window's riskiest path has a finger
+
+### The seed, and why it costs almost nothing
+
+The entry asks for « a SECOND queued folder with candidate cards ». It was found
+rather than invented: **« S.W.A.T. » is already a queued folder** (`seeds/stuck-loaded.json`)
+and its own card carries the reason
+
+> « Deux correspondances possibles — TVDB 328724 (2017) et TVDB 71663 (1975). Il faut choisir. »
+
+— a folder whose text states two candidates over a resolution screen that offered none. It now
+carries exactly those two as a pending decision.
+
+**What that costs, checked rather than assumed.** `PENDING_DECISIONS` is a CONVERTED family, so
+`check-mock-seeds.py --arm correspondence` does not re-derive it from `legacy.js` and no engine
+fixture moves. **No queue count changes** — the card was already there. **No named state changes
+subject**: nothing outside the resolution screen itself draws the pending decisions (`readDecisions`
+has one reader, `features/arrivals/queries.ts`), and « Backrooms » — whose empty candidate list IS
+the named state `arr-resolution` (« résolution, aucun candidat ») — is untouched. The two candidates
+are the two the seed's own sentence names: a fixture contradicting its own reason is B-369's shape
+wearing a new coat.
+
+### What the walk found on the way — B-474
+
+**No finger reaches a named folder's arbitration today.** Both ways in were tried:
+
+- the arrivals card's « Résoudre → » carries `data-act="resolve"`, whose engine branch calls
+  `screens.resolution()` with **no argument** — it answers the first stuck folder whatever card
+  was tapped;
+- the folder PANEL's « Résoudre → » carries `data-resolve="<folder>"`, and the engine reads that
+  attribute as the **chosen candidate** for `currentState().resolveTarget`. Measured: with
+  « Lucky »'s screen current, a finger on S.W.A.T.'s panel act answered « Identifié comme
+  « S.W.A.T. » » **about Lucky**.
+
+Filed as **B-474**, not repaired: the repair is the ORDER of the engine's delegation branches and
+D5 says the engine only shrinks. R172 therefore NAVIGATES through `window.__screens.resolution`,
+which is what every rule here navigates with, and says so in its own text. What B-396 asks to be a
+finger is the **pick**, and every pick in the rule is one.
+
+### The rule — R172 (`harness/two_picks.py`), full suite
+
+| Hold | What it reads |
+| --- | --- |
+| t1 | « Lucky » is picked by a finger and leaves the queue at once |
+| t2 | B's screen opens, B is picked by a finger INSIDE A's window, both are out and neither send has gone |
+| t3 | only the LATEST message carries a way back |
+| t4 | « Annuler » under the finger puts back ONE card at the index it held, and A stays out |
+| t5 | and A's send is the one that leaves — the undo cancels its own send and no other |
+| t6 | the put-back read on a list that has REALLY moved: a third folder settled by a finger between the pick and the undo, the list going from three to one |
+
+**t6's put-back goes through the seam, and t3 is the reason**: the third act speaks, its message
+replaces the pick's, and the pick's way back is out of a finger's reach by the interface's own rule.
+t4 walks the undo with a finger on the ordinary case. What B-396 says was missing is not the finger
+but a list that has really MOVED under the splice — which R162's w6 could not produce.
+
+**What t6 asserts and what it only reads.** It asserts the card comes back **exactly once**. WHERE
+it lands on a shortened list is read and printed — `putOneBack` splices at the index of the BEFORE
+snapshot and `slice` absorbs an overflow, which B-396 records as reasoning rather than a reading.
+**The reading**: it left index 1 of `[Backrooms, S.W.A.T., doc_fr_2026_final]` and landed at index 1
+of `[Backrooms]` → `[Backrooms, S.W.A.T.]`. A rule asserting a position nobody has decided would be
+writing a contract instead of holding one.
+
+**The run**: 16 holds EXECUTED, no violation.
+
+---

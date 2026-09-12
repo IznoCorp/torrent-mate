@@ -446,6 +446,7 @@ when the defect comes back.
 | B-471 | `readMediaSeasons` DECLARES `Season[]` (`{season, owned, aired}`) and ANSWERS the sheet's catalogue (`{number, episodes, airDate}`): two different shapes at one operation, and `contract-conformance.test.ts` cannot see it because it reads only a response's first-level required fields, never an element's | by the mock-layer micro-wave | `open` |
 | B-472 | `scripts/heavy.sh` takes its lock with a polled `mkdir` and no queue, so among several waves waiting an old demander has no precedence over a new one: with four agents on the machine the lock, not the work, sets a wave's pace | by the mock-layer micro-wave | `open` |
 | B-473 | `lib/verbs.ts` exports `registeredVerbNames` « for the rule that reads the seam from outside » and NOTHING calls it — not the shell, not a rule, not a test: a seam nothing reaches is a seam that does not exist, and the first rule that wanted it found nothing to ask | by the mock-layer micro-wave | `open` |
+| B-474 | A folder panel's « Résoudre → » carries `data-resolve="<folder>"`, and the engine reads that attribute as the CHOSEN CANDIDATE for `currentState().resolveTarget` — so the act resolves whatever resolution screen was last opened, naming the folder as the pick: measured, « Lucky » was resolved as « S.W.A.T. » by a finger on S.W.A.T.'s own panel | by the mock-layer micro-wave | `open` |
 
 **B-470 — the media sheet's own « Re-scraper les métadonnées » said a sentence and sent nothing.**
 `features/media/media-details.tsx:105` drew the sheet's re-scrape as
@@ -511,6 +512,43 @@ exported function with no caller reads exactly like one that has been wired. Its
 
 **Fixed by the mock-layer micro-wave**: `installVerbs()` publishes `window.__verbNames`, where every
 other driving seam of this prototype is published, and R171's m3 reads it.
+
+**B-474 — a folder's « Résoudre → » resolves whichever screen was last open.**
+`engine/legacy.js`'s delegation answers `closest.dataset.resolve` with:
+
+    const target = currentState().resolveTarget;
+    bridge.back();
+    setTimeout(() => actionResolve(target, closest.dataset.resolve, true), 240);
+
+The folder is `currentState().resolveTarget` and the ATTRIBUTE is the chosen
+CANDIDATE. That is right for a candidate card, which is what the attribute was
+made for. It is wrong for the FOLDER PANEL's own « Résoudre → », which carries
+`data-resolve="<folder>"` and means « open this folder's arbitration »: the
+branch above answers it first and resolves the current target, naming the folder
+as the pick. The engine's own comment says so — « the panel's own « Résoudre → »
+act reads it further down and never gets there, which is the order this rewire
+keeps exactly as it found it » — so the shadowing was known and recorded, and
+what it DOES was not.
+
+**MEASURED, by a finger, while R172 was being written** (the mock-layer
+micro-wave, 2026-09-12): with « Lucky »'s resolution screen current, a finger on
+« S.W.A.T. »'s folder panel « Résoudre → » answered « Identifié comme
+« S.W.A.T. » — le pipeline reprend jusqu'à la médiathèque. » about **Lucky**.
+The wrong folder is settled, with a candidate name no provider ever returned for
+it.
+
+**THE OTHER WAY IN IS NOT A WAY IN EITHER**, and it is recorded here because a
+reader looking for one will try it next: the arrivals card's own « Résoudre → »
+carries `data-act="resolve"`, whose branch calls `screens.resolution()` with no
+argument at all — it answers the FIRST stuck folder whatever card was tapped,
+which `lib/queue.ts` already states in its own words. So **no finger reaches a
+named folder's arbitration today**; R172 navigates through
+`window.__screens.resolution` and says so, the PICKS alone being fingers.
+
+**Not repaired by the wave that found it**: the repair is the ORDER of the
+engine's delegation branches, and D5 says the engine only shrinks. It closes
+with the surface that kills that branch, or by an entry of its own. Status
+`open`.
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=

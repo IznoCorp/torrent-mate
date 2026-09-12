@@ -54,6 +54,33 @@
     ]
   },
   {
+    "folder": "S.W.A.T.",
+    "kind": "show",
+    "title": "S.W.A.T.",
+    "reason": "ambiguous",
+    "when": "hier, 22 h 51",
+    "candidates": [
+      {
+        "title": "S.W.A.T. (2017)",
+        "year": 2017,
+        "provider": "tvdb",
+        "id": 328724,
+        "score": 1,
+        "withoutPoster": true,
+        "overview": "Une unité d'élite de la police de Los Angeles intervient sur les crises que les patrouilles ordinaires ne peuvent pas résoudre, sous le commandement d'un sergent né dans le quartier qu'il patrouille."
+      },
+      {
+        "title": "S.W.A.T. (1975)",
+        "year": 1975,
+        "provider": "tvdb",
+        "id": 71663,
+        "score": 1,
+        "withoutPoster": true,
+        "overview": "Une brigade d'intervention de la police californienne est appelée sur les prises d'otages et les fusillades, dans la série qui a donné son nom au sigle."
+      }
+    ]
+  },
+  {
     "folder": "Backrooms.2026.MULTi.2160p.WEB-DL",
     "kind": "movie",
     "title": "Backrooms",
