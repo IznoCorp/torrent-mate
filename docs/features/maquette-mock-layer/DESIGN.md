@@ -394,6 +394,13 @@ presses an act that answers zero; with a correct denominator no finger reaches o
 « manquants », no announced information, and « Reine rouge »'s row. **Green** after the client: 48 holds,
 no violation.
 
+**The mutations**, each replayed on the private build from the committed head `f32b72728` and restored:
+
+| Mutation | Result |
+| --- | --- |
+| `seasonsHeld`'s denominator back to the catalogue's total (`typeof season.ep === "number" ? season.ep : null`) | **8 violations**, all on the sheet: « 6/10 », « 5/8 », « 11/13 » and their « manquants » against the panel's, and « Reine rouge » S2 drawn « 0/1 · 1 manquant » instead of « à venir » |
+| one seed line back — American Dad! S16 `[16, 20, 20]` → `[16, 24, 24]` in `legacy.js` | **2 violations**: the follow's totals (399, 399) against the seasons' (403, 403), and season 16's aired 24 against the layer's 20. The owned leg stays green, and rightly: it derives against the family's own aired, and 24 numbers at or below 24 are 24 |
+
 ### Named states whose drawn numbers move, and the only divergences accepted (D8)
 
 Predicted from the edits and measured against every named state that opens a sheet or a panel (the
