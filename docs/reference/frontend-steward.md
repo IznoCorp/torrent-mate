@@ -367,7 +367,10 @@ its own ports, and the duty to kill what it started and delete what it built BEF
 
 **The lock, `scripts/heavy.sh`, is what makes the rule hold when two sessions both believe they are
 alone.** Wrap every run that starts browsers, builds or a parallel test run — `sh scripts/heavy.sh
-<who> <command>`. It is a machine-wide mutex plus a readiness check: it waits for whoever is
+[--class browser|test|rule] <who> <command>`, the class naming what the run costs so it waits behind
+its own floor (4 096 MB for a harness run's one or two browser groups, 3 072 for a parallel test run
+or a build, 2 560 for a single rule's one browser) instead of behind every run's, and under a named
+class `HEAVY_FREE_FLOOR_MB` may only RAISE that floor (B-386). It is a machine-wide mutex plus a readiness check: it waits for whoever is
 running, then waits again until there are 4 GB free and a one-minute load at or below 6, and it
 watches the run, stopping ITS OWN child (exit 75, never anything else on the machine) after three
 consecutive samples below 2 GB free. It releases on exit, on an interrupt and on a kill, and a lock

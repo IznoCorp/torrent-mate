@@ -183,6 +183,9 @@ by class instead of a number set by hand. Nothing below is optional.
   hook runs the test suite) — runs under the wave's OWN lock, so it can proceed beside another
   wave's harness run:
   `HEAVY_LOCK=/private/tmp/tm-heavy-<wave>/holder HEAVY_FREE_FLOOR_MB=2560 PYTEST_XDIST_AUTO_NUM_WORKERS=3 sh scripts/heavy.sh <wave> <command>`.
+  Since B-386 closed, the hand-set 2 560 is replaced by the run's class —
+  `sh scripts/heavy.sh --class rule|test|browser <wave> <command>` — which carries the floor itself
+  and refuses an environment that tries to lower it.
   `<wave>` is your wave's codename. A run that holds the shared lock is announced to the steward
   in one line before it starts (« harness run starting ») and one after (« done, exit N »).
 - **Fan-out has a name and a value, every time**: `TM_HARNESS_JOBS=2`,
