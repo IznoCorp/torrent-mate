@@ -1,8 +1,8 @@
 {
-  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 108 of 119 rule(s) report a hold count; the other 11 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
-  "taken_at_commit": "561ac7a3948b35c3bb63734627f68157e24636ef",
-  "taken_on": "2026-09-12",
-  "suite": "119 of 119 rule(s)",
+  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 112 of 123 rule(s) report a hold count; the other 11 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
+  "taken_at_commit": "5eafd3cfc536d5e6bf69618a3b994dc0e9680579",
+  "taken_on": "2026-09-13",
+  "suite": "123 of 123 rule(s)",
   "host": "http://127.0.0.1:8899/",
   "rules": {
     "acted_surface_redraws.py": {
@@ -120,6 +120,11 @@
       "count": 8,
       "source": "common.Journal summary"
     },
+    "declared_codes.py": {
+      "exit": 0,
+      "count": 15,
+      "source": "common.Journal summary"
+    },
     "departure.py": {
       "exit": 0,
       "count": 19,
@@ -197,7 +202,7 @@
     },
     "followed_sheet_act.py": {
       "exit": 0,
-      "count": 24,
+      "count": 12,
       "source": "common.Journal summary"
     },
     "follows.py": {
@@ -445,6 +450,11 @@
       "count": 9,
       "source": "common.Journal summary"
     },
+    "said_and_done.py": {
+      "exit": 0,
+      "count": 17,
+      "source": "common.Journal summary"
+    },
     "scen.py": {
       "exit": 0,
       "count": 16,
@@ -473,6 +483,11 @@
     "scrollbar.py": {
       "exit": 0,
       "count": 10,
+      "source": "common.Journal summary"
+    },
+    "season_family.py": {
+      "exit": 0,
+      "count": 48,
       "source": "common.Journal summary"
     },
     "season_grab.py": {
@@ -585,6 +600,11 @@
       "count": 39,
       "source": "common.Journal summary"
     },
+    "two_picks.py": {
+      "exit": 0,
+      "count": 16,
+      "source": "common.Journal summary"
+    },
     "type_scale.py": {
       "exit": 0,
       "count": 9,
@@ -602,10 +622,10 @@
     }
   },
   "totals": {
-    "rules": 119,
-    "parseable": 108,
+    "rules": 123,
+    "parseable": 112,
     "unparseable": 11,
-    "holds": 2600,
+    "holds": 2684,
     "failed": 0
   }
 }
