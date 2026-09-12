@@ -202,7 +202,12 @@ reaches him.
    on the files, under the merge delegation he gives; instrument minors are filed, never repaired inside the wave.
 3. **The post-merge gesture is the steward's own hand** — references re-recorded, the row, the folder cited by commit, the
    recount — no agent session for it, a script when one exists.
-4. **One steward docs PR per lot, at the lot's end** — never one per incident.
+4. **One steward docs PR per lot, at the lot's end** — never one per incident. **One consequence, measured on 2026-09-13
+   and paid by the next wave**: `check-implementation-state.py` refuses an « In flight » row whose pull request `main` already
+   holds, so between a micro-wave's merge and the docs PR that traces it, `main` is red on that guard and every pull request
+   rebased on it reads red in CI's contracts job. So a wave's LAST commit before its merge sets « In flight » back to
+   « None » (the plain row, no pull request number anywhere in the cell — the arm reads the first `#NNN`); the trace in
+   « Between … » stays the steward's, in the docs PR.
 5. **One repair train per day** — one brief, one worktree, one agent, one gate for the day's repairs — never one micro-wave
    per bug.
 6. **Two agents in parallel at most** on this 16 GB machine.
