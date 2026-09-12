@@ -1,35 +1,17 @@
 {
   "$comment": "The accessibility findings under `data-theme=\"light\"`, which this tier drove for nobody until L10-bis: it measured the DEFAULT theme only, so 154 findings counted by hand during L06 were invisible to it (B-055). THIS FILE IS READ BY `--check` AND THAT IS DELIBERATE — it is a RATCHET, a ceiling that may fall and may not rise, not the tolerance `a11y-debt.json` refuses to be. The dark floor stays a hard zero; remediating this list is a campaign with its own design, and what is held here meanwhile is that nothing is ADDED to it.",
-  "takenAtCommit": "4773b43b5460efdf1b04b432db98ebcb29e419b0",
+  "takenAtCommit": "2fb39ce1627fe4a955e70434a5c22fac949375a5",
   "platform": "Darwin/arm64",
   "counts": {
     "states": 87,
     "byRule": {
-      "color-contrast": 162
+      "color-contrast": 149
     },
-    "total": 162
+    "total": 149
   },
   "states": {
-    "acq-add-empty": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".fback"
-        ]
-      }
-    ],
-    "acq-add-results": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".fback"
-        ]
-      }
-    ],
+    "acq-add-empty": [],
+    "acq-add-results": [],
     "acq-discover": [
       {
         "rule": "color-contrast",
@@ -107,7 +89,6 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".fback",
           ".surferr > b"
         ]
       }
@@ -140,16 +121,7 @@
       }
     ],
     "acq-now-loading": [],
-    "arr-decision": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".fback"
-        ]
-      }
-    ],
+    "arr-decision": [],
     "arr-error": [],
     "arr-idle": [
       {
@@ -193,7 +165,6 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".fback",
           "button[data-manual=\"élément inconnu\"]"
         ]
       }
@@ -311,7 +282,6 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".fback",
           ".hn"
         ]
       }
@@ -322,7 +292,6 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".fback",
           ".hn"
         ]
       }
@@ -333,7 +302,6 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".fback",
           ".hn"
         ]
       }
@@ -344,7 +312,6 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".fback",
           ".hn",
           "details[open=\"\"] > .panel.bg-card[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(1) > .en[data-part=\"episode/number\"]",
           "details[open=\"\"] > .panel.bg-card[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(2) > .en[data-part=\"episode/number\"]",
@@ -361,7 +328,6 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".fback",
           ".hn"
         ]
       }
@@ -372,7 +338,6 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".fback",
           ".hn"
         ]
       }
@@ -467,27 +432,17 @@
         ]
       }
     ],
-    "screen-profile": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".fback"
-        ]
-      }
-    ],
+    "screen-profile": [],
     "screen-releases": [
       {
         "rule": "color-contrast",
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".best > .rt.flex-wrap.gap-2 > .sc.font-bold.ml-auto",
-          ".fback",
-          "article:nth-child(4) > .rt.flex-wrap.gap-2 > .sc.font-bold.ml-auto",
-          "article:nth-child(5) > .rt.flex-wrap.gap-2 > .sc.font-bold.ml-auto",
-          "article:nth-child(6) > .rt.flex-wrap.gap-2 > .sc.font-bold.ml-auto",
+          ".best > .rt.flex-wrap.gap-2 > .sc.font-bold.text-primary",
+          "article:nth-child(4) > .rt.flex-wrap.gap-2 > .sc.font-bold.text-primary",
+          "article:nth-child(5) > .rt.flex-wrap.gap-2 > .sc.font-bold.text-primary",
+          "article:nth-child(6) > .rt.flex-wrap.gap-2 > .sc.font-bold.text-primary",
           "button[data-pick-release=\"1\"]",
           "button[data-pick-release=\"2\"]",
           "button[data-pick-release=\"3\"]"
@@ -501,8 +456,8 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".panel.py-1[data-part=\"panel\"]:nth-child(6) > .modified.\\[\\&_\\.rv\\]\\:text-primary.before\\:w-\\[3px\\] > .rv[data-part=\"setting/value\"]",
-          ".panel.py-1[data-part=\"panel\"]:nth-child(8) > .modified.\\[\\&_\\.rv\\]\\:text-primary.before\\:w-\\[3px\\] > .rv[data-part=\"setting/value\"]"
+          ".panel.py-1[data-part=\"panel\"]:nth-child(7) > .modified.\\[\\&_\\.rv\\]\\:text-primary.before\\:w-\\[3px\\] > .rv[data-part=\"setting/value\"]",
+          ".panel.py-1[data-part=\"panel\"]:nth-child(9) > .modified.\\[\\&_\\.rv\\]\\:text-primary.before\\:w-\\[3px\\] > .rv[data-part=\"setting/value\"]"
         ]
       }
     ],
