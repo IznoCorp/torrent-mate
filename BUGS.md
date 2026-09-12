@@ -451,6 +451,8 @@ when the defect comes back.
 | B-464 | The same arm never opens three scopes: a `<style>` block in the shell's markup, a `.css` in a subdirectory of `styles/`, and a negative `-z-N` utility | by review | `open` |
 | B-465 | `engine/legacy.js:9344` still says « paintSelBar() below draws the bar directly » four lines above the call to the now-empty function | by review | `open` |
 | B-466 | `ui/variants/frame.ts` sits at 399 non-blank lines against a hard ceiling of 400, and the arm this wave added is what will demand the four-hundredth | by review | `open` |
+| B-490 | Acquisition › En cours throws the reader back to the top after a return from « Résoudre → »: the scroll restoration's late re-apply fires on a lazy poster's `load` | by operator | `open` |
+| B-491 | Out of the desktop frame the document scrolls beside `#port`: the closed sheet and its drag band overflow `.device` by 89 px once the frame stops clipping | by operator | `open` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
 
@@ -1021,6 +1023,45 @@ the payload was HANDED ON. Seen RED with the hook reverted: 4 failed, 1 passed �
 passed is the control, a TRACKED file still reaching the formatter, which is what stops the other four
 passing over a hook that has simply stopped forwarding. Mutation: both git probes removed → 3 failed,
 each naming its own door.
+**B-490 — a return to « En cours » throws the reader back to the top as the last poster loads.**
+
+The operator on 2026-09-12, on his Mac, verbatim: « Bug majeur : double scroll systématique sur Acquisition › En cours ;
+dès que le scroll arrive au niveau de Lucky on remonte automatiquement en haut de la page. » Two facts, two mechanisms;
+this entry is the jump, B-491 the double scroll.
+
+**The mechanism.** `app/scroll-restoration.ts` restores a page's offset on a history RETURN, then subscribes to the
+`load` of every `img` of `#port` not yet complete and, when the last one fires, writes the remembered offset again — to
+recover an offset the browser clamped while the list was short. The guard was the navigation token only. The posters
+below the fold are `loading="lazy"`: they load when the READER scrolls down to them, so the last `load` put the reader
+back at the arrival offset — the top, when they had left from there (B-178 made a stored zero a position). Lucky is the
+card carrying « Résoudre → », the detour's start, and the first unloaded posters sit just below it: the operator's
+reading was exact. A fresh arrival never jumps; nothing restores.
+
+**The readings** (private bench, Chrome, a setter trap on `scrollTop`): Résoudre → on Lucky, Back, then 40 px gestures.
+Phone 390 × 844: `#port.scrollTop` 520 → 240 from `addEventListener.once`. Desktop 1440 × 900 in the frame: the 4th and
+last lazy poster (`a406ec1c.webp`, Wicker, offset 1280) loads at port 520, and 1 ms later `scrollTop= before 520 value 0`.
+Out of the frame at 1440 × 900 every poster loads at once and the path cannot jump. R175 on the unrepaired tree: 40 holds,
+the four return walks fall — phone finger 490 → 22, phone wheel 480 → 0, desktop finger 491 → 15, desktop wheel 480 → 0.
+
+**The repair**, inside the one path: the late re-apply runs only if the port still sits where the restore landed
+(`port.scrollTop === landed`) — a clamped offset has not moved since the write, a reader's has.
+
+<sub>maquette-scroll-jump, 2026-09-12 · probe lines in `docs/features/maquette-scroll-jump/RESUME.md` · `harness/scroll_keeps_place.py` (R175)</sub>
+
+**B-491 — out of the desktop frame, the document is a second scroll container.**
+
+The « double scroll » half of the operator's sentence. Out of the frame (`#desktop-switch` checked) `styles/harness.css`
+drops `.device`'s `overflow: clip` (B-344), and the closed sheet — `#sheet`, `position: absolute`, translated 43 px below
+the bottom edge, with its 88 px `sheet/drag-band` — overflows it: `document.scrollingElement` measures 989 against 900
+(1189 against 1100, 1389 against 1300). A wheel or a finger over the shell's header moves the DOCUMENT by 89 px; over
+the list it moves `#port`. In the frame, at either width, `#port` is the only container. R175's header holds fall out of
+the frame, finger and wheel: « moved ['document'], the document overflows by 89 px ».
+
+**Closes when** the frame's stylesheet confines the scroll to the port out of the frame without moving the absolute
+layers or the switch's shape, and R175's header holds read green.
+
+<sub>maquette-scroll-jump, 2026-09-12 · private bench measure of every element outside `#port` below the viewport</sub>
+
 **B-466 — `frame.ts` is one line from a hard ceiling, and the arm this wave added is what will demand that line.**
 
 `python3 scripts/check-frontend-boundaries.py` on the wave's head exits **0** with
