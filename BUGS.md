@@ -505,8 +505,20 @@ give four clean arms. **The order cannot simply be required**, because the index
 gives way to the historical one. Re-ordering the register is a decision about the operator's own file
 and belongs to him.
 
-**Closes when** a `| B-NNN |` line found after the first body head is refused by name, and the index's
-order is held as a RATCHET: the four descents above are frozen by name and a fifth is refused.
+**Closed by this same wave, in two arms.** `row-placement` locates both index tables by their
+HEADINGS — « ## Open » and « ## Closed entries — index » — and refuses, by line number, any line that
+opens a cell with an identifier outside them. `index-order` reads each table ON ITS OWN and refuses a
+descent that is not frozen. Reading the two as one list makes the SEAM between them a descent, and
+the arm accused the register of its own boundary the first time it ran; the frozen list is therefore
+three pairs and not four — B-023 → B-013, B-346 → B-339, B-371 → B-331 — the fourth having been the
+seam.
+
+Held by five holds in `tests/scripts/test_check_bug_register.py`: a row re-glued below the table
+refused by name, a new descent refused by name, a reworded heading loud in both of its readings (one
+table lost → its rows refused as outside; both lost → the arm says it has no subject), and two
+controls — the two tables owning their own rows, and the real `BUGS.md` passing both arms, which is
+the one that would fall if either arm simply refused everything. Seen RED with both arms returning
+zero: 3 failed, 12 passed.
 
 <sub>Probed on copies, arm by arm, with `--register`: B-384's row moved below the table and just above
 its own body gives `duplicate-row`, `status-vocabulary`, `unparsed-row` and `corpus` all exit 0, with

@@ -20,6 +20,15 @@ including a wave's account of its own closures.
                      `frontend-architecture.md`. Same family, same file: those
                      numbers are CITED, and a brief has already instructed a wave
                      on « invariant 10 » meaning the wrong one.
+  row-placement      B-421: an index row written OUTSIDE the two tables. Every
+                     arm here still reads it — `INDEX_ROW` matches anywhere in
+                     the file — and no reader ever will, because the rendered
+                     table ended at the last row above it. A merge's conflict
+                     region put one there twice on 2026-09-08.
+  index-order        B-421's other half, and it is a RATCHET rather than a
+                     sort: the descents the index already carries are frozen by
+                     name and a new one is refused. Re-ordering the register is
+                     the operator's decision about his own file.
   corpus             THE NUMBER OF ROWS READ IS PRINTED, with a floor. An arm
                      that finds zero rows and reports clean is the shape this
                      repository has paid for seventy-three times
@@ -260,16 +269,20 @@ HISTORICAL_ROW = re.compile(r"^\|\s*[BE]-\d{3}\s*\|.*\|\s*\d{4}-\d{2}-\d{2}\s*\|
 ANY_INDEX_ROW = re.compile(r"^\|\s*([BE]-\d{3})\s*\|", re.MULTILINE)
 
 
-def index_table_lines(lines):
-    """The line numbers each index table occupies.
+def index_tables(lines):
+    """Where each index table starts and ends.
+
+    They are located by their HEADINGS rather than counted, so a table that
+    grows does not need a constant updated, and a heading that is reworded
+    empties the span loudly instead of shrinking it in silence.
 
     Args:
         lines: `BUGS.md` split into lines, without their endings.
 
     Returns:
-        A set of zero-based line indexes belonging to one of the index tables.
+        A list of `range` objects, one per table, over zero-based line indexes.
     """
-    inside = set()
+    tables = []
     for index, line in enumerate(lines):
         if not any(heading.match(line) for heading in INDEX_TABLE_HEADINGS):
             continue
@@ -279,8 +292,9 @@ def index_table_lines(lines):
         end = start
         while end < len(lines) and lines[end].startswith("|"):
             end += 1
-        inside.update(range(start, end))
-    return inside
+        if end > start:
+            tables.append(range(start, end))
+    return tables
 
 
 def arm_unparsed_row(text, rows):
@@ -345,6 +359,85 @@ def arm_unparsed_row(text, rows):
               "describes.", file=sys.stderr)
         named += 1
     return named
+
+
+# THE DESCENTS THE INDEX ALREADY CARRIES, frozen by name (B-421). The open
+# index is NOT sorted, and requiring that it be would refuse the register as it
+# stands — re-ordering it is a decision about the operator's own file, not a
+# guard's. What this freezes is the recurrence: on 2026-09-08 a merge of `main`
+# produced one conflict region spanning rows and bodies, and concatenating the
+# sides re-glued a row at the wrong place TWICE in one day. A fifth descent is
+# refused; these three are the file as the operator wrote it.
+FROZEN_DESCENTS = (("B-023", "B-013"), ("B-346", "B-339"), ("B-371", "B-331"))
+
+
+def arm_row_placement(text):
+    """Refuses an index row written outside the two index tables.
+
+    A `| B-NNN |` line after the first body head is READ by every arm here —
+    `INDEX_ROW` is `re.MULTILINE` and matches anywhere in the file — and is
+    invisible to a reader, because the Markdown table ends at the first line
+    that is not a row. So the row is in every figure this guard prints and on no
+    rendered page, which is the worst pair a register can offer: a count nobody
+    can check against the document it describes.
+
+    Args:
+        text: The whole of `BUGS.md`.
+
+    Returns:
+        The number of violations.
+    """
+    lines = text.splitlines()
+    inside = {index for table in index_tables(lines) for index in table}
+    if not inside:
+        print("  BUGS.md: neither index table was found. They are located by "
+              "their headings (« ## Open », « ## Closed entries — index »); a "
+              "heading reworded empties this arm's subject, and an arm with no "
+              "subject reports clean.", file=sys.stderr)
+        return 1
+    violations = 0
+    for number, line in enumerate(lines, start=1):
+        if ANY_ROW_LINE.match(line) and number - 1 not in inside:
+            violations += 1
+            print(f"  BUGS.md:{number}: this index row is written OUTSIDE both "
+                  f"index tables — « {line.strip()[:60]}… ». Every arm here "
+                  "still reads it, and no reader ever will: the rendered table "
+                  "ended at the last line above that was a row.", file=sys.stderr)
+    return violations
+
+
+def arm_index_order(text):
+    """Refuses a NEW descent in the open index — a ratchet, not a sort.
+
+    Args:
+        text: The whole of `BUGS.md`.
+
+    Returns:
+        The number of violations.
+    """
+    lines = text.splitlines()
+    frozen = ", ".join(f"{before} -> {after}" for before, after in FROZEN_DESCENTS)
+    violations = 0
+    # PER TABLE, never across them. The open index ends at B-421 today and the
+    # historical one opens at B-001; read as one list, that boundary is a
+    # descent, and the arm accused the register of the seam between its own two
+    # tables the first time it ran.
+    for table in index_tables(lines):
+        identifiers = [ANY_ROW_LINE.match(lines[index]).group(1)
+                       for index in table if ANY_ROW_LINE.match(lines[index])]
+        for before, after in zip(identifiers, identifiers[1:]):
+            if before[0] != after[0] or int(before[2:]) <= int(after[2:]):
+                continue
+            if (before, after) in FROZEN_DESCENTS:
+                continue
+            violations += 1
+            print(f"  BUGS.md: {before} is followed by {after} in the index. "
+                  "The order is held as a ratchet: the descents the register "
+                  f"already carries are frozen by name ({frozen}) and a new "
+                  "one is refused, because a merge's conflict region re-gluing "
+                  "a row at the wrong place is how two rows moved on "
+                  "2026-09-08.", file=sys.stderr)
+    return violations
 
 
 def arm_corpus(rows, numbers):
@@ -596,7 +689,7 @@ def arm_closure(register, path):
 
 
 ARMS = ("duplicate-row", "status-vocabulary", "invariant-numbers",
-        "unparsed-row", "corpus", "closure")
+        "unparsed-row", "row-placement", "index-order", "corpus", "closure")
 
 
 def main():
@@ -636,6 +729,10 @@ def main():
             violations += arm_invariant_numbers(numbers)
         elif arm == "unparsed-row":
             violations += arm_unparsed_row(register, rows)
+        elif arm == "row-placement":
+            violations += arm_row_placement(register)
+        elif arm == "index-order":
+            violations += arm_index_order(register)
         elif arm == "corpus":
             violations += arm_corpus(rows, numbers)
         elif arm == "closure":
