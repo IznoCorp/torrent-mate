@@ -26,6 +26,7 @@ wave holds B-420+ and the L20 design wave B-440+. Gaps are accepted.
 | B-335 | « Retirer la clé » asks first, in the dictated words, and the walk goes through the CANCEL | R167 |
 | B-345 | At rest one file answers `conflict: true` on its own write; any other save reaches the restart | R128 `harness/seeds_at_rest.py`, five holds added (10 → 15, measured by `harness-hold-counts.py`) |
 | a11y[light] | `backAction` writes in `text-primary-text`, the token `theme.css` keeps for a LABEL; the light ceiling falls 162 → 149 in the same commit | `a11y.py --check`, the light ratchet |
+| R74 | `lib/stacked-surface.ts` steps back through `window.__bridge.back()`, the seam `app/history-bridge.ts` declares, instead of naming the router's instance | R74 `harness/bridge.py`, 10 holds, read red on the merged head |
 
 **ONE VISIBLE CHANGE, and it is the operator's to overturn.** This wave put four back controls on
 pages (`maintenance-topic`, `settings-topic`, `settings-secrets`, `settings-edited`), and each added
@@ -80,6 +81,7 @@ Each was applied to the built tree, the rule replayed, the FAIL line read, and t
 | both secret actions back to `target: { toast: … }` | R167 | seven holds, from « is an act, not a sentence » to « confirming CLEARS the key through the layer » |
 | `movedFiles` emptied | R128 | « SAVING it reaches the version-conflict banner with no dial and no named state », and « that save owes no restart » with it — the second one is the guard against a build that raises both |
 | `backAction` back to `text-primary` | `a11y.py --check` | the light count alone: 149 → 166 against the ceiling of 149, exit 1; the dark floor stayed at 0 |
+| the maintenance topic put back into R82's `SETTING_WALKS` | R82 | « setting the maintenance topic writes the address and leaves NO entry behind » (`history.length 4 -> 5`) and « and one Back off the maintenance topic never undoes it », exit 1 at 74 holds; 70 and exit 0 restored |
 
 Each was applied to the source, rebuilt, re-served, the rule replayed, its FAIL lines read, and the
 tree restored. **One thing that cost an hour and is worth the line**: `git checkout --` restores a
@@ -100,7 +102,7 @@ believe one is the exception.
   no service stops. That is the contract's own shape (D7), and it is what makes B-300's
   confirmation walkable at all.
 
-## Two rules RE-AIMED, and the property each holds is unchanged
+## The rules RE-AIMED, and the property each holds is unchanged
 
 Said out loud in each rule's own comment, because a test quietly re-pointed is a guard quietly lost.
 
@@ -114,6 +116,13 @@ Said out loud in each rule's own comment, because a test quietly re-pointed is a
   shape is not written down in a second place.
 - `harness/page_host.py` — four sites, two set-up and two reading, moved from the engine's
   `SETTINGS_STATE.redemarrage` to the layer's answer (B-343).
+- `harness/journey.py` R82 hold (e) — « a setting leaves NO entry ». **The maintenance topic is
+  removed from `SETTING_WALKS`, and R82 goes 74 → 70 holds** (four per walk: offered, no entry,
+  never undone, no JS error). It TAPPED the topic and asserted the depth unchanged and a Back that
+  never undoes it — the exact behaviour B-361 was filed to end. A topic is an ARRIVAL by D1b rule 1:
+  it pushes and draws its own back, held by R165 over both pages that have rubrics. The property
+  is unchanged for the lens and the inner tab, which remain settings; the docstring carries the
+  RE-AIMED paragraph. Ruled by the steward on the merged head, where the full suite first read it.
 
 ## One defect the full suite found in this wave's own repair, and it is the one worth reading
 
