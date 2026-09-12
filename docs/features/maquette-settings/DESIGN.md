@@ -42,6 +42,13 @@ in the same commit, which is what `scripts/frontend_size_ledger.py` asks for:
 
     python3 scripts/check-frontend-boundaries.py --arm size
 
+**ONE EXPRESSION OF THE ENGINE WAS EDITED, and it is the operator's own exception.** « RULED C by
+the operator, 2026-09-12 — the engine counts the stack; D5 exception », granted for this wave and
+this expression only: `switchPageFromLayer`'s rewind read a count it ASSUMED (the layer's entry plus
+the abandoned page's), and a rubric's own entry makes three. It reads what the surfaces say they
+have posed instead. **No line is added** — the figure above is the proof, 31 451 against a record
+of 31 451.
+
 **The `data-toast` branch STAYS**, and `data-restart` with it. The brief allows deleting a branch
 that has lost its last reader; `features/maintenance/panel-action.ts` still emits a `toast:` target,
 and the restart banner still emits `data-restart`. A branch with a reader elsewhere stays.
@@ -51,9 +58,22 @@ and the restart banner still emits `data-restart`. A branch with a reader elsewh
 Each was applied to the built tree, the rule replayed, the FAIL line read, and the tree restored.
 `scripts/mutate.sh` judges a rule by its FAIL lines (B-273), so each is named by the hold it felled.
 
-| Mutation | Rule | The hold that fell |
+| Mutation | Rule | The hold(s) that fell, and nothing else |
 | --- | --- | --- |
-| *(recorded at the head; see the wave's report)* | | |
+| `giveTheEntryBackFirst` returns before it listens | R165 | « leaving the page from INSIDE a rubric lands on the entry page » ×2 (both pages). The drawer holds stayed GREEN, which is what says the two halves are independent |
+| `switchPageFromLayer`'s count back to `leaving === homePage ? 1 : 2` | R165 | « leaving the page from the DRAWER … leaves no inert Back behind it » ×2, with the reading in the detail: `depth 6 → 6` |
+| the rubric's `data-part="screen/back"` renamed | R165 | « the rubric DRAWS its way back », « the drawn back POPS rather than navigates », « closing the drawer over a rubric leaves the RUBRIC » |
+| « Valider » never offered (`true ||` on its guard) | R166 | « the field's panel offers « Valider » », « a tap on it files the edit WITHOUT the field losing focus », « the panel names the typed value « nouvelle » » |
+| `updateConfigurationFile` stops reading the request's body | R166 | « the layer ANSWERS the written value on the next read », « the row shows what was written, not the seed » — the detail printing the seed back verbatim |
+| the restart banner's `restartOwed` forced false | R166 | « the restart banner comes up BECAUSE the save happened », « it offers the restart the operator has to confirm » |
+| both secret actions back to `target: { toast: … }` | R167 | seven holds, from « is an act, not a sentence » to « confirming CLEARS the key through the layer » |
+| `movedFiles` emptied | R128 | « SAVING it reaches the version-conflict banner with no dial and no named state », and « that save owes no restart » with it — the second one is the guard against a build that raises both |
+
+Each was applied to the source, rebuilt, re-served, the rule replayed, its FAIL lines read, and the
+tree restored. **One thing that cost an hour and is worth the line**: `git checkout --` restores a
+file to the last COMMIT, so it threw away an uncommitted repair along with the mutation. Commit
+first, mutate second — the register has said so since B-273's neighbourhood and it is easy to
+believe one is the exception.
 
 ## What the fixtures cannot show
 
