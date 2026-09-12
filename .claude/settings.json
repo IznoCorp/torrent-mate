@@ -1,9 +1,5 @@
 {
   "permissions": {
-    "additionalDirectories": [
-      "/tmp",
-      "/tmp/claude-work"
-    ],
     "allow": [
       "Bash(allowedHosts:claude.ai)",
       "WebFetch(domain:omdbapi.com)",
@@ -17,6 +13,10 @@
       "Bash(pm2 delete:*)",
       "Bash(pm2 stop torrentmate-web)",
       "Bash(crontab -r)"
+    ],
+    "additionalDirectories": [
+      "/tmp",
+      "/tmp/claude-work"
     ]
   },
   "hooks": {
@@ -102,5 +102,8 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "greptile@claude-plugins-official": true
   }
 }
