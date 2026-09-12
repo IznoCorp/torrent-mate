@@ -13,13 +13,22 @@ WHAT IT READS, and each hold fails differently:
       button carrying ITS OWN title in `data-resolve`, and a finger at the
       centre of its body lands inside that button. Held first, because the tap
       below is taken on one of them.
-  h2. THE AFFORDANCE IS NO LARGER THAN THE ICON SIZE, and it is a mark rather
-      than a control. Its rendered box is compared with a probe wearing
-      `iconButton`'s own classes, read from the factory's declaration through
-      `residue.py`'s reader — so no pixel count is written here, and a size the
-      component does not offer cannot pass. A button inside the card's button
-      would be invalid markup and a control nobody can name, hence the second
-      half.
+  h2. THE AFFORDANCE IS THE ICON SIZE, no larger AND no smaller, it is drawn,
+      and it is a mark rather than a control. Its rendered box is compared with
+      a probe wearing `iconButton`'s own classes, read from the factory's
+      declaration through `residue.py`'s reader — so no pixel count is written
+      here, and a size the component does not offer cannot pass. A button inside
+      the card's button would be invalid markup and a control nobody can name,
+      hence the last half.
+
+      THE FLOOR IS HALF THE HOLD, and it was missing. A ceiling alone —
+      `width <= iconWidth` — is satisfied by zero, so the whole hold stayed
+      green over an affordance given `display: none`: the arithmetic ran over a
+      0 × 0 box and the nature hold read a tag and an attribute a hidden node
+      still carries. The only visible sign that a candidate card is an act
+      could have gone with nothing in the suite falling. So the size is held
+      both ways, and a second hold reads that a box exists at all and that
+      `visibility` has not taken it away.
   h1. A TAP AT THE CENTRE OF THE CARD'S BODY RESOLVES THE FOLDER. Not the
       poster, not the affordance: the body, where a finger reading the synopsis
       lands. By a finger, never `element.click()` — the element under it has a
@@ -114,6 +123,7 @@ AFFORDANCE = """(classes) => {
   const box = mark?.getBoundingClientRect();
   return {part: mark?.dataset.part ?? null, tag: mark?.tagName ?? null,
           hidden: mark?.getAttribute('aria-hidden') === 'true',
+          drawn: !!mark && getComputedStyle(mark).visibility !== 'hidden',
           width: box?.width ?? null, height: box?.height ?? null,
           iconWidth: icon.width, iconHeight: icon.height};
 }"""
@@ -216,12 +226,17 @@ async def main():
         # ── h2: the affordance, its size and its nature ───────────────────
         mark = await page.evaluate(AFFORDANCE, classes)
         journal.check(
-            "the affordance is no larger than the icon size the system offers",
+            "the affordance IS the icon size the system offers, no larger and no smaller",
             mark["width"] is not None and mark["iconWidth"] > 0
-            and mark["width"] <= mark["iconWidth"] + SUBPIXEL
-            and mark["height"] <= mark["iconHeight"] + SUBPIXEL,
+            and abs(mark["width"] - mark["iconWidth"]) <= SUBPIXEL
+            and abs(mark["height"] - mark["iconHeight"]) <= SUBPIXEL,
             f"{mark['part']} {mark['width']}×{mark['height']} against "
             f"{mark['iconWidth']}×{mark['iconHeight']}")
+        journal.check(
+            "and it is drawn — a box of its own, and not made invisible",
+            bool(mark["width"]) and bool(mark["height"]) and mark["drawn"],
+            f"{mark['part']} {mark['width']}×{mark['height']}, "
+            f"visible {mark['drawn']}")
         journal.check("the affordance is a mark, not a control of its own",
                       mark["tag"] is not None and mark["tag"] != "BUTTON" and mark["hidden"],
                       f"{mark['part']} is a {mark['tag']}, aria-hidden {mark['hidden']}")
