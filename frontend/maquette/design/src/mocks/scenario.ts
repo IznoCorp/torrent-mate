@@ -12,10 +12,19 @@
 // number of milliseconds and answers the same bytes. The oracle is asked to
 // depend on this layer once L09 wires a surface to it, and an oracle cannot
 // depend on a number drawn at random.
+import { declaredSuccessStatus } from "./declared-status";
 
 /** How a scenario answers one operation. */
 export type OperationOutcome = {
-  /** The HTTP status to answer with. 200 unless a failure is asked for. */
+  /**
+   * The HTTP status to answer with.
+   *
+   * The operation's OWN declared success code unless a failure is asked for —
+   * read from the contract, never from a literal here (B-379). The contract
+   * declares 201 for a creation and 202 for an ask the backend accepts, and a
+   * layer answering 200 to those made « the layer answers 201 » a sentence no
+   * rule could hold.
+   */
   status: number;
   /** How long the answer is held back, in milliseconds. Always the same. */
   latencyMilliseconds: number;
@@ -141,8 +150,14 @@ export function outcomeFor(operationId: string): OperationOutcome {
   const armed =
     seen >= afterCalls
     && (failingCalls === undefined || seen < afterCalls + failingCalls);
+  // WHAT SUCCESS MEANS HERE IS THE CONTRACT'S WORD, on BOTH branches. An
+  // unarmed call answers what the operation declares; an armed one that names
+  // no status of its own is still a success, so it answers the same thing. A
+  // scenario that names a status gets exactly it, which is how a failure is
+  // asked for.
+  const success = declaredSuccessStatus(operationId);
   return {
-    status: armed ? (asked.status ?? 200) : 200,
+    status: armed ? (asked.status ?? success) : success,
     latencyMilliseconds:
       asked.latencyMilliseconds ?? current.defaultLatencyMilliseconds,
     afterCalls,

@@ -193,6 +193,7 @@ closest
 closing
 cls
 code
+codes
 cold
 collapse
 collation
@@ -368,6 +369,7 @@ failure
 fallback
 families
 fast
+feature
 feed
 feedback
 fetch
@@ -628,6 +630,7 @@ members
 message
 meta
 method
+methods
 migrated
 milliseconds
 min
@@ -768,6 +771,7 @@ pipeline
 pitch
 pixels
 place
+plain
 platform
 play
 point
@@ -844,11 +848,13 @@ reconnection
 record
 recovery
 rect
+redirect
 redraw
 ref
 reference
 refill
 refresh
+refreshed
 refreshing
 refusal
 refuse

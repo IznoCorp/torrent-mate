@@ -22,6 +22,13 @@ export type MediaSheetPayload = Record<string, unknown>;
 export type MediaSeasons = {
   seasons: { n: number; ep?: number | null }[];
   owned: Record<string, number[]>;
+  /**
+   * How many episodes of each season have AIRED, keyed by season number: the
+   * layer's derivation from the catalogue's own dates, and the denominator of
+   * every season row. The catalogue's `ep` is its TOTAL, announced episodes
+   * included, which is not the same question.
+   */
+  aired: Record<string, number | null>;
 };
 
 /**
@@ -94,10 +101,31 @@ export function useMediaSeasons(provider: string, identifier: string) {
       return {
         seasons: (shaped.seasons ?? []) as MediaSeasons["seasons"],
         owned: (answered.owned ?? {}) as MediaSeasons["owned"],
+        aired: (answered.aired ?? {}) as MediaSeasons["aired"],
       } satisfies MediaSeasons;
     },
     enabled: provider !== "" && identifier !== "",
   });
+}
+
+/**
+ * The dates of a season's episodes announced after today, earliest first.
+ *
+ * What has not aired is INFORMATION: it cannot be held, so it is never counted
+ * missing and offers no act — the sheet draws it beside the fraction (B-380).
+ *
+ * @param episodes The season's episode list, when the sheet has one.
+ * @param today The referential's today.
+ * @returns The announced dates, sorted.
+ */
+export function announcedAfter(
+  episodes: { air?: string | null }[] | null,
+  today: string,
+): string[] {
+  return (episodes ?? [])
+    .map((episode) => episode.air)
+    .filter((air): air is string => Boolean(air) && String(air) > today)
+    .sort();
 }
 
 /**
@@ -107,11 +135,14 @@ export function useMediaSeasons(provider: string, identifier: string) {
  * the sheet, on the matrix and in the popover; the engine answered it in
  * `seasonsOf`, and this is that answer moved rather than a second one written.
  *
- * A CATALOGUE THAT ANNOUNCES NOTHING is not the same as one that announces
- * zero: `ep` absent means the provider never said how many aired, and the
- * interface draws « n owned » rather than « n of m ». And an owned number ABOVE
- * what aired is not counted — a provider that has announced ten cannot be
- * eleven-tenths complete.
+ * WHAT AIRED IS THE LAYER'S ANSWER, never the catalogue's total. `ep` counts
+ * the episodes a provider has ANNOUNCED, and a « manquant » is an episode that
+ * has aired and is not held: dividing by the total drew « 6/10 · 4 manquants »
+ * over a season of which seven had aired, three episodes missing that nobody
+ * could have (B-380). A season the answer gives no count for is not a season
+ * that aired zero: the interface then draws « n owned » rather than « n of m ».
+ * And an owned number ABOVE what aired is not counted — a season of which ten
+ * have aired cannot be eleven-tenths complete.
  *
  * @param held What the layer answered.
  * @returns One entry per season: its number, what aired, and what we hold.
@@ -122,7 +153,7 @@ export function seasonsHeld(held: MediaSeasons | undefined): [number, number | n
   if (held.seasons.length) {
     return held.seasons.map((season) => {
       const numbers = owned[String(season.n)] ?? [];
-      const aired = typeof season.ep === "number" ? season.ep : null;
+      const aired = held.aired[String(season.n)] ?? null;
       const own = aired ? numbers.filter((one) => one <= aired).length : numbers.length;
       return [season.n, aired, own];
     });

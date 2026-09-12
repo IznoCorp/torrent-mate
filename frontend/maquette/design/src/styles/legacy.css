@@ -1399,7 +1399,8 @@ border-radius: var(--radius-3);
   background: var(--color-warning);
 }
 .eprow.to_grab .en {
-  color: var(--color-warning);
+  /* A LABEL, so the tone's text variant: the signal is too light to be read on the light ground. */
+  color: var(--color-warning-text);
 }
 .eprow.acquiring .epdot {
   background: var(--color-info);
