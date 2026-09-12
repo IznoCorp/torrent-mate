@@ -77,6 +77,10 @@ publishes, runs named rules).
 
 - **`git checkout --` restores to the last COMMIT.** Used to undo a mutation, it threw away an
   uncommitted repair with it. Commit first, mutate second.
+- **A kill pattern that names the WRAPPER kills every run of the wave.** `pkill -f "heavy.sh
+  <wave>"`, used to withdraw one harness run, also killed a `git push` that was in its pytest step
+  under the wave's OWN lock — both locks go through the same wrapper, so the wrapper's name is not
+  a selector for one of them. Kill by pid, or by the pattern of the command being WRAPPED.
 - **« The surface is open » is not « the surface pushed an entry ».** A cold load and a driven state
   both open one without an entry; acting on the first reading pops something else's. The flag that
   settles it is in `lib/stacked-surface.ts` and clears itself.
