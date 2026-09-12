@@ -41,6 +41,19 @@ The oracle measures boxes, not colour.
 **B-299 and B-300 are NOT closed here.** They are made confirmable by hand, and each says so in its
 own entry; the confirmation is the operator's.
 
+## The oracle's divergences, and why each is accepted
+
+Read on the merged head `9ecce44d4` against the reference taken at `561ac7a3`: **36 divergences,
+every one a HEIGHT, every one on the two pages this wave redraws, zero anywhere else.** Accepted by
+the steward on the causes below; the reference is re-recorded by the post-merge gesture on the
+squash, not in this pull request.
+
+| States | Delta | Cause |
+| --- | --- | --- |
+| `maintenance-topic`, `maintenance-delete` | `maintenance/body` and `shell/page` −13.8 | B-361 — the rubric's « toutes les commandes » cross-reference is replaced by the back control every screen wears. `maintenance-delete` is a rubric too: its recipe applies `maintTopic: "clean"` before it opens its panel |
+| `settings-one`, `settings-topic`, `settings-secrets`, `settings-field-*` (boolean, duration, empty, list, number, path, schedule, structure, text), `settings-edited` | `settings/body` and `shell/page` +39.5 | B-332 — a Configuration rubric draws its back control. `settings-edited` is a rubric: its recipe sets `SETTINGS_STATE.topic = "acquisition"` |
+| the `settings-field-*` states that open a panel, and `settings-edited` | `shell/sheet-content` +58 | B-341 — the field's panel offers « Valider » |
+
 ## The engine only shrank
 
     grep -cve '^[[:space:]]*$' frontend/maquette/design/src/engine/legacy.js   → 31451 (was 31467)
