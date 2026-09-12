@@ -792,7 +792,7 @@ It predates L21 and it is layer-wide, so **it is not repaired in L21** (the orch
 mock/contract micro-wave, « mock layer ».** Until it lands a rule holds a success as `2xx` and says why,
 as R158 does. B-378's entry said « answers 201 », which was the contract's word and not the layer's.
 
-**Fixed by the mock-layer micro-wave, #592** (`9da6fd556`, `63fb37de1`; `docs/features/maquette-mock-layer/DESIGN.md` § 1).
+**Fixed by the mock-layer micro-wave, #592** (`9da6fd556`, `63fb37de1`; `docs/features/maquette-mock-layer/DESIGN.md@5eafd3cfc` § 1).
 `mocks/declared-status.ts` reads the contract and builds `operationId → the lowest declared 2xx`, and
 `scenario.ts` answers it on BOTH branches of its outcome, so an unarmed call and a call armed only with a
 latency carry the code the contract declares. **R170** (`harness/declared_codes.py`, on the `--contracts`
@@ -894,7 +894,7 @@ round three's C1, repaired by `21390f6c5`, which leaves a follow's status as it 
 nothing to get. **The offer itself stays this entry's**: the sheet still offers an act on a show with
 nothing aired to get.
 
-**Repaired by the mock-layer micro-wave** (`docs/features/maquette-mock-layer/DESIGN.md` § 4), on the
+**Repaired by the mock-layer micro-wave** (`docs/features/maquette-mock-layer/DESIGN.md@5eafd3cfc` § 4), on the
 orchestrator's rulings of 2026-09-12: AIRED is DERIVED from the catalogue's own episode dates at the
 referential's today, never typed a second time. Measured over every season both families know:
 
@@ -1414,7 +1414,7 @@ index read on a list that has really moved.
 
 <sub>audit, resolution-card round one · the reader's `a08_manual_and_two_folders.py` over the eight `arr-*` states · `a02_window.py`'s `second_pick_by_finger` · `harness/resolution_window.py`'s w6, driven through `window.__queueActions`</sub>
 
-**Fixed by the mock-layer micro-wave, #592** (`cbd933f9f`; `docs/features/maquette-mock-layer/DESIGN.md` § 3).
+**Fixed by the mock-layer micro-wave, #592** (`cbd933f9f`; `docs/features/maquette-mock-layer/DESIGN.md@5eafd3cfc` § 3).
 « S.W.A.T. », already a queued folder whose own card names two candidates, now carries those two as a
 pending decision. **R172** (`harness/two_picks.py`, full suite): 16 holds, no violation — pick A by a
 finger, pick B inside A's window, only the latest message carries the way back, « Annuler » puts back ONE
