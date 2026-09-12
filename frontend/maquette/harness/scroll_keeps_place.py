@@ -1,6 +1,6 @@
 """R175 — the in-flight list keeps the reader's place, and one gesture moves one container.
 
-B-490, reported by the operator on 2026-09-12: « double scroll systématique sur
+B-490, reported by the operator: « double scroll systématique sur
 Acquisition › En cours ; dès que le scroll arrive au niveau de Lucky on remonte
 automatiquement en haut de la page ». Two facts in one sentence, and two
 mechanisms under them.
