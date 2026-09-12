@@ -3412,7 +3412,7 @@ lands on `/acquisition`. Exactly the report. The same shape on Maintenance's top
 **RULED by the operator on 2026-09-06 (round 2, question 8): owner the « settings » MICRO-WAVE, off L13,
 together with B-361** — the topic verb leaves the engine for the verb registry (a subtraction), pushes,
 and the view draws its back, on « Réglages » and « Maintenance » in one move. Brief:
-`docs/features/maquette-settings/BRIEF.md`.
+`docs/features/maquette-settings/BRIEF.md@a155b54fb`.
 
 **FIXED #588 (the settings micro-wave), with B-361 — one mechanism, one wave.** The verb left the
 engine's delegation for the tap registry (`features/settings/topic-verb.ts`), the branch at
@@ -3432,7 +3432,7 @@ this interface wears — and the secrets rubric wears it too.
                         was still there: « PUSHES an entry » 4 → 4, « DRAWS its way back » False,
                         « Back lands on the page's OWN list » /acquisition. The operator's own
                         reading, reproduced
-    the mutation        see the closing § of `docs/features/maquette-settings/DESIGN.md`
+    the mutation        see the closing § of `docs/features/maquette-settings/DESIGN.md@a155b54fb`
     the run             `python3 frontend/maquette/harness/topics.py` → 16 holds, no violation
 
 **ONE DEFECT THIS RULE FOUND IN ITS OWN REPAIR, and it is worth the line.** The first build closed
@@ -4204,7 +4204,7 @@ pressed state ». The measurement above says that bump does not reach this contr
 state is read from `currentAppearance()` at render, and nothing re-renders the drawer until it is
 mounted again.
 
-**Owner: the « settings » MICRO-WAVE** (`docs/features/maquette-settings/BRIEF.md`), with B-332 and
+**Owner: the « settings » MICRO-WAVE** (`docs/features/maquette-settings/BRIEF.md@a155b54fb`), with B-332 and
 B-361 — the drawer's own behaviour, not the surface this lot draws. Filed, not repaired.
 
 <sub>operator, on the design host · a real drawer open, four presses through the control: `{"theme": null, "stored": null, "pressed": ["system=true", "light=false", "dark=false"]}` at rest, then `stored` `light` / `dark` / `system` / `light` with `pressed` unchanged at every reading, then after a close and a reopen `["system=false", "light=true", "dark=false"]` · `app/appearance.ts` (`chooseAppearance`, `STORAGE_KEY = "tm-apparence"`), `app/drawer.tsx` (the control, and the comment)</sub>
@@ -4246,7 +4246,7 @@ the two rubric kinds are one mechanism and should land together, wherever B-332 
 <sub>steward, 2026-09-06 · `scratchpad/cdp-back-real2.py`: `load {path:/maintenance, hist:18}` → `tap query` → `{path:/maintenance?topic=query, hist:18, back:false, head:"Maintenance | Regarder"}` → `history.back()` → `{path:/acquisition}` · `grep -oE "dataset\.maintopic" frontend/maquette/design/src/engine/legacy.js`</sub>
 
 **RULED by the operator on 2026-09-06 (round 2, question 8): owner the « settings » MICRO-WAVE, with
-B-332** — one mechanism, one wave. Brief: `docs/features/maquette-settings/BRIEF.md`.
+B-332** — one mechanism, one wave. Brief: `docs/features/maquette-settings/BRIEF.md@a155b54fb`.
 
 **FIXED #588 (the settings micro-wave), with B-332 — one mechanism, one wave, and the two halves of
 this one were already apart.** The ADDRESS was already a dial (`lib/addresses.ts` declares `topic`
