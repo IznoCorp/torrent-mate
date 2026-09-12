@@ -44,14 +44,18 @@ export type Setting = {
 
 // The settings screen's own mutable state, owned by the fragment and written by
 // the document-level delegation: which rubric is open, the search text, the
-// PENDING edits (a Map keyed by `settingId`), and the three banners. A component
-// READS it — it never replaces it — and re-reads on every store bump.
+// PENDING edits (a Map keyed by `settingId`), and the banners it still carries.
+// A component READS it — it never replaces it — and re-reads on every store bump.
+//
+// `redemarrage` LEFT THIS OBJECT at B-343. A restart owed is a fact of the
+// LAYER, answered by `/api/config/status`, and the banner is a reader of that
+// query: raised here it was raised on something nothing re-renders, so the
+// operator saved, was told « Enregistré », and saw no banner at all.
 export type SettingsState = {
   modifs: Map<string, unknown>;
   topic: string | null;
   q: string;
   readOnly: boolean;
-  redemarrage: boolean;
   conflict: boolean;
 };
 

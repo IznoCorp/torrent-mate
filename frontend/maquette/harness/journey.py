@@ -42,13 +42,19 @@ What this holds to:
    page does not arm it; a Back from the entry page does. Read on the engine's
    own `armedExit`, because the address alone says nothing: a guard that arms
    one page too early answers the same address as one that does not.
-5. (e) A setting leaves NO entry. A lens, an inner tab and a maintenance topic
-   each write the address and leave the history depth exactly as it was, and
-   one Back afterwards never UNDOES the setting. What that Back reaches is not
-   the same on all three, which is why the hold names what they share: from the
-   library and the maintenance page it leaves the surface, and from the
-   acquisition tab — a setting made ON the entry page — it reaches the exit
-   guard, the entry page being where the stack ends. A stack of settings is
+5. (e) A setting leaves NO entry. A lens and an inner tab each write the
+   address and leave the history depth exactly as it was, and one Back
+   afterwards never UNDOES the setting. What that Back reaches is not the same
+   on both, which is why the hold names what they share: from the library it
+   leaves the surface, and from the acquisition tab — a setting made ON the
+   entry page — it reaches the exit guard, the entry page being where the stack
+   ends.
+   RE-AIMED: a maintenance TOPIC was the third walk, and it is not a setting.
+   A topic is a deliberate ARRIVAL — it pushes its entry and draws its own
+   back, the way a screen does — so « leaves no entry » asserted exactly the
+   defect that made a rubric impossible to leave. That shape is held by R165
+   (`topics.py`), over both pages that have rubrics; the property held here is
+   unchanged for the two walks that remain settings. A stack of settings is
    what makes Back undo a sort where the reader meant to leave the screen.
 6. (a) A Back returns to the REAL ORIGIN, setting and all. Opening a sheet from
    a filtered library and backing off it lands on that filtered library, never
@@ -106,10 +112,6 @@ SETTING_WALKS = (
      """()=>{const found = [...document.querySelectorAll('[data-acqtab]')]
           .map((node) => node.dataset.acqtab).find((value) => value && value !== 'now');
         return found ? ['[data-acqtab="' + found + '"]', 'tab=' + found] : null;}"""),
-    ("the maintenance topic", "maintenance", "maint",
-     """()=>{const found = [...document.querySelectorAll('[data-maintopic]')]
-          .map((node) => node.dataset.maintopic).filter(Boolean)[0];
-        return found ? ['[data-maintopic="' + found + '"]', 'topic=' + found] : null;}"""),
 )
 
 # What the add screen is left showing after a Back off a panel it opened.
@@ -566,12 +568,12 @@ async def main():
         await ctx.close()
 
         # ── 5. (e) a setting leaves NO entry ───────────────────────────────
-        # Three of them, on three pages, each read off the interface rather
-        # than written down: what a lens or a topic is called is the engine's
+        # Two of them, on two pages, each read off the interface rather than
+        # written down: what a lens or a tab is called is the engine's
         # business, and a value invented here would measure nothing when it
         # stops existing. Two holds each — the depth is unchanged, and the
         # Back afterwards never UNDOES the setting, which is the whole of what
-        # a stack of settings costs. Named for what all three share: the
+        # a stack of settings costs. Named for what both share: the
         # acquisition tab is a setting made on the ENTRY page, so its Back
         # reaches the guard rather than another surface.
         for wanted, address, page, reader in SETTING_WALKS:

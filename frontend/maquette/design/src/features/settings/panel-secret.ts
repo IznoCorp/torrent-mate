@@ -65,6 +65,10 @@ function secretPanel(key: string, cache: PanelCache): PanelDescriptor | null {
       : ["warning", translate("panels.secret.absent")],
     blocs: [
       { type: "note", text: translate("panels.secret.neverReturned") },
+      // WHERE THE NEW KEY IS TYPED. Without it « Remplacer la valeur » had
+      // nothing to replace the value WITH, which is half of why it was a
+      // sentence and not an act (B-334).
+      readOnly ? null : { type: "secretKey", key: secret.k },
       {
         type: "actions",
         actions: [
@@ -75,17 +79,26 @@ function secretPanel(key: string, cache: PanelCache): PanelDescriptor | null {
                 desactive: true,
               }
             : {
+                // B-334. This carried `target: { toast: … }` — a sentence, and
+                // a sentence only: no layer written, no cache, no state. The
+                // reader tapped and nothing at all happened, and had the
+                // message landed it would have said « remplacée » over a
+                // replacement nobody made (NE-DOIT-PAS-1).
                 text: translate("panels.secret.replace"),
                 icone: icons().wrench,
                 ton: "primary",
-                target: { toast: translate("panels.secret.replaceToast") },
+                target: { replacesecret: secret.k },
               },
           secret.def
             ? {
+                // B-335, and this one is DESTRUCTIVE: a key cut is a provider
+                // that stops answering for every account of the household
+                // (§17), which is NE-DOIT-PAS-6's case. It asks first, and the
+                // question names what stops answering.
                 text: translate("panels.secret.removeKey"),
                 icone: icons().trash,
                 ton: "danger",
-                target: { toast: translate("panels.secret.removeKeyToast") },
+                target: { removesecret: secret.k },
               }
             : null,
         ],
