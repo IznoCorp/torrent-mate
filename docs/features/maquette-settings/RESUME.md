@@ -37,33 +37,37 @@ Eight mutations, each falling on its own holds and nothing else: the table is in
 
 ## What is LEFT, in order
 
-1. **`page_host.py` replayed — SKIPPED by the steward**: it passed 44/44 on `127cd4c3d`, and the full
-   suite on the final head covers it.
-2. **`--a11y` — DONE, ruled (A) by the steward.** The CI run 34705845236 had read `ef6a04c8f`, not
-   the head. Read locally on the merged head: the four new findings were `color-contrast` on `.fback`
-   in `maintenance-topic`, `settings-topic`, `settings-secrets`, `settings-edited`; the cause was the
-   shared `backAction` writing `text-primary` (a fill tone) where `theme.css` keeps
-   `text-primary-text` for a label, and `.fback` already stood 13 times in the debt. `f0d91157d`
-   repairs the variant and records the light ceiling 162 → 149 in the same commit; the mutation
-   back to `text-primary` reads 166 against 149, exit 1, dark 0. DESIGN.md records the visible
-   change (the back label darker on light, 17 states) for the operator.
-   **NEXT: merge `origin/main` ONCE, after the steward's line « #589 merged »**, then bump to
-   **0.98.87** (re-read main's `__init__.py`). Expected conflicts: BUGS.md rows, and
-   IMPLEMENTATION.md's « In flight » row (main says « None », this branch names #588).
-3. **The full suite once** on the final head (it has not run green end to end since the posed-entry
-   repair).
-4. **The oracle** — divergences ACCEPTED only on the states this wave draws (`settings-one`,
-   `settings-field-*`, `settings-topic`, `settings-secrets`, `maintenance-topic`), zero elsewhere,
-   or STOP B.
-5. **Hold counts** — `failed` read FIRST.
-6. **`make check`** — last run: 11 201 passed, and it stopped on the version bump, which is now
-   0.98.85. Re-run it whole.
-   **Main moved again (2026-09-12):** #591 landed as `e2a6161a1` at **0.98.85**, with BUGS.md
-   rows B-460..B-466 and a re-recorded hold-counts baseline and oracle reference. So merge
-   `origin/main` a second time BEFORE items 3–5 (the oracle and the hold counts compare against
-   main's references), and move the version above main's — **0.98.87** once #589 lands at 0.98.86 (item 2).
-7. **Push, and the PR body** — the body is written and posted; add the run at
-   `HEAVY_LOAD_CEILING=10` and why (the steward measured 12 of the load external to us).
+**State at `d7f01f8fa` (2026-09-12, 23:45).** `origin/main` merged once more at `a2721935f`
+(#589), version **0.98.87**; `page_host.py` joined back to 999 after #589's `__main__` guard.
+Done since the previous note, each with its reading:
+
+- `--a11y` — `backAction` → `text-primary-text` (`f0d91157d`), light ceiling 162 → 149 recorded
+  once; mutation 166 against 149. The steward verified the arm stable (six readings, three builds).
+- R74 `bridge.py` repaired (`dd401c957`): `lib/stacked-surface.ts` steps back via
+  `window.__bridge.back()`. 10 holds.
+- R82 `journey.py` RE-AIMED (`1850ddeb4`, ruled): the maintenance topic left `SETTING_WALKS`,
+  74 → 70 holds; mutation 74 holds, exit 1, the two named holds.
+- R128 gained FIVE holds, not four (`3d99639a4`).
+- Full run on `9ecce44d4`: 122 rules and 27 guards, no violation; a11y 149/149; oracle 36
+  divergences, all heights on Réglages/Maintenance, ACCEPTED by the steward and recorded in
+  DESIGN.md (`d7f01f8fa`). **The oracle reference is NOT re-recorded here** — the post-merge
+  gesture is the steward's.
+- Hold-counts on `9ecce44d4`: the two declared movements only (journey 74→70, seeds_at_rest
+  10→15), but `failed = 1` on journey.py, green in the full run and the replay.
+
+Left:
+
+1. **The single hold-counts re-run, CAPTURED** — `<scratchpad>/holdcounts_capture.py` imports
+   the tool unchanged and keeps the full output, duration, load and free memory of any rule that
+   falls. If journey.py falls: name the mechanism (which hold, its reading, the wait, the load) and
+   record it in B-307's body if it is that class, or as its own row. `failed` first; the two declared
+   movements only. **No re-running until green.**
+2. **`make check`** under `HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder`, two workers, NEVER beside a
+   harness run.
+3. **Push** (under the tests lock), the PR body (draft at `<scratchpad>/pr-addendum.md`: the a11y
+   repair, R74, R82 74 → 70, R128 five holds, the page_host line, the sequenced gates), then report
+   with the CI run id. No reader round (operator, 23:30): a green, verified head is merged by the
+   steward.
 
 ## The envelope
 
