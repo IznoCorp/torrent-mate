@@ -92,4 +92,7 @@ async def main():
     print("\nJS errors:", errs or "none")
     print("VERDICT: all 6 behaviours really mutate the state")
     await b.close()
-asyncio.run(main())
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

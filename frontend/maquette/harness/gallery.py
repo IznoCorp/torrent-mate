@@ -117,4 +117,6 @@ async def main():
     await b.close()
     if failures: raise SystemExit(1)
 
-asyncio.run(main())
+
+if __name__ == "__main__":
+    asyncio.run(main())

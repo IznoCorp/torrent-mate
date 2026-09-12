@@ -384,14 +384,14 @@ when the defect comes back.
 | B-322 | The release screen fires TWO take toasts into one element in the same tick, and the first is never seen | 1× | `fixed #572` |
 | B-323 | Two `setTimeout(…, 260)` sites were never counted — the inventory reads one line — and one of them is the release screen's `data-take`, a verb moved by half with no lot named for the other half | by audit | `fixed #572` |
 | B-324 | The BACKEND's own mirror of the PM2 crons names three of the seven the machine runs, and nothing reads it against `pm2 jlist` — B-308's finding on the end that has no guard at all | by the backend brief | `open` |
-| B-325 | No harness rule can be pointed at a build: `common.PROTOTYPE` is hard-coded to 8899 with no override, every rule self-runs on import, and a rule rebound elsewhere is still certified by the B-256 stamp of the copy it did NOT read | by the instruments' debts block | `open` |
+| B-325 | No harness rule can be pointed at a build: `common.PROTOTYPE` is hard-coded to 8899 with no override, every rule self-runs on import, and a rule rebound elsewhere is still certified by the B-256 stamp of the copy it did NOT read | by the instruments' debts block | `fixed #589` |
 | B-326 | `heavy.sh` offers no way to ask who holds its lock, so the natural probe — `cat` on what is a DIRECTORY — reads « free » whether the lock is held or not, and two sessions reached for it independently on the same night | by the steward's office | `open` |
 | B-327 | « Réglages » draws SIX scheduled jobs while the machine runs seven, and the same six are named twice in two French vocabularies that disagree on five of them — the row cannot be added until `SETTINGS` leaves the engine | by L13 | `open` |
 | B-328 | `features/system/page.tsx` heads itself with a path that does not exist and describes a state field (`state.panne`) the code does not have | by the next wave that opens `features/system/page.tsx` | `open` |
 | B-329 | The backend's GENERATED contract does not declare the `409` its own route raises, so no diff between the two contracts can read it — the demand register is structurally blind to a refusal NE-DOIT-PAS-3 forbids the interface to show | by the backend brief | `open` |
 | B-330 | `scripts/mutate.sh` answers « no hold fell » when the RULE PATH it was given does not exist — a typo and a rule that does not bite are the same sentence, and the second is a finding while the first is a mistake | by the instruments' debts block | `open` |
 | B-338 | After a panel's departure the invisible scrim stays hit-testable over the media screen for ~380 ms — `opacity 0`, `visibility` still `visible` until its delayed flip — so a tap on the fresh screen lands on nothing | by the steward | `fixed #573` |
-| B-346 | A paragraph that OPENS with another entry's identifier is read as that entry's body head, so it truncates the entry it lives in and — being the first such head in the file — makes the real entry's body the discarded one; `check-bug-register`'s closure arm was blind to B-310 and B-249 at once, and 25 second-or-later heads sit in the register today | by the micro-wave | `open` |
+| B-346 | A paragraph that OPENS with another entry's identifier is read as that entry's body head, so it truncates the entry it lives in and — being the first such head in the file — makes the real entry's body the discarded one; `check-bug-register`'s closure arm was blind to B-310 and B-249 at once, and 25 second-or-later heads sit in the register today | by the micro-wave | `fixed #589` |
 | B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens » | 1× | `open` |
 | B-340 | The « + » button reopens the add screen with the LAST query and mode still in place — after identifying an arrival, a new search starts on « Marvels Spider-Man 2 v1 526 0 -Mephis… », 0 results, and the « 2 médias ajoutés » strip of the previous visit | 1× | `open` |
 | B-341 | A settings field commits its edit only when the finger LEAVES it — no validation affordance in the panel — which the operator reads as counter-intuitive; the pending edit then says « Valeur actuelle » for the value not yet written | 1× | `open` |
@@ -429,10 +429,10 @@ when the defect comes back.
 | B-381 | A message said while a layer is open is drawn UNDER that layer: the frame ranked the message at z-49 beneath the bottom sheet at z-52, so a verb pressed in a panel speaks a sentence the operator cannot see — held by the toast seam, visible and at full opacity in the document, and under the layer at its own centre; and the message was `inert` while any layer was open, so its close and « Annuler » took no finger | by L21 | `fixed #572` |
 | B-382 | The season act on a FOLLOWED show's own media sheet was addressed under the sheet's key: a sheet opened under « Silo (2023) » is followed by « Silo », so the layer found no follow by that title, began a second one beside the real follow it left untouched, and said « Série suivie et saison 3 demandée — aucun épisode à récupérer. » — B-378's shape on an owned-and-followed sheet | by L21 review round two | `fixed #572` |
 | B-383 | Four verbs SAY a sentence and send nothing to the layer: « Re-scraper les métadonnées » on the follow panel, « Remplacer la valeur » on a secret, « Lancer à blanc » on a maintenance action and « Lancer la veille maintenant » in the « more » menu each answer a canned sentence over an unchanged world — the « said, not done » class, identical on round one's candidate | by L21 review round two | `open` |
-| B-384 | `buildIdentity()` hashes every file under `design/src/`, the command-logging hook's `.claude/logs/bash-commands.log` included, so the build id the design host publishes follows shell commands, not code | by L21's implementer | `open` |
-| B-385 | `hooks/pre-push` runs `pytest -n auto` at every core on every push, beside whatever gate a wave is running; nothing sets `PYTEST_XDIST_AUTO_NUM_WORKERS` | by the steward | `open` |
-| B-386 | `scripts/heavy.sh` has ONE readiness floor for every run — a `make check` and a single-rule replay wait behind the same 4 GB and load 6 | by the steward | `open` |
-| B-387 | The project's PostToolUse formatter rewrote a `.py` a reader wrote under an untracked `.review/` directory: a hook that formats outside the tracked tree edits instruments it was never asked to | by L21's round-three reader | `open` |
+| B-384 | `buildIdentity()` hashes every file under `design/src/`, the command-logging hook's `.claude/logs/bash-commands.log` included, so the build id the design host publishes follows shell commands, not code | by L21's implementer | `fixed #589` |
+| B-385 | `hooks/pre-push` runs `pytest -n auto` at every core on every push, beside whatever gate a wave is running; nothing sets `PYTEST_XDIST_AUTO_NUM_WORKERS` | by the steward | `fixed #589` |
+| B-386 | `scripts/heavy.sh` has ONE readiness floor for every run — a `make check` and a single-rule replay wait behind the same 4 GB and load 6 | by the steward | `fixed #589` |
+| B-387 | The project's PostToolUse formatter rewrote a `.py` a reader wrote under an untracked `.review/` directory: a hook that formats outside the tracked tree edits instruments it was never asked to | by L21's round-three reader | `fixed #589` |
 | B-388 | R51 promises « the prototype's own controls never sit on top of the app's » and reads ONE piece of harness chrome by literal — `[data-part="harness/bar"]` — so a second piece is outside it whatever the docstring says; the property now holds by two rules each naming its own subject, and a third would be held by neither | by audit | `open` |
 | B-389 | The 8899 harness host does not survive the invocation that starts it when that invocation runs under `scripts/heavy.sh` — `set -m` puts the run in its own process group and the release signals the group, so `mutate.sh`, which starts no host, runs its rule against a refused port and B-273 reads the crash as « no hold fell » | by audit | `open` |
 | B-390 | No arm of `check-no-french.py` reads TEXT in `frontend/maquette/design/index.html` — the Strings and Identifiers arms are rooted on `design/src`, and the only arm that opens the file reads attributes — so « the guard does not refuse these labels » was never evidence that an arm had read them | by audit | `open` |
@@ -442,6 +442,8 @@ when the defect comes back.
 | B-394 | The harness's two floating buttons (the design note ⓘ and the states list ≡) are painted OVER a message shown at the top of the frame, so the sentence answering a verb pressed inside a layer is covered by chrome that is in no production build | by the operator, 2026-09-11 | `fixed #585` |
 | B-395 | The library's selection bar stays drawn on every other tab: `app/bottom-slot.tsx` renders it unconditionally and its own condition reads `selMode` alone, so « N sélectionnés · Annuler · Supprimer » sits over Acquisition — and the tab bar, hidden by that same `selMode`, leaves no way back | by the operator, 2026-09-11 | `fixed #585` |
 | B-396 | The mock seed offers exactly ONE folder with candidate cards, so the resolution window's riskiest path — a second pick taken inside the first one's undo window, and a put-back into a list that has moved — is reachable by no finger and is proved through the queue's seam alone | by audit | `open` |
+| B-420 | A wrapped index row IS refused by `unparsed-row`, and refused for the wrong reason: the message says « a status cell without backticks », names no line, and the `corpus` arm prints one row fewer while reporting clean on its own — a reader is told to look for backticks that are all present | by the tooling micro-wave | `fixed #589` |
+| B-421 | An index row written AFTER the first body head is counted and read by the guard, and invisible to a reader: the Markdown table ends at the first non-row line, so the row is in every figure and on no rendered page — and nothing holds the index's order either, which is how a merge's conflict region re-glued a row twice on 2026-09-08 | by the tooling micro-wave | `fixed #589` |
 | B-460 | R161's h2 floor is green over an affordance made invisible by `opacity: 0`, a clip or an off-screen transform — it reads a box above zero and `visibility`, two of the five ways to take a mark away | by review | `open` |
 | B-461 | `resolution_window.py`'s `LAST_FRAME = 6500` is called « the message's last reachable frame » while the message's opacity is 0 there, so only a SHRUNK window is armed — a message outliving the window passes all eighteen holds | by review | `open` |
 | B-462 | The candidate card's accessible name is its title and year alone, so the confidence, the provider, the kind and the synopsis are announced to nobody on the screen whose whole job is choosing between near-identical candidates | by review | `open` |
@@ -449,6 +451,91 @@ when the defect comes back.
 | B-464 | The same arm never opens three scopes: a `<style>` block in the shell's markup, a `.css` in a subdirectory of `styles/`, and a negative `-z-N` utility | by review | `open` |
 | B-465 | `engine/legacy.js:9344` still says « paintSelBar() below draws the bar directly » four lines above the call to the now-empty function | by review | `open` |
 | B-466 | `ui/variants/frame.ts` sits at 399 non-blank lines against a hard ceiling of 400, and the arm this wave added is what will demand the four-hundredth | by review | `open` |
+
+**B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
+
+Filed by the tooling micro-wave, and filed on what was MEASURED rather than on what was supposed.
+The steward's reading of 2026-09-11, taken from a merge's conflict region and never probed, was that
+a wrapped row is « neither counted nor read ». **It is refused.** `ANY_INDEX_ROW` uses `\s*`, which
+crosses a newline, so a row broken over two lines still OPENS with an identifier as far as that regex
+is concerned, while `INDEX_ROW` — whose `.` does not cross one — no longer reads it. The arm's
+subtraction therefore sees one row it could not read, and exits 1.
+
+**What is wrong is the sentence it exits with.** `arm_unparsed_row` has one message and one
+diagnosis: « A row whose status cell is not backticked is not refused, it is INVISIBLE ». For a
+wrapped row that is false in every part — the backticks are all present — and the reader is sent to
+look for a defect that is not there. The message names no line either, so on a 9 700-line register
+the only way to find the row is to re-derive the subtraction by hand.
+
+**And the corpus arm says « clean » about the same file**, printing `365 index row(s) read` where
+366 exist. On its own that arm cannot fail here: the floor is 150. A count that falls by one and
+reports success is the shape this register counts, and here it sits beside an arm that did fire —
+so the two together tell a reader that the register has 365 rows and one backtick problem, when it
+has 366 rows and one wrapped line.
+
+**Closed by this same wave.** `arm_unparsed_row` reads the register line by line now: a line that
+opens a cell with an identifier and is not a well-formed index row is named with its line number and
+with the cause that applies — « this index row is WRAPPED … does not end its last cell on the same
+line », or « this index row's status cell is not backticked ». The historical table is recognised by
+its last cell being a DATE rather than by the constant `12`, which was the other way the reader could
+be wrong without saying so. The subtraction stays as a residual: when the count and the line-by-line
+read DISAGREE, the arm says that too, because a row malformed in a way neither describes is exactly
+what this file is for.
+
+The corpus arm still prints one row fewer over a wrapped register, and that is left as it is: the
+figure is now attributable, because the arm beside it names the line that explains it.
+
+Held by four holds in `tests/scripts/test_check_bug_register.py` — a wrapped row named « WRAPPED »
+with the backtick cause absent from the message, an unbackticked status named with ITS cause and
+without « WRAPPED », the historical table's date rows not refused, and the real `BUGS.md` clean as
+the control that stops an arm which refuses everything from passing the other three. Seen RED
+against the pre-repair arm put back in place: 2 failed, 8 passed.
+
+<sub>Probed on copies, arm by arm, with `--register` (added by this wave for exactly this): a row
+wrapped after its second pipe and a row wrapped before it both give `unparsed-row` exit 1 with « 378
+row(s) open with an identifier, 365 were read as index rows and 12 are the historical table — 1 could
+not be read at all », `duplicate-row` / `status-vocabulary` / `corpus` all exit 0, and `corpus` prints
+`365 index row(s) read in BUGS.md (floor 150)`. Measured 2026-09-12 on `898521548`.</sub>
+
+**B-421 — a row outside the table is in every figure and on no page, and nothing holds the order.**
+
+Filed by the tooling micro-wave, on the measurement rather than on the supposition. The steward's
+reading of 2026-09-11 was that a row pushed below the table by a merge is « unread by every count ».
+**The guard reads it.** `INDEX_ROW` is `re.MULTILINE` and matches anywhere in the file, so a row
+moved under a body is still counted, its status still checked, its duplicate still refused.
+
+**The defect is the other way round.** The Markdown table ends at the first line that is not a row,
+so a row written after a body head is invisible to the READER — it is on no rendered page, in the
+operator's own file, while every figure the guard prints includes it. Nothing refuses that, and
+nothing says where the table ends. On 2026-09-08 a merge of `main` produced one conflict region
+spanning rows and bodies, and concatenating the sides put a row below a body twice in one day.
+
+**Nothing holds the index's ORDER either**, and that is the second half: two rows swapped by hand
+give four clean arms. **The order cannot simply be required**, because the index is not sorted today
+— four descents: B-023 → B-013, B-346 → B-339, B-371 → B-331, and B-392 → B-001 where the open table
+gives way to the historical one. Re-ordering the register is a decision about the operator's own file
+and belongs to him.
+
+**Closed by this same wave, in two arms.** `row-placement` locates both index tables by their
+HEADINGS — « ## Open » and « ## Closed entries — index » — and refuses, by line number, any line that
+opens a cell with an identifier outside them. `index-order` reads each table ON ITS OWN and refuses a
+descent that is not frozen. Reading the two as one list makes the SEAM between them a descent, and
+the arm accused the register of its own boundary the first time it ran; the frozen list is therefore
+three pairs and not four — B-023 → B-013, B-346 → B-339, B-371 → B-331 — the fourth having been the
+seam.
+
+Held by five holds in `tests/scripts/test_check_bug_register.py`: a row re-glued below the table
+refused by name, a new descent refused by name, a reworded heading loud in both of its readings (one
+table lost → its rows refused as outside; both lost → the arm says it has no subject), and two
+controls — the two tables owning their own rows, and the real `BUGS.md` passing both arms, which is
+the one that would fall if either arm simply refused everything. Seen RED with both arms returning
+zero: 3 failed, 12 passed.
+
+<sub>Probed on copies, arm by arm, with `--register`: B-384's row moved below the table and just above
+its own body gives `duplicate-row`, `status-vocabulary`, `unparsed-row` and `corpus` all exit 0, with
+`corpus` printing `366 index row(s) read` — the row is still counted where it stands. Two rows swapped
+in the open table give the same four exit 0. The four descents are the output of
+`re.findall(r"^\| ([BE]-\d{3}) \|", text, re.M)` compared pairwise. Measured 2026-09-12 on `898521548`.</sub>
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
@@ -831,6 +918,30 @@ proof » holds only while nobody shells there. **Closes when** `buildIdentity()`
 every git-ignored path, held by a rule that writes a file there and reads the id unchanged. Owner: a
 tooling micro-wave, not a lot.
 
+**Closed #589.** `buildIdentity` moved to `frontend/maquette/design/build-identity.mjs` — nothing but
+Node's standard library, which is what lets a test drive it with no `node_modules` — and hashes the
+paths git accounts for (`git ls-files --cached --others --exclude-standard`, so an untracked source
+still counts), keeping `src/` plus the four root files and refusing `.claude/` BY NAME as well: the
+ignore rule that hides it here lives in the operator's global excludes file, which a runner does not
+have. It hashes the RELATIVE path, not the bare file name the walk used.
+
+The hold is Python driving `node`, and that is a decision rather than a convenience: the maquette's
+vitest suite runs NOWHERE in continuous integration — the `frontend` job runs `npm run test` for
+`frontend/` and only `npm run typecheck` for `frontend/maquette/design` — so a hold added there would
+never be read, while the `test` job sets up Node 22. Seen RED with the pre-repair walk put back inside
+the module: 2 failed, 4 passed, the two that fell naming the defect and the four controls green.
+Measured on the real tree: two builds of the unchanged design read `c955d7ff5fc8` twice, and a third
+with `src/.claude/logs/bash-commands.log` present read `c955d7ff5fc8` again.
+
+**AND IT COST A SECOND ROUND, which the FULL suite found and nothing cheaper did.** Extracting the
+function added a file the build cannot start without, and two places assemble a build tree by NAMING
+what they know: `switchover.py`'s scratch root and `serve.py`'s `BUILD_INPUTS`. R73 reported four
+failures and a `FileNotFoundError` about a host that was perfectly fine. Both learned the new input,
+a hold now refuses a `*.mjs` at the design root that either of them does not name, and — the scratch
+tree being under `/tmp`, where git can account for nothing — the identity falls back to the pre-repair
+walk over `src/` with `.claude/` still excluded, saying so on stderr. The two readings give the same
+id on this tree.
+
 **B-385 — the pre-push hook takes every core.**
 
 `hooks/pre-push` runs `python -m pytest -v -n auto` on every push: eight workers on this host, beside
@@ -839,6 +950,17 @@ whatever gate a wave is running under `scripts/heavy.sh`, and outside the lock. 
 it — every wave since L19 has been told to set it to 3 by hand, and the instruction lives in briefs, not
 in the hook. **Closes when** the hook caps its workers (three on this host) unless the variable says
 otherwise, and says so in its own output. Owner: a tooling micro-wave.
+
+**Closed #589.** The hook exports `PYTEST_XDIST_AUTO_NUM_WORKERS=3` unless the environment already
+names a number, and prints which of the two it applied. Held by
+`tests/scripts/test_pre_push_worker_cap.py`, which runs the real hook with a stub `python` recording
+what reached each of the five checks, in both directions. Seen RED with the hook reverted: 2 failed,
+the stub recording `UNSET` and neither printed line present.
+
+**One thing a reader of this entry needs**: `core.hooksPath` is an absolute path into the MAIN
+checkout, so a worktree's push runs `main`'s copy of the hook — the cap takes effect for everyone on
+the merge, not on the branch. The hold reads the branch's own `scripts/pre-push` directly, so it holds
+the repair either way.
 
 **B-386 — the heavy wrapper has one readiness floor for every run.**
 
@@ -851,6 +973,28 @@ command's class (browser run, test run, single rule), with the arithmetic of the
 § Instrument hygiene, and the bypass by environment is refused. Owner: a tooling micro-wave. (A memory
 believed this filed as B-362; no such entry exists on either register.)
 
+**Closed #589.** `--class browser|test|rule` carries the floor, with the arithmetic written beside each
+number in the script (8 cores, 16 GB, a ~6 GB baseline, ~1.1 GB per Playwright browser group):
+`browser` 4 096 MB and load 6 — two groups at 1.1 GB plus a third group's slack, the historical floor
+unmoved; `test` 3 072 MB and load 6 — no browser, three pytest workers and their parent or a Vite build
+peaking near 1.5 GB, twice the peak; `rule` 2 560 MB and load 10 — one group plus the static host, and
+load 10 on 8 cores is no wait at all, because a wait nobody needs is how a mandatory wrapper gets
+bypassed.
+
+Under a NAMED class `HEAVY_FREE_FLOOR_MB` may only RAISE the floor and `HEAVY_LOAD_CEILING` only lower
+the ceiling; below either, exit 64 naming the class and its number. **This replaces the hand-set
+`HEAVY_FREE_FLOOR_MB=2560` of 2026-09-12**, the operator's word for the day four agents shared the
+machine. `HEAVY_LOCK` is untouched — it is the test suite's door and changes no threshold. A run with
+NO class keeps 4 096, load 6 and the historical bypass, so every invocation written before this works
+unchanged, and the watchdog's hard floor (2 048) does not move with the class.
+
+Nine holds added to `tests/scripts/test_heavy.py`, all on the refusal path, which answers BEFORE any
+waiting — so none of them passes or fails on how much room the machine happens to have. Seen RED with
+the script reverted: 9 failed, 16 passed. Mutations: the `rule` floor 2 560 → 2 048 gives 2 failed,
+the refusal naming 2 048 and the arithmetic hold naming the right defect; the whole refusal block
+removed gives 6 failed. The « one second of overhead on an instant command » measure stays green:
+25 passed in 27.13 s.
+
 **B-387 — the formatter hook edits files outside the tracked tree.**
 
 The project's PostToolUse formatter (`.claude/hooks/auto_format_project.py`, merged by #580) drops
@@ -861,6 +1005,22 @@ round three, 2026-09-11). An instrument rewritten by a hook is an instrument its
 an ignored directory and reads it unchanged after the hook. Owner: the configuration's session, not a
 lot.
 
+**Closed #589.** The hook declines a path git ignores, a path git does not track, or a path outside any
+repository at all, and says WHICH of the three on stderr — a hook that declines silently is
+indistinguishable from a hook that did nothing. Its git probes run from the file's own directory with
+`GIT_DIR` / `GIT_WORK_TREE` / `GIT_INDEX_FILE` / `GIT_PREFIX` stripped, because those override `-C`.
+
+**A deliberate consequence, stated rather than hidden**: a file that has never been `git add`-ed is no
+longer formatted either. That is the closing condition above read literally, and `ruff format --check`
+in `make lint` and in continuous integration is what holds a forgotten file — about a file somebody
+chose to track.
+
+Held by `tests/scripts/test_auto_format_project_hook.py`: a throwaway repository per hold, the hook's
+own `main()` driven with a stub standing in for the global formatter, so what is measured is whether
+the payload was HANDED ON. Seen RED with the hook reverted: 4 failed, 1 passed — and the one that
+passed is the control, a TRACKED file still reaching the formatter, which is what stops the other four
+passing over a hook that has simply stopped forwarding. Mutation: both git probes removed → 3 failed,
+each naming its own door.
 **B-466 — `frame.ts` is one line from a hard ceiling, and the arm this wave added is what will demand that line.**
 
 `python3 scripts/check-frontend-boundaries.py` on the wave's head exits **0** with
@@ -2750,6 +2910,43 @@ environment override for `PROTOTYPE`, a `if __name__ == "__main__":` guard on th
 served-copy assertions reading the SAME root the rule was pointed at, so a stamp cannot certify a
 build nobody measured.
 
+**Closed by the tooling micro-wave, in three parts.**
+
+`common.PROTOTYPE` reads `TM_PROTOTYPE_URL` and `served_copy.SERVED` reads `TM_SERVED_COPY`. **TWO
+variables and not a mapping from the port to the root**, because a mapping guesses the answer from a
+number: a reader serving two builds from one port over time would get a silent wrong answer where
+this gives a refusal. And the second variable is the half that matters — an override on the URL
+alone would point a rule at one build and certify it against another, which is B-256's own subject
+reached through the door this repair would otherwise have left open. So **a URL override with no
+root override is REFUSED at import**, naming both values.
+
+Every rule module's invocation now sits behind `if __name__ == "__main__":` — 84 modules rewritten
+by `scripts/guard-module-entry-points.py`, which parses with `ast` rather than matching text and
+refuses a shape it does not recognise. 117 modules, 84 changed, 0 refused; the 33 untouched were
+already guarded or define no invocation. `pop.py`, which runs one rule, defines a second and runs
+that, is the one module whose first invocation was not trailing.
+
+**THE TOOL WAS NOT THE PROOF, and this is the entry's most useful line.** Its first version moved
+every top-level call, and every rule opens with `sys.path.insert(0, …)` so that `from common import
+…` resolves: FORTY-ONE files were left unable to import what they depend on. `ruff` passed over all
+of them and the tool reported « 84 of 117 changed, 0 refused ». Reading the diff is what caught it.
+The tool now only takes calls that come AFTER the module's first definition — a module's entry point
+calls something the module DEFINED — and a hold reads that order independently, with a floor under
+the count so a tool that DELETED the plumbing would not leave it with nothing to read.
+
+**What this does NOT reach, measured rather than implied**: 31 of the 117 rules carry
+`http://127.0.0.1:8899` as a literal instead of reading `common.PROTOTYPE`. Rewriting them would
+change rules this wave may not touch, so the number is frozen by a hold: the override's blind spot
+cannot grow, and a rule written tomorrow reads the constant. `run.sh` is likewise untouched — it
+still owns 8899 and `/tmp/tm-refonte`, and the override serves a rule pointed BY HAND, which is the
+reading #567's independent reader could not take.
+
+Held by nine holds in `tests/scripts/test_harness_entry_points.py`, including a fake `playwright`
+that raises on any call, so a module still running itself on import fails loudly instead of quietly
+starting a browser nobody watches. Three mutations, exit codes read by hand: the guard removed from
+one rule → 3 failed; the plumbing moved behind the guard in one file → 1 failed, naming the file;
+the coherence refusal removed → 1 failed. Restored each time: 9 passed.
+
 <sub>`grep -n "PROTOTYPE" frontend/maquette/harness/common.py` → the constant and its use, no `os.environ` · `tail -1 frontend/maquette/harness/machine.py` → `asyncio.run(main())` · reported by the independent reader of #567, round one, 2026-09-06</sub>
 
 **B-326 — the lock's own probe reads « free » whether it is held or not.**
@@ -3135,13 +3332,32 @@ the entries it closed — and each one still ends the span before it and discard
 occurrence this wave met is reworded in place (« THE FAMILY IS B-249's »), which restores both
 spans; the other twenty-four are not read here and their cost is unmeasured.
 
-**NOT REPAIRED, and the cost is one line either way.** The arm could require the delimiter the
-convention already uses — a head is `**B-NNN —` or `**B-NNN** —`, never `**B-NNN's` — or
-`entry_bodies` could keep the LONGEST span per identifier rather than the first. Both are a line;
-choosing between them is a decision about the register's grammar and belongs to whoever owns that
-arm, not to a micro-wave that came across it. What is recorded here is that the hole is real, that
-it silently damages two entries per occurrence, and that a wave closing an entry whose body sits
-behind such a paragraph will be refused for a reason that has nothing to do with its work.
+**REPAIRED by the tooling micro-wave, and it took BOTH lines and a third.** The two candidates
+recorded above were each tried and each was wrong alone. Requiring the delimiter — a head is
+`**B-NNN —` or `**B-NNN** —` — fixes the truncation, and takes a body away from the TWELVE entries
+the register writes as a sentence rather than a title (« **B-165 is the one to keep.** »); an
+identifier with no body at all is one the closure arm never checks, which trades a loud false
+refusal for a silent false pass. Keeping the LONGEST span fixes the theft and not the truncation,
+and it picks the wrong span where a wave's recap is longer than the entry it recaps: « **B-050,
+B-059 and B-070 — three angles on one mechanism** » is 980 characters and B-050's own body is 924.
+
+**What the guard does now**, in three rules that each answer one of those readings: a PROPER head is
+an identifier — optionally followed by more, joined by `,`, ` to ` or ` and ` — then an em dash; a
+bare paragraph is a head only when NOTHING else claims the identifier it names, which is exactly the
+distinction the defect turned on (a paragraph may claim an entry that has no body of its own, never
+one that has); and where an identifier carries two heads, the one naming a SINGLE entry wins over a
+recap naming several, length deciding only between equals.
+
+**The count, re-taken on this branch with the command above**: the old regex reads **26 of 320**
+heads as second-or-later (it read 25 of 278 when this entry was written — the register has grown).
+The parser now reads **17 of 311**, and none of the seventeen damages anything: each is a wave's
+recap standing above entries whose own bodies win. **294 identifiers keep a body, exactly as many as
+before** — the repair took none away.
+
+Held by `tests/scripts/test_check_bug_register.py`: six holds, three of them driving the defect's own
+register (B-310 truncated and B-249 stolen in one text, the recap-versus-body preference) and three
+controls — both spellings of a real head, the dashless entry that must keep its body, and a corpus
+floor on the real `BUGS.md`. Seen RED against `468162dc6`: 3 failed, 3 passed.
 
 <sub>found by this wave's own `fixed #573` being refused · `grep -n "^\*\*B-249" BUGS.md` → 891 and 6954 · body length read through the arm's own `entry_bodies`, 3 065 → 9 740 characters after the rewording</sub>
 
@@ -3872,6 +4088,33 @@ own reading, and « re-run until green » stops being the only habit available. 
 debts block for the next wave that touches those rules.
 
 <sub>`TM_HARNESS_JOBS=3 sh scripts/heavy.sh <who> sh passes.sh` — each target rule three times with `virtual.py` and `persistence.py` started 3 s before it; the nine logs read `N rules EXECUTED — no violation` and exit 0</sub>
+
+**A FIFTH INSTRUMENT, 2026-09-12 at `88b5e2f84`, by the tooling micro-wave — and this one PRINTS what
+its diagnosis needs.** `virtual.py` fell in the full suite and the fall carries its own reading:
+
+    FAIL a reader three hundred pixels down keeps their row through the mode and back
+         — the first row is a place like any other
+         — top row "On l'appelait Robin des Bois" at 300px, "On l'appelait Robin des Bois"
+           at 0px after — the port moved 300px, and a row measures 134px
+
+So the ROW is the same on both sides and the PORT is not: the reader was put back at the container's
+start instead of 300 pixels down, which is the exact distinction the hold's own comment says a title
+comparison cannot make. The hold waits 500 ms after the scroll, 600 ms after entering selection mode
+and 700 ms after leaving it; under the suite's load those three waits are what gives way, and the
+restoration lands before the port has been written. **The load, from the wrapper's own line**:
+`heavy: tooling-hygiene starts (4547MB free, load 5.73)`, `TM_HARNESS_JOBS=2`, 119 rules, two at a
+time, beside two other waves on the machine.
+
+**Replayed ALONE immediately afterwards, same head, same served copy: `36 rules EXECUTED — no
+violation`, exit 0.** Said in the same breath, as B-277 requires: running it alone removed the load
+the failure needed, so that green says nothing about the rule's soundness — only that the fall did
+not survive isolation. **And the suite was NOT re-run whole**, by the steward's ruling of the same
+day: a re-run that comes back green has removed the condition and proves nothing about the fall,
+while costing twenty minutes of a mutex two waves were queued on. The record is what is kept instead.
+
+The wave that met it touches no surface — `git diff --stat origin/main -- frontend/maquette/design/src
+| wc -l` → 0 — and that is recorded as a fact rather than offered as an alibi: what this entry needs
+is the reading, and for the first time in five instances it has one.
 
 **B-293 — 38 `Design:` markers point at paths that left the tree, and nothing says so.**
 `grep -rhoE 'Design: docs/[^#[:space:]]+' --include='*.py' tests | sort | uniq -c` shows 16 for

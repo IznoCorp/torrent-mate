@@ -15,12 +15,21 @@
 #
 # USE. Wrap anything that starts browsers, builds, or a parallel test run:
 #
-#   sh scripts/heavy.sh "<who>" <command...>
+#   sh scripts/heavy.sh [--class browser|test|rule] "<who>" <command...>
 #
 # It waits for whoever holds the lock, waits again until the machine has room
 # to spare, runs the command under a watchdog, and releases the lock whatever
 # happens. `HEAVY_LOCK` moves the lock, which is what `tests/scripts/test_heavy.py`
 # uses to exercise every path here without touching the machine's real lock.
+#
+# THE CLASS SAYS WHAT THE RUN COSTS. Until B-386 there was one readiness floor
+# for every run, so the replay of a single rule waited behind the same room a
+# two-browser harness suite needs, and a wave that wanted a `make check` to
+# start asked to lower the floor by environment — which is the bypass the floor
+# exists to forbid. A named class carries its own floor, and under a named
+# class `HEAVY_FREE_FLOOR_MB` may only RAISE it. A run with no class keeps the
+# historical floor and the historical bypass, so every existing invocation
+# still works exactly as it did.
 
 LOCK=${HEAVY_LOCK:-/private/tmp/tm-heavy/holder}
 
@@ -42,16 +51,51 @@ if [ "${1:-}" = "--held" ]; then
     exit 1
 fi
 
+# ── What class of run is this? ───────────────────────────────────────────────
+RUN_CLASS=""
+if [ "${1:-}" = "--class" ]; then
+    RUN_CLASS=${2:?--class needs a name: browser, test or rule}
+    shift 2
+fi
+
 WHO=${1:?who is asking}
 shift
 
-# ── The ceilings, with margin ────────────────────────────────────────────────
-# 4 GB free is three browser groups' worth of room for a run that will take
-# one or two: the slack is deliberate. A load of 6 on 8 cores already means
-# most cores are busy, so a heavy run waits for the machine to be genuinely
-# quiet rather than merely survivable.
-FREE_FLOOR_MB=${HEAVY_FREE_FLOOR_MB:-4096}
-LOAD_CEILING=${HEAVY_LOAD_CEILING:-6}
+# ── The ceilings, with margin, read from the run's class ─────────────────────
+# The arithmetic is the office's (docs/reference/frontend-steward.md
+# § Instrument hygiene) and this host's: 8 cores, 16 GB, a baseline that already
+# holds about 6 GB, and ONE Playwright browser group costing about 1.1 GB.
+#
+#   browser  a harness run: one or two browser groups.
+#            2 x 1.1 GB = 2.2 GB needed -> 4096 MB, a third group's worth of
+#            slack, and load 6 because two groups plus their driver want most
+#            of the machine quiet. This is the historical floor, unmoved.
+#   test     a parallel pytest at three workers, `make check`, or a build.
+#            No browser: three workers plus their parent, or a Vite build
+#            peaking near 1.5 GB -> 3072 MB, twice the peak, and load 6 for the
+#            three cores it is about to take.
+#   rule     a single rule replayed against the served copy: ONE browser group.
+#            1.1 GB plus the static host -> 2560 MB, and load 10 on 8 cores,
+#            which is no wait at all: making a one-core run wait for a quiet
+#            machine is the wait nobody needs, and a wait nobody needs is how a
+#            mandatory wrapper gets bypassed.
+#
+# The hard floor below (2048 MB, the watchdog's red line) does NOT move with the
+# class: it is what the script will not let its own child run under, whatever
+# the run believed it needed when it started.
+case "$RUN_CLASS" in
+    browser) CLASS_FLOOR_MB=4096; CLASS_LOAD_CEILING=6 ;;
+    test)    CLASS_FLOOR_MB=3072; CLASS_LOAD_CEILING=6 ;;
+    rule)    CLASS_FLOOR_MB=2560; CLASS_LOAD_CEILING=10 ;;
+    "")      CLASS_FLOOR_MB=4096; CLASS_LOAD_CEILING=6 ;;
+    *)
+        echo "heavy: unknown class '$RUN_CLASS' — say browser, test or rule" >&2
+        exit 64
+        ;;
+esac
+
+FREE_FLOOR_MB=${HEAVY_FREE_FLOOR_MB:-$CLASS_FLOOR_MB}
+LOAD_CEILING=${HEAVY_LOAD_CEILING:-$CLASS_LOAD_CEILING}
 
 # The watchdog's red line. Crossed for three samples in a row — 45 seconds, so
 # a transient dip during a build's peak does not count — the wrapped command is
@@ -93,6 +137,26 @@ at_least() {
 at_most() {
     awk -v have="$1" -v want="$2" 'BEGIN { print (have <= want) ? 1 : 0 }'
 }
+
+# ── A named class cannot be talked down ──────────────────────────────────────
+# Naming a class is a statement about what the run costs, so the environment may
+# RAISE its floor and never lower it. Without this the class would be a label on
+# a number anybody could set to 1, which is the bypass B-386 records being asked
+# for. `HEAVY_LOCK` is untouched by this: moving the lock is how the test suite
+# exercises every path here without touching the machine's own, and it changes
+# no threshold.
+if [ -n "$RUN_CLASS" ]; then
+    if [ "$(at_least "$FREE_FLOOR_MB" "$CLASS_FLOOR_MB")" = 0 ]; then
+        echo "heavy: refusing HEAVY_FREE_FLOOR_MB=${FREE_FLOOR_MB} — class $RUN_CLASS wants ${CLASS_FLOOR_MB}MB free and the environment may only raise a class's floor" >&2
+        exit 64
+    fi
+    if [ "$(at_most "$LOAD_CEILING" "$CLASS_LOAD_CEILING")" = 0 ]; then
+        echo "heavy: refusing HEAVY_LOAD_CEILING=${LOAD_CEILING} — class $RUN_CLASS runs at load $CLASS_LOAD_CEILING or below and the environment may only lower a class's ceiling" >&2
+        exit 64
+    fi
+fi
+
+echo "heavy: wants ${FREE_FLOOR_MB}MB free and load ${LOAD_CEILING} or below (class ${RUN_CLASS:-none})" >&2
 
 # ── Make sure the lock CAN be taken ──────────────────────────────────────────
 # `/private/tmp` is purged at boot and this host reboots weekly, so the lock's
