@@ -11,9 +11,10 @@
 // reads the query cache synchronously (invariant 10).
 import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
+import { registerVerb } from "../../lib/verbs";
 import { flattenSettings, settingIdentifier, valueShown } from "./catalog";
-import { HELD } from "../../lib/query-client";
-import { settingsQuery, writeConfigurationFile } from "./queries";
+import { HELD, send } from "../../lib/query-client";
+import { configurationStatusQuery, settingsQuery, writeConfigurationFile } from "./queries";
 import type { Setting, SettingsTopic } from "./reference";
 
 // THE ICONS COME THROUGH THE ENGINE'S DRAWING SLICE, not by importing
@@ -26,6 +27,12 @@ import type { Setting, SettingsTopic } from "./reference";
 // the engine — at which point `app/icons.ts` is the durable home and this line
 // is the one that changes.
 const icons = () => window.__referentiel.icons;
+
+// The value kinds the reader TYPES, as `panel-field.tsx` draws them: every kind
+// that is not a switch, a list or an unbuildable structure ends up in the same
+// `<input>`. Kept as the set of what IS typed rather than as the set of what is
+// not, so a kind added to the schema has to be named before it gains a control.
+const TYPED_FIELDS = new Set(["text", "path", "number", "duration"]);
 
 /**
  * Finds one setting among those the layer answered.
@@ -78,10 +85,23 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
       {
         type: "faits",
         lignes: [
-          { c: translate("panels.setting.currentValue"), v: String(shown) },
+          // WHAT EACH LINE IS, SAID (B-341). The panel printed the PENDING
+          // value under « Valeur actuelle » and the stored one under « Valeur
+          // écrite », and the operator read the two the other way round —
+          // rightly: what has just been typed is not current, and what is in
+          // the file is not what was written by anybody. So the first line
+          // only calls itself « new » when there IS something new; with no
+          // pending edit it is the stored value and says so, and the second
+          // line does not exist.
+          {
+            c: translate(changed
+              ? "panels.setting.pendingValue"
+              : "panels.setting.storedValue"),
+            v: String(shown),
+          },
           ...(changed
             ? [{
-                c: translate("panels.setting.writtenValue"),
+                c: translate("panels.setting.storedValue"),
                 v: String(setting.v),
                 terne: true,
               }]
@@ -100,6 +120,27 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
                 desactive: true,
               }
             : null,
+          // « VALIDER » — the control the field never had (B-341). The field
+          // commits on the native `change` event, which fires once on BLUR;
+          // on a phone the keyboard's « ✓ » does not always blur, so an edit
+          // the operator had typed was simply never filed and the bottom bar
+          // stayed empty. The native path STAYS — it is three measured
+          // decisions, written in `panel-field.tsx` — and this is a second
+          // way to the same act, never a replacement.
+          //
+          // OFFERED FOR THE FIELDS THAT HAVE A PENDING VALUE TO FILE, which is
+          // the ones the reader TYPES into. A switch and a list file their
+          // edit on the tap that changes them, so there is nothing held back
+          // for a « Valider » to release, and a button that files what is
+          // already filed is a button that teaches the wrong thing.
+          readOnly || !TYPED_FIELDS.has(setting.type)
+            ? null
+            : {
+                text: translate("panels.setting.commit"),
+                icone: icons().check,
+                ton: "primary",
+                target: { commitsetting: identifier },
+              },
           changed
             ? {
                 text: translate("panels.setting.cancelEdit"),
@@ -152,10 +193,12 @@ declare global {
       save: () => Promise<void>;
       /** Throws the stale edits away and asks for the settings again. */
       reload: () => void;
+      /** Files what the field is holding, without waiting for a blur (B-341). */
+      commitEdit: (identifier: string) => void;
       /** Asks before cutting the service for the household (B-300, §17). */
       askToRestart: () => void;
       /** Restarts, once the operator has said so. */
-      restart: () => void;
+      restart: () => void | Promise<void>;
     };
   }
 }
@@ -192,13 +235,47 @@ async function saveEdits(): Promise<void> {
     return;
   }
   pending.clear();
-  reference.SETTINGS_STATE.redemarrage = true;
+  // WHAT WAS WRITTEN IS ASKED FOR AGAIN, and this is the other half of B-342.
+  // The layer now keeps the values a write carried, so the rows and the panel
+  // must re-read them — without this the interface goes on showing the answer
+  // it held before the save, which is the defect said the other way round.
+  //
+  // AND THE RESTART IS THE LAYER'S FACT NOW (B-343): the flag left
+  // `SETTINGS_STATE`, where nothing re-rendered it, and the banner reads the
+  // status query. Invalidating it is what makes the banner follow the save the
+  // operator has just made.
+  await window.__queries?.invalidateQueries({ queryKey: settingsQuery.queryKey });
+  await window.__queries?.invalidateQueries({
+    queryKey: configurationStatusQuery.queryKey });
   reference.render();
   window.__toast?.show({
     message: i18next.t("panels.setting.savedToast", {
       files: files.map(reference.fileName).join(", "),
     }),
   });
+}
+
+/* « VALIDER » — filing the edit the field is holding, on a tap (B-341).
+
+   THE FIELD IS READ WHERE IT IS DRAWN. The input carries the setting's own
+   identity (`data-field`), so this reads the element the reader typed into
+   rather than a value handed along a chain — and there is exactly one such
+   element open at a time, inside the panel.
+
+   IT RE-PRODUCES THE PANEL, as the native path does: the pending chip, the two
+   value lines and the bottom bar all read the edit, and a file that landed
+   without the surface moving is the species this wave exists to end. */
+function commitEdit(identifier: string): void {
+  const reference = window.__referentiel;
+  const field = document.querySelector<HTMLInputElement>(
+    `#sheetin [data-part="field/input"][data-field="${CSS.escape(identifier)}"]`);
+  if (field === null) return;
+  const setting = flattenSettings(
+    (window.__queries?.getQueryData<SettingsTopic[]>(settingsQuery.queryKey))
+      ?? []).find((one) => settingIdentifier(one) === identifier);
+  if (setting === undefined) return;
+  reference.changeSetting(identifier, reference.typedValue(setting, field.value));
+  window.__panel.produce("setting", identifier);
 }
 
 /* RELOADING after a conflict — the only honest verb. The editor's copy is
@@ -250,10 +327,16 @@ function askToRestart(): void {
 }
 
 /** Restarts, and only once the operator has said so. */
-function restart(): void {
+async function restart(): Promise<void> {
   const reference = window.__referentiel;
   window.__dialog?.close();
-  reference.SETTINGS_STATE.redemarrage = false;
+  // ASKED OF THE LAYER, because that is where the fact lives now (B-343). The
+  // flag used to be dropped on `SETTINGS_STATE` and the service was never told
+  // anything — an interface saying a restart had happened over a call nobody
+  // made, which is NE-DOIT-PAS-1 from the closest range.
+  await send("POST", "/api/config/restart-web");
+  await window.__queries?.invalidateQueries({
+    queryKey: configurationStatusQuery.queryKey });
   reference.render();
   window.__toast?.show({
     message: i18next.t("screens.settings.restartDone"),
@@ -262,11 +345,19 @@ function restart(): void {
 
 window.__settingsVerbs = {
   cancelEdit,
+  commitEdit,
   save: saveEdits,
   reload: reloadSettings,
   askToRestart,
   restart,
 };
+
+/* THE VERB THIS PANEL'S OWN BUTTON EMITS. `ui/panel` draws a `target` map onto
+   the button and attaches no handler, by contract, so a verb the dying engine
+   never knew has nobody until a feature declares it — which is what
+   `lib/verbs.ts` exists for, and what ARM 7 of the markup guard refuses to let
+   anyone forget. */
+registerVerb("commitsetting", commitEdit);
 
 registerProducer("setting", {
   produce: settingPanel,
