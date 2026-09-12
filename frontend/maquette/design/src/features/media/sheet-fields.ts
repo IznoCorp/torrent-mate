@@ -20,6 +20,14 @@ export type MediaSheetFields = {
   seasons?: CatalogSeason[];
   eps?: Record<string, SheetEpisode[]>;
   /**
+   * When the metadata was last re-read from the providers, or null.
+   *
+   * NULL IS THE ORDINARY ANSWER, not an absence to paper over: nothing has been
+   * re-read in a session that has just begun, and the « Métadonnées rafraîchies »
+   * row says what it always said until a re-scrape moves it (B-383).
+   */
+  metadataRefreshedAt?: string | null;
+  /**
    * Whether the reader holds it: true, false, or NULL for « nobody knows ». The
    * contract's own third value — `ownership` is nullable, null when the library
    * database is unavailable — and a type that admitted only two made the third

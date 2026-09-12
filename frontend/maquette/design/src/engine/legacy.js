@@ -9512,12 +9512,6 @@ import {
       return;
     }
 
-    if (closest.dataset.rescrape) {
-      toast(
-        `« ${baseTitle(closest.dataset.rescrape)} » : métadonnées à re-récupérer au prochain passage.`,
-      );
-      return;
-    }
     if (closest.classList.contains("cfoot")) {
       const title =
         closest.closest(".card")?.querySelector(".ctitle")?.textContent ?? "";

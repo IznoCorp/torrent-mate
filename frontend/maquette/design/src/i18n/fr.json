@@ -286,7 +286,6 @@
       "information": "Informations",
       "metadataRefreshed": "Métadonnées rafraîchies",
       "metadataRefreshedValue": "10 août, 04 h 12",
-      "rescrapeToast": "Re-scrape lancé — NFO et affiches seront refaits.",
       "rescrape": "Re-scraper les métadonnées",
       "delete": "Supprimer de la médiathèque",
       "added": "Ajouté",
@@ -849,8 +848,6 @@
       "destructiveNote": "**Cette commande supprime.** L'essai à blanc reste activé tant que rien n'a montré ce qui serait détruit : un « êtes-vous sûr ? » se répond sans lire, une liste se regarde. Lancez-la à blanc, lisez ce qu'elle nomme, puis relancez-la pour de vrai.",
       "runDry": "Lancer à blanc",
       "run": "Lancer",
-      "launchedDry": "{{action}} — lancée à blanc. Le résultat s'affichera ici.",
-      "launched": "{{action}} — lancée. Le résultat s'affichera ici.",
       "runForReal": "Lancer pour de vrai",
       "runForRealHint": "Lisez d'abord ce que l'essai à blanc nomme.",
       "runForRealMention": "après l'essai"
@@ -967,7 +964,12 @@
       "seasonQueued": "Saison {{season}} de « {{title}} » en file — pipeline en cours.",
       "seasonQueuedNewlyFollowed": "Série « {{title}} » suivie et saison {{season}} en file — pipeline en cours.",
       "seasonHeld": "Saison {{season}} de « {{title}} » demandée — en attente du réseau, elle partira au retour.",
-      "seasonRefused": "Saison {{season}} de « {{title}} » : la demande n'a pas abouti."
+      "seasonRefused": "Saison {{season}} de « {{title}} » : la demande n'a pas abouti.",
+      "rescrapeAsked": "Métadonnées de « {{title}} » re-demandées aux fournisseurs.",
+      "rescrapeQueued": "Re-scrape de « {{title}} » en file — pipeline en cours.",
+      "rescrapeHeld": "Re-scrape de « {{title}} » demandé — en attente du réseau, il partira au retour.",
+      "rescrapeRefused": "Le re-scrape de « {{title}} » n'a pas abouti.",
+      "rescrapeUnidentified": "« {{title}} » n'a aucune identité fournisseur : il n'y a rien à re-scraper tant qu'il n'est pas identifié."
     },
     "journey": {
       "requeueAsked": "Remis en file — le passage reprend où il s'est arrêté.",
@@ -995,6 +997,14 @@
     },
     "releases": {
       "taken": "« {{quality}} » retenue pour « {{title}} » — suivez-le dans « En vol »."
+    },
+    "maintenance": {
+      "started": "Commande lancée — suivez-la dans « Arrivées ».",
+      "queued": "Commande en file — pipeline en cours.",
+      "dryDone": "Essai à blanc terminé — rien n'a été modifié.",
+      "held": "Commande demandée — en attente du réseau, elle partira au retour.",
+      "dryHeld": "Essai à blanc demandé — en attente du réseau.",
+      "refused": "La commande n'a pas abouti."
     }
   },
   "discover": {

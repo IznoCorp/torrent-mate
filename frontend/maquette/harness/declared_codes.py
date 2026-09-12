@@ -3,7 +3,8 @@
 THE DEFECT IT HOLDS (B-379). `mocks/scenario.ts` computed every outcome as
 `status: armed ? (asked.status ?? 200) : 200`, so the layer answered 200 to the
 three operations whose contract declares something else — a 201 for
-`grabSeasonForFollow`, a 202 for `requeueJourney` and `rescrapeJourney`. It was
+`grabSeasonForFollow`, a 202 for `requeueJourney` and `rescrapeJourney` (a
+fourth, `rescrapeMedia`, was declared by the same wave, after this rule). It was
 measured, not reasoned: R158's first run read four season grabs and four
 `status: 200` in `window.__mocks.answered()`, and every hold written on the
 literal code was red for a reason that was not the act. A sentence saying the
@@ -89,6 +90,11 @@ ASKED_FOR = {
         "POST", "/api/acquisition/follows/Silo/seasons/1/grab"),
     "requeueJourney": ("POST", "/api/acquisition/journeys/Silo/requeue"),
     "rescrapeJourney": ("POST", "/api/acquisition/journeys/Silo/rescrape"),
+    # ADDED BY THE COMMIT THAT DECLARED THE OPERATION, because the corpus hold
+    # below FELL when it was declared without one — which is the hold doing its
+    # whole job: a contract that gains a 202 and a rule that goes on exercising
+    # three operations would be green about the fourth.
+    "rescrapeMedia": ("POST", "/api/media/tvdb/403245/rescrape"),
     # The 200 family's witness. A read, because the plain success is what every
     # read answers and a rule holding only mutations would say nothing about
     # the fifty-five operations that make up the rest of the contract.

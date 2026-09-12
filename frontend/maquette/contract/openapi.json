@@ -682,6 +682,93 @@
         ]
       }
     },
+    "/api/media/{provider}/{providerId}/rescrape": {
+      "post": {
+        "operationId": "rescrapeMedia",
+        "summary": "Ask the providers for one medium's metadata again",
+        "tags": [
+          "media"
+        ],
+        "responses": {
+          "202": {
+            "description": "the ask is accepted — running now, or visibly in file",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "provider": {
+                      "type": "string",
+                      "description": "the medium the ask is about, echoed so a surface knows which sheet to re-read"
+                    },
+                    "providerId": {
+                      "type": "string",
+                      "description": "the identifier at that provider"
+                    },
+                    "queued": {
+                      "type": "boolean",
+                      "description": "whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé »."
+                    },
+                    "runUid": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "the run to follow, when one was started. Null when the ask is queued and nothing runs yet."
+                    }
+                  },
+                  "required": [
+                    "provider",
+                    "providerId",
+                    "queued",
+                    "runUid"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "tmdb or tvdb"
+          },
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the identifier at that provider"
+          }
+        ],
+        "x-unseeded": "an acknowledgement. The interface offers « Re-scraper les métadonnées » on two surfaces — the follow panel and the media sheet — and the backend has no operation for it: this declaration IS the demand (D7). No fixture covers it, because until this wave nothing ever asked."
+      }
+    },
     "/api/acquisition/followed": {
       "get": {
         "operationId": "readFollows",
@@ -4618,6 +4705,13 @@
               "type": "string"
             },
             "description": "this title's own cast portraits, keyed by name"
+          },
+          "metadataRefreshedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "when this medium's metadata was last read from the providers, as an ISO date. NULL when it has never been read in this session, which is what the sheet's « Métadonnées rafraîchies » row shows its constant for. The row printed a FIXED date as a fact before this field existed, which is NE-DOIT-PAS-1 in one line."
           }
         },
         "required": [

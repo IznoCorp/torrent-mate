@@ -8,8 +8,14 @@ import SEASONS from "../seeds/seasons.json";
 import MEDIA_SHEETS from "../seeds/media-sheets.json";
 import TRAILERS from "../seeds/trailers.json";
 import { mockState } from "../state";
-import { GET, route } from "./shared";
+import { scenario } from "../scenario";
+import { GET, POST, route } from "./shared";
 import type { MockRequest, MockRoute } from "../router";
+
+// The pipeline is BUSY unless it is idle, and an ask that arrives then is
+// queued VISIBLY rather than refused (DOIT-4). It is the contract's own
+// `PipelineState` token, carried like every other token in this layer.
+const IDLE = "idle";
 
 type Sheets = Record<string, Record<string, unknown>>;
 type ByTitle = Record<string, unknown>;
@@ -113,6 +119,11 @@ function sheet(request: MockRequest): unknown {
     // branch is unreachable and untestable while the contract says a backend
     // reaches it every time that database is down.
     ...(mockState().libraryDatabaseAvailable ? {} : { owned: null }),
+    // WHEN THE METADATA WAS LAST RE-READ, or null. It is what the sheet's
+    // « Métadonnées rafraîchies » row draws, and it is the state the re-scrape
+    // verb MOVES (B-383): before this field the row printed a fixed date as a
+    // fact, in every state, over a sheet that had answered nothing.
+    metadataRefreshedAt: refreshedAt(titles),
     poster: underAnyTitle(POSTERS as ByTitle, titles),
     posterHighDefinition: underAnyTitle(POSTERS_HIGH_DEFINITION as ByTitle, titles),
     hero: underAnyTitle(HERO_IMAGES as ByTitle, titles),
@@ -122,6 +133,20 @@ function sheet(request: MockRequest): unknown {
     // the fixture does not have.
     castPortraits: portraitsFor(found.cast),
   };
+}
+
+/**
+ * When one medium's metadata was last re-read, under whichever title holds it.
+ *
+ * @param titles Every title the identity names.
+ * @returns The instant, or null when it has not been re-read in this session.
+ */
+function refreshedAt(titles: string[]): string | null {
+  const held = mockState().metadataRefreshedAt;
+  for (const title of titles) {
+    if (Object.hasOwn(held, title)) return held[title];
+  }
+  return null;
 }
 
 /** Every route this subject answers. */
@@ -152,6 +177,42 @@ export function mediaRoutes(): MockRoute[] {
         return {
           seasons: catalogue,
           owned: underAnyTitle(OWNED_EPISODES as ByTitle, titles) ?? {},
+        };
+      },
+    ),
+    route(
+      "rescrapeMedia",
+      POST,
+      "/api/media/{provider}/{providerId}/rescrape",
+      (request) => {
+        const titles = titlesFor(
+          request.parameters.provider,
+          request.parameters.providerId,
+        );
+        // A MEDIUM NO IDENTITY NAMES IS NOT RE-SCRAPED, and the layer says so
+        // with a 404 rather than an acknowledgement: a handler that answered a
+        // success here would be the « said, not done » defect this operation
+        // exists to end, wearing the layer's clothes instead of the verb's.
+        if (titles.length === 0) return null;
+        // THE STATE THE ANSWER IS ABOUT MOVES, and it moves for EVERY title the
+        // identity names — the sheets are keyed by title and twenty identities
+        // carry two keys each (B-088), so writing under the first would leave
+        // the read answering null under the other.
+        //
+        // THE INSTANT IS THE LAYER'S FROZEN CLOCK, never `Date.now()`: this
+        // layer is deterministic by contract, and a stamp drawn from the wall
+        // clock would make the same state driven twice answer different bytes
+        // and put the oracle out of reach.
+        const when = scenario().now;
+        for (const title of titles) mockState().metadataRefreshedAt[title] = when;
+        return {
+          provider: request.parameters.provider,
+          providerId: request.parameters.providerId,
+          queued: mockState().pipelineState !== IDLE,
+          // NULL, ALWAYS. The layer holds no run identifier at all — every
+          // other verb here answers the same — and the register asks the
+          // backend for one.
+          runUid: null,
         };
       },
     ),

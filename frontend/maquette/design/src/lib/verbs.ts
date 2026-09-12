@@ -81,6 +81,14 @@ export function registeredVerbNames(): string[] {
  * number of verbs the interface has.
  */
 export function installVerbs(): void {
+  // THE SEAM A RULE READS THE REGISTRY THROUGH, published here because this is
+  // where the registry starts answering. `registeredVerbNames` said in its own
+  // docstring that it was « published for the rule that reads the seam from
+  // outside » and it was exported and called by NOBODY — a seam nothing reaches
+  // is a seam that does not exist, and the first rule to want it (R171, holding
+  // that `data-rescrape` is answered HERE and no longer by the dying engine)
+  // found nothing to ask.
+  window.__verbNames = registeredVerbNames;
   document.addEventListener("click", (event) => {
     let node = event.target as HTMLElement | null;
     while (node !== null && node !== document.body) {
@@ -100,4 +108,11 @@ export function installVerbs(): void {
       node = node.parentElement;
     }
   }, true);
+}
+
+declare global {
+  interface Window {
+    /** Every verb the registry answers, for a rule reading it from outside. */
+    __verbNames?: () => string[];
+  }
 }

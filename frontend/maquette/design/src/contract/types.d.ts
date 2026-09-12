@@ -158,6 +158,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/media/{provider}/{providerId}/rescrape": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask the providers for one medium's metadata again */
+        post: operations["rescrapeMedia"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/acquisition/followed": {
         parameters: {
             query?: never;
@@ -1278,6 +1295,8 @@ export interface components {
             castPortraits?: {
                 [key: string]: string;
             };
+            /** @description when this medium's metadata was last read from the providers, as an ISO date. NULL when it has never been read in this session, which is what the sheet's « Métadonnées rafraîchies » row shows its constant for. The row printed a FIXED date as a fact before this field existed, which is NE-DOIT-PAS-1 in one line. */
+            metadataRefreshedAt?: string | null;
         };
         Season: {
             season: number;
@@ -1655,6 +1674,46 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    rescrapeMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description tmdb or tvdb */
+                provider: string;
+                /** @description the identifier at that provider */
+                providerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the ask is accepted — running now, or visibly in file */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description the medium the ask is about, echoed so a surface knows which sheet to re-read */
+                        provider: string;
+                        /** @description the identifier at that provider */
+                        providerId: string;
+                        /** @description whether the ask is WAITING on the pipeline rather than running now. DOIT-4: an ask that arrives while the pipeline runs is queued VISIBLY — the interface draws « En file — pipeline en cours » and never « occupé ». */
+                        queued: boolean;
+                        /** @description the run to follow, when one was started. Null when the ask is queued and nothing runs yet. */
+                        runUid: string | null;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };

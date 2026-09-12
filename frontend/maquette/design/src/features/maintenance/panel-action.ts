@@ -97,10 +97,27 @@ function maintenancePanel(
               ? "panels.maintenance.runDry"
               : "panels.maintenance.run"),
             ton: "solid",
+            // IT SAID A SENTENCE AND SENT NOTHING (B-383). `target: { toast }`
+            // draws a message and does nothing else: the operator was told a
+            // maintenance command had been launched over a machine in which
+            // nothing had been asked. The verb calls `runMaintenanceAction`,
+            // and what it says comes from what came back.
+            //
+            // THE DRY-NESS TRAVELS BESIDE THE IDENTIFIER because it is decided
+            // HERE — a destructive command is always blank whatever the page's
+            // switch says — and a verb that recomputed it would be a second
+            // reading of one question, free to disagree with the button the
+            // operator actually read.
             target: {
-              toast: translate(action.blanc
-                ? "panels.maintenance.launchedDry"
-                : "panels.maintenance.launched", { action: action.l }),
+              "maintenance-run": action.id,
+              // A COMMAND THAT OFFERS NO BLANK RUN CANNOT BE RUN BLANK, and
+              // `dry` alone said otherwise: it is the page's switch, read for
+              // every command, while the fact row above already answers
+              // « impossible » for one whose `blanc` is false. Sending the
+              // switch's value there would have asked the backend for a blank
+              // run of a command that has none — the button says « Lancer »
+              // and the ask would have said the opposite.
+              "dry-run": String(action.blanc && dry),
             },
           },
           deletes

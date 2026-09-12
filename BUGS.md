@@ -442,6 +442,75 @@ when the defect comes back.
 | B-394 | The harness's two floating buttons (the design note ⓘ and the states list ≡) are painted OVER a message shown at the top of the frame, so the sentence answering a verb pressed inside a layer is covered by chrome that is in no production build | by the operator, 2026-09-11 | `fixed #585` |
 | B-395 | The library's selection bar stays drawn on every other tab: `app/bottom-slot.tsx` renders it unconditionally and its own condition reads `selMode` alone, so « N sélectionnés · Annuler · Supprimer » sits over Acquisition — and the tab bar, hidden by that same `selMode`, leaves no way back | by the operator, 2026-09-11 | `fixed #585` |
 | B-396 | The mock seed offers exactly ONE folder with candidate cards, so the resolution window's riskiest path — a second pick taken inside the first one's undo window, and a put-back into a list that has moved — is reachable by no finger and is proved through the queue's seam alone | by audit | `open` |
+| B-470 | The media sheet carries the SAME « Re-scraper les métadonnées » the follow panel does, drawn as `data-toast`, so it too said a sentence and sent nothing — a fifth verb of B-383's class, named in no entry because round two's reader swept panel producers and a sheet is a screen | by the mock-layer micro-wave | `open` |
+| B-471 | `readMediaSeasons` DECLARES `Season[]` (`{season, owned, aired}`) and ANSWERS the sheet's catalogue (`{number, episodes, airDate}`): two different shapes at one operation, and `contract-conformance.test.ts` cannot see it because it reads only a response's first-level required fields, never an element's | by the mock-layer micro-wave | `open` |
+| B-472 | `scripts/heavy.sh` takes its lock with a polled `mkdir` and no queue, so among several waves waiting an old demander has no precedence over a new one: with four agents on the machine the lock, not the work, sets a wave's pace | by the mock-layer micro-wave | `open` |
+| B-473 | `lib/verbs.ts` exports `registeredVerbNames` « for the rule that reads the seam from outside » and NOTHING calls it — not the shell, not a rule, not a test: a seam nothing reaches is a seam that does not exist, and the first rule that wanted it found nothing to ask | by the mock-layer micro-wave | `open` |
+
+**B-470 — the media sheet's own « Re-scraper les métadonnées » said a sentence and sent nothing.**
+`features/media/media-details.tsx:105` drew the sheet's re-scrape as
+`data-toast={t("screens.media.rescrapeToast")}` — « Re-scrape lancé — NFO et affiches seront
+refaits. » — and `data-toast` is the engine's branch that shows a message and returns. Identical
+words, identical class and an identical world afterwards to the follow panel's verb, which B-383
+names.
+
+**IT IS NOT IN B-383 BECAUSE OF WHERE THE READER LOOKED.** Round two's question was pointed at every
+kind `__panel.producers()` lists, each verb pressed at its centre; a media SHEET is a screen and not
+a panel, so the twin was outside the lens by construction. Filed here rather than added to B-383's
+body: the four B-383 names are a reading, and editing a reading afterwards is how a count stops
+being a measurement.
+
+**Fixed in the same commit family as B-383's own half**, by the operator's orchestrator's ruling of
+2026-09-12 — one verb, `data-rescrape`, for both surfaces, calling the operation the contract now
+declares. Held by R171's m1 (the sheet) and m2 (the panel): same operation, same 202, read from
+`window.__mocks.answered()`.
+
+**B-471 — one operation declares a shape and answers another.**
+The contract gives `readMediaSeasons` a `seasons` array of `Season` — `{season, owned, aired}` —
+and `mocks/handlers/media.ts` answers the SHEET's own catalogue, `{number, episodes, airDate}`. Not
+one field name in common. The client re-projects the catalogue into the engine's short names
+(`toEngineShapeEntry("SHEETS_RAW", …)`), so the interface works and nothing anywhere compares the
+answer with the declaration.
+
+**WHY NO GUARD SEES IT, and it is the useful half.** `mocks/contract-conformance.test.ts` holds
+« every REQUIRED property of a declared response is present in the answer » — and reads the FIRST
+LEVEL only: for this operation that is `seasons` and `owned`, both present. The elements of the
+array are never looked at, and the file says so in its own header (« deliberately narrow »). So the
+test is right about what it measures and blind to this.
+
+Found while reading the media handler for B-380. **Not repaired here**: widening the conformance
+test is a change to an instrument every other operation is judged by, and this wave's own changes
+are judged by it. Status `open`. Owner: the next wave that opens the contract test.
+
+**B-472 — the heavy lock is a poll, so waiting gives no turn.**
+`scripts/heavy.sh` takes its lock with `mkdir "$LOCK"` in a loop that sleeps three seconds. There is
+no queue: among several sessions waiting, the one that wakes first wins, whatever order they arrived
+in. It also announces the holder ONCE (`announced=1`), so a wait that outlives two holders prints
+the name of the first and never says it changed.
+
+**Measured on 2026-09-12, with four agents on the machine**: a `run.sh --contracts` waited about
+twenty minutes, announced « waiting for tooling-hygiene », and the lock passed to a third wave
+without the waiter ever taking it. The orchestrator sequenced the waves by hand instead, which is
+the right answer to an incident and not a mechanism.
+
+It belongs to **B-386's family** — the wrapper's readiness policy — and is filed beside it rather
+than inside it: B-386 is about the FLOOR a run waits for, this is about the ORDER waiters are served
+in, and a repair for one does not touch the other. Owner: a tooling micro-wave.
+
+**B-473 — a seam published for a rule, that nothing could reach.**
+`lib/verbs.ts`'s `registeredVerbNames` carries the sentence « Published for the rule that reads the
+seam from outside, exactly as `registeredProducers` is: a rule that had to import this module to ask
+would be coupled to how the module is built. » It was exported and called by NOTHING — not the
+shell, not a rule, not a test — so the seam it describes did not exist, and the first rule that
+wanted it (R171's m3, holding that `data-rescrape` is answered by the registry and no longer by the
+dying engine) had nothing to ask.
+
+**The shape is worth naming**: a comment describing an affordance is not the affordance, and an
+exported function with no caller reads exactly like one that has been wired. Its neighbour
+`registeredProducers` IS reachable, which is what made the sentence believable.
+
+**Fixed by the mock-layer micro-wave**: `installVerbs()` publishes `window.__verbNames`, where every
+other driving seam of this prototype is published, and R171's m3 reads it.
 
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=

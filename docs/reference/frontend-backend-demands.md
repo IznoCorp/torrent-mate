@@ -19,9 +19,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 58 |
+| operations the interface requires | 59 |
 | operations the backend has | 65 |
-| required and missing | 14 |
+| required and missing | 15 |
 | declared by both, different response shape | 44 |
 | declared by both, path parameter spelled differently | 14 |
 | declared by both, answered with a different status | 12 |
@@ -48,6 +48,7 @@ than a blank page.
 | `GET /api/system/services` | `readServices` | The services, and whether each answers |
 | `POST /api/acquisition/followed/{followedId}/restore` | `restoreFollow` | Put a removed follow back, as it was |
 | `POST /api/acquisition/to-handle/{mediaId}/take` | `takeQueued` | Restart one item that was waiting to be acquired |
+| `POST /api/media/{provider}/{providerId}/rescrape` | `rescrapeMedia` | Ask the providers for one medium's metadata again |
 
 ## 2. Operations both declare, whose response carries different property names
 
@@ -72,7 +73,7 @@ reports a difference for every optional field and drowns the real findings.
 | `GET /api/maintenance/disks` (`readDisks`) | `secondaryLine`, `tone`, `value` | `disks`, `free_gb`, `id`, `mounted`, `total_gb`, `used_pct` |
 | `GET /api/maintenance/index-health` (`readIndexHealth`) | `label`, `secondaryLine`, `tone`, `value` | `canonical_null`, `degraded`, `error`, `files`, `invalid`, `items`, `last_scan_finished_at`, `last_scan_id`, `last_scan_mode`, `last_scan_started_at`, `last_scan_status`, `last_scan_stuck`, `missing`, `movies`, `nfo`, `outbox_oldest_age_s`, `outbox_pending`, `repair_queue_oldest_age_s`, `repair_queue_pending`, `shows`, `size_gb`, `soft_deleted`, `valid` |
 | `GET /api/maintenance/schedulers` (`readSchedulers`) | `label`, `secondaryLine`, `tone`, `value` | `display_name`, `enabled`, `kind`, `last_outcome`, `last_run_at`, `name`, `schedule`, `schedulers` |
-| `GET /api/media/{provider}/{providerId}` (`readMediaSheet`) | `airDate`, `cast`, `castPortraits`, `duration`, `episodes`, `hero`, `ids`, `key`, `language`, `name`, `number`, `poster`, `posterHighDefinition`, `rating`, `role`, `runtime`, `status`, `tmdbTelevisionId`, `trailer`, `trailerVideo` | `aired_count`, `degraded_reason`, `episode_count`, `owned_count`, `ownership`, `poster_url`, `provider`, `provider_id`, `season_number`, `series_status`, `trailer_url` |
+| `GET /api/media/{provider}/{providerId}` (`readMediaSheet`) | `airDate`, `cast`, `castPortraits`, `duration`, `episodes`, `hero`, `ids`, `key`, `language`, `metadataRefreshedAt`, `name`, `number`, `poster`, `posterHighDefinition`, `rating`, `role`, `runtime`, `status`, `tmdbTelevisionId`, `trailer`, `trailerVideo` | `aired_count`, `degraded_reason`, `episode_count`, `owned_count`, `ownership`, `poster_url`, `provider`, `provider_id`, `season_number`, `series_status`, `trailer_url` |
 | `GET /api/pipeline/history` (`readPipelineHistory`) | `cause`, `result`, `succeeded`, `when` | `command`, `degraded`, `dry_run`, `duration_s`, `ended_at`, `kind`, `outcome`, `run_uid`, `runs`, `started_at`, `total`, `trigger` |
 | `GET /api/pipeline/status` (`readPipeline`) | `blockedCount`, `description`, `duration`, `facts`, `label`, `last`, `name`, `outcome`, `result`, `secondaryLine`, `steps`, `trigger`, `triggers`, `uid`, `when` | `paused`, `pid`, `run_uid`, `state`, `step`, `watcher_enabled` |
 | `GET /api/staging/media` (`readStaging`) | `chip`, `moving`, `secondaryLine`, `settled`, `strip`, `stuck`, `text`, `tone`, `withoutPoster` | `absent`, `ambiguous`, `awaiting_action`, `blocked_reason`, `category`, `category_id`, `continuation_requested_at`, `counts`, `decision_id`, `decision_trigger`, `disk`, `dispatch_target`, `episode_count`, `folder`, `has_nfo`, `has_poster`, `has_trailer`, `id`, `items`, `key`, `label`, `match`, `matched`, `media_kind`, `mode`, `modified_at`, `overview`, `page`, `page_size`, `position_stage`, `position_state`, `poster_url`, `provider_ids`, `relative_path`, `scraped`, `season`, `seasons`, `size_bytes`, `stages`, `state`, `total`, `video_count`, `with_trailer`, `year` |
