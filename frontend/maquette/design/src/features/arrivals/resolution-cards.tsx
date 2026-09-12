@@ -30,11 +30,13 @@ import { candidateCard, candidatePick } from "./variants";
 // fallback is exactly what a second copy would drift on.
 export function ReleaseCard({
   title,
+  year,
   meta,
   confidence,
   opts,
 }: {
   title: string;
+  year: string | number | null;
   meta: string;
   confidence: string | null;
   opts: {
@@ -55,6 +57,17 @@ export function ReleaseCard({
   // is a MARK at the icon button's one size, never a control: a button inside
   // this one would be invalid markup and a control nobody can name. Pressed, it
   // wears the base layer's `:active`, like every button.
+  //
+  // AND IT IS NAMED FROM ITS DATA. A button's accessible name is its whole text
+  // when nothing else says otherwise, so the card announced itself with its
+  // subtitle, its synopsis and — where the provider has no picture — the poster
+  // fallback's initial, up to 524 characters opening on a stray letter. What
+  // identifies a candidate to a listener is the title and the year, and both
+  // arrive here as data: the label is assembled from them, never typed. The
+  // year is a prop of its own rather than a slice of `meta`, because re-parsing
+  // a display string to recover a datum the caller already holds is how the two
+  // drift apart. The poster is `aria-hidden`: an image with an empty `alt` is
+  // already silent, its initials fallback is not, and neither is part of a name.
   return (
     <button
       type="button"
@@ -62,11 +75,13 @@ export function ReleaseCard({
       data-part="card"
       data-nonmedia={opts.genre || "release"}
       data-resolve={title || undefined}
+      aria-label={year ? `${title} ${year}` : title}
     >
       <span className="ctop" data-part="card/top">
         <Markup tag="span"
           className="poster"
           data-part="card/poster"
+          aria-hidden="true"
           title={
             opts.noPoster ? t("screens.resolution.noPosterTitle") : undefined
           }
@@ -202,6 +217,7 @@ export function Candidates({ decision }: { decision: PendingDecision }) {
         <ReleaseCard
           key={`${candidate.p}:${candidate.id}`}
           title={candidate.t}
+          year={candidate.y ?? null}
           meta={`${candidate.y ? candidate.y + " · " : ""}${decision.k === "movie" ? t("common.film") : t("common.series")} · ${candidate.p.toUpperCase()} ${candidate.id}`}
           /* A score that ties with the others says nothing about this
              candidate, so it is not printed on it. */

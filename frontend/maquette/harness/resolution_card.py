@@ -29,6 +29,14 @@ WHAT IT READS, and each hold fails differently:
       could have gone with nothing in the suite falling. So the size is held
       both ways, and a second hold reads that a box exists at all and that
       `visibility` has not taken it away.
+  h9. EVERY CARD IS ANNOUNCED BY ITS TITLE AND ITS YEAR, and by nothing longer.
+      The card being the button, its name used to be its whole text — up to 521
+      characters, opening on the poster fallback's initial where the provider
+      had no picture, and identical in substance from one candidate to the next
+      after the first few words. Every card is read, not the first: only the
+      ones without a picture wear that initial. The name is computed by the
+      browser through the devtools protocol's accessibility tree, and the
+      expected one is assembled from the two data the card displays.
   h1. A TAP AT THE CENTRE OF THE CARD'S BODY RESOLVES THE FOLDER. Not the
       poster, not the affordance: the body, where a finger reading the synopsis
       lands. By a finger, never `element.click()` — the element under it has a
@@ -63,6 +71,11 @@ ICON_FACTORY = "iconButton"
 # A RENDERED BOX IS FRACTIONAL; a box equal to the probe's must not fall on a
 # rounding of the layout engine.
 SUBPIXEL = 0.5
+
+# WHAT A LISTENER CAN HOLD IN ONE HEARING. The name a candidate card announced
+# before it was labelled ran 521 characters — the whole card, the poster's
+# initial included — and a name that long is a name nobody waits for.
+NAME_CEILING = 80
 
 # THE SCREEN, by its own identity. An absent screen reads as an empty one, so a
 # hold falls on its own number rather than on a TypeError.
@@ -110,6 +123,27 @@ AIM = """([index, part]) => {
             : hit.tagName + '[' + (hit.dataset?.part || '') + ']'};
 }"""
 
+# THE CANDIDATE CARDS, by a selector the protocol can take: the screen's own
+# identity, then the cards, because a candidate card exists on other screens too
+# and the protocol answers a document-wide query.
+CANDIDATE_CARDS = ('[data-part="screen"][data-open][data-key^="resolution:"] '
+                   '[data-part="card"][data-nonmedia="candidat"]')
+
+# WHAT EACH CANDIDATE SHOULD BE ANNOUNCED BY, read from the card itself. The
+# year is the subtitle's first segment; the kind and the provider that follow it
+# are not part of a name. Nothing is retyped here: the expected name is
+# assembled from the two data the card displays.
+NAME_SUBJECTS = """() => {
+  const screen = """ + SCREEN + r""";
+  const cards = [...screen.querySelectorAll('[data-part="card"][data-nonmedia="candidat"]')];
+  return cards.map((card) => {
+    const title = (card.querySelector('[data-part="card/title"]')?.textContent || '').trim();
+    const subtitle = (card.querySelector('[data-part="card/subtitle"]')?.textContent || '').trim();
+    const year = (subtitle.match(/^(\d{4})\s*·/) || [])[1] || '';
+    return year ? title + ' ' + year : title;
+  });
+}"""
+
 # THE ACT'S MARK ON THE FIRST CANDIDATE, beside a probe wearing the icon size.
 AFFORDANCE = """(classes) => {
   const screen = """ + SCREEN + """;
@@ -145,6 +179,51 @@ def icon_classes():
             sizes = [token for tokens in factory["branches"].values() for token in tokens]
             return " ".join(factory["base"] + sizes)
     return ""
+
+
+async def announced_names(context, page, selector):
+    """Reads what the browser announces each matching element as.
+
+    NOT AN ATTRIBUTE, AND NOT PLAYWRIGHT'S OWN GUESS. The name is Chrome's, read
+    out of the devtools protocol's accessibility tree — the same computation an
+    assistive technology receives, so a name assembled from an element's whole
+    text is read here exactly as it would be heard. `page.accessibility` was the
+    obvious door and it is gone from Playwright 1.62; this is the door that is
+    still open, and it says which node it answered for rather than trusting an
+    ordering.
+
+    EVERY MATCH, NOT THE FIRST. Only the candidates the provider has no picture
+    for wear the poster's initials fallback, and those are the cards whose name
+    ran longest — a hold reading the first card alone would have been green over
+    the very case that opened this finding.
+
+    Args:
+        context: The browsing context, which opens the protocol session.
+        page: The page.
+        selector: Where the elements are looked for.
+
+    Returns:
+        One announced name per match, in document order; an empty string where
+        an element has no name.
+    """
+    protocol = await context.new_cdp_session(page)
+    await protocol.send("Accessibility.enable")
+    document = await protocol.send("DOM.getDocument")
+    found = await protocol.send("DOM.querySelectorAll",
+                                {"nodeId": document["root"]["nodeId"], "selector": selector})
+    names = []
+    for node_id in found.get("nodeIds", []):
+        described = await protocol.send("DOM.describeNode", {"nodeId": node_id})
+        wanted = described["node"]["backendNodeId"]
+        tree = await protocol.send("Accessibility.getPartialAXTree",
+                                   {"nodeId": node_id, "fetchRelatives": False})
+        heard = ""
+        for node in tree.get("nodes", []):
+            if node.get("backendDOMNodeId") == wanted:
+                heard = (node.get("name") or {}).get("value", "")
+                break
+        names.append(heard)
+    return names
 
 
 async def aim_at(page, index, part):
@@ -240,6 +319,22 @@ async def main():
         journal.check("the affordance is a mark, not a control of its own",
                       mark["tag"] is not None and mark["tag"] != "BUTTON" and mark["hidden"],
                       f"{mark['part']} is a {mark['tag']}, aria-hidden {mark['hidden']}")
+
+        # ── h9: what the card is announced by ─────────────────────────────
+        # THE NAME IS COMPUTED BY THE BROWSER, never read off an attribute: a
+        # name assembled from the card's whole text reads here exactly as an
+        # assistive technology would hear it.
+        expected = await page.evaluate(NAME_SUBJECTS)
+        heard = await announced_names(context, page, CANDIDATE_CARDS)
+        journal.check("every card is announced by its title and its year",
+                      bool(expected) and heard == expected,
+                      str([{"heard": one[:70], "for": want}
+                           for one, want in zip(heard, expected) if one != want][:2])
+                      or f"{len(heard)} names for {len(expected)} cards")
+        journal.check("and by nothing longer than a listener waits for",
+                      bool(heard) and all(0 < len(one) <= NAME_CEILING for one in heard),
+                      str(sorted((len(one) for one in heard), reverse=True))
+                      + f" against {NAME_CEILING}")
 
         # ── h1: a finger on the card's body resolves the folder ───────────
         before = await page.evaluate(BLOCKED)
