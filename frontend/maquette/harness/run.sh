@@ -53,6 +53,7 @@
 #     frontend/maquette/harness/run.sh --contracts  # the name-contract subset
 #     frontend/maquette/harness/run.sh --oracle     # the recorded oracle alone
 #     frontend/maquette/harness/run.sh --a11y       # the accessibility audit alone
+#     frontend/maquette/harness/run.sh --contracts --oracle  # a phase gate: both, one build
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -222,17 +223,28 @@ REPOSITORY_ROOT="$(cd "$HERE/../../.." && pwd)"
 # lives behind this script rather than beside it: a stale `wrapped.html`
 # measures the previous build, and an ORACLE measuring the previous build says
 # « no divergence » about a change it never saw.
+#
+# A PHASE GATE IS BOTH, and two invocations built and copied the prototype twice
+# — about two minutes measuring nothing. `--contracts --oracle`, in either order,
+# is the contracts tier followed by the oracle over ONE build; a fallen rule or
+# guard still stops the run before the oracle, as it does on the full suite.
+TIER="${1:-}"
+WITH_ORACLE=0
+if [ "$#" -eq 2 ] && { [ "$1 $2" = "--contracts --oracle" ] || [ "$1 $2" = "--oracle --contracts" ]; }; then
+  TIER="--contracts"
+  WITH_ORACLE=1
+fi
 ORACLE_ONLY=0
 A11Y_ONLY=0
-if [ "${1:-}" = "--oracle" ]; then
+if [ "$TIER" = "--oracle" ]; then
   ORACLE_ONLY=1
   scripts=()
   label="recorded oracle only"
-elif [ "${1:-}" = "--a11y" ]; then
+elif [ "$TIER" = "--a11y" ]; then
   A11Y_ONLY=1
   scripts=()
   label="accessibility audit only"
-elif [ "${1:-}" = "--contracts" ]; then
+elif [ "$TIER" = "--contracts" ]; then
   scripts=("${CONTRACTS[@]}")
   label="contract subset (${#CONTRACTS[@]} rules)"
 else
@@ -442,7 +454,7 @@ fi
 # not for the same cost. The contracts subset answers « did a NAME move without
 # all of its ends? », and an accessibility violation is not that question. CI
 # runs this tier as its own step, beside the contracts one.
-if [ "${1:-}" != "--contracts" ] && [ "$ORACLE_ONLY" -eq 0 ]; then
+if [ "$TIER" != "--contracts" ] && [ "$ORACLE_ONLY" -eq 0 ]; then
   echo
   echo "Running the accessibility audit (the markup is usable)…"
   python3 "${HERE}/../a11y.py" --check
@@ -460,7 +472,7 @@ fi
 # metrics, not a change to anything. Same reason `arrivals.py` is kept out of the
 # subset: a hold that fails on the runner for a reason foreign to the change
 # under test teaches nobody anything and gets muted.
-if [ "${1:-}" != "--contracts" ] && [ "$A11Y_ONLY" -eq 0 ]; then
+if { [ "$TIER" != "--contracts" ] || [ "$WITH_ORACLE" -eq 1 ]; } && [ "$A11Y_ONLY" -eq 0 ]; then
   echo
   echo "Running the recorded oracle (the rendering did not move)…"
   python3 "${HERE}/../oracle.py" --check
