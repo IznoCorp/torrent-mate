@@ -6,21 +6,21 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 
 - Branch `feat/maquette-l13b`, worktree `/Users/izno/dev/worktrees/wave-l13b`, stacked on L13a `37e54d0fd`;
   rebase onto `main` only on the steward's word (after #596's squash). Steward: `Orch : TM frontend [7977d1]`.
-- Head: see `git log -1`. Remote `feat/maquette-l13b` at `352aa4e0d` until the first push.
-- Tooling landed: `701ae1aca` (run.sh contracts + oracle, one build), `3023f2305` (order 19, pre-push docs-only
-  path + capture-once), `108904b51` (order 24, one phase-gate invocation + named rules + verdict block).
-- b·1 DONE: holds `d2bd9d9b4`, move `e3ae69b01`; gate green on `108904b51` (23 rules, 26 guards, oracle no
-  divergence, 268 s, JOBS=3, swap flat); legacy.js 3593 → 3456 non-blank.
-- Next: order 27's commit (drafted in `/private/tmp/tm-l13b/draft27/`, mirror red 4 failed / green 39 passed),
-  then b·2 (rulings 65: `data-account`, entry.py re-aim).
+- Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13b`.
+- Tooling landed: `701ae1aca` (run.sh contracts + oracle, one build), `3023f2305` (pre-push docs-only path),
+  `108904b51` (one phase-gate invocation + named rules + verdict), `63f6674a4` (rule timeouts, pid-held lock).
+- b·1 DONE: holds `d2bd9d9b4`, move `e3ae69b01`; gate green on `108904b51`.
+- b·2 DONE: holds `28529ab83`, move `4f157ca9f`; gate green (23 rules, 8 named, 270 s, JOBS=3, swap flat).
+- legacy.js non-blank: 3414. Surface-openers contract grep: 6.
+- Next: b·3 (media verbs) — its move is scripted in `/private/tmp/tm-l13b/b03-move.py` (ruling 70); the B-290
+  `__TSR_index` probe `/private/tmp/tm-l13b/b03-tsr-index-probe.py` runs before and after the move.
 - Phase gate form (ruling 66): `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13b
   frontend/maquette/harness/run.sh --contracts --oracle <the phase's rules>`.
 - Locks: browser mutex (`sh scripts/heavy.sh --held`); tests lock `/private/tmp/tm-heavy-tests/holder`; own lock
   `/private/tmp/tm-heavy-l13b/holder` (npm ci, tsc -b, vitest run).
-- Logs kept (cited): `/private/tmp/tm-l13b/b01-red.log`, `b01-counts-*.log`, `b01-mutation-*.log`, `b01-gate.log`,
-  `b01-gate-memory.log`, `tooling-red.log`, `order19-*.log`, `order24-*.log`, `order27-mirror-*.log`.
-- Owed: the full suite at the midpoint (after b·6, before b·7) and at b·11 with `--a11y`, `--compare`; no local
-  `make check` (ruling 68).
+- Logs kept (cited): `/private/tmp/tm-l13b/b01-*`, `b02-*`, `b03-*`, `order19-*`, `order24-*`, `order27-*`.
+- Owed: full suite at the midpoint (after b·6, before b·7) and at b·11 with `--a11y`, `--compare`, `make lint`;
+  no local `make check` (ruling 68). Machine restarts Monday 05:00: pushed by 04:30, line to the steward at 04:45.
 
 ## LEDGER (append-only)
 
@@ -69,3 +69,14 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   pipefail when a fallen rule printed no known pattern — fixed in `108904b51`.
 - 2026-09-13 b·1 `setting` replay: page_host.py FELL, named — « and a real tap on a setting opens THAT setting —
   paths:paths.torrent_complete_dir → {'open': False, …} »; journey.py does not catch it (no hold fell).
+- 2026-09-13 ruling 70: « B-290's index reading is owed to phase b·9's R-L13-a/b/c when they bind to numbers » —
+  no rule reads `history.state.__TSR_index`; b·3 takes it by a throwaway probe (`b03-tsr-index-probe.py`, never
+  committed) before and after its move.
+- 2026-09-13 TRAP FOR b·6/b·7: the tap registry answers the FIRST registered key in ATTRIBUTE order
+  (`Object.keys(node.dataset)`), the engine the first matching BRANCH. A tile emits `data-tile`, `data-panel`,
+  `data-mediasheet` in that order; the engine checks tile (selMode only, 2623) < mediasheet (2651) < panel
+  (2763), so a tile opens the SHEET. Registering `panel` (b·7) before `mediasheet` in attribute order would make a
+  tile open the PANEL instead — b·7 must reorder the emitters' attributes or dispatch by branch order, and say so.
+- 2026-09-13 STANDING (operator): the machine restarts Monday 05:00. No gate, mutex run or push that would run past
+  04:55; every commit pushed and `git ls-remote` = HEAD by 04:30; RESUME-L13b.md at a phase boundary with its state
+  block current (`Agent : l13b 2` reads it first); tree clean, no process left; one line to the steward at 04:45.
