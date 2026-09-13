@@ -56,6 +56,43 @@ A CONVERSION: the back handler and its rungs, the page switch, and the addressed
 
 **Added 2026-09-13 by phase a·1's amendment.** `applyState` did not leave the engine in a·1: `onEngineBack` restores a page through it, so it moves HERE, with the handler, into the ladder's modules under `app/`, and `harness/drive.ts` re-points its import. The product never imports the harness.
 
+**Amended 2026-09-13 by phase a·3, on the steward's two rulings of that day (STOP D) and what the move measured.**
+
+- **`knownMedium` does NOT ask the cache in this phase**, and the line above that says it does is VOID. Its answer is
+  `follows() ∪ INCOMPLETE ∪ LIBRARY`; the last two are engine fixtures (345 and 12 rows), and the cache's library
+  listing is PAGED (`/api/library/items`, 24 per page, queried on `/media` only), so a cache reading would narrow a
+  typed `?panel=follow:<title>` to the pages a surface happened to load — a behaviour change. `app/addressed-panels.ts`
+  exports `installKnownMedium(answer)` and the engine hands its fixture-reading predicate in at evaluation. The cache
+  reading lands with the phase that kills `LIBRARY` (a·10 says so); that phase decides whether the narrowed resolution
+  is a behaviour change to file or whether a·6's `ids` makes the predicate unnecessary.
+- **`navigationState` lives in `lib/navigation-entry.ts`, not in `app/page-switch.ts`** — that half of the move's
+  second bullet is VOID. Measured: `check-frontend-boundaries.py` refused `app/page-switch.ts imported by 5 features:
+  app, engine, harness, maintenance, settings` (ceiling 4). The shape of a navigation entry is a pure read of the store,
+  and `lib/` is where ruling 9 of a·2 put the seams several buckets read.
+- **`unwinding` and `currentRender` stay in the engine** beside `closeScreen`, whose locals they are; a·5 deletes the
+  three. No rule reads either getter. The « getters that leave » bullet is VOID for those two; `unwindInProgress` leaves
+  unpublished (no reader) and `armedExit` is published by `harness/publish.ts` from `walk.armedExit`.
+- **The `#screen` rung is registered by the engine** beside `closeScreen` (`registerLayer("screen", …)`), because
+  `closeScreen` stays until a·5; nothing opens `#screen` (`grep -rn "#screen" design/src`).
+- **`window.__closeLayers`** is read by `audit2.py`, `press.py` and `stacking.py`, so `harness/publish.ts` publishes it
+  from `app/layers.ts`, same name. `__derouler`, `__navigationState` and `__announcePops` had no rule reader and are
+  published nowhere; the latch's multi-entry verb is `announceEntries` (`pops` is not in the vocabulary).
+- **The entry's dials are written ONCE** (`ENTRY_DIALS` + `entryPatch` in `lib/navigation-entry.ts`): the entry is
+  written from them and the handler restores the page from them, same keys, order and values. Measured:
+  `check-frame-domain.py` counts the page aliases inside the dial names once they leave the exempt engine — the
+  literal move read lib/ 28 and app/ 146; written once, lib/ 23 — and `scripts/frame-domain-baseline.json`'s lib/
+  ceiling is raised 18 → 23 with its reason (steward's ruling). app/ reads 130, unchanged, once `applyState` stays in
+  the engine (next bullet).
+- **`applyState` STAYS IN THE ENGINE**, beside the `render()` and the `port` it uses, and the addition of phase a·1's
+  amendment below that moves it HERE is VOID. Measured: `check-state-ownership.py` refused `app/layers.ts: a write
+  whose argument is not a literal (patch…)` — the page restore forwards a patch it did not compose, which the arm
+  refuses in `app/` and reads only as the engine's. The engine hands it to the ladder through
+  `installPageRestore(applyState)` (the `knownMedium` shape), the handler calls `restorePage(entryPatch(entry))`, and
+  `harness/drive.ts` keeps importing it from `legacy.js`. It leaves at **b·7**, the phase where `render()` has no
+  caller left (DESIGN § 3, row 4) (steward's ruling).
+- **The exit warning's words** (« Encore un retour pour quitter TorrentMate. ») move to `fr.json` as
+  `message.oneMoreBack`: the language rule forbids them in `app/`. Same text on screen.
+
 ## Gate
 
 Per INDEX « Gates ». In addition, the three before/after readings above go in the report. STOP D if one of the three modules

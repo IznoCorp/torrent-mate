@@ -37,7 +37,8 @@
     "BACK_WINDOW": {
       "class": "interface",
       "why": "how long the exit guard stays armed",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·3 — the exit guard's window moved OUT of the engine with the ladder's page switch, into `app/page-switch.ts`, rather than to a seed: a timing is the interface's own, never a server's answer"
     },
     "BLOCKED": {
       "class": "served",

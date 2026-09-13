@@ -13,7 +13,7 @@
 // every caller already relies on.
 import { flushSync } from "react-dom";
 
-import { registerLayer } from "./layer-registry";
+import { registerLayer, unwindLayer } from "./layers";
 import type { DialogDescriptor } from "../ui/dialog/contract";
 import { store } from "../lib/store-access";
 import { bridge } from "../lib/shell-doors";
@@ -61,8 +61,8 @@ function closeDialog(pop?: boolean): void {
   if (!isOpen()) return;
   flushSync(() => store.write({ dialogOpen: false }));
   // `pop` means the entry is already being popped by the gesture that got us
-  // here; otherwise the layer unwinds its own, through the engine's latch.
-  if (!pop) window.__derouler?.("dialog");
+  // here; otherwise the layer unwinds its own, through the ladder's latch.
+  if (!pop) unwindLayer("dialog");
 }
 
 export function installDialogHost(): void {

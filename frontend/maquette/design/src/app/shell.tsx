@@ -230,7 +230,7 @@ installFocusManager();
 // component now and its node does not exist until React commits, so the
 // gesture attaches from that component's own layout effect. It is unchanged
 // otherwise — still the frame's gesture, still closing through
-// `window.__closeLayers` so a swipe and a scrim tap share one path.
+// `closeLayers` so a swipe and a scrim tap share one path.
 
 // THE BOTTOM BAR'S HEIGHT IS NOT PUBLISHED FROM HERE ANY MORE. It was, and it
 // had to be: the bar was static markup the engine filled, so the boot was the

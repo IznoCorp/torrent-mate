@@ -21,6 +21,7 @@ import { addressOf, isScreenPath, withPanel } from "../lib/addresses";
 import type { Store } from "./store";
 import { fillPanelDoor, bridge } from "../lib/shell-doors";
 import { store } from "../lib/store-access";
+import { registerLayer, unwindLayer } from "./layers";
 
 declare global {
   interface Window {
@@ -186,8 +187,8 @@ function closePanel(pop?: boolean): void {
   openSubject = "";
   flushSync(() => store.write({ panelOpen: false }));
   // `pop` means the entry is already being popped by the gesture that got us
-  // here; otherwise the layer unwinds its own, through the engine's latch.
-  if (!pop) window.__derouler?.("sheet");
+  // here; otherwise the layer unwinds its own, through the ladder's latch.
+  if (!pop) unwindLayer("sheet");
 }
 
 // The STORE answers, never the DOM: a legacy caller asks in the middle of its
@@ -370,6 +371,10 @@ fillPanelDoor({
      a fallen rule instead of a panel that silently stops opening. */
   producers: registeredProducers,
 });
+
+// ON THE LADDER, as a rung: Back asks this registration whether the sheet is
+// up and closes it through the same verb the door does.
+registerLayer("sheet", { isOpen: isPanelOpen, close: closePanel });
 
 /* Lets the contract check prove the refusal rather than trust the comment on
    it: a block type nobody declared must raise, not draw nothing. Called as a

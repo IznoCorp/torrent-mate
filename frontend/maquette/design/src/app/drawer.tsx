@@ -25,7 +25,7 @@ import {
   currentAppearance,
 } from "./appearance";
 import { installDrawerDismissGesture } from "./drawer-gesture";
-import { registerLayer } from "./layer-registry";
+import { registerLayer, unwindLayer } from "./layers";
 import { NAVIGATION, type NavigationGroup, type NavigationRow } from "./navigation";
 import { Drawer } from "../ui/drawer";
 import { Icon } from "../ui/icon";
@@ -72,7 +72,7 @@ export function NavigationDrawer(): ReactElement {
   // THE GESTURE ATTACHES ONCE THE NODE EXISTS. It used to be installed from the
   // boot, which was before React drew anything: `#drawer` was static markup
   // then. E-002 is unchanged — it is still the frame's gesture, still closing
-  // through `window.__closeLayers` so a swipe and a scrim tap share one path.
+  // through `closeLayers` so a swipe and a scrim tap share one path.
   // THE CLEANUP IS THE POINT, not tidiness: an effect that installs listeners
   // and returns nothing leaks a set on every remount, and `React.StrictMode` —
   // on, in `shell.tsx` — double-invokes it besides.
@@ -97,7 +97,7 @@ export function NavigationDrawer(): ReactElement {
     closing.current = true;
     try {
       writeUiState({ drawerOpen: false });
-      if (!pop) window.__derouler?.("drawer");
+      if (!pop) unwindLayer("drawer");
     } finally {
       closing.current = false;
     }

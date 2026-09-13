@@ -18,10 +18,11 @@
 import i18next from "../i18n";
 import { dialog } from "../app/dialog-host";
 import { entry, loadingDone } from "../app/entry";
-import { registeredLayers } from "../app/layer-registry";
+import { closeLayers, registeredLayers } from "../app/layers";
 import { resetLiveUpdates, unmatchedCount, unmatchedEvents } from "../app/live-updates";
 import { outboxSeam } from "../app/outbox";
 import { releasePage, shellPages } from "../app/page-host";
+import { walk } from "../app/page-switch";
 import { unknownPanel, unknownProducer } from "../app/panel-host";
 import { router } from "../app/router-tree";
 import type { Store } from "../app/store";
@@ -72,6 +73,12 @@ declare global {
     // THE DECK'S OWN DRIVING SEAM: its order and its three moves. The feature owns
     // the answer and a rule reads it through this one named door.
     __discover?: typeof discover;
+    /** The ladder's registrations — what is on it, and whether a rung is open. */
+    __layers?: typeof registeredLayers;
+    /** What a scrim tap closes. */
+    __closeLayers?: typeof closeLayers;
+    /** When the exit guard was armed, or 0 — the address alone says nothing of it. */
+    armedExit?: number;
   }
 }
 
@@ -116,6 +123,8 @@ export function publishSeams(): void {
   publish("__unknownProducer", () => unknownProducer);
   publish("__dialog", () => dialog);
   publish("__layers", () => registeredLayers);
+  publish("__closeLayers", () => closeLayers);
+  publish("armedExit", () => walk.armedExit);
   publish("__entry", () => entry);
   publish("__loadingDone", () => loadingDone);
   publish("__outbox", () => outboxSeam);

@@ -41,6 +41,14 @@ instead (DESIGN § 2.5, § 2.6, § 5.1; § 3, rows 16 and 18).
   b·6), `knownMedium` (`app/addressed-panels.ts` (new file, a·3), a·3), and `features/acquisition/follow-facts.ts`.
   The engine copy already ignores mock deletes (DESIGN § 5.1). A state where the cache and the copy answered
   differently shows up in the oracle and is named, and a divergence the phase cannot name is STOP B.
+
+  **Amended 2026-09-13 by phase a·3 (steward's ruling).** `knownMedium` is not in `app/addressed-panels.ts` as code:
+  the engine still defines it over `follows()`, `INCOMPLETE` and `LIBRARY` and hands it in through
+  `installKnownMedium`. This phase moves it and switches it to the cache, and it DECIDES, in its report, whether the
+  cache's narrower answer is a behaviour change to file — a title known on any page today is known then only where
+  its listing page is cached — or whether a·6's `ids` on every list item makes the predicate unnecessary. `INCOMPLETE`
+  has no phase of this plan that names its death: it is `knownMedium`'s second fixture, so this phase takes it or
+  says which one does. The words above that put `knownMedium` in `app/addressed-panels.ts` « a·3 » are VOID.
 - **`legacy.css` rules** of the classes above are deleted in this commit, except the ones an acquisition emitter
   still wears, which wait for a·11 and are named: the `.swipe, .sugwrap, .deck` group, `act`, `pause`, `remove`,
   `resume`, and the gallery emitted by `discover-feed.ts`. `linkbtn` already has its variant and stays until a·18

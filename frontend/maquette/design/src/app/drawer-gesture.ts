@@ -15,8 +15,8 @@
 // « asks nothing of the engine: it watches the attribute both worlds already
 // emit ». ZERO LINES ARE ADDED TO THE ENGINE.
 //
-// CLOSING GOES THROUGH THE SEAM THE SCRIM ALREADY USES. `window.__closeLayers`
-// is published by the engine and called by `ui/sheet.tsx`'s scrim; the layer
+// CLOSING GOES THROUGH THE VERB THE SCRIM ALREADY USES. `closeLayers` is the
+// ladder's (`app/layers.ts`) and called by `ui/sheet.tsx`'s scrim; the layer
 // ladder is drawer → screen → sheet, so with the drawer open it closes the
 // drawer. A second closing path would be a second navigation history.
 //
@@ -74,6 +74,7 @@
 // because a grip zone is not a spacing step and the scale stops at 24px
 // (`styles/theme.css`). A finger confirms it or moves it.
 import { feedback } from "../lib/feedback";
+import { closeLayers } from "./layers";
 
 const BAND = 72;
 
@@ -157,14 +158,14 @@ export function installDrawerDismissGesture(): () => void {
     // A CANCEL IS NOT A LIFT. It puts the drawer back rather than closing it on
     // a gesture the browser took away — `sheet.tsx`'s `endDrag(true)`.
     //
-    // CLOSING GOES THROUGH THE SEAM THE SCRIM ALREADY USES. `__closeLayers` is
-    // published by the engine and called by `ui/sheet.tsx`'s scrim; the ladder
+    // CLOSING GOES THROUGH THE VERB THE SCRIM ALREADY USES. `closeLayers` is
+    // the ladder's and called by `ui/sheet.tsx`'s scrim; the ladder
     // is drawer → screen → sheet, so with the drawer open it closes the drawer.
     // A second closing path would be a second navigation history.
     if (!cancelled && current.dx > CLOSE_THRESHOLD) {
       // Through the seam, like every other gesture — one call site (D9).
       feedback("commit", drawer);
-      window.__closeLayers?.();
+      closeLayers();
     }
   }
 
@@ -174,7 +175,7 @@ export function installDrawerDismissGesture(): () => void {
   // This returned `void` and the effect that calls it had no cleanup, so under
   // `React.StrictMode` — which is on, `shell.tsx` — the effect ran TWICE and
   // installed the gesture twice. Two independent `drag` states, so one dismiss
-  // called `window.__closeLayers()` twice and acknowledged itself twice.
+  // called `closeLayers()` twice and acknowledged itself twice.
   //
   // ⚠ AND IT IS NOT WHAT EXPLAINS B-278. The double `data-feedback` mark that
   // led here SURVIVED this cleanup, measured — so StrictMode's double-invoke is

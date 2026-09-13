@@ -12,6 +12,7 @@ import { go } from "../lib/navigate";
 import { firstStuckFolder } from "../lib/queue";
 import { fillBridgeDoor, fillScreensDoor, panel, screens } from "../lib/shell-doors";
 import { store } from "../lib/store-access";
+import { announceEntries } from "./layers";
 
 // The bridge's contract, stated once. The verbs are the legacy nav cluster's
 // primitives, and their names are the fragment's own; the state objects
@@ -66,16 +67,6 @@ declare global {
   interface Window {
     __bridge: Bridge;
     __screens: Screens;
-    // The layer-unwind bookkeeping stays ENGINE-side (the named-entry check
-    // and the one-in-flight latch live with the popstate handler that consumes
-    // them); the fragment publishes it so the shell's own layer can announce
-    // its close the same way every legacy layer does.
-    __derouler?: (layer: string) => void;
-    // The same bookkeeping for a traversal of SEVERAL entries at once: the
-    // shell says how many ENTRIES it settles, and the engine — which owns the
-    // latch and the popstate handler reading it — turns that into the number
-    // of pops it must swallow.
-    __announcePops?: (entryCount: number) => void;
     // B-026's probe: raised by every write that fails silently otherwise
     // (`recordPath`, `data-navgo`, and this file's own `openPanel`),
     // declared here (`refonte.html` declares and resets it for its own two
@@ -163,7 +154,7 @@ fillBridgeDoor({
   rewind: (n: number) => {
     if (n <= 0) return;
     history.flush();
-    window.__announcePops?.(n);
+    announceEntries(n);
     history.go(-n);
   },
   onBack: (

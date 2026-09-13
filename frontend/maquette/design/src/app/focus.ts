@@ -24,6 +24,7 @@
 // THE BACKGROUND IS THE FRAME'S OTHER CHILDREN, never the layer's ancestors.
 // Marking `document.body` inert would mark the layer too.
 import { setLayerOpen } from "./layer-presence";
+import { closeLayers } from "./layers";
 import { bridge } from "../lib/shell-doors";
 
 // The layer roots, in the stacking order the engine already unwinds — drawer,
@@ -269,17 +270,17 @@ export function installFocusManager(): void {
       if (!open.length) return;
       event.preventDefault();
       // TWO VERBS, because the layers close two different ways and pretending
-      // otherwise leaves one of them stuck. `__closeLayers` closes the dialog,
+      // otherwise leaves one of them stuck. `closeLayers` closes the dialog,
       // the sheet and the drawer — the three the scrim covers — and it
       // deliberately does not close a SCREEN: a screen is a history entry, and
-      // what closes one is a back. Sending Escape to `__closeLayers` on a
+      // what closes one is a back. Sending Escape to `closeLayers` on a
       // screen did nothing at all, silently, with the background still inert.
       //
       // Both verbs are the ones the interface already has. Nothing new is
       // written here: a second closer would give one gesture two answers.
       const top = open[open.length - 1];
       if (top.matches('[data-part="screen"]')) bridge?.back();
-      else window.__closeLayers?.();
+      else closeLayers();
     },
     true,
   );

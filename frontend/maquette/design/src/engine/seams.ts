@@ -24,7 +24,7 @@
 import type { PanelDescriptor } from "../ui/panel/contract";
 import { dialog } from "../app/dialog-host";
 import { entry, loadingDone } from "../app/entry";
-import { registeredLayers } from "../app/layer-registry";
+import { registeredLayers } from "../app/layers";
 import { navigation } from "../app/navigation-seam";
 import { popover } from "../app/popover-host";
 import { followVerbs } from "../features/acquisition/follow-verbs";

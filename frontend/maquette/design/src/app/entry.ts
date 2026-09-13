@@ -29,6 +29,7 @@ import { forgetOutbox } from "./outbox";
 import { store } from "../lib/store-access";
 import { bridge, panel, toast } from "../lib/shell-doors";
 import { addressSeam } from "../lib/addresses";
+import { navigationState } from "../lib/navigation-entry";
 
 /** How long a full load is BUDGETED for — the bar's pace, never a floor. */
 const STARTUP_MS = 5000;
@@ -89,8 +90,6 @@ declare global {
   interface Window {
     /** Whatever really knows the interface is ready calls this. */
     __loadingDone?: () => void;
-    /** The shape the engine writes on a navigation entry. Dies with it (L13). */
-    __navigationState?: () => Record<string, unknown>;
     /** The entry's verbs, as the dying engine and the harness say them. */
     __entry?: {
       showSignIn: (withError: boolean, silent?: boolean) => void;
@@ -143,7 +142,7 @@ export function showSignIn(withError: boolean, silent = false): void {
   if (silent) return;
   try {
     bridge.replace(
-      window.__navigationState?.() ?? null,
+      navigationState(),
       addressSeam.signInPath,
     );
   } catch (error) {
@@ -165,7 +164,7 @@ export function hideSignIn(silent = false): void {
   if (!wasShown || silent) return;
   try {
     bridge.replace(
-      window.__navigationState?.() ?? null,
+      navigationState(),
       addressSeam.compose(store.read().state),
     );
   } catch (error) {

@@ -43,10 +43,5 @@ declare global {
       ReleasesReference &
       SettingsReference &
       SystemReference;
-    // The engine's own multi-layer closer, published by refonte.html: the
-    // scrim covers the drawer, the dialog and the sheet alike, and a tap on it
-    // closes whichever is up. Optional for the same reason `__startEngine`
-    // is — a document served without the fragment must fail visibly, not here.
-    __closeLayers?: () => void;
   }
 }

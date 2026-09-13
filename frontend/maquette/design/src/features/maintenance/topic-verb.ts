@@ -16,6 +16,7 @@ import { registerVerb } from "../../lib/verbs";
 import { store } from "../../lib/store-access";
 import { bridge } from "../../lib/shell-doors";
 import { addressSeam } from "../../lib/addresses";
+import { navigationState } from "../../lib/navigation-entry";
 
 /**
  * Opens one rubric.
@@ -30,7 +31,7 @@ function openTopic(rubric: string): void {
   reference.render();
   try {
     bridge.record(
-      window.__navigationState?.() ?? null,
+      navigationState(),
       addressSeam.compose(store.read().state),
     );
     // Only when it really pushed — see the note in `lib/stacked-surface.ts`:

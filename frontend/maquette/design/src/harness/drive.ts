@@ -11,16 +11,16 @@
 // anyway: every state starts by resetting it.
 //
 // THE HISTORY LATCH STAYS WITH ITS READERS. A driven state writes no history,
-// and the writers that check the latch live in the engine, so the driver never
+// and the writers that check the latch live in the page switch, so the driver never
 // holds it: it hands each state to `drivenWithoutHistory`, the verb that does.
 import { refillEngineData } from "../app/engine-data";
 import { navigation } from "../app/navigation-seam";
 import type { UiState } from "../app/store";
-// `applyState` is the engine's — its back handler restores a page through it —
-// and the states start through the same verb, re-exported here beside their type.
+// `applyState` is the engine's — the ladder's handler restores a page through
+// it — and the states start through the same verb, re-exported here beside their type.
+import { drivenWithoutHistory } from "../app/page-switch";
 import {
   applyState,
-  drivenWithoutHistory,
   resetSettings,
   screenStack,
   seedWorld,

@@ -48,6 +48,10 @@ nobody in this wave may change.
 AND IT CANNOT SEE A FLASH. A flash is a paint, and no assertion here can time
 one. What it reads is the fact the flash is made of: a layer that stops being
 visible before it has finished leaving.
+
+THE REGISTRY IT READS AS `window.__layers` is `app/layers.ts`'s, the module the
+ladder's handler walks it from. RE-AIMED in its source only: the published
+name is the same, and so is this rule's hold count.
 """
 import asyncio
 import pathlib
