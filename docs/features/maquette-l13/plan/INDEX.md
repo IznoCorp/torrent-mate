@@ -42,6 +42,23 @@ Anything believed necessary outside the contract: STOP and ask the steward first
 
 ---
 
+## Why thirty-nine phases, and what a phase costs
+
+**A phase is a unit of attribution, not a gate.** Each is ONE commit (two where the phase says « commit
+before the mutation »), and its gate is the contracts tier plus the oracle — minutes, not the full suite.
+The full gate runs three times in the whole lot: before each sub-lot's pull request (a·19, b·11, c·9).
+
+The count follows from two rules, not from appetite. One kind of change per phase means a verb move and
+a timer removal cannot share a commit; and one surface per conversion phase (D-L07-7) means an oracle
+divergence names its surface. Merged further, a divergence would have two candidate causes, which is the
+unattributable result « surface by surface » exists to avoid.
+
+**Phases that are a single mechanical commit with no new rule**: a·4, a·5, a·6, a·12, a·15, a·17, a·18,
+a·19, b·3, b·7, b·11. **Phases that write a rule first**: b·1, b·2, b·4, b·5, b·6, b·8, b·9, b·10 and all
+of L13c. The rest of L13a are conversions whose proof is the oracle and the unchanged hold counts.
+
+---
+
 ## The rule that governs every phase
 
 **One kind of change per phase, and the phase says which.**
@@ -94,8 +111,8 @@ and binds the label to the next free number then.
 | a·5 | [What nobody reaches](phase-a05-dead-code.md) | — | `#screen` and its readers, the mount placement, 4 dead branches, `sheetSeasonsHTML`/`epState`/`seasonsOf`, `quota` | 8 harness readers of `#screen` | B-232 |
 | a·6 | [The identity demand](phase-a06-identity-contract.md) | `ids`/`poster` on 7 list schemas, `MediaSheet.title`; types, seeds, demands regenerated | — | — | — |
 | a·7 | [Layout primitives](phase-a07-layout-primitives.md) | `.screen.open`, `.sheet.dragging`, section, empty, endmark, skeleton, surface error as variants/components | their `legacy.css` rules | — | — |
-| a·8 | [Actions, chips, facts, poster](phase-a08-actions-chips-facts.md) | `sact`/`btnprimary`/`cfoot`/`mediaadd`/`primary`/`solid`, chip tones, facts rows, poster box | their rules; `chipHTML`, `factRowsHTML`, `posterBox` | — | — |
-| a·9 | [Arrivées](phase-a09-arrivals.md) | `ui/card.tsx` on Arrivées and the resolution screen; `flux` | `cardHTML` callers there; `card*` rules | — | — |
+| a·8 | [Actions, chips, facts, poster](phase-a08-actions-chips-facts.md) | `sact`/`btnprimary`/`cfoot`/`mediaadd`/`primary`/`solid`, chip tones, facts rows, poster box | each rule with its LAST emitter (DESIGN § 2.6); `chipHTML`, `factRowsHTML`; the features' `posterBox` calls | R80 floor lowered, pairs named | — |
+| a·9 | [Arrivées](phase-a09-arrivals.md) | `ui/card.tsx` on Arrivées and the resolution screen; `flux` | `cardHTML` callers there; the card rules `cardHTML` no longer emits elsewhere | — | — |
 | a·10 | [Médiathèque](phase-a10-library.md) | tile, library row, swipe row, gallery; the kind chips' strip | `tileHTML`, `libRowHTML`, `swipeHTML`; `LIBRARY` | — | — |
 | a·11 | [Acquisition](phase-a11-acquisition.md) | now, follows, Découvrir deck and suggestion card, add screen | `cardHTML`, `POSTERS` from the engine; the format helpers move to the feature | `poster.py` | — |
 | a·12 | [Releases and quality](phase-a12-releases.md) | the two screens' residue classes | their rules | — | — |
@@ -103,9 +120,9 @@ and binds the label to the next free number then.
 | a·14 | [Média — seasons and identity](phase-a14-media-identity.md) | season tree variants; `ids` read by every crossing | `SHEETS_RAW`, `OWNED`, `sheetFor`, `titleForProviderId`, `addressIdsFor`, `ownedFor` | `audit2.py`, `screen_addresses.py`, `priming.py`, `panel.py`, `url_state.py` | — |
 | a·15 | [Système, Maintenance, Compte](phase-a15-system-maintenance-account.md) | `flux`, fact rows | `MAINT_ACTIONS` | `page_host.py:248`, `url_state.py` | — |
 | a·16 | [Configuration, and the engine's support](phase-a16-settings-and-support.md) | `allSettings` over the cache; `field`/`readonly`/`rulenote` | `SETTINGS`; `engine-shape.ts`, `engine-data.ts`, `engine-redraw.ts`, `lib/engine-drawing.ts`, `__referentiel` | `settings.py`, `page_host.py` | — |
-| a·17 | [The entry's styles](phase-a17-entry-styles.md) | login gate and splash as utilities in `index.html` | 13 shell classes | `logout.py`, `startup.py`; `serve.py:416` | — |
+| a·17 | [The entry's styles](phase-a17-entry-styles.md) | the 13 shell classes' rules in an `entry` block of `styles/base.css` that `serve.py` extracts | their `legacy.css` rules | `logout.py`, `startup.py`; `serve.py:416`, `serve.py:452` | — |
 | a·18 | [`legacy.css` dies](phase-a18-legacy-css-dies.md) | — | `legacy.css`, its import, residue guard + ceiling, R80 + `test_residue.py`, baseline row, `markup_dressing` lines | `check-poster-box.py`, `csstokens_login.py` | — |
-| a·19 | [`refonte.html` and R72](phase-a19-refonte-and-r72.md) | R72 with (b) and (c) mutation-tested | `refonte.html`, hold (a) | the 14 path readers | — |
+| a·19 | [`refonte.html` and R72](phase-a19-refonte-and-r72.md) | R72 with (b) and (c) mutation-tested | `refonte.html`, hold (a) | the 16 path readers | — |
 
 ## L13b — The engine's verbs and the ladder's shape (BEHAVIOUR)
 
