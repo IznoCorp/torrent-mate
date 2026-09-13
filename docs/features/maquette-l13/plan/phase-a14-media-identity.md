@@ -66,8 +66,8 @@ re-aimed file list, with one count per file, goes in the report. STOP D if a tit
 seed the mock layer answers `readMediaSeasons` from. A pure drawing conversion: oracle zero, the ledger down.
 
 **a·14.2** — the identity crossings: `SHEETS_RAW`, `OWNED`, `SHEETS_IDX`, `sheetFor`, `titleForProviderId`,
-`addressIdsFor`, `ownedFor`, their product readers and their harness readers. It opens on a STOP D over two questions
-this file does not settle, and implements nothing before they are ruled:
+`addressIdsFor`, `ownedFor`, their product readers and their harness readers. It opened on a STOP D over two questions
+this file did not settle — RULED the same day (ruling 51, below):
 
 - **(a)** `features/media/queries.ts`'s `placeholderData` IS `reference.sheetFor(title)`, and R119 (`priming.py`'s
   INTERCEPT) thins it by wrapping `__referentiel.sheetFor`. With the resolver dead, « what the tap knew » needs
@@ -76,3 +76,24 @@ this file does not settle, and implements nothing before they are ruled:
 - **(b)** `features/media/media-screen.tsx`'s title comes from `titleForProviderId` BEFORE the read lands
   (`data-key`, `aria-label`, the hero's title in flight); the served `MediaSheet.title` arrives only with the read.
   Whence the title in flight is the same question.
+
+## Amendment — 2026-09-13 (ruling 51: (a) and (b) ruled; ruling 52: a·14.1 and a·14.2 re-cut)
+
+**Ruling 51** (the auditor, under the operator's delegation) settles (a) and (b): the crossing carries what the tap
+knew. The tapped list item's title, poster URL and ids (a·6's fields) are written into the navigation ENTRY
+(`lib/navigation-entry.ts`, a·3's `ENTRY_DIALS`); `placeholderData` (`features/media/queries.ts`) and the in-flight
+title (`features/media/media-screen.tsx`) read the entry; R119's thinning seam (`priming.py`'s INTERCEPT) moves to the
+entry's publisher (`harness/publish.ts`). **One observable difference, D8-accepted: a TYPED address shows its ids at
+once and a skeleton title until the read lands (the end frame identical).** It is a line of the a·19 reader brief and
+one step of the operator's Mac walk (« type /media/<title> directly: ids at once, the title a skeleton for an instant,
+then the sheet »). The entry carries title, poster URL and ids ONLY — no sheet body (`history.state` has a size ceiling
+in Safari) — and a hold or the reader reads it; restore and Back on a typed address are walked by the reader.
+
+**Ruling 52** re-cuts the two commits. a·14.1 is the season tree to variants ONLY (landed: `season-list.tsx`,
+`panel-seasons.tsx`, `popover-episode.ts` emits no class, and the `noinfo` emitters of `media-details.tsx`,
+`media-hero.tsx`, `media-cast.tsx`). **`SEASONS` moves to a·14.2**, because a PRODUCT reader this file did not list
+reads it: `features/acquisition/follow-facts.ts:33` (the `window.SEASONS` declaration) and `:96` (the follow panel's
+seasons block — `held`, `aired`, the fraction). There is no served read keyed by title for it: `readMediaSeasons` is
+per address, so the panel asks it by the follow's `ids` — ruling 51's crossing, one crossing and not two. The
+`window.__mocks` seed accessor DESIGN § 4.2 promises (`mocks/index.ts:303` has none) is a·14.2's to add — one
+accessor — so the nine harness readers of `window.SEASONS` read the seeds the mock layer answers from.
