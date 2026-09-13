@@ -253,7 +253,9 @@ class TestTheHardZeroFloor:
         class) key matches; what is proven is the keying, not the reason.
         """
         fixture = tmp_path / "audit.py"
-        fixture.write_text("\n" * 100 + "el.classList.contains('ep')\n", encoding="utf-8")
+        # Line 105: the declared site `("audit.py", 105, "ep")`. The key is the line, so
+        # the fixture follows the assertion when a docstring above it grows.
+        fixture.write_text("\n" * 104 + "el.classList.contains('ep')\n", encoding="utf-8")
         monkeypatch.setattr(anchors, "harness_files", lambda: [fixture])
         monkeypatch.setattr(anchors, "ROOT", tmp_path)
 

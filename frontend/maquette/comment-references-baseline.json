@@ -42,7 +42,7 @@
     "design/src/mocks/state.ts": 1,
     "design/src/mocks/stream.ts": 1,
     "design/src/styles/base.css": 13,
-    "design/src/styles/legacy.css": 61,
+    "design/src/styles/legacy.css": 60,
     "design/src/styles/theme.css": 3,
     "design/src/ui/dialog/contract.ts": 1,
     "design/src/ui/popover.tsx": 1,
