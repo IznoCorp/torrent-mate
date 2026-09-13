@@ -72,3 +72,10 @@ An agent reads THIS file before its handshake — not the RESUME chain.
 63. Auditor order 15: the wave does not write IMPLEMENTATION.md's « In flight » row; the register's `fixed #<PR>` rows stay in the closure commit — `37e54d0fd`.
 
 ## L13b — append below, numbered from 64
+
+64. L13b's resume is a NEW file `docs/features/maquette-l13/RESUME-L13b.md` (state block ≤ 40 lines + append-only ledger); `RESUME.md` is L13a's and dies at its gesture (ruling 58) — steward, handshake answer 2026-09-13.
+65. b·2: the account's key is `data-account`, valueless (the registry dispatches on the dataset KEY); the four sites (`index.html:285`, `address.py:119`, `bugs.py:106`, `focus.py:37`) change by scripted exact-string replacement, because `rename-identifiers.py` cannot move one key on one element while `data-sheet="plus"` keeps it; `entry.py:99` → `window.__entry.signOut()`; fan-in `app/entry.ts` 3 → 4 = the ceiling. A log a RESUME, an amendment or a commit body CITES is kept until the merge — steward.
+66. Auditor order 24: `run.sh --contracts --oracle [rule.py …]` is the phase gate — one build, contracts + named rules in one pass, guards, oracle, one verdict block; every later b-phase gate is that invocation, its wall clock reported — `108904b51`.
+67. Auditor order 25: the contracts tier's fan-out is measured at `TM_HARNESS_JOBS=3` with `vm_stat` and `vm.swapusage` before/after; swap moved → back to 2 — steward.
+68. Auditor order 26: no local `make check` before L13b's pull request — CI's `test` job is the authority; the pre-PR gate is `make lint` + the full suite + `--a11y` + `--compare` + the pre-push pytest — steward.
+69. Auditor order 27: `run.sh` and `mutate.sh` bound every rule invocation (10 min, `TM_RULE_TIMEOUT_SECONDS`) and name a rule past it « TIMED OUT », an INSTRUMENT fall never counted as « no rule fell », the file restored and the served copy released; `heavy.sh` writes its pid beside its name and breaks a lock older than 45 min ONLY when that pid is gone — a holder alive and silent is held off and said aloud. `panel.py`'s own hang stays filed, not repaired — steward.
