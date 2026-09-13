@@ -193,6 +193,16 @@ html.measuring .note {
   place-items: center;
   padding: 0;
   overflow-x: clip;
+  /* ONE GESTURE, ONE CONTAINER. Out of the frame `.device` stops clipping —
+     its `overflow` is the app's own cascade there, and the frame may not
+     answer for it — so the closed sheet, translated below the device's bottom
+     edge with its drag band, gave the DOCUMENT scrollable overflow beside
+     `#port`: a wheel over the header moved the page, a wheel over the list
+     moved the port. The stage is the window's height and holds nothing below
+     it, so clipping it on this axis confines the scroll to the port without
+     touching the device, its layers or the switch, and fixed harness chrome
+     is not clipped by it. */
+  overflow-y: clip;
 }
 /* WHAT THIS BLOCK DECLARES SURVIVES THE WAY OUT OF THE FRAME, and that is a
    decision rather than an oversight. The rule holds every declaration of it so

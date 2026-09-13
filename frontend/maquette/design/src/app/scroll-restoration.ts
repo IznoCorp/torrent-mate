@@ -126,6 +126,15 @@ function restoreScroll(y: number, token: number): void {
       requestAnimationFrame(attempt);
       return;
     }
+    // WHERE THE RESTORE LANDED, which is the only position the late re-apply
+    // may still correct (B-490). A LAZY poster's `load` is not the content
+    // arriving: it is the READER arriving — the browser fetches it when the
+    // list is scrolled down to it. Re-applying unconditionally put the reader
+    // back at the arrival offset as the last poster came into range, the top of
+    // the list when they had left from there. An offset the browser clamped
+    // for want of content has not moved since the write; one the reader moved
+    // has, and it is theirs.
+    const landed = port.scrollTop;
     const images = [...port.querySelectorAll("img")].filter(
       (image) => !image.complete,
     );
@@ -134,7 +143,12 @@ function restoreScroll(y: number, token: number): void {
       image.addEventListener(
         "load",
         () => {
-          if (--pending <= 0 && token === restoreToken) port.scrollTop = y;
+          if (
+            --pending <= 0 &&
+            token === restoreToken &&
+            port.scrollTop === landed
+          )
+            port.scrollTop = y;
         },
         { once: true },
       ),
