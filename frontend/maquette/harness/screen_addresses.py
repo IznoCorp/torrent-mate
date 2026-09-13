@@ -62,6 +62,11 @@ the arrivals under a resolution, the acquisition page under the release picker
 — because a stack synthesised from the hierarchy is what puts a real page under
 a link opened from outside, and a rule expecting one page under all three would
 pass over every parent being wrong but one.
+
+RE-AIMED, said out loud: the two sheet addresses were read from `addressIdsFor`. The engine's sheet table and
+its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
+`__carriedFor` — the seed the served read answers from, published by the harness
+driver — and the hold count is unchanged.
 """
 import asyncio
 import json
@@ -430,7 +435,7 @@ async def main():
             # coupling, and this one would rot the day the fixture moved.
             ctx, pg, errors = await open_at(browser, f"{base}/")
             sheet_ids = await pg.evaluate(
-                f"()=>window.addressIdsFor({json.dumps(SHEET_TITLE)})")
+                f"()=>window.__addressOf({json.dumps(SHEET_TITLE)})")
             await ctx.close()
             journal.check(
                 "(e2) the media sheet's own address ids are resolvable",
@@ -524,7 +529,7 @@ async def main():
             # missing field. ────────────────────────────────────────────
             ctx, pg, errors = await open_at(browser, f"{base}/")
             no_trailer_ids = await pg.evaluate(
-                f"()=>window.addressIdsFor({json.dumps(TITLE_WITHOUT_TRAILER)})")
+                f"()=>window.__addressOf({json.dumps(TITLE_WITHOUT_TRAILER)})")
             await ctx.close()
             no_trailer_address = (
                 f"{base}/media/{no_trailer_ids['provider']}/{no_trailer_ids['id']}")

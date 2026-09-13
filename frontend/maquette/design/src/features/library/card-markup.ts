@@ -18,6 +18,8 @@ export type LibraryCard = {
   f?: string;
   chip?: [string, string] | null;
   poster?: string | null;
+  /** The provider identifiers — null for a title no sheet stands behind. */
+  ids?: Record<string, number | string> | null;
 };
 
 /**
@@ -29,7 +31,7 @@ export type LibraryCard = {
 export function libraryCardMarkup(medium: LibraryCard): string {
   const reference = window.__referentiel;
   const title = medium.t;
-  const hasSheet = reference.sheetFor(title) != null;
+  const hasSheet = medium.ids != null;
   // french-ok: a panel ADDRESS and the non-medium marker, contract values the delegation and R46 read
   const folderAddress = `dossier:${title}`;
   return cardMarkup({

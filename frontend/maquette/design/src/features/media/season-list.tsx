@@ -8,7 +8,7 @@ import { actionButton, factsPanel } from "../../ui/variants";
 import { queuedMark, seasonGrabSpacing, seasonGrabTaken, upcomingMark, episodeCell, episodeDate, episodeDot, episodeNumber, episodeRow, episodeSet, episodeTitle, missingList, noInfo, seasonDisclosure, seasonFraction, seasonShortfall } from "./variants";
 import { useQueuedSeasons } from "./queued-seasons";
 import { askForSeason, useAskedInFlight } from "./season-grab";
-import { announcedAfter } from "./queries";
+import { announcedAfter, ownedSeason, type MediaSeasons } from "./queries";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields";
 import { dateLabel, numberRanges } from "./format";
@@ -21,6 +21,7 @@ export function SeasonList({
   failed,
   ownershipKnown,
   seasons,
+  owned,
   owns,
   catalog,
   title,
@@ -43,6 +44,8 @@ export function SeasonList({
   followTitle: string;
   sheet: MediaSheetFields | null;
   seasons: [number, number | null, number][];
+  /** The episode numbers held, season by season, as the seasons read answered them. */
+  owned: MediaSeasons["owned"] | undefined;
   owns: boolean;
   catalog: CatalogSeason[];
   title: string;
@@ -65,7 +68,6 @@ export function SeasonList({
   ownershipKnown: boolean;
 }) {
   const {
-    ownedFor,
     EP_LABEL,
     TODAY,
   } = useMediaReference();
@@ -105,7 +107,7 @@ export function SeasonList({
         // the matrix all empty themselves through this one term, and the body
         // falls back to « Épisodes non détaillés pour cette saison », which
         // asserts nothing.
-        const held = ownershipKnown && owns ? ownedFor(title, row.n) : null;
+        const held = ownershipKnown && owns ? ownedSeason(owned, row.n) : null;
         /* The count is DERIVED from the owned numbers when they are known;
            a total that does not say where the holes are is no longer
            trusted. */

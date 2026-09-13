@@ -7,6 +7,8 @@
 // boot, which is why each half is a function rather than a module-level
 // assignment — the order relative to `window.__startEngine` is load-bearing
 // and it stays legible in one place.
+import { carryingState, type CarriedIdentity } from "../lib/navigation-entry";
+import { heldIdentity, providerAddress } from "../lib/held-identity";
 import { createBrowserHistory } from "@tanstack/react-router";
 import { go } from "../lib/navigate";
 import { firstStuckFolder } from "../lib/queue";
@@ -41,9 +43,9 @@ type Bridge = {
 type Screens = {
   profile: (title: string) => void;
   // The media sheet — the centre of the product. `title` crosses as a plain
-  // string here too; the percent-encoding and the NFC normalisation are done
-  // below, on write, and again by `MediaScreen` on read.
-  mediaSheet: (title: string) => void;
+  // string here too; `carried` is what the caller knows of the item when it
+  // knows it, and the cache is asked otherwise.
+  mediaSheet: (title: string, carried?: CarriedIdentity) => void;
   // The release-choice screen — same `title`-crosses-as-a-plain-string
   // contract as `mediaSheet`/`profile` above. Unlike them, it also writes
   // `state.relatedTitle` (the legacy first line of `openReleases`, still read by
@@ -184,18 +186,20 @@ export function installScreenBridge(): void {
 fillScreensDoor({
   profile: (title: string) =>
     go({ to: "/quality/$name", params: { name: title.normalize("NFC") } }),
-  // The sheet is addressed by PROVIDER ID (DOIT-11), and callers hold a title,
+  // The sheet is addressed by PROVIDER ID (DOIT-11), and a tap holds a title,
   // so the crossing happens here — the seam, which is where every other
-  // title-to-address translation already happens.
+  // title-to-address translation already happens. WHAT THE TAP KNEW is the
+  // item the card was drawn from, and the cache holds it: its identity gives
+  // the address, and its title, poster and identity travel on the entry, so the
+  // screen draws them on its first frame while its own read is out.
   //
   // §11's single exception is honoured rather than worked around: a medium with
   // no provider id has NO sheet, and the surface must lead to the resolution
-  // instead of to a dead link. Measured on the fixture the day this landed, all
-  // 259 sheets carry ids, so this branch is unreachable today — it is here
-  // because the rule is, not because a case demanded it.
-  mediaSheet: (title: string) => {
-    const ids = window.__referentiel.addressIdsFor(title.normalize("NFC"));
-    if (!ids) return screens.resolution();
+  // instead of to a dead link.
+  mediaSheet: (title: string, carried?: CarriedIdentity) => {
+    const known = carried ?? heldIdentity(title.normalize("NFC"));
+    const ids = providerAddress(known?.ids);
+    if (!known || !ids) return screens.resolution();
     // THE PANEL LEAVES INSIDE THE COMMIT, so the transition captures it OPEN
     // and its departure has something to draw.
     //
@@ -222,7 +226,7 @@ fillScreensDoor({
     // handler. Nothing here counts the pops on the way back; that rule belongs
     // with the arbitration.
     go(
-      { to: "/media/$provider/$id", params: ids },
+      { to: "/media/$provider/$id", params: ids, state: carryingState(known) },
       () => {
         if (panel.isOpen()) panel.close(true);
       },

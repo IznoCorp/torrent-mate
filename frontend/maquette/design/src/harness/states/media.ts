@@ -6,6 +6,9 @@
 // so an entry pins only what its state means to show.
 import { applyState, type NamedState } from "../drive";
 
+/** Opens a medium's sheet the way a tap on its card does: with what the card knew. */
+const open = (title: string) => window.__screens.mediaSheet(title, window.__carriedFor(title) ?? undefined);
+
 export function mediaStates(): NamedState[] {
   return [
     [
@@ -13,7 +16,7 @@ export function mediaStates(): NamedState[] {
       "Fiche — suggestion NON possédée (série)",
       () => {
         applyState({ page: "acq", acqTab: "discover", phase: "ready" });
-        window.__screens.mediaSheet("The Venture Bros");
+        open("The Venture Bros");
       },
     ],
     [
@@ -21,7 +24,7 @@ export function mediaStates(): NamedState[] {
       "Fiche — suggestion NON possédée (film)",
       () => {
         applyState({ page: "acq", acqTab: "discover", phase: "ready" });
-        window.__screens.mediaSheet("Superman : L'Homme de demain");
+        open("Superman : L'Homme de demain");
       },
     ],
     [
@@ -29,7 +32,7 @@ export function mediaStates(): NamedState[] {
       "Fiche — série avec épisodes datés",
       () => {
         applyState({ page: "lib", phase: "ready" });
-        window.__screens.mediaSheet("Silo (2023)");
+        open("Silo (2023)");
       },
     ],
     [
@@ -37,7 +40,7 @@ export function mediaStates(): NamedState[] {
       "Fiche — film",
       () => {
         applyState({ page: "lib", phase: "ready" });
-        window.__screens.mediaSheet("Marjorie Prime");
+        open("Marjorie Prime");
       },
     ],
     [
@@ -45,7 +48,7 @@ export function mediaStates(): NamedState[] {
       "Fiche — sans bande-annonce",
       () => {
         applyState({ page: "lib", phase: "ready" });
-        window.__screens.mediaSheet("Broadchurch");
+        open("Broadchurch");
       },
     ],
     [
@@ -53,7 +56,7 @@ export function mediaStates(): NamedState[] {
       "Fiche — sans affiche",
       () => {
         applyState({ page: "lib", phase: "ready" });
-        window.__screens.mediaSheet("Widow's Bay");
+        open("Widow's Bay");
       },
     ],
   ];

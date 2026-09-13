@@ -65,6 +65,7 @@ export function IncompleteLens({ rows }: {
                 f: `${show.o}/${show.a}`,
                 chip: ["warning", t("screens.library.incompleteChip")],
                 poster: show.poster,
+                ids: show.ids,
               }),
             ).join("")}
         />

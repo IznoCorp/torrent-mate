@@ -10,8 +10,8 @@
     "served": 41,
     "asset": 5,
     "interface": 29,
-    "unserved": 4,
-    "total": 79
+    "unserved": 3,
+    "total": 78
   },
   "$anonymous": {
     "count": 0,
@@ -209,7 +209,8 @@
     "OWNED": {
       "class": "served",
       "why": "owned episode numbers, season by season, for 247 series",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·14.2 — the season list and the follow panel's matrix read `readMediaSeasons.owned`; the seed stays, answered there"
     },
     "PENDING_DECISIONS": {
       "class": "served",
@@ -328,15 +329,11 @@
       "seed": null,
       "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
-    "SHEETS_OLD": {
-      "class": "unserved",
-      "why": "a superseded media-sheet shape. Nothing reads it: the only reference outside its own declaration is the Object.assign that publishes the engine's names on window for the harness, and no rule and no module names it. It dies with the engine (L13)",
-      "seed": null
-    },
     "SHEETS_RAW": {
       "class": "served",
       "why": "the media sheets — title, year, rating, synopsis, cast, provider ids, status",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·14.2 — every crossing reads the list item's `ids` or the served sheet; the seed stays, answered by `readMediaSheet` and `readMediaSeasons`"
     },
     "STARTUP_MS": {
       "class": "interface",

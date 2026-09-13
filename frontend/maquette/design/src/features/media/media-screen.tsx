@@ -26,7 +26,7 @@ import {
 } from "../../features/media/reference";
 import { useStoreContent } from "../../lib/store-access";
 import { isRequestFailure } from "../../lib/query-client";
-import { seasonsHeld, useMediaSeasons, useMediaSheet } from "./queries";
+import { carriedSheet, seasonsHeld, useMediaSeasons, useMediaSheet } from "./queries";
 import { backAction, body as bodyClass, screen, screenBar, scrollport, sectionHeading } from "../../ui/variants";
 import { Icon } from "../../ui/icon";
 import { SkeletonLine, SurfaceError } from "../../ui/state-surfaces";
@@ -42,14 +42,11 @@ import { baseTitle } from "../../lib/titles";
 export type MediaScreenProperties = { readFollows: () => unknown[] };
 
 export function MediaScreen({ readFollows }: MediaScreenProperties) {
-  // The address names a PROVIDER ID (DOIT-11); the catalogue is keyed by title.
-  // The crossing happens in the engine, from the fixture itself, so the two
-  // cannot drift. An id nobody carries resolves to `null` and the screen
-  // renders its own honest empty case — the same answer it already gave an
-  // unknown title, and the only honest one for a stale bookmark.
+  // The address names a PROVIDER ID (DOIT-11), and it is all the screen needs
+  // to ask. The title is the sheet's own once the read lands, and what the tap
+  // knew while it is out; an id nobody carries answers nothing and the screen
+  // renders its own honest empty case — the only honest one for a stale bookmark.
   const { provider, id } = useParams({ from: "/media/$provider/$id" });
-  const lookup = useMediaReference();
-  const title = (lookup.titleForProviderId(provider, id) ?? "").normalize("NFC");
   // `world.follows` is MUTATED IN PLACE by the still-legacy follow act
   // (`actionFollow`, refonte.html) — the reference never changes, so
   // `useWorld()` alone would not notice. Subscribing to `version` forces the
@@ -80,8 +77,11 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
   // costs the reader nothing they already had.
   const failed = sheetRead.isError;
   const sheet = (sheetRead.data
-    ?? (failed ? (reference.sheetFor(title) ?? null) : null)) as
+    ?? (failed ? (carriedSheet(provider, id) ?? null) : null)) as
     (MediaSheet & MediaSheetFields) | null;
+  // THE SHEET'S TITLE, or what the tap knew of it. An address typed with no tap
+  // behind it has neither while the read is out, and the hero draws a skeleton.
+  const title = String(sheet?.title ?? "").normalize("NFC");
   // IN FLIGHT is two states, and reading one of them is reading half. With
   // placeholder data the query reports `success` and `isPlaceholderData` while
   // the read is still out; with none — an address no title answers — it
@@ -319,6 +319,7 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
             followed={followed}
             followTitle={followTitle}
             seasons={sorted}
+            owned={catalogue?.owned}
             own={own}
             aired={aired}
             pct={pct}

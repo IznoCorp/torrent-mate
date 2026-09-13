@@ -178,6 +178,7 @@ export function AddScreen() {
             : null,
         panel: `add:${i}`,
         poster: r.poster,
+        ids: r.ids,
       } as MediumCard);
     })
     .join("");

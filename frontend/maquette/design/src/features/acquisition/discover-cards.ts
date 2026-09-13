@@ -45,6 +45,8 @@ export type Suggestion = {
   note: number | string;
   why: unknown;
   poster?: string | null;
+  /** The provider identifiers — null for a title no sheet stands behind. */
+  ids?: Record<string, number | string> | null;
 };
 
 const drawing = () => window.__referentiel;
@@ -78,6 +80,7 @@ export function suggestionRow(suggestion: Suggestion, position: number): string 
         r: suggestion.why,
         panel: `sug:${position}`,
         poster: suggestion.poster,
+        ids: suggestion.ids,
       })}
     </div>`;
 }

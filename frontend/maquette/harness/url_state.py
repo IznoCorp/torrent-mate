@@ -110,6 +110,11 @@ RE-AIMED, count unchanged: the sign-in gate is taken off through
 `window.__entry.hideSignIn()`, the entry seam the harness publishes. It was
 `window.hideSignIn()`, a forwarder the engine published and no longer declares;
 the forwarder called this same verb, with `false` outside a driven state.
+
+RE-AIMED, said out loud: the sheet's address was read from `addressIdsFor`. The engine's sheet table and
+its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
+`__carriedFor` — the seed the served read answers from, published by the harness
+driver — and the hold count is unchanged.
 """
 import asyncio
 import json
@@ -415,7 +420,7 @@ async def main():
         # page it sits on — and a not-found page underneath surfaces only once
         # the screen closes, on the stable link the wave exists to serve.
         ctx, pg, errors = await open_page(b)
-        sheet_ids = await pg.evaluate(f"()=>window.addressIdsFor({json.dumps(SHEET_TITLE)})")
+        sheet_ids = await pg.evaluate(f"()=>window.__addressOf({json.dumps(SHEET_TITLE)})")
         await ctx.close()
         # A fixture that moved leaves this empty, and reading a provider id off
         # it would raise where the rule should FALL: a traceback names the line

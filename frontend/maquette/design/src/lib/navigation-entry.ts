@@ -16,6 +16,59 @@ import { store } from "./store-access";
    another, and two lists of one fact are one list waiting to lose a member. */
 const ENTRY_DIALS = ["acqTab", "libLens", "libMode", "libCat", "maintTopic"] as const;
 
+/* WHAT A TAP KNEW about the item it opened, and nothing else: its title, its
+   poster and its provider identity. The screen it opens reads them while its own
+   read is out, so the first frame draws what the finger was on.
+
+   THREE FIELDS AND NEVER A BODY. An entry's state lives in the browser's
+   history, which has a size ceiling of its own — a whole sheet written there is
+   an entry a browser may refuse. So the writer below copies exactly these three,
+   whatever the object handed to it carries, and a rule reads that it did.
+
+   Carried under ONE key, so a pop that reads the page's dials never mistakes
+   them for a dial, and so the three travel or go missing together. */
+export const CARRIED_KEY = "carried";
+const CARRIED_FIELDS = ["title", "poster", "ids"] as const;
+
+/** What a tap knew: a title, a poster address or null, and the provider identifiers. */
+export type CarriedIdentity = {
+  title: string;
+  poster: string | null;
+  ids: Record<string, number | string>;
+};
+
+/**
+ * The state an entry carries for an arrival that knows what it opened.
+ *
+ * Args:
+ *     known: What the tap knew. Only its three carried fields are copied.
+ *
+ * Returns:
+ *     The state to write on the entry.
+ */
+export function carryingState(known: CarriedIdentity): Record<string, unknown> {
+  return {
+    [CARRIED_KEY]: Object.fromEntries(
+      CARRIED_FIELDS.map((field) => [field, known[field] ?? null]),
+    ),
+  };
+}
+
+/**
+ * What an entry carries about the item it was opened on, if anything.
+ *
+ * Args:
+ *     state: An entry's state, as the history holds it.
+ *
+ * Returns:
+ *     The carried fields, or undefined for an entry no tap wrote — an address
+ *     typed, pasted or restored from a bookmark.
+ */
+export function carriedBy(state: unknown): Record<string, unknown> | undefined {
+  const held = (state as Record<string, unknown> | null | undefined)?.[CARRIED_KEY];
+  return held !== null && typeof held === "object" ? (held as Record<string, unknown>) : undefined;
+}
+
 /**
  * The page and the dials an entry carries, read off any object that holds them.
  *

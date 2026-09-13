@@ -29,6 +29,11 @@ WHAT IT DOES NOT CLAIM. Refusing the state is not the same as making it
 unrepresentable. The contract can still describe a follow with no sheet, and
 until it cannot, this rule is the thing standing between that description and
 the interface.
+
+RE-AIMED, said out loud: R156 asked the engine's `sheetFor`; it asks the sheet the read answers for each follow's identity. The engine's sheet table and
+its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
+`__carriedFor` — the seed the served read answers from, published by the harness
+driver — and the hold count is unchanged.
 """
 import asyncio
 import pathlib
@@ -43,15 +48,15 @@ from playwright.async_api import async_playwright
 # interface has, not a file's idea of it.
 FOLLOWS_STATE = "acq-follows-list"
 
-# EVERY FOLLOW, AGAINST THE RESOLVER THE DRAWING ITSELF USES. `sheetFor` is
-# published on the drawing seam and is the function the tile calls to decide
-# whether it may offer a poster at all.
+# EVERY FOLLOW, AGAINST THE SHEET THE READ ANSWERS FOR ITS IDENTITY. A tile
+# offers a poster when its item carries provider ids, and the sheet behind them
+# is what `__sheetOf` picks the way the served read picks it.
 FOLLOWS_AND_SHEETS = """()=>{
   const all = (window.__followActions?.all?.() || []).map((one) => one.t);
-  const sheetFor = window.__referentiel?.sheetFor;
-  if (typeof sheetFor !== 'function') return {resolver: false, all, without: []};
+  const sheetOf = window.__sheetOf;
+  if (typeof sheetOf !== 'function') return {resolver: false, all, without: []};
   return {resolver: true, all,
-          without: all.filter((title) => sheetFor(title) == null)};}"""
+          without: all.filter((title) => sheetOf(title) == null)};}"""
 
 
 async def main():

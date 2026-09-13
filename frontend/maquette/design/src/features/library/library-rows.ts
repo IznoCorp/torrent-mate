@@ -78,7 +78,7 @@ export function libraryRowMarkup(
     });
   }
   return swipeRowMarkup(
-    libraryCardMarkup({ t: row.t, s: row.f, overview: row.overview, poster: row.poster }),
+    libraryCardMarkup({ t: row.t, s: row.f, overview: row.overview, poster: row.poster, ids: row.ids }),
     `<button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="del" data-del="${reference.escapeHtml(row.t)}">${reference.svgIcon(reference.icons.trash)}${removeLabel}</button>`,
   );
 }

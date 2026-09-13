@@ -12,7 +12,7 @@
 
 import type { EngineDrawing } from "../../lib/engine-drawing";
 
-// A media sheet, exactly as `SHEETS_RAW` shapes one in refonte.html — a
+// A media sheet, exactly as the served read shapes one in the engine's names — a
 // movie and a show share most fields but not all (a show carries `seasons`
 // and `eps`, a movie carries `duree`), and the source stays untyped JS. A
 // loose index type is the honest shape here rather than a speculative
@@ -27,14 +27,6 @@ export type Trailer = {
 };
 
 export type MediaReference = EngineDrawing & {
-  sheetFor: (title: string) => MediaSheet | null;
-  // The sheet's ADDRESS is `/media/:provider/:id` (DOIT-11), the catalogue is
-  // keyed by title: these two cross the vocabularies, in the engine, from the
-  // fixture itself. `null` from `addressIdsFor` is §11's explicit case — a
-  // medium with no provider id has no sheet, and leads to the resolution.
-  titleForProviderId: (provider: string, id: string) => string | null;
-  addressIdsFor: (title: string) => { provider: string; id: string } | null;
-  ownedFor: (title: string, season: number) => Set<number> | null;
   EP_LABEL: Record<string, string>;
   TODAY: string;
 };

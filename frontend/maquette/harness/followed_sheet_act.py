@@ -44,6 +44,11 @@ under its DATED key and the act pressed by a finger:
      count the follow panel draws for that season — read from `fr.json` and from
      the seasons data the panel reads, never retyped.
   5. NO ERROR IS RAISED.
+
+RE-AIMED, said out loud: the twins' premise read `sheetFor`, and the sheet is opened with the identity a tap carries. The engine's sheet table and
+its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
+`__carriedFor` — the seed the served read answers from, published by the harness
+driver — and the hold count is unchanged.
 """
 import asyncio
 import json
@@ -84,7 +89,7 @@ FOLLOWS = """()=>Object.fromEntries((window.__followActions?.all() || []).map(
 TWINS = """([bare, dated])=>{
   const reference = window.__referentiel;
   const titles = (window.__followActions?.all() || []).map((one) => one.t);
-  return {bareSheet: !!reference.sheetFor(bare), datedSheet: !!reference.sheetFor(dated),
+  return {bareSheet: !!window.__sheetOf(bare), datedSheet: !!window.__sheetOf(dated),
           sameBase: reference.baseTitle(bare) === reference.baseTitle(dated),
           followedBare: titles.includes(bare), followedDated: titles.includes(dated)};}"""
 
@@ -170,7 +175,7 @@ async def take_a_season(page, journal, errors, bare, dated):
     journal.check(f"{where}: both keys resolve one sheet and the follow is the bare one",
                   twins["bareSheet"] and twins["datedSheet"] and twins["sameBase"]
                   and twins["followedBare"] and not twins["followedDated"], str(twins))
-    await page.evaluate("(title)=>window.__screens.mediaSheet(title)", dated)
+    await page.evaluate("(title)=>window.__screens.mediaSheet(title, window.__carriedFor(title) ?? undefined)", dated)
     await page.wait_for_timeout(SETTLED * 3)
     await page.evaluate("()=>window.__toast?.hide?.()")
     offered = await page.evaluate(OFFERED)

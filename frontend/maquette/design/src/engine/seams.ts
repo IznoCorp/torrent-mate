@@ -21,6 +21,7 @@
 // tested. The same objects are published for the rules by the harness, under
 // `__screens`, `__panel` and `__bridge`, and R74 describes them as what they
 // now are — a driving surface, not a bridge between two worlds.
+import type { CarriedIdentity } from "../lib/navigation-entry";
 import type { PanelDescriptor } from "../ui/panel/contract";
 import { dialog } from "../app/dialog-host";
 import { entry, loadingDone } from "../app/entry";
@@ -61,7 +62,7 @@ export type Bridge = {
 // its old `openX(...)`.
 export type Screens = {
   profile: (title: string) => void;
-  mediaSheet: (title: string) => void;
+  mediaSheet: (title: string, carried?: CarriedIdentity) => void;
   releases: (title: string) => void;
   resolution: (folder?: string, replace?: boolean) => void;
   add: (q?: string, mode?: string) => void;

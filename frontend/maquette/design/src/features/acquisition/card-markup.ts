@@ -35,6 +35,8 @@ export type MediumCard = {
   overview?: string;
   panel?: string;
   poster?: string | null;
+  /** The provider identifiers — null for a title no sheet stands behind. */
+  ids?: Record<string, number | string> | null;
 };
 
 /** The foot a section offers for its own action. */
@@ -57,7 +59,8 @@ function stageState(value: number | string): StripState {
  * One medium's card.
  *
  * TWO DIFFERENT ABSENCES, never merged: `noposter` says there is no artwork, a
- * missing sheet says there is no medium. A card with no artwork still has a
+ * missing identity says there is no medium — a list item carries provider ids
+ * exactly when a sheet stands behind its title. A card with no artwork still has a
  * sheet, and still leads to it.
  *
  * @param medium The medium, as the list holds it.
@@ -67,7 +70,7 @@ function stageState(value: number | string): StripState {
 export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot): string {
   const reference = window.__referentiel;
   const title = medium.t;
-  const hasSheet = reference.sheetFor(title) != null;
+  const hasSheet = medium.ids != null;
   // french-ok: a panel ADDRESS and the non-medium marker, contract values the delegation and R46 read
   const folderAddress = `dossier:${title}`;
   const artworkMarkup = medium.noposter

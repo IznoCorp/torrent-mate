@@ -97,3 +97,44 @@ seasons block — `held`, `aired`, the fraction). There is no served read keyed 
 per address, so the panel asks it by the follow's `ids` — ruling 51's crossing, one crossing and not two. The
 `window.__mocks` seed accessor DESIGN § 4.2 promises (`mocks/index.ts:303` has none) is a·14.2's to add — one
 accessor — so the nine harness readers of `window.SEASONS` read the seeds the mock layer answers from.
+
+## Amendment — 2026-09-13 (rulings 53, 54 and 55: a·14.2 as it landed)
+
+**Ruling 53 amends ruling 52 on a measurement.** Read literally, « the follow panel asks `readMediaSeasons` by the
+follow's `ids` » is a BEHAVIOUR change: the engine's `SEASONS` holds 10 titles and the follow panel read it at the
+exact title, while the served answer by identity differs on 209 of the 402 list titles. On the 10 titles whose panel
+draws a season block, the episode cells differ on 6 (Silo gains a fourth season, Dexter: Resurrection a second, House
+of the Dragon, Star Trek: Strange New Worlds and Ted Lasso read 0 owned, Les Animaniacs gains two seasons) when the
+triples are served, and on 0 when the triples stay `SEASONS`' and only the owned numbers and the episode catalogue are
+served. Measured offline: `python3 /private/tmp/tm-l13a/a142-compare-seasons.py`. So a·14.2 stays a conversion:
+`panel-seasons.tsx` and `popover-episode.ts` read the owned numbers and the episodes served by the follow's identity,
+and **`SEASONS`, its read in `followFacts`, the `window.SEASONS` harness readers and the seasons half of the seed
+accessor move to b·10-bis**, where the same function already converts `LIBRARY` and `INCOMPLETE` (ruling 41) — a
+behaviour phase, its rule first, Silo's fourth season named there. This voids ruling 52's « `SEASONS` moves to a·14.2 ».
+
+**Ruling 54: the ONE `window.__mocks` seed accessor of DESIGN § 4.2 lands in a·14.2, reduced to the sheets family**
+(`mocks/mock-seeds.ts`: every sheet keyed by title, with its poster). Why: `__reset` clears the query cache, and the
+named states open `Silo (2023)` and `Widow's Bay`, titles no served list holds, so the harness has no served answer to
+ask an address of. It is read by the harness ALONE — the driver publishes `__carriedFor`, `__addressOf` and `__sheetOf`
+from it — and `screens.mediaSheet(title, carried?)` takes the identity as a second argument when a state or a rule
+knows it, and asks the query cache otherwise (`lib/held-identity.ts`, what a tap on a drawn card knew).
+
+**Ruling 55, reading (A): a tap primes its title and poster only.** The entry carries `title`, `poster` and `ids`
+(`lib/navigation-entry.ts`, a vitest test holds that the writer copies exactly those three). The auditor's reading (B)
+— the entry also carries `year` and `kind` — had a precondition, and it failed: of the seven list schemas a tap comes
+from, three carry both (`Follow`, `SearchResult`, `Suggestion`) and four do not (`QueueCard` and `LibraryItem` and
+`LibraryRow` carry neither — `secondaryLine` is a composed string — and `IncompleteShow` has no `kind`), read from
+`frontend/maquette/contract/openapi.json`'s `components.schemas`. **So the difference is on every tap, D8-accepted,
+and named here: a tap primes title and poster only; year, genre, synopsis and cast are skeletons in flight; after a
+failed read title and poster remain.** A TYPED address (ruling 51) shows its ids at once and a skeleton title until the
+read lands. The end frame is identical in both. Three rules are re-aimed for it, each said in its docstring: R119 (d)
+« what is carried is content, the rest a skeleton », R119 (e) « a failed read keeps the carried title and asserts
+nothing » (its `cast` term dropped), R115 reads the hero's TITLE in flight — the title now comes only from the sheet or
+from what the tap carried. R119's thinning seam moved from the engine's `sheetFor` to an entry the harness writes
+(`harness/publish.ts`, `__openCarrying`).
+
+**Ruling 56: the failure text that (A) made reachable.** With the complete sheet gone from the failure fallback, the
+failed screen printed `screens.media.synopsisUnread`, « Synopsis inconnu. » — the one text of its family asserting
+« unknown » where its key and its siblings (« année non lue », « Genres non lus », « Crédit non lu », « Distribution
+non lue ») say « not read ». It becomes « Synopsis non lu. », and R119 (e) keeps its whole promise. And R119 (b-i)'s
+exact count moves from 15 to 13: the thinnest entry carries the identity, whose two lines are then content.

@@ -86,6 +86,11 @@ wiping the node blinded every hold to the message on screen. Each walk now
 closes it through the host's own `hide()`, waits the exit's drawn duration, and
 holds it gone from paint before a finger aims at anything. The close comes
 BEFORE the act; every hold on a sentence reads what the act says, after it.
+
+RE-AIMED, said out loud: the seasons still to air and the follow's sheet were read from `sheetFor`. The engine's sheet table and
+its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
+`__carriedFor` — the seed the served read answers from, published by the harness
+driver — and the hold count is unchanged.
 """
 import asyncio
 import json
@@ -272,11 +277,11 @@ AIM_AT_THE_ROW_OF = """(value)=>{
 # WHICH OF THE SHOW'S SEASONS AIR AFTER TODAY, from the referential the sheet reads.
 NOT_YET_AIRED = """(title)=>{
   const reference = window.__referentiel;
-  const sheet = reference && reference.sheetFor(title);
+  const sheet = window.__sheetOf(title);
   const today = reference && reference.TODAY;
   return {today: today || null, resolved: !!sheet,
           later: ((sheet && sheet.seasons) || []).filter(
-            (season) => today && season.air && season.air > today).map((season) => season.n)};}"""
+            (season) => today && season.airDate && season.airDate > today).map((season) => season.number)};}"""
 
 # HOW MANY EPISODES A SEASON HAS TO GET, from the seasons data the follow panel
 # reads — the count the layer answers from. A title that data does not hold
@@ -424,7 +429,7 @@ async def follow_from_its_sheet(page, journal, errors, title):
     await page.touchscreen.tap(follow["x"], follow["y"])
     await page.wait_for_timeout(ACTED)
     after = await page.evaluate(FOLLOWS)
-    resolved = await page.evaluate("(t)=>window.__referentiel?.sheetFor(t) != null", title)
+    resolved = await page.evaluate("(t)=>window.__sheetOf(t) != null", title)
     journal.check(f"« {title} »: followed afterwards, and the follow resolves a sheet — "
                   "never a sheetless follow (R156's question)",
                   title in after and resolved, f"status {after.get(title)!r}, sheet {resolved}")

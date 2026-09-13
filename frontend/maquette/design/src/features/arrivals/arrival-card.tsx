@@ -47,6 +47,8 @@ type StagingCard = {
   strip?: (number | string)[];
   noposter?: boolean;
   poster?: string | null;
+  /** The provider identifiers — null for a title no sheet stands behind. */
+  ids?: Record<string, number | string> | null;
 };
 
 /**
@@ -79,7 +81,8 @@ export function ArrivalCard({
   const { t } = useTranslation();
   const card = queued as StagingCard;
   const title = card.t;
-  const hasSheet = reference.sheetFor(title) != null;
+  // A sheet stands behind a card exactly when the card carries provider ids.
+  const hasSheet = card.ids != null;
   // french-ok: a panel ADDRESS and the non-medium marker, contract values the delegation and R46 read
   const folderAddress = `dossier:${title}`;
   const stages: string[] = fr.surfaces.card.stages;

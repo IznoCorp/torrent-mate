@@ -46,7 +46,9 @@ export function MediaHero({
           }
         ></div>
         <div className={heroText()} data-part="hero/content">
-          <h2 className={heroTitle()} data-part="hero/title">{title.split(" (")[0]}</h2>
+          <h2 className={heroTitle()} data-part="hero/title">
+            {title ? title.split(" (")[0] : inFlight ? <SkeletonLine width="half" /> : null}
+          </h2>
           <p className={heroMeta()}>
             {/* FIELD BY FIELD, NEVER BLOCK BY BLOCK, and this line is where the
                 difference shows. Gated on the whole sheet being null, a

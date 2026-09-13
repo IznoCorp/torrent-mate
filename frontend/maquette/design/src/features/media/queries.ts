@@ -13,7 +13,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
 import { toEngineShapeEntry } from "../../engine/engine-shape";
-import { useMediaReference } from "./reference";
+import { currentEntryState } from "../../lib/navigate";
+import { carriedBy } from "../../lib/navigation-entry";
 
 /** One sheet, as the layer composes it. */
 export type MediaSheetPayload = Record<string, unknown>;
@@ -32,6 +33,23 @@ export type MediaSeasons = {
 };
 
 /**
+ * What the current entry carries about the sheet at one address.
+ *
+ * ONLY WHEN IT IS ABOUT THIS ADDRESS. An entry opened on one medium must not
+ * prime a read about another, which a panel over the screen can issue.
+ *
+ * @param provider The provider, as the address names it.
+ * @param identifier The identifier at that provider.
+ * @returns What the tap knew, in the sheet's own names, or undefined.
+ */
+export function carriedSheet(provider: string, identifier: string): MediaSheetPayload | undefined {
+  const carried = carriedBy(currentEntryState());
+  const ids = carried?.ids as Record<string, unknown> | null | undefined;
+  if (carried === undefined || !ids || String(ids[provider] ?? "") !== identifier) return undefined;
+  return { ...carried };
+}
+
+/**
  * The sheet at one address.
  *
  * @param provider The provider, as the address names it.
@@ -44,14 +62,12 @@ export function useMediaSheet(provider: string, identifier: string) {
   // opens with what the tap already knows, in real content, on the first frame.
   // A dead tap becomes impossible by construction rather than by being fast.
   //
-  // THE MECHANISM IS NOT THE ONE SUGGESTED, AND THE DIFFERENCE IS A FACT RATHER
-  // THAN A PREFERENCE. The relay proposed seeding from the list's query cache,
-  // « ces faits sont déjà dans le cache de requêtes de la liste ». They are not:
-  // a `LibraryRow` is `{ t, f }` — a title and a folder — and the year, the type
-  // and the poster the tapped card DISPLAYED come from the engine's own
-  // projection, keyed by title. So the priming reads THAT, which is literally
-  // the source the card drew from, and therefore literally what the tap knows.
-  // (The operator invited a better mechanism if one was seen: this is it.)
+  // WHAT THE TAP KNEW TRAVELS ON THE ENTRY. The item a card is drawn from carries
+  // its title, its poster and its provider identity; the crossing writes those
+  // three onto the navigation entry, and this reads them back — so a Back or a
+  // reload onto the entry primes the same way the tap did. An address typed or
+  // pasted carries nothing, and the screen then waits for its read with no
+  // placeholder at all: its ids are the address, its title a skeleton.
   //
   // `placeholderData`, not `initialData`: initial data is written INTO the cache
   // and would be indistinguishable from a served answer forever after — a
@@ -59,15 +75,9 @@ export function useMediaSheet(provider: string, identifier: string) {
   // data stays outside the cache and is flagged `isPlaceholderData`, which is
   // what lets a rule tell PRIMED content from SERVED content. A rule that cannot
   // is green on a screen that never enriches.
-  const reference = useMediaReference();
   return useQuery({
     queryKey: ["/api/media", provider, identifier],
-    placeholderData: () => {
-      const title = reference.titleForProviderId(provider, identifier);
-      if (!title) return undefined;
-      return (reference.sheetFor(title) ?? undefined) as
-        MediaSheetPayload | undefined;
-    },
+    placeholderData: () => carriedSheet(provider, identifier),
     queryFn: async () => {
       const answered = await read<MediaSheetPayload | null>(
         `/api/media/${encodeURIComponent(provider)}/${encodeURIComponent(identifier)}`);
@@ -106,6 +116,26 @@ export function useMediaSeasons(provider: string, identifier: string) {
     },
     enabled: provider !== "" && identifier !== "",
   });
+}
+
+/**
+ * The episode numbers held of one season, as the seasons read answered them.
+ *
+ * NULL WHEN THE LIBRARY KNOWS NOTHING OF THE SERIES: an answer naming no season
+ * at all claims nothing, and the caller falls back to the count. A series the
+ * library knows but whose season it holds nothing of is an EMPTY set, which is
+ * a claim — every episode of that season is missing.
+ *
+ * @param owned The seasons read's `owned` answer, when it has landed.
+ * @param season The season number.
+ * @returns The held numbers, or null.
+ */
+export function ownedSeason(
+  owned: MediaSeasons["owned"] | undefined,
+  season: number,
+): Set<number> | null {
+  if (owned === undefined || Object.keys(owned).length === 0) return null;
+  return new Set(owned[String(season)] ?? []);
 }
 
 /**

@@ -102,6 +102,7 @@ export function FollowsTab(): ReactElement {
 
   const descriptorOf = (follow: Follow, showStatus: boolean) => ({
     t: follow.t,
+    ids: follow.ids,
     k: follow.k,
     s: [
       String(follow.y),

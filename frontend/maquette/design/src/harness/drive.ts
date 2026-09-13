@@ -21,6 +21,8 @@ import type { UiState } from "../app/store";
 import { drivenWithoutHistory } from "../app/page-switch";
 import { applyState, resetSettings } from "../engine/legacy.js";
 import { closeHarnessPanel } from "./panel";
+import { heldIdentity, providerAddress } from "../lib/held-identity";
+import type { CarriedIdentity } from "../lib/navigation-entry";
 
 export { applyState };
 
@@ -124,6 +126,50 @@ function go(stateId: string, options?: { keep?: boolean }): string {
 }
 
 /**
+ * What a state or a rule knows of the medium one title names.
+ *
+ * READ FROM THE SEED THE MOCK LAYER ANSWERS FROM, never from the product: a
+ * named state opens media no served list holds, and a rule compares the served
+ * reads against this. A title the seed does not key is asked of the cache, which
+ * is what a tap on a drawn card would have known.
+ *
+ * Args:
+ *     title: The title, as the seed or a drawn list spells it.
+ *
+ * Returns:
+ *     Its title, poster and provider identifiers, or null.
+ */
+function carriedFor(title: string): CarriedIdentity | null {
+  const sheet = window.__mocks?.sheets()[title];
+  const ids = sheet?.ids as CarriedIdentity["ids"] | null | undefined;
+  if (ids) return { title, poster: (sheet?.poster as string | null | undefined) ?? null, ids };
+  return heldIdentity(title);
+}
+
+/**
+ * The sheet the mock layer answers for the medium one title names.
+ *
+ * PICKED THE WAY THE SERVED READ PICKS IT: the title's provider identity gives the
+ * address, and the first seed sheet carrying that identity is the one answered.
+ * Keys are the contract's names. Nothing the layer overlays on an answer — a
+ * delete, an unavailable library database — is applied: a rule reads the facts a
+ * sheet is composed from, and the screen for what it drew.
+ *
+ * Args:
+ *     title: The title, as the seed or a drawn list spells it.
+ *
+ * Returns:
+ *     The seed sheet, or null when the title names no identified medium.
+ */
+function sheetOf(title: string): Record<string, unknown> | null {
+  const address = providerAddress(carriedFor(title)?.ids);
+  if (address === null) return null;
+  const sheets = Object.values(window.__mocks?.sheets() ?? {});
+  return sheets.find((sheet) =>
+    String((sheet.ids as Record<string, unknown> | undefined)?.[address.provider] ?? "") === address.id) ?? null;
+}
+
+/**
  * Publishes the driving seams the rules reach the prototype through.
  *
  * Args:
@@ -152,6 +198,11 @@ export function installDriver(states: NamedState[]): void {
     return enabled !== false;
   };
   window.__reset = reset;
+  // A medium's identity and its address, for the states and rules that open one
+  // by title rather than by tapping a card that carries it.
+  window.__carriedFor = carriedFor;
+  window.__addressOf = (title) => providerAddress(carriedFor(title)?.ids);
+  window.__sheetOf = sheetOf;
   // Rules build some states by hand, patch by patch, the way a named state does.
   window.applyState = applyState;
 }
@@ -172,6 +223,12 @@ declare global {
     __blocked: () => unknown[];
     /** The page ids the interface can render. */
     __pages: () => string[];
+    /** What the seed, or else the cache, knows of the medium a title names. */
+    __carriedFor: (title: string) => CarriedIdentity | null;
+    /** The address the medium a title names is reached at, or null. */
+    __addressOf: (title: string) => { provider: string; id: string } | null;
+    /** The seed sheet the layer answers for the medium a title names, or null. */
+    __sheetOf: (title: string) => Record<string, unknown> | null;
     /** A named state's first step, for a rule that builds one by hand. */
     applyState: (patch: Partial<UiState>) => void;
     /** Puts the pull indicator back at rest, published by the engine. */

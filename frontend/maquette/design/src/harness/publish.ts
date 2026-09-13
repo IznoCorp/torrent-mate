@@ -41,6 +41,8 @@ import { readLimits, reconnectNow, resetRelay, setLimits } from "../lib/relay";
 import { forceCondition, readCondition } from "../lib/relay-condition";
 import { readCursor, subscribeToEvents } from "../lib/relay-events";
 import { bridge, panel, screens, toast } from "../lib/shell-doors";
+import { go } from "../lib/navigate";
+import { CARRIED_KEY } from "../lib/navigation-entry";
 import { store } from "../lib/store-access";
 import { verbNames } from "../lib/verbs";
 
@@ -79,6 +81,8 @@ declare global {
     __closeLayers?: typeof closeLayers;
     /** When the exit guard was armed, or 0 — the address alone says nothing of it. */
     armedExit?: number;
+    /** Opens a medium's screen on an entry carrying exactly what a rule hands it. */
+    __openCarrying?: (provider: string, id: string, carried: Record<string, unknown>) => void;
   }
 }
 
@@ -142,6 +146,12 @@ export function publishSeams(): void {
   publish("__queue", () => queueLists);
   publish("__queueActions", () => queueActions);
   publish("__verbNames", () => verbNames);
+  // WHAT A TAP KNEW, WRITTEN BY THE RULE. The screen primes from what its entry
+  // carries, and the product's writer copies three fields of a list item; a rule
+  // measuring how the screen draws a THINNER or a RICHER knowledge — a title
+  // alone, a year without its kind — writes the carried object itself.
+  publish("__openCarrying", () => (provider: string, id: string, carried: Record<string, unknown>) =>
+    go({ to: "/media/$provider/$id", params: { provider, id }, state: { [CARRIED_KEY]: carried } }));
   // Two gestures each own their numbers, and a rule reads them as one table —
   // present once the gesture that owns them has been installed, as before.
   publish("__gestures", () => {

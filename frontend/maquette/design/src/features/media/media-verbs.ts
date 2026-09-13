@@ -23,6 +23,7 @@
 // THE ENGINE LOSES A BRANCH BY IT (D5). `legacy.js`'s `data-rescrape` branch is
 // deleted, not duplicated: a verb still living there moves onto `lib/verbs.ts`
 // the day it gains a behaviour, and the size ledger is re-recorded downward.
+import { heldIdentity, providerAddress } from "../../lib/held-identity";
 import i18next from "i18next";
 import type { QueryClient } from "@tanstack/react-query";
 import { HELD, send } from "../../lib/query-client";
@@ -69,7 +70,7 @@ async function rescrapeMedia(client: QueryClient, title: string): Promise<void> 
   // provider identity has no sheet and no address, so there is nothing to ask
   // about. It is SAID — a verb that answered silence would be the defect this
   // file exists to end, wearing a different cause.
-  const identity = window.__referentiel.addressIdsFor(title.normalize("NFC"));
+  const identity = providerAddress(heldIdentity(title.normalize("NFC"))?.ids);
   if (identity === null) {
     toast?.show({ message: say("rescrapeUnidentified", { title }) });
     return;

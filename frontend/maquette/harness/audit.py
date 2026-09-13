@@ -7,6 +7,11 @@ THE ROOT LADDER HAS NO `#screen` RUNG. It had one, for a legacy node nothing
 ever opened, so the rung was identically false; it was removed rather than
 replaced, because the generic `[data-part="screen"][data-open][data-key]` rung
 already present covers every screen. The hold count is unchanged.
+
+RE-AIMED, said out loud: R1's filled-in sheet was read from `sheetFor`; it is read from the sheet the read answers. The engine's sheet table and
+its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
+`__carriedFor` — the seed the served read answers from, published by the harness
+driver — and the hold count is unchanged.
 """
 import asyncio
 import json
@@ -71,7 +76,7 @@ async def main():
 
           // R1 — every tappable poster leads to a FILLED-IN sheet
           R.hollowSheets = [...root.querySelectorAll('[data-mediasheet]')].map(el=>el.dataset.mediasheet)
-            .filter(t=>{const f=sheetFor(t); return !f || !f.ov || !f.g || !(f.cast||[]).length;});
+            .filter(t=>{const f=window.__sheetOf(t); return !f || !f.overview || !f.genres || !(f.cast||[]).length;});
 
           // R2 — HARDENED: a button must have a declared DESTINATION, not
           // merely a known class. Whitelisting by class blessed every sheet

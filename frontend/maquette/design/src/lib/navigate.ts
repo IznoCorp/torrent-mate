@@ -27,12 +27,14 @@ type Router = {
     params?: Record<string, string>;
     search?: Record<string, unknown>;
     replace?: boolean;
+    state?: Record<string, unknown>;
   }) => Promise<void> | void;
 };
 
 /** What `go()` needs of the history — what keeps one call, one entry. */
 type RouterHistory = {
   flush: () => void;
+  location: { state: unknown };
 };
 
 let router: Router | null = null;
@@ -73,6 +75,9 @@ export function go(
     params?: Record<string, string>;
     search?: Record<string, unknown>;
     replace?: boolean;
+    // What the entry carries beside its address — what a tap knew about the
+    // item it opened, read back by the screen while its own read is out.
+    state?: Record<string, unknown>;
   },
   // WORK THAT BELONGS TO THE SAME COMMIT, and the reason it cannot be done by
   // the caller before or after the call.
@@ -101,6 +106,7 @@ export function go(
       params: target.params,
       search: target.search,
       replace: target.replace ?? false,
+      state: target.state,
     });
     history!.flush();
     // THE NAVIGATION'S PROMISE IS HANDED BACK, and it is the transition that
@@ -186,4 +192,18 @@ export function go(
   // one would swallow every other unhandled rejection with them.
   transition.ready.catch(() => undefined);
   transition.finished.catch(() => undefined);
+}
+
+/**
+ * The state the current entry carries.
+ *
+ * Read at the moment it is asked, never copied: a Back or a restore changes the
+ * entry under whoever holds a copy.
+ *
+ * Returns:
+ *     The entry's state, or undefined before the shell's boot has handed the
+ *     history over.
+ */
+export function currentEntryState(): unknown {
+  return history?.location.state;
 }

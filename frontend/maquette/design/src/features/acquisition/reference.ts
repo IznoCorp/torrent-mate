@@ -26,6 +26,8 @@ export type Follow = {
   since?: string;
   searches?: number;
   poster?: string | null;
+  /** The provider identifiers. A follow always has them (B-366). */
+  ids?: Record<string, number | string> | null;
 };
 
 // One GROUP of the grouped mode: its heading, its pip, and the statuses it
@@ -47,6 +49,8 @@ export type SearchResult = {
   owned: boolean;
   followed: boolean;
   poster?: string | null;
+  /** The provider identifiers — null for a title no sheet stands behind. */
+  ids?: Record<string, number | string> | null;
 };
 
 export type SearchResults = {
