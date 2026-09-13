@@ -432,6 +432,8 @@ after with its count unchanged. A name held by no rule — measured: `to`, `dele
 files — gets its hold written FIRST, red against the engine branch deleted on purpose, before the
 branch moves.
 
+**Amended 2026-09-13 (§ 7.1, rulings 73–74):** `.cfoot`'s « Résoudre » does NOT become `data-resolve` — that name means « pick this candidate » (`resolution-cards.tsx:90`, B-474); the arbitration opener is the arrivals feature's `data-resolution`, and « Récupérer » emits `data-take`. `pipe` is not a move: it converts at b·10-ter.
+
 ---
 
 ## 7. `refonte.html`, R72 and the ledger's home (L13a phase 19)
