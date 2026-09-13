@@ -7,18 +7,19 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 - Branch `feat/maquette-l13b`, worktree `/Users/izno/dev/worktrees/wave-l13b`, stacked on L13a `37e54d0fd`;
   rebase onto `main` only on the steward's word (after #596's squash). Steward: `Orch : TM frontend [7977d1]`.
 - Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13b`.
-- Tooling landed: `701ae1aca` (run.sh contracts + oracle, one build), `3023f2305` (pre-push docs-only path),
-  `108904b51` (one phase-gate invocation + named rules + verdict), `63f6674a4` (rule timeouts, pid-held lock).
-- b·1 DONE: holds `d2bd9d9b4`, move `e3ae69b01`; gate green on `108904b51`.
-- b·2 DONE: holds `28529ab83`, move `4f157ca9f`; gate green (23 rules, 8 named, 270 s, JOBS=3, swap flat).
-- legacy.js non-blank: 3414. Surface-openers contract grep: 6.
-- Next: b·3 (media verbs) — its move is scripted in `/private/tmp/tm-l13b/b03-move.py` (ruling 70); the B-290
-  `__TSR_index` probe `/private/tmp/tm-l13b/b03-tsr-index-probe.py` runs before and after the move.
+- Tooling landed: `701ae1aca`, `3023f2305`, `108904b51`, `63f6674a4` (see the ledger and rulings 66–69).
+- b·1 DONE (`e3ae69b01`), b·2 DONE (`4f157ca9f`), b·3 DONE (`6c6245fbd`, rulings 70/70-bis),
+  b·4 DONE (`bec2b0d5b`, rulings 73–74; `pipe` stays in the engine for the NEW phase b·10-ter).
+- legacy.js non-blank: 3248. Surface-openers contract grep: 2 (journey, sheet=plus are b·5's).
+- Next: b·5 (acquisition verbs) — its phase file carries ruling 73 b's line: `actionResolve` (act=add:N identify)
+  and `actionTake` (sheetprim) die there with their last callers.
 - Phase gate form (ruling 66): `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13b
-  frontend/maquette/harness/run.sh --contracts --oracle <the phase's rules>`.
+  frontend/maquette/harness/run.sh --contracts --oracle <the phase's rules>` (~270 s).
+- Mutations: `mutate.sh <verbs file> "t.replace('registerVerb(\"x\",', 'void (\"x\",')" <rules>`; a rule that
+  only CRASHES is not a named fall — replay against another rule that taps the name (b·1 setting, b·4 manual).
 - Locks: browser mutex (`sh scripts/heavy.sh --held`); tests lock `/private/tmp/tm-heavy-tests/holder`; own lock
   `/private/tmp/tm-heavy-l13b/holder` (npm ci, tsc -b, vitest run).
-- Logs kept (cited): `/private/tmp/tm-l13b/b01-*`, `b02-*`, `b03-*`, `order19-*`, `order24-*`, `order27-*`.
+- Logs kept (cited): `/private/tmp/tm-l13b/b0[1-4]-*`, `order19-*`, `order24-*`, `order27-*`.
 - Owed: full suite at the midpoint (after b·6, before b·7) and at b·11 with `--a11y`, `--compare`, `make lint`;
   no local `make check` (ruling 68). Machine restarts Monday 05:00: pushed by 04:30, line to the steward at 04:45.
 
@@ -80,3 +81,8 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 - 2026-09-13 STANDING (operator): the machine restarts Monday 05:00. No gate, mutex run or push that would run past
   04:55; every commit pushed and `git ls-remote` = HEAD by 04:30; RESUME-L13b.md at a phase boundary with its state
   block current (`Agent : l13b 2` reads it first); tree clean, no process left; one line to the steward at 04:45.
+- 2026-09-14 b·4: now-tab and arrivals card feet emit `data-take` / `data-resolution`; `.cfoot` died. `pipe`
+  refused by check-state-ownership.py when moved to a feature (ruling 74) → phase b·10-ter. `manual` mutation
+  crashed ident.py (null.click) → replayed: bugs.py « 8. manual search pre-filled → « None » ».
+- 2026-09-14 trap: zsh does not word-split `$F`; a multi-file variable passed to ruff failed with exit 2 and
+  pytest never ran while an old log showed « passed » — run such lists through `bash -c` or spell them out.
