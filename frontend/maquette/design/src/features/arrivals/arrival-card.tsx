@@ -15,7 +15,8 @@ import { useTranslation } from "react-i18next";
 // The stage labels are a LOOKUP TABLE indexed by position, read the way the
 // resolution screen reads its number words.
 import fr from "../../i18n/fr.json";
-import { posterArtworkFor } from "../../lib/engine-drawing";
+import { posterArtwork } from "../../lib/engine-drawing";
+import { initials } from "../../lib/titles";
 import type { QueueCard } from "../../lib/engine-queue";
 import {
   Card,
@@ -45,6 +46,7 @@ type StagingCard = {
   chip?: [string, string] | null;
   strip?: (number | string)[];
   noposter?: boolean;
+  poster?: string | null;
 };
 
 /**
@@ -92,10 +94,10 @@ export function ArrivalCard({
         >
           {card.noposter ? (
             <span className={posterFallback()} data-part="card/poster-fallback">
-              <b>{reference.initials(title)}</b>
+              <b>{initials(title)}</b>
             </span>
           ) : (
-            <PosterArtwork artwork={posterArtworkFor(reference, title, card.k)} />
+            <PosterArtwork artwork={posterArtwork(reference.icons, card.poster, title, card.k)} />
           )}
         </CardPoster>
       ) : (

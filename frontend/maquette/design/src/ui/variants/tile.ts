@@ -4,12 +4,10 @@
 // re-exports had no room left for it under the module ceiling.
 //
 // EVERY FACTORY KEEPS ITS IDENTITY CLASS AT THE FRONT, but two. A rule reads
-// `.sel` and `.tilebadge`, and the residue stylesheet still selects `.gallery`
-// for the grid the suggestion feed composes on its own. `tile()` and
+// `.sel` and `.tilebadge`, and R77 reads the suggestion feed's grid by its first
+// class, `gallery`. `tile()` and
 // `tileSubtitle()` lead with a utility and the markup writes `tile` and `fr`
-// beside them: the only residue rule left selecting `.tile` groups
-// `-webkit-touch-callout`, which Chrome does not compute, so a pair could read
-// nothing on either side; and `fr` is claimed by the fact rows' value already.
+// beside them: `fr` is claimed by the fact rows' value already.
 //
 // EVERY BRANCH IS ONE STRING LITERAL: `residue.py` reads a branch through its
 // literals, one branch per literal, and a branch split in two is read as two.
@@ -33,14 +31,20 @@ export const posterGrid = cva(
  * `aria-pressed`. A MUTED tile dims, and says `off` for the readers that ask.
  */
 export const tile = cva(
-  "group relative min-w-0 [border:0] [background:transparent] p-0 text-left block w-full",
+  "group relative min-w-0 [border:0] [background:transparent] p-0 text-left block w-full " +
+    // A held tile offers the long press, never the browser's own menu or a drag of its picture.
+    "select-none [-webkit-touch-callout:none] [&_img]:[-webkit-user-drag:none] [&_img]:[-webkit-touch-callout:none]",
   { variants: { muted: { true: "off" } } },
 );
 
 /** The poster's box, its size declared so a late picture moves nothing. */
 export const tilePoster = cva(
   "p block w-full aspect-[2/3] rounded-2 text-8 leading-none overflow-hidden bg-muted " +
-    "group-aria-pressed:[outline:2px_solid_var(--color-primary)] group-aria-pressed:[outline-offset:-2px]",
+    "group-aria-pressed:[outline:2px_solid_var(--color-primary)] group-aria-pressed:[outline-offset:-2px] " +
+    // The picture fills the box it is given, at the box's size and not its own.
+    "[&>img]:relative [&>img]:grid [&>img]:place-items-center [&>img]:w-full [&>img]:h-full " +
+    "[&>img]:object-cover [&>img]:overflow-hidden " +
+    "[&>img]:[background:linear-gradient(to_bottom_right,color-mix(in_oklab,var(--color-primary)_50%,transparent),var(--color-card),var(--color-muted))]",
   { variants: { muted: { true: "opacity-[0.42]" } } },
 );
 

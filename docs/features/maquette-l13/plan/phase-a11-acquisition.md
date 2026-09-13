@@ -59,3 +59,29 @@ Per INDEX « Gates ». In addition, `check-mock-seeds.py` and `check-poster-box.
 ## Commit
 
 `refactor(maquette-l13): acquisition draws its cards through components and lists carry their poster`
+
+## Amendment — 2026-09-13 (ruling 45, a·11's STOP D)
+
+**`POSTERS` does NOT leave the engine at a·11**, and the phase above contradicted its successor: « Posters »
+says the table leaves here, while `phase-a13-media-artwork.md:28` says a·13's `sheet.poster` « ends a·11's last
+`POSTERS` reader ». Three readers have no `poster` field, which « A reader with no field is STOP D » refuses to
+guess past: `features/arrivals/resolution-cards.tsx:100` (a release candidate — `DecisionCandidate` carries only
+`withoutPoster`), `resolution-cards.tsx:161` (a decision's choice — `DecisionChoice` carries none) and
+`features/media/media-screen.tsx:48-50`.
+
+What a·11 does instead, and what this makes void above:
+- Every LIST reads `poster` (`QueueCard`, `Follow`, `Suggestion`, `SearchResult`, `IncompleteShow`,
+  `LibraryRow`), through `posterArtwork()` in `lib/engine-drawing.ts`; the panel head reads the `source` its
+  producer passes (`panel-follow.ts`, from `follow.poster`). `posterArtworkFor()` keeps the by-title form for
+  the two resolution readers ONLY.
+- `cardHTML`, `posterBox` and `stripHTML` die, as written. The table, its `__referentiel` member and its window
+  export STAY; `POSTERS` is NOT marked `converted` in `fixture-register.json`. Its death is a·13's.
+- `poster.py` is NOT re-aimed: it reads no table (`grep -n "POSTERS\|__referentiel" harness/poster.py` finds a
+  comment only). Its count cannot move for a reason this phase gives it.
+- The format helpers: `baseTitle` and `initials` go to `lib/titles.ts`, `dateLabel` and `numberRanges` to
+  `features/media/format.ts`, `richTextMarkup` to `features/acquisition/rich-text.ts`. The engine loses
+  `initials`, `plages`, `richText` and `STRIP_LABELS`; it KEEPS `baseTitle`, which its own verbs call, and
+  `dateFR` with its `__referentiel` member, which `harness/pop.py` and `harness/season_family.py` read beside
+  `sheetFor` — both are re-aimed at a·14, with `sheetFor`.
+- `swipeAction` goes to `ui/variants/rows.ts`, not to this feature's variants: `features/library/library-rows.ts`
+  writes the same removal action, and a feature may not import another (invariant 7).

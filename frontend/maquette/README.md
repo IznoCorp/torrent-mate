@@ -610,7 +610,7 @@ screen:
 
 | Shape         | Builder                        | Who uses it                                                  |
 | ------------- | ------------------------------ | ------------------------------------------------------------ |
-| Card          | `cardHTML(descripteur, opts)`  | every list — urgency sections, follows, library, arrivals    |
+| Card          | `cardMarkup` (`ui/card-markup.ts`), `ui/card.tsx`'s parts | every list — urgency sections, follows, library, arrivals    |
 | Tile          | `tileMarkup` (`ui/tile.ts`)    | every gallery — the library's three lenses, the follows grid, the suggestions |
 | Release card  | `ReleaseCard`/`DecisionCard`   | the resolution and release screens — **not a medium**        |
 | Selection row | `selectionRowMarkup` (`ui/rows.ts`) | a mode of the LIST, not a variant of the card |

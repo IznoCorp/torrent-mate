@@ -43,7 +43,7 @@ function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
   return {
     address: "follow:" + title,
     title: follow.t,
-    poster: { t: follow.t, k: follow.k },
+    poster: { t: follow.t, k: follow.k, source: follow.poster },
     meta:
       `${follow.y ? String(follow.y) + " · " : ""}${kind}` +
       `${fraction ? " · " + fraction + translate("panels.follow.episodesSuffix") : ""}`,

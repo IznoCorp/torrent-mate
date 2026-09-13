@@ -14,7 +14,7 @@ import type { EngineDrawing } from "../../lib/engine-drawing";
 
 // A show the index knows is INCOMPLETE: owned over announced, and the year
 // that tells two shows of the same name apart.
-export type IncompleteShow = { t: string; o: number; a: number; y: number };
+export type IncompleteShow = { t: string; o: number; a: number; y: number; poster?: string | null };
 
 // A library CATEGORY pill: its id, its name, the count it claims, and the
 // engine's own category ids it stands for (`null` for « Tout »).
@@ -26,7 +26,7 @@ export type LibraryCategory = {
 };
 
 // A library ROW as the recent list holds one: a title and the line under it.
-export type LibraryRow = { t: string; f: string };
+export type LibraryRow = { t: string; f: string; poster?: string | null };
 
 export type LibraryReference = EngineDrawing & {
   // The selection bar lives in `#device` and stays the FRAGMENT's: a component

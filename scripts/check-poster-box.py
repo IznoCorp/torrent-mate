@@ -70,7 +70,12 @@ SKIP = {"node_modules", "dist", "__pycache__"}
 # `styles/legacy.css` (`.poster`, the card poster, `.tile .p`, `.sheetposter`,
 # `.sk.tile`). Re-take it the same way whenever it legitimately moves — a floor
 # somebody typed is a floor that drifts, which is B-272.
-BOX_FLOOR = 6
+#
+# LOWERED TO 4 at L13a a·11, with the residue's last two: `.poster` and
+# `.dcard .p` left `legacy.css` with the card's and the deck's last bare writers.
+# The four left are `ui/variants/card.ts`'s folder, `surfaces.ts`'s poster frame
+# and panel poster, and `tile.ts`'s tile poster.
+BOX_FLOOR = 4
 
 CORPUS_FLOOR = 100
 

@@ -14,6 +14,7 @@ import { posterArtworkMarkup, type Artwork } from "./poster";
 import { attributesMarkup, type MarkupAttributes } from "./tile";
 import {
   cardSubtitle,
+  posterFrame,
   cardTitle,
   selectionCheck,
   selectionRow,
@@ -67,7 +68,7 @@ export function selectionRowMarkup({
 }): string {
   return `<button class="${selectionRow()}" data-part="selection/row"${attributesMarkup(attributes)}>
         <span class="${selectionCheck({ within: "row" })}" data-part="selection/check">${check}</span>
-        <span class="poster" data-part="card/poster">${posterArtworkMarkup(artwork)}</span>
+        <span class="poster ${posterFrame()}" data-part="card/poster">${posterArtworkMarkup(artwork)}</span>
         <span class="${selectionRowText()}"><span class="${cardTitle()}" data-part="card/title" title="${escapeMarkup(title)}">${escapeMarkup(title)}</span><span class="${cardSubtitle()}" data-part="card/subtitle">${escapeMarkup(subtitle)}</span></span>
       </button>`;
 }

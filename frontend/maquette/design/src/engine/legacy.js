@@ -103,8 +103,6 @@ import {
       (character) =>
         ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character],
     );
-  /* initialsOf() from the shipped component: the first letters of the FIRST
-     TWO words, uppercased. */
   /* Some library.db titles carry a year suffix — sometimes DOUBLED (« Silo
      (2023) (2023) »). It is not a word of the title: neither the initials
      nor the poster lookup should see it. */
@@ -113,32 +111,6 @@ import {
       .replace(/\s*\((?:19|20)\d{2}\)\s*/g, " ")
       .trim();
   }
-  function initials(title) {
-    const filter = baseTitle(title).split(/\s+/).filter(Boolean);
-    return (
-      (filter[0]?.[0] ?? "") + (filter.length > 1 ? (filter[1]?.[0] ?? "") : "")
-    ).toUpperCase();
-  }
-  /* Contents of a poster box: the real image, otherwise the faithful
-     fallback. */
-  /* `exact` forbids the year-stripped fallback, and it is not a nicety.
-     « Lucky (2006) », « Lucky (2026) » and « Lucky! » are four DIFFERENT
-     series the operator is being asked to tell apart; matching on the base
-     title handed one of them the picture of another, on the very screen whose
-     job is to distinguish them — and the row said « sans affiche chez le
-     provider » right underneath it. Where a title is a proposition rather than
-     an identity, only its own picture will do. */
-  function posterBox(title, kind, opts) {
-    const src =
-      opts && opts.exact
-        ? POSTERS[title]
-        : (POSTERS[title] ?? POSTERS[baseTitle(title)]);
-    if (src) return `<img src="${src}" alt="" loading="lazy">`;
-    const iconPath =
-      kind === "movie" ? icons.film : kind === "show" ? icons.tv : icons.clap;
-    return `<span class="pfall" data-part="card/poster-fallback">${svgIcon(iconPath, 1.25)}<b>${initials(title)}</b></span>`;
-  }
-
   const initialsOf = (title) =>
     title
       .replace(/^(Le |La |Les |The |L'|Un |Une )/i, "")
@@ -4580,7 +4552,6 @@ import {
      precisely that. */
 
 
-  const STRIP_LABELS = ["pris", "téléch.", "ingéré", "scrapé", "rangé"];
 
   /* ── LE PIPELINE ──────────────────────────────────────────────────────
      Read from `pipeline_run` in `library.db`: the last real run, its trigger,
@@ -5184,112 +5155,7 @@ import {
   const currentState = () => store.read().state;
 
   /* Rendering: building blocks */
-  function stripHTML(states) {
-    return `<div class="strip">${states
-      .map((state2, index) => {
-        const cls =
-          state2 === 1
-            ? "done"
-            : state2 === "now"
-              ? "now"
-              : state2 === "blocked"
-                ? "blocked"
-                : "";
-        return `<div class="st ${cls}"><span class="d"></span><span class="l">${STRIP_LABELS[index]}</span></div>`;
-      })
-      .join("")}</div>`;
-  }
 
-  /* ONE card, one behaviour, in every list of the interface:
-       · the POSTER opens the media sheet — the most frequent path, one tap;
-       · the BODY opens the bottom panel, which carries every action available
-         for that medium;
-       · an inline action, when a section exists FOR that action, is a shortcut
-         to something the panel also offers — never the only way to reach it.
-
-     The last clause is the one that matters. An action reachable from a single
-     surface disappears the moment that surface is displayed differently: the
-     poster view of « Incomplets » had no way to complete a series, because the
-     only « Compléter » was a button drawn on a card. */
-  /* The card DESCRIPTOR — every list builds one of these and nothing else.
-
-       t        title, and the identity everything else is addressed by
-       k        kind, for the poster's aspect
-       s        sub-line
-       r        reason, when the card must justify a state — plain text, or
-                segments carrying emphasis (see richText)
-       overview a synopsis, clamped to two lines — background, not a reason
-       f        fraction, in mono
-       chip     [tone, label]
-       note     a rating, as an outlined pill
-       caption  a numeric aside, after the chip
-       fresh    marks what has just arrived
-       strip    the progress strip
-       noposter forces the placeholder even when a sheet exists
-       panel    the panel the body addresses, when it is not this medium's own
-                — a suggestion is not yet a medium and has its own
-
-     Anything a view wants to show that is not in here is a fact the card does
-     not yet know about — the fix is to add the fact, not a second builder. A
-     view that passes ready-made HTML makes the card an envelope, and an
-     envelope guarantees nothing about what it carries.
-
-     opts carries what belongs to the LIST rather than to the medium: an
-     inline action, whether it is the section's primary one, the tone that
-     action carries ("owned" — it will replace something already held) and
-     whether it has already been carried out ("done"). Those two are list
-     state, not facts about the medium: the same film is « Ajouter » in a
-     search and « Ajouté » one tap later, while the film has not changed. */
-  function cardHTML(descriptor, opts) {
-    opts = opts || {};
-    /* A POSTER LEADS TO THE MEDIA SHEET. Always, everywhere, one meaning.
-
-       An unidentified folder has no sheet to lead to, and it was given a poster
-       pointing at the PANEL instead — same object, same look, two destinations,
-       on the one page where things are stuck. That breaks the invariant the
-       whole card system rests on, and a reader cannot learn a rule that holds
-       four pages out of five.
-
-       So it is not a poster. A folder is not a medium — it has no artwork, no
-       identity, nothing a sheet could show — and it wears a FOLDER, which
-       promises the panel and nothing else. `data-nonmedia` marks it, the same
-       way R46 marks a release candidate, which is the same kind of object.
-
-       Two DIFFERENT absences, and merging them was a defect: `noposter` says
-       there is no artwork, `!aFiche` says there is no medium. A card with no
-       artwork still has a sheet, and must still lead to it. */
-    const hasSheet = sheetFor(descriptor.t) != null;
-    const image = descriptor.noposter
-      ? `<span class="pfall" data-part="card/poster-fallback"><b>${escapeHtml(initials(descriptor.t))}</b></span>`
-      : posterBox(descriptor.t, descriptor.k);
-    const poster = hasSheet
-      ? `<button class="poster" data-part="card/poster" aria-label="Fiche de ${escapeHtml(descriptor.t)}" data-mediasheet="${escapeHtml(descriptor.t)}">${image}</button>`
-      : `<button class="folder" data-part="card/folder" aria-label="Actions pour le dossier ${escapeHtml(descriptor.t)}" data-panel="${escapeHtml(descriptor.panel || `dossier:${descriptor.t}`)}">${svgIcon(icons.folder, 1.6)}<span class="dlabel">Dossier</span></button>`;
-    /* Two lines, because they answer two questions. The first says WHAT THIS
-       MEDIUM IS — how much of it is owned, what state it is in, how it is
-       rated. The second annotates that state: what is pending, what has just
-       arrived. Mixed on one line they competed for the same row and the state
-       stopped reading at a glance, which is the only thing that line is for. */
-    const stateRow = `${descriptor.f ? `<span class="frac">${escapeHtml(descriptor.f)}</span>` : ""}${descriptor.chip ? `<span class="chip ${descriptor.chip[0]}" data-part="chip" data-tone="${descriptor.chip[0]}">${escapeHtml(descriptor.chip[1])}</span>` : ""}${descriptor.note != null ? `<span class="crating">${escapeHtml(String(descriptor.note))}</span>` : ""}`;
-    const ligneAnnotations = `${descriptor.caption ? `<span class="caption" data-part="card/caption">${escapeHtml(descriptor.caption)}</span>` : ""}${descriptor.fresh ? `<span class="freshtag" data-part="card/fresh-tag">Nouveau</span>` : ""}`;
-    return `<div class="card${descriptor.fresh ? " fresh" : ""}" data-part="card"${hasSheet ? "" : ' data-nonmedia="dossier"'}>
-    ${poster}
-    <div class="ccol">
-    <div class="ctop" data-part="card/top">
-      <button class="cbody" data-part="card/body" data-panel="${escapeHtml(descriptor.panel || (hasSheet ? `media:${descriptor.t}` : `dossier:${descriptor.t}`))}">
-        <span class="ctitle" data-part="card/title" title="${escapeHtml(descriptor.t)}">${escapeHtml(descriptor.t)}</span>
-        ${descriptor.s ? `<span class="csub" data-part="card/subtitle">${escapeHtml(descriptor.s)}</span>` : ""}
-        ${descriptor.r ? `<span class="creason" data-part="card/reason">${richText(descriptor.r)}</span>` : ""}
-        ${descriptor.overview ? `<span class="cov" data-part="card/overview">${escapeHtml(descriptor.overview)}</span>` : ""}
-        ${stateRow ? `<span class="cmeta" data-part="card/meta">${stateRow}</span>` : ""}
-        ${ligneAnnotations ? `<span class="cannotations">${ligneAnnotations}</span>` : ""}
-      </button>
-    </div>
-    ${descriptor.strip ? stripHTML(descriptor.strip) : ""}
-    ${opts.foot ? `<button class="cfoot ${opts.footSolid ? "solid" : ""} ${opts.footTone || ""}" data-part="card/foot"${opts.footSolid ? ' data-solid=""' : ""} data-act="${escapeHtml(opts.footAct || "")}" ${opts.footDone ? "disabled" : ""}>${escapeHtml(opts.foot)}</button>` : ""}
-    </div>
-  </div>`;
-  }
 
   /* The release candidate's card and the decision's card moved to the shell
      with the screen that draws them: `ReleaseCard` and `DecisionCard` in
@@ -5299,25 +5165,6 @@ import {
      more, and a second builder kept alive next to the one being drawn is
      exactly the drift this file names below. */
 
-  /* Renders a text that carries emphasis, WITHOUT any caller supplying markup.
-     A value is either a plain string, or a list of segments where a bare
-     string is plain text, `{e}` is emphasised and `{m}` is a machine name — a
-     release, a path, an identifier — set in the mono face. Everything is
-     escaped; only what the data explicitly named comes out marked, at the
-     position the data put it — nothing is matched back into the sentence
-     afterwards, which is how the wrong « 4 » or the wrong title ends up
-     emphasised. */
-  function richText(value) {
-    if (value == null) return "";
-    if (typeof value === "string") return escapeHtml(value);
-    return value
-      .map((v) => {
-        if (typeof v === "string") return escapeHtml(v);
-        if (v.m != null) return `<code>${escapeHtml(v.m)}</code>`;
-        return `<b>${escapeHtml(v.e)}</b>`;
-      })
-      .join("");
-  }
 
   /* ONE bottom panel, and its shape follows the facts it is given — and it is
      built in the shell now: `src/components/panel.tsx` is that single
@@ -7227,7 +7074,6 @@ import {
     AUDIOS,
     icons,
     baseTitle,
-    cardHTML,
     addVerb,
     render,
     HERO_IMAGES,
@@ -7323,8 +7169,6 @@ import {
     titleForProviderId,
     addressIdsFor,
     ownedFor,
-    plages,
-    initials,
     dateFR,
     get TODAY() {
       return TODAY;
@@ -29328,22 +29172,6 @@ import {
     return ownedNumbers ? new Set(ownedNumbers) : new Set();
   }
 
-  /* « 3, 7, 12, 13, 14 » reads badly; « 3, 7, 12–14 » reads. */
-  function plages(nums) {
-    const sort = [...nums].sort((element, index) => element - index);
-    const out = [];
-    for (let start = 0; start < sort.length;) {
-      let end = start;
-      while (end + 1 < sort.length && sort[end + 1] === sort[end] + 1) end++;
-      out.push(
-        end > start + 1
-          ? `${sort[start]}–${sort[end]}`
-          : sort.slice(start, end + 1).join(", "),
-      );
-      start = end + 1;
-    }
-    return out.join(", ");
-  }
 
   /* The media sheet moved to the shell with the rest of the screens:
      `src/screens/media.tsx` renders it as the route `/mediasheet/$title`. The
@@ -29432,8 +29260,8 @@ import {
   /* Add screen (« + ») — migrated to a real route, `AddScreen`
      (`design/src/screens/add.tsx`, reached at `/add`). The design
      rationale (full screen not a sheet, vertical result list, the two
-     modes' verbs) lives there now, next to the code it explains. `SEARCH`,
-     `cardHTML` and `addVerb` stay defined here and cross the handshake
+     modes' verbs) lives there now, next to the code it explains. `SEARCH`
+     and `addVerb` stay defined here and cross the handshake
      through `window.__referentiel` — the search execution itself is still
      the engine's, reached through that seam. */
 
@@ -29442,7 +29270,7 @@ import {
      what is NOT happening and why. Here: why the engine picked this one —
      and enough to pick another knowingly. The score shown is the ranking's,
      not an opinion. `RELEASES` stays defined here and crosses the handshake
-     through `window.__referentiel` — same seam as `SEARCH`/`cardHTML` above. */
+     through `window.__referentiel` — same seam as `SEARCH`/`addVerb` above. */
 
   /* Gestures — pointer events, so one path serves finger, mouse and pen.
      Two differences a touch-only implementation never meets:
@@ -29926,19 +29754,19 @@ Object.assign(window, {
   OWNED,
   POSTERS, SETTINGS, SETTINGS_STATE, RESOLUTIONS,
   SEASONS, SECRETS, SERVICES, SERVICES_PANNE,
-  STRIP_LABELS, ST_LABEL,
+  ST_LABEL,
   ST_LABEL_MOVIE, ST_TONE,
   URGENCY, VIA_LABEL, actionLeave,
   actionTake, actionResolve,
   actionDelete, addVerb, showSignIn,
-  baseTitle, beforeReset, cadenceFR, cardHTML,
+  baseTitle, beforeReset, cadenceFR,
   closeDlg, closeSheet,
   dateFR, decisionPending,
   signOut,
   endCardDrag, endDeckDrag,
   endSugDrag, escapeHtml,
   closePopEp, closeDrawer, changedFiles,
-  gridBadge, icons, initials, initialsOf, drawerWidth,
+  gridBadge, icons, initialsOf, drawerWidth,
   sameValue, changeSetting,
   mountLoaders, mountSearch, fileName, normalisedKey,
   openDeleteDialog,
@@ -29946,12 +29774,11 @@ Object.assign(window, {
   openSheet,
   openPopEp,
   openDrawer, paintSelBar, panelUnderFinger,
-  plages, ownedFor, nextSearchFR,
+  ownedFor, nextSearchFR,
   ptr, refPanel, collapseCard,
   settingId, resetSettings, render,
-  richText, 
   select, sheetFor, titleForProviderId, addressIdsFor, sortLabel,
-  stFraction, stLabel, stripHTML,
+  stFraction, stLabel,
   sugVerb,
   svgIcon, toast, toastUndo,
   allSettings, trailerIds, displayedValue,

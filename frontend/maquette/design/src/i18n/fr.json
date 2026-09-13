@@ -24,6 +24,20 @@
     }
   },
   "common": {
+    "monthsShort": [
+      "janv.",
+      "févr.",
+      "mars",
+      "avr.",
+      "mai",
+      "juin",
+      "juil.",
+      "août",
+      "sept.",
+      "oct.",
+      "nov.",
+      "déc."
+    ],
     "season": "Saison",
     "missing": "manquant",
     "missingPlural": "manquants",
@@ -748,6 +762,7 @@
       "sheetOf": "Fiche de {{title}}",
       "folderActions": "Actions pour le dossier {{title}}",
       "folder": "Dossier",
+      "freshTag": "Nouveau",
       "stages": [
         "pris",
         "téléch.",

@@ -16,6 +16,7 @@ import { useUiState, writeUiState } from "../../lib/store-access";
 import { actionButton, backAction, body, factsPanel, keyValueRow, option, optionKind, optionLabel, optionList, optionMark, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, settingRow, sheetActions, toggleSwitch } from "../../ui/variants";
 import { qualityGroup } from "../../features/releases/variants";
 import { bridge } from "../../lib/shell-doors";
+import { baseTitle } from "../../lib/titles";
 
 // The field names are the legacy state's own — `state.profil` is written and
 // read by the engine under these exact keys.
@@ -61,7 +62,6 @@ export function QualityScreen() {
     RESOLUTIONS,
     AUDIOS,
     icons,
-    baseTitle,
   } = useReleasesReference();
   const { t } = useTranslation();
   // FROM THE CACHE (invariant 4).

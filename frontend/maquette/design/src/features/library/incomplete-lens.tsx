@@ -5,7 +5,8 @@ import type { ReactElement } from "react";
 import { useLibraryReference, type IncompleteShow } from "./reference";
 import { useUiState } from "../../lib/store-access";
 import { body, posterGrid, section } from "../../ui/variants";
-import { posterArtworkFor } from "../../lib/engine-drawing";
+import { posterArtwork } from "../../lib/engine-drawing";
+import { libraryCardMarkup } from "./card-markup";
 import { tileMarkup } from "../../ui/tile";
 import { Markup } from "../../ui/markup";
 
@@ -23,7 +24,6 @@ export function IncompleteLens({ rows }: {
   const state = useUiState();
   const { t } = useTranslation();
   const reference = useLibraryReference();
-  const { cardHTML } = reference;
   const INCOMPLETE = rows;
   return (
     <div className={body()} data-part="surface/body" data-region="library/body">
@@ -45,7 +45,7 @@ export function IncompleteLens({ rows }: {
                   owned: show.o,
                   all: show.a,
                 }),
-                artwork: posterArtworkFor(reference, show.t),
+                artwork: posterArtwork(reference.icons, show.poster, show.t),
                 attributes: { "data-panel": `media:${show.t}`, "data-mediasheet": show.t },
               }),
             ).join("")}
@@ -54,7 +54,7 @@ export function IncompleteLens({ rows }: {
         <Markup
           className={section()} data-part="section"
           html={INCOMPLETE.map((show: IncompleteShow) =>
-              cardHTML({
+              libraryCardMarkup({
                 t: show.t,
                 s: t(
                   show.a - show.o > 1
@@ -64,6 +64,7 @@ export function IncompleteLens({ rows }: {
                 ),
                 f: `${show.o}/${show.a}`,
                 chip: ["warning", t("screens.library.incompleteChip")],
+                poster: show.poster,
               }),
             ).join("")}
         />

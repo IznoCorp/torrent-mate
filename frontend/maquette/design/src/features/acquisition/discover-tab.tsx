@@ -23,6 +23,7 @@ import { Markup } from "../../ui/markup";
 // the engine's reference, which is what a surface does once its content has
 // stopped being the engine's.
 import { deckHTML, fillSug, mountDeck, sugFoot } from "./discover-feed";
+import { deckBody } from "./variants";
 
 // « Découvrir » — what one might want, which is the only surface here that
 // asks nothing of the operator: the bar's badge never counts it.
@@ -129,7 +130,7 @@ export function DiscoverTab(): ReactElement {
     return (
       <>
         {selector}
-        <div className={`${body()} deckbody`} data-part="surface/body"></div>
+        <div className={`${body()} ${deckBody()}`} data-part="surface/body"></div>
       </>
     );
   }
@@ -138,7 +139,7 @@ export function DiscoverTab(): ReactElement {
     <>
       {selector}
       <div
-        className={`${body()}${state.sugMode === "deck" ? " deckbody" : ""}`}
+        className={`${body()}${state.sugMode === "deck" ? ` ${deckBody()}` : ""}`}
         data-part="surface/body"
       >
         <div className="note" data-part="note">

@@ -25,6 +25,7 @@ import { registerVerb } from "../../lib/verbs";
 import { store } from "../../lib/store-access";
 import { panel, toast } from "../../lib/shell-doors";
 import { followActions, suggestions } from "./queries";
+import { baseTitle } from "../../lib/titles";
 
 /** A suggestion as the reserve holds it — the two fields this act reads. */
 type Suggestion = { t: string; k: string };
@@ -47,9 +48,8 @@ const COLLAPSE = 320;
  *     True when the follows already hold it.
  */
 function alreadyFollowed(title: string): boolean {
-  const base = window.__referentiel.baseTitle;
   return (followActions?.all() ?? []).some(
-    (follow) => base(follow.t) === base(title));
+    (follow) => baseTitle(follow.t) === baseTitle(title));
 }
 
 /**

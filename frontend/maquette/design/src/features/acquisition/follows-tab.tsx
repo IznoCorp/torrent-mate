@@ -5,12 +5,14 @@ import { useAcquisitionReference, type Follow } from "./reference";
 import { useFollows } from "./queries";
 import { useUiState } from "../../lib/store-access";
 import { FollowsFilters } from "./follows-filters";
-import { body, emptyNote, posterGrid, section as sectionClass, sectionCount, sectionHead, sectionTitle, statusDot, type StatusTone } from "../../ui/variants";
+import { body, emptyNote, posterGrid, section as sectionClass, sectionCount, sectionHead, sectionTitle, statusDot, swipeAction, type StatusTone } from "../../ui/variants";
 import { Markup, emptyNoteMarkup } from "../../ui/markup";
-import { posterArtworkFor } from "../../lib/engine-drawing";
+import { posterArtwork } from "../../lib/engine-drawing";
+import { mediumCardMarkup } from "./card-markup";
 import { swipeRowMarkup } from "../../ui/rows";
 import { tileMarkup } from "../../ui/tile";
 import { tileBadgeOf } from "./tile-badge";
+import { cadence } from "./variants";
 
 // The swipe action a follow that can be searched again reveals. It is a
 // data-ATTRIBUTE VALUE the document-level delegation dispatches on — a contract
@@ -28,7 +30,6 @@ export function FollowsTab(): ReactElement {
   const reference = useAcquisitionReference();
   const {
     icons,
-    cardHTML,
     svgIcon,
     stFraction,
     stLabel,
@@ -146,12 +147,12 @@ export function FollowsTab(): ReactElement {
 
   const rowOf = (follow: Follow, showStatus: boolean) =>
     swipeRowMarkup(
-      cardHTML(descriptorOf(follow, showStatus)),
+      mediumCardMarkup(descriptorOf(follow, showStatus)),
       follow.k === "movie"
-        ? `<button class="act pause" data-part="swipe/action" data-action="pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipeStopSearching")}</button><button class="act remove" data-part="swipe/action" data-action="remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`
-        : `<button class="act pause" data-part="swipe/action" data-action="pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipePause")}</button><button class="act remove" data-part="swipe/action" data-action="remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`,
+        ? `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipeStopSearching")}</button><button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`
+        : `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipePause")}</button><button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`,
       follow.st === "pending" || follow.st === "to_grab"
-        ? `<button class="act resume" data-part="swipe/action" data-action="resume" data-swipeact="${SEARCH_AGAIN}">${svgIcon(icons.refresh)}${t("screens.acquisition.swipeSearch")}</button>`
+        ? `<button class="${swipeAction({ tone: "resume" })}" data-part="swipe/action" data-action="resume" data-swipeact="${SEARCH_AGAIN}">${svgIcon(icons.refresh)}${t("screens.acquisition.swipeSearch")}</button>`
         : "",
     );
 
@@ -178,7 +179,7 @@ export function FollowsTab(): ReactElement {
       // The year remains the fallback for a tile with nothing else to say — a
       // film that is neither paused nor counted.
       subtitle: said.length ? said.join(" · ") : String(follow.y),
-      artwork: posterArtworkFor(reference, follow.t, follow.k),
+      artwork: posterArtwork(icons, follow.poster, follow.t, follow.k),
       muted: paused,
       badge: tileBadgeOf(gridBadge(follow)),
       attributes: { "data-panel": `media:${follow.t}`, "data-mediasheet": follow.t },
@@ -264,7 +265,7 @@ export function FollowsTab(): ReactElement {
   return (
     <>
       <FollowsFilters pills={pills} />
-      <p className="cadence" data-part="cadence">{cadenceFR(CADENCE_CRON)}</p>
+      <p className={cadence()} data-part="cadence">{cadenceFR(CADENCE_CRON)}</p>
       <div className={body()} data-part="surface/body" data-region="acquisition/body">
         <div className="note" data-part="note">
           <b>{t("screens.acquisition.followsNoteLead")}</b>

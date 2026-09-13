@@ -52,11 +52,14 @@ import {
   byIdentifierBody,
   refusalReason,
   resultList,
+  segmentSmall,
   suggestionChip,
   suggestions,
 } from "../../features/acquisition/variants";
 import { Markup } from "../../ui/markup";
 import { bridge } from "../../lib/shell-doors";
+import { baseTitle } from "../../lib/titles";
+import { mediumCardMarkup, type MediumCard } from "./card-markup";
 
 type Mode = "follow" | "identify";
 
@@ -85,8 +88,6 @@ export function AddScreen() {
 
   const {
     icons,
-    baseTitle,
-    cardHTML,
     addVerb,
     render,
   } = useAcquisitionReference();
@@ -162,7 +163,7 @@ export function AddScreen() {
   const rows = filtered
     .map(({ r, i }) => {
       const done = added.has(i);
-      return cardHTML({
+      return mediumCardMarkup({
         t: r.t,
         k: r.k === "Film" ? "movie" : "show",
         s: `${r.y} · ${r.k === "Film" ? t("common.film") : t("common.series")} · TMDB`,
@@ -176,7 +177,8 @@ export function AddScreen() {
               ]
             : null,
         panel: `add:${i}`,
-      });
+        poster: r.poster,
+      } as MediumCard);
     })
     .join("");
 
@@ -266,7 +268,7 @@ export function AddScreen() {
             />
           </div>
           <div className={addRow()}>
-            <div className="segmini" data-part="segment-small">
+            <div className={segmentSmall()} data-part="segment-small">
               {/* NOT interface copy: these three are the VALUES of
                   `state.addKind`, written to the legacy store, compared
                   against below (`addKind === "Tout"`, `=== "Films"`) and
@@ -354,7 +356,7 @@ export function AddScreen() {
               : t("screens.add.byIdAdd")}
           </summary>
           <div className={byIdentifierBody()}>
-            <div className="segmini" data-part="segment-small" style={{ alignSelf: "flex-start" }}>
+            <div className={segmentSmall()} data-part="segment-small" style={{ alignSelf: "flex-start" }}>
               {["TMDB", "TVDB", "IMDB"].map((element) => (
                 <button
                   key={element}

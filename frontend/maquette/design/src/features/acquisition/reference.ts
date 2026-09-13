@@ -25,6 +25,7 @@ export type Follow = {
   fresh?: boolean;
   since?: string;
   searches?: number;
+  poster?: string | null;
 };
 
 // One GROUP of the grouped mode: its heading, its pip, and the statuses it
@@ -45,6 +46,7 @@ export type SearchResult = {
   ov: string;
   owned: boolean;
   followed: boolean;
+  poster?: string | null;
 };
 
 export type SearchResults = {

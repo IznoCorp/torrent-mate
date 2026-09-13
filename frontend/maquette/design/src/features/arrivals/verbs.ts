@@ -24,6 +24,7 @@ import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { queueNow, queueActions } from "../../lib/queue";
 import { panel, toast } from "../../lib/shell-doors";
+import { baseTitle } from "../../lib/titles";
 
 /**
  * Takes the medium a `data-take` value names.
@@ -45,7 +46,7 @@ registerVerb("take", (value) => {
   reference.render();
   toast?.show({
     message: i18next.t("verbs.arrivals.taken", {
-      title: reference.baseTitle(value),
+      title: baseTitle(value),
     }),
   });
 });

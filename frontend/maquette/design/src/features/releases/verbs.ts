@@ -29,6 +29,7 @@ import { registerVerb } from "../../lib/verbs";
 import { bridge, toast } from "../../lib/shell-doors";
 import { queueActions } from "../../lib/queue";
 import { releases } from "./queries";
+import { baseTitle } from "../../lib/titles";
 
 /** The address the picker lives at, and the only one this verb acts on. */
 const RELEASES_ADDRESS = "/releases/";
@@ -79,7 +80,7 @@ registerVerb("pick-release", (value) => {
   toast?.show({
     message: i18next.t("verbs.releases.taken", {
       quality: `${chosen.res} ${chosen.src} ${chosen.lang}`,
-      title: reference.baseTitle(title),
+      title: baseTitle(title),
     }),
   });
 });

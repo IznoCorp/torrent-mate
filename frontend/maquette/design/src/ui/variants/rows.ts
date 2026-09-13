@@ -18,7 +18,28 @@ import { cva } from "../cva";
  * drag would otherwise select what it passes over, and the selection swallows
  * the gesture.
  */
-export const swipeRow = cva("swipe relative overflow-hidden rounded-3 touch-pan-y select-none");
+export const swipeRow = cva(
+  "swipe relative overflow-hidden rounded-3 touch-pan-y select-none [&_img]:[-webkit-user-drag:none]",
+);
+
+/**
+ * One action a swipe row uncovers: an icon over its word, at the width the
+ * gesture measures a drawer by. The gesture finds it through `.act`, and a
+ * removal through `.remove`.
+ */
+export const swipeAction = cva(
+  "act [border:0] text-2 font-bold leading-[1.2] flex-none w-[84px] flex flex-col items-center justify-center " +
+    "gap-2 py-0 px-2 text-center [&_svg]:w-[17px] [&_svg]:h-[17px]",
+  {
+    variants: {
+      tone: {
+        resume: "resume bg-primary text-primary-foreground",
+        pause: "pause bg-muted text-foreground",
+        remove: "remove bg-danger-fill text-white",
+      },
+    },
+  },
+);
 
 /** The drawers under a swipe row, filling it edge to edge. */
 export const swipeActions = cva("actions absolute inset-0 flex items-stretch justify-end");

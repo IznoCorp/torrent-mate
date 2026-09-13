@@ -64,9 +64,9 @@ READ = """()=>{
 # A CLASS ATTRIBUTE IS NO LONGER AN IDENTITY. Since L07 a converted element
 # carries its identity class AND the utilities that style it, so a hold
 # comparing `className` by EQUALITY reads the styling as though it were the
-# name — and four of them fell the day the page body became
-# `body flex flex-col gap-7 …`. What these holds mean is « the host drew the
-# page's root », and that is membership, not equality.
+# name — four fell when the page body became `body flex …`, one more when the
+# suggestion grid became `gallery grid …`. What these holds mean is « the host
+# drew the root », and that is membership, not equality.
 def identities(names):
     """Returns the identity class of each element's class attribute.
 
@@ -642,7 +642,7 @@ async def main():
         journal.check(
             "a real tap on a suggestion mode redraws the suggestions",
             not refused and suggestions["mode"] == "poster"
-            and suggestions["grid"] == "gallery" and suggestions["tiles"] > 0,
+            and identities([suggestions["grid"]]) == ["gallery"] and suggestions["tiles"] > 0,
             str(suggestions) if not refused else f"data-sugmode {refused}")
 
         # THE CONTAINERS ARE THE FRAGMENT'S TO FILL, and that seam is what this

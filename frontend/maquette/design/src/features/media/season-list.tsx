@@ -11,6 +11,7 @@ import { askForSeason, useAskedInFlight } from "./season-grab";
 import { announcedAfter } from "./queries";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields";
+import { dateLabel, numberRanges } from "./format";
 
 export function SeasonList({
   followed,
@@ -65,8 +66,6 @@ export function SeasonList({
 }) {
   const {
     ownedFor,
-    plages,
-    dateFR,
     EP_LABEL,
     TODAY,
   } = useMediaReference();
@@ -127,8 +126,8 @@ export function SeasonList({
         // nothing says only the date, and nothing when its row already prints it.
         const ahead = announcedAfter(list, TODAY);
         const upcomingNote = !ahead.length || (row.aired === 0 && !owns && row.air) ? null
-          : row.aired === 0 ? t("screens.media.upcomingFrom", { date: dateFR(ahead[0]) })
-            : t("screens.media.upcomingEpisodes", { count: ahead.length, date: dateFR(ahead[0]) });
+          : row.aired === 0 ? t("screens.media.upcomingFrom", { date: dateLabel(ahead[0]) })
+            : t("screens.media.upcomingEpisodes", { count: ahead.length, date: dateLabel(ahead[0]) });
         /* With no known total, reason up to the highest owned episode: a
            hole BELOW that maximum is a genuine gap, above it nothing is
            known. */
@@ -181,7 +180,7 @@ export function SeasonList({
                   <span className="et">{episode.t}</span>{" "}
                   <span className="ed">
                     {episode.air
-                      ? dateFR(episode.air)
+                      ? dateLabel(episode.air)
                       : t("screens.media.dateUnknown")}
                     {episodeState === "in_library"
                       ? ""
@@ -324,7 +323,7 @@ export function SeasonList({
                     fontWeight: 400,
                   }}
                 >
-                  {dateFR(row.air)}
+                  {dateLabel(row.air)}
                 </span>
               ) : (
                 ""
@@ -336,7 +335,7 @@ export function SeasonList({
                   // french-ok: the INTERPOLATION placeholder, named by
                   // `missingList` in fr.json — renaming this half alone
                   // leaves « Manquants : {{liste}} » on screen.
-                  liste: plages(missingNums),
+                  liste: numberRanges(missingNums),
                 })}
               </p>
             ) : (

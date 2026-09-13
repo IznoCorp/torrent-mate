@@ -10,11 +10,13 @@
 // THE SELECTION IS READ WHEN A ROW IS DRAWN, from the store rather than from the
 // render that scheduled it: the windowed list composes its rows after React has
 // painted, and a tick taken in between is already on the row it redraws.
-import { posterArtworkFor, type CardDescriptor } from "../../lib/engine-drawing";
+import { posterArtwork } from "../../lib/engine-drawing";
+import { libraryCardMarkup } from "./card-markup";
 import { store } from "../../lib/store-access";
 import { selectionRowMarkup, swipeRowMarkup } from "../../ui/rows";
 import { tileMarkup } from "../../ui/tile";
 import type { LibraryReference, LibraryRow } from "./reference";
+import { swipeAction } from "../../ui/variants";
 
 /** A row of the listing: the title, the line under it and, where the medium has one, its synopsis. */
 type Row = LibraryRow & { overview?: string; k?: string };
@@ -33,7 +35,7 @@ export function libraryTileMarkup(reference: LibraryReference, row: Row, index: 
   return tileMarkup({
     title: row.t,
     subtitle: row.f,
-    artwork: posterArtworkFor(reference, row.t, row.k),
+    artwork: posterArtwork(reference.icons, row.poster, row.t, row.k),
     check: selMode ? reference.svgIcon(reference.icons.check, 3) : undefined,
     attributes: {
       "data-tile": index,
@@ -66,7 +68,7 @@ export function libraryRowMarkup(
     return selectionRowMarkup({
       title: row.t,
       subtitle: row.f,
-      artwork: posterArtworkFor(reference, row.t),
+      artwork: posterArtwork(reference.icons, row.poster, row.t),
       check: reference.svgIcon(reference.icons.check, 3),
       attributes: {
         "data-tile": index,
@@ -76,7 +78,7 @@ export function libraryRowMarkup(
     });
   }
   return swipeRowMarkup(
-    reference.cardHTML({ t: row.t, s: row.f, overview: row.overview } as CardDescriptor),
-    `<button class="act remove" data-part="swipe/action" data-action="remove" data-swipeact="del" data-del="${reference.escapeHtml(row.t)}">${reference.svgIcon(reference.icons.trash)}${removeLabel}</button>`,
+    libraryCardMarkup({ t: row.t, s: row.f, overview: row.overview, poster: row.poster }),
+    `<button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="del" data-del="${reference.escapeHtml(row.t)}">${reference.svgIcon(reference.icons.trash)}${removeLabel}</button>`,
   );
 }

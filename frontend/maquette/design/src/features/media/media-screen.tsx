@@ -37,12 +37,13 @@ import { MediaDetails } from "./media-details";
 import { MediaLibraryFacts } from "./media-library-facts";
 import type { Follow, MediaSheetFields } from "./sheet-fields";
 import { bridge } from "../../lib/shell-doors";
+import { baseTitle } from "../../lib/titles";
 
 // The banner prefers the wide visual; the vertical poster is only a fallback,
 // and nothing at all when there is neither — same resolution order as the
 // legacy sheet, base title included.
 function artworkFor(reference: MediaReference, title: string): string | null {
-  const { HERO_IMAGES, POSTERS, baseTitle } = reference;
+  const { HERO_IMAGES, POSTERS } = reference;
   return (
     HERO_IMAGES[title] ??
     HERO_IMAGES[baseTitle(title)] ??
@@ -78,7 +79,7 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
   const follows = readFollows() as Follow[];
   const reference = useMediaReference();
   const { t } = useTranslation();
-  const { icons, baseTitle, trailerIds } = reference;
+  const { icons, trailerIds } = reference;
 
   // FROM THE CACHE, BY ADDRESS (invariant 4, DOIT-11). The engine looked its
   // sheet up by TITLE out of a fixture keyed by title; the address is the

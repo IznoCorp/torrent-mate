@@ -7,6 +7,7 @@ import { SkeletonLine } from "../../ui/state-surfaces";
 import { SeasonList } from "./season-list";
 import type { CatalogSeason, MediaSheetFields } from "./sheet-fields";
 import { factsPanel, keyValueRow, sectionHeading, statusDot } from "../../ui/variants";
+import { baseTitle } from "../../lib/titles";
 
 export function MediaLibraryFacts({
   sheet,
@@ -70,7 +71,6 @@ export function MediaLibraryFacts({
   /** Whether the SHEET's read is still out — the season list's episode lists come from it. */
   sheetInFlight: boolean;
 }) {
-  const { baseTitle } = useMediaReference();
   const { t } = useTranslation();
   return (
     <div>

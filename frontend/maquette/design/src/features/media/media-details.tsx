@@ -6,6 +6,7 @@ import { SkeletonLine } from "../../ui/state-surfaces";
 import { useMediaReference } from "./reference";
 import type { Follow } from "./sheet-fields";
 import { actionButton, factsPanel, keyValueRow, sectionHeading, sheetActions } from "../../ui/variants";
+import { dateLabel } from "./format";
 
 export function MediaDetails({
   title,
@@ -36,7 +37,7 @@ export function MediaDetails({
    */
   metadataRefreshedAt: string | null;
 }) {
-  const { icons, dateFR } = useMediaReference();
+  const { icons } = useMediaReference();
   const { t } = useTranslation();
   return (
     <>
@@ -94,7 +95,7 @@ export function MediaDetails({
             <span>{t("screens.media.metadataRefreshed")}</span>
             <span data-part="media/refreshed">
               {metadataRefreshedAt
-                ? dateFR(metadataRefreshedAt) ?? metadataRefreshedAt
+                ? dateLabel(metadataRefreshedAt) ?? metadataRefreshedAt
                 : t("screens.media.metadataRefreshedValue")}
             </span>
           </div>

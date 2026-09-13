@@ -344,7 +344,8 @@
     "STRIP_LABELS": {
       "class": "interface",
       "why": "the five pipeline positions, named in French for the strip that draws them",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·11 — the strip's last engine builder died with the card's, and the five words are `surfaces.card.stages` in `fr.json`, read by `ui/card.tsx`'s strip and `ui/card-markup.ts`'s. Not `served`: the words a stage is called are the interface's"
     },
     "STUCK": {
       "class": "served",
@@ -439,7 +440,8 @@
     "plages.out": {
       "class": "unserved",
       "why": "an accumulator plages() fills, empty at its declaration",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·11 — the function it lived in left the engine for the media sheet that calls it, as `numberRanges` in `features/media/format.ts`, and the accumulator is its local. Not `served`: a working variable is no answer anyone sends"
     },
     "trailerIds": {
       "class": "asset",

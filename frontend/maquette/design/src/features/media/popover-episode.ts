@@ -12,6 +12,7 @@
 // feature that draws the cell the reader tapped
 // (`features/media/panel-seasons.tsx`).
 import i18next from "i18next";
+import { dateLabel } from "./format";
 
 /** One episode of a season's catalogue, as the référentiel answers it. */
 type Episode = { n: number; t?: string; air?: string | null };
@@ -40,7 +41,7 @@ export function episodeSaying(
   const sheet = reference.sheetFor(title) as { eps?: Record<string, Episode[]> } | null;
   const episode =
     sheet?.eps?.[season]?.find((one) => String(one.n) === number) ?? null;
-  const airDate = episode?.air ? reference.dateFR(episode.air) : null;
+  const airDate = episode?.air ? dateLabel(episode.air) : null;
   // ANNOUNCED IS EITHER OF TWO THINGS, and both are read: a date still ahead of
   // today, or a state the catalogue already calls announced. A rule that read
   // only the first would go green the day the fixture's dates fell behind.

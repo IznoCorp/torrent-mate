@@ -6,6 +6,7 @@ import { useMediaReference, type MediaSheet } from "./reference";
 import type { MediaSheetFields } from "./sheet-fields";
 import { factsPanel, keyValueRow, sectionHeading } from "../../ui/variants";
 import { castCaption, castFigure, castList, castPortrait } from "./variants";
+import { initials } from "../../lib/titles";
 
 export function MediaCast({
   sheet,
@@ -21,7 +22,7 @@ export function MediaCast({
   /** Whether the sheet's read is still out — a missing part is then a skeleton, never an answer. */
   inFlight: boolean;
 }) {
-  const { CAST, initials } = useMediaReference();
+  const { CAST } = useMediaReference();
   const { t } = useTranslation();
   return (
     <div>

@@ -18,12 +18,13 @@
 // click delegation and its swipe handlers all still call them by name, and the
 // day it goes this file loses an importer rather than a subject.
 import i18next from "i18next";
-import { actionButton, emptyNote, endMark, loadFooterAction, skeleton } from "../../ui/variants";
+import { actionButton, emptyNote, endMark, loadFooterAction, posterGrid, skeleton } from "../../ui/variants";
 import { cx } from "../../ui/cva";
 import { deckCard, deckHints, suggestionRow, suggestionTile, type Suggestion } from "./discover-cards";
 import { isReserveExhausted, suggestions } from "./queries";
 import { store } from "../../lib/store-access";
 import { toast } from "../../lib/shell-doors";
+import { deckPile } from "./variants";
 
 /** How many more the footer asks for at a time. */
 const BATCH = 30;
@@ -163,7 +164,7 @@ export function deckHTML(): string {
     .map(([suggestion, position], depth) => deckCard(suggestion, position, depth))
     .reverse()
     .join("");
-  return `<div class="deck" data-part="deck">${pile}</div>`;
+  return `<div class="${deckPile()}" data-part="deck">${pile}</div>`;
 }
 
 /**
@@ -273,7 +274,7 @@ export function fillSug(): void {
     return;
   }
   const draw = state.sugMode === "poster" ? suggestionTile : suggestionRow;
-  box.className = state.sugMode === "poster" ? "gallery" : "";
+  box.className = state.sugMode === "poster" ? posterGrid() : "";
   const gone = state.sugGone as Set<number>;
   const markup = reserve()
     .slice(0, state.sugCount as number)

@@ -17,7 +17,9 @@ import { cva } from "../cva";
 /** A card: its poster or its folder beside a column, in one frame. */
 export const card = cva(
   "card relative grid grid-cols-[auto_1fr] w-full items-stretch rounded-3 border border-border bg-card " +
-    "overflow-hidden min-h-[126px] [transition:transform_var(--duration-2)_var(--ease-standard)]",
+    "overflow-hidden min-h-[126px] [transition:transform_var(--duration-2)_var(--ease-standard)] " +
+    // The swipe gesture writes `dragging` straight to the card while a finger holds it.
+    "[&.dragging]:transition-none",
 );
 
 /** The column beside the poster: the top, then the strip, then the foot. */
@@ -62,6 +64,23 @@ export const cardMeta = cva("cmeta mt-3 flex flex-wrap items-center gap-2");
 
 /** A numeric aside. */
 export const cardCaption = cva("caption text-2 text-muted-foreground");
+
+/** How much of a medium is owned, in figures that keep their width as they change. */
+export const cardFraction = cva("frac text-2 font-bold tabular-nums");
+
+/** A rating, in a ring of the tone that says it is good. */
+export const cardRating = cva(
+  "crating text-1 font-bold py-1 px-3 rounded-full border " +
+    "[border-color:color-mix(in_oklab,var(--color-success)_40%,transparent)] text-success ml-3",
+);
+
+/** The state's second line: what is pending, what has just arrived. */
+export const cardAnnotations = cva("cannotations mt-2 flex flex-wrap items-center gap-2");
+
+/** The mark a medium that has just arrived wears. */
+export const cardFreshTag = cva(
+  "freshtag flex-[0_0_auto] text-1 font-bold py-1 px-4 rounded-full text-primary-foreground bg-primary whitespace-nowrap",
+);
 
 /**
  * A FOLDER, in a poster's footprint: what a card wears when no medium stands

@@ -45,6 +45,7 @@ import {
   drawerIdentitySecondary,
   drawerNavigation,
 } from "../ui/variants";
+import { segmentSmall } from "../features/acquisition/variants";
 
 /** The groups, in the order the table first names them. */
 function grouped(): { key: NavigationGroup; rows: NavigationRow[] }[] {
@@ -153,11 +154,7 @@ export function NavigationDrawer(): ReactElement {
       <div className={drawerGroup()}>
         <p className={drawerGroupTitle()}>{t("navigation.appearanceGroup")}</p>
         <div
-          // `.segmini` IS THE ENGINE'S, and it stays a bare class for that
-          // reason: the engine emits the same segment elsewhere, so its rules
-          // are residue that outlives this drawer and `add-screen.tsx` already
-          // wears it the same way.
-          className="segmini"
+          className={segmentSmall()}
           data-part="segment-small"
           role="group"
           aria-label={t("navigation.appearanceLabel")}

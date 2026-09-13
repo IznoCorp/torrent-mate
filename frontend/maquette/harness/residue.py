@@ -143,7 +143,14 @@ VARIANT_SOURCES = sorted(
 # container widths with `posterGrid()`, which the suggestion feed still wears
 # bare. `.tile` is NOT paired, for `.poster`'s reason: the rule left selecting it
 # groups `-webkit-touch-callout`. Nothing left the comparison.
-PAIRS_FLOOR = 30
+#
+# LOWERED TO 4 when the card's last string builder died. Twenty-six pairs left
+# with their residue rules: the fourteen card blocks (`.card`, `.ccol`, `.ctop`,
+# `.cbody`, `.ctitle`, `.csub`, `.creason`, `.cov`, `.cmeta`, `.caption`,
+# `.folder`, `.dlabel`, `.strip`, `.st`), `.pfall`, `.chip` and its five tones,
+# `.swipe`, and `.gallery` with its three container widths. Nothing arrived. What
+# is compared now is `.flux`, `.panel`, `.scrim.open` and `.sheet.open`.
+PAIRS_FLOOR = 4
 
 # A rule head, once comments are stripped: everything up to `{`, then the body.
 RULE = re.compile(r"([^{}]+)\{([^{}]*)\}", re.S)

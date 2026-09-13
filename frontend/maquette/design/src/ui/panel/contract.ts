@@ -94,7 +94,8 @@ export type PanelDescriptor = {
   subtitle?: string;
   meta?: RichTextValue;
   puce?: [string, string] | null;
-  poster?: { t: string; k?: string };
+  // `source` is the picture the producer's own data carries for the medium.
+  poster?: { t: string; k?: string; source?: string | null };
   avatar?: string;
   // A block may be ABSENT and say so in place: a caller writes
   // `setting.note ? { type: "note", … } : null` inline rather than assembling

@@ -204,17 +204,12 @@ BARE_ALLOWED = {
         1, "the « connect TMDB » action, inside the same `surfaceError()` and "
            "painted by the same `.surferr button` until L13"),
     ("features/acquisition/add-screen.tsx", "button"): (
-        2, "the two `.segmini` segment controls, painted by "
-           "`.segmini button` (legacy.css:1553). The engine emits `.segmini` "
-           "too, which is why its rules were left in `legacy.css` with a date "
-           "of death rather than converted (D-L07-5)"),
+        2, "the two segment controls, and NOT latent: `segmentSmall()` dresses "
+           "them with `[&_button]:…`, as `castPortrait()` dresses a portrait"),
     ("app/drawer.tsx", "button"): (
-        1, "the `.segmini` appearance control — one SITE, drawn once per "
-           "appearance — painted by "
-           "`.segmini button` and `.segmini button[aria-pressed=\"true\"]`, "
-           "exactly as `add-screen.tsx`'s two are. The engine emits `.segmini` "
-           "too, which is why its rules stayed in `legacy.css` with a date of "
-           "death rather than converting with the drawer (D-L07-5)"),
+        1, "the appearance control — one SITE, drawn once per appearance — and "
+           "NOT latent: `segmentSmall()` dresses it, as it dresses "
+           "`add-screen.tsx`'s two"),
     ("ui/poster.tsx", "img"): (
         1, "a poster's picture, and NOT latent: its frame dresses it entirely — "
            "`sheetPoster()` with `[&_img]:…` and `posterFrame()` with "

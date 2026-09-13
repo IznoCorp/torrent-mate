@@ -22,6 +22,7 @@ import { actionButton, backAction, body, chip, emptyNote, qualityHint, resultCou
 import { releaseName, releaseRow, releaseScore, releaseTags } from "../../features/releases/variants";
 import { Icon } from "../../ui/icon";
 import { bridge } from "../../lib/shell-doors";
+import { baseTitle } from "../../lib/titles";
 
 export function ReleasesScreen() {
   const { title: raw } = useParams({ from: "/releases/$title" });
@@ -30,7 +31,6 @@ export function ReleasesScreen() {
   const title = raw.normalize("NFC");
   const {
     icons,
-    baseTitle,
   } = useReleasesReference();
   const { t } = useTranslation();
   // FROM THE CACHE (invariant 4).

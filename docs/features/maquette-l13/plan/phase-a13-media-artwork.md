@@ -49,3 +49,12 @@ served sheet does not carry.
 ## Commit
 
 `refactor(maquette-l13): the media screen reads its artwork and cast from the served sheet`
+
+## Amendment — 2026-09-13 (ruling 45, from a·11's STOP D)
+
+**a·13 owns the death of `POSTERS`**, which a·11 could not carry (see phase-a11 § Amendment). Before deleting the
+table, a·13 declares `poster` on `DecisionCandidate` and `DecisionChoice` (`contract/types.d.ts`, the a·6 kind of
+change: types, seeds and demands regenerated) and switches `features/arrivals/resolution-cards.tsx:100` and
+`:161` to it; then `posterArtworkFor()` dies, and the table, its `__referentiel` member and its window export
+leave the engine, with the harness readers re-taken by the widened grep (`window.POSTERS`, `POSTERS[`,
+`reference.POSTERS`). `POSTERS` is marked `converted` in `fixture-register.json` in that commit.

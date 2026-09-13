@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
-import { useAcquisitionReference } from "./reference";
+import { mediumCardMarkup, type MediumCard } from "./card-markup";
 import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useUiState } from "../../lib/store-access";
@@ -14,9 +14,6 @@ import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
 export function NowTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const {
-    cardHTML,
-  } = useAcquisitionReference();
 
   if (state.phase !== "ready") {
     return (
@@ -84,10 +81,7 @@ export function NowTab(): ReactElement {
         takeable,
         takeable
           .map((card) =>
-            cardHTML(card, {
-              foot: t("screens.acquisition.takeableFoot"),
-              footSolid: true,
-            }),
+            mediumCardMarkup(card as MediumCard, { label: t("screens.acquisition.takeableFoot"), solid: true }),
           )
           .join(""),
       )}
@@ -97,7 +91,7 @@ export function NowTab(): ReactElement {
         blocked,
         blocked
           .map((card) =>
-            cardHTML(card, { foot: t("screens.acquisition.blockedFoot") }),
+            mediumCardMarkup(card as MediumCard, { label: t("screens.acquisition.blockedFoot") }),
           )
           .join(""),
       )}
@@ -121,20 +115,20 @@ export function NowTab(): ReactElement {
         "info",
         t("screens.acquisition.inflight"),
         inflight,
-        inflight.map((card) => cardHTML(card)).join(""),
+        inflight.map((card) => mediumCardMarkup(card as MediumCard)).join(""),
       )}
       {section(
         "waiting",
         t("screens.acquisition.notfound"),
         notfound,
-        notfound.map((card) => cardHTML(card)).join(""),
+        notfound.map((card) => mediumCardMarkup(card as MediumCard)).join(""),
         `<b>${t("screens.acquisition.notfoundNoteLead")}</b>${t("screens.acquisition.notfoundNoteRest")}`,
       )}
       {section(
         "success",
         t("screens.acquisition.doneToday"),
         doneToday,
-        doneToday.map((card) => cardHTML(card)).join(""),
+        doneToday.map((card) => mediumCardMarkup(card as MediumCard)).join(""),
       )}
     </div>
   );

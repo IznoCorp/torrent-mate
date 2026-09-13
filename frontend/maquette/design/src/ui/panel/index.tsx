@@ -22,7 +22,7 @@
 // component re-renders when the language changes.
 import { Fragment, type JSX } from "react";
 import { useTranslation } from "react-i18next";
-import { posterArtworkFor, useEngineDrawing } from "../../lib/engine-drawing";
+import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
 import { Chip } from "../chip";
 import { PosterArtwork } from "../poster";
 import { Icon } from "../../ui/icon";
@@ -55,10 +55,9 @@ function RichText({ value }: { value: RichTextValue | null | undefined }) {
   );
 }
 
-// The panel head's poster: the title's picture, or its fallback, resolved the
-// way every poster is — never the `exact` form, which is a release candidate's.
-function Poster({ poster }: { poster: { t: string; k?: string } }) {
-  return <PosterArtwork artwork={posterArtworkFor(useEngineDrawing(), poster.t, poster.k)} />;
+// The panel head's poster: the picture the producer's data carries, or its fallback.
+function Poster({ poster }: { poster: { t: string; k?: string; source?: string | null } }) {
+  return <PosterArtwork artwork={posterArtwork(useEngineDrawing().icons, poster.source, poster.t, poster.k)} />;
 }
 
 // The tones a panel action draws. Any other tone word stays on the button as a

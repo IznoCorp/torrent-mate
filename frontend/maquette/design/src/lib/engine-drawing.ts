@@ -10,31 +10,8 @@
 // reader imports nothing to be typed, and a member nobody's subject claims has
 // nowhere to be written down.
 
-import type { QueueCard } from "./engine-queue";
-
-// The card builder's own descriptor — a small, typed slice of what
-// `cardHTML` accepts, limited to the fields a search-result row actually
-// fills. `cardHTML` itself stays untyped JS (defined in refonte.html); this
-// type exists only so a migrated screen calls it with the right shape.
-export type CardDescriptor = {
-  t: string;
-  k: "movie" | "show";
-  s?: string;
-  overview?: string;
-  chip?: [string, string] | null;
-  panel?: string;
-};
-
-// A card's FOOT, the only options `cardHTML` takes. `footAct` becomes the
-// `data-act` attribute the document-level delegation reads, which is why it is
-// a string and not a handler.
-export type CardFoot = {
-  foot?: string;
-  footAct?: string;
-  footSolid?: boolean;
-  footTone?: string;
-  footDone?: boolean;
-};
+import type { Artwork } from "../ui/poster";
+import { baseTitle, initials } from "./titles";
 
 // Read-only reference data + pure rendering helpers the engine's own script
 // publishes once, at definition time — well before any component's module
@@ -43,18 +20,6 @@ export type CardFoot = {
 // not a subscription: there is nothing for a component to miss by reading
 // it straight, and useSyncExternalStore would just add a subscription with
 // no writer ever calling it.
-//
-// `cardHTML` / `addVerb` are reused VERBATIM rather than re-implemented in
-// JSX: a search-result card carries `data-panel="add:N"` / `data-mediasheet`
-// attributes that the legacy document-level click delegation still reads
-// to open the panel or the media sheet (the strangler seam a migrated
-// screen leans on rather than replaces) — re-deriving that markup by hand
-// would risk drifting the one thing that seam depends on being byte-exact.
-// `render` is the legacy page redraw (`#view`, nav, deck, loaders, search
-// bar) — exposed so a screen leaving a router-owned route back onto legacy
-// ground (see `add.tsx`'s "Voir mes suivis") can bring that ground up to
-// date the same way every other legacy navigation control already does,
-// since nothing subscribes the legacy side to the store automatically.
 //
 // One row of a fact list, exactly as `ui/fact-rows.tsx` draws one. `ton` is
 // the operator's vocabulary (`success` / `alert` / `warning` / `info`) and the
@@ -71,29 +36,15 @@ export type Fact = {
 };
 
 export type EngineDrawing = {
-  // The SECOND parameter is the fragment's own, and it was missing here: a
-  // card's foot is an option, not a property of the medium — `foot` is its
-  // label, `footAct` the `data-act` the delegation reads, and the three others
-  // decide how it looks and whether it is spent. A queue card is a looser shape
-  // than a search result's descriptor (the engine's own world objects carry
-  // more), so both are accepted, exactly as the fragment accepts them.
-  cardHTML: (
-    descriptor: CardDescriptor | QueueCard,
-    options?: CardFoot,
-  ) => string;
   svgIcon: (paths: string, strokeWidth?: number) => string;
   icons: Record<string, string>;
   escapeHtml: (text: string) => string;
-  initials: (name: string) => string;
-  baseTitle: (title: string) => string;
+  // The poster table. Its two last readers have no `poster` field yet — the
+  // media screen's fallback and the resolution screen's candidates — and it
+  // dies with them.
   POSTERS: Record<string, string>;
   render: () => void;
   toast: (msg: string) => void;
-  plages: (nums: number[]) => string;
-  // `dateFR` returns null on a falsy `iso`, exactly like `sheetFor` on an
-  // unresolved title — a sheet's air dates are frequently unset (an
-  // announced-but-unaired episode) and the caller decides what to show.
-  dateFR: (iso: string) => string | null;
 };
 
 /**
@@ -112,32 +63,48 @@ export function useEngineDrawing(): EngineDrawing {
 }
 
 /**
- * Resolves what a title's poster shows, from the engine's poster table.
+ * What a poster shows: the list's own picture, or the fallback's icon and label.
+ *
+ * @param icons The icon paths.
+ * @param source The picture the list carries for the medium, or nothing.
+ * @param title The title, whose initials the fallback shows.
+ * @param kind `movie` or `show`, which picks the fallback's icon.
+ * @returns The artwork.
+ */
+export function posterArtwork(
+  icons: Record<string, string>,
+  source: string | null | undefined,
+  title: string,
+  kind?: string,
+): Artwork {
+  const icon = kind === "movie" ? icons.film : kind === "show" ? icons.tv : icons.clap;
+  return { source: source ?? undefined, icon, label: initials(title) };
+}
+
+/**
+ * Resolves what a title's poster shows, from the engine's poster table — for the
+ * readers whose data carries no `poster` yet, and for them only: a release
+ * candidate and a decision's choice.
  *
  * A proposition rather than an identity asks for its OWN picture only (`exact`):
  * « Lucky (2006) » and « Lucky! » are different series the operator is asked to
  * tell apart, and matching on the base title would hand one the picture of the
  * other on the very screen whose job is to distinguish them.
  *
- * Args:
- *     drawing: The engine's drawing surface.
- *     title: The title.
- *     kind: `movie` or `show`, which picks the fallback's icon.
- *     exact: Whether only the title's own picture will do.
- *
- * Returns:
- *     The picture if there is one, the fallback's icon, and its label.
+ * @param drawing The engine's drawing surface.
+ * @param title The title.
+ * @param kind `movie` or `show`, which picks the fallback's icon.
+ * @param exact Whether only the title's own picture will do.
+ * @returns The picture if there is one, the fallback's icon, and its label.
  */
 export function posterArtworkFor(
-  drawing: Pick<EngineDrawing, "POSTERS" | "baseTitle" | "icons" | "initials">,
+  drawing: Pick<EngineDrawing, "POSTERS" | "icons">,
   title: string,
   kind?: string,
   exact?: boolean,
-): { source: string | undefined; icon: string; label: string } {
+): Artwork {
   const source = exact
     ? drawing.POSTERS[title]
-    : (drawing.POSTERS[title] ?? drawing.POSTERS[drawing.baseTitle(title)]);
-  const icon =
-    kind === "movie" ? drawing.icons.film : kind === "show" ? drawing.icons.tv : drawing.icons.clap;
-  return { source, icon, label: drawing.initials(title) };
+    : (drawing.POSTERS[title] ?? drawing.POSTERS[baseTitle(title)]);
+  return posterArtwork(drawing.icons, source, title, kind);
 }

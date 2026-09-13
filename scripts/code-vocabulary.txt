@@ -512,6 +512,7 @@ inflight
 info
 informative
 initial
+initials
 inner
 input
 inset
@@ -828,9 +829,11 @@ queue
 queued
 quiet
 radius
+ranges
 rank
 ratifies
 ratify
+rating
 raw
 react
 read
@@ -1290,7 +1293,6 @@ masquer
 mois
 panne
 pilotage
-plages
 remis
 repos
 restant
