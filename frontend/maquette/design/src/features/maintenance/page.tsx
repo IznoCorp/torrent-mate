@@ -20,13 +20,12 @@ import { useTranslation } from "react-i18next";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { useMaintenanceReference } from "../../features/maintenance/reference";
-import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
 import { useDeletionJournal, useMaintenanceActions } from "./queries";
-import { backAction, section, sectionHeading, topicRow } from "../../ui/variants";
+import { backAction, factList, section, sectionHeading, topicRow } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 import { Markup } from "../../ui/markup";
-import { FactRows } from "../../ui/fact-rows";
+import { FactRows, type FactRow } from "../../ui/fact-rows";
 // The risk vocabulary is the FEATURE's, since its panel lives here: the
 // page and the panel read one derivation of « what does this command risk »
 // rather than a copy each (§13).
@@ -51,8 +50,8 @@ export function MaintenancePage(): ReactElement | null {
     );
   }
 
-  const facts = (rows: Fact[]) => (
-    <ol className="flux" data-part="flux">
+  const facts = (rows: FactRow[]) => (
+    <ol className={factList()} data-part="flux">
       <FactRows rows={rows} />
     </ol>
   );

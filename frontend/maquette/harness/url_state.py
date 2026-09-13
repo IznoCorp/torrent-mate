@@ -115,6 +115,11 @@ RE-AIMED, said out loud: the sheet's address was read from `addressIdsFor`. The 
 its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
 `__carriedFor` — the seed the served read answers from, published by the harness
 driver — and the hold count is unchanged.
+
+RE-AIMED, said out loud: the maintenance command a cold `?panel=action:` reopens was
+the first entry of the engine's action table, which was dead data and is gone. It is
+the first command the served catalogue answers (`readMaintenanceActions`), asked at
+the address the page reads, and the hold count is unchanged.
 """
 import asyncio
 import json
@@ -179,7 +184,7 @@ PANEL_SUBJECTS = {
                 " if (flying && flying.t) return flying.t;"
                 " return ((window.__followActions?.all()||[])[0]||{}).t||'';}"),
     "setting": "()=>{const s=window.allSettings()[0]; return s?window.settingId(s):'';}",
-    "action": "()=>(window.MAINT_ACTIONS[0]||{}).id||''",
+    "action": "async()=>((await (await fetch('/api/maintenance/actions')).json())[0]||{}).id||''",
 }
 
 # One concrete value per `$segment` a screen route carries, so the address

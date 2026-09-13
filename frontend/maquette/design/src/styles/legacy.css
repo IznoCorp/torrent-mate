@@ -62,24 +62,6 @@
    `dlg`, `open`, `dryrun`, `manifest`, `warnbox`, `dlgacts`, `dlgbtn`,
    `danger`, `ghost`. */
 
-/* ── Arrivées — the run, told as its nine steps ──────────────────── */
-/* `.flux` is the list's frame, and only the frame stays here: its rows are
-   `ui/fact-rows.tsx`, whose typed variants carry what the rules under it said. */
-/* The last run, told as its nine steps.
-
-   A step that did nothing says so with an em dash, never with « 0 ». Zero is
-   a measurement; nothing to do is a state, and nine zeroes printed for a calm
-   run turn a healthy pipeline into a wall of failures. */
-.flux {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-3);
-  background: var(--color-card);
-  overflow: hidden;
-}
-
 /* During a selection this bar REPLACES the tab bar: stacking them covered
    « Supprimer » (z-index 41 under 50) and cost 57px of height on a phone
    screen. This is a mode; « Annuler » is its exit, and it is present. */

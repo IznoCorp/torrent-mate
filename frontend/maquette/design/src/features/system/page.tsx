@@ -18,7 +18,6 @@ import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { useSystemReference } from "../../features/system/reference";
 import { useSchedulersDown } from "./fault";
-import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
 import {
   useDependencies,
@@ -29,10 +28,10 @@ import {
   useServices,
   useSystemErrors,
 } from "./queries";
-import { crossReference, crossReferenceLink, section, sectionHeading, topicRow } from "../../ui/variants";
+import { crossReference, crossReferenceLink, factList, section, sectionHeading, topicRow } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 import { Markup } from "../../ui/markup";
-import { FactRows } from "../../ui/fact-rows";
+import { FactRows, type FactRow } from "../../ui/fact-rows";
 
 export function SystemPage(): ReactElement | null {
   const state = useUiState();
@@ -69,8 +68,8 @@ export function SystemPage(): ReactElement | null {
     );
   }
 
-  const facts = (rows: Fact[]) => (
-    <ol className="flux" data-part="flux">
+  const facts = (rows: FactRow[]) => (
+    <ol className={factList()} data-part="flux">
       <FactRows rows={rows} />
     </ol>
   );

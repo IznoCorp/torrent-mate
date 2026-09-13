@@ -248,7 +248,7 @@ async def main():
           const row = document.querySelector('#view [data-part="flux"] [data-part="flux/row"] [data-part="flux/row-body"][data-maintact]');
           if (!row) return null;
           const id = row.dataset.maintact;
-          const action = window.__referentiel.MAINT_ACTIONS.find((x) => x.id === id);
+          const action = window.__queries.getQueryData(['/api/maintenance/actions']).find((x) => x.id === id);
           return {id, title: action ? action.l : null};}""")
         refused = (await tap('#view [data-part="flux"] [data-part="flux/row"] [data-part="flux/row-body"][data-maintact]')
                    if wanted else "absent")

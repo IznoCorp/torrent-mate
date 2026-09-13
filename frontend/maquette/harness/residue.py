@@ -150,7 +150,12 @@ VARIANT_SOURCES = sorted(
 # `.folder`, `.dlabel`, `.strip`, `.st`), `.pfall`, `.chip` and its five tones,
 # `.swipe`, and `.gallery` with its three container widths. Nothing arrived. What
 # is compared now is `.flux`, `.panel`, `.scrim.open` and `.sheet.open`.
-PAIRS_FLOOR = 4
+#
+# LOWERED TO 3 when the fact list's frame lost its last bare emitter. Every page
+# drawing a fact list wears `factList()`, so `.flux` left the residue and its
+# pair left with it. Nothing arrived. What is compared now is `.panel`,
+# `.scrim.open` and `.sheet.open`.
+PAIRS_FLOOR = 3
 
 # A rule head, once comments are stripped: everything up to `{`, then the body.
 RULE = re.compile(r"([^{}]+)\{([^{}]*)\}", re.S)

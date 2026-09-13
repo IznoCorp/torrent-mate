@@ -11,7 +11,7 @@ import { useAccount } from "./queries";
 import type { ReactElement } from "react";
 import { useAccountReference } from "../../features/account/reference";
 import { FactRows, type FactRow } from "../../ui/fact-rows";
-import { actionButton, emptyNote, sectionHeading } from "../../ui/variants";
+import { actionButton, emptyNote, factList, sectionHeading } from "../../ui/variants";
 import { Markup, emptyNoteMarkup } from "../../ui/markup";
 
 export function AccountPage(): ReactElement | null {
@@ -20,7 +20,7 @@ export function AccountPage(): ReactElement | null {
   const { data: ACCOUNT } = useAccount();
   if (!ACCOUNT) return null;
   const facts = (rows: FactRow[]) => (
-    <ol className="flux" data-part="flux">
+    <ol className={factList()} data-part="flux">
       <FactRows rows={rows} />
     </ol>
   );
