@@ -26,7 +26,18 @@ export const sectionCount = cva("k ml-auto text-2 font-bold text-muted-foregroun
 /** A screen: the layer that slides in over a page. */
 export const screen = cva(
   "screen absolute inset-0 bg-background z-[45] flex flex-col " +
-    "[transform:translateX(100%)] transition-[transform] duration-300 ease-standard invisible",
+    "transition-[transform] duration-300 ease-standard",
+  {
+    variants: {
+      // OPEN IS A STATE THE VARIANT SAYS. A screen waits off to the right and
+      // invisible; open, it wears the `open` name the shell's own selectors read.
+      open: {
+        false: "[transform:translateX(100%)] invisible",
+        true: "open [transform:none] visible",
+      },
+    },
+    defaultVariants: { open: false },
+  },
 );
 
 /**
@@ -141,8 +152,9 @@ export const bottomSheet = cva(
     "rounded-t-4 rounded-b-none max-h-[78%] flex flex-col " +
     // The transition lives in the base because the state that CANCELS it is
     // not a prop: the drag handler writes `dragging` straight to the DOM
-    // through a ref, exactly as the legacy one did, so `.sheet.dragging`
-    // stays a rule in the residue. A variant here would never be told.
+    // through a ref, exactly as the legacy one did, so the cancelling is a
+    // class-qualified utility that reads the class wherever it was written.
+    "[&.dragging]:transition-none " +
     // `visibility` joins the transition on the CLOSED state for B-249's reason
     // — see `sheetScrim` above, including why it is the closed state ONLY.
     // THE DRAWN RISE (operator, 2026-08-31). The panel comes up over ~0.45s on

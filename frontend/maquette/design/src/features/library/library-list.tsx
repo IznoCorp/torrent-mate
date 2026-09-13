@@ -13,7 +13,7 @@ import { LIBRARY_WINDOW, useLibraryReference, type LibraryRow } from "./referenc
 import { registerListingPaging, useLibraryListing } from "./queries";
 import { useStoreContent, useUiState } from "../../lib/store-access";
 import { EmptyLibrary } from "./library-empty";
-import { endMark, loadError, loadErrorAction, loadFooter, section } from "../../ui/variants";
+import { endMark, loadError, loadErrorAction, loadFooter, section, skeleton } from "../../ui/variants";
 
 // The list, its footer, and the sentinel that loads the next page. The FOOTER
 // is the sentinel — the legacy's own arrangement, kept: an observer watching a
@@ -152,7 +152,7 @@ export function LibraryList(): ReactElement {
   let items: ReactElement;
   if (state.phase === "loading") {
     items = (
-      <div id="libitems" className={grid ? "gallery" : "sec"} data-part={grid ? "grid" : "section"}>
+      <div id="libitems" className={grid ? "gallery" : section()} data-part={grid ? "grid" : "section"}>
         <Skeletons count={grid ? 9 : 5} shape={grid ? "tile" : "card"} />
       </div>
     );
@@ -167,14 +167,14 @@ export function LibraryList(): ReactElement {
     items = (
       <div
         id="libitems"
-        className={grid ? "gallery" : "sec"} data-part={grid ? "grid" : "section"}
+        className={grid ? "gallery" : section()} data-part={grid ? "grid" : "section"}
       >
         <SurfaceError subject={t("screens.library.errorSubject")} />
       </div>
     );
   } else if (rows.length === 0) {
     items = (
-      <div id="libitems" className={grid ? "gallery" : "sec"} data-part={grid ? "grid" : "section"}>
+      <div id="libitems" className={grid ? "gallery" : section()} data-part={grid ? "grid" : "section"}>
         <EmptyLibrary />
       </div>
     );
@@ -189,7 +189,7 @@ export function LibraryList(): ReactElement {
         count={count}
         {...(grid ? LIBRARY_WINDOW.gallery : LIBRARY_WINDOW.list)}
         scrollElement={() => document.querySelector("#port")}
-        className={grid ? "gallery" : "sec"}
+        className={grid ? "gallery" : section()}
         part={grid ? "grid" : "section"}
         renderRow={(index) =>
           grid
@@ -244,7 +244,7 @@ export function LibraryList(): ReactElement {
       ) : (
         <div className={section()} data-part="section">
           {Array.from({ length: 2 }, (_, index) => (
-            <div key={index} className="sk row" data-skeleton="" />
+            <div key={index} className={skeleton({ shape: "row" })} data-skeleton="" />
           ))}
         </div>
       );

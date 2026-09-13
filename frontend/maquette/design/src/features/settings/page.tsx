@@ -38,7 +38,7 @@ import { backAction, emptyNote, factsPanel, loadError, loadErrorAction, qualityH
 import { SaveBar, SettingsBanners } from "./banners";
 import { settingsRow } from "./variants";
 import { guidance } from "../../ui/variants/layout";
-import { Markup } from "../../ui/markup";
+import { Markup, emptyNoteMarkup } from "../../ui/markup";
 import { bridge } from "../../lib/shell-doors";
 
 // The pending-edit marker and the row's own identity live on the same element:
@@ -159,7 +159,6 @@ export function SettingsPage(): ReactElement | null {
   const { t } = useTranslation();
   const {
     SETTINGS_STATE,
-    emptyInner,
     chipHTML,
     allSettings,
     changedFiles,
@@ -224,7 +223,7 @@ export function SettingsPage(): ReactElement | null {
         <>
           <Markup
             className={emptyNote()} data-part="empty-state"
-            html={emptyInner(t("screens.settings.unknownTopic"), "")}
+            html={emptyNoteMarkup(t("screens.settings.unknownTopic"), "")}
           />
           <SaveBar />
         </>
@@ -254,7 +253,7 @@ export function SettingsPage(): ReactElement | null {
         {found.length === 0 ? (
           <Markup
             className={emptyNote()} data-part="empty-state"
-            html={emptyInner(
+            html={emptyNoteMarkup(
                 t("screens.settings.noMatchTitle"),
                 t("screens.settings.noMatchBody"),
               )}

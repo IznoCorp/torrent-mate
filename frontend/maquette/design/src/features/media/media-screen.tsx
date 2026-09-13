@@ -234,7 +234,7 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
 
   return (
     <section
-      className={`${screen()} open`}
+      className={screen({ open: true })}
       data-part="screen"
       data-open=""
       data-key={`mediaSheet:${title}`}

@@ -108,7 +108,13 @@ VARIANT_SOURCES = sorted(
 # owner is the transition: measured, the transition drew the hero full for
 # 315ms, the element went to opacity 0 in one frame when it ended, and `heroin`
 # replayed its 450ms entry. The pair is gone because the defect was the pair.
-PAIRS_FLOOR = 15
+#
+# LOWERED TO 10 when five rules left with the last markup that wore their
+# classes bare: `.sec`, `.sechead`, `.empty`, `.surferr` and `.endmark`. Their
+# variants draw every element those rules styled, so nothing that still exists
+# stopped being compared; the two contextual pairs under `.sechead` and the
+# engine-written qualifiers `.screen.open` and `.sheet.dragging` went with them.
+PAIRS_FLOOR = 10
 
 # A rule head, once comments are stripped: everything up to `{`, then the body.
 RULE = re.compile(r"([^{}]+)\{([^{}]*)\}", re.S)

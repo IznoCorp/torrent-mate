@@ -181,6 +181,13 @@
       transform: rotate(360deg);
     }
   }
+
+  /* A skeleton's shimmer: the gradient walks across the box once per loop. */
+  @keyframes sh {
+    to {
+      background-position: -400% 0;
+    }
+  }
 }
 
 /* `hidden` HIDES, WHATEVER ELSE THE ELEMENT WEARS — one rule, in place of the

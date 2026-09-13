@@ -17,14 +17,12 @@
 //
 // The cards go through `cardHTML` and the fact rows through `factRowsHTML`,
 // both reused VERBATIM: the delegated handlers depend on that markup being
-// byte-exact. A section goes through `secInner`, the inside of the `secHTML`
-// the acquisition page's five sections still share — this component draws the
-// `<section class="sec">` itself, because React cannot set the outer markup of
-// a node it also renders,
-// and it reproduces the outer function's EMPTY case by drawing no section at
-// all.
+// byte-exact. A section's inside goes through `sectionInnerMarkup` — this
+// component draws the section element itself, because React cannot set the
+// outer markup of a node it also renders — and a section with no card is not
+// drawn at all.
 import { useTranslation } from "react-i18next";
-import { SurfaceError } from "../../ui/state-surfaces";
+import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { useArrivalsReference, type PipelineFact } from "../../features/arrivals/reference";
 import { usePipeline } from "./queries";
@@ -55,7 +53,7 @@ import {
   pilotQualifier,
   pilotTitle,
 } from "./variants";
-import { Markup } from "../../ui/markup";
+import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
 
 // The nine steps, told as the last run left them. A step with nothing recorded
 // at all reads « rien à faire »; a step that BLOCKED something says so and
@@ -203,7 +201,7 @@ function LastRun(): ReactElement | null {
 export function ArrivalsPage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
-  const { cardHTML, secInner, emptyInner, skelCardsInner } = useArrivalsReference();
+  const { cardHTML } = useArrivalsReference();
   // WHICH WORLD. The prototype carries two and the harness switches between
   // them; the key carries it, so a surface never reads the other one's cards.
   const scenario = state.scen === "loaded" ? "loaded" : "";
@@ -217,10 +215,7 @@ export function ArrivalsPage(): ReactElement | null {
     return state.phase === "error" ? (
       <SurfaceError subject={t("screens.arrivals.errorSubject")} />
     ) : (
-      <Markup
-        className={sectionClass()} data-part="section"
-        html={skelCardsInner(3)}
-      />
+      <div className={sectionClass()} data-part="section"><Skeletons count={3} shape="card" /></div>
     );
   }
 
@@ -229,8 +224,7 @@ export function ArrivalsPage(): ReactElement | null {
   const settled = staging?.settled ?? [];
   const nothing = stuck.length + moving.length + settled.length === 0;
 
-  // A section that would be empty is not drawn at all — the outer `secHTML`
-  // answered the empty string, and an empty string renders nothing.
+  // A section that would be empty is not drawn at all.
   const section = (
     pip: string,
     title: string,
@@ -241,7 +235,7 @@ export function ArrivalsPage(): ReactElement | null {
     cards.length === 0 || inner === "" ? null : (
       <Markup tag="section"
         className={sectionClass()} data-part="section"
-        html={secInner(pip, title, String(cards.length), inner, note)}
+        html={sectionInnerMarkup(pip, title, String(cards.length), inner, note)}
       />
     );
 
@@ -276,7 +270,7 @@ export function ArrivalsPage(): ReactElement | null {
       {nothing ? (
         <Markup
           className={emptyNote()} data-part="empty-state"
-          html={emptyInner(
+          html={emptyNoteMarkup(
               t("screens.arrivals.emptyTitle"),
               t("screens.arrivals.emptyBody"),
             )}

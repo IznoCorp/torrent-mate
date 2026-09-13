@@ -43,7 +43,7 @@ import { go } from "../../lib/navigate";
 import { useAcquisitionReference } from "../../features/acquisition/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
 import { useProviderSearch } from "./search-queries";
-import { actionButton, backAction, emptyNote, resultCount, screen, screenBar, scrollport, searchField, searchInput, surfaceError } from "../../ui/variants";
+import { actionButton, backAction, emptyNote, resultCount, screen, screenBar, scrollport, searchField, searchInput, section, surfaceError } from "../../ui/variants";
 import { AddFooter } from "./add-footer";
 import {
   addForm,
@@ -182,7 +182,7 @@ export function AddScreen() {
 
   return (
     <section
-      className={`${screen()} open`}
+      className={screen({ open: true })}
       data-part="screen"
       data-open=""
       data-key={`add:${mode}`}
@@ -321,7 +321,7 @@ export function AddScreen() {
               {t("screens.add.mostRelevant")}
             </p>
             <Markup
-              className={`${resultList()} sec`}
+              className={`${resultList()} ${section()}`}
               data-part="result/list"
               html={rows}
             />

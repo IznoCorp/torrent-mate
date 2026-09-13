@@ -7,7 +7,7 @@
 //
 // THE ANSWER IS CONVERTED BACK INTO THE ENGINE'S NAMES, and that is a
 // transitional step with a date rather than a design. This surface's MARKUP is
-// still drawn by producers in `legacy.js` (`cardHTML`, `secInner`,
+// still drawn by producers in `legacy.js` (`cardHTML`,
 // `factRowsHTML`), which read `t`, `s`, `r`, `d`, `c`; the contract answers in
 // full English words. `lib/engine-shape.ts` inverts the projection L08
 // DECLARED, so the two ends cannot drift — and the whole conversion dies with

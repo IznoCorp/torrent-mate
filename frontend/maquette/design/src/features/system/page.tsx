@@ -17,7 +17,7 @@
 // seam depends on being byte-exact. This component draws the `<ol class="flux">`
 // itself, because React cannot set the outer markup of a node it also renders.
 import { useTranslation } from "react-i18next";
-import { SurfaceError } from "../../ui/state-surfaces";
+import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { useSystemReference } from "../../features/system/reference";
 import { useSchedulersDown } from "./fault";
@@ -39,7 +39,7 @@ import { Markup } from "../../ui/markup";
 export function SystemPage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
-  const { factRowsHTML, skelCardsInner, SERVICES_PANNE } = useSystemReference();
+  const { factRowsHTML, SERVICES_PANNE } = useSystemReference();
   // FROM THE CACHE (invariant 4). The SERVICE fault variant stays the
   // engine's: it carries no class in the register, so no seed derives from it
   // and no operation answers it. Its scheduler twin no longer can — the
@@ -67,10 +67,7 @@ export function SystemPage(): ReactElement | null {
     return state.phase === "error" ? (
       <SurfaceError subject={t("screens.system.errorSubject")} />
     ) : (
-      <Markup
-        className={section()} data-part="section"
-        html={skelCardsInner(3)}
-      />
+      <div className={section()} data-part="section"><Skeletons count={3} shape="card" /></div>
     );
   }
 

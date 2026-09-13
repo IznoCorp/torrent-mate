@@ -10,18 +10,18 @@ import type { ReactElement } from "react";
 import { useEngineDrawing } from "../lib/engine-drawing";
 import { useUiState } from "../lib/store-access";
 import { actionButton, crossReference, crossReferenceLink, emptyNote } from "../ui/variants";
-import { Markup } from "../ui/markup";
+import { Markup, emptyNoteMarkup } from "../ui/markup";
 
 export function NotFoundPage(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { emptyInner, escapeHtml } = useEngineDrawing();
+  const { escapeHtml } = useEngineDrawing();
   const asked = (state.notFound as string) || t("screens.notFound.bodyFallback");
   return (
     <>
       <Markup
         className={emptyNote()} data-part="empty-state"
-        html={emptyInner(
+        html={emptyNoteMarkup(
             t("screens.notFound.title"),
             `${t("screens.notFound.bodyBefore")}<code>${escapeHtml(asked)}</code>${t("screens.notFound.bodyAfter")}`,
           )}

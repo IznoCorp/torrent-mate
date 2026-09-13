@@ -113,27 +113,13 @@ export type EngineDrawing = {
   // on one side, and — for a follow that can be searched again — the action on
   // the other.
   swipeHTML: (inner: string, actions: string, other?: string) => string;
-  // What the Arrivées page draws. `secHTML` is the section emitter the
-  // acquisition page's five sections still share; a migrated page draws the `<section class="sec">` itself and
-  // fills it with `secInner`, the same split as the empty and skeleton
-  // surfaces. The EMPTY case (`count` of zero, or nothing inside) belongs to
-  // the outer function, and a component reproduces it by drawing no section.
-  secHTML: (pip: string, title: string, count: string, inner: string,
-            note?: string) => string;
-  secInner: (pip: string, title: string, count: string, inner: string,
-             note?: string) => string;
   // What the Système page draws. `factRowsHTML` emits the
   // ROWS of a fact list without the `<ol class="flux">` around them, because a
   // component draws that element itself; `factsListHTML` (still published, for
-  // every page the fragment keeps) emits both. `skelCardsInner` / `surfErrInner`
-  // are the same split for the two non-ready surfaces. The data below is
+  // every page the fragment keeps) emits both. The data below is
   // read-only reference, never engine state.
   factsListHTML: (rows: Fact[]) => string;
   factRowsHTML: (rows: Fact[]) => string;
-  skelCards: (count: number) => string;
-  skelCardsInner: (count: number) => string;
-  surfErr: (subject: string) => string;
-  emptyInner: (title: string, body: string) => string;
   chipHTML: (chip: [string, string] | null | undefined) => string;
   svgIcon: (paths: string, strokeWidth?: number) => string;
   icons: Record<string, string>;

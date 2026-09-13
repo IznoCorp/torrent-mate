@@ -111,7 +111,7 @@ export function ResolutionScreen() {
   // screen as the legacy's own last resort, « élément inconnu ».
   return (
     <section
-      className={`${screen()} open`}
+      className={screen({ open: true })}
       data-part="screen"
       data-open=""
       data-key={`resolution:${folder}`}

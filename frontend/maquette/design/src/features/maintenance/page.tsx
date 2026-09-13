@@ -17,7 +17,7 @@
 // and error surfaces) and `state.maintTopic` (which rubric is open, `null` for the
 // list) — and the delegation is what writes them.
 import { useTranslation } from "react-i18next";
-import { SurfaceError } from "../../ui/state-surfaces";
+import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { useMaintenanceReference } from "../../features/maintenance/reference";
 import { type Fact } from "../../lib/engine-drawing";
@@ -37,7 +37,6 @@ export function MaintenancePage(): ReactElement | null {
   const { t } = useTranslation();
   const {
     factRowsHTML,
-    skelCardsInner,
     MAINT_TOPICS,
   } = useMaintenanceReference();
   // FROM THE CACHE (invariant 4).
@@ -48,10 +47,7 @@ export function MaintenancePage(): ReactElement | null {
     return state.phase === "error" ? (
       <SurfaceError subject={t("screens.maintenance.errorSubject")} />
     ) : (
-      <Markup
-        className={section()} data-part="section"
-        html={skelCardsInner(3)}
-      />
+      <div className={section()} data-part="section"><Skeletons count={3} shape="card" /></div>
     );
   }
 

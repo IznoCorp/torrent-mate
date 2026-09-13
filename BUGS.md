@@ -466,6 +466,7 @@ when the defect comes back.
 | B-492 | Out of the desktop frame the overflow B-491 confined is the APP's own cascade — no element of the shell clips its absolute layers — so once `harness.css` ships nowhere a desktop document can scroll beside `#port` again | by the scroll-jump micro-wave | `open` |
 | B-495 | `scripts/heavy.sh` prints « holding off » once and « starts » with no timestamp, so how long a wrapped run WAITED for the lock and the readiness floor is unmeasurable afterwards — on 2026-09-13 the steward could not say whether a classed run held for a minute or an hour behind a host whose own one-minute load ran 9–15 | the next tooling wave (frozen apparatus: not before a defect reaches the operator) | `open` |
 | B-496 | `hooks/pre-push`'s `run_check` runs a check with its output sent to `/dev/null` and, when it fails, RUNS IT AGAIN to show the output — so a check that falls once and passes on the re-run prints a green summary under « FAILED », and the only reading of the fall is discarded | the next tooling wave | `open` |
+| B-497 | `scripts/build-mock-seeds.py --check` counts every converted family's seed as « no family claims it », so the tool's own drift report is red on a tree with no drift | by L13a | `open` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
 
@@ -688,6 +689,20 @@ verdict arrives with a reading that contradicts it. **The repair's shape**: run 
 into a file, and print that file on failure — the failing pass's own output, never a second
 execution. The same blind spot as `harness-hold-counts.py` (B-307's sixth instance), in another
 instrument. Filed, not repaired: the apparatus is frozen.
+
+**B-497 — `build-mock-seeds.py --check` reports the converted seeds as orphans.**
+
+The generator exempts a converted family's seed by name in two places — its own `--write` branch keeps the file, and
+`check-mock-seeds.py`'s correspondence arm counts it as « no longer re-derivable » — and `--check` exempts it in none: its
+last loop reads « every seed file that `build()` did not build » as « no family claims it ». Since L09 a converted family
+is exactly a seed `build()` cannot build, so the tool's own drift report exits 1 on a tree with no drift, listing the 23
+converted seeds one per line. Nothing reads `--check` in CI (the guard is `check-mock-seeds.py`, which is green), which is
+why it stayed red unread. Measured before and after L13a's identity phase: the same 23 lines, and nothing else.
+
+**Owner**: the phase of L13 that next touches the generator — a·10 or a·11, which kill `LIBRARY` and `INCOMPLETE` — or the
+next wave that touches the tool, which takes its debt.
+
+<sub>`python3 scripts/build-mock-seeds.py --check; echo $?` → 1, `23 seed(s) re-derived, 23 drifted`, 23 lines « no family claims it »</sub>
 
 **B-477 — followed as held, sheet says not in the library.**
 Found by R173 (the mock-layer micro-wave). House of the Dragon (26/26), Ted Lasso (35/35) and Star

@@ -18,7 +18,7 @@
 // click delegation and its swipe handlers all still call them by name, and the
 // day it goes this file loses an importer rather than a subject.
 import i18next from "i18next";
-import { actionButton, loadFooterAction } from "../../ui/variants";
+import { actionButton, emptyNote, endMark, loadFooterAction, skeleton } from "../../ui/variants";
 import { cx } from "../../ui/cva";
 import { deckCard, deckHints, suggestionRow, suggestionTile, type Suggestion } from "./discover-cards";
 import { isReserveExhausted, suggestions } from "./queries";
@@ -148,7 +148,7 @@ export function nothingLeftHTML(inList = false): string {
   const offer = exhausted
     ? ""
     : `<button class="${cx(actionButton({ size: "footer" }), loadFooterAction())}" data-sugmore="1">${reference.svgIcon(reference.icons.refresh)}${say("loadThirtyMore")}</button>`;
-  return `<div class="empty" data-part="empty-state"><b>${say("allSeenLead")}</b>
+  return `<div class="${emptyNote()}" data-part="empty-state"><b>${say("allSeenLead")}</b>
         <p>${say(restKey, { count: reserve().length })}</p>
         ${offer}</div>`;
 }
@@ -347,7 +347,7 @@ export function sugFoot(): void {
   if (!foot) return;
   const state = uiState();
   if ((state.sugCount as number) >= reserve().length) {
-    const end = `<p class="endmark">${say("endOfReserve", { loaded: reserve().length })}</p>`;
+    const end = `<p class="${endMark()}">${say("endOfReserve", { loaded: reserve().length })}</p>`;
     if (end !== lastFooter || foot.innerHTML === "") {
       lastFooter = end;
       foot.innerHTML = end;
@@ -356,7 +356,7 @@ export function sugFoot(): void {
   }
   const waiting =
     `<div style="display:flex;flex-direction:column;gap:14px">` +
-    `${'<div class="sk row" data-skeleton="" style="height:104px"></div>'.repeat(2)}</div>`;
+    `${`<div class="${skeleton({ shape: "row" })}" data-skeleton="" style="height:104px"></div>`.repeat(2)}</div>`;
   if (waiting !== lastFooter || foot.innerHTML === "") {
     lastFooter = waiting;
     foot.innerHTML = waiting;

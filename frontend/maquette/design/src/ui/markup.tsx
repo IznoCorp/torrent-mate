@@ -18,6 +18,7 @@
 //
 // IT KNOWS NO DOMAIN (invariant 10): it takes a string and an element name.
 import { createElement, useMemo, type ReactElement } from "react";
+import { sectionCount, sectionHead, sectionTitle } from "./variants";
 
 /**
  * The `dangerouslySetInnerHTML` value for one string, stable while the string is.
@@ -54,4 +55,57 @@ export function Markup({
   [attribute: `data-${string}`]: string | undefined;
 }): ReactElement {
   return createElement(tag, { ...rest, dangerouslySetInnerHTML: useMarkup(html) });
+}
+
+/**
+ * Escapes text for markup, exactly as the engine's own emitters escape it.
+ *
+ * @param value The text.
+ * @returns The text with `&`, `<`, `>` and `"` escaped.
+ */
+export function escapeMarkup(value: unknown): string {
+  return String(value).replace(
+    /[&<>"]/g,
+    (character) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character] as string,
+  );
+}
+
+/**
+ * The inside of a section whose cards are still markup: its head, its note, its cards.
+ *
+ * The section element itself is the caller's, drawn with `section()`, because
+ * React cannot set the outer markup of a node it also renders; a section with no
+ * card is not drawn at all, which is the caller's to decide.
+ *
+ * @param pip The status dot's tone.
+ * @param title The section's title, as text.
+ * @param count What the count says.
+ * @param inner The cards, as markup.
+ * @param note An optional note, as markup.
+ * @returns The markup.
+ */
+export function sectionInnerMarkup(
+  pip: string,
+  title: string,
+  count: string,
+  inner: string,
+  note?: string,
+): string {
+  return `
+    <div class="${sectionHead()}" data-part="section/head"><span class="pip ${pip}" data-part="status-dot"></span><span class="${sectionTitle()}" data-part="section/title">${escapeMarkup(title)}</span><span class="${sectionCount()}" data-part="section/count">${count}</span></div>
+    ${note ? `<div class="note" data-part="note">${note}</div>` : ""}
+    ${inner}
+  `;
+}
+
+/**
+ * The inside of an empty note whose body is markup: its lead, then its body.
+ *
+ * @param title The lead, as text.
+ * @param body The rest, as markup.
+ * @returns The markup.
+ */
+export function emptyNoteMarkup(title: string, body: string): string {
+  return `<b>${escapeMarkup(title)}</b>${body}`;
 }

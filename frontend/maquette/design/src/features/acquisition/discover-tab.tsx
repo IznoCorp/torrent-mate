@@ -13,7 +13,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import { SurfaceError } from "../../ui/state-surfaces";
+import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { Icon } from "../../ui/icon";
 import { useAcquisitionReference } from "./reference";
 import { useUiState } from "../../lib/store-access";
@@ -35,7 +35,7 @@ import { deckHTML, fillSug, mountDeck, sugFoot } from "./discover-feed";
 export function DiscoverTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { icons, skelCardsInner } = useAcquisitionReference();
+  const { icons } = useAcquisitionReference();
 
   // THE FRAGMENT FILLS WHAT THIS DRAWS, and it has to be asked AFTER the
   // drawing: `render()` calls the same verbs, but it calls them before React
@@ -194,10 +194,7 @@ export function DiscoverTab(): ReactElement {
           {t("screens.acquisition.gesturesNoteAfter")}
         </div>
         {state.phase === "loading" ? (
-          <Markup
-            className={sectionClass()} data-part="section"
-            html={skelCardsInner(4)}
-          />
+          <div className={sectionClass()} data-part="section"><Skeletons count={4} shape="card" /></div>
         ) : state.phase === "error" ? (
           <SurfaceError subject={t("screens.acquisition.errorSuggestions")} />
         ) : null}

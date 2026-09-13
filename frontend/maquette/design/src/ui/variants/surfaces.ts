@@ -38,7 +38,10 @@ export const statusDot = cva("pip w-[8px] h-[8px] rounded-full flex-none", {
 /** An empty surface: it says WHY, and offers a way out. */
 export const emptyNote = cva(
   "empty border border-dashed border-border rounded-3 py-8 px-7 text-center " +
-    "text-3 text-muted-foreground leading-[1.5]",
+    "text-3 text-muted-foreground leading-[1.5] " +
+    // ITS BOLD IS ITS LEAD, WHEREVER IT SITS: every `b` inside the note — the
+    // title, and a figure a sentence emphasises — is a block of its own.
+    "[&_b]:block [&_b]:text-foreground [&_b]:text-4 [&_b]:mb-2",
 );
 
 /**
@@ -48,11 +51,8 @@ export const emptyNote = cva(
  * `--spacing-8` is 18 px, which is `--text-3` at the 1.55 the body sets, so the
  * blocks below a skeleton do not move when the sentence lands. The first
  * version stood 8 px tall and every block under it rose ten when the read
- * arrived — a layout shift a placeholder exists to prevent. The shimmer is the residue's `sk`,
- * with its reduced-motion guard, worn as a literal class beside this exactly
- * as `Skeletons` wears `sk tile`: the anchor is deliberately NOT in this
- * string, because a variant wearing a residue anchor owes the residue's every
- * term (R80), and the shimmer moves here the day the residue dies.
+ * arrived — a layout shift a placeholder exists to prevent. The shimmer is
+ * `skeleton()`'s, worn beside this.
  */
 export const skeletonLine = cva("block h-8 rounded-2", {
   variants: {
@@ -61,11 +61,40 @@ export const skeletonLine = cva("block h-8 rounded-2", {
   defaultVariants: { width: "wide" },
 });
 
+/**
+ * A placeholder standing where content will land while its read is in flight.
+ *
+ * The SHIMMER is a designed motion, so it runs under `motion-safe:` (invariant
+ * 14): a gradient four boxes wide, walked across the box. The SHAPE is the box
+ * — a list card, a gallery cell, a row of a list, or the line `skeletonLine`
+ * sizes — and each shape keeps the name the grids and the harness read.
+ */
+export const skeleton = cva(
+  "sk [background-image:linear-gradient(90deg,var(--color-card)_25%,var(--color-muted)_50%,var(--color-card)_75%)] " +
+    "[background-size:400%_100%] motion-safe:animate-shimmer",
+  {
+    variants: {
+      shape: {
+        card: "skcard h-[62px] rounded-2",
+        tile: "tile aspect-[2/3] rounded-2",
+        row: "row h-[62px] rounded-3",
+        line: "rounded-2",
+      },
+    },
+    defaultVariants: { shape: "line" },
+  },
+);
+
 /** A surface in error: it names the cause and offers a retry. */
 export const surfaceError = cva(
   "surferr [border:1px_solid_color-mix(in_oklab,var(--color-danger)_45%,transparent)] " +
     "[background:color-mix(in_oklab,var(--color-danger)_8%,transparent)] " +
-    "rounded-3 p-7 text-3 leading-[1.5]",
+    "rounded-3 p-7 text-3 leading-[1.5] " +
+    // THE CAUSE LEADS AND THE RETRY SPANS, wherever the surface draws them.
+    "[&_b]:block [&_b]:text-danger-text [&_b]:mb-2 " +
+    "[&_button]:mt-5 [&_button]:w-full [&_button]:[border:1px_solid_var(--color-border)] " +
+    "[&_button]:bg-transparent [&_button]:text-foreground [&_button]:text-3 " +
+    "[&_button]:font-semibold [&_button]:p-4 [&_button]:rounded-2",
 );
 
 /**

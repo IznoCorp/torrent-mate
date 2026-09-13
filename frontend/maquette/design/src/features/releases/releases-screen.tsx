@@ -38,7 +38,7 @@ export function ReleasesScreen() {
 
   return (
     <section
-      className={`${screen()} open`}
+      className={screen({ open: true })}
       data-part="screen"
       data-open=""
       data-key={`releases:${title}`}

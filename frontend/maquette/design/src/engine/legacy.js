@@ -5347,28 +5347,6 @@ import {
     }<div class="side right" data-part="swipe/side" data-side="right">${actions}</div></div>${inner}</div>`;
   }
 
-  /* Same split as `skelCardsInner` / `surfErrInner`: a migrated PAGE draws the
-     `<div class="empty">` itself and fills it with this. `corps` is HTML, not
-     text — the callers pass markup. */
-  function emptyInner(title, corps) {
-    return `<b>${escapeHtml(title)}</b>${corps}`;
-  }
-
-  function secHTML(pip, title, count, inner, note) {
-    if (String(count) === "0" || inner === "") return "";
-    return `<section class="sec" data-part="section">${secInner(pip, title, count, inner, note)}</section>`;
-  }
-  /* Same split as `emptyInner` / `skelCardsInner` / `surfErrInner`: a migrated
-     PAGE draws the `<section class="sec">` itself and fills it with this. The
-     EMPTY case stays the outer function's, and a component reproduces it by
-     drawing no section at all — which is what the legacy's empty string did. */
-  function secInner(pip, title, count, inner, note) {
-    return `
-    <div class="sechead" data-part="section/head"><span class="pip ${pip}" data-part="status-dot"></span><span class="t" data-part="section/title">${escapeHtml(title)}</span><span class="k" data-part="section/count">${count}</span></div>
-    ${note ? `<div class="note" data-part="note">${note}</div>` : ""}
-    ${inner}
-  `;
-  }
 
   /* WORKING STATE — actions really MUTATE
      The datasets above are the seed; `W` is the live copy. An action does
@@ -5488,32 +5466,6 @@ import {
   /* Active datasets, resolved by scenario. The rest of the code does not
      know which scenario is running — it reads these accessors. */
 
-  /* Three phases per surface, driven by the harness
-     `prete` (default), `chargement`, `erreur`. Every surface goes through
-     all three: that is what « every screen AND every state » means, and it
-     is what the parity probe must be able to reach deterministically. */
-  function skelCards(count) {
-    return `<div class="sec" data-part="section">${skelCardsInner(count)}</div>`;
-  }
-  /* The inside alone. A migrated PAGE renders the `<div class="sec">` itself —
-     React cannot set the outer markup of a node it also draws — and fills it
-     with this, so the skeleton stays one emitter rather than two that drift. */
-  function skelCardsInner(count) {
-    return '<div class="sk skcard" data-skeleton=""></div>'.repeat(count);
-  }
-  function skelTiles(count) {
-    return `<div class="gallery" data-part="grid">${'<div class="sk tile" data-part="tile" data-skeleton=""></div>'.repeat(count)}</div>`;
-  }
-  function surfErr(what) {
-    return `<div class="surferr" data-part="surface-error">${surfErrInner(what)}</div>`;
-  }
-  /* Same split as `skelCardsInner`, and for the same reason. */
-  function surfErrInner(what) {
-    return `<b>Impossible de charger ${escapeHtml(what)}.</b>
-      Le serveur n'a pas répondu dans le temps imparti. Rien n'est perdu — ce qui
-      est affiché ailleurs reste valide.
-      <button data-phase="ready">Réessayer</button>`;
-  }
 
 
   /* The last run, told as its nine steps. The counts are the ones
@@ -7377,19 +7329,12 @@ import {
        emitter every fact list on this page and on Maintenance goes through;
        a component calls it VERBATIM rather than re-deriving its markup,
        because the delegated click handlers depend on that markup being
-       byte-exact (the same reason `cardHTML` is reused above). `skelCards`
-       and `surfErr` are the page's two non-ready surfaces. */
+       byte-exact (the same reason `cardHTML` is reused above). */
     factsListHTML,
     factRowsHTML,
-    /* What the Arrivées page draws. `secHTML` is the section emitter the
-       acquisition page's five sections still share — a migrated page draws the
-       section itself and fills it with `secInner`, exactly as it does for the
-       empty and skeleton surfaces.
-       `PIPELINE` is the run's own data, read and never written; the three
+    /* What the Arrivées page draws. `PIPELINE` is the run's own data, read and never written; the three
        `derived` verbs answer what is stuck, moving and settled, which depends
        on the scenario and so cannot be a frozen value. */
-    secHTML,
-    secInner,
     /* What the Acquisition page draws. The follow DESCRIPTORS and their
        vocabulary (`stFraction`, `stLabel`, `gridBadge`, `ST_TONE`, `URGENCY`,
        `GROUPS`) are the page's own language; `cadenceFR` and
@@ -7446,10 +7391,6 @@ import {
     get LIB_PAGE() {
       return LIB_PAGE;
     },
-    skelCards,
-    skelCardsInner,
-    surfErr,
-    surfErrInner,
     SERVICES,
     SERVICES_PANNE,
     EXECUTIONS,
@@ -7472,7 +7413,7 @@ import {
     SETTINGS,
     SETTINGS_STATE,
     SECRETS,
-    emptyInner,
+    
     displayedValue,
     fileName,
     changedFiles,
@@ -30175,7 +30116,7 @@ Object.assign(window, {
   closeDlg, closeSheet,
   dateFR, decisionPending,
   signOut,
-  emptyInner, endCardDrag, endDeckDrag,
+  endCardDrag, endDeckDrag,
   endSugDrag, escapeHtml,
   factRowsHTML, closePopEp, closeDrawer, changedFiles,
   gridBadge, icons, initials, initialsOf, drawerWidth,
@@ -30190,11 +30131,11 @@ Object.assign(window, {
   plages, ownedFor, posterBox, nextSearchFR,
   ptr, refPanel, collapseCard,
   settingId, resetSettings, render,
-  richText, secHTML, secInner,
-  select, sheetFor, titleForProviderId, addressIdsFor, skelCards, skelCardsInner, skelTiles, sortLabel,
+  richText, 
+  select, sheetFor, titleForProviderId, addressIdsFor, sortLabel,
   stFraction, stLabel, stripHTML,
   sugVerb,
-  surfErr, surfErrInner, svgIcon, swipeHTML, tileHTML, toast, toastUndo,
+  svgIcon, swipeHTML, tileHTML, toast, toastUndo,
   allSettings, trailerIds, displayedValue,
   rawValue, typedValue, view,
 });

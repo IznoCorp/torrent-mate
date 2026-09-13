@@ -89,7 +89,7 @@ export function QualityScreen() {
 
   return (
     <section
-      className={`${screen()} open`}
+      className={screen({ open: true })}
       data-part="screen"
       data-open=""
       data-key={`profile:${title}`}

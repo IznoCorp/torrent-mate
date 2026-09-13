@@ -1,12 +1,12 @@
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import { SurfaceError } from "../../ui/state-surfaces";
+import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { useAcquisitionReference, type Follow } from "./reference";
 import { useFollows } from "./queries";
 import { useUiState } from "../../lib/store-access";
 import { FollowsFilters } from "./follows-filters";
-import { body, emptyNote, section as sectionClass, sectionCount, sectionTitle } from "../../ui/variants";
-import { Markup } from "../../ui/markup";
+import { body, emptyNote, section as sectionClass, sectionCount, sectionHead, sectionTitle } from "../../ui/variants";
+import { Markup, emptyNoteMarkup } from "../../ui/markup";
 
 // The swipe action a follow that can be searched again reveals. It is a
 // data-ATTRIBUTE VALUE the document-level delegation dispatches on — a contract
@@ -26,8 +26,6 @@ export function FollowsTab(): ReactElement {
     cardHTML,
     tileHTML,
     swipeHTML,
-    skelCardsInner,
-    emptyInner,
     svgIcon,
     stFraction,
     stLabel,
@@ -188,10 +186,7 @@ export function FollowsTab(): ReactElement {
   let content: ReactElement;
   if (state.phase === "loading") {
     content = (
-      <Markup
-        className={sectionClass()} data-part="section"
-        html={skelCardsInner(5)}
-      />
+      <div className={sectionClass()} data-part="section"><Skeletons count={5} shape="card" /></div>
     );
   } else if (state.phase === "error") {
     content = (
@@ -201,7 +196,7 @@ export function FollowsTab(): ReactElement {
     content = (
       <Markup
         className={emptyNote()} data-part="empty-state"
-        html={emptyInner(
+        html={emptyNoteMarkup(
       term !== ""
         ? t("screens.acquisition.emptyFilter", {
             // ESCAPED, because this string is injected as HTML: i18next
@@ -243,7 +238,7 @@ export function FollowsTab(): ReactElement {
               key={group.l}
               className={sectionClass()} data-part="section"
               html={`
-            <div class="sechead" data-part="section/head"><span class="pip ${group.pip}" data-part="status-dot"></span><span class="${sectionTitle()}" data-part="section/title">${group.l}</span><span class="${sectionCount()}" data-part="section/count">${items.length}</span></div>
+            <div class="${sectionHead()}" data-part="section/head"><span class="pip ${group.pip}" data-part="status-dot"></span><span class="${sectionTitle()}" data-part="section/title">${group.l}</span><span class="${sectionCount()}" data-part="section/count">${items.length}</span></div>
             ${items.map((item) => rowOf(item, showStatus)).join("")}
           `}
             />
