@@ -323,7 +323,7 @@ a file that no longer holds its subject.
 | `styles/theme.css` | the Tokens layer | D3, as written |
 | `styles/base.css` | the Base layer | D3, as written |
 | the surfaces' `variants.ts` | « everything else, in the component » | D3, as written |
-| `styles/legacy.css` | the dying engine's residue, bounded and dated, dies with L13 | **arbitrated by the operator** in L07's `DESIGN.md` § 2, and held by `check-legacy-css-residue.py` |
+| `styles/legacy.css` | the dying engine's residue, bounded and dated, dies with L13 — **as a CONVERSION, surface by surface, not a deletion** (measured 2026-09-13, L13's design § 2.6: 92 of its 148 classes style React components that have no variant; R80's pair floor is 15, not sixteen) | **arbitrated by the operator** in L07's `DESIGN.md` § 2, and held by `check-legacy-css-residue.py` |
 | `styles/harness.css` | the phone frame — imported once, and the only sheet that never ships | **a departure from L07's letter**, taken in the wave and carried by its merge |
 
 **Arbitrated by the operator, 2026-08-25: D3 is WIDENED, and the two are named as transitory.**
@@ -1411,6 +1411,14 @@ behaviour and L19 is a conversion; a passage's raw log and the locks with L20; t
 with L16. **The order is now L14 · L19 · L21 · L20 · L16 · L17 · L18 · L13**, and no dependency
 already written moved.
 
+**Re-ordered on 2026-09-12, by the operator's seventh measure (« L13 — la mort du moteur — en
+priorité après les vagues en vol »).** The engine's death runs NEXT, once the micro-waves in flight
+on that day land, and before L20: **the order is now L14 · L19 · L21 · L13 · L20 · L16 · L17 · L18**,
+and no dependency already written moved — L13's five (L07, L09, L12, L15, L19) are all landed. What
+it makes void: « L20 opens after the `maquette-settings` micro-wave merges » — L20's design and plan
+stay on `main` (#587) and the lot opens after L13. The measure and its six siblings are recorded in
+`docs/reference/frontend-steward.md` § « The operator's measures of 2026-09-12 »; reversal is his.
+
 #### L14 — The surfaces that outgrew their file · *depends on L07, L09*
 
 **Objective.** The four feature surfaces that sit over the 400-line hard ceiling come back under
@@ -1858,7 +1866,7 @@ listed from memory: the ladder's HANDLER (`onEngineBack`, `unwindLayer`, `hideLa
 cause — it REPLACES a layer's entry rather than pushing over it — `docs/reference/frame-model.md` § 2 Part 4, to
 `app/layers.ts`), the document-level delegation's
 FRAME verbs, the boot handshake (`__startEngine`), the engine-side seams (`__address`, `__bridge`,
-`__panel`, `__screens`, `__store`), the dead `#screen` layer with its three readers and the
+`__panel`, `__screens`, `__store`), the dead `#screen` layer with its three readers in the engine (and eight more in the harness — L13's design § 4.5, measured 2026-09-13) and the
 mount-node placement that rests on it (B-232), `refonte.html` and R72's renegotiation,
 `legacy.css` and its guard, `__go`'s driving (which moves into a harness module of its own — it
 is the harness's, not the product's), and whatever fixture families L19 could not kill.
@@ -1927,8 +1935,7 @@ both recorded in that wave's `plan/phase-16-the-scaffolding-dies.md`: the file n
 wave's **conversion ledger** — one entry per region, saying where its rules went and why — and a
 third of those entries name `src/styles/legacy.css`, whose death is this lot's; and **R72's hold
 (a) is the verbatim injection of that file**, so removing it retires a hold, which is a rule
-renegotiation recorded in `regions.json` rather than a file deletion. Twelve live readers name the
-path. **Done when** the fragment is gone, R72 is renegotiated with its two surviving holds
+renegotiation recorded in `regions.json` rather than a file deletion. Twelve live readers name the path — **sixteen on 2026-09-13** (L13's design § 7: `tests/scripts/test_build_identity.py` and `i18n/fr.json:14` joined the fourteen a `grep` of the path literal finds). **Done when** the fragment is gone, R72 is renegotiated with its two surviving holds
 mutation-tested, and the ledger has a home that outlives it. **Any earlier wave may take it** —
 nothing depends on waiting — provided it carries both, and folds neither into a conversion commit.
 
@@ -2178,7 +2185,7 @@ ELSEWHERE, on purpose**: the settings defects that are React's, the mock's, or a
 off the engine — **B-334**, **B-335**, **B-341**, **B-342**, **B-343**, **B-332** and **B-361** (a rubric of
 Réglages or Maintenance is an ARRIVAL: it pushes and draws its back — both confirmed on the operator's
 phone by the real path) and the settings half of **B-345** — go to the **`maquette-settings` micro-wave**
-(`docs/features/maquette-settings/BRIEF.md`) after L21 merges and before L20, because they repair without
+(`docs/features/maquette-settings/BRIEF.md@a155b54fb`) after L21 merges and before L20, because they repair without
 an engine edit on the verb registry L21 built and because they are what keeps B-299 and B-300 unconfirmable
 by hand; **B-344** to the **`maquette-desktop-frame` tooling micro-wave**
 (`docs/features/maquette-desktop-frame/BRIEF.md@33cb259d9`) after the departure micro-wave merges; and the library's
@@ -2216,7 +2223,7 @@ conflict someone has to resolve. This one arrives as green.
 **Which lot is next is decided by § 0's selection rule** — the first lot in this file's order
 that `IMPLEMENTATION.md` does not record as landed and whose every dependency it does — and never
 by which one happens to be unblocked earliest. Where two are eligible, **this file's order decides,
-not the number**: L14 is written after L13 and runs after it.
+not the number**: L16 is written after L13 and runs after it.
 
 ---
 

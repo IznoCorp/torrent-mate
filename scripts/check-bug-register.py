@@ -25,10 +25,11 @@ including a wave's account of its own closures.
                      the file — and no reader ever will, because the rendered
                      table ended at the last row above it. A merge's conflict
                      region put one there twice on 2026-09-08.
-  index-order        B-421's other half, and it is a RATCHET rather than a
-                     sort: the descents the index already carries are frozen by
-                     name and a new one is refused. Re-ordering the register is
-                     the operator's decision about his own file.
+  index-order        B-421's other half: every index table is read in ascending
+                     order and ANY descent is refused. The three the register
+                     carried were frozen by name until 2026-09-13, when the
+                     operator had the open index re-ordered once (his decision
+                     about his own file); since then the arm is a whole sort.
   corpus             THE NUMBER OF ROWS READ IS PRINTED, with a floor. An arm
                      that finds zero rows and reports clean is the shape this
                      repository has paid for seventy-three times
@@ -60,6 +61,7 @@ WHAT THIS GUARD DOES NOT READ, and the list is the point:
     the file this guard does not enforce; `status-vocabulary` accepts the word
     wherever it appears.
 """
+
 import argparse
 import pathlib
 import re
@@ -175,13 +177,15 @@ def arm_duplicate_row(rows):
         if len(occurrences) == 1:
             continue
         violations += 1
-        described = ", ".join(f"line {line_number} says `{status}`"
-                              for status, line_number in occurrences)
-        print(f"  BUGS.md: `{identifier}` carries {len(occurrences)} index rows "
-              f"— {described}. One identifier, one row: a second row is not a "
-              "second view of the entry, it is a second answer to the question "
-              "« is this open? », and every count drawn from the index takes "
-              "whichever it meets first.", file=sys.stderr)
+        described = ", ".join(f"line {line_number} says `{status}`" for status, line_number in occurrences)
+        print(
+            f"  BUGS.md: `{identifier}` carries {len(occurrences)} index rows "
+            f"— {described}. One identifier, one row: a second row is not a "
+            "second view of the entry, it is a second answer to the question "
+            "« is this open? », and every count drawn from the index takes "
+            "whichever it meets first.",
+            file=sys.stderr,
+        )
     return violations
 
 
@@ -199,13 +203,16 @@ def arm_status_vocabulary(rows):
         if status in PLAIN_STATUSES or FIXED_STATUS.match(status):
             continue
         violations += 1
-        print(f"  BUGS.md:{line_number}: `{identifier}` carries the status "
-              f"`{status}`, which is outside the declared vocabulary "
-              f"({', '.join(PLAIN_STATUSES)}, or `fixed #` followed by a pull "
-              "request number). A status nobody declared is a row every count "
-              "that greps for a word walks straight past, and `fixed #NNN` in "
-              "particular is a placeholder saying the merge was never written "
-              "down.", file=sys.stderr)
+        print(
+            f"  BUGS.md:{line_number}: `{identifier}` carries the status "
+            f"`{status}`, which is outside the declared vocabulary "
+            f"({', '.join(PLAIN_STATUSES)}, or `fixed #` followed by a pull "
+            "request number). A status nobody declared is a row every count "
+            "that greps for a word walks straight past, and `fixed #NNN` in "
+            "particular is a placeholder saying the merge was never written "
+            "down.",
+            file=sys.stderr,
+        )
     return violations
 
 
@@ -226,23 +233,29 @@ def arm_invariant_numbers(numbers):
         if len(lines) == 1:
             continue
         violations += 1
-        print(f"  frontend-architecture.md: invariant {value} is written "
-              f"{len(lines)} times, at lines {', '.join(str(one) for one in lines)}. "
-              "These numbers are cited — in this file, in the register and in "
-              "the maquette's own comments — so a repeated one sends a reader "
-              "to the wrong invariant and a brief has already instructed a wave "
-              "that way.", file=sys.stderr)
+        print(
+            f"  frontend-architecture.md: invariant {value} is written "
+            f"{len(lines)} times, at lines {', '.join(str(one) for one in lines)}. "
+            "These numbers are cited — in this file, in the register and in "
+            "the maquette's own comments — so a repeated one sends a reader "
+            "to the wrong invariant and a brief has already instructed a wave "
+            "that way.",
+            file=sys.stderr,
+        )
     expected = list(range(1, len(numbers) + 1))
     written = [value for value, _ in numbers]
     if sorted(written) != expected and not violations:
         missing = sorted(set(expected) - set(written))
         violations += 1
-        print(f"  frontend-architecture.md: the invariants run "
-              f"{written[0] if written else '-'} to {max(written) if written else '-'} "
-              f"and {len(numbers)} are written, so the sequence has a gap at "
-              f"{', '.join(str(one) for one in missing)}. A citation of a number "
-              "nobody wrote points at nothing, which is the same defect as a "
-              "number written twice seen from the other side.", file=sys.stderr)
+        print(
+            f"  frontend-architecture.md: the invariants run "
+            f"{written[0] if written else '-'} to {max(written) if written else '-'} "
+            f"and {len(numbers)} are written, so the sequence has a gap at "
+            f"{', '.join(str(one) for one in missing)}. A citation of a number "
+            "nobody wrote points at nothing, which is the same defect as a "
+            "number written twice seen from the other side.",
+            file=sys.stderr,
+        )
     return violations
 
 
@@ -251,8 +264,7 @@ def arm_invariant_numbers(numbers):
 # carries a DATE and no status at all, which is why `INDEX_ROW` is meant not to
 # take it. A heading that is reworded empties a span here and the arms below say
 # so loudly — the direction a corpus reader must always fail in.
-INDEX_TABLE_HEADINGS = (re.compile(r"^## Open\s*$"),
-                        re.compile(r"^## Closed entries — index\s*$"))
+INDEX_TABLE_HEADINGS = (re.compile(r"^## Open\s*$"), re.compile(r"^## Closed entries — index\s*$"))
 
 # Any LINE that opens with an identifier in a table cell, whether or not the
 # reader could finish it. Line-anchored on purpose: `ANY_INDEX_ROW` below uses
@@ -337,38 +349,37 @@ def arm_unparsed_row(text, rows):
             continue
         named += 1
         if not line.rstrip().endswith("|"):
-            print(f"  BUGS.md:{number}: this index row is WRAPPED — it opens "
-                  f"« {line.strip()[:60]}… » and does not end its last cell on "
-                  "the same line. A table row is one line: wrapped, it is read "
-                  "by no arm and rendered by no reader.", file=sys.stderr)
+            print(
+                f"  BUGS.md:{number}: this index row is WRAPPED — it opens "
+                f"« {line.strip()[:60]}… » and does not end its last cell on "
+                "the same line. A table row is one line: wrapped, it is read "
+                "by no arm and rendered by no reader.",
+                file=sys.stderr,
+            )
         else:
-            print(f"  BUGS.md:{number}: this index row's status cell is not "
-                  f"backticked — « {line.strip()[-60:]} ». The backtick is what "
-                  "the reader parses on: without it the row is not refused, it "
-                  "DISAPPEARS, and B-102's duplicate walks back in through the "
-                  "spelling of its own status cell.", file=sys.stderr)
+            print(
+                f"  BUGS.md:{number}: this index row's status cell is not "
+                f"backticked — « {line.strip()[-60:]} ». The backtick is what "
+                "the reader parses on: without it the row is not refused, it "
+                "DISAPPEARS, and B-102's duplicate walks back in through the "
+                "spelling of its own status cell.",
+                file=sys.stderr,
+            )
 
     opened = len(ANY_INDEX_ROW.findall(text))
     residual = opened - len(rows) - historical - named
     if residual > 0:
-        print(f"  BUGS.md: {opened} row(s) open with an identifier, {len(rows)} "
-              f"were read as index rows, {historical} are the historical table "
-              f"and {named} were named above — {residual} could not be "
-              "accounted for at all. The subtraction and the line-by-line read "
-              "disagree, which means a row is malformed in a way neither "
-              "describes.", file=sys.stderr)
+        print(
+            f"  BUGS.md: {opened} row(s) open with an identifier, {len(rows)} "
+            f"were read as index rows, {historical} are the historical table "
+            f"and {named} were named above — {residual} could not be "
+            "accounted for at all. The subtraction and the line-by-line read "
+            "disagree, which means a row is malformed in a way neither "
+            "describes.",
+            file=sys.stderr,
+        )
         named += 1
     return named
-
-
-# THE DESCENTS THE INDEX ALREADY CARRIES, frozen by name (B-421). The open
-# index is NOT sorted, and requiring that it be would refuse the register as it
-# stands — re-ordering it is a decision about the operator's own file, not a
-# guard's. What this freezes is the recurrence: on 2026-09-08 a merge of `main`
-# produced one conflict region spanning rows and bodies, and concatenating the
-# sides re-glued a row at the wrong place TWICE in one day. A fifth descent is
-# refused; these three are the file as the operator wrote it.
-FROZEN_DESCENTS = (("B-023", "B-013"), ("B-346", "B-339"), ("B-371", "B-331"))
 
 
 def arm_row_placement(text):
@@ -390,24 +401,34 @@ def arm_row_placement(text):
     lines = text.splitlines()
     inside = {index for table in index_tables(lines) for index in table}
     if not inside:
-        print("  BUGS.md: neither index table was found. They are located by "
-              "their headings (« ## Open », « ## Closed entries — index »); a "
-              "heading reworded empties this arm's subject, and an arm with no "
-              "subject reports clean.", file=sys.stderr)
+        print(
+            "  BUGS.md: neither index table was found. They are located by "
+            "their headings (« ## Open », « ## Closed entries — index »); a "
+            "heading reworded empties this arm's subject, and an arm with no "
+            "subject reports clean.",
+            file=sys.stderr,
+        )
         return 1
     violations = 0
     for number, line in enumerate(lines, start=1):
         if ANY_ROW_LINE.match(line) and number - 1 not in inside:
             violations += 1
-            print(f"  BUGS.md:{number}: this index row is written OUTSIDE both "
-                  f"index tables — « {line.strip()[:60]}… ». Every arm here "
-                  "still reads it, and no reader ever will: the rendered table "
-                  "ended at the last line above that was a row.", file=sys.stderr)
+            print(
+                f"  BUGS.md:{number}: this index row is written OUTSIDE both "
+                f"index tables — « {line.strip()[:60]}… ». Every arm here "
+                "still reads it, and no reader ever will: the rendered table "
+                "ended at the last line above that was a row.",
+                file=sys.stderr,
+            )
     return violations
 
 
 def arm_index_order(text):
-    """Refuses a NEW descent in the open index — a ratchet, not a sort.
+    """Refuses a descent in either index table — a sort, per table.
+
+    The arm was a ratchet with three descents frozen by name until 2026-09-13
+    (the merge-conflict re-gluing B-421 records); the operator then had the
+    open index re-ordered once, and the frozen list went with the descents.
 
     Args:
         text: The whole of `BUGS.md`.
@@ -416,27 +437,24 @@ def arm_index_order(text):
         The number of violations.
     """
     lines = text.splitlines()
-    frozen = ", ".join(f"{before} -> {after}" for before, after in FROZEN_DESCENTS)
     violations = 0
     # PER TABLE, never across them. The open index ends at B-421 today and the
     # historical one opens at B-001; read as one list, that boundary is a
     # descent, and the arm accused the register of the seam between its own two
     # tables the first time it ran.
     for table in index_tables(lines):
-        identifiers = [ANY_ROW_LINE.match(lines[index]).group(1)
-                       for index in table if ANY_ROW_LINE.match(lines[index])]
+        identifiers = [ANY_ROW_LINE.match(lines[index]).group(1) for index in table if ANY_ROW_LINE.match(lines[index])]
         for before, after in zip(identifiers, identifiers[1:]):
             if before[0] != after[0] or int(before[2:]) <= int(after[2:]):
                 continue
-            if (before, after) in FROZEN_DESCENTS:
-                continue
             violations += 1
-            print(f"  BUGS.md: {before} is followed by {after} in the index. "
-                  "The order is held as a ratchet: the descents the register "
-                  f"already carries are frozen by name ({frozen}) and a new "
-                  "one is refused, because a merge's conflict region re-gluing "
-                  "a row at the wrong place is how two rows moved on "
-                  "2026-09-08.", file=sys.stderr)
+            print(
+                f"  BUGS.md: {before} is followed by {after} in the index. "
+                "Each index table is ascending, and a descent is refused, "
+                "because a merge's conflict region re-gluing a row at the "
+                "wrong place is how two rows moved on 2026-09-08.",
+                file=sys.stderr,
+            )
     return violations
 
 
@@ -451,24 +469,32 @@ def arm_corpus(rows, numbers):
         The number of violations found.
     """
     identifiers = {identifier for identifier, _, _ in rows}
-    print(f"check-bug-register[corpus]: {len(rows)} index row(s) read in BUGS.md "
-          f"(floor {INDEX_FLOOR}) for {len(identifiers)} identifier(s), and "
-          f"{len(numbers)} invariant(s) in frontend-architecture.md "
-          f"(floor {INVARIANT_FLOOR})")
+    print(
+        f"check-bug-register[corpus]: {len(rows)} index row(s) read in BUGS.md "
+        f"(floor {INDEX_FLOOR}) for {len(identifiers)} identifier(s), and "
+        f"{len(numbers)} invariant(s) in frontend-architecture.md "
+        f"(floor {INVARIANT_FLOOR})"
+    )
     violations = 0
     if len(rows) < INDEX_FLOOR:
         violations += 1
-        print(f"  BUGS.md: {len(rows)} index row(s) read, under the floor of "
-              f"{INDEX_FLOOR}. Every other arm here starts at zero violations, "
-              "so an index this guard can no longer parse — a column added, the "
-              "backticks dropped — reports exactly the same word as one it read "
-              "entirely.", file=sys.stderr)
+        print(
+            f"  BUGS.md: {len(rows)} index row(s) read, under the floor of "
+            f"{INDEX_FLOOR}. Every other arm here starts at zero violations, "
+            "so an index this guard can no longer parse — a column added, the "
+            "backticks dropped — reports exactly the same word as one it read "
+            "entirely.",
+            file=sys.stderr,
+        )
     if len(numbers) < INVARIANT_FLOOR:
         violations += 1
-        print(f"  frontend-architecture.md: {len(numbers)} invariant(s) read, "
-              f"under the floor of {INVARIANT_FLOOR}. The section is found by "
-              "its heading; a heading that is reworded empties the corpus "
-              "without emptying the file.", file=sys.stderr)
+        print(
+            f"  frontend-architecture.md: {len(numbers)} invariant(s) read, "
+            f"under the floor of {INVARIANT_FLOOR}. The section is found by "
+            "its heading; a heading that is reworded empties the corpus "
+            "without emptying the file.",
+            file=sys.stderr,
+        )
     return violations
 
 
@@ -495,9 +521,12 @@ def print_next_identifier():
     for family in ("B", "E"):
         taken = highest.get(family, 0)
         print(f"{family}-{taken + 1:03d}  (highest written: {family}-{taken:03d})")
-    print("Read from BUGS.md and BUGS-CLOSED.md, on THIS branch. A number taken "
-          "on another branch is invisible here — re-read origin/main before you "
-          "write it down.", file=sys.stderr)
+    print(
+        "Read from BUGS.md and BUGS-CLOSED.md, on THIS branch. A number taken "
+        "on another branch is invisible here — re-read origin/main before you "
+        "write it down.",
+        file=sys.stderr,
+    )
     return 0
 
 
@@ -516,9 +545,7 @@ def print_next_identifier():
 # it.** ») or a heading naming several entries (« **B-180 to B-199 — the second
 # review** »). So a PROPER head is an identifier, optionally followed by more
 # identifiers joined by `,`, ` to ` or ` and `, then an em dash.
-PROPER_BODY_HEAD = re.compile(
-    r"^\*\*([BE]-\d{3})(?:(?:,| to | and )\s*[BE]-\d{3})*(?:\*\*)?\s+—",
-    re.MULTILINE)
+PROPER_BODY_HEAD = re.compile(r"^\*\*([BE]-\d{3})(?:(?:,| to | and )\s*[BE]-\d{3})*(?:\*\*)?\s+—", re.MULTILINE)
 
 # Any paragraph opening with an identifier — the old rule, kept for ONE purpose.
 # Twelve entries have never been written with the dash: their whole text is a
@@ -542,8 +569,7 @@ ANY_BODY_HEAD = re.compile(r"^\*\*([BE]-\d{3})\b", re.MULTILINE)
 # version of this line answered « names one entry » for every head in the file
 # and the preference below chose by length alone — which is the reading it was
 # written to replace.
-NAMES_SEVERAL = re.compile(r"^\*\*[BE]-\d{3}(?:,| to | and )\s*[BE]-\d{3}",
-                           re.MULTILINE)
+NAMES_SEVERAL = re.compile(r"^\*\*[BE]-\d{3}(?:,| to | and )\s*[BE]-\d{3}", re.MULTILINE)
 
 
 def body_heads(register):
@@ -555,15 +581,12 @@ def body_heads(register):
     Returns:
         A list of `(identifier, offset, names_one_entry)`, one per head.
     """
-    with_a_proper_head = {match.group(1)
-                          for match in PROPER_BODY_HEAD.finditer(register)}
+    with_a_proper_head = {match.group(1) for match in PROPER_BODY_HEAD.finditer(register)}
     heads = []
     for match in ANY_BODY_HEAD.finditer(register):
         identifier = match.group(1)
-        if (PROPER_BODY_HEAD.match(register, match.start())
-                or identifier not in with_a_proper_head):
-            heads.append((identifier, match.start(),
-                          NAMES_SEVERAL.match(register, match.start()) is None))
+        if PROPER_BODY_HEAD.match(register, match.start()) or identifier not in with_a_proper_head:
+            heads.append((identifier, match.start(), NAMES_SEVERAL.match(register, match.start()) is None))
     return heads
 
 
@@ -611,14 +634,14 @@ def base_register(path):
     except ValueError:
         return None
     for base in ("origin/main", "main"):
-        merge = subprocess.run(["git", "merge-base", "HEAD", base],
-                               capture_output=True, text=True, check=False,
-                               cwd=ROOT)
+        merge = subprocess.run(
+            ["git", "merge-base", "HEAD", base], capture_output=True, text=True, check=False, cwd=ROOT
+        )
         if merge.returncode != 0:
             continue
         show = subprocess.run(
-            ["git", "show", f"{merge.stdout.strip()}:{tracked}"],
-            capture_output=True, text=True, check=False, cwd=ROOT)
+            ["git", "show", f"{merge.stdout.strip()}:{tracked}"], capture_output=True, text=True, check=False, cwd=ROOT
+        )
         if show.returncode == 0:
             return show.stdout
     return None
@@ -648,11 +671,14 @@ def arm_closure(register, path):
     """
     base = base_register(path)
     if base is None:
-        print("  [closure] git could not reach the branch point, so this arm "
-              "read nothing. It refuses rather than passes: an arm that cannot "
-              "see its subject and reports success is the shape this register "
-              "counts. Fetch the history (`fetch-depth: 0`) or run it in a "
-              "clone that has `origin/main`.", file=sys.stderr)
+        print(
+            "  [closure] git could not reach the branch point, so this arm "
+            "read nothing. It refuses rather than passes: an arm that cannot "
+            "see its subject and reports success is the shape this register "
+            "counts. Fetch the history (`fetch-depth: 0`) or run it in a "
+            "clone that has `origin/main`.",
+            file=sys.stderr,
+        )
         return 1
 
     # THE BASE MAY LIST AN IDENTIFIER TWICE — `main` carries B-079 to B-085
@@ -665,31 +691,47 @@ def arm_closure(register, path):
     for identifier, status, _ in read_index_rows(base):
         if not was.get(identifier, "").startswith("fixed"):
             was[identifier] = status
-    now = {identifier: status
-           for identifier, status, _ in read_index_rows(register)}
+    now = {identifier: status for identifier, status, _ in read_index_rows(register)}
     base_bodies, bodies = entry_bodies(base), entry_bodies(register)
 
-    closed_here = [identifier for identifier, status in now.items()
-                   if status.startswith("fixed")
-                   and not was.get(identifier, "").startswith("fixed")]
-    silent = [identifier for identifier in closed_here
-              if identifier in base_bodies
-              and bodies.get(identifier) == base_bodies[identifier]]
+    closed_here = [
+        identifier
+        for identifier, status in now.items()
+        if status.startswith("fixed") and not was.get(identifier, "").startswith("fixed")
+    ]
+    silent = [
+        identifier
+        for identifier in closed_here
+        if identifier in base_bodies and bodies.get(identifier) == base_bodies[identifier]
+    ]
     for identifier in silent:
-        print(f"  [closure] {identifier} moved to `{now[identifier]}` and its "
-              "body is byte-identical to the branch point. Rule 3 asks for an "
-              "instrument that RAN; a status reading « fixed » over an "
-              "unchanged body says nothing about what was established, or how. "
-              "Write the closure in the entry.", file=sys.stderr)
+        print(
+            f"  [closure] {identifier} moved to `{now[identifier]}` and its "
+            "body is byte-identical to the branch point. Rule 3 asks for an "
+            "instrument that RAN; a status reading « fixed » over an "
+            "unchanged body says nothing about what was established, or how. "
+            "Write the closure in the entry.",
+            file=sys.stderr,
+        )
     if not silent:
-        print(f"check-bug-register[closure]: {len(now)} status(es) read "
-              f"against the branch point, {len(closed_here)} closed by this "
-              "branch, each with a body that changed")
+        print(
+            f"check-bug-register[closure]: {len(now)} status(es) read "
+            f"against the branch point, {len(closed_here)} closed by this "
+            "branch, each with a body that changed"
+        )
     return len(silent)
 
 
-ARMS = ("duplicate-row", "status-vocabulary", "invariant-numbers",
-        "unparsed-row", "row-placement", "index-order", "corpus", "closure")
+ARMS = (
+    "duplicate-row",
+    "status-vocabulary",
+    "invariant-numbers",
+    "unparsed-row",
+    "row-placement",
+    "index-order",
+    "corpus",
+    "closure",
+)
 
 
 def main():
@@ -699,16 +741,15 @@ def main():
         The process exit code: zero when every selected arm is clean.
     """
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--arm", choices=ARMS,
-                        help="run one arm instead of all of them")
-    parser.add_argument("--next", action="store_true", dest="next_identifier",
-                        help="print the next free identifier of each family")
+    parser.add_argument("--arm", choices=ARMS, help="run one arm instead of all of them")
+    parser.add_argument(
+        "--next", action="store_true", dest="next_identifier", help="print the next free identifier of each family"
+    )
     # THE DOOR A PROBE NEEDS. Every arm here reads one hard-coded file, so the
     # only way to ask « would this guard catch that? » was to damage the real
     # register and hope to undo it. A copy is the honest way to ask, and an arm
     # nobody can point at a copy is an arm nobody tests.
-    parser.add_argument("--register", type=pathlib.Path, default=REGISTER,
-                        help="read this register instead of BUGS.md")
+    parser.add_argument("--register", type=pathlib.Path, default=REGISTER, help="read this register instead of BUGS.md")
     arguments = parser.parse_args()
 
     if arguments.next_identifier:

@@ -72,17 +72,17 @@ when the defect comes back.
 
 | ID    | Defect                                                | Reported    | Status       |
 | ----- | ----------------------------------------------------- | ----------- | ------------ |
-| B-019 | Many media sheets have lost their visual              | 1×          | `closed`     |
-| B-020 | Actor portraits on media sheets are broken            | 1×          | `closed`     |
-| B-021 | Signing out leaves the bottom panel on top            | 1×          | `closed`     |
-| B-022 | « Voir mes suivis » in the add search is inert        | 1×          | `closed`     |
-| B-023 | Médiathèque « Incomplets »: every visual broken       | 1×          | `closed`     |
 | B-013 | The drawer's entries lead nowhere                     | 2×          | `closed`     |
 | B-014 | The drawer's current entry is unreadable              | 1×          | `closed`     |
 | B-015 | Back reopens the drawer that was just closed          | 1×          | `closed`     |
 | B-016 | Swiping a row right, then left, makes it jump         | 1×          | `closed`     |
 | B-017 | Closing a panel sends the list back to its top        | by mutation | `closed`     |
 | B-018 | On a desktop, dragging a row opens the panel          | 1×          | `closed`     |
+| B-019 | Many media sheets have lost their visual              | 1×          | `closed`     |
+| B-020 | Actor portraits on media sheets are broken            | 1×          | `closed`     |
+| B-021 | Signing out leaves the bottom panel on top            | 1×          | `closed`     |
+| B-022 | « Voir mes suivis » in the add search is inert        | 1×          | `closed`     |
+| B-023 | Médiathèque « Incomplets »: every visual broken       | 1×          | `closed`     |
 | B-024 | `data-go` settles ONE history entry, layers pile      | by review   | `fixed #516`       |
 | B-025 | The screen half of the `data-go` fix has no Back rule | by review   | `closed`     |
 | B-026 | A silent `catch {}` can let URL and UI disagree       | by review   | `closed`     |
@@ -130,7 +130,7 @@ when the defect comes back.
 | B-068 | The wave's documentation drifted in forty small places, and one figure family is wrong | by review | `open` |
 | B-069 | `legacy.css`'s licence to exist names a decision only an about-to-be-archived doc defines | by review | `fixed #500` |
 | B-070 | `rename-identifiers.py` passed the 800-line soft ceiling | by gate | `fixed #500` |
-| B-071 | The design-notes toggle survives the overlay it toggles | by review | `open` |
+| B-071 | The design-notes toggle survives the overlay it toggles | by review | `fixed #505` |
 | B-072 | `build-surface-manifest.py` crashes: its own command no longer runs | by review | `fixed #500` |
 | B-073 | The size arm checks WHICH files are grandfathered, never the lot each names | by audit | `fixed #500` |
 | B-074 | The abbreviation rule's figures were measured against a list the document did not contain | by audit | `fixed #500` |
@@ -279,7 +279,7 @@ when the defect comes back.
 | B-217 | The cursor thaw was measured by nothing, and the tool's first use found it | by adversarial review | `fixed #513` |
 | B-218 | The « Before it » row stopped at L07 and still named a merged PR as « this pull request » | by design | `fixed #514` |
 | B-219 | A wave's brief existed only in a session scratch directory, and its agent could not read it | by agent | `fixed #515` |
-| B-220 | The drawer and the bottom tab bar — L15's since 2026-08-29 | by audit | `open` |
+| B-220 | The drawer and the bottom tab bar — L15's since 2026-08-29 | by audit | `fixed #528` |
 | B-221 | A wave merged leaving its own status as the literal placeholder `fixed #NNN` | by guard | `fixed #516` |
 | B-222 | The add screen is the only one of five measured by no oracle region at all | by audit | `fixed #516` |
 | B-223 | Three more typed variants were orphaned, and the arm for B-139 found them | by guard | `fixed #516` |
@@ -295,7 +295,7 @@ when the defect comes back.
 | B-233 | `theme-color` is a constant while the document paints light | by survey | `fixed #528` |
 | B-234 | The viewport meta declares no `interactive-widget` | by survey | `fixed #540` |
 | B-235 | No desktop navigation exists beyond the drawer | by survey | `open` |
-| B-236 | Every bottom-panel producer is the engine's — L19's since 2026-08-29 | by survey | `open` |
+| B-236 | Every bottom-panel producer is the engine's — L19's since 2026-08-29 | by survey | `fixed #558` |
 | B-237 | The confirmation dialog paints under the tab bar | by review | `fixed #528` |
 | B-238 | A version-less « In flight » row is held by nothing | by review | `fixed #527` |
 | B-239 | `CLAUDE.md` announced 24 frame properties where the model it points at holds 30 | by audit | `fixed #524` |
@@ -390,8 +390,14 @@ when the defect comes back.
 | B-328 | `features/system/page.tsx` heads itself with a path that does not exist and describes a state field (`state.panne`) the code does not have | by the next wave that opens `features/system/page.tsx` | `open` |
 | B-329 | The backend's GENERATED contract does not declare the `409` its own route raises, so no diff between the two contracts can read it — the demand register is structurally blind to a refusal NE-DOIT-PAS-3 forbids the interface to show | by the backend brief | `open` |
 | B-330 | `scripts/mutate.sh` answers « no hold fell » when the RULE PATH it was given does not exist — a typo and a rule that does not bite are the same sentence, and the second is a finding while the first is a mistake | by the instruments' debts block | `open` |
+| B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
+| B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `fixed #588` |
+| B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
+| B-334 | The secret panel's « Remplacer la valeur » does nothing: the action's whole effect is a `data-toast` the engine's dead message element answers, and no store, seed or cache moves | 1× | `fixed #588` |
+| B-335 | The secret panel's « Retirer la clé » does nothing and asks nothing: the same `data-toast` shape as B-334, on a destructive act that owes a confirmation (B-300's form) | 1× | `fixed #588` |
+| B-336 | The library's kind chips (« Tout · Films · Séries », with counts) scroll horizontally with a VISIBLE scrollbar on the phone; the strip should hide it as `pillscroll` does | 1× | `open` |
+| B-337 | A follow card swiped open: the first tap on a revealed action does nothing, the second acts — systematic on the phone | 1× | `open` |
 | B-338 | After a panel's departure the invisible scrim stays hit-testable over the media screen for ~380 ms — `opacity 0`, `visibility` still `visible` until its delayed flip — so a tap on the fresh screen lands on nothing | by the steward | `fixed #573` |
-| B-346 | A paragraph that OPENS with another entry's identifier is read as that entry's body head, so it truncates the entry it lives in and — being the first such head in the file — makes the real entry's body the discarded one; `check-bug-register`'s closure arm was blind to B-310 and B-249 at once, and 25 second-or-later heads sit in the register today | by the micro-wave | `fixed #589` |
 | B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens » | 1× | `open` |
 | B-340 | The « + » button reopens the add screen with the LAST query and mode still in place — after identifying an arrival, a new search starts on « Marvels Spider-Man 2 v1 526 0 -Mephis… », 0 results, and the « 2 médias ajoutés » strip of the previous visit | 1× | `open` |
 | B-341 | A settings field commits its edit only when the finger LEAVES it — no validation affordance in the panel — which the operator reads as counter-intuitive; the pending edit then says « Valeur actuelle » for the value not yet written | 1× | `fixed #588` |
@@ -399,6 +405,11 @@ when the defect comes back.
 | B-343 | After a real save the restart banner does not appear: the flag is raised on the engine's `SETTINGS_STATE` object and nothing re-renders the page, so « Redémarrer maintenant » is reachable from a named state and not from a save | 1× | `fixed #588` |
 | B-344 | On a desktop browser the design host shows the prototype inside the phone frame only — the operator cannot test the interface's desktop layout there; he asks for a desktop-only switch out of the frame and back | 1× | `fixed #576` |
 | B-345 | The seeded data does not show every state a surface can take — the operator could not find a single medium « à prendre » to try « Récupérer maintenant » on; his ruling: the test data must always hold enough simulated states to exercise every case by hand | 1× | `open` |
+| B-346 | A paragraph that OPENS with another entry's identifier is read as that entry's body head, so it truncates the entry it lives in and — being the first such head in the file — makes the real entry's body the discarded one; `check-bug-register`'s closure arm was blind to B-310 and B-249 at once, and 25 second-or-later heads sit in the register today | by the micro-wave | `fixed #589` |
+| B-350 | A PAUSED SERIES is dimmed in the follows grid with no word saying why: the tile's caption is `stFraction(follow) ?? paused`, so a fraction always outranks the word — a paused FILM says « en pause » only because it has no fraction | by L13 | `fixed #572` |
+| B-351 | `check-maquette-comments.py` reads five suffixes and `.mjs` is not one of them, so every `.mjs` under `frontend/maquette/` is invisible to the comment rule AND to the corpus count the floor is derived from — one real occupant measured, `vite.config.mjs:143`'s « (L08) » | by L21 | `open` |
+| B-352 | `engine/states.js` is grandfathered at 786 non-blank lines and the size arm refuses both the growth AND the raise of its record, so NO surface born after L19 can be given a named state — and a state nobody names is a surface the oracle never measures | by L21 | `open` |
+| B-353 | UNDOING A REMOVAL DOES NOT RESTORE THE FOLLOW, it creates a new one wearing the same name: the layer's delete DROPS the record and the only way back is a CREATE, so the year, « suivi depuis » and the search count are lost and the status comes back right only by coincidence | by L21 | `fixed #572` |
 | B-360 | The pre-push gate refuses a push over a GREEN suite and shows the reason to nobody: each check runs silently first and, when that pytest dies of a signal, is rerun visibly — the rerun's « 11 325 passed » is printed and its result discarded, so the reader gets a green summary, then « Push aborted », and the failure in no output; three refusals in one morning on two branches, the same push landing on its next attempt | 1× | `open` |
 | B-361 | A Maintenance rubric cannot be left either — entering it writes `?topic=…` by replacement, pushes no entry and draws no back, so the system Back leaves « Maintenance » for Acquisition; B-332's shape on the second page that has rubrics, measured on the operator's phone by the real path | 1× | `fixed #588` |
 | B-363 | `residue.py` reads a typed variant's base through its string LITERALS, so a factory built from a shared constant reads EMPTY and is reported unreadable — a token scale cannot be written once and shared between two variants while that is true, and the repair that suggests itself (concatenating a literal with the constant) silences the report and leaves the reader comparing one token | 1× | `open` |
@@ -410,17 +421,6 @@ when the defect comes back.
 | B-369 | A fixture rename made a named state's own premise false: a paused follow was renamed to « The Venture Bros » to give it a media sheet, and that title is the subject of the state « Fiche — suggestion NON possédée (série) » — so the sheet drew the disabled « already followed » button, and the rule reading that state's offer fell on an emitter with no data | 1× | `fixed #572` |
 | B-370 | `harness-hold-counts.py --compare` with no FILE exits 2 on an argparse usage error, which a gate reading exit codes cannot tell from a comparison that found drift — one pass of L21's gate compared nothing while looking like it ran | 1× | `open` |
 | B-371 | DOIT-4's « En file » pastille is reachable by NO path a finger can take: it reads the layer's `pipelineState`, which only the pipeline operations write and which no surface calls, while Arrivées' « Lancer le pipeline » writes the engine's interface store and touches no network — two pipeline notions, and the hand can move only the one the pastille does not read | 1× | `open` |
-| B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
-| B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `fixed #588` |
-| B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
-| B-334 | The secret panel's « Remplacer la valeur » does nothing: the action's whole effect is a `data-toast` the engine's dead message element answers, and no store, seed or cache moves | 1× | `fixed #588` |
-| B-335 | The secret panel's « Retirer la clé » does nothing and asks nothing: the same `data-toast` shape as B-334, on a destructive act that owes a confirmation (B-300's form) | 1× | `fixed #588` |
-| B-336 | The library's kind chips (« Tout · Films · Séries », with counts) scroll horizontally with a VISIBLE scrollbar on the phone; the strip should hide it as `pillscroll` does | 1× | `open` |
-| B-337 | A follow card swiped open: the first tap on a revealed action does nothing, the second acts — systematic on the phone | 1× | `open` |
-| B-350 | A PAUSED SERIES is dimmed in the follows grid with no word saying why: the tile's caption is `stFraction(follow) ?? paused`, so a fraction always outranks the word — a paused FILM says « en pause » only because it has no fraction | by L13 | `fixed #572` |
-| B-351 | `check-maquette-comments.py` reads five suffixes and `.mjs` is not one of them, so every `.mjs` under `frontend/maquette/` is invisible to the comment rule AND to the corpus count the floor is derived from — one real occupant measured, `vite.config.mjs:143`'s « (L08) » | by L21 | `open` |
-| B-352 | `engine/states.js` is grandfathered at 786 non-blank lines and the size arm refuses both the growth AND the raise of its record, so NO surface born after L19 can be given a named state — and a state nobody names is a surface the oracle never measures | by L21 | `open` |
-| B-353 | UNDOING A REMOVAL DOES NOT RESTORE THE FOLLOW, it creates a new one wearing the same name: the layer's delete DROPS the record and the only way back is a CREATE, so the year, « suivi depuis » and the search count are lost and the status comes back right only by coincidence | by L21 | `fixed #572` |
 | B-376 | Every push to a DRAFT pull request ran the whole pipeline, and no trigger answered the pull request leaving draft: a wave that opens its pull request early — which is this repository's own method — paid full CI on each of its intermediate pushes, and `ready_for_review` was in no workflow at all | by operator | `fixed #578` |
 | B-377 | `check-implementation-state`'s in-flight arm infers « that wave has landed » from a VERSION COMPARISON — `main >= the row's version` — which holds only while every merge to `main` comes from the in-flight wave itself; a micro-wave merging past it makes the arm refuse a row that is perfectly true, and it was refusing L21's row on `main` | by gate | `fixed #579` |
 | B-378 | `grabSeasonForFollow`'s mock moves a follow's status only when one is FOUND, so for a medium that is NOT followed it answers a success (200 today — the layer ignores the declared code, B-379) with a real `absorbedCount` and changes nothing at all — success reported over an unchanged world, on a path the « Incomplets » lens reaches with a single tap | by L21 | `fixed #572` |
@@ -464,6 +464,7 @@ when the defect comes back.
 | B-490 | Acquisition › En cours throws the reader back to the top after a return from « Résoudre → »: the scroll restoration's late re-apply fires on a lazy poster's `load` | by operator | `fixed #593` |
 | B-491 | Out of the desktop frame the document scrolls beside `#port`: the closed sheet and its drag band overflow `.device` by 89 px once the frame stops clipping | by operator | `fixed #593` |
 | B-492 | Out of the desktop frame the overflow B-491 confined is the APP's own cascade — no element of the shell clips its absolute layers — so once `harness.css` ships nowhere a desktop document can scroll beside `#port` again | by the scroll-jump micro-wave | `open` |
+| B-495 | `scripts/heavy.sh` prints « holding off » once and « starts » with no timestamp, so how long a wrapped run WAITED for the lock and the readiness floor is unmeasurable afterwards — on 2026-09-13 the steward could not say whether a classed run held for a minute or an hour behind a host whose own one-minute load ran 9–15 | the next tooling wave (frozen apparatus: not before a defect reaches the operator) | `open` |
 | B-496 | `hooks/pre-push`'s `run_check` runs a check with its output sent to `/dev/null` and, when it fails, RUNS IT AGAIN to show the output — so a check that falls once and passes on the re-run prints a green summary under « FAILED », and the only reading of the fall is discarded | the next tooling wave | `open` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
@@ -698,6 +699,19 @@ draws its catalogue without a fraction, so nothing contradicts itself on the she
 and the sheet state opposite facts about one show. B-088's class, beside B-380 and B-476.
 
 
+**B-495 — the heavy wrapper does not measure the wait it imposes.**
+`scripts/heavy.sh` prints « holding off » once when it first finds the lock held or the floor unmet,
+and « starts » when the run begins — neither line carries a time, and nothing prints the seconds
+between them. So a run's WAIT is not readable after the fact: on 2026-09-13 the tooling wave's `make
+check` sat behind a `test`-class ceiling of load 6 on a host whose own one-minute load ran 9–15
+(fseventsd, Spotlight, a Plex transcode), and neither the wave nor the steward could say for how long;
+memory was never the constraint at any reading that night (4–5 GB free), the concurrency and the
+ceiling were. **Closes when** « starts » prints the seconds waited (and « holding off » its cause —
+lock, memory or load — each time it re-samples), so an accusation of a slow wave can be read against
+the wrapper's own figure. B-386's family. Owner: the next tooling wave — none is opened for it, by
+the operator's first measure of 2026-09-12.
+
+
 **B-377 — the in-flight arm reads a version where it means « has this pull request merged? ».**
 `scripts/check-implementation-state.py:271` refuses when `as_ordered(main_version) >=
 as_ordered(row_version)`, and says « that wave has landed and the row is stale ». The inference is
@@ -812,7 +826,7 @@ It predates L21 and it is layer-wide, so **it is not repaired in L21** (the orch
 mock/contract micro-wave, « mock layer ».** Until it lands a rule holds a success as `2xx` and says why,
 as R158 does. B-378's entry said « answers 201 », which was the contract's word and not the layer's.
 
-**Fixed by the mock-layer micro-wave, #592** (`9da6fd556`, `63fb37de1`; `docs/features/maquette-mock-layer/DESIGN.md` § 1).
+**Fixed by the mock-layer micro-wave, #592** (`9da6fd556`, `63fb37de1`; `docs/features/maquette-mock-layer/DESIGN.md@5eafd3cfc` § 1).
 `mocks/declared-status.ts` reads the contract and builds `operationId → the lowest declared 2xx`, and
 `scenario.ts` answers it on BOTH branches of its outcome, so an unarmed call and a call armed only with a
 latency carry the code the contract declares. **R170** (`harness/declared_codes.py`, on the `--contracts`
@@ -914,7 +928,7 @@ round three's C1, repaired by `21390f6c5`, which leaves a follow's status as it 
 nothing to get. **The offer itself stays this entry's**: the sheet still offers an act on a show with
 nothing aired to get.
 
-**Repaired by the mock-layer micro-wave** (`docs/features/maquette-mock-layer/DESIGN.md` § 4), on the
+**Repaired by the mock-layer micro-wave** (`docs/features/maquette-mock-layer/DESIGN.md@5eafd3cfc` § 4), on the
 orchestrator's rulings of 2026-09-12: AIRED is DERIVED from the catalogue's own episode dates at the
 referential's today, never typed a second time. Measured over every season both families know:
 
@@ -1245,7 +1259,7 @@ the four return walks fall — phone finger 490 → 22, phone wheel 480 → 0, d
 **The repair**, inside the one path: the late re-apply runs only if the port still sits where the restore landed
 (`port.scrollTop === landed`) — a clamped offset has not moved since the write, a reader's has.
 
-<sub>maquette-scroll-jump, 2026-09-12 · probe lines in `docs/features/maquette-scroll-jump/DESIGN.md` § 1 · `harness/scroll_keeps_place.py` (R175)</sub>
+<sub>maquette-scroll-jump, 2026-09-12 · probe lines in `docs/features/maquette-scroll-jump/DESIGN.md@519ba2136` § 1 · `harness/scroll_keeps_place.py` (R175)</sub>
 
 **B-491 — out of the desktop frame, the document is a second scroll container.**
 
@@ -1261,7 +1275,7 @@ whose `overflow` out of the frame R140 holds equal to the control document's —
 falls. The device, the stage, the closed sheet and its translate, the drag band and the switch measure identically in the
 phone, the desktop in the frame and out of it; R175's header holds read green, R140 reads 24 holds and no violation.
 
-<sub>maquette-scroll-jump, 2026-09-12 · private bench measure of every element outside `#port` below the viewport · `docs/features/maquette-scroll-jump/DESIGN.md` § 2</sub>
+<sub>maquette-scroll-jump, 2026-09-12 · private bench measure of every element outside `#port` below the viewport · `docs/features/maquette-scroll-jump/DESIGN.md@519ba2136` § 2</sub>
 
 **B-492 — out of the desktop frame, what clips the sheet is the harness, not the app.**
 
@@ -1275,7 +1289,7 @@ size can meet the second scroll container again.
 **Closes when** the frame model decides which element of the app owns the clipping of its layers on a desktop window,
 and a hold reads the document's overflow with no harness stylesheet in the page.
 
-<sub>maquette-scroll-jump, 2026-09-13 · owner: the frame model (L13) · `docs/features/maquette-scroll-jump/DESIGN.md` § 5</sub>
+<sub>maquette-scroll-jump, 2026-09-13 · owner: the frame model (L13) · `docs/features/maquette-scroll-jump/DESIGN.md@519ba2136` § 5</sub>
 
 **B-466 — `frame.ts` is one line from a hard ceiling, and the arm this wave added is what will demand that line.**
 
@@ -1489,7 +1503,7 @@ index read on a list that has really moved.
 
 <sub>audit, resolution-card round one · the reader's `a08_manual_and_two_folders.py` over the eight `arr-*` states · `a02_window.py`'s `second_pick_by_finger` · `harness/resolution_window.py`'s w6, driven through `window.__queueActions`</sub>
 
-**Fixed by the mock-layer micro-wave, #592** (`cbd933f9f`; `docs/features/maquette-mock-layer/DESIGN.md` § 3).
+**Fixed by the mock-layer micro-wave, #592** (`cbd933f9f`; `docs/features/maquette-mock-layer/DESIGN.md@5eafd3cfc` § 3).
 « S.W.A.T. », already a queued folder whose own card names two candidates, now carries those two as a
 pending decision. **R172** (`harness/two_picks.py`, full suite): 16 holds, no violation — pick A by a
 finger, pick B inside A's window, only the latest message carries the way back, « Annuler » puts back ONE
@@ -3456,7 +3470,7 @@ lands on `/acquisition`. Exactly the report. The same shape on Maintenance's top
 **RULED by the operator on 2026-09-06 (round 2, question 8): owner the « settings » MICRO-WAVE, off L13,
 together with B-361** — the topic verb leaves the engine for the verb registry (a subtraction), pushes,
 and the view draws its back, on « Réglages » and « Maintenance » in one move. Brief:
-`docs/features/maquette-settings/BRIEF.md`.
+`docs/features/maquette-settings/BRIEF.md@a155b54fb`.
 
 **FIXED #588 (the settings micro-wave), with B-361 — one mechanism, one wave.** The verb left the
 engine's delegation for the tap registry (`features/settings/topic-verb.ts`), the branch at
@@ -3476,7 +3490,7 @@ this interface wears — and the secrets rubric wears it too.
                         was still there: « PUSHES an entry » 4 → 4, « DRAWS its way back » False,
                         « Back lands on the page's OWN list » /acquisition. The operator's own
                         reading, reproduced
-    the mutation        see the closing § of `docs/features/maquette-settings/DESIGN.md`
+    the mutation        see the closing § of `docs/features/maquette-settings/DESIGN.md@a155b54fb`
     the run             `python3 frontend/maquette/harness/topics.py` → 16 holds, no violation
 
 **ONE DEFECT THIS RULE FOUND IN ITS OWN REPAIR, and it is worth the line.** The first build closed
@@ -4248,7 +4262,7 @@ pressed state ». The measurement above says that bump does not reach this contr
 state is read from `currentAppearance()` at render, and nothing re-renders the drawer until it is
 mounted again.
 
-**Owner: the « settings » MICRO-WAVE** (`docs/features/maquette-settings/BRIEF.md`), with B-332 and
+**Owner: the « settings » MICRO-WAVE** (`docs/features/maquette-settings/BRIEF.md@a155b54fb`), with B-332 and
 B-361 — the drawer's own behaviour, not the surface this lot draws. Filed, not repaired.
 
 <sub>operator, on the design host · a real drawer open, four presses through the control: `{"theme": null, "stored": null, "pressed": ["system=true", "light=false", "dark=false"]}` at rest, then `stored` `light` / `dark` / `system` / `light` with `pressed` unchanged at every reading, then after a close and a reopen `["system=false", "light=true", "dark=false"]` · `app/appearance.ts` (`chooseAppearance`, `STORAGE_KEY = "tm-apparence"`), `app/drawer.tsx` (the control, and the comment)</sub>
@@ -4290,7 +4304,7 @@ the two rubric kinds are one mechanism and should land together, wherever B-332 
 <sub>steward, 2026-09-06 · `scratchpad/cdp-back-real2.py`: `load {path:/maintenance, hist:18}` → `tap query` → `{path:/maintenance?topic=query, hist:18, back:false, head:"Maintenance | Regarder"}` → `history.back()` → `{path:/acquisition}` · `grep -oE "dataset\.maintopic" frontend/maquette/design/src/engine/legacy.js`</sub>
 
 **RULED by the operator on 2026-09-06 (round 2, question 8): owner the « settings » MICRO-WAVE, with
-B-332** — one mechanism, one wave. Brief: `docs/features/maquette-settings/BRIEF.md`.
+B-332** — one mechanism, one wave. Brief: `docs/features/maquette-settings/BRIEF.md@a155b54fb`.
 
 **FIXED #588 (the settings micro-wave), with B-332 — one mechanism, one wave, and the two halves of
 this one were already apart.** The ADDRESS was already a dial (`lib/addresses.ts` declares `topic`
@@ -6675,6 +6689,8 @@ and the rules that tap it move in ONE step. Left here rather than fixed because 
 inside the dying engine, where an edit is L13's to make; it is written down so L13 does not
 rediscover it as a live feature.
 
+**Closed at the lot-close gesture of 2026-09-13, on the reading L13's design took (DESIGN § 9.10).** « A class nothing reads » stopped being true at L08-bis (#505, B-081): `harness.css:145` reads `:root.notes .note` again — `grep -n ":root.notes .note" frontend/maquette/design/src/styles/harness.css`. The toggle's third end, inside the engine, moves into the harness module as it stands in L13a phase 1; it is that lot's, not a defect.
+
 **B-072 — the command that proves the surface partition no longer runs.**
 `docs/archive/features/maquette-l07/DESIGN.md@79ccebe2` (line 281) names `build-surface-manifest.py` as the builder that
 asserts the partition of BLOCK 2's 530 rules into 38 surfaces is TOTAL. Run today it raises
@@ -8816,6 +8832,8 @@ side nothing renders either: `app/focus.ts` **watches** the drawer, `app/bar-hei
 screen state — and **L13's objective enumerates what survives subtraction** (the document-level
 delegation, the boot, `/login`, the splash). Neither the drawer nor the tab bar is there.
 
+**Closed at the lot-close gesture of 2026-09-13, on the reading L13's design took (DESIGN § 9.10).** The subject left with L15 (#528): `app/drawer.tsx` and `app/tab-bar.tsx` exist and draw both — `ls frontend/maquette/design/src/app/drawer.tsx frontend/maquette/design/src/app/tab-bar.tsx`. The row stayed `open` because nothing re-read it when the lot that answered it landed.
+
 **Why nobody saw it, and it matters more than the inventory.** Two instruments watch the engine and
 **both measure its SIZE, never its surfaces**: the boundaries guard counts its lines,
 `check-legacy-css-residue.py` counts its CSS rules. When L09 took `legacy.js` from 35 263 to 33 449
@@ -9796,6 +9814,8 @@ does »; the markup left with the pages, and the families stayed because their r
 producers, which D5's « surface by surface » was never applied to. **B-220's class over the
 product's whole sheet layer**, and invisible to the same two size-counting instruments. Owned by
 **L19** from 2026-08-29 (`frontend-architecture.md` § 4, Phase 5).
+
+**Closed at the lot-close gesture of 2026-09-13, on the reading L13's design took (DESIGN § 9.10).** The subject left with L19 (#558): `grep -c "panel\.open(" frontend/maquette/design/src/engine/legacy.js` reads **0** — every producer is a feature's. The nine fixture families L19 could not kill are L13a's, in that lot's entry.
 
 <sub>`grep -n "panel\.open(" frontend/maquette/design/src/engine/legacy.js` · `grep -rn "panel.open(" frontend/maquette/design/src/{features,app,lib,ui}`</sub>
 

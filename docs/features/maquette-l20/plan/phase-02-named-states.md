@@ -1,5 +1,7 @@
 # Phase 2 — The named states leave the engine's ledger
 
+> **Re-targeted by the steward on 2026-09-13**: L13 runs before L20 (the operator's seventh measure), and L13a phase 1 moves the whole state table into `design/src/harness/states/` (L13's design § 4.1) — so this phase no longer moves the HOME; it adds Système's ids to `harness/states/system.ts` under the ceiling, and B-352 closes in L13a, not here.
+
 **A mechanical prerequisite, and it is a phase because it has its own gate.** This lot declares 26
 named states (DESIGN § 5), and the file that holds them may not grow.
 
@@ -20,7 +22,7 @@ and thirty lines. **Even two would be refused.** So the states do not go there.
 
 ## The move
 
-- **New file** `design/src/states/system.ts` — the named states of the Système surface, in the same
+- **New file** `design/src/harness/states/system.ts` — the named states of the Système surface, in the same
   `[id, label, run]` shape, typed. It is a top-level directory beside `mocks/`, `contract/`,
   `i18n/` and `engine/`, which is the shape this tree already has for a kind of artefact that
   belongs to no feature: **the state table is the HARNESS's own fixture**, and `engine/states.js`
@@ -55,7 +57,7 @@ therefore the proof this phase is looking for:
 
 **That is the discipline, and it is deliberate**: a state id declared before its surface exists
 would make `states.py` fail on « renders nothing », which is the pass it is supposed to enforce. So
-phase 2 moves the HOME; each later phase adds its own ids to `states/system.ts` with the surface
+phase 2 moves the HOME; each later phase adds its own ids to `harness/states/system.ts` with the surface
 that answers them, and phase 9 reads the final count.
 
 ⚠ **The count is read, not assumed.** `python3 scripts/harness-hold-counts.py --compare` with
