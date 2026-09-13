@@ -53,3 +53,7 @@ Per INDEX « Gates ». In addition, the contract's count reads 0, the oracle sho
 ## Commit
 
 `feat(maquette-l13): the acquisition feature answers its own delegation names and the last surface opener leaves the engine`
+
+## Amendments
+
+- **Amended 2026-09-13 (steward, the three arms' dry read, audit order 2):** « imports the dialog host » is VOID (fan-in: `app/dialog-host.ts` is at 4 keys) — add a dialog DOOR to `lib/shell-doors.ts` (`fillDialogDoor`, a·2 R1's shape) and re-point `features/settings/panel-setting.ts` + `secret-verbs.ts` in the same commit; « by import of the panel host » → the `panel` door (`lib/shell-doors.ts`); `sheetprim` enters the vocabulary or stays a computed key never declared; carry a·2's owed removal of `features/acquisition/queries.ts` from `FAN_IN_EXEMPT` when the engine's last read of `followActions`/`suggestions` goes (ruling 10).

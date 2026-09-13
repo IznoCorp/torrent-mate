@@ -57,3 +57,7 @@ returns nothing.
 ## Commit
 
 `feat(maquette-l13): the library feature answers its own delegation names and owns its delete dialog`
+
+## Amendments
+
+- **Amended 2026-09-13 (steward, the three arms' dry read, audit order 2):** the same dialog-door amendment as b·5 (the library never imports `app/dialog-host.ts`); `mediaNamedBy` reads `window.LIBRARY` until b·10-bis (ruling 41).

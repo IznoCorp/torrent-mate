@@ -10,10 +10,12 @@ Design: `docs/features/maquette-l13/DESIGN.md`. Contract:
 
 The design's § 1 recommends **three sub-lots — L13a (conversion), L13b and L13c (behaviour)** — each a
 wave of its own, with its own branch, squash, reader round and Mac walk, in that fixed order. The
-operator's ruling is pending when this is written.
+operator RULED B on 2026-09-13 (decision round; ruling 27 of `RULINGS.md`).
 
-- **If the ruling is B (three sub-lots)**: each table below is one wave; its pull request is its
-  STOP C; the next sub-lot opens from `main` after the previous one's post-merge gesture.
+- **Ruled B (three sub-lots)**: each table below is one wave; its pull request is its
+  STOP C. **L13b opens STACKED on L13a's final head (auditor's order 7, 2026-09-13) and is rebased onto `main`
+  after L13a's squash; L13c opens the same way on L13b's.** A full suite runs at each sub-lot's MIDPOINT
+  (after b·6, after c·5) beside the last phase's (auditor's order 5, 2026-09-13).
 - **If the ruling is A (one wave)**: the three tables are one, the phases keep their numbers
   (`a·1` … `c·9`), there is one STOP C at the end. **No phase file changes.**
 
@@ -153,7 +155,7 @@ and binds the label to the next free number then.
 | b·8 | [The gestures](phase-b08-gestures.md) | swipe rows, suggestion card, deck, drag guard, pull indicator | `E` gesture block | the one-tap hold | B-337 |
 | b·9 | [One ladder shape](phase-b09-one-ladder-shape.md) | D-L13-1; the redraw replaces | the 240/260 ms timers | R-L13-a, R-L13-b; `exits.py` refuses the gap | B-290, B-397 |
 | b·10 | [The panel's return](phase-b10-panel-return.md) | Back reopens the panel; `panel-down`'s reverse | — | R-L13-c | B-275 |
-| b·10-bis | The library's membership read (added 2026-09-13 by a·10, ruling 41; the steward writes its phase file) | an exact membership read by title (and year) in the contract; `mediaNamedBy`, `knownMedium`, `follow-facts.ts`'s `inLibrary` and `openDeleteDialog` read it; **and, by ruling 53 (2026-09-13), the follow panel's season block reads `readMediaSeasons` by the follow's identity (Silo's fourth season named), with the seasons half of the `window.__mocks` seed accessor**; the harness re-aims at the `window.__mocks` seeds, the nine `window.SEASONS` readers among them (`busy.py`, `followed_sheet_act.py`, `message_over_layers.py`, `queued_ask_mark.py`, `season_family.py`, `season_grab_unfollowed.py`, `season_grab.py`, `seeds_at_rest.py`, `priming.py` — re-taken by grep) | `LIBRARY`, `INCOMPLETE`, `SEASONS`, `knownMedium`, their window exports | first for the membership read, and first for the season block | — |
+| b·10-bis | [The library's membership read](phase-b10-bis-membership-read.md) (added 2026-09-13 by a·10, ruling 41; rulings 53, 61) | an exact membership read by title (and year) in the contract; `mediaNamedBy`, `knownMedium`, `follow-facts.ts`'s `inLibrary` and `openDeleteDialog` read it; **and, by ruling 53 (2026-09-13), the follow panel's season block reads `readMediaSeasons` by the follow's identity (Silo's fourth season named), with the seasons half of the `window.__mocks` seed accessor**; the harness re-aims at the `window.__mocks` seeds, the nine `window.SEASONS` readers among them (`busy.py`, `followed_sheet_act.py`, `message_over_layers.py`, `queued_ask_mark.py`, `season_family.py`, `season_grab_unfollowed.py`, `season_grab.py`, `seeds_at_rest.py`, `priming.py` — re-taken by grep) | `LIBRARY`, `INCOMPLETE`, `SEASONS`, `knownMedium`, their window exports | first for the membership read, and first for the season block | — |
 | b·11 | [`legacy.js` dies](phase-b11-legacy-js-dies.md) | — | `legacy.js`, `seams.ts`, and (ruling 57, from a·16) `engine-shape.ts` and its test, `engine-data.ts`, `engine-redraw.ts`, `lib/engine-drawing.ts`, `__referentiel` with `reference.d.ts` and the slices, the two exemptions and the reference-slice arm — the interface constants they publish need homes first (phase-a16 § Amendment), the parser arms, the debt section, the ledger entry, `resync.py` — and the ~547 lines of `LIBRARY`, `INCOMPLETE` and `knownMedium`, gone at b·10-bis first | the four harness reads of the file | — |
 
 ## L13c — What the engine was blocking (BEHAVIOUR)
@@ -221,8 +223,8 @@ OUTPUT (B-346).
 harness is re-run alone before it is read, and the re-run's loss of load is said in the same breath
 (B-277, B-307).
 
-**The « In flight » row is written when the pull request opens** — pull request number first, then the
-version; `scripts/check-implementation-state.py` holds the row by both.
+**The « In flight » row is the steward's per-lot docs PR's (auditor's order 15, 2026-09-13)**: the wave does not touch
+`IMPLEMENTATION.md` beyond a citation the paths guard forces; the pull request body carries the figures.
 
 ---
 

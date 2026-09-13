@@ -36,8 +36,7 @@ wrong).** Everything else is the evidence under them.
 
 ## 1. The cut — an arbitration for the operator
 
-Sent to the steward on 2026-09-13 (message « L13 CUT ARBITRATION »). **The operator's ruling is
-PENDING; this design and the plan proceed on the recommendation.** If the ruling is A, `plan/INDEX.md`
+Sent to the steward on 2026-09-13 (message « L13 CUT ARBITRATION »). **RULED B by the operator on 2026-09-13** (three sub-lots; reading A refused as mixing conversion and behaviour in one review); **Q2 ruled (ii) the same day — the ≡ harness panel died at L13a a·17-bis** (ruling 31: `harness/bar` and `#notesBtn` stay). **The folder `docs/features/maquette-l13/` is the LOT's** (ruling 58): it dies at L13c's post-merge gesture; each sub-lot's gesture deletes only its own brief and resume, cited by commit. If the ruling is A, `plan/INDEX.md`
 merges its three phase tables into one and no phase file changes.
 
 **(A) One wave.** One branch, one squash, 39 phases chained, one reader round at the end. Cost: a
@@ -462,14 +461,14 @@ path from its inputs).
 
 ---
 
-## 8. The ladder's shape (L13b phases 9–10) — an ARCHITECTURE decision for the operator
+## 8. The ladder's shape (L13b phases 9–10) — RATIFIED by the operator on 2026-09-13 (Q3 = A)
 
 **B-290's arbitration, written out.** Today a layer left for an arrival has two shapes: « Voir la
 fiche » closes the panel inside the navigation's commit and KEEPS its entry (Back crosses two:
 `history.state.__TSR_index` 3 → 1); its siblings (`releases`, `profile`, `take`) POP the entry and
 push 240/260 ms later. B-397 is a third: a panel re-produced after an edit pushes another entry.
 
-**Proposed decision D-L13-1: a layer left for an arrival KEEPS its entry, and Back onto it REOPENS
+**Decision D-L13-1 (ratified 2026-09-13): a layer left for an arrival KEEPS its entry, and Back onto it REOPENS
 it.** § 16 rule 1 read literally: opening a panel is an arrival, so the panel is on the stack, and
 Back from the screen it opened returns to it — which is B-275's own wording (« Back should reopen it
 over the list »). The entry records what reopens it — `{ layer: "sheet", kind, subject }`, written

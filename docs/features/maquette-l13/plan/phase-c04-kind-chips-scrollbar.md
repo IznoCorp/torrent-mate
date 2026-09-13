@@ -39,3 +39,7 @@ Per INDEX « Gates ». In addition, B-336 closes with the rule's red reading and
 ## Commit
 
 `fix(maquette-l13): the library's kind chips scroll without showing a scrollbar`
+
+## Amendments
+
+- **Amended 2026-09-13 (steward, the three arms' dry read, audit order 2):** name the strip variant's home; in `ui/` it may carry no `library`/`lib`/domain word (frame-domain ceiling 0).

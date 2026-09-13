@@ -56,3 +56,7 @@ readings, the capture-order reading and B-337's one-tap reading go in the report
 ## Commit
 
 `feat(maquette-l13): the gestures leave the engine and one real tap after a swipe is held`
+
+## Amendments
+
+- **Amended 2026-09-13 (steward, the three arms' dry read, audit order 2):** the words the move declares (`guard`, `travel`, `indicator`, `dismissal`, `bind`) enter `code-vocabulary.txt` in the same commit or the names are built from words already there; `lib/` names no surface (`settingsPull` → `pull`); a `ui/` swipe row receives the feature's action as a prop (layering); the `#ptr` utilities erased by `__reposPTR`'s `className = "ptr"` at every driver reset are THIS phase's to repair (ruling 59).

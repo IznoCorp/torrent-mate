@@ -58,3 +58,7 @@ the report.
 ## Commit
 
 `feat(maquette-l13): a layer left for an arrival keeps its entry and a redraw replaces it`
+
+## Amendments
+
+- **Amended 2026-09-13 (steward, the three arms' dry read, audit order 2):** the entry's keys are written once in `lib/navigation-entry.ts` (a·3, ruling 14), never again in `app/panel-host.ts`; D-L13-1 ratified (ruling 28) — STOP E lifted.

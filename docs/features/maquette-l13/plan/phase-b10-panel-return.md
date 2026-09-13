@@ -46,3 +46,7 @@ preferences and the mutation go in the report.
 ## Commit
 
 `feat(maquette-l13): back from a screen reopens the panel it came from and draws the return`
+
+## Amendments
+
+- **Amended 2026-09-13 (steward, the three arms' dry read, audit order 2):** « through the panel host by import » is VOID (cycle: `app/panel-host.ts:24` imports `./layers`) — use the `panel` door on `app/layers.ts`'s `lib/shell-doors` import.

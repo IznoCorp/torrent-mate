@@ -44,3 +44,7 @@ sampling and the rule's readings in the report.
 ## Commit
 
 `fix(maquette-l13): the pull indicator is centred and closes when the refresh settles`
+
+## Amendments
+
+- **Amended 2026-09-13 (steward, the three arms' dry read, audit order 2):** `refetch`, `spinner`, `indicator`, `centre`/`center`, `settle` are not vocabulary words — add what the phase declares in the same commit, or name from words already there.

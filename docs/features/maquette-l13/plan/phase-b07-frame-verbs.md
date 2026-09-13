@@ -55,3 +55,7 @@ listener, the `render()` re-aims and the mutations go in the report.
 ## Commit
 
 `feat(maquette-l13): the frame answers its own delegation names and the engine's click listener dies`
+
+## Amendments
+
+- **Amended 2026-09-13 (steward, the three arms' dry read, audit order 2):** nothing in `app/` imports the frame-verb module back (the boot calls it — cycles arm); page-alias literals in `app/` are frame-domain cost, measured after the move; `applyState` leaves the engine here (ruling 16).

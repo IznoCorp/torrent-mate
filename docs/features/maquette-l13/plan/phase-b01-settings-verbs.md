@@ -53,3 +53,7 @@ report.
 ## Commit
 
 `feat(maquette-l13): the settings feature answers its own delegation names`
+
+## Amendments
+
+- **Amended 2026-09-13 (steward, the three arms' dry read, audit order 2):** the store is written through `lib/store-access.ts` (a·2 R1), never `app/store.ts`; prefer the side-effect line in `app/panel-contributions.ts` (frame-domain cost 0) over a named import in `app/feature-verbs.ts`; where a call is forced, measure and raise `app.ceiling` in the same commit with the reason (a·4 precedent).
