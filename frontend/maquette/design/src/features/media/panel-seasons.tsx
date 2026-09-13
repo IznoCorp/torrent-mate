@@ -13,7 +13,7 @@ import { useTranslation } from "react-i18next";
 import { useMediaReference, type MediaReference } from "./reference";
 import { useQueryClient } from "@tanstack/react-query";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
-import { queuedMark, seasonGrabSpacing, seasonGrabTaken } from "./variants";
+import { queuedMark, seasonGrabSpacing, seasonGrabTaken, episodeCell, episodeSet, legend, legendSwatch, seasonDisclosure, seasonFraction, seasonShortfall, type EpisodeState } from "./variants";
 import { actionButton } from "../../ui/variants";
 import { askForSeason, useAskedInFlight } from "./season-grab";
 import { useQueuedSeasons } from "./queued-seasons";
@@ -35,11 +35,10 @@ declare module "../../ui/panel/contract" {
   }
 }
 
-// Lifecycle order and swatch classes for the season legend — refonte.html
-// keeps `EP_ORDER`/`EP_SWATCH` private (only `EP_LABEL` is published on the
-// référentiel). Both are small, static, keyed on the same six states
-// `EP_LABEL` already carries, so they are reproduced here verbatim rather
-// than re-derived.
+// Lifecycle order for the season legend — refonte.html kept `EP_ORDER`
+// private (only `EP_LABEL` is published on the référentiel). It is small,
+// static and keyed on the same six states `EP_LABEL` carries, so it is
+// reproduced here verbatim; each state's swatch is `legendSwatch`'s variant.
 const EP_ORDER = [
   "unverified",
   "announced",
@@ -48,15 +47,6 @@ const EP_ORDER = [
   "acquiring",
   "in_library",
 ] as const;
-
-const EP_SWATCH: Record<string, string> = {
-  unverified: "sw-muted",
-  announced: "sw-upcoming",
-  pending: "sw-waiting",
-  to_grab: "sw-warning",
-  acquiring: "sw-info",
-  in_library: "sw-success",
-};
 
 type EpisodeCatalog = { n: number; air?: string | null }[];
 
@@ -129,7 +119,7 @@ function SeasonDetails({
     return (
       <button
         key={number}
-        className={`ep ${state}`}
+        className={episodeCell({ state: state as EpisodeState })}
         data-part="episode"
         data-announced={state === "announced" || undefined}
         data-in-library={state === "in_library" || undefined}
@@ -141,7 +131,7 @@ function SeasonDetails({
     );
   });
   return (
-    <details className="season" data-part="season" open={!complete}>
+    <details className={seasonDisclosure()} data-part="season" open={!complete}>
       <summary>
         {/* The blanks between these children are NOT decoration: the legacy
             `saisonsHTML` carried a line break at each of them, and JSX drops
@@ -153,7 +143,7 @@ function SeasonDetails({
             whitespace-only node draws nothing: the fix is invisible and the
             text is right again. */}
         {t("common.season")} {num}{" "}
-        <span className="sfr">
+        <span className={seasonFraction()}>
           {owned}/{aired}
         </span>{" "}
         {/* DOIT-4's VISIBLE HALF, ON THE SURFACE THE ASK WAS MADE FROM. The
@@ -169,13 +159,13 @@ function SeasonDetails({
           </span>
         ) : null}{" "}
         {complete ? null : (
-          <span className="miss" data-part="season/missing">
+          <span className={seasonShortfall()} data-part="season/missing">
             {missing}{" "}
             {missing > 1 ? t("common.missingPlural") : t("common.missing")}
           </span>
         )}
       </summary>
-      <div className="eps" data-part="episode/set">
+      <div className={episodeSet()} data-part="episode/set">
         {cells}
       </div>
       {/* THE VERB, DRAWN ONLY OVER A HOLE (B-301).
@@ -239,10 +229,10 @@ function SeasonsBlock({
   ]);
   return (
     <>
-      <div className="legend" data-part="legend">
+      <div className={legend()} data-part="legend">
         {EP_ORDER.filter((state) => statesPresent.has(state)).map((state) => (
           <span key={state}>
-            <i className={EP_SWATCH[state]} />
+            <i className={legendSwatch({ state })} />
             {reference.EP_LABEL[state]}
           </span>
         ))}

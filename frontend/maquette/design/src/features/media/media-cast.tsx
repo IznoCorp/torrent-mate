@@ -5,7 +5,7 @@ import { SkeletonLine } from "../../ui/state-surfaces";
 import type { MediaSheet } from "./reference";
 import type { MediaSheetFields } from "./sheet-fields";
 import { factsPanel, keyValueRow, sectionHeading } from "../../ui/variants";
-import { castCaption, castFigure, castList, castPortrait } from "./variants";
+import { castCaption, castFigure, castList, castPortrait, noInfo } from "./variants";
 import { initials } from "../../lib/titles";
 
 export function MediaCast({
@@ -104,9 +104,9 @@ export function MediaCast({
           ))}
         </div>
       ) : inFlight ? (
-        <p className="noinfo"><SkeletonLine width="half" /></p>
+        <p className={noInfo()}><SkeletonLine width="half" /></p>
       ) : (
-        <p className="noinfo" data-part="no-info">
+        <p className={noInfo()} data-part="no-info">
           {t(failed ? "screens.media.castUnread" : "screens.media.castUnknown")}
         </p>
       )}

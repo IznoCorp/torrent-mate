@@ -7,6 +7,7 @@ import { useMediaReference } from "./reference";
 import type { Follow } from "./sheet-fields";
 import { actionButton, factsPanel, keyValueRow, sectionHeading, sheetActions } from "../../ui/variants";
 import { dateLabel } from "./format";
+import { noInfo } from "./variants";
 
 export function MediaDetails({
   title,
@@ -144,7 +145,7 @@ export function MediaDetails({
           inFlight ? (
             <SkeletonLine width="half" />
           ) : (
-            <p className="noinfo" data-part="no-info">
+            <p className={noInfo()} data-part="no-info">
               {t("screens.media.followWaitsForKind")}
             </p>
           )

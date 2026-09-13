@@ -166,6 +166,7 @@ categories
 category
 cats
 ceil
+cell
 cells
 chance
 change
@@ -296,6 +297,7 @@ direction
 directions
 disarm
 discipline
+disclosure
 discover
 disk
 disks
@@ -1006,6 +1008,7 @@ sheetgrab
 sheetin
 sheets
 shell
+shortfall
 shorthands
 shot
 show
