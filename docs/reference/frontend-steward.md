@@ -176,7 +176,8 @@ brief said « there is no tab to close ». The plugin's script defaults to the m
 paragraph is the office's half.
 
 **Building the context — from the repository, never from a conversation.** In order:
-`docs/reference/product-intent.md` (what the product must be), then
+`docs/reference/product-intent.md` (what the product must be) and `docs/reference/operator-method.md`
+(how the operator works and what he expects — his, dictated, since 2026-09-13), then
 `docs/reference/frontend-architecture.md` (what must become true, and in what order), then
 `IMPLEMENTATION.md` § « Where the frontend work stands » (where it stands),
 `frontend/maquette/README.md` (how the prototype runs and what it has already cost), `BUGS.md`,

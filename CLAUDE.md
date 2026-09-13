@@ -368,8 +368,9 @@ Everything durable is **English only**: code comments, docstrings, maquette/harn
 all engineering documentation (`docs/`, `BUGS.md`, `CHANGELOG.md`,
 `IMPLEMENTATION.md`, this file). **Never mix languages within a document.** Exceptions:
 
-- **One document stays French, by name**: `docs/reference/product-intent.md`, the constitution,
-  dictated by the operator and amended by the operator alone. The documents describing the
+- **Two documents stay French, by name**: `docs/reference/product-intent.md`, the constitution,
+  and `docs/reference/operator-method.md`, his method (since 2026-09-13) — both dictated by the
+  operator and amended by the operator alone. The documents describing the
   version in production (`docs/production/`, `README.md`) keep the language they were written
   in — they are frozen and die at the switchover; the next version's operator documents are born
   in English. The rule, the three families and their fates:
