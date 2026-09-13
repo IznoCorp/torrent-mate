@@ -125,7 +125,6 @@ def test_the_arm_refuses_a_dead_exemption(arm, tmp_path, monkeypatch, capsys):
     (tmp_path / exempt).parent.mkdir(parents=True, exist_ok=True)
     (tmp_path / exempt).write_text("export const feed = [];\n", encoding="utf-8")
     write_engine(tmp_path, '// import { feed } from "../features/acquisition/discover-feed";\n')
-    (tmp_path / "engine" / "states.js").write_text("", encoding="utf-8")
     monkeypatch.setattr(arm, "ENGINE_OWNED", {exempt: "a reason nobody can check"})
 
     violations = arm.arm_server_state(tmp_path)
@@ -143,7 +142,6 @@ def test_the_arm_is_clean_while_the_import_is_real(arm, tmp_path, monkeypatch, c
     (tmp_path / exempt).parent.mkdir(parents=True, exist_ok=True)
     (tmp_path / exempt).write_text("export const feed = [];\n", encoding="utf-8")
     write_engine(tmp_path, 'import { feed } from "../features/acquisition/discover-feed";\n')
-    (tmp_path / "engine" / "states.js").write_text("", encoding="utf-8")
     monkeypatch.setattr(arm, "ENGINE_OWNED", {exempt: "a reason the engine's import backs"})
 
     violations = arm.arm_server_state(tmp_path)

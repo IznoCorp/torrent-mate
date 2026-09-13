@@ -290,6 +290,8 @@ BUCKETS = {
     # the boundaries arm had to be given a type-only exemption for (B-104).
     "contract": "the API contract's generated types — what the interface may ask for",
     "i18n": "the interface's French, as resources",
+    "harness": ("the harness module — drives the named states, installed behind "
+                "__MOCKS_BUILT_IN__, ships nowhere, dies at switchover"),
     "engine": "LEGACY — the dying engine and what boots it. Dies with L13",
 }
 

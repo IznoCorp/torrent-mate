@@ -44,11 +44,9 @@ import "../i18n";
 // below any other statement would not reorder anything — imports hoist —
 // but writing it anywhere else would suggest otherwise.
 import "../engine/legacy.js";
-// The scenario table, registered with the engine as this module evaluates —
-// after the engine, because it imports twenty names from it. It is the
-// harness's fixture, not the product's, and the engine looks its states up
-// there rather than carrying them.
-import "../engine/states.js";
+// The harness module — the named states, their driver, the ≡ panel. Installed
+// below behind the mock layer's constant, so no build without the layer has it.
+import { installHarness } from "../harness";
 import { RouterProvider } from "@tanstack/react-router";
 import React from "react";
 import ReactDOM from "react-dom/client";
@@ -274,6 +272,7 @@ installNavigationSeam();
 
 const start = window.__startEngine;
 if (typeof start === "function") start({ store: store });
+if (__MOCKS_BUILT_IN__) installHarness();
 
 // `#shell` starts, in the markup, as a static sibling of `.stage` —
 // index.html knows nothing about the phone frame the fragment draws. A

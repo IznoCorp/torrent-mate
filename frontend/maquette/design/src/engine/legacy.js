@@ -5540,69 +5540,6 @@ import {
   const beforeReset = document.querySelector(".topbar .avatar img");
   if (beforeReset) beforeReset.src = ACCOUNT.avatar;
 
-  window.__reset = () => {
-    seedWorld();
-    /* THE CACHE IS PART OF WHAT A MEASUREMENT INHERITS, since L09. This
-       function's own sentence — « a measurement must never inherit the
-       mutations of a previous one » — used to be true of the world alone,
-       because every surface read a fixture. A surface reads a query cache now,
-       and a cache keeps what it holds: driving one state after another left the
-       Médiathèque showing every page a previous state had asked for, and the
-       oracle measured a 46 402 px list where the reference holds 3 388.
-       Clearing it here rather than in each named state is the same decision
-       `seedWorld()` embodies — a state pins what it means to show, and
-       everything else starts from a known place. The mock layer's own seeds go
-       back with it. */
-    window.__queries?.clear();
-    window.__mocks?.reset();
-    /* AND WHAT NO COMPONENT OBSERVES IS ASKED FOR AGAIN. A cleared query
-       with an observer is re-asked by that observer; the deck's cards have
-       none, because the engine draws the deck. */
-    window.__refillEngineData?.();
-    store.write({
-      /* The SCENARIO is state too, and the loudest kind: it decides which
-         world every later reading is taken from. A state that switched to the
-         dense scenario left it switched for the next one, so a surface
-         measured on its own and the same surface measured after its neighbour
-         answered differently. A named state that does not pin its scenario
-         pins it here instead. */
-      scen: "real",
-      pill: "tout",
-      filter: "",
-      q: "",
-      sugCount: 30,
-      selMode: false,
-      selected: new Set(),
-      sugGone: new Set(),
-      added: new Set(),
-      // The deck order is state too: without this a measurement inherits the
-      // card order left by the previous one.
-      sugOrder: null,
-    });
-    // The pull indicator lives outside the state object — classes and an
-    // inline height on one element — and a refresh in flight outlives a change
-    // of state. Reset here, or a measurement inherits the previous one's
-    // spinner.
-    if (window.__reposPTR) window.__reposPTR();
-    if (typeof resetSettings === "function") resetSettings();
-    // The screen stack is navigation state: a measurement must not inherit
-    // the screens a previous journey left underneath the visible one.
-    screenStack.length = 0;
-    currentRender = null;
-    // The router is navigation state too: `__go` states are DRIVEN, not a
-    // journey — a measurement must not inherit whichever screen ROUTE a
-    // previous one navigated to, for the exact reason it must
-    // not inherit the legacy screen stack just cleared above. `replace`, so
-    // driving through many states never grows history; `flush()` is the same
-    // discipline `aller()` uses for a real navigation, so the address is back
-    // to "/" before the state function that runs right after this (which may
-    // itself navigate, e.g. the profil scenario) has a chance to.
-    if (window.__routeur) {
-      window.__routeur.navigate({ to: "/", replace: true });
-      window.__routeur.history.flush();
-    }
-    return true;
-  };
 
   /* Active datasets, resolved by scenario. The rest of the code does not
      know which scenario is running — it reads these accessors. */
@@ -7976,6 +7913,18 @@ import {
   function openSheet() {
     throw new Error("openSheet est mort — passer par __panel");
   }
+  /* A page restored the way a named state starts: the layers hidden without
+     touching history, the store written, the port back at the top when the
+     patch names a new place, and the page drawn. The back handler restores a
+     page through it, and the harness drives its named states through it. */
+  function applyState(patch) {
+    hideLayers();
+    store.write(patch);
+    if (patch.page || patch.libLens || patch.q !== undefined)
+    port.scrollTop = 0;
+    render();
+  }
+
   /* Closing WITHOUT touching history — the harness driver uses it to
      restart from a clean surface. Chaining the « normal » close functions
      made `history.back()` pop past our own entries and leave the page
@@ -7992,7 +7941,8 @@ import {
     // The scrim is DERIVED now, not written: `ui/sheet.tsx` raises it while any
     // scrim-backed layer is open, so clearing the layers clears it.
     window.__layers?.close("dialog", true);
-    closeHarness();
+    // The harness panel, when one is up, goes with the layers.
+    document.querySelector(".hpanel")?.remove();
   }
 
   /* A layer that closes itself pops the entry it pushed — and that pop must
@@ -8171,6 +8121,17 @@ import {
      only thing it can honestly do. */
   const BACK_WINDOW = 5000;
   let pilotage = false;
+  /* A named state is DRIVEN, not walked: every writer of history checks this
+     latch and writes nothing while `run` builds the state. The harness calls
+     this verb rather than holding the latch, which stays private here. */
+  function drivenWithoutHistory(run) {
+    pilotage = true;
+    try {
+      run();
+    } finally {
+      pilotage = false;
+    }
+  }
   let armedExit = 0;
   /* WHETHER A HOME PAGE ENTRY LIES AT OR BENEATH THE CURRENT ONE, and it
      FOLLOWS THE WRITES: every verb that lays a home entry down raises it, and
@@ -8651,45 +8612,6 @@ import {
     closeDrawer();
   };
 
-  /* Design notes */
-  select("#notesBtn").onclick = (event) => {
-    store.write({ notes: !currentState().notes });
-    document.documentElement.classList.toggle("notes", currentState().notes);
-    event.currentTarget.setAttribute("aria-pressed", String(currentState().notes));
-    toast(currentState().notes ? "Notes de conception affichées." : "Notes masquées.");
-  };
-  /* STATE ENUMERATION — HARNESS
-     Every measurable state carries a stable id and knows how to reach
-     itself.
-     `window.__go(id)` drives to a state without clicking: that is what
-     makes the parity probe DETERMINISTIC — without it, measuring « the
-     blocked card » requires knowing how to make one appear, and that
-     knowledge is exactly what evaporates over time.
-     These ids are the ones `regions.json` references. */
-  /* The scenario table is not the engine's — it is the harness's, and it lives
-     in `src/states.js`. What stays here is the DRIVING, because driving is not
-     a table lookup: `__go` closes the harness panel, unmasks three overlays,
-     resets the world unless asked not to, and holds `pilotage` — a private
-     latch this module reassigns. An imported binding cannot be assigned, so
-     moving `__go` out would mean exporting a setter for a private flag: one
-     indirection traded for a worse one.
-
-     Registered rather than imported, so the engine never depends on the module
-     that measures it. An empty table is a legitimate state — a document with
-     no driver simply cannot be driven — and `__go` says so by name. */
-  let STATES = [];
-  window.__recordStates = (table) => {
-    STATES = table;
-  };
-
-
-  function applyState(patch) {
-    hideLayers();
-    store.write(patch);
-    if (patch.page || patch.libLens || patch.q !== undefined)
-    port.scrollTop = 0;
-    render();
-  }
 
   /* THE ENTRY IS NOT THIS FILE'S ANY MORE — the splash, the sign-in gate and
      the install proposal are `app/entry.ts`'s (`MODEL.md` § 2 Part 9). It was
@@ -8715,69 +8637,8 @@ import {
      what a leaked address looks like from the outside. */
   const showSignIn = (withError, silent) =>
     window.__entry?.showSignIn(withError, silent === true || pilotage);
-  const hideSignIn = (silent) =>
-    window.__entry?.hideSignIn(silent === true || pilotage);
   const signOut = () => window.__entry?.signOut();
-  const showStartup = () => window.__entry?.showStartup();
-  const hideStartup = () => window.__entry?.hideStartup();
-  /* THE WHOLE VERB, not half of it. This forwarder took `showStartup()` alone
-     for one commit — so the splash went up and nothing was scheduled to take it
-     down, and a duration a caller passed was discarded. No caller is left
-     today, which is exactly what would have made it invisible on the day one
-     came back. */
-  const coverLoading = (duration) => window.__entry?.coverLoading(duration);
-  const showInstallation = (platform) => window.__entry?.showInstall(platform);
-  const masquerInstallation = () => window.__entry?.hideInstall();
-  const alreadyInstalled = () => window.__entry?.alreadyInstalled() === true;
 
-  window.__go = (stateId, opts) => {
-    const found = STATES.find((STATES2) => STATES2[0] === stateId);
-    if (!found)
-      throw new Error(
-        STATES.length
-          ? "état inconnu : " + stateId
-          : "aucun état enregistré — src/states.js n'a pas été chargé");
-    closeHarness();
-    if (!stateId.startsWith("signin")) window.__entry?.hideSignIn(true);
-    if (stateId !== "startup") hideStartup();
-    if (!stateId.startsWith("pwa-")) masquerInstallation();
-    // Reset to seed by DEFAULT: a measurement must never inherit the
-    // mutations of a previous one. `__go(id, {keep:true})` preserves
-    // state, to chain an action scenario.
-    if (!opts?.keep) window.__reset();
-    // Driving is not a journey: a measurement must not depend on how many
-    // states ran before it.
-    pilotage = true;
-    try {
-      found[2]();
-    } finally {
-      pilotage = false;
-    }
-    return stateId;
-  };
-  window.__states = () => STATES.map((entree) => entree[0]);
-  // The harness panel lists the states by NAME, so it needs the label too.
-  window.__etatsDetailles = () => STATES.map(([id, libelle]) => [id, libelle]);
-
-  /* The ids the interface can actually render. Any control naming something
-     else is a dead end however carefully it is drawn — a drawer entry pointed
-     at one and answered a tap with a message. Reading the page table rather
-     than a list written beside it is what makes that checkable at all. */
-  window.__pages = () => window.__navigation?.ids() ?? [];
-
-  /* The media the pipeline is currently refusing. Exposed because the rule
-     that keeps them OFF Système has to know their names, and a rule that
-     cannot reach them compares against an empty list and passes whatever it
-     is shown — which is what it did before this seam existed. */
-  window.__blocked = () => queued().stuck.map((card) => card.t);
-
-  /* Clears ALL harness chrome before a capture or a pixel comparison:
-     harness buttons float above the shell, which is a measured region and
-     must carry nothing that does not exist in the app. */
-  window.__measure = (enabled) => {
-    document.documentElement.classList.toggle("measuring", enabled !== false);
-    return enabled !== false;
-  };
 
 
   /* THE DRAWER IS NOT DRAWN HERE ANY MORE. It was an empty `<aside>` this
@@ -8799,46 +8660,6 @@ import {
     window.__layers?.close("drawer", pop);
   }
 
-  function closeHarness() {
-    const element = document.querySelector(".hpanel");
-    if (element) element.remove();
-  }
-
-  function openHarness() {
-    closeHarness();
-    const createElement = document.createElement("div");
-    createElement.className = "hpanel";
-    createElement.dataset.part = "harness/panel";
-    createElement.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px">
-        <h4 style="flex:1">Harnais — hors application</h4>
-        <button class="iconbtn" data-hclose="1" aria-label="Fermer">${svgIcon(icons.x)}</button>
-      </div>
-      <p>Ce panneau ne fait pas partie de l'interface. Il pilote les données et les états pour qu'on puisse tous les regarder — et pour que la sonde de parité les atteigne sans deviner. <code>window.__go("id")</code> fait la même chose sans clic.</p>
-      <h4>Données</h4>
-      <div class="row">
-        <button data-hscen="real" aria-pressed="${currentState().scen === "real"}">État réel du 10 août</button>
-        <button data-hscen="loaded" aria-pressed="${currentState().scen === "loaded"}">Scénario de charge</button>
-      </div>
-      <h4>Phase de la surface</h4>
-      <div class="row">
-        ${["ready", "loading", "error"].map((element) => `<button data-hphase="${element}" aria-pressed="${currentState().phase === element}">${element === "ready" ? "Prête" : element === "loading" ? "Chargement" : "Erreur"}</button>`).join("")}
-      </div>
-      <h4>Compte TMDB</h4>
-      <div class="row">
-        <button data-htmdb="1" aria-pressed="${currentState().tmdb}">Connecté</button>
-        <button data-htmdb="0" aria-pressed="${!currentState().tmdb}">Non connecté</button>
-      </div>
-      <h4>${window.__etatsDetailles().length} états mesurables</h4>
-      <div class="row states">
-        ${window.__etatsDetailles().map(([id, lab]) => `<button data-hgo="${id}">${escapeHtml(lab)}<code>${id}</code></button>`).join("")}
-      </div>`;
-    document.querySelector("#device").appendChild(createElement);
-  }
-
-  select("#scenBtn").onclick = () => {
-    openHarness();
-  };
   /* THE APPEARANCE IS NOT THIS FILE'S ANY MORE. The three states, the stored
      choice, the live media listener and the attribute they write are
      `app/appearance.ts`'s — the frame's entry (`MODEL.md` § 2 Part 9), because
@@ -9236,32 +9057,6 @@ import {
         console.error("data-navgo : écriture de navigation échouée", error);
         window.__navEchec = true;
       }
-      return;
-    }
-    if (closest.dataset.hclose) {
-      closeHarness();
-      return;
-    }
-    if (closest.dataset.hgo) {
-      window.__go(closest.dataset.hgo);
-      return;
-    }
-    if (closest.dataset.hscen) {
-      store.write({ scen: closest.dataset.hscen });
-      render();
-      openHarness();
-      return;
-    }
-    if (closest.dataset.hphase) {
-      store.write({ phase: closest.dataset.hphase });
-      render();
-      openHarness();
-      return;
-    }
-    if (closest.dataset.htmdb) {
-      store.write({ tmdb: closest.dataset.htmdb === "1" });
-      render();
-      openHarness();
       return;
     }
     if (closest.dataset.sort) {
@@ -31615,68 +31410,29 @@ import {
       requestAnimationFrame(reopenWhenTheSubjectIsThere);
     };
     reopenWhenTheSubjectIsThere();
-    /* The welcome hint disappears on first interaction: a bubble that
-       returns over an open sheet is a nuisance, not help. */
-    let hintShown = false;
-    setTimeout(() => {
-      // Never in measurement mode: the bubble would cover the last action of
-      // the captured screen, and it is harness, not app.
-      if (hintShown || document.documentElement.classList.contains("measuring"))
-        return;
-      hintShown = true;
-      toast("Touchez le ⓘ en haut pour afficher les notes de conception.");
-    }, 900);
-    document.addEventListener(
-      "pointerdown",
-      () => {
-        hintShown = true;
-        /* THROUGH THE ONE SEAM, like every other dismissal. This site wrote the
-           `show` class alone, which was survivable while the class was the
-           whole of the state — it is not: `data-shown` is read by other rules,
-           and the action button's visibility now reads whether a message is up.
-           Left as it was, the first tap of a session cleared the hint visually
-           and stranded the action button until the pending timer fired. */
-        /* Asked of the layer rather than read off the document: what is on
-           screen is the message host's fact, and a `textContent` read of a
-           node the layer keeps rendered after it closes would answer yes about
-           a message that had already gone. */
-        const onScreen = window.__toast?.read();
-        if (
-          onScreen?.shown &&
-          onScreen.message?.message?.includes("notes de conception")
-        )
-          window.__toast.hide();
-      },
-      { capture: true },
-    );
   };
 
 /* ── what the scenario table needs, exported by name ────────────────────────
 
-   `src/states.js` holds the table this engine used to carry, and its entries
-   call back into it. They could have gone through the `window` surface below
+   The harness module (`src/harness/`) holds the named states and their
+   driver, and they call back into it. They could have gone through the `window` surface below
    like the harness does — but the table is SOURCE, not a probe typed into a
    browser, and a source file that reaches its neighbour through a global says
-   nothing about what it actually depends on. Twenty names, listed, so the
-   dependency is readable and a deletion breaks the build instead of a run.
-
-   `store` is among them, and it is assigned at boot: an ES export of a `let`
-   is a LIVE binding, so the importer reads what the engine currently holds
-   rather than a copy taken at evaluation. That is the same property the
-   getters below exist to give the `window` surface, obtained here for free. */
+   nothing about what it actually depends on. The names are listed, so the
+   dependency is readable and a deletion breaks the build instead of a run. */
 export {
-  SETTINGS,
-  SETTINGS_STATE,
-  showSignIn,
-  showStartup,
-  showInstallation,
   applyState,
-  store,
   openDeleteDialog,
   openDrawer,
-  settingId,
   resetSettings,
   render,
+  seedWorld,
+  screenStack,
+  hideLayers,
+  drivenWithoutHistory,
+  toast,
+  svgIcon,
+  escapeHtml,
 };
 
 /* ── the published surface ───────────────────────────────────────────────────
@@ -31726,21 +31482,20 @@ Object.assign(window, {
   ST_LABEL_MOVIE, ST_TONE,
   URGENCY, VIA_LABEL, actionLeave,
   actionTake, actionResolve,
-  actionDelete, addVerb, showSignIn, showStartup,
-  showInstallation, applyState,
+  actionDelete, addVerb, showSignIn,
   baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
-  closeDlg, closeHarness, closeScreen, closeSheet, coverLoading,
+  closeDlg, closeScreen, closeSheet,
   dateFR, decisionPending,
-  signOut, alreadyInstalled, unwindLayer,
+  signOut, unwindLayer,
   emptyInner, endCardDrag, endDeckDrag,
   endSugDrag, epState, escapeHtml, navigationState,
   factRowsHTML, closePopEp, closeDrawer, changedFiles,
   gridBadge, hideLayers, icons, initials, initialsOf, drawerWidth,
-  libRowHTML, factsListHTML, hideSignIn,
-  hideStartup, masquerInstallation, sameValue, changeSetting,
+  libRowHTML, factsListHTML,
+  sameValue, changeSetting,
   mountLoaders, mountSearch, fileName, normalisedKey,
   recordPath, openDeleteDialog, openDetailSheet,
-  openHarness, openPanel,
+  openPanel,
   openSheet,
   openPopEp,
   openDrawer, paintSelBar, panelUnderFinger, screenStack,
@@ -31767,13 +31522,14 @@ Object.defineProperties(window, {
   unwinding: { get: () => unwinding, configurable: true },
   unwindInProgress: { get: () => unwindInProgress, configurable: true },
   store: { get: () => store, configurable: true },
-  pilotage: { get: () => pilotage, configurable: true },
   currentRender: { get: () => currentRender, configurable: true },
   armedExit: { get: () => armedExit, configurable: true },
-  STATES: { get: () => STATES, configurable: true },
   // A LIVE READ, not an alias. There is no cached `state` binding left to
   // publish — the getter goes to the store, exactly as the engine's own
-  // reads do, so a rule reading `state.page` reads what is on screen.
+  // reads do, so a rule reading `state.page` reads what is on screen. And it
+  // is the PRODUCT's, not only the harness's: this file reads the bare name
+  // itself — the boot writes `Object.assign(state, …)` — so it is published
+  // here, at evaluation, before anything starts.
   //
   // Written `() => state` for one build, after the binding was removed:
   // the name then resolved to `window.state`, i.e. to THIS getter, and

@@ -54,6 +54,8 @@ A CONVERSION: the back handler and its rungs, the page switch, and the addressed
 - **The size ledger.** `legacy.js` only subtracts, and `scripts/frontend_size_ledger.py` is re-recorded DOWNWARD in the same
   commit.
 
+**Added 2026-09-13 by phase a·1's amendment.** `applyState` did not leave the engine in a·1: `onEngineBack` restores a page through it, so it moves HERE, with the handler, into the ladder's modules under `app/`, and `harness/drive.ts` re-points its import. The product never imports the harness.
+
 ## Gate
 
 Per INDEX « Gates ». In addition, the three before/after readings above go in the report. STOP D if one of the three modules

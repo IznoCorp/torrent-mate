@@ -13,8 +13,8 @@ one. The bar paints only when `added.size > 0`. The add screen's two named
 states are `acq-add-empty` and `acq-add-results`; the second searches « star
 wars » and adds nothing. **No measured state has ever painted this bar**, so no
 reference of the recorded oracle contains a single pixel of it. Widening
-`engine/states.js` was the other route and it was refused for a written reason:
-that file is the dying engine's scenario table, which L13 removes, and a repair
+the named-state table was the other route and it was refused for a written reason:
+it was then the dying engine's scenario table, which L13 removes, and a repair
 that grows what must die is a repair that has to be made twice.
 
 So this rule walks the journey the operator walks — open the add screen, search,
@@ -49,7 +49,7 @@ WHAT IT DOES NOT READ, said before what it does:
   - IT IS NOT THE ORACLE AND DOES NOT BECOME ONE. It reads four computed
     properties of two elements. That the bar is well drawn — its spacing, its
     ground, its separator — is measured by nothing, and saying so is the cost of
-    the route taken. The gain is that no line of `engine/states.js` was written
+    the route taken. The gain is that no line of the named-state table was written
     to obtain it.
   - IT DOES NOT READ A REAL FINGER. The clicks here are synthetic, and a
     synthetic pointer is never cancelled by the compositor. That limit belongs
@@ -101,7 +101,7 @@ TOUCH_TARGET = 44
 async def open_add_screen_with_results(page):
     """Opens `/add` on a real search, the way the named state does.
 
-    The same seam `engine/states.js` drives for `acq-add-results`, so this rule
+    The same seam the named state `acq-add-results` drives, so this rule
     and that state reach the screen by one route rather than two spellings of
     it.
     """

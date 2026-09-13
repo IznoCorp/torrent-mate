@@ -37,10 +37,10 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import PHONE, Journal, open_page
 
 # Every named state that draws an error surface, and what the surface is about.
-# READ OFF `states.js`, never guessed: a first version of this list invented
+# READ OFF the named-state table, never guessed: a first version of this list invented
 # `sys-error` and `maint-error`, which do not exist, and the rule crashed on the
 # third state rather than quietly measuring three of five.
-# <sub>`grep -B3 'phase: "error"' design/src/engine/states.js`</sub>
+# <sub>`grep -rB3 'phase: "error"' design/src/harness/states/`</sub>
 ERROR_STATES = {
     "arr-error": "ce qui arrive",                  # french-ok: the app's rendered output
     "acq-now-error": "ce qui vous attend",         # french-ok: the app's rendered output

@@ -65,7 +65,7 @@ COMPONENT_BUCKETS = ("app", "features", "lib", "routes", "ui", "mocks")
 # whatever is left dies with the engine at L13. So the ceiling is on the UNION,
 # and the two shares are printed apart — a total that hid where its members lived
 # would be the same defect one directory over.
-ENGINE_SOURCES = ("engine/legacy.js", "engine/states.js")
+ENGINE_SOURCES = ("engine/legacy.js",)
 
 # THE STORE KEYS THAT NAME SERVER STATE. Each one is a value a server owns, kept
 # in the interface's own bag — invariant 4's violation, one per name. They leave

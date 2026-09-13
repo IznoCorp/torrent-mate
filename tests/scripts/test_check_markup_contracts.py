@@ -752,10 +752,15 @@ class TestImperativeEmission:
         The day THAT goes, this reading has no subject in this repository and
         the honest move is to say so here rather than to widen the search until
         something matches.
-        """
-        engine = guard.SOURCES / "engine" / "legacy.js"
 
-        assert "harness/panel" in guard.emitted_named_values(engine)["data-part"]
+        RE-AIMED, NOT WIDENED: the panel did not go, it MOVED — out of the engine
+        into the harness module, built in script exactly as before, emitting the
+        same value. The reading follows it to its one new file; it still names
+        one site and one value.
+        """
+        panel = guard.SOURCES / "harness" / "panel.ts"
+
+        assert "harness/panel" in guard.emitted_named_values(panel)["data-part"]
 
 
 class TestHeldSelectors:

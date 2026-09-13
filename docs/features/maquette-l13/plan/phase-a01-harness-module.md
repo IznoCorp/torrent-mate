@@ -50,6 +50,8 @@ exactly what they drove before (DESIGN § 4.1; § 3, rows 1–5).
 - **L20's plan.** Its phase 2 creates `design/src/states/system.ts` (new file, L20's plan), which loses its subject here
   (DESIGN § 9.3). Re-targeting it is the steward's job; this phase does not touch L20's plan.
 
+**Amended 2026-09-13, on a measurement the design missed** (the steward's ruling of the same day). `applyState` is PRODUCT code as well as the harness's: the engine's back handler restores a page through it, under the latch, on a popstate onto a nav entry (`grep -nE "applyState\(" frontend/maquette/design/src/engine/legacy.js`, inside `onEngineBack`). So it STAYS in the engine, exported, and `harness/drive.ts` imports it and publishes `window.applyState` for the seven rules that call it. This makes VOID « the published `applyState` » in the move's `drive.ts` item, « `applyState` » in its deleted list, and DESIGN § 3 row 4's home for it: the product never depends on the instrument. Phase a·3 moves it with `onEngineBack`. **The same holds for the `window.state` getter**, which DESIGN § 6 sends out in a·1: the engine reads the bare `state` itself (the boot's `Object.assign(state, …)`), so the getter stays published by the engine at evaluation — moved to the harness install, which runs after the boot, the boot threw « state is not defined » and the contracts tier fell on fifteen checks.
+
 ## Gate
 
 Per INDEX « Gates ». In addition: `--arm size` no longer lists `engine/states.js`; the lift-out figures and the B-352 replay

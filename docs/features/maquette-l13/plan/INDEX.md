@@ -91,6 +91,17 @@ steward one line before and one after. The wave's own lock for everything else h
 Output to a FILE, exit code read in the same call, **never `| tail -N` on a long gate**. Kill what is
 started, prove it with `ps`.
 
+**Amended 2026-09-13 by the office's three precisions** (`docs/features/maquette-l13/BRIEF-L13a.md`, « Method »),
+and they make the two commands above VOID where they differ. **Locks by class, never by a floor set in
+the environment**: anything touching the served copy or the 8899 host runs
+`TM_HARNESS_JOBS=2 sh scripts/heavy.sh --class browser <wave> <command>`, announced one line before and one
+after; every pytest, `make check` and `git push` runs under the ONE tests lock every wave shares,
+`HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder PYTEST_XDIST_AUTO_NUM_WORKERS=2 sh scripts/heavy.sh --class test <wave> <command>`;
+`npm ci` and a build into the worktree's own `dist/` keep the wave's own lock. **A phase's gate is the
+contracts tier plus the oracle**; the full suite, `--a11y`, `harness-hold-counts.py --compare` and
+`make check` run once per sub-lot, before its push. **The « In flight » row** is written when the pull
+request opens and returns to « None » in the sub-lot's last commit before the merge.
+
 **Never `cd` into `frontend/maquette/design/src`** (B-384) — absolute paths from the worktree root.
 **Documents are added BY FILE**, never a folder (B-304).
 

@@ -204,8 +204,13 @@ def remedy(path: Path) -> str:
 
 def check_strings(violations: list[str]) -> None:
     """Runs the string arm over the shell, the servers and the hold labels."""
+    # `design/src/harness/` joins the harness's scope for THIS arm: it is the
+    # instrument's own chrome, in the operator's language, shipping nowhere, and
+    # the French a harness ASSERTS is the app's output. Its identifiers stay held
+    # by arm 2. The line dies with the directory.
     strict: list[Path] = [p for p in SHELL.rglob("*") if p.is_file()
-                          and p.suffix in {".ts", ".tsx"} and "i18n" not in p.parts]
+                          and p.suffix in {".ts", ".tsx"} and "i18n" not in p.parts
+                          and p.relative_to(SHELL).parts[0] != "harness"]
     strict += maquette_servers()
     strict += sorted(HARNESS.glob("*.mjs"))
     # The repository's own tools speak to a DEVELOPER, so they speak English.
@@ -613,11 +618,10 @@ def check_unread_javascript(violations: list[str]) -> None:
     Args:
         violations: The accumulator every arm appends to.
     """
-    # Each entry is here because it was MOVED, not written: its French
+    # The entry is here because it was MOVED, not written: its French
     # identifiers predate the rule and only a conversion — not a rename — will
-    # reach them. `legacy.js` is the engine; `states.js` is the scenario table
-    # lifted out of it, whose entries call the engine's own French names.
-    allowed = {SHELL / "engine" / "legacy.js", SHELL / "engine" / "states.js"}
+    # reach them. `legacy.js` is the engine.
+    allowed = {SHELL / "engine" / "legacy.js"}
     unread = {path for path in SHELL.rglob("*.js") if path.is_file()}
     for path in sorted(unread - allowed):
         violations.append(

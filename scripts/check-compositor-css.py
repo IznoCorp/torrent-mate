@@ -125,7 +125,7 @@ def sources() -> list[pathlib.Path]:
     # frame and the measuring hides; a `touch-action` written there could
     # satisfy a floor the product no longer meets, which is the harness
     # certifying the thing it exists to measure. `common.py` draws the same
-    # line around `engine/states.js` for the same reason.
+    # line around the harness's named-state table for the same reason.
     return [path for path in found if path.name not in _NOT_THE_PRODUCT]
 
 
