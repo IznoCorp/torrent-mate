@@ -28,7 +28,9 @@ import i18next from "i18next";
 import type { QueryClient } from "@tanstack/react-query";
 import { HELD, send } from "../../lib/query-client";
 import { registerVerb } from "../../lib/verbs";
-import { panel, toast } from "../../lib/shell-doors";
+import { panel, screens, toast } from "../../lib/shell-doors";
+import { popover } from "../../app/popover-host";
+import { episodeSaying } from "./popover-episode";
 
 /** What the operation answers, as the contract declares it. */
 type MediaRescrape = {
@@ -123,6 +125,17 @@ async function rescrapeMedia(client: QueryClient, title: string): Promise<void> 
  *     client: The cache the surfaces read.
  */
 export function installMediaVerbs(client: QueryClient): void {
+  // « Voir la fiche », from any list: the crossing resolves the identity the
+  // list holds and closes an open panel inside its own commit.
+  registerVerb("mediasheet", (title) => {
+    if (title) screens.mediaSheet(title);
+  });
+  // A season cell's episode: the feature says it, the frame places it.
+  registerVerb("ep", (written, cell) => {
+    if (!written) return;
+    const saying = episodeSaying(cell);
+    if (saying) popover?.open(cell, saying);
+  });
   registerVerb("rescrape", (title) => {
     void rescrapeMedia(client, title);
   });

@@ -2505,10 +2505,6 @@ import {
       );
       return;
     }
-    if (closest.dataset.ep) {
-      openPopEp(closest);
-      return;
-    }
     if (closest.dataset.drawer) {
       openDrawer();
       return;
@@ -2646,13 +2642,6 @@ import {
     if (closest.dataset.del) {
       panel.close();
       openDeleteDialog(closest.dataset.del);
-      return;
-    }
-    if (closest.dataset.mediasheet) {
-      // The seam closes the layer inside the navigation's own commit, so an
-      // open sheet no longer needs closing here and no longer needs a delay to
-      // finish leaving: its departure is drawn by the transition.
-      screens.mediaSheet(closest.dataset.mediasheet);
       return;
     }
     if (closest.dataset.act === "resolve") {
@@ -3025,26 +3014,6 @@ import {
     return pending.find((decision) => decision.d === target) ?? null;
   }
 
-  /* Tapping a cell: its air date, in French. The sentence follows the state
-     — « Sortie prévue » for an announced episode, « Diffusé » otherwise —
-     and a missing date is stated, not invented. */
-  /* THE POPOVER'S LAYER IS NOT THIS FILE'S ANY MORE — but its SENTENCE still
-     is. `openPopEp` built the node, placed it against the phone frame, wrote
-     what it says and armed its dismissal, all in one function. Only the first,
-     second and fourth are the frame's: `ui/popover.tsx` over
-     `app/popover-host.ts`, behind `{ anchor, content }`. What is left here is
-     the PRODUCER — the five lines that turn an episode into three facts — and
-     a producer moves to its feature with L19 (Part 12). */
-  function closePopEp() {
-    seam.popover?.close();
-  }
-  function openPopEp(btn) {
-    // THE SENTENCE HAS LEFT. The frame places, the feature says —
-    // `features/media/popover-episode.ts`, reached through the seam it
-    // publishes. What stays here is the tap, which is the delegation's.
-    const saying = seam.episodeSaying?.(btn);
-    if (saying) seam.popover?.open(btn, saying);
-  }
 
   /* Does this interface HOLD a medium by that title?
      the follow panel answers for ANYTHING: a title it recognises in
@@ -3583,13 +3552,12 @@ Object.assign(window, {
   dateFR, decisionPending,
   endCardDrag, endDeckDrag,
   endSugDrag, escapeHtml,
-  closePopEp, closeDrawer, changedFiles,
+  closeDrawer, changedFiles,
   gridBadge, icons, initialsOf, drawerWidth,
   mountLoaders, mountSearch, fileName,
   openDeleteDialog,
   openPanel,
   openSheet,
-  openPopEp,
   openDrawer, paintSelBar, panelUnderFinger,
   nextSearchFR,
   ptr, refPanel, collapseCard,

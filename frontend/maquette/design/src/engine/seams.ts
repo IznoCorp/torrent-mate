@@ -27,14 +27,12 @@ import { dialog } from "../app/dialog-host";
 import { entry, loadingDone } from "../app/entry";
 import { registeredLayers } from "../app/layers";
 import { navigation } from "../app/navigation-seam";
-import { popover } from "../app/popover-host";
 import { followVerbs } from "../features/acquisition/follow-verbs";
 import { followActions, suggestions } from "../features/acquisition/queries";
 import { searchResults } from "../features/acquisition/search-queries";
 import { pendingDecisions } from "../features/arrivals/queries";
 import { deleteLibraryItems } from "../features/library/queries";
 import { sortWays } from "../features/library/sorting";
-import { episodeSaying } from "../features/media/popover-episode";
 import { addressSeam } from "../lib/addresses";
 import { queueActions, queueLists } from "../lib/queue";
 import { toast } from "../lib/shell-doors";
@@ -167,9 +165,6 @@ export const seam = {
   get entry() {
     return entry;
   },
-  get episodeSaying() {
-    return episodeSaying;
-  },
   get followActions() {
     return followActions;
   },
@@ -187,9 +182,6 @@ export const seam = {
   },
   get pendingDecisions() {
     return pendingDecisions;
-  },
-  get popover() {
-    return popover;
   },
   get queue() {
     return queueLists;

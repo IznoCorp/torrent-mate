@@ -17,6 +17,7 @@
 // a name no rule reads is published nowhere: its readers import it.
 import i18next from "../i18n";
 import { dialog } from "../app/dialog-host";
+import { popover } from "../app/popover-host";
 import { entry, loadingDone } from "../app/entry";
 import { closeLayers, registeredLayers } from "../app/layers";
 import { resetLiveUpdates, unmatchedCount, unmatchedEvents } from "../app/live-updates";
@@ -51,6 +52,8 @@ declare global {
   interface Window {
     /** The interface's store — the domain hooks and the probes read its state. */
     __store: Store;
+    /** The frame's popover door — how a rule closes a popover it opened. */
+    __popover: typeof popover;
     /** Files a setting's pending edit — how a rule stages a change it does not type. */
     __changeSetting: typeof changeSetting;
     // The query cache. It is the one place server state lives (invariant 4), so
@@ -130,6 +133,7 @@ export function publishSeams(): void {
   publish("__unknownPanel", () => unknownPanel);
   publish("__unknownProducer", () => unknownProducer);
   publish("__dialog", () => dialog);
+  publish("__popover", () => popover);
   publish("__layers", () => registeredLayers);
   publish("__closeLayers", () => closeLayers);
   publish("armedExit", () => walk.armedExit);

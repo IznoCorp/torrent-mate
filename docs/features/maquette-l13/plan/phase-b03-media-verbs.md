@@ -48,3 +48,7 @@ before/after reading goes in the report.
 ## Commit
 
 `feat(maquette-l13): the media feature opens its sheet and its episode popover itself`
+
+## Amendments
+
+- **Amended 2026-09-13 (ruling 70):** `screen_addresses.py` opens the sheet by ADDRESS and cannot witness a tap; the `mediasheet` witnesses are `transition.py` (R115) and `paths_to_sheets.py`.
