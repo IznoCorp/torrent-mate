@@ -1,93 +1,96 @@
 # L13a — resume brief for the successor
 
-Written by the third L13a implementer when it stood down at the a·4 boundary (gauge past 50 %, the steward's call). Read it after
-`docs/features/maquette-l13/BRIEF-L13a.md`, which still governs everything; this file only records
-state, rulings and traps, and it dies with the wave's folder at the post-merge gesture.
+Written by the fourth L13a implementer when it stood down at the a·7 boundary (gauge past 50 %, the steward's call). Read it
+after `docs/features/maquette-l13/BRIEF-L13a.md`, which still governs everything; this file only records state, rulings and
+traps, and it dies with the wave's folder at the post-merge gesture.
 
 ## Exact state
 
-- Worktree `/Users/izno/dev/worktrees/wave-l13a`, branch `feat/maquette-l13a`, merged with `origin/main` at
-  `60530dbd8` (#595, 0.98.90). Oracle reference `f1e7ac66`.
-- **a·1** `123816c93`, **a·2** `383c67549`, **a·3** `40fc7b785`, **a·4** `ad4d3096a`
-  (`refactor(maquette-l13a): the arrival boots from the shell and the engine's handshake goes`), then `4918abe65` (`fix(maquette-l13a): url_state.py drives the sign-in gate through the entry seam a·1 left it`).
-- a·3's gate (on `40fc7b785`, shared mutex): `run.sh --contracts` 19 rules and 27 guards, no violation;
-  `run.sh --oracle` 87 states × 34 regions, 2 958 measurements, no divergence. Beside it: `tsc` 0 errors, vitest
-  7 files / 112 tests, every cheap guard exit 0. Before/after readings byte-identical (B-290/B-275 walk index
-  2 → 3 → `/` index 1, panel shut; `settings_editing.py` 15 holds).
-- a·4's gate (on `4918abe65`, shared mutex): `bridge.py` 10, `startup.py` 28, `panel.py` 51, `url_state.py` 99 —
-  each alone, each its baseline count, no violation; `run.sh --contracts` 19 rules and 27 guards, no violation;
-  `run.sh --oracle` 2 958 measurements, no divergence. `tsc` 0, vitest 7 / 112, every cheap guard exit 0.
-- `engine/legacy.js` 30 276 non-blank (31 208 at the wave's base), ledger re-recorded. `--compare`, the full
-  suite, `--a11y` and `make check` are NOT run: they run once, at a·19.
-- **Next: a·5** (`plan/phase-a05-dead-code.md`) — include the release machinery `app/page-host.tsx` can no longer reach (phase-a04's amendment).
+- Worktree `/Users/izno/dev/worktrees/wave-l13a`, branch `feat/maquette-l13a`, merged with `origin/main` at `60530dbd8`
+  (#595, 0.98.90). Oracle reference `f1e7ac66`.
+- a·1 `123816c93`, a·2 `383c67549`, a·3 `40fc7b785`, a·4 `ad4d3096a` + `4918abe65`, then:
+  - **a·5** `504ce4897` `refactor(maquette-l13a): the dead screen layer and the code nobody reaches are deleted`
+  - **a·6** `f353eea14` `refactor(maquette-l13a): the list schemas declare the provider identity and the poster`
+  - **a·7** `8fba453c5` `refactor(maquette-l13a): the open screen, the section, the notes, the skeleton and the surface error are variants`
+  - a docs commit after a·7: `docs(maquette-l13a): the operator's rulings on Q2 and D-L13-1 in the plan`, then this file.
+- Gates, each on its own head, under the shared mutex:
+  - a·5: `run.sh --contracts` 19 rules + 27 guards, no violation; `--oracle` 2 958 measurements, no divergence; the twelve
+    re-aimed rules replayed alone (`harness-hold-counts.py --compare --only … --jobs 1`): 0 changed hold count.
+    Mocks-off build boots to `/acquisition`, 0 page errors, `#shell` last child of `#device`.
+  - a·6: contracts and oracle as above; `check-mock-seeds.py` clean on every arm; `compare-contracts.py --check` exit 0.
+  - a·7: contracts and oracle as above; `residue.py` alone: 14 holds, no violation (19 before — the five pairs removed).
+  - Beside each: `tsc -b` 0, vitest 7 files / 112 tests, the 27 cheap guards of `run.sh` exit 0.
+- Records: `engine/legacy.js` **29 916** non-blank (ledger re-recorded); `legacy-css-residue.json` ceiling
+  **218/138/882**; R80 `PAIRS_FLOOR` **10**. `hold-counts-baseline.json` is NOT re-recorded: at a·19's `--compare`, R80
+  (`residue.py`) reads 14 against the baseline's 19, and that movement is a·7's, named in its commit body.
+- `--compare` over the whole suite, the full suite, `--a11y` and `make check` are NOT run: they run once, at a·19.
+- **Next: a·8** (`plan/phase-a08-actions-chips-facts.md`), then a·9 … a·18, **a·18-bis** (the ≡ panel dies, see ruling 29),
+  a·19.
 - Version not bumped. No pull request.
 
 ## Rulings — not to be reopened
 
-1–12: see the a·2 RESUME rulings (in git: `git show 36cc38a4c:docs/features/maquette-l13/RESUME.md`), carried
-over unchanged, except 3's « a·3 moves `applyState` with `onEngineBack` », voided by 16.
+1–21: see the a·4 RESUME (in git: `git show 58d24cfc4:docs/features/maquette-l13/RESUME.md`), carried over unchanged.
 
-From a·3 (the steward's rulings on four STOP D, 2026-09-13; all written into `phase-a03`, one into `phase-a10`):
+From a·5 (the steward's rulings on STOP D, 2026-09-13):
 
-13. **`knownMedium` stays fixture-backed** (`follows() ∪ INCOMPLETE ∪ LIBRARY`) and is handed in through
-    `installKnownMedium` (`app/addressed-panels.ts`); the cache reading lands with the phase that kills
-    `LIBRARY` (a·10), which decides whether the narrower answer is a behaviour change to file. `INCOMPLETE` has no
-    phase naming its death.
-14. **`navigationState` lives in `lib/navigation-entry.ts`** (fan-in refused `app/page-switch.ts` at 5); the
-    entry's dials are written ONCE (`ENTRY_DIALS`, `entryPatch`).
-15. **`scripts/frame-domain-baseline.json` lib 18 → 23** for those dial names; app stays 130.
-16. **`applyState` stays in the engine** beside `render()`/`port`, handed in through `installPageRestore`;
-    `harness/drive.ts` imports it from `legacy.js`; it leaves at b·7.
-17. `unwinding`/`currentRender` stay with `closeScreen` until a·5; the `#screen` rung is registered by the engine.
-18. `harness/publish.ts` publishes `__closeLayers` and `armedExit`; `__derouler`, `__navigationState`,
-    `__announcePops` are published nowhere (no rule reader). `BACK_WINDOW` is `converted` in
-    `fixture-register.json`.
+22. **Q4 is about what a selector DENOTES, not a text substitution.** In a root ladder whose `#screen` rung is identically
+    false and whose generic `[data-part="screen"][data-open][data-key]` rung is already present, the dead rung is REMOVED
+    (`audit.py` ×3, `audit2.py` ×4, `dest.py`, `states.py`); a FIELD is re-aimed (`back.py`, `ident.py`); `bridge.py`'s
+    vacuous « the media sheet is gone » now reads `[data-key^="mediaSheet:"]`; `scroll.py`'s default port re-aimed.
+23. `window.__close`'s three readers use `window.__panel.close()` and
+    `document.querySelector('[data-part="screen"][data-open]') && window.__bridge.back()`.
+24. `openDetailSheet` went with the generic `sheet` branch; `__seamsInstalledProbe` has no product side and `boot_order.py`
+    stays intact.
 
-From a·4:
+From a·6 (four rulings, written into `phase-a06`'s dated amendment):
 
-19. **`app/arrival.ts`** holds `INITIAL_STATE` and `installArrival(store)`; the engine's `store` is the
-    `lib/store-access` import; the arrival draws through `window.__referentiel.render()`.
-20. **`frame-domain-baseline.json` app 130 → 138** for INITIAL_STATE's eight page-alias words.
-21. **`fixture-register.json` `$anonymous.count` 1 → 0**; `boot_order.py` and `bridge.py` (f′) re-aimed, counts unchanged.
+25. The join is `sheetFor`'s four tiers in `build-mock-seeds.py`; `join` is declared per family in
+    `fixture-projections.json`; `ids`/`poster` required and nullable on the list schemas, `Follow.ids` required non-null,
+    `MediaSheet.title` required; `createFollow` takes the body's provider identity, otherwise the joined search result or
+    suggestion; `beginFollow` the joined incomplete show.
+26. **B-497** filed, open: `build-mock-seeds.py --check` reports the 23 converted seeds as orphans. Owner: a·10 or a·11
+    (they kill `LIBRARY` and `INCOMPLETE`), or the next wave that touches the generator.
 
-## A defect of a·1 found at a·4's gate
+From the operator, 2026-09-13:
 
-`url_state.py` crashed since a·1 (`123816c93`) on `window.hideSignIn()` at lines 299, 328 and 345 — the engine
-forwarder a·1 removed without re-aiming them. Ruled and fixed at `4918abe65`: the three calls go through
-`window.__entry.hideSignIn()`, count unchanged (99). No other rule read one of the nine forwarders.
-Lesson: a rule outside the contracts tier and the oracle is read by NO per-phase gate — when a phase removes a
-`window` name, grep every `harness/*.py` string for it, not only the rules the phase names.
+27. **The cut is B**: L13a → L13b → L13c, three pull requests, each with its reader round and Mac walk. L13a's STOP C is
+    its own pull request at a·19.
+28. **D-L13-1 = A**, ratified as written; written on INDEX's STOP E line. Nothing changes in L13a.
+29. **Q2 = B: the ≡ harness panel dies** in ONE commit, **a·18-bis**, before a·19's full gate — `harness/panel.ts`, its
+    five verbs, the « ≡ » button's markup, the harness.css rules and i18n keys only it used. Its readers go in the same
+    commit: the panel holds of `hiding.py`, `message_above_harness.py` and `chrome.py` (named with their counts), and the
+    exclusions in `audit.py` and `dest.py`. Written in `phase-a01`'s amendment and INDEX's row.
 
-## What a·3 left for the next phases to know
+From a·7:
 
-- The walk's facts are ONE exported object, `walk` in `app/page-switch.ts` (`driven`, `homeFloorExists`,
-  `arrivalWithoutFloor`, `armedExit`, `afterUnwind`); the engine's boot still writes three of them — a·4's
-  `app/arrival.ts` takes those writes.
-- The ladder walks `RANK = dialog, drawer, screen, sheet` over registrations; a·5 deletes the screen rung with
-  `closeScreen`.
-- The exit warning's words are `message.oneMoreBack` in `fr.json`.
+30. The four bare `sec` of `library-list.tsx` and `add-screen.tsx:324`'s were repaired inside a·7 and accepted as a
+    conversion (named in its commit body as the 45 divergences they caused).
 
 ## Traps met — each cost a run
 
-**RULE FOR EVERY LATER PHASE (steward's ruling, 2026-09-13).** Before a phase's gate, run
-`grep -nE "window\.<name>\b" frontend/maquette/harness/*.py` — and the bare `=><name>(` form — for EVERY name the
-phase removes or stops publishing, and replay each rule that reads one, wrapped, alone. The per-phase gate
-(contracts + oracle) does not run those rules, and the full suite only runs at a·19: that is how a·1's hole in
-`url_state.py` stayed invisible through three gates.
+**THE RULE FOR EVERY PHASE (steward, 2026-09-13) still holds**: before a gate, grep every removed name in
+`frontend/maquette/harness/*.py` — `window.NAME`, the bare `NAME(` and `=>NAME(` forms — and replay each reader alone.
+New in a·5 to a·7:
 
-The a·1 and a·2 traps still hold. New in a·3:
-
-- **A move out of the engine is read by guards the engine was exempt from**: `check-state-ownership`
-  (non-literal store writes), `check-frame-domain` (page aliases inside identifiers — `acqTab`, `libLens`),
-  `check-mock-seeds` (the fixture register lists engine constants such as `BACK_WINDOW`). Run all three on the
-  working tree BEFORE the first browser run; the contracts tier runs them and costs a build to learn it.
-- **`ENGINE_OWNED` does not cover an unreadable write**: the arm records unreadable sites before it tests the
-  exemption.
-- **`json.dumps` must keep the file's indent** (`frame-domain-baseline.json` is 2 spaces); check with
-  `git diff --numstat` against the base.
-- **Playwright from a scratch probe needs `channel="chrome"`** — the bundled headless shell is not installed.
-- **`heavy.sh --class browser` can hold off for many minutes on the 4096 MB floor** with nothing of the wave
-  running; a Bash call past 600 s is moved to the background — do not relaunch it.
-- **vitest here has no `--minWorkers`**; `--maxWorkers=2` alone.
-- **A scripted scan of `window` names read by the rules missed a known reader twice**; a plain
-  `grep -nE "window\.NAME\(|=>NAME\("` over `harness/*.py` found it. Prove a scanner on a known case first.
+- **Before deleting a class rule, scan for the class in EVERY quote position**, not only after `class=`/`className=`:
+  `grep -rnE "([\"'\` ])sec([\"'\` ])"` found `grid ? "gallery" : "sec"`, which a class-attribute scan missed. The oracle
+  measures some regions only — the add screen's bare `sec` was invisible to it.
+- **A descendant rule (`.empty b`, `.surferr button`) has emitters in JSX as well as in strings.** Reproduce it on the
+  variant with `[&_b]:…` / `[&_button]:…` utilities rather than chasing every element.
+- **Read the cascade ORDER, not only the declarations**: `.sk` followed `.skcard` in the sheet, so a skeleton card's
+  radius was `.sk`'s.
+- **`scripts/markup_anchors.py`'s `GENRE_SITES` is keyed by LINE**: a docstring added to `audit.py`/`audit2.py` moved
+  three exemptions. Re-key them in the same commit.
+- **`check-markup-contracts.py` refuses a style-class anchor (`.screen.open`) and an escaped quote in a harness
+  selector**: select by `data-part`, and write the JavaScript in a triple-quoted Python string.
+- **`check-legacy-css-residue.py --record` rewrites the JSON and drops `$comment`**: restore the file from `HEAD` with only
+  the three figures changed.
+- **Removing an engine constant the fixture register lists** needs the entry gone AND `$counts` re-tallied
+  (`check-mock-seeds.py` classification arm).
+- **`check-mock-seeds.py`'s handlers arm refuses a string literal inside an indexed type** (`["follows"]`); name the
+  contract instead (`type Schemas = components["schemas"]`, then `Schemas["Follow"]["ids"]`).
+- **`run.sh`'s guard list has no `python3` prefix**: a loop over it must add it.
+- **`cd` persists in the Bash tool even from a parallel call**: use absolute paths everywhere.
+- **Converting an HTML-string emitter to JSX can change escaping**: the follows' filter title is escaped twice today;
+  `emptyNoteMarkup` keeps a string and the engine's escaper so it stays so.
