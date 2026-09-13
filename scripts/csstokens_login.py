@@ -26,7 +26,7 @@ from csstokens_patterns import COMMENT, DECLARATION, HTML_COMMENT, RUNTIME_PREFI
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# The four files `serve.py` binds, resolved here rather than imported from the
+# The files `serve.py` binds, resolved here rather than imported from the
 # main script: this module is the one that follows those bindings, and a
 # constant defined where it is READ cannot drift from a copy elsewhere.
 DESIGN = ROOT / "frontend" / "maquette" / "design"
@@ -34,7 +34,6 @@ FRAGMENT = DESIGN / "refonte.html"
 MARKUP = DESIGN / "index.html"
 BASE_LAYER = DESIGN / "src" / "styles" / "base.css"
 THEME_LAYER = DESIGN / "src" / "styles" / "theme.css"
-LEGACY_LAYER = DESIGN / "src" / "styles" / "legacy.css"
 
 
 # The composer itself. The sign-in page is whatever IT extracts — a chunk the
@@ -59,7 +58,6 @@ SOURCE_FILES = {
     "SHELL_DOCUMENT": MARKUP,
     "BASE_STYLESHEET": BASE_LAYER,
     "THEME_STYLESHEET": THEME_LAYER,
-    "LEGACY_STYLESHEET": LEGACY_LAYER,
 }
 
 

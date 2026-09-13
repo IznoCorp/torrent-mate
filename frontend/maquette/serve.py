@@ -111,19 +111,17 @@ DESIGN_ROOT = Path(
 ).resolve()
 PROTOTYPE = DESIGN_ROOT / "refonte.html"
 # The base layer (D3). It carries the `login:font` and `login:socle` regions
-# the sign-in gate inherits, which lived in the fragment's BLOCK 1 until L07.
+# the sign-in gate inherits, which lived in the fragment's BLOCK 1 until L07,
+# and `login:entry`, the sign-in screen's and the startup screen's own rules —
+# hand-written, since a page built by text extraction cannot receive utilities
+# from a stylesheet it never loads.
 BASE_STYLESHEET = DESIGN_ROOT / "src" / "styles" / "base.css"
 # The token layer (D3). It holds the scale inside a Tailwind `@theme` block,
 # which is why the gate wraps what it extracts rather than emitting it as-is.
 THEME_STYLESHEET = DESIGN_ROOT / "src" / "styles" / "theme.css"
-# The residue (D-L07-5). It carries `login:style` and `login:splashstyle`: the
-# sign-in screen and the splash belong to L13, so their CSS is still written by
-# hand — which is also what keeps this gate composable, since a page built by
-# text extraction cannot receive utilities from a stylesheet it never loads.
-LEGACY_STYLESHEET = DESIGN_ROOT / "src" / "styles" / "legacy.css"
 # The document Vite owns, and where the application shell's markup lives — the
 # phone frame, the sign-in card, the startup screen. The login gate clones
-# those from here; its style comes from the three stylesheets above, not from
+# those from here; its style comes from the two stylesheets above, not from
 # the prototype fragment, which carries no rule.
 SHELL_DOCUMENT = DESIGN_ROOT / "index.html"
 DIST = DESIGN_ROOT / "dist" / "index.html"
@@ -384,10 +382,10 @@ def login_page(refused: bool) -> bytes:
     """
     # FOUR SOURCES, AND THE PROTOTYPE FRAGMENT IS NONE OF THEM. The MARKUP the
     # gate clones — the sign-in card and the startup screen — is the
-    # application shell, in `index.html`. The STYLE comes from the three
-    # stylesheets: the scale and the palette from `theme.css`, the typeface
-    # and the reset from `base.css`, the sign-in screen's own style and the
-    # splash from `legacy.css`. Every `login:*` region left the fragment.
+    # application shell, in `index.html`. The STYLE comes from two
+    # stylesheets: the scale and the palette from `theme.css`; the typeface,
+    # the reset, the sign-in screen's own style and the splash from `base.css`.
+    # Every `login:*` region left the fragment.
     #
     # Each `extract` below names exactly ONE file, which is the shape the login
     # arm of `scripts/check-css-tokens.py` follows — a concatenated source left
@@ -397,7 +395,6 @@ def login_page(refused: bool) -> bytes:
     # its design.
     base_source = BASE_STYLESHEET.read_text()
     theme_source = THEME_STYLESHEET.read_text()
-    legacy_source = LEGACY_STYLESHEET.read_text()
     markup_source = SHELL_DOCUMENT.read_text()
     markup = extract(markup_source, "markup")
     # The screen is drawn hidden inside the shell and centred against it. Here
@@ -413,8 +410,10 @@ def login_page(refused: bool) -> bytes:
     # attributes it needs, in whatever order.
     markup = re.sub(r'(<div[^>]*\bid="login"[^>]*?)\s+hidden\b', r"\1", markup,
                     count=1)
-    markup = markup.replace('<form class="logincard" id="loginform"',
-                            '<form class="logincard" id="loginform" method="post" action="/login"', 1)
+    # BY PATTERN ON THE ID, for the reason just above: the form's classes are
+    # styling and may change; `id="loginform"` is the anchor its script reads.
+    markup = re.sub(r'(<form\b[^>]*?\bid="loginform")', r'\1 method="post" action="/login"',
+                    markup, count=1)
     if refused:
         markup = markup.replace('id="loginerr" hidden', 'id="loginerr"', 1)
     # Inside the prototype the startup screen is what the document opens on;
@@ -449,7 +448,7 @@ def login_page(refused: bool) -> bytes:
                + extract(theme_source, "palette-light"))
     styles = (scale + extract(base_source, "font")
               + palette + extract(base_source, "socle")
-              + extract(legacy_source, "style") + extract(legacy_source, "splashstyle"))
+              + extract(base_source, "entry"))
     # After the extract, so they win: inside the prototype the screen covers a
     # phone frame; here it IS the page.
     adjustments = """

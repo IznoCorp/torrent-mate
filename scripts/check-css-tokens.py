@@ -106,10 +106,8 @@ BASE_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "bas
 # are unchanged, which is what lets this arm read it the same way it always did.
 THEME_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "theme.css"
 
-# The residue (D-L07-5). It holds `login:style` and `login:splashstyle`: the
-# sign-in screen and the splash belong to L13, so their CSS stays hand-written
-# — which is what keeps the gate composable at all, since a page built by text
-# extraction cannot receive utilities from a stylesheet it never loads.
+# The residue (D-L07-5): the engine's own CSS, which dies with it. The sign-in
+# screen's and the splash's rules left it for `base.css`'s `login:entry` block.
 LEGACY_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "legacy.css"
 
 # The scale block's own markers. Its declarations ARE the steps, so the ratchet

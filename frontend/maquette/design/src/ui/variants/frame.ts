@@ -34,8 +34,8 @@ import { cva } from "../cva";
      55  the drawer `drawer` (ui/variants/frame.ts) · the install proposal `.installbar` (index.html)
      56  the confirmation        `dialog` (ui/variants/frame.ts)
      57  the message             `messageHost` (ui/variants/frame.ts)
-     60  the popover `popover` (ui/variants/frame.ts) · the skip link `.skip-link` (styles/base.css) · the harness's opened panel `.hpanel` (styles/legacy.css) · the sign-in gate `.loginscreen` (styles/legacy.css)
-     70  the splash `.splash` (styles/legacy.css) · the harness's desktop switch `.desktop-switch` (styles/harness.css)
+     60  the popover `popover` (ui/variants/frame.ts) · the skip link `.skip-link` (styles/base.css) · the harness's opened panel `.hpanel` (styles/legacy.css) · the sign-in gate `.loginscreen` (styles/base.css, the entry block)
+     70  the splash `.splash` (styles/base.css, the entry block) · the harness's desktop switch `.desktop-switch` (styles/harness.css)
 
    EVERY ENTRY NAMES ITS FILE, which is what makes the claim above readable by something other than a
    person: `scripts/csstokens_ranks.py` parses these lines against every `z-index` and `z-` utility the
