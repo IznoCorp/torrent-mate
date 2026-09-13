@@ -8,14 +8,14 @@ describe("the carried entry", () => {
     // ceiling, so nothing but the three fields may reach the entry.
     const sheet = {
       title: "Silo",
-      poster: "assets/posters/silo.webp",
+      poster: "assets/posters/00008728.webp",
       ids: { tvdb: 403245 },
       overview: "a synopsis that must not travel",
       cast: [{ name: "Rebecca Ferguson" }],
     } as CarriedIdentity;
     const carried = carriedBy(carryingState(sheet));
     expect(Object.keys(carried ?? {}).sort()).toEqual(["ids", "poster", "title"]);
-    expect(carried).toEqual({ title: "Silo", poster: "assets/posters/silo.webp", ids: { tvdb: 403245 } });
+    expect(carried).toEqual({ title: "Silo", poster: "assets/posters/00008728.webp", ids: { tvdb: 403245 } });
   });
 
   it("reads nothing from an entry no tap wrote", () => {
