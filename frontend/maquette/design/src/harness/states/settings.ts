@@ -8,10 +8,10 @@ import { applyState, type NamedState } from "../drive";
 import { resetSettings } from "../../engine/legacy.js";
 
 export function settingsStates(): NamedState[] {
-  // The settings table, its pending state and the id verb, read through the
-  // reference the engine publishes: the same objects, typed the way the
-  // settings feature declares them.
-  const { SETTINGS, SETTINGS_STATE, settingId } = window.__referentiel;
+  // The pending state, read through the reference the engine publishes. The
+  // catalogue a field state searches is the seed the served read answers from,
+  // because the driver clears the cache before a state is built.
+  const { SETTINGS_STATE } = window.__referentiel;
   return [
     [
       "settings",
@@ -87,13 +87,14 @@ export function settingsStates(): NamedState[] {
       `Réglages — ${what}`,
       () => {
         resetSettings();
-        const found = SETTINGS.flatMap((r) => r.r).find(
-          (x) => x.type === genre,
+        const topics = window.__mocks?.settings() ?? [];
+        const found = topics.flatMap((topic) => topic.settings).find(
+          (setting) => setting.type === genre,
         );
         SETTINGS_STATE.topic =
-          SETTINGS.find((r) => found !== undefined && r.r.includes(found))?.id ?? null;
+          topics.find((topic) => found !== undefined && topic.settings.includes(found))?.id ?? null;
         applyState({ page: "cfg", phase: "ready" });
-        if (found) window.__panel.produce("setting", settingId(found));
+        if (found) window.__panel.produce("setting", `${found.file}:${found.key}`);
       },
     ]),
     [

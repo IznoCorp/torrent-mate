@@ -37,6 +37,7 @@ import { useConfigurationStatus, useSecrets, useSettings } from "./queries";
 import { settingLabel } from "../../features/settings/labels";
 import { backAction, emptyNote, factsPanel, loadError, loadErrorAction, qualityHint, searchClear, searchField, searchInput, sectionHeading, topicRow } from "../../ui/variants";
 import { SaveBar, SettingsBanners } from "./banners";
+import { flattenSettings } from "./catalog";
 import { settingsRow } from "./variants";
 import { guidance } from "../../ui/variants/layout";
 import { Markup, emptyNoteMarkup } from "../../ui/markup";
@@ -160,7 +161,6 @@ export function SettingsPage(): ReactElement | null {
   const { t } = useTranslation();
   const {
     SETTINGS_STATE,
-    allSettings,
     changedFiles,
   } = useSettingsReference();
   // FROM THE CACHE (invariant 4). The panel says a value from what the
@@ -237,7 +237,7 @@ export function SettingsPage(): ReactElement | null {
 
   const query = SETTINGS_STATE.q.trim().toLowerCase();
   if (query) {
-    const all = allSettings();
+    const all = flattenSettings(SETTINGS);
     const found = all.filter(
       (setting) =>
         settingLabel(setting).toLowerCase().includes(query) ||

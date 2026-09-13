@@ -148,15 +148,6 @@ border-radius: var(--radius-3);
 padding: var(--spacing-1) var(--spacing-5);
 }
 
-/* ── Configuration, what a utility cannot say ────────────────────── */
-/* `[hidden]` again: an author `display` beats the attribute, so the save
-   bar has to declare its own hidden case (R8). And a read-only field
-   flattens the note inside it — a CONTEXTUAL override the note cannot
-   know about. */
-.field.readonly .rulenote {
-margin: 0;
-}
-
 /* ── The layers the ENGINE opens ─────────────────────────────────────
    `open` on the scrim and on the sheet is a React prop AND an imperative
    toggle: the engine opens both for its own dialogs and for selection mode,

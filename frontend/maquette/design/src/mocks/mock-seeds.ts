@@ -12,11 +12,14 @@
 // counts join it when the follow panel's season block reads its served seasons.
 import MEDIA_SHEETS from "./seeds/media-sheets.json";
 import POSTERS from "./seeds/posters.json";
+import SETTINGS from "./seeds/settings.json";
 
 /** What the layer exposes of its seeds. */
 export type MockSeeds = {
   /** Every media sheet, keyed by title, in the contract's names, with its poster. */
   sheets: () => Record<string, Record<string, unknown>>;
+  /** The settings catalogue, rubric by rubric, in the contract's names. */
+  settings: () => { id: string; settings: { file: string; key: string; type: string }[] }[];
 };
 
 /** The seeds the harness reads, composed on each call so no caller holds a copy it could mutate. */
@@ -30,4 +33,5 @@ export const mockSeeds: MockSeeds = {
         ],
       ),
     ),
+  settings: () => structuredClone(SETTINGS) as ReturnType<MockSeeds["settings"]>,
 };

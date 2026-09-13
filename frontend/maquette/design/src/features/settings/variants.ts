@@ -49,8 +49,15 @@ export const panelField = cva("field flex mt-5", {
       true: "list flex-col items-stretch gap-3",
       false: "items-center gap-5",
     },
+    // A field that refuses an edit says so in a note, and the note sits flush:
+    // the field already spaces itself, so the note's own bottom margin is taken
+    // away here, where the field knows it holds one.
+    readOnly: {
+      true: "readonly [&_.rulenote]:m-0",
+      false: "",
+    },
   },
-  defaultVariants: { list: false },
+  defaultVariants: { list: false, readOnly: false },
 });
 
 /**

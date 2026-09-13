@@ -69,14 +69,12 @@ export type SettingsTopic = {
 };
 
 export type SettingsReference = EngineDrawing & {
-  SETTINGS: SettingsTopic[];
   SETTINGS_STATE: SettingsState;
   SECRETS: Secret[];
-  // Réglages (settings) panel actions — read the full setting list, derive
+  // Réglages (settings) panel actions — derive
   // a setting's storage id, coerce a raw field input back to its stored
   // type, and apply/open a pending edit. See refonte.html's `SETTINGS`
   // neighbourhood for the file/rubric structure `Setting.rubrique` carries.
-  allSettings: () => Setting[];
   settingId: (setting: Setting) => string;
   // The value a field must DRAW: the pending edit when there is one, the
   // file's `brut` otherwise. The pending-edit overlay itself stays private to

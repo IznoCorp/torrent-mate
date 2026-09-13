@@ -119,7 +119,9 @@ driver — and the hold count is unchanged.
 RE-AIMED, said out loud: the maintenance command a cold `?panel=action:` reopens was
 the first entry of the engine's action table, which was dead data and is gone. It is
 the first command the served catalogue answers (`readMaintenanceActions`), asked at
-the address the page reads, and the hold count is unchanged.
+the address the page reads, and the hold count is unchanged. The setting it reopens
+is the first the served catalogue answers, for the same reason: the engine's
+settings table is gone.
 """
 import asyncio
 import json
@@ -183,7 +185,8 @@ PANEL_SUBJECTS = {
     "journey": ("()=>{const flying=(window.__queue?.().inFlight||[])[0];"
                 " if (flying && flying.t) return flying.t;"
                 " return ((window.__followActions?.all()||[])[0]||{}).t||'';}"),
-    "setting": "()=>{const s=window.allSettings()[0]; return s?window.settingId(s):'';}",
+    "setting": ("async()=>{const topics=await (await fetch('/api/config/schema')).json();"
+                " const s=((topics[0]||{}).settings||[])[0]; return s?s.file+':'+s.key:'';}"),
     "action": "async()=>((await (await fetch('/api/maintenance/actions')).json())[0]||{}).id||''",
 }
 

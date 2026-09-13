@@ -64,7 +64,7 @@ function FieldBlock({
 
   if (setting.type === "structure")
     return (
-      <div className={`${panelField()} readonly`} data-part="field" data-read-only="">
+      <div className={panelField({ readOnly: true })} data-part="field" data-read-only="">
         <p className={ruleNote()}>
           {t("settings.field.structureBefore")}{" "}
           <b>{t("settings.field.structureWord")}</b>{" "}

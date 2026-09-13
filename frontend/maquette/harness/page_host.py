@@ -323,7 +323,7 @@ async def main():
         # the legacy's own verb rather than typed, because what is held here is
         # the tap, not the field.
         staged = await page.evaluate("""()=>{
-          const setting = window.__referentiel.allSettings()
+          const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap((topic) => topic.r)
             .find((x) => x.type === 'boolean');
           if (!setting) return null;
           const id = window.__referentiel.settingId(setting);
@@ -556,7 +556,7 @@ async def main():
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
         await page.evaluate("""()=>{
-          const setting = window.__referentiel.allSettings()
+          const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap((topic) => topic.r)
             .find((x) => x.type === 'boolean');
           window.__referentiel.changeSetting(
             window.__referentiel.settingId(setting), !setting.brut);
