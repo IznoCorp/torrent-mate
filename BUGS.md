@@ -461,6 +461,9 @@ when the defect comes back.
 | B-475 | The library holds episode numbers the catalogue does not list — American Dad! S16 holds 1–24 where the catalogue lists 20, Les Animaniacs S2 holds `[1, 4, 7, 9, 76–82]` where it lists 12 — and they are counted and drawn NOWHERE: every surface counts the numbers at or below what aired, so four and seven held files vanish | the operator's ruling on numbering orders, then the wave that draws it | `open` |
 | B-476 | « Dexter: Resurrection » is followed under a title no sheet carries (the sheet is « Dexter Resurrection », and its holdings are keyed there), and the follow's totals 96/96 are not its seasons' sums 10/10: one show, three families, three answers | the wave that next touches the seeds' identity | `open` |
 | B-477 | House of the Dragon, Ted Lasso and Strange New Worlds are followed « à jour » (26/26, 35/35, 33/33) while their media sheets answer `owned: false` — the holdings are keyed under « House of the Dragon (2022) » and « Ted Lasso (2020) », titles the sheet's identity does not name, or absent — so the follow says held and the sheet says not in the library | the wave that next touches the seeds' identity | `open` |
+| B-490 | Acquisition › En cours throws the reader back to the top after a return from « Résoudre → »: the scroll restoration's late re-apply fires on a lazy poster's `load` | by operator | `fixed #593` |
+| B-491 | Out of the desktop frame the document scrolls beside `#port`: the closed sheet and its drag band overflow `.device` by 89 px once the frame stops clipping | by operator | `fixed #593` |
+| B-492 | Out of the desktop frame the overflow B-491 confined is the APP's own cascade — no element of the shell clips its absolute layers — so once `harness.css` ships nowhere a desktop document can scroll beside `#port` again | by the scroll-jump micro-wave | `open` |
 | B-495 | `scripts/heavy.sh` prints « holding off » once and « starts » with no timestamp, so how long a wrapped run WAITED for the lock and the readiness floor is unmeasurable afterwards — on 2026-09-13 the steward could not say whether a classed run held for a minute or an hour behind a host whose own one-minute load ran 9–15 | the next tooling wave (frozen apparatus: not before a defect reaches the operator) | `open` |
 | B-496 | `hooks/pre-push`'s `run_check` runs a check with its output sent to `/dev/null` and, when it fails, RUNS IT AGAIN to show the output — so a check that falls once and passes on the re-run prints a green summary under « FAILED », and the only reading of the fall is discarded | the next tooling wave | `open` |
 
@@ -1233,6 +1236,61 @@ the payload was HANDED ON. Seen RED with the hook reverted: 4 failed, 1 passed �
 passed is the control, a TRACKED file still reaching the formatter, which is what stops the other four
 passing over a hook that has simply stopped forwarding. Mutation: both git probes removed → 3 failed,
 each naming its own door.
+**B-490 — a return to « En cours » throws the reader back to the top as the last poster loads.**
+
+The operator on 2026-09-12, on his Mac, verbatim: « Bug majeur : double scroll systématique sur Acquisition › En cours ;
+dès que le scroll arrive au niveau de Lucky on remonte automatiquement en haut de la page. » Two facts, two mechanisms;
+this entry is the jump, B-491 the double scroll.
+
+**The mechanism.** `app/scroll-restoration.ts` restores a page's offset on a history RETURN, then subscribes to the
+`load` of every `img` of `#port` not yet complete and, when the last one fires, writes the remembered offset again — to
+recover an offset the browser clamped while the list was short. The guard was the navigation token only. The posters
+below the fold are `loading="lazy"`: they load when the READER scrolls down to them, so the last `load` put the reader
+back at the arrival offset — the top, when they had left from there (B-178 made a stored zero a position). Lucky is the
+card carrying « Résoudre → », the detour's start, and the first unloaded posters sit just below it: the operator's
+reading was exact. A fresh arrival never jumps; nothing restores.
+
+**The readings** (private bench, Chrome, a setter trap on `scrollTop`): Résoudre → on Lucky, Back, then 40 px gestures.
+Phone 390 × 844: `#port.scrollTop` 520 → 240 from `addEventListener.once`. Desktop 1440 × 900 in the frame: the 4th and
+last lazy poster (`a406ec1c.webp`, Wicker, offset 1280) loads at port 520, and 1 ms later `scrollTop= before 520 value 0`.
+Out of the frame at 1440 × 900 every poster loads at once and the path cannot jump. R175 on the unrepaired tree: 40 holds,
+the four return walks fall — phone finger 490 → 22, phone wheel 480 → 0, desktop finger 491 → 15, desktop wheel 480 → 0.
+
+**The repair**, inside the one path: the late re-apply runs only if the port still sits where the restore landed
+(`port.scrollTop === landed`) — a clamped offset has not moved since the write, a reader's has.
+
+<sub>maquette-scroll-jump, 2026-09-12 · probe lines in `docs/features/maquette-scroll-jump/DESIGN.md` § 1 · `harness/scroll_keeps_place.py` (R175)</sub>
+
+**B-491 — out of the desktop frame, the document is a second scroll container.**
+
+The « double scroll » half of the operator's sentence. Out of the frame (`#desktop-switch` checked) `styles/harness.css`
+drops `.device`'s `overflow: clip` (B-344), and the closed sheet — `#sheet`, `position: absolute`, translated 43 px below
+the bottom edge, with its 88 px `sheet/drag-band` — overflows it: `document.scrollingElement` measures 989 against 900
+(1189 against 1100, 1389 against 1300). A wheel or a finger over the shell's header moves the DOCUMENT by 89 px; over
+the list it moves `#port`. In the frame, at either width, `#port` is the only container. R175's header holds fall out of
+the frame, finger and wheel: « moved ['document'], the document overflows by 89 px ».
+
+**The repair**, in the frame's own stylesheet: `.stage` clips on the y axis beside its `overflow-x: clip`. Not `.device`,
+whose `overflow` out of the frame R140 holds equal to the control document's — a clip there reads `visible clip` and
+falls. The device, the stage, the closed sheet and its translate, the drag band and the switch measure identically in the
+phone, the desktop in the frame and out of it; R175's header holds read green, R140 reads 24 holds and no violation.
+
+<sub>maquette-scroll-jump, 2026-09-12 · private bench measure of every element outside `#port` below the viewport · `docs/features/maquette-scroll-jump/DESIGN.md` § 2</sub>
+
+**B-492 — out of the desktop frame, what clips the sheet is the harness, not the app.**
+
+B-491's repair confines the scroll in `styles/harness.css`, the one stylesheet that ships in no production build. The
+overflow it confines is not the harness's: out of the frame R140 holds `.device`'s `overflow` equal to the app's own
+cascade, and in that cascade no element of the shell clips its absolute layers — `#sheet` closed sits 43 px below the
+bottom edge with its 88 px drag band, and the document measured 989 against 900 at 1440 × 900 before the stage clipped
+it. At switchover, when the maquette becomes the app and `harness.css` goes, a desktop window reading the shell at full
+size can meet the second scroll container again.
+
+**Closes when** the frame model decides which element of the app owns the clipping of its layers on a desktop window,
+and a hold reads the document's overflow with no harness stylesheet in the page.
+
+<sub>maquette-scroll-jump, 2026-09-13 · owner: the frame model (L13) · `docs/features/maquette-scroll-jump/DESIGN.md` § 5</sub>
+
 **B-466 — `frame.ts` is one line from a hard ceiling, and the arm this wave added is what will demand that line.**
 
 `python3 scripts/check-frontend-boundaries.py` on the wave's head exits **0** with
