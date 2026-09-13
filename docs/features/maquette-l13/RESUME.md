@@ -67,10 +67,18 @@ From a·7:
 30. The four bare `sec` of `library-list.tsx` and `add-screen.tsx:324`'s were repaired inside a·7 and accepted as a
     conversion (named in its commit body as the 45 divergences they caused).
 
+## Method — where the logs go (steward, 2026-09-13)
+
+Every log of the wave goes under ONE directory, `/private/tmp/tm-l13a/`, as
+`> /private/tmp/tm-l13a/<phase>-<step>.log 2>&1`. The gate logs (`<phase>-contracts`, `<phase>-oracle`) are kept
+until the merge; every other log is deleted at the implementer's stand-down, and the deletion is proved by `ls`.
+
 ## Traps met — each cost a run
 
-**THE RULE FOR EVERY PHASE (steward, 2026-09-13) still holds**: before a gate, grep every removed name in
-`frontend/maquette/harness/*.py` — `window.NAME`, the bare `NAME(` and `=>NAME(` forms — and replay each reader alone.
+**THE RULE FOR EVERY PHASE (steward, 2026-09-13) still holds, WIDENED by the wave's audit the same day**: before a
+gate, search every removed name everywhere a reader can live, not only in `frontend/maquette/harness/*.py` —
+`rg -n -g '*.py' -g '*.mjs' -g '*.txt' -g '*.json' NAME frontend/maquette/harness scripts tests` — in its
+`window.NAME`, bare `NAME(` and `=>NAME(` forms, and replay each reader alone.
 New in a·5 to a·7:
 
 - **Before deleting a class rule, scan for the class in EVERY quote position**, not only after `class=`/`className=`:

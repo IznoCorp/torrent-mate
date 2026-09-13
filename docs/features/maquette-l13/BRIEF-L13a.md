@@ -11,12 +11,10 @@ reaches, the identity contract, then the drawing surface by surface with the fix
 and the hold counts unchanged are its proof**, and a phase that needs a behaviour change has found a
 defect in the plan — STOP D, report with the command, do not improvise.
 
-**The cut is not ruled yet, and it does not change one line of your nineteen phases** — the INDEX's
-first section says so. You work as under reading B (L13a is its own wave, its pull request is your
-STOP C); if the operator rules A the branch is renamed and the pull request stays open for L13b —
-the steward tells you. **Q2 (the ≡ harness panel) proceeds on reading (i)**: it becomes a component
-of the harness module in a·1; if the operator rules (ii) the steward tells you and that half is
-deleted, later. **D-L13-1 (DESIGN § 8) is L13b's and is not yours.**
+**The cut is ruled B (operator, 2026-09-13)**: L13a is its own wave and its pull request is your
+STOP C. **Q2 is ruled B the same day**: the ≡ harness panel dies in ONE commit, a·18-bis, before
+a·19's full gate. **D-L13-1 (DESIGN § 8) is ratified as A, and is L13b's, not yours.** The rulings
+are `RESUME.md`'s 27 to 30.
 
 ## Environment
 

@@ -106,10 +106,10 @@ Two consequences worth knowing before writing a rule:
   store, which the shell creates in its body, after its imports. The globals stay published
   because this harness drives through them; they are the same objects, so the two ways
   cannot disagree.
-- **The scenario table is not the engine's.** `src/states.js` holds the 656 lines every
-  `window.__go(id)` reaches, and registers them with the engine. The DRIVING stayed engine-
-  side: `__go` holds `pilotage`, a latch the engine reassigns, and an imported binding
-  cannot be assigned.
+- **The scenario table is not the engine's.** The named states live in
+  `src/harness/states/`, one file per surface, and `window.__go(id)` is published by
+  `src/harness/drive.ts` (`installDriver`), which the harness module installs at boot. The
+  driving left the engine with the table.
 
 **React and TanStack Router are the outer shell.** The router is the SINGLE writer of the
 URL and the history: the legacy engine keeps its navigation logic but speaks to
