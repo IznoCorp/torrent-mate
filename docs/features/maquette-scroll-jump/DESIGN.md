@@ -110,4 +110,23 @@ scroll. It belongs to the frame model (L13), not to this micro-wave.
 
 ## 6. The gate
 
-Written once, on the final head.
+Before the merge of `main`, on `7ae6567a3` (both repairs, the rule, this record), under the shared browser mutex at two
+jobs:
+
+| Instrument | Exit | Reading |
+| --- | --- | --- |
+| `run.sh --contracts` | 0 | 18 rules and 27 repository guards, no violation |
+| `run.sh` (full) | 0 | 120 rules and 27 guards, no violation; axe 0 over 87 states; light 162 against a ceiling of 162; oracle no divergence (87 states × 34 regions, reference `561ac7a3`) |
+| `run.sh --a11y` | 0 | 0 violations; light at its ceiling |
+| `run.sh --oracle` | 0 | no divergence |
+| `harness-hold-counts.py --compare --jobs 2` | 1 | no rule failed; 0 rules changed count; 1 new since the baseline, `scroll_keeps_place.py` (40) — expected, re-recorded by the post-merge gesture |
+
+After the merge of `main` at `a155b54fb` and the bump to 0.98.89, on `3c6be09c0`:
+
+| Instrument | Exit | Reading |
+| --- | --- | --- |
+| `run.sh` (full) | 1 | 127 rules and 27 guards, no violation; axe 0; light 149 against a ceiling of 149; oracle 37 divergences against `561ac7a3`, all brought by the merge — 36 of the settings wave (Réglages, Maintenance) and 1 of the mock-layer wave (`mediasheet-series`), both recorded by the steward's references re-record, none on acquisition, the frame or the stage |
+| `run.sh --a11y` | 0 | 0 violations; light 149 at its ceiling |
+| `make check` (tests lock, two workers) | 0 | ruff clean; mypy no issues in 488 files; 11 263 passed, 8 skipped, 1 xfailed; coverage 91.09 %; vitest 134 files, 1 374 tests passed |
+
+The oracle and the hold-count comparison are not re-run on the merged tree: `main`'s references still read `561ac7a3`.
