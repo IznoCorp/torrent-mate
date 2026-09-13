@@ -104,7 +104,7 @@ Every figure once, with its command. `E` = `frontend/maquette/design/src/engine/
 | Region | Lines (`E`) | Home |
 | --- | --- | --- |
 | drawing helpers (`posterBox`, `cardHTML`, `tileHTML`, `libRowHTML`, `swipeHTML`, `secHTML`, `factRowsHTML`, skeletons, `surfErr*`, `chipHTML`, `stripHTML`, `richText`, format helpers) | 88–280, 5174–5720, 7677–7790, 30435–30581 | L13a phases 7–16 |
-| simulated behaviours (`actionTake`, `actionLeave`, `actionResolve`, `actionDelete`, `seedWorld`, `__reset`) | 5443–5613 | forwarders die with their verbs (L13b); `__reset` → harness (L13a ph. 1) |
+| simulated behaviours (`actionTake`, `actionLeave`, `actionResolve`, `actionDelete`, `seedWorld`, `__reset`) | 5443–5613 | forwarders die with their verbs (L13b); `__reset` → harness (L13a ph. 1); `seedWorld` dies with `world` (L13a ph. 4) |
 | settings surface (`resetSettings`, `allSettings`, `changeSetting`, …) | 7253–7376 | L13a ph. 16 (reads) + L13b ph. 1 (verbs) |
 | `render`, `__referentiel` | 7400–7676 | dies across L13a (`render` → nothing; `__referentiel` → per-feature imports) |
 | ladder: `hideLayers` 7983–7996 · `unwindLayer` 8016–8025 · `__derouler`/`__navigationState`/`__announcePops` 8031–8070 · `closeScreen` 8125–8153 · `navigationState`/`recordPath`/`replacePath` 8253–8325 · `switchPage` 8353–8404 · `switchPageFromLayer` 8431–8464 · `onEngineBack` 8480–8642 · `__closeLayers` 8648–8652 | ~560 | L13a ph. 3 |
@@ -180,7 +180,16 @@ data-built classes read from the markup):
 visible. It converts FIRST among the styles (L13a phase 7).
 
 **R80** (`harness/residue.py`) holds `PAIRS_FLOOR = 15` over 15 pairs, not the sixteen `regions.json`
-and D10 say (`grep -n PAIRS_FLOOR frontend/maquette/harness/residue.py`).
+and D10 say (`grep -n PAIRS_FLOOR frontend/maquette/harness/residue.py`). **R80 is the one rule whose
+hold count MUST move in a conversion phase**: it holds one pair per residue rule sharing an anchor
+with a variant, and a conversion deletes residue rules. Each phase that removes a pair lowers the
+floor by exactly the pairs it removes, NAMES them in the commit body, and the hold-count comparison
+reads R80's movement as that figure and nothing else. `.panel`, `.scrim.open` and `.sheet.open` stay
+until a·18, so R80 measures something until the phase that deletes it.
+
+**A class rule is deleted with its LAST emitter**, not with the first surface that stops using it:
+`cardHTML` emits the card classes and calls `posterBox` until Acquisition converts (a·11), so a
+primitive phase converts the variant and leaves the rule while an engine helper still draws it.
 
 ---
 
@@ -190,7 +199,7 @@ and D10 say (`grep -n PAIRS_FLOOR frontend/maquette/harness/residue.py`).
 | --- | --- | --- | --- | --- |
 | `__go`, `__states`, `__etatsDetailles`, `STATES`, `__recordStates` | `E:8681–8760` | `design/src/harness/drive.ts`; `__recordStates` dies | a·1 | `states.py` drives 87; hold counts; oracle zero |
 | `states.js` (87 states) | `engine/`, grandfathered 786 | `design/src/harness/states/<surface>.ts`, each under 400; the ledger entry removed | a·1 | same; B-352 closes |
-| `__reset`, `__measure`, `__blocked`, `__navEchec`'s reset | `E:5543`, 8772, 8777, 8271 | `harness/drive.ts` | a·1 | the 13 / 28 / 2 rule reads unchanged |
+| `__reset`, `__measure`, `__blocked`, `__pages`, `__navEchec`'s reset | `E:5543`, 8772, 8777, 8766, 8271 | `harness/drive.ts` (`__pages` over the navigation table's ids, read by `drawer.py:108`, `page_host.py`) | a·1 | the 13 / 28 / 2 / 5 rule reads unchanged |
 | `applyState`, `render`, `state`/`world` getters read by rules | engine exports | `harness/drive.ts` publishes `applyState` (layers hidden · store written · port reset) and `state`; `render()` in a rule becomes `__store.touch()` in the phase that kills it | a·1, then per surface | the 11 + 23 rule lines re-read |
 | the ≡ harness panel, `#notesBtn`, `#scenBtn` handlers, the hint dismissal | `E:8655, 8802–8840, 31629–31649` | a harness-module component (Q2 reading i); its 5 `h*` verbs registered there | a·1 | no rule taps it; the operator's hand |
 | the 19 shell-published seams read by product (153 lines) | `window.__store` 42, `__toast` 32, `__bridge` 18, `__panel` 18, … | imports of the module that owns each; **publication for the harness moves to `harness/publish.ts`** | a·2 | hold counts; `grep` for `window.__` in product → the engine's six only |
@@ -208,7 +217,7 @@ and D10 say (`grep -n PAIRS_FLOOR frontend/maquette/harness/residue.py`).
 | nine fixture families | 26 377 lines | § 5.1 — seven die, MAINT_ACTIONS dead, POSTERS → `posters.json` behind `poster` | a·10–16 | D5's bracket-match reads 0 declarations over 100 lines |
 | `app/engine-data.ts`, `app/engine-redraw.ts` | engine support | die | a·16 | oracle zero |
 | `legacy.css` 92 component classes | residue | variants, in the surface phase that owns the markup | a·7–16 | oracle zero; R80's pairs fall silent by construction |
-| `legacy.css` 13 shell classes | residue | `index.html` utilities; `serve.py`'s `.logincard` rewrite (`serve.py:416`) re-aimed | a·17 | `logout.py`, `startup.py`, oracle `signin*`/`startup` |
+| `legacy.css` 13 shell classes | residue; `serve.py:452` builds the host's own sign-in page from raw extracts of the residue's `style` and `splashstyle` blocks (`grep -n "legacy_source" frontend/maquette/serve.py`) | a delimited `entry` block of `styles/base.css` — the document's own markup, served before any module and on a page with no bundle, which is D3's base layer — that `serve.py` extracts instead; `serve.py:416`'s `.logincard` rewrite re-aimed | a·17 | `logout.py`, `startup.py`, oracle `signin*`/`startup` |
 | `legacy.css` itself, its import (`shell.tsx:26`), `check-legacy-css-residue.py`, `legacy-css-residue.json`, R80 + `test_residue.py` + its `run.sh`/`regions.json` entries, the `comment-references-baseline.json:47` row, `check-poster-box.py`'s floor, `markup_dressing.py`'s five lines, `csstokens_login.py`'s binding | live | all die or re-aim in ONE commit | a·18 | `make check` exit 0; oracle zero |
 | `refonte.html`, R72 hold (a), 14 path readers | live | deleted; R72 keeps (b)+(c) mutation-tested; the ledger read from history (§ 7) | a·19 | R72 two holds, each seen to fall |
 | 62 delegation names | engine | registered verbs in the owning feature (§ 6) | b·1–7 | each move lands with the rule that held it; a verb held by none gets its rule first, red on the engine branch |
@@ -258,7 +267,21 @@ the line the `states.js` side effect needed none of — the file does not grow.
 So the product's 19 self-published names become IMPORTS of their owning module (`store` from a boot
 singleton in `app/store.ts`, `toast` from `app/toast-host.ts`, `bridge`/`screens` from
 `app/history-bridge.ts`, `panel` from `app/panel-host.ts`, the query client from `lib/query-client.ts`,
-…), and the WINDOW publications move to `harness/publish.ts`. After phase 2, `grep -rn "window\.__"`
+…), and the WINDOW publications move to `harness/publish.ts`.
+
+**Three consequences, decided here so no phase improvises them.**
+- **A read that crosses two features composes in the route.** `features/media/media-screen.tsx:74`
+  reads `window.__followActions`, which `features/acquisition/queries.ts` publishes; an import would
+  break invariant 7. The route that mounts the media screen (`routes/`) passes the follow actions in
+  as a property — invariant 7's own words, « they compose in the route ».
+- **`harness/publish.ts` publishes only what a RULE reads.** Everything the ENGINE reads off `window`
+  (`__address`, `__navigation`, `__layers`, `__toast`, `__store`, …) becomes an import through
+  `engine/seams.ts` in the same phase. Otherwise a build with `__MOCKS_BUILT_IN__` off would start
+  an engine reading publications that no longer exist.
+- **A small fixture a rule reads directly** (`window.SEASONS`, nine rule files — `grep -lE "SEASONS"
+  frontend/maquette/harness/*.py`; `window.LIBRARY` in `said_and_done.py`) is re-aimed to the seed the
+  mock layer serves (`window.__mocks` exposes the seeds it answers from) in the phase that kills the
+  constant. Constants under 100 lines die with their last reader like the families do. After phase 2, `grep -rn "window\.__"`
 over product code outside `engine/` lists only the engine's six (§ 2.4); after phase 4, none but the
 engine's own reads of what the engine still publishes; after L13b phase 11, none.
 
@@ -386,6 +409,24 @@ proof the move is mechanical); the frame last (167 taps, and `page`/`go`/`navgo`
 (`releases`, `profile`), b·3 (`mediasheet`), b·4 (`resolve`) and b·5 (`journey`); the contract's
 `grep -cE` reads 0 after b·5. **A move keeps its timer**; the timers die together in b·9.
 
+**One name, one owner — decided here so no phase improvises it.** The registry maps ONE dataset key
+to ONE handler (`lib/verbs.ts`, `actions.set(keyForAttribute(name), act)`), and invariant 7 forbids one
+feature answering for another. Three engine names are VALUE-dispatched across owners: `sheet`
+(`utilisateur` is the account's, `plus` acquisition's), `act` (`add:N` acquisition's, `resolve`
+arrivals'), `clearq` (`lib` the library's, `foll` acquisition's). Each is SPLIT into one English name
+per owner in the phase of its first owner, with `scripts/rename-identifiers.py` across its three ends
+(the markup, the reader, the rules — `CLAUDE.md` § Code Conventions), the rules re-aimed with their
+counts unchanged, and the diff re-read after the tool. **The two CLASS-dispatched branches take no
+new name**: `.cfoot`'s « Récupérer » and « Résoudre » become the card foot emitting `data-take` and
+`data-resolve`, which are already registered verbs (L21, b·4), and `.act`'s swipe actions emit
+`data-pause`/`data-remove` (already registered, L21) on a follow and `data-del` (b·6) on a library row.
+
+**The sixteen `window` getters** (§ 2.2) leave with what they read, never as a block: `STATES`,
+`pilotage`, `state` in a·1; `unwinding`, `unwindInProgress`, `armedExit`, `currentRender` in a·3;
+`store`, `world` in a·4; `cardDrag`, `openCard`, `openCardDx`, `clickAfterDrag`, `swallowClick`,
+`deckDrag`, `sugDrag` in b·8. Each one a rule reads (`armedExit` 25 lines, `swallowClick`) is
+published from its new module by `harness/publish.ts` in that phase.
+
 **Each move is a behaviour move** (L19's definition). The rule that held it runs green before and
 after with its count unchanged. A name held by no rule — measured: `to`, `deletefield`, `addfield`,
 `next`, `sheetprim`, `releases`, `standby`, `complete`, `tmdb`, `signout`, `selectedTitle` tap 0 rule
@@ -406,7 +447,10 @@ in `regions.json` with the reason. (b) one module script tag and (c) the bundle 
 stay, each mutation-tested in the phase (remove the script tag → (b) alone falls; delete the bundle
 → (c) alone falls).
 
-**The fourteen path readers, and what each does instead**: `vite.config.mjs:38` (the injection goes);
+**Sixteen readers, not fourteen**: INVENTORY § 6's list misses `tests/scripts/test_build_identity.py:35`
+(the identity hash's inputs — it drops the path with `build-identity.mjs`) and
+`frontend/maquette/design/src/i18n/fr.json:14` (a sentence naming the file — rewritten to name the
+tokens and the catalogue). **The fourteen INVENTORY names, and what each does instead**: `vite.config.mjs:38` (the injection goes);
 `build-identity.mjs:26` (drops it from the hash inputs); `serve.py:112` (the « missing » page goes);
 `harness/shell.py:49` (R72, above); `harness/common.py:152`, `harness/palette.py:30` (an unused path,
 deleted); `harness/switchover.py:61,222` (R73: the copied input and the « edited source is rebuilt »
@@ -476,7 +520,7 @@ Recorded for the steward, who amends; **no file outside `docs/features/maquette-
    docs/features/maquette-l20/plan/phase-02-named-states.md`). With L13 before L20, that phase loses its
    subject: B-352 closes in L13a phase 1 and a new state is added to
    `design/src/harness/states/system.ts` under the ceiling. The steward re-targets L20's phase 2.
-4. **The L13 entry's « Twelve live readers name the path »** (refonte.html) reads 14 (§ 7).
+4. **The L13 entry's « Twelve live readers name the path »** (refonte.html) reads 16 (§ 7).
 5. **The L13 entry's « `legacy.css` and its guard » and D10's « it dies with L13 »** describe a sheet
    the engine alone needs. **92 of its 148 classes style React components that have no variant**
    (§ 2.6), `.screen.open` among them. `legacy.css` dies with the DRAWING's conversion, surface by
@@ -523,8 +567,8 @@ Recorded for the steward, who amends; **no file outside `docs/features/maquette-
 | B-336 | c·4 | the kind chips' strip, converted in a·10 |
 | B-331 | c·5 | the pull indicator, whose block moves in b·8 |
 | B-327 | c·6 | `SETTINGS` is a seed after a·16, so the seventh scheduler is one seed row |
-| B-366 | c·7 | `Follow.ids` required since a·6; the tile's guard branch goes |
-| B-345 (library half) | c·8 | the fixture clause's hand-reachable states |
+| B-366 | c·7 | `Follow.ids` required since a·6; the tile's guard branch goes. The entry asks for « a guard that refuses one »; § 11 adds no guard, so the refusal is the contract's required field plus the mock refusing to build a follow without one, and R156 stays the gate it already is — said to the operator as the reading of his ruling |
+| B-345 (library half) | c·8 | the fixture clause's hand-reachable states. The entry's ruling reads « L13: the library and the rest »; what « the rest » covers beyond the library is not measured here and is reported to the steward in c·8 rather than guessed |
 
 ---
 
