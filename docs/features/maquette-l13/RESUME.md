@@ -100,6 +100,10 @@ and traps, and it dies with the wave's folder at the post-merge gesture.
 
 ## Owed to the steward (prose, not the implementer's)
 
+- Ruling 61's named cold-open absence, for the reader brief and the operator's Mac walk, verbatim: « Open a follow panel
+  cold (typed ?panel=follow:<title> or a named state) for a title without a follow entry: Voir la fiche appears once the
+  identity read lands, the row refreshed in place, no new history entry. » / « ouvrir un panneau de suivi depuis une
+  adresse tapée : Voir la fiche apparaît après un instant ».
 - `CLAUDE.md`'s `design/refonte.html` mentions; the prose of `frontend-architecture.md` around the re-cited paths (R80,
   D3/D10, `legacy.css`, `refonte.html`); `frontend/maquette/README.md`'s `refonte.html` / ledger mentions.
 - The a·18 blind spot (no rule reads that the pull's spinner turns) and a·14.2's two reads no rule fells, for the

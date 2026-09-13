@@ -138,3 +138,20 @@ failed screen printed `screens.media.synopsisUnread`, « Synopsis inconnu. » �
 « unknown » where its key and its siblings (« année non lue », « Genres non lus », « Crédit non lu », « Distribution
 non lue ») say « not read ». It becomes « Synopsis non lu. », and R119 (e) keeps its whole promise. And R119 (b-i)'s
 exact count moves from 15 to 13: the thinnest entry carries the identity, whose two lines are then content.
+
+**Amendment, 2026-09-13 — ruling 61 (the auditor's, under the operator's delegation): the follow panel's facts follow
+the identity read.** At `f1e7ac66` a follow panel opened cold for a medium with no follow entry showed « Voir la
+fiche » at once, because `hasSheet` read the engine's sheet table synchronously. a·14.2 answered it from the identity
+instead (`follow.ids`, else what a landed list read carries), computed ONCE at production; opened cold, the panel is
+produced when the follows land, before the list carrying the identity does, and the row stayed without « Voir la
+fiche » until reopened — the full suite's `bugs.py` step 2 fell on it. The repair is a restoration, not a re-aim:
+`frontend/maquette/design/src/features/acquisition/panel-follow.ts` waits, when the facts carry no identity, for a read
+that does, and re-produces the panel IN PLACE through the panel's redraw (no history entry). A synchronous source for
+the sheet is refused (reading 3): it is what a·14.2 removed. **The named difference, D8-accepted: on a COLD open (a
+typed `?panel=follow:<title>`, or a named state) for a title without a follow entry, « Voir la fiche » is absent for as
+long as the identity read takes to land (≤ 400 ms), then appears with the row refreshed in place.** The two
+`["/api/media","",""]` / `["/api/media","","","seasons"]` cache entries read beside it were diagnosed in the same unit:
+introduced at a·14.2 by `panel-seasons.tsx`'s first render before the identity is known, already gated by the
+queries' `enabled` — `pending` with `fetchStatus` `idle`, no update, no observer, and no request to `/api/media` with
+an empty segment leaves (a `fetch` spy saw only `/api/media/tvdb/72668` and its seasons). Nothing fires, so nothing is
+repaired there.

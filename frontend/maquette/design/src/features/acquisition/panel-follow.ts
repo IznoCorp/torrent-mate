@@ -18,10 +18,53 @@
 // `ui/panel/contract`'s open union, which is not a feature import — invariant 7
 // holds.
 import i18next from "i18next";
+import { heldIdentity } from "../../lib/held-identity";
+import { sharedQueryClient } from "../../lib/query-client";
+import { panel } from "../../lib/shell-doors";
+import { store } from "../../lib/store-access";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import { followFacts } from "./follow-facts";
 import { primaryAction, secondaryActions } from "./follow-actions";
 import { followsQuery } from "./queries";
+
+/* The one wait for an identity in progress, stopped by the next one. */
+let cancelWaiting: (() => void) | null = null;
+
+/**
+ * Puts the follow panel back once a read carrying the medium's identity lands.
+ *
+ * A PRODUCER READS THE CACHE ONCE, and whether a medium has a sheet is read
+ * from its identity — which, for a medium nobody follows, only a LIST read
+ * carries. Opened cold (a typed address, a reload), the panel is produced the
+ * moment the follows land, and the list holding the medium can land after
+ * that: without this, « Voir la fiche » stays missing until the panel is
+ * reopened, although the cache holds everything it needs a beat later.
+ *
+ * THE ROW IS REFRESHED IN PLACE through the panel's own redraw, which runs the
+ * producer onto the entry already standing — no history entry is added. It
+ * redraws only while the panel on screen is still this one, and it stops
+ * waiting as soon as it is not: a panel about another subject owns its own
+ * wait, and a closed panel has nothing to put back.
+ *
+ * Args:
+ *     title: The medium the panel is about.
+ */
+function redrawOnIdentityArrival(title: string): void {
+  cancelWaiting?.();
+  cancelWaiting = null;
+  if (sharedQueryClient === undefined) return;
+  const address = "follow:" + title;
+  const cancel = sharedQueryClient.getQueryCache().subscribe((event) => {
+    if (event.type !== "updated" || event.query.state.data === undefined) return;
+    const shown = store.read().state.panelDescriptor as PanelDescriptor | undefined;
+    const shownNow = panel?.isOpen() === true && shown?.address === address;
+    if (shownNow && heldIdentity(title) === null) return;
+    cancel();
+    if (cancelWaiting === cancel) cancelWaiting = null;
+    if (shownNow) panel?.redraw();
+  });
+  cancelWaiting = cancel;
+}
 
 /**
  * Builds a medium's follow panel.
@@ -36,6 +79,7 @@ import { followsQuery } from "./queries";
 function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
   const facts = followFacts(title, cache);
   if (facts === null) return null;
+  if (!facts.hasSheet) redrawOnIdentityArrival(title);
   const translate = i18next.t.bind(i18next);
   const { follow, isFilm, seasons, fraction } = facts;
   const reference = window.__referentiel;
