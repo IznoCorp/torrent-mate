@@ -64,8 +64,11 @@ declare global {
   }
 }
 
+/** The registrations, as the engine's ladder walks them — filled at install, published by the harness as `window.__layers`. */
+export let registeredLayers: Window["__layers"];
+
 export function installLayerRegistry(): void {
-  window.__layers = {
+  registeredLayers = {
     isOpen: (name) => layers.get(name)?.isOpen() === true,
     close: (name, pop) => layers.get(name)?.close(pop),
     // Published so a rule can ask what is ON the ladder rather than assume it:

@@ -39,6 +39,7 @@ import { SaveBar, SettingsBanners } from "./banners";
 import { settingsRow } from "./variants";
 import { guidance } from "../../ui/variants/layout";
 import { Markup } from "../../ui/markup";
+import { bridge } from "../../lib/shell-doors";
 
 // The pending-edit marker and the row's own identity live on the same element:
 // the row IS the control the delegation reads.
@@ -128,7 +129,7 @@ function TopicView({ topic }: { topic: SettingsTopic }): ReactElement {
       <button
         className={backAction()}
         data-part="screen/back"
-        onClick={() => window.__bridge.back()}
+        onClick={() => bridge.back()}
       >
         {t("screens.settings.allTopics")}
       </button>
@@ -177,7 +178,7 @@ export function SettingsPage(): ReactElement | null {
         <button
           className={backAction()}
           data-part="screen/back"
-          onClick={() => window.__bridge.back()}
+          onClick={() => bridge.back()}
         >
           {t("screens.settings.allTopics")}
         </button>

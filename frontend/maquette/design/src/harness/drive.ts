@@ -13,6 +13,8 @@
 // THE HISTORY LATCH STAYS WITH ITS READERS. A driven state writes no history,
 // and the writers that check the latch live in the engine, so the driver never
 // holds it: it hands each state to `drivenWithoutHistory`, the verb that does.
+import { refillEngineData } from "../app/engine-data";
+import { navigation } from "../app/navigation-seam";
 import type { UiState } from "../app/store";
 // `applyState` is the engine's — its back handler restores a page through it —
 // and the states start through the same verb, re-exported here beside their type.
@@ -56,7 +58,7 @@ function reset(): boolean {
   /* AND WHAT NO COMPONENT OBSERVES IS ASKED FOR AGAIN. A cleared query with an
      observer is re-asked by that observer; the deck's cards have none, because
      the engine draws the deck. */
-  window.__refillEngineData?.();
+  refillEngineData?.();
   window.__store.write({
     /* The SCENARIO is state too, and the loudest kind: it decides which world
        every later reading is taken from. A state that switched to the dense
@@ -146,7 +148,7 @@ export function installDriver(states: NamedState[]): void {
      else is a dead end however carefully it is drawn — a drawer entry pointed
      at one and answered a tap with a message. Reading the page table rather
      than a list written beside it is what makes that checkable at all. */
-  window.__pages = () => window.__navigation?.ids() ?? [];
+  window.__pages = () => navigation?.ids() ?? [];
   /* The media the pipeline is currently refusing. The rule that keeps them OFF
      the machine's page has to know their names, and a rule that cannot reach
      them compares against an empty list and passes whatever it is shown. */

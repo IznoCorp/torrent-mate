@@ -31,7 +31,7 @@ import { Drawer } from "../ui/drawer";
 import { Icon } from "../ui/icon";
 import { useServerStateVersion } from "../lib/query-client";
 import { servedIdentityLines } from "../lib/served-identity";
-import { useStoreContent, writeUiState } from "../lib/store-access";
+import { useStoreContent, writeUiState, store } from "../lib/store-access";
 import {
   drawerEntry,
   drawerEntryCount,
@@ -85,14 +85,14 @@ export function NavigationDrawer(): ReactElement {
   useEffect(
     () =>
       registerLayer("drawer", {
-        isOpen: () => window.__store.read().state.drawerOpen === true,
+        isOpen: () => store.read().state.drawerOpen === true,
         close: (pop) => close(pop),
       }),
     [],
   );
 
   function close(pop?: boolean): void {
-    if (window.__store.read().state.drawerOpen !== true) return;
+    if (store.read().state.drawerOpen !== true) return;
     if (closing.current) return;
     closing.current = true;
     try {
@@ -172,7 +172,7 @@ export function NavigationDrawer(): ReactElement {
                 // Reflected in place: the drawer stays open — choosing an
                 // appearance is not a navigation, and watching the theme change
                 // IS the feedback. The bump is what redraws the pressed state.
-                window.__store.touch();
+                store.touch();
               }}
             >
               {t(`navigation.appearance.${mode}`)}

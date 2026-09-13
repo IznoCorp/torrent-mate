@@ -10,6 +10,8 @@
 import { createBrowserHistory } from "@tanstack/react-router";
 import { go } from "../lib/navigate";
 import { firstStuckFolder } from "../lib/queue";
+import { fillBridgeDoor, fillScreensDoor, panel, screens } from "../lib/shell-doors";
+import { store } from "../lib/store-access";
 
 // The bridge's contract, stated once. The verbs are the legacy nav cluster's
 // primitives, and their names are the fragment's own; the state objects
@@ -126,7 +128,7 @@ export function installHistoryBridge(): void {
 // (via `pushLayer`, still a `layer` entry) needs the SAME forwarding a layer
 // opened anywhere else gets, or its own unwind guard never runs and closing
 // it silently stops working.
-window.__bridge = {
+fillBridgeDoor({
   record: (state: unknown, url: string) => {
     history.push(url, state);
     history.flush();
@@ -175,7 +177,7 @@ window.__bridge = {
       )
         callback(location.state, action.type);
     }),
-};
+});
 }
 
 /**
@@ -188,7 +190,7 @@ export function installScreenBridge(): void {
 // NFC-normalised here, once, on write — `QualityScreen` normalises again on
 // read so an entry arriving by direct URL (not through this bridge) is
 // covered too.
-window.__screens = {
+fillScreensDoor({
   profile: (title: string) =>
     go({ to: "/quality/$name", params: { name: title.normalize("NFC") } }),
   // The sheet is addressed by PROVIDER ID (DOIT-11), and callers hold a title,
@@ -202,7 +204,7 @@ window.__screens = {
   // because the rule is, not because a case demanded it.
   mediaSheet: (title: string) => {
     const ids = window.__referentiel.addressIdsFor(title.normalize("NFC"));
-    if (!ids) return window.__screens.resolution();
+    if (!ids) return screens.resolution();
     // THE PANEL LEAVES INSIDE THE COMMIT, so the transition captures it OPEN
     // and its departure has something to draw.
     //
@@ -231,7 +233,7 @@ window.__screens = {
     go(
       { to: "/media/$provider/$id", params: ids },
       () => {
-        if (window.__panel.isOpen()) window.__panel.close(true);
+        if (panel.isOpen()) panel.close(true);
       },
     );
   },
@@ -243,7 +245,7 @@ window.__screens = {
   // itself — so it writes the store directly rather than through
   // `data.ts`'s `writeUiState` component door.
   releases: (title: string) => {
-    window.__store.write({ relatedTitle: title });
+    store.write({ relatedTitle: title });
     go({
       to: "/releases/$title",
       params: { title: title.normalize("NFC") },
@@ -277,7 +279,7 @@ window.__screens = {
     // a door opening onto nothing.
     const first = firstStuckFolder();
     const target = folder ?? (typeof first === "string" ? first : null);
-    window.__store.write({ resolveTarget: target });
+    store.write({ resolveTarget: target });
     go({
       to: "/resolution/$folder",
       // An address that changed with the interface language would no longer
@@ -303,7 +305,7 @@ window.__screens = {
     // it writes the store directly rather than through data.ts's
     // `writeUiState` write door (components must use that one; see its own
     // doc comment).
-    window.__store.write({ addQ: q ?? "", addMode: validMode });
+    store.write({ addQ: q ?? "", addMode: validMode });
     go({
       to: "/add",
       search: {
@@ -312,5 +314,5 @@ window.__screens = {
       },
     });
   },
-};
+});
 }

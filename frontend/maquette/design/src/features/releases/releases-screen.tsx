@@ -21,6 +21,7 @@ import { useReleasesReference } from "../../features/releases/reference";
 import { actionButton, backAction, body, emptyNote, qualityHint, resultCount, screen, screenBar, scrollport } from "../../ui/variants";
 import { releaseName, releaseRow, releaseScore, releaseTags } from "../../features/releases/variants";
 import { Icon } from "../../ui/icon";
+import { bridge } from "../../lib/shell-doors";
 
 export function ReleasesScreen() {
   const { title: raw } = useParams({ from: "/releases/$title" });
@@ -44,7 +45,7 @@ export function ReleasesScreen() {
       aria-label={title}
     >
       <div className={screenBar()} data-part="screen/bar">
-        <button className={backAction()} data-part="screen/back" onClick={() => window.__bridge.back()}>
+        <button className={backAction()} data-part="screen/back" onClick={() => bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.releases.back")}
         </button>{" "}

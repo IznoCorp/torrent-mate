@@ -9,6 +9,7 @@ import type { ReactElement } from "react";
 import { Dialog } from "../ui/dialog";
 import type { DialogDescriptor } from "../ui/dialog/contract";
 import { useStoreContent } from "../lib/store-access";
+import { dialog } from "./dialog-host";
 
 export function DialogLayer(): ReactElement {
   const open = useStoreContent((content) => content.state.dialogOpen === true);
@@ -23,7 +24,7 @@ export function DialogLayer(): ReactElement {
     <Dialog
       descriptor={descriptor}
       open={open}
-      close={() => window.__dialog?.close()}
+      close={() => dialog?.close()}
     />
   );
 }

@@ -26,6 +26,9 @@
 // into `fr.json` for no property this lot owes.
 import i18next from "../i18n";
 import { forgetOutbox } from "./outbox";
+import { store } from "../lib/store-access";
+import { bridge, panel, toast } from "../lib/shell-doors";
+import { addressSeam } from "../lib/addresses";
 
 /** How long a full load is BUDGETED for — the bar's pace, never a floor. */
 const STARTUP_MS = 5000;
@@ -79,7 +82,7 @@ export function coverLoading(duration = STARTUP_MS): void {
   void new Promise<void>((resolve) => {
     finish = resolve;
   }).then(hideStartup);
-  window.setTimeout(() => window.__loadingDone?.(), duration);
+  window.setTimeout(() => loadingDone?.(), duration);
 }
 
 declare global {
@@ -102,6 +105,11 @@ declare global {
     };
   }
 }
+
+/** Whatever really knows the interface is ready calls this — filled at install. */
+export let loadingDone: Window["__loadingDone"];
+/** The entry's verbs — filled at install, published by the harness as `window.__entry`. */
+export let entry: Window["__entry"];
 
 /**
  * Shows or hides the unauthenticated entry screen.
@@ -134,9 +142,9 @@ export function showSignIn(withError: boolean, silent = false): void {
     (document.querySelector("#loginform") as HTMLFormElement | null)?.reset();
   if (silent) return;
   try {
-    window.__bridge.replace(
+    bridge.replace(
       window.__navigationState?.() ?? null,
-      window.__address.signInPath,
+      addressSeam.signInPath,
     );
   } catch (error) {
     // ENGLISH, and not in `fr.json`: a console message is a tool message.
@@ -156,9 +164,9 @@ export function hideSignIn(silent = false): void {
   // over the application it has just let through.
   if (!wasShown || silent) return;
   try {
-    window.__bridge.replace(
+    bridge.replace(
       window.__navigationState?.() ?? null,
-      window.__address.compose(window.__store.read().state),
+      addressSeam.compose(store.read().state),
     );
   } catch (error) {
     console.error("sign-in release: navigation write failed", error);
@@ -177,7 +185,7 @@ export function hideSignIn(silent = false): void {
  * dead-ends on a 404 teaches nothing about the design.
  */
 export async function signOut(): Promise<void> {
-  window.__panel.close();
+  panel.close();
   try {
     await fetch("/logout", { redirect: "manual" });
   } catch (error) {
@@ -303,7 +311,7 @@ function offerInstall(platform: "ios" | "android"): void {
  * Called once, from the frame, after the document is parsed.
  */
 export function installEntry(): void {
-  window.__loadingDone = () => {
+  loadingDone = () => {
     finish?.();
     finish = null;
     hideStartup();
@@ -342,7 +350,7 @@ export function installEntry(): void {
   node("#installgo")?.addEventListener("click", async () => {
     hideInstall();
     if (!installEvent) {
-      window.__toast?.show({
+      toast?.show({
         message: i18next.t("message.installRequested"),
       });
       return;
@@ -352,7 +360,7 @@ export function installEntry(): void {
     installEvent.prompt();
     const choice = await installEvent.userChoice.catch(() => null);
     installEvent = null;
-    window.__toast?.show({
+    toast?.show({
       message: i18next.t(
         choice && choice.outcome === "accepted"
           ? "message.installing"
@@ -371,14 +379,14 @@ export function installEntry(): void {
   window.addEventListener("appinstalled", () => {
     installEvent = null;
     hideInstall();
-    window.__toast?.show({ message: i18next.t("message.installed") });
+    toast?.show({ message: i18next.t("message.installed") });
   });
 
   // iOS has no event to wait for, so the offer is made once the interface is
   // there — after the startup screen, not over it.
   if (onIOSSafari()) window.setTimeout(() => offerInstall("ios"), 1200);
 
-  window.__entry = {
+  entry = {
     showSignIn,
     hideSignIn,
     signOut,

@@ -40,6 +40,7 @@
 import { setMessagePresent } from "./message-presence";
 import { readLayerOpen, subscribeToLayerOpen } from "./layer-presence";
 import type { Message, Edge } from "../ui/toast";
+import { fillToastDoor } from "../lib/shell-doors";
 
 const MESSAGE_MS = 5000;
 const MESSAGE_WITH_UNDO_MS = 6000;
@@ -202,10 +203,10 @@ declare global {
 }
 
 export function installToastHost(): void {
-  window.__toast = {
+  fillToastDoor({
     show: showMessage,
     hide: hideMessage,
     read: readMessage,
-  };
+  });
   subscribeToLayerOpen(followTheLayers);
 }

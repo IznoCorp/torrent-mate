@@ -59,3 +59,42 @@ refuses the route composition of `__followActions`.
 ## Commit
 
 `refactor(maquette-l13): product code imports the shell's seams and the harness publishes them`
+
+## Amended 2026-09-13 — the steward's ruling on STOP D
+
+**Measured before anything moved.** A projection of `check-frontend-boundaries.py`'s fan-in arm (its own
+`build_graph`, one edge per reader to the owner this file named) put five modules over the ceiling of 4:
+`app/history-bridge.ts` 1 → 9, `app/toast-host.ts` 1 → 9, `app/panel-host.ts` 1 → 7, `app/store.ts` 3 → 7,
+`features/acquisition/queries.ts` 2 → 5 (one feature; the rest are buckets).
+Re-run it rather than believe it — on a·1's head, extracted anywhere:
+
+    mkdir /tmp/l13a-projection
+    git archive 79db420b3 scripts frontend/maquette/design/src | tar -x -C /tmp/l13a-projection
+    python3 docs/features/maquette-l13/plan/fanin_projection.py /tmp/l13a-projection
+
+**Void: the app hosts as import owners of the four shell doors and of the store.** R1: `toast`, `panel`,
+`bridge` and `screens` live in ONE door module, `lib/shell-doors.ts`, declared as `let` bindings and filled
+by their app host at install (`engine/seams.ts`'s pattern); `store` lives beside the existing door in
+`lib/store-access.ts`, filled by the boot (`installStore`). The query client is `lib/query-client.ts`'s
+`sharedQueryClient` (`installSharedQueryClient`); the address model the engine asks is `lib/addresses.ts`'s
+`addressSeam`. Features, `engine/seams.ts` and `harness/publish.ts` import the doors; no
+`lib/` module imports an `app/` value.
+
+**R2: one `FAN_IN_EXEMPT` entry, `features/acquisition/queries.ts`**, carrying its lifetime in its comment.
+**The L13b phase that deletes the engine's edge to it** — the acquisition verbs leaving (b·5) or
+`engine/seams.ts` dying (b·11), whichever removes the last engine read of `followActions`/`suggestions` —
+**removes the entry in the same commit.**
+
+**The six `window.__navEchec = true` WRITES stay as they are.** The move this file planned rested on « a·1
+gave the reset to `harness/drive.ts` », which RESUME's ruling 6 made void; a write is not a read, and no home
+was named for them.
+
+**Found while moving, and done in this phase:**
+- The engine read `__bridge` as a BARE global on 13 code lines, invisible to the `window.__` pass; they call
+  the `bridge` it already imports.
+- `window.__mocks` stays published by the mock layer itself: `check-frontend-boundaries.py`'s `mocks` arm lets
+  only `app/` import `mocks/`, so neither the harness nor `engine/seams.ts` may. `app/outbox-wiring.ts`
+  imports `mockLayer` behind the constant; the engine's `resetSettings` — called only by the harness — keeps
+  its `window.__mocks?.` read.
+- The engine's other twenty reads go through `seam`, a getter object in `engine/seams.ts` (the engine has
+  locals named `toast`, `entry`, `suggestions`).

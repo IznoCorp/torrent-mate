@@ -21,6 +21,9 @@
 // listener that dies with the surface.
 import { giveTheEntryBackFirst } from "../../lib/stacked-surface";
 import { registerVerb } from "../../lib/verbs";
+import { store } from "../../lib/store-access";
+import { bridge } from "../../lib/shell-doors";
+import { addressSeam } from "../../lib/addresses";
 
 /** The key the rubric travels under, on the entry this verb pushes. */
 const CARRIED = "settingsTopic";
@@ -40,9 +43,9 @@ function openTopic(rubric: string): void {
   reference.SETTINGS_STATE.q = "";
   reference.render();
   try {
-    window.__bridge.record(
+    bridge.record(
       { ...(window.__navigationState?.() ?? {}), [CARRIED]: rubric },
-      window.__address.compose(window.__store.read().state),
+      addressSeam.compose(store.read().state),
     );
     // SAID ONLY WHEN IT REALLY PUSHED. A cold load of a rubric's address opens
     // one without an entry of its own, and a driven state opens one without

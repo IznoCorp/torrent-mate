@@ -97,8 +97,3 @@ declare module "@tanstack/react-router" {
     router: typeof router;
   }
 }
-
-// Published at this module's evaluation rather than from the boot, because it
-// is the publication of a constant this module owns and nothing reads it while
-// the application starts. The harness drives through it.
-window.__routeur = router;

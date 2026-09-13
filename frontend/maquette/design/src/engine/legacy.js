@@ -32,7 +32,7 @@
    because narrowing it means editing the instrument that measures the move.
 */
 
-import { screens, panel, bridge } from "./seams.js";
+import { screens, panel, bridge, seam } from "./seams.js";
 import { installPressArbitration } from "../lib/press-arbitration";
 import { installPullGesture } from "../lib/pull-gesture";
 import { icons } from "../app/icons";
@@ -5441,16 +5441,16 @@ import {
      layer. Both were fixtures here and left at L09; both are indexed into from
      click handlers that cannot await. They go with the delegation at L13. */
   function searchResults() {
-    return window.__searchResults?.() ?? { total: 0, shown: 0, results: [] };
+    return seam.searchResults?.() ?? { total: 0, shown: 0, results: [] };
   }
 
   function follows() {
-    return window.__followActions?.all() ?? [];
+    return seam.followActions?.all() ?? [];
   }
 
   function queued() {
     return (
-      window.__queue?.() ?? {
+      seam.queue?.() ?? {
         stuck: [], moving: [], settled: [], takeable: [],
         blocked: [], inFlight: [], notFound: [], doneToday: [],
       }
@@ -5458,7 +5458,7 @@ import {
   }
 
   function suggestions() {
-    return window.__suggestions?.() ?? [];
+    return seam.suggestions?.() ?? [];
   }
 
   /* WHAT IS LEFT OF THE WORLD, and it is the library's rows and nothing else.
@@ -5478,7 +5478,7 @@ import {
 
   function actionTake(title) {
     /* Same as the two above. */
-    window.__queueActions?.take(title);
+    seam.queueActions?.take(title);
     render();
     toast(`« ${baseTitle(title)} » récupéré — suivez-le dans « En vol ».`);
   }
@@ -5505,7 +5505,7 @@ import {
        surfaces read would be two truths about one queue. `leaveQueue` went with
        it — the layer walks the same three lists, in the same order, and it says
        so in its own words. */
-    if (!window.__queueActions?.leave(title)) return false;
+    if (!seam.queueActions?.leave(title)) return false;
     render();
     toast(
       `« ${title} » laissé tel quel — le résultat automatique est conservé, rien n'a été re-scrapé.`,
@@ -5516,7 +5516,7 @@ import {
   function actionResolve(title, choice, picked) {
     /* Same as `actionLeave`: the move is the layer's, the sentence is this
        function's. A PICK on the candidate card waits and answers an undo. */
-    const undo = window.__queueActions?.[picked ? "pick" : "resolve"](title, choice);
+    const undo = seam.queueActions?.[picked ? "pick" : "resolve"](title, choice);
     render();
     const message = `Identifié comme « ${choice ?? title} » — le pipeline reprend jusqu'à la médiathèque.`;
     if (typeof undo === "function") toastUndo(message, undo); else toast(message);
@@ -5527,7 +5527,7 @@ import {
        library when the listing converted, so this filtered an empty array and
        deleted nothing at all — on the one surface whose subject is what is
        there. The confirmation stays here: it is drawn here (NE-DOIT-PAS-6). */
-    window.__deleteLibraryItems?.(titres);
+    seam.deleteLibraryItems?.(titres);
     store.write({ selMode: false, selected: new Set() });
     render();
     toast(
@@ -7308,10 +7308,10 @@ import {
      fact (the drawer's own `NAVIGATION`, `PAGES` in the shell's page
      host, `PAGE_PATHS` in the address model), and a fact that exists four
      times is stale in three of them. There is one table, `app/navigation.ts`,
-     and this engine reads it through `window.__navigation`, exactly as it
-     reads `window.__address` for a path. The rows arrive already translated:
+     and this engine reads it through `seam.navigation`, exactly as it
+     reads `seam.address` for a path. The rows arrive already translated:
      no French reaches this file and none has to. */
-  const navigationRows = () => window.__navigation?.rows() ?? [];
+  const navigationRows = () => seam.navigation?.rows() ?? [];
 
   const select = (selector) => document.querySelector(selector);
   /* The `open` class and the `data-open` attribute name ONE state, so one
@@ -7350,7 +7350,7 @@ import {
        installed before this engine starts; written the other way it would blank
        the interface with nothing in the console, which is a worse answer than
        the TypeError this branch was written against. */
-    const notFound = window.__navigation?.notFoundPage;
+    const notFound = seam.navigation?.notFoundPage;
     if (!navigationRows().some((element) => element.id === currentState().page)) {
       if (notFound === undefined)
         // ENGLISH, and not in `fr.json`: a console message is a tool message.
@@ -7582,7 +7582,7 @@ import {
     // `/api/decisions/` and `PENDING_DECISIONS` is deleted — and this answer
     // stays because the engine's « Passer à la suivante » branch asks it
     // synchronously from a click handler. It reads the cache through
-    // `window.__pendingDecisions` and goes with that branch at L13.
+    // `seam.pendingDecisions` and goes with that branch at L13.
     decisionPending,
     // Thin arrows over `derived.blocked` / `derived.stuck` — `derived` itself
     // is already initialized above this literal, but the wrapper still earns
@@ -7612,9 +7612,9 @@ import {
      stays OUT of the address: the sort is a preference, not a place (A7). */
   function sortLabel() {
     /* THE NAMES ARE THE FEATURE'S — `features/library/sorting.ts`, read
-       through the seam the sort panel publishes, the way a setting's label is
-       read through `window.__settingLabels`. */
-    const named = window.__sortWays();
+       through `engine/seams.ts` rather than a copy kept here, the way a
+       setting's label is read from the settings feature. */
+    const named = seam.sortWays();
     return named[currentState().sortKey][
       currentState().sortReversed ? "inverse" : "normal"
     ];
@@ -7897,12 +7897,12 @@ import {
      because they are PRODUCERS and a producer moves to its feature at L19.
      These two lines die with them. */
   function toast(msg) {
-    window.__toast?.show({ message: msg });
+    seam.toast?.show({ message: msg });
   }
   /* An action triggered by a GESTURE must be undoable: a sliding thumb is
      wrong more often than a pressing finger. */
   function toastUndo(msg, undo) {
-    window.__toast?.show({ message: msg, undo });
+    seam.toast?.show({ message: msg, undo });
   }
 
   /* The panel layer belongs to the shell now (`window.__panel`, rendered by
@@ -7932,7 +7932,7 @@ import {
   function hideLayers() {
     // The drawer is the shell's layer: closing it without touching history is
     // what `close(true)` means, the same contract this function has always had.
-    window.__layers?.close("drawer", true);
+    seam.layers?.close("drawer", true);
     setOpen(select("#screen"), false);
     // The sheet is the shell's layer: closing it without touching history is
     // what `close(true)` means, the same contract this function has always
@@ -7940,7 +7940,7 @@ import {
     panel.close(true);
     // The scrim is DERIVED now, not written: `ui/sheet.tsx` raises it while any
     // scrim-backed layer is open, so clearing the layers clears it.
-    window.__layers?.close("dialog", true);
+    seam.layers?.close("dialog", true);
     // The harness panel, when one is up, goes with the layers.
     document.querySelector(".hpanel")?.remove();
   }
@@ -7968,7 +7968,7 @@ import {
     if (!history.state || history.state.layer !== name) return;
     unwindInProgress += 1;
     try {
-      __bridge.back();
+      bridge.back();
     } catch (error) {
       unwindInProgress -= 1;
     }
@@ -8033,7 +8033,7 @@ import {
 
      `closeDlg` stays a VERB the producers say. */
   function closeDlg() {
-    window.__dialog?.close();
+    seam.dialog?.close();
   }
 
   /* Re-rendering a screen must NEVER send the operator back to the top:
@@ -8194,7 +8194,7 @@ import {
 
      What stays here is navigation logic proper: WHEN to record an arrival,
      what state to carry on the entry, and how a back unwinds the layers. The
-     engine says where it is; `window.__address` says what that is called. */
+     engine says where it is; `seam.address` says what that is called. */
 
   /* EVERY dial the address model declares travels on the entry, and that is
      the whole of the list: a dial left off is one a back cannot put back, so
@@ -8246,7 +8246,7 @@ import {
   function recordPath() {
     if (pilotage) return false;
     try {
-      __bridge.record(navigationState(), window.__address.compose(currentState()));
+      bridge.record(navigationState(), seam.address.compose(currentState()));
       return true;
     } catch (error) {
       console.error("noterLeChemin : écriture de navigation échouée", error);
@@ -8275,7 +8275,7 @@ import {
   function replacePath() {
     if (pilotage) return false;
     try {
-      __bridge.replace(navigationState(), window.__address.compose(currentState()));
+      bridge.replace(navigationState(), seam.address.compose(currentState()));
       return true;
     } catch (error) {
       console.error("replacePath: writing the navigation failed", error);
@@ -8324,14 +8324,14 @@ import {
        step over. */
     const onLayer = Boolean(history.state && history.state.layer);
     if (arriving === leaving) return replacePath();
-    if (leaving === window.__address.homePage) {
+    if (leaving === seam.address.homePage) {
       /* PUSHED FROM HOME, so the entry this one is laid on IS the floor,
          whatever the boot did or did not lay. The reader stands over a home
          entry from here on, and the flag says so the moment the push does. */
       if (recordPath()) homeFloorExists = true;
       return;
     }
-    if (arriving === window.__address.homePage && !onLayer) {
+    if (arriving === seam.address.homePage && !onLayer) {
       /* NO FLOOR, NO STEP BACK. The entry one down is then the exit guard,
          and stepping onto it arms the exit from an arrival nobody made as a
          back: the next back leaves the document, from a page whose whole
@@ -8349,7 +8349,7 @@ import {
         return;
       }
       try {
-        __bridge.back();
+        bridge.back();
       } catch (error) {
         console.error("switchPage: stepping back onto the entry page failed", error);
         window.__navEchec = true;
@@ -8360,7 +8360,7 @@ import {
        reader a home entry — the layer's own entry takes the destination.
        Between two other pages it swaps one page for another and leaves what is
        beneath exactly as it was. */
-    if (replacePath() && arriving === window.__address.homePage)
+    if (replacePath() && arriving === seam.address.homePage)
       homeFloorExists = true;
   }
 
@@ -8391,7 +8391,7 @@ import {
              `switchPage` reads it there. */
   function switchPageFromLayer(leaving) {
     if (pilotage) return;
-    const homePage = window.__address.homePage;
+    const homePage = seam.address.homePage;
     /* No floor to walk down to: the entry under the layer is an arrival nobody
        serves, and the one below THAT is the exit guard. The layer's entry takes
        the destination, which keeps the address as typed one back away.
@@ -8414,8 +8414,8 @@ import {
        stopped one short, and the reader got two entries for the entry page and
        a Back that did nothing. What stacks says so, or this is a guess again. */
     const entries = (leaving === homePage ? 1 : 2)
-      + (window.__stackedSurfaces ? window.__stackedSurfaces() : 0);
-    __bridge.rewind(entries);
+      + (seam.stackedSurfaces ? seam.stackedSurfaces() : 0);
+    bridge.rewind(entries);
     /* Armed after the traversal is issued: a pop cannot land before this task
        ends, so this is in time, and a rewind that threw arms nothing. Arriving
        home the floor IS the destination, so its address is settled in place;
@@ -8461,15 +8461,15 @@ import {
        dialog — a page, or the exit guard — with the dialog still up. It is not
        that the dialog had no closer: Escape reached it and so did a scrim tap.
        Only Back did not. */
-    if (window.__layers?.isOpen("dialog")) {
-      window.__layers.close("dialog", true);
+    if (seam.layers?.isOpen("dialog")) {
+      seam.layers.close("dialog", true);
       return;
     }
     /* THE REGISTRATION, NOT THE CLASS. The drawer is a component and its open
        state is the store's; asking the DOM would answer whatever React last
        painted rather than what is true at this instant. Same rank on the
        ladder as before — dialog, drawer, then screen, then sheet. */
-    if (window.__layers?.isOpen("drawer")) return closeDrawer(true);
+    if (seam.layers?.isOpen("drawer")) return closeDrawer(true);
     if (select("#screen").classList.contains("open")) return closeScreen(true);
     // The sheet lives in the shell; it is asked, not inspected. Same rank in
     // the ladder as before — drawer, then screen, then sheet.
@@ -8521,7 +8521,7 @@ import {
         reopenAddressedPanel(location.search, true);
         return;
       }
-      __bridge.back();
+      bridge.back();
       return;
     }
 
@@ -8558,7 +8558,7 @@ import {
       if (
         arrivalWithoutFloor &&
         direction === "BACK" &&
-        state.page !== window.__address.homePage
+        state.page !== seam.address.homePage
       )
         homeFloorExists = false;
       pilotage = true;
@@ -8592,7 +8592,7 @@ import {
       armedExit = 0;
       // Nothing is put back: from the guard, one more back leaves the
       // document — which is what closes an installed app on Android.
-      __bridge.back();
+      bridge.back();
       return;
     }
     armedExit = now;
@@ -8636,8 +8636,8 @@ import {
      oracle as a divergence in `relay-refused`, eighty states later, which is
      what a leaked address looks like from the outside. */
   const showSignIn = (withError, silent) =>
-    window.__entry?.showSignIn(withError, silent === true || pilotage);
-  const signOut = () => window.__entry?.signOut();
+    seam.entry?.showSignIn(withError, silent === true || pilotage);
+  const signOut = () => seam.entry?.signOut();
 
 
 
@@ -8653,11 +8653,11 @@ import {
   function openDrawer() {
     store.write({ drawerOpen: true });
     try {
-      __bridge.pushLayer("drawer");
+      bridge.pushLayer("drawer");
     } catch (error) {}
   }
   function closeDrawer(pop) {
-    window.__layers?.close("drawer", pop);
+    seam.layers?.close("drawer", pop);
   }
 
   /* THE APPEARANCE IS NOT THIS FILE'S ANY MORE. The three states, the stored
@@ -8730,7 +8730,7 @@ import {
       // does is `features/settings/panel-setting.ts`'s, beside the panel that
       // offers it. The rule that holds it was written against the branch this
       // replaces and is unchanged in count.
-      window.__settingsVerbs?.cancelEdit(closest.dataset.cancelsetting);
+      seam.settingsVerbs?.cancelEdit(closest.dataset.cancelsetting);
       return;
     }
     if (closest.dataset.save) {
@@ -8738,21 +8738,21 @@ import {
       // raise the restart flag and say « Enregistré » without ever writing
       // anything — so `conflict`, a field the contract has always answered, had
       // no reader and the copy naming three banners drew two.
-      void window.__settingsVerbs?.save();
+      void seam.settingsVerbs?.save();
       return;
     }
     if (closest.dataset.reloadsettings) {
-      window.__settingsVerbs?.reload();
+      seam.settingsVerbs?.reload();
       return;
     }
     if (closest.dataset.restart) {
       // IT ASKS FIRST (B-300, §17). A restart cuts the service for every
       // account of the household; this branch used to do it on the tap.
-      window.__settingsVerbs?.askToRestart();
+      seam.settingsVerbs?.askToRestart();
       return;
     }
     if (closest.dataset.confirmrestart) {
-      window.__settingsVerbs?.restart();
+      seam.settingsVerbs?.restart();
       return;
     }
     if (closest.dataset.qsettings != null) {
@@ -9199,7 +9199,7 @@ import {
       // its single settlement needs, so this close is the follow branches'.
       panel.close();
       if (result.owned) {
-        window.__dialog?.open({
+        seam.dialog?.open({
           heading: `Remplacer « ${result.t} » ?`,
           body: [
             {
@@ -9233,7 +9233,7 @@ import {
       // any more.
       currentState().added.add(index);
       store.touch();
-      window.__followVerbs?.follow(result.t, result.k);
+      seam.followVerbs?.follow(result.t, result.k);
       return;
     }
     if (closest.dataset.confirmadd) {
@@ -9314,9 +9314,9 @@ import {
       if (closest.classList.contains("remove"))
         return currentState().page === "lib"
           ? openDeleteDialog(textContent)
-          : window.__followVerbs?.removeFollow(textContent);
+          : seam.followVerbs?.removeFollow(textContent);
       if (closest.classList.contains("pause"))
-        return window.__followVerbs?.pause(textContent);
+        return seam.followVerbs?.pause(textContent);
       toast(`${closest.textContent.trim()} — ${textContent}`);
       return;
     }
@@ -9384,7 +9384,7 @@ import {
       : media > 1
         ? `Supprimer « ${titles[0]} » — ${media} médias ?`
         : `Supprimer « ${titles[0]} » ?`;
-    window.__dialog?.open({
+    seam.dialog?.open({
       heading: head,
       body: [
         {
@@ -30508,14 +30508,14 @@ import {
      not borrow one. Showing another folder's candidates would be the worst
      possible lie on the one screen whose job is to name what is on disk. */
   /* IT READS THE CACHE NOW, and the fixture it used to read is gone (L09). The
-     shell publishes `window.__pendingDecisions` over the query cache — a
+     shell publishes `seam.pendingDecisions` over the query cache — a
      SYNCHRONOUS read, because this is called from a click handler that cannot
      await. Before the query has answered it reports « no decision », which is
      the same answer this function already gave for a folder that has none, and
      the surfaces that draw a decision render nothing until the cache has one.
      It dies with the branch below at L13. */
   function decisionPending(target) {
-    const pending = window.__pendingDecisions?.() ?? [];
+    const pending = seam.pendingDecisions?.() ?? [];
     return pending.find((decision) => decision.d === target) ?? null;
   }
 
@@ -30569,14 +30569,14 @@ import {
      the PRODUCER — the five lines that turn an episode into three facts — and
      a producer moves to its feature with L19 (Part 12). */
   function closePopEp() {
-    window.__popover?.close();
+    seam.popover?.close();
   }
   function openPopEp(btn) {
     // THE SENTENCE HAS LEFT. The frame places, the feature says —
     // `features/media/popover-episode.ts`, reached through the seam it
     // publishes. What stays here is the tap, which is the delegation's.
-    const saying = window.__episodeSaying?.(btn);
-    if (saying) window.__popover?.open(btn, saying);
+    const saying = seam.episodeSaying?.(btn);
+    if (saying) seam.popover?.open(btn, saying);
   }
 
   /* Does this interface HOLD a medium by that title?
@@ -31126,7 +31126,7 @@ import {
    *     refusal leaves the caller's entry alone and says why.
    */
   function reopenAddressedPanel(search, onCurrentEntry, waiting) {
-    const asked = window.__address.parse(location.pathname, search);
+    const asked = seam.address.parse(location.pathname, search);
     if (!asked.panel) return false;
     const separator = asked.panel.indexOf(":");
     const kind = separator > 0 ? asked.panel.slice(0, separator) : "";
@@ -31194,7 +31194,7 @@ import {
        not at the engine's top level: it is a `__bridge` verb like the writes
        below, and the real bridge only exists from this call on — nothing
        upstream queues it anymore. */
-    __bridge.onBack(onEngineBack);
+    bridge.onBack(onEngineBack);
 
     /* The opening state comes from the ADDRESS, before the first paint: a
        reload that lands on the opening page rather than where one was is the
@@ -31205,7 +31205,7 @@ import {
        time the panel is asked for at the end of this boot `location.search`
        no longer carries what was typed. */
     const arrivalSearch = location.search;
-    const arrival = window.__address.parse(location.pathname, arrivalSearch);
+    const arrival = seam.address.parse(location.pathname, arrivalSearch);
     Object.assign(state, { page: arrival.page }, arrival.dials);
     /* The address as asked, PANEL PARAMETER EXCEPTED — and it is taken off for
        exactly the reason the arrival address below takes it off: a panel the
@@ -31221,7 +31221,7 @@ import {
         queryAt < 0
           ? arrival.notFound
           : arrival.notFound.slice(0, queryAt) +
-            window.__address.withoutPanel(arrival.notFound.slice(queryAt));
+            seam.address.withoutPanel(arrival.notFound.slice(queryAt));
     }
     /* Kept from BEFORE the first render, because rendering an unknown id
        moves the state onto the not-found surface — and rewriting the
@@ -31246,8 +31246,8 @@ import {
        the interface never honoured. Either way this entry is the page. */
     const arrivalAddress =
       location.pathname === "/"
-        ? window.__address.compose(currentState())
-        : location.pathname + window.__address.withoutPanel(arrivalSearch);
+        ? seam.address.compose(currentState())
+        : location.pathname + seam.address.withoutPanel(arrivalSearch);
     /* TWO WAYS AN ADDRESSED PANEL IS DROPPED BEFORE ANYTHING CAN DECLINE IT,
        and both used to be silent. An EMPTY value names no panel at all, and a
        panel asked for over the SIGN-IN screen is never even read — the gate
@@ -31261,7 +31261,7 @@ import {
        message: a developer reads it, never a reader of the interface. */
     if (
       !arrival.panel &&
-      new URLSearchParams(arrivalSearch).has(window.__address.panelParameter)
+      new URLSearchParams(arrivalSearch).has(seam.address.panelParameter)
     ) {
       console.warn(
         arrival.signIn
@@ -31298,7 +31298,7 @@ import {
        and the last of them is the entry the panel's own layer is stacked
        on: lose it and the first Back spends the guard instead. */
     try {
-      __bridge.replace(navigationState(), arrivalAddress);
+      bridge.replace(navigationState(), arrivalAddress);
     } catch (error) {
       console.error("boot: writing the arrival address failed", error);
       window.__navEchec = true;
@@ -31307,12 +31307,12 @@ import {
        left to cover — but it does not come off on that line. It comes off
        when the wait it covers RESOLVES, which is the only rule that serves
        both a prototype with nothing to fetch and an app with a real one. */
-    window.__loadingDone();
+    seam.loadingDone();
     /* The guard is the FIRST entry, and the opening page sits on top of it.
        It cannot be anywhere else: nothing can be inserted below the entry a
        document opens on, so the guard has to BE that entry. */
     try {
-      __bridge.replace({ tm: "garde" });
+      bridge.replace({ tm: "garde" });
     } catch (error) {
       console.error("boot: writing the exit guard failed", error);
       window.__navEchec = true;
@@ -31340,7 +31340,7 @@ import {
        The parent is RENDERED as well as recorded — `state.page` is it, from
        the same reading, above — so closing a screen reveals a page already in
        place instead of whatever frame it happened to cover. */
-    const homePage = window.__address.homePage;
+    const homePage = seam.address.homePage;
     const beneath = [];
     if (!arrival.notFound && (arrival.screen || arrival.page !== homePage)) {
       beneath.push(homePage);
@@ -31352,9 +31352,9 @@ import {
     if (arrival.notFound) arrivalWithoutFloor = true;
     for (const under of beneath) {
       try {
-        __bridge.record(
+        bridge.record(
           Object.assign(navigationState(), { page: under }),
-          window.__address.compose(Object.assign({}, currentState(), { page: under })),
+          seam.address.compose(Object.assign({}, currentState(), { page: under })),
         );
         /* AND THE FLOOR FLAG FOLLOWS THE WRITE, not the plan the list above
            holds: a push that was refused lays nothing, and a flag raised over
@@ -31373,7 +31373,7 @@ import {
        operator's address behind their back. A browser answering 404 leaves
        the address alone. */
     try {
-      __bridge.record(navigationState(), arrivalAddress);
+      bridge.record(navigationState(), arrivalAddress);
       /* ARRIVING ON THE HOME PAGE, the entry just written IS the floor: there
          is nothing to lay under it, and the flag reads « at or beneath ». It
          follows this write like every other — refused, the reader is left

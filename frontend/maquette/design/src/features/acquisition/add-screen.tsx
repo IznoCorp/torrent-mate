@@ -56,6 +56,7 @@ import {
   suggestions,
 } from "../../features/acquisition/variants";
 import { Markup } from "../../ui/markup";
+import { bridge } from "../../lib/shell-doors";
 
 type Mode = "follow" | "identify";
 
@@ -189,7 +190,7 @@ export function AddScreen() {
       aria-label={t("screens.add.landmark")}
     >
       <div className={screenBar()} data-part="screen/bar">
-        <button className={backAction()} data-part="screen/back" onClick={() => window.__bridge.back()}>
+        <button className={backAction()} data-part="screen/back" onClick={() => bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.add.back")}
         </button>

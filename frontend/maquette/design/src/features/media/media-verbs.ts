@@ -27,6 +27,7 @@ import i18next from "i18next";
 import type { QueryClient } from "@tanstack/react-query";
 import { HELD, send } from "../../lib/query-client";
 import { registerVerb } from "../../lib/verbs";
+import { panel, toast } from "../../lib/shell-doors";
 
 /** What the operation answers, as the contract declares it. */
 type MediaRescrape = {
@@ -70,7 +71,7 @@ async function rescrapeMedia(client: QueryClient, title: string): Promise<void> 
   // file exists to end, wearing a different cause.
   const identity = window.__referentiel.addressIdsFor(title.normalize("NFC"));
   if (identity === null) {
-    window.__toast?.show({ message: say("rescrapeUnidentified", { title }) });
+    toast?.show({ message: say("rescrapeUnidentified", { title }) });
     return;
   }
   const address =
@@ -81,11 +82,11 @@ async function rescrapeMedia(client: QueryClient, title: string): Promise<void> 
   try {
     const answered = await send<MediaRescrape>("POST", address);
     if (answered === HELD) {
-      window.__toast?.show({ message: say("rescrapeHeld", { title }) });
+      toast?.show({ message: say("rescrapeHeld", { title }) });
       return;
     }
     const outcome = answered as MediaRescrape | undefined;
-    window.__toast?.show({
+    toast?.show({
       message: say(outcome?.queued ? "rescrapeQueued" : "rescrapeAsked", { title }),
     });
     // THE SHEET, AND THE SHEET ALONE. The seasons read at the same address is a
@@ -99,11 +100,11 @@ async function rescrapeMedia(client: QueryClient, title: string): Promise<void> 
     // function from the cache to a descriptor, not a component: nothing
     // subscribes to this key while the panel is open, so a refetch that moves
     // the cache tells everyone except the person who acted.
-    window.__panel?.redraw();
+    panel?.redraw();
   } catch {
     // SAID AS A REFUSAL. Swallowing it leaves the operator looking at a medium
     // whose metadata never moved, with no reason given (NE-DOIT-PAS-5).
-    window.__toast?.show({ message: say("rescrapeRefused", { title }) });
+    toast?.show({ message: say("rescrapeRefused", { title }) });
   } finally {
     inFlight.delete(address);
   }

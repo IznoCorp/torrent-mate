@@ -9,7 +9,7 @@
 // value was credible precisely because it had been a real version once.
 //
 // THE IDENTITY IS THE HOST'S, NOT THE BUILD'S. `serve.py` computes it per
-// request and publishes it on the document it sends, for the same reason it
+// request and writes it into the document it sends, for the same reason it
 // rebuilds per request: a value cached at boot drifts away from the tree it
 // claims to describe, and that drift is exactly what production's own R27
 // post-check exists to catch on the other side. Baking it into the bundle
@@ -34,9 +34,27 @@ export interface ServedIdentity {
   dirty: boolean;
 }
 
-declare global {
-  interface Window {
-    __servedIdentity?: ServedIdentity | null;
+/** The id of the element the host writes the identity into. */
+const IDENTITY_ELEMENT = "served-identity";
+
+/**
+ * Reads the identity the host wrote into the document, or nothing.
+ *
+ * THE HOST WRITES A JSON ELEMENT rather than a script assigning a global, so
+ * this module reads the identity where it lies and nothing is read off
+ * `window`. An element that is absent or does not parse is nothing, and the
+ * drawer then says the identity is unavailable, with the reason.
+ *
+ * @returns The payload as the host wrote it, or undefined.
+ */
+function writtenIdentity(): ServedIdentity | null | undefined {
+  if (typeof document === "undefined") return undefined;
+  const element = document.getElementById(IDENTITY_ELEMENT);
+  if (element === null) return undefined;
+  try {
+    return JSON.parse(element.textContent ?? "") as ServedIdentity | null;
+  } catch {
+    return undefined;
   }
 }
 
@@ -89,7 +107,7 @@ function words(): Record<string, string> {
  */
 export function servedIdentityLines(): IdentityLines {
   const wording = words();
-  const served = typeof window === "undefined" ? undefined : window.__servedIdentity;
+  const served = writtenIdentity();
   // `!= null` and not `!== undefined`: a published `null` would pass the
   // stricter test and then throw on the first field read, from inside the
   // drawer's own render — so the whole drawer would fail, not merely its

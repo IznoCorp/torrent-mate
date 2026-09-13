@@ -1,10 +1,12 @@
-// THE HARNESS MODULE — the named states, their driver and the ≡ panel.
+// THE HARNESS MODULE — the named states, their driver, the ≡ panel and the
+// seams the rules read.
 //
 // The boot installs it behind `__MOCKS_BUILT_IN__`, so a build without the mock
 // layer drops this whole directory: nothing here runs at module evaluation, and
 // every table is built by a call. It dies at switchover with `harness.css`.
 import { installDriver, type NamedState } from "./drive";
 import { installHarnessPanel } from "./panel";
+import { publishSeams } from "./publish";
 import { accountStates } from "./states/account";
 import { acquisitionStates } from "./states/acquisition";
 import { arrivalsStates } from "./states/arrivals";
@@ -44,8 +46,9 @@ function namedStates(): NamedState[] {
   ];
 }
 
-/** Installs the driver, the harness bar's controls and the welcome hint. */
+/** Publishes the seams, then installs the driver, the harness bar's controls and the welcome hint. */
 export function installHarness(): void {
+  publishSeams();
   // EVERY STATE STARTS FROM A GOOD CONNECTION, and that is not a courtesy to
   // the three relay states — it is what keeps them from leaking into all the
   // others. A forced condition is a global, `__go` drives one state after

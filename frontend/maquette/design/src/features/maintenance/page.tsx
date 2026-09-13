@@ -30,6 +30,7 @@ import { Markup } from "../../ui/markup";
 // page and the panel read one derivation of « what does this command risk »
 // rather than a copy each (§13).
 import { riskLabel } from "./risks";
+import { bridge } from "../../lib/shell-doors";
 
 export function MaintenancePage(): ReactElement | null {
   const state = useUiState();
@@ -75,7 +76,7 @@ export function MaintenancePage(): ReactElement | null {
         <button
           className={backAction()}
           data-part="screen/back"
-          onClick={() => window.__bridge.back()}
+          onClick={() => bridge.back()}
         >
           {t("screens.maintenance.allCommands")}
         </button>

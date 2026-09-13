@@ -27,6 +27,7 @@ import {
   publishOutboxSeam,
   setRefresh,
 } from "./outbox";
+import { mockLayer } from "../mocks";
 
 /**
  * Joins the outbox to the cache, the relay, the harness and the mock layer.
@@ -82,7 +83,7 @@ export function installOutboxWiring(queryClient: QueryClient): void {
   // every state measured after it, attributed to whichever state was being
   // measured. `reset()` returns the world to its seeds and clears the
   // applied-key ledger; the outbox is IndexedDB and survives both.
-  const mocks = globalThis.window.__mocks;
+  const mocks = __MOCKS_BUILT_IN__ ? mockLayer : undefined;
   if (mocks) {
     const resetTheWorld = mocks.reset;
     mocks.reset = () => {

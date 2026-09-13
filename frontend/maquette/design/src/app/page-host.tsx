@@ -86,11 +86,11 @@ declare global {
   }
 }
 
-window.__releasePage = () => {
+export const releasePage = () => {
   flushSync(() => setReleased(true));
 };
 
-window.__shellPages = NAVIGATION.map((row) => row.id);
+export const shellPages = NAVIGATION.map((row) => row.id);
 
 /**
  * The page's name, as a heading no one sees and every screen reader reads.

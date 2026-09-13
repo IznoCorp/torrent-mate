@@ -113,16 +113,12 @@ export function useDecisions() {
  * @param queryClient The cache the surfaces read.
  */
 export function installDecisionLookup(queryClient: QueryClient): void {
-  window.__pendingDecisions = () =>
+  pendingDecisions = () =>
     (queryClient.getQueryData(["/api/decisions/"]) as Decisions | undefined)?.pending ?? [];
 }
 
-declare global {
-  interface Window {
-    /** The pending decisions, read synchronously by the dying engine. */
-    __pendingDecisions?: () => PendingDecision[];
-  }
-}
+/** The pending decisions, read synchronously by the dying engine — filled at install. */
+export let pendingDecisions: (() => PendingDecision[]) | undefined;
 
 /**
  * What awaits the operator on this page — the navigation table's badge.

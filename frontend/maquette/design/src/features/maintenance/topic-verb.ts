@@ -13,6 +13,9 @@
 // (`features/settings/topic-verb.ts`, whose rubric is not addressable).
 import { giveTheEntryBackFirst } from "../../lib/stacked-surface";
 import { registerVerb } from "../../lib/verbs";
+import { store } from "../../lib/store-access";
+import { bridge } from "../../lib/shell-doors";
+import { addressSeam } from "../../lib/addresses";
 
 /**
  * Opens one rubric.
@@ -23,12 +26,12 @@ import { registerVerb } from "../../lib/verbs";
 function openTopic(rubric: string): void {
   const reference = window.__referentiel;
   if (!rubric) return;
-  window.__store.write({ maintTopic: rubric });
+  store.write({ maintTopic: rubric });
   reference.render();
   try {
-    window.__bridge.record(
+    bridge.record(
       window.__navigationState?.() ?? null,
-      window.__address.compose(window.__store.read().state),
+      addressSeam.compose(store.read().state),
     );
     // Only when it really pushed — see the note in `lib/stacked-surface.ts`:
     // this page's rubric is addressable, so a cold load opens one with no entry
@@ -46,4 +49,4 @@ registerVerb("maintopic", openTopic);
 /* And the entry is given back before the page changes — see the note in
    `lib/stacked-surface.ts`; the rubric this page draws has the same shape. */
 const entryPosed = giveTheEntryBackFirst(
-  () => window.__store.read().state.maintTopic != null);
+  () => store.read().state.maintTopic != null);

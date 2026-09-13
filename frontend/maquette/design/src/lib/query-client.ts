@@ -60,6 +60,21 @@ export function createQueryClient(): QueryClient {
   });
 }
 
+/* THE CACHE THE BOOT CREATED, for code that is not a component and cannot ask
+   `useQueryClient()` — a verb answering a tap. Filled once by the boot; read at
+   call time through the live binding. The harness publishes the same object as
+   `window.__queries`. */
+export let sharedQueryClient: QueryClient | undefined;
+
+/**
+ * Hands the boot's cache to every caller that is not a component.
+ *
+ * @param client The cache the boot created.
+ */
+export function installSharedQueryClient(client: QueryClient): void {
+  sharedQueryClient = client;
+}
+
 /** Every address the maquette's own contract declares. */
 type ContractPath = keyof paths;
 

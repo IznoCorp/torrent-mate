@@ -32,6 +32,7 @@ import { rowFor } from "./navigation";
 import { Icon } from "../ui/icon";
 import { useUiState } from "../lib/store-access";
 import { addAction, addActionDrawing } from "../ui/variants";
+import { screens } from "../lib/shell-doors";
 
 // The message's exit duration. It is the one number this component owns, and
 // it is the message's, not the button's — they move together or the target
@@ -78,7 +79,7 @@ export function ActionButton(): ReactElement {
       // The « ＋ » ALWAYS means « follow »: the mode must never stay stuck from
       // a previous resolution.
       onClick={() =>
-        window.__screens.add(String(state.addQ ?? ""), "follow")
+        screens.add(String(state.addQ ?? ""), "follow")
       }
     >
       <Icon

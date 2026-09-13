@@ -12,6 +12,7 @@
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { PageHost } from "./page-host";
 import { Sheet } from "../ui/sheet";
+import { panel } from "../lib/shell-doors";
 
 // The root renders the matched route, the bottom-sheet layer and the PAGE host
 // — the last two belong to no route. The sheet opens over whatever is on screen
@@ -25,7 +26,7 @@ export const rootRoute = createRootRoute({
     <>
       <Outlet />
       <PageHost />
-      <Sheet close={(pop) => window.__panel.close(pop)} />
+      <Sheet close={(pop) => panel.close(pop)} />
     </>
   ),
 });

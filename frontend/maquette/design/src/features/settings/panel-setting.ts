@@ -13,9 +13,12 @@ import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import { registerVerb } from "../../lib/verbs";
 import { flattenSettings, settingIdentifier, valueShown } from "./catalog";
-import { HELD, send } from "../../lib/query-client";
+import { HELD, send, sharedQueryClient } from "../../lib/query-client";
 import { configurationStatusQuery, settingsQuery, writeConfigurationFile } from "./queries";
 import type { Setting, SettingsTopic } from "./reference";
+import { panel, toast } from "../../lib/shell-doors";
+import { dialog } from "../../app/dialog-host";
+import { settingLabels } from "./labels";
 
 // THE ICONS COME THROUGH THE ENGINE'S DRAWING SLICE, not by importing
 // `app/icons.ts`, and it is invariant 8 that decides. `app/icons.ts` is outside
@@ -76,7 +79,7 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
   const changed = pending.has(identifier);
   return {
     address: "setting:" + identifier,
-    title: window.__settingLabels.label(setting),
+    title: settingLabels.label(setting),
     meta: [{ m: `${setting.f}.json5 · ${setting.c}` }],
     ...(changed ? { puce: ["info", translate("panels.setting.edited")] } : {}),
     blocs: [
@@ -175,33 +178,29 @@ const CANCEL_SETTLE_MILLISECONDS = 200;
 
 function cancelEdit(identifier: string): void {
   window.__referentiel.SETTINGS_STATE.modifs.delete(identifier);
-  window.__panel.close();
+  panel.close();
   window.setTimeout(() => {
     window.__referentiel.render();
-    window.__toast?.show({
+    toast?.show({
       message: i18next.t("panels.setting.cancelledToast"),
     });
   }, CANCEL_SETTLE_MILLISECONDS);
 }
 
-declare global {
-  interface Window {
-    /** The verbs the settings panels offer, called by the click delegation. */
-    __settingsVerbs?: {
-      cancelEdit: (identifier: string) => void;
-      /** Writes every changed file and reads what came back (B-299). */
-      save: () => Promise<void>;
-      /** Throws the stale edits away and asks for the settings again. */
-      reload: () => void;
-      /** Files what the field is holding, without waiting for a blur (B-341). */
-      commitEdit: (identifier: string) => void;
-      /** Asks before cutting the service for the household (B-300, §17). */
-      askToRestart: () => void;
-      /** Restarts, once the operator has said so. */
-      restart: () => void | Promise<void>;
-    };
-  }
-}
+/** The verbs the settings panels offer, called by the click delegation. */
+type SettingsVerbs = {
+  cancelEdit: (identifier: string) => void;
+  /** Writes every changed file and reads what came back (B-299). */
+  save: () => Promise<void>;
+  /** Throws the stale edits away and asks for the settings again. */
+  reload: () => void;
+  /** Files what the field is holding, without waiting for a blur (B-341). */
+  commitEdit: (identifier: string) => void;
+  /** Asks before cutting the service for the household (B-300, §17). */
+  askToRestart: () => void;
+  /** Restarts, once the operator has said so. */
+  restart: () => void | Promise<void>;
+};
 
 /* SAVING — the settings' other verb, and the one that made B-299 readable.
    `data-save` closed over nothing but local state: it cleared the pending
@@ -244,11 +243,11 @@ async function saveEdits(): Promise<void> {
   // `SETTINGS_STATE`, where nothing re-rendered it, and the banner reads the
   // status query. Invalidating it is what makes the banner follow the save the
   // operator has just made.
-  await window.__queries?.invalidateQueries({ queryKey: settingsQuery.queryKey });
-  await window.__queries?.invalidateQueries({
+  await sharedQueryClient?.invalidateQueries({ queryKey: settingsQuery.queryKey });
+  await sharedQueryClient?.invalidateQueries({
     queryKey: configurationStatusQuery.queryKey });
   reference.render();
-  window.__toast?.show({
+  toast?.show({
     message: i18next.t("panels.setting.savedToast", {
       files: files.map(reference.fileName).join(", "),
     }),
@@ -271,11 +270,11 @@ function commitEdit(identifier: string): void {
     `#sheetin [data-part="field/input"][data-field="${CSS.escape(identifier)}"]`);
   if (field === null) return;
   const setting = flattenSettings(
-    (window.__queries?.getQueryData<SettingsTopic[]>(settingsQuery.queryKey))
+    (sharedQueryClient?.getQueryData<SettingsTopic[]>(settingsQuery.queryKey))
       ?? []).find((one) => settingIdentifier(one) === identifier);
   if (setting === undefined) return;
   reference.changeSetting(identifier, reference.typedValue(setting, field.value));
-  window.__panel.produce("setting", identifier);
+  panel.produce("setting", identifier);
 }
 
 /* RELOADING after a conflict — the only honest verb. The editor's copy is
@@ -285,7 +284,7 @@ function reloadSettings(): void {
   const reference = window.__referentiel;
   reference.SETTINGS_STATE.modifs.clear();
   reference.SETTINGS_STATE.conflict = false;
-  window.__queries?.invalidateQueries({ queryKey: settingsQuery.queryKey });
+  sharedQueryClient?.invalidateQueries({ queryKey: settingsQuery.queryKey });
   reference.render();
 }
 
@@ -303,7 +302,7 @@ function reloadSettings(): void {
    happened: a confirmation that restarts anyway is a delay. */
 function askToRestart(): void {
   const translate = i18next.t.bind(i18next);
-  window.__dialog?.open({
+  dialog?.open({
     heading: translate("screens.settings.restartConfirmHeading"),
     body: [
       {
@@ -329,21 +328,21 @@ function askToRestart(): void {
 /** Restarts, and only once the operator has said so. */
 async function restart(): Promise<void> {
   const reference = window.__referentiel;
-  window.__dialog?.close();
+  dialog?.close();
   // ASKED OF THE LAYER, because that is where the fact lives now (B-343). The
   // flag used to be dropped on `SETTINGS_STATE` and the service was never told
   // anything — an interface saying a restart had happened over a call nobody
   // made, which is NE-DOIT-PAS-1 from the closest range.
   await send("POST", "/api/config/restart-web");
-  await window.__queries?.invalidateQueries({
+  await sharedQueryClient?.invalidateQueries({
     queryKey: configurationStatusQuery.queryKey });
   reference.render();
-  window.__toast?.show({
+  toast?.show({
     message: i18next.t("screens.settings.restartDone"),
   });
 }
 
-window.__settingsVerbs = {
+export const settingsVerbs: SettingsVerbs = {
   cancelEdit,
   commitEdit,
   save: saveEdits,

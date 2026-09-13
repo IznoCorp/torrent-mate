@@ -1,7 +1,7 @@
 // The strangler shell. One owner for the URL and the history: this router.
 // The legacy engine keeps its navigation LOGIC (what to push, when to
-// unwind) and loses only its primitives — it speaks to `window.__bridge`,
-// implemented here on the router's history. `window.__go` keeps driving
+// unwind) and loses only its primitives — it speaks to the bridge door,
+// implemented on the router's history. `window.__go` keeps driving
 // states without navigation, exactly as before.
 //
 // Every name reached from the legacy fragment — the window seams, their
@@ -66,38 +66,17 @@ import {
 } from "./history-bridge";
 import { installScrollRestoration } from "./scroll-restoration";
 import { installPanelHost } from "./panel-host";
-import {
-  installLiveUpdates,
-  resetLiveUpdates,
-  unmatchedCount,
-  unmatchedEvents,
-} from "./live-updates";
-import { forceCondition, readCondition } from "../lib/relay-condition";
-import {
-  installRelay,
-  readLimits,
-  reconnectNow,
-  resetRelay,
-  setLimits,
-} from "../lib/relay";
+import { installLiveUpdates } from "./live-updates";
+import { installRelay } from "../lib/relay";
 import { installRelayRecovery } from "./relay-recovery";
 import { installOutboxWiring } from "./outbox-wiring";
 import { installUpdateDiscipline } from "./worker-registration";
-import { readCursor, subscribeToEvents } from "../lib/relay-events";
 import { ConnectionMark, ConnectionNotice } from "./connection-notice";
 import { Frame } from "./frame";
 import { installSeams } from "../engine/seams";
-import {
-  addressOf,
-  destinationOf,
-  HOME_PAGE,
-  PANEL_PARAMETER,
-  SIGN_IN_PATH,
-  withoutPanel,
-} from "../lib/addresses";
 import { installNavigation } from "../lib/navigate";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { createQueryClient } from "../lib/query-client";
+import { createQueryClient, installSharedQueryClient } from "../lib/query-client";
 import { installDecisionLookup } from "../features/arrivals/queries";
 import { installLibraryDelete, installLibraryPaging } from "../features/library/queries";
 import { installEngineRedraw } from "./engine-redraw";
@@ -112,6 +91,8 @@ import { installVerbs } from "../lib/verbs";
 import { installQueueActions } from "../lib/queue";
 import { installReleasesLookup } from "../features/releases/queries";
 import { installSearchLookup } from "../features/acquisition/search-queries";
+import { installStore } from "../lib/store-access";
+import { bridge, panel, screens } from "../lib/shell-doors";
 
 declare global {
   interface Window {
@@ -121,59 +102,9 @@ declare global {
     // is built to leave visible — the startup screen, not a crash here.
     // It no longer receives an address ROOT. It used to compose every page
     // address itself against one, which is exactly the addressing the shell
-    // has taken over: the engine says WHERE IT IS, `__address` says what that
-    // is called. The deps object's own keys are the engine's.
+    // has taken over: the engine says WHERE IT IS, the address model says what
+    // that is called. The deps object's own keys are the engine's.
     __startEngine?: (deps: { store: Store }) => void;
-    // The address model, handed to the engine. `compose` turns the state it
-    // holds into the address that state should be seen at; `parse` turns an
-    // address back into the state it names. Both are `lib/addresses.ts` — the
-    // engine reaches them through a seam rather than importing, for the same
-    // reason it reaches everything else that way.
-    __address: {
-      /** The sign-in screen's own path, so the engine writes it by name. */
-      signInPath: string;
-      /** The page every other page sits on — the root of the hierarchy. The
-       * engine synthesises a stack from it on a cold link and steps back onto
-       * it when a tab is tapped, and neither is the engine's to name. */
-      homePage: string;
-      /** The name the addressed panel travels under, so the engine can ask
-       * whether an address carried one at all without spelling it itself. */
-      panelParameter: string;
-      /** A query string with the panel parameter taken off, rest verbatim. */
-      withoutPanel: (search: string) => string;
-      compose: (state: Record<string, unknown>) => string;
-      parse: (
-        pathname: string,
-        search: string,
-      ) => {
-        page: string;
-        dials: Record<string, string>;
-        notFound?: string;
-        signIn?: boolean;
-        panel?: string;
-        screen?: boolean;
-      };
-    };
-    // The query cache, published for the harness. It is the one place server
-    // state lives (invariant 4), so a rule asking « what does this surface
-    // hold, and did a mutation put it back? » asks it here.
-    __queries: import("@tanstack/react-query").QueryClient;
-    /** The live relay's driving surface — what the connection is doing, a
-        manual retry, the events nothing claimed, and a way back to cold. */
-    __relay: {
-      condition: typeof readCondition;
-      reconnect: typeof reconnectNow;
-      unmatched: typeof unmatchedEvents;
-      unmatchedCount: typeof unmatchedCount;
-      subscribe: typeof subscribeToEvents;
-      cursor: typeof readCursor;
-      force: typeof forceCondition;
-      limits: typeof setLimits;
-      readLimits: typeof readLimits;
-      reset: () => void;
-    };
-    // The domain hooks and the probes read the engine's state through this.
-    __store: Store;
   }
 }
 
@@ -207,45 +138,30 @@ installScreenBridge();
 // startup screen — already first in the frame — stays up: a visible,
 // truthful failure instead of an app with mute verbs.
 const store = createStore();
-window.__store = store;
+installStore(store);
 
 // THE QUERY CACHE (invariant 4): server state lives in it, the address in the
 // router, only ephemeral interface state in the store. Created in the BOOT for
-// the reason the store is — one owner, one instant — and published for the
-// harness beside the other seams.
+// the reason the store is — one owner, one instant — and handed once to the
+// callers that are not components, as the store is.
 //
 // IT SITS HERE, ABOVE THE PANEL HOST, and that is an ORDERING rather than a
 // preference: the host takes the cache a producer reads, and `installSeams`
-// two calls below reads `window.__panel`, so the host cannot go down past the
+// two calls below reads the panel door, so the host cannot go down past the
 // cache and the cache has to come up past the host. Nothing between its old
 // position and this one reads it; its own installers all sit where they sat.
 // Both arrive as ARGUMENTS rather than as `const`s closed over from below, so
 // the dependency is stated instead of resting on when a function is called.
 const queryClient = createQueryClient();
-window.__queries = queryClient;
+installSharedQueryClient(queryClient);
 installPanelHost(store, queryClient);
 
 // The engine reads these three by import rather than off `window` — same
 // objects, so the two ways cannot disagree. Filled HERE, after all three
 // exist and before the engine is started below, which is the only window in
 // which they can be both real and unused.
-installSeams({
-  bridge: window.__bridge,
-  screens: window.__screens,
-  panel: window.__panel,
-});
+installSeams({ bridge, screens, panel });
 
-// The address model, published for the engine. It reads `state.page` and the
-// dial fields straight off the object the engine hands over — the engine's own
-// vocabulary, so nothing translates on the way across.
-window.__address = {
-  signInPath: SIGN_IN_PATH,
-  homePage: HOME_PAGE,
-  panelParameter: PANEL_PARAMETER,
-  withoutPanel: withoutPanel,
-  compose: (state) => addressOf(String(state.page ?? ""), state),
-  parse: destinationOf,
-};
 // No address BASE is computed any more, and its disappearance is the
 // subtraction this lot exists for. It answered « what does this engine
 // compose its page addresses against? », a question that only had to be asked
@@ -374,24 +290,6 @@ installUpdateDiscipline();
 // boot is where facts cross; `outbox-wiring.ts` owns WHAT crosses, this file
 // owns WHEN.
 installOutboxWiring(queryClient);
-// Published for the harness beside the other seams, for the reason the query
-// cache is: a rule that has to reach inside a module to ask what the connection
-// is doing is a rule coupled to how the module is built.
-window.__relay = {
-  condition: readCondition,
-  reconnect: reconnectNow,
-  unmatched: unmatchedEvents,
-  unmatchedCount,
-  subscribe: subscribeToEvents,
-  cursor: readCursor,
-  force: forceCondition,
-  limits: setLimits,
-  readLimits,
-  reset: () => {
-    resetLiveUpdates();
-    resetRelay();
-  },
-};
 
 ReactDOM.createRoot(mountNode).render(
   <React.StrictMode>

@@ -63,16 +63,14 @@ export function openPopover(anchor: HTMLElement, content: PopoverContent): void 
   }, 0);
 }
 
-declare global {
-  interface Window {
-    /** The popover's verbs, as the engine's producers say them. */
-    __popover?: {
+/** The popover's verbs, as the engine's producers say them — filled at install. */
+export let popover:
+  | {
       open: (anchor: HTMLElement, content: PopoverContent) => void;
       close: () => void;
-    };
-  }
-}
+    }
+  | undefined;
 
 export function installPopoverHost(): void {
-  window.__popover = { open: openPopover, close: closePopover };
+  popover = { open: openPopover, close: closePopover };
 }

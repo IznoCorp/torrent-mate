@@ -18,6 +18,7 @@ import { settingLabel, unitOf } from "../../features/settings/labels";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
 import { fieldInput, fieldKnob, fieldLabel, fieldToggle, fieldUnit, listAdd, listItem, listRemove, panelField } from "./variants";
 import { ruleNote } from "../../ui/variants";
+import { panel } from "../../lib/shell-doors";
 
 // The kind this file adds to the panel's block map. Declared here, beside what
 // draws it, so the two halves of the contract cannot drift apart.
@@ -179,7 +180,7 @@ function FieldBlock({
             // REDRAWN THROUGH THE SEAM: the producer is this feature's
             // now, and the panel is re-opened by kind rather than by a function
             // the engine published.
-            window.__panel.produce("setting", id);
+            panel.produce("setting", id);
           };
           element.addEventListener("change", commit);
           return () => element.removeEventListener("change", commit);

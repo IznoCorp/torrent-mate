@@ -60,14 +60,3 @@ export function episodeSaying(
     note: reference.EP_LABEL[state] ?? "",
   };
 }
-
-declare global {
-  interface Window {
-    /** What the popover says about an episode — read by the delegation. */
-    __episodeSaying?: (cell: HTMLElement) => {
-      title: string; text: string; note: string;
-    } | null;
-  }
-}
-
-window.__episodeSaying = episodeSaying;

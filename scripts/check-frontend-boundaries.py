@@ -405,7 +405,14 @@ def arm_layering(root: Path) -> int:
 # That is a judgement, not a measurement, so it is the OPERATOR'S to confirm and
 # it is written here to be found rather than argued once in a commit message. If
 # the answer is no, the split is per family and it is mechanical.
-FAN_IN_EXEMPT = frozenset({"engine/engine-shape.ts"})
+# AND THE ACQUISITION FEATURE'S QUERIES, over by BUCKETS rather than by features:
+# one feature imports it, and the app's installers, the dying engine's seams, the
+# harness's publications and the media route make five. It is not a hub — one
+# feature's cache verbs, read by the three parties that still need a follow or a
+# suggestion from outside the feature. The ENGINE'S edge dies in L13b, when the
+# verbs leave the engine and `engine/seams.ts` stops importing it; the entry goes
+# with that edge, and the phase that removes it deletes this entry.
+FAN_IN_EXEMPT = frozenset({"engine/engine-shape.ts", "features/acquisition/queries.ts"})
 
 
 def arm_fan_in(root: Path) -> int:

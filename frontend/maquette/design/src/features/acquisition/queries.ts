@@ -104,7 +104,7 @@ export async function loadMoreSuggestions(): Promise<number> {
  */
 export function installSuggestionsLookup(queryClient: QueryClient): void {
   suggestionsCache = queryClient;
-  window.__suggestions = () =>
+  suggestions = () =>
     (queryClient.getQueryData(suggestionsQuery.queryKey) as unknown[] | undefined) ?? [];
   // AND IT IS ASKED FOR, because nothing else will. Every other read in this
   // file belongs to a component that subscribes; the deck belongs to the
@@ -114,11 +114,11 @@ export function installSuggestionsLookup(queryClient: QueryClient): void {
   // named state clears the cache so no measurement inherits a previous one's
   // pages, and a query with an OBSERVER is re-asked by that observer while one
   // without is not. This is the door `__reset` re-asks through.
-  window.__refillSuggestions = () => {
+  refillSuggestions = () => {
     reserveExhausted = false;
     void queryClient.prefetchQuery(suggestionsQuery);
   };
-  window.__refillSuggestions();
+  refillSuggestions();
 }
 
 /**
@@ -168,7 +168,7 @@ export function installFollowActions(queryClient: QueryClient): void {
   const write = (follows: Follow[]) => queryClient.setQueryData(followsKey, follows);
   const refresh = () => void queryClient.invalidateQueries({ queryKey: followsKey });
 
-  window.__followActions = {
+  followActions = {
     setStatus: (title, status) => {
       const before = held();
       write(before.map((follow) =>
@@ -255,6 +255,13 @@ declare global {
     __suggestions?: () => unknown[];
   }
 }
+
+/** The discover deck's cards, read synchronously — filled at install. */
+export let suggestions: Window["__suggestions"];
+/** The deck's reserve, asked for again — filled at install. */
+export let refillSuggestions: (() => void) | undefined;
+/** The follows' verbs — filled at install. */
+export let followActions: Window["__followActions"];
 
 /**
  * What awaits the operator on this page — the navigation table's badge.

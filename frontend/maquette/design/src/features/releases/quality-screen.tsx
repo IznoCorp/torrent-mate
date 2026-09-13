@@ -15,6 +15,7 @@ import { useReleasesReference, type Release, type Resolution } from "../../featu
 import { useUiState, writeUiState } from "../../lib/store-access";
 import { actionButton, backAction, body, factsPanel, keyValueRow, option, optionKind, optionLabel, optionList, optionMark, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, settingRow, sheetActions, toggleSwitch } from "../../ui/variants";
 import { qualityGroup } from "../../features/releases/variants";
+import { bridge } from "../../lib/shell-doors";
 
 // The field names are the legacy state's own — `state.profil` is written and
 // read by the engine under these exact keys.
@@ -95,7 +96,7 @@ export function QualityScreen() {
       aria-label={title}
     >
       <div className={screenBar()} data-part="screen/bar">
-        <button className={backAction()} data-part="screen/back" onClick={() => window.__bridge.back()}>
+        <button className={backAction()} data-part="screen/back" onClick={() => bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.profile.back")}
         </button>

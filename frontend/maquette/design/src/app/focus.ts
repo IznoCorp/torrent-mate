@@ -24,6 +24,7 @@
 // THE BACKGROUND IS THE FRAME'S OTHER CHILDREN, never the layer's ancestors.
 // Marking `document.body` inert would mark the layer too.
 import { setLayerOpen } from "./layer-presence";
+import { bridge } from "../lib/shell-doors";
 
 // The layer roots, in the stacking order the engine already unwinds — drawer,
 // then screen, then sheet — so the topmost open layer is the last one here that
@@ -277,7 +278,7 @@ export function installFocusManager(): void {
       // Both verbs are the ones the interface already has. Nothing new is
       // written here: a second closer would give one gesture two answers.
       const top = open[open.length - 1];
-      if (top.matches('[data-part="screen"]')) window.__bridge?.back();
+      if (top.matches('[data-part="screen"]')) bridge?.back();
       else window.__closeLayers?.();
     },
     true,

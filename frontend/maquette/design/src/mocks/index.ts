@@ -300,7 +300,7 @@ export function installMockNetwork(): void {
     },
   });
 
-  window.__mocks = {
+  window.__mocks = mockLayer = {
     routes: () => routes().map((route) => `${route.method} ${route.template}`),
     answered: answeredCalls,
     stream,
@@ -412,5 +412,8 @@ declare global {
    */
   const __MOCKS_BUILT_IN__: boolean;
 }
+
+/** The mock layer's driving surface, once installed — what `app/` imports rather than reading `window.__mocks`. */
+export let mockLayer: Window["__mocks"];
 
 export type { MockRoute };

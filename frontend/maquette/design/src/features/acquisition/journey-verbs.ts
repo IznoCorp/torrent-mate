@@ -17,6 +17,7 @@ import i18next from "i18next";
 import type { QueryClient } from "@tanstack/react-query";
 import { HELD, send } from "../../lib/query-client";
 import { registerVerb } from "../../lib/verbs";
+import { panel, toast } from "../../lib/shell-doors";
 
 /** What both journey operations answer, as the contract declares it. */
 type JourneyAnswer = {
@@ -61,11 +62,11 @@ async function resumeJourney(
   try {
     const answered = await send<JourneyAnswer>("POST", address);
     if (answered === HELD) {
-      window.__toast?.show({ message: say(verb + "Held") });
+      toast?.show({ message: say(verb + "Held") });
       return;
     }
     const outcome = answered as JourneyAnswer | undefined;
-    window.__toast?.show({
+    toast?.show({
       message: outcome?.queued ? say(verb + "Queued") : say(verb + "Asked"),
     });
     // THE SHEET IS RE-READ, so the stages the operator is looking at move —
@@ -87,11 +88,11 @@ async function resumeJourney(
     // the strip was byte-identical after a full settle, and closing and
     // reopening the same journey showed the stage that had moved. Re-reading
     // without redrawing tells everyone except the person who acted.
-    window.__panel?.redraw();
+    panel?.redraw();
   } catch {
     // SAID AS A REFUSAL. Swallowing it would leave the operator watching a
     // tunnel that never resumed, with no reason given.
-    window.__toast?.show({ message: say(verb + "Refused") });
+    toast?.show({ message: say(verb + "Refused") });
   }
 }
 

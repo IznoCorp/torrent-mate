@@ -133,7 +133,7 @@ export function registerListingPaging(ask: (() => void) | null): void {
  * @param queryClient The cache the listing lives in.
  */
 export function installLibraryPaging(queryClient: QueryClient): void {
-  window.__libraryNextPage = () => {
+  libraryNextPage = () => {
     let framesLeft = 60;
     const attempt = () => {
       const listing = queryClient
@@ -159,6 +159,9 @@ declare global {
   }
 }
 
+/** Asks the listing for one more page — filled at install. */
+export let libraryNextPage: Window["__libraryNextPage"];
+
 /**
  * Installs the library's delete, for the dying engine's delegation to call.
  *
@@ -177,7 +180,7 @@ declare global {
  * @param queryClient The cache the surfaces read.
  */
 export function installLibraryDelete(queryClient: QueryClient): void {
-  window.__deleteLibraryItems = (titles) => {
+  deleteLibraryItems = (titles) => {
     const listings = queryClient
       .getQueryCache()
       .getAll()
@@ -229,3 +232,6 @@ declare global {
     __deleteLibraryItems?: (titles: string[]) => void;
   }
 }
+
+/** Removes titles from the library — filled at install. */
+export let deleteLibraryItems: Window["__deleteLibraryItems"];

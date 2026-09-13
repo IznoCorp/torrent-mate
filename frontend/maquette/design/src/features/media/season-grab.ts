@@ -18,6 +18,7 @@ import { useSyncExternalStore } from "react";
 import { markSeasonQueued } from "./queued-seasons";
 import i18next from "i18next";
 import { HELD, send } from "../../lib/query-client";
+import { panel, toast } from "../../lib/shell-doors";
 
 /** What the operation answers, as the contract declares it. */
 type SeasonGrab = {
@@ -85,7 +86,7 @@ export async function askForSeason(
   const waiting = await grabSeason(title, season);
   if (waiting) markSeasonQueued(client, title, season);
   await client.refetchQueries({ queryKey: ["/api/acquisition/followed"] });
-  window.__panel?.redraw();
+  panel?.redraw();
 }
 
 /* THE ASKS IN FLIGHT, keyed `title|season`. Module state and not a React ref:
@@ -153,7 +154,7 @@ export async function grabSeason(title: string, season: number): Promise<boolean
       `/api/acquisition/follows/${encodeURIComponent(title)}/seasons/${season}/grab`,
     );
     if (answered === HELD) {
-      window.__toast?.show({ message: say("seasonHeld", { season, title }) });
+      toast?.show({ message: say("seasonHeld", { season, title }) });
       return false;
     }
     const grab = answered as SeasonGrab | undefined;
@@ -184,7 +185,7 @@ export async function grabSeason(title: string, season: number): Promise<boolean
         : count === 1
           ? newly ? "seasonAskedOneNewlyFollowed" : "seasonAskedOne"
           : newly ? "seasonAskedNewlyFollowed" : "seasonAsked";
-    window.__toast?.show({
+    toast?.show({
       message: say(messageKey, { season, count, title }),
     });
     return grab?.queued === true;
@@ -192,7 +193,7 @@ export async function grabSeason(title: string, season: number): Promise<boolean
     // THE REFUSAL IS SAID, and it is said as a refusal. Swallowing it would
     // leave the operator looking at a season that never moved with no reason
     // given — the silent failure this interface's own constitution refuses.
-    window.__toast?.show({ message: say("seasonRefused", { season, title }) });
+    toast?.show({ message: say("seasonRefused", { season, title }) });
     return false;
   } finally {
     // IN A `finally`, so a refused ask can be made again. Released on the

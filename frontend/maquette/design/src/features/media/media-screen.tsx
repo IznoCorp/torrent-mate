@@ -36,6 +36,7 @@ import { MediaHero } from "./media-hero";
 import { MediaDetails } from "./media-details";
 import { MediaLibraryFacts } from "./media-library-facts";
 import type { Follow, MediaSheetFields } from "./sheet-fields";
+import { bridge } from "../../lib/shell-doors";
 
 // The banner prefers the wide visual; the vertical poster is only a fallback,
 // and nothing at all when there is neither — same resolution order as the
@@ -51,7 +52,10 @@ function artworkFor(reference: MediaReference, title: string): string | null {
   );
 }
 
-export function MediaScreen() {
+/** What the route hands the screen: the follows, owned by another feature, so they compose in the route. */
+export type MediaScreenProperties = { readFollows: () => unknown[] };
+
+export function MediaScreen({ readFollows }: MediaScreenProperties) {
   // The address names a PROVIDER ID (DOIT-11); the catalogue is keyed by title.
   // The crossing happens in the engine, from the fixture itself, so the two
   // cannot drift. An id nobody carries resolves to `null` and the screen
@@ -71,7 +75,7 @@ export function MediaScreen() {
   // holding them when the queue converted — so the sheet had been quietly
   // reporting « not followed » for everything, which the oracle cannot see
   // because no named state opens a sheet for a title the operator follows.
-  const follows = (window.__followActions?.all() ?? []) as Follow[];
+  const follows = readFollows() as Follow[];
   const reference = useMediaReference();
   const { t } = useTranslation();
   const { icons, baseTitle, trailerIds } = reference;
@@ -237,7 +241,7 @@ export function MediaScreen() {
       aria-label={title}
     >
       <div className={screenBar()} data-part="screen/bar">
-        <button className={backAction()} data-part="screen/back" onClick={() => window.__bridge.back()}>
+        <button className={backAction()} data-part="screen/back" onClick={() => bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.media.back")}
         </button>{" "}

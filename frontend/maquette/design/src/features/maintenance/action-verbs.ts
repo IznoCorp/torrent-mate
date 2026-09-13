@@ -23,6 +23,7 @@ import i18next from "i18next";
 import type { QueryClient } from "@tanstack/react-query";
 import { HELD, send } from "../../lib/query-client";
 import { registerVerb } from "../../lib/verbs";
+import { panel, toast } from "../../lib/shell-doors";
 
 /** What the operation answers, as the contract declares it. */
 type MaintenanceRun = {
@@ -70,7 +71,7 @@ async function runAction(
       { dryRun: dry },
     );
     if (answered === HELD) {
-      window.__toast?.show({ message: say(dry ? "dryHeld" : "held") });
+      toast?.show({ message: say(dry ? "dryHeld" : "held") });
       return;
     }
     const outcome = answered as MaintenanceRun | undefined;
@@ -79,16 +80,16 @@ async function runAction(
       : outcome?.state === QUEUED
         ? "queued"
         : "started";
-    window.__toast?.show({ message: say(messageKey) });
+    toast?.show({ message: say(messageKey) });
     // THE PIPELINE IS RE-READ, because that is where a real run becomes
     // visible: Arrivées draws the pipeline's own state, and an answer nobody
     // invalidates leaves it showing the machine as it was before the command.
     // A BLANK RUN RE-READS IT TOO — it moved nothing, and proving that on the
     // surface is worth exactly as much as proving the other.
     await client.refetchQueries({ queryKey: ["/api/pipeline/status"] });
-    window.__panel?.redraw();
+    panel?.redraw();
   } catch {
-    window.__toast?.show({ message: say("refused") });
+    toast?.show({ message: say("refused") });
   } finally {
     inFlight.delete(identifier);
   }

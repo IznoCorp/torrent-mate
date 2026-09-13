@@ -14,9 +14,11 @@
 // (`panel-secret-field.tsx`); nothing holds a copy of what was typed, so a
 // secret exists in exactly one place between the keyboard and the layer.
 import i18next from "i18next";
-import { HELD } from "../../lib/query-client";
+import { HELD, sharedQueryClient } from "../../lib/query-client";
 import { registerVerb } from "../../lib/verbs";
 import { configurationStatusQuery, secretsQuery, writeSecret } from "./queries";
+import { panel, toast } from "../../lib/shell-doors";
+import { dialog } from "../../app/dialog-host";
 
 /** What the layer is asked, and what each outcome is called. */
 type Act = "replace" | "remove";
@@ -38,7 +40,7 @@ async function writeTheKey(act: Act, key: string, value: string): Promise<void> 
   try {
     const answered = await writeSecret(key, value);
     if (answered === HELD) {
-      window.__toast?.show({ message: say("Held") });
+      toast?.show({ message: say("Held") });
       return;
     }
     // THE SURFACES ARE RE-READ, because « posée » / « absente » is what the row
@@ -46,14 +48,14 @@ async function writeTheKey(act: Act, key: string, value: string): Promise<void> 
     // than an invalidation for the panel's sake: a producer is a function from
     // the cache to a descriptor, so nothing is observing this key while the
     // panel is open (measured once already, `journey-verbs.ts`).
-    await window.__queries?.refetchQueries({ queryKey: secretsQuery.queryKey });
-    await window.__queries?.invalidateQueries({
+    await sharedQueryClient?.refetchQueries({ queryKey: secretsQuery.queryKey });
+    await sharedQueryClient?.invalidateQueries({
       queryKey: configurationStatusQuery.queryKey });
-    window.__panel?.close();
+    panel?.close();
     window.__referentiel.render();
-    window.__toast?.show({ message: say("Done") });
+    toast?.show({ message: say("Done") });
   } catch {
-    window.__toast?.show({ message: say("Refused") });
+    toast?.show({ message: say("Refused") });
   }
 }
 
@@ -75,7 +77,7 @@ function typedKey(key: string): string {
  */
 function askToRemove(key: string, label: string): void {
   const translate = i18next.t.bind(i18next);
-  window.__dialog?.open({
+  dialog?.open({
     heading: translate("panels.secret.removeConfirmHeading", { provider: label }),
     body: [
       {
@@ -113,7 +115,7 @@ registerVerb("replacesecret", (key) => {
   // so sending one from here would turn « Remplacer » into « Retirer » with no
   // confirmation at all — the destructive act by the harmless door.
   if (!typed) {
-    window.__toast?.show({ message: i18next.t("verbs.secret.replaceEmpty") });
+    toast?.show({ message: i18next.t("verbs.secret.replaceEmpty") });
     return;
   }
   void writeTheKey("replace", key, typed);
@@ -124,12 +126,12 @@ registerVerb("removesecret", (key) => {
   // the question names what is about to stop answering, and reading it off the
   // screen would make the sentence depend on how the panel happens to be drawn
   // at that moment.
-  const held = window.__queries?.getQueryData<{ k: string; l: string }[]>(
+  const held = sharedQueryClient?.getQueryData<{ k: string; l: string }[]>(
     secretsQuery.queryKey) ?? [];
   askToRemove(key, held.find((one) => one.k === key)?.l ?? key);
 });
 
 registerVerb("confirm-remove-secret", (key) => {
-  window.__dialog?.close();
+  dialog?.close();
   void writeTheKey("remove", key, "");
 });

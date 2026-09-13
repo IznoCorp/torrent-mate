@@ -51,6 +51,7 @@ import { useStoreContent, useUiState } from "../../lib/store-access";
 import { actionButton, backAction, body, emptyNote, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, sheetActions } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 import { Icon } from "../../ui/icon";
+import { bridge } from "../../lib/shell-doors";
 
 export function ResolutionScreen() {
   const { folder: raw } = useParams({ from: "/resolution/$folder" });
@@ -117,7 +118,7 @@ export function ResolutionScreen() {
       aria-label={folder}
     >
       <div className={screenBar()} data-part="screen/bar">
-        <button className={backAction()} data-part="screen/back" onClick={() => window.__bridge.back()}>
+        <button className={backAction()} data-part="screen/back" onClick={() => bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.resolution.back")}
         </button>

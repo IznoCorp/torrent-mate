@@ -22,6 +22,9 @@
 // would have given both for free; a Set mutated in place does not.
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
+import { store } from "../../lib/store-access";
+import { panel, toast } from "../../lib/shell-doors";
+import { followActions, suggestions } from "./queries";
 
 /** A suggestion as the reserve holds it — the two fields this act reads. */
 type Suggestion = { t: string; k: string };
@@ -45,7 +48,7 @@ const COLLAPSE = 320;
  */
 function alreadyFollowed(title: string): boolean {
   const base = window.__referentiel.baseTitle;
-  return (window.__followActions?.all() ?? []).some(
+  return (followActions?.all() ?? []).some(
     (follow) => base(follow.t) === base(title));
 }
 
@@ -61,8 +64,8 @@ function alreadyFollowed(title: string): boolean {
  *     position: The suggestion's index into the reserve.
  */
 function takeSuggestionOutOfTheDeck(position: number): void {
-  (window.__store.read().state.sugGone as Set<number>).add(position);
-  window.__store.touch();
+  (store.read().state.sugGone as Set<number>).add(position);
+  store.touch();
   const row = document.querySelector<HTMLElement>(
     `[data-dismissable="${position}"]`);
   if (!row) return;
@@ -91,13 +94,13 @@ function follow(title: string, kind: string): void {
   // french-ok: an attribute VALUE, frozen with the DOM contract `media-details.tsx`
   // emits and the reserve carries — the same literal, compared where it arrives
   const film = kind === "Film";
-  window.__followActions?.add({
+  followActions?.add({
     t: title,
     k: film ? "movie" : "show",
     st: "unverified",
     fresh: true,
   });
-  window.__toast?.show({
+  toast?.show({
     message: i18next.t(film ? "verbs.follows.added" : "verbs.follows.followed",
                        { title }),
   });
@@ -123,7 +126,7 @@ function follow(title: string, kind: string): void {
  *         in the attribute, so both arrive here spelled the same way.
  */
 function pause(title: string): void {
-  const found = (window.__followActions?.all() ?? []).find(
+  const found = (followActions?.all() ?? []).find(
     (follow) => follow.t === title);
   if (!found) return;
   const before = found.st;
@@ -135,12 +138,12 @@ function pause(title: string): void {
   // and moves nothing the engine still draws. The undo needs it just as much
   // as the act does, so both go through this one door.
   const put = (status: string) => {
-    window.__followActions?.setStatus(title, status);
-    window.__store.touch();
+    followActions?.setStatus(title, status);
+    store.touch();
   };
   put(after);
   const resumed = after !== "disabled";
-  window.__toast?.show({
+  toast?.show({
     message: i18next.t(
       resumed
         ? "verbs.follows.resumed"
@@ -175,49 +178,45 @@ function pause(title: string): void {
  *     title: The medium's title — the only key the follows are held by.
  */
 function removeFollow(title: string): void {
-  const removed = (window.__followActions?.all() ?? []).find(
+  const removed = (followActions?.all() ?? []).find(
     (follow) => follow.t === title);
   if (!removed) return;
-  window.__followActions?.remove(title);
-  window.__store.touch();
-  window.__toast?.show({
+  followActions?.remove(title);
+  store.touch();
+  toast?.show({
     message: i18next.t("verbs.follows.removed", { title: removed.t }),
     undo: () => {
-      window.__followActions?.restore(removed);
-      window.__store.touch();
+      followActions?.restore(removed);
+      store.touch();
     },
   });
 }
 
-declare global {
-  interface Window {
-    /**
-     * The follows' acts, for the callers the tap registry is not.
-     *
-     * TWO OF THEM NOW, and they are not the same kind of caller — the door was
-     * opened for the first and this says why the second uses it, since a door
-     * whose reason is stale is one nobody dares close.
-     *
-     * · The add screen follows a medium after a confirmation it draws itself,
-     *   so it reaches the act without a `data-*` ever being tapped.
-     * · A swiped-open ROW's revealed action is dispatched by CLASS — the
-     *   engine reads `.act` then `.pause`, and takes the subject from the
-     *   row's own heading text. There is no attribute on that button for a
-     *   registry to answer, and giving it one is DRAWING, which is not this
-     *   lot's. So the engine's branch keeps the gesture's bookkeeping — the
-     *   drawer it must collapse — and calls the act through here.
-     *
-     * Both callers are the engine's and die with it; until then they call
-     * through this door rather than keeping a second copy of an act, which is
-     * how two truths about one follow start.
-     */
-    __followVerbs?: {
-      follow: (title: string, kind: string) => void;
-      pause: (title: string) => void;
-      removeFollow: (title: string) => void;
-    };
-  }
-}
+/**
+ * The follows' acts, for the callers the tap registry is not.
+ *
+ * TWO OF THEM NOW, and they are not the same kind of caller — the door was
+ * opened for the first and this says why the second uses it, since a door
+ * whose reason is stale is one nobody dares close.
+ *
+ * · The add screen follows a medium after a confirmation it draws itself,
+ *   so it reaches the act without a `data-*` ever being tapped.
+ * · A swiped-open ROW's revealed action is dispatched by CLASS — the
+ *   engine reads `.act` then `.pause`, and takes the subject from the
+ *   row's own heading text. There is no attribute on that button for a
+ *   registry to answer, and giving it one is DRAWING, which is not this
+ *   lot's. So the engine's branch keeps the gesture's bookkeeping — the
+ *   drawer it must collapse — and calls the act through here.
+ *
+ * Both callers are the engine's and die with it; until then they call
+ * through this door rather than keeping a second copy of an act, which is
+ * how two truths about one follow start.
+ */
+type FollowVerbs = {
+  follow: (title: string, kind: string) => void;
+  pause: (title: string) => void;
+  removeFollow: (title: string) => void;
+};
 
 // THE DECLARATION RUNS AT MODULE EVALUATION, exactly as a panel producer's
 // does, and the boot names this module in `app/panel-contributions.ts` — the
@@ -228,18 +227,18 @@ declare global {
 //
 // ONE VERB, TWO EMITTERS, and the element is what tells them apart — which is
 // why the registry hands the element to the act rather than the value alone.
-window.__followVerbs = { follow, pause, removeFollow };
+export const followVerbs: FollowVerbs = { follow, pause, removeFollow };
 registerVerb("follow", (title, element) => {
   const at = element.dataset.sugidx;
   const suggestion = at === undefined
     ? null
-    : ((window.__suggestions?.() ?? [])[Number(at)] as Suggestion | undefined)
+    : ((suggestions?.() ?? [])[Number(at)] as Suggestion | undefined)
       ?? null;
   // THE PANEL LEAVES FIRST, in the tap's own commit. The act happens beside
   // it rather than after a wait: the 240 ms the engine spent here is B-249's
   // shape, and a panel that is still on screen while the follows move is a
   // reader watching two things happen in the wrong order.
-  window.__panel.close();
+  panel.close();
   if (at !== undefined) takeSuggestionOutOfTheDeck(Number(at));
   // AN ABSENT KIND IS SPELLED AS ONE, not as the series' own word: the test
   // below asks whether it is a film, so the empty string answers « series »
@@ -248,7 +247,7 @@ registerVerb("follow", (title, element) => {
   // AND THE STORE IS TOUCHED AGAIN, for the sheet's own button: `add` writes
   // the cache in place, so without this the button never learns the follow
   // happened and stays « Suivre » under the finger that pressed it.
-  window.__store.touch();
+  store.touch();
 });
 
 // THE PANEL'S OWN ACT, whose target is `data-pause`. Only the panel emits it:
@@ -260,7 +259,7 @@ registerVerb("follow", (title, element) => {
 // navigation's own commit, so the wait bought nothing but a state that had
 // already moved being announced late.
 registerVerb("pause", (title) => {
-  window.__panel.close();
+  panel.close();
   pause(title);
 });
 
@@ -270,6 +269,6 @@ registerVerb("pause", (title) => {
 // class on a library row opens a confirmation dialog rather than removing a
 // follow. That arbitration is the engine's drawing and stays with it.
 registerVerb("remove", (title) => {
-  window.__panel.close();
+  panel.close();
   removeFollow(title);
 });

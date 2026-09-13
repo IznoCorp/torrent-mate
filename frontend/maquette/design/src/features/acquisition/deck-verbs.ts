@@ -14,7 +14,9 @@
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { dismissSug } from "./discover-feed";
-import { loadMoreSuggestions } from "./queries";
+import { loadMoreSuggestions, suggestions } from "./queries";
+import { store } from "../../lib/store-access";
+import { panel, toast } from "../../lib/shell-doors";
 
 // THE DECLARATION RUNS AT MODULE EVALUATION and the boot names this module in
 // `app/panel-contributions.ts`, for the reason that list gives itself: the
@@ -26,7 +28,7 @@ import { loadMoreSuggestions } from "./queries";
 // panel was, so a panel still on screen while the row goes is a reader watching
 // two things happen in the wrong order.
 registerVerb("dropsug", (value) => {
-  window.__panel.close();
+  panel.close();
   dismissSug(Number(value));
 });
 
@@ -48,9 +50,9 @@ registerVerb("dropsug", (value) => {
 registerVerb("sugmore", () => {
   void loadMoreSuggestions().then(
     (arrived) => {
-      const total = (window.__suggestions?.() ?? []).length;
-      window.__store.touch();
-      window.__toast?.show({
+      const total = (suggestions?.() ?? []).length;
+      store.touch();
+      toast?.show({
         message: arrived === 0
           ? i18next.t("verbs.deck.spent", { total })
           : i18next.t(arrived === 1 ? "verbs.deck.loadedOne" : "verbs.deck.loaded",
@@ -61,6 +63,6 @@ registerVerb("sugmore", () => {
     // it was, so the honest report is that the load did not happen — not a
     // count of nothing, which reads like a spent reserve.
     () => {
-      window.__toast?.show({ message: i18next.t("verbs.deck.refused") });
+      toast?.show({ message: i18next.t("verbs.deck.refused") });
     });
 });
