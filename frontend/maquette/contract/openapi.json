@@ -4553,6 +4553,13 @@
           },
           "overview": {
             "type": "string"
+          },
+          "poster": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the candidate's OWN poster's address, or null when none is known. Never the picture of a title that differs only by its year: four candidates can be different series with nearly the same name"
           }
         },
         "required": [
@@ -4560,7 +4567,8 @@
           "year",
           "provider",
           "id",
-          "score"
+          "score",
+          "poster"
         ]
       },
       "DecisionChoice": {
@@ -4577,10 +4585,18 @@
           },
           "via": {
             "$ref": "#/components/schemas/DecisionRoute"
+          },
+          "poster": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the chosen medium's poster's address, or null when none is known"
           }
         },
         "required": [
           "id",
+          "poster",
           "provider",
           "title",
           "via"

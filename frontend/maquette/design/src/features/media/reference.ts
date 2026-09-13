@@ -19,7 +19,7 @@ import type { EngineDrawing } from "../../lib/engine-drawing";
 // closed one: a component narrows the fields it actually reads.
 export type MediaSheet = Record<string, unknown>;
 
-// One YouTube trailer reference, as `trailerIds` shapes one per title.
+// One YouTube trailer reference, as a sheet's `trailerVideo` carries it.
 export type Trailer = {
   key: string;
   name: string;
@@ -37,15 +37,6 @@ export type MediaReference = EngineDrawing & {
   ownedFor: (title: string, season: number) => Set<number> | null;
   EP_LABEL: Record<string, string>;
   TODAY: string;
-  CAST: Record<string, string>;
-  // Media-sheet data: hero banners, posters, cast portraits, trailers and
-  // episode-status labels, plus the lookup/formatting helpers a sheet or a
-  // season list reads them through — see refonte.html's `sheetFor` /
-  // `ownedFor` neighbourhood for the exact resolution rules
-  // (title normalisation, year-suffix stripping) a re-implementation would
-  // otherwise silently diverge from.
-  HERO_IMAGES: Record<string, string>;
-  trailerIds: Record<string, Trailer>;
 };
 
 /**

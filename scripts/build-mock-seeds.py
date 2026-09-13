@@ -374,6 +374,10 @@ def joined(name: str, seed: object, join: dict, projected: dict[str, object]) ->
                 # resolved a list item: a year suffix is not a word of the title.
                 title = entry.get("title")
                 result[field] = posters.get(title) or posters.get(base_title(title))
+            elif source == "exactPoster":
+                # A PROPOSITION asks for its own picture only: « Lucky (2006) » is
+                # not « Lucky », and a base title would hand one the other's.
+                result[field] = posters.get(entry.get("title"))
             elif source == "key":
                 result[field] = key
             else:
@@ -389,6 +393,16 @@ def joined(name: str, seed: object, join: dict, projected: dict[str, object]) ->
     if entries.startswith("/") and entries.endswith("[]") and isinstance(seed, dict):
         field = entries[1:-2]
         return {**seed, field: [decorate(entry, None) for entry in seed[field]]}
+    if entries.startswith("[]/") and isinstance(seed, list):
+        # One level down in each element of a top-level list: `[]/key[]` joins
+        # every element of the list under that key, `[]/key` the object under
+        # it, in the elements that carry one.
+        field = entries[3:].removesuffix("[]")
+        if entries.endswith("[]"):
+            return [{**element, field: [decorate(inner, None) for inner in element[field]]}
+                    for element in seed]
+        return [{**element, field: decorate(element[field], None)}
+                if element.get(field) is not None else element for element in seed]
     raise SystemExit(f"build-mock-seeds: {name} joins at {entries!r}, which its seed does not have")
 
 

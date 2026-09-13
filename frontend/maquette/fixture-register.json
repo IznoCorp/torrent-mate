@@ -54,7 +54,8 @@
     "CAST": {
       "class": "asset",
       "why": "cast portraits",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·13 — the cast reads the served sheet's `castPortraits`; the seed stays, composed into `readMediaSheet`"
     },
     "CATS": {
       "class": "served",
@@ -133,7 +134,8 @@
     "HERO_IMAGES": {
       "class": "asset",
       "why": "wide visuals, one per title",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·13 — the media screen reads the served sheet's `hero`; the seed stays, composed into `readMediaSheet`"
     },
     "INCOMPLETE": {
       "class": "served",
@@ -224,7 +226,8 @@
     "POSTERS": {
       "class": "asset",
       "why": "poster paths, one per title",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·13 — every reader reads a `poster` field (lists since a·11, the sheet, and a decision's candidates and choice since a·13); the seed stays, joined into those payloads"
     },
     "POSTERS_HD": {
       "class": "asset",
@@ -446,7 +449,8 @@
     "trailerIds": {
       "class": "asset",
       "why": "YouTube trailer ids, from TMDB /videos",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·13 — the media screen reads the served sheet's `trailerVideo` alone; the seed stays, composed into `readMediaSheet`"
     }
   },
   "$converted": "A FAMILY THE ENGINE NO LONGER DECLARES, because the surface that read it now reads the mock layer instead (D5 — the engine dies by subtraction, surface by surface). Its class is unchanged: it is still `served`, and its seed is still what the layer answers with. What changes is WHAT HOLDS THE SEED. `--arm correspondence` compared it against the engine's own literal, and that literal is gone — so for a converted family that arm has nothing left to compare and says so by name rather than passing over it in silence, which would be the vacuity this whole file is built against. Two instruments still hold it: `--arm schema` validates it against the contract, and the ORACLE holds the rendering it produces at zero divergence — which is the stronger of the two, since it reads the bytes all the way to the screen. The value of `converted` names the wave and the surface, so the day somebody asks « when did this stop being checkable against the engine » the answer is in the file."

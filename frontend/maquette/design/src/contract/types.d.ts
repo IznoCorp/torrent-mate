@@ -1236,12 +1236,16 @@ export interface components {
             /** @description the provider has no poster; the placeholder says so */
             withoutPoster?: boolean;
             overview?: string;
+            /** @description the candidate's OWN poster's address, or null when none is known. Never the picture of a title that differs only by its year: four candidates can be different series with nearly the same name */
+            poster: string | null;
         };
         DecisionChoice: {
             title: string;
             provider: string;
             id: number;
             via: components["schemas"]["DecisionRoute"];
+            /** @description the chosen medium's poster's address, or null when none is known */
+            poster: string | null;
         };
         PendingDecision: {
             /** @description the staging folder awaiting arbitration */

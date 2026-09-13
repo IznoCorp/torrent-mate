@@ -24,7 +24,7 @@ import {
 import { Icon } from "../../ui/icon";
 import { Chip } from "../../ui/chip";
 import { PosterArtwork } from "../../ui/poster";
-import { posterArtworkFor } from "../../lib/engine-drawing";
+import { posterArtwork } from "../../lib/engine-drawing";
 import { candidateCard, candidatePick } from "./variants";
 
 // A RELEASE is not a medium, and its card is deliberately a different object.
@@ -38,7 +38,7 @@ import { candidateCard, candidatePick } from "./variants";
 // The legacy twin was `releaseCardHTML(titre, meta, confiance, opts)`; the
 // props below are that signature. Its emission stopped being the twin's the
 // day the card became the gesture, below. The poster is `PosterArtwork`, resolved
-// by `posterArtworkFor` — the one resolution every poster goes through, because a
+// by `posterArtwork` — the one resolution every poster goes through, because a
 // second copy of its image-or-initials fallback is exactly what would drift.
 export function ReleaseCard({
   title,
@@ -54,7 +54,7 @@ export function ReleaseCard({
   opts: {
     genre?: string;
     k?: "movie" | "show";
-    exact?: boolean;
+    poster?: string | null;
     noPoster?: boolean;
     overview?: string;
   };
@@ -97,7 +97,7 @@ export function ReleaseCard({
             opts.noPoster ? t("screens.resolution.noPosterTitle") : undefined
           }
         >
-          <PosterArtwork artwork={posterArtworkFor(reference, title, opts.k, opts.exact)} />
+          <PosterArtwork artwork={posterArtwork(icons, opts.poster, title, opts.k)} />
         </CardPoster>
         <CardBody as="span">
           <CardTitle>{title}</CardTitle>
@@ -158,7 +158,7 @@ export function DecisionCard({ decision }: { decision: SettledDecision }) {
   const state = settled ? DECISION_STATE[decision.state] : null;
   const artwork =
     settled && decision.choice
-      ? posterArtworkFor(reference, decision.choice.t, decision.k)
+      ? posterArtwork(icons, decision.choice.poster, decision.choice.t, decision.k)
       : { source: undefined, icon: decision.k === "movie" ? icons.film : icons.tv, label: "?" };
   const identity = decision.choice
     ? `${decision.choice.t} · ${decision.choice.p.toUpperCase()} ${decision.choice.id} · ${VIA_LABEL[decision.choice.via] ?? decision.choice.via}`
@@ -232,14 +232,14 @@ export function Candidates({ decision }: { decision: PendingDecision }) {
               ? null
               : `${Math.round(candidate.s * 100)} %`
           }
-          /* Exact match only, and the placeholder when the provider has no
+          /* Its OWN picture only, and the placeholder when the provider has no
              picture: a candidate wearing a neighbour's poster is the one
              mistake this screen cannot make. The absence is said by the
              placeholder itself, not by a sentence in a line that truncates. */
           opts={{
             genre: "candidat",
             k: decision.k,
-            exact: true,
+            poster: candidate.poster,
             noPoster: candidate.sans,
             overview: candidate.resume,
           }}

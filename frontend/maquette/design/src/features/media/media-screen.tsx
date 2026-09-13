@@ -21,7 +21,6 @@ import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import {
   useMediaReference,
-  type MediaReference,
   type MediaSheet,
   type Trailer,
 } from "../../features/media/reference";
@@ -38,20 +37,6 @@ import { MediaLibraryFacts } from "./media-library-facts";
 import type { Follow, MediaSheetFields } from "./sheet-fields";
 import { bridge } from "../../lib/shell-doors";
 import { baseTitle } from "../../lib/titles";
-
-// The banner prefers the wide visual; the vertical poster is only a fallback,
-// and nothing at all when there is neither — same resolution order as the
-// legacy sheet, base title included.
-function artworkFor(reference: MediaReference, title: string): string | null {
-  const { HERO_IMAGES, POSTERS } = reference;
-  return (
-    HERO_IMAGES[title] ??
-    HERO_IMAGES[baseTitle(title)] ??
-    POSTERS[title] ??
-    POSTERS[baseTitle(title)] ??
-    null
-  );
-}
 
 /** What the route hands the screen: the follows, owned by another feature, so they compose in the route. */
 export type MediaScreenProperties = { readFollows: () => unknown[] };
@@ -79,7 +64,7 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
   const follows = readFollows() as Follow[];
   const reference = useMediaReference();
   const { t } = useTranslation();
-  const { icons, trailerIds } = reference;
+  const { icons } = reference;
 
   // FROM THE CACHE, BY ADDRESS (invariant 4, DOIT-11). The engine looked its
   // sheet up by TITLE out of a fixture keyed by title; the address is the
@@ -224,14 +209,13 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
           // prints in 30 px.
           `/media/${provider}/${id}`
         : null;
-  const artwork = artworkFor(reference, title);
-  // THE SERVED FIELD FIRST, and the reference only as what the tap knew. The
-  // payload carries `trailerVideo` and the screen read none of it: a synchronous
-  // lookup in the engine's fixture answered at frame one, so the skeleton drawn
-  // while the sheet is out stood over an absence already known — and a served
-  // trailer the fixture does not hold would never have appeared.
-  const trailer = ((sheet?.trailerVideo as Trailer | undefined)
-    ?? trailerIds[title] ?? trailerIds[baseTitle(title)] ?? null);
+  // THE SERVED SHEET ALONE. The banner prefers the wide visual and falls back
+  // to the vertical poster, and draws nothing when the sheet carries neither;
+  // the trailer is its `trailerVideo`. While the read is out the placeholder
+  // carries none of the three, so the trailer's place is a skeleton.
+  const artwork = (sheet?.hero as string | null | undefined)
+    ?? (sheet?.poster as string | null | undefined) ?? null;
+  const trailer = (sheet?.trailerVideo as Trailer | null | undefined) ?? null;
 
   return (
     <section

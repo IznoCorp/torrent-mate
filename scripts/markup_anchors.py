@@ -177,7 +177,7 @@ GENRE_SITES = {
     # of R12 (B-057) added lines to `audit2.py` and this exemption stopped
     # matching at 124; the guard said so immediately, which is the table
     # working as designed rather than a cost of it.
-    ("audit2.py", 154, "note"): (
+    ("audit2.py", 171, "note"): (
         "the media-sheet inventory skips the blocks drawn as a NOTE, "
         "which is a style genre and not a section of the sheet. A "
         "`data-*` would name the block; the rule needs to know how it is "

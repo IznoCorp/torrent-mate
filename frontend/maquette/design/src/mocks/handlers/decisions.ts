@@ -71,6 +71,8 @@ function settle(
               provider: candidate.provider,
               id: candidate.id,
               via: PICKED,
+              // The candidate's own picture: the choice IS that candidate.
+              poster: candidate.poster,
             },
           }),
     },

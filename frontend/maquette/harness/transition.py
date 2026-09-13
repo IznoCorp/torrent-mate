@@ -295,14 +295,15 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
 
     if warmed:
         # THE FANART IS PUT IN THE CACHE BEFORE THE ARRIVAL. Its URL is the one
-        # the media screen will paint, read from the fixture the same way the
-        # screen reads it, and fetched in THIS context so the browser holds it.
+        # the media screen will paint — the served sheet's `hero`, which is what
+        # the screen reads — and it is fetched in THIS context so the browser
+        # holds it. RE-AIMED: it was read from the engine's wide-visual table,
+        # which died when the screen began reading the payload; the count is
+        # unchanged.
         warmed_source = await page.evaluate("""async ()=>{
-          const reference = window.__referentiel;
-          const title = reference.titleForProviderId('tmdb', '1284465');
-          const sheet = title ? reference.sheetFor(title) : null;
-          const source = (window.HERO_IMAGES || {})[title]
-            || (sheet && sheet.hero) || null;
+          const answer = await fetch('/api/media/tmdb/1284465');
+          const sheet = answer.ok ? await answer.json() : null;
+          const source = (sheet && sheet.hero) || null;
           if (!source) return null;
           const image = new Image();
           image.src = source;

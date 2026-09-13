@@ -2,7 +2,7 @@
 // strip — or the sentence that says the cast is unknown.
 import { useTranslation } from "react-i18next";
 import { SkeletonLine } from "../../ui/state-surfaces";
-import { useMediaReference, type MediaSheet } from "./reference";
+import type { MediaSheet } from "./reference";
 import type { MediaSheetFields } from "./sheet-fields";
 import { factsPanel, keyValueRow, sectionHeading } from "../../ui/variants";
 import { castCaption, castFigure, castList, castPortrait } from "./variants";
@@ -22,8 +22,9 @@ export function MediaCast({
   /** Whether the sheet's read is still out — a missing part is then a skeleton, never an answer. */
   inFlight: boolean;
 }) {
-  const { CAST } = useMediaReference();
   const { t } = useTranslation();
+  // The served sheet's own portraits, keyed by the name each belongs to.
+  const portraits = (sheet?.castPortraits ?? {}) as Record<string, string>;
   return (
     <div>
       <h2 className={sectionHeading()} data-part="heading" style={{ marginBottom: "8px" }}>
@@ -89,8 +90,8 @@ export function MediaCast({
           {sheet.cast.map((cast) => (
             <figure key={cast.n} className={castFigure()}>
               <span className={castPortrait()} data-part="cast/avatar">
-                {CAST[cast.n] ? (
-                  <img src={CAST[cast.n]} alt="" loading="lazy" />
+                {portraits[cast.n] ? (
+                  <img src={portraits[cast.n]} alt="" loading="lazy" />
                 ) : (
                   initials(cast.n)
                 )}

@@ -104,13 +104,15 @@ TITLE = "Silo"
 # corrects this on the way in.
 UNKNOWN_ADDRESS = "N'Existe%20Pas"
 
-# The mediaSheet titles below are picked straight from the embedded référentiel
-# (`refonte.html`'s `SHEETS_RAW`/`HERO_IMAGES`/`trailerIds`), not invented:
+# The mediaSheet titles below are picked straight from the served sheets
+# (`readMediaSheet`'s `hero` and `trailerVideo`), not invented — RE-AIMED from
+# the engine's wide-visual and trailer tables, which died when the screen began
+# reading the payload, with every count unchanged:
 # `Silo (2023)` carries both a hero image and a trailer (`sheetFor` resolves
 # it directly, no `baseTitle` fallback needed), which is what makes holds
 # (f)-(h) meaningful rather than vacuous. `Broadchurch` is the states
 # table's own pick for "no trailer" (`fiche-sans-trailer`, refonte.html) —
-# its `trailerIds` entry is absent and its sheet carries `trailer: null`
+# its served sheet carries no `trailerVideo` and `trailer: null`
 # explicitly, and its cast/seasons are otherwise fully populated so the
 # ONLY `p.noinfo` the screen draws is the trailer's.
 SHEET_TITLE = "Silo (2023)"

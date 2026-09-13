@@ -11,7 +11,7 @@
 // nowhere to be written down.
 
 import type { Artwork } from "../ui/poster";
-import { baseTitle, initials } from "./titles";
+import { initials } from "./titles";
 
 // Read-only reference data + pure rendering helpers the engine's own script
 // publishes once, at definition time — well before any component's module
@@ -39,10 +39,6 @@ export type EngineDrawing = {
   svgIcon: (paths: string, strokeWidth?: number) => string;
   icons: Record<string, string>;
   escapeHtml: (text: string) => string;
-  // The poster table. Its two last readers have no `poster` field yet — the
-  // media screen's fallback and the resolution screen's candidates — and it
-  // dies with them.
-  POSTERS: Record<string, string>;
   render: () => void;
   toast: (msg: string) => void;
 };
@@ -81,30 +77,3 @@ export function posterArtwork(
   return { source: source ?? undefined, icon, label: initials(title) };
 }
 
-/**
- * Resolves what a title's poster shows, from the engine's poster table — for the
- * readers whose data carries no `poster` yet, and for them only: a release
- * candidate and a decision's choice.
- *
- * A proposition rather than an identity asks for its OWN picture only (`exact`):
- * « Lucky (2006) » and « Lucky! » are different series the operator is asked to
- * tell apart, and matching on the base title would hand one the picture of the
- * other on the very screen whose job is to distinguish them.
- *
- * @param drawing The engine's drawing surface.
- * @param title The title.
- * @param kind `movie` or `show`, which picks the fallback's icon.
- * @param exact Whether only the title's own picture will do.
- * @returns The picture if there is one, the fallback's icon, and its label.
- */
-export function posterArtworkFor(
-  drawing: Pick<EngineDrawing, "POSTERS" | "icons">,
-  title: string,
-  kind?: string,
-  exact?: boolean,
-): Artwork {
-  const source = exact
-    ? drawing.POSTERS[title]
-    : (drawing.POSTERS[title] ?? drawing.POSTERS[baseTitle(title)]);
-  return posterArtwork(drawing.icons, source, title, kind);
-}

@@ -5,6 +5,15 @@ THE ROOT LADDER HAS NO `#screen` RUNG. It had one, for a legacy node nothing
 ever opened, so the rung was identically false; it was removed rather than
 replaced, because the generic `[data-part="screen"][data-open][data-key]` rung
 already present covers every screen. The hold count is unchanged.
+
+R13'S « WITHOUT A VISUAL » SAMPLE IS READ FROM THE SERVED SHEET. RE-AIMED, and
+said here: it filtered the titles on the engine's wide-visual table, by title and
+then by title without the year, and the table died when the media screen began
+painting the payload's `hero`. So it asks `readMediaSheet` for each title's
+address instead — which is also truer: « Furious » and « Batman Caped Crusader »,
+the two the table picked, open on a sheet that DOES carry a visual (their other
+titles hold it), where « Widow's Bay (2026) » and « Widow's Bay » open on one
+that does not. The hold count is unchanged.
 """
 import asyncio
 import json
@@ -143,7 +152,15 @@ async def main():
       picks.push(...take(t=>sheetFor(t)?.k==='movie', 2));
       picks.push(...take(t=>sheetFor(t)?.k==='show' && !incomplete(t), 2));
       picks.push(...take(incomplete, 4));
-      picks.push(...take(t=>!(HERO_IMAGES[t]??HERO_IMAGES[baseTitle(t)]), 2));
+      const withoutVisual=[];
+      for (const t of titles) {
+        if (withoutVisual.length===2) break;
+        const at=addressIdsFor(t);
+        const answer=at ? await fetch(`/api/media/${at.provider}/${at.id}`) : null;
+        const served=answer?.ok ? await answer.json() : null;
+        if (!served?.hero) withoutVisual.push(t);
+      }
+      picks.push(...withoutVisual);
       for (const t of [...new Set(picks)]) {
         window.__reset(); applyState({page:'lib', phase:'ready'});
         window.__screens.mediaSheet(t);

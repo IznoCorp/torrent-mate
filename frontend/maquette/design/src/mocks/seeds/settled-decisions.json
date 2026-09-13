@@ -19,7 +19,8 @@
       "title": "The Bombing of Pan Am S01E03",
       "provider": "tvdb",
       "id": 456595,
-      "via": "search_override"
+      "via": "search_override",
+      "poster": null
     }
   },
   {
@@ -41,7 +42,8 @@
       "title": "The Hawk",
       "provider": "tvdb",
       "id": 450088,
-      "via": "pick"
+      "via": "pick",
+      "poster": "assets/posters/71d10ce4.webp"
     }
   },
   {
@@ -55,7 +57,8 @@
       "title": "Lucky (2026)",
       "provider": "tvdb",
       "id": 457437,
-      "via": "pick"
+      "via": "pick",
+      "poster": "assets/posters/03ece553.webp"
     }
   },
   {
@@ -70,7 +73,8 @@
       "title": "Top Chef Le Concours Parallele",
       "provider": "tvdb",
       "id": 475278,
-      "via": "pick"
+      "via": "pick",
+      "poster": null
     }
   },
   {
@@ -85,7 +89,8 @@
       "title": "Ferrari, Tsamere, Lecaplain : La Tournée du Trio",
       "provider": "tmdb",
       "id": 1433379,
-      "via": "pick"
+      "via": "pick",
+      "poster": null
     }
   },
   {
@@ -100,7 +105,8 @@
       "title": "Aymeric Lompret et Pierre Emmanuel Barre Woke me up",
       "provider": "tmdb",
       "id": 1629753,
-      "via": "pick"
+      "via": "pick",
+      "poster": null
     }
   },
   {
@@ -115,7 +121,8 @@
       "title": "Obsession",
       "provider": "tmdb",
       "id": 1339713,
-      "via": "pick"
+      "via": "pick",
+      "poster": "assets/posters/98173527.webp"
     }
   },
   {
@@ -130,7 +137,8 @@
       "title": "Remarkably Bright Creatures",
       "provider": "tmdb",
       "id": 1330021,
-      "via": "search_override"
+      "via": "search_override",
+      "poster": null
     }
   }
 ]

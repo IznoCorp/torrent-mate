@@ -25,6 +25,8 @@ export type DecisionCandidate = {
   s: number;
   sans?: boolean;
   resume?: string;
+  // The candidate's own picture, never one found under its title without the year.
+  poster: string | null;
 };
 
 // The choice recorded once a decision resolves — the winning candidate's
@@ -36,6 +38,7 @@ export type DecisionChoice = {
   p: string;
   id: number;
   via: "pick" | "search_override";
+  poster: string | null;
 };
 
 // Fields common to a decision whichever side of resolution it is on — the
