@@ -36,7 +36,10 @@ continuing? » If the answer is yes, the next phase exists, and none of the STOP
   own figures before it moves anything; a figure that no longer supports the home is reported to the
   steward with the command, and the phase does not improvise a new home.
 - **STOP E (L13b only)** — L13b phase 9 does not open before the operator has read the design's
-  D-L13-1 (§ 8). Phases 1–8 do not wait for it.
+  D-L13-1 (§ 8). Phases 1–8 do not wait for it. **Ruled 2026-09-13 (A): the operator ratified
+  D-L13-1 as written** — a layer left for an arrival keeps its entry and Back reopens it; a redraw
+  replaces. STOP E is lifted for b·9. Nothing changes in L13a: its conversions keep both shapes
+  exactly as they are, byte for byte.
 
 Anything believed necessary outside the contract: STOP and ask the steward first.
 
@@ -133,6 +136,7 @@ and binds the label to the next free number then.
 | a·16 | [Configuration, and the engine's support](phase-a16-settings-and-support.md) | `allSettings` over the cache; `field`/`readonly`/`rulenote` | `SETTINGS`; `engine-shape.ts`, `engine-data.ts`, `engine-redraw.ts`, `lib/engine-drawing.ts`, `__referentiel` | `settings.py`, `page_host.py` | — |
 | a·17 | [The entry's styles](phase-a17-entry-styles.md) | the 13 shell classes' rules in an `entry` block of `styles/base.css` that `serve.py` extracts | their `legacy.css` rules | `logout.py`, `startup.py`; `serve.py:416`, `serve.py:452` | — |
 | a·18 | [`legacy.css` dies](phase-a18-legacy-css-dies.md) | — | `legacy.css`, its import, residue guard + ceiling, R80 + `test_residue.py`, baseline row, `markup_dressing` lines | `check-poster-box.py`, `csstokens_login.py` | — |
+| a·18-bis | The ≡ harness panel dies — the operator's ruling on Q2, 2026-09-13 ([phase-a01](phase-a01-harness-module.md) § Amendment) | — | `harness/panel.ts` and its five verbs, the « ≡ » button's markup, the `harness.css` rules and i18n keys only the panel used | `hiding.py`, `message_above_harness.py`, `chrome.py` (their panel holds go with it, named with their counts); `audit.py`, `dest.py` (the exclusions dropped) | — |
 | a·19 | [`refonte.html` and R72](phase-a19-refonte-and-r72.md) | R72 with (b) and (c) mutation-tested | `refonte.html`, hold (a) | the 16 path readers | — |
 
 ## L13b — The engine's verbs and the ladder's shape (BEHAVIOUR)

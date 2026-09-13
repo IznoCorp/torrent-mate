@@ -60,3 +60,27 @@ are in the report. STOP D if one surface's states cannot fit under 400 non-blank
 ## Commit
 
 `refactor(maquette-l13): the driving seams and the named states leave the engine for the harness module`
+
+## Amendment — 2026-09-13, the operator's ruling on Q2
+
+**Q2 is ruled (B): the ≡ harness panel dies.** The operator, verbatim: « Je ne l'utilise pas ! À la base
+il était fait pour le contrôle des agents, pour vérifier facilement un état, pas pour moi. » The named
+states stay reachable through `window.__go`, and the dials through the console. This phase is not
+reopened: the panel landed in `design/src/harness/panel.ts`, and it leaves in ONE later commit of L13a,
+**a·18-bis**, before a·19's full gate.
+
+What a·18-bis deletes: `harness/panel.ts` and its five verbs (`hscen`, `hphase`, `htmdb`, `hgo`,
+`hclose`), the « ≡ » button's markup, every `styles/harness.css` rule only the panel used (with any R80
+pair it removes named), and the i18n keys only the panel read.
+
+**« Tapped by no rule » above is not true**, measured on 2026-09-13 before any deletion
+(`grep -nE "notesBtn|scenBtn|harness/bar|harness/panel" frontend/maquette/harness/*.py`):
+`hiding.py` reads `#notesBtn`; `message_above_harness.py` reads `[data-part="harness/bar"]`,
+`[data-part="harness/panel"]` and `#scenBtn`; `chrome.py` reads `[data-part="harness/bar"]`; `audit.py`
+and `dest.py` exclude both parts from their sweeps. **Those readers go with the panel, in the same
+a·18-bis commit** (the steward's ruling, 2026-09-13): the holds of `hiding.py`,
+`message_above_harness.py` and `chrome.py` whose subject is the panel are removed with it, each named
+in the commit body with the hold count it takes away, and the two exclusions in `audit.py` and
+`dest.py` are dropped. a·18-bis runs the grep rule for every name it removes over `harness/*.py` before
+its gate.
+
