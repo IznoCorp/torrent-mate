@@ -1,118 +1,129 @@
 # L13a — resume brief for the successor
 
-Written by the eleventh L13a implementer when it stood down at the a·17 boundary (a·17 was this session's last
-unit, by the steward's order). Read it after `docs/features/maquette-l13/BRIEF-L13a.md`, which still governs
-everything. This file only records state, rulings and traps, and it dies with the wave's folder at the post-merge
-gesture.
+Written by the twelfth L13a implementer when it stood down with the full gate RED (context 50 %). Read it after
+`docs/features/maquette-l13/BRIEF-L13a.md`, which still governs everything. This file only records state, rulings
+and traps, and it dies with the wave's folder at the post-merge gesture.
 
 ## Exact state
 
 - Worktree `/Users/izno/dev/worktrees/wave-l13a`, branch `feat/maquette-l13a`, merged with `origin/main` at `60530dbd8`
-  (#595, 0.98.90). Oracle reference `f1e7ac66`.
-- a·1 … a·14.2: see `git show 5fb41e90e:docs/features/maquette-l13/RESUME.md` (and the RESUMEs it points to). Then
+  (#595, 0.98.90; `main` had not moved at 18:30). Oracle reference `f1e7ac66`.
+- a·1 … a·17: see `git show c194fca54:docs/features/maquette-l13/RESUME.md` (and the RESUMEs it points to). Then
   this session:
-  - `5fb41e90e` docs — the previous RESUME records `6c6180c9a` and the pruned logs.
-  - **a·15** `9c083a9b7` `refactor(maquette-l13a): system, maintenance and account draw their facts as components and the dead actions table goes`
-  - **a·16** `9374287dc` `refactor(maquette-l13a): settings read the served catalogue and the engine's settings table dies` (ruling 57)
-  - **a·17** `9907cb34a` `refactor(maquette-l13a): the login gate and the startup screen take their styles from the base layer`
-  - `198f6c554` `chore(maquette-l13a): the comment corpus counts the references the entry block's move took away`
+  - **a·17-bis** `f4b0732ae` `refactor(maquette-l13a): the harness states panel dies — its opener, its five verbs, its rules and its readers`
+  - **a·18** `e2f510a8b` `chore(maquette-l13a): legacy.css, its guard and the rule that compared it to the variants are deleted` (ruling 59)
+  - **a·19** `56da59aee` `chore(maquette-l13a): refonte.html is deleted and R72 keeps its two holds`
+  - **repairs** `a99af0309` `fix(maquette-l13a): three rules of the full suite follow the conversion` — NOT replayed alone, NOT gated
   - the commit that adds this file.
-- Gates, every log under `/private/tmp/tm-l13a/` and postdating its commit:
-  - a·15 on `9c083a9b7`: `a15-gate-contracts.log` 19 rules + 27 guards, no violation; `a15-gate-oracle.log` 87 x 34,
-    2 958, no divergence; alone page_host 44, url_state 99; mutations `a15-mutation-*.log`: panel title → page_host
-    FELL, served catalogue emptied → url_state FELL, account fact list back to the bare class → oracle FELL.
-  - a·16 on `9374287dc`: contracts 19 + 27, no violation; oracle no divergence; alone settings 65, settings_editing 15,
-    seeds_at_rest 15, page_host 44, url_state 99; six mutations `a16-mutation-*.log` all FELL (heldSettings,
-    the page's search, the state seeds, the readonly zero margin, a served topic missing, the served schema empty).
-  - a·17 on `9907cb34a`: contracts 19 + 27 (starts 5 140 MB free), oracle no divergence (5 779 MB); alone logout 8,
-    startup 28, entry 10; mutations `a17-mutation-*.log`: `.splash[hidden]` emptied → startup FELL; the entry extract
-    removed → startup FELL; **the form rewrite aimed at an id nothing carries → NO RULE FELL** (below).
-  - All equal to `hold-counts-baseline.json`. `tsc -b` 0 and vitest 114 after a·15 and a·16; the pytest slice
-    (comments, residue, markup-contracts, boundaries arms, mock-seeds, css tokens, csstokens ranks, oracle, build
-    identity, autodeploy restart) 224 passed + the comment-record test 36 passed on `198f6c554`, tests lock.
-- Records:
-  - `engine/legacy.js`: **3 593** non-blank (ledger 5 295 → 5 056 → 3 593).
-  - `styles/legacy.css`: 248 non-blank; `legacy-css-residue.json` rules 14, classes 12, declarations 56.
-  - `fixture-register.json`: `MAINT_ACTIONS`, `SETTINGS` converted. `build-mock-seeds.py --check` reads **31**
-    « no family claims it » (29 + maintenance-actions.json, settings.json).
-  - `residue.py` (R80) `PAIRS_FLOOR` 4 → 3 (`.flux` left). `comment-references-baseline.json` re-recorded.
-  - `mocks/mock-seeds.ts` exposes `settings` beside `sheets` (harness-read, ruling 54's shape).
-  - `hold-counts-baseline.json` NOT re-recorded.
-- `--compare`, the full suite, `--a11y` and `make check` are NOT run: they run once, at a·19.
-- **Next: a·17-bis**, then a·18, a·19 (full gate, version bump, pull request).
-- Version not bumped. No pull request. Pushed at this boundary (the stand-down report carries `git ls-remote`).
+- Gates, logs under `/private/tmp/tm-l13a/`, each postdating its commit:
+  - a·17-bis on `f4b0732ae`: contracts 19 + 27, no violation; oracle no divergence; `message_above_harness.py` alone 2;
+    mutation `.hbtn` z-index 53 → 70 → R163 FELL.
+  - a·18 on `e2f510a8b`: contracts 18 + 26; oracle no divergence; `resolution_card` 12, `press` 15, `touch` 25 alone;
+    mutation (the child's `[.ptr.loading_&]` animation removed) → NO RULE FELL (a blind spot, written in phase-a18's
+    amendment).
+  - a·19 on `56da59aee`: contracts 18 + 26; oracle no divergence; `shell.py` 3, `switchover.py` 11 alone; R72's two
+    mutations by hand on `dist/` with `R72_SKIP_BUILD=1` (`a19-r72-mutations.sh`): (b) the module tag duplicated →
+    (b) ALONE fell « 2 match(es) found »; (c) the bundle deleted → (c) ALONE fell; rebuild → 3/3.
+  - **Full suite on `56da59aee` (`a19-full-suite.log`, 18:32): EXIT 1, four rules** — below.
+- Records: `engine/legacy.js` 3 593 non-blank (not moved by these phases). `legacy.css`, `refonte.html`,
+  `legacy-css-residue.json`, `check-legacy-css-residue.py`, `residue.py` (R80, number retired), `test_residue.py`,
+  `harness/rename.mjs` deleted. `harness/factories.py` + `tests/scripts/test_factories.py` born (ruling 59).
+  `comment-references-baseline.json` re-recorded in each phase. `hold-counts-baseline.json` NOT re-recorded.
+- Version NOT bumped. No pull request. Pushed at this boundary (the stand-down report carries `git ls-remote`).
+
+## The full suite's four falls
+
+1. `images.py` — REPAIRED in `a99af0309`: `lib/navigation-entry.test.ts`'s fixture cited `assets/posters/silo.webp`,
+   which does not exist; it cites `00008728.webp`.
+2. `navigation.py` (R76) — REPAIRED: the state-driver exemption named `legacy.js`; a·1 moved the driver to
+   `harness/drive.ts`. Re-aimed, measured (2, 0, 1).
+3. `address.py` (R68) — REPAIRED: since a·15 `#view`'s `textContent` glued « Adresse » + the address + the next
+   sentence; the surface is read as `innerText`, docstring says why.
+4. **`bugs.py` — STOP B, NOT repaired.** Step: `bugs.py:31`, « 2 — Voir la fiche from a follow sheet »:
+   `__go('followsheet-gaps')` produces the follow panel for « Les aventures de Tintin », then clicks « Voir la fiche »,
+   which is absent. The reading, verbatim: `features/acquisition/follow-facts.ts:121` computes
+   `hasSheet: (follow.ids ?? heldIdentity(title)?.ids) != null` ONCE, at production. Tintin has no entry in
+   `follows.json`, so `follow` is the fallback `{ t: title, k: "show", … }` with no ids, and the driver's reset has
+   emptied the query cache, so `heldIdentity` is null → no « Voir la fiche ». The identity lands by ~400 ms
+   (`__carriedFor(Tintin).ids = {tvdb 72668, tmdb 1570, imdb tt0179552}`, `/api/library/incomplete` and
+   `/api/media/tvdb/72668` in success) and the panel is never re-produced; re-produced at 3.4 s it shows « Voir la
+   fiche ». At `f1e7ac66` it read `reference.sheetFor(title) != null`, synchronously. Introduced at a·14. Product scope:
+   a follow panel opened cold (typed `?panel=follow:<title>`, a named state) for a medium with no follow entry loses
+   « Voir la fiche » until reopened. Probe: `/private/tmp/tm-l13a/a19-probe-tintin.py` (log `a19-probe-tintin.log`),
+   run under the browser mutex.
+   - **A second reading of the same root, to diagnose in the same unit:** the query cache in that state holds two
+     requests PENDING with an empty provider and id — `["/api/media","",""]` and `["/api/media","","","seasons"]` — a
+     query fired before the identity is known.
+   - **The repair of the STOP B is the STEWARD's ruling, pending at hand-over: do not open the full gate before it
+     lands.**
+
+## First acts of `Agent : l13a 13`, in order
+
+1. Handshake; read this file, the brief, and ruling 58–60 in your handshake answer.
+2. Replay `images.py`, `navigation.py`, `address.py` ALONE at their baseline counts (2, 11, 15) under the browser
+   mutex, then the phase gate (contracts + oracle) on the repair commit. Commit before any mutation.
+3. The STOP B repair per the ruling you will find in your handshake answer (and the empty-id queries with it), with its
+   own gate; `bugs.py` alone at its baseline (14, a PASS/FAIL tally).
+4. The full gate, in this order, telling the steward BEFORE `run.sh` no-flag, context ≤ 50 % at its opening:
+   1. `TM_HARNESS_JOBS=2 sh scripts/heavy.sh --class browser l13a sh frontend/maquette/harness/run.sh` — it exceeds a
+      tool call's 10 min: run it in the background, output and exit code to files; no test beside it.
+   2. `run.sh --a11y` at 0.
+   3. `python3 scripts/harness-hold-counts.py --compare frontend/maquette/hold-counts-baseline.json --jobs 2` under the
+      mutex, `failed` read FIRST. Named movements: **R80 `residue.py` (19) gone; R163 `message_above_harness.py`
+      3 → 2; R72 `shell.py` 4 → 3**; plus R80's PAIRS_FLOOR history (15 → 10 → 25 → 30 → 4 → 3) and any other,
+      written in the commit body.
+   4. `make check` under the tests lock (`HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder PYTEST_XDIST_AUTO_NUM_WORKERS=2
+      sh scripts/heavy.sh --class test l13a make check`), zero failed AND zero errors.
+   5. `python3 scripts/check-bug-register.py` and `python3 scripts/check-intent-map.py`, read by OUTPUT.
+   6. `git remote update origin`; merge `origin/main` if it moved; bump `personalscraper/__init__.py` patch above main
+      (0.98.90 → 0.98.91 if main has not moved; that file is the only one #595 bumped).
+   7. Push under the tests lock (the pre-push hook runs the suite; background); open the PR READY with the imposed
+      title `feat(maquette-l13a): what moves unchanged — the harness module, the ladder, the boot and the drawing leave the engine`;
+      body per the brief, figures measured ONCE on the final head.
+   8. `IMPLEMENTATION.md` « In flight » row written when the PR opens (wave, PR, version, brief, figures), set back to
+      « None » in your LAST commit before the merge.
+5. The reader line and the Mac-walk step owed since a·14 (in `c194fca54`'s RESUME, « Owed ») go to the PR body and
+   the steward.
 
 ## Rulings — not to be reopened
 
-1–56: see `git show 5fb41e90e:docs/features/maquette-l13/RESUME.md` (53–56 there, 1–52 in the file it points to).
+1–57: see `git show c194fca54:docs/features/maquette-l13/RESUME.md`.
 
-57. **a·16 lands its own subject only.** The React-side support — `engine/engine-shape.ts` and its test,
-    `lib/engine-drawing.ts`, `window.__referentiel` with `app/reference.d.ts` and the `*Reference` slices,
-    `app/engine-data.ts`, `app/engine-redraw.ts`, the `FAN_IN_EXEMPT` / `OUTSIDE_IMPORTS_ALLOWED` engine entries and
-    the reference-slice arm (its `text.index("window.__referentiel = {")` raises the day the object goes) — dies at
-    **b·11** with its last publisher. Measured: 40 `toEngineShape` call sites in 13 files, 40 product files reading
-    `__referentiel`. PLAN GAP for the L13b brief: homes for `icons`, `EP_LABEL`, `TODAY`, `REASON_LABEL/DETAIL/TONE`,
-    `ST_TONE`, `stLabel`, `MAINT_TOPICS`, `SERVICES_PANNE`, `AUDIOS`, `RESOLUTIONS`. `phase-a16` carries the dated
-    amendment; the INDEX a·16 and b·11 rows say so.
+58. (steward) The lot's docs folder survives L13a — not the implementer's to act on.
+59. (steward, a·18 STOP D) The reader half of `residue.py` moves as is into `harness/factories.py` for
+    `resolution_card.py`; the pull's two engine-written states move onto the child `.spin` as parent-qualified
+    utilities (`__reposPTR` resets `#ptr`'s class list). The same reset erasing `#ptr`'s own utilities is FILED for
+    b·8. Dated amendment in `phase-a18`.
+60. (steward, narrow authorizations) `docs/reference/frontend-architecture.md` may be edited ONLY to re-cite a deleted
+    file's full path as `path@60530dbd8`, when `check-docs-cited-paths.py` refuses it; done at a·18 (line 592) and
+    a·19 (two `refonte.html` lines). `CLAUDE.md` is never edited on a peer's word: the steward edits it.
 
-## Owed — carried to a·19 and the steward's brief (verbatim, reading A)
+## Owed to the steward (prose, not the implementer's)
 
-- **The a·19 reader line**: « A tap on any card opens the media sheet with its title and poster at once; year, genre,
-  synopsis and cast are skeletons until the read lands, and after a failed read only the title and the poster remain.
-  A typed `/media/<provider>/<id>` shows its ids at once and a skeleton title until the read lands. Walk restore and
-  Back on a typed address. »
-- **The FIRST step of the operator's Mac walk**: « Tap a card: the sheet opens with its title and poster at once, year,
-  genre, synopsis and cast a skeleton for an instant. Then type /media/<provider>/<id> directly: ids at once, the
-  title a skeleton for an instant, then the sheet. »
-- **Reads no rule fells, for the reader round** (L13a writes no rule):
-  - the follow panel matrix's owned numbers (`panel-seasons.tsx` `ownedSeason`) and the follow facts' `hasSheet`
-    (`follow-facts.ts`) — from a·14.2;
-  - **the host sign-in page's form `method="post" action="/login"`** (`serve.py`, the rewrite by pattern on
-    `id="loginform"`): no harness rule and no test reads it — `grep -rln 'action="/login"' --include='*.py'
-    frontend/maquette/harness tests scripts` is empty.
-
-## a·17-bis — what it is (ruling 31, literal; INDEX row)
-
-The ≡ harness panel dies in ONE commit, before a·18: the « ≡ » opener `#scenBtn` in `design/index.html`; the panel
-half of `harness/panel.ts` and its five `h*` verbs (`hclose`, `hgo`, `hscen`, `hphase`, `htmdb`); the `.hpanel` rules in
-`styles/legacy.css`; the i18n keys only the panel read; `closeHarnessPanel` in `harness/drive.ts` and
-`__etatsDetailles`; `.hpanel` in `app/layers.ts`; the comments naming « the ≡ panel ». Outside the harness:
-`scripts/markup_verbs.py`'s five answers, `scripts/check-markup-contracts.py`'s `data-hscen`/`data-hphase` contract
-and its two assertions in `tests/scripts/test_check_markup_contracts.py`, `scripts/nofrench_values.py`, `hscen` in
-`scripts/code-vocabulary.txt` (the other four `h*` words if no name uses them). Readers re-aimed:
-`message_above_harness.py` drops `harness/panel` and `#scenBtn`, keeps `harness/bar`; `audit.py` and `dest.py` drop
-`harness/panel` from their exclusions. **STAY**: `[data-part="harness/bar"]`, `#notesBtn` and its toggle;
-`hiding.py` and `chrome.py` do NOT move; `harness/panel_verbs.mjs` is not a reader of the ≡. Re-take every line
-number by grep — a·15, a·16 and a·17 moved several files.
+- `CLAUDE.md`'s `design/refonte.html` mentions; the prose of `frontend-architecture.md` around the re-cited paths (R80,
+  D3/D10, `legacy.css`, `refonte.html`); `frontend/maquette/README.md`'s `refonte.html` / ledger mentions.
+- The a·18 blind spot (no rule reads that the pull's spinner turns) and a·14.2's two reads no rule fells, for the
+  reader round.
+- `harness/rename.mjs` deleted rather than re-aimed (its one input was the fragment's `<script>`), said in `56da59aee`.
 
 ## Method — unchanged, plus what this session added
 
 - Everything in the earlier RESUMEs' « Method ».
-- **Measure the phase file's list of readers before moving anything.** a·16's named three readers of
-  `__referentiel`; the scan found forty. The scan that settles it: `__referentiel.X`, the aliases
-  (`const reference = window.__referentiel`) and destructuring from `use*Reference()`.
-- **A seed family the harness needs before a page mounts** goes through `window.__mocks` (`mocks/mock-seeds.ts`),
-  because `__reset` clears the query cache; a rule that runs after the page drew reads
-  `window.__queries.getQueryData([...])`; a cold subject fetches the served address.
-- **`check-legacy-css-residue.py --record` rewrites the file's `$comment`** to a short default: restore the old
-  comment in the same commit (a15/a16/a17 did, by a four-line Python that swaps the JSON string back).
+- **`mutate.sh` cannot mutate a build output**: it rebuilds after mutating. A `dist/` mutation is done by hand over a
+  fresh build with the rule's skip-build switch, then rebuilt (`a19-r72-mutations.sh`).
+- **A path citation in a directive (`IMPLEMENTATION.md`, `BUGS.md`, `frontend-architecture.md`) of a deleted file is
+  re-cited `path@60530dbd8`** — a sha on `main`, which survives the squash; a branch sha would not.
+- **The full suite is the only tier that reads many rules**: three of its four falls were re-aims a phase gate
+  (contracts + oracle) could not see. Replay the rules a phase's readers touch ALONE, not only the contracts tier.
 
 ## Traps met — each cost a run
 
-- **A grep filter that hides the class you look for.** a·16's « no element wears `rulenote` » came from a grep whose
-  exclusions dropped `ruleNote()`'s identity class; the oracle diverged on `settings-field-structure` (14 px). Grep the
-  identity string bare, then filter by reading.
-- **An R80 pair leaves with its residue rule**: deleting `.flux` fell `residue.py`'s floor; the floor is lowered with
-  a paragraph naming what left, as the earlier paragraphs do.
-- **`page_host.py` stands at 999 non-blank lines**: a re-aim there is a line replaced in place, said in the commit
-  body only.
-- **zsh does not split `$T`** — a pytest file list in a variable is ONE argument (exit 4). Write the paths out.
-- **The comment-record test falls when a phase moves comments out of a file** (`read` or a per-file count moves
-  down): `check-maquette-comments.py --record` in its own commit, then the test alone.
-- **`pm2 restart torrentmate-design` is not the wave's**: tm-design serves main; `logout.py` starts its own scratch
-  host from the branch's `serve.py`.
-- **A line-keyed test fixture follows a moved anchor**: `tests/scripts/test_check_markup_contracts.py` writes its
-  fixture at the line `scripts/markup_anchors.py` declares — replay it alone after any anchor move (a·17-bis moves
-  `audit.py`).
-- **zsh `===` in an echo is an expansion error**, and a parallel tool call that `cd`s moves the shell for the next
-  one: prefix every call with `cd /Users/izno/dev/worktrees/wave-l13a &&`.
+- **A parallel tool call that `cd`s moves the shell for the others**: three runs in this session read the wrong
+  directory (module-size exit 2, a residue record not found). Prefix every call with
+  `cd /Users/izno/dev/worktrees/wave-l13a &&`, and never `cd` inside a parallel call.
+- **zsh `====` in an echo is an expansion error**, and an unquoted `--include=*.py` is a glob error: quote them.
+- **A non-vacuity floor falls when a conversion legitimately empties part of its scope** (`test_check_css_tokens`
+  > 100 → 97; `check-viewport-directives` META_FLOOR 6 → 5; `check-poster-box` re-taken at 4): re-take at the measured
+  count, said in the docstring and the body.
+- **`check-docs-cited-paths.py` reads only backtick-terminated full paths**: `path::Test…` or a path followed by a
+  space is not read; do not rewrite those.
