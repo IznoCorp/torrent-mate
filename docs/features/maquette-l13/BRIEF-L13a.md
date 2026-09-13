@@ -12,8 +12,8 @@ and the hold counts unchanged are its proof**, and a phase that needs a behaviou
 defect in the plan — STOP D, report with the command, do not improvise.
 
 **The cut is ruled B (operator, 2026-09-13)**: L13a is its own wave and its pull request is your
-STOP C. **Q2 is ruled B the same day**: the ≡ harness panel dies in ONE commit, a·18-bis, before
-a·19's full gate. **D-L13-1 (DESIGN § 8) is ratified as A, and is L13b's, not yours.** The rulings
+STOP C. **Q2 is ruled B the same day**: the ≡ harness panel dies in ONE commit, a·17-bis (ruling 31), before
+a·18. **D-L13-1 (DESIGN § 8) is ratified as A, and is L13b's, not yours.** The rulings
 are `RESUME.md`'s 27 to 30.
 
 ## Environment

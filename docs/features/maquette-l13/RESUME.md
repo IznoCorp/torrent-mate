@@ -24,8 +24,8 @@ traps, and it dies with the wave's folder at the post-merge gesture.
   **218/138/882**; R80 `PAIRS_FLOOR` **10**. `hold-counts-baseline.json` is NOT re-recorded: at a·19's `--compare`, R80
   (`residue.py`) reads 14 against the baseline's 19, and that movement is a·7's, named in its commit body.
 - `--compare` over the whole suite, the full suite, `--a11y` and `make check` are NOT run: they run once, at a·19.
-- **Next: a·8** (`plan/phase-a08-actions-chips-facts.md`), then a·9 … a·18, **a·18-bis** (the ≡ panel dies, see ruling 29),
-  a·19.
+- **Next: a·8** (`plan/phase-a08-actions-chips-facts.md`), then a·9 … a·17, **a·17-bis** (the ≡ panel dies, rulings 29
+  and 31), a·18, a·19.
 - Version not bumped. No pull request.
 
 ## Rulings — not to be reopened
@@ -66,6 +66,16 @@ From a·7:
 
 30. The four bare `sec` of `library-list.tsx` and `add-screen.tsx:324`'s were repaired inside a·7 and accepted as a
     conversion (named in its commit body as the 45 divergences they caused).
+
+From the steward, on the panel's readers re-taken by grep (2026-09-13):
+
+31. **Ruling 29 kills the ≡ PANEL and nothing else**, and its commit is renumbered **a·17-bis**, BEFORE a·18. It
+    goes: the panel half of `harness/panel.ts`, its five `h*` verbs, `#scenBtn`, the `.hpanel` rules (in
+    `legacy.css`), the panel-only i18n keys, `markup_verbs.py`'s five answers, `check-markup-contracts.py`'s
+    `data-hscen`/`data-hphase` contract and its two test assertions, `hscen` in `code-vocabulary.txt`. It stays:
+    `harness/bar` and `#notesBtn` with its toggle. `hiding.py` and `chrome.py` do not move;
+    `message_above_harness.py`, `audit.py` and `dest.py` drop only their `harness/panel` (and `#scenBtn`) reads.
+    Written in `phase-a01`'s amendment and INDEX's row.
 
 ## Method — where the logs go (steward, 2026-09-13)
 
