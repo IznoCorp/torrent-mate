@@ -1,68 +1,59 @@
 # L13a — resume brief for the successor
 
-Written by the tenth L13a implementer when it stood down at the a·14.2 boundary (a·14.2 was this session's last
-unit). Read it after `docs/features/maquette-l13/BRIEF-L13a.md`, which still governs everything. This file only
-records state, rulings and traps, and it dies with the wave's folder at the post-merge gesture.
+Written by the eleventh L13a implementer when it stood down at the a·17 boundary (a·17 was this session's last
+unit, by the steward's order). Read it after `docs/features/maquette-l13/BRIEF-L13a.md`, which still governs
+everything. This file only records state, rulings and traps, and it dies with the wave's folder at the post-merge
+gesture.
 
 ## Exact state
 
 - Worktree `/Users/izno/dev/worktrees/wave-l13a`, branch `feat/maquette-l13a`, merged with `origin/main` at `60530dbd8`
   (#595, 0.98.90). Oracle reference `f1e7ac66`.
-- a·1 … a·13 and a·14.1: see `git show 379279643:docs/features/maquette-l13/RESUME.md` and the briefs it points to.
-  Then this session:
-  - **a·14.2** `932b62e7c` `refactor(maquette-l13a): every media crossing reads the provider identity and the engine's sheet table dies`
-  - `1e8db81e1` `chore(maquette-l13a): the comment corpus counts the three modules the identity crossing added`
-  - the commit that adds this file (`4ced4b26d`).
-  - `6c6180c9a` `test(maquette-l13a): the genre-site fixture follows audit.py's assertion to line 110` — the
-    pre-push suite read 1 failed (`tests/scripts/test_check_markup_contracts.py`, the site moved 105 → 110).
-- Gates on `932b62e7c`, every log under `/private/tmp/tm-l13a/` (pruned 2026-09-13 by the eleventh implementer on
-  the steward's order: the gate logs, `oracle-check.py`, the three cited scripts and `earlier-phases/` stay; the
-  `a142-alone-*` and `a142-mutation-*` working logs cited below are gone, their figures are the ones written here):
-  - `a142-gate-contracts.log`: 19 rules + 27 guards, no violation (starts 15:23:40, 5 491 MB free).
-  - `a142-gate-oracle.log`: 87 x 34, 2 958 measurements, no divergence.
-  - Alone (`a142-alone-*.log`, equal to `hold-counts-baseline.json`): follow_has_sheet 3, followed_sheet_act 12, pop 17,
-    audit 13/13, audit2 13/13, season_family 48, season_grab_unfollowed 63, panel 51, url_state 99, screen_addresses 51,
-    journey 70, transition 39, priming 40, cards 70, paths_to_sheets 13, said_and_done 17 (priming and transition
-    re-run on the committed head, `a142-gate-alone.log`).
-  - Mutations through `scripts/mutate.sh` (`a142-mutation-*.log`, script `a142-mutations.sh`):
-    placeholder → transition (1) and priming (4) FELL; popover catalogue → pop (4) FELL; acquisition card « has a
-    sheet » → paths_to_sheets (4) FELL (cards.py does NOT read it); season list owned → audit2 (12) FELL; carried
-    identity in `mediaSheet` → followed_sheet_act (1) FELL; `__sheetOf` → follow_has_sheet (1) FELL; the cache scan
-    `heldIdentity` → transition (10) FELL (paths_to_sheets does not reach it); re-scrape identity → said_and_done (4)
-    FELL. **Two reads no rule fells**: the follow panel matrix's owned numbers (`panel-seasons.tsx` `ownedSeason`;
-    tried against the oracle, surfaces.py — the oracle measures regions, not a cell's state) and the follow facts'
-    `hasSheet` (`follow-facts.ts`; tried against panel.py, surfaces.py). Named for the reader round; L13a writes no rule.
-  - `tsc -b` 0, vitest 114, the cheap guards 0, the comment-record test 36 passed after each commit.
+- a·1 … a·14.2: see `git show 5fb41e90e:docs/features/maquette-l13/RESUME.md` (and the RESUMEs it points to). Then
+  this session:
+  - `5fb41e90e` docs — the previous RESUME records `6c6180c9a` and the pruned logs.
+  - **a·15** `9c083a9b7` `refactor(maquette-l13a): system, maintenance and account draw their facts as components and the dead actions table goes`
+  - **a·16** `9374287dc` `refactor(maquette-l13a): settings read the served catalogue and the engine's settings table dies` (ruling 57)
+  - **a·17** `9907cb34a` `refactor(maquette-l13a): the login gate and the startup screen take their styles from the base layer`
+  - `198f6c554` `chore(maquette-l13a): the comment corpus counts the references the entry block's move took away`
+  - the commit that adds this file.
+- Gates, every log under `/private/tmp/tm-l13a/` and postdating its commit:
+  - a·15 on `9c083a9b7`: `a15-gate-contracts.log` 19 rules + 27 guards, no violation; `a15-gate-oracle.log` 87 x 34,
+    2 958, no divergence; alone page_host 44, url_state 99; mutations `a15-mutation-*.log`: panel title → page_host
+    FELL, served catalogue emptied → url_state FELL, account fact list back to the bare class → oracle FELL.
+  - a·16 on `9374287dc`: contracts 19 + 27, no violation; oracle no divergence; alone settings 65, settings_editing 15,
+    seeds_at_rest 15, page_host 44, url_state 99; six mutations `a16-mutation-*.log` all FELL (heldSettings,
+    the page's search, the state seeds, the readonly zero margin, a served topic missing, the served schema empty).
+  - a·17 on `9907cb34a`: contracts 19 + 27 (starts 5 140 MB free), oracle no divergence (5 779 MB); alone logout 8,
+    startup 28, entry 10; mutations `a17-mutation-*.log`: `.splash[hidden]` emptied → startup FELL; the entry extract
+    removed → startup FELL; **the form rewrite aimed at an id nothing carries → NO RULE FELL** (below).
+  - All equal to `hold-counts-baseline.json`. `tsc -b` 0 and vitest 114 after a·15 and a·16; the pytest slice
+    (comments, residue, markup-contracts, boundaries arms, mock-seeds, css tokens, csstokens ranks, oracle, build
+    identity, autodeploy restart) 224 passed + the comment-record test 36 passed on `198f6c554`, tests lock.
 - Records:
-  - `engine/legacy.js`: **5 295** non-blank (ledger 27 320 → 5 295).
-  - `fixture-register.json`: `SHEETS_RAW`, `OWNED` converted, `SHEETS_OLD` removed ($counts 79 → 78).
-    `build-mock-seeds.py --check` reads **29** « no family claims it » (27 + media-sheets.json, owned-episodes.json).
-  - `markup_anchors.py` keyed lines: audit.py 110 and 176, audit2.py 176. `code-vocabulary.txt` gains `seeds`.
-  - `comment-references-baseline.json` read 416. `legacy-css-residue.json` untouched (38/29/157).
+  - `engine/legacy.js`: **3 593** non-blank (ledger 5 295 → 5 056 → 3 593).
+  - `styles/legacy.css`: 248 non-blank; `legacy-css-residue.json` rules 14, classes 12, declarations 56.
+  - `fixture-register.json`: `MAINT_ACTIONS`, `SETTINGS` converted. `build-mock-seeds.py --check` reads **31**
+    « no family claims it » (29 + maintenance-actions.json, settings.json).
+  - `residue.py` (R80) `PAIRS_FLOOR` 4 → 3 (`.flux` left). `comment-references-baseline.json` re-recorded.
+  - `mocks/mock-seeds.ts` exposes `settings` beside `sheets` (harness-read, ruling 54's shape).
   - `hold-counts-baseline.json` NOT re-recorded.
 - `--compare`, the full suite, `--a11y` and `make check` are NOT run: they run once, at a·19.
-- **Next: a·15**, then a·16, a·17, **a·17-bis**, a·18, a·19.
+- **Next: a·17-bis**, then a·18, a·19 (full gate, version bump, pull request).
 - Version not bumped. No pull request. Pushed at this boundary (the stand-down report carries `git ls-remote`).
 
 ## Rulings — not to be reopened
 
-1–52: see `git show 379279643:docs/features/maquette-l13/RESUME.md`. Ruling 52 is amended by 53.
+1–56: see `git show 5fb41e90e:docs/features/maquette-l13/RESUME.md` (53–56 there, 1–52 in the file it points to).
 
-53. **`SEASONS` stays until b·10-bis.** Read literally, ruling 52 was a behaviour change: the follow panel's season
-    triples served by identity differ on 6 of the 10 panels that draw one (Silo gains a fourth season), and on 0 when
-    only the owned numbers and the episodes are served (`python3 /private/tmp/tm-l13a/a142-compare-seasons.py` — keep
-    it for the reader). `SEASONS`, its read in `followFacts`, the nine `window.SEASONS` harness readers and the seasons
-    half of the seed accessor are b·10-bis's (INDEX row amended).
-54. **The ONE `window.__mocks` seed accessor lands, sheets only** (`mocks/mock-seeds.ts`), read by the harness alone:
-    `harness/drive.ts` publishes `__carriedFor`, `__addressOf`, `__sheetOf`. `screens.mediaSheet(title, carried?)`
-    takes the identity when a state or rule knows it and asks the query cache otherwise (`lib/held-identity.ts`).
-55. **Reading (A): a tap primes title and poster only.** Reading (B) (the entry also carries year and kind) failed its
-    precondition: 3 of the 7 list schemas carry both (Follow, SearchResult, Suggestion), 4 do not (QueueCard,
-    LibraryItem, LibraryRow, IncompleteShow). The entry carries `title`, `poster`, `ids` — a vitest test holds the
-    writer. D8-named on every tap: year, genre, synopsis and cast are skeletons in flight; after a failed read title
-    and poster remain. R119 (d), (e), (b-i) and R115 re-aimed (phase-a14's last amendment).
-56. **`screens.media.synopsisUnread` reads « Synopsis non lu. »** — the failure text (A) made reachable asserted
-    « inconnu » where its key and siblings say « non lu ».
+57. **a·16 lands its own subject only.** The React-side support — `engine/engine-shape.ts` and its test,
+    `lib/engine-drawing.ts`, `window.__referentiel` with `app/reference.d.ts` and the `*Reference` slices,
+    `app/engine-data.ts`, `app/engine-redraw.ts`, the `FAN_IN_EXEMPT` / `OUTSIDE_IMPORTS_ALLOWED` engine entries and
+    the reference-slice arm (its `text.index("window.__referentiel = {")` raises the day the object goes) — dies at
+    **b·11** with its last publisher. Measured: 40 `toEngineShape` call sites in 13 files, 40 product files reading
+    `__referentiel`. PLAN GAP for the L13b brief: homes for `icons`, `EP_LABEL`, `TODAY`, `REASON_LABEL/DETAIL/TONE`,
+    `ST_TONE`, `stLabel`, `MAINT_TOPICS`, `SERVICES_PANNE`, `AUDIOS`, `RESOLUTIONS`. `phase-a16` carries the dated
+    amendment; the INDEX a·16 and b·11 rows say so.
 
 ## Owed — carried to a·19 and the steward's brief (verbatim, reading A)
 
@@ -73,34 +64,55 @@ records state, rulings and traps, and it dies with the wave's folder at the post
 - **The FIRST step of the operator's Mac walk**: « Tap a card: the sheet opens with its title and poster at once, year,
   genre, synopsis and cast a skeleton for an instant. Then type /media/<provider>/<id> directly: ids at once, the
   title a skeleton for an instant, then the sheet. »
-- The two reads no rule fells (above), for the reader round.
+- **Reads no rule fells, for the reader round** (L13a writes no rule):
+  - the follow panel matrix's owned numbers (`panel-seasons.tsx` `ownedSeason`) and the follow facts' `hasSheet`
+    (`follow-facts.ts`) — from a·14.2;
+  - **the host sign-in page's form `method="post" action="/login"`** (`serve.py`, the rewrite by pattern on
+    `id="loginform"`): no harness rule and no test reads it — `grep -rln 'action="/login"' --include='*.py'
+    frontend/maquette/harness tests scripts` is empty.
+
+## a·17-bis — what it is (ruling 31, literal; INDEX row)
+
+The ≡ harness panel dies in ONE commit, before a·18: the « ≡ » opener `#scenBtn` in `design/index.html`; the panel
+half of `harness/panel.ts` and its five `h*` verbs (`hclose`, `hgo`, `hscen`, `hphase`, `htmdb`); the `.hpanel` rules in
+`styles/legacy.css`; the i18n keys only the panel read; `closeHarnessPanel` in `harness/drive.ts` and
+`__etatsDetailles`; `.hpanel` in `app/layers.ts`; the comments naming « the ≡ panel ». Outside the harness:
+`scripts/markup_verbs.py`'s five answers, `scripts/check-markup-contracts.py`'s `data-hscen`/`data-hphase` contract
+and its two assertions in `tests/scripts/test_check_markup_contracts.py`, `scripts/nofrench_values.py`, `hscen` in
+`scripts/code-vocabulary.txt` (the other four `h*` words if no name uses them). Readers re-aimed:
+`message_above_harness.py` drops `harness/panel` and `#scenBtn`, keeps `harness/bar`; `audit.py` and `dest.py` drop
+`harness/panel` from their exclusions. **STAY**: `[data-part="harness/bar"]`, `#notesBtn` and its toggle;
+`hiding.py` and `chrome.py` do NOT move; `harness/panel_verbs.mjs` is not a reader of the ≡. Re-take every line
+number by grep — a·15, a·16 and a·17 moved several files.
 
 ## Method — unchanged, plus what this session added
 
 - Everything in the earlier RESUMEs' « Method ».
-- **Compare engine and served answers OFFLINE before switching a reader** — `a142-compare-seasons.py` imports
-  `build-mock-seeds.py`'s resolver copy and the seeds; it is what turned ruling 52 into 53 before any code moved.
-- **The oracle can be a mutation's rule** through a wrapper that calls `oracle.py --check`
-  (`/private/tmp/tm-l13a/oracle-check.py`); `mutate.sh` runs `python3 <rule>` with no argument, and `oracle.py`
-  without `--check` is not a check.
-- **A rule opens a sheet by title with `window.__screens.mediaSheet(title, window.__carriedFor(title) ?? undefined)`**
-  — `__reset` clears the query cache, so the cache scan finds nothing right after a driven state.
+- **Measure the phase file's list of readers before moving anything.** a·16's named three readers of
+  `__referentiel`; the scan found forty. The scan that settles it: `__referentiel.X`, the aliases
+  (`const reference = window.__referentiel`) and destructuring from `use*Reference()`.
+- **A seed family the harness needs before a page mounts** goes through `window.__mocks` (`mocks/mock-seeds.ts`),
+  because `__reset` clears the query cache; a rule that runs after the page drew reads
+  `window.__queries.getQueryData([...])`; a cold subject fetches the served address.
+- **`check-legacy-css-residue.py --record` rewrites the file's `$comment`** to a short default: restore the old
+  comment in the same commit (a15/a16/a17 did, by a four-line Python that swaps the JSON string back).
 
 ## Traps met — each cost a run
 
-- **The boot REPLACES the arriving entry's state** (`app/arrival.ts`): an entry seeded before boot does not survive a
-  cold load, so R119's walks open the screen by a harness tap (`__openCarrying`), not by `goto(address)`.
-- **The product primes only from an entry about its own address** (`carriedSheet` checks `ids[provider]`), so a
-  thinned entry must carry `ids` — and then the identifiers row is content, which moved R119's exact count to 13.
-- **`mocks/index.ts` sits at 399 non-blank lines**: anything added there goes in a module of its own and is spread in.
-- **A maquette comment may not name a lot, a phase or a date** — « RE-AIMED AT L13a a·14.2 » in fourteen docstrings
-  fell `check-maquette-comments.py`; « RE-AIMED, said out loud » passes.
-- **Three new files move `comment-references-baseline.json`'s `read`**: the comment-record test falls until
-  `check-maquette-comments.py --record`, and `mutate.sh` refuses the dirty tree it leaves — commit it first.
-- **`cards.py` does not read the acquisition card's folder switch, `paths_to_sheets.py` does not reach the cache scan**:
-  pick a mutation's rule by what it taps, and read « NO RULE FELL » as a finding before trying another rule.
+- **A grep filter that hides the class you look for.** a·16's « no element wears `rulenote` » came from a grep whose
+  exclusions dropped `ruleNote()`'s identity class; the oracle diverged on `settings-field-structure` (14 px). Grep the
+  identity string bare, then filter by reading.
+- **An R80 pair leaves with its residue rule**: deleting `.flux` fell `residue.py`'s floor; the floor is lowered with
+  a paragraph naming what left, as the earlier paragraphs do.
+- **`page_host.py` stands at 999 non-blank lines**: a re-aim there is a line replaced in place, said in the commit
+  body only.
+- **zsh does not split `$T`** — a pytest file list in a variable is ONE argument (exit 4). Write the paths out.
+- **The comment-record test falls when a phase moves comments out of a file** (`read` or a per-file count moves
+  down): `check-maquette-comments.py --record` in its own commit, then the test alone.
+- **`pm2 restart torrentmate-design` is not the wave's**: tm-design serves main; `logout.py` starts its own scratch
+  host from the branch's `serve.py`.
 - **A line-keyed test fixture follows a moved anchor**: `tests/scripts/test_check_markup_contracts.py` writes its
-  fixture at the line `scripts/markup_anchors.py` declares, so a docstring that grows a harness rule moves both. Only
-  the pre-push suite finds it — replay that test file alone after any anchor move, before the push.
-- **zsh does not split `$spec` in a loop**, and a parallel tool call that `cd`s moves the shell for the next one:
-  prefix every call with `cd /Users/izno/dev/worktrees/wave-l13a &&`.
+  fixture at the line `scripts/markup_anchors.py` declares — replay it alone after any anchor move (a·17-bis moves
+  `audit.py`).
+- **zsh `===` in an echo is an expansion error**, and a parallel tool call that `cd`s moves the shell for the next
+  one: prefix every call with `cd /Users/izno/dev/worktrees/wave-l13a &&`.
