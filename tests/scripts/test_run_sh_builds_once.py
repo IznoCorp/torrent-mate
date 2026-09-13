@@ -1,11 +1,13 @@
-"""`run.sh` builds the served copy ONCE for the contracts tier and the oracle.
+"""`run.sh` builds the served copy ONCE for the contracts tier, the oracle and the phase's rules.
 
 WHAT IT PAID FOR. A phase gate is the contracts tier and the oracle, and each was
 its own invocation of `frontend/maquette/harness/run.sh` — so each rebuilt and
 re-copied the prototype, about two minutes spent measuring nothing. The form
 `run.sh --contracts --oracle` runs both over one build: the contract rules and
 the repository's guards first, the oracle after them, the accessibility audit
-never.
+never. Rule names after the two flags are the phase's re-aimed rules, replayed
+in the same pass; the oracle runs even when a rule falls, and one verdict block
+names both halves — a phase holds the mutex once.
 
 HOW IT IS READ. The script is copied into a scratch tree whose every
 collaborator is a stub writing one line to a journal — the build (`npm`), the
@@ -80,6 +82,9 @@ def scratch_tree(tmp_path: Path) -> Path:
     shutil.copy(RUN_SCRIPT, harness / "run.sh")
     (tmp_path / "frontend" / "maquette" / "design").mkdir()
     _write_executable(harness / "served_copy.py", STUB_PYTHON)
+    # A rule outside the contracts tier, as a phase names one, and one that falls.
+    _write_executable(harness / "settings.py", STUB_PYTHON)
+    _write_executable(harness / "fallen.py", STUB_PYTHON + "sys.exit(1)\n")
     for rule in _array("CONTRACTS", text):
         _write_executable(harness / rule, STUB_PYTHON)
     for guard in _array("REPOSITORY_GUARDS", text):
@@ -165,3 +170,32 @@ def test_the_oracle_alone_still_runs_no_rule(scratch_tree: Path) -> None:
     assert _count(journal, "oracle.py --check") == 1, journal
     assert _count(journal, "audit2.py") == 0, journal
     assert _count(journal, "check-bug-register.py") == 0, journal
+
+
+def test_a_phase_gate_replays_its_named_rules_over_the_same_build(scratch_tree: Path) -> None:
+    """The named rule runs once, beside the contract rules, and one verdict closes the run."""
+    result, journal = _run(scratch_tree, "--contracts", "--oracle", "settings.py")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert _count(journal, "npm run build") == 1, journal
+    assert _count(journal, "settings.py") == 1, journal
+    assert _count(journal, "audit2.py") == 1, journal
+    assert _count(journal, "oracle.py --check") == 1, journal
+    assert "gate: no violation" in result.stdout, result.stdout
+
+
+def test_a_fallen_rule_still_leaves_the_oracle_its_reading(scratch_tree: Path) -> None:
+    """One invocation answers both questions: the oracle runs, the verdict fails."""
+    result, journal = _run(scratch_tree, "--contracts", "--oracle", "fallen.py")
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert _count(journal, "oracle.py --check") == 1, journal
+    assert "1 failed" in result.stdout and "gate: FAILED" in result.stdout, result.stdout
+
+
+def test_a_rule_name_with_no_file_is_refused_before_the_build(scratch_tree: Path) -> None:
+    """A mistyped rule would otherwise be a gate that silently replayed nothing."""
+    result, journal = _run(scratch_tree, "--contracts", "--oracle", "no_such_rule.py")
+
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert _count(journal, "npm run build") == 0, journal

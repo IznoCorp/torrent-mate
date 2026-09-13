@@ -54,6 +54,8 @@
 #     frontend/maquette/harness/run.sh --oracle     # the recorded oracle alone
 #     frontend/maquette/harness/run.sh --a11y       # the accessibility audit alone
 #     frontend/maquette/harness/run.sh --contracts --oracle  # a phase gate: both, one build
+#     frontend/maquette/harness/run.sh --contracts --oracle settings.py page_host.py
+#                                        # the same, with the phase's re-aimed rules replayed
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -227,12 +229,26 @@ REPOSITORY_ROOT="$(cd "$HERE/../../.." && pwd)"
 # A PHASE GATE IS BOTH, and two invocations built and copied the prototype twice
 # — about two minutes measuring nothing. `--contracts --oracle`, in either order,
 # is the contracts tier followed by the oracle over ONE build; a fallen rule or
-# guard still stops the run before the oracle, as it does on the full suite.
+# guard does NOT stop it: the oracle runs anyway, and one verdict block closes
+# the run naming both halves, so a phase holds the served copy ONCE.
+#
+# RULES NAMED AFTER THE TWO FLAGS are the phase's re-aimed rules, replayed in the
+# same pass over the same build; a name with no file beside this script is
+# refused before anything is built.
 TIER="${1:-}"
 WITH_ORACLE=0
-if [ "$#" -eq 2 ] && { [ "$1 $2" = "--contracts --oracle" ] || [ "$1 $2" = "--oracle --contracts" ]; }; then
+NAMED_RULES=()
+if [ "$#" -ge 2 ] && { [ "$1 $2" = "--contracts --oracle" ] || [ "$1 $2" = "--oracle --contracts" ]; }; then
   TIER="--contracts"
   WITH_ORACLE=1
+  shift 2
+  for rule in "$@"; do
+    if [ ! -f "$HERE/$(basename "$rule")" ]; then
+      echo "run.sh: no rule named $rule beside $HERE/run.sh" >&2
+      exit 2
+    fi
+    NAMED_RULES+=("$(basename "$rule")")
+  done
 fi
 ORACLE_ONLY=0
 A11Y_ONLY=0
@@ -246,7 +262,14 @@ elif [ "$TIER" = "--a11y" ]; then
   label="accessibility audit only"
 elif [ "$TIER" = "--contracts" ]; then
   scripts=("${CONTRACTS[@]}")
-  label="contract subset (${#CONTRACTS[@]} rules)"
+  # `${array[@]+…}`: an EMPTY array is unbound under `set -u` in the bash macOS ships.
+  for rule in ${NAMED_RULES[@]+"${NAMED_RULES[@]}"}; do
+    case " ${scripts[*]} " in
+      *" $rule "*) ;;
+      *) scripts+=("$rule") ;;
+    esac
+  done
+  label="contract subset (${#CONTRACTS[@]} rules) + ${#NAMED_RULES[@]} named rule(s)"
 else
   scripts=()
   for s in "$HERE"/*.py; do
@@ -411,7 +434,10 @@ else
     # audit2.py » and stopped — verbatim the defect this block was added to fix.
     # A filter that can return nothing must have a floor.
     out="$(cat "${LOGS}/${s}.out")"
-    hits="$(echo "$out" | grep -E "FAIL|Error|Traceback|error:|violation|■" | head -12)"
+    # `|| true`: under `pipefail` a grep that matches nothing fails the
+    # assignment, and `set -e` then ended the whole run in silence — the floor
+    # below was never reached for the very rule it was written for.
+    hits="$(echo "$out" | grep -E "FAIL|Error|Traceback|error:|violation|■" | head -12 || true)"
     [ -z "$hits" ] && hits="$(echo "$out" | tail -12)"
     echo "$hits" | sed 's/^/      /'
     failed=$((failed + 1))
@@ -438,11 +464,11 @@ if [ "$ORACLE_ONLY" -eq 0 ] && [ "$A11Y_ONLY" -eq 0 ]; then
   done
 fi
 
-if [ "$failed" -gt 0 ]; then
+if [ "$failed" -gt 0 ] && [ "$WITH_ORACLE" -eq 0 ]; then
   echo "harness: $failed check(s) FAILED — run the script or the guard alone to see which hold fell." >&2
   exit 1
 fi
-if [ "$ORACLE_ONLY" -eq 0 ] && [ "$A11Y_ONLY" -eq 0 ]; then
+if [ "$failed" -eq 0 ] && [ "$ORACLE_ONLY" -eq 0 ] && [ "$A11Y_ONLY" -eq 0 ]; then
   echo "harness: ${#scripts[@]} rule(s) and ${#REPOSITORY_GUARDS[@]} repository guard(s), no violation."
 fi
 
@@ -475,5 +501,18 @@ fi
 if { [ "$TIER" != "--contracts" ] || [ "$WITH_ORACLE" -eq 1 ]; } && [ "$A11Y_ONLY" -eq 0 ]; then
   echo
   echo "Running the recorded oracle (the rendering did not move)…"
-  python3 "${HERE}/../oracle.py" --check
+  oracle_status=0
+  python3 "${HERE}/../oracle.py" --check || oracle_status=$?
+  if [ "$WITH_ORACLE" -eq 1 ]; then
+    echo
+    echo "── phase gate verdict ──"
+    echo "  rules: ${#scripts[@]} (${#NAMED_RULES[@]} named) and ${#REPOSITORY_GUARDS[@]} guard(s) — ${failed} failed"
+    echo "  oracle: exit ${oracle_status}"
+    if [ "$failed" -gt 0 ] || [ "$oracle_status" -ne 0 ]; then
+      echo "gate: FAILED"
+      exit 1
+    fi
+    echo "gate: no violation"
+  fi
+  exit "$oracle_status"
 fi
