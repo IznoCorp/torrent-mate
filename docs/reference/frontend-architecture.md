@@ -323,7 +323,7 @@ a file that no longer holds its subject.
 | `styles/theme.css` | the Tokens layer | D3, as written |
 | `styles/base.css` | the Base layer | D3, as written |
 | the surfaces' `variants.ts` | « everything else, in the component » | D3, as written |
-| `styles/legacy.css` | the dying engine's residue, bounded and dated, dies with L13 | **arbitrated by the operator** in L07's `DESIGN.md` § 2, and held by `check-legacy-css-residue.py` |
+| `styles/legacy.css` | the dying engine's residue, bounded and dated, dies with L13 — **as a CONVERSION, surface by surface, not a deletion** (measured 2026-09-13, L13's design § 2.6: 92 of its 148 classes style React components that have no variant; R80's pair floor is 15, not sixteen) | **arbitrated by the operator** in L07's `DESIGN.md` § 2, and held by `check-legacy-css-residue.py` |
 | `styles/harness.css` | the phone frame — imported once, and the only sheet that never ships | **a departure from L07's letter**, taken in the wave and carried by its merge |
 
 **Arbitrated by the operator, 2026-08-25: D3 is WIDENED, and the two are named as transitory.**
@@ -1866,7 +1866,7 @@ listed from memory: the ladder's HANDLER (`onEngineBack`, `unwindLayer`, `hideLa
 cause — it REPLACES a layer's entry rather than pushing over it — `docs/reference/frame-model.md` § 2 Part 4, to
 `app/layers.ts`), the document-level delegation's
 FRAME verbs, the boot handshake (`__startEngine`), the engine-side seams (`__address`, `__bridge`,
-`__panel`, `__screens`, `__store`), the dead `#screen` layer with its three readers and the
+`__panel`, `__screens`, `__store`), the dead `#screen` layer with its three readers in the engine (and eight more in the harness — L13's design § 4.5, measured 2026-09-13) and the
 mount-node placement that rests on it (B-232), `refonte.html` and R72's renegotiation,
 `legacy.css` and its guard, `__go`'s driving (which moves into a harness module of its own — it
 is the harness's, not the product's), and whatever fixture families L19 could not kill.
@@ -1935,8 +1935,7 @@ both recorded in that wave's `plan/phase-16-the-scaffolding-dies.md`: the file n
 wave's **conversion ledger** — one entry per region, saying where its rules went and why — and a
 third of those entries name `src/styles/legacy.css`, whose death is this lot's; and **R72's hold
 (a) is the verbatim injection of that file**, so removing it retires a hold, which is a rule
-renegotiation recorded in `regions.json` rather than a file deletion. Twelve live readers name the
-path. **Done when** the fragment is gone, R72 is renegotiated with its two surviving holds
+renegotiation recorded in `regions.json` rather than a file deletion. Twelve live readers name the path — **sixteen on 2026-09-13** (L13's design § 7: `tests/scripts/test_build_identity.py` and `i18n/fr.json:14` joined the fourteen a `grep` of the path literal finds). **Done when** the fragment is gone, R72 is renegotiated with its two surviving holds
 mutation-tested, and the ledger has a home that outlives it. **Any earlier wave may take it** —
 nothing depends on waiting — provided it carries both, and folds neither into a conversion commit.
 

@@ -480,7 +480,7 @@ like `not-found` itself, and R-L20-j walks it.
 
 **Where they LIVE is not where the 87 live**, and that is § 8.4's finding: `engine/states.js` is
 grandfathered at 786 non-blank lines and the size arm refuses the count going up, so this lot's 26
-are declared in `design/src/states/system.ts` with Système's own four moved beside them. The engine's
+are declared in `design/src/harness/states/system.ts` with Système's own four moved beside them. The engine's
 table imports and spreads them, shrinks, and its record is re-recorded downward.
 
 **`harness/states.py` is seeded with all 26** — it asserts each renders content, has no horizontal
@@ -617,7 +617,7 @@ on the order of a hundred and thirty. **Even two would be refused.**
 
 **No lot owed this**, and nothing in L20's contract mentions it. The design takes it because L20 is
 the first lot that cannot proceed without it: the state table's Système slice moves to
-`design/src/states/system.ts`, the engine's table SHRINKS by eighteen net lines and its record is
+`design/src/harness/states/system.ts`, the engine's table SHRINKS by eighteen net lines and its record is
 re-recorded downward — the direction the arm accepts. Plan phase 2, which also writes down the
 alternative it refused (making `window.__recordStates` accumulate — a behaviour change to the
 harness's driving seam, to save a two-line import).

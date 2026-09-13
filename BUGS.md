@@ -130,7 +130,7 @@ when the defect comes back.
 | B-068 | The wave's documentation drifted in forty small places, and one figure family is wrong | by review | `open` |
 | B-069 | `legacy.css`'s licence to exist names a decision only an about-to-be-archived doc defines | by review | `fixed #500` |
 | B-070 | `rename-identifiers.py` passed the 800-line soft ceiling | by gate | `fixed #500` |
-| B-071 | The design-notes toggle survives the overlay it toggles | by review | `open` |
+| B-071 | The design-notes toggle survives the overlay it toggles | by review | `fixed #505` |
 | B-072 | `build-surface-manifest.py` crashes: its own command no longer runs | by review | `fixed #500` |
 | B-073 | The size arm checks WHICH files are grandfathered, never the lot each names | by audit | `fixed #500` |
 | B-074 | The abbreviation rule's figures were measured against a list the document did not contain | by audit | `fixed #500` |
@@ -279,7 +279,7 @@ when the defect comes back.
 | B-217 | The cursor thaw was measured by nothing, and the tool's first use found it | by adversarial review | `fixed #513` |
 | B-218 | The « Before it » row stopped at L07 and still named a merged PR as « this pull request » | by design | `fixed #514` |
 | B-219 | A wave's brief existed only in a session scratch directory, and its agent could not read it | by agent | `fixed #515` |
-| B-220 | The drawer and the bottom tab bar — L15's since 2026-08-29 | by audit | `open` |
+| B-220 | The drawer and the bottom tab bar — L15's since 2026-08-29 | by audit | `fixed #528` |
 | B-221 | A wave merged leaving its own status as the literal placeholder `fixed #NNN` | by guard | `fixed #516` |
 | B-222 | The add screen is the only one of five measured by no oracle region at all | by audit | `fixed #516` |
 | B-223 | Three more typed variants were orphaned, and the arm for B-139 found them | by guard | `fixed #516` |
@@ -295,7 +295,7 @@ when the defect comes back.
 | B-233 | `theme-color` is a constant while the document paints light | by survey | `fixed #528` |
 | B-234 | The viewport meta declares no `interactive-widget` | by survey | `fixed #540` |
 | B-235 | No desktop navigation exists beyond the drawer | by survey | `open` |
-| B-236 | Every bottom-panel producer is the engine's — L19's since 2026-08-29 | by survey | `open` |
+| B-236 | Every bottom-panel producer is the engine's — L19's since 2026-08-29 | by survey | `fixed #558` |
 | B-237 | The confirmation dialog paints under the tab bar | by review | `fixed #528` |
 | B-238 | A version-less « In flight » row is held by nothing | by review | `fixed #527` |
 | B-239 | `CLAUDE.md` announced 24 frame properties where the model it points at holds 30 | by audit | `fixed #524` |
@@ -6689,6 +6689,8 @@ and the rules that tap it move in ONE step. Left here rather than fixed because 
 inside the dying engine, where an edit is L13's to make; it is written down so L13 does not
 rediscover it as a live feature.
 
+**Closed at the lot-close gesture of 2026-09-13, on the reading L13's design took (DESIGN § 9.10).** « A class nothing reads » stopped being true at L08-bis (#505, B-081): `harness.css:145` reads `:root.notes .note` again — `grep -n ":root.notes .note" frontend/maquette/design/src/styles/harness.css`. The toggle's third end, inside the engine, moves into the harness module as it stands in L13a phase 1; it is that lot's, not a defect.
+
 **B-072 — the command that proves the surface partition no longer runs.**
 `docs/archive/features/maquette-l07/DESIGN.md@79ccebe2` (line 281) names `build-surface-manifest.py` as the builder that
 asserts the partition of BLOCK 2's 530 rules into 38 surfaces is TOTAL. Run today it raises
@@ -8830,6 +8832,8 @@ side nothing renders either: `app/focus.ts` **watches** the drawer, `app/bar-hei
 screen state — and **L13's objective enumerates what survives subtraction** (the document-level
 delegation, the boot, `/login`, the splash). Neither the drawer nor the tab bar is there.
 
+**Closed at the lot-close gesture of 2026-09-13, on the reading L13's design took (DESIGN § 9.10).** The subject left with L15 (#528): `app/drawer.tsx` and `app/tab-bar.tsx` exist and draw both — `ls frontend/maquette/design/src/app/drawer.tsx frontend/maquette/design/src/app/tab-bar.tsx`. The row stayed `open` because nothing re-read it when the lot that answered it landed.
+
 **Why nobody saw it, and it matters more than the inventory.** Two instruments watch the engine and
 **both measure its SIZE, never its surfaces**: the boundaries guard counts its lines,
 `check-legacy-css-residue.py` counts its CSS rules. When L09 took `legacy.js` from 35 263 to 33 449
@@ -9810,6 +9814,8 @@ does »; the markup left with the pages, and the families stayed because their r
 producers, which D5's « surface by surface » was never applied to. **B-220's class over the
 product's whole sheet layer**, and invisible to the same two size-counting instruments. Owned by
 **L19** from 2026-08-29 (`frontend-architecture.md` § 4, Phase 5).
+
+**Closed at the lot-close gesture of 2026-09-13, on the reading L13's design took (DESIGN § 9.10).** The subject left with L19 (#558): `grep -c "panel\.open(" frontend/maquette/design/src/engine/legacy.js` reads **0** — every producer is a feature's. The nine fixture families L19 could not kill are L13a's, in that lot's entry.
 
 <sub>`grep -n "panel\.open(" frontend/maquette/design/src/engine/legacy.js` · `grep -rn "panel.open(" frontend/maquette/design/src/{features,app,lib,ui}`</sub>
 
