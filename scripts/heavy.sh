@@ -115,9 +115,10 @@ free_megabytes() {
             /page size of/ { size = $8 }
             /Pages free/ { free = $3 }
             /Pages inactive/ { inactive = $3 }
-            END { gsub(/\./, "", free); gsub(/\./, "", inactive);
-                  if (size && (free + inactive) > 0)
-                      print int((free + inactive) * size / 1048576) }'
+            /Pages speculative/ { speculative = $3 }
+            END { gsub(/\./, "", free); gsub(/\./, "", inactive); gsub(/\./, "", speculative);
+                  if (size && (free + inactive + speculative) > 0)
+                      print int((free + inactive + speculative) * size / 1048576) }'
     elif [ -r /proc/meminfo ]; then
         awk '/^MemAvailable:/ { print int($2 / 1024) }' /proc/meminfo
     fi
