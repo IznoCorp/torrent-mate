@@ -58,3 +58,21 @@ re-aimed file list, with one count per file, goes in the report. STOP D if a tit
 ## Commit
 
 `refactor(maquette-l13): every media crossing reads the provider identity and the engine's sheet table dies`
+
+## Amendment — 2026-09-13 (ruling 50: the phase lands as two commits)
+
+**a·14.1** — the season tree to variants (`season-list.tsx`, `panel-seasons.tsx` with `sw-*` and `legend`,
+`popover-episode.ts`), their `legacy.css` rules deleted, and `SEASONS` dies with its harness readers re-aimed to the
+seed the mock layer answers `readMediaSeasons` from. A pure drawing conversion: oracle zero, the ledger down.
+
+**a·14.2** — the identity crossings: `SHEETS_RAW`, `OWNED`, `SHEETS_IDX`, `sheetFor`, `titleForProviderId`,
+`addressIdsFor`, `ownedFor`, their product readers and their harness readers. It opens on a STOP D over two questions
+this file does not settle, and implements nothing before they are ruled:
+
+- **(a)** `features/media/queries.ts`'s `placeholderData` IS `reference.sheetFor(title)`, and R119 (`priming.py`'s
+  INTERCEPT) thins it by wrapping `__referentiel.sheetFor`. With the resolver dead, « what the tap knew » needs
+  another source (the tapped list item? the list read's cache?), and R119's thinning seam must move with it — a
+  mechanism choice, not a reader switch.
+- **(b)** `features/media/media-screen.tsx`'s title comes from `titleForProviderId` BEFORE the read lands
+  (`data-key`, `aria-label`, the hero's title in flight); the served `MediaSheet.title` arrives only with the read.
+  Whence the title in flight is the same question.
