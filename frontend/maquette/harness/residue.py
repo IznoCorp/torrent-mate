@@ -134,7 +134,16 @@ VARIANT_SOURCES = sorted(
 # `.folder`, `.dlabel`, `.strip` and `.st`, and `.flux` with `factList()`. They
 # fall with the last builder writing those classes bare. Nothing left the
 # comparison.
-PAIRS_FLOOR = 25
+#
+# RAISED TO 30 over a corpus that changed on both sides. The tile, the swipe row
+# and the poster grid became variants, and their own rules left the residue:
+# `.tile`, `.tile .p`, `.tilebadge`, `.selrow`, `.swipe`, `.actions` and their
+# kin. Five pairs arrived: `.swipe` with `swipeRow()`, read from the group it
+# still shares with the suggestion row and the deck, and `.gallery` and its three
+# container widths with `posterGrid()`, which the suggestion feed still wears
+# bare. `.tile` is NOT paired, for `.poster`'s reason: the rule left selecting it
+# groups `-webkit-touch-callout`. Nothing left the comparison.
+PAIRS_FLOOR = 30
 
 # A rule head, once comments are stripped: everything up to `{`, then the body.
 RULE = re.compile(r"([^{}]+)\{([^{}]*)\}", re.S)

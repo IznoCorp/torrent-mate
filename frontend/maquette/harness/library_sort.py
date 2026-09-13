@@ -212,7 +212,7 @@ async def main():
             + ("" if alphabetical == expected else f" — expected {expected}"))
 
         # AND IN THE OTHER FORMAT. The rows are drawn by a different emitter in
-        # grid mode (`tileHTML`, not `libRowHTML`), so a direction that reached
+        # grid mode (`libraryTileMarkup`, not `libraryRowMarkup`), so a direction that reached
         # only the list would be a working sort on one half of the page.
         await page.evaluate(
             "()=>{window.__store.write({libMode: 'grid', sortKey: 'az',"

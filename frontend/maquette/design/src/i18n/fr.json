@@ -548,6 +548,7 @@
       "loadErrorLead": "Impossible de charger la suite.",
       "loadErrorRest": " La connexion a été perdue pendant la requête. Les {{count}} médias déjà affichés restent valides.",
       "retry": "Réessayer",
+      "swipeRemove": "Supprimer",
       "errorSubject": "votre médiathèque",
       "selection": {
         "barLabel": "Sélection en cours",

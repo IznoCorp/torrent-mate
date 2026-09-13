@@ -4,7 +4,9 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { useLibraryReference, type IncompleteShow } from "./reference";
 import { useUiState } from "../../lib/store-access";
-import { body, section } from "../../ui/variants";
+import { body, posterGrid, section } from "../../ui/variants";
+import { posterArtworkFor } from "../../lib/engine-drawing";
+import { tileMarkup } from "../../ui/tile";
 import { Markup } from "../../ui/markup";
 
 export function IncompleteLens({ rows }: {
@@ -20,7 +22,8 @@ export function IncompleteLens({ rows }: {
 }): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { cardHTML, tileHTML } = useLibraryReference();
+  const reference = useLibraryReference();
+  const { cardHTML } = reference;
   const INCOMPLETE = rows;
   return (
     <div className={body()} data-part="surface/body" data-region="library/body">
@@ -34,15 +37,17 @@ export function IncompleteLens({ rows }: {
       </div>
       {state.libMode === "grid" ? (
         <Markup
-          className="gallery" data-part="grid"
+          className={posterGrid()} data-part="grid"
           html={INCOMPLETE.map((show: IncompleteShow) =>
-              tileHTML(
-                show,
-                t("screens.library.incompleteEpisodes", {
+              tileMarkup({
+                title: show.t,
+                subtitle: t("screens.library.incompleteEpisodes", {
                   owned: show.o,
                   all: show.a,
                 }),
-              ),
+                artwork: posterArtworkFor(reference, show.t),
+                attributes: { "data-panel": `media:${show.t}`, "data-mediasheet": show.t },
+              }),
             ).join("")}
         />
       ) : (

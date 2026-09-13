@@ -113,32 +113,6 @@
   user-drag: none;
 }
 
-.swipe {
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--radius-3);
-  /* The row CLAIMS the horizontal axis. Without this the browser owns both
-     axes, decides a drag is a pan, and fires `touchcancel` — the swipe then
-     only ever works under synthetic events, which never get cancelled.
-     Declared HERE and not on an ancestor: `touch-action` intersects down the
-     whole chain, so a `pan-x` scroller under a `pan-y` ancestor pans on
-     neither axis. */
-  touch-action: pan-y;
-}
-.actions {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: stretch;
-  justify-content: flex-end;
-}
-.actions .side {
-  display: flex;
-  flex: 0 0 auto;
-}
-.actions .side.right {
-  margin-left: auto;
-}
 .act {
   border: 0;
   font-size: var(--text-2);
@@ -455,28 +429,6 @@
   color: var(--color-muted-foreground);
   padding: var(--spacing-4) var(--spacing-7) 0;
 }
-/* A rating reads over the picture without claiming a place in the status
-   palette, so it gets a neutral scrim rather than a semantic colour. */
-:root {
-  --tile-overlay: var(--color-tile-overlay);
-}
-
-.tilebadge {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  display: grid;
-  place-items: center;
-  height: 17px;
-  min-width: 17px;
-  padding: 0 var(--spacing-2);
-  border-radius: var(--radius-full);
-  border: 2px solid var(--color-background);
-  font-size: var(--text-1);
-  font-weight: 700;
-  color: var(--color-white);
-}
-
 /* journey strip — its own full-width line (R2) */
 .strip {
   margin-top: var(--spacing-4);
@@ -599,114 +551,9 @@
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
-.tile {
-  position: relative;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  text-align: left;
-  display: block;
-  width: 100%;
-}
-.tile .p {
-  display: block;
-  width: 100%;
-  aspect-ratio: 2/3;
-  border-radius: var(--radius-2);
-  font-size: var(--text-8);
-  line-height: 1;
-  overflow: hidden;
-  background: var(--color-muted);
-}
-.tile .nm {
-  display: block;
-  font-size: var(--text-2);
-  margin-top: var(--spacing-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.tile .fr {
-  display: block;
-  font-size: var(--text-1);
-  color: var(--color-muted-foreground);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.tile.off .p {
-  opacity: 0.42;
-}
-.tile.off .nm {
-  opacity: 0.55;
-}
-
-/* ── Grid selection, invisible at rest ───────────────────────────── */
-/* Nine of its eleven class names are the ENGINE's: the selection bar, the
-   rows it lists and the marks it draws are all written there. */
-/* Grid selection: invisible at rest */
-.tile .sel {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  width: 21px;
-  height: 21px;
-  border-radius: var(--radius-full);
-  border: 2px solid var(--color-white);
-  background: var(--color-scrim-soft);
-  display: grid;
-  place-items: center;
-  color: transparent;
-}
-.tile .sel svg {
-  width: 13px;
-  height: 13px;
-}
-.tile[aria-pressed="true"] .sel {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: var(--color-primary-foreground);
-}
-.tile[aria-pressed="true"] .p {
-  outline: 2px solid var(--color-primary);
-  outline-offset: -2px;
-}
 /* During a selection this bar REPLACES the tab bar: stacking them covered
    « Supprimer » (z-index 41 under 50) and cost 57px of height on a phone
    screen. This is a mode; « Annuler » is its exit, and it is present. */
-/* Selection-mode row: same anatomy as the card, plus the checkbox. */
-.selrow {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-5);
-  width: 100%;
-  border: 1px solid var(--color-border);
-  background: var(--color-card);
-  border-radius: var(--radius-3);
-  padding: var(--spacing-4);
-  text-align: left;
-}
-.selrow[aria-pressed="true"] {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
-}
-.selrow .sel {
-  position: static;
-  flex: 0 0 auto;
-}
-.selrow .poster {
-  display: block;
-}
-.selrow .rowtxt {
-  min-width: 0;
-  flex: 1;
-}
-.selrow .ctitle,
-.selrow .csub {
-  display: block;
-}
 /* THE SELECTION BAR'S FIVE RULES ARE GONE. The bar is
    `features/library/selection-bar.tsx` since L15, drawn into the frame's
    bottom slot, and its declarations are utilities behind typed variants —

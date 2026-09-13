@@ -23,3 +23,5 @@ export * from "./variants/layout";
 export * from "./variants/controls";
 export * from "./variants/surfaces";
 export * from "./variants/card";
+export * from "./variants/tile";
+export * from "./variants/rows";

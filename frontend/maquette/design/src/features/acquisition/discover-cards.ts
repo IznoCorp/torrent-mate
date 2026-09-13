@@ -10,13 +10,14 @@
 // reading exactly what they read before. The card STATES which panel it
 // addresses and never how to build it.
 //
-// THE SHARED EMITTERS ARE THE ENGINE'S AND ARE CALLED VERBATIM. `cardHTML` and
-// `tileHTML` draw every row and tile in this application; a copy here would be
-// a second definition of one shape, and the rows they emit carry the `data-*`
+// THE SHARED EMITTERS ARE CALLED, NEVER COPIED. The engine's `cardHTML` draws
+// every card and `ui/tile.ts` every tile in this application; a copy here would
+// be a second definition of one shape, and the rows they emit carry the `data-*`
 // the delegation reads.
 import i18next from "i18next";
 import { posterArtworkFor } from "../../lib/engine-drawing";
 import { posterArtworkMarkup } from "../../ui/poster";
+import { tileMarkup } from "../../ui/tile";
 
 declare global {
   interface Window {
@@ -87,15 +88,17 @@ export function suggestionRow(suggestion: Suggestion, position: number): string 
  *     The tile's markup.
  */
 export function suggestionTile(suggestion: Suggestion, position: number): string {
-  return drawing().tileHTML(
-    { t: suggestion.t, k: suggestion.k === "Film" ? "movie" : "show" },
-    `${suggestion.y} · ${suggestion.k}`,
-    {
-      panel: `sug:${position}`,
-      dismiss: position,
-      badge: { tone: "note", txt: String(suggestion.note) },
+  return tileMarkup({
+    title: suggestion.t,
+    subtitle: `${suggestion.y} · ${suggestion.k}`,
+    artwork: posterArtworkFor(drawing(), suggestion.t, suggestion.k === "Film" ? "movie" : "show"),
+    badge: { tone: "overlay", text: String(suggestion.note) },
+    attributes: {
+      "data-dismissable": position,
+      "data-panel": `sug:${position}`,
+      "data-mediasheet": suggestion.t,
     },
-  );
+  });
 }
 
 /**

@@ -5,8 +5,12 @@ import { useAcquisitionReference, type Follow } from "./reference";
 import { useFollows } from "./queries";
 import { useUiState } from "../../lib/store-access";
 import { FollowsFilters } from "./follows-filters";
-import { body, emptyNote, section as sectionClass, sectionCount, sectionHead, sectionTitle, statusDot, type StatusTone } from "../../ui/variants";
+import { body, emptyNote, posterGrid, section as sectionClass, sectionCount, sectionHead, sectionTitle, statusDot, type StatusTone } from "../../ui/variants";
 import { Markup, emptyNoteMarkup } from "../../ui/markup";
+import { posterArtworkFor } from "../../lib/engine-drawing";
+import { swipeRowMarkup } from "../../ui/rows";
+import { tileMarkup } from "../../ui/tile";
+import { tileBadgeOf } from "./tile-badge";
 
 // The swipe action a follow that can be searched again reveals. It is a
 // data-ATTRIBUTE VALUE the document-level delegation dispatches on — a contract
@@ -21,11 +25,10 @@ const SEARCH_AGAIN = "chercher"; // french-ok: a data-attribute value, a contrac
 export function FollowsTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
+  const reference = useAcquisitionReference();
   const {
     icons,
     cardHTML,
-    tileHTML,
-    swipeHTML,
     svgIcon,
     stFraction,
     stLabel,
@@ -37,7 +40,7 @@ export function FollowsTab(): ReactElement {
     URGENCY,
     GROUPS,
     CADENCE_CRON,
-  } = useAcquisitionReference();
+  } = reference;
 
   // FROM THE CACHE (invariant 4). Following, unfollowing and grabbing are
   // mutations the engine's delegation still calls; their conversion is the
@@ -142,7 +145,7 @@ export function FollowsTab(): ReactElement {
   });
 
   const rowOf = (follow: Follow, showStatus: boolean) =>
-    swipeHTML(
+    swipeRowMarkup(
       cardHTML(descriptorOf(follow, showStatus)),
       follow.k === "movie"
         ? `<button class="act pause" data-part="swipe/action" data-action="pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipeStopSearching")}</button><button class="act remove" data-part="swipe/action" data-action="remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`
@@ -170,13 +173,16 @@ export function FollowsTab(): ReactElement {
       stFraction(follow),
       paused ? t("screens.acquisition.paused") : null,
     ].filter(Boolean);
-    return tileHTML(
-      follow,
+    return tileMarkup({
+      title: follow.t,
       // The year remains the fallback for a tile with nothing else to say — a
       // film that is neither paused nor counted.
-      said.length ? said.join(" · ") : String(follow.y),
-      { muted: paused, badge: gridBadge(follow) },
-    );
+      subtitle: said.length ? said.join(" · ") : String(follow.y),
+      artwork: posterArtworkFor(reference, follow.t, follow.k),
+      muted: paused,
+      badge: tileBadgeOf(gridBadge(follow)),
+      attributes: { "data-panel": `media:${follow.t}`, "data-mediasheet": follow.t },
+    });
   };
 
   // EACH BRANCH DRAWS ITS OWN CONTAINER and fills it. The legacy interpolated a
@@ -218,7 +224,7 @@ export function FollowsTab(): ReactElement {
   } else if (state.followMode === "grid") {
     content = (
       <Markup
-        className="gallery" data-part="grid"
+        className={posterGrid()} data-part="grid"
         html={visible.map(tileOf).join("")}
       />
     );

@@ -5336,12 +5336,6 @@ import {
      a card, and that is what keeps a panel opened by the shell answering to
      the engine's own acts. */
 
-  function swipeHTML(inner, actions, actionsGauche) {
-    return `<div class="swipe" data-part="swipe"><div class="actions">${
-      actionsGauche ? `<div class="side left" data-part="swipe/side" data-side="left">${actionsGauche}</div>` : ""
-    }<div class="side right" data-part="swipe/side" data-side="right">${actions}</div></div>${inner}</div>`;
-  }
-
 
   /* WORKING STATE — actions really MUTATE
      The datasets above are the seed; `W` is the live copy. An action does
@@ -7271,15 +7265,6 @@ import {
     /* Published for the MEASUREMENT of the deck's gesture: a rule drives the
        two halves the way the swipe handler drives them, and reads what the
        animation is doing one frame later. */
-    /* What the Médiathèque draws. `tileHTML` and `swipeHTML` are emitters a
-       component calls VERBATIM, for the same reason as `cardHTML`: the rows
-       they emit carry the `data-*` the document-level delegation reads.
-       `INCOMPLETE` is the page's own reference data — the others left at L09,
-       read and never written, and `LIB_PAGE` is the page size the count line
-       and the infinite scroll both speak in. */
-    tileHTML,
-    swipeHTML,
-    libRowHTML,
     /* The selection bar stays the FRAGMENT's: it lives in `#device`, React
        never draws it, and the component only asks for it to be repainted after
        a render — the legacy owns that node from creation to removal, which is
@@ -7405,59 +7390,6 @@ import {
   }
   const LIB_PAGE = 24;
 
-  /* ONE tile, in every gallery of the interface — the library's three lenses
-     and the follows grid alike. A gallery that draws its own tile drifts from
-     its neighbours one detail at a time, and the whole point of a gallery is
-     that its pictures are comparable.
-
-     The sub-line carries whatever the gallery came to answer: « année · type »
-     for browsing, a fraction for what is incomplete, a date for what is
-     recent, a status for what is followed.
-
-     At most ONE overlay sits on the poster, and the two that exist cannot
-     coexist: the selection checkbox belongs to selection mode, where the
-     status badge is not drawn.
-
-     The tile does not change at rest: the checkbox exists only in selection
-     mode, and the long press stays a pixel-free affordance.
-
-     The panel is addressed by TITLE, never by index. An index belongs to the
-     list currently on screen, not to the medium, so it means something
-     different in each gallery — and a numeric title (« 1917 ») read as an
-     index opens the panel of whatever film sits at that rank. */
-  function tileHTML(descriptor, sousLigne, opts) {
-    opts = opts || {};
-    const sel = currentState().selMode && opts.index != null;
-    // KEYED BY THE TITLE, never by the position. `opts.index` is the row's
-    // rank IN THE LISTING ON SCREEN, and the listing is ordered and filtered by
-    // the layer: index 1 of « A → Z » is not index 1 of the source. Read as a
-    // key into the source, a tick taken on one row selected a different medium
-    // — and the delete dialog then named, and destroyed, that other one.
-    const selected = sel && currentState().selected.has(descriptor.t);
-    const badge = opts.badge;
-    // A rating is not a status: it reads over the picture without claiming a
-    // meaning in the status palette, so it takes the neutral overlay.
-    const tone = badge
-      ? badge.tone === "note"
-        ? "tile-overlay"
-        : badge.tone === "muted"
-          ? "neutral-signal"
-          : badge.tone === "pending"
-            ? "waiting"
-            : badge.tone === "acquiring"
-              ? "info"
-              : "warning"
-      : null;
-    return `<button class="tile${opts.muted ? " off" : ""}" data-part="tile" ${opts.index != null ? `data-tile="${opts.index}"` : ""} ${opts.dismiss != null ? `data-dismissable="${escapeHtml(String(opts.dismiss))}"` : ""} data-panel="${escapeHtml(opts.panel || `media:${descriptor.t}`)}" ${sel ? `aria-pressed="${selected}" data-selected-title="${escapeHtml(descriptor.t)}"` : `data-mediasheet="${escapeHtml(descriptor.t)}"`}>
-      <span class="p">${posterBox(descriptor.t, descriptor.k)}</span>
-      ${sel ? `<span class="sel" data-part="selection/check">${svgIcon(icons.check, 3)}</span>` : badge ? `<span class="tilebadge" data-part="tile/badge" style="background:var(--${tone})">${escapeHtml(badge.txt)}</span>` : ""}
-      <span class="nm" data-part="tile/title">${escapeHtml(descriptor.t)}</span>
-      <span class="fr" data-part="tile/subtitle">${escapeHtml(sousLigne)}</span>
-    </button>`;
-  }
-  /* Multiple selection must work in BOTH modes: it existed only on tiles,
-     so « Sélectionner » switched on in list mode with nothing selectable. A
-     mode one can enter and do nothing in is worse than no mode at all. */
   /* THE PAGE'S OWN DERIVATION, and it stays HERE while the drawing leaves.
      WHAT LEFT AT L09. `sortLibrary` and `libFiltered` answered « which media,
      in which order » over this fixture; the layer answers it now, and it
@@ -7465,23 +7397,6 @@ import {
      afterwards, is a page of the wrong rows. `libraryLoaded` went with them:
      how many titles the source holds is a field of the listing's own answer. */
 
-
-  function libRowHTML(item, index) {
-    if (currentState().selMode) {
-      // THE TITLE, as in the gallery above and for the same reason: the
-      // index is the row's rank in the listing on screen.
-      const has = currentState().selected.has(item.t);
-      return `<button class="selrow" data-part="selection/row" data-tile="${index}" data-selected-title="${escapeHtml(item.t)}" aria-pressed="${has}">
-        <span class="sel" data-part="selection/check">${svgIcon(icons.check, 3)}</span>
-        <span class="poster" data-part="card/poster">${posterBox(item.t)}</span>
-        <span class="rowtxt"><span class="ctitle" data-part="card/title" title="${escapeHtml(item.t)}">${escapeHtml(item.t)}</span><span class="csub" data-part="card/subtitle">${escapeHtml(item.f)}</span></span>
-      </button>`;
-    }
-    return swipeHTML(
-      cardHTML({ t: item.t, s: item.f, overview: item.overview }),
-      `<button class="act remove" data-part="swipe/action" data-action="remove" data-swipeact="del" data-del="${escapeHtml(item.t)}">${svgIcon(icons.trash)}Supprimer</button>`,
-    );
-  }
 
   /* Deleting from the poster view
      The problem: offer deletion inside a poster grid without spoiling the
@@ -30024,7 +29939,6 @@ Object.assign(window, {
   endSugDrag, escapeHtml,
   closePopEp, closeDrawer, changedFiles,
   gridBadge, icons, initials, initialsOf, drawerWidth,
-  libRowHTML,
   sameValue, changeSetting,
   mountLoaders, mountSearch, fileName, normalisedKey,
   openDeleteDialog,
@@ -30039,7 +29953,7 @@ Object.assign(window, {
   select, sheetFor, titleForProviderId, addressIdsFor, sortLabel,
   stFraction, stLabel, stripHTML,
   sugVerb,
-  svgIcon, swipeHTML, tileHTML, toast, toastUndo,
+  svgIcon, toast, toastUndo,
   allSettings, trailerIds, displayedValue,
   rawValue, typedValue, view,
 });

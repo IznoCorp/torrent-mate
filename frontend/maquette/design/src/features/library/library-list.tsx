@@ -1,19 +1,18 @@
 // The library's list: the listing page by page, the windowed rows, the
 // sentinel that asks for the next page, and the footer that says whether
-// there is more. The rows go through `libRowHTML` and `tileHTML`, reused
-// VERBATIM: they carry the `data-*` the document-level delegation reads, and
-// re-deriving that markup here would drift the one thing that seam depends
-// on being byte-exact.
+// there is more. The rows are `library-rows.ts`'s markup: they carry the
+// `data-*` the document-level delegation reads, attribute for attribute.
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { VirtualRows } from "../../ui/virtual-rows";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
-import { LIBRARY_WINDOW, useLibraryReference, type LibraryRow } from "./reference";
+import { LIBRARY_WINDOW, useLibraryReference } from "./reference";
 import { registerListingPaging, useLibraryListing } from "./queries";
 import { useStoreContent, useUiState } from "../../lib/store-access";
 import { EmptyLibrary } from "./library-empty";
-import { endMark, loadError, loadErrorAction, loadFooter, section, skeleton } from "../../ui/variants";
+import { endMark, loadError, loadErrorAction, loadFooter, posterGrid, section, skeleton } from "../../ui/variants";
+import { libraryRowMarkup, libraryTileMarkup } from "./library-rows";
 
 // The list, its footer, and the sentinel that loads the next page. The FOOTER
 // is the sentinel — the legacy's own arrangement, kept: an observer watching a
@@ -26,7 +25,8 @@ export function LibraryList(): ReactElement {
   // mutation made in place re-renders this list; NOT read into the draw's key.
   useStoreContent((content) => content.version);
   const { t } = useTranslation();
-  const { libRowHTML, tileHTML, paintSelBar } = useLibraryReference();
+  const reference = useLibraryReference();
+  const { paintSelBar } = reference;
   const footRef = useRef<HTMLDivElement | null>(null);
   const grid = state.libMode === "grid";
   // FROM THE CACHE, PAGE BY PAGE (invariant 4). Four keys leave the interface's
@@ -152,7 +152,7 @@ export function LibraryList(): ReactElement {
   let items: ReactElement;
   if (state.phase === "loading") {
     items = (
-      <div id="libitems" className={grid ? "gallery" : section()} data-part={grid ? "grid" : "section"}>
+      <div id="libitems" className={grid ? posterGrid() : section()} data-part={grid ? "grid" : "section"}>
         <Skeletons count={grid ? 9 : 5} shape={grid ? "tile" : "card"} />
       </div>
     );
@@ -167,14 +167,14 @@ export function LibraryList(): ReactElement {
     items = (
       <div
         id="libitems"
-        className={grid ? "gallery" : section()} data-part={grid ? "grid" : "section"}
+        className={grid ? posterGrid() : section()} data-part={grid ? "grid" : "section"}
       >
         <SurfaceError subject={t("screens.library.errorSubject")} />
       </div>
     );
   } else if (rows.length === 0) {
     items = (
-      <div id="libitems" className={grid ? "gallery" : section()} data-part={grid ? "grid" : "section"}>
+      <div id="libitems" className={grid ? posterGrid() : section()} data-part={grid ? "grid" : "section"}>
         <EmptyLibrary />
       </div>
     );
@@ -189,12 +189,12 @@ export function LibraryList(): ReactElement {
         count={count}
         {...(grid ? LIBRARY_WINDOW.gallery : LIBRARY_WINDOW.list)}
         scrollElement={() => document.querySelector("#port")}
-        className={grid ? "gallery" : section()}
+        className={grid ? posterGrid() : section()}
         part={grid ? "grid" : "section"}
         renderRow={(index) =>
           grid
-            ? tileHTML(rows[index], (rows[index] as LibraryRow).f, { index })
-            : libRowHTML(rows[index], index)
+            ? libraryTileMarkup(reference, rows[index], index)
+            : libraryRowMarkup(reference, rows[index], index, t("screens.library.swipeRemove"))
         }
       />
     );
@@ -238,7 +238,7 @@ export function LibraryList(): ReactElement {
       );
     } else {
       foot = grid ? (
-        <div className="gallery" data-part="grid">
+        <div className={posterGrid()} data-part="grid">
           <Skeletons count={3} shape="tile" />
         </div>
       ) : (

@@ -240,7 +240,7 @@ async def main():
             journal.summary()
             return
 
-        # LEFTWARD: `swipeHTML` puts the removal in the RIGHT drawer, which the
+        # LEFTWARD: `swipeRowMarkup` puts the removal in the RIGHT drawer, which the
         # card uncovers by travelling left. The other way reveals « Chercher »,
         # which exists only for a follow that is pending.
         await finger_swipe(page, (row["x"] + 100, row["y"]), (row["x"] - 60, row["y"]))

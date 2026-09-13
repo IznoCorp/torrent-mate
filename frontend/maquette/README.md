@@ -611,9 +611,9 @@ screen:
 | Shape         | Builder                        | Who uses it                                                  |
 | ------------- | ------------------------------ | ------------------------------------------------------------ |
 | Card          | `cardHTML(descripteur, opts)`  | every list — urgency sections, follows, library, arrivals    |
-| Tile          | `tileHTML(o, sousLigne, opts)` | every gallery — the library's three lenses, the follows grid |
+| Tile          | `tileMarkup` (`ui/tile.ts`)    | every gallery — the library's three lenses, the follows grid, the suggestions |
 | Release card  | `ReleaseCard`/`DecisionCard`   | the resolution and release screens — **not a medium**        |
-| Selection row | `libRowHTML`                   | a mode of the LIST, not a variant of the card                |
+| Selection row | `selectionRowMarkup` (`ui/rows.ts`) | a mode of the LIST, not a variant of the card |
 
 Three views used to rebuild a card by hand. One of them had already drifted, and it
 took a separate edit to bring it back in line — the kind of edit that is silently

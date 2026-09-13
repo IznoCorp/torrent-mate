@@ -10,8 +10,6 @@
 // reader imports nothing to be typed, and a member nobody's subject claims has
 // nowhere to be written down.
 
-import type { QueueCard } from "../../lib/engine-queue";
-
 import type { EngineDrawing } from "../../lib/engine-drawing";
 
 // A show the index knows is INCOMPLETE: owned over announced, and the year
@@ -31,7 +29,6 @@ export type LibraryCategory = {
 export type LibraryRow = { t: string; f: string };
 
 export type LibraryReference = EngineDrawing & {
-  libRowHTML: (item: LibraryRow | QueueCard, index: number) => string;
   // The selection bar lives in `#device` and stays the FRAGMENT's: a component
   // asks for a repaint after it draws, exactly where `fillLib` asked for one.
   paintSelBar: () => void;

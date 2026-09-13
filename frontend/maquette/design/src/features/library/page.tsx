@@ -7,11 +7,10 @@
 // what tore the React root down once already, so the list and its loading move
 // here WITH the page rather than leaving a seam behind.
 //
-// Markup is TRANSPLANTED, not translated. The rows go through `libRowHTML` and
-// `tileHTML`, reused VERBATIM: they carry the `data-*` the document-level
-// delegation reads (`data-tile`, `data-del`, `data-swipeact`, `data-panel`,
-// `data-mediasheet`), and re-deriving that markup here would drift the one thing
-// that seam depends on being byte-exact.
+// Markup is TRANSPLANTED, not translated. The rows are `library-rows.ts`'s
+// markup over `ui/tile.ts` and `ui/rows.ts`: they carry the `data-*` the
+// document-level delegation reads (`data-tile`, `data-del`, `data-swipeact`,
+// `data-panel`, `data-mediasheet`), attribute for attribute.
 //
 // THE SELECTION BAR MOVED, and this comment said the opposite for a lot and a
 // half (B-392). React draws it: `features/library/selection-bar.tsx`, with

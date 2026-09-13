@@ -81,38 +81,6 @@ export type EngineDrawing = {
     descriptor: CardDescriptor | QueueCard,
     options?: CardFoot,
   ) => string;
-  // What the Médiathèque draws. `tileHTML` and `swipeHTML` are called VERBATIM
-  // for the same reason as `cardHTML` — the rows they emit carry the `data-*`
-  // the document-level delegation reads. `sousLigne` is the line under a tile's
-  // title; `opts.index` is what selection mode addresses a tile by.
-  tileHTML: (
-    descriptor: CardDescriptor | QueueCard,
-    subLine?: string,
-    options?: {
-      index?: number;
-      // `null` and absent both mean « no badge » — `gridBadge` answers `null`,
-      // and the fragment reads the option for truthiness.
-      // `txt`, NOT `text`, and the difference was a TYPE THAT LIED for as long as
-      // nobody typed its caller. `tileHTML` reads `badge.txt`; this declaration
-      // said `text`, and nothing noticed because its only caller was untyped
-      // JavaScript inside the engine. The first TypeScript caller — the suggestion
-      // tile, once it moved here — is what asked the question.
-      badge?: { tone: string; txt?: string } | null;
-      muted?: boolean;
-      // AND THE TWO THE DECLARATION HAD NEVER NAMED. `tileHTML` reads
-      // `opts.panel` — which panel a long press raises — and `opts.dismiss` —
-      // the position a sideways swipe dismisses. Both were invisible for the
-      // same reason `txt` was: the only caller was untyped JavaScript inside the
-      // engine. A declaration that omits what a function reads is a declaration
-      // that will refuse the first honest caller, which is what happened.
-      panel?: string;
-      dismiss?: number;
-    },
-  ) => string;
-  // THREE arguments, as the fragment declares it: the row, the actions revealed
-  // on one side, and — for a follow that can be searched again — the action on
-  // the other.
-  swipeHTML: (inner: string, actions: string, other?: string) => string;
   svgIcon: (paths: string, strokeWidth?: number) => string;
   icons: Record<string, string>;
   escapeHtml: (text: string) => string;

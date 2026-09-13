@@ -12,6 +12,9 @@ nobody. This rule holds the law that prevents it — the shell empties `#view`
 when it takes ownership, the fragment stops writing there for a page it no
 longer owns, and handing back needs nothing because the fragment's own write
 removes what React left.
+
+The view switch is read on the list container's `data-part`, re-aimed from an
+equality on its class: the grid's class is a utility string, and no anchor.
 """
 import ast
 import asyncio
@@ -476,13 +479,11 @@ async def main():
             f"{wanted} → {chosen}" if not refused else f"data-cat {refused}")
 
         refused = await tap("#view [data-lmode='grid']")
-        mode = await page.evaluate("""()=>({
-          mode: window.__store.read().state.libMode,
-          drawn: (document.querySelector('#libitems')||{}).className || null,
-        })""")
+        mode = await page.evaluate("()=>({mode: window.__store.read().state.libMode,"
+                                   " drawn: document.querySelector('#libitems')?.dataset.part || null})")
         journal.check(
             "a real tap on the view switch really switches the view",
-            not refused and mode["mode"] == "grid" and mode["drawn"] == "gallery",
+            not refused and mode["mode"] == "grid" and mode["drawn"] == "grid",
             str(mode) if not refused else f"data-lmode {refused}")
         await page.evaluate("()=>window.__store.write({libMode: 'list', libCat: 'all'})")
         await page.evaluate("()=>window.__referentiel.render()")

@@ -216,7 +216,7 @@ async def main():
             return
 
         swiped_subject = before_swipe[0]
-        # LEFTWARD, and the direction is read rather than guessed: `swipeHTML`
+        # LEFTWARD, and the direction is read rather than guessed: `swipeRowMarkup`
         # puts the pause and the removal in `data-side="right"`, and a drawer on
         # the right is uncovered by the card travelling LEFT. Swiping the other
         # way reveals the left drawer — « Chercher » — which exists only for a
