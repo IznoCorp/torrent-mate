@@ -125,8 +125,17 @@ for RULE in "$@"; do
   # rule that fell is non-zero — and the script announced « no hold fell »
   # under the falls it had just printed.
   OUTPUT="$(mktemp)"
-  python3 "$RULE" >"$OUTPUT" 2>&1 || true
+  STATUS=0
+  python3 "$RULE" >"$OUTPUT" 2>&1 || STATUS=$?
+  # THE EXIT CODE IS A VERDICT TOO. A rule that prints « 1 violations » and
+  # exits 1 — `audit2.py` — has no line this grep can find, and the tool said
+  # « NO RULE FELL » twice over R13 when it had fallen.
   if grep -E "^  FAIL|violation\(s\)" "$OUTPUT"; then
+    FELL=1
+    [ "$STATUS" -eq 0 ] || echo "  (the rule exited $STATUS)"
+  elif [ "$STATUS" -ne 0 ]; then
+    echo "  FELL — the rule exited $STATUS with no FAIL line; its exit code is its verdict"
+    tail -5 "$OUTPUT"
     FELL=1
   else
     echo "  (no hold fell — the rule does not catch this mutation)"
