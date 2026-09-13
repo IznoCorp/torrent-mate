@@ -15,6 +15,8 @@
 // a second definition of one shape, and the rows they emit carry the `data-*`
 // the delegation reads.
 import i18next from "i18next";
+import { posterArtworkFor } from "../../lib/engine-drawing";
+import { posterArtworkMarkup } from "../../ui/poster";
 
 declare global {
   interface Window {
@@ -121,7 +123,7 @@ export function deckCard(
   const escape = reference.escapeHtml;
   const poster = window.POSTERS_HD[suggestion.t]
     ? `<img src="${window.POSTERS_HD[suggestion.t]}" alt="" loading="lazy">`
-    : reference.posterBox(suggestion.t, suggestion.k === "Film" ? "movie" : "show");
+    : posterArtworkMarkup(posterArtworkFor(reference, suggestion.t, suggestion.k === "Film" ? "movie" : "show"));
   // THE GESTURE LABELS BELONG TO THE TOP CARD ALONE — it is the only one a
   // finger can reach, and `advanceDeck` moves them with the place rather than
   // with the card.

@@ -295,7 +295,7 @@ export function AddScreen() {
                 </button>
               ))}
             </div>
-            <button className={`btnprimary ${actionButton()}`} onClick={() => search(query)}>
+            <button className={actionButton({ kind: "submit" })} onClick={() => search(query)}>
               {t("screens.add.search")}
             </button>
           </div>
@@ -389,7 +389,7 @@ export function AddScreen() {
               )}
             </p>
             <button
-              className={`btnprimary ${actionButton()}`}
+              className={actionButton({ kind: "submit" })}
               disabled
               style={{ alignSelf: "flex-start", padding: "9px 16px" }}
             >

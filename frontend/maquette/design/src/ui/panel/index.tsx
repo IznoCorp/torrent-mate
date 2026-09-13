@@ -22,9 +22,11 @@
 // component re-renders when the language changes.
 import { Fragment, type JSX } from "react";
 import { useTranslation } from "react-i18next";
-import { useEngineDrawing } from "../../lib/engine-drawing";
+import { posterArtworkFor, useEngineDrawing } from "../../lib/engine-drawing";
+import { Chip } from "../chip";
+import { PosterArtwork } from "../poster";
 import { Icon } from "../../ui/icon";
-import { avatarImage, comingSoon, factsPanel, keyValueRow, ruleNote, sheetActions, sheetAvatar, sheetFacts, sheetHead, sheetIdentity, sheetMeta, sheetTitle } from "../variants";
+import { actionButton, avatarImage, comingSoon, factsPanel, keyValueRow, ruleNote, sheetActions, sheetAvatar, sheetFacts, sheetHead, sheetIdentity, sheetMeta, sheetPoster, sheetTitle, statusDot, type ChipTone, type StatusTone } from "../variants";
 import {
   refuseBlock,
   registerBlock,
@@ -53,37 +55,16 @@ function RichText({ value }: { value: RichTextValue | null | undefined }) {
   );
 }
 
-function Chip({ chip }: { chip: [string, string] | null | undefined }) {
-  if (!chip) return null;
-  return <span className={`chip ${chip[0]}`} data-part="chip" data-tone={chip[0]}>{chip[1]}</span>;
+// The panel head's poster: the title's picture, or its fallback, resolved the
+// way every poster is — never the `exact` form, which is a release candidate's.
+function Poster({ poster }: { poster: { t: string; k?: string } }) {
+  return <PosterArtwork artwork={posterArtworkFor(useEngineDrawing(), poster.t, poster.k)} />;
 }
 
-// `posterBox`'s image-or-initials fallback, at panel size. `POSTERS` /
-// `baseTitle` / `icons` / `initials` are the exact référentiel entries
-// `posterBox` itself reads from (refonte.html), and this call carries no
-// `opts` — the panel head never asks for the `exact` (no base-title
-// fallback) variant.
-function Poster({ poster }: { poster: { t: string; k?: string } }) {
-  const {
-    POSTERS,
-    baseTitle,
-    icons,
-    initials,
-  } = useEngineDrawing();
-  const src = POSTERS[poster.t] ?? POSTERS[baseTitle(poster.t)];
-  if (src) return <img src={src} alt="" loading="lazy" />;
-  const iconPath =
-    poster.k === "movie"
-      ? icons.film
-      : poster.k === "show"
-        ? icons.tv
-        : icons.clap;
-  return (
-    <span className="pfall" data-part="card/poster-fallback">
-      <Icon paths={iconPath} strokeWidth={1.25} />
-      <b>{initials(poster.t)}</b>
-    </span>
-  );
+// The tones a panel action draws. Any other tone word stays on the button as a
+// class, as it always did, and the action draws plain.
+function panelActionTone(tone: string | undefined): "plain" | "primary" | "danger" {
+  return tone === "primary" || tone === "danger" ? tone : "plain";
 }
 
 function PanelActionButton({ action }: { action: Action | null | undefined }) {
@@ -99,7 +80,7 @@ function PanelActionButton({ action }: { action: Action | null | undefined }) {
   ) as Record<`data-${string}`, string>;
   return (
     <button
-      className={`sact${action.ton ? ` ${action.ton}` : ""}`}
+      className={`${actionButton({ kind: "panelAction", tone: panelActionTone(action.ton) })}${action.ton && panelActionTone(action.ton) === "plain" ? ` ${action.ton}` : ""}`}
       data-part="sheet/action"
       data-tone={action.ton || undefined}
       disabled={action.desactive || undefined}
@@ -157,12 +138,12 @@ function FactsBlock({
           data-part="key-value"
         >
           <span>
-            {line.pip ? <span className={`pip ${line.pip}`} data-part="status-dot" /> : null}
+            {line.pip ? <span className={statusDot({ tone: line.pip as StatusTone })} data-part="status-dot" /> : null}
             {line.c}
           </span>
           <span>
             {line.pipValue ? (
-              <span className={`pip ${line.pipValue}`} data-part="status-dot" />
+              <span className={statusDot({ tone: line.pipValue as StatusTone })} data-part="status-dot" />
             ) : null}
             {line.v}
           </span>
@@ -210,11 +191,11 @@ export function PanelContent({
           <RichText value={descriptor.meta} />
         </p>
       ) : null}
-      <Chip chip={descriptor.puce} />
+      {descriptor.puce ? <Chip tone={descriptor.puce[0] as ChipTone} label={descriptor.puce[1]} /> : null}
     </>
   );
   const poster = descriptor.poster ? (
-    <span className="sheetposter" data-part="sheet/poster">
+    <span className={sheetPoster()} data-part="sheet/poster">
       <Poster poster={descriptor.poster} />
     </span>
   ) : descriptor.avatar ? (

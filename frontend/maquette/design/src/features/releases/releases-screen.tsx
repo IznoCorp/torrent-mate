@@ -18,7 +18,7 @@ import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useReleases } from "./queries";
 import { useReleasesReference } from "../../features/releases/reference";
-import { actionButton, backAction, body, emptyNote, qualityHint, resultCount, screen, screenBar, scrollport } from "../../ui/variants";
+import { actionButton, backAction, body, chip, emptyNote, qualityHint, resultCount, screen, screenBar, scrollport } from "../../ui/variants";
 import { releaseName, releaseRow, releaseScore, releaseTags } from "../../features/releases/variants";
 import { Icon } from "../../ui/icon";
 import { bridge } from "../../lib/shell-doors";
@@ -79,22 +79,23 @@ export function ReleasesScreen() {
               <span className={releaseName()}>{release.n}</span>{" "}
               <span className={releaseTags()}>
                 <span
-                  className={`chip ${
-                    release.res === "2160p"
-                      ? "success"
-                      : release.res === "1080p"
-                        ? "info"
-                        : "neutral"
-                  }`}
+                  className={chip({
+                    tone:
+                      release.res === "2160p"
+                        ? "success"
+                        : release.res === "1080p"
+                          ? "info"
+                          : "neutral",
+                  })}
                 >
                   {release.res}
                 </span>{" "}
-                <span className="chip" data-part="chip">{release.src}</span>{" "}
-                <span className="chip" data-part="chip">{release.lang}</span>{" "}
-                <span className="chip" data-part="chip">
+                <span className={chip()} data-part="chip">{release.src}</span>{" "}
+                <span className={chip()} data-part="chip">{release.lang}</span>{" "}
+                <span className={chip()} data-part="chip">
                   {release.s} {t("screens.releases.sourcesUnit")}
                 </span>{" "}
-                <span className="chip" data-part="chip">
+                <span className={chip()} data-part="chip">
                   {String(release.go).replace(".", ",")}{" "}
                   {t("screens.releases.goUnit")}
                 </span>{" "}
@@ -108,7 +109,7 @@ export function ReleasesScreen() {
                 ""
               )}
               <button
-                className={`cfoot${index === 0 ? " solid" : ""}`}
+                className={actionButton({ kind: "cardFoot", tone: index === 0 ? "solid" : "plain" })}
                 data-solid={index === 0 || undefined}
                 data-part="card/foot"
                 data-pick-release={index}
@@ -123,7 +124,7 @@ export function ReleasesScreen() {
             <b>{t("screens.releases.emptyTitle")}</b>
             {t("screens.releases.emptyBody")}
             <button
-              className={`cfoot ${actionButton()}`}
+              className={actionButton({ kind: "cardFoot" })}
               data-part="card/foot"
               style={{ marginTop: "10px" }}
               data-profile={title}

@@ -9,9 +9,9 @@
   "$counts": {
     "served": 41,
     "asset": 5,
-    "interface": 30,
+    "interface": 29,
     "unserved": 4,
-    "total": 80
+    "total": 79
   },
   "$anonymous": {
     "count": 0,
@@ -416,11 +416,6 @@
     "VIA_LABEL": {
       "class": "interface",
       "why": "how a decision was reached, said in French",
-      "seed": null
-    },
-    "factRowsHTML.TONS": {
-      "class": "interface",
-      "why": "the mapping from the operator's word for a tone to the stylesheet's. Declared inside factRowsHTML, so it carries a qualified name",
       "seed": null
     },
     "icons": {

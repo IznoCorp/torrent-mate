@@ -271,7 +271,7 @@ export function QualityScreen() {
           </div>
 
           <button
-            className={`cfoot ${actionButton()}`}
+            className={actionButton({ kind: "cardFoot" })}
             data-part="card/foot"
             data-toast={t("screens.profile.rankingToast")}
           >
@@ -283,7 +283,7 @@ export function QualityScreen() {
 
           <div className={sheetActions()} data-part="sheet/actions">
             <button
-              className={`sact primary ${actionButton()}`}
+              className={actionButton({ kind: "panelAction", tone: "primary" })}
               data-part="sheet/action"
               data-tone="primary"
               data-toast={t("screens.profile.saveToast")}

@@ -56,9 +56,9 @@ export type CardFoot = {
 // date the same way every other legacy navigation control already does,
 // since nothing subscribes the legacy side to the store automatically.
 //
-// One row of a fact list, exactly as `factsListHTML` reads one. `ton` is the
-// operator's vocabulary (`success` / `alert` / `warning` / `info`) and the
-// emitter maps it onto the stylesheet's; `target` becomes the row's `data-*`
+// One row of a fact list, exactly as `ui/fact-rows.tsx` draws one. `ton` is
+// the operator's vocabulary (`success` / `alert` / `warning` / `info`) and the
+// component maps it onto the chip's; `target` becomes the row's `data-*`
 // attributes, which is what turns the row into the control.
 export type Fact = {
   l: string;
@@ -113,24 +113,11 @@ export type EngineDrawing = {
   // on one side, and — for a follow that can be searched again — the action on
   // the other.
   swipeHTML: (inner: string, actions: string, other?: string) => string;
-  // What the Système page draws. `factRowsHTML` emits the
-  // ROWS of a fact list without the `<ol class="flux">` around them, because a
-  // component draws that element itself; `factsListHTML` (still published, for
-  // every page the fragment keeps) emits both. The data below is
-  // read-only reference, never engine state.
-  factsListHTML: (rows: Fact[]) => string;
-  factRowsHTML: (rows: Fact[]) => string;
-  chipHTML: (chip: [string, string] | null | undefined) => string;
   svgIcon: (paths: string, strokeWidth?: number) => string;
   icons: Record<string, string>;
   escapeHtml: (text: string) => string;
   initials: (name: string) => string;
   baseTitle: (title: string) => string;
-  posterBox: (
-    title: string,
-    kind?: "movie" | "show",
-    opts?: { exact?: boolean },
-  ) => string;
   POSTERS: Record<string, string>;
   render: () => void;
   toast: (msg: string) => void;
@@ -154,4 +141,35 @@ export type EngineDrawing = {
  */
 export function useEngineDrawing(): EngineDrawing {
   return window.__referentiel;
+}
+
+/**
+ * Resolves what a title's poster shows, from the engine's poster table.
+ *
+ * A proposition rather than an identity asks for its OWN picture only (`exact`):
+ * « Lucky (2006) » and « Lucky! » are different series the operator is asked to
+ * tell apart, and matching on the base title would hand one the picture of the
+ * other on the very screen whose job is to distinguish them.
+ *
+ * Args:
+ *     drawing: The engine's drawing surface.
+ *     title: The title.
+ *     kind: `movie` or `show`, which picks the fallback's icon.
+ *     exact: Whether only the title's own picture will do.
+ *
+ * Returns:
+ *     The picture if there is one, the fallback's icon, and its label.
+ */
+export function posterArtworkFor(
+  drawing: Pick<EngineDrawing, "POSTERS" | "baseTitle" | "icons" | "initials">,
+  title: string,
+  kind?: string,
+  exact?: boolean,
+): { source: string | undefined; icon: string; label: string } {
+  const source = exact
+    ? drawing.POSTERS[title]
+    : (drawing.POSTERS[title] ?? drawing.POSTERS[drawing.baseTitle(title)]);
+  const icon =
+    kind === "movie" ? drawing.icons.film : kind === "show" ? drawing.icons.tv : drawing.icons.clap;
+  return { source, icon, label: drawing.initials(title) };
 }

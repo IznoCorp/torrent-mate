@@ -29,6 +29,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../../ui/icon";
+import { Chip } from "../../ui/chip";
 import { useSettingsReference, type Setting, type SettingsTopic } from "../../features/settings/reference";
 import { useStoreContent } from "../../lib/store-access";
 import { settingInWords } from "./format";
@@ -159,7 +160,6 @@ export function SettingsPage(): ReactElement | null {
   const { t } = useTranslation();
   const {
     SETTINGS_STATE,
-    chipHTML,
     allSettings,
     changedFiles,
   } = useSettingsReference();
@@ -195,15 +195,12 @@ export function SettingsPage(): ReactElement | null {
                 {secret.l}{" "}
                 <span className="rf" data-part="setting/origin">{secret.k}</span>
               </span>
-              <Markup tag="span"
-                className="rv"
-                data-part="setting/value"
-                html={chipHTML(
-                    secret.def
-                      ? ["success", t("screens.settings.secretSet")]
-                      : ["warning", t("screens.settings.secretUnset")],
-                  )}
-              />
+              <span className="rv" data-part="setting/value">
+                <Chip
+                  tone={secret.def ? "success" : "warning"}
+                  label={secret.def ? t("screens.settings.secretSet") : t("screens.settings.secretUnset")}
+                />
+              </span>
             </button>
           ))}
         </div>

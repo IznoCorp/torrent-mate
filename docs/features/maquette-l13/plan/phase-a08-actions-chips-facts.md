@@ -56,6 +56,18 @@ and 20).
 Per INDEX « Gates ». In addition, the residue ceiling, R80's floor and the poster-box count are all
 in the report.
 
+## Amendment — 2026-09-13, R80's floor over a corpus that changes on both sides
+
+**It makes VOID « Its `PAIRS_FLOOR` is lowered by the same number » above** (the steward's ruling, the same day).
+The floor moves to the MEASURED count, and the commit body names every pair removed and every pair added
+with the count before and after. Removed: `.pip` and its six tones (−7). Added: `.chip` and its five tones,
+paired with `chip()`, and `.pfall`, paired with `posterFallback()` (+7) — the engine still emits both
+classes, so their rules stay and the pairs compare them. They fall at a·10 or a·11, with the last of
+`cardHTML`, `tileHTML`, `libRowHTML` and `posterBox` that writes them. `.poster` is NOT paired: its rule is
+grouped with `-webkit-touch-callout`, which Chrome does not compute, so the pair would read nothing on
+either side; `posterFrame()` leads with a utility and the call site writes `poster`. The action buttons
+convert through `actionButton()`'s `kind` and `tone` axes, whose anchor is a utility, so they add no pair.
+
 ## Commit
 
 `refactor(maquette-l13): actions, chips, status dots, fact rows and the poster box are variants`

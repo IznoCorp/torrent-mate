@@ -62,40 +62,11 @@
    `dlg`, `open`, `dryrun`, `manifest`, `warnbox`, `dlgacts`, `dlgbtn`,
    `danger`, `ghost`. */
 
-/* ── The status dot, which the ENGINE also draws ─────────────────── */
-/* `pip` and its tones are emitted by `statusDot()` and by the engine's own
-   markup. The rules stay while the engine's markup wears the name: the residue
-   is unlayered and wins, with declarations identical to the variant's, so
-   nothing renders differently. */
-.pip {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-full);
-  flex: 0 0 auto;
-}
-.pip.warning {
-  background: var(--color-warning);
-}
-.pip.danger {
-  background: var(--color-danger);
-}
-.pip.info {
-  background: var(--color-info);
-}
-.pip.waiting {
-  background: var(--color-waiting);
-}
-.pip.success {
-  background: var(--color-success);
-}
-.pip.neutral {
-  background: var(--color-neutral-signal);
-}
 
 
 /* ── Arrivées — the run, told as its nine steps ──────────────────── */
-/* `.flux` and everything under it is written by the ENGINE: the row, its
-   name, its result, its reason and its key appear in no component. */
+/* `.flux` is the list's frame, and only the frame stays here: its rows are
+   `ui/fact-rows.tsx`, whose typed variants carry what the rules under it said. */
 /* The last run, told as its nine steps.
 
    A step that did nothing says so with an em dash, never with « 0 ». Zero is
@@ -109,61 +80,6 @@
   border-radius: var(--radius-3);
   background: var(--color-card);
   overflow: hidden;
-}
-.flux .fw {
-  display: grid;
-  /* minmax(0, …) on both: an untruncated engine name would otherwise size
-     its track to max-content and push the row past a 390px frame (R7). */
-  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
-  align-items: baseline;
-  gap: var(--spacing-1) var(--spacing-5);
-  padding: var(--spacing-4) var(--spacing-5);
-  width: 100%;
-  text-align: left;
-  /* A row that leads somewhere is a real button and inherits nothing from
-     the browser's own: no border, no background, the document's type. */
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-}
-.flux .fx.fclick .fw {
-  /* The whole row answers a thumb, so it carries the 44px floor a target
-     needs rather than leaving it to whatever the text happens to measure. */
-  min-height: 44px;
-  cursor: pointer;
-}
-.flux .fx + .fx {
-  border-top: 1px solid var(--color-border);
-}
-.flux .fn {
-  font-size: var(--text-3);
-  font-weight: 600;
-}
-.flux .fr {
-  font-size: var(--text-3);
-  text-align: right;
-  color: var(--color-muted-foreground);
-}
-.flux .fx.fempty .fn {
-  color: var(--color-muted-foreground);
-  font-weight: 500;
-}
-.flux .fx.fblocked .fr {
-  color: var(--color-danger);
-  font-weight: 600;
-}
-.flux .fs {
-  grid-column: 1 / -1;
-  font-size: var(--text-2);
-  color: var(--color-muted-foreground);
-  /* A reason never truncates (§12, R48): it wraps and the row grows. */
-  overflow-wrap: anywhere;
-}
-.flux .fk {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: var(--text-1);
-  color: var(--color-muted-foreground);
 }
 
 /* ── The media card ──────────────────────────────────────────────── */
@@ -1108,21 +1024,7 @@
   margin-left: var(--spacing-3);
 }
 
-/* ── Add screen, the two the engine also emits ───────────────────── */
-.btnprimary {
-  flex: 0 0 auto;
-  border: 0;
-  border-radius: var(--radius-3);
-  background: var(--color-primary);
-  color: var(--color-primary-foreground);
-  font-size: var(--text-4);
-  font-weight: 600;
-  padding: 0 var(--spacing-7);
-}
-
-.btnprimary:disabled {
-  opacity: 0.5;
-}
+/* ── Add screen, what the engine also emits ───────────────────── */
 
 .segmini {
   display: flex;
@@ -1195,34 +1097,6 @@
    Removing only the utility left this one running, which is why the fix was
    measured again rather than assumed: a duplicated declaration is a defect that
    survives half a repair. */
-/* Media-sheet add button: solid while the action is offered, then OUTLINE
-   + « Ajouté » once done — the same toggle as a search result's button,
-   so one gesture always gets the same answer. Content centred: left-
-   aligned like an action row, it read as a list item rather than the
-   primary button. */
-.mediaadd {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-4);
-  width: 100%;
-  border: 1px solid var(--color-primary);
-  background: var(--color-primary);
-  color: var(--color-primary-foreground);
-  font-size: var(--text-5);
-  font-weight: 600;
-  padding: var(--spacing-6);
-  border-radius: var(--radius-3);
-}
-.mediaadd svg {
-  width: 16px;
-  height: 16px;
-}
-.mediaadd.done {
-  background: transparent;
-  color: var(--color-muted-foreground);
-  border-color: var(--color-border);
-}
 /* The destination is information: this control LEAVES the application. */
 
 
@@ -1486,21 +1360,6 @@
   cursor: pointer;
 }
 
-.sheetposter {
-  flex: 0 0 auto;
-  width: 84px;
-  aspect-ratio: 2/3;
-  border-radius: var(--radius-2);
-  overflow: hidden;
-  font-size: var(--text-8);
-  background: var(--color-muted);
-}
-.sheetposter img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
 
 
 
@@ -1524,9 +1383,7 @@ margin: 0;
 }
 
 /* ── The bottom sheet, what stays hand-written ───────────────────── */
-/* `.sact` and `.noinfo` are the engine's: the sheet's own actions are
-   written from a template there, which is how `sact` escaped a scan for
-   literal class strings. */
+/* `.noinfo` is the engine's. */
 /* The tab bar sits ABOVE the layers (z-50), so a sheet must reserve its
    height, otherwise its last actions are unreachable — internal scrolling
    stops before them. Same rule as for screens, extended to sheets and
@@ -1544,38 +1401,6 @@ margin: 0;
 /* An entry that is coming says so instead of being absent: a menu that grows
    an item later teaches its shape twice. */
 
-.sact {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-5);
-  width: 100%;
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-foreground);
-  font-size: var(--text-4);
-  font-weight: 500;
-  padding: var(--spacing-5) var(--spacing-6);
-  border-radius: var(--radius-3);
-  text-align: left;
-}
-.sact.primary {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: var(--color-primary-foreground);
-  font-weight: 600;
-}
-.sact.danger {
-  color: var(--color-danger);
-}
-.sact svg {
-  width: 16px;
-  height: 16px;
-  color: var(--color-muted-foreground);
-  flex: 0 0 auto;
-}
-.sact.primary svg {
-  color: var(--color-primary-foreground);
-}
 
 /* Transplanted from maquette-acquisition.css — used in markup without
    having been ported, therefore inert: the « no trailer » message
@@ -1644,16 +1469,14 @@ margin: 0;
    starts a native drag that swallows the pointer stream outright. */
 .poster,
 .tile,
-.dcard,
-.sheetposter {
+.dcard {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
 }
 .poster img,
 .tile img,
-.dcard img,
-.sheetposter img {
+.dcard img {
   -webkit-user-drag: none;
   -webkit-touch-callout: none;
 }
@@ -1699,7 +1522,7 @@ margin: 0;
 
    What stays hand-written is in `src/styles/legacy.css`: the drag's
    transition cancel, which is written to the DOM rather than passed as a
-   prop, and the engine's own `.sact` and `.noinfo`. */
+   prop, and the engine's own `.noinfo`. */
 
 /* Media sheet — CONVERTED IN HALF (L07 phase 12). The hero, the cast and the
    trailer are typed variants in `src/features/media/variants.ts`, where ONE
@@ -1717,10 +1540,8 @@ margin: 0;
    `src/styles/legacy.css`, with the two decisions that must survive them. */
 
 /* Add screen — CONVERTED (L07 phase 11) into typed variants in
-   `src/features/acquisition/variants.ts`. `.btnprimary` and `.segmini` are
-   also written by the ENGINE, so their rules are in `src/styles/legacy.css`
-   — placed ABOVE the action-button group there, which is the order this
-   stylesheet had and the order that decides a card footer's radius. */
+   `src/features/acquisition/variants.ts`. `.segmini` is also
+   written by the ENGINE, so its rules are in `src/styles/legacy.css`. */
 
 /* THE ONE ACTION-BUTTON SYSTEM — CONVERTED (L07 phase 6), `actionButton()`
    in `src/ui/variants.ts`, where its reasoning is kept in full. Its `:has()`
@@ -2011,22 +1832,9 @@ margin: 0;
    Appending to a residue is not the same as preserving a cascade. Anything
    that must override a surface goes below every surface it overrides, and
    this banner is where that rule is kept. */
-/* The action-button system, for the three the engine emits. Its reasoning is
-   kept in full at `actionButton()` in `src/ui/variants.ts`. */
-/* All five names, not the three a first pass thought the engine emitted: the
-   sheet's own actions are written by the engine through a template, so
-   `sact` never appeared in a scan for literal `class="…"` strings. The oracle
-   found it as 8.9px — exactly what a button loses when its `min-height: 44px`
-   goes. */
-/* `.dlgbtn` LEFT THIS LIST AT L15, with the dialog it belonged to. It was one
-   of five names sharing the action-button system; the other four are still the
-   engine's markup, and the dialog's button carries the whole of what this rule
-   gave it inside `dialogButton()` — the union of this rule and the one below
-   it, resolved the way the cascade resolved them. */
-.sact,
-.cfoot,
-.mediaadd,
-.btnprimary {
+/* The action-button system, for the card foot the engine still emits. Its
+   reasoning is kept in full at `actionButton()` in `src/ui/variants.ts`. */
+.cfoot {
   display: flex;
   align-items: center;
   justify-content: center;

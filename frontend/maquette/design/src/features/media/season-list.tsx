@@ -4,7 +4,7 @@
 import { useTranslation } from "react-i18next";
 import { useMediaReference } from "./reference";
 import { SkeletonLine } from "../../ui/state-surfaces";
-import { factsPanel } from "../../ui/variants";
+import { actionButton, factsPanel } from "../../ui/variants";
 import { queuedMark, seasonGrabSpacing, seasonGrabTaken, upcomingMark } from "./variants";
 import { useQueuedSeasons } from "./queued-seasons";
 import { askForSeason, useAskedInFlight } from "./season-grab";
@@ -368,7 +368,7 @@ export function SeasonList({
             {(owns || followed) && !complete && !seasonUpcoming ? (
               <button
                 type="button"
-                className={`sact ${seasonGrabSpacing()} ${seasonGrabTaken()}`}
+                className={`${actionButton({ kind: "panelAction" })} ${seasonGrabSpacing()} ${seasonGrabTaken()}`}
                 data-part="season/grab"
                 data-grab-season={`${followTitle}|${row.n}`}
                 aria-busy={askedInFlight.has(`${followTitle}|${row.n}`) || undefined}

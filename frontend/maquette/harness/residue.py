@@ -114,6 +114,17 @@ VARIANT_SOURCES = sorted(
 # variants draw every element those rules styled, so nothing that still exists
 # stopped being compared; the two contextual pairs under `.sechead` and the
 # engine-written qualifiers `.screen.open` and `.sheet.dragging` went with them.
+#
+# RE-TAKEN, AND STILL 10, over a corpus that changed on both sides — which is
+# why it is written down: a floor that holds still while its pairs change is the
+# reading this ratchet exists to refuse. Seven left with the last markup that
+# wore the status dot bare: `.pip` and its six tones. Seven arrived: `.chip` and
+# its five tones, paired with `chip()`, and `.pfall`, paired with
+# `posterFallback()`. The engine still writes both classes, so their rules stay
+# and these pairs compare them until the last builder writing them goes.
+# `.poster` is NOT paired: its rule is grouped with `-webkit-touch-callout`,
+# which Chrome does not compute, so the pair could only read nothing on both
+# sides — `posterFrame()` leads with a utility for that reason.
 PAIRS_FLOOR = 10
 
 # A rule head, once comments are stripped: everything up to `{`, then the body.

@@ -211,7 +211,7 @@ export function MediaLibraryFacts({
                     value it qualifies. */}
                 {seasonsInFlight && pct === null ? null : (
                   <span
-                    className={`pip ${pct === 100 ? "success" : pct === null ? "neutral" : "warning"}`} data-part="status-dot"
+                    className={statusDot({ tone: pct === 100 ? "success" : pct === null ? "neutral" : "warning" })} data-part="status-dot"
                   ></span>
                 )}
                 {pct === null

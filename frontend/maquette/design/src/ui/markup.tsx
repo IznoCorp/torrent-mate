@@ -18,7 +18,7 @@
 //
 // IT KNOWS NO DOMAIN (invariant 10): it takes a string and an element name.
 import { createElement, useMemo, type ReactElement } from "react";
-import { sectionCount, sectionHead, sectionTitle } from "./variants";
+import { sectionCount, sectionHead, sectionTitle, statusDot, type StatusTone } from "./variants";
 
 /**
  * The `dangerouslySetInnerHTML` value for one string, stable while the string is.
@@ -93,7 +93,7 @@ export function sectionInnerMarkup(
   note?: string,
 ): string {
   return `
-    <div class="${sectionHead()}" data-part="section/head"><span class="pip ${pip}" data-part="status-dot"></span><span class="${sectionTitle()}" data-part="section/title">${escapeMarkup(title)}</span><span class="${sectionCount()}" data-part="section/count">${count}</span></div>
+    <div class="${sectionHead()}" data-part="section/head"><span class="${statusDot({ tone: pip as StatusTone })}" data-part="status-dot"></span><span class="${sectionTitle()}" data-part="section/title">${escapeMarkup(title)}</span><span class="${sectionCount()}" data-part="section/count">${count}</span></div>
     ${note ? `<div class="note" data-part="note">${note}</div>` : ""}
     ${inner}
   `;

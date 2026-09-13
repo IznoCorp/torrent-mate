@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { useAccount } from "./queries";
 import type { ReactElement } from "react";
 import { useAccountReference } from "../../features/account/reference";
-import { useEngineDrawing } from "../../lib/engine-drawing";
+import { FactRows, type FactRow } from "../../ui/fact-rows";
 import { actionButton, emptyNote, sectionHeading } from "../../ui/variants";
 import { Markup, emptyNoteMarkup } from "../../ui/markup";
 
@@ -19,12 +19,10 @@ export function AccountPage(): ReactElement | null {
   // FROM THE CACHE (invariant 4).
   const { data: ACCOUNT } = useAccount();
   if (!ACCOUNT) return null;
-  const { factRowsHTML } = useEngineDrawing();
-  const facts = (rows: Parameters<typeof factRowsHTML>[0]) => (
-    <Markup tag="ol"
-      className="flux" data-part="flux"
-      html={factRowsHTML(rows)}
-    />
+  const facts = (rows: FactRow[]) => (
+    <ol className="flux" data-part="flux">
+      <FactRows rows={rows} />
+    </ol>
   );
   return (
     <>
@@ -68,7 +66,7 @@ export function AccountPage(): ReactElement | null {
           s: t("screens.accountPage.whereSub"),
         },
       ])}
-      <button className={`cfoot ${actionButton()}`} data-part="card/foot" data-signout="1">
+      <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-signout="1">
         {t("screens.accountPage.signOut")}
       </button>
 

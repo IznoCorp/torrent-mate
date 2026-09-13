@@ -215,9 +215,10 @@ BARE_ALLOWED = {
            "exactly as `add-screen.tsx`'s two are. The engine emits `.segmini` "
            "too, which is why its rules stayed in `legacy.css` with a date of "
            "death rather than converting with the drawer (D-L07-5)"),
-    ("ui/panel/index.tsx", "img"): (
-        1, "the panel's poster, painted by `.sheetposter img` "
-           "(legacy.css:1929) until L13"),
+    ("ui/poster.tsx", "img"): (
+        1, "a poster's picture, and NOT latent: its frame dresses it entirely — "
+           "`sheetPoster()` with `[&_img]:…` and `posterFrame()` with "
+           "`[&>img]:…` — as `castPortrait()` dresses a cast portrait"),
     ("features/media/media-cast.tsx", "img"): (
         1, "a cast portrait, and this one is NOT latent: `castPortrait()` "
            "constrains it with `[&_img]:w-full [&_img]:h-full "

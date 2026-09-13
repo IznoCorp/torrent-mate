@@ -5,7 +5,7 @@ import { useAcquisitionReference, type Follow } from "./reference";
 import { useFollows } from "./queries";
 import { useUiState } from "../../lib/store-access";
 import { FollowsFilters } from "./follows-filters";
-import { body, emptyNote, section as sectionClass, sectionCount, sectionHead, sectionTitle } from "../../ui/variants";
+import { body, emptyNote, section as sectionClass, sectionCount, sectionHead, sectionTitle, statusDot, type StatusTone } from "../../ui/variants";
 import { Markup, emptyNoteMarkup } from "../../ui/markup";
 
 // The swipe action a follow that can be searched again reveals. It is a
@@ -238,7 +238,7 @@ export function FollowsTab(): ReactElement {
               key={group.l}
               className={sectionClass()} data-part="section"
               html={`
-            <div class="${sectionHead()}" data-part="section/head"><span class="pip ${group.pip}" data-part="status-dot"></span><span class="${sectionTitle()}" data-part="section/title">${group.l}</span><span class="${sectionCount()}" data-part="section/count">${items.length}</span></div>
+            <div class="${sectionHead()}" data-part="section/head"><span class="${statusDot({ tone: group.pip as StatusTone })}" data-part="status-dot"></span><span class="${sectionTitle()}" data-part="section/title">${group.l}</span><span class="${sectionCount()}" data-part="section/count">${items.length}</span></div>
             ${items.map((item) => rowOf(item, showStatus)).join("")}
           `}
             />

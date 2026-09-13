@@ -26,6 +26,7 @@ import { useDeletionJournal, useMaintenanceActions } from "./queries";
 import { backAction, section, sectionHeading, topicRow } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 import { Markup } from "../../ui/markup";
+import { FactRows } from "../../ui/fact-rows";
 // The risk vocabulary is the FEATURE's, since its panel lives here: the
 // page and the panel read one derivation of « what does this command risk »
 // rather than a copy each (§13).
@@ -36,7 +37,6 @@ export function MaintenancePage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
   const {
-    factRowsHTML,
     MAINT_TOPICS,
   } = useMaintenanceReference();
   // FROM THE CACHE (invariant 4).
@@ -52,10 +52,9 @@ export function MaintenancePage(): ReactElement | null {
   }
 
   const facts = (rows: Fact[]) => (
-    <Markup tag="ol"
-      className="flux" data-part="flux"
-      html={factRowsHTML(rows)}
-    />
+    <ol className="flux" data-part="flux">
+      <FactRows rows={rows} />
+    </ol>
   );
 
   // One rubric open: its commands, and the way back to all of them.

@@ -10,12 +10,9 @@
 // error surfaces) and `state.panne` (the simulated-fault state, which no UI
 // control toggles: only the harness drives it, and only through `__go`).
 //
-// The fact lists go through `factRowsHTML`, the fragment's own row emitter,
-// reused VERBATIM — the same discipline `add.tsx` applies to `cardHTML`, and
-// for the same reason: those rows carry `data-*` attributes the delegated click
-// handlers read, and re-deriving the markup here would drift the one thing that
-// seam depends on being byte-exact. This component draws the `<ol class="flux">`
-// itself, because React cannot set the outer markup of a node it also renders.
+// The fact lists are `FactRows`, inside the `<ol class="flux">` this component
+// draws. A row that leads somewhere carries the `data-*` attributes its
+// descriptor names, which are what the delegated click handlers read.
 import { useTranslation } from "react-i18next";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
@@ -35,11 +32,12 @@ import {
 import { crossReference, crossReferenceLink, section, sectionHeading, topicRow } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 import { Markup } from "../../ui/markup";
+import { FactRows } from "../../ui/fact-rows";
 
 export function SystemPage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
-  const { factRowsHTML, SERVICES_PANNE } = useSystemReference();
+  const { SERVICES_PANNE } = useSystemReference();
   // FROM THE CACHE (invariant 4). The SERVICE fault variant stays the
   // engine's: it carries no class in the register, so no seed derives from it
   // and no operation answers it. Its scheduler twin no longer can — the
@@ -72,10 +70,9 @@ export function SystemPage(): ReactElement | null {
   }
 
   const facts = (rows: Fact[]) => (
-    <Markup tag="ol"
-      className="flux" data-part="flux"
-      html={factRowsHTML(rows)}
-    />
+    <ol className="flux" data-part="flux">
+      <FactRows rows={rows} />
+    </ol>
   );
 
   return (

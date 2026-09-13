@@ -48,7 +48,8 @@ import { useArrivalsReference } from "../../features/arrivals/reference";
 import { Candidates, DecisionCard } from "./resolution-cards";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useStoreContent, useUiState } from "../../lib/store-access";
-import { actionButton, backAction, body, emptyNote, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, sheetActions } from "../../ui/variants";
+import { actionButton, backAction, body, emptyNote, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, sheetActions, type ChipTone } from "../../ui/variants";
+import { Chip } from "../../ui/chip";
 import { guidance } from "../../ui/variants/layout";
 import { Icon } from "../../ui/icon";
 import { bridge } from "../../lib/shell-doors";
@@ -142,12 +143,10 @@ export function ResolutionScreen() {
           </p>
           <div className="cmeta" data-part="card/meta" style={{ marginBottom: "12px" }}>
             {decision ? (
-              <span
-                className={`chip ${REASON_TONE[decision.reason] ?? "neutral"}`} data-part="chip"
-                data-tone={REASON_TONE[decision.reason] ?? "neutral"}
-              >
-                {REASON_LABEL[decision.reason] ?? decision.reason}
-              </span>
+              <Chip
+                tone={(REASON_TONE[decision.reason] ?? "neutral") as ChipTone}
+                label={REASON_LABEL[decision.reason] ?? decision.reason}
+              />
             ) : (
               ""
             )}
@@ -169,7 +168,7 @@ export function ResolutionScreen() {
             <b>{t("screens.resolution.emptyTitle")}</b>
             {t("screens.resolution.emptyBody")}
             <button
-              className={`cfoot ${actionButton()}`}
+              className={actionButton({ kind: "cardFoot" })}
               data-part="card/foot"
               style={{ marginTop: "10px" }}
               data-manual={folder || undefined}
@@ -178,12 +177,12 @@ export function ResolutionScreen() {
             </button>
           </div>
           <div className={sheetActions({ secondary: true })} data-part="sheet/actions">
-            <button className={`sact ${actionButton()}`} data-part="sheet/action" data-leave={folder || undefined}>
+            <button className={actionButton({ kind: "panelAction" })} data-part="sheet/action" data-leave={folder || undefined}>
               <Icon paths={icons.check} />
               {t("screens.resolution.leaveAsIs")}
             </button>
             {pending.length > 1 ? (
-              <button className={`sact ${actionButton()}`} data-part="sheet/action" data-next={folder}>
+              <button className={actionButton({ kind: "panelAction" })} data-part="sheet/action" data-next={folder}>
                 <Icon paths={icons.right} />
                 {t("screens.resolution.next")}
               </button>

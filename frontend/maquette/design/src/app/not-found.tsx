@@ -26,7 +26,7 @@ export function NotFoundPage(): ReactElement {
             `${t("screens.notFound.bodyBefore")}<code>${escapeHtml(asked)}</code>${t("screens.notFound.bodyAfter")}`,
           )}
       />
-      <button className={`cfoot solid ${actionButton()}`} data-part="card/foot" data-solid="" data-go="acq">
+      <button className={actionButton({ kind: "cardFoot", tone: "solid" })} data-part="card/foot" data-solid="" data-go="acq">
         {t("screens.notFound.toAcquisition")}
       </button>
       <button className={crossReference()} data-part="cross-reference" data-drawer="1">

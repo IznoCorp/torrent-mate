@@ -5199,11 +5199,6 @@ import {
       })
       .join("")}</div>`;
   }
-  function chipHTML(chip) {
-    return chip
-      ? `<span class="chip ${chip[0]}" data-part="chip" data-tone="${chip[0]}">${escapeHtml(chip[1])}</span>`
-      : "";
-  }
 
   /* ONE card, one behaviour, in every list of the interface:
        · the POSTER opens the media sheet — the most frequent path, one tap;
@@ -5275,7 +5270,7 @@ import {
        rated. The second annotates that state: what is pending, what has just
        arrived. Mixed on one line they competed for the same row and the state
        stopped reading at a glance, which is the only thing that line is for. */
-    const stateRow = `${descriptor.f ? `<span class="frac">${escapeHtml(descriptor.f)}</span>` : ""}${chipHTML(descriptor.chip)}${descriptor.note != null ? `<span class="crating">${escapeHtml(String(descriptor.note))}</span>` : ""}`;
+    const stateRow = `${descriptor.f ? `<span class="frac">${escapeHtml(descriptor.f)}</span>` : ""}${descriptor.chip ? `<span class="chip ${descriptor.chip[0]}" data-part="chip" data-tone="${descriptor.chip[0]}">${escapeHtml(descriptor.chip[1])}</span>` : ""}${descriptor.note != null ? `<span class="crating">${escapeHtml(String(descriptor.note))}</span>` : ""}`;
     const ligneAnnotations = `${descriptor.caption ? `<span class="caption" data-part="card/caption">${escapeHtml(descriptor.caption)}</span>` : ""}${descriptor.fresh ? `<span class="freshtag" data-part="card/fresh-tag">Nouveau</span>` : ""}`;
     return `<div class="card${descriptor.fresh ? " fresh" : ""}" data-part="card"${hasSheet ? "" : ' data-nonmedia="dossier"'}>
     ${poster}
@@ -5468,88 +5463,6 @@ import {
 
 
 
-  /* The last run, told as its nine steps. The counts are the ones
-     `pipeline_run` recorded; nothing here is derived from what the page shows,
-     or the report would agree with itself. */
-  /* ONE builder for the shape « a named fact, its value, and a sub-line ».
-
-     The pipeline's nine steps, the services, the schedulers, the disks, the
-     index: five lists that look alike because they ARE alike, and five
-     builders is how they start to disagree. Each line is a DESCRIPTOR — a
-     label, a value, a sub-line, an optional state and an optional mono key —
-     and a caller wanting something outside it adds a field rather than
-     passing markup. An envelope guarantees nothing about what it carries. */
-  function factsListHTML(lignes) {
-    return `<ol class="flux" data-part="flux">${factRowsHTML(lignes)}</ol>`;
-  }
-
-  /* The rows alone, without the `<ol>` around them. A migrated PAGE renders
-     that `<ol class="flux">` as its own element — React cannot set the outer
-     markup of a node it is also drawing — and fills it with these, so the rows
-     stay one emitter shared by every fact list rather than two that drift.
-     `factsListHTML` above keeps emitting exactly what it always did. */
-  function factRowsHTML(lignes) {
-    return `${lignes
-      .map((ligne) => {
-        // No VALUE is what greys a line — a sub-line explaining why there is
-        // nothing to report does not make the line a report.
-        const empty = !ligne.v;
-        // A line that leads somewhere IS the control: a list of facts beside a
-        // parallel column of buttons asks which of the two to aim at, and the
-        // answer is never on screen.
-        const target = ligne.target
-          ? Object.entries(ligne.target)
-              .map(
-                ([name, value]) =>
-                  ` data-${name}="${escapeHtml(String(value))}"`,
-              )
-              .join("")
-          : "";
-        const tag = ligne.target ? "button" : "span";
-        /* A BADGE, and it carries the word rather than sitting beside it.
-
-           A row whose value is a STATE — en ligne / hors ligne, connecté /
-           déconnecté, joignable / injoignable, réussi / échoué — wears it as a
-           chip, in the interface's existing chip vocabulary rather than a
-           second one invented here. A row whose value is a QUANTITY does not:
-           « 1 863 titres » is not a state, and badging every line teaches the
-           eye to stop seeing badges. Where a quantity hides a state, the state
-           is the badge and the quantity moves to the sub-line — « à nettoyer »
-           on the badge, « 607 fichiers parasites » underneath.
-
-           The tone is DERIVED from `ok`, never passed as a colour, so a row
-           cannot show a green badge reading « hors ligne »: the two would be
-           written in different places and would eventually disagree. */
-        const value = ligne.v ? escapeHtml(ligne.v) : "—";
-        /* Four tones, and each answers a different question:
-             · success — ça marche : en ligne, à l'heure, réussi, connecté ;
-             · alert   — ça ne marche pas, et il faut agir maintenant ;
-             · warning — important, pas critique : un disque bientôt plein ;
-             · info    — une information qui n'est pas une réussite.
-           `alert` is the operator's word and `danger` is the stylesheet's; the
-           mapping lives HERE, once, rather than forcing everyone who writes a
-           row to know the second vocabulary. */
-        const TONS = {
-          success: "success",
-          alert: "danger",
-          warning: "warning",
-          info: "info",
-        };
-        const badge = ligne.ton
-          ? `<span class="chip ${TONS[ligne.ton]}" data-part="chip" data-tone="${TONS[ligne.ton]}">${value}</span>`
-          : value;
-        return `<li class="fx${empty ? " fempty" : ""}${ligne.state === "danger" ? " fblocked" : ""}${
-          ligne.target ? " fclick" : ""
-        }" data-part="flux/row"${empty ? ' data-empty=""' : ''}${ligne.state === "danger" ? ' data-blocked=""' : ''}><${tag} class="fw" data-part="flux/row-body"${target}>
-      <span class="fn" data-part="flux/name">${escapeHtml(ligne.l)}</span>
-      <span class="fr" data-part="flux/value">${badge}</span>
-      <span class="fs" data-part="flux/detail">${ligne.k ? `<span class="fk" data-part="flux/key">${escapeHtml(ligne.k)}</span>` : ""}${
-        ligne.k && ligne.s ? " · " : ""
-      }${ligne.s ? escapeHtml(ligne.s) : ""}</span>
-    </${tag}></li>`;
-      })
-      .join("")}`;
-  }
 
 
   /* ── MAINTENANCE ──────────────────────────────────────────────────────
@@ -7325,13 +7238,6 @@ import {
     render,
     HERO_IMAGES,
     POSTERS,
-    /* What the Système page draws. `factsListHTML` is the
-       emitter every fact list on this page and on Maintenance goes through;
-       a component calls it VERBATIM rather than re-deriving its markup,
-       because the delegated click handlers depend on that markup being
-       byte-exact (the same reason `cardHTML` is reused above). */
-    factsListHTML,
-    factRowsHTML,
     /* What the Arrivées page draws. `PIPELINE` is the run's own data, read and never written; the three
        `derived` verbs answer what is stuck, moving and settled, which depends
        on the scenario and so cannot be a frozen value. */
@@ -7472,8 +7378,6 @@ import {
     actionLeave,
     actionTake,
     toast,
-    posterBox,
-    chipHTML,
   };
 
   /* EVERY SORT GOES BOTH WAYS, and each way has its own NAME rather than an
@@ -30112,15 +30016,15 @@ Object.assign(window, {
   URGENCY, VIA_LABEL, actionLeave,
   actionTake, actionResolve,
   actionDelete, addVerb, showSignIn,
-  baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
+  baseTitle, beforeReset, cadenceFR, cardHTML,
   closeDlg, closeSheet,
   dateFR, decisionPending,
   signOut,
   endCardDrag, endDeckDrag,
   endSugDrag, escapeHtml,
-  factRowsHTML, closePopEp, closeDrawer, changedFiles,
+  closePopEp, closeDrawer, changedFiles,
   gridBadge, icons, initials, initialsOf, drawerWidth,
-  libRowHTML, factsListHTML,
+  libRowHTML,
   sameValue, changeSetting,
   mountLoaders, mountSearch, fileName, normalisedKey,
   openDeleteDialog,
@@ -30128,7 +30032,7 @@ Object.assign(window, {
   openSheet,
   openPopEp,
   openDrawer, paintSelBar, panelUnderFinger,
-  plages, ownedFor, posterBox, nextSearchFR,
+  plages, ownedFor, nextSearchFR,
   ptr, refPanel, collapseCard,
   settingId, resetSettings, render,
   richText, 

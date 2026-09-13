@@ -15,9 +15,8 @@
 // action asked during a run is QUEUED, visibly, never refused with « busy, try
 // again ».
 //
-// The cards go through `cardHTML` and the fact rows through `factRowsHTML`,
-// both reused VERBATIM: the delegated handlers depend on that markup being
-// byte-exact. A section's inside goes through `sectionInnerMarkup` — this
+// The cards go through `cardHTML`, reused VERBATIM: the delegated handlers
+// depend on that markup being byte-exact. The run's steps are `FactRows`. A section's inside goes through `sectionInnerMarkup` — this
 // component draws the section element itself, because React cannot set the
 // outer markup of a node it also renders — and a section with no card is not
 // drawn at all.
@@ -54,6 +53,7 @@ import {
   pilotTitle,
 } from "./variants";
 import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
+import { FactRows } from "../../ui/fact-rows";
 
 // The nine steps, told as the last run left them. A step with nothing recorded
 // at all reads « rien à faire »; a step that BLOCKED something says so and
@@ -128,16 +128,16 @@ function PipelineBar(): ReactElement | null {
                 {t("screens.arrivals.queuedRest")}
               </span>
             </div>
-            <button className={`cfoot ${actionButton()}`} data-part="card/foot" data-pipe="stop">
+            <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-pipe="stop">
               {t("screens.arrivals.stopPipeline")}
             </button>
           </>
         ) : (
           <div className={pilotActions()}>
-            <button className={`cfoot ${actionButton()}`} data-part="card/foot" data-pipe="start">
+            <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-pipe="start">
               {t("screens.arrivals.runAfterwards")}
             </button>
-            <button className={`cfoot ${actionButton()}`} data-part="card/foot" data-pipe="stop">
+            <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-pipe="stop">
               {t("screens.arrivals.stop")}
             </button>
           </div>
@@ -157,7 +157,7 @@ function PipelineBar(): ReactElement | null {
           })}
         </span>
       </div>
-      <button className={`cfoot solid ${actionButton()}`} data-part="card/foot" data-solid="" data-pipe="start">
+      <button className={actionButton({ kind: "cardFoot", tone: "solid" })} data-part="card/foot" data-solid="" data-pipe="start">
         {t("screens.arrivals.startPipeline")}
       </button>
     </section>
@@ -168,7 +168,6 @@ function PipelineBar(): ReactElement | null {
 // recorded; nothing here is derived from what the page shows.
 function LastRun(): ReactElement | null {
   const { t } = useTranslation();
-  const { factRowsHTML } = useArrivalsReference();
   const { data: PIPELINE } = usePipeline();
   if (!PIPELINE) return null;
   const run = PIPELINE.last;
@@ -190,10 +189,9 @@ function LastRun(): ReactElement | null {
           {t("screens.arrivals.triggeredWhen", { when: run.when })}
         </span>
       </div>
-      <Markup tag="ol"
-        className="flux" data-part="flux"
-        html={factRowsHTML(lastRunRows(PIPELINE.steps, run.facts, t))}
-      />
+      <ol className="flux" data-part="flux">
+        <FactRows rows={lastRunRows(PIPELINE.steps, run.facts, t)} />
+      </ol>
     </section>
   );
 }

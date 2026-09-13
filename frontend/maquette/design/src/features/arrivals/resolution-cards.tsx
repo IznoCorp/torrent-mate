@@ -9,9 +9,11 @@ import { useTranslation } from "react-i18next";
 // sentence, and `t()` would only wrap the lookup in a second one.
 import fr from "../../i18n/fr.json";
 import { useArrivalsReference, type PendingDecision, type SettledDecision } from "./reference";
-import { iconButton, ruleNote } from "../../ui/variants";
+import { iconButton, posterFrame, ruleNote, type ChipTone } from "../../ui/variants";
 import { Icon } from "../../ui/icon";
-import { Markup } from "../../ui/markup";
+import { Chip } from "../../ui/chip";
+import { PosterArtwork } from "../../ui/poster";
+import { posterArtworkFor } from "../../lib/engine-drawing";
 import { candidateCard, candidatePick } from "./variants";
 
 // A RELEASE is not a medium, and its card is deliberately a different object.
@@ -24,10 +26,9 @@ import { candidateCard, candidatePick } from "./variants";
 //
 // The legacy twin was `releaseCardHTML(titre, meta, confiance, opts)`; the
 // props below are that signature. Its emission stopped being the twin's the
-// day the card became the gesture, below. The poster's inner markup comes from
-// the published
-// `posterBox` rather than from a re-implementation: its image-or-initials
-// fallback is exactly what a second copy would drift on.
+// day the card became the gesture, below. The poster is `PosterArtwork`, resolved
+// by `posterArtworkFor` — the one resolution every poster goes through, because a
+// second copy of its image-or-initials fallback is exactly what would drift.
 export function ReleaseCard({
   title,
   year,
@@ -47,7 +48,8 @@ export function ReleaseCard({
     overview?: string;
   };
 }) {
-  const { posterBox, icons } = useArrivalsReference();
+  const reference = useArrivalsReference();
+  const { icons } = reference;
   const { t } = useTranslation();
   // THE CARD IS THE GESTURE: one tap anywhere on it picks the candidate. It is a
   // BUTTON because the engine's delegation answers `button` and nothing else —
@@ -78,15 +80,16 @@ export function ReleaseCard({
       aria-label={year ? `${title} ${year}` : title}
     >
       <span className="ctop" data-part="card/top">
-        <Markup tag="span"
-          className="poster"
+        <span
+          className={`poster ${posterFrame()}`}
           data-part="card/poster"
           aria-hidden="true"
           title={
             opts.noPoster ? t("screens.resolution.noPosterTitle") : undefined
           }
-          html={posterBox(title, opts.k, { exact: opts.exact })}
-        />
+        >
+          <PosterArtwork artwork={posterArtworkFor(reference, title, opts.k, opts.exact)} />
+        </span>
         <span className="cbody" data-part="card/body">
           <span className="ctitle" data-part="card/title">{title}</span>
           <span className="csub" data-part="card/subtitle">{meta}</span>
@@ -100,9 +103,7 @@ export function ReleaseCard({
           {opts.overview ? <span className="cov" data-part="card/overview">{opts.overview}</span> : ""}
           {confidence ? (
             <span className="cmeta" data-part="card/meta">
-              <span className="chip info" data-part="chip" data-tone="info">
-                {t("screens.resolution.confidence")} {confidence}
-              </span>
+              <Chip tone="info" label={<>{t("screens.resolution.confidence")} {confidence}</>} />
             </span>
           ) : (
             ""
@@ -135,33 +136,30 @@ export function ReleaseCard({
 // site ever passed it and the click delegation reads no such attribute, so it
 // would be a button leading nowhere.
 export function DecisionCard({ decision }: { decision: SettledDecision }) {
+  const reference = useArrivalsReference();
   const {
-    posterBox,
-    svgIcon,
     icons,
     DECISION_STATE,
     DECISION_STATE_DETAIL,
     REASON_TONE,
     REASON_LABEL,
     VIA_LABEL,
-  } = useArrivalsReference();
+  } = reference;
   const settled = decision.state != null;
   const state = settled ? DECISION_STATE[decision.state] : null;
-  const poster =
+  const artwork =
     settled && decision.choice
-      ? posterBox(decision.choice.t, decision.k)
-      : `<span class="pfall" data-part="card/poster-fallback">${svgIcon(decision.k === "movie" ? icons.film : icons.tv, 1.25)}<b>?</b></span>`;
+      ? posterArtworkFor(reference, decision.choice.t, decision.k)
+      : { source: undefined, icon: decision.k === "movie" ? icons.film : icons.tv, label: "?" };
   const identity = decision.choice
     ? `${decision.choice.t} · ${decision.choice.p.toUpperCase()} ${decision.choice.id} · ${VIA_LABEL[decision.choice.via] ?? decision.choice.via}`
     : null;
   return (
     <div className="card" data-part="card" data-nonmedia="decision">
       <div className="ctop" data-part="card/top">
-        <Markup tag="span"
-          className="poster"
-          data-part="card/poster"
-          html={poster}
-        />
+        <span className={`poster ${posterFrame()}`} data-part="card/poster">
+          <PosterArtwork artwork={artwork} />
+        </span>
         <span className="cbody" data-part="card/body">
           <span className="ctitle" data-part="card/title" title={decision.d}>
             <code>{decision.d}</code>
@@ -173,17 +171,16 @@ export function DecisionCard({ decision }: { decision: SettledDecision }) {
               exactly what one comes back for. */}
           {identity ? <span className="creason" data-part="card/reason">{identity}</span> : ""}
           <span className="cmeta" data-part="card/meta">
-            <span className={`chip ${REASON_TONE[decision.reason] ?? "neutral"}`} data-part="chip"
-              data-tone={REASON_TONE[decision.reason] ?? "neutral"}>
-              {REASON_LABEL[decision.reason] ?? decision.reason}
-            </span>
+            <Chip
+              tone={(REASON_TONE[decision.reason] ?? "neutral") as ChipTone}
+              label={REASON_LABEL[decision.reason] ?? decision.reason}
+            />
             {state ? (
-              <span
-                className={`chip ${state[0]}`} data-part="chip" data-tone={state[0]}
+              <Chip
+                tone={state[0] as ChipTone}
+                label={state[1]}
                 title={DECISION_STATE_DETAIL[decision.state] ?? ""}
-              >
-                {state[1]}
-              </span>
+              />
             ) : (
               ""
             )}

@@ -337,6 +337,13 @@
   padding-inline: var(--spacing-7);
 }
 
+/* A submit button that cannot be pressed yet reads as unavailable. Unlayered,
+   like the rest of this group, so the hover feedback further down — unlayered
+   too, and less specific — cannot lift it back towards full strength. */
+.btnprimary:disabled {
+  opacity: 0.5;
+}
+
 /* The tab bar sits above a screen (z-50), so a screen must reserve its
    height, or its last action is stuck underneath. R4 — anchor to what you
    belong to. Contextual for the same reason: the scrollport cannot know it is

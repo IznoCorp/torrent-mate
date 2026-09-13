@@ -16,6 +16,9 @@ instead (DESIGN § 2.5, § 2.6, § 5.1; § 3, rows 16 and 18).
 - `python3 scripts/check-legacy-css-residue.py --record` after the shrink, then the plain run exit 0.
 - `python3 scripts/check-poster-box.py` exit 0. The `.tile .p` box declaration moves into the tile variant.
 - **B-336 does NOT change.** The strip converts with its visible scrollbar exactly as it is, and c·4 repairs it.
+- **R80 (amended 2026-09-13, from a·8).** The pairs a·8 added — `.chip` and its five tones with `chip()`,
+  `.pfall` with `posterFallback()` — go in the phase that removes the LAST engine builder writing their
+  class: each pair removed here is named in the commit body, and `PAIRS_FLOOR` is lowered to the measured count.
 
 ## The move
 

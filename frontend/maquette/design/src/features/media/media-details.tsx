@@ -116,14 +116,14 @@ export function MediaDetails({
                 been asked. `data-rescrape` is the verb both surfaces share —
                 this one and the follow panel's — and it calls the operation. */}
             <button
-              className={`sact ${actionButton()}`}
+              className={actionButton({ kind: "panelAction" })}
               data-part="sheet/action"
               data-rescrape={title}
             >
               <Icon paths={icons.refresh} />
               {t("screens.media.rescrape")}
             </button>{" "}
-            <button className={`sact danger ${actionButton()}`} data-part="sheet/action" data-tone="danger" data-del={title}>
+            <button className={actionButton({ kind: "panelAction", tone: "danger" })} data-part="sheet/action" data-tone="danger" data-del={title}>
               <Icon paths={icons.trash} />
               {t("screens.media.delete")}
             </button>
@@ -148,7 +148,7 @@ export function MediaDetails({
             </p>
           )
         ) : followed ? (
-          <button className={`mediaadd done ${actionButton()}`} data-part="media/add" disabled>
+          <button className={actionButton({ kind: "add", tone: "done" })} data-part="media/add" disabled>
             <Icon paths={icons.check} />
             {isFilm ? t("screens.media.added") : t("screens.media.followed")}
           </button>
@@ -158,7 +158,7 @@ export function MediaDetails({
           // screen re-renders from the store instead — the follow act
           // bumps it, and the button becomes `mediaadd done` in place.
           <button
-            className={`mediaadd ${actionButton()}`}
+            className={actionButton({ kind: "add" })}
             data-part="media/add"
             data-follow={title}
             // french-ok: a data-* VALUE, frozen with the DOM contract

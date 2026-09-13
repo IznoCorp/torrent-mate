@@ -17,6 +17,9 @@ declared in a·6, and the format helpers move to the feature (DESIGN § 2.5, § 
   (DESIGN § 5.1).
 - `python3 scripts/check-legacy-css-residue.py --record` after the shrink, then the plain run exit 0.
 - `python3 scripts/check-poster-box.py` exit 0, with the poster box declared by the variant.
+- **R80 (amended 2026-09-13, from a·8).** The pairs a·8 added — `.chip` and its five tones with `chip()`,
+  `.pfall` with `posterFallback()` — go in the phase that removes the LAST engine builder writing their
+  class: each pair removed here is named in the commit body, and `PAIRS_FLOOR` is lowered to the measured count.
 
 ## The move
 
