@@ -22,6 +22,7 @@ import re
 import shutil
 import stat
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -85,6 +86,7 @@ def scratch_tree(tmp_path: Path) -> Path:
     # A rule outside the contracts tier, as a phase names one, and one that falls.
     _write_executable(harness / "settings.py", STUB_PYTHON)
     _write_executable(harness / "fallen.py", STUB_PYTHON + "sys.exit(1)\n")
+    _write_executable(harness / "hung.py", STUB_PYTHON + "import time\ntime.sleep(40)\n")
     for rule in _array("CONTRACTS", text):
         _write_executable(harness / rule, STUB_PYTHON)
     for guard in _array("REPOSITORY_GUARDS", text):
@@ -99,12 +101,13 @@ def scratch_tree(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _run(tree: Path, *flags: str) -> tuple[subprocess.CompletedProcess[str], list[str]]:
+def _run(tree: Path, *flags: str, **environment: str) -> tuple[subprocess.CompletedProcess[str], list[str]]:
     """Run the copied script with the given flags and read its journal.
 
     Args:
         tree: The scratch repository root.
         *flags: The arguments handed to `run.sh`.
+        **environment: Variables added to the run's environment.
 
     Returns:
         The completed process and the journal's lines.
@@ -121,6 +124,7 @@ def _run(tree: Path, *flags: str) -> tuple[subprocess.CompletedProcess[str], lis
             "PATH": f"{tree / 'bin'}:{os.environ['PATH']}",
             "RUN_JOURNAL": str(journal),
             "TM_HARNESS_JOBS": "2",
+            **environment,
         },
     )
     return result, journal.read_text().splitlines()
@@ -172,7 +176,9 @@ def test_the_oracle_alone_still_runs_no_rule(scratch_tree: Path) -> None:
     assert _count(journal, "check-bug-register.py") == 0, journal
 
 
-def test_a_phase_gate_replays_its_named_rules_over_the_same_build(scratch_tree: Path) -> None:
+def test_a_phase_gate_replays_its_named_rules_over_the_same_build(
+    scratch_tree: Path,
+) -> None:
     """The named rule runs once, beside the contract rules, and one verdict closes the run."""
     result, journal = _run(scratch_tree, "--contracts", "--oracle", "settings.py")
 
@@ -193,9 +199,25 @@ def test_a_fallen_rule_still_leaves_the_oracle_its_reading(scratch_tree: Path) -
     assert "1 failed" in result.stdout and "gate: FAILED" in result.stdout, result.stdout
 
 
-def test_a_rule_name_with_no_file_is_refused_before_the_build(scratch_tree: Path) -> None:
+def test_a_rule_name_with_no_file_is_refused_before_the_build(
+    scratch_tree: Path,
+) -> None:
     """A mistyped rule would otherwise be a gate that silently replayed nothing."""
     result, journal = _run(scratch_tree, "--contracts", "--oracle", "no_such_rule.py")
 
     assert result.returncode == 2, result.stdout + result.stderr
     assert _count(journal, "npm run build") == 0, journal
+
+
+def test_a_hung_rule_is_an_instrument_fall_and_the_gate_still_ends(
+    scratch_tree: Path,
+) -> None:
+    """A rule past its bound is TIMED OUT, counted as failed, and the oracle still reads."""
+    started = time.monotonic()
+    result, journal = _run(scratch_tree, "--contracts", "--oracle", "hung.py", TM_RULE_TIMEOUT_SECONDS="2")
+
+    assert time.monotonic() - started < 30, result.stdout
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "TIMED OUT: hung.py" in result.stdout, result.stdout
+    assert "(1 timed out)" in result.stdout, result.stdout
+    assert _count(journal, "oracle.py --check") == 1, journal

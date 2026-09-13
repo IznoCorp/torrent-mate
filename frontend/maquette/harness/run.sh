@@ -373,6 +373,13 @@ fi
 # hatch that matters: a rule that measures a settle can read a contended CPU as
 # a slow animation. A rule that needs the machine to itself is a finding to
 # record, not a reason to run all of them alone.
+# EVERY RULE IS BOUNDED, and a rule past its bound is an INSTRUMENT that fell,
+# never a hold that passed: a hung rule once held the served copy for forty-five
+# minutes. `TM_RULE_TIMEOUT_SECONDS` moves the bound (ten minutes; the longest
+# rule takes two or three).
+RULE_TIMEOUT_SECONDS="${TM_RULE_TIMEOUT_SECONDS:-600}"
+BOUND="$(command -v timeout || command -v gtimeout || true)"
+[ -n "$BOUND" ] || echo "run.sh: no timeout command on this machine — rules run unbounded" >&2
 JOBS="${TM_HARNESS_JOBS:-}"
 if [ -z "$JOBS" ]; then
   JOBS="$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)"
@@ -384,6 +391,7 @@ fi
 LOGS="$(mktemp -d)"
 
 failed=0
+timed_out=0
 # The `--oracle` and `--a11y` tiers run no rule script, and an empty array is
 # both an unbound variable under `set -u` with the bash macOS ships AND empty
 # input to `xargs`, which GNU runs once and BSD runs never. They are therefore
@@ -399,13 +407,24 @@ else
   # placeholder `bash -c` consumes — and the two paths through the environment.
   printf '%s\n' "${scripts[@]}" \
     | HARNESS_DIR="$HERE" HARNESS_LOGS="$LOGS" STAMP_TOKEN="$STAMP_TOKEN" \
+      HARNESS_BOUND="$BOUND" HARNESS_RULE_TIMEOUT="$RULE_TIMEOUT_SECONDS" \
       xargs -P "$JOBS" -n 1 bash -c '
         rule="$1"
         # No `else`: the `if` exits 0 whichever way the rule went, so a fallen
         # rule does not abort `xargs` and take the rules after it with it.
         # Absence of the `.ok` marker IS the failure, read back below.
-        if python3 "$HARNESS_DIR/$rule" > "$HARNESS_LOGS/$rule.out" 2>&1; then
+        status=0
+        if [ -n "$HARNESS_BOUND" ]; then
+          "$HARNESS_BOUND" --kill-after=10 "$HARNESS_RULE_TIMEOUT" \
+            python3 "$HARNESS_DIR/$rule" > "$HARNESS_LOGS/$rule.out" 2>&1 || status=$?
+        else
+          python3 "$HARNESS_DIR/$rule" > "$HARNESS_LOGS/$rule.out" 2>&1 || status=$?
+        fi
+        if [ "$status" -eq 0 ]; then
           : > "$HARNESS_LOGS/$rule.ok"
+        elif [ -n "$HARNESS_BOUND" ] && { [ "$status" -eq 124 ] || [ "$status" -eq 137 ]; }; then
+          echo "TIMED OUT after ${HARNESS_RULE_TIMEOUT} s — an INSTRUMENT fall, not a verdict" >> "$HARNESS_LOGS/$rule.out"
+          : > "$HARNESS_LOGS/$rule.timedout"
         fi
         # THE STAMP, AROUND EVERY RULE (B-256). This reading is what covers the
         # twelve rules that import nothing from `common.py` — `audit2.py`, the
@@ -426,7 +445,12 @@ else
 
   for s in "${scripts[@]}"; do
     [ -f "${LOGS}/${s}.ok" ] && continue
-    echo "  FAILED: $s"
+    if [ -f "${LOGS}/${s}.timedout" ]; then
+      echo "  TIMED OUT: $s — an instrument fall, not a verdict"
+      timed_out=$((timed_out + 1))
+    else
+      echo "  FAILED: $s"
+    fi
     # The holds that fell — and if the filter matches nothing, the TAIL, because
     # not every rule speaks the same way. `audit2.py` uses no `common.Journal`:
     # it prints `■ R15 — 2` and `TOTAL, second pass: N violations`, so the
@@ -437,7 +461,7 @@ else
     # `|| true`: under `pipefail` a grep that matches nothing fails the
     # assignment, and `set -e` then ended the whole run in silence — the floor
     # below was never reached for the very rule it was written for.
-    hits="$(echo "$out" | grep -E "FAIL|Error|Traceback|error:|violation|■" | head -12 || true)"
+    hits="$(echo "$out" | grep -E "FAIL|Error|Traceback|error:|violation|TIMED OUT|■" | head -12 || true)"
     [ -z "$hits" ] && hits="$(echo "$out" | tail -12)"
     echo "$hits" | sed 's/^/      /'
     failed=$((failed + 1))
@@ -506,7 +530,7 @@ if { [ "$TIER" != "--contracts" ] || [ "$WITH_ORACLE" -eq 1 ]; } && [ "$A11Y_ONL
   if [ "$WITH_ORACLE" -eq 1 ]; then
     echo
     echo "── phase gate verdict ──"
-    echo "  rules: ${#scripts[@]} (${#NAMED_RULES[@]} named) and ${#REPOSITORY_GUARDS[@]} guard(s) — ${failed} failed"
+    echo "  rules: ${#scripts[@]} (${#NAMED_RULES[@]} named) and ${#REPOSITORY_GUARDS[@]} guard(s) — ${failed} failed (${timed_out} timed out)"
     echo "  oracle: exit ${oracle_status}"
     if [ "$failed" -gt 0 ] || [ "$oracle_status" -ne 0 ]; then
       echo "gate: FAILED"

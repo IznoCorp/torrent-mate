@@ -16,6 +16,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "mutate.sh"
@@ -45,7 +46,11 @@ def sandbox(tmp_path: Path, rule_body: str) -> tuple[Path, dict[str, str]]:
         "GIT_COMMITTER_NAME": "tester",
         "GIT_COMMITTER_EMAIL": "tester@example.invalid",
     }
-    for command in (["git", "init", "-q"], ["git", "add", "-A"], ["git", "commit", "-qm", "sandbox"]):
+    for command in (
+        ["git", "init", "-q"],
+        ["git", "add", "-A"],
+        ["git", "commit", "-qm", "sandbox"],
+    ):
         subprocess.run(command, cwd=repository, check=True, env=environment)
     return repository, environment
 
@@ -53,7 +58,13 @@ def sandbox(tmp_path: Path, rule_body: str) -> tuple[Path, dict[str, str]]:
 def mutate(repository: Path, environment: dict[str, str]) -> subprocess.CompletedProcess:
     """Runs the copied script with one mutation of the target against the rule."""
     return subprocess.run(
-        ["bash", "scripts/mutate.sh", "target.txt", 't.replace("before", "after")', "rule.py"],
+        [
+            "bash",
+            "scripts/mutate.sh",
+            "target.txt",
+            't.replace("before", "after")',
+            "rule.py",
+        ],
         cwd=repository,
         capture_output=True,
         text=True,
@@ -78,3 +89,18 @@ def test_a_rule_that_holds_is_still_reported_as_not_falling(tmp_path: Path) -> N
     result = mutate(repository, environment)
     assert result.returncode == 0, result.stderr
     assert "NO RULE FELL" in result.stdout, result.stdout
+
+
+def test_a_rule_that_hangs_is_an_instrument_fall_and_not_a_verdict(
+    tmp_path: Path,
+) -> None:
+    """A rule past its bound is TIMED OUT: never « no rule fell », the file restored all the same."""
+    repository, environment = sandbox(tmp_path, "import time\ntime.sleep(40)\n")
+    environment["TM_RULE_TIMEOUT_SECONDS"] = "2"
+    started = time.monotonic()
+    result = mutate(repository, environment)
+    assert time.monotonic() - started < 30, result.stdout
+    assert result.returncode == 3, result.stdout + result.stderr
+    assert "TIMED OUT" in result.stdout, result.stdout
+    assert "NO RULE FELL" not in result.stdout, result.stdout
+    assert (repository / "target.txt").read_text() == "before\n"

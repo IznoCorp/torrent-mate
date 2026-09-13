@@ -117,7 +117,16 @@ echo "mutate: $TARGET mutated. Rebuilding the served copy…"
 (cd frontend/maquette/design && npm run build >/dev/null 2>&1)
 python3 frontend/maquette/harness/served_copy.py --publish >/dev/null
 
+# EVERY RULE IS BOUNDED. A rule that hangs held the served copy for forty-five
+# minutes once, and a hung rule is not a verdict either way: it is an INSTRUMENT
+# that fell. `TM_RULE_TIMEOUT_SECONDS` moves the bound (ten minutes; the longest
+# rule takes two or three).
+RULE_TIMEOUT_SECONDS="${TM_RULE_TIMEOUT_SECONDS:-600}"
+BOUND="$(command -v timeout || command -v gtimeout || true)"
+[ -n "$BOUND" ] || echo "mutate: no timeout command on this machine — rules run unbounded" >&2
+
 FELL=0
+TIMED_OUT=0
 for RULE in "$@"; do
   echo "── $RULE ───────────────────────────────────────────"
   # CAPTURED, NOT PIPED. Under `pipefail` a pipeline takes the FAILING stage's
@@ -126,11 +135,19 @@ for RULE in "$@"; do
   # under the falls it had just printed.
   OUTPUT="$(mktemp)"
   STATUS=0
-  python3 "$RULE" >"$OUTPUT" 2>&1 || STATUS=$?
+  if [ -n "$BOUND" ]; then
+    "$BOUND" --kill-after=10 "$RULE_TIMEOUT_SECONDS" python3 "$RULE" >"$OUTPUT" 2>&1 || STATUS=$?
+  else
+    python3 "$RULE" >"$OUTPUT" 2>&1 || STATUS=$?
+  fi
   # THE EXIT CODE IS A VERDICT TOO. A rule that prints « 1 violations » and
   # exits 1 — `audit2.py` — has no line this grep can find, and the tool said
   # « NO RULE FELL » twice over R13 when it had fallen.
-  if grep -E "^  FAIL|violation\(s\)" "$OUTPUT"; then
+  if [ -n "$BOUND" ] && { [ "$STATUS" -eq 124 ] || [ "$STATUS" -eq 137 ]; }; then
+    echo "  TIMED OUT after ${RULE_TIMEOUT_SECONDS} s — an INSTRUMENT fall: this rule gave no verdict"
+    tail -5 "$OUTPUT"
+    TIMED_OUT=1
+  elif grep -E "^  FAIL|violation\(s\)" "$OUTPUT"; then
     FELL=1
     [ "$STATUS" -eq 0 ] || echo "  (the rule exited $STATUS)"
   elif [ "$STATUS" -ne 0 ]; then
@@ -163,5 +180,9 @@ restore
 python3 frontend/maquette/harness/served_copy.py --publish >/dev/null
 
 release_the_copy
+if [ "$TIMED_OUT" -eq 1 ]; then
+  echo "mutate: TIMED OUT — an instrument fell, so this mutation is proved neither way."
+  exit 3
+fi
 [ "$FELL" -eq 1 ] || echo "mutate: NO RULE FELL. That is the finding."
 exit 0
