@@ -1259,7 +1259,7 @@ the four return walks fall — phone finger 490 → 22, phone wheel 480 → 0, d
 **The repair**, inside the one path: the late re-apply runs only if the port still sits where the restore landed
 (`port.scrollTop === landed`) — a clamped offset has not moved since the write, a reader's has.
 
-<sub>maquette-scroll-jump, 2026-09-12 · probe lines in `docs/features/maquette-scroll-jump/DESIGN.md` § 1 · `harness/scroll_keeps_place.py` (R175)</sub>
+<sub>maquette-scroll-jump, 2026-09-12 · probe lines in `docs/features/maquette-scroll-jump/DESIGN.md@519ba2136` § 1 · `harness/scroll_keeps_place.py` (R175)</sub>
 
 **B-491 — out of the desktop frame, the document is a second scroll container.**
 
@@ -1275,7 +1275,7 @@ whose `overflow` out of the frame R140 holds equal to the control document's —
 falls. The device, the stage, the closed sheet and its translate, the drag band and the switch measure identically in the
 phone, the desktop in the frame and out of it; R175's header holds read green, R140 reads 24 holds and no violation.
 
-<sub>maquette-scroll-jump, 2026-09-12 · private bench measure of every element outside `#port` below the viewport · `docs/features/maquette-scroll-jump/DESIGN.md` § 2</sub>
+<sub>maquette-scroll-jump, 2026-09-12 · private bench measure of every element outside `#port` below the viewport · `docs/features/maquette-scroll-jump/DESIGN.md@519ba2136` § 2</sub>
 
 **B-492 — out of the desktop frame, what clips the sheet is the harness, not the app.**
 
@@ -1289,7 +1289,7 @@ size can meet the second scroll container again.
 **Closes when** the frame model decides which element of the app owns the clipping of its layers on a desktop window,
 and a hold reads the document's overflow with no harness stylesheet in the page.
 
-<sub>maquette-scroll-jump, 2026-09-13 · owner: the frame model (L13) · `docs/features/maquette-scroll-jump/DESIGN.md` § 5</sub>
+<sub>maquette-scroll-jump, 2026-09-13 · owner: the frame model (L13) · `docs/features/maquette-scroll-jump/DESIGN.md@519ba2136` § 5</sub>
 
 **B-466 — `frame.ts` is one line from a hard ceiling, and the arm this wave added is what will demand that line.**
 
