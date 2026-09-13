@@ -1,8 +1,8 @@
 {
-  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 112 of 123 rule(s) report a hold count; the other 11 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
-  "taken_at_commit": "5eafd3cfc536d5e6bf69618a3b994dc0e9680579",
+  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 116 of 127 rule(s) report a hold count; the other 11 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
+  "taken_at_commit": "f1e7ac662482f1a2cfacb86bcffa4e2dd6aab724",
   "taken_on": "2026-09-13",
-  "suite": "123 of 123 rule(s)",
+  "suite": "127 of 127 rule(s)",
   "host": "http://127.0.0.1:8899/",
   "rules": {
     "acted_surface_redraws.py": {
@@ -262,7 +262,7 @@
     },
     "journey.py": {
       "exit": 0,
-      "count": 74,
+      "count": 70,
       "source": "common.Journal summary"
     },
     "journey_verbs.py": {
@@ -475,6 +475,11 @@
       "count": 4,
       "source": "per-hold PASS/FAIL tally"
     },
+    "scroll_keeps_place.py": {
+      "exit": 0,
+      "count": 40,
+      "source": "common.Journal summary"
+    },
     "scroll_memory.py": {
       "exit": 0,
       "count": 9,
@@ -500,9 +505,14 @@
       "count": 63,
       "source": "common.Journal summary"
     },
+    "secret_acts.py": {
+      "exit": 0,
+      "count": 14,
+      "source": "common.Journal summary"
+    },
     "seeds_at_rest.py": {
       "exit": 0,
-      "count": 10,
+      "count": 15,
       "source": "common.Journal summary"
     },
     "selection.py": {
@@ -528,6 +538,11 @@
     "settings.py": {
       "exit": 0,
       "count": 65,
+      "source": "common.Journal summary"
+    },
+    "settings_editing.py": {
+      "exit": 0,
+      "count": 15,
       "source": "common.Journal summary"
     },
     "settle.py": {
@@ -590,6 +605,11 @@
       "count": 9,
       "source": "common.Journal summary"
     },
+    "topics.py": {
+      "exit": 0,
+      "count": 22,
+      "source": "common.Journal summary"
+    },
     "touch.py": {
       "exit": 0,
       "count": 25,
@@ -622,10 +642,10 @@
     }
   },
   "totals": {
-    "rules": 123,
-    "parseable": 112,
+    "rules": 127,
+    "parseable": 116,
     "unparseable": 11,
-    "holds": 2684,
+    "holds": 2776,
     "failed": 0
   }
 }
