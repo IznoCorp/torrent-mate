@@ -37,9 +37,14 @@ def sandbox(tmp_path: Path, rule_body: str) -> tuple[Path, dict[str, str]]:
     npm = stand_ins / "npm"
     npm.write_text("#!/bin/sh\nexit 0\n")
     npm.chmod(0o755)
-    environment = {**os.environ, "PATH": f"{stand_ins}:{os.environ['PATH']}",
-                   "GIT_AUTHOR_NAME": "tester", "GIT_AUTHOR_EMAIL": "tester@example.invalid",
-                   "GIT_COMMITTER_NAME": "tester", "GIT_COMMITTER_EMAIL": "tester@example.invalid"}
+    environment = {
+        **os.environ,
+        "PATH": f"{stand_ins}:{os.environ['PATH']}",
+        "GIT_AUTHOR_NAME": "tester",
+        "GIT_AUTHOR_EMAIL": "tester@example.invalid",
+        "GIT_COMMITTER_NAME": "tester",
+        "GIT_COMMITTER_EMAIL": "tester@example.invalid",
+    }
     for command in (["git", "init", "-q"], ["git", "add", "-A"], ["git", "commit", "-qm", "sandbox"]):
         subprocess.run(command, cwd=repository, check=True, env=environment)
     return repository, environment
@@ -49,13 +54,17 @@ def mutate(repository: Path, environment: dict[str, str]) -> subprocess.Complete
     """Runs the copied script with one mutation of the target against the rule."""
     return subprocess.run(
         ["bash", "scripts/mutate.sh", "target.txt", 't.replace("before", "after")', "rule.py"],
-        cwd=repository, capture_output=True, text=True, timeout=60, env=environment)
+        cwd=repository,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        env=environment,
+    )
 
 
 def test_a_rule_whose_verdict_is_its_exit_code_is_seen_to_fall(tmp_path: Path) -> None:
     """A rule that exits 1 without a `FAIL` line has fallen, and the tool says so and says how."""
-    repository, environment = sandbox(
-        tmp_path, 'print("TOTAL, second pass: 2 violations")\nraise SystemExit(1)\n')
+    repository, environment = sandbox(tmp_path, 'print("TOTAL, second pass: 2 violations")\nraise SystemExit(1)\n')
     result = mutate(repository, environment)
     assert result.returncode == 0, result.stderr
     assert "NO RULE FELL" not in result.stdout, result.stdout
