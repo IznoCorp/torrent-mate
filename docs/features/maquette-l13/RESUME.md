@@ -1,112 +1,93 @@
 # L13a — resume brief for the successor
 
-Written by the second L13a implementer when it stood down at the a·2 boundary (gauge 57 %, a·3 too large
-to finish under 60 %). Read it after `docs/features/maquette-l13/BRIEF-L13a.md`, which still governs
-everything; this file only records state, rulings and traps, and it dies with the wave's folder at the
-post-merge gesture.
+Written by the third L13a implementer when it stood down at the a·4 boundary (gauge past 50 %, the steward's call). Read it after
+`docs/features/maquette-l13/BRIEF-L13a.md`, which still governs everything; this file only records
+state, rulings and traps, and it dies with the wave's folder at the post-merge gesture.
 
 ## Exact state
 
 - Worktree `/Users/izno/dev/worktrees/wave-l13a`, branch `feat/maquette-l13a`, merged with `origin/main` at
-  `60530dbd8` (#595, 0.98.90). Hold-count baseline 127 rules, 2 776 holds, `failed` 0; oracle reference
-  `f1e7ac66`.
-- **a·1 is done** at `123816c93`. **a·2 is done** at `383c67549`, one commit,
-  `refactor(maquette-l13a): product code imports the shell's seams and the harness publishes them`, pushed
-  with this file (the push report carries `git ls-remote --heads origin feat/maquette-l13a`).
-- a·2's gate, on the shared mutex: `run.sh --contracts` 19 rules and 27 repository guards, no violation;
-  `run.sh --oracle` 87 states × 34 regions, 2 958 measurements, no divergence. Beside it: `tsc` 0 errors,
-  vitest 7 files / 112 tests, the cheap guards exit 0. `--compare`, the full suite, `--a11y` and `make check`
-  are NOT run: they run once, at a·19.
-- **Next: a·3** (`plan/phase-a03-ladder-handler.md`), then a·4 … a·19 in order.
-- Version not bumped (bump above whatever `main` reads at a·19). No pull request.
+  `60530dbd8` (#595, 0.98.90). Oracle reference `f1e7ac66`.
+- **a·1** `123816c93`, **a·2** `383c67549`, **a·3** `40fc7b785`, **a·4** `ad4d3096a`
+  (`refactor(maquette-l13a): the arrival boots from the shell and the engine's handshake goes`), then `4918abe65` (`fix(maquette-l13a): url_state.py drives the sign-in gate through the entry seam a·1 left it`).
+- a·3's gate (on `40fc7b785`, shared mutex): `run.sh --contracts` 19 rules and 27 guards, no violation;
+  `run.sh --oracle` 87 states × 34 regions, 2 958 measurements, no divergence. Beside it: `tsc` 0 errors, vitest
+  7 files / 112 tests, every cheap guard exit 0. Before/after readings byte-identical (B-290/B-275 walk index
+  2 → 3 → `/` index 1, panel shut; `settings_editing.py` 15 holds).
+- a·4's gate (on `4918abe65`, shared mutex): `bridge.py` 10, `startup.py` 28, `panel.py` 51, `url_state.py` 99 —
+  each alone, each its baseline count, no violation; `run.sh --contracts` 19 rules and 27 guards, no violation;
+  `run.sh --oracle` 2 958 measurements, no divergence. `tsc` 0, vitest 7 / 112, every cheap guard exit 0.
+- `engine/legacy.js` 30 276 non-blank (31 208 at the wave's base), ledger re-recorded. `--compare`, the full
+  suite, `--a11y` and `make check` are NOT run: they run once, at a·19.
+- **Next: a·5** (`plan/phase-a05-dead-code.md`) — include the release machinery `app/page-host.tsx` can no longer reach (phase-a04's amendment).
+- Version not bumped. No pull request.
 
 ## Rulings — not to be reopened
 
-From a·1 (unchanged, see the commit `123816c93` body for the detail):
+1–12: see the a·2 RESUME rulings (in git: `git show 36cc38a4c:docs/features/maquette-l13/RESUME.md`), carried
+over unchanged, except 3's « a·3 moves `applyState` with `onEngineBack` », voided by 16.
 
-1. `harness` is a declared bucket of `scripts/check-frontend-boundaries.py`.
-2. `design/src/harness/` is in the language guard's harness scope for the STRING arm only.
-3. **The product never depends on the instrument.** `applyState` and the `window.state` getter stay in the
-   engine; `harness/drive.ts` imports `applyState`. **a·3 moves `applyState` with `onEngineBack`.**
-4. `drivenWithoutHistory(run)` is the engine's one addition; `driven` is in the vocabulary.
-5. `currentRender = null` was not carried.
-6. The `window.__navEchec = false` initialisation stays in the engine.
-7. `installHarness()` takes no argument; the ≡ panel is `harness/panel.ts`.
-8. The named states are eleven files under `harness/states/`, composed by `harness/index.ts`.
+From a·3 (the steward's rulings on four STOP D, 2026-09-13; all written into `phase-a03`, one into `phase-a10`):
 
-From a·2 (the steward's rulings on STOP D, 2026-09-13):
+13. **`knownMedium` stays fixture-backed** (`follows() ∪ INCOMPLETE ∪ LIBRARY`) and is handed in through
+    `installKnownMedium` (`app/addressed-panels.ts`); the cache reading lands with the phase that kills
+    `LIBRARY` (a·10), which decides whether the narrower answer is a behaviour change to file. `INCOMPLETE` has no
+    phase naming its death.
+14. **`navigationState` lives in `lib/navigation-entry.ts`** (fan-in refused `app/page-switch.ts` at 5); the
+    entry's dials are written ONCE (`ENTRY_DIALS`, `entryPatch`).
+15. **`scripts/frame-domain-baseline.json` lib 18 → 23** for those dial names; app stays 130.
+16. **`applyState` stays in the engine** beside `render()`/`port`, handed in through `installPageRestore`;
+    `harness/drive.ts` imports it from `legacy.js`; it leaves at b·7.
+17. `unwinding`/`currentRender` stay with `closeScreen` until a·5; the `#screen` rung is registered by the engine.
+18. `harness/publish.ts` publishes `__closeLayers` and `armedExit`; `__derouler`, `__navigationState`,
+    `__announcePops` are published nowhere (no rule reader). `BACK_WINDOW` is `converted` in
+    `fixture-register.json`.
 
-9. **R1 — the four shell doors live in `lib/shell-doors.ts`** (`toast`, `panel`, `bridge`, `screens`, `let`
-   bindings filled by their app host through `fillToastDoor`/`fillPanelDoor`/`fillBridgeDoor`/
-   `fillScreensDoor`); **`store` lives in `lib/store-access.ts`** (`installStore`, called by the boot). The
-   app hosts are not import owners: the fan-in arm refused them (history-bridge 1 → 9, toast-host 1 → 9,
-   panel-host 1 → 7, store 3 → 7), re-runnable with `plan/fanin_projection.py`.
-10. **R2 — `features/acquisition/queries.ts` is in `FAN_IN_EXEMPT`**, over by buckets (2 → 5). The L13b
-    phase that deletes the engine's last read of `followActions`/`suggestions` removes the entry;
-    `phase-b11` says so.
-11. **The six product writes `window.__navEchec = true` stay** (a write is not a read; ruling 6 voided the
-    planned home).
-12. `window.__mocks` stays published by the mock layer itself: the `mocks` arm lets only `app/` import
-    `mocks/`. `app/outbox-wiring.ts` imports `mockLayer` behind `__MOCKS_BUILT_IN__`; the engine's
-    `resetSettings` (harness-only) keeps its `window.__mocks?.` read.
+From a·4:
 
-What a·2 left for the next phases to know:
+19. **`app/arrival.ts`** holds `INITIAL_STATE` and `installArrival(store)`; the engine's `store` is the
+    `lib/store-access` import; the arrival draws through `window.__referentiel.render()`.
+20. **`frame-domain-baseline.json` app 130 → 138** for INITIAL_STATE's eight page-alias words.
+21. **`fixture-register.json` `$anonymous.count` 1 → 0**; `boot_order.py` and `bridge.py` (f′) re-aimed, counts unchanged.
 
-- **Product code imports its seams**: `store` (`lib/store-access`), `sharedQueryClient`
-  (`lib/query-client`), `addressSeam` (`lib/addresses`), the four doors, and each owner's own export
-  (`dialog`, `entry`, `loadingDone`, `registeredLayers`, `navigation`, `popover`, `refillProducers`,
-  `unknownPanel`, `unknownProducer`, `refillEngineData`, `outboxSeam`, `releasePage`, `shellPages`,
-  `suggestions`, `refillSuggestions`, `followActions`, `followVerbs`, `discover`, `searchResults`,
-  `pendingDecisions`, `libraryNextPage`, `deleteLibraryItems`, `releases`, `settingLabels`, `settingsVerbs`,
-  `pressNumbers`, `pullNumbers`, `queueLists`, `queueActions`, `stackedSurfaces`, `verbNames`, `mockLayer`).
-- **The engine reads them through `seam`**, a getter object in `engine/seams.ts` (twenty names; the engine
-  has locals `toast`, `entry`, `suggestions`). Code that a·3 and a·4 move OUT of the engine into `app/` must
-  import the owners directly, never `seam` — `app/` does not import `engine/`'s seams.
-- **`harness/publish.ts` publishes, as getters, exactly the 31 seams a rule reads**; `installHarness()`
-  calls `publishSeams()` first. A seam a moved module stops owning moves its getter in the same commit. A
-  getter a rule reads that a·3 creates (the brief's `armedExit`, `unwinding`…) is added there.
-- The served identity is a `<script type="application/json" id="served-identity">` the host writes
-  (`host_identity.py`) and `lib/served-identity.ts` reads; R87 (`identity.py`) is re-aimed to it.
-- The media route composes the follows: `routes/media-sheet.tsx` renders `MediaRouteScreen`, which passes
-  `readFollows` to `MediaScreen`.
+## A defect of a·1 found at a·4's gate
 
-Readings for the pull request body, taken on a·2's head:
+`url_state.py` crashed since a·1 (`123816c93`) on `window.hideSignIn()` at lines 299, 328 and 345 — the engine
+forwarder a·1 removed without re-aiming them. Ruled and fixed at `4918abe65`: the three calls go through
+`window.__entry.hideSignIn()`, count unchanged (99). No other rule read one of the nine forwarders.
+Lesson: a rule outside the contracts tier and the oracle is read by NO per-phase gate — when a phase removes a
+`window` name, grep every `harness/*.py` string for it, not only the rules the phase names.
 
-- § 2.4 closing pass: product outside `engine/` reads 6 names on 56 lines (the engine's six); at `79db420b3`
-  27 names on 211 lines. The engine reads one `window` name, `__mocks`.
-- Lift-out, mocks off: JavaScript under `dist/vite/` 1 648 113 bytes (a·1: 1 651 314); the off build boots to
-  `/acquisition` with 0 page errors (the 14 console errors are the static host's 404s on `/api/*` and
-  `/ws/events`); 0 files name `__etatsDetailles`, `acq-now-idle`, `hscen`, `no mock route`, `publishSeams`,
-  `__relay`, `__unknownProducer`. Method: a Vite config in a scratch directory that spreads the design's config
-  and sets `__MOCKS_BUILT_IN__` false, built into the worktree's `dist/`, served by `python3 -m http.server`
-  on a private port, read with Playwright; `dist/` deleted afterwards.
-- `engine/legacy.js` 31 208 non-blank, unchanged by a·2 (every edit in place).
+## What a·3 left for the next phases to know
+
+- The walk's facts are ONE exported object, `walk` in `app/page-switch.ts` (`driven`, `homeFloorExists`,
+  `arrivalWithoutFloor`, `armedExit`, `afterUnwind`); the engine's boot still writes three of them — a·4's
+  `app/arrival.ts` takes those writes.
+- The ladder walks `RANK = dialog, drawer, screen, sheet` over registrations; a·5 deletes the screen rung with
+  `closeScreen`.
+- The exit warning's words are `message.oneMoreBack` in `fr.json`.
 
 ## Traps met — each cost a run
 
-The a·1 traps still hold (a `cd` persists in the Bash tool; edit the engine through Python; `vite build
---outDir` elsewhere exits 1; anything the boot reads must exist before `start()`; the pre-push suite sees
-tests that name moved paths; re-aim the guards a move touches; `tsc` catches what the build does not).
-New in a·2:
+**RULE FOR EVERY LATER PHASE (steward's ruling, 2026-09-13).** Before a phase's gate, run
+`grep -nE "window\.<name>\b" frontend/maquette/harness/*.py` — and the bare `=><name>(` form — for EVERY name the
+phase removes or stops publishing, and replay each rule that reads one, wrapped, alone. The per-phase gate
+(contracts + oracle) does not run those rules, and the full suite only runs at a·19: that is how a·1's hole in
+`url_state.py` stayed invisible through three gates.
 
-- **The `window.__` pass is blind to BARE globals.** The engine read `__bridge.back()` with no `window.`
-  on 13 lines; a scan that strips comments and strings and lists undeclared `__name` tokens found it. Run
-  it on every file a phase moves.
-- **A word-boundary rename crosses import paths.** `\bqueries\b` rewrote `./queries`, `search-queries` and
-  TanStack's `defaultOptions.queries`; `window.__navigation` matched inside `window.__navigationState`.
-  Rename an existing identifier only with `scripts/rename-identifiers.py`; for a name the phase itself just
-  introduced, replace per file and re-read the diff.
-- **The fan-in arm counts BUCKETS as importers** (`harness`, `engine`, `routes`, `app`), not only features.
-- **Import lines count toward the 400-line ceiling**: `discover-feed.ts` (399) and `mocks/index.ts` (397)
-  went over with three added imports; the harness-only declaration moved to `harness/publish.ts` and the
-  publication became a chained assignment.
-- **The vocabulary arm refuses words nobody wrote down** (`model`, `measures`, `queries`, `published` are
-  absent); prefer a word that is there (`seam`, `numbers`, `shared`, `written`).
-- **A shell loop over `"script --flag"` passes the flag inside the file name**: three guards « failed » that
-  way and were green run properly.
-- **`grep -rl --include` on this machine is ugrep and miscounts on a directory**; count in Python.
-- **A NEW source file under `design/src` fails the pre-push suite** until
-  `python3 scripts/check-maquette-comments.py --record` re-records the corpus count
-  (`comment-references-baseline.json` `read`): `test_the_floor_is_derived_from_the_record` compares the
-  record with the tree, and neither the contracts tier nor the oracle runs it. a·2's first push failed
-  on it (389 recorded, 391 read).
+The a·1 and a·2 traps still hold. New in a·3:
+
+- **A move out of the engine is read by guards the engine was exempt from**: `check-state-ownership`
+  (non-literal store writes), `check-frame-domain` (page aliases inside identifiers — `acqTab`, `libLens`),
+  `check-mock-seeds` (the fixture register lists engine constants such as `BACK_WINDOW`). Run all three on the
+  working tree BEFORE the first browser run; the contracts tier runs them and costs a build to learn it.
+- **`ENGINE_OWNED` does not cover an unreadable write**: the arm records unreadable sites before it tests the
+  exemption.
+- **`json.dumps` must keep the file's indent** (`frame-domain-baseline.json` is 2 spaces); check with
+  `git diff --numstat` against the base.
+- **Playwright from a scratch probe needs `channel="chrome"`** — the bundled headless shell is not installed.
+- **`heavy.sh --class browser` can hold off for many minutes on the 4096 MB floor** with nothing of the wave
+  running; a Bash call past 600 s is moved to the background — do not relaunch it.
+- **vitest here has no `--minWorkers`**; `--maxWorkers=2` alone.
+- **A scripted scan of `window` names read by the rules missed a known reader twice**; a plain
+  `grep -nE "window\.NAME\(|=>NAME\("` over `harness/*.py` found it. Prove a scanner on a known case first.
