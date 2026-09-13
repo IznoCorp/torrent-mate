@@ -30,7 +30,6 @@ import { navigation } from "../app/navigation-seam";
 import { followVerbs } from "../features/acquisition/follow-verbs";
 import { followActions, suggestions } from "../features/acquisition/queries";
 import { searchResults } from "../features/acquisition/search-queries";
-import { pendingDecisions } from "../features/arrivals/queries";
 import { deleteLibraryItems } from "../features/library/queries";
 import { sortWays } from "../features/library/sorting";
 import { addressSeam } from "../lib/addresses";
@@ -179,9 +178,6 @@ export const seam = {
   },
   get navigation() {
     return navigation;
-  },
-  get pendingDecisions() {
-    return pendingDecisions;
   },
   get queue() {
     return queueLists;

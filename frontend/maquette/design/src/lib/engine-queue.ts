@@ -37,6 +37,5 @@ export type EngineQueue = {
   // Each toasts and re-renders on success; `actionLeave` also reports
   // whether the folder was found at all.
   actionResolve: (title: string, choice?: string) => void;
-  actionLeave: (title: string) => boolean;
   actionTake: (title: string) => void;
 };

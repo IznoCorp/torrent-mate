@@ -75,7 +75,7 @@ export function ArrivalCard({
   foot,
 }: {
   card: QueueCard;
-  foot?: { label: string; act: string };
+  foot?: { label: string; attributes: Record<string, string> };
 }): ReactElement {
   const reference = useArrivalsReference();
   const { t } = useTranslation();
@@ -130,7 +130,7 @@ export function ArrivalCard({
           />
         ) : null}
         {foot ? (
-          <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-act={foot.act}>
+          <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" {...foot.attributes}>
             {foot.label}
           </button>
         ) : null}

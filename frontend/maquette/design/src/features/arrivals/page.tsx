@@ -227,7 +227,7 @@ export function ArrivalsPage(): ReactElement | null {
     tone: StatusTone,
     title: string,
     cards: QueueCard[],
-    foot?: { label: string; act: string },
+    foot?: { label: string; attributes: Record<string, string> },
     note?: ReactElement,
   ) =>
     cards.length === 0 ? null : (
@@ -285,7 +285,7 @@ export function ArrivalsPage(): ReactElement | null {
         "danger",
         t("screens.arrivals.stuckTitle"),
         stuck,
-        { label: t("screens.arrivals.stuckFoot"), act: "resolve" },
+        { label: t("screens.arrivals.stuckFoot"), attributes: { "data-resolution": "" } },
         <>
           <b>{t("screens.arrivals.stuckNoteLead")}</b>
           {t("screens.arrivals.stuckNoteRest")}

@@ -40,7 +40,7 @@ export type MediumCard = {
 };
 
 /** The foot a section offers for its own action. */
-export type MediumCardFoot = { label: string; act?: string; solid?: boolean };
+export type MediumCardFoot = { label: string; solid?: boolean; attributes?: Record<string, string> };
 
 /**
  * Where the journey stands at one stage, from the value the strip carries.
@@ -104,6 +104,6 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot): str
     caption: medium.caption,
     fresh: medium.fresh ? i18next.t("surfaces.card.freshTag") : undefined,
     strip: medium.strip?.map((value, index) => ({ state: stageState(value), label: stages[index] })),
-    foot: foot ? { label: foot.label, solid: foot.solid, attributes: { "data-act": foot.act ?? "" } } : undefined,
+    foot: foot ? { label: foot.label, solid: foot.solid, attributes: foot.attributes ?? {} } : undefined,
   });
 }

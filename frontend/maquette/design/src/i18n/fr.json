@@ -985,7 +985,9 @@
   },
   "verbs": {
     "arrivals": {
-      "taken": "« {{title}} » récupéré — suivez-le dans « En vol »."
+      "taken": "« {{title}} » récupéré — suivez-le dans « En vol ».",
+      "left": "« {{title}} » laissé tel quel — le résultat automatique est conservé, rien n'a été re-scrapé.",
+      "resolved": "Identifié comme « {{choice}} » — le pipeline reprend jusqu'à la médiathèque."
     },
     "media": {
       "seasonAsked": "Saison {{season}} de « {{title}} » demandée — {{count}} épisodes à récupérer.",

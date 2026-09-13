@@ -1530,38 +1530,8 @@ import {
     toast(`« ${baseTitle(title)} » récupéré — suivez-le dans « En vol ».`);
   }
 
-  /* Agreeing with the machine. The automatic result stands, nothing is
-     re-scraped — and the folder LEAVES the queue, because the operator has
-     answered. A queue that kept what has been answered would grow forever and
-     stop meaning « what is waiting for me ». */
-  /* A folder awaiting a decision shows up on TWO lists — « À traiter » on the
-     acquisition side and « Ça coince » in Arrivées — and an answer has to
-     reach whichever one it is on. Looking in only one of them is why
-     « Résoudre → » on an acquisition card used to change nothing at all: the
-     button was there, the screen opened, the choice was made, and the item
-     stayed exactly where it was. */
-
-  /* Agreeing with the machine. The automatic result stands, nothing is
-     re-scraped — and the folder LEAVES the queue, because the operator has
-     answered. A queue that kept what has been answered would grow forever and
-     stop meaning « what is waiting for me ». */
-  function actionLeave(title) {
-    /* THE MOVE IS THE LAYER'S SINCE L09, and what stays here is the sentence
-       the operator reads. The folder leaving one queue and joining another is
-       server state; keeping a copy of it in `world` beside the cache the
-       surfaces read would be two truths about one queue. `leaveQueue` went with
-       it — the layer walks the same three lists, in the same order, and it says
-       so in its own words. */
-    if (!seam.queueActions?.leave(title)) return false;
-    render();
-    toast(
-      `« ${title} » laissé tel quel — le résultat automatique est conservé, rien n'a été re-scrapé.`,
-    );
-    return true;
-  }
-
   function actionResolve(title, choice, picked) {
-    /* Same as `actionLeave`: the move is the layer's, the sentence is this
+    /* The move is the layer's, the sentence is this
        function's. A PICK on the candidate card waits and answers an undo. */
     const undo = seam.queueActions?.[picked ? "pick" : "resolve"](title, choice);
     render();
@@ -1947,18 +1917,11 @@ import {
     DECISION_STATE,
     DECISION_STATE_DETAIL,
     VIA_LABEL,
-    // The flow's own lookup. Its DATA left at L09 — the surface reads
-    // `/api/decisions/` and `PENDING_DECISIONS` is deleted — and this answer
-    // stays because the engine's « Passer à la suivante » branch asks it
-    // synchronously from a click handler. It reads the cache through
-    // `seam.pendingDecisions` and goes with that branch at L13.
-    decisionPending,
     // Thin arrows over `derived.blocked` / `derived.stuck` — `derived` itself
     // is already initialized above this literal, but the wrapper still earns
     // its keep: it publishes a STABLE function reference while the value each
     // call returns stays live against the scenario switch inside `derived`.
     actionResolve,
-    actionLeave,
     actionTake,
     toast,
   };
@@ -2422,66 +2385,6 @@ import {
       return;
     }
 
-    if (closest.dataset.manual != null) {
-      // The way out is not a sentence, it is a pre-filled screen.
-      // Clean the folder name to turn it into a query.
-      const trim = String(closest.dataset.manual)
-        .replace(/\.(mkv|mp4|avi)$/i, "")
-        .replace(/[._]+/g, " ")
-        .replace(
-          /\b(MULTi|VOSTFR|WEB-DL|WEBRip|BluRay|x264|x265|HEVC|1080p|2160p|720p|FRENCH|TRUEFRENCH)\b/gi,
-          "",
-        )
-        .replace(/\s{2,}/g, " ")
-        .trim();
-      // `/resolution` is a router-owned address now: leaving it is
-      // `__bridge.retour()` — the same single pop `.fback` uses — unwinding the
-      // ONE entry `screens.resolution` pushed to get here. The
-      // dispatcher no-ops that pop: the entry carries neither `layer` nor
-      // `tm`, so the legacy popstate checks fall through it and the router has
-      // already re-rendered by the time they run.
-      bridge.back();
-      setTimeout(() => screens.add(trim, "identify"), 260);
-      return;
-    }
-    /* THE FOLDER IS `currentState().resolveTarget`, NEVER THE ATTRIBUTE: what
-       `data-resolve` carries here is the CHOSEN CANDIDATE, and the folder is
-       what the resolution screen was opened on. This branch answers every
-       carrier of the attribute. */
-    if (closest.dataset.resolve) {
-      const target = currentState().resolveTarget;
-      bridge.back();
-      setTimeout(() => actionResolve(target, closest.dataset.resolve, true), 240);
-      return;
-    }
-    /* Agreeing with the machine. It keeps the automatic result and re-scrapes
-       nothing — which is why it says what it did rather than « fait ». */
-    if (closest.dataset.leave) {
-      const target = currentState().resolveTarget;
-      bridge.back();
-      setTimeout(() => actionLeave(target), 240);
-      return;
-    }
-    /* What the desktop deck's ⏎ did, without a keyboard: the next folder
-       waiting, on the same screen. */
-    if (closest.dataset.next) {
-      const suite = queued()
-        .blocked.concat(queued().stuck)
-        .map((blockedCount) => decisionPending(blockedCount.t))
-        .find(
-          (decision) =>
-            decision != null && decision.d !== closest.dataset.next,
-        );
-      if (suite) {
-        // Closing the screen and re-opening it on the next folder was a pop
-        // plus a push — net ONE entry. The address is the screen's identity
-        // now, so the same depth is a REPLACE: one entry in, one entry out,
-        // and a single back still leaves the arbitration rather than walking
-        // the folders one has already answered.
-        setTimeout(() => screens.resolution(suite.d, true), 240);
-      }
-      return;
-    }
     if (closest.dataset.sheetprim) {
       const [split, split2] = closest.dataset.sheetprim.split("|");
       panel.close();
@@ -2644,10 +2547,6 @@ import {
       openDeleteDialog(closest.dataset.del);
       return;
     }
-    if (closest.dataset.act === "resolve") {
-      screens.resolution();
-      return;
-    }
     if (closest.dataset.sheet === "plus") {
       // THE PRODUCER HAS LEFT. `features/acquisition/panel-more.ts` answers.
       panel.produce("more");
@@ -2763,15 +2662,6 @@ import {
       return;
     }
 
-    if (closest.classList.contains("cfoot")) {
-      const title =
-        closest.closest(".card")?.querySelector(".ctitle")?.textContent ?? "";
-      const lab = closest.textContent.trim();
-      if (lab.startsWith("Récupérer")) return actionTake(title);
-      if (lab.startsWith("Résoudre")) return screens.resolution(title);
-      toast("Action lancée — le résultat s'affichera ici.");
-      return;
-    }
     if (closest.classList.contains("act")) {
       const textContent = closest
         .closest(".swipe")
@@ -2987,32 +2877,6 @@ import {
      verb a call site says is `screens.mediaSheet(title)`; the template,
      the seasons and the actions live there, at identical markup — the
      click delegation below still reads their data attributes. */
-  /* The resolution screen moved to the shell the same way:
-     `src/screens/resolution.tsx` renders it as the route
-     `/resolution/$folder`, and the design rationale it carries — what the
-     screen is FOR, why a tied score is not printed, the three ways out —
-     moved there with it. The verb a call site says is
-     `screens.resolution(dossier, remplacer)`: it resolves the same
-     default this file used to (the first stuck folder) and writes
-     `currentState().resolveTarget` before navigating, so the `data-resolve` and
-     `data-leave` branches below still read the folder they always read.
-     `decisionPending` stays here: it is the référentiel's own answer to
-     « does this folder have a pending decision », read by the screen AND by
-     the « Passer à la suivante » branch below. */
-  /* A folder either HAS a pending decision or it has none, and the screen must
-     not borrow one. Showing another folder's candidates would be the worst
-     possible lie on the one screen whose job is to name what is on disk. */
-  /* IT READS THE CACHE NOW, and the fixture it used to read is gone (L09). The
-     shell publishes `seam.pendingDecisions` over the query cache — a
-     SYNCHRONOUS read, because this is called from a click handler that cannot
-     await. Before the query has answered it reports « no decision », which is
-     the same answer this function already gave for a folder that has none, and
-     the surfaces that draw a decision render nothing until the cache has one.
-     It dies with the branch below at L13. */
-  function decisionPending(target) {
-    const pending = seam.pendingDecisions?.() ?? [];
-    return pending.find((decision) => decision.d === target) ?? null;
-  }
 
 
   /* Does this interface HOLD a medium by that title?
@@ -3544,12 +3408,12 @@ Object.assign(window, {
   SEASONS, SECRETS, SERVICES, SERVICES_PANNE,
   ST_LABEL,
   ST_LABEL_MOVIE, ST_TONE,
-  URGENCY, VIA_LABEL, actionLeave,
+  URGENCY, VIA_LABEL,
   actionTake, actionResolve,
   actionDelete, addVerb, showSignIn,
   baseTitle, beforeReset, cadenceFR,
   closeDlg, closeSheet,
-  dateFR, decisionPending,
+  dateFR,
   endCardDrag, endDeckDrag,
   endSugDrag, escapeHtml,
   closeDrawer, changedFiles,
