@@ -52,6 +52,30 @@ instead (DESIGN § 2.5, § 2.6, § 5.1; § 3, rows 16 and 18).
   its listing page is cached — or whether a·6's `ids` on every list item makes the predicate unnecessary. `INCOMPLETE`
   has no phase of this plan that names its death: it is `knownMedium`'s second fixture, so this phase takes it or
   says which one does. The words above that put `knownMedium` in `app/addressed-panels.ts` « a·3 » are VOID.
+
+  **Amended 2026-09-13 by phase a·10 (STOP D, the steward's ruling 41).** `LIBRARY`, `INCOMPLETE` and `knownMedium`
+  do NOT die here, and the bullet above, the a·3 amendment's « this phase moves it », the fixture check of « The
+  proof FIRST », the Gate's `check-mock-seeds.py` sentence and the Commit title's « the engine's library copy dies »
+  are VOID. None of the three readers has an EXACT answer in the cache, so switching them would narrow what they
+  answer, which is a behaviour change and not a conversion:
+  - the listing is PAGED (`mocks/handlers/library.ts` `PAGE_SIZE` 24; `features/library/queries.ts`
+    `useInfiniteQuery`, mounted on `/media` only). `follow-facts.ts:103`'s `inLibrary` on `/acquisition` would
+    turn false, and `said_and_done.py`'s « Dark Matter » re-scrape hold would fall. `knownMedium` would refuse a
+    typed `?panel=follow:<title>` whose listing page is not cached. `mediaNamedBy` would count only the loaded pages;
+  - a·6's `ids` make none of it moot: every address is keyed by title, and the two « Doctor Who » rows of
+    `library-items.json` (2005, 2023) carry the SAME `ids` (tmdb 57243, tvdb 78804);
+  - `INCOMPLETE`'s query is exact in content (12 = 12) but fetched only by `features/library/page.tsx`, and two of
+    its engine readers (`knownMedium`, `openDeleteDialog`) stay.
+
+  **The owner is a new L13b phase, b·10-bis « the library's membership read »**, before b·11 (INDEX). It is a
+  BEHAVIOUR phase: the contract gains an exact read (membership by exact title, the year where two rows share
+  `ids`), its rule first and red against the engine; `LIBRARY`, `INCOMPLETE` and `knownMedium` die there with their
+  readers, and the harness reads (`panel.py`, `url_state.py`, `said_and_done.py`, `library_sort.py`,
+  `season_grab_unfollowed.py`) are re-aimed at the `window.__mocks` seeds (DESIGN § 4.2). `fixture-register.json` is
+  untouched here.
+
+  **The kind chips' strip, re-taken:** it is already drawn by React, `features/library/library-head.tsx:136`
+  (`pillScroll()`), and nothing of it is in the engine. There is nothing to move; B-336 stays as it is, for c·4.
 - **`legacy.css` rules** of the classes above are deleted in this commit, except the ones an acquisition emitter
   still wears, which wait for a·11 and are named: the `.swipe, .sugwrap, .deck` group, `act`, `pause`, `remove`,
   `resume`, and the gallery emitted by `discover-feed.ts`. `linkbtn` already has its variant and stays until a·18

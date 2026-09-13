@@ -153,7 +153,8 @@ and binds the label to the next free number then.
 | b·8 | [The gestures](phase-b08-gestures.md) | swipe rows, suggestion card, deck, drag guard, pull indicator | `E` gesture block | the one-tap hold | B-337 |
 | b·9 | [One ladder shape](phase-b09-one-ladder-shape.md) | D-L13-1; the redraw replaces | the 240/260 ms timers | R-L13-a, R-L13-b; `exits.py` refuses the gap | B-290, B-397 |
 | b·10 | [The panel's return](phase-b10-panel-return.md) | Back reopens the panel; `panel-down`'s reverse | — | R-L13-c | B-275 |
-| b·11 | [`legacy.js` dies](phase-b11-legacy-js-dies.md) | — | `legacy.js`, `seams.ts`, the parser arms, the debt section, the ledger entry, `resync.py` | the four harness reads of the file | — |
+| b·10-bis | The library's membership read (added 2026-09-13 by a·10, ruling 41; the steward writes its phase file) | an exact membership read by title (and year) in the contract; `mediaNamedBy`, `knownMedium`, `follow-facts.ts`'s `inLibrary` and `openDeleteDialog` read it; the harness re-aims at the `window.__mocks` seeds | `LIBRARY`, `INCOMPLETE`, `knownMedium`, their window exports | first for the membership read | — |
+| b·11 | [`legacy.js` dies](phase-b11-legacy-js-dies.md) | — | `legacy.js`, `seams.ts`, the parser arms, the debt section, the ledger entry, `resync.py` — and the ~547 lines of `LIBRARY`, `INCOMPLETE` and `knownMedium`, gone at b·10-bis first | the four harness reads of the file | — |
 
 ## L13c — What the engine was blocking (BEHAVIOUR)
 

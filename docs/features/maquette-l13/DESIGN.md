@@ -342,7 +342,7 @@ the phase that converts each family.
 | `HERO_IMAGES` | 826–1153 (328) | `media-screen.tsx:44` | `hero-images.json` + `MediaSheet.hero`, unread | dies; the screen reads `sheet.hero` | a·13 |
 | `trailerIds` | 1160–2474 (1 315) | `media-screen.tsx:229`, a fallback | `trailers.json` + `trailerVideo`, read first | dies | a·13 |
 | `OWNED` | 2481–3863 (1 383) | `ownedFor` → `season-list.tsx:109`, `panel-seasons.tsx:72` | `owned-episodes.json` + `readMediaSeasons.owned` | dies | a·14 |
-| `LIBRARY` | 3938–4464 (527) | `mediaNamedBy`, `knownMedium`, `follow-facts.ts:103` | `library-items.json` + `readLibraryItems`; **the engine copy already ignores mock deletes** | dies; the three readers ask the cache | a·10 |
+| `LIBRARY` | 3938–4464 (527) | `mediaNamedBy`, `knownMedium`, `follow-facts.ts:103` | `library-items.json` + `readLibraryItems`; **the engine copy already ignores mock deletes** | dies; the three readers ask an EXACT membership read the contract gains (amended 2026-09-13, ruling 41: the paged listing narrows all three, so it is a behaviour change, not a·10's) | b·10-bis |
 | `MAINT_ACTIONS` | 4641–4876 (236) | none in product; `page_host.py:248`, `url_state.py`, one type in `maintenance/reference.ts` | `maintenance-actions.json` | **dead data** | a·15 |
 | `SETTINGS` | 5756–7217 (1 462) | `allSettings` (the engine's field verbs, `settings/page.tsx:163,243`), `states.js:707` | `settings.json` + `readSettings` | dies; `allSettings` = `flattenSettings(cache)` — the engine's field branches read it through the same function until L13b ph. 1 | a·16 |
 | `CAST` | 9701–9872 (172) | `media-cast.tsx:91` | `cast-portraits.json` + `castPortraits`, unread | dies | a·13 |
