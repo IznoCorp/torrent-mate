@@ -21,7 +21,7 @@ import { entry, loadingDone } from "../app/entry";
 import { closeLayers, registeredLayers } from "../app/layers";
 import { resetLiveUpdates, unmatchedCount, unmatchedEvents } from "../app/live-updates";
 import { outboxSeam } from "../app/outbox";
-import { releasePage, shellPages } from "../app/page-host";
+import { shellPages } from "../app/page-host";
 import { walk } from "../app/page-switch";
 import { unknownPanel, unknownProducer } from "../app/panel-host";
 import { router } from "../app/router-tree";
@@ -130,7 +130,6 @@ export function publishSeams(): void {
   publish("__outbox", () => outboxSeam);
   publish("__routeur", () => router);
   publish("__shellPages", () => shellPages);
-  publish("__releasePage", () => releasePage);
   publish("__discover", () => discover);
   publish("__followActions", () => followActions);
   publish("__suggestions", () => suggestions);

@@ -39,7 +39,6 @@ export function useStoreContent<T>(select: (c: StoreContent) => T): T {
 }
 
 export const useUiState = (): UiState => useStoreContent((c) => c.state);
-export const useWorld = (): unknown => useStoreContent((c) => c.world);
 
 // The single write door, matching the read side above: a component patches
 // the store through THIS function, never through `store.write`

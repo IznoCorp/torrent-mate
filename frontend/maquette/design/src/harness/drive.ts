@@ -23,7 +23,6 @@ import {
   applyState,
   resetSettings,
   screenStack,
-  seedWorld,
 } from "../engine/legacy.js";
 import { closeHarnessPanel } from "./panel";
 
@@ -43,15 +42,14 @@ let table: NamedState[] = [];
  *     True, so a caller awaiting it reads a value.
  */
 function reset(): boolean {
-  seedWorld();
   /* THE CACHE IS PART OF WHAT A MEASUREMENT INHERITS. « A measurement must
      never inherit the mutations of a previous one » used to be true of the
-     world alone, because every surface read a fixture. A surface reads a query
+     engine's world alone, because every surface read a fixture. A surface reads a query
      cache now, and a cache keeps what it holds: driving one state after another
      left the library showing every page a previous state had asked for, and the
      oracle measured a 46 402 px list where the reference holds 3 388. Clearing
-     it here rather than in each named state is the same decision `seedWorld()`
-     embodies — a state pins what it means to show, and everything else starts
+     it here rather than in each named state is the same decision the old
+     world's re-seeding embodied — a state pins what it means to show, and everything else starts
      from a known place. The mock layer's own seeds go back with it. */
   window.__queries?.clear();
   window.__mocks?.reset();

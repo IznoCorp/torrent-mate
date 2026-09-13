@@ -14,7 +14,7 @@
     "total": 81
   },
   "$anonymous": {
-    "count": 1,
+    "count": 0,
     "why": "pure literals declared inside an ANONYMOUS function. They are not inventoried — a name built on a line number is renamed by every edit above it — and the count is held here so their exclusion is a figure somebody compares rather than a figure somebody printed."
   },
   "families": {

@@ -40,7 +40,7 @@
 // What was implicit and fragile is now explicit, and both halves are measured.
 import { useLayoutEffect, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
-import { createPortal, flushSync } from "react-dom";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useUiState } from "../lib/store-access";
 import { NAVIGATION, rowFor } from "./navigation";
@@ -72,9 +72,6 @@ function setReleased(next: boolean): void {
 
 declare global {
   interface Window {
-    // Called by the fragment's `render()` immediately BEFORE it writes `#view`
-    // for a page the shell does not own.
-    __releasePage?: () => void;
     // The pages this side claims. It USED to be published so the two page
     // tables could be compared — this file's and the engine's — because they
     // were independent lists kept identical by hand, and a disagreement in one
@@ -85,10 +82,6 @@ declare global {
     __shellPages?: string[];
   }
 }
-
-export const releasePage = () => {
-  flushSync(() => setReleased(true));
-};
 
 export const shellPages = NAVIGATION.map((row) => row.id);
 

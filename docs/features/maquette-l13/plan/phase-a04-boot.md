@@ -37,6 +37,27 @@ A CONVERSION: what `__startEngine` does is the arrival, not the engine, so it be
 - **After this phase** (DESIGN § 4.2), product code reads no `window.__` name except what the engine
   itself still publishes.
 
+**Amended 2026-09-13 by phase a·4, on what the move measured.**
+
+- **The engine's own `store` binding** (`let store = null`, filled by `__startEngine`) is replaced by the import of
+  `lib/store-access.ts`'s `store`, which the shell installs before anything calls the engine. Without it every engine
+  read of `store` would stay `null` once the handshake is gone. Its evaluation-time reads were all optional
+  (`store?.`), and the two that remain (`render()`'s `store?.touch()`, the published `store` getter) read the same object.
+- **`bridge.py` (f′)**: its first hold read `typeof window.__startEngine`; it is RE-AIMED to the arrival's own entry
+  (`history.state.tm === "nav"` at load), so the count is unchanged and the hold still falls if the arrival never runs.
+  The « it keeps its one hold » of the proof section miscounted (f′ is two holds): both stay.
+- **The arrival draws through `window.__referentiel.render()`** — the engine's own publication, the one kind of
+  `window` read this phase leaves in product code — because `app/` cannot import the engine (the cycles arm).
+- **`fixture-register.json` `$anonymous.count` 1 → 0**: the last pure literal inside an anonymous engine function left
+  with `__startEngine` (`check-mock-seeds.py`).
+- **`releasePage` is gone, and the release machinery it drove is now unreachable**: `released`, `setReleased`,
+  `subscribeRelease` and the `isReleased` branch in `app/page-host.tsx` can no longer become true. Deleting them is
+  « what nobody reaches » — a·5's kind of change — and they are left for a·5 rather than slipped into this commit.
+- **`scripts/frame-domain-baseline.json` app 130 → 138** (steward's ruling): `INITIAL_STATE` in `app/arrival.ts`
+  carries eight page-alias words the exempt engine held (`check-frame-domain.py` measured them by its own vocabulary).
+- **Prose left as it stands**: `frontend/maquette/README.md` (the handover paragraph naming `window.__releasePage`) and
+  `regions.json` R74's description naming `window.__startEngine` describe removed mechanisms; the README is L13c c·9's.
+
 ## Gate
 
 Per INDEX « Gates ». In addition: the boot is proved by `boot_order.py` and `bridge.py` green with

@@ -13,7 +13,7 @@
 
    HOW IT REACHES THE PAGE. It used to be a classic script, evaluated while
    the document parsed. It is now a module, evaluated as the shell's own
-   dependency — `shell.tsx` imports it before it reads `window.__startEngine`,
+   dependency — `shell.tsx` imports it before its boot calls `installArrival`,
    so the order the engine has always relied on is the order it still gets:
    everything here runs first, the shell's boot runs second. Nothing in here
    reads `document.readyState` or waits for `DOMContentLoaded`, so being
@@ -36,20 +36,16 @@ import { screens, panel, bridge, seam } from "./seams.js";
 import { installPressArbitration } from "../lib/press-arbitration";
 import { installPullGesture } from "../lib/pull-gesture";
 import { icons } from "../app/icons";
+/* THE STORE, IMPORTED. The shell creates it and installs it before anything
+   here is called; the engine reads the same object every module does. */
+import { store } from "../lib/store-access";
 /* THE LADDER, THE PAGE SWITCH AND THE ADDRESSED PANELS, IMPORTED BACK. The
    handler that reads a Back, the verbs that write a navigation and the table
-   that reopens an addressed panel are `app/`'s; the click delegation and the
-   boot below still call them by name. */
-import {
-  hideLayers,
-  installPageRestore,
-  onEngineBack,
-  registerLayer,
-  unwindLayer,
-} from "../app/layers";
+   that reopens an addressed panel are `app/`'s; the click delegation below
+   still calls them by name. */
+import { hideLayers, installPageRestore, registerLayer, unwindLayer } from "../app/layers";
 import { replacePath, switchPage, switchPageFromLayer, walk } from "../app/page-switch";
-import { navigationState } from "../lib/navigation-entry";
-import { installKnownMedium, reopenAddressedPanel } from "../app/addressed-panels";
+import { installKnownMedium } from "../app/addressed-panels";
 /* THE SETTINGS CATALOGUE, IMPORTED BACK. How a setting is identified,
    listed and read moved to the feature that owns settings when its panels did,
    and the engine reads the same three answers rather than keeping its own —
@@ -5187,58 +5183,6 @@ import {
      module-level variable that someone must remember to refresh. */
   const currentState = () => store.read().state;
 
-  const INITIAL_STATE = {
-    page: "acq",
-    acqTab: "now",
-    libLens: "cat",
-    libCat: "all",
-    libMode: "grid",
-    scen: "real",
-    /* The pipeline's state, as the pilot's bar shows it: `repos`, `encours`,
-       or `file` — a run asked for while one is running, which DOIT-4 requires
-       be QUEUED visibly rather than refused. */
-    pipe: "idle",
-    /* Maintenance: which rubric is open, and whether the blank run is on. A
-       command that DELETES ignores the second — it is on until the dry run
-       has named what would go. */
-    maintTopic: null,
-    /* Shows the SIMULATED fault on Système. Everything on this machine is
-       green, and a screen that can only be green cannot be judged. */
-    fault: false,
-    maintBlanc: true,
-    addMode: "follow",
-    relatedTitle: null,
-    /* The backend defaults: permissive everywhere EXCEPT exclude_3d. */
-    profile: {
-      min_resolution: "1080p",
-      required_audio: ["VF"],
-      require_known_resolution: false,
-      exclude_3d: true,
-    },
-    addKind: "Tout",
-    idProv: "TMDB",
-    sortKey: "recent",
-    sortReversed: false,
-    resolveTarget: null,
-    phase: "ready",
-    tmdb: true,
-    q: "",
-    filter: "",
-    addQ: "star wars",
-    added: new Set(),
-    recent: ["star wars", "silo", "the bear"],
-    followMode: "list",
-    pill: "tout",
-    notes: false,
-    selMode: false,
-    selected: new Set(),
-    sugCount: 30,
-    sugGone: new Set(),
-    sugMode: "list",
-    sugOrder: null,
-    sugLoading: false,
-  };
-
   /* Rendering: building blocks */
   function stripHTML(states) {
     return `<div class="strip">${states
@@ -5436,10 +5380,6 @@ import {
 
      `window.__reset()` restores the seed; `__go()` calls it systematically,
      so every measurement starts from the same state. */
-  let world = null;
-  // The single owner of the mutable state, adopted at boot by
-  // window.__startEngine — null until the shell calls it.
-  let store = null;
   /* THE DECK'S CARDS, read from the layer. `SUGGESTIONS` was a fixture here and
      left at L09; the deck still indexes into a list from a click handler that
      cannot await, so it asks a synchronous accessor. It reports an empty list
@@ -5475,16 +5415,6 @@ import {
     return seam.suggestions?.() ?? [];
   }
 
-  /* WHAT IS LEFT OF THE WORLD, and it is the library's rows and nothing else.
-     The queue — takeable, blocked, in flight, not found, done today, stuck,
-     moving, settled, follows — left at L09: it is server state, it lives in the
-     query cache, and a copy here would be a second truth about one queue.
-     `lib` and `removedLib` go with the media sheet's own wave. */
-  function seedWorld() {
-    world = { lib: [], removedLib: new Set() };
-    store?.adoptWorld(world);
-  }
-  seedWorld();
   /* Simulated behaviours
      Every action really moves the data. What an implementer must reproduce
      is not « a toast appears » but « the card leaves À récupérer, appears
@@ -7382,10 +7312,6 @@ import {
        `app/navigation.ts` carries a component and nothing else could draw it.
        So the branch is subtracted, with `shellOwnsView` and `legacyNodes`,
        which existed only to tell the two halves apart.
-
-       The HANDOVER machinery on the shell's side (`window.__releasePage`)
-       keeps its declaration and has no caller left here; it goes with the boot
-       handshake at L13, and the `#screen` layer B-232 also names is L13's.
 
        Everything below still runs: the bar, the nav and the save bar are
        shared furniture, not the page's. */
@@ -30486,239 +30412,6 @@ import {
      and the dismissal threshold. Nothing binds here anymore: `#sheetgrab` does
      not exist when this script runs. */
 
-  /* The engine no longer boots itself. The shell — store created, bridge
-     real — starts it, so no write ever needs recording and replaying, and a
-     module that never evaluates leaves the startup screen on screen: a
-     visible, truthful failure instead of an app with mute verbs. */
-  window.__startEngine = function (deps) {
-    store = deps.store;
-    store.adoptState(INITIAL_STATE);
-    store.adoptWorld(world);
-    /* No subscription here anymore. The only thing this one ever did was
-       re-point the cached `state` binding at the store's object; with every
-       read going to the store directly, there is nothing left to refresh. */
-
-    /* The bridge announces a back the way `popstate` did. Registered HERE,
-       not at the engine's top level: it is a `__bridge` verb like the writes
-       below, and the real bridge only exists from this call on — nothing
-       upstream queues it anymore. */
-    bridge.onBack(onEngineBack);
-
-    /* The opening state comes from the ADDRESS, before the first paint: a
-       reload that lands on the opening page rather than where one was is the
-       defect DOIT-10 names, and it is fixed here rather than corrected after
-       a frame the operator would see. The page now travels in the PATH, so
-       this reads both halves. */
-    /* Read ONCE, and kept: the writes below settle the address, so by the
-       time the panel is asked for at the end of this boot `location.search`
-       no longer carries what was typed. */
-    const arrivalSearch = location.search;
-    const arrival = seam.address.parse(location.pathname, arrivalSearch);
-    Object.assign(state, { page: arrival.page }, arrival.dials);
-    /* The address as asked, PANEL PARAMETER EXCEPTED — and it is taken off for
-       exactly the reason the arrival address below takes it off: a panel the
-       interface declined is not part of the address one is left on. This field
-       is not decoration, it is what every later write of this state COMPOSES,
-       so a parameter left in it comes back into the bar on the first Back.
-       Everything else the operator typed is kept, query included. Read off
-       what the model parsed rather than off `location` a second time: two
-       readings of one address are two answers waiting to differ. */
-    if (arrival.notFound) {
-      const queryAt = arrival.notFound.indexOf("?");
-      state.notFound =
-        queryAt < 0
-          ? arrival.notFound
-          : arrival.notFound.slice(0, queryAt) +
-            seam.address.withoutPanel(arrival.notFound.slice(queryAt));
-    }
-    /* Kept from BEFORE the first render, because rendering an unknown id
-       moves the state onto the not-found surface — and rewriting the
-       address to match would make a mistyped link quietly become a
-       different one. A browser answering 404 leaves the address alone; so
-       does this.
-
-       THE BARE ROOT IS THE ONE EXCEPTION, and it is a settlement rather than
-       a correction: `/` is where a bookmark, a bare link and an installed
-       app's scope all land, and it names no page. It settles onto the home
-       page's own address. A REPLACE, never a push — nothing is inserted, so
-       the first Back still reaches the guard entry underneath rather than
-       bouncing off a redirect. Any OTHER address is kept exactly as it was
-       asked for, which is the whole of the paragraph above.
-
-       THE PANEL PARAMETER IS THE ONE THING TAKEN OFF, and it is taken off in
-       both branches, whether the panel reopens or not. A panel that reopens
-       pushes its OWN entry carrying its own address on top of this one, so
-       leaving it here too would put it on both and a Back off the panel would
-       land on an address still naming it. A panel that does NOT reopen was
-       declined, and an address naming a panel nothing opened is a parameter
-       the interface never honoured. Either way this entry is the page. */
-    const arrivalAddress =
-      location.pathname === "/"
-        ? seam.address.compose(currentState())
-        : location.pathname + seam.address.withoutPanel(arrivalSearch);
-    /* TWO WAYS AN ADDRESSED PANEL IS DROPPED BEFORE ANYTHING CAN DECLINE IT,
-       and both used to be silent. An EMPTY value names no panel at all, and a
-       panel asked for over the SIGN-IN screen is never even read — the gate
-       covers everything, so there is nothing for a panel to open over. Either
-       way the parameter has just come off the arrival address above, and a
-       parameter that disappears without a word is one nobody can account for
-       from the outside. The value the interface DECLINES already says so; these
-       two are the values it never got as far as declining.
-
-       ENGLISH, and not in the i18n resources, like every other console
-       message: a developer reads it, never a reader of the interface. */
-    if (
-      !arrival.panel &&
-      new URLSearchParams(arrivalSearch).has(seam.address.panelParameter)
-    ) {
-      console.warn(
-        arrival.signIn
-          ? "the sign-in screen covers everything, so the addressed panel is dropped:"
-          : "the addressed panel carries no value, so nothing is opened:",
-        location.pathname + arrivalSearch,
-      );
-    }
-    render();
-    /* A cold `/login` raises the gate over a frame that is already drawn,
-       which is the whole reason its address resolves to a page underneath
-       rather than to nothing. Driven, so the raise does not rewrite
-       the address it was just read from. */
-    if (arrival.signIn) {
-      walk.driven = true;
-      showSignIn(false);
-      walk.driven = false;
-    }
-    /* The address is put back on the entry one arrives on, so a back from
-       anywhere reaches the page the link named rather than a bare
-       document.
-
-       EVERY WRITE BELOW RAISES THE FLAG LIKE EVERY OTHER WRITER, and there
-       are four of them on an ordinary page arrival — the arrival address, the
-       exit guard, the floor beneath the arrival and the arrival entry. The
-       count is the ARRIVAL's, not a law: the home page needs no floor and a
-       screen address puts its parent down as well.
-
-       They used to swallow, on the reading that a boot-time refusal leaves the
-       startup screen up rather than a rendered interface disagreeing with its
-       address — and that reading is false here: `render()` runs above, and
-       the startup screen comes off between the first write and the second.
-       A refusal here leaves a drawn interface on an address nobody wrote,
-       and the last of them is the entry the panel's own layer is stacked
-       on: lose it and the first Back spends the guard instead. */
-    try {
-      bridge.replace(navigationState(), arrivalAddress);
-    } catch (error) {
-      console.error("boot: writing the arrival address failed", error);
-      window.__navEchec = true;
-    }
-    /* The interface exists from here on, so the startup screen has nothing
-       left to cover — but it does not come off on that line. It comes off
-       when the wait it covers RESOLVES, which is the only rule that serves
-       both a prototype with nothing to fetch and an app with a real one. */
-    seam.loadingDone();
-    /* The guard is the FIRST entry, and the opening page sits on top of it.
-       It cannot be anywhere else: nothing can be inserted below the entry a
-       document opens on, so the guard has to BE that entry. */
-    try {
-      bridge.replace({ tm: "garde" });
-    } catch (error) {
-      console.error("boot: writing the exit guard failed", error);
-      window.__navEchec = true;
-    }
-    /* AND THE STACK UNDER IT IS SYNTHESISED FROM THE HIERARCHY. A link opened
-       from a message, a bookmark or a restored tab has no stack to unwind, so
-       what a Back finds under the arrival is built here — and what it finds is
-       the page the arrival BELONGS TO, never the home page by default: the
-       library under a media sheet, the arrivals under a resolution. The home
-       page is the FLOOR every other page stands on, which is what makes one
-       Back from any page land there and the exit guard reachable from one
-       place only.
-
-       The entries go on in hierarchy order and the arrival's own goes on LAST,
-       because the router renders by URL: an entry written after it would draw
-       another surface. They are all written before the first paint, so none of
-       the intermediate addresses is ever seen.
-
-       An address nobody serves gets no floor. It is kept exactly as it was
-       typed, and putting a page under it would answer a mistyped link with a
-       journey the operator never made. The sign-in screen gets none either:
-       it covers everything, so it belongs to no page and its own address is
-       already the home page's entry.
-
-       The parent is RENDERED as well as recorded — `state.page` is it, from
-       the same reading, above — so closing a screen reveals a page already in
-       place instead of whatever frame it happened to cover. */
-    const homePage = seam.address.homePage;
-    const beneath = [];
-    if (!arrival.notFound && (arrival.screen || arrival.page !== homePage)) {
-      beneath.push(homePage);
-      if (arrival.screen && arrival.page !== homePage) beneath.push(arrival.page);
-    }
-    /* AND AN ARRIVAL WITH NO FLOOR UNDER IT IS RECORDED AS SUCH, because a
-       Back can then go under the one a later switch lays — which is not true
-       of any session the boot laid a floor for. */
-    if (arrival.notFound) walk.arrivalWithoutFloor = true;
-    for (const under of beneath) {
-      try {
-        bridge.record(
-          Object.assign(navigationState(), { page: under }),
-          seam.address.compose(Object.assign({}, currentState(), { page: under })),
-        );
-        /* AND THE FLOOR FLAG FOLLOWS THE WRITE, not the plan the list above
-           holds: a push that was refused lays nothing, and a flag raised over
-           an entry nobody wrote sends the first tab tap stepping back onto the
-           exit guard. */
-        if (under === homePage) walk.homeFloorExists = true;
-      } catch (error) {
-        console.error("boot: recording the entry beneath the arrival failed", error);
-        window.__navEchec = true;
-      }
-    }
-    /* Pushed with the address one ARRIVED at rather than with the one the
-       state now implies. Rendering an unknown id moves the state onto the
-       not-found surface, and deriving the address from it here rewrote a
-       mistyped link into « ?page=404 » — the interface correcting the
-       operator's address behind their back. A browser answering 404 leaves
-       the address alone. */
-    try {
-      bridge.record(navigationState(), arrivalAddress);
-      /* ARRIVING ON THE HOME PAGE, the entry just written IS the floor: there
-         is nothing to lay under it, and the flag reads « at or beneath ». It
-         follows this write like every other — refused, the reader is left
-         standing on the guard's own entry, and the first switch away from home
-         lays a floor and raises the flag then. */
-      if (arrival.page === homePage) walk.homeFloorExists = true;
-    } catch (error) {
-      console.error("boot: recording the arrival entry failed", error);
-      window.__navEchec = true;
-    }
-    /* AND THE PANEL LAST OF ALL, so its layer entry sits on top of the arrival
-       entry exactly as one opened from inside the application does. Opened
-       before the guard was written, the panel's entry was the one the guard's
-       marker replaced: the panel then had no entry of its own, closing it
-       consumed the guard's, `panel=` stayed in the address for good and the
-       « one more back to leave » warning could never arm.
-
-       It PUSHES that entry, which is what tells the reader apart from the
-       Forward the same function serves. */
-    /* AND IT WAITS FOR WHAT IT VALIDATES AGAINST. Every entry of `REOPEN`
-       answers « does this interface HOLD the subject », and since L09 those
-       answers come from the query cache — the follows, the acquisitions in
-       flight, the maintenance actions. On a COLD LOAD the boot runs before any
-       of them has landed, so a perfectly good `?panel=follow:Silo` was refused
-       as a subject nobody holds and the reader arrived on a clean address with
-       nothing open. A bounded wait over frames is the same shape the shell's
-       scroll restoration and the listing's paging door already use, and for the
-       same reason: the thing being waited for does not exist yet. */
-    let framesLeft = 60;
-    const reopenWhenTheSubjectIsThere = () => {
-      const answer = reopenAddressedPanel(arrivalSearch, false, framesLeft > 1);
-      if (answer !== "not yet") return;
-      framesLeft -= 1;
-      requestAnimationFrame(reopenWhenTheSubjectIsThere);
-    };
-    reopenWhenTheSubjectIsThere();
-  };
 
 /* ── what the scenario table needs, exported by name ────────────────────────
 
@@ -30734,7 +30427,6 @@ export {
   openDrawer,
   resetSettings,
   render,
-  seedWorld,
   screenStack,
   toast,
   svgIcon,
@@ -30808,7 +30500,7 @@ Object.assign(window, {
   plages, ownedFor, posterBox, nextSearchFR,
   ptr, refPanel, collapseCard,
   settingId, resetSettings, render,
-  richText, seasonsOf, sheetSeasonsHTML, secHTML, secInner, seedWorld,
+  richText, seasonsOf, sheetSeasonsHTML, secHTML, secInner,
   select, sheetFor, titleForProviderId, addressIdsFor, skelCards, skelCardsInner, skelTiles, sortLabel,
   stFraction, stLabel, stripHTML,
   sugVerb,
@@ -30842,5 +30534,4 @@ Object.defineProperties(window, {
   // reason it is not a syntax error is that the resolution is late.
   state: { get: () => currentState(), configurable: true },
   sugDrag: { get: () => sugDrag, configurable: true },
-  world: { get: () => world, configurable: true },
 });

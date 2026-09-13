@@ -6,9 +6,14 @@ primitives. This rule verifies that: (a) the engine's source makes no raw
 history calls that bypass the seam; (b) the journey through it (results →
 sheet → back) redraws and restores state correctly; (c) deep URL entry lands on
 the promised state; (d) a state-only navigation (__go) does not change history
-depth; (f′) the boot handshake is real — `window.__startEngine` exists AND
-the startup screen comes off on its own, before this harness ever calls
+depth; (f′) the arrival booted on its own — it wrote the entry the document
+stands on, and the startup screen comes off before this harness ever calls
 `window.__loadingDone`.
+
+RE-AIMED, count unchanged: (f′)'s first hold read `typeof
+window.__startEngine`, and the handshake is gone — the shell calls
+`installArrival(store)` (`app/arrival.ts`) directly. It now reads the
+arrival's own entry, which is written by nothing else at load.
 
 WHAT « THE BRIDGE » MEANS NOW, and it is not what it meant when this rule was
 written. It was three globals — `window.__bridge`, `__screens`, `__panel` —
@@ -28,10 +33,10 @@ The boot order used to run the other way: the engine booted itself, ahead
 of the bridge, through a pre-bridge that queued the engine's writes and
 replayed them once the real bridge existed (hold (e), now retired along
 with that pre-bridge). The shell now creates the store and the bridge
-FIRST and only then calls `window.__startEngine({ store })`, so
-nothing is queued and nothing is replayed — a module that never evaluates
-simply never makes that call, and the startup screen stays up: a visible,
-truthful failure rather than an app with mute verbs.
+FIRST and only then calls `installArrival(store)`, so nothing is queued
+and nothing is replayed — a module graph that never evaluates never makes
+that call, and the startup screen stays up: a visible, truthful failure
+rather than an app with mute verbs.
 
 Nothing here mutates anything. The measured copy is shared by every rule
 of the harness, so a rule that severed it would, on any interruption,
@@ -188,7 +193,7 @@ async def main():
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))
 
-        # ─── Hold (f′): the boot handshake exists and fired on its own ─
+        # ─── Hold (f′): the arrival booted on its own ─────────────────
         # Navigated WITHOUT going through common.open_page(): that helper calls
         # window.__loadingDone itself to get past the startup screen,
         # which would force the very effect this hold exists to observe.
@@ -197,14 +202,14 @@ async def main():
         await pg.goto("http://127.0.0.1:8899/", wait_until="load")
         probe = await pg.evaluate(
             """()=>({
-                starter: typeof window.__startEngine,
+                arrived: window.history.state && window.history.state.tm,
                 splashHidden: document.querySelector('#splash')?.hidden === true
             })"""
         )
         check(
-            "window.__startEngine exists",
-            probe["starter"] == "function",
-            f"typeof window.__startEngine = {probe['starter']}",
+            "the arrival wrote the entry the document stands on",
+            probe["arrived"] == "nav",
+            f"history.state.tm = {probe['arrived']}",
         )
         check(
             "the startup screen clears on its own, before any harness call",

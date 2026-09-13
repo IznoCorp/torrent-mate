@@ -18,7 +18,7 @@ WHAT THE ORDER IS, AND WHY EACH STEP CANNOT MOVE:
   createStore()               the panel host receives it as an ARGUMENT
   installPanelHost(store, …)  must exist before the seams are handed over
   installSeams({...})         the engine imports these three names
-  window.__startEngine(...)   the engine runs, and everything above must be real
+  installArrival(store)       the arrival boots, and everything above must be real
   installLiveUpdates(client)  L10. It invalidates INTO the query cache and
                               receives it as an argument, the same reason
                               `installPanelHost(store, …)` follows `createStore()`
@@ -57,6 +57,10 @@ WHAT THIS RULE DOES NOT READ, said before it says what it does:
     conditional wrapping one of them would satisfy this rule and change the
     boot — so the rule also refuses a call site that is not at the top level
     of the module, which is the shape that difference would take.
+
+RE-AIMED, count unchanged: the engine's handshake (`window.__startEngine`) is
+gone, and the step it held is `installArrival(store)` (`app/arrival.ts`), at
+the same position of the boot.
 """
 import asyncio
 import pathlib
@@ -103,7 +107,7 @@ BOOT_STEPS = (
     # goes quiet, and this one holds a POSITION rather than a signature.
     (r"^installPanelHost\(store,", "installPanelHost(store, …)"),
     (r"^installSeams\(\{", "installSeams({…})"),
-    (r"^const start = window\.__startEngine;", "the engine handshake"),
+    (r"^installArrival\(", "installArrival(store)"),
     (r"^installLiveUpdates\(queryClient\);", "installLiveUpdates(queryClient)"),
     (r"^installRelay\(\);", "installRelay()"),
     (r"^installRelayRecovery\(\);", "installRelayRecovery()"),

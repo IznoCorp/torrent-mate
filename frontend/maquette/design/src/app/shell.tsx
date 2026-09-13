@@ -37,8 +37,8 @@ import "../i18n";
 // here than anywhere else in this file. It used to be a classic script
 // inside the fragment, evaluated while the document parsed — everything it
 // declares therefore existed before this module's body ever ran, and the
-// body below depends on exactly that: it reads `window.__startEngine`
-// and calls it. As a module the engine keeps that guarantee for the same
+// body below depends on exactly that: the arrival it calls draws through
+// the engine. As a module the engine keeps that guarantee for the same
 // reason it had it before: a module's dependencies evaluate before its
 // body, so importing it HERE is what makes it run FIRST. Moving this line
 // below any other statement would not reorder anything — imports hoist —
@@ -55,7 +55,7 @@ import ReactDOM from "react-dom/client";
 // which is a file rather than four lines here because it gains an entry per
 // feature converted and this file may only lose lines.
 import "./panel-contributions";
-import { createStore, type Store } from "./store";
+import { createStore } from "./store";
 import { installFocusManager } from "./focus";
 import { installMockNetwork } from "../mocks";
 import { router } from "./router-tree";
@@ -73,6 +73,7 @@ import { installOutboxWiring } from "./outbox-wiring";
 import { installUpdateDiscipline } from "./worker-registration";
 import { ConnectionMark, ConnectionNotice } from "./connection-notice";
 import { Frame } from "./frame";
+import { installArrival } from "./arrival";
 import { installSeams } from "../engine/seams";
 import { installNavigation } from "../lib/navigate";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -94,19 +95,6 @@ import { installSearchLookup } from "../features/acquisition/search-queries";
 import { installStore } from "../lib/store-access";
 import { bridge, panel, screens } from "../lib/shell-doors";
 
-declare global {
-  interface Window {
-    // The engine's handshake: defined by refonte.html, called exactly once
-    // below, once the store exists and the bridge is real. Optional because
-    // a module that failed to evaluate is exactly the case this boot order
-    // is built to leave visible — the startup screen, not a crash here.
-    // It no longer receives an address ROOT. It used to compose every page
-    // address itself against one, which is exactly the addressing the shell
-    // has taken over: the engine says WHERE IT IS, the address model says what
-    // that is called. The deps object's own keys are the engine's.
-    __startEngine?: (deps: { store: Store }) => void;
-  }
-}
 
 // THE BOOT ORDER, AND IT IS THE WHOLE OF WHAT THIS FILE DECIDES. Each call
 // below installs one seam in the one position it can be installed in. The four
@@ -186,8 +174,7 @@ if (__MOCKS_BUILT_IN__) installMockNetwork();
 // leave the interface opening with an empty bar until something moved.
 installNavigationSeam();
 
-const start = window.__startEngine;
-if (typeof start === "function") start({ store: store });
+installArrival(store);
 if (__MOCKS_BUILT_IN__) installHarness();
 
 // `#shell` starts, in the markup, as a static sibling of `.stage` —
