@@ -67,6 +67,17 @@ From a·8 (the steward accepted each on the reading):
 36. **The log directory**: every log under `/private/tmp/tm-l13a/`, `<phase>-<step>.log`; the gate logs
     (`<phase>-contracts`, `<phase>-oracle`) kept until the merge, the rest deleted at stand-down and proved by `ls`.
 
+## Method — added at the a·9 opening
+
+- **After every phase's commit and before ANY push** (the steward, 2026-09-13, measured: the pre-push suite fell on it
+  at a·7 AND at a·8, ~3 min of suite each):
+  `HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder sh scripts/heavy.sh --class test l13a python3 -m pytest tests/scripts/test_check_maquette_comments.py -q`.
+  A phase that adds or removes a maquette file or a dated comment re-records
+  `python3 scripts/check-maquette-comments.py --record` INSIDE its own commit and reads the diff: only the `read` count
+  and the reference count may move, and the commit body says the two numbers.
+- **Every other baseline a phase moves** — the residue ceiling, the frame-domain floors, the mock seeds, R80's floor,
+  the poster-box floor — is re-recorded in the phase's own commit, its numbers in the body.
+
 ## What a·9 inherits, read but not acted on
 
 Readings taken at the a·8 boundary, to re-take before trusting (they are a start, not a proof):

@@ -30,7 +30,7 @@ are `RESUME.md`'s 27 to 30.
       pwd && git branch --show-current && git status --short
       grep -n "^#### L13" docs/reference/frontend-architecture.md
       ls docs/features/maquette-l13/plan/ | wc -l
-      wc -l frontend/maquette/design/src/engine/legacy.js frontend/maquette/design/src/engine/states.js frontend/maquette/design/src/styles/legacy.css frontend/maquette/design/refonte.html
+      wc -l frontend/maquette/design/src/engine/legacy.js frontend/maquette/design/src/styles/legacy.css frontend/maquette/design/refonte.html   # engine/states.js died at a·1
       python3 scripts/check-frontend-boundaries.py --arm size; echo "exit $?"
       grep -rhoE '^"""R[0-9]+ ' frontend/maquette/harness/*.py | sort -V | tail -1
       grep -n __version__ personalscraper/__init__.py
