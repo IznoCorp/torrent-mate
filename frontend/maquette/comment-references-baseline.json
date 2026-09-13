@@ -42,7 +42,7 @@
     "design/src/mocks/state.ts": 1,
     "design/src/mocks/stream.ts": 1,
     "design/src/styles/base.css": 13,
-    "design/src/styles/legacy.css": 51,
+    "design/src/styles/legacy.css": 50,
     "design/src/styles/theme.css": 3,
     "design/src/ui/dialog/contract.ts": 1,
     "design/src/ui/popover.tsx": 1,
@@ -96,6 +96,6 @@
     "harness/url_state.py": 2,
     "installable.py": 3,
     "oracle.py": 12,
-    "serve.py": 2
+    "serve.py": 1
   }
 }
