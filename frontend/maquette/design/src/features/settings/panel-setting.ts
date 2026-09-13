@@ -19,6 +19,7 @@ import type { Setting, SettingsTopic } from "./reference";
 import { panel, toast } from "../../lib/shell-doors";
 import { dialog } from "../../app/dialog-host";
 import { settingLabels } from "./labels";
+import { changeSetting } from "./pending-edits";
 
 // THE ICONS COME THROUGH THE ENGINE'S DRAWING SLICE, not by importing
 // `app/icons.ts`, and it is invariant 8 that decides. `app/icons.ts` is outside
@@ -273,7 +274,7 @@ function commitEdit(identifier: string): void {
     (sharedQueryClient?.getQueryData<SettingsTopic[]>(settingsQuery.queryKey))
       ?? []).find((one) => settingIdentifier(one) === identifier);
   if (setting === undefined) return;
-  reference.changeSetting(identifier, reference.typedValue(setting, field.value));
+  changeSetting(identifier, reference.typedValue(setting, field.value));
   panel.produce("setting", identifier);
 }
 

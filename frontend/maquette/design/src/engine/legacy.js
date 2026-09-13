@@ -48,16 +48,14 @@ import { replacePath, switchPage, switchPageFromLayer, walk } from "../app/page-
 import { installKnownMedium } from "../app/addressed-panels";
 /* THE SETTINGS CATALOGUE, IMPORTED BACK. How a setting is identified,
    listed and read moved to the feature that owns settings when its panels did,
-   and the engine reads the same three answers rather than keeping its own —
+   and the engine reads the same answers rather than keeping its own —
    `app/icons.ts`'s arrangement and its reasoning word for word: one copy, read
    by both worlds, and the day this file goes the feature loses an importer
-   rather than a subject. Its own verbs (`changeSetting`, the field branches)
-   still live here and still ask the same questions. */
+   rather than a subject. */
 import {
   settingIdentifier,
   valueShown,
 } from "../features/settings/catalog";
-import { heldSettings } from "../features/settings/queries";
 /* THE DÉCOUVRIR FEED, IMPORTED BACK. The reserve, the pile and the
    gesture that spends them are `features/acquisition/` now — the last feature
    surface this file still DREW. Its containers were already React's; what moved
@@ -1716,56 +1714,6 @@ import {
     ];
   }
 
-  /* THE FIELD A VALUE ASKS FOR.
-
-     The 153 settings the engine really keeps hold ten JSON shapes, and those
-     shapes ask for five fields, one refusal, and one state that crosses them
-     all. Deriving the field from the VALUE rather than from a list of keys is
-     what makes a setting added tomorrow editable without touching this:
-
-       · a boolean (33) is a switch — no keyboard, no validation, no « save »
-         inside the field, because there is nothing to get wrong;
-       · a number (54) is a number field with a numeric keyboard, and it says
-         its unit when the key names one;
-       · a text (44) is a text field;
-       · a path (3) is a text field in the mono face, full width: a path is read
-         character by character, and a proportional font hides a double slash;
-       · a list of texts (12) is a list — each item removable, one line to add.
-         A comma-separated text field would make « , » unusable inside an item;
-       · a DURATION (2) is a text field that states its format rather than
-         inventing a picker for two values;
-       · a STRUCTURE (3) is refused. `tiers` is a list of objects with their own
-         keys; a form for it cannot be validated here, and drawing one would
-         promise an edit that breaks the file. It says so, and names the file.
-
-     A value that is not set (2) keeps the field its type asks for and says it
-     is empty — never a zero, never an empty string standing in for « absent ». */
-  function rawValue(setting) {
-    const id = settingId(setting);
-    return SETTINGS_STATE.modifs.has(id) ? SETTINGS_STATE.modifs.get(id) : setting.brut;
-  }
-
-
-  /* Changing a value. The prototype does not draw a keyboard: what it draws is
-     that the change is PENDING — marked on its row, counted in the bar, and
-     written by nothing until the bar is used. */
-  function sameValue(a, b) {
-    return Array.isArray(a) || Array.isArray(b)
-      ? JSON.stringify(a) === JSON.stringify(b)
-      : a === b;
-  }
-
-  function changeSetting(id, value) {
-    const setting = heldSettings().find((r) => settingId(r) === id);
-    if (!setting) return;
-    // A value equal to the file's is not a pending change: it is no change, and
-    // leaving it in the map would make the save bar name a file it would write
-    // identically.
-    if (sameValue(value, setting.brut)) SETTINGS_STATE.modifs.delete(id);
-    else SETTINGS_STATE.modifs.set(id, value);
-    render();
-  }
-
   /* What a field's value BECOMES, read from the field itself. A number field
      returns a string; storing it as one would compare unequal to the file's
      number for ever, so the type it goes back as is the type it came from. */
@@ -1989,14 +1937,7 @@ import {
     },
     svgIcon,
     settingId,
-    // What a field must DRAW: the pending edit if there is one, the file's
-    // value otherwise. The pending-edit overlay itself stays private — a
-    // reader of this returns the value, never the map — but a panel that drew
-    // `.brut` instead would show a list one has just shortened at its old
-    // length, and the removal would look like it did nothing.
-    rawValue,
     typedValue,
-    changeSetting,
     // The arbitration flow's LABELS, which are the interface's own words and
     // were never server state — the register classifies them `interface`, and
     // they stay exactly where they are.
@@ -2382,90 +2323,6 @@ import {
     if (!closest) return;
     if (closest.tagName === "A") event.preventDefault();
 
-    if (closest.dataset.setting) {
-      // THE PRODUCER HAS LEFT. `features/settings/panel-setting.ts` answers.
-      panel.produce("setting", closest.dataset.setting);
-      return;
-    }
-    if (closest.dataset.secret) {
-      // A secret is never shown, so its panel offers the only act that exists:
-      // replacing it. Nothing to read, nothing to copy.
-      //
-      // THE PRODUCER HAS LEFT, and it takes the KEY rather than the record:
-      // the feature reads the layer's answer, so handing it a row found in the
-      // engine's own fixture would be handing it the copy it exists to stop
-      // reading.
-      panel.produce("secret", closest.dataset.secret);
-      return;
-    }
-    if (closest.dataset.field && closest.dataset.to) {
-      const id = closest.dataset.field;
-      const setting = heldSettings().find((r) => settingId(r) === id);
-      if (setting) {
-        changeSetting(id, closest.dataset.to === "oui");
-        panel.produce("setting", id);
-      }
-      return;
-    }
-    if (closest.dataset.deletefield) {
-      const id = closest.dataset.deletefield;
-      const setting = heldSettings().find((r) => settingId(r) === id);
-      if (setting) {
-        const list = [...(rawValue(setting) || [])];
-        list.splice(Number(closest.dataset.index), 1);
-        changeSetting(id, list);
-        panel.produce("setting", id);
-      }
-      return;
-    }
-    if (closest.dataset.addfield) {
-      const id = closest.dataset.addfield;
-      const setting = heldSettings().find((r) => settingId(r) === id);
-      if (setting) {
-        // A prototype cannot show a keyboard; the added item is named after
-        // what the list already holds, so the shape of the row is judgeable.
-        const list = [...(rawValue(setting) || [])];
-        list.push(`valeur ${list.length + 1}`);
-        changeSetting(id, list);
-        panel.produce("setting", id);
-      }
-      return;
-    }
-    if (closest.dataset.cancelsetting) {
-      // THE READER HAS LEFT. The verb is still this delegation's; what it
-      // does is `features/settings/panel-setting.ts`'s, beside the panel that
-      // offers it. The rule that holds it was written against the branch this
-      // replaces and is unchanged in count.
-      seam.settingsVerbs?.cancelEdit(closest.dataset.cancelsetting);
-      return;
-    }
-    if (closest.dataset.save) {
-      // THE SAVE ASKS THE LAYER NOW (B-299). It used to clear the edits,
-      // raise the restart flag and say « Enregistré » without ever writing
-      // anything — so `conflict`, a field the contract has always answered, had
-      // no reader and the copy naming three banners drew two.
-      void seam.settingsVerbs?.save();
-      return;
-    }
-    if (closest.dataset.reloadsettings) {
-      seam.settingsVerbs?.reload();
-      return;
-    }
-    if (closest.dataset.restart) {
-      // IT ASKS FIRST (B-300, §17). A restart cuts the service for every
-      // account of the household; this branch used to do it on the tap.
-      seam.settingsVerbs?.askToRestart();
-      return;
-    }
-    if (closest.dataset.confirmrestart) {
-      seam.settingsVerbs?.restart();
-      return;
-    }
-    if (closest.dataset.qsettings != null) {
-      SETTINGS_STATE.q = closest.dataset.qsettings;
-      render();
-      return;
-    }
     if (closest.dataset.page) {
       // Navigating CLOSES whatever is open above: without this, one changed
       // page while staying stuck on the media sheet.
@@ -3770,7 +3627,6 @@ Object.assign(window, {
   endSugDrag, escapeHtml,
   closePopEp, closeDrawer, changedFiles,
   gridBadge, icons, initialsOf, drawerWidth,
-  sameValue, changeSetting,
   mountLoaders, mountSearch, fileName,
   openDeleteDialog,
   openPanel,
@@ -3785,7 +3641,7 @@ Object.assign(window, {
   sugVerb,
   svgIcon, toast, toastUndo,
   displayedValue,
-  rawValue, typedValue, view,
+  typedValue, view,
 });
 
 // Read live, because the engine reassigns each of these.

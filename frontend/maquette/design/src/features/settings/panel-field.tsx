@@ -12,6 +12,7 @@
 // above it.
 import { useTranslation } from "react-i18next";
 import { useSettingsReference, type Setting } from "./reference";
+import { changeSetting, rawValue } from "./pending-edits";
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { Icon } from "../../ui/icon";
 import { settingLabel, unitOf } from "../../features/settings/labels";
@@ -46,9 +47,7 @@ function FieldBlock({
 }) {
   const {
     settingId,
-    rawValue,
     typedValue,
-    changeSetting,
   } = useSettingsReference();
   const { icons } = useEngineDrawing();
   const { t } = useTranslation();

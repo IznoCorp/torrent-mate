@@ -219,6 +219,7 @@
       "removeAria": "Retirer {{valeur}}",
       "emptyList": "Aucune valeur. La liste est vide, ce qui n'est pas la même chose qu'une valeur absente.",
       "add": "Ajouter",
+      "addedItem": "valeur {{position}}",
       "undefinedPlaceholder": "non défini",
       "durationFormat": "format 72h"
     }

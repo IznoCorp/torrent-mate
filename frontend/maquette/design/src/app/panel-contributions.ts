@@ -47,4 +47,5 @@ import "../features/acquisition/deck-verbs";
 // rubrics (B-361).
 import "../features/settings/topic-verb";
 import "../features/settings/secret-verbs";
+import "../features/settings/verbs";
 import "../features/maintenance/topic-verb";

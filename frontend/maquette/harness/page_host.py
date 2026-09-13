@@ -327,7 +327,7 @@ async def main():
             .find((x) => x.type === 'boolean');
           if (!setting) return null;
           const id = window.__referentiel.settingId(setting);
-          window.__referentiel.changeSetting(id, !setting.brut);
+          window.__changeSetting(id, !setting.brut);
           window.__referentiel.render();
           return id;}""")
         await page.wait_for_timeout(300)
@@ -558,7 +558,7 @@ async def main():
         await page.evaluate("""()=>{
           const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap((topic) => topic.r)
             .find((x) => x.type === 'boolean');
-          window.__referentiel.changeSetting(
+          window.__changeSetting(
             window.__referentiel.settingId(setting), !setting.brut);
           window.__referentiel.render();}""")
         await page.wait_for_timeout(300)

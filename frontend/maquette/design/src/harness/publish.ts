@@ -33,6 +33,7 @@ import { deleteLibraryItems, libraryNextPage } from "../features/library/queries
 import { sortWays } from "../features/library/sorting";
 import { releases } from "../features/releases/queries";
 import { settingLabels } from "../features/settings/labels";
+import { changeSetting } from "../features/settings/pending-edits";
 import { pressNumbers } from "../lib/press-arbitration";
 import { pullNumbers } from "../lib/pull-gesture";
 import { sharedQueryClient } from "../lib/query-client";
@@ -50,6 +51,8 @@ declare global {
   interface Window {
     /** The interface's store — the domain hooks and the probes read its state. */
     __store: Store;
+    /** Files a setting's pending edit — how a rule stages a change it does not type. */
+    __changeSetting: typeof changeSetting;
     // The query cache. It is the one place server state lives (invariant 4), so
     // a rule asking « what does this surface hold, and did a mutation put it
     // back? » asks it here.
@@ -117,6 +120,7 @@ export function publishSeams(): void {
   };
   publish("__store", () => store);
   publish("__queries", () => sharedQueryClient);
+  publish("__changeSetting", () => changeSetting);
   publish("__relay", () => relay);
   publish("__i18n", () => i18next);
   publish("__toast", () => toast);

@@ -35,7 +35,6 @@ import { pendingDecisions } from "../features/arrivals/queries";
 import { deleteLibraryItems } from "../features/library/queries";
 import { sortWays } from "../features/library/sorting";
 import { episodeSaying } from "../features/media/popover-episode";
-import { settingsVerbs } from "../features/settings/panel-setting";
 import { addressSeam } from "../lib/addresses";
 import { queueActions, queueLists } from "../lib/queue";
 import { toast } from "../lib/shell-doors";
@@ -200,9 +199,6 @@ export const seam = {
   },
   get searchResults() {
     return searchResults;
-  },
-  get settingsVerbs() {
-    return settingsVerbs;
   },
   get sortWays() {
     return sortWays;
