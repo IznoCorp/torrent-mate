@@ -12,8 +12,12 @@ records state, rulings and traps, and it dies with the wave's folder at the post
   Then this session:
   - **a·14.2** `932b62e7c` `refactor(maquette-l13a): every media crossing reads the provider identity and the engine's sheet table dies`
   - `1e8db81e1` `chore(maquette-l13a): the comment corpus counts the three modules the identity crossing added`
-  - the commit that adds this file.
-- Gates on `932b62e7c`, every log under `/private/tmp/tm-l13a/`:
+  - the commit that adds this file (`4ced4b26d`).
+  - `6c6180c9a` `test(maquette-l13a): the genre-site fixture follows audit.py's assertion to line 110` — the
+    pre-push suite read 1 failed (`tests/scripts/test_check_markup_contracts.py`, the site moved 105 → 110).
+- Gates on `932b62e7c`, every log under `/private/tmp/tm-l13a/` (pruned 2026-09-13 by the eleventh implementer on
+  the steward's order: the gate logs, `oracle-check.py`, the three cited scripts and `earlier-phases/` stay; the
+  `a142-alone-*` and `a142-mutation-*` working logs cited below are gone, their figures are the ones written here):
   - `a142-gate-contracts.log`: 19 rules + 27 guards, no violation (starts 15:23:40, 5 491 MB free).
   - `a142-gate-oracle.log`: 87 x 34, 2 958 measurements, no divergence.
   - Alone (`a142-alone-*.log`, equal to `hold-counts-baseline.json`): follow_has_sheet 3, followed_sheet_act 12, pop 17,
@@ -95,5 +99,8 @@ records state, rulings and traps, and it dies with the wave's folder at the post
   `check-maquette-comments.py --record`, and `mutate.sh` refuses the dirty tree it leaves — commit it first.
 - **`cards.py` does not read the acquisition card's folder switch, `paths_to_sheets.py` does not reach the cache scan**:
   pick a mutation's rule by what it taps, and read « NO RULE FELL » as a finding before trying another rule.
+- **A line-keyed test fixture follows a moved anchor**: `tests/scripts/test_check_markup_contracts.py` writes its
+  fixture at the line `scripts/markup_anchors.py` declares, so a docstring that grows a harness rule moves both. Only
+  the pre-push suite finds it — replay that test file alone after any anchor move, before the push.
 - **zsh does not split `$spec` in a loop**, and a parallel tool call that `cd`s moves the shell for the next one:
   prefix every call with `cd /Users/izno/dev/worktrees/wave-l13a &&`.
