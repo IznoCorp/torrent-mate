@@ -2284,7 +2284,6 @@ import {
      what a leaked address looks like from the outside. */
   const showSignIn = (withError, silent) =>
     seam.entry?.showSignIn(withError, silent === true || walk.driven);
-  const signOut = () => seam.entry?.signOut();
 
 
 
@@ -2418,10 +2417,6 @@ import {
       render();
       return;
     }
-    if (closest.dataset.signout) {
-      signOut();
-      return;
-    }
     if (closest.dataset.toast) {
       toast(closest.dataset.toast);
       return;
@@ -2499,31 +2494,6 @@ import {
       }, 240);
       return;
     }
-    if (closest.dataset.releases) {
-      panel.close();
-      setTimeout(() => screens.releases(closest.dataset.releases), 260);
-      return;
-    }
-    if (
-      closest.dataset.profile !== undefined &&
-      closest.dataset.profile !== null
-    ) {
-      // Route, not screen: the quality-profile surface and the release-choice
-      // screen are both routes, and the remaining producers of `data-profile`
-      // (the Réglages rubric, a sheet action) are sheets or pages. The
-      // RELEASES route still needs the same close-then-open choreography its
-      // own trigger was built against, so the router's own identity is tested.
-      // `__screens.profil` does the navigating either way.
-      const profile = closest.dataset.profile;
-      if (document.querySelector('.screen.open[data-key^="releases:"]')) {
-        bridge.back();
-        setTimeout(() => screens.profile(profile), 260);
-      } else {
-        panel.close();
-        setTimeout(() => screens.profile(profile), 260);
-      }
-      return;
-    }
     // `data-take` HAS NO BRANCH HERE ANY MORE (B-309). It had two, told apart
     // by guessing at the value. The release picker says `data-pick-release`
     // now and the panel's take kept this name, so each has one meaning and one
@@ -2541,11 +2511,6 @@ import {
     }
     if (closest.dataset.drawer) {
       openDrawer();
-      return;
-    }
-    if (closest.dataset.maintact) {
-      // THE PRODUCER HAS LEFT. `features/maintenance/panel-action.ts` answers.
-      panel.produce("action", closest.dataset.maintact);
       return;
     }
     if (closest.dataset.pipe) {
@@ -2791,12 +2756,6 @@ import {
       // this path now rather than printing it.
       panel.close();
       panel.produce("journey", closest.dataset.journey);
-      return;
-    }
-    if (closest.dataset.sheet === "utilisateur") {
-      // THE PRODUCER HAS LEFT. The verb is still this delegation's; what it
-      // asks for is a KIND, and `features/account/panel-account.ts` answers.
-      panel.produce("account");
       return;
     }
     /* A card body opens the panel on a simple tap. The gallery reaches the
@@ -3622,7 +3581,6 @@ Object.assign(window, {
   baseTitle, beforeReset, cadenceFR,
   closeDlg, closeSheet,
   dateFR, decisionPending,
-  signOut,
   endCardDrag, endDeckDrag,
   endSugDrag, escapeHtml,
   closePopEp, closeDrawer, changedFiles,

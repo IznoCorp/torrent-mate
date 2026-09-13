@@ -23,6 +23,7 @@ import "../features/media/panel-seasons";
 import "../features/media/popover-episode";
 import "../features/settings/panels";
 import "../features/account/panel-account";
+import "../features/account/verbs";
 import "../features/maintenance/panel-action";
 import "../features/library/panel-sort";
 import "../features/acquisition/panels";

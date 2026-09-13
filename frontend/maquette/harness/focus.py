@@ -23,6 +23,10 @@ THE BACKGROUND IS CHECKED BY `inert`, NOT BY `aria-hidden`. `aria-hidden` hides
 a subtree from a screen reader and leaves every control in it tabbable, which is
 worse than either half alone: the reader tabs into something no longer
 announced.
+
+RE-AIMED, count unchanged: the avatar opens the account panel through `data-account`,
+the account's own name; the engine's value-dispatched `data-sheet="utilisateur"` was split
+by owner and `data-sheet` keeps only acquisition's `plus`.
 """
 import asyncio
 import sys
@@ -34,7 +38,7 @@ from playwright.async_api import async_playwright
 # root, and a short name for the report.
 LAYERS = (
     ("drawer", '[data-drawer="1"]', "#drawer"),
-    ("sheet", '[data-sheet="utilisateur"]', "#sheet"),
+    ("sheet", '[data-account]', "#sheet"),
     # A MIGRATED SCREEN, and it is here because leaving it out is exactly
     # how the manager shipped blind to five of its six layers: there is one
     # legacy screen carrying `id="screen"` and five React ones carrying no

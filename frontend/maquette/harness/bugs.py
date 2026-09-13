@@ -1,4 +1,9 @@
-"""Every reported defect has its test, written together with the fix."""
+"""Every reported defect has its test, written together with the fix.
+
+RE-AIMED, count unchanged: the avatar opens the account panel through `data-account`,
+the account's own name; the engine's value-dispatched `data-sheet="utilisateur"` was split
+by owner and `data-sheet` keeps only acquisition's `plus`.
+"""
 import asyncio
 
 from common import shot
@@ -103,7 +108,7 @@ async def main():
     await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>window.__measure(true)")
     await pg.wait_for_timeout(300)
-    await pg.evaluate("""()=>document.querySelector('[data-part="avatar"][data-sheet=utilisateur]').click()""")
+    await pg.evaluate("""()=>document.querySelector('[data-part="avatar"][data-account]').click()""")
     await pg.wait_for_timeout(400)
     await pg.evaluate("()=>document.querySelector('#sheet [data-go=profile]').click()")
     await pg.wait_for_timeout(500)

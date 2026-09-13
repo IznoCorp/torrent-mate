@@ -26,7 +26,7 @@
 // halves at once: WHICH candidate was retained, and WHERE the medium went.
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
-import { bridge, toast } from "../../lib/shell-doors";
+import { bridge, panel, screens, toast } from "../../lib/shell-doors";
 import { queueActions } from "../../lib/queue";
 import { releases } from "./queries";
 import { baseTitle } from "../../lib/titles";
@@ -83,4 +83,25 @@ registerVerb("pick-release", (value) => {
       title: baseTitle(title),
     }),
   });
+});
+
+/* THE TWO SURFACE-OPENERS. Each closes what is open and opens its screen 260 ms
+   later — the choreography the screens were built against, kept as it is until
+   the ladder takes one shape. */
+
+// Another release: the release screen for the title the panel names.
+registerVerb("releases", (title) => {
+  panel.close();
+  window.setTimeout(() => screens.releases(title), 260);
+});
+
+// The quality profile. Both are ROUTES: from the release screen the way back is
+// the router's own step, from a panel or a page it is the panel's close.
+registerVerb("profile", (profile) => {
+  if (document.querySelector('.screen.open[data-key^="releases:"]')) {
+    bridge.back();
+  } else {
+    panel.close();
+  }
+  window.setTimeout(() => screens.profile(profile), 260);
 });
