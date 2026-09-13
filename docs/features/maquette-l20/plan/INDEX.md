@@ -77,7 +77,7 @@ in the same tool call, **never `| tail -N` on a long gate**. Kill what you start
 | #   | Phase | What it lands | Register |
 | --- | --- | --- | --- |
 | 1 | [The contract](phase-01-contract.md) | four operations declared, three re-shaped, the mocks that MOVE, the demands regenerated, the rule labels bound to numbers | — |
-| 2 | [The named states leave the engine's ledger](phase-02-named-states.md) | `states/system.ts`; the engine's table SHRINKS and its record follows | B-306's arm |
+| 2 | [The named states leave the engine's ledger](phase-02-named-states.md) | `harness/states/system.ts`; the engine's table SHRINKS and its record follows | B-306's arm |
 | 3 | [The host, and the locks](phase-03-host-and-locks.md) | the « Pipeline » section of Système exists; the lock, the two sentinels and the sweep drawn | B-297 |
 | 4 | [The levers](phase-04-levers.md) | pause · resume · the automatic trigger · the bound's path; DOIT-4 on a lever; §13's loading | DOIT-3, DOIT-4 |
 | 5 | [« Relancer la veille »](phase-05-watch-now.md) | the veille's five states and DOIT-6's figures, from both emitters | DOIT-6, B-383 |

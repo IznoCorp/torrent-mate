@@ -105,6 +105,9 @@ the state, this file. **One exception, named**: `docs/reference/product-intent.m
 constitution, is French, because it is the operator's dictated word and a translation would move a
 word the operator chose — « par-dessus » cost two pull requests to get right in its own language.
 It stays French and is amended only by the operator.
+**A second, on the same ground, since 2026-09-13**: `docs/reference/operator-method.md`, the
+operator's own method for the refonte, dictated on 2026-09-12 to the audit session and placed in the
+tree on his word (« OK go », relayed by that session); it is his alone to amend.
 
 The present is not translated; its language is the language it was written in, and it is
 indifferent, because nothing is meant to read it as current. The rule that operator-facing

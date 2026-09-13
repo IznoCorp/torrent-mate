@@ -67,7 +67,7 @@ there:
   never implemented the lot it audits: succession changes the session, not the separation;
 - **the tiers, and this project's one rule about them.** `orchestrator:model-routing` routes a
   dispatch to `deep`, `standard` or `light` through `~/.claude/claude-orchestrator/models.json`.
-  **Since plugin 0.26.1 (installed 2026-09-12) the launcher takes `--tier` and no longer `--model`**,
+  **Since plugin 0.26.1 (installed 2026-09-12; 0.28.3 on 2026-09-13 — read `claude plugin list` before every launch and use THAT version's scripts) the launcher takes `--tier` and no longer `--model`**,
   and the map on this machine binds all three tiers to `opus` (written by the steward that day on the
   operator's « Go »; it had been EMPTY until then, which made the launcher type no model at all) —
   so every launch of this office says `--tier deep` for an implementer, a reader and a successor,
@@ -105,7 +105,7 @@ there:
   the handshake; an agent past ~60 % is stood down at its unit boundary, its resume brief pushed
   and proved by `ls-remote` BEFORE it stops, and `rotate` spawns its replacement first and closes
   its tab after. **The steward's own succession passes `--successor`** (the tab lands immediately
-  right of the steward and takes its agent chain) with the title `Orchestrator : <feature>`; the
+  right of the steward and takes its agent chain) with the title `Orch : <subject>`; the
   2026-09-11 succession was spawned under the bare title `steward-successor`, and the plugin neither
   derived a title from the predecessor nor refused one out of format — reported to the operator that
   day as a plugin defect, to be repaired upstream, never here;
@@ -127,26 +127,19 @@ there:
   exist here, the launcher says so on stderr, and every agent of this office starts with NO MCP
   server. The harness needs none: it drives its own Playwright. A brief says so where it names the
   tier, so an agent never reaches for a tool it was not given;
-- **the launcher can hang, and the fallback is tmux (2026-09-12).** At 13:55 a `close --tty` on a tab
-  whose session still ran printed « closed 1 session » and then hung; the session was NOT closed
-  (its process survived and was ended by `kill`). From then on every launcher call failed — a
-  websocket HTTP 401, then a hang inside the `iterm2` package's `auth.py`, on the AppleScript
-  `request cookie and key` that iTerm2 never answered — and AppleScript itself timed out on
-  `count of windows` and `create tab` while iTerm2's own window kept working. The repair is inside
-  iTerm2 (its Settings › General › Magic « Enable Python API » toggle, or a restart — which kills every
-  live session) and belongs to the operator's hand or to a session he opens for it. Three rules the
-  outage taught: **a launcher's « closed » is a claim, `ps -t <tty>` is the fact**; **never an unbounded
-  `osascript`** (each unanswered AppleEvent waits two minutes in iTerm2's queue and the queue is what
-  hangs; wrap every one in `perl -e 'alarm N; exec @ARGV'`); and **the fallback is a detached tmux
-  session, launched with the launcher's own flags and a CLEAN environment**:
-  `tmux new-session -d -s <name> -c <dir> "env -u CLAUDE_CODE_BRIDGE_SESSION_ID -u CLAUDE_CODE_CHILD_SESSION -u CLAUDE_CODE_MESSAGING_SOCKET -u CLAUDE_CODE_MESSAGING_TOKEN -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT /opt/homebrew/bin/claude --model opus --permission-mode auto --strict-mcp-config --settings '{\"remoteControlAtStartup\":false}' --name 'Agent : <subject>' '<one-line prompt>'"`,
-  the directory's trust recorded by hand first (`~/.claude.json`, `projects[<dir>].hasTrustDialogAccepted`),
-  the screen read with `tmux capture-pane -p -t <name>`, and the session ended with
-  `tmux kill-session` after its stand-down. **The two flags are not optional**: the launcher passes
-  `remoteControlAtStartup:false` to every agent (`iterm_agent.py`, the `--settings` line) and a
-  session spawned from the steward's shell inherits the steward's Remote Control bridge — the first
-  tmux reader of that day appeared in the operator's Remote Control client attached to the steward,
-  for want of both;
+- **the launcher hung once, and the fallback that followed was WRONG (2026-09-12).** At 13:55 a `close --tty` printed
+  « closed 1 session » and hung, and every launcher call after it failed — a websocket HTTP 401, then a hang inside the
+  `iterm2` package's `auth.py` on the AppleScript `request cookie and key`. **The cause, measured that evening by the repair
+  session with `sample`: a CONTEXT MENU left open in iTerm2** — its nested event loop (`startRunningMenuEventLoop` held the
+  main thread) dispatches no AppleEvent, so the API server never answered; not the queue, not TCC, not the socket; a
+  `sheets=0` probe cannot see a menu. Escape closed it and the launcher answered again. Plugin 0.28.1 carries the lesson:
+  no unbounded `osascript`, a pre-probe, the cause named when it fails, the launch ladder `api` then `applescript` and
+  NOTHING ELSE. **The office had spawned three agents into tmux meanwhile, and the operator struck that out: « tmux n'est
+  pas une solution. Plus jamais d'agent tmux. » An agent is an iTerm2 tab and nothing else; a launcher that cannot make a
+  tab says why and STOPS, and the fault is reported — never routed round into a terminal the operator cannot see, place or
+  account for.** Two facts the outage taught still hold: `--settings '{"remoteControlAtStartup":false}'` is the
+  launcher's own flag (a session spawned from the steward's shell without it joins the steward's Remote Control bridge), and
+  **a launcher's « closed » is a claim, `ps -t <tty>` is the fact**;
 - **the shared-machine discipline** in its generic form; the lock, the fan-out variable and the
   arithmetic of THIS machine stay in § « Instrument hygiene » below, and they are the stricter reading.
 
@@ -183,7 +176,8 @@ brief said « there is no tab to close ». The plugin's script defaults to the m
 paragraph is the office's half.
 
 **Building the context — from the repository, never from a conversation.** In order:
-`docs/reference/product-intent.md` (what the product must be), then
+`docs/reference/product-intent.md` (what the product must be) and `docs/reference/operator-method.md`
+(how the operator works and what he expects — his, dictated, since 2026-09-13), then
 `docs/reference/frontend-architecture.md` (what must become true, and in what order), then
 `IMPLEMENTATION.md` § « Where the frontend work stands » (where it stands),
 `frontend/maquette/README.md` (how the prototype runs and what it has already cost), `BUGS.md`,
@@ -193,6 +187,32 @@ the squash being the one `IMPLEMENTATION.md` records beside the lot. Nothing in 
 depends on having watched the work happen — which is what makes the office transferable.
 
 ---
+
+## The operator's measures of 2026-09-12 — the office is read under them
+
+**« OK on applique les 7, mais on remettra la rigueur en place si elle s'avère nécessaire »** (operator, 2026-09-12 ~23:30,
+after an audit measured 130 merges since 2026-08-18: 19 % carrying product, 55 % gestures or office prose, ~79 000 lines of
+instruments for 34 500 of product, lots per week 7 → 6 → 2 → 1). Where a sentence of this file conflicts with a measure, the
+measure wins; the sentence is amended here at the next per-lot docs PR, not worked around. Reversal is his, on a defect that
+reaches him.
+
+1. **The apparatus is frozen** — no new guard, arm or tooling wave without a defect that reached the operator himself; the
+   existing rules and guards stay and keep running. A repair's own rule (the one that falls when the repair is reverted) is
+   not new apparatus.
+2. **One reader round per lot, zero per micro-wave**; a micro-wave merges on its green gate and the steward's verification
+   on the files, under the merge delegation he gives; instrument minors are filed, never repaired inside the wave.
+3. **The post-merge gesture is the steward's own hand** — references re-recorded, the row, the folder cited by commit, the
+   recount — no agent session for it, a script when one exists.
+4. **One steward docs PR per lot, at the lot's end** — never one per incident. **One consequence, measured on 2026-09-13
+   and paid by the next wave**: `check-implementation-state.py` refuses an « In flight » row whose pull request `main` already
+   holds, so between a micro-wave's merge and the docs PR that traces it, `main` is red on that guard and every pull request
+   rebased on it reads red in CI's contracts job. So a wave's LAST commit before its merge sets « In flight » back to
+   « None » (the plain row, no pull request number anywhere in the cell — the arm reads the first `#NNN`); the trace in
+   « Between … » stays the steward's, in the docs PR.
+5. **One repair train per day** — one brief, one worktree, one agent, one gate for the day's repairs — never one micro-wave
+   per bug.
+6. **Two agents in parallel at most** on this 16 GB machine.
+7. **L13 — the engine's death — is next**, once the in-flight waves land.
 
 ## The office
 
@@ -427,17 +447,23 @@ machine at a load of twenty-seven. Set it explicitly, every time: `TM_HARNESS_JO
 scripts/heavy.sh <who> <command>`. The lock cannot save a run from its own parallelism — it holds
 the door, it does not hold the room.
 
-**Two locks, by what the run READS (2026-09-12, five agents on one machine).** The mutex exists for
-the ONE served copy and the ONE 8899 host: what touches them — `run.sh` in any tier, the oracle,
-`harness-hold-counts.py`, `mutate.sh`, a single rule replayed against `/tmp/tm-refonte` — runs under
-the shared lock and is announced to the steward in one line before and one after. What is heavy
-and reads neither — `npm ci`, a build into a worktree's own `dist/`, `make check`, `pytest`, a
-`git push` (the pre-push hook runs the suite) — runs under the WAVE'S OWN lock,
-`HEAVY_LOCK=/private/tmp/tm-heavy-<wave>/holder`, so it proceeds beside another wave's harness run
-and the readiness floor, not the mutex, is what paces the machine. The day this was written the
-external load was the host's own (a Plex transcode, Spotlight, `fseventsd` at 74 %), and the fixed
-load ceiling would have held every push of every wave behind it: the steward raised the ceiling to
-10 for own-lock runs and said so, which is the arbitration the class model now carries.
+**Three locks, by what the run READS (2026-09-12, five agents on one machine; amended 2026-09-13).** The mutex exists
+for the ONE served copy and the ONE 8899 host: what touches them — `run.sh` in any tier, the oracle,
+`harness-hold-counts.py`, `mutate.sh`, a single rule replayed against `/tmp/tm-refonte` — runs under the shared lock and is
+announced to the steward in one line before and one after. **Every pytest run, `make check` and `git push` (the pre-push
+hook runs the suite) of EVERY wave runs under ONE tests lock, `HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder`**, so test
+suites serialise across waves: on 2026-09-12 three pre-push suites side by side under three per-wave locks are what the
+kernel killed (a push and an a11y run at 1.3 GB free, another push at 96 % of its suite) — memory was never the constraint
+at any steward reading (4–5 GB free), the concurrency was. What is heavy and reads neither copy nor suite — `npm ci`, a build
+into a worktree's own `dist/` — keeps a per-wave lock. **The class model (B-386, #589) as CODED, not as first written here**:
+`--class browser` 4 096 MB / load 6, `--class test` 3 072 / 6, `--class rule` 2 560 / 10; under a named class the environment
+may only RAISE the floor and LOWER the ceiling (a lower floor or a higher ceiling is refused, exit 64); a call with NO class
+keeps the historical 4 GB / 6 and its environment overrides. The sentence this paragraph carried before — that the
+ceiling of 10 for own-lock runs is « the arbitration the class model now carries » — was false for `test` (6). On a host
+whose own 1-minute load runs 9–15 (fseventsd, Spotlight, a Plex transcode) a classed run may therefore wait without bound;
+the wrapper does not measure that wait (it prints « holding off » once and « starts » with no timestamp — filed), so the
+steward says which form a wave uses and reads the machine before accusing a run. Never a parallel test run beside a harness
+run, whatever the locks say: the office refused one at 333 MB unused.
 
 **Its thresholds are arithmetic, not taste.** This host is 8 cores and 16 GB; one Playwright browser
 group costs about 1.1 GB; the baseline holds about 6 GB. A fan-out of eight therefore asks for more
@@ -472,6 +498,15 @@ writes `.claude/logs/bash-commands.log` under the current directory, and `vite.c
 `22c6c46fbb42`) with no source change, from two of this office's own greps. « An unchanged build
 id proves an unchanged build » holds only while nobody shells there. Filed as B-384; until it
 closes, absolute paths from the repository root.
+
+**Three traps of 2026-09-12, each paid once.** `gh pr merge --delete-branch` REMOVES the worktree checked out on that
+branch (two worktrees vanished at their merge, one under an agent still reading there) — remove the worktree by hand first,
+then delete the branch. A kill by the WRAPPER's name (`pkill -f "heavy.sh <wave>"`) kills every run of that wave, its own
+push included — kill by pid, or by the pattern of the wrapped command. A `TERM` sent to `sh heavy.sh` is deferred behind its
+foreground child and may never act: never escalate to `KILL` over a reference file mid-write (a truncated reference is
+B-291's species) — wait for the write. **And under memory pressure, closing a stood-down agent's tab BEFORE spawning its
+successor is allowed**, spawn-first notwithstanding, when its state is fully on the remote (ls-remote = head, tree clean,
+verified) and free memory reads under ~1.6 GB: a session costs 400–540 MB and a failed spawn is only a retry. Say it aloud.
 
 ## What a review costs, and the five rules that make it cost less (L14, 2026-09-02)
 
@@ -540,6 +575,18 @@ below the table IS counted, invisible only to a Markdown reader) and a third fac
 (the index was not in ascending order: three descents). The wave filed what it measured, not what it
 was told, and the office's brief was the defect. A brief carries the PROBE that shows the guard
 green over the defect, never a diagnosis written from memory.
+
+**9. A guard is read on its EXIT CODE, and so is a mutation (2026-09-12).** A wave ran `check-frontend-boundaries.py`
+twice and read its prose — « 4 module(s) reach outside the tree, 3 named », no word « violation », exit 1 two lines below —
+and reported its gate clean; the steward found the red by running the guard and reading `$?`. Another wave announced a
+27-guard script « running » whose creating command had failed on a misspelled path, swallowed by a `;`. The verdict of an
+instrument is its exit code; its last line is what it chose to say.
+
+**10. A guard can exit 0 over a drift only a TEST sees.** The comment-corpus baseline records how many files the corpus
+reads; a wave that adds a file under `frontend/maquette/` moves that `read` and the guard stays green — only
+`tests/scripts/test_check_maquette_comments.py`, in the pre-push suite, falls (`assert 358 == 365`). So « all guards exit 0 »
+is not « the push will pass »: the baseline is re-recorded in the commit that adds the file, and the diff is read to see
+that ONLY `read` moved.
 
 **And the arithmetic worth keeping.** Of L14's sixty-odd majors, roughly a dozen were defects a user
 would meet — a library that went blank, taps lost on icon-only buttons, a three-thousand-pixel jump

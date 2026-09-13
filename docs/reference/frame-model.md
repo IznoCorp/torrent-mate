@@ -267,7 +267,7 @@ nothing that ships; the seams die with the engine.
 *What it never knows.* Nothing the product depends on may depend on it: a seam is read by a rule,
 never by a component.
 *Today → target.* The seams that exist because the ENGINE needs them (`__address`, `__bridge`,
-`__panel`, `__screens`, `__store`) die with it at **L13**; the ones the HARNESS needs (`__go`,
+`__panel`, `__screens`, `__store`) die with it at **L13** — **measured on 2026-09-13 (L13's design § 4.2): all five are DEFINED by the shell and READ by the engine, so what dies at L13 is the engine's reads, which become imports, and 28 product seams stay published for the rules**; the ones the HARNESS needs (`__go`,
 `__states`, `__queries`, `__relay`, `__mocks`) die at switchover with `harness.css`, and L13's
 « nothing reads a `window.__` seam » is re-read accordingly in the plan — a harness driving seam
 is not the engine's residue.

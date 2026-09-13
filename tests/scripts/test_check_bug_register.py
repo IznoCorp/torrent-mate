@@ -267,7 +267,7 @@ def test_a_reworded_heading_is_loud_rather_than_quiet(capsys) -> None:
 
 
 def test_a_new_descent_in_the_index_is_refused(capsys) -> None:
-    """The ratchet: the register is not sorted, and must not get less sorted."""
+    """A descent in an index table is refused — each table is a sort."""
     module = load_guard()
     register = TWO_TABLES.replace(
         "| B-001 | The first one | 1x       | `open` |\n| B-002 | The next one  | 1x       | `open` |\n",
@@ -284,10 +284,10 @@ def test_a_new_descent_in_the_index_is_refused(capsys) -> None:
 def test_the_real_register_passes_both_arms(capsys) -> None:
     """THE CONTROL that matters most: the file as the operator wrote it.
 
-    The open index is NOT sorted — B-023 -> B-013, B-346 -> B-339 and
-    B-371 -> B-331 — and the seam where it gives way to the historical table is
-    a descent too. Requiring a sort would refuse the register; the ratchet
-    freezes what is there and reads each table on its own.
+    The open index carried three descents — B-023 -> B-013, B-346 -> B-339 and
+    B-371 -> B-331 — frozen by name until the operator had it re-ordered once
+    on 2026-09-13; the seam where it gives way to the historical table is a
+    descent too, which is why each table is read on its own.
     """
     module = load_guard()
     register = (ROOT / "BUGS.md").read_text(encoding="utf-8")
