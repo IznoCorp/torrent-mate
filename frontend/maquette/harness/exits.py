@@ -33,8 +33,8 @@ at. Each layer is now driven into its own exit and read there.
 
 THE ONE LAYER IT DOES NOT HOLD, and why, so nobody reads its absence as an
 oversight: the SCREEN (`ui/variants/layout.ts`'s `screen`). Its closed state is
-the variant's BASE and its open state is a residue rule the engine toggles
-(`.screen.open` in `styles/legacy.css`), so the closed-state-only idiom cannot
+the variant's BASE and its open state was a residue rule the engine toggled
+(`.screen.open`, since folded into the variant's `open` branch), so the closed-state-only idiom cannot
 be expressed on it without splitting the variant in two — which is restructuring
 a layer this lot did not convert. It carries the same defect today, it is
 recorded as such in B-249, and it belongs to whichever lot converts the screen.

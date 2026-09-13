@@ -20,10 +20,6 @@
 // in the emitted stylesheet.
 import "../styles/theme.css";
 import "../styles/base.css";
-// The residue, LAST of the three: it is hand-written CSS for markup the
-// engine draws, and it must be able to win over the base layer the same way
-// a component's own rule would. It dies with L13.
-import "../styles/legacy.css";
 // THE HARNESS, LAST, AND THE ONE IMPORT THAT DOES NOT SHIP. Phone frame,
 // harness buttons, the measuring hides. It dies at switchover with the
 // prototype it serves, and removing this line is the whole of its removal.

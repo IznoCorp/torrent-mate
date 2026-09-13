@@ -589,7 +589,7 @@ for term today and the oracle says so; what is not held is the day one drifts. *
 cross-checks each variant against the rule shadowing it is arbitrated (operator, 2026-08-25)**,
 and it dies with this decision.
 
-**It is built, and it is `R80`** — `frontend/maquette/harness/residue.py`, in the per-phase
+**It is built, and it is `R80`** — `frontend/maquette/harness/residue.py@60530dbd8`, in the per-phase
 contracts tier. It pairs each residue selector with the typed variant wearing the same identity
 anchor and compares `getComputedStyle` IN THE DOCUMENT, on two sibling probes, for exactly the
 properties the residue declares — never as text, because `flex: 0 0 auto` and `flex-none` are one

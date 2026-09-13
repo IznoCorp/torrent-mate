@@ -53,9 +53,9 @@ export type StatusTone = NonNullable<NonNullable<Parameters<typeof statusDot>[0]
  * base reads them with the neutral colours as the fallback — so the base alone
  * is the neutral chip, and a tone always wins.
  *
- * EVERY TONE IS ONE STRING LITERAL, however long: `residue.py` reads a branch
- * through its literals, one branch per literal, and a tone split in two is read
- * as two branches — the pair then compares a chip that wears half of its tone.
+ * EVERY TONE IS ONE STRING LITERAL, however long: `harness/factories.py` reads
+ * a factory's base through its literals, and its branches one per literal, so a
+ * tone split in two is read as two branches.
  */
 export const chip = cva(
   "chip inline-flex items-center gap-2 whitespace-nowrap rounded-full py-1 px-3 text-2 font-semibold " +

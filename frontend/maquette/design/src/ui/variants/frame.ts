@@ -410,8 +410,8 @@ export const dialogActions = cva("dlgacts flex flex-col gap-3");
    unlayered, so the LATER rule won property by property — which is why the
    padding here is `py-5 px-6` and not the `p-5` the first rule asked for. A
    variant carrying only one of the two would have rendered identically (the
-   residue wins over utilities) and disagreed with it, which is exactly the
-   drift R80 exists to catch, and did. */
+   residue won over utilities) and disagreed with it, which is exactly the
+   drift R80 was written to catch, and caught. */
 export const dialogButton = cva(
   "dlgbtn flex items-center justify-center gap-4 w-full min-h-[44px] py-5 px-6 "
     + "rounded-3 text-4 font-semibold text-center border",

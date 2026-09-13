@@ -106,10 +106,6 @@ BASE_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "bas
 # are unchanged, which is what lets this arm read it the same way it always did.
 THEME_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "theme.css"
 
-# The residue (D-L07-5): the engine's own CSS, which dies with it. The sign-in
-# screen's and the splash's rules left it for `base.css`'s `login:entry` block.
-LEGACY_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "legacy.css"
-
 # The scale block's own markers. Its declarations ARE the steps, so the ratchet
 # excludes the span before it counts anything: a scale that had to answer for
 # itself would report nine violations the moment it was written.
@@ -558,7 +554,7 @@ def application_stylesheet() -> str | None:
     one question: does the application's own CSS resolve every `var()` it uses
     ON ITS OWN, once the prototype's harness stops shipping? That used to be
     `refonte.html`'s BLOCK 2 and nothing else. Since L07 the application's CSS
-    is FOUR files — the tokens, the base layer, the residue, and what is left
+    is THREE files — the tokens, the base layer, and what is left
     of BLOCK 2 — and reading only the last of them reported the entire scale as
     dangling the moment it moved into `@theme`.
 
@@ -575,11 +571,11 @@ def application_stylesheet() -> str | None:
     if fragment is None:
         return None
     parts = [fragment]
-    # THE RESIDUE SHIPS, so its `var()` calls must resolve like any other. It
+    # THE LAYERS SHIP, so their `var()` calls must resolve like any other. They
     # joined this list when L07 emptied BLOCK 2: 462 of the uses this arm was
     # written to check had moved into it, and a scope that empties makes « no
     # violation » mean nothing — which is what the guard's own test says.
-    for path in (THEME_LAYER, BASE_LAYER, LEGACY_LAYER):
+    for path in (THEME_LAYER, BASE_LAYER):
         if path.exists():
             parts.append(path.read_text(encoding="utf-8"))
     return "\n".join(parts)
@@ -649,7 +645,7 @@ def token_arm() -> int:
     # the residue's own tokens somewhere else entirely.
     shipped = ", ".join(
         name for name, path in (
-            ("theme.css", THEME_LAYER), ("base.css", BASE_LAYER), ("legacy.css", LEGACY_LAYER),
+            ("theme.css", THEME_LAYER), ("base.css", BASE_LAYER),
         ) if path.exists()
     )
     print(

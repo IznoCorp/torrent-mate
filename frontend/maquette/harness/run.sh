@@ -67,8 +67,6 @@ SERVED="/tmp/tm-refonte"
 #   scen             a state id built from a template
 #   audit2           a state id built by string concatenation in JavaScript
 #   logout           a route renamed on one side only
-#   residue          an identity anchor shared by a residue rule and a typed
-#                    variant, where the residue WINS and the oracle is blind
 #   boot_order       the eight steps of the boot, and the five files the shell
 #                    was split onto. It joined at L09 and it belongs here on
 #                    this tier's own test: every phase of that lot adds to the
@@ -125,7 +123,7 @@ SERVED="/tmp/tm-refonte"
 # by run_uid. That database is the operator's and a CI runner has none, so the
 # rule would fail there for a reason that has nothing to do with the change
 # under test. It runs in the full suite, on the machine that has the data.
-CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py residue.py boot_order.py settle.py state_surfaces.py relay_states.py scroll_memory.py persistence.py producers.py replacement.py paths_to_sheets.py take.py busy.py served_copy.py declared_codes.py)
+CONTRACTS=(page_host.py screen_addresses.py scen.py audit2.py logout.py boot_order.py settle.py state_surfaces.py relay_states.py scroll_memory.py persistence.py producers.py replacement.py paths_to_sheets.py take.py busy.py served_copy.py declared_codes.py)
 
 # THE REPOSITORY'S CHEAP GUARDS, run beside the rules (B-063, arbitrated by the
 # operator on 2026-08-25). They read the tree in seconds and they read exactly
@@ -200,7 +198,6 @@ REPOSITORY_GUARDS=(
   "scripts/check-no-french.py"
   "scripts/check-code-abbreviations.py"
   "scripts/check-css-tokens.py"
-  "scripts/check-legacy-css-residue.py"
   "scripts/check-compositor-css.py"
   "scripts/check-markup-contracts.py"
   "scripts/check-i18n-placeholders.py"
@@ -247,9 +244,11 @@ else
     # hold count cannot be parsed — a permanent unparseable row and a rule
     # count one too high. Named here rather than detected, because « a rule
     # has a main() » is false for 71 of the 96 files in this directory and a
-    # clever test that drops a real rule is worse than a list.
+    # clever test that drops a real rule is worse than a list. `factories.py`
+    # is the `cva()` reader `resolution_card.py` imports, and holds no rule
+    # either.
     case "$(basename "$s")" in
-      common.py|desktop_frame_page.py) continue ;;
+      common.py|desktop_frame_page.py|factories.py) continue ;;
     esac
     scripts+=("$(basename "$s")")
   done

@@ -16,7 +16,7 @@ WHAT IT READS, and each hold fails differently:
   h2. THE AFFORDANCE IS THE ICON SIZE, no larger AND no smaller, it is drawn,
       and it is a mark rather than a control. Its rendered box is compared with
       a probe wearing `iconButton`'s own classes, read from the factory's
-      declaration through `residue.py`'s reader — so no pixel count is written
+      declaration through `factories.py`'s reader — so no pixel count is written
       here, and a size the component does not offer cannot pass. A button inside
       the card's button would be invalid markup and a control nobody can name,
       hence the last half.
@@ -68,7 +68,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import ACTED, SETTLED, Journal, open_page
-from residue import read_factories
+from factories import read_factories
 
 from playwright.async_api import async_playwright
 

@@ -409,7 +409,7 @@ def check_class_names(violations: list[str]) -> None:
     # THE MAQUETTE'S STYLESHEETS, ALL OF THEM. This read `refonte.html` alone,
     # which was the whole of the prototype's CSS until L07 converted it — the
     # fragment holds no rule now, and the classes that remain declared live in
-    # the residue and in the harness sheet. The arm went vacuous on the day the
+    # the base layer and in the harness sheet. The arm went vacuous on the day the
     # last rule left, and refused itself: « its scope is empty, so its `no
     # violation` means nothing » is this guard working, not failing.
     maquette_styles = sorted(

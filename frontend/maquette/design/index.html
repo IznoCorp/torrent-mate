@@ -319,8 +319,14 @@
                transition-[height] duration-200 ease-standard text-muted-foreground"
         id="ptr"
       >
+        <!-- The pull's two engine-written states are read ON THE SPINNER, not on
+             `#ptr`: the engine resets `#ptr`'s class list to « ptr » whenever it
+             puts the indicator back, and a utility written on `#ptr` would not
+             survive that. -->
         <div
-          class="spin w-[16px] h-[16px] rounded-full border-2 border-border border-t-primary"
+          class="spin w-[16px] h-[16px] rounded-full border-2 border-border border-t-primary
+                 [.ptr.armed_&]:text-primary
+                 [.ptr.loading_&]:[animation:spin_var(--duration-loop-1)_linear_infinite]"
         ></div>
       </div>
       <div id="view"></div>

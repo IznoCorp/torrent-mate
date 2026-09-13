@@ -5,8 +5,8 @@
 // its row by `.swipe` and measures a drawer through `.side.right` and
 // `.side.left`; the selection is read off `.selrow`.
 //
-// EVERY BRANCH IS ONE STRING LITERAL: `residue.py` reads a branch through its
-// literals, one branch per literal, and a branch split in two is read as two.
+// EVERY BRANCH IS ONE STRING LITERAL: `harness/factories.py` reads a factory's
+// base through its literals, and its branches one per literal.
 import { cva } from "../cva";
 
 /**

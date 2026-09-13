@@ -86,7 +86,6 @@ check: lint test-cov
 	python3 scripts/check-css-tokens.py
 	python3 scripts/check-compositor-css.py
 	python3 scripts/check-tailwind-confinement.py
-	python3 scripts/check-legacy-css-residue.py
 	python3 scripts/check-markup-contracts.py
 	python3 scripts/check-frontend-boundaries.py
 	python3 scripts/check-component-once.py

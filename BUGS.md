@@ -7651,7 +7651,7 @@ and rounding it to a step un-hides the element.
 <sub>read in the browser on the served build — `padding: 10px 18px`, `border-radius: 0px 0px 12px 12px` · mutation: `16px` back in place — « `16px` is on no step of the spacing scale », exit 1</sub>
 
 **B-067 — R80, and its own proof is that the oracle cannot supply one.**
-`frontend/maquette/harness/residue.py` pairs each residue selector with the typed variant wearing
+`frontend/maquette/harness/residue.py@60530dbd8` pairs each residue selector with the typed variant wearing
 its identity anchor and compares `getComputedStyle` IN THE DOCUMENT, on two sibling probes, for
 exactly the properties the residue declares. Never as text: `flex: 0 0 auto` and `flex-none` are
 one value written twice. **Sixteen pairs stand where the finding named seven.** Registered as R80
@@ -7738,7 +7738,7 @@ measured at.
 <sub>`python3 scripts/check-code-abbreviations.py --list-baseline` → `"total": 1789` over 347 files</sub>
 
 **B-077 — the tests written to cover the browser-free half needed a browser to be collected.**
-`residue.py` imported `playwright` at module level, so `tests/scripts/test_residue.py` — whose
+`residue.py` imported `playwright` at module level, so `tests/scripts/test_residue.py@60530dbd8` — whose
 whole subject is the four PURE functions — could not be imported in CI's `test` job, which
 installs no browser. Green locally, where playwright is installed; an **ERROR** on the runner,
 which is a COLLECTION crash and therefore not one test failing but the module and everything

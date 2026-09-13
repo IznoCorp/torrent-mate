@@ -39,8 +39,8 @@ export const actionButton = cva(
        *
        * EVERY BRANCH IS A STRING LITERAL, and that is not a style. A shared
        * constant, or a template built from one, makes the branch unreadable to
-       * `residue.py`, which reads a factory through its literals and says so
-       * when it cannot — the pair then silently stops being compared. That
+       * `harness/factories.py`, which reads a factory through its literals and
+       * says so when it cannot. That
        * lesson was paid for once already, at the price of a gate quieted
        * rather than passed.
        *

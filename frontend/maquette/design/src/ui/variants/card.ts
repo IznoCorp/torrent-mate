@@ -5,13 +5,12 @@
 //
 // EVERY FACTORY KEEPS ITS IDENTITY CLASS AT THE FRONT, and two readers are why.
 // The document-level delegation finds a foot's title through `.card` and
-// `.ctitle`; and the residue stylesheet still selects those names for the cards
-// the engine builds as strings. Each declaration below is that stylesheet's
-// own, term for term, so `residue.py` compares the two for as long as the
-// residue rule lives.
+// `.ctitle`; and the residue stylesheet selected those names for the cards
+// the engine built as strings, each declaration below being that stylesheet's
+// own, term for term.
 //
-// EVERY BRANCH IS ONE STRING LITERAL: `residue.py` reads a branch through its
-// literals, one branch per literal, and a branch split in two is read as two.
+// EVERY BRANCH IS ONE STRING LITERAL: `harness/factories.py` reads a factory's
+// base through its literals, and its branches one per literal.
 import { cva } from "../cva";
 
 /** A card: its poster or its folder beside a column, in one frame. */

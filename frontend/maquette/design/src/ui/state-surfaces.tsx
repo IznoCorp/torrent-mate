@@ -78,7 +78,7 @@ export function SkeletonLine({
  * IT OWNS ITS OUTER ELEMENT, which the six call sites drew themselves in two
  * different ways: five through the typed variant, and the library through the
  * raw `surferr` class inside a string the engine built. The two render
- * identically — they are one of R80's sixteen pairs, declaring the same terms —
+ * identically — the residue rule and the variant declared the same terms —
  * so unifying them moves nothing, and the oracle is what says so rather than
  * this sentence.
  *
