@@ -145,6 +145,7 @@ From a·5 to a·9: see the a·9 RESUME. The recurring ones:
 - `run.sh --contracts` prints a failing guard's detail only in its « cheap guards » section.
 
 New in a·10:
+- **harness/page_host.py is AT THE CEILING (999 non-blank, BLOCK_LOC 1000): the first phase that touches it — a·12, a·15 or a·16 name it as a reader to re-aim — EXTRACTS a module (a subtraction) instead of compacting; a compaction there is refused.**
 - **A harness hold compared a class STRING** (`page_host.py` R77, `className === "gallery"`), and fell the moment the
   container wore a variant. See Method for the search, ruling 43 for the re-aim.
 - **`check-module-size.py --root frontend` is not the bare run**: the contracts tier runs it over the harness, and a
