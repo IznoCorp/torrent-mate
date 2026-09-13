@@ -110,6 +110,25 @@ async def main():
         check("and closes the sheet", not after["sheet"] and not after["scrim"], str(after))
         check("no JS error even with no server-side route", not errors, str(errors))
 
+        # The account PAGE carries the same exit as the account panel, and its
+        # tap has to land on the entry screen just the same: two emitters, one
+        # verb, and a rule that read only one of them would stay green over the
+        # other going dead.
+        ctx2, pg2 = await open_page(b)
+        pg2.on("pageerror", lambda e: errors.append(str(e)))
+        await pg2.evaluate("()=>document.querySelector('#toastx')?.click()")
+        await pg2.evaluate("()=>window.__store.write({page: 'profile'})")
+        await pg2.wait_for_timeout(400)
+        page_exit = await pg2.query_selector('#view [data-part="card/foot"][data-signout]')
+        check("the account page carries « Se déconnecter »", page_exit is not None)
+        if page_exit is not None:
+            await page_exit.click()
+            await pg2.wait_for_timeout(400)
+            landed = await pg2.evaluate(
+                "()=>getComputedStyle(document.querySelector('#login')).display")
+            check("and its tap leads to the sign-in screen too", landed != "none", landed)
+        await ctx2.close()
+
         await b.close()
 
     # 3. The half that is not visible: the server really stops accepting the
