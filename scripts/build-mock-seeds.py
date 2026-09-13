@@ -370,7 +370,10 @@ def joined(name: str, seed: object, join: dict, projected: dict[str, object]) ->
                 sheet = resolver.sheet_for(entry.get("title"))
                 result[field] = sheet.get("ids") if sheet else None
             elif source == "poster":
-                result[field] = posters.get(entry.get("title"))
+                # The title, then its base title, as the engine's poster lookup
+                # resolved a list item: a year suffix is not a word of the title.
+                title = entry.get("title")
+                result[field] = posters.get(title) or posters.get(base_title(title))
             elif source == "key":
                 result[field] = key
             else:
