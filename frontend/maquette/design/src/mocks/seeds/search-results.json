@@ -8,7 +8,12 @@
       "kind": "Film",
       "overview": "Il y a bien longtemps, dans une galaxie très lointaine... La guerre civile fait rage entre l'Empire galactique et l'Alliance rebelle. Capturée par les troupes de choc de l'Empereur menées pa",
       "owned": true,
-      "followed": false
+      "followed": false,
+      "ids": {
+        "tmdb": "11",
+        "imdb": "tt0076759"
+      },
+      "poster": "assets/posters/f1263349.webp"
     },
     {
       "title": "Star Wars : The Clone Wars",
@@ -16,7 +21,13 @@
       "kind": "Série",
       "overview": "La galaxie est en proie à la Guerre des Clones, un conflit à grande échelle qui oppose les maléfiques Séparatistes et leurs immenses armées d'androïdes à la République. Les Chevaliers Jedi, ",
       "owned": true,
-      "followed": false
+      "followed": false,
+      "ids": {
+        "tmdb": 4194,
+        "imdb": "tt0458290",
+        "tvdb": 83268
+      },
+      "poster": "assets/posters/95dc2f0f.webp"
     },
     {
       "title": "Star Wars : The Mandalorian and Grogu",
@@ -24,7 +35,12 @@
       "kind": "Film",
       "overview": "L'Empire maléfique est tombé et les seigneurs de guerre impériaux restent dispersés dans toute la galaxie. Alors que la nouvelle République naissante travaille pour protéger tout ce que la r",
       "owned": true,
-      "followed": false
+      "followed": false,
+      "ids": {
+        "tmdb": 1228710,
+        "imdb": "tt30825738"
+      },
+      "poster": "assets/posters/8985eb16.webp"
     },
     {
       "title": "Star Wars : Les Aventures des Petits Jedi",
@@ -32,7 +48,13 @@
       "kind": "Série",
       "overview": "L'incroyable parcours des Younglings, de jeunes recrues entamant un long cheminement dans l'espoir de devenir un jour des chevaliers Jedi dignes de ce nom. Leur formation va les amener à se ",
       "owned": false,
-      "followed": false
+      "followed": false,
+      "ids": {
+        "tmdb": 202998,
+        "imdb": "tt20674124",
+        "tvdb": 420658
+      },
+      "poster": "assets/posters/b490d311.webp"
     },
     {
       "title": "Star Wars : The Clone Wars",
@@ -40,7 +62,13 @@
       "kind": "Film",
       "overview": "La galaxie est en proie à la Guerre des Clones, un conflit à grande échelle qui oppose les maléfiques Séparatistes et leurs immenses armées d'androïdes à la République. Les Chevaliers Jedi, ",
       "owned": false,
-      "followed": false
+      "followed": false,
+      "ids": {
+        "tmdb": 4194,
+        "imdb": "tt0458290",
+        "tvdb": 83268
+      },
+      "poster": "assets/posters/95dc2f0f.webp"
     },
     {
       "title": "Star Wars Vintage : Clone Wars",
@@ -48,7 +76,13 @@
       "kind": "Série",
       "overview": "Dans une galaxie très lointaine, se noue un drame. Le chaos règne et une guerre impitoyable se déclare entre la République et les forces séparatistes menées par les sinistres Sith du côté ob",
       "owned": false,
-      "followed": false
+      "followed": false,
+      "ids": {
+        "tmdb": 3122,
+        "imdb": "tt0361243",
+        "tvdb": 72244
+      },
+      "poster": "assets/posters/e8668ef5.webp"
     }
   ]
 }

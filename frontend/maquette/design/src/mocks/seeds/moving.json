@@ -12,7 +12,13 @@
     "chip": {
       "tone": "info",
       "text": "Ingestion"
-    }
+    },
+    "ids": {
+      "tvdb": "466198",
+      "tmdb": "296756",
+      "imdb": "tt37692332"
+    },
+    "poster": "assets/posters/1d48eb5b.webp"
   },
   {
     "title": "Furious",
@@ -27,7 +33,13 @@
     "chip": {
       "tone": "info",
       "text": "Scraping"
-    }
+    },
+    "ids": {
+      "tvdb": "468000",
+      "tmdb": "287238",
+      "imdb": "tt36303968"
+    },
+    "poster": "assets/posters/5bb49e46.webp"
   },
   {
     "title": "The Alabama Solution",
@@ -42,7 +54,12 @@
     "chip": {
       "tone": "info",
       "text": "Scraping"
-    }
+    },
+    "ids": {
+      "tmdb": "1413805",
+      "imdb": "tt35307139"
+    },
+    "poster": null
   },
   {
     "title": "Conclave",
@@ -57,7 +74,12 @@
     "chip": {
       "tone": "info",
       "text": "Rangement"
-    }
+    },
+    "ids": {
+      "tmdb": 974576,
+      "imdb": "tt20215234"
+    },
+    "poster": "assets/posters/a4c8e24f.webp"
   },
   {
     "title": "Les Zinzins de l'Espace",
@@ -72,6 +94,12 @@
     "chip": {
       "tone": "info",
       "text": "Téléchargement 34 %"
-    }
+    },
+    "ids": {
+      "tmdb": 11801,
+      "imdb": "tt0118343",
+      "tvdb": 73248
+    },
+    "poster": "assets/posters/26bb5d9b.webp"
   }
 ]

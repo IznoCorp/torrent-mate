@@ -9,6 +9,12 @@
       1,
       "blocked",
       0
-    ]
+    ],
+    "ids": {
+      "tmdb": "278624",
+      "imdb": "tt34866681",
+      "tvdb": 457437
+    },
+    "poster": "assets/posters/68296c48.webp"
   }
 ]

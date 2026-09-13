@@ -48,6 +48,29 @@ The contract `frontend/maquette/contract/openapi.json` gains exactly these field
 - **Out of scope.** No product reader switches in this phase: each surface phase (a·9–a·16) switches
   its own readers. No drawing and no engine line changes.
 
+## Amendment — 2026-09-13, the steward's rulings on the implementer's STOP D
+
+The « title join » above was not defined closely enough to be a conversion. Four rulings make it one,
+and they void nothing else in this file:
+
+1. **The join is `sheetFor`'s four tiers** — exact title, then `baseTitle`, then `normalisedKey`,
+   then the prefix of a title a list truncated — written ONCE in `scripts/build-mock-seeds.py`, whose
+   docstring says it copies the engine's resolver until a·14 kills it. « Dexter: Resurrection » joins
+   through the normalised key, as R156 reads it. A title that joins no sheet carries `ids: null`,
+   which is the seed's truth. `poster` is the exact key of `posters.json`, or null.
+2. **One `join` declaration per family** in `fixture-projections.json`, applied AFTER the
+   projection. The lossless comparison reads the projection before the join. A `converted` family
+   has its joined fields removed and re-joined by `--write`, and held by `--check`;
+   `check-mock-seeds.py` reads the same module. A generator extension this phase names — not an arm.
+3. **The contract's shape**: `ids` and `poster` are REQUIRED and nullable on the seven schemas
+   (`QueueCard` covers every bucket of `readStaging` and `readAcquisitionQueue`); `Follow.ids` is
+   required and NOT nullable; `MediaSheet.title` is required, projected from the seed's key.
+4. **Handlers that build a follow**: `createFollow` takes `ids = {[provider]: providerId}` when the
+   body carries both, otherwise the ids of the JOINED source entry (`search-results`, `suggestions`);
+   `beginFollow` takes the ids of the joined incomplete-show entry. A path that creates a follow with
+   neither is not resolved here: met in a current walk it is a STOP with the path; otherwise the
+   commit body says the contract still admits it, and c·7 (B-366) closes it.
+
 ## Gate
 
 Per INDEX « Gates ». In addition, `compare-contracts.py --check` and `check-mock-seeds.py` exit 0,

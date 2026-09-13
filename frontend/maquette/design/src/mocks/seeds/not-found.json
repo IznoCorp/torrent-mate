@@ -6,7 +6,12 @@
     "chip": {
       "tone": "waiting",
       "text": "Cherché, rien trouvé"
-    }
+    },
+    "ids": {
+      "tmdb": "1365362",
+      "imdb": "tt34809883"
+    },
+    "poster": "assets/posters/16fd1cba.webp"
   },
   {
     "title": "L'Odyssée",
@@ -15,7 +20,12 @@
     "chip": {
       "tone": "waiting",
       "text": "Cherché, rien trouvé"
-    }
+    },
+    "ids": {
+      "tmdb": "1368337",
+      "imdb": "tt33764258"
+    },
+    "poster": "assets/posters/ff487f8b.webp"
   },
   {
     "title": "Spider-Man : Brand New Day",
@@ -24,7 +34,12 @@
     "chip": {
       "tone": "waiting",
       "text": "Cherché, rien trouvé"
-    }
+    },
+    "ids": {
+      "tmdb": "969681",
+      "imdb": "tt22084616"
+    },
+    "poster": "assets/posters/f369e6b2.webp"
   },
   {
     "title": "Wicker",
@@ -33,6 +48,11 @@
     "chip": {
       "tone": "waiting",
       "text": "Cherché, rien trouvé"
-    }
+    },
+    "ids": {
+      "tmdb": "1195803",
+      "imdb": "tt29611136"
+    },
+    "poster": "assets/posters/a406ec1c.webp"
   }
 ]

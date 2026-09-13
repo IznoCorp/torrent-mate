@@ -3,72 +3,144 @@
     "title": "SAV des émissions",
     "owned": 12,
     "aired": 71,
-    "year": 2005
+    "year": 2005,
+    "ids": {
+      "tmdb": "39945",
+      "imdb": "tt0499407",
+      "tvdb": 85561
+    },
+    "poster": "assets/posters/89ca7fd3.webp"
   },
   {
     "title": "Les Animaniacs",
     "owned": 110,
     "aired": 230,
-    "year": 1993
+    "year": 1993,
+    "ids": {
+      "tmdb": "82",
+      "imdb": "tt0105941",
+      "tvdb": 72879
+    },
+    "poster": "assets/posters/71d7d9ed.webp"
   },
   {
     "title": "La cour de récré",
     "owned": 54,
     "aired": 100,
-    "year": 1997
+    "year": 1997,
+    "ids": {
+      "tmdb": 1546,
+      "imdb": "tt0126170",
+      "tvdb": 71780
+    },
+    "poster": "assets/posters/b18c0617.webp"
   },
   {
     "title": "Les Zinzins de l'Espace",
     "owned": 78,
     "aired": 104,
-    "year": 1997
+    "year": 1997,
+    "ids": {
+      "tmdb": 11801,
+      "imdb": "tt0118343",
+      "tvdb": 73248
+    },
+    "poster": "assets/posters/26bb5d9b.webp"
   },
   {
     "title": "Les aventures de Tintin",
     "owned": 21,
     "aired": 39,
-    "year": 1991
+    "year": 1991,
+    "ids": {
+      "tvdb": "72668",
+      "tmdb": "1570",
+      "imdb": "tt0179552"
+    },
+    "poster": "assets/posters/439bae83.webp"
   },
   {
     "title": "Earl",
     "owned": 90,
     "aired": 96,
-    "year": 2005
+    "year": 2005,
+    "ids": {
+      "tmdb": "2317",
+      "imdb": "tt0460091",
+      "tvdb": 75397
+    },
+    "poster": "assets/posters/d680852f.webp"
   },
   {
     "title": "Stargate SG-1",
     "owned": 211,
     "aired": 214,
-    "year": 1997
+    "year": 1997,
+    "ids": {
+      "tmdb": "4629",
+      "imdb": "tt0118480",
+      "tvdb": 72449
+    },
+    "poster": "assets/posters/daf7fdb9.webp"
   },
   {
     "title": "Parks and Recreation",
     "owned": 122,
     "aired": 125,
-    "year": 2009
+    "year": 2009,
+    "ids": {
+      "tmdb": "8592",
+      "imdb": "tt1266020",
+      "tvdb": 84912
+    },
+    "poster": "assets/posters/05fd8d7f.webp"
   },
   {
     "title": "Regular Show",
     "owned": 204,
     "aired": 207,
-    "year": 2010
+    "year": 2010,
+    "ids": {
+      "tmdb": "31132",
+      "imdb": "tt1710308",
+      "tvdb": 188401
+    },
+    "poster": "assets/posters/3aa5f7c6.webp"
   },
   {
     "title": "Friends",
     "owned": 234,
     "aired": 236,
-    "year": 1994
+    "year": 1994,
+    "ids": {
+      "tmdb": "1668",
+      "imdb": "tt0108778",
+      "tvdb": 79168
+    },
+    "poster": "assets/posters/83d037db.webp"
   },
   {
     "title": "Monk",
     "owned": 60,
     "aired": 61,
-    "year": 2002
+    "year": 2002,
+    "ids": {
+      "tmdb": "1695",
+      "imdb": "tt0312172",
+      "tvdb": 78490
+    },
+    "poster": "assets/posters/13e2582b.webp"
   },
   {
     "title": "Farscape",
     "owned": 89,
     "aired": 90,
-    "year": 1999
+    "year": 1999,
+    "ids": {
+      "tmdb": "4271",
+      "imdb": "tt0187636",
+      "tvdb": 70522
+    },
+    "poster": "assets/posters/53728ccc.webp"
   }
 ]

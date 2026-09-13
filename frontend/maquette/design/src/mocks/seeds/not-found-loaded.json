@@ -6,7 +6,13 @@
     "chip": {
       "tone": "waiting",
       "text": "Cherché, rien trouvé"
-    }
+    },
+    "ids": {
+      "tmdb": "278178",
+      "imdb": "tt34771210",
+      "tvdb": 457173
+    },
+    "poster": "assets/posters/b3bd9ebc.webp"
   },
   {
     "title": "Dead Landes",
@@ -15,6 +21,12 @@
     "chip": {
       "tone": "waiting",
       "text": "Cherché, rien trouvé"
-    }
+    },
+    "ids": {
+      "tmdb": "68958",
+      "imdb": "tt6299370",
+      "tvdb": 317920
+    },
+    "poster": "assets/posters/ab0356b9.webp"
   }
 ]

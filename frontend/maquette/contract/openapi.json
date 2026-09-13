@@ -3669,11 +3669,31 @@
           "withoutPoster": {
             "type": "boolean",
             "description": "no poster is known for it, so the placeholder is what says so — never a truncating sentence"
+          },
+          "ids": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ProviderIds"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it"
+          },
+          "poster": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the poster's address, or null when none is known"
           }
         },
         "required": [
           "title",
-          "secondaryLine"
+          "secondaryLine",
+          "ids",
+          "poster"
         ]
       },
       "Fact": {
@@ -3712,9 +3732,29 @@
           "secondaryLine": {
             "type": "string",
             "description": "year and kind, or an episode fraction. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
+          },
+          "ids": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ProviderIds"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it"
+          },
+          "poster": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the poster's address, or null when none is known"
           }
         },
         "required": [
+          "ids",
+          "poster",
           "secondaryLine",
           "title"
         ]
@@ -3739,10 +3779,30 @@
               "null"
             ],
             "description": "the synopsis the CARD shows. It comes from a family of its own, keyed by title; the media sheet carries a different text under the same question, and the demand register asks for one answer to it"
+          },
+          "ids": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ProviderIds"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it"
+          },
+          "poster": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the poster's address, or null when none is known"
           }
         },
         "required": [
           "category",
+          "ids",
+          "poster",
           "secondaryLine",
           "title"
         ]
@@ -3794,11 +3854,31 @@
           },
           "year": {
             "type": "integer"
+          },
+          "ids": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ProviderIds"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it"
+          },
+          "poster": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the poster's address, or null when none is known"
           }
         },
         "required": [
           "aired",
+          "ids",
           "owned",
+          "poster",
           "title",
           "year"
         ]
@@ -3853,10 +3933,23 @@
           "fresh": {
             "type": "boolean",
             "description": "added recently enough to be marked as such"
+          },
+          "ids": {
+            "$ref": "#/components/schemas/ProviderIds",
+            "description": "the medium's provider identity. Never null: following a title is having identified the medium, and an identified medium has a sheet (B-366)"
+          },
+          "poster": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the poster's address, or null when none is known"
           }
         },
         "required": [
+          "ids",
           "kind",
+          "poster",
           "searches",
           "showStatus",
           "since",
@@ -3886,13 +3979,33 @@
           },
           "followed": {
             "type": "boolean"
+          },
+          "ids": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ProviderIds"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it"
+          },
+          "poster": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the poster's address, or null when none is known"
           }
         },
         "required": [
           "followed",
+          "ids",
           "kind",
           "overview",
           "owned",
+          "poster",
           "title",
           "year"
         ]
@@ -3962,10 +4075,30 @@
               "$ref": "#/components/schemas/SuggestionReason"
             },
             "description": "why the title is suggested, as a run of pieces: plain text, and the figures the interface emphasises. INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n."
+          },
+          "ids": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ProviderIds"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it"
+          },
+          "poster": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the poster's address, or null when none is known"
           }
         },
         "required": [
+          "ids",
           "kind",
+          "poster",
           "rating",
           "title",
           "why",
@@ -4725,6 +4858,10 @@
               "null"
             ],
             "description": "when this medium's metadata was last read from the providers, as an ISO date. NULL when it has never been read in this session, which is what the sheet's « Métadonnées rafraîchies » row shows its constant for. The row printed a FIXED date as a fact before this field existed, which is NE-DOIT-PAS-1 in one line."
+          },
+          "title": {
+            "type": "string",
+            "description": "the title the sheet is filed under"
           }
         },
         "required": [
@@ -4739,6 +4876,7 @@
           "rating",
           "runtime",
           "status",
+          "title",
           "trailer",
           "year"
         ],

@@ -261,9 +261,20 @@ def arm_correspondence(module) -> int:
     for existing in sorted(SEEDS.glob("*.json")):
         if str(existing) not in built and str(existing) not in kept:
             drifted.append(f"{existing.name}: no family claims it")
+    # A CONVERTED SEED'S JOINED FIELDS ARE STILL RE-DERIVED: they come from the
+    # media sheets and the posters, not from the family's own lost literal.
+    joined_held = 0
+    for path, text in module.rejoined().items():
+        if Path(path).read_text(encoding="utf-8") != text:
+            drifted.append(f"{Path(path).name}: its joined fields differ from the families "
+                           f"they are joined from. Rebuild with "
+                           f"`python3 scripts/build-mock-seeds.py --write`")
+        else:
+            joined_held += 1
     print(f"  correspondence: {compared} seed(s) re-derived from legacy.js and "
           f"identical, {len(kept)} no longer re-derivable (converted — held by the "
-          f"contract's schema and by the oracle instead), {len(drifted)} out of step")
+          f"contract's schema and by the oracle instead), {joined_held} of those with "
+          f"their joined fields re-derived and identical, {len(drifted)} out of step")
     for entry in drifted:
         print(f"    {entry}", file=sys.stderr)
     return len(drifted)

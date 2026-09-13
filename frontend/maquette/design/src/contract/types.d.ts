@@ -971,6 +971,10 @@ export interface components {
             strip?: components["schemas"]["PipelineStrip"];
             /** @description no poster is known for it, so the placeholder is what says so — never a truncating sentence */
             withoutPoster?: boolean;
+            /** @description the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it */
+            ids: components["schemas"]["ProviderIds"] | null;
+            /** @description the poster's address, or null when none is known */
+            poster: string | null;
         };
         Fact: {
             /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
@@ -987,6 +991,10 @@ export interface components {
             title: string;
             /** @description year and kind, or an episode fraction. CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             secondaryLine: string;
+            /** @description the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it */
+            ids: components["schemas"]["ProviderIds"] | null;
+            /** @description the poster's address, or null when none is known */
+            poster: string | null;
         };
         LibraryItem: {
             title: string;
@@ -996,6 +1004,10 @@ export interface components {
             category: string;
             /** @description the synopsis the CARD shows. It comes from a family of its own, keyed by title; the media sheet carries a different text under the same question, and the demand register asks for one answer to it */
             overview?: string | null;
+            /** @description the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it */
+            ids: components["schemas"]["ProviderIds"] | null;
+            /** @description the poster's address, or null when none is known */
+            poster: string | null;
         };
         LibraryCategory: {
             id: string;
@@ -1012,6 +1024,10 @@ export interface components {
             /** @description episodes aired */
             aired: number;
             year: number;
+            /** @description the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it */
+            ids: components["schemas"]["ProviderIds"] | null;
+            /** @description the poster's address, or null when none is known */
+            poster: string | null;
         };
         Follow: {
             title: string;
@@ -1032,6 +1048,10 @@ export interface components {
             aired?: number;
             /** @description added recently enough to be marked as such */
             fresh?: boolean;
+            /** @description the medium's provider identity. Never null: following a title is having identified the medium, and an identified medium has a sheet (B-366) */
+            ids: components["schemas"]["ProviderIds"];
+            /** @description the poster's address, or null when none is known */
+            poster: string | null;
         };
         SearchResult: {
             title: string;
@@ -1041,6 +1061,10 @@ export interface components {
             overview: string;
             owned: boolean;
             followed: boolean;
+            /** @description the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it */
+            ids: components["schemas"]["ProviderIds"] | null;
+            /** @description the poster's address, or null when none is known */
+            poster: string | null;
         };
         SearchResults: {
             /** @description how many the provider has */
@@ -1061,6 +1085,10 @@ export interface components {
             rating: number;
             /** @description why the title is suggested, as a run of pieces: plain text, and the figures the interface emphasises. INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
             why: components["schemas"]["SuggestionReason"][];
+            /** @description the medium's provider identity — the key its sheet is addressed by — or null when no sheet identifies it */
+            ids: components["schemas"]["ProviderIds"] | null;
+            /** @description the poster's address, or null when none is known */
+            poster: string | null;
         };
         Release: {
             /** @description the release name, as the tracker publishes it */
@@ -1297,6 +1325,8 @@ export interface components {
             };
             /** @description when this medium's metadata was last read from the providers, as an ISO date. NULL when it has never been read in this session, which is what the sheet's « Métadonnées rafraîchies » row shows its constant for. The row printed a FIXED date as a fact before this field existed, which is NE-DOIT-PAS-1 in one line. */
             metadataRefreshedAt?: string | null;
+            /** @description the title the sheet is filed under */
+            title: string;
         };
         Season: {
             season: number;
