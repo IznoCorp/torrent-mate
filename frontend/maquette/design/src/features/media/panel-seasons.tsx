@@ -23,7 +23,8 @@ import { useQueuedSeasons } from "./queued-seasons";
 // ever read, whatever else the caller's object carries.
 export type Follow = { t: string; st?: string };
 
-export type Season = ReturnType<MediaReference["seasonsOf"]>[number];
+/** A season of a series: its number, the episodes aired (null when unknown), the episodes owned. */
+export type Season = [number, number | null, number];
 
 // The kind this file adds to the panel's block map. Declared here, beside what
 // draws it, so the two halves of the contract cannot drift apart.
@@ -60,8 +61,7 @@ type EpisodeCatalog = { n: number; air?: string | null }[];
 
 // Presence is read from the LIST of owned numbers when the référentiel
 // knows it, never from a `num <= owned` threshold that assumes the hole is
-// at the end of the season — the same correction `epState` applies on the
-// media sheet.
+// at the end of the season — the same correction the media sheet applies.
 function epState(
   reference: MediaReference,
   follow: Follow,

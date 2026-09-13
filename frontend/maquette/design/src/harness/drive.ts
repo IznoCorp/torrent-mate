@@ -19,11 +19,7 @@ import type { UiState } from "../app/store";
 // `applyState` is the engine's — the ladder's handler restores a page through
 // it — and the states start through the same verb, re-exported here beside their type.
 import { drivenWithoutHistory } from "../app/page-switch";
-import {
-  applyState,
-  resetSettings,
-  screenStack,
-} from "../engine/legacy.js";
+import { applyState, resetSettings } from "../engine/legacy.js";
 import { closeHarnessPanel } from "./panel";
 
 export { applyState };
@@ -81,9 +77,6 @@ function reset(): boolean {
   // state. Reset here, or a measurement inherits the previous one's spinner.
   if (window.__reposPTR) window.__reposPTR();
   if (typeof resetSettings === "function") resetSettings();
-  // The screen stack is navigation state: a measurement must not inherit the
-  // screens a previous journey left underneath the visible one.
-  screenStack.length = 0;
   // The router is navigation state too: a named state is DRIVEN, not a
   // journey, so it must not inherit whichever screen route a previous one
   // navigated to. `replace`, so driving through many states never grows

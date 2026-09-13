@@ -6,7 +6,7 @@
 // below is the one `refonte.html`'s BLOCK 2 CSS already targets
 // (`.screen`, `.screen.open`, `.screen .port`, `.qgroup`, `.opt`, …), so the
 // same stylesheet applies unchanged and the rule harness measures the same
-// geometry it measured on the legacy `#screen`.
+// geometry.
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useReleases } from "./queries";

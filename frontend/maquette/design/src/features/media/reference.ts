@@ -34,7 +34,6 @@ export type MediaReference = EngineDrawing & {
   // medium with no provider id has no sheet, and leads to the resolution.
   titleForProviderId: (provider: string, id: string) => string | null;
   addressIdsFor: (title: string) => { provider: string; id: string } | null;
-  seasonsOf: (title: string) => [number, number | null, number][];
   ownedFor: (title: string, season: number) => Set<number> | null;
   EP_LABEL: Record<string, string>;
   TODAY: string;
@@ -42,7 +41,7 @@ export type MediaReference = EngineDrawing & {
   // Media-sheet data: hero banners, posters, cast portraits, trailers and
   // episode-status labels, plus the lookup/formatting helpers a sheet or a
   // season list reads them through — see refonte.html's `sheetFor` /
-  // `seasonsOf` / `ownedFor` neighbourhood for the exact resolution rules
+  // `ownedFor` neighbourhood for the exact resolution rules
   // (title normalisation, year-suffix stripping) a re-implementation would
   // otherwise silently diverge from.
   HERO_IMAGES: Record<string, string>;

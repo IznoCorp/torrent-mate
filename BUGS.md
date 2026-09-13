@@ -9758,6 +9758,17 @@ relative to it. Machinery nobody can justify, kept because nobody measured it (D
 
 <sub>`sed -n 7655,7745p legacy.js | grep -c "render:"` → 0 · `grep -n "screenStack" legacy.js`</sub>
 
+> **Closed by L13a.** The page-render branch had already left: `render()` writes `#view` nowhere,
+> and its own comment records the subtraction. `#screen` is deleted with everything that read it —
+> the node in `index.html`, `closeScreen`, `screenStack`, the unwind latch, the ladder's `screen`
+> rung, `window.__close`, and the mount-node placement, which now appends `#shell` to `#device`, the
+> place it already held among the frame's elements. The harness's eight readers lost a rung that
+> was identically false, or had a field re-aimed to `[data-part="screen"][data-open]`; the one hold
+> that was vacuous (`bridge.py`, « the media sheet is gone ») now reads the media sheet by its key.
+> The status turns with the pull request's own commit.
+
+<sub>`grep -c 'id="screen"' frontend/maquette/design/index.html` → 0 · `grep -cE "screenStack|closeScreen" frontend/maquette/design/src/engine/legacy.js` → 0</sub>
+
 **B-233 — `theme-color` is a constant while the document paints light.**
 `index.html:20` declares `<meta name="theme-color" content="#0b0b0d">` once. The inline script
 beneath it sets `data-theme="light"` before first paint when the operator chose « clair » or the

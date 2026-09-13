@@ -1,4 +1,10 @@
-"""R2, hardened: a button must have a DESTINATION, not merely a known class."""
+"""R2, hardened: a button must have a DESTINATION, not merely a known class.
+
+THE ROOT LADDER HAS NO `#screen` RUNG. It had one, for a legacy node nothing
+ever opened, so the rung was identically false; it was removed rather than
+replaced, because the generic `[data-part="screen"][data-open][data-key]` rung
+already present covers every screen. The hold count is unchanged.
+"""
 import asyncio
 
 from playwright.async_api import async_playwright
@@ -32,7 +38,6 @@ async def main():
           // the underlying page's buttons without ever having looked at the
           // screen's own.
           const root=document.querySelector('#dlg').hasAttribute('data-open')?document.querySelector('#dlg')
-            :document.querySelector('#screen').hasAttribute('data-open')?document.querySelector('#screen')
             :document.querySelector('#sheet').hasAttribute('data-open')?document.querySelector('#sheet')
             :document.querySelector('[data-part="screen"][data-open][data-key]')
             ??document.querySelector('#view');

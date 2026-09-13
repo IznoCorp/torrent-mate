@@ -17,6 +17,11 @@ browser input, and measures the outcome rather than the wiring. The gestures
 that CAN claim their axis in `touch-action` — a swipeable row, a deck card —
 are measured the same way, because that claim is what makes them survive and
 nothing else here proves it still holds.
+
+A PANEL IS CLOSED THROUGH `window.__panel.close()`, and a screen through
+`window.__bridge.back()` — the seams the harness publishes. The engine's
+`window.__close` shortcut forwarded to the same two and is gone; the hold count
+is unchanged.
 """
 import asyncio
 
@@ -239,7 +244,7 @@ async def main():
             # primary action. That is what a long press on a follow was doing.
             if any("sheet/action" in act for act in out["acts"]):
                 fired.append(f"{name} → {out['acts']}")
-            await pg.evaluate("()=>window.__close && window.__close('sheet')")
+            await pg.evaluate("()=>window.__panel.close()")
             await pg.wait_for_timeout(150)
         check(f"the long press opens the panel on the {len(press_surfaces)} surfaces",
                  not without_panel, " · ".join(without_panel))

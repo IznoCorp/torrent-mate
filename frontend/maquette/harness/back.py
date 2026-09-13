@@ -21,6 +21,10 @@ so and puts it back; a second back within five seconds does not, and lets the
 stack run out — which is what closes an installed app on Android. A page cannot
 close itself; exhausting its history is the only honest thing it can do, and
 this script checks that it does exactly that and nothing more.
+
+THE `screen` FIELD READS `[data-part="screen"][data-open]`. It read the legacy
+`#screen` node, which nothing ever opened, so it was false whatever was on
+screen; it now says whether a screen is open. The hold count is unchanged.
 """
 import asyncio
 
@@ -58,7 +62,7 @@ WHERE = """() => ({
   tab: state.acqTab,
   lens: state.libLens,
   sheet: document.querySelector('#sheet').hasAttribute('data-open'),
-  screen: document.querySelector('#screen').hasAttribute('data-open'),
+  screen: !!document.querySelector('[data-part="screen"][data-open]'),
   drawer: document.querySelector('#drawer').hasAttribute('data-open'),
   dialog: document.querySelector('#dlg').hasAttribute('data-open'),
   entries: history.length,

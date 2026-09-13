@@ -43,7 +43,7 @@ import { store } from "../lib/store-access";
    handler that reads a Back, the verbs that write a navigation and the table
    that reopens an addressed panel are `app/`'s; the click delegation below
    still calls them by name. */
-import { hideLayers, installPageRestore, registerLayer, unwindLayer } from "../app/layers";
+import { hideLayers, installPageRestore } from "../app/layers";
 import { replacePath, switchPage, switchPageFromLayer, walk } from "../app/page-switch";
 import { installKnownMedium } from "../app/addressed-panels";
 /* THE SETTINGS CATALOGUE, IMPORTED BACK. How a setting is identified,
@@ -7490,7 +7490,6 @@ import {
     sheetFor,
     titleForProviderId,
     addressIdsFor,
-    seasonsOf,
     ownedFor,
     plages,
     initials,
@@ -7894,72 +7893,6 @@ import {
      zero, which is correct.
      The guard lives here, once, rather than in every control — otherwise
      the next control added reintroduces the defect. */
-  /* Screens open OVER one another: a result's poster opens the media sheet
-     while the search results are still the screen underneath. The layer used
-     to keep ONE history entry however many screens replaced each other inside
-     it, so a back from the second screen closed the whole layer and landed
-     UNDER the first — the operator lost the very list they came from.
-
-     Each direct replacement now pushes its own entry and records how to
-     redraw the screen it covers; a back redraws that screen instead of
-     closing the layer. The stack holds CLOSURES, never markup: state moves
-     on while a screen is covered, and a screen restored from stale markup
-     would lie about it. The « close then act » flows (answering a decision,
-     picking a release) are not replacements — they empty the layer first,
-     so nothing stacks and back keeps meaning « leave ». */
-  const screenStack = [];
-  let currentRender = null;
-  let unwinding = false;
-
-  /* `openScreen` LIVED HERE, and it left with the navigation this lot took
-     out of the engine. Every screen it used to raise — the media sheet, the
-     quality profile, the add screen, the arbitration screen, the release
-     picker — is a real route now, so it had no callers left at all.
-
-     D5 says the engine dies by SUBTRACTION, surface by surface, and this is
-     the moment: a thing that has lost its subject is removed then, not
-     later. Machinery nobody can justify is machinery nobody dares delete.
-
-     `closeScreen`, `#screen` and the `#screen.open` branch of the back
-     handler STAY — they still serve the layer ladder, and a subtraction
-     that takes a live path with it is not a subtraction. */
-  function closeScreen(pop) {
-    if (!select("#screen").classList.contains("open")) return;
-    const previous = screenStack.pop();
-    if (previous) {
-      // A screen above another one: this back REDRAWS what it covered
-      // instead of closing the layer. `unwinding` keeps the redraw from
-      // stacking the screen being left on top of itself.
-      unwinding = true;
-      try {
-        previous.renderFn();
-      } finally {
-        unwinding = false;
-      }
-      const port = select("#screen").querySelector(".port");
-      if (port && previous.scrollY > 0) {
-        // Same discipline as a same-key redraw: reapply once the frame and
-        // the late-loading posters have settled, or the port snaps to 0.
-        port.scrollTop = previous.scrollY;
-        requestAnimationFrame(() => {
-          port.scrollTop = previous.scrollY;
-        });
-      }
-      if (!pop) unwindLayer("screen");
-      return;
-    }
-    setOpen(select("#screen"), false);
-    currentRender = null;
-    if (!pop) unwindLayer("screen");
-  }
-  /* ON THE LADDER, as a rung, like every other layer: the ladder asks the
-     registration whether the covered screen is up and closes it through
-     `closeScreen`, which stays beside the node it reads. */
-  registerLayer("screen", {
-    isOpen: () => select("#screen").classList.contains("open"),
-    close: (pop) => closeScreen(pop),
-  });
-
   /* B-026: a navigation write that fails must not fail silently — the URL
      and the interface would then disagree with nothing on record. Published
      so the harness can read it, the same way the shell publishes the set of
@@ -8142,17 +8075,12 @@ import {
       const leaving = currentState().page;
       closeDrawer(true);
       panel.close(true);
-      // This empties the covered-screen STACK too, so the DOM ends up clean
-      // however many screens were stacked — but that is DOM bookkeeping only,
-      // not history: the settling below walks the layer's entry plus at most
-      // one page entry, on the assumption that at most one layer (drawer,
-      // sheet or a covered-screen stack — never several at once) precedes a
-      // `data-go` tap. B-024 found that assumption unenforced in code, then
-      // walked every producer and found it latent — unreachable — because the
-      // one producer that can sit over a layer allows at most the sheet
-      // itself.
-      screenStack.length = 0;
-      closeScreen(true);
+      // The settling below walks the layer's entry plus at most one page
+      // entry, on the assumption that at most one layer (drawer or sheet —
+      // never both at once) precedes a `data-go` tap. B-024 found that
+      // assumption unenforced in code, then walked every producer and found
+      // it latent — unreachable — because the one producer that can sit over
+      // a layer allows at most the sheet itself.
       store.write({ page: closest.dataset.go });
       if (closest.dataset.go === "acq")
         store.write({ acqTab: "now" });
@@ -8216,10 +8144,6 @@ import {
       render();
       return;
     }
-    if (closest.dataset.dismiss) {
-      dismissSug(Number(closest.dataset.dismiss));
-      return;
-    }
     if (closest.dataset.signout) {
       signOut();
       return;
@@ -8229,13 +8153,6 @@ import {
       return;
     }
 
-    if (closest.dataset.sug) {
-      // THE PRODUCER HAS LEFT. `features/acquisition/panel-suggestion.ts`
-      // answers, and it takes the POSITION as the seam spells every subject:
-      // a string.
-      panel.produce("suggestion", closest.dataset.sug);
-      return;
-    }
     if (closest.dataset.manual != null) {
       // The way out is not a sentence, it is a pre-filled screen.
       // Clean the folder name to turn it into a query.
@@ -8261,9 +8178,7 @@ import {
     /* THE FOLDER IS `currentState().resolveTarget`, NEVER THE ATTRIBUTE: what
        `data-resolve` carries here is the CHOSEN CANDIDATE, and the folder is
        what the resolution screen was opened on. This branch answers every
-       carrier of the attribute — the panel's own « Résoudre → » act reads it
-       further down and never gets there, which is the order this rewire keeps
-       exactly as it found it. */
+       carrier of the attribute. */
     if (closest.dataset.resolve) {
       const target = currentState().resolveTarget;
       bridge.back();
@@ -8319,16 +8234,11 @@ import {
       closest.dataset.profile !== undefined &&
       closest.dataset.profile !== null
     ) {
-      // Route, not screen: the quality-profile surface left the legacy
-      // fragment — and so, since this Task, has the release-choice screen
-      // that used to be the ONLY producer of `data-profile` inside `#screen`
-      // (its own « Ouvrir le profil de qualité → » button). `#screen` is no
-      // longer a possible source of this attribute at all — the two
-      // remaining producers (the Réglages rubric, a sheet action) were
-      // always sheets or pages, never `#screen` — but the RELEASES route
-      // still needs the same close-then-open choreography its own trigger
-      // was built against, and a router screen leaves no trace in
-      // `#screen.classList`: test the router's own identity instead.
+      // Route, not screen: the quality-profile surface and the release-choice
+      // screen are both routes, and the remaining producers of `data-profile`
+      // (the Réglages rubric, a sheet action) are sheets or pages. The
+      // RELEASES route still needs the same close-then-open choreography its
+      // own trigger was built against, so the router's own identity is tested.
       // `__screens.profil` does the navigating either way.
       const profile = closest.dataset.profile;
       if (document.querySelector('.screen.open[data-key^="releases:"]')) {
@@ -8531,8 +8441,7 @@ import {
         store.touch();
         /* ONE settlement for the TWO entries this journey stacked — the
            result's panel, and `/add` itself, a router-owned address (which
-           is why no legacy screen is closed here: `#screen` was never its
-           host). The panel is ASKED before it is closed, because the layer's
+           is why no screen layer is closed here). The panel is ASKED before it is closed, because the layer's
            own entry is what decides the count, and it is closed DOM-only
            (`close(true)`) so it does not unwind on its own: its unwind plus a
            raw `__bridge.retour()` were two backs racing in the same task, only
@@ -8616,10 +8525,6 @@ import {
       panel.produce("account");
       return;
     }
-    if (closest.dataset.sheet) {
-      openDetailSheet(closest.dataset.sheet);
-      return;
-    }
     /* A card body opens the panel on a simple tap. The gallery reaches the
        same panel by a long press, handled where the press is timed. */
     if (closest.dataset.panel) {
@@ -8633,17 +8538,6 @@ import {
       toast(
         `« ${baseTitle(closest.dataset.complete)} » : recherche des épisodes manquants lancée.`,
       );
-      return;
-    }
-    /* The panel's own « Résoudre → » act, where the attribute IS the folder.
-       It is never reached: the candidate branch above answers the same
-       attribute first and returns — measured, not assumed, and left exactly as
-       it was found. Rewired all the same, so the day the order is untangled
-       this branch says the same verb as every other call site. */
-    if (closest.dataset.resolve) {
-      const resolve = closest.dataset.resolve;
-      panel.close();
-      setTimeout(() => screens.resolution(resolve), 260);
       return;
     }
 
@@ -29665,46 +29559,6 @@ import {
   }
   const TODAY = "2026-08-10";
 
-  /* Media sheet — ONE template, for every medium
-     Fixed order: hero → trailer → synopsis → cast → library state → dated
-     episodes (series) → identifiers. The only variations are the ones
-     nature imposes: « Réalisateur » and a runtime for a film, « Créateur »,
-     a status and a catalogue for a series. What is missing is written «
-     inconnu », never a dash. */
-  /* EXPANDABLE seasons, same grammar as the follow sheet: a complete season
-     is collapsed (its header says enough), an incomplete one is open and
-     carries « N manquant(s) ». Expanded, it lists its episodes WITH their
-     air date — an episode later than today is « à venir », never missing. */
-  /* Seasons of a series: [number, aired, owned]. « aired » comes from the
-     provider catalogue; null when unknown — the sheet then shows « ? »
-     rather than an invented total, because each question has a single
-     derivation. */
-  function seasonsOf(title) {
-    const sheetFound = sheetFor(title);
-    const held = OWNED[title] ?? OWNED[baseTitle(title)] ?? null;
-    const cat = sheetFound?.seasons ?? [];
-    if (cat.length) {
-      return cat.map((cat2) => {
-        const ownedNumbers = held?.[String(cat2.n)] ?? [];
-        const diffuses = typeof cat2.ep === "number" ? cat2.ep : null;
-        const own = diffuses
-          ? ownedNumbers.filter((l) => l <= diffuses).length
-          : ownedNumbers.length;
-        return [cat2.n, diffuses, own];
-      });
-    }
-    if (held) {
-      // No catalogue: the owned seasons are known, the totals are not.
-      return Object.keys(held)
-        .map(Number)
-        .sort((map, index) => map - index)
-        .map((sort) => [sort, null, held[String(sort)].length]);
-    }
-    return (SEASONS[title] ?? SEASONS[baseTitle(title)] ?? []).map(
-      (element) => [element[0], element[1], element[2]],
-    );
-  }
-
   /* Owned episodes of a season, as a set. Null when the series is unknown
      to the library: claim nothing in that case. */
   function ownedFor(title, season) {
@@ -29729,118 +29583,6 @@ import {
       start = end + 1;
     }
     return out.join(", ");
-  }
-
-  function sheetSeasonsHTML(sheet, seasons, possede, cat, title0) {
-    const eps = sheet?.eps ?? {};
-    const lignes = possede
-      ? seasons.map(([number, aired, own]) => ({ n: number, aired, own }))
-      : cat.map((cat2) => ({
-          n: cat2.n,
-          aired: cat2.ep,
-          own: 0,
-          air: cat2.air,
-        }));
-    if (!lignes.length) return "";
-    return `<div style="margin-top:10px">${lignes
-      .map((ligne) => {
-        const list = eps[String(ligne.n)] ?? null;
-        const held = possede ? ownedFor(title0, ligne.n) : null;
-        /* The count is DERIVED from the owned numbers when they are known;
-           a total that does not say where the holes are is no longer
-           trusted. */
-        const nbOwn = held
-          ? [...held].filter(
-              (element) => !ligne.aired || element <= ligne.aired,
-            ).length
-          : ligne.own;
-        const complete = possede && ligne.aired != null && nbOwn >= ligne.aired;
-        const manque = ligne.aired != null ? ligne.aired - nbOwn : null;
-        /* With no known total, reason up to the highest owned episode: a
-           hole BELOW that maximum is a genuine gap, above it nothing is
-           known. */
-        const borne =
-          ligne.aired === 0
-            ? 0
-            : held && held.size
-              ? (ligne.aired ?? Math.max(...held))
-              : ligne.aired || 0;
-        const missingNums =
-          possede && held && ligne.aired
-            ? Array.from(
-                { length: ligne.aired },
-                (ignored, index) => index + 1,
-              ).filter((from) => !held.has(from))
-            : [];
-        const corps = list
-          ? `<div class="panel" data-part="panel" style="margin-top:8px">${list
-              .map((liste2) => {
-                /* SUBTLE state colour: a 6px dot and the number in the
-                   tone. The title stays neutral — it is what one reads
-                   first, so it keeps maximum contrast. One colour signal
-                   per row, not a Christmas tree. */
-                const future = liste2.air && liste2.air > TODAY;
-                /* State comes from the LIST of owned numbers. A « number <=
-                   owned count » threshold assumes the hole is always at the
-                   end of the season: false for 35 series in this library. */
-                const episodeState = future
-                  ? "announced"
-                  : !possede || !held
-                    ? "unverified"
-                    : held.has(liste2.n)
-                      ? "in_library"
-                      : "to_grab";
-                return `<div class="eprow ${episodeState}" data-part="episode/row"${episodeState === "announced" ? ' data-announced=""' : ""}${episodeState === "in_library" ? ' data-in-library=""' : ""}>
-                  <span class="epdot"></span>
-                  <span class="en" data-part="episode/number">E${String(liste2.n).padStart(2, "0")}</span>
-                  <span class="et">${escapeHtml(liste2.t)}</span>
-                  <span class="ed">${liste2.air ? dateFR(liste2.air) : "date inconnue"}${episodeState === "in_library" ? "" : ` · ${EP_LABEL[episodeState].toLowerCase()}`}</span>
-                </div>`;
-              })
-              .join("")}</div>`
-          : borne && held
-            ? /* Pas de titres d'épisodes, mais on connaît les numéros : la
-                 matrice répond quand même à « lesquels manquent ». Quand le
-                 total diffusé est inconnu, on ne va que jusqu'au plus grand
-                 épisode possédé — au-delà, on ne sait pas, et on le dit. */
-              `<div class="eps" data-part="episode/set" style="margin-top:8px">${Array.from(
-                { length: borne },
-                (ignored, index) => {
-                  const number = index + 1;
-                  const episodeState = held.has(number)
-                    ? "in_library"
-                    : "to_grab";
-                  return `<span class="ep ${episodeState}" data-part="episode"${episodeState === "in_library" ? ' data-in-library=""' : ""} aria-label="Épisode ${number} — ${EP_LABEL[episodeState]}">${String(number).padStart(2, "0")}</span>`;
-                },
-              ).join("")}</div>${
-                ligne.aired == null
-                  ? `<p class="noinfo" data-part="no-info" style="margin-top:6px">Au-delà de l'épisode ${borne}, le provider ne dit pas combien la saison en compte.</p>`
-                  : ""
-              }`
-            : ligne.aired === 0 || ligne.aired === null
-              ? `<p class="noinfo" data-part="no-info" style="margin-top:8px">Saison annoncée : aucun épisode diffusé pour l'instant.</p>`
-              : `<p class="noinfo" data-part="no-info" style="margin-top:8px">Épisodes non détaillés pour cette saison — la fiche le dit plutôt que d'afficher une liste vide.</p>`;
-        return `<details class="season" data-part="season"${complete || !possede ? "" : " open"}>
-          <summary>Saison ${ligne.n}
-            <span class="sfr">${
-              ligne.aired === 0
-                ? "à venir"
-                : possede
-                  ? `${nbOwn}/${ligne.aired ?? "?"}`
-                  : `${ligne.aired ?? "?"} ép.`
-            }</span>
-            ${possede && manque > 0 ? `<span class="miss" data-part="season/missing">${manque} manquant${manque > 1 ? "s" : ""}</span>` : ""}
-            ${!possede && ligne.air ? `<span class="miss" data-part="season/missing" style="background:transparent;color:var(--color-muted-foreground);font-weight:400">${dateFR(ligne.air)}</span>` : ""}
-          </summary>
-          ${
-            missingNums.length
-              ? `<p class="missing">Manquants : ${plages(missingNums)}</p>`
-              : ""
-          }
-          ${corps}
-        </details>`;
-      })
-      .join("")}</div>`;
   }
 
   /* The media sheet moved to the shell with the rest of the screens:
@@ -29873,45 +29615,6 @@ import {
   function decisionPending(target) {
     const pending = seam.pendingDecisions?.() ?? [];
     return pending.find((decision) => decision.d === target) ?? null;
-  }
-
-  /* Every medium opens the SAME panel, and this function exists only to say
-     so. A second builder used to answer for whatever the first did not
-     recognise, and it offered six buttons that led nowhere at all — three of
-     them carrying no destination whatsoever. That is what a fallback builder
-     becomes: it is never the one being looked at, so it is never the one being
-     fixed. The panel derives what it offers from what is true about the
-     medium, and « nothing is known about this one » is one of those truths. */
-  function openDetailSheet(title) {
-    // THE PRODUCER HAS LEFT. `features/acquisition/panel-follow.ts` answers.
-    return panel.produce("follow", title);
-  }
-
-  /* Follow detail sheet, with its season matrix
-     Large-catalogue rules, measured on American Dad! (22 seasons, 403
-     episodes): most recent season first; a complete season is COLLAPSED
-     (its header is enough to say there is nothing to do); an incomplete
-     season is OPEN and carries « N manquant(s) »; the legend sits ABOVE the
-     matrix — under 403 episodes it would be invisible exactly when needed. */
-
-  function epState(follow, seasonNumber, num, owned) {
-    /* Same correction as on the media sheet: presence is read from the LIST
-       of owned numbers, not from a « num <= owned » threshold that assumes
-       the hole is at the end of the season. 35 series in this library have
-       an internal hole. */
-    const held = ownedFor(follow.t, seasonNumber);
-    if (held)
-      return held.has(num)
-        ? "in_library"
-        : follow && follow.st === "pending"
-          ? "pending"
-          : follow && follow.st === "acquiring"
-            ? "acquiring"
-            : "to_grab";
-    if (num <= owned) return "in_library";
-    if (follow && follow.st === "pending") return "pending";
-    if (follow && follow.st === "acquiring") return "acquiring";
-    return "to_grab";
   }
 
   /* Tapping a cell: its air date, in French. The sentence follows the state
@@ -29980,18 +29683,6 @@ import {
      and enough to pick another knowingly. The score shown is the ranking's,
      not an opinion. `RELEASES` stays defined here and crosses the handshake
      through `window.__referentiel` — same seam as `SEARCH`/`cardHTML` above. */
-
-  // A harness-facing shortcut, not a control the app itself uses (a real
-  // « Retour » button calls its own layer's close directly). `"screen"`
-  // used to mean ONLY the legacy `#screen`; a migrated screen is a real
-  // route now, and closing IT is a pop — the same single entry `.fback`'s
-  // own onClick unwinds — not a `closeScreen()` call, which is a harmless
-  // no-op against an address it was never the host of.
-  window.__close = (layer) => {
-    if (layer !== "screen") return panel.close();
-    if (select("#screen").classList.contains("open")) return closeScreen();
-    if (document.querySelector(".screen.open")) return bridge.back();
-  };
 
   /* Gestures — pointer events, so one path serves finger, mouse and pen.
      Two differences a touch-only implementation never meets:
@@ -30427,7 +30118,6 @@ export {
   openDrawer,
   resetSettings,
   render,
-  screenStack,
   toast,
   svgIcon,
   escapeHtml,
@@ -30482,25 +30172,25 @@ Object.assign(window, {
   actionTake, actionResolve,
   actionDelete, addVerb, showSignIn,
   baseTitle, beforeReset, cadenceFR, cardHTML, chipHTML,
-  closeDlg, closeScreen, closeSheet,
+  closeDlg, closeSheet,
   dateFR, decisionPending,
   signOut,
   emptyInner, endCardDrag, endDeckDrag,
-  endSugDrag, epState, escapeHtml,
+  endSugDrag, escapeHtml,
   factRowsHTML, closePopEp, closeDrawer, changedFiles,
   gridBadge, icons, initials, initialsOf, drawerWidth,
   libRowHTML, factsListHTML,
   sameValue, changeSetting,
   mountLoaders, mountSearch, fileName, normalisedKey,
-  openDeleteDialog, openDetailSheet,
+  openDeleteDialog,
   openPanel,
   openSheet,
   openPopEp,
-  openDrawer, paintSelBar, panelUnderFinger, screenStack,
+  openDrawer, paintSelBar, panelUnderFinger,
   plages, ownedFor, posterBox, nextSearchFR,
   ptr, refPanel, collapseCard,
   settingId, resetSettings, render,
-  richText, seasonsOf, sheetSeasonsHTML, secHTML, secInner,
+  richText, secHTML, secInner,
   select, sheetFor, titleForProviderId, addressIdsFor, skelCards, skelCardsInner, skelTiles, sortLabel,
   stFraction, stLabel, stripHTML,
   sugVerb,
@@ -30517,9 +30207,7 @@ Object.defineProperties(window, {
   clickAfterDrag: { get: () => clickAfterDrag, configurable: true },
   swallowClick: { get: () => pressArbitration.swallowClick, configurable: true },
   deckDrag: { get: () => deckDrag, configurable: true },
-  unwinding: { get: () => unwinding, configurable: true },
   store: { get: () => store, configurable: true },
-  currentRender: { get: () => currentRender, configurable: true },
   // A LIVE READ, not an alias. There is no cached `state` binding left to
   // publish — the getter goes to the store, exactly as the engine's own
   // reads do, so a rule reading `state.page` reads what is on screen. And it

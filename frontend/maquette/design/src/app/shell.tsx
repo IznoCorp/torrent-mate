@@ -180,32 +180,23 @@ if (__MOCKS_BUILT_IN__) installHarness();
 // `#shell` starts, in the markup, as a static sibling of `.stage` —
 // index.html knows nothing about the phone frame the fragment draws. A
 // migrated screen's `.screen{position:absolute;inset:0}` resolves against
-// its nearest POSITIONED ancestor, which for the legacy `#screen` is
-// `.device` (`position:relative`) — so at that sibling position a React
-// screen has no positioned ancestor at all and sizes to the viewport
-// instead of the phone frame, escaping it at any width past the 520px
-// breakpoint where `.device` stops filling the viewport.
+// its nearest POSITIONED ancestor, `.device` (`position:relative`) — so at
+// that sibling position a React screen has no positioned ancestor at all and
+// sizes to the viewport instead of the phone frame, escaping it at any width
+// past the 520px breakpoint where `.device` stops filling the viewport.
 //
-// Moved here, once, before the first render: into `.device`, immediately
-// before the legacy `#screen`. Two things this placement is chosen to keep:
-//   - containment — `.device` becomes the mount node's positioned ancestor
-//     too, so a React `.screen.open` resolves its `inset: 0` the same way
-//     the legacy one already does, at every viewport width.
-//   - paint order — `insertBefore` keeps the mount node exactly where it
-//     already was relative to `#screen` (earlier in document order, simply
-//     re-parented), so a React screen still sits BEHIND the legacy one in
-//     the stacking order the harness (screens.py, bridge.py) already relies on:
-//     when both carry `.open` at once (a legacy mediaSheet opened over a migrated
-//     results screen), `#screen` — later in the DOM — paints on top, and
-//     `document.querySelector('.screen.open')` still resolves the React
-//     screen first.
-// A missing `#device`/`#screen` (a document without the fragment injected)
-// leaves the node where the markup put it rather than throwing — the same
-// fail-soft posture as the rest of this boot sequence.
+// Moved here, once, before the first render: into `.device`, after every
+// element the markup puts there — the place it has always held among them.
+// `.device` becomes the mount node's positioned ancestor, so a React
+// `.screen.open` resolves its `inset: 0` against the phone frame at every
+// viewport width, and the frame's own markup keeps preceding it in document
+// order, which is the paint order the harness (bridge.py) relies on.
+// A missing `#device` (a document without the fragment injected) leaves the
+// node where the markup put it rather than throwing — the same fail-soft
+// posture as the rest of this boot sequence.
 const mountNode = document.getElementById("shell")!;
 const device = document.getElementById("device");
-const legacyScreen = document.getElementById("screen");
-if (device && legacyScreen) device.insertBefore(mountNode, legacyScreen);
+if (device) device.appendChild(mountNode);
 
 // Focus follows the layers, and it is installed before the first render so the
 // very first drawer an operator opens is already covered. It asks nothing of

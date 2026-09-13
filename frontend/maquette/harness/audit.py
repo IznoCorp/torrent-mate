@@ -2,6 +2,11 @@
 ALL states, never a patch on the single case that was reported.
 
 The stance is to try to make the prototype FAIL, not to confirm it.
+
+THE ROOT LADDER HAS NO `#screen` RUNG. It had one, for a legacy node nothing
+ever opened, so the rung was identically false; it was removed rather than
+replaced, because the generic `[data-part="screen"][data-open][data-key]` rung
+already present covers every screen. The hold count is unchanged.
 """
 import asyncio
 import json
@@ -52,15 +57,14 @@ async def main():
           // answers to ONE generic rung: any OPEN screen carries a `data-key`,
           // so the identity itself is never read here, only its presence —
           // naming each prefix would have re-opened the same hole for the
-          // next screen that migrates. It sits LAST, after the legacy
-          // dialog/screen/sheet trio, so every pre-existing case resolves
+          // next screen that migrates. It sits LAST, after the dialog and
+          // the sheet, so every pre-existing case resolves
           // exactly as it did, and a layer opened OVER a route (a panel, a
           // dialog) is still what gets read. Without this rung, a state
           // opening any of those routes falls through to `#view` and the
           // rules pass on a page the state never shows — a rule gone quiet,
           // not a rule satisfied.
           const root = document.querySelector('#dlg').hasAttribute('data-open') ? document.querySelector('#dlg')
-                     : document.querySelector('#screen').hasAttribute('data-open') ? document.querySelector('#screen')
                      : document.querySelector('#sheet').hasAttribute('data-open') ? document.querySelector('#sheet')
                      : document.querySelector('[data-part="screen"][data-open][data-key]')
                      ?? document.querySelector('#view');
@@ -217,8 +221,7 @@ async def main():
           // would leave every state that opens a route inspecting nothing at
           // all: its `[data-part="viewport"]` padding and the reachability of its last action
           // are exactly what this rule holds on it.
-          const layers = [['#screen','[data-part="viewport"]'],
-                          ['[data-part="screen"][data-open][data-key]','[data-part="viewport"]']];
+          const layers = [['[data-part="screen"][data-open][data-key]','[data-part="viewport"]']];
           for (const [sel, inner] of layers) {
             const el = document.querySelector(sel);
             // The mediaSheet's selector matches only while it is open, so an absent
@@ -300,7 +303,7 @@ async def main():
           // this check never learned about a screen migrated off `#screen`
           // onto a real route (`/resolution/$folder` among them) — the SAME
           // generic entry as the root ladder's covers it here too.
-          const layer=()=>['#sheet','#screen','#dlg'].some(s=>document.querySelector(s).hasAttribute('data-open'))
+          const layer=()=>['#sheet','#dlg'].some(s=>document.querySelector(s).hasAttribute('data-open'))
             || !!document.querySelector('[data-part="screen"][data-open][data-key]');
           b.click(); await new Promise(r=>setTimeout(r,320));
           if (snap()===before && !layer()) out.push(`${id} : « ${lab} » changes nothing`);

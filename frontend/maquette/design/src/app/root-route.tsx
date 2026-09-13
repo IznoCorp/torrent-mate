@@ -16,7 +16,7 @@ import { panel } from "../lib/shell-doors";
 
 // The root renders the matched route, the bottom-sheet layer and the PAGE host
 // — the last two belong to no route. The sheet opens over whatever is on screen
-// (a React route, a legacy `#screen`, a plain page), so it is mounted once and
+// (a React route or a plain page), so it is mounted once and
 // its visibility is a class rather than a mount. The page host is mounted for
 // the same reason from the other side: a PAGE has no address of its own, it is
 // a value of `state.page`, so nothing in the route table can select it — see

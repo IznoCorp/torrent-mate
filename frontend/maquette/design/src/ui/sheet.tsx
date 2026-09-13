@@ -7,7 +7,7 @@
 // measures the React layer without knowing anything changed. Only the owner
 // moved.
 //
-// It paints ABOVE a legacy `#screen` for the same reason it always did: the
+// It paints ABOVE a screen: the
 // sheet is z-47 and a screen is z-45, and the React mount node (`#shell`)
 // creates no stacking context of its own, so the two z-indexes are compared
 // in the SAME context even though the elements now live in different subtrees.

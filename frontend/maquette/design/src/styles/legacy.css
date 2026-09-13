@@ -1734,7 +1734,7 @@ margin: 0;
   visibility: visible;
 }
 
-/* ── Skeletons, and the quota line ───────────────────────────────── */
+/* ── Skeletons ───────────────────────────────── */
 /* `.sk` is written by the ENGINE — a loading surface SAYS SO, with
    skeletons of the right shape rather than a bare « Chargement… ». Its
    shimmer is under a reduced-motion guard: motion is a designed state,
@@ -1773,12 +1773,6 @@ margin: 0;
    which is a CLASS. An id rule would win over it by specificity alone — one
    of the two would then have to be written twice, and the one written twice
    is the one that drifts. */
-.quota {
-  text-align: center;
-  font-size: var(--text-2);
-  color: var(--color-muted-foreground);
-  margin-top: var(--spacing-3);
-}
 
 
 

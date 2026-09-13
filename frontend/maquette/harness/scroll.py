@@ -1,4 +1,9 @@
-"""No form interaction may move the scroll position."""
+"""No form interaction may move the scroll position.
+
+THE DEFAULT PORT IS `[data-part="screen"][data-open] [data-part="viewport"]`.
+It named the legacy `#screen` node; every trial passes its port explicitly, so
+the hold count is unchanged.
+"""
 import asyncio
 
 from playwright.async_api import async_playwright
@@ -17,7 +22,7 @@ async def main():
     await pg.evaluate("()=>window.__loadingDone?.()")
     await pg.evaluate("()=>window.__measure(true)")
 
-    async def trial(state_, sel, idx, label, port='#screen [data-part="viewport"]'):
+    async def trial(state_, sel, idx, label, port='[data-part="screen"][data-open] [data-part="viewport"]'):
         await pg.evaluate("(i)=>window.__go(i)", state_); await pg.wait_for_timeout(420)
         await pg.evaluate("(s)=>{const p=document.querySelector(s); p.scrollTop=Math.min(400, p.scrollHeight-p.clientHeight);}", port)
         await pg.wait_for_timeout(180)

@@ -5,6 +5,10 @@ The journey also SETTLES a history it stacked — the result's panel and the
 `/add` address — and the second half of this script holds that settlement:
 one announced operation, landing where the walk stood before `/add`, and the
 next back still worth exactly one step.
+
+THE `screen` FIELD READS `[data-part="screen"][data-open]`. It read the legacy
+`#screen` node, which nothing ever opened, so it was false whatever was on
+screen; it now says whether a screen is open. The hold count is unchanged.
 """
 import asyncio
 
@@ -33,7 +37,7 @@ async def where(pg):
       address: location.pathname + location.search,
       page: state.page,
       sheet: window.__panel.isOpen(),
-      screen: document.querySelector('#screen').hasAttribute('data-open'),
+      screen: !!document.querySelector('[data-part="screen"][data-open]'),
       message: (document.querySelector('#toastmsg')||{}).textContent || '',
       pops: window.__pops.length,
     })""")

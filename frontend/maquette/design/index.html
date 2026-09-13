@@ -87,9 +87,8 @@
          legacy engine below keeps every surface not yet migrated. The mount
          node starts here, a plain sibling of the fragment's phone frame, but
          shell.tsx relocates it into `.device` before the first render —
-         see that file's own comment — so a migrated screen (`/profile/$title`,
-         `/add`) is contained by the phone frame the same way the legacy
-         `#screen` is, and paints behind it when both are open at once. -->
+         see that file's own comment — so a screen (`/profile/$title`, `/add`)
+         is contained by the phone frame. -->
     <div id="shell"></div>
     <script type="module" src="/src/app/shell.tsx"></script>
     <!-- maquette -->
@@ -508,19 +507,18 @@
          one of them being measured and the other being shown. -->
 
     <!-- The tab bar is rendered by the shell (`src/app/tab-bar.tsx`), at this
-         same id and these same classes, into `#shell` — which sits inside this
-         frame, earlier in document order. It is absent here on purpose: two
-         elements answering `#nav` is one of them being measured and the other
+         same id and these same classes, into `#shell`, which sits inside this
+         frame. It is absent here on purpose: two elements answering `#nav` is
+         one of them being measured and the other
          being shown. -->
 
     <!-- The drawer is rendered by the shell (`src/app/drawer.tsx`, over
          `src/ui/drawer.tsx`), at this same id and this same identity class,
          into `#shell`. Absent here on purpose: two elements answering
          `#drawer` is one of them being measured and the other being shown. -->
-    <div class="screen" id="screen" data-part="screen"></div>
     <!-- The scrim and the bottom sheet are rendered by the shell
          (`src/components/sheet.tsx`), at these same ids and classes, into
-         `#shell` — which sits inside this frame, earlier in document order.
+         `#shell`, which sits inside this frame.
          They are absent here on purpose: two elements answering `#sheet` is
          one of them being measured and the other being shown. -->
     <!-- The confirmation layer is rendered by the shell

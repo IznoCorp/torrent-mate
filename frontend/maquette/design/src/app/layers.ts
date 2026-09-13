@@ -2,8 +2,8 @@
 //
 // A layer registers itself — a name, an `isOpen`, a `close(pop)` — and the
 // ladder walks the registrations in RANK, never in the order they happened to
-// register: the dialog, then the drawer, then the covered screen, then the
-// sheet. The walker never knows a layer's markup.
+// register: the dialog, then the drawer, then the sheet. The walker never knows
+// a layer's markup.
 //
 // THE STATE IS THE REGISTRATION'S, NEVER THE DOM'S. A caller asks in the middle
 // of its own task (« is a layer up before I open a screen? ») and the answer
@@ -32,13 +32,13 @@ export type LayerRegistration = {
 const layers = new Map<string, LayerRegistration>();
 
 /* THE RANK. Back closes the first of these that is open, and nothing else. */
-const RANK = ["dialog", "drawer", "screen", "sheet"] as const;
+const RANK = ["dialog", "drawer", "sheet"] as const;
 
 /**
  * Registers a layer under a name the ladder walks.
  *
  * Args:
- *     name: The rung's name — `"drawer"`, `"dialog"`, `"sheet"`, `"screen"`.
+ *     name: The rung's name — `"drawer"`, `"dialog"`, `"sheet"`.
  *     registration: What the walker may ask and say.
  *
  * Returns:
@@ -85,7 +85,6 @@ export function installPageRestore(restore: (patch: Record<string, unknown>) => 
    `history.back()` pop past our own entries and leave the page entirely. */
 export function hideLayers(): void {
   registeredLayers.close("drawer", true);
-  registeredLayers.close("screen", true);
   registeredLayers.close("sheet", true);
   // The scrim is DERIVED, not written: `ui/sheet.tsx` raises it while any
   // scrim-backed layer is open, so clearing the layers clears it.

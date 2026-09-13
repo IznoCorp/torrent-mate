@@ -13,6 +13,11 @@ holds four things: the list is redrawn with its query, its scroll position
 survives, one more back actually leaves the layer, and a result card carries
 no inline action in its foot — the panel is the single path to the act, which
 is what keeps the card the size of what it lists.
+
+A PANEL IS CLOSED THROUGH `window.__panel.close()`, and a screen through
+`window.__bridge.back()` — the seams the harness publishes. The engine's
+`window.__close` shortcut forwarded to the same two and is gone; the hold count
+is unchanged.
 """
 import asyncio
 import pathlib
@@ -64,7 +69,7 @@ async def main():
         act = await pg.evaluate(
             """()=>document.querySelector('#sheet [data-part="sheet/action"][data-tone="primary"]')?.textContent.trim() ?? null""")
         check("the result's panel carries the act", bool(act), f"« {act} »")
-        await pg.evaluate("()=>window.__close('sheet')")
+        await pg.evaluate("()=>window.__panel.close()")
         await pg.wait_for_timeout(300)
 
         # ── The reported journey, exit 1: the browser back ──────────────────

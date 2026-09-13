@@ -1,4 +1,10 @@
-"""Every named state is reachable and renders something."""
+"""Every named state is reachable and renders something.
+
+THE ROOT LADDER HAS NO `#screen` RUNG. It had one, for a legacy node nothing
+ever opened, so the rung was identically false; it was removed rather than
+replaced, because the generic `[data-part="screen"][data-open][data-key]` rung
+already present covers every screen. The hold count is unchanged.
+"""
 
 import asyncio
 
@@ -28,7 +34,7 @@ async def main():
             bad.append((i,"__go failed: "+str(ex)[:60])); print(f"  FAIL {i:28} __go"); continue
         await pg.wait_for_timeout(320)
         r=await pg.evaluate("""()=>{const v=document.querySelector('#view');
-          const sh=document.querySelector('#sheet'), sc=document.querySelector('#screen'), dg=document.querySelector('#dlg');
+          const sh=document.querySelector('#sheet'), dg=document.querySelector('#dlg');
           // Every screen migrated off `#screen` onto a real route (the mediaSheet
           // at `/mediasheet/$title`, the add screen at `/add`, the arbitration
           // screen at `/resolution/$folder`, the release picker at
@@ -40,13 +46,12 @@ async def main():
           // UNDERNEATH — the overflow, the skeletons and the text of a
           // surface the state does not show.
           const rt = document.querySelector('[data-part="screen"][data-open][data-key]');
-          const layer = sh.hasAttribute('data-open')||sc.hasAttribute('data-open')||dg.hasAttribute('data-open')||!!rt;
+          const layer = sh.hasAttribute('data-open')||dg.hasAttribute('data-open')||!!rt;
           // The route rung comes LAST in the precedence, so every
           // pre-existing case resolves to exactly what it resolved to
           // before: a panel or a dialog opened OVER a route is what one is
           // looking at, and stays what is measured.
           const target = layer ? (dg.hasAttribute('data-open')?dg
-                                 :sc.hasAttribute('data-open')?sc
                                  :sh.hasAttribute('data-open')?sh:rt) : v;
           return {sk:target.querySelectorAll('[data-skeleton]').length, txt:target.textContent.replace(/\\s+/g,' ').trim().length,
                   doc:document.documentElement.scrollWidth,

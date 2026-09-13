@@ -10,8 +10,8 @@
     "served": 41,
     "asset": 5,
     "interface": 30,
-    "unserved": 5,
-    "total": 81
+    "unserved": 4,
+    "total": 80
   },
   "$anonymous": {
     "count": 0,
@@ -444,11 +444,6 @@
     "plages.out": {
       "class": "unserved",
       "why": "an accumulator plages() fills, empty at its declaration",
-      "seed": null
-    },
-    "screenStack": {
-      "class": "unserved",
-      "why": "an accumulator the engine pushes onto. `const` binds the array, never its contents, so its literal value is an empty start and not a fact",
       "seed": null
     },
     "trailerIds": {

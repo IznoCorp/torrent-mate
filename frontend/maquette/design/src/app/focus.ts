@@ -9,7 +9,7 @@
 //
 // WHAT IT OBSERVES, AND WHY IT NEEDS NOTHING FROM THE ENGINE. Every layer in
 // this prototype already announces itself: `setOpen(element, on)` toggles the
-// `data-open` attribute on `#drawer`, `#screen`, `#dlg` and `#scrim`, and the
+// `data-open` attribute on `#drawer`, `#dlg` and `#scrim`, and the
 // React side (`components/sheet.tsx`, the five screens) emits the same
 // attribute itself. So this module watches an attribute that exists rather than
 // asking anyone to call it. Nothing in the engine changes; the contract is
@@ -31,12 +31,10 @@ import { bridge } from "../lib/shell-doors";
 // then screen, then sheet — so the topmost open layer is the last one here that
 // carries `data-open`.
 //
-// A SCREEN IS SELECTED BY ITS PART, NEVER BY `#screen`. There is one legacy
-// screen with that id and FIVE migrated ones that are `<section data-part=
-// "screen">` with no id at all, so an id selector traps focus in the layer the
-// engine still draws and silently ignores every screen that has been converted
-// — which is most of them, and all of the ones a later lot will add. This was
-// the shape of the first version of this file.
+// A SCREEN IS SELECTED BY ITS PART, NEVER BY AN ID. Every screen is a
+// `<section data-part="screen">` with no id at all, so an id selector would
+// silently ignore every one of them. This was the shape of the first version
+// of this file.
 const LAYERS = [
   "#drawer",
   '[data-part="screen"]',

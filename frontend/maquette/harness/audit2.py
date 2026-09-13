@@ -1,5 +1,10 @@
 """Second adversarial pass — uniformity, consistency, honesty of the text.
 Aimed at what a screenshot does not show.
+
+THE ROOT LADDER HAS NO `#screen` RUNG. It had one, for a legacy node nothing
+ever opened, so the rung was identically false; it was removed rather than
+replaced, because the generic `[data-part="screen"][data-open][data-key]` rung
+already present covers every screen. The hold count is unchanged.
 """
 import asyncio
 import json
@@ -47,7 +52,6 @@ async def main():
         # the state does not show.
         bad=await pg.evaluate("""()=>{
           const r=document.querySelector('#dlg').hasAttribute('data-open')?'#dlg'
-                 :document.querySelector('#screen').hasAttribute('data-open')?'#screen'
                  :document.querySelector('#sheet').hasAttribute('data-open')?'#sheet'
                  :document.querySelector('[data-part="screen"][data-open][data-key]')?'[data-part="screen"][data-open][data-key]'
                  :'#view';
@@ -259,7 +263,7 @@ async def main():
           // The media sheet left `#screen` for a real route; it is added here
           // by the identity it carries, or this rule about ALL media sheets
           // would stop seeing the very screen it is named after.
-          const root=document.querySelector('#screen[data-open], #sheet[data-open]')
+          const root=document.querySelector('#sheet[data-open]')
                   || document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
           const hero=root && root.querySelector('[data-part="hero/content"]');
           if (!hero) continue;
@@ -302,7 +306,7 @@ async def main():
         window.__go(s); await new Promise(r=>setTimeout(r,300));
         // Same reason as R26 above: the sheet is a route now, and it is where
         // the trailer lives — read it by its key or this rule goes quiet.
-        const root=document.querySelector('#screen[data-open], #sheet[data-open]')
+        const root=document.querySelector('#sheet[data-open]')
                 || document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
         if (!root || !root.querySelector('[data-part="hero/content"]')) continue;
         const el=root.querySelector('[data-part="media/trailer"]');
@@ -327,12 +331,11 @@ async def main():
     backs=await pg.evaluate("""async ()=>{const sig={}, glued=[];
       for (const s of window.__states()) {
         window.__go(s); await new Promise(r=>setTimeout(r,300));
-        // The screen carrying the bar is the legacy layer when it is up, and
-        // otherwise the migrated mediaSheet, named by its own key: leaving the
+        // The screen carrying the bar is the mediaSheet, named by its own
+        // key: leaving the
         // mediaSheet out would silently drop five states from this sweep, and a
         // rule that has gone quiet is not a rule that passes.
-        const screen=document.querySelector('#screen[data-open]')
-                  || document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
+        const screen=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
         const bar=screen?.querySelector('[data-part="screen/bar"]');
         if (!bar) continue;
         const btn=bar.querySelector('[data-part="screen/back"]');
