@@ -155,3 +155,5 @@ introduced at a·14.2 by `panel-seasons.tsx`'s first render before the identity 
 queries' `enabled` — `pending` with `fetchStatus` `idle`, no update, no observer, and no request to `/api/media` with
 an empty segment leaves (a `fetch` spy saw only `/api/media/tvdb/72668` and its seasons). Nothing fires, so nothing is
 repaired there.
+Register note, filed: « panel-seasons.tsx's first render seeds two disabled query entries with an empty
+provider/id before the identity is known — inert, filed; owner b·10-bis (the seasons read by identity) ».
