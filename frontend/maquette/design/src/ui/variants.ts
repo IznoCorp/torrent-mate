@@ -22,3 +22,4 @@ export * from "./variants/frame";
 export * from "./variants/layout";
 export * from "./variants/controls";
 export * from "./variants/surfaces";
+export * from "./variants/card";

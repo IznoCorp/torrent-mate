@@ -83,11 +83,10 @@
 }
 
 /* ── The media card ──────────────────────────────────────────────── */
-/* THE CARD IS THE ENGINE'S: 33 of its 46 class names appear in
-   `legacy.js` and only two in a component. It is injected as markup
-   through `dangerouslySetInnerHTML`, so there is no element for a
-   utility and no component for a variant — converting it would be L13's
-   work pulled forward, and D-L07-5 says what happens instead.
+/* THE CARD HAS A COMPONENT: `ui/card.tsx`, drawn by `ui/variants/card.ts`,
+   whose declarations are these rules term for term. The rules stay for the
+   cards the engine still builds as strings, and go with the last of those
+   builders.
 
    §12's engraved composition is what this block draws, and it must
    survive unchanged into whatever replaces it: line 1 is the title

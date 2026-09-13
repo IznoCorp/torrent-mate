@@ -50,6 +50,7 @@ import { type QueueCard } from "../../lib/engine-queue";
 import { useStoreContent, useUiState } from "../../lib/store-access";
 import { actionButton, backAction, body, emptyNote, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, sheetActions, type ChipTone } from "../../ui/variants";
 import { Chip } from "../../ui/chip";
+import { CardCaption, CardMeta } from "../../ui/card";
 import { guidance } from "../../ui/variants/layout";
 import { Icon } from "../../ui/icon";
 import { bridge } from "../../lib/shell-doors";
@@ -141,7 +142,7 @@ export function ResolutionScreen() {
               ? (REASON_DETAIL[decision.reason] ?? "")
               : t("screens.resolution.noMediaIdentified")}
           </p>
-          <div className="cmeta" data-part="card/meta" style={{ marginBottom: "12px" }}>
+          <CardMeta as="div" style={{ marginBottom: "12px" }}>
             {decision ? (
               <Chip
                 tone={(REASON_TONE[decision.reason] ?? "neutral") as ChipTone}
@@ -151,14 +152,14 @@ export function ResolutionScreen() {
               ""
             )}
             {pending.length > 1 ? (
-              <span className="caption" data-part="card/caption">
+              <CardCaption>
                 {rank} {t("screens.resolution.outOf")} {pending.length}{" "}
                 {t("screens.resolution.waiting")}
-              </span>
+              </CardCaption>
             ) : (
               ""
             )}
-          </div>
+          </CardMeta>
           {decision ? (
             <Candidates decision={decision} />
           ) : (

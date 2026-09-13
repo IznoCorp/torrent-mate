@@ -96,6 +96,9 @@ export type SettledDecision = DecisionCommon & {
 };
 
 export type ArrivalsReference = EngineDrawing & EngineQueue & {
+  // Whether a title names a medium with a sheet: a card's poster opens that
+  // sheet, and a folder no sheet names wears a folder instead.
+  sheetFor: (title: string) => Record<string, unknown> | null;
   REASON_LABEL: Record<string, string>;
   REASON_TONE: Record<string, string>;
   REASON_DETAIL: Record<string, string>;

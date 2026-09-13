@@ -80,6 +80,7 @@ SITE = re.compile(r"`([^`]+)`\s+\(([^)]+)\)")
 # here, where the arm reads them, rather than left to be recognised.
 LOCAL_DETAILS = {
     (".st .d", 1): "a dot on the stepper's own connector line",
+    ("stripDot", 1): "the same dot, drawn by its variant, over the stepper's own connector line",
     ("sheetDragBand", 1): "the sheet's drag band over the sheet's own head",
     ("::view-transition-group(shell-tab-bar)", 10):
         "the ORDER OF TRANSITION GROUPS, a stacking space of its own that exists "

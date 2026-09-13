@@ -15,15 +15,14 @@
 // action asked during a run is QUEUED, visibly, never refused with « busy, try
 // again ».
 //
-// The cards go through `cardHTML`, reused VERBATIM: the delegated handlers
-// depend on that markup being byte-exact. The run's steps are `FactRows`. A section's inside goes through `sectionInnerMarkup` — this
-// component draws the section element itself, because React cannot set the
-// outer markup of a node it also renders — and a section with no card is not
-// drawn at all.
+// The cards are `ArrivalCard`, the one card every list draws, carrying the
+// attributes the delegated handlers read. The run's steps are `FactRows`. A
+// section with no card is not drawn at all.
 import { useTranslation } from "react-i18next";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
-import { useArrivalsReference, type PipelineFact } from "../../features/arrivals/reference";
+import { type PipelineFact } from "../../features/arrivals/reference";
+import { ArrivalCard } from "./arrival-card";
 import { usePipeline } from "./queries";
 import { useStaging } from "../../lib/queue";
 import { type QueueCard } from "../../lib/engine-queue";
@@ -33,6 +32,7 @@ import {
   crossReference,
   crossReferenceLink,
   emptyNote,
+  factList,
   liveDot,
   liveEmphasis,
   liveStrip,
@@ -43,6 +43,7 @@ import {
   sectionHead,
   sectionTitle,
   statusDot as statusDotClass,
+  type StatusTone,
   } from "../../ui/variants";
 import {
   pilotActions,
@@ -52,7 +53,7 @@ import {
   pilotQualifier,
   pilotTitle,
 } from "./variants";
-import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
+import { Markup, emptyNoteMarkup } from "../../ui/markup";
 import { FactRows } from "../../ui/fact-rows";
 
 // The nine steps, told as the last run left them. A step with nothing recorded
@@ -189,7 +190,7 @@ function LastRun(): ReactElement | null {
           {t("screens.arrivals.triggeredWhen", { when: run.when })}
         </span>
       </div>
-      <ol className="flux" data-part="flux">
+      <ol className={factList()} data-part="flux">
         <FactRows rows={lastRunRows(PIPELINE.steps, run.facts, t)} />
       </ol>
     </section>
@@ -199,7 +200,6 @@ function LastRun(): ReactElement | null {
 export function ArrivalsPage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
-  const { cardHTML } = useArrivalsReference();
   // WHICH WORLD. The prototype carries two and the harness switches between
   // them; the key carries it, so a surface never reads the other one's cards.
   const scenario = state.scen === "loaded" ? "loaded" : "";
@@ -224,17 +224,24 @@ export function ArrivalsPage(): ReactElement | null {
 
   // A section that would be empty is not drawn at all.
   const section = (
-    pip: string,
+    tone: StatusTone,
     title: string,
     cards: QueueCard[],
-    inner: string,
-    note?: string,
+    foot?: { label: string; act: string },
+    note?: ReactElement,
   ) =>
-    cards.length === 0 || inner === "" ? null : (
-      <Markup tag="section"
-        className={sectionClass()} data-part="section"
-        html={sectionInnerMarkup(pip, title, String(cards.length), inner, note)}
-      />
+    cards.length === 0 ? null : (
+      <section className={sectionClass()} data-part="section">
+        <div className={sectionHead()} data-part="section/head">
+          <span className={statusDotClass({ tone })} data-part="status-dot"></span>
+          <span className={sectionTitle()} data-part="section/title">{title}</span>
+          <span className={sectionCount()} data-part="section/count">{cards.length}</span>
+        </div>
+        {note ? <div className="note" data-part="note">{note}</div> : null}
+        {cards.map((card, index) => (
+          <ArrivalCard key={`${index}:${String(card.t)}`} card={card} foot={foot} />
+        ))}
+      </section>
     );
 
   return (
@@ -278,15 +285,11 @@ export function ArrivalsPage(): ReactElement | null {
         "danger",
         t("screens.arrivals.stuckTitle"),
         stuck,
-        stuck
-          .map((card) =>
-            cardHTML(card, {
-              foot: t("screens.arrivals.stuckFoot"),
-              footAct: "resolve",
-            }),
-          )
-          .join(""),
-        `<b>${t("screens.arrivals.stuckNoteLead")}</b>${t("screens.arrivals.stuckNoteRest")}`,
+        { label: t("screens.arrivals.stuckFoot"), act: "resolve" },
+        <>
+          <b>{t("screens.arrivals.stuckNoteLead")}</b>
+          {t("screens.arrivals.stuckNoteRest")}
+        </>,
       )}
       {state.scen !== "real" ? (
         <button className={crossReference()} data-part="cross-reference" data-go="acq">
@@ -298,13 +301,11 @@ export function ArrivalsPage(): ReactElement | null {
         "info",
         t("screens.arrivals.movingTitle"),
         moving,
-        moving.map((card) => cardHTML(card)).join(""),
       )}
       {section(
         "success",
         t("screens.arrivals.settledTitle"),
         settled,
-        settled.map((card) => cardHTML(card)).join(""),
       )}
     </>
   );

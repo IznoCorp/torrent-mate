@@ -70,7 +70,7 @@ SKIP = {"node_modules", "dist", "__pycache__"}
 # `styles/legacy.css` (`.poster`, the card poster, `.tile .p`, `.sheetposter`,
 # `.sk.tile`). Re-take it the same way whenever it legitimately moves — a floor
 # somebody typed is a floor that drifts, which is B-272.
-BOX_FLOOR = 5
+BOX_FLOOR = 6
 
 CORPUS_FLOOR = 100
 

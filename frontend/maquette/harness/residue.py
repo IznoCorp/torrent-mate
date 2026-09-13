@@ -125,7 +125,16 @@ VARIANT_SOURCES = sorted(
 # `.poster` is NOT paired: its rule is grouped with `-webkit-touch-callout`,
 # which Chrome does not compute, so the pair could only read nothing on both
 # sides — `posterFrame()` leads with a utility for that reason.
-PAIRS_FLOOR = 10
+#
+# RAISED TO 25 over a corpus that changed on one side only. The card became a
+# component whose factories keep the card's identity classes at the front, so
+# fifteen residue rules the engine's string builder still wears are compared
+# with the variant that now draws the same block: `.card`, `.ccol`, `.ctop`,
+# `.cbody`, `.ctitle`, `.csub`, `.creason`, `.cov`, `.cmeta`, `.caption`,
+# `.folder`, `.dlabel`, `.strip` and `.st`, and `.flux` with `factList()`. They
+# fall with the last builder writing those classes bare. Nothing left the
+# comparison.
+PAIRS_FLOOR = 25
 
 # A rule head, once comments are stripped: everything up to `{`, then the body.
 RULE = re.compile(r"([^{}]+)\{([^{}]*)\}", re.S)

@@ -743,6 +743,18 @@
     }
   },
   "surfaces": {
+    "card": {
+      "sheetOf": "Fiche de {{title}}",
+      "folderActions": "Actions pour le dossier {{title}}",
+      "folder": "Dossier",
+      "stages": [
+        "pris",
+        "téléch.",
+        "ingéré",
+        "scrapé",
+        "rangé"
+      ]
+    },
     "error": {
       "lead": "Impossible de charger {{subject}}.",
       "body": "\n      Le serveur n'a pas répondu dans le temps imparti. Rien n'est perdu — ce qui\n      est affiché ailleurs reste valide.\n      ",

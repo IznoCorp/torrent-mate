@@ -264,6 +264,9 @@ export const keyValueRow = cva(
 /** A block of facts inside a panel keeps its distance from what follows. */
 export const sheetFacts = cva("sheetfacts mb-7");
 
+/** A fact list's frame: its rows share one border, one ground and one radius. */
+export const factList = cva("flux list-none m-0 p-0 border border-border rounded-3 bg-card overflow-hidden");
+
 /**
  * One row of a fact list. A row follows another with a rule between them.
  *

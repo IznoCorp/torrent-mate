@@ -9,7 +9,18 @@ import { useTranslation } from "react-i18next";
 // sentence, and `t()` would only wrap the lookup in a second one.
 import fr from "../../i18n/fr.json";
 import { useArrivalsReference, type PendingDecision, type SettledDecision } from "./reference";
-import { iconButton, posterFrame, ruleNote, type ChipTone } from "../../ui/variants";
+import { iconButton, ruleNote, type ChipTone } from "../../ui/variants";
+import {
+  Card,
+  CardBody,
+  CardMeta,
+  CardOverview,
+  CardPoster,
+  CardReason,
+  CardSubtitle,
+  CardTitle,
+  CardTop,
+} from "../../ui/card";
 import { Icon } from "../../ui/icon";
 import { Chip } from "../../ui/chip";
 import { PosterArtwork } from "../../ui/poster";
@@ -71,28 +82,26 @@ export function ReleaseCard({
   // drift apart. The poster is `aria-hidden`: an image with an empty `alt` is
   // already silent, its initials fallback is not, and neither is part of a name.
   return (
-    <button
+    <Card
+      as="button"
       type="button"
-      className={`card ${candidateCard()}`}
-      data-part="card"
+      className={candidateCard()}
       data-nonmedia={opts.genre || "release"}
       data-resolve={title || undefined}
       aria-label={year ? `${title} ${year}` : title}
     >
-      <span className="ctop" data-part="card/top">
-        <span
-          className={`poster ${posterFrame()}`}
-          data-part="card/poster"
+      <CardTop as="span">
+        <CardPoster
           aria-hidden="true"
           title={
             opts.noPoster ? t("screens.resolution.noPosterTitle") : undefined
           }
         >
           <PosterArtwork artwork={posterArtworkFor(reference, title, opts.k, opts.exact)} />
-        </span>
-        <span className="cbody" data-part="card/body">
-          <span className="ctitle" data-part="card/title">{title}</span>
-          <span className="csub" data-part="card/subtitle">{meta}</span>
+        </CardPoster>
+        <CardBody as="span">
+          <CardTitle>{title}</CardTitle>
+          <CardSubtitle>{meta}</CardSubtitle>
           {/* The synopsis is what actually SEPARATES four series with nearly
               the same name, so it belongs on the card that asks to choose
               between them. It is an `overview`, not a reason: it clamps
@@ -100,20 +109,20 @@ export function ReleaseCard({
               Carrying it here is also what makes leaving the screen
               unnecessary: an arbitration that sends you to a full sheet to
               decide loses the queue you were working through. */}
-          {opts.overview ? <span className="cov" data-part="card/overview">{opts.overview}</span> : ""}
+          {opts.overview ? <CardOverview>{opts.overview}</CardOverview> : ""}
           {confidence ? (
-            <span className="cmeta" data-part="card/meta">
+            <CardMeta>
               <Chip tone="info" label={<>{t("screens.resolution.confidence")} {confidence}</>} />
-            </span>
+            </CardMeta>
           ) : (
             ""
           )}
-        </span>
+        </CardBody>
         <span className={`${iconButton()} ${candidatePick()}`} data-part="card/pick" aria-hidden="true">
           <Icon paths={icons.check} />
         </span>
-      </span>
-    </button>
+      </CardTop>
+    </Card>
   );
 }
 
@@ -155,22 +164,22 @@ export function DecisionCard({ decision }: { decision: SettledDecision }) {
     ? `${decision.choice.t} · ${decision.choice.p.toUpperCase()} ${decision.choice.id} · ${VIA_LABEL[decision.choice.via] ?? decision.choice.via}`
     : null;
   return (
-    <div className="card" data-part="card" data-nonmedia="decision">
-      <div className="ctop" data-part="card/top">
-        <span className={`poster ${posterFrame()}`} data-part="card/poster">
+    <Card data-nonmedia="decision">
+      <CardTop>
+        <CardPoster>
           <PosterArtwork artwork={artwork} />
-        </span>
-        <span className="cbody" data-part="card/body">
-          <span className="ctitle" data-part="card/title" title={decision.d}>
+        </CardPoster>
+        <CardBody as="span">
+          <CardTitle title={decision.d}>
             <code>{decision.d}</code>
-          </span>
-          <span className="csub" data-part="card/subtitle">{decision.when}</span>
+          </CardTitle>
+          <CardSubtitle>{decision.when}</CardSubtitle>
           {/* What was chosen is the most useful line here — it is the answer
               one comes back to read — so it wraps rather than truncating. On
               one line it lost its provider id and how it was found, which is
               exactly what one comes back for. */}
-          {identity ? <span className="creason" data-part="card/reason">{identity}</span> : ""}
-          <span className="cmeta" data-part="card/meta">
+          {identity ? <CardReason>{identity}</CardReason> : ""}
+          <CardMeta>
             <Chip
               tone={(REASON_TONE[decision.reason] ?? "neutral") as ChipTone}
               label={REASON_LABEL[decision.reason] ?? decision.reason}
@@ -184,10 +193,10 @@ export function DecisionCard({ decision }: { decision: SettledDecision }) {
             ) : (
               ""
             )}
-          </span>
-        </span>
-      </div>
-    </div>
+          </CardMeta>
+        </CardBody>
+      </CardTop>
+    </Card>
   );
 }
 
