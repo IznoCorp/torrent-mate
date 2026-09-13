@@ -291,7 +291,7 @@ when the defect comes back.
 | B-229 | The confirmation dialog is not on the back ladder | by survey | `fixed #528` |
 | B-230 | The engine re-adds a viewport refusal to any host without a viewport meta | by survey | `fixed #528` |
 | B-231 | The tab bar is rebuilt from scratch on every render | by survey | `fixed #528` |
-| B-232 | Two dead layers: the page-render branch and `#screen` | by survey | `open` |
+| B-232 | Two dead layers: the page-render branch and `#screen` | by survey | `fixed #596` |
 | B-233 | `theme-color` is a constant while the document paints light | by survey | `fixed #528` |
 | B-234 | The viewport meta declares no `interactive-widget` | by survey | `fixed #540` |
 | B-235 | No desktop navigation exists beyond the drawer | by survey | `open` |
@@ -408,7 +408,7 @@ when the defect comes back.
 | B-346 | A paragraph that OPENS with another entry's identifier is read as that entry's body head, so it truncates the entry it lives in and — being the first such head in the file — makes the real entry's body the discarded one; `check-bug-register`'s closure arm was blind to B-310 and B-249 at once, and 25 second-or-later heads sit in the register today | by the micro-wave | `fixed #589` |
 | B-350 | A PAUSED SERIES is dimmed in the follows grid with no word saying why: the tile's caption is `stFraction(follow) ?? paused`, so a fraction always outranks the word — a paused FILM says « en pause » only because it has no fraction | by L13 | `fixed #572` |
 | B-351 | `check-maquette-comments.py` reads five suffixes and `.mjs` is not one of them, so every `.mjs` under `frontend/maquette/` is invisible to the comment rule AND to the corpus count the floor is derived from — one real occupant measured, `vite.config.mjs:143`'s « (L08) » | by L21 | `open` |
-| B-352 | `engine/states.js` is grandfathered at 786 non-blank lines and the size arm refuses both the growth AND the raise of its record, so NO surface born after L19 can be given a named state — and a state nobody names is a surface the oracle never measures | by L21 | `open` |
+| B-352 | `engine/states.js` is grandfathered at 786 non-blank lines and the size arm refuses both the growth AND the raise of its record, so NO surface born after L19 can be given a named state — and a state nobody names is a surface the oracle never measures | by L21 | `fixed #596` |
 | B-353 | UNDOING A REMOVAL DOES NOT RESTORE THE FOLLOW, it creates a new one wearing the same name: the layer's delete DROPS the record and the only way back is a CREATE, so the year, « suivi depuis » and the search count are lost and the status comes back right only by coincidence | by L21 | `fixed #572` |
 | B-360 | The pre-push gate refuses a push over a GREEN suite and shows the reason to nobody: each check runs silently first and, when that pytest dies of a signal, is rerun visibly — the rerun's « 11 325 passed » is printed and its result discarded, so the reader gets a green summary, then « Push aborted », and the failure in no output; three refusals in one morning on two branches, the same push landing on its next attempt | 1× | `open` |
 | B-361 | A Maintenance rubric cannot be left either — entering it writes `?topic=…` by replacement, pushes no entry and draws no back, so the system Back leaves « Maintenance » for Acquisition; B-332's shape on the second page that has rubrics, measured on the operator's phone by the real path | 1× | `fixed #588` |
@@ -1806,6 +1806,15 @@ again. Until then the gap widens by one entry per surface that would have wanted
 <sub>L21, 2026-09-06 · both refusals produced by `python3 scripts/check-frontend-boundaries.py`
 after adding one state to `engine/states.js`, then after raising the record in
 `scripts/frontend_size_ledger.py` · reverted, tree clean, arm reads 0</sub>
+
+> **Closed by L13a.** `engine/states.js` is deleted: the named states and the seams that drive them
+> (`__go`, `__states`, `__reset`) moved into the harness module `frontend/maquette/design/src/harness/`
+> (`drive.ts`, `states/<surface>.ts`), which no size record grandfathers, and the ledger's `states.js`
+> entry left in the same commit. A surface born after this can be given a named state, and so enter
+> the oracle's corpus, at the ordinary 400-line ceiling of the file that holds its states. The status
+> turns to `fixed #596` with this pull request.
+
+<sub>`ls frontend/maquette/design/src/engine/states.js` → No such file · `grep -n "window.__go = go" frontend/maquette/design/src/harness/drive.ts` → one line</sub>
 
 **B-351 — the comment rule cannot see a `.mjs`, and does not say so.**
 
@@ -9780,7 +9789,7 @@ relative to it. Machinery nobody can justify, kept because nobody measured it (D
 > place it already held among the frame's elements. The harness's eight readers lost a rung that
 > was identically false, or had a field re-aimed to `[data-part="screen"][data-open]`; the one hold
 > that was vacuous (`bridge.py`, « the media sheet is gone ») now reads the media sheet by its key.
-> The status turns with the pull request's own commit.
+> The status turns to `fixed #596` with this pull request.
 
 <sub>`grep -c 'id="screen"' frontend/maquette/design/index.html` → 0 · `grep -cE "screenStack|closeScreen" frontend/maquette/design/src/engine/legacy.js` → 0</sub>
 
