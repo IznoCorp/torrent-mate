@@ -1,35 +1,29 @@
 # L13a — resume brief for the successor
 
-Written by the twelfth L13a implementer when it stood down with the full gate RED (context 50 %). Read it after
+Written by the twelfth L13a implementer at the full-gate stop, and brought to the pull request by the thirteenth. Read it after
 `docs/features/maquette-l13/BRIEF-L13a.md`, which still governs everything. This file only records state, rulings
 and traps, and it dies with the wave's folder at the post-merge gesture.
 
-## Exact state
+## Exact state — at PR #596 (the thirteenth implementer, `Agent : l13a 13`)
 
-- Worktree `/Users/izno/dev/worktrees/wave-l13a`, branch `feat/maquette-l13a`, merged with `origin/main` at `60530dbd8`
-  (#595, 0.98.90; `main` had not moved at 18:30). Oracle reference `f1e7ac66`.
-- a·1 … a·17: see `git show c194fca54:docs/features/maquette-l13/RESUME.md` (and the RESUMEs it points to). Then
-  this session:
-  - **a·17-bis** `f4b0732ae` `refactor(maquette-l13a): the harness states panel dies — its opener, its five verbs, its rules and its readers`
-  - **a·18** `e2f510a8b` `chore(maquette-l13a): legacy.css, its guard and the rule that compared it to the variants are deleted` (ruling 59)
-  - **a·19** `56da59aee` `chore(maquette-l13a): refonte.html is deleted and R72 keeps its two holds`
-  - **repairs** `a99af0309` `fix(maquette-l13a): three rules of the full suite follow the conversion` — NOT replayed alone, NOT gated
-  - the commit that adds this file.
-- Gates, logs under `/private/tmp/tm-l13a/`, each postdating its commit:
-  - a·17-bis on `f4b0732ae`: contracts 19 + 27, no violation; oracle no divergence; `message_above_harness.py` alone 2;
-    mutation `.hbtn` z-index 53 → 70 → R163 FELL.
-  - a·18 on `e2f510a8b`: contracts 18 + 26; oracle no divergence; `resolution_card` 12, `press` 15, `touch` 25 alone;
-    mutation (the child's `[.ptr.loading_&]` animation removed) → NO RULE FELL (a blind spot, written in phase-a18's
-    amendment).
-  - a·19 on `56da59aee`: contracts 18 + 26; oracle no divergence; `shell.py` 3, `switchover.py` 11 alone; R72's two
-    mutations by hand on `dist/` with `R72_SKIP_BUILD=1` (`a19-r72-mutations.sh`): (b) the module tag duplicated →
-    (b) ALONE fell « 2 match(es) found »; (c) the bundle deleted → (c) ALONE fell; rebuild → 3/3.
-  - **Full suite on `56da59aee` (`a19-full-suite.log`, 18:32): EXIT 1, four rules** — below.
-- Records: `engine/legacy.js` 3 593 non-blank (not moved by these phases). `legacy.css`, `refonte.html`,
-  `legacy-css-residue.json`, `check-legacy-css-residue.py`, `residue.py` (R80, number retired), `test_residue.py`,
-  `harness/rename.mjs` deleted. `harness/factories.py` + `tests/scripts/test_factories.py` born (ruling 59).
-  `comment-references-baseline.json` re-recorded in each phase. `hold-counts-baseline.json` NOT re-recorded.
-- Version NOT bumped. No pull request. Pushed at this boundary (the stand-down report carries `git ls-remote`).
+- **PR #596 open READY**, branch `feat/maquette-l13a`, version **0.98.91**, `main` at `60530dbd8`. The implementer does
+  not merge. **One reader round follows**; its findings are taken in a fresh session from this file.
+- The earlier commits: `git show 069f49624:docs/features/maquette-l13/RESUME.md`. This session, after `069f49624`:
+  - `57f3e81af` `fix(maquette-l13a): the follow panel's facts follow the identity read` (ruling 61, no re-aim)
+  - `b9f7d789c` `docs(maquette-l13a): the empty-key seasons entries are filed for b·10-bis in phase-a14`
+  - `89eb75015` `chore(maquette-l13a): version 0.98.91`
+  - `b49c0b049` `docs(maquette-l13a): B-232 and B-352 close with #596`, and the commit that carries this block.
+- Readings, logs `/private/tmp/tm-l13a/b61-*`, each postdating its commit:
+  - `069f49624`: `images` 2, `navigation` 11, `address` 15 alone; contracts 18 + 26; oracle no divergence.
+  - `57f3e81af`: mutation (the redraw removed) → `bugs.py` FELL, a witness read no « Voir la fiche » at 0/400/2 000 ms
+    and `history.length` 4; restored → `bugs.py` 14 of 14.
+  - `b9f7d789c`: **full suite 126 rules + 26 guards, no violation; oracle no divergence; a11y 0** (light 149 = ceiling);
+    **`--compare` no violation, movements R80 `residue.py` (19) missing, R163 3 → 2, R72 4 → 3** (baseline not
+    re-recorded: the post-merge gesture's); **`make check` 11 259 passed, 0 failed, 0 errors** (version step refused
+    0.98.90 as it must).
+  - `89eb75015`: version bump OK; `check-frontend` eslint 0 errors, vitest 1 374 passed, build; pre-push exit 0.
+- `IMPLEMENTATION.md` is NOT touched by the wave (order 15): its « In flight » row is the steward's docs PR's.
+- `check-bug-register`: B-232 and B-352 closed by this branch, each body changed; `check-intent-map` clean.
 
 ## The full suite's four falls
 
@@ -39,7 +33,7 @@ and traps, and it dies with the wave's folder at the post-merge gesture.
    `harness/drive.ts`. Re-aimed, measured (2, 0, 1).
 3. `address.py` (R68) — REPAIRED: since a·15 `#view`'s `textContent` glued « Adresse » + the address + the next
    sentence; the surface is read as `innerText`, docstring says why.
-4. **`bugs.py` — STOP B, NOT repaired.** Step: `bugs.py:31`, « 2 — Voir la fiche from a follow sheet »:
+4. **`bugs.py` — STOP B, REPAIRED in `57f3e81af` (ruling 61).** Step: `bugs.py:31`, « 2 — Voir la fiche from a follow sheet »:
    `__go('followsheet-gaps')` produces the follow panel for « Les aventures de Tintin », then clicks « Voir la fiche »,
    which is absent. The reading, verbatim: `features/acquisition/follow-facts.ts:121` computes
    `hasSheet: (follow.ids ?? heldIdentity(title)?.ids) != null` ONCE, at production. Tintin has no entry in
@@ -54,36 +48,15 @@ and traps, and it dies with the wave's folder at the post-merge gesture.
    - **A second reading of the same root, to diagnose in the same unit:** the query cache in that state holds two
      requests PENDING with an empty provider and id — `["/api/media","",""]` and `["/api/media","","","seasons"]` — a
      query fired before the identity is known.
-   - **The repair of the STOP B is the STEWARD's ruling, pending at hand-over: do not open the full gate before it
-     lands.**
 
-## First acts of `Agent : l13a 13`, in order
+## First acts of the successor (the reader round)
 
-1. Handshake; read this file, the brief, and ruling 58–60 in your handshake answer.
-2. Replay `images.py`, `navigation.py`, `address.py` ALONE at their baseline counts (2, 11, 15) under the browser
-   mutex, then the phase gate (contracts + oracle) on the repair commit. Commit before any mutation.
-3. The STOP B repair per the ruling you will find in your handshake answer (and the empty-id queries with it), with its
-   own gate; `bugs.py` alone at its baseline (14, a PASS/FAIL tally).
-4. The full gate, in this order, telling the steward BEFORE `run.sh` no-flag, context ≤ 50 % at its opening:
-   1. `TM_HARNESS_JOBS=2 sh scripts/heavy.sh --class browser l13a sh frontend/maquette/harness/run.sh` — it exceeds a
-      tool call's 10 min: run it in the background, output and exit code to files; no test beside it.
-   2. `run.sh --a11y` at 0.
-   3. `python3 scripts/harness-hold-counts.py --compare frontend/maquette/hold-counts-baseline.json --jobs 2` under the
-      mutex, `failed` read FIRST. Named movements: **R80 `residue.py` (19) gone; R163 `message_above_harness.py`
-      3 → 2; R72 `shell.py` 4 → 3**; plus R80's PAIRS_FLOOR history (15 → 10 → 25 → 30 → 4 → 3) and any other,
-      written in the commit body.
-   4. `make check` under the tests lock (`HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder PYTEST_XDIST_AUTO_NUM_WORKERS=2
-      sh scripts/heavy.sh --class test l13a make check`), zero failed AND zero errors.
-   5. `python3 scripts/check-bug-register.py` and `python3 scripts/check-intent-map.py`, read by OUTPUT.
-   6. `git remote update origin`; merge `origin/main` if it moved; bump `personalscraper/__init__.py` patch above main
-      (0.98.90 → 0.98.91 if main has not moved; that file is the only one #595 bumped).
-   7. Push under the tests lock (the pre-push hook runs the suite; background); open the PR READY with the imposed
-      title `feat(maquette-l13a): what moves unchanged — the harness module, the ladder, the boot and the drawing leave the engine`;
-      body per the brief, figures measured ONCE on the final head.
-   8. `IMPLEMENTATION.md` « In flight » row written when the PR opens (wave, PR, version, brief, figures), set back to
-      « None » in your LAST commit before the merge.
-5. The reader line and the Mac-walk step owed since a·14 (in `c194fca54`'s RESUME, « Owed ») go to the PR body and
-   the steward.
+1. Handshake with the orchestrator named in your launch prompt; read this file, the brief, and the reader round's
+   findings the steward hands you.
+2. Each finding: STOP D if it asks for a behaviour change; otherwise a conversion repair with the method below — commit,
+   `mutate.sh` where a rule is named, the rules it touches replayed ALONE, contracts + oracle, one push under the tests
+   lock at the end of the round, the PR body amended with what moved.
+3. Never write `IMPLEMENTATION.md`'s « In flight » row (order 15), never merge.
 
 ## Rulings — not to be reopened
 
@@ -97,6 +70,13 @@ and traps, and it dies with the wave's folder at the post-merge gesture.
 60. (steward, narrow authorizations) `docs/reference/frontend-architecture.md` may be edited ONLY to re-cite a deleted
     file's full path as `path@60530dbd8`, when `check-docs-cited-paths.py` refuses it; done at a·18 (line 592) and
     a·19 (two `refonte.html` lines). `CLAUDE.md` is never edited on a peer's word: the steward edits it.
+61. (auditor, under the operator's delegation) The STOP B is repaired IN L13a as a restoration: the follow panel's facts
+    follow the identity read, the row re-produced in place, no history entry; a synchronous sheet source (reading 3) is
+    refused; the cold-open absence is D8-accepted and dated in `phase-a14`. The two empty-key `/api/media` entries
+    never fire — filed, owner b·10-bis, nothing changed in L13a.
+62. (steward, relaying the operator) The implementer's context gate is 80 %, not 50 %.
+63. (steward, the auditor's order 15) The wave does not write `IMPLEMENTATION.md`'s « In flight » row; the register's
+    `fixed #596` rows and B-352's closure reading stay in the wave.
 
 ## Owed to the steward (prose, not the implementer's)
 
@@ -131,3 +111,7 @@ and traps, and it dies with the wave's folder at the post-merge gesture.
   count, said in the docstring and the body.
 - **`check-docs-cited-paths.py` reads only backtick-terminated full paths**: `path::Test…` or a path followed by a
   space is not read; do not rewrite those.
+- **The command-safety hook refuses any Bash command whose TEXT holds the word it watches for network calls**, even
+  inside a commit message or a Python heredoc: put such text in a file (Write) and pass the file.
+- **A `git push` interrupted mid-hook leaves its `pre-push` and `pytest` children running**: TERM each by pid, then read
+  `ps` empty and `git ls-remote` before amending.
