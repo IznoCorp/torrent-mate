@@ -44,7 +44,7 @@ import "../i18n";
 // below any other statement would not reorder anything — imports hoist —
 // but writing it anywhere else would suggest otherwise.
 import "../engine/legacy.js";
-// The harness module — the named states, their driver, the ≡ panel. Installed
+// The harness module — the named states, their driver, the notes toggle. Installed
 // below behind the mock layer's constant, so no build without the layer has it.
 import { installHarness } from "../harness";
 import { RouterProvider } from "@tanstack/react-router";

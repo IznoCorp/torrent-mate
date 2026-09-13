@@ -20,13 +20,12 @@ import type { UiState } from "../app/store";
 // it — and the states start through the same verb, re-exported here beside their type.
 import { drivenWithoutHistory } from "../app/page-switch";
 import { applyState, resetSettings } from "../engine/legacy.js";
-import { closeHarnessPanel } from "./panel";
 import { heldIdentity, providerAddress } from "../lib/held-identity";
 import type { CarriedIdentity } from "../lib/navigation-entry";
 
 export { applyState };
 
-/** One named state: the id `__go` takes, the label the ≡ panel shows, and how to build it. */
+/** One named state: the id `__go` takes, its label in words, and how to build it. */
 export type NamedState = [id: string, label: string, run: () => void];
 
 // The table states are looked up in, handed over once at install.
@@ -112,7 +111,6 @@ function go(stateId: string, options?: { keep?: boolean }): string {
       table.length
         ? "état inconnu : " + stateId
         : "aucun état enregistré — la table du harnais est vide");
-  closeHarnessPanel();
   if (!stateId.startsWith("signin")) window.__entry?.hideSignIn(true);
   if (stateId !== "startup") window.__entry?.hideStartup();
   if (!stateId.startsWith("pwa-")) window.__entry?.hideInstall();
@@ -179,8 +177,6 @@ export function installDriver(states: NamedState[]): void {
   table = states;
   window.__go = go;
   window.__states = () => table.map((entry) => entry[0]);
-  // The ≡ panel lists the states by NAME, so it needs the label too.
-  window.__etatsDetailles = () => table.map(([id, label]): [string, string] => [id, label]);
   /* The ids the interface can actually render. Any control naming something
      else is a dead end however carefully it is drawn — a drawer entry pointed
      at one and answered a tap with a message. Reading the page table rather
@@ -213,8 +209,6 @@ declare global {
     __go: (stateId: string, options?: { keep?: boolean }) => string;
     /** Every named state's id, in table order. */
     __states: () => string[];
-    /** Every named state's id and label, for the ≡ panel. */
-    __etatsDetailles: () => [string, string][];
     /** The interface back where every measurement starts. */
     __reset: () => boolean;
     /** Hides the harness chrome, or shows it again with `false`. */

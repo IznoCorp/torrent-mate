@@ -73,7 +73,7 @@ class TestReadersOf:
         assert "idle" in guard.readers_of("pipe", 'store.write({ pipe: "idle" })')
 
     def test_an_unrelated_field_does_not_leak(self) -> None:
-        """`phase` must not collect what `hphase` compares."""
+        """`phase` must not collect what `otherphase` compares."""
         assert guard.readers_of("phase", 'x.otherphase === "nope"') == set()
 
 
@@ -759,10 +759,15 @@ class TestImperativeEmission:
         into the harness module, built in script exactly as before, emitting the
         same value. The reading follows it to its one new file; it still names
         one site and one value.
-        """
-        panel = guard.SOURCES / "harness" / "panel.ts"
 
-        assert "harness/panel" in guard.emitted_named_values(panel)["data-part"]
+        RE-AIMED A SECOND TIME, NOT WIDENED: the harness panel is gone. The one
+        other site that builds a part in script is the virtual window's spacer,
+        and the reading names that file and that value instead — still one site,
+        one value, and a subject that exists.
+        """
+        spacer = guard.SOURCES / "ui" / "virtual-rows.tsx"
+
+        assert "window/spacer" in guard.emitted_named_values(spacer)["data-part"]
 
 
 class TestHeldSelectors:

@@ -1,4 +1,4 @@
-// THE HARNESS MODULE — the named states, their driver, the ≡ panel and the
+// THE HARNESS MODULE — the named states, their driver, the notes toggle and the
 // seams the rules read.
 //
 // The boot installs it behind `__MOCKS_BUILT_IN__`, so a build without the mock

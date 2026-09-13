@@ -84,7 +84,7 @@ async def main():
           // flinching.
           R.deadButtons = [...root.querySelectorAll('button, a')]
             .filter(el=>el.getBoundingClientRect().height>0 && !el.disabled
-                    && !el.closest('[data-part="harness/bar"]') && !el.closest('[data-part="harness/panel"]')
+                    && !el.closest('[data-part="harness/bar"]')
                     && !el.closest('details:not([open])'))
             // An href IS a destination — the trailer is a genuine outbound
             // link to YouTube.
@@ -101,7 +101,7 @@ async def main():
 
           // R3 — touch targets: every control is at least 40px on one axis
           R.targetsTooSmall = [...root.querySelectorAll('button,a')].filter(el=>{
-            if (!vis(el) || el.closest('[data-part="harness/bar"]') || el.closest('[data-part="harness/panel"]')) return false;
+            if (!vis(el) || el.closest('[data-part="harness/bar"]')) return false;
             const b=el.getBoundingClientRect();
             // DECLARED EXCEPTION: the episode cell is 31 × 27 in the SHIPPED
             // component. At 13 cells per row, 44px would demand 572px of
@@ -120,7 +120,7 @@ async def main():
           // (overflow-x hidden/clip) AND that fits within the frame itself. A
           // clipping ancestor that overflows clips nothing, it moves the
           // problem.
-          const SCROLLERS = '[data-part="pill/list"],[data-part="cast"],[data-part="episode/set"],[data-part="harness/panel"]';
+          const SCROLLERS = '[data-part="pill/list"],[data-part="cast"],[data-part="episode/set"]';
           const clipped = (el) => {
             for (let p = el.parentElement; p && p !== root.parentElement; p = p.parentElement) {
               const ox = getComputedStyle(p).overflowX;

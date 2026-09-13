@@ -454,7 +454,6 @@ had
 harness
 has
 hauteur
-hclose
 hd
 head
 header
@@ -466,7 +465,6 @@ heir
 held
 hello
 hero
-hgo
 hide
 hint
 hints
@@ -480,9 +478,6 @@ hooks
 host
 hot
 hours
-hphase
-hscen
-htmdb
 html
 hue
 hues

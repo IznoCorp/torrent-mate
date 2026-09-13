@@ -89,8 +89,6 @@ export function hideLayers(): void {
   // The scrim is DERIVED, not written: `ui/sheet.tsx` raises it while any
   // scrim-backed layer is open, so clearing the layers clears it.
   registeredLayers.close("dialog", true);
-  // The harness panel, when one is up, goes with the layers.
-  document.querySelector(".hpanel")?.remove();
 }
 
 /* The scrim covers three layers at once and a tap on it closes whichever is up;

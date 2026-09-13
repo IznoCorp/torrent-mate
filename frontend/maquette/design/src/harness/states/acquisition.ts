@@ -1,7 +1,7 @@
 // The named states of Acquisition — its three views, the add screen, the sheets it raises and the screens it opens.
 //
 // Each entry is `[id, label, run]`: the id is what `window.__go(id)` takes and
-// what the oracle's reference names, the label is what the ≡ panel shows, and
+// what the oracle's reference names, the label says the state in words, and
 // `run` builds the state. The driver resets the interface before every state,
 // so an entry pins only what its state means to show.
 import { applyState, type NamedState } from "../drive";

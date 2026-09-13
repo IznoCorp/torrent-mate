@@ -63,7 +63,7 @@ NAMED_VALUE = re.compile(
 
 # And the two IMPERATIVE spellings, on an element the script builds:
 # `bar.dataset.part = "selection/bar"` and
-# `el.setAttribute("data-part", "harness/panel")`. `dataset` spells a
+# `node.setAttribute("data-part", "window/spacer")`. `dataset` spells a
 # `data-two-word` attribute `twoWord`, so the property name is put back into
 # its attribute spelling before the lookup.
 IMPERATIVE_DATASET = re.compile(

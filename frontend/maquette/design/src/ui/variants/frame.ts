@@ -34,7 +34,7 @@ import { cva } from "../cva";
      55  the drawer `drawer` (ui/variants/frame.ts) · the install proposal `.installbar` (index.html)
      56  the confirmation        `dialog` (ui/variants/frame.ts)
      57  the message             `messageHost` (ui/variants/frame.ts)
-     60  the popover `popover` (ui/variants/frame.ts) · the skip link `.skip-link` (styles/base.css) · the harness's opened panel `.hpanel` (styles/legacy.css) · the sign-in gate `.loginscreen` (styles/base.css, the entry block)
+     60  the popover `popover` (ui/variants/frame.ts) · the skip link `.skip-link` (styles/base.css) · the sign-in gate `.loginscreen` (styles/base.css, the entry block)
      70  the splash `.splash` (styles/base.css, the entry block) · the harness's desktop switch `.desktop-switch` (styles/harness.css)
 
    EVERY ENTRY NAMES ITS FILE, which is what makes the claim above readable by something other than a
@@ -57,12 +57,10 @@ import { cva } from "../cva";
    of the background it marks `inert`, for the same reason: a message a finger
    cannot close is a control that does nothing.
 
-   THE HARNESS HAS TWO ENTRIES, and it used to have one — « the harness panel » at 60, while
-   `styles/harness.css` declared the buttons at 70, the splash's rank. So a message drawn along the top
-   of the frame, exactly where those buttons sit, was painted UNDER chrome that is in no production
-   build (B-394). The buttons are 53: above the surfaces a verb is pressed from, under the drawer, the
-   confirmation and the message. The opened panel stays 60, because it is the instrument the prototype
-   is driven with and a message over it would hide the control one is reaching for.
+   THE HARNESS BAR IS 53, and `styles/harness.css` once declared it at 70, the splash's rank. So a
+   message drawn along the top of the frame, exactly where the bar sits, was painted UNDER chrome that is
+   in no production build (B-394). At 53 it is above the surfaces a verb is pressed from, under the
+   drawer, the confirmation and the message.
 
    AND THE MESSAGE HAS TWO POSITIONS FOR ITS ONE RANK. A rank decides what is
    painted where two layers meet; it cannot keep them from meeting. The sheet

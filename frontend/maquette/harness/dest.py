@@ -43,7 +43,7 @@ async def main():
             ??document.querySelector('#view');
           return [...root.querySelectorAll('button, a')]
             .filter(x=>x.getBoundingClientRect().height>0 && !x.disabled
-                       && !x.closest('[data-part="harness/bar"]') && !x.closest('[data-part="harness/panel"]')
+                       && !x.closest('[data-part="harness/bar"]')
                        && !x.closest('details:not([open])'))
             // A control with NO `data-*` at all, no id and no handler has
             // nothing that could carry it anywhere. A second allowlist used

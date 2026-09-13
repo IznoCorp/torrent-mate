@@ -78,7 +78,7 @@ LONG_PRESS = """()=>{
 }"""
 
 # EVERY LAYER OF THE FRAME THAT LEAVES ON A TRANSITION. The screen is absent by
-# name — see the header — and the harness panel ships nowhere.
+# name — see the header.
 LAYERS = {
     "scrim": "#scrim",
     "sheet": "#sheet",

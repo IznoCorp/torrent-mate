@@ -416,15 +416,14 @@ holds the three ends.
 ## Every state has a name, and knows how to reach itself
 
 `window.__go("<id>")` drives the prototype into a state **without clicking**.
-`window.__states()` returns the 54 ids. The **≡** button in the harness opens a panel listing
-them all.
+`window.__states()` returns the 54 ids.
 
 This is what makes a rule deterministic. Without it, measuring "the blocked card" requires
 knowing how to make one appear — and that knowledge is exactly what evaporates over time. With
 it, a rule says `__go(state)` and measures. The parity probe used to walk `regions.json` this
 way; both it and that map went on 2026-08-20 with the extraction they served.
 
-Three orthogonal dials the panel exposes:
+Three orthogonal dials of the prototype's store:
 
 | Dial          | Values                        | What it changes                      |
 | ------------- | ----------------------------- | ------------------------------------ |

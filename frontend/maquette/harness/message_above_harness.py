@@ -32,9 +32,12 @@ WHAT IT READS, and each hold fails differently:
       lifted, so what is read is paint and not reach. The hit test lands on the
       message or on something inside it, never on a harness button. This is the
       ruling.
-  k2. THE OPENED PANEL STAYS ABOVE THE MESSAGE. The states list is the
-      instrument the prototype is driven with; a message painted over it would
-      hide the control one is reaching for. Read the same way, inside the panel.
+
+THE STATES PANEL IS GONE, AND ITS HOLD WITH IT. The bar kept its states button
+and the panel that button opened until both were removed; the hold that kept
+the opened panel above the message went with them, and k0 now asks that EVERY
+button the bar still holds — the notes button — meets the message, where it
+asked for at least two.
 
 WHAT IT DOES NOT READ. Whether the buttons are reachable when no message is
 shown: that is the harness's own business and no product property, and this rule
@@ -105,30 +108,6 @@ OVERLAP = """() => {
           lifted: inerted.length, meetings};
 }"""
 
-# THE OPENED PANEL, read where it covers the message: it fills the frame, so its
-# own centre is a point the message would be drawn at.
-PANEL = """() => {
-  const panel = document.querySelector('[data-part="harness/panel"]');
-  const message = document.querySelector('#toast');
-  if (!panel || !message) return {found: false};
-  const inerted = [];
-  for (let node = panel; node; node = node.parentElement) {
-    if (node.hasAttribute && node.hasAttribute('inert')) {
-      node.removeAttribute('inert');
-      inerted.push(node);
-    }
-  }
-  const said = message.getBoundingClientRect();
-  const x = said.left + said.width / 2;
-  const y = said.top + said.height / 2;
-  const hit = document.elementFromPoint(x, y);
-  for (const node of inerted) node.setAttribute('inert', '');
-  return {found: true,
-          onTop: hit === null ? 'nothing'
-            : (panel.contains(hit) ? 'the panel'
-               : message.contains(hit) ? 'the message' : hit.tagName)};
-}"""
-
 
 async def show_message(page):
     """Says a message through the host's own seam and waits for it to be shown."""
@@ -137,7 +116,7 @@ async def show_message(page):
 
 
 async def main():
-    """Runs the three holds with a layer open, then with the panel opened."""
+    """Runs the two holds with a layer open."""
     journal = Journal("R163 — the harness's chrome never covers the message")
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel="chrome")
@@ -154,7 +133,7 @@ async def main():
 
         journal.check("the message and the harness's buttons meet at the top of the frame",
                       reading.get("found") and reading.get("shown") and len(met) == len(meetings)
-                      and len(met) >= 2,
+                      and len(met) >= 1,
                       f"{len(met)} of {len(meetings)} button(s) overlap: "
                       + str([(m['label'], round(m.get('width', 0)), round(m.get('height', 0)))
                              for m in met]))
@@ -162,14 +141,6 @@ async def main():
                       bool(met) and all(meeting["onTop"] == "the message" for meeting in met),
                       f"inertness lifted on {reading.get('lifted')} element(s); "
                       + str([(meeting["label"], meeting["onTop"]) for meeting in met]))
-
-        # ── the instrument, which must stay above the answer ──────────────
-        await page.evaluate("()=>document.querySelector('#scenBtn')?.click()")
-        await page.wait_for_timeout(SETTLED)
-        await show_message(page)
-        panel = await page.evaluate(PANEL)
-        journal.check("the opened states panel stays above the message",
-                      panel.get("found") and panel["onTop"] == "the panel", str(panel))
 
         await browser.close()
     journal.summary(errors)
