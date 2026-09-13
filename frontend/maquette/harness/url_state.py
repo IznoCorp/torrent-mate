@@ -105,6 +105,11 @@ What this holds to:
    account for from the outside; the words are held against the engine's own
    source as well as heard on a console, so rewording one fells this rule
    rather than quietly leaving it listening for a line nothing prints.
+
+RE-AIMED, count unchanged: the sign-in gate is taken off through
+`window.__entry.hideSignIn()`, the entry seam the harness publishes. It was
+`window.hideSignIn()`, a forwarder the engine published and no longer declares;
+the forwarder called this same verb, with `false` outside a driven state.
 """
 import asyncio
 import json
@@ -296,7 +301,7 @@ async def main():
         await pg.wait_for_timeout(300)
         journal.check("raising the gate from inside writes its address",
                       path(pg.url) == "/login", f"{before} -> {path(pg.url)}")
-        await pg.evaluate("()=>window.hideSignIn()")
+        await pg.evaluate("()=>window.__entry.hideSignIn()")
         await pg.wait_for_timeout(300)
         journal.check("and letting it through gives the address back",
                       path(pg.url) == HOME, pg.url)
@@ -325,7 +330,7 @@ async def main():
         journal.check("and the failed navigation write is on record",
                       broken["failed"] is True, f"__navEchec={broken['failed']}")
         await pg.evaluate("()=>{ window.__bridge.replace = window.__savedReplace; }")
-        await pg.evaluate("()=>window.hideSignIn()")
+        await pg.evaluate("()=>window.__entry.hideSignIn()")
         await pg.wait_for_timeout(300)
         journal.check("no JS error when a navigation write is refused", not errors, str(errors))
         await ctx.close()
@@ -342,7 +347,7 @@ async def main():
         await pg.evaluate(
             """()=>{ window.__savedReplace = window.__bridge.replace;
                      window.__bridge.replace = () => { throw new Error("refused"); }; }""")
-        await pg.evaluate("()=>window.hideSignIn()")
+        await pg.evaluate("()=>window.__entry.hideSignIn()")
         await pg.wait_for_timeout(300)
         released = await pg.evaluate(
             """()=>({down: document.querySelector('#login').hidden,
