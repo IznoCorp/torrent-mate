@@ -1,7 +1,7 @@
 // The bottom panel — one constructor, and the three blocks that know no domain.
 //
 // Every panel in the legacy engine is built by ONE function (`panneauHTML`,
-// refonte.html) from a plain descriptor of facts — never ready-made markup —
+// refonte.html@60530dbd8) from a plain descriptor of facts — never ready-made markup —
 // and this component is that same constructor, transplanted: same tags, same
 // classes, same data-attribute vocabulary, so the document-level click
 // delegation the legacy engine still runs (`.sact[data-mediasheet]`,

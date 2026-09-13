@@ -42,7 +42,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from markup_text import NAMING_ATTRIBUTES  # noqa: E402
 from nofrench_lexicon import (  # noqa: E402
-    FRAGMENT, MAQUETTE, ROOT, SHELL, VOCABULARY, examined, read, relative,
+    MAQUETTE, ROOT, SHELL, VOCABULARY, examined, read, relative,
     split_identifier, vocabulary,
 )
 
@@ -179,7 +179,7 @@ def check_data_attributes(violations: list[str]) -> None:
     # And `frontend/index.html` beside it: the maquette's twin was added when
     # `id="coquille"` was found in it, and the PRODUCTION app's own shell markup
     # — the one actually served — was left unread by the same arm.
-    sources += [FRAGMENT, MAQUETTE / "design" / "index.html",
+    sources += [MAQUETTE / "design" / "index.html",
                 ROOT / "frontend" / "index.html"]
     sources += [p for p in (ROOT / "frontend" / "src").rglob("*")
                 if p.is_file() and p.suffix in {".ts", ".tsx", ".css"}]

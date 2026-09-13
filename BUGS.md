@@ -1349,7 +1349,7 @@ the next wave that opens `legacy.js`.
 Measured on scratch trees, each restored, the repository never touched:
 
 - a `z-index` inside a `<style>` block of the shell's markup → **exit 0**. The markup arm reads
-  `class="…"` attributes only, and **`frontend/maquette/design/refonte.html` has a `<style>` at
+  `class="…"` attributes only, and **`frontend/maquette/design/refonte.html@60530dbd8` has a `<style>` at
   line 3** — a live file, not a hypothesis (it carries no `z-index` today; the reader checked).
 - a stylesheet in a SUBdirectory of `styles/` → **exit 0**: the arm globs `*.css`, not `rglob`.
   Every stylesheet the maquette has is `styles/*.css` today, so nothing is missed now.

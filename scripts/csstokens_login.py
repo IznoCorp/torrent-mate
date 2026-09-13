@@ -30,7 +30,6 @@ ROOT = Path(__file__).resolve().parent.parent
 # main script: this module is the one that follows those bindings, and a
 # constant defined where it is READ cannot drift from a copy elsewhere.
 DESIGN = ROOT / "frontend" / "maquette" / "design"
-FRAGMENT = DESIGN / "refonte.html"
 MARKUP = DESIGN / "index.html"
 BASE_LAYER = DESIGN / "src" / "styles" / "base.css"
 THEME_LAYER = DESIGN / "src" / "styles" / "theme.css"
@@ -41,7 +40,7 @@ THEME_LAYER = DESIGN / "src" / "styles" / "theme.css"
 # the composition rather than the markers.
 COMPOSER = ROOT / "frontend" / "maquette" / "serve.py"
 
-# `styles_source = PROTOTYPE.read_text()`: the local name an `extract()` call
+# `styles_source = BASE_STYLESHEET.read_text()`: the local name an `extract()` call
 # passes, bound to the constant that names the file it was read from.
 SOURCE_BINDING = re.compile(r"(\w+)\s*=\s*(\w+)\.read_text\(")
 
@@ -54,7 +53,6 @@ EXTRACT_CALL = re.compile(r"\bextract\(\s*(\w+)\s*,\s*\"([\w-]+)\"\s*\)")
 # the first run after it — which is what it is for — and the repair is a new
 # binding on both sides rather than a looser match here.
 SOURCE_FILES = {
-    "PROTOTYPE": FRAGMENT,
     "SHELL_DOCUMENT": MARKUP,
     "BASE_STYLESHEET": BASE_LAYER,
     "THEME_STYLESHEET": THEME_LAYER,
@@ -127,7 +125,7 @@ def composed_chunks() -> dict[str, str] | None:
         return None
     composer = without_python_comments(COMPOSER.read_text(encoding="utf-8"))
 
-    # `styles_source = PROTOTYPE.read_text()` and its sibling: the local name an
+    # `styles_source = BASE_STYLESHEET.read_text()` and its sibling: the local name an
     # `extract()` call passes, bound to the constant that names the file.
     bound = {local: constant for local, constant in SOURCE_BINDING.findall(composer)}
     calls = EXTRACT_CALL.findall(composer)

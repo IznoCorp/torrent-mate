@@ -1930,7 +1930,7 @@ that read them, which is this lot's subject. **No earlier wave can take it**: un
 above, this one is not separable from the engine's death.
 
 **Carried here by L07, 2026-08-25 — the prototype fragment, and R72's renegotiation.** L07 emptied
-`frontend/maquette/design/refonte.html` of every style rule and did **not** delete it. Two reasons,
+`frontend/maquette/design/refonte.html@60530dbd8` of every style rule and did **not** delete it. Two reasons,
 both recorded in that wave's `plan/phase-16-the-scaffolding-dies.md`: the file now carries the
 wave's **conversion ledger** — one entry per region, saying where its rules went and why — and a
 third of those entries name `src/styles/legacy.css`, whose death is this lot's; and **R72's hold

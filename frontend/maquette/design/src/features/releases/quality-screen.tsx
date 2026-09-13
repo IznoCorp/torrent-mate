@@ -3,7 +3,7 @@
 // screen — resolution floor, required audio, two locks; NOT the account page
 // at `?page=profil`, which stays legacy) reborn as a real route and a final
 // component. Markup is TRANSPLANTED, not translated: every tag and class
-// below is the one `refonte.html`'s BLOCK 2 CSS already targets
+// below is the one `refonte.html@60530dbd8`'s BLOCK 2 CSS already targets
 // (`.screen`, `.screen.open`, `.screen .port`, `.qgroup`, `.opt`, …), so the
 // same stylesheet applies unchanged and the rule harness measures the same
 // geometry.

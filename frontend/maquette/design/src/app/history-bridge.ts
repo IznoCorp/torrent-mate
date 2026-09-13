@@ -71,7 +71,7 @@ declare global {
     __screens: Screens;
     // B-026's probe: raised by every write that fails silently otherwise
     // (`recordPath`, `data-navgo`, and this file's own `openPanel`),
-    // declared here (`refonte.html` declares and resets it for its own two
+    // declared here (`refonte.html@60530dbd8` declares and resets it for its own two
     // sites) so this file's own catch can set it without a type error.
     __navEchec?: boolean;
   }
@@ -286,7 +286,7 @@ fillScreensDoor({
   },
   // Kept in sync in `window.__store.write` BEFORE navigating: `state.addMode` is
   // still read by the untouched cross-world "add:N" panel act (it decides
-  // ASSOCIATE vs regular add — see refonte.html) and by `addVerb`, and
+  // ASSOCIATE vs regular add — see refonte.html@60530dbd8) and by `addVerb`, and
   // `state.addQ` still seeds the FAB's next open. Neither is written again
   // after this call — typing on `/add` updates the ROUTER's search params
   // only, through `go()` directly, not through this bridge — so a value

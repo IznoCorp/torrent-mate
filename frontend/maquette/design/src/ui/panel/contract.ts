@@ -22,7 +22,7 @@ import type { JSX } from "react";
 
 // A `richText` segment: plain text, a mono/code aside (`{ m }`), or an
 // emphasised aside (`{ e }`) — exactly the three shapes `richText` switches
-// on in refonte.html.
+// on in refonte.html@60530dbd8.
 export type Segment = string | { m: string } | { e: string };
 export type RichTextValue = string | Segment[];
 

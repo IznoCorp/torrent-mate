@@ -1,5 +1,5 @@
 // design/src/pages/maintenance.tsx
-// The second migrated PAGE: legacy `viewMaintenance()` (`refonte.html`) reborn
+// The second migrated PAGE: legacy `viewMaintenance()` (`refonte.html@60530dbd8`) reborn
 // as a final component. Markup is TRANSPLANTED, not translated.
 //
 // Two levels and a panel, the shape the settings already use: the rubrics, a

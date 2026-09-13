@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 r"""Serve the design prototype over HTTP, behind its own login screen.
 
-`refonte.html` is a head-less fragment: it starts at `<title>` and owns no
-`<html>` or `<head>`, because it is authored to be embedded by a host page.
-Served raw as a top-level document it renders in quirks mode, and a phone with
-no viewport meta falls back to the legacy 980px layout viewport and scales the
-frame down to roughly 40 % — measured, not feared.
-
 This server serves the Vite build (`dist/index.html`), rebuilt when its
 inputs are newer. The harness measures the source through its own copy of the
 design root, and R72 is the bridge that keeps the two interchangeable: both
@@ -109,7 +103,6 @@ DESIGN_ROOT = Path(
     renamed_env("TM_DESIGN_ROOT", "TM_DESIGN_RACINE")
     or Path(__file__).resolve().parent / "design"
 ).resolve()
-PROTOTYPE = DESIGN_ROOT / "refonte.html"
 # The base layer (D3). It carries the `login:font` and `login:socle` regions
 # the sign-in gate inherits, which lived in the fragment's BLOCK 1 until L07,
 # and `login:entry`, the sign-in screen's and the startup screen's own rules —
@@ -127,14 +120,13 @@ SHELL_DOCUMENT = DESIGN_ROOT / "index.html"
 DIST = DESIGN_ROOT / "dist" / "index.html"
 # The build inputs that always exist, at the design root.
 BUILD_INPUTS = (
-    PROTOTYPE,
     SHELL_DOCUMENT,
     DESIGN_ROOT / "vite.config.mjs",
     DESIGN_ROOT / "build-identity.mjs",
 )
 
 # The shell's own translation resource. Everything this host SERVES in French —
-# the sign-in gate, the two 503s, the offline page, the manifest's description —
+# the sign-in gate, the build failure's 503, the offline page, the manifest's description —
 # reads its words here, because the application has exactly one place where its
 # French lives and a second copy is a second thing to keep in step.
 TEXTS = DESIGN_ROOT / "src" / "i18n" / "fr.json"
@@ -214,7 +206,7 @@ PASSWORD_HASH = os.environ.get(
 SESSION_SECRET = secrets.token_bytes(32)
 COOKIE_NAME = "tm_design"
 
-ASSETS_DIR = PROTOTYPE.parent / "assets"
+ASSETS_DIR = DESIGN_ROOT / "assets"
 
 # Where the build writes the shell's module entry (`build.assetsDir` = "vite",
 # kept out of `dist/assets` because a symlink owns that name).
@@ -249,23 +241,6 @@ ASSET_FILE = {
     "/apple-touch-icon.png": "apple-touch-icon-design.png",
     "/favicon.svg": "favicon.svg",
 }
-
-
-def missing_page() -> bytes:
-    """Returns the 503 shown when the served checkout has no prototype.
-
-    Returns:
-        A complete HTML document.
-    """
-    texts = served_texts()["missing"]
-    return (
-        '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
-        f"<title>{texts['title']}</title></head><body "
-        'style="font:16px system-ui;max-width:34em;margin:12vh auto;padding:0 1.5em">'
-        f"<h1>{texts['heading']}</h1><p>{texts['body']}</p>"
-        f"<p>{texts['reassurance']}</p></body></html>"
-    ).encode()
 
 
 def build_failure(error: str) -> bytes:
@@ -514,14 +489,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             input was newer.
 
         Raises:
-            FileNotFoundError: When `refonte.html` is absent (branch without
-                the prototype) — the caller answers with the missing page.
             RuntimeError: When the build fails or a build input is missing —
                 the caller answers with the error message, never with a stale
                 document.
         """
-        if not PROTOTYPE.exists():
-            raise FileNotFoundError(PROTOTYPE)
         try:
             sources = mtime_sources()
         except FileNotFoundError as absent:
@@ -737,9 +708,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         try:
             body = self._document()
-        except FileNotFoundError:
-            self._send_page(503, missing_page)
-            return
         except RuntimeError as error:
             self._send(503, build_failure(str(error)))
             return
@@ -801,7 +769,7 @@ def main() -> int:
     # binding wider would publish the prototype on the LAN behind the proxy's
     # back, outside whatever access control the proxy applies.
     with Server(("127.0.0.1", port), Handler) as httpd:
-        print(f"prototype served on http://127.0.0.1:{port} from {PROTOTYPE}", flush=True)
+        print(f"prototype served on http://127.0.0.1:{port} from {DESIGN_ROOT}", flush=True)
         httpd.serve_forever()
     return 0
 

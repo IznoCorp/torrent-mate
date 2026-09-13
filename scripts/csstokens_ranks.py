@@ -25,8 +25,8 @@ arm then reads:
     block that declares it;
   * every `z-<n>` or `z-[<n>]` utility in `design/src/**/*.ts(x)`, with the
     exported name of the variant that carries it;
-  * every such utility in the shell's own markup, `design/index.html` and
-    `design/refonte.html`, with the identity class of the element wearing it.
+  * every such utility in the shell's own markup, `design/index.html`, with the
+    identity class of the element wearing it.
     THAT ARM IS NOT AN EXTRA. The shell's markup lives in `index.html` because
     the engine captures its containers before React renders — so the frame's own
     header and its install proposal declare their ranks there and nowhere else,
@@ -57,8 +57,8 @@ DESIGN = pathlib.Path(__file__).resolve().parents[1] / "frontend/maquette/design
 LIST_FILE = DESIGN / "ui/variants/frame.ts"
 
 # THE SHELL'S OWN MARKUP. `index.html` carries the phone frame, the topbar, the
-# drawer and the layer hosts; `refonte.html` is what is left of the fragment.
-SHELL_MARKUP = ("index.html", "refonte.html")
+# drawer and the layer hosts.
+SHELL_MARKUP = ("index.html",)
 
 # A CLASS ATTRIBUTE, across the lines it is written over: the shell's are long
 # enough to wrap, and a single-line reader would have missed the install

@@ -89,10 +89,8 @@ def prototype_rule_classes() -> set[str]:
         Every class name with a rule of its own in the prototype's stylesheets.
     """
     names: set[str] = set()
-    sources = [DESIGN / "refonte.html"]
     styles = DESIGN / "src" / "styles"
-    if styles.is_dir():
-        sources.extend(sorted(styles.glob("*.css")))
+    sources = sorted(styles.glob("*.css")) if styles.is_dir() else []
     for path in sources:
         if not path.exists():
             continue

@@ -104,7 +104,7 @@ def sources() -> list[pathlib.Path]:
     """Returns every file a compositor declaration may legitimately live in.
 
     Returns:
-        The prototype fragment while it still exists, the shell document, the
+        The shell document, the
         stylesheets of D3 once they do, and the whole component tree — minus
         the harness's own sheet, which is the instrument rather than the
         product. A path that does not exist is skipped rather than raising:
@@ -112,7 +112,7 @@ def sources() -> list[pathlib.Path]:
         opens.
     """
     found: list[pathlib.Path] = []
-    for name in ("refonte.html", "index.html"):
+    for name in ("index.html",):
         candidate = DESIGN / name
         if candidate.exists():
             found.append(candidate)

@@ -1,7 +1,7 @@
 // design/src/pages/settings.tsx
 // The third migrated PAGE, and the largest data surface in the prototype:
 // legacy `viewReglages()` / `vueRubrique()` / `vueSecrets()` /
-// `chercheReglagesHTML()` / `ligneReglageHTML()` (`refonte.html`) reborn as a
+// `chercheReglagesHTML()` / `ligneReglageHTML()` (`refonte.html@60530dbd8`) reborn as a
 // final component. Markup is TRANSPLANTED, not translated.
 //
 // ONE NAVIGATES BY WHAT ONE WANTS TO CHANGE, NEVER BY FILE. The engine keeps

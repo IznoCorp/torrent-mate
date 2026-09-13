@@ -1,5 +1,5 @@
 // design/src/screens/releases.tsx
-// Legacy `openReleases(title)` (`refonte.html`) — "choose another release" —
+// Legacy `openReleases(title)` (`refonte.html@60530dbd8`) — "choose another release" —
 // reborn as a real route (`/releases/$title`) and a final component. Markup
 // is TRANSPLANTED, not translated: every tag, class and data-attribute below
 // is the one the legacy screen drew, so the same stylesheet applies

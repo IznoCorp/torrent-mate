@@ -57,7 +57,7 @@ type DecisionCommon = {
 
 // A folder still waiting on an operator's call, exactly as `PENDING_DECISIONS`
 // shapes one. `c` is empty when the provider returned no candidate at all
-// (see refonte.html's "Backrooms" row) — the other shape besides a populated
+// (see refonte.html@60530dbd8's "Backrooms" row) — the other shape besides a populated
 // list, never absent outright.
 export type PendingDecision = DecisionCommon & { c: DecisionCandidate[] };
 

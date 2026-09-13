@@ -1,7 +1,7 @@
 // design/src/screens/add.tsx
-// The second pilot: legacy `openAddScreen(query, mode)` (`refonte.html`) reborn
+// The second pilot: legacy `openAddScreen(query, mode)` (`refonte.html@60530dbd8`) reborn
 // as a real route (`/add`) and a final component. Markup is TRANSPLANTED,
-// not translated — every tag and class below is one `refonte.html`'s BLOCK 2
+// not translated — every tag and class below is one `refonte.html@60530dbd8`'s BLOCK 2
 // CSS already targets (`.screen`, `.addform`, `.addrow`, `.reslist`, `.byid`,
 // `.addfoot`…), so the same stylesheet applies unchanged.
 //
@@ -71,7 +71,7 @@ export function AddScreen() {
   const hasQuery = query !== "";
 
   // `state.added` is a Set MUTATED IN PLACE by the still-legacy cross-world
-  // "add:N" panel act and the replace-confirm dialog (refonte.html) — both
+  // "add:N" panel act and the replace-confirm dialog (refonte.html@60530dbd8) — both
   // bump the store's `version` without producing a new `state` reference,
   // which `useUiState()` alone would not notice (`useSyncExternalStore`
   // compares the selected value by reference). Subscribing to `version`

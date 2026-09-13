@@ -29,7 +29,7 @@ declare module "../../ui/panel/contract" {
 }
 
 // `fileName` is pure formatting off a `Setting`'s own fields —
-// refonte.html keeps it private (not published on `__referentiel`) but it
+// refonte.html@60530dbd8 keeps it private (not published on `__referentiel`) but it
 // carries no engine state, so it is reproduced verbatim rather than
 // re-derived differently. HOW A SETTING IS NAMED is not reproduced at all:
 // `settings-labels.ts` is the one implementation, read by the page that lists
@@ -158,7 +158,7 @@ function FieldBlock({
         placeholder={empty ? t("settings.field.undefinedPlaceholder") : ""}
         aria-label={settingLabel(setting)}
         // The ONE place mountSearch's `.fieldinput` `onchange` binding
-        // (refonte.html) is replaced by a component-owned handler — and it is
+        // (refonte.html@60530dbd8) is replaced by a component-owned handler — and it is
         // the SAME event, bound natively rather than through React's synthetic
         // `onChange`. Three reasons, all measured rather than stylistic:
         //   · the DOM `change` event commits on blur, once; React's `onChange`

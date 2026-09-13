@@ -20,10 +20,10 @@ import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-// The four files beside `src/` that belong to the built shell. They are named
+// The three files beside `src/` that belong to the built shell. They are named
 // rather than discovered: everything else at that level is configuration, a
 // lockfile, or output.
-const ROOT_FILES = ["index.html", "refonte.html", "sw.js", "package.json"];
+const ROOT_FILES = ["index.html", "sw.js", "package.json"];
 
 // Git hands a hook GIT_DIR / GIT_WORK_TREE / GIT_INDEX_FILE, and they override
 // `-C`: a build launched from inside a git hook would otherwise ask about the

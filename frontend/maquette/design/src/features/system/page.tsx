@@ -1,5 +1,5 @@
 // design/src/pages/system.tsx
-// The first migrated PAGE: legacy `viewSystem()` (`refonte.html`) reborn as a
+// The first migrated PAGE: legacy `viewSystem()` (`refonte.html@60530dbd8`) reborn as a
 // final component. Markup is TRANSPLANTED, not translated — every tag, class,
 // attribute and inline style below is one the fragment's BLOCK 2 CSS already
 // targets, and the two `.crossref` buttons keep the `data-go` / `data-page`

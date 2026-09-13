@@ -147,7 +147,6 @@ def _component_sources():
 
 
 DESIGN_SOURCES = (
-    ROOT / "design" / "refonte.html",
     ROOT / "design" / "index.html",
 ) + tuple(_component_sources())
 

@@ -252,7 +252,7 @@ def check_bare_elements() -> int:
     That decision was right, and it is exactly what makes bare tags a category
     worth counting.
 
-    IT IS A PARSER, NOT A REGEX, and the reason is the same one `rename.mjs`
+    IT IS A PARSER, NOT A REGEX, and the reason is the same one `rename.mjs@60530dbd8`
     gives: an attribute list spans lines, a `className` may be a template
     literal or a conditional, and an element can be written inside a template
     string a text reader sees as prose. `does this element carry a class` has a

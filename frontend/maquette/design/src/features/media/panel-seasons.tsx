@@ -38,7 +38,7 @@ declare module "../../ui/panel/contract" {
   }
 }
 
-// Lifecycle order for the season legend — refonte.html kept `EP_ORDER`
+// Lifecycle order for the season legend — refonte.html@60530dbd8 kept `EP_ORDER`
 // private (only `EP_LABEL` is published on the référentiel). It is small,
 // static and keyed on the same six states `EP_LABEL` carries, so it is
 // reproduced here verbatim; each state's swatch is `legendSwatch`'s variant.

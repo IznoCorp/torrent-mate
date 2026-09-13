@@ -48,7 +48,7 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
   // renders its own honest empty case — the only honest one for a stale bookmark.
   const { provider, id } = useParams({ from: "/media/$provider/$id" });
   // `world.follows` is MUTATED IN PLACE by the still-legacy follow act
-  // (`actionFollow`, refonte.html) — the reference never changes, so
+  // (`actionFollow`, refonte.html@60530dbd8) — the reference never changes, so
   // `useWorld()` alone would not notice. Subscribing to `version` forces the
   // re-render on that bump, and the read below then sees the mutated list
   // fresh: this is what flips the « Suivre » button to « Suivi » without the

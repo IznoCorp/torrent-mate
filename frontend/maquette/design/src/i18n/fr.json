@@ -8,12 +8,6 @@
       "heading": "Hors ligne",
       "body": "La maquette est servie par le serveur de design. Elle n'est pas mise en cache, pour que ce que vous jugez soit toujours la version du jour."
     },
-    "missing": {
-      "title": "Prototype indisponible",
-      "heading": "Prototype indisponible",
-      "body": "Le fichier <code>refonte.html</code> est absent du checkout servi. C'est ce qui arrive quand la copie de travail est sur une branche qui ne le porte pas.",
-      "reassurance": "Rien n'est perdu : le prototype est en dépôt. Revenir sur la branche qui le porte le remet en ligne aussitôt."
-    },
     "buildFailure": {
       "title": "Build en échec",
       "heading": "Le build de la maquette a échoué",

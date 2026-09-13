@@ -42,7 +42,7 @@ underneath. And unlike a `QualityProfile` name, a title here resolves
 against a real per-title record (`sheetFor`) — so the unknown-title hold
 is not "the screen has nothing to fail a lookup against" but "the legacy
 template it was transplanted from never had a not-found branch either":
-`openFiche(title)` (`refonte.html`, deleted when this screen became a real
+`openFiche(title)` (`refonte.html@60530dbd8`, deleted when this screen became a real
 route — recovered from the commit that deleted it) built the SAME markup
 whether `sheetFor(title)` found a record or not, every field simply
 printing "inconnu" in its place. What the harness holds for the mediaSheet:
@@ -116,7 +116,7 @@ UNKNOWN_ADDRESS = "N'Existe%20Pas"
 # `Silo (2023)` carries both a hero image and a trailer (`sheetFor` resolves
 # it directly, no `baseTitle` fallback needed), which is what makes holds
 # (f)-(h) meaningful rather than vacuous. `Broadchurch` is the states
-# table's own pick for "no trailer" (`fiche-sans-trailer`, refonte.html) —
+# table's own pick for "no trailer" (`fiche-sans-trailer`, refonte.html@60530dbd8) —
 # its served sheet carries no `trailerVideo` and `trailer: null`
 # explicitly, and its cast/seasons are otherwise fully populated so the
 # ONLY `p.noinfo` the screen draws is the trailer's.
@@ -124,7 +124,7 @@ SHEET_TITLE = "Silo (2023)"
 TITLE_WITHOUT_TRAILER = "Broadchurch"
 
 # `Backrooms.2026.MULTi.2160p.WEB-DL` is the embedded référentiel's own
-# folder waiting to be resolved (`refonte.html`'s `arr-charge` state opens
+# folder waiting to be resolved (`refonte.html@60530dbd8`'s `arr-charge` state opens
 # it as the default « Résoudre → » target — `ident.py` walks that exact
 # path) — and the real regression case for `server.py`'s dotted-segment
 # fallback fix: its deepest path segment carries dots of its own, which the
@@ -133,7 +133,7 @@ TITLE_WITHOUT_TRAILER = "Broadchurch"
 # SPA, not merely the raw HTTP response `server.py`'s own self-test covers.
 RESOLUTION_FOLDER = "Backrooms.2026.MULTi.2160p.WEB-DL"
 # `Silo` is the states table's own pick for `screen-releases`
-# (`window.__screens.releases("Silo")`, refonte.html).
+# (`window.__screens.releases("Silo")`, refonte.html@60530dbd8).
 RELEASES_TITLE = "Silo"
 
 SCREEN_STATE = """() => {

@@ -1,6 +1,6 @@
 // design/src/components/icon.tsx
 // The exact shape `svgIcon(paths, strokeWidth)` produces as an HTML string
-// (`refonte.html`), rebuilt as a real element so it composes with JSX.
+// (`refonte.html@60530dbd8`), rebuilt as a real element so it composes with JSX.
 //
 // Extracted on its THIRD user, which is what `add.tsx`'s own comment said would
 // be the signal: two copies are a coincidence, three are a component. The two
