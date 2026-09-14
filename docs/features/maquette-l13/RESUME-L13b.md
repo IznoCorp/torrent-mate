@@ -11,8 +11,9 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 - b·1 DONE (`e3ae69b01`), b·2 DONE (`4f157ca9f`), b·3 DONE (`6c6245fbd`, rulings 70/70-bis),
   b·4 DONE (`bec2b0d5b`, rulings 73–74; `pipe` stays in the engine for the NEW phase b·10-ter).
 - legacy.js non-blank: 3248. Surface-openers contract grep: 2 (journey, sheet=plus are b·5's).
-- Next: b·5 (acquisition verbs) — its phase file carries ruling 73 b's line: `actionResolve` (act=add:N identify)
-  and `actionTake` (sheetprim) die there with their last callers.
+- b·5 IN PROGRESS: holds committed (panel.py R56, the `test(maquette-l13b): R56 holds the acquisition panels'…`
+  commit), red SEEN; the MOVE is next (ruling 75 names: `data-more`, `data-add="N"`; the dialog door; `actionResolve`
+  and `actionTake` die; FAN_IN_EXEMPT's queries.ts entry if the engine's last read goes). Move script to write.
 - Phase gate form (ruling 66): `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13b
   frontend/maquette/harness/run.sh --contracts --oracle <the phase's rules>` (~270 s).
 - Mutations: `mutate.sh <verbs file> "t.replace('registerVerb(\"x\",', 'void (\"x\",')" <rules>`; a rule that
@@ -86,3 +87,5 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   crashed ident.py (null.click) → replayed: bugs.py « 8. manual search pre-filled → « None » ».
 - 2026-09-14 trap: zsh does not word-split `$F`; a multi-file variable passed to ruff failed with exit 2 and
   pytest never ran while an old log showed « passed » — run such lists through `bash -c` or spell them out.
+- 2026-09-14 b·5 holds: the follows list carries no incomplete series in acq-now-loaded — the completion is read
+  from `followsheet-gaps` (Tintin). Red: panel.py 4 violations with the engine's sheetprim/standby/tmdb/complete branches deleted (b05-red.log); before: 14 rules no violation, panel.py 51 → 59.
