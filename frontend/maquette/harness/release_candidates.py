@@ -1,4 +1,4 @@
-"""R178 — every title offered « Chercher une autre release » has a release to choose.
+"""R194 — every title offered « Chercher une autre release » has a release to choose.
 
 B-501. The verb is offered on every medium still being acquired — a follow, an
 incomplete series, a card waiting in the queue — and the list it opens came
@@ -113,7 +113,7 @@ async def read_surface(page, state):
 
 
 async def main():
-    journal = Journal("R178 — every title offered another release has one to choose")
+    journal = Journal("R194 — every title offered another release has one to choose")
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel="chrome")
         context, page = await open_page(browser)
