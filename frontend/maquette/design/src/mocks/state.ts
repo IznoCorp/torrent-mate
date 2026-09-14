@@ -180,6 +180,12 @@ export type MockState = {
   lockStale: boolean;
   /** Whether the bounded sweep for temporary entries has finished. */
   sweepFinished: boolean;
+  /**
+   * Whether the history read came back SHORT. The backend says so when its own
+   * read failed: the list may be missing rows, and drawing it as complete is
+   * the clause NE-DOIT-PAS-5 names.
+   */
+  historyDegraded: boolean;
   /** The temporary entries a crash left behind, as the sweep found them. */
   tmpOrphans: Schemas["TmpOrphan"][];
   /**
@@ -293,6 +299,7 @@ const seeded = (): MockState => ({
   runReads: {},
   lockStale: false,
   sweepFinished: true,
+  historyDegraded: false,
   tmpOrphans: copyOf<Schemas["TmpOrphan"][]>(TMP_ORPHANS),
   journeyStages: {},
   metadataRefreshedAt: {},
@@ -340,6 +347,8 @@ export type MockDials = {
   setLockStale: (stale: boolean) => void;
   setWatcherEnabled: (enabled: boolean) => void;
   setAcquisitionQueueEmpty: (empty: boolean) => void;
+  setHistoryEmpty: (empty: boolean) => void;
+  setHistoryDegraded: (degraded: boolean) => void;
   setSweepFinished: (finished: boolean) => void;
   setTmpOrphans: (present: boolean) => void;
 };
@@ -369,6 +378,14 @@ export const mockDials: MockDials = {
     const held = mockState();
     held.takeable = empty ? [] : copyOf<Schemas["QueueCard"][]>(TAKEABLE);
     held.inFlight = empty ? [] : copyOf<Schemas["QueueCard"][]>(IN_FLIGHT);
+  },
+  setHistoryEmpty: (empty: boolean) => {
+    // A FRESH INSTALL, which is a real state and not an error: nothing has run
+    // yet, and the list says so rather than drawing a heading over nothing.
+    mockState().pipelineRuns = empty ? [] : copyOf<Schemas["RunDetail"][]>(PIPELINE_RUNS);
+  },
+  setHistoryDegraded: (degraded: boolean) => {
+    mockState().historyDegraded = degraded;
   },
   setSweepFinished: (finished: boolean) => {
     mockState().sweepFinished = finished;

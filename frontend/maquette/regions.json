@@ -238,6 +238,10 @@
     "system/levers": {
       "selector": "[data-region=\"system/levers\"]",
       "note": "the bound, pause or resume, and the automatic trigger"
+    },
+    "system/runs": {
+      "selector": "[data-region=\"system/runs\"]",
+      "note": "the passages, each row a path to its own run"
     }
   },
   "$reportedDefects": {

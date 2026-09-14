@@ -71,21 +71,17 @@ export const useSystemErrors = () =>
   useSystemRead<CodeErrors>("/api/system/errors", "ERRORS");
 
 /**
- * The last runs, as the pipeline recorded them.
+ * The last runs, a page of them, and whether the list can be trusted.
  *
- * A PAGE NOW, and the rows the section draws are the ones carrying the
- * fixture's line: the list still draws that line rather than composing its own
- * from the counts, so a run with no line has nothing it could be drawn with
- * yet. That filter goes when the list composes the line.
+ * THE WHOLE ANSWER, because `degraded` is part of it: a read that failed and
+ * came back short is a fact about the list, and the section draws it above the
+ * rows. The list composes its own line from the counts now, so nothing is
+ * filtered out for want of a sentence to draw it with.
  */
 export const usePipelineHistory = () =>
   useQuery({
     queryKey: ["/api/pipeline/history"],
-    queryFn: async () => {
-      const history = (await read("/api/pipeline/history")) as RunHistory;
-      const carried = history.runs.filter((run) => run.result !== undefined);
-      return toEngineShape<PipelineRun[]>("EXECUTIONS", carried);
-    },
+    queryFn: async () => (await read("/api/pipeline/history")) as RunHistory,
   });
 
 /**

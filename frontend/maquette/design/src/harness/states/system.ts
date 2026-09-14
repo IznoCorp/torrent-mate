@@ -106,6 +106,35 @@ export function systemStates(): NamedState[] {
       },
     ],
     [
+      "runs-list",
+      "Les passages — la liste",
+      () => {
+        window.__mocks?.reset();
+        applyState({ page: "sys", phase: "ready", fault: false });
+      },
+    ],
+    [
+      "runs-empty",
+      "Les passages — aucun",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setHistoryEmpty(true);
+        applyState({ page: "sys", phase: "ready", fault: false });
+      },
+    ],
+    [
+      "runs-degraded",
+      "Les passages — la liste peut être incomplète",
+      () => {
+        // THE READ CAME BACK SHORT, which the backend says of its own failure:
+        // the rows it did get are drawn, and the sentence above them says the
+        // list cannot be trusted to be whole.
+        window.__mocks?.reset();
+        window.__mocks?.setHistoryDegraded(true);
+        applyState({ page: "sys", phase: "ready", fault: false });
+      },
+    ],
+    [
       "watch-idle",
       "Veille — au repos",
       () => {

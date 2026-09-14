@@ -2,11 +2,11 @@
 
 ## STATE BLOCK (rewritten at every boundary — at most 40 lines)
 
-- **Updated**: 2026-09-14, phase 5 committed (Agent : l20 1).
+- **Updated**: 2026-09-14, phase 6 committed (Agent : l20 1).
 - **Branch / worktree**: `feat/maquette-l20`, `/Users/izno/dev/worktrees/wave-l20`, cut from `main`
   at `4f242ecb3`; plan re-target `b7e600cc5`.
-- **Phases done**: 1 (contract), 2 (comment), 3 (locks, R184), 4 (levers, R178/R179/R181), 5 (the veille, R180).
-- **Next**: the MIDPOINT full suite (`run.sh`, no flag), then phase 6 — the history list (`plan/phase-06-history.md`), rule R182 — only if the gauge arithmetic allows.
+- **Phases done**: 1 (contract), 2 (comment), 3 (locks, R184), 4 (levers, R178/R179/R181), 5 (veille, R180), 6 (the history list, R182's list half).
+- **Next**: phase 7 — a run's detail and its folded log (`plan/phase-07-run-detail.md`), R183 + R182's detail half + R186. **The route `/run/$runUid` and a THIN screen already exist** (phase 6 needed the address to be real); phase 7 fills that screen, it does not create it.
 - **Waiting on**: nothing. Phase 8 waits for L13b's merge AND the steward's word.
 - **Rule numbers**: RULINGS-L20.md ruling 1 (a…h → R178–R185, j → R187, R186 unused).
 - **Register rows**: RULINGS-L20.md ruling 4 — L20's `BUGS.md` rows start at B-530 (L13b holds B-512–B-529).
@@ -155,3 +155,22 @@
   réglable » and offers no path onto a panel that would not open (DOIT-7). `load_more_scale.py` was an
   INSTRUMENT fall — `BrowserType.launch: Timeout 180000ms` on a machine running two waves — and it
   passes alone (8 rules, no violation).
+- 2026-09-14 — phase 6: R182's list half read RED FIRST (14 holds, 13 violations), then green — 22
+  rules in the tier. THE RED TAUGHT THE RULE: the history's newest row is a MAINTENANCE command
+  (`prime`, 09-08) whose steps carry no counts, so « the first run » was the wrong subject; the rule
+  now reads the first PIPELINE run and finds its row by `data-run`.
+- 2026-09-14 — `scen.py` caught a real defect of mine before any reader did: the row drawn as four
+  columns SPILLED sideways at 390 px (3 spills on `system`). The row is a stack now
+  (`features/system/variants.ts`), and the page scrolls in one direction only.
+- 2026-09-14 — and the same run showed the rows printing a raw ISO timestamp for every passage the
+  fixture line does not cover. A date is composed now; the six runs whose fixture line the oracle
+  measures keep theirs.
+- 2026-09-14 — phase 6 DECLARED THE ROUTE `/run/$runUid` with a thin screen (the identifier only),
+  because a row leading to an address that does not exist is not a path. `SCREEN_PARENTS` carries it
+  with `sys` as its parent. Phase 7 fills the screen.
+- 2026-09-14 — oracle 104×36 → 107×37 (`system/runs`), verified by name.
+- 2026-09-14 — phase 6's mutation B found a WEAK HOLD of mine, and `mutate.sh` said it in as many
+  words: « NO RULE FELL. That is the finding. » The hold read « the answered count appears somewhere
+  in the line », which any other number satisfies — a constant 9 where the layer said 1 stayed green
+  because the duration « 1 min 44 » carries a 1. It now requires the count IN ITS OWN PHRASE
+  (« 1 rangé », or « rien de nouveau » at zero).

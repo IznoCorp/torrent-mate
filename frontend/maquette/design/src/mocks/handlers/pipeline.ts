@@ -227,12 +227,10 @@ export function pipelineRoutes(): MockRoute[] {
         (left, right) => Date.parse(right.startedAt) - Date.parse(left.startedAt),
       );
       if (request.query.get("sort") === OLDEST_FIRST) ordered.reverse();
-      // `degraded` is the backend saying its read failed and the list may be
-      // short. The layer's read cannot fail that way, so it says so plainly.
       return {
         runs: ordered.slice(offset, offset + limit).map(summaryOf),
         total: matching.length,
-        degraded: false,
+        degraded: state.historyDegraded,
       };
     }),
     // AN UNKNOWN RUN ANSWERS NULL for now: a handler has no way to choose its

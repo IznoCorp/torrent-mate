@@ -506,7 +506,28 @@
       "watchFigures": "{{detected}} nouveaux épisodes détectés, {{available}} disponibles, {{grabbed}} récupérés.",
       "watchNothing": "Rien de nouveau.",
       "watchFailed": "La veille n'a pas pu s'exécuter.",
-      "boundOwed": "pas encore réglable — le serveur ne porte pas encore ce réglage"
+      "boundOwed": "pas encore réglable — le serveur ne porte pas encore ce réglage",
+      "noRuns": "Aucun passage enregistré.",
+      "runsDegraded": "Cette liste peut être incomplète — la base des passages n'a pas répondu.",
+      "runSorted_one": "{{count}} rangé",
+      "runSorted_other": "{{count}} rangés",
+      "runBlocked_one": "{{count}} bloqué",
+      "runBlocked_other": "{{count}} bloqués",
+      "runNothing": "rien de nouveau",
+      "runSeconds_one": "{{count}} s",
+      "runSeconds_other": "{{count}} s",
+      "runMinutes_one": "{{count}} min",
+      "runMinutes_other": "{{count}} min",
+      "runCommand": "commande {{command}}",
+      "trigger": {
+        "completion": "un téléchargement terminé",
+        "safety_net": "le filet de sécurité",
+        "watcher": "la veille",
+        "web": "depuis l'interface",
+        "cli": "en ligne de commande",
+        "cron": "le planificateur",
+        "scrape-resolve": "une reprise d'identification"
+      }
     },
     "arrivals": {
       "introLead": "Arrivées porte la santé du PIPELINE",

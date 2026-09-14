@@ -20,13 +20,13 @@ import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { useSystemReference } from "../../features/system/reference";
 import { PipelinePanel } from "./pipeline-panel";
+import { RunList } from "./run-list";
 import { useSchedulersDown } from "./fault";
 import { useUiState } from "../../lib/store-access";
 import {
   useDependencies,
   useDisks,
   useIndexHealth,
-  usePipelineHistory,
   useSchedulers,
   useServices,
   useSystemErrors,
@@ -48,7 +48,6 @@ export function SystemPage(): ReactElement | null {
   const { data: SERVICES = [] } = useServices();
   const { data: SCHEDULERS = [] } = useSchedulers();
   const SCHEDULERS_DOWN = useSchedulersDown(SCHEDULERS);
-  const { data: EXECUTIONS = [] } = usePipelineHistory();
   const { data: DISKS = [] } = useDisks();
   const { data: INDEX = [] } = useIndexHealth();
   const { data: DEPENDENCIES = [] } = useDependencies();
@@ -101,21 +100,7 @@ export function SystemPage(): ReactElement | null {
 
       <PipelinePanel />
 
-      <h2 className={sectionHeading()} data-part="heading">{t("screens.system.runs")}</h2>
-      {facts(
-        EXECUTIONS.map((execution) => ({
-          l: execution.q,
-          ton: execution.ok ? "success" : "alert",
-          v: execution.ok
-            ? t("screens.system.runSucceeded")
-            : t("screens.system.runFailed"),
-          s: execution.d + " · " + execution.r,
-        })),
-      )}
-      <button className={crossReference()} data-part="cross-reference" data-go="arr">
-        {t("screens.system.toArrivals")}
-        <span className={crossReferenceLink()}>{t("screens.system.toArrivalsLink")}</span>
-      </button>
+      <RunList />
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.system.disks")}</h2>
       {facts(DISKS)}

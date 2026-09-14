@@ -326,7 +326,12 @@ def test_the_committed_reference_carries_a_platform():
     # are the twelve that draw Système, and `sheet-more` did NOT: its button gained an
     # attribute and not a pixel, which is what a verb moving onto the registry should look
     # like. Read state by state, and the reference verified by NAME.
-    assert reference["counts"] == {"states": 104, "regions": 36}
+    #
+    # 107 STATES, 37 REGIONS. `system/runs` is « Les passages », which left the page file for
+    # its own: its rows are paths now, and three states say what the list can be — whole,
+    # empty, or short for a bad reason. The states that moved with it are the ones that draw
+    # Système; `sheet-more` stayed still again. Read state by state, verified by name.
+    assert reference["counts"] == {"states": 107, "regions": 37}
 
 
 class TestItRefusesToWriteOverAForeignBuild:

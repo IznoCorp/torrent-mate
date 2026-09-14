@@ -461,6 +461,12 @@ L20 adds **26**, and every one is reachable by `window.__go("<id>")` with an Eng
 | 5 | `levers-trigger-off` | Leviers — déclenchement automatique coupé |
 | 6 | `levers-loading` | Leviers — chargement |
 | 7 | `levers-error` | Leviers — erreur |
+> **Corrected on 2026-09-14 by the implementer**: the five ids below were written in FRENCH
+> (`veille-*`). A named state id is a NAME someone chose, and a name is English — `check-no-french`'s
+> named-state arm refuses it, as it did here. They are `watch-idle`, `watch-running`,
+> `watch-figures`, `watch-nothing`, `watch-error`; their LABELS stay French, because a label is what
+> the panel says.
+
 | 8 | `veille-idle` | Veille — au repos |
 | 9 | `veille-running` | Veille — en cours |
 | 10 | `veille-figures` | Veille — le résultat chiffré |
