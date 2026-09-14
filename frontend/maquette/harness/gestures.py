@@ -228,9 +228,12 @@ async def record_the_close(page, selector, edge):
 async def the_worst_frame(page, toward_open):
     """Reads the recorded close back and finds the frame nearest its open position.
 
-    The reference is the LAST frame still open — where the finger released the
-    layer — because a close from there may only move away from it. A frame
-    nearer the open position than that is the layer painted back open.
+    The reference is the last frame still open before the FIRST closed one —
+    where the finger released the layer — because a close from there may only
+    move away from it. Every frame after it is judged, a frame that says open
+    again included: a layer reopened under the pointer is the same defect seen
+    in its attribute, and reading only the frames that still say closed would
+    report it as « no close ».
 
     Args:
         page: The Playwright page.
@@ -242,12 +245,13 @@ async def the_worst_frame(page, toward_open):
         edge, the worst frame after it and how many frames were read.
     """
     frames = await page.evaluate("()=>window.__closeFrames")
-    released = [index for index, frame in enumerate(frames) if frame["open"]]
-    closing = [frame for frame in frames[(released[-1] + 1 if released else 0):]
-               if not frame["open"]]
-    if not released or not closing:
+    first_closed = next(
+        (index for index, frame in enumerate(frames)
+         if index > 0 and frames[index - 1]["open"] and not frame["open"]), None)
+    if first_closed is None:
         return None
-    reference = frames[released[-1]]["edge"]
+    closing = frames[first_closed:]
+    reference = frames[first_closed - 1]["edge"]
     worst = max(closing, key=lambda frame: frame["edge"] * toward_open)
     return {"released": reference, "worst": worst, "frames": len(closing)}
 
