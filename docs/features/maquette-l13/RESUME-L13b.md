@@ -113,3 +113,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   « the watch's panel offers its run »; journey → journey.py « the journey opens from the follow sheet, at an
   address of its own »; add → add_footer « adding a medium announces it ». confirmadd → replacement.py: no hold
   fell; replayed → add_footer.py « adding a medium announces it — … reached by the « replace » route », bugs.py « 10. a real add brings the screen's footer into being » (b05-mutation-confirmadd-replay.log).
+- 2026-09-14 pre-push fall (ruling 78): test_check_markup_contracts.py forwarders « assert 4 >= 5 » — b·5 took
+  acqtab/pill/fmode/sugmode out of the engine's `store.write({f: …dataset.x})` shape. MEASURED before the floor
+  moved: a wrong `data-fmode="gird"` literal now passes the arm (exit 0, « 4 forwarded attribute(s) »).
+  b·7 takes the last four; the arm's subject is decided then.
