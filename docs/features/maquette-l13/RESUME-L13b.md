@@ -11,9 +11,9 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   79-bis, 82; holds proved both ways: selection.py, pause_verb.py R132, follows.py). Gate: 43 rules (28 named) + 26 guards, 0 failed, oracle no divergence, gate: no violation on `e4a16d970` (log 12:41 > commit 12:35); the two earlier 28-named gates fell on R164 alone (B-512)..
 - legacy.js non-blank: 2755. Surface-openers contract grep: 0. `FAN_IN_EXEMPT` keeps `features/acquisition/queries.ts`
   (the engine still reads `follows()` and `suggestions()`).
-- NEXT: the MIDPOINT full suite on b·6's head (brief: after b·6, before b·7; its falls repaired in one
-  `fix(maquette-l13b)` commit), THEN b·7 (frame verbs, `plan/phase-b07-frame-verbs.md`; the attribute-order trap
-  below is b·7's, and the forwarder floor reaches 0 there — ruling 78).
+- MIDPOINT full suite (brief order 5) ran on b·6's head: 128 rules (3 at a time, 17 min, swap 0 before and after), 1 failed; falls: touch.py (R55) « the long press opens the panel on the 5 surfaces — follows gallery » (25 holds, 1 violation), log midpoint-full-suite.log (owed).
+- NEXT (l13b 3): repair the midpoint falls listed in the ledger in ONE `fix(maquette-l13b)` commit, then b·7 (frame verbs, `plan/phase-b07-frame-verbs.md`; the attribute-order trap in the ledger is b·7's, and the
+  forwarder floor reaches 0 there — ruling 78). Read RULINGS 64–84 first; the steward's address is in your launch prompt.
 - LOGS: `~/Library/Logs/tm-l13b/` (ruling 76). Mutex and tests lock stay under `/private/tmp`.
 - GATE FORM (ruling 66): `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13b frontend/maquette/harness/run.sh
   --contracts --oracle <rules>` — the ONLY form that reads rule names (ruling 81: anything else is refused, exit 64).
@@ -27,7 +27,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 - Push: the pre-push hook is the branch's own since order 35 (relative hooksPath); read its verdict, not its print.
 - Register rows: L13b owns B-512–B-529 (a reserved block, counted up from B-512; B-512 is R164);
   L20 writes from B-530.
-- Owed: midpoint full suite (above); b·11 full suite with `--a11y`, `--compare`, `make lint`; no local `make check`
+- Owed: b·11 full suite with `--a11y`, `--compare`, `make lint`; no local `make check`
   (ruling 68); b·8: the swipe verbs' reaches through `window.openCard`/`window.collapseCard`. Machine restarts
   Monday 05:00: pushed by 04:30, line to the steward at 04:45.
 
@@ -157,3 +157,10 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 - 2026-09-14 R164's register row is B-512, not B-498: main's docs PR #597 (squash `4f242ecb3`) added B-498–B-511
   after this branch's base; L13b's rows are the reserved block B-512–B-529 (next B-513), L20 writes from B-530.
   `abd0ad88f` carries the first number in its message.
+- 2026-09-14 MIDPOINT full suite: 128 rules (3 at a time, 17 min, swap 0 before and after), 1 failed; falls: touch.py (R55) « the long press opens the panel on the 5 surfaces — follows gallery » (25 holds, 1 violation), log midpoint-full-suite.log (owed). Stood down after it (gauge in the report).
+- OWED l13b 3 (midpoint, ruling 84: not repaired here, the gauge read 60 %): R55's long press on the FOLLOWS GALLERY
+  no longer opens the panel on b·6's head; the other four surfaces hold. UNMEASURED attribution — suspects: b·5 moved
+  `fmode` (the gallery's switch) and b·6 moved the swipe/tile verbs; a follows tile's attributes vs the registry's
+  first-registered-key rule (the attribute-order trap above) may now swallow the press. First step: R55 alone in
+  the gate form on the pre-L13b base (37e54d0fd's tree on main 304346145) and on b·4/b·5/b·6 heads, then the fix
+  proved both ways, in ONE `fix(maquette-l13b)` commit before b·7 opens.
