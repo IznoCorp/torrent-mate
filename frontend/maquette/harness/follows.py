@@ -1,4 +1,8 @@
-"""The follows tab: its list, its groups, and the states it reaches."""
+"""The follows tab: its list, its groups, and the states it reaches.
+
+It PRINTS what it reads, and HOLDS one act: the search cross empties the filter and the
+list is whole again — a FAIL line printed at once and exit 1 when it does not.
+"""
 
 import asyncio
 from common import shot
@@ -47,11 +51,27 @@ async def main():
     print("Films filter      :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/title"]')].map(e=>e.textContent)"""))
     print("film label        :", await pg.evaluate("""()=>document.querySelector('[data-part="chip"]').textContent"""))
     print("film actions      :", await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="swipe"] [data-part="swipe/action"]')].slice(0,2).map(e=>e.textContent.trim())"""))
+
+    # THE SEARCH CROSS EMPTIES THE FILTER, and the list is whole again. Read on
+    # the store and on the rows, never on the field alone: a cross that only
+    # blanked the input would leave the list filtered under an empty box.
+    failures = []
+    await pg.click('[data-pill="all"]'); await pg.wait_for_timeout(250)
+    whole = await pg.evaluate("""()=>document.querySelectorAll('#view [data-part="card/title"]').length""")
+    await pg.fill('#follq', 'zzz-no-such-follow'); await pg.wait_for_timeout(300)
+    narrowed = await pg.evaluate("""()=>document.querySelectorAll('#view [data-part="card/title"]').length""")
+    await pg.click('#view [data-clearq="foll"]'); await pg.wait_for_timeout(300)
+    cleared = await pg.evaluate("""()=>({filter: window.__store.read().state.filter,
+        rows: document.querySelectorAll('#view [data-part="card/title"]').length})""")
+    if narrowed >= whole or cleared["filter"] != "" or cleared["rows"] != whole:
+        failures.append("the search cross empties the filter and the list is whole again")
+        print(f"  FAIL the search cross empties the filter and the list is whole again — "
+              f"whole={whole} narrowed={narrowed} after={cleared}")
     print("\nJS errors:", errs or "none")
     await b.close()
     # A script that only prints can never fail, and a script that cannot fail
     # proves nothing: the verdict has to reach the exit code.
-    if errs: raise SystemExit(1)
+    if errs or failures: raise SystemExit(1)
 
 
 if __name__ == "__main__":
