@@ -84,9 +84,7 @@ def sandbox(tmp_path: Path, rule_body: str) -> tuple[Path, dict[str, str]]:
     return repository, environment
 
 
-def mutate(
-    repository: Path, environment: dict[str, str], rule: str = "rule.py"
-) -> subprocess.CompletedProcess:
+def mutate(repository: Path, environment: dict[str, str], rule: str = "rule.py") -> subprocess.CompletedProcess:
     """Runs the copied script with one mutation of the target against the rule."""
     return subprocess.run(
         [
