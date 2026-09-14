@@ -28,7 +28,7 @@ right medium is the sheet's own rules' business; this one holds the LADDER.
 """
 import asyncio
 
-from common import Journal
+from common import PROTOTYPE, Journal
 from playwright.async_api import async_playwright
 
 journal = Journal("R188 — one ladder shape for what a panel opens")
@@ -69,7 +69,7 @@ async def main():
         page = await context.new_page()
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
-        await page.goto("http://127.0.0.1:8899/", wait_until="load")
+        await page.goto(PROTOTYPE, wait_until="load")
         await page.evaluate("()=>window.__loadingDone?.()")
 
         for opener in OPENERS:
