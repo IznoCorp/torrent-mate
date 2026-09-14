@@ -1,9 +1,9 @@
 """R188 — a layer left for an arrival KEEPS its entry, and Back reopens it.
 
-D-L13-1, ratified by the operator. Five things can be opened from an open follow
-panel — the medium's sheet, its journey, its releases, its quality profile, and
-the take B-290 names — and until this rule they behaved in two different ways
-depending on which one was tapped. The decision settles the shape: the panel's
+D-L13-1, ratified by the operator. Four things can be opened from an open follow
+panel — the medium's sheet, its journey, its releases and its quality profile —
+and until this rule they behaved in two different ways depending on which one
+was tapped. The decision settles the shape: the panel's
 entry STAYS, the arrival pushes its own on top, one Back comes back to the panel
 and REOPENS it, a second Back leaves for the list.
 
@@ -23,6 +23,14 @@ THE THREE READINGS PER OPENER:
      medium, whatever was opened over it — « one gesture, one entry » read from
      the other end.
 
+AND THE ACT BESIDE THEM, as its counter-hold. « Récupérer maintenant » (`take`)
+arrives nowhere: it takes the medium and says so, and the panel it was pressed in
+closes by unwinding its own entry — the index one lower, the length unchanged,
+and one more Back leaves the list. RE-AIMED: this rule first counted `take` among
+the openers and expected it to push, which no act can do without inventing a
+navigation; it holds the act's own shape instead, so an act that started to
+push, or to leave its entry standing, falls here by name.
+
 WHAT IT DOES NOT DO: it names no screen's contents. Whether the sheet drew the
 right medium is the sheet's own rules' business; this one holds the LADDER.
 """
@@ -37,10 +45,13 @@ journal = Journal("R188 — one ladder shape for what a panel opens")
 # actions are the follow panel's and a follow is what it is produced for.
 STATE = "acq-follows-list"
 
-# THE FIVE OPENERS, by the attribute each emits inside the panel. The value is
-# read off the drawn action rather than typed here: a title written into this
+# THE FOUR OPENERS and the one act, by the attribute each emits inside the
+# panel. The value is read off the drawn action rather than typed here: a title written into this
 # file would be a fixture assertion wearing a hold's clothes.
 OPENERS = ["take", "mediasheet", "journey", "releases", "profile"]
+# The one that arrives nowhere, read against the act's shape rather than the
+# arrival's.
+ACTS = {"take"}
 
 READ = """()=>({length: history.length,
                 index: (history.state || {}).__TSR_index ?? null,
@@ -114,6 +125,27 @@ async def main():
             await page.click(action)
             await page.wait_for_timeout(620)
             arrived = await page.evaluate(READ)
+            if opener in ACTS:
+                journal.check(
+                    f"« {opener} » acts and its panel's entry unwinds",
+                    arrived["length"] == before["length"]
+                    and arrived["index"] == (before["index"] or 0) - 1
+                    and not arrived["panel"] and not arrived["screen"],
+                    f"{before['length']}/{before['index']} -> "
+                    f"{arrived['length']}/{arrived['index']} panel={arrived['panel']} "
+                    f"screen={arrived['screen']} at {arrived['path']}")
+                await page.go_back()
+                await page.wait_for_timeout(520)
+                left = await page.evaluate(READ)
+                journal.check(
+                    f"and one Back after « {opener} » leaves the list, reopening nothing",
+                    # The index is not compared with a number: below the list
+                    # stands the exit guard, which pushes its own entry back.
+                    left["index"] != before["index"]
+                    and not left["panel"] and not left["screen"],
+                    f"panel={left['panel']} screen={left['screen']} "
+                    f"index={left['index']} at {left['path']}")
+                continue
             journal.check(
                 f"« {opener} » pushes ONE entry and leaves the panel's own below",
                 arrived["length"] == before["length"] + 1

@@ -39,11 +39,17 @@ be expressed on it without splitting the variant in two — which is restructuri
 a layer this lot did not convert. It carries the same defect today, it is
 recorded as such in B-249, and it belongs to whichever lot converts the screen.
 
-WHAT IT DOES NOT HOLD, and the distinction is the wave's boundary. The 260 ms
-wait belongs to the PRODUCER (`legacy.js`'s click delegation), and a producer is
-Part 12's — L19's. This rule measures the gap and PRINTS it; it refuses only the
-part the frame owns. A rule that refused the gap would be refusing a number
-nobody in this wave may change.
+AND IT REFUSES THE WAIT ITSELF. A verb that closes a layer — or leaves a
+screen — and then waits 240 or 260 ms before acting was the choreography every
+surface was built against while the ladder had two shapes. Under one shape (a
+layer left for an arrival keeps its entry and closes inside the navigation's
+commit) that wait has no subject, so the design's sources are read and every
+`setTimeout` that follows a `.close(`, a `bridge.back(` or a `.rewind(` in the
+same verb, or that waits a bare 240 or 260 ms, is refused by file and line.
+RE-AIMED from the gap PRINTED to the gap REFUSED — the inventory this rule used
+to carry in a comment is the hold now. Two waits stay and are not this subject:
+a swipe row removed after its own collapse (`row.remove()` after `COLLAPSE`),
+which waits for a row, not for a layer.
 
 AND IT CANNOT SEE A FLASH. A flash is a paint, and no assertion here can time
 one. What it reads is the fact the flash is made of: a layer that stops being
@@ -55,10 +61,11 @@ name is the same, and so is this rule's hold count.
 """
 import asyncio
 import pathlib
+import re
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, open_page
+from common import ROOT, Journal, open_page
 
 from playwright.async_api import async_playwright
 
@@ -116,6 +123,52 @@ SAMPLE = """([frames, layers])=>new Promise((done)=>{
 })"""
 
 
+# WHAT LEAVES: a layer's close, a Back, a rewind of several entries.
+LEAVE = re.compile(r"\.close\(|\bbridge\??\.back\(|\.rewind\(")
+# WHERE A VERB'S BODY BEGINS, read upward from a timer: a registration, a
+# function, or an arrow opening a block at the start of a line.
+BODY_START = re.compile(r"^\s*(registerVerb\(|(export )?(async )?function )|^\S.*=> \{$")
+# THE CHOREOGRAPHY'S TWO NUMBERS, refused even with no close above them.
+CHOREOGRAPHY_DELAY = re.compile(r"setTimeout\(.*,\s*(240|260)\)")
+# The harness's own apparatus, the mock layer and the dying engine are not a
+# verb's body.
+NOT_A_VERB = ("harness", "mocks", "engine")
+
+
+def close_then_wait_sites():
+    """Every timer in the design's sources that waits after leaving a layer.
+
+    Returns:
+        `(path:line, the leaving line)` pairs, in file order — empty when the
+        ladder has one shape.
+    """
+    tree = ROOT / "design" / "src"
+    sites = []
+    for path in sorted([*tree.rglob("*.ts"), *tree.rglob("*.tsx")]):
+        relative = path.relative_to(tree)
+        if relative.parts[0] in NOT_A_VERB:
+            continue
+        lines = path.read_text().splitlines()
+        for number, line in enumerate(lines):
+            if line.lstrip().startswith(("//", "*", "/*")):
+                continue
+            if CHOREOGRAPHY_DELAY.search(line):
+                sites.append((f"{relative}:{number + 1}", line.strip()))
+                continue
+            if "setTimeout(" not in line:
+                continue
+            for above in range(number, -1, -1):
+                text = lines[above]
+                if above < number and text.lstrip().startswith(("//", "*", "/*")):
+                    continue
+                if LEAVE.search(text):
+                    sites.append((f"{relative}:{number + 1}", text.strip()))
+                    break
+                if above < number and BODY_START.search(text):
+                    break
+    return sites
+
+
 def leaving(frames, layer):
     """The frames in which a layer is mid-exit: moved or partly faded."""
     return [
@@ -126,6 +179,14 @@ def leaving(frames, layer):
 
 async def main():
     journal = Journal("R103 — a layer's exit is seen (B-249)")
+    # READ FIRST AND WITHOUT A BROWSER, so a restored wait is named even when
+    # the page never opens.
+    waits = close_then_wait_sites()
+    for site, leaving_line in waits:
+        journal.check(f"no verb waits after leaving a layer — {site}", False,
+                      f"a timer follows « {leaving_line} »")
+    journal.check("no verb waits after leaving a layer (one ladder shape)",
+                  not waits, f"{len(waits)} site(s)")
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel="chrome")
         context, page = await open_page(browser)
@@ -197,27 +258,9 @@ async def main():
         # `data-mediasheet` already had — and this rule REFUSES the gap
         # rather than printing it.
         #
-        # THE OTHER SIX ARE NOT THIS LOT's, and naming them is the point.
-        # They are named by the CALL they wrap, never by a line number: a line
-        # number in a comment is right on the day it is typed and wrong on the
-        # next edit, and the first version of this block named five that had
-        # already moved.
-        #
-        # COUNT THEM WITH `grep -n ', 260)' legacy.js`, and the command is part
-        # of the inventory rather than trivia about it. The command written
-        # here before it — `grep -n "setTimeout(.*260)"` — sees a site only
-        # when the CALL and its DELAY share a line, so it answered five and
-        # there were six. What it could not see is the identify branch's own
-        # wait, a multi-line body closed by `}, 260);`, and « the count agrees
-        # with the comment » was true of both numbers.
-        #
-        # The six, each by the call it wraps: `screens.add(…, "identify")`,
-        # `screens.releases(…)`, `screens.profile(…)` twice,
-        # `screens.resolution(…)`, and `actionResolve(…)` after
-        # `bridge.rewind` — the last of them named here for the first time.
-        # The reversal this rule was promised is complete when the LAST site
-        # goes, and the last site is not this lot's. A blanket refusal here
-        # would have been a rule against the wrong subject.
+        # THE OTHER SITES ARE REFUSED AT THE TOP OF THIS RULE, from the
+        # design's sources, by file and line: the inventory this comment used
+        # to carry is `close_then_wait_sites()` now.
         # DRIVEN THROUGH THE DELEGATION, NEVER THROUGH THE SEAM. The first
         # version of this walk called `window.__panel.produce("journey", …)`
         # directly and was VACUOUS: putting the 260 ms wait back beside
