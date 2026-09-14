@@ -49,3 +49,13 @@ until phase 6. The register's « required and missing » is 15 measured (the pla
 
 `main`'s `BUGS.md` ends at B-511 (the docs PR #597, squash `4f242ecb3` — this branch's base); L13b holds
 B-512–B-529; L20's rows start at **B-530**, counted up, so the two open branches never collide.
+
+## 5 — `locks-orphans` and `locks-stale` (steward, 2026-09-14)
+
+Option (a), with its provenance SAID. The orphan entry is the one real name pipeline_run's captured
+output holds — `/Volumes/Disk1/medias/films documentaires/_tmp_dispatch_Big Chicken Le complot de la
+malbouffe (2026)`, run `ccc29054` — its age taken from that run's timestamps, and the seed's note reads
+« the `_tmp_dispatch_` folder of run ccc29054 as its captured output names it; the run succeeded, so the
+folder is a transient read as an orphan for the drawing — the backend's locks read will list real
+orphans with their age », that sentence also a backend demand line in the register. The 26 states
+stay. (b) — dropping the state — refused. `locks-stale` by a layer dial (+3 lines in `mocks/index.ts`).

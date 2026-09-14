@@ -2,11 +2,11 @@
 
 ## STATE BLOCK (rewritten at every boundary — at most 40 lines)
 
-- **Updated**: 2026-09-14, phase 1 committed (Agent : l20 1).
+- **Updated**: 2026-09-14, phase 2 committed and pushed (Agent : l20 1).
 - **Branch / worktree**: `feat/maquette-l20`, `/Users/izno/dev/worktrees/wave-l20`, cut from `main`
   at `4f242ecb3`; plan re-target `b7e600cc5`.
-- **Phases done**: 1 (the contract).
-- **Next**: phase 2 — one dated comment in `harness/states/system.ts` (`plan/phase-02-named-states.md`).
+- **Phases done**: 1 (the contract), 2 (the named states' home, a comment only).
+- **Next**: phase 3 — the host and the locks (`plan/phase-03-host-and-locks.md`), rule R184.
 - **Waiting on**: nothing. Phase 8 waits for L13b's merge AND the steward's word.
 - **Rule numbers**: RULINGS-L20.md ruling 1 (a…h → R178–R185, j → R187, R186 unused).
 - **Register rows**: RULINGS-L20.md ruling 4 — L20's `BUGS.md` rows start at B-530 (L13b holds B-512–B-529).
@@ -78,3 +78,20 @@
 - 2026-09-14 — phase 1 gate: `run.sh --contracts` first read exit 1 (declared_codes: runDetection's
   new 202 undriven; boundaries: `handlers/pipeline.ts` imported `../state` twice), repaired; re-run
   exit 0 — 18 rules and 26 repository guards, no violation (`~/Library/Logs/tm-l20/p1-contracts.log`).
+- 2026-09-14 — phase 2: the plan asks the comment to NAME DESIGN § 5 and be dated;
+  `check-maquette-comments.py` refuses any lot/phase/date reference in a maquette comment (CLAUDE.md
+  § Language, binding) — the comment says what it does and names no document. system.ts: 4 states.
+- 2026-09-14 — phase 2 gate: `run.sh --contracts` 0 (18 rules + 26 guards, no violation),
+  `run.sh --oracle` 0 (87 states x 34 regions, no divergence), `harness-hold-counts.py --compare
+  frontend/maquette/hold-counts-baseline.json --only states.py` 0 — states.py 87 holds, 0 rule changed
+  count. `--compare` TAKES THE BASELINE FILE as its argument; a bare `--compare` exits 2.
+- 2026-09-14 — the 8899 host does NOT survive a run: `harness-hold-counts.py` found nothing listening
+  right after a green `run.sh --oracle`. Started by hand per the steward's procedure — after the build,
+  `(python3 frontend/maquette/harness/server.py --serve 8899 /tmp/tm-refonte &)`, `pkill -f` after,
+  port proved free.
+- 2026-09-14 — PLATFORM STOP 13:12→16:46: the session was refused by the organisation's policy. The
+  steward committed the work in flight (cbbae5ca3, 06ddb8301) and pushed the branch. Both re-read and
+  folded into phase 2's single commit; `comment-references-baseline.json` 417→418 is phase 1's new
+  files, references unchanged (guard re-run: 216 references, 0 grown).
+- 2026-09-14 — the host switched this session's model on its own during the stop: it answered as
+  claude-opus-5 until 13:12 and the gauge reads `<synthetic>` after. Said to the operator and the steward.
