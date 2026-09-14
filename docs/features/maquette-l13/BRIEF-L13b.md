@@ -62,6 +62,8 @@ subjects), 57 (b·11's subjects and the twelve constants' homes), 59 (the #ptr u
   pytest, `make check` and `git push` under the ONE tests lock:
   `HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder PYTEST_XDIST_AUTO_NUM_WORKERS=2 sh scripts/heavy.sh --class test l13b <command>`.
   `npm ci` and builds keep your own lock. Never a test run beside a harness run.
+- **Logs live under `~/Library/Logs/tm-l13b/` (order 34, ruling 76, 2026-09-14)** — the 05:00 reboot wipes
+  `/private/tmp`; this supersedes the Environment's `/private/tmp/tm-l13b/`; the mutex and the tests lock stay there.
 - **A phase's gate** = the contracts tier + the oracle, one wrapped run each, logs POSTDATING the commit they
   measure (read `ls -lT` against `git log -1 --format=%ci`; a log older than its commit measured the working tree
   and is re-run). **The FULL SUITE runs TWICE in L13b (auditor's order 5)**: once at the MIDPOINT — after b·6 is

@@ -7,20 +7,24 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 - Branch `feat/maquette-l13b`, worktree `/Users/izno/dev/worktrees/wave-l13b`, stacked on L13a `37e54d0fd`;
   rebase onto `main` only on the steward's word (after #596's squash). Steward: the session named in your launch prompt (`Orch : TM frontend`, its reference changes at every resume).
 - Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13b`.
-- Tooling landed: `701ae1aca`, `3023f2305`, `108904b51`, `63f6674a4` (see the ledger and rulings 66–69).
+- Tooling landed: `701ae1aca`, `3023f2305`, `108904b51`, `63f6674a4`, `{tooling}` (rulings 66–69, 77/77-bis).
 - b·1 DONE (`e3ae69b01`), b·2 DONE (`4f157ca9f`), b·3 DONE (`6c6245fbd`, rulings 70/70-bis),
-  b·4 DONE (`bec2b0d5b`, rulings 73–74; `pipe` stays in the engine for the NEW phase b·10-ter).
-- legacy.js non-blank: 3248. Surface-openers contract grep: 2 (journey, sheet=plus are b·5's).
-- b·5 IN PROGRESS: holds committed (panel.py R56, the `test(maquette-l13b): R56 holds the acquisition panels'…`
-  commit), red SEEN; the MOVE is next (ruling 75 names: `data-more`, `data-add="N"`; the dialog door; `actionResolve`
-  and `actionTake` die; FAN_IN_EXEMPT's queries.ts entry if the engine's last read goes). Move script to write.
+  b·4 DONE (`bec2b0d5b`, rulings 73–74; `pipe` stays in the engine for the NEW phase b·10-ter),
+  b·5 DONE (`d8d1a3e8b` move + `ebc53e4ea` re-aim, ruling 75; gate and mutations in the ledger).
+- legacy.js non-blank: 3060. Surface-openers contract grep: 0. `FAN_IN_EXEMPT` keeps `features/acquisition/queries.ts`
+  (the engine still reads `follows()` and `suggestions()`).
+- NEXT: b·6 (library verbs), `plan/phase-b06-library-verbs.md` — its first hold is `selectedTitle`; the dialog-door
+  amendment is already landed (`lib/shell-doors.ts` `dialog`, b·5).
+- LOGS: `~/Library/Logs/tm-l13b/` (ruling 76). The mutex and the tests lock stay under `/private/tmp`.
 - Phase gate form (ruling 66): `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13b
-  frontend/maquette/harness/run.sh --contracts --oracle <the phase's rules>` (~270 s).
-- Mutations: `mutate.sh <verbs file> "t.replace('registerVerb(\"x\",', 'void (\"x\",')" <rules>`; a rule that
-  only CRASHES is not a named fall — replay against another rule that taps the name (b·1 setting, b·4 manual).
+  frontend/maquette/harness/run.sh --contracts --oracle <the phase's rules>` (~270 s once the mutex is free).
+- Mutations: `mutate.sh <verbs file> "t.replace('registerVerb(\"x\",', 'void (\"x\",')" frontend/maquette/harness/<rule>.py`
+  — FULL rule paths; since `{tooling}` it refuses a missing path and starts the 8899 host itself (77/77-bis). Read the
+  NAMED check line (`FAIL …`), never the « FELL » line; « RULE CRASHED » is an instrument fall.
+- Features register at module evaluation, named in `app/panel-contributions.ts`: a new `install…Verbs` import in
+  `app/feature-verbs.ts` costs app/ domain words that `check-frame-domain.py` refuses over 138.
 - Locks: browser mutex (`sh scripts/heavy.sh --held`); tests lock `/private/tmp/tm-heavy-tests/holder`; own lock
   `/private/tmp/tm-heavy-l13b/holder` (npm ci, tsc -b, vitest run).
-- Logs kept (cited): `/private/tmp/tm-l13b/b0[1-4]-*`, `order19-*`, `order24-*`, `order27-*`.
 - Owed: full suite at the midpoint (after b·6, before b·7) and at b·11 with `--a11y`, `--compare`, `make lint`;
   no local `make check` (ruling 68). Machine restarts Monday 05:00: pushed by 04:30, line to the steward at 04:45.
 
@@ -89,3 +93,23 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   pytest never ran while an old log showed « passed » — run such lists through `bash -c` or spell them out.
 - 2026-09-14 b·5 holds: the follows list carries no incomplete series in acq-now-loaded — the completion is read
   from `followsheet-gaps` (Tintin). Red: panel.py 4 violations with the engine's sheetprim/standby/tmdb/complete branches deleted (b05-red.log); before: 14 rules no violation, panel.py 51 → 59.
+- 2026-09-14 order 34 (ruling 76): the 05:00 reboot wiped `/private/tmp` — every earlier L13b log cited above
+  (`b01-*` … `b05-red.log`, `order*-*`) is gone; gate logs now under `~/Library/Logs/tm-l13b/`.
+- 2026-09-14 b·5 move: `installAcquisitionVerbs` in `app/feature-verbs.ts` measured app/ 140 > 138 on
+  check-frame-domain → module-evaluation registration named in `app/panel-contributions.ts` (0 words);
+  `askReplacement` refused by the vocabulary arm (« Replacement ») → `askBeforeReplace`. Comment baseline `read`
+  418 → 420, legacy.js dated references 12 → 10.
+- 2026-09-14 b·5 RE-AIMS: page_host.py `__referentiel.actionTake(first.t)` → a tap on that card's `[data-take]`;
+  panel.py `panel.produce('more')` → a tap on `[data-more]` (`ebc53e4ea`) — no rule tapped the renamed opener.
+- 2026-09-14 b·5 gate: 31 rules (16 named) + 26 guards no violation, oracle 87 × 34 no divergence (log
+  `b05-gate.log` 10:15:59 > commit 09:53:19; ~22 min waiting on l13a-14); swap 0 / Swapouts 0 before and after.
+- 2026-09-14 TRAP (ruling 77): bare rule names (`panel.py`) → `python3` « can't open file », exit 2 → eight
+  « FELL — the rule exited 2 » over nothing (series #1, `void/`).
+- 2026-09-14 TRAP (ruling 77-bis): heavy.sh stops the 8899 host its wrapped run started, and mutate.sh never
+  started one → eight ERR_CONNECTION_REFUSED tracebacks, exit 1, « FELL » (series #2, `void2/`).
+- 2026-09-14 b·5 mutations (series #3, host listening, 0 tracebacks): acqtab → page_host « a real tap on a tab
+  opens THAT tab »; pill/fmode/sugmode → page_host's pill, display-mode and suggestion-mode taps; sheetprim/
+  complete/tmdb → panel.py R56's three; standby → « and its tap closes the panel and says the run »; more →
+  « the watch's panel offers its run »; journey → journey.py « the journey opens from the follow sheet, at an
+  address of its own »; add → add_footer « adding a medium announces it ». confirmadd → replacement.py: no hold
+  fell; replayed → add_footer.py « adding a medium announces it — … reached by the « replace » route », bugs.py « 10. a real add brings the screen's footer into being » (b05-mutation-confirmadd-replay.log).
