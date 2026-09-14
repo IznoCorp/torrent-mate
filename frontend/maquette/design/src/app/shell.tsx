@@ -90,6 +90,9 @@ import {
 } from "../features/acquisition/queries";
 import { installFeatureVerbs } from "./feature-verbs";
 import { installVerbs } from "../lib/verbs";
+import { installSwipeArbitration } from "../lib/swipe-arbitration";
+import { installPullIndicator } from "./pull-indicator";
+import { installDiscoverSwipe } from "../features/acquisition/card-gestures";
 import { installQueueActions } from "../lib/queue";
 import { installReleasesLookup } from "../features/releases/queries";
 import { installSearchLookup } from "../features/acquisition/search-queries";
@@ -228,6 +231,22 @@ installLibraryDelete(queryClient);
 installQueueActions(queryClient);
 installSuggestionsLookup(queryClient);
 installFollowActions(queryClient);
+/* THE GESTURES COME BEFORE THE TAP REGISTRY, and the order is load-bearing
+   rather than tidy. The swipe's guard swallows the click that ends a drag, and
+   it says so with `stopImmediatePropagation` — which stops the listeners
+   registered AFTER it on the same node and none before. Registered after the
+   registry, the guard would let every drag's release fire the verb under the
+   finger: the shape the engine's own guard had, whose `stopPropagation` stopped
+   a bubble delegation that no longer exists. */
+if (device) {
+  installSwipeArbitration(device);
+  installDiscoverSwipe(device);
+}
+/* AND THE PULL, on the scrollport rather than the frame: the gesture is read
+   where the scrolling happens, and the indicator it draws sits above it. A
+   document without the fragment has neither, and the pull is simply absent. */
+const port = document.getElementById("port");
+if (port) installPullIndicator(port, document.getElementById("ptr"));
 // The tap registry, and the verbs registering into it — both before a panel
 // can be raised, which is why they sit here and not inside a component.
 installVerbs();

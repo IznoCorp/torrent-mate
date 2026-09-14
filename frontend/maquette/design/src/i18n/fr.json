@@ -861,7 +861,8 @@
     "installing": "Installation en cours — l'icône arrive sur votre écran d'accueil.",
     "installRefused": "Installation refusée — le bandeau reviendra à la prochaine visite.",
     "installed": "TorrentMate est installé.",
-    "oneMoreBack": "Encore un retour pour quitter TorrentMate."
+    "oneMoreBack": "Encore un retour pour quitter TorrentMate.",
+    "refreshed": "Actualisé."
   },
   "panels": {
     "maintenance": {

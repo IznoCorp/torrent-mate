@@ -258,6 +258,7 @@ deep
 default
 defaults
 degraded
+degree
 del
 delay
 delete
@@ -450,6 +451,7 @@ ground
 group
 grouped
 groups
+guard
 guidance
 had
 harness
@@ -505,6 +507,7 @@ included
 incoming
 incomplete
 index
+indicator
 inert
 inflight
 info
@@ -705,6 +708,7 @@ on
 once
 one
 only
+opacity
 open
 opened
 opener
@@ -1171,6 +1175,7 @@ transact
 transaction
 transition
 translate
+travel
 travelled
 trim
 tuples

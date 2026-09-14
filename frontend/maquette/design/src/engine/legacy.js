@@ -36,7 +36,6 @@ import { screens, panel, bridge, seam } from "./seams.js";
 import { installPressArbitration } from "../lib/press-arbitration";
 import { openAddressedPanel } from "../lib/shell-doors";
 import { hideLayers, installPageRestore } from "../app/layers";
-import { installPullGesture } from "../lib/pull-gesture";
 import { icons } from "../app/icons";
 /* THE STORE, IMPORTED. The shell creates it and installs it before anything
    here is called; the engine reads the same object every module does. */
@@ -2339,398 +2338,33 @@ import {
      the press concerns this gesture, so listening wider costs nothing and
      stops a surface from silently losing its gesture the day it moves. */
 
-  /* 1) Card swipe — a drag born on a card belongs to the card.
+  /* THE THREE CARD GESTURES ARE GONE FROM HERE.
 
-     It runs BOTH ways: the drawer on the right holds what one does to a medium
-     — pause it, drop it — and the one on the left holds the single thing the
-     card is FOR, the action its footer already names. A card with no such
-     action has no left drawer, and the gesture simply does not travel that
-     way rather than opening an empty one.
+     The SWIPE's shape — the axis decision, the two drawers' travel, where a
+     released row rests, and the click a drag must not let through — is
+     vocabulary, and vocabulary is not the engine's (invariant 10):
+     `lib/swipe-arbitration.ts`. What a suggestion's swipe and a deck card's
+     swipe MEAN is Découvrir's, so both went to the feature that draws them
+     (`features/acquisition/card-gestures.ts`), where `dismissSug`, `passerSug`
+     and `advanceDeck` already live.
 
-     Only ONE card is open at a time. Two open drawers ask which one an action
-     belongs to, and the answer is never on screen; starting a drag anywhere
-     puts the previous card back first.
+     Nothing took their place here: the boot installs them on the same frame
+     element this file listened on, BEFORE the tap registry, because the swipe's
+     guard now says `stopImmediatePropagation` and only a listener registered
+     first can stop the registry beside it. */
 
-     A drag is not a tap. The card body opens the bottom panel on a tap, so a
-     swipe that also fired it would open a panel over the drawer it just
-     revealed — the click that follows the release is swallowed, identified by
-     the DISTANCE travelled, not by a timer.
+  /* THE PULL IS GONE FROM HERE TOO, both halves of it.
 
-     Listened for on the FRAME, not the scrollport: every layer above it — the
-     sheet, the screen, the drawer — sits outside, and a row drawn in one of
-     them would answer no gesture at all. */
-  let cardDrag = null;
-  let openCard = null;
-  /* Where the open row RESTS, in pixels — negative for the right drawer,
-     positive for the left. A drag beginning on an open row resumes from where
-     the row actually is; deducing that origin from a side instead read every
-     open row as if it were open on the RIGHT, so a row open on the left leapt
-     the width of both drawers on the finger's first move. Measured at 252px
-     of jump for a 15px step. */
-  let openCardDx = 0;
-  let clickAfterDrag = null;
+     The GESTURE was already `lib/pull-gesture.ts`'s. What stayed was the
+     indicator — its height under the finger, its spinner, the message a
+     finished refresh says — and that is the FRAME's affordance, so it went to
+     `app/pull-indicator.ts` with the reset the harness drives through
+     (`window.__reposPTR`, published from there now).
 
-  function collapseCard() {
-    if (!openCard) return;
-    openCard.style.transform = "";
-    openCard = null;
-    openCardDx = 0;
-  }
-
-  function drawerWidth(sw, sens) {
-    const cote = sw.querySelector(sens < 0 ? ".side.right" : ".side.left");
-    return cote ? cote.querySelectorAll(".act").length * 84 : 0;
-  }
-
-  cadre.addEventListener(
-    "pointerdown",
-    (event) => {
-      clickAfterDrag = null;
-      const closest = event.target.closest(".swipe");
-      if (!closest || !event.isPrimary) return;
-      // A new gesture anywhere puts the previously opened row back.
-      if (openCard && openCard !== closest.querySelector(".card"))
-        collapseCard();
-      cardDrag = {
-        sw: closest,
-        card: closest.querySelector(".card"),
-        x: event.clientX,
-        y: event.clientY,
-        depart:
-          openCard === closest.querySelector(".card") ? openCardDx : 0,
-        axis: null,
-        dx: 0,
-      };
-    },
-    { passive: true },
-  );
-  cadre.addEventListener(
-    "pointermove",
-    (event) => {
-      if (!cardDrag) return;
-      const deltaX = event.clientX - cardDrag.x,
-        deltaY = event.clientY - cardDrag.y;
-      if (cardDrag.axis === null) {
-        if (Math.abs(deltaX) < 6 && Math.abs(deltaY) < 6) return;
-        cardDrag.axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.2 ? "x" : "y";
-        if (cardDrag.axis === "x") cardDrag.card.classList.add("dragging");
-      }
-      if (cardDrag.axis !== "x") return;
-      const brut = cardDrag.depart + deltaX;
-      cardDrag.lastX = event.clientX;
-      cardDrag.lastY = event.clientY;
-      /* An open row can only be CLOSED by a drag. Its travel is clamped
-         between where it rests and zero, so a swipe the other way settles it
-         back rather than crossing rest and opening the opposite drawer within
-         the same gesture. Reaching the other side is a second, deliberate
-         swipe — the row has to have come back first. */
-      cardDrag.dx = cardDrag.depart
-        ? Math.min(
-            Math.max(brut, Math.min(cardDrag.depart, 0)),
-            Math.max(cardDrag.depart, 0),
-          )
-        : Math.max(
-            -drawerWidth(cardDrag.sw, -1),
-            Math.min(drawerWidth(cardDrag.sw, 1), brut),
-          );
-      cardDrag.card.style.transform = `translateX(${cardDrag.dx}px)`;
-    },
-    { passive: true },
-  );
-  function endCardDrag() {
-    if (!cardDrag) return;
-    const drag = cardDrag;
-    cardDrag = null;
-    if (drag.axis !== "x") return;
-    drag.card.classList.remove("dragging");
-    // Past a third of a drawer's width the row rests open on that side.
-    const gauche = drawerWidth(drag.sw, 1);
-    const right = drawerWidth(drag.sw, -1);
-    let repos = 0;
-    if (drag.depart) {
-      // Closing an open row takes a third of its own travel, so a thumb
-      // brushing past one does not shut what it came to use.
-      repos =
-        Math.abs(drag.dx) > Math.abs(drag.depart) * (2 / 3) ? drag.depart : 0;
-    } else if (drag.dx < -right / 2.4) repos = -right;
-    else if (drag.dx > gauche / 2.4) repos = gauche;
-    drag.card.style.transform = repos ? `translateX(${repos}px)` : "";
-    openCard = repos ? drag.card : null;
-    openCardDx = repos;
-    // The release is followed by a click, and a drag must not also tap. The
-    // click is identified by its POINT — the same answer the long press
-    // already needed — because a bare flag stays armed until SOME click
-    // happens, and the next one it meets may be elsewhere entirely.
-    /* Armed on what the FINGER travelled, never on what the row moved.
-
-       The guard exists to tell a drag from a tap, and that distinction belongs
-       to the pointer: a row is free to refuse to move — a list with no left
-       drawer does exactly that — and measuring its displacement turns every
-       such drag into a tap. Two ways in, one old and one new: a right drag on
-       a row with no left drawer has always ended at zero, and since an open
-       row can only be closed, dragging one further in the same direction now
-       ends where it started too. Both armed nothing, so the click went
-       through and the bottom panel opened over the row.
-
-       Only a MOUSE ever showed it. After a touch drag the browser suppresses
-       the click by itself, so every finger measurement was green over the
-       hole — which is why the check for this asserts the click was actively
-       SWALLOWED rather than that no panel appeared. A panel that fails to
-       appear can be an accident of where the release landed. */
-    const travelled = Math.hypot(
-      (drag.lastX ?? drag.x) - drag.x,
-      (drag.lastY ?? drag.y) - drag.y,
-    );
-    clickAfterDrag =
-      travelled > 4 ? { x: drag.lastX, y: drag.lastY } : null;
-  }
-  window.addEventListener("pointerup", endCardDrag);
-  window.addEventListener("pointercancel", endCardDrag);
-  document.addEventListener(
-    "click",
-    (event) => {
-      if (!clickAfterDrag) return;
-      const mark = clickAfterDrag;
-      clickAfterDrag = null;
-      if (Math.hypot(event.clientX - mark.x, event.clientY - mark.y) > 24)
-        return;
-      event.preventDefault();
-      event.stopPropagation();
-    },
-    { capture: true },
-  );
-
-  /* 1b) Suggestion card: a swipe either way means dismiss. Same reason as
-     `.swipe`: the row claims the horizontal axis, otherwise the browser
-     takes the gesture and cancels it at the first pixel. */
-  let sugDrag = null;
-  cadre.addEventListener(
-    "pointerdown",
-    (event) => {
-      const closest = event.target.closest(".sugwrap");
-      if (!closest || !event.isPrimary) return;
-      const point = event;
-      sugDrag = {
-        w: closest,
-        card: closest.querySelector(".card"),
-        x: point.clientX,
-        y: point.clientY,
-        axis: null,
-        dx: 0,
-      };
-    },
-    { passive: true },
-  );
-  cadre.addEventListener(
-    "pointermove",
-    (event) => {
-      if (!sugDrag) return;
-      const point = event;
-      const deltaX = point.clientX - sugDrag.x,
-        deltaY = point.clientY - sugDrag.y;
-      if (sugDrag.axis === null) {
-        if (Math.abs(deltaX) < 6 && Math.abs(deltaY) < 6) return;
-        sugDrag.axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.2 ? "x" : "y";
-        if (sugDrag.axis === "x") sugDrag.card.classList.add("dragging");
-      }
-      if (sugDrag.axis !== "x") return;
-      sugDrag.dx = deltaX;
-      sugDrag.card.style.transform = `translateX(${deltaX}px)`;
-      sugDrag.card.style.opacity = String(
-        Math.max(0.35, 1 - Math.abs(deltaX) / 260),
-      );
-    },
-    { passive: true },
-  );
-  function endSugDrag() {
-    if (!sugDrag) return;
-    const drag = sugDrag;
-    sugDrag = null;
-    if (drag.axis !== "x") return;
-    drag.card.classList.remove("dragging");
-    if (Math.abs(drag.dx) > 92) {
-      drag.card.style.transform = `translateX(${drag.dx > 0 ? 420 : -420}px)`;
-      dismissSug(Number(drag.w.dataset.dismissable));
-    } else {
-      drag.card.style.transform = "";
-      drag.card.style.opacity = "";
-    }
-  }
-  window.addEventListener("pointerup", endSugDrag);
-  window.addEventListener("pointercancel", endSugDrag);
-
-  /* Deck gesture. Left « Passer » sends the card to the back of the order —
-     it decides nothing and comes round again. Right « Pas intéressé » removes
-     it, with an undo. Listeners are passive; the card claims the horizontal
-     axis through `touch-action: pan-y` on `.deck`. */
-  let deckDrag = null;
-  cadre.addEventListener(
-    "pointerdown",
-    (event) => {
-      const card = event.target.closest?.('.dcard[data-depth="0"]');
-      if (!card || !event.isPrimary) return;
-      deckDrag = {
-        card,
-        x: event.clientX,
-        y: event.clientY,
-        dx: 0,
-        axis: null,
-      };
-    },
-    { passive: true },
-  );
-  cadre.addEventListener(
-    "pointermove",
-    (event) => {
-      if (!deckDrag) return;
-      const point = event;
-      const deltaX = point.clientX - deckDrag.x,
-        deltaY = point.clientY - deckDrag.y;
-      if (deckDrag.axis === null) {
-        if (Math.abs(deltaX) < 6 && Math.abs(deltaY) < 6) return;
-        deckDrag.axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.2 ? "x" : "y";
-        if (deckDrag.axis === "x") deckDrag.card.classList.add("dragging");
-      }
-      if (deckDrag.axis !== "x") return;
-      deckDrag.dx = deltaX;
-      // The card leans into the movement: the rotation is what makes it read
-      // as a card being pulled off a deck rather than a panel sliding.
-      deckDrag.card.style.transform = `translateX(${deltaX}px) rotate(${deltaX / 26}deg)`;
-      const element = deckDrag.card.querySelector(".dhint.l");
-      const element2 = deckDrag.card.querySelector(".dhint.r");
-      const min = Math.min(1, Math.max(0, (Math.abs(deltaX) - 20) / 70));
-      if (element) element.style.opacity = deltaX < 0 ? String(min) : "0";
-      if (element2) element2.style.opacity = deltaX > 0 ? String(min) : "0";
-    },
-    { passive: true },
-  );
-  function endDeckDrag() {
-    if (!deckDrag) return;
-    const drag = deckDrag;
-    deckDrag = null;
-    drag.card.classList.remove("dragging");
-    if (drag.axis !== "x") return;
-    const index = Number(drag.card.dataset.deck);
-    if (Math.abs(drag.dx) > 88) {
-      // The pile is ANIMATED, not rebuilt: avancerDeck moves the existing
-      // nodes, which is the only way the card underneath can rise rather than
-      // appear. The state is updated alongside, never by re-rendering.
-      if (drag.dx > 0) {
-        // avancerDeck() animates the DOM directly, never through render():
-        // the bump is explicit so React learns the card left the deck.
-        currentState().sugGone.add(index);
-        store.touch();
-        advanceDeck(index, 1);
-        toastUndo(`« ${suggestions()[index].t} » écarté.`, () => {
-          currentState().sugGone.delete(index);
-          store.touch();
-          refreshDeck();
-        });
-      } else {
-        passerSug(index);
-        advanceDeck(index, -1);
-      }
-      return;
-    }
-    drag.card.style.transform = "";
-    drag.card
-      .querySelectorAll(".dhint")
-      .forEach((querySelectorAll) => (querySelectorAll.style.opacity = "0"));
-  }
-  window.addEventListener("pointerup", endDeckDrag);
-  window.addEventListener("pointercancel", endDeckDrag);
-
-  /* 3) Pull-to-refresh — on the rest of the surface. ALL listeners are
-     passive: a single non-passive touchmove takes iOS out of the compositor
-     and makes the sticky chrome shimmer.
-
-     THE FINGER IS READ FROM TOUCH EVENTS, everything else from pointer
-     events, and one implementation serves both.
-
-     The reason is not stylistic. These two gestures live INSIDE the
-     scrollport, and the browser owns vertical panning there. The moment it
-     decides a drag is a scroll it fires `pointercancel` and stops delivering
-     `pointermove` for that pointer — measured: one move delivered, then
-     cancel, while ten `touchmove` arrive for the same finger. A pointer-only
-     implementation therefore works under synthetic events, which are never
-     cancelled, and does nothing at all under a real thumb.
-
-     Claiming the axis in `touch-action` is the usual answer and is not
-     available here: `pan-y` on the scrollport intersects down onto
-     `.pillscroll` and `.cast`, which declare `pan-x pan-y`, and a `pan-x`
-     scroller under a `pan-y` ancestor pans on neither axis. The gestures that
-     CAN claim their axis — a swipeable row, a deck card — keep the pointer
-     path, and their stream is never cancelled. */
-  let refreshing = false,
-    minuteurRefresh = null;
-  const ptr = select("#ptr");
-
-  /* Puts the indicator back to rest, pending refresh included.
-
-     A refresh in flight outlives a change of state, and the indicator's classes
-     are not part of the state object, so without this a measurement inherits
-     the spinner of the one before it — which is exactly how a first pass at
-     this gesture reported it working on half the surfaces and broken on the
-     other half, in alternation. */
-  window.__reposPTR = () => {
-    if (minuteurRefresh !== null) {
-      clearTimeout(minuteurRefresh);
-      minuteurRefresh = null;
-    }
-    refreshing = false;
-    pullGesture.reset();
-    ptr.className = "ptr";
-    ptr.style.height = "0px";
-    ptr.style.transition = "";
-    return true;
-  };
-
-  /* THE PULL — arbitrated in `lib/pull-gesture.ts`.
-
-     The GESTURE moved to that module: the axis decision, the edge dead zone, the
-     damping and the arming distance are vocabulary, and vocabulary is not the
-     engine's (invariant 10). `MODEL.md` Part 8 places it exactly — « a gesture
-     on `#port` that knows nothing of what refreshes ».
-
-     What stays here is what a completed pull MEANS: drawing the indicator and
-     saying « Actualisé ». Nothing was added to the engine to do it — the block
-     left and an import took its place, which is the only shape D5 allows. */
-  const pullGesture = installPullGesture({
-    port,
-    isExcluded: (target) =>
-      !!(
-        target.closest?.(".swipe") ||
-        target.closest?.(".sugwrap") ||
-        // A drag born on a deck card belongs to the card: without this the
-        // page handler also fires and navigates away mid-gesture.
-        target.closest?.(".deck") ||
-        target.closest?.(".pillscroll")
-      ),
-    onPull: (pulled, armed) => {
-      if (refreshing) return;
-      ptr.style.height = pulled + "px";
-      ptr.style.transition = "none";
-      ptr.classList.toggle("armed", armed);
-    },
-    onRelease: (armed) => {
-      ptr.style.transition = "";
-      if (armed && !refreshing) {
-        refreshing = true;
-        ptr.classList.add("loading");
-        ptr.style.height = "44px";
-        minuteurRefresh = window.setTimeout(() => {
-          minuteurRefresh = null;
-          refreshing = false;
-          ptr.classList.remove("loading", "armed");
-          ptr.style.height = "0px";
-          toast("Actualisé.");
-        }, 1100);
-      } else {
-        ptr.style.height = "0px";
-        ptr.classList.remove("armed");
-      }
-    },
-  });
+     The reset no longer writes `className = "ptr"`: it removes the two state
+     classes it added. That one assignment erased every utility the markup
+     paints on the indicator, which is why its states had to be read on the
+     spinner inside it (ruling 59). */
 
   /* 4) Sheet: dragging the handle to close moved to the shell with the layer
      itself — `src/components/sheet.tsx` owns the handle, the pointer capture
@@ -2804,15 +2438,13 @@ Object.assign(window, {
   baseTitle, beforeReset, cadenceFR,
   closeSheet,
   dateFR,
-  endCardDrag, endDeckDrag,
-  endSugDrag, escapeHtml,
+  escapeHtml,
   changedFiles,
-  gridBadge, icons, initialsOf, drawerWidth,
+  gridBadge, icons, initialsOf,
   mountLoaders, mountSearch, fileName,
   openSheet,
   panelUnderFinger,
   nextSearchFR,
-  ptr, collapseCard,
   settingId, resetSettings, render,
   select,
   stFraction, stLabel,
@@ -2824,12 +2456,6 @@ Object.assign(window, {
 
 // Read live, because the engine reassigns each of these.
 Object.defineProperties(window, {
-  cardDrag: { get: () => cardDrag, configurable: true },
-  openCard: { get: () => openCard, configurable: true },
-  openCardDx: { get: () => openCardDx, configurable: true },
-  clickAfterDrag: { get: () => clickAfterDrag, configurable: true },
-  swallowClick: { get: () => pressArbitration.swallowClick, configurable: true },
-  deckDrag: { get: () => deckDrag, configurable: true },
   store: { get: () => store, configurable: true },
   // A LIVE READ, not an alias. There is no cached `state` binding left to
   // publish — the getter goes to the store, exactly as the engine's own
@@ -2844,5 +2470,4 @@ Object.defineProperties(window, {
   // getter that names the property it defines is a loop, and the only
   // reason it is not a syntax error is that the resolution is late.
   state: { get: () => currentState(), configurable: true },
-  sugDrag: { get: () => sugDrag, configurable: true },
 });

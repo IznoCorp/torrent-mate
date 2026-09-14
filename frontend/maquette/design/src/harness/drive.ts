@@ -20,6 +20,7 @@ import type { UiState } from "../app/store";
 // it — and the states start through the same verb, re-exported here beside their type.
 import { drivenWithoutHistory } from "../app/page-switch";
 import { applyState, resetSettings } from "../engine/legacy.js";
+import { resetPullIndicator } from "../app/pull-indicator";
 import { heldIdentity, providerAddress } from "../lib/held-identity";
 import type { CarriedIdentity } from "../lib/navigation-entry";
 
@@ -76,7 +77,7 @@ function reset(): boolean {
   // The pull indicator lives outside the state object — classes and an inline
   // height on one element — and a refresh in flight outlives a change of
   // state. Reset here, or a measurement inherits the previous one's spinner.
-  if (window.__reposPTR) window.__reposPTR();
+  resetPullIndicator?.();
   if (typeof resetSettings === "function") resetSettings();
   // The router is navigation state too: a named state is DRIVEN, not a
   // journey, so it must not inherit whichever screen route a previous one

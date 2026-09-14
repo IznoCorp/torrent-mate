@@ -23,6 +23,7 @@
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { store } from "../../lib/store-access";
+import { collapseOpenRow, openRow } from "../../lib/swipe-arbitration";
 import { panel, toast } from "../../lib/shell-doors";
 import { followActions, suggestions } from "./queries";
 import { baseTitle } from "../../lib/titles";
@@ -229,27 +230,25 @@ type FollowVerbs = {
 // why the registry hands the element to the act rather than the value alone.
 export const followVerbs: FollowVerbs = { follow, pause, removeFollow };
 
-declare global {
-  interface Window {
-    /** The swipe card whose drawer is open — the gesture's state, still the engine's. */
-    openCard?: HTMLElement | null;
-    /** Closes the open swipe drawer. */
-    collapseCard?: () => void;
-  }
-}
-
 /**
  * Puts a swipe row back at rest after one of its actions is tapped.
  *
  * Exactly what the delegation did: the open card collapses, any other card
  * loses its drag offset. A tap from the panel has no row, and nothing moves.
  *
+ * IT ASKS THE GESTURE DIRECTLY NOW. The row's state was the engine's and this
+ * module reached it through `window.openCard` / `window.collapseCard` — two
+ * reaches the gesture's move takes away (ruling 79-bis's owed): the arbitration
+ * is `lib/`'s, and a feature may read `lib/`.
+ *
  * @param element The action tapped.
  */
 export function settleSwipeRow(element: HTMLElement): void {
-  const card = element.closest(".swipe")?.querySelector<HTMLElement>(".card");
+  const card = element
+    .closest('[data-part="swipe"]')
+    ?.querySelector<HTMLElement>('[data-part="card"]');
   if (!card) return;
-  if (window.openCard === card) window.collapseCard?.();
+  if (openRow() === card) collapseOpenRow();
   else card.style.transform = "";
 }
 registerVerb("follow", (title, element) => {

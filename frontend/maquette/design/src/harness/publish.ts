@@ -35,7 +35,9 @@ import { sortWays } from "../features/library/sorting";
 import { releases } from "../features/releases/queries";
 import { settingLabels } from "../features/settings/labels";
 import { changeSetting } from "../features/settings/pending-edits";
-import { pressNumbers } from "../lib/press-arbitration";
+import { pressNumbers, pressSwallowClick } from "../lib/press-arbitration";
+import { openRow } from "../lib/swipe-arbitration";
+import { resetPullIndicator } from "../app/pull-indicator";
 import { pullNumbers } from "../lib/pull-gesture";
 import { sharedQueryClient } from "../lib/query-client";
 import { queueActions, queueLists } from "../lib/queue";
@@ -160,6 +162,22 @@ export function publishSeams(): void {
   // alone, a year without its kind — writes the carried object itself.
   publish("__openCarrying", () => (provider: string, id: string, carried: Record<string, unknown>) =>
     go({ to: "/media/$provider/$id", params: { provider, id }, state: { [CARRIED_KEY]: carried } }));
+  /* THE TWO GESTURE NAMES A RULE ACTUALLY READS, and only those two. The engine
+     published seven on `window` — `cardDrag`, `openCard`, `openCardDx`,
+     `clickAfterDrag`, `swallowClick`, `deckDrag`, `sugDrag` — and five of them
+     were read by NOTHING, measured rule file by rule file. A driving surface
+     nobody drives through is a surface that does not exist, so the five went
+     with the engine's `defineProperties` block and these two are published from
+     the modules that now own them: the open row (`pause_verb.py` asks whether a
+     row came back to rest) and the press's swallow (`press.py` asks whether the
+     lift's click was marked). */
+  publish("openCard", () => openRow());
+  /* THE INDICATOR'S RESET, which five holds drive between measurements: a
+     refresh in flight outlives a change of state, so a rule that did not put it
+     back inherited the previous state's spinner. It was `window.__reposPTR`,
+     written by the engine; it is published here from the frame's indicator. */
+  publish("__reposPTR", () => resetPullIndicator);
+  publish("swallowClick", () => pressSwallowClick?.() === true);
   // Two gestures each own their numbers, and a rule reads them as one table —
   // present once the gesture that owns them has been installed, as before.
   publish("__gestures", () => {
