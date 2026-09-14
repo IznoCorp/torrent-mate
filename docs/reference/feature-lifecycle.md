@@ -173,8 +173,10 @@ is `git show <sha>:<path>`; the citation form is `docs/reference/documentation-m
 ## 7. Implementation Workflow — the `implement:*` skills
 
 The lifecycle is the plugin `implement@lounisbou` (0.1.1 on 2026-09-11) — five skills, each
-announcing itself and running the project's own gate; **Sonnet is forbidden as a dispatch
-target**. The twelve-skill layout and the eleven local variants this section used to describe were
+announcing itself and running the project's own gate; **Sonnet is no longer forbidden as a
+dispatch target** (operator, 2026-09-13 ~21:1x: « Sonnet autorisé, on retire ça… l'orchestrateur
+choisit ») — the tier map follows the routing table and the orchestrator routes by the class of
+work. The twelve-skill layout and the eleven local variants this section used to describe were
 retired with the project's `.claude/` migration of 2026-09-11. Original design (archived):
 `docs/archive/superpowers/specs/2026-04-22-implement-skills-refactor-design.md@79ccebe2`.
 
