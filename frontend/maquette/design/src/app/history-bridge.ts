@@ -7,7 +7,12 @@
 // boot, which is why each half is a function rather than a module-level
 // assignment — the order relative to `window.__startEngine` is load-bearing
 // and it stays legible in one place.
-import { carryingState, type CarriedIdentity } from "../lib/navigation-entry";
+import {
+  carryingState,
+  layerEntry,
+  type CarriedIdentity,
+  type LayerRecord,
+} from "../lib/navigation-entry";
 import { heldIdentity, providerAddress } from "../lib/held-identity";
 import { createBrowserHistory } from "@tanstack/react-router";
 import { go } from "../lib/navigate";
@@ -22,7 +27,7 @@ import { announceEntries } from "./layers";
 type Bridge = {
   record: (state: unknown, url: string) => void;
   replace: (state: unknown, url?: string) => void;
-  pushLayer: (layer: string, url?: string) => void;
+  pushLayer: (layer: string, url?: string, record?: LayerRecord) => void;
   back: () => void;
   // Settling SEVERAL entries at once — the door a caller uses instead of
   // saying `back()` twice in the same task. `n` counts ENTRIES, and the
@@ -41,7 +46,7 @@ type Bridge = {
 // its old `openX(...)` function. `title` crosses the bridge as a plain
 // string — normalisation and encoding are this file's job, not the caller's.
 type Screens = {
-  profile: (title: string) => void;
+  profile: (title: string, replace?: boolean) => void;
   // The media sheet — the centre of the product. `title` crosses as a plain
   // string here too; `carried` is what the caller knows of the item when it
   // knows it, and the cache is asked otherwise.
@@ -62,7 +67,7 @@ type Screens = {
   // `q`/`mode` cross the bridge as plain strings, the way a legacy call site
   // already holds them (`state.addQ`, a literal like `"identify"`) — the
   // validated union lives in `/add`'s own `validateSearch`, not here.
-  add: (q?: string, mode?: string) => void;
+  add: (q?: string, mode?: string, replace?: boolean) => void;
 };
 
 declare global {
@@ -130,12 +135,13 @@ fillBridgeDoor({
     history.replace(url ?? history.location.href, state);
     history.flush();
   },
-  pushLayer: (layer: string, url?: string) => {
+  pushLayer: (layer: string, url?: string, record?: LayerRecord) => {
     // A layer that carries an ADDRESS pushes it; one that does not keeps the
     // address it opened over. That is D1's tier split, expressed in one
     // argument: tier 2 is addressable and reopens on a reload, tier 3 is
-    // transient and Back still closes it.
-    history.push(url ?? history.location.href, { layer });
+    // transient and Back still closes it. The RECORD is what reopens either
+    // one when a Back lands on its entry after an arrival closed it.
+    history.push(url ?? history.location.href, layerEntry(layer, record));
     history.flush();
   },
   back: () => history.back(),
@@ -183,9 +189,24 @@ export function installScreenBridge(): void {
 // NFC-normalised here, once, on write — `QualityScreen` normalises again on
 // read so an entry arriving by direct URL (not through this bridge) is
 // covered too.
+/* A LAYER LEFT FOR AN ARRIVAL KEEPS ITS ENTRY. Every screen below closes an open
+   panel inside the navigation's own commit and WITHOUT unwinding it —
+   `close(true)` — so the screen's entry lands on top of the panel's, and a Back
+   from the screen comes back to the panel's entry, which reopens it. A verb
+   that closed the panel first and navigated a beat later popped that entry,
+   and no timer could say how long « a beat » was. */
+const leavePanel = () => {
+  if (panel.isOpen()) panel.close(true);
+};
+
 fillScreensDoor({
-  profile: (title: string) =>
-    go({ to: "/quality/$name", params: { name: title.normalize("NFC") } }),
+  // REPLACE when one screen leaves for another at the same depth: the release
+  // screen's own « profile » takes that screen's place on the ladder.
+  profile: (title: string, replace?: boolean) =>
+    go(
+      { to: "/quality/$name", params: { name: title.normalize("NFC") }, replace },
+      leavePanel,
+    ),
   // The sheet is addressed by PROVIDER ID (DOIT-11), and a tap holds a title,
   // so the crossing happens here — the seam, which is where every other
   // title-to-address translation already happens. WHAT THE TAP KNEW is the
@@ -212,24 +233,13 @@ fillScreensDoor({
     // CLOSED WITHOUT UNWINDING — `close(true)`. The panel's history entry is
     // NOT popped here, because the media screen is pushed on top of it.
     //
-    // WHAT BACK DOES, MEASURED RATHER THAN PROMISED, because an earlier version
-    // of this comment promised the opposite and was wrong on the day it was
-    // written: Back from the media screen lands on the LIST, with the panel
-    // shut. The entry is left standing, the ladder's own handler steps over it,
-    // and the reader crosses two entries for one gesture — the same place the
-    // sibling actions reach by popping first and pushing after.
-    //
-    // So the OUTCOME matches its siblings and the mechanism does not, and that
-    // difference is filed rather than left for the next reader to discover:
-    // whether a layer closed inside a navigation's commit should keep its entry
-    // is the ladder's arbitration, and it belongs with the ladder's own
-    // handler. Nothing here counts the pops on the way back; that rule belongs
-    // with the arbitration.
+    // WHAT BACK DOES: the panel's entry is still there, under the screen's, and
+    // it records the panel's kind and subject — so a Back from the screen lands
+    // on it and the ladder's handler REOPENS the panel, and a second Back
+    // leaves for the list. R188 counts it, for this opener and its siblings.
     go(
       { to: "/media/$provider/$id", params: ids, state: carryingState(known) },
-      () => {
-        if (panel.isOpen()) panel.close(true);
-      },
+      leavePanel,
     );
   },
   // The legacy `openReleases`'s own first line, transplanted here rather than
@@ -241,10 +251,13 @@ fillScreensDoor({
   // `data.ts`'s `writeUiState` component door.
   releases: (title: string) => {
     store.write({ relatedTitle: title });
-    go({
-      to: "/releases/$title",
-      params: { title: title.normalize("NFC") },
-    });
+    go(
+      {
+        to: "/releases/$title",
+        params: { title: title.normalize("NFC") },
+      },
+      leavePanel,
+    );
   },
   // The legacy `openResolve`'s own first two lines, transplanted here rather
   // than into the component. Two things happen before the address changes,
@@ -275,14 +288,17 @@ fillScreensDoor({
     const first = firstStuckFolder();
     const target = folder ?? (typeof first === "string" ? first : null);
     store.write({ resolveTarget: target });
-    go({
-      to: "/resolution/$folder",
-      // An address that changed with the interface language would no longer
-      // identify anything — see the note above this function.
-      // french-ok: a route PARAMETER, not interface copy
-      params: { folder: (target ?? "élément inconnu").normalize("NFC") },
-      replace,
-    });
+    go(
+      {
+        to: "/resolution/$folder",
+        // An address that changed with the interface language would no longer
+        // identify anything — see the note above this function.
+        // french-ok: a route PARAMETER, not interface copy
+        params: { folder: (target ?? "élément inconnu").normalize("NFC") },
+        replace,
+      },
+      leavePanel,
+    );
   },
   // Kept in sync in `window.__store.write` BEFORE navigating: `state.addMode` is
   // still read by the untouched cross-world "add:N" panel act (it decides
@@ -294,20 +310,24 @@ fillScreensDoor({
   // reflects the screen's ENTRY query, not its live one. That staleness is
   // the accepted cost of the ownership flip: the router is the only thing
   // that stays current for as long as the address reads `/add`.
-  add: (q?: string, mode?: string) => {
+  add: (q?: string, mode?: string, replace?: boolean) => {
     const validMode = mode === "identify" ? "identify" : "follow";
     // This file is SHELL code, not a component — it is the seam itself, so
     // it writes the store directly rather than through data.ts's
     // `writeUiState` write door (components must use that one; see its own
     // doc comment).
     store.write({ addQ: q ?? "", addMode: validMode });
-    go({
-      to: "/add",
-      search: {
-        q: q || undefined,
-        mode: validMode === "identify" ? "identify" : undefined,
+    go(
+      {
+        to: "/add",
+        search: {
+          q: q || undefined,
+          mode: validMode === "identify" ? "identify" : undefined,
+        },
+        replace,
       },
-    });
+      leavePanel,
+    );
   },
 });
 }

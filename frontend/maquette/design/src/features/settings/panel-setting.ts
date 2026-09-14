@@ -171,20 +171,15 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
    this feature's. So is the redraw and the sentence that follows — both through
    seams that die with the engine.
 
-   THE WAIT IS THE PANEL'S EXIT, unchanged at 200 ms: the panel closes, then the
-   page is redrawn and the message said. Shortening or removing it is a
-   behaviour change and this is a conversion. */
-const CANCEL_SETTLE_MILLISECONDS = 200;
-
+   The panel closes, and the page is redrawn and the message said in the same
+   tap: the layer's own exit animates while the page under it changes. */
 function cancelEdit(identifier: string): void {
   window.__referentiel.SETTINGS_STATE.modifs.delete(identifier);
   panel.close();
-  window.setTimeout(() => {
-    window.__referentiel.render();
-    toast?.show({
-      message: i18next.t("panels.setting.cancelledToast"),
-    });
-  }, CANCEL_SETTLE_MILLISECONDS);
+  window.__referentiel.render();
+  toast?.show({
+    message: i18next.t("panels.setting.cancelledToast"),
+  });
 }
 
 /** The verbs the settings panels offer, called by the click delegation. */

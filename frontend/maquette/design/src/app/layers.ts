@@ -11,8 +11,9 @@
 // `panel.isOpen()` reads the store.
 import i18next from "../i18n";
 import { addressSeam } from "../lib/addresses";
-import { entryPatch } from "../lib/navigation-entry";
-import { bridge, toast } from "../lib/shell-doors";
+import { entryPatch, layerRecordOf, type LayerRecord } from "../lib/navigation-entry";
+import { bridge, panel, toast } from "../lib/shell-doors";
+import { store } from "../lib/store-access";
 import { reopenAddressedPanel } from "./addressed-panels";
 import { BACK_WINDOW, recordPath, walk } from "./page-switch";
 
@@ -157,6 +158,16 @@ export function announceEntries(entryCount: number): void {
   if (entryCount > 0) unwindInProgress += 1;
 }
 
+/**
+ * Puts back the panel an entry records, on that entry.
+ *
+ * Args:
+ *     record: The kind and subject the entry was written for.
+ */
+function reopenPanelOfRecord(record: LayerRecord): void {
+  panel.openOnCurrentEntry(() => panel.produce(record.kind, record.subject));
+}
+
 type NavigationEntry = {
   tm?: string;
   layer?: string;
@@ -199,29 +210,44 @@ export function onEngineBack(
   for (const name of RANK) {
     if (registeredLayers.isOpen(name)) {
       registeredLayers.close(name, true);
+      /* A PANEL LEFT FOR ANOTHER PANEL keeps its entry too: the one closed
+         here was opened over it, and the entry landed on records the panel
+         underneath, so it is put back — the same reopening a Back from a
+         screen gets, one rung higher. */
+      const under = name === "sheet" ? layerRecordOf(current, "sheet") : undefined;
+      if (under) reopenPanelOfRecord(under);
       return;
     }
   }
 
   const state = current as NavigationEntry | null;
-  /* A layer entry stood on with nothing open, and the DIRECTION decides which
-     of two opposite things it is.
+  /* A layer entry stood on with nothing open — and ONE SHAPE decides it: a
+     layer left for an arrival keeps its entry, and the entry records what
+     reopens it (its kind, its subject and the page it was opened on).
 
-     FORWARD: going back off a panel leaves its entry AHEAD in the history, and
-     stepping forward onto it fell through every branch below — so the address
-     read `?panel=…` with nothing open. The entry names the panel in its own
-     address, so it is asked for again; nothing is pushed, because this entry IS
-     the panel's.
+     So the entry is REOPENED when the interface is still on the page it was
+     opened on: a Back from the screen an action opened, or a Forward back onto
+     the panel. Nothing is pushed, because this entry IS the panel's.
 
-     BACK, or a jump: the entry is a closed panel's LEFTOVER, and reopening it
-     would raise the panel over a page it was never opened on. The shape comes
-     from a tab-bar tap made while a panel is up — no finger reaches a tab over a
-     layer today, `node.click()` does, and so will any future surface that puts
-     a page switch over a layer. So it is stepped OVER, and that second pop is
-     NOT announced: the interface is on the page the tap moved it to, and only
-     the entry beneath can put it back — so the pop must be READ, through the
-     `tm: "nav"` branch below, exactly as the operator's own second back. */
+     And it is STEPPED OVER when the page has changed under it: that is the
+     leftover a page switch buries when it is made while a panel is up — no
+     finger reaches a tab over a layer today, `node.click()` does — and
+     reopening it would raise the panel over a page it was never opened on.
+     That second pop is NOT announced: the interface is on the page the switch
+     moved it to, and only the entry beneath can put it back — so the pop must
+     be READ, through the `tm: "nav"` branch below, exactly as the operator's
+     own second back.
+
+     An entry that records nothing — a panel no kind produces — keeps the
+     direction's old reading: a Forward asks for its address again, a Back
+     steps over it. */
   if (state && state.layer === "sheet" && !registeredLayers.isOpen("sheet")) {
+    const record = layerRecordOf(state, "sheet");
+    const samePage = record?.openedOn === String(store.read().state.page ?? "");
+    if (record && (direction === "FORWARD" || samePage)) {
+      reopenPanelOfRecord(record);
+      return;
+    }
     if (direction === "FORWARD") {
       reopenAddressedPanel(location.search, true);
       return;

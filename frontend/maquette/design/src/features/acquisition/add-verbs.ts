@@ -41,14 +41,12 @@ function identify(index: number, title: string): void {
   const entries = (panel.isOpen() ? 1 : 0) + 1;
   panel.close(true);
   bridge.rewind(entries);
-  window.setTimeout(() => {
-    queueActions?.resolve(target, title);
-    window.__referentiel.render();
-    toast?.show({ message: i18next.t("verbs.arrivals.resolved", { choice: title }) });
-    toast?.show({
-      message: i18next.t("verbs.acquisition.identified", { target: baseTitle(target), title }),
-    });
-  }, 260);
+  queueActions?.resolve(target, title);
+  window.__referentiel.render();
+  toast?.show({ message: i18next.t("verbs.arrivals.resolved", { choice: title }) });
+  toast?.show({
+    message: i18next.t("verbs.acquisition.identified", { target: baseTitle(target), title }),
+  });
 }
 
 /**

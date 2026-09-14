@@ -54,26 +54,23 @@ registerVerb("tmdb", () => {
   toast?.show({ message: i18next.t("verbs.acquisition.tmdbConnected") });
 });
 
-/* THE PANELS' ACTS. The primary act closes the panel and acts 240 ms LATER,
-   the choreography the panel was built against, kept until the ladder takes
-   one shape. Its value is `<title>|<status>`: a medium waiting to be taken is
-   taken, any other is searched for. */
+/* THE PANELS' ACTS. The primary act closes the panel and acts in the same
+   tap. Its value is `<title>|<status>`: a medium waiting to be taken is taken,
+   any other is searched for. */
 registerVerb("sheetprim", (value) => {
   const [title, status] = value.split("|");
   panel.close();
-  window.setTimeout(() => {
-    if (status === "to_grab") {
-      queueActions?.take(title);
-      redraw();
-      toast?.show({
-        message: i18next.t("verbs.acquisition.taken", { title: baseTitle(title) }),
-      });
-      return;
-    }
+  if (status === "to_grab") {
+    queueActions?.take(title);
+    redraw();
     toast?.show({
-      message: i18next.t("verbs.acquisition.searchStarted", { title: baseTitle(title) }),
+      message: i18next.t("verbs.acquisition.taken", { title: baseTitle(title) }),
     });
-  }, 240);
+    return;
+  }
+  toast?.show({
+    message: i18next.t("verbs.acquisition.searchStarted", { title: baseTitle(title) }),
+  });
 });
 // An incomplete series: the search for its missing episodes is said where it
 // will be seen moving, on « Maintenant ».
@@ -89,12 +86,9 @@ registerVerb("standby", () => {
   panel.close();
   toast?.show({ message: i18next.t("verbs.acquisition.watchStarted") });
 });
-// The panel leaves inside the navigation's own commit, with no wait between
-// the two.
-registerVerb("journey", (title) => {
-  panel.close();
-  panel.produce("journey", title);
-});
+// The journey is a panel of its own, opened OVER the one it was asked from:
+// that panel keeps its entry, so a Back from the journey puts it back.
+registerVerb("journey", (title) => panel.produce("journey", title));
 registerVerb("more", () => panel.produce("more"));
 
 // The follows' search cross: an empty filter shows the whole list again.

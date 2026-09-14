@@ -55,9 +55,8 @@ registerVerb("take", (value) => {
 
 /* THE ARBITRATION'S VERBS. The folder answered is the one the screen was opened
    on (`state.resolveTarget`), never an attribute's value: what `data-resolve`
-   carries is the CHOSEN CANDIDATE. Each leaves the screen, then acts 240 ms
-   later — the choreography the screen was built against, kept until the
-   ladder takes one shape. */
+   carries is the CHOSEN CANDIDATE. Each leaves the screen and acts in the same
+   tap. */
 
 /**
  * Opens the arbitration: a folder's, or the first stuck one when none is named.
@@ -68,12 +67,10 @@ registerVerb("resolution", (folder) => screens.resolution(folder || undefined));
 registerVerb("resolve", (choice) => {
   const target = store.read().state.resolveTarget as string;
   bridge.back();
-  window.setTimeout(() => {
-    const undo = queueActions?.pick(target, choice);
-    store.touch();
-    const message = i18next.t("verbs.arrivals.resolved", { choice: choice || target });
-    toast?.show(typeof undo === "function" ? { message, undo } : { message });
-  }, 240);
+  const undo = queueActions?.pick(target, choice);
+  store.touch();
+  const message = i18next.t("verbs.arrivals.resolved", { choice: choice || target });
+  toast?.show(typeof undo === "function" ? { message, undo } : { message });
 });
 
 // Agreeing with the machine: the automatic result stands and the folder leaves
@@ -81,11 +78,9 @@ registerVerb("resolve", (choice) => {
 registerVerb("leave", () => {
   const target = store.read().state.resolveTarget as string;
   bridge.back();
-  window.setTimeout(() => {
-    if (!queueActions?.leave(target)) return;
-    store.touch();
-    toast?.show({ message: i18next.t("verbs.arrivals.left", { title: target }) });
-  }, 240);
+  if (!queueActions?.leave(target)) return;
+  store.touch();
+  toast?.show({ message: i18next.t("verbs.arrivals.left", { title: target }) });
 });
 
 // The next folder waiting, on the same screen: the address is the screen's
@@ -97,7 +92,7 @@ registerVerb("next", (current) => {
     .concat(lists.stuck)
     .map((card) => decisions.find((decision) => decision.d === card.t) ?? null)
     .find((decision) => decision !== null && decision.d !== current);
-  if (following) window.setTimeout(() => screens.resolution(following.d, true), 240);
+  if (following) screens.resolution(following.d, true);
 });
 
 // No match for the folder: a pre-filled identification search, its query the
@@ -109,6 +104,7 @@ registerVerb("manual", (folder) => {
     .replace(/\b(MULTi|VOSTFR|WEB-DL|WEBRip|BluRay|x264|x265|HEVC|1080p|2160p|720p|FRENCH|TRUEFRENCH)\b/gi, "")
     .replace(/\s{2,}/g, " ")
     .trim();
-  bridge.back();
-  window.setTimeout(() => screens.add(query, "identify"), 260);
+  // The search takes the arbitration's place: a REPLACE, the ladder a pop and a
+  // push used to leave.
+  screens.add(query, "identify", true);
 });

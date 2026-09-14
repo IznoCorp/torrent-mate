@@ -85,23 +85,17 @@ registerVerb("pick-release", (value) => {
   });
 });
 
-/* THE TWO SURFACE-OPENERS. Each closes what is open and opens its screen 260 ms
-   later — the choreography the screens were built against, kept as it is until
-   the ladder takes one shape. */
+/* THE TWO SURFACE-OPENERS. Each opens its screen at once: the screen's door
+   closes the panel inside the navigation's own commit and keeps its entry, so a
+   Back from the screen comes back to the panel. */
 
 // Another release: the release screen for the title the panel names.
-registerVerb("releases", (title) => {
-  panel.close();
-  window.setTimeout(() => screens.releases(title), 260);
-});
+registerVerb("releases", (title) => screens.releases(title));
 
-// The quality profile. Both are ROUTES: from the release screen the way back is
-// the router's own step, from a panel or a page it is the panel's close.
+// The quality profile. Both are ROUTES: from the release screen the profile
+// takes that screen's place — a REPLACE, the ladder a pop and a push used to
+// leave — and from a panel it lands on top of the panel's entry.
 registerVerb("profile", (profile) => {
-  if (document.querySelector('.screen.open[data-key^="releases:"]')) {
-    bridge.back();
-  } else {
-    panel.close();
-  }
-  window.setTimeout(() => screens.profile(profile), 260);
+  const fromReleases = !!document.querySelector('.screen.open[data-key^="releases:"]');
+  screens.profile(profile, fromReleases);
 });
