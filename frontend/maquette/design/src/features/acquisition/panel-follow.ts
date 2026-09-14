@@ -25,7 +25,7 @@ import { store } from "../../lib/store-access";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import { followFacts } from "./follow-facts";
 import { primaryAction, secondaryActions } from "./follow-actions";
-import { followsQuery } from "./queries";
+import { followsQuery, incompleteShowsQuery } from "./queries";
 
 /* The one wait for an identity in progress, stopped by the next one. */
 let cancelWaiting: (() => void) | null = null;
@@ -87,7 +87,7 @@ function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
   return {
     address: "follow:" + title,
     title: follow.t,
-    poster: { t: follow.t, k: follow.k, source: follow.poster },
+    poster: { t: follow.t, k: follow.k, source: follow.poster ?? heldIdentity(title)?.poster },
     meta:
       `${follow.y ? String(follow.y) + " · " : ""}${kind}` +
       `${fraction ? " · " + fraction + translate("panels.follow.episodesSuffix") : ""}`,
@@ -112,5 +112,9 @@ function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
 
 registerProducer("follow", {
   produce: followPanel,
-  needs: [followsQuery],
+  // THE FOLLOWS, AND THE READ THAT CARRIES THE IDENTITY OF A MEDIUM NOBODY
+  // FOLLOWS. Without the second, a panel typed onto any page but the
+  // Médiathèque waits for an identity nobody asks for: no « Voir la fiche »,
+  // owned cells from a threshold, initials for a poster (R176).
+  needs: [followsQuery, incompleteShowsQuery],
 });

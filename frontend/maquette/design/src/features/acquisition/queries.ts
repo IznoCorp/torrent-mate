@@ -135,6 +135,26 @@ export const followsQuery = {
     toEngineShape<Follow[]>("FOLLOWS", await read("/api/acquisition/followed")),
 };
 
+/**
+ * The shows the library holds incomplete, asked for the IDENTITY they carry.
+ *
+ * A medium the library holds and nobody follows has its provider identity in
+ * this list and in no other, and the follow panel reads three things from that
+ * identity: whether a sheet stands behind the title, which episodes are owned,
+ * and the poster at its head. The Médiathèque asks for it for its own list; on
+ * every other page nothing did, so the follow panel's producer declares it.
+ *
+ * THE SAME KEY AND THE SAME PROJECTION as the library feature's own read, and
+ * written here rather than imported: two features never import each other
+ * (invariant 7). Both project the answer through the one `INCOMPLETE` family,
+ * so the cache holds one answer whichever of the two asked first.
+ */
+export const incompleteShowsQuery = {
+  queryKey: ["/api/library/incomplete"],
+  queryFn: async () =>
+    toEngineShape<unknown[]>("INCOMPLETE", await read("/api/library/incomplete")),
+};
+
 /** What the operator follows. */
 export function useFollows() {
   return useQuery(followsQuery);
