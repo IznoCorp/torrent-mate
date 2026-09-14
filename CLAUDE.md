@@ -30,87 +30,18 @@ is bypassed. Details: `docs/reference/testing.md` §Feature Map.
 
 ### Product Intent — product constitution (web-UI — BINDING)
 
-**Every web-UI evolution must conform to `docs/reference/product-intent.md`** — the
-application's raison d'être, dictated by the operator. **When an implementation conflicts
-with this constitution, the implementation is wrong.** Read `product-intent.md` **before
-coding** any web surface; every web PR **cites the §§ it serves**. **Trial (auditor order 32,
-ratified at the next conversion PR): a CONVERSION pull request — nothing observable changes —
-cites no constitution §§; a BEHAVIOUR or surface pull request still does.**
+- Every web-UI evolution must conform to `docs/reference/product-intent.md` — the application's raison d'être, dictated by the operator; when an implementation conflicts with the constitution, the implementation is wrong.
+- Every web PR cites the §§ it serves, except a CONVERSION PR (nothing observable changes), which cites none (trial, auditor order 32). Story: `CLAUDE.md@6a47304a4` § Product Intent.
 
 ### Design Reference — the maquette is authoritative (web-UI — BINDING)
 
-**`frontend/maquette/design/` is the visual reference of the web UI** (§15 of the
-constitution). Every design evolution **starts from the maquette, never from the code**.
-
-**Where inside it, since L07 (2026-08-25) — this line used to name one file.** It named
-`frontend/maquette/design/refonte.html@60530dbd8`, which held a 4 136-line hand-written stylesheet
-and, by the time it was deleted at that squash, held not one style rule. The reference is the
-**tokens and the component catalogue, and only those**: `design/src/styles/theme.css`
-(the scale and the palette, a `@theme static` block), `design/src/styles/base.css` (the base layer),
-and the `variants.ts` of `design/src/ui/` and of each surface, where every drawing decision is
-written beside the class that applies it. `design/src/styles/legacy.css` is the dated residue the
-dying engine still consumes — it dies with it at L13 — and `design/src/styles/harness.css` is the
-measuring apparatus: the phone frame the oracle measures inside, so it IS in the maquette's own
-build and is in no production build. It dies at switchover, and « it ships nowhere » would be
-the easy sentence and the false one.
-
-**READ THIS BEFORE ANYTHING ELSE — the maquette is the NEXT version of the app, and it will
-REPLACE it.** On switchover day `frontend/src` is ARCHIVED and the maquette takes its place. It
-is not transposed into the app, not translated, not merged surface by surface. That is why every
-page and every mechanism the app has must eventually be re-created IN the maquette: afterwards
-there is nothing left to take from.
-
-So a maquette/production difference is **never** a production bug, and never something to
-"repair" by pointing a tool at the other side. The two differ because one replaces the other.
-
-**A whole layer of tooling was built for the opposite model and is now void** (operator,
-2026-08-20). The 2026-08-10 spec (§4.1, §7.2) planned to migrate the app towards the maquette
-surface by surface, which required CSS extraction, a `.tm` scope so the two stylesheets could
-coexist, a selector allowlist, a drift guard and a rendering-parity probe. The 2026-08-13
-directive reversed that order and the tooling stayed. It has no subject: you do not make two
-stylesheets coexist when one replaces the other, and you do not translate a CSS that BECOMES the
-CSS. Retiring it is the correction, not a risk.
-
-**The rule that follows, and it is the expensive lesson**: when a decision changes, the
-implementation directives change IN THE SAME MOVE. What loses its subject is removed, not kept
-"just in case" — machinery nobody can justify becomes machinery nobody dares delete.
-
-**The method that survives, and it is the whole method:**
-
-1. The **maquette is modified first**, verified with its harness (`frontend/maquette/harness/`).
-   Nothing about a surface is decided anywhere else.
-2. A surface is **drawn before it is coded**, with named states and a rule that bites.
-3. The **harness is the proof**: a change lands with its rule, and the rule is mutation-tested —
-   break the behaviour on purpose, confirm the rule falls and names the right defect, restore.
-4. **The rule suite runs on a schedule, not on a hunch** — `frontend/maquette/harness/run.sh`:
-   - `--contracts` (the contracts tier, minutes; `run.sh` prints its rule count — a number
-     written here went stale a third time with L12, so none is written now) runs **in CI on
-     every PR touching the maquette**. These
-     are the rules that fall when a NAME moves without all of its ends. A rule that reads
-     the operator's live databases cannot be among them — `arrivals.py` was, and failed on
-     the runner for want of `library.db`, which says nothing about the change under test.
-     **Since 2026-08-25 this tier also runs the repository's CHEAP guards** — as many
-     as `run.sh` lists and prints (« Running the repository's cheap guards (N) »; a number written
-     here went stale twice in two days), ~31 s, the ones that read what a maquette phase edits — so an invariant
-     breach is attributable to the phase that commits it and not to a fifteen-phase
-     interval. `make check` entire is NOT among them: its fourteen minutes of tests stay a
-     wave gate.
-   - no flag (the full suite; `run.sh` prints its rule count, 20-25 min) is the **gate before
-     a wave is merged**, and it is not
-     optional. It ran nowhere automatically until 2026-08-20, and on that day a rename that
-     looked contained broke SIX contracts — four of them visible to nothing else, including a
-     dead pipeline stop button, while `lint`, `test` and `check` were all green.
-
-   The script builds and re-copies the prototype first, because the harness reads a MANUAL copy
-   at `/tmp/tm-refonte/wrapped.html` and a stale one measures the previous build in silence.
-
-**What the maquette must BECOME technically — and in what order — is
-`docs/reference/frontend-architecture.md`, and it is BINDING.** It carries the settled
-architecture decisions (the address model, Tailwind + typed variants, where CSS lives, what a
-rule may anchor on, how the legacy engine dies) and the ordered lots that get there, each with
-its own definition of done. Read it before any frontend work beyond drawing a surface; the
-state of that work — **which lot landed, which one is next** — is `IMPLEMENTATION.md`
-§ « Where the frontend work stands », and lives nowhere else.
+- `frontend/maquette/design/` is the visual reference of the web UI (constitution §15); every design evolution starts from the maquette, never from the code.
+- The reference is the tokens and the component catalogue, and only those: `design/src/styles/theme.css`, `design/src/styles/base.css`, and the `variants.ts` of `design/src/ui/` and of each surface. `legacy.css` dies with the engine at L13; `harness.css` is the harness's own measuring apparatus, ships in no production build, and dies at switchover.
+- The maquette is the NEXT version of the app and REPLACES it; it is not transposed, translated, or merged into the app surface by surface — every page and mechanism must eventually be re-created IN the maquette. A maquette/production difference is never a bug to repair by pointing a tool at the other side. Story: `CLAUDE.md@6a47304a4` § Design Reference.
+- When a decision changes, the implementation directives change IN THE SAME MOVE; what loses its subject is removed, not kept "just in case".
+- The method: (1) the maquette is modified first, verified with its harness (`frontend/maquette/harness/`) — nothing about a surface is decided elsewhere; (2) a surface is drawn before it is coded, with named states and a rule that bites; (3) the harness is the proof — a change lands with its rule, and the rule is mutation-tested.
+- The rule suite runs on a schedule, not on a hunch: `frontend/maquette/harness/run.sh --contracts` runs in CI on every PR touching the maquette (a rule reading the operator's live databases cannot be among them); `make check` entire is not among them either. The full suite (no flag) is the gate before a wave is merged, and it is not optional. `run.sh` builds and re-copies the prototype first — the harness reads a manual copy at `/tmp/tm-refonte/wrapped.html`. Story: `CLAUDE.md@6a47304a4` § Design Reference.
+- What the maquette must become technically, and in what order, is `docs/reference/frontend-architecture.md`, and it is BINDING. Read it before any frontend work beyond drawing a surface; the state of that work — which lot landed, which is next — is `IMPLEMENTATION.md` § « Where the frontend work stands », and lives nowhere else.
 
 #### The mission — dictated by the operator, 2026-08-19 (SUPERSEDES any narrower reading)
 
@@ -134,210 +65,46 @@ Four consequences, and none of them is optional:
    the new interface needs. So a backend limitation is not a reason to draw less — record it and
    draw what the experience requires. Backend work comes AFTER the interface is frozen.
 
-Read `frontend/maquette/README.md` before any design change — method, named states, verified
-rule set, and the traps already paid for.
+- Read `frontend/maquette/README.md` before any design change — method, named states, verified rule set, and the traps already paid for.
 
 ### Search Safety (MANDATORY — machine crash prevention)
 
-`tests/e2e/perf/.fixture/` is **14 GB** of binary media files. `rg` without type
-filters WILL consume all RAM and crash the machine (PID 39685 incident).
-
-**Every `rg` command MUST include one of:**
-
-- `--type py` (Python files only)
-- `-g '*.py'` (glob filter)
-- `-g '*.md'` or `-g '*.json5'` etc. for non-Python targets
-
-**Examples:**
-
-```bash
-# CORRECT
-rg "pattern" --type py personalscraper/ tests/
-rg "pattern" -g '*.py' -g '*.md' .
-
-# WRONG — will crash the machine
-rg "pattern" personalscraper/ tests/
-rg "pattern" .
-```
-
-`.rgignore` at the repo root excludes known heavy dirs as defense-in-depth,
-but new fixtures can appear — the type filter is the primary safeguard.
+- `rg` without type filters WILL consume all RAM and crash the machine (`tests/e2e/perf/.fixture/` alone is 14 GB of binary media). Every `rg` command MUST include `--type py`, or a `-g '*.ext'` glob filter for non-Python targets. `.rgignore` is defense-in-depth only — the type filter is the primary safeguard, since new fixtures can appear. Story: `CLAUDE.md@6a47304a4` § Search Safety.
 
 ### Network Timeout Safety (MANDATORY — machine hang prevention)
 
-**curl, wget, and fetch can hang indefinitely** when a server accepts the TCP
-connection but never sends an HTTP response (omdbapi.com/swagger.json incident,
-11+ hours). A `block_curl_without_timeout` PreToolUse hook enforces this rule.
-
-**Every network command MUST include both:**
-
-- `--connect-timeout N` (TCP handshake timeout, recommended 10s)
-- `--max-time N` (total transfer timeout, recommended 30s)
-
-**Examples:**
-
-```bash
-# CORRECT
-curl --connect-timeout 10 --max-time 30 "https://api.example.com/data"
-wget --timeout 30 "https://example.com/file"
-
-# WRONG — will hang indefinitely if server accepts TCP but never responds
-curl "https://api.example.com/data"
-```
-
-**WebFetch caveat**: WebFetch has no configurable timeout. Prefer `Bash(curl)` with
-explicit timeouts for API calls to hosts that may be slow or unreachable.
+- curl, wget, and fetch can hang indefinitely when a server accepts the TCP connection but never sends a response. Every network command MUST include both `--connect-timeout N` (recommended 10s) and `--max-time N` (recommended 30s); a `block_curl_without_timeout` PreToolUse hook enforces this. WebFetch has no configurable timeout — prefer `Bash(curl)` with explicit timeouts for hosts that may be slow or unreachable. Story: `CLAUDE.md@6a47304a4` § Network Timeout Safety.
 
 ### Commit Convention
 
-Follows [Conventional Commits](https://www.conventionalcommits.org/) — globally enforced for
-all projects using this `.claude/` config. Format: `<type>[(<scope>)]: <description>`.
-
-Types: `feat | fix | chore | refactor | style | docs | test | perf | build | ci`
-Examples: `feat(scraper): create TvShow nfo file` · `refactor(dispatch): extract folder_for to resolver`
-
-**Forbidden**:
-
-- Version prefixes (`vX.Y.Z: Description`) — version traceability lives in `IMPLEMENTATION.md`
-  and subagent reports (sub-phase → SHA mapping), not in commit messages
-- AI attribution: `Co-Authored-By`, `Claude`, `Anthropic` — enforced by `hooks/commit-msg`,
-  which also holds the Conventional-Commit format and the version-prefix ban. It runs on
-  every commit in this clone (`core.hooksPath = hooks`). **It cannot reach the squash-merge
-  message composed on GitHub**, which is the message that lands on `main` — only a
-  server-side check would. (The previously named `hooks/block_ai_attribution.py` never
-  existed: the real file is a gitignored Claude-Code tool hook that sees only the agent's
-  own `git commit` invocations.)
-
-Milestone-commit format and the codename-as-scope rule: `docs/reference/feature-lifecycle.md` §7.
-
-**Version bump per PR (§10-3), and its one exemption.** Every PR bumps the version, patch by
-default — the `version-bump` CI job enforces it. **A pull request that touches no code — pure
-documentation, a directive correction, a bug-register entry** — carries the label
-`no-version-bump` instead: the job reads it and skips. Add it any time, before or after opening
-the PR — CI's `pull_request` trigger includes `labeled`/`unlabeled`, so adding or removing it
-re-runs the check against the current label set. This exempts prose, never a PR that changes any
-file `personalscraper/`, `frontend/maquette/design/src/`, `frontend/maquette/harness/`,
-`scripts/`, or `.github/workflows/` touches in its logic — a docs-only PR that also fixes one
-line of a script bumps like any other. Documented here on 2026-08-24 after every steward PR of
-the L05 wave bumped version regardless: the label existed in `.github/workflows/ci.yml` since
-before then and was never once used, because nothing pointed an agent at it. **Its first real use
-failed for a second, adjacent reason**: the trigger did not yet include `labeled`, so a label
-added after the PR opened changed nothing until this file's own PR (#488) added it — read the
-failing run before trusting the label alone.
-
-**A DRAFT pull request runs NO CI, since 2026-09-08 by the operator's decision** (« on l'exécute
-qu'à la sortie de draft, afin d'économiser du temps de CI »). Every job in
-`.github/workflows/ci.yml` carries the same job-level condition, so a draft dispatches a run whose
-jobs all report `skipped` and whose steps never start. **CI is read after `ready_for_review`** —
-that type is in the trigger for exactly this reason, and without it leaving draft would dispatch
-nothing at all — **or, on a draft, by adding the `run-ci-on-draft` label**: the escape hatch for a
-branch that needs a green reading before its merge day, and `labeled` being among the types makes
-adding the label itself the dispatching event. **A draft now dispatches NOTHING, so « zero
-check-runs » has a SECOND CAUSE.** It used to have one — the run never started: no pull request at
-all, a `paths-ignore`, or a pull request GitHub reports as `CONFLICTING`, which dispatches no
-check-suite. Beside those there is now a pull request that is simply a draft, and from the outside
-the two readings are identical. **Read the pull request's draft state FIRST**, before diagnosing
-anything else. A job added to that workflow without the condition silently re-enables draft runs;
-`tests/scripts/test_ci_skips_draft_pull_requests.py` refuses it.
-
-**A THIRD cause of « zero green reading », met on 2026-09-12 (#584): a pull request opened as a DRAFT
-and made READY within seconds.** The `opened` payload (draft = true) dispatched a run AFTER the
-`ready_for_review` run, the concurrency group's cancel-in-progress killed the real run, and the
-draft-payload run SKIPPED all fourteen jobs — a run whose conclusion is `skipped` reads as pending in
-`gh run view`, and a waiter on it waits for ever. **Open a pull request READY when it is ready, or
-add `run-ci-on-draft` and read the run that label dispatches**; never the two transitions in one
-breath. And after a merge lands on `main`, an open pull request behind it is refused by the ruleset
-(« not up to date with the base ») until `gh pr update-branch`, whose push dispatches the run to read.
+- [Conventional Commits](https://www.conventionalcommits.org/), format `<type>[(<scope>)]: <description>` (`feat|fix|chore|refactor|style|docs|test|perf|build|ci`) — globally enforced for all projects using this `.claude/` config.
+- Forbidden: version prefixes (`vX.Y.Z: …`) — version traceability lives in `IMPLEMENTATION.md` and subagent reports, not commit messages; AI attribution (`Co-Authored-By`, `Claude`, `Anthropic`) — `hooks/commit-msg` refuses it and holds the Conventional-Commit format and the version-prefix ban, on every commit in this clone, but it cannot reach the squash-merge message composed on GitHub. Milestone-commit format and the codename-as-scope rule: `docs/reference/feature-lifecycle.md` §7.
+- Every PR bumps the version, patch by default — the `version-bump` CI job enforces it. A pull request that touches no code — pure documentation, a directive correction, a bug-register entry — carries the label `no-version-bump` instead, added any time before or after opening (CI reruns on `labeled`/`unlabeled`); this never exempts a PR that also changes any file `personalscraper/`, `frontend/maquette/design/src/`, `frontend/maquette/harness/`, `scripts/`, or `.github/workflows/` touches in its logic. Story: `CLAUDE.md@6a47304a4` § Commit Convention.
+- A DRAFT pull request runs NO CI, since 2026-09-08 by the operator's decision. CI is read after `ready_for_review`, or on a draft by adding the `run-ci-on-draft` label; a job added to the workflow without the shared draft condition silently re-enables draft runs, and `tests/scripts/test_ci_skips_draft_pull_requests.py` refuses it. Open a pull request READY when it is ready, or add `run-ci-on-draft` and read the run that label dispatches — never both transitions in one breath (a draft-then-ready-within-seconds run reads as `skipped`, not failed, and a waiter on it waits forever). After a merge lands on `main`, an open PR behind it needs `gh pr update-branch` before its ruleset check passes. Story: `CLAUDE.md@6a47304a4` § Commit Convention.
 
 ### Pipeline Monitoring Rules
 
-When running `personalscraper run` or any long-running command with user observation:
-
-1. **NEVER run in background** — foreground only, `timeout=600000`. A hook (`block_background_pipeline.py`) enforces this.
-2. **Create TODO tasks BEFORE launching** — categories: bugs, inconsistencies, improvements. Update in real-time.
-3. **Show output after each step** — read and display incrementally, don't wait for the end.
-4. **Kill on 2 identical consecutive errors** — systemic failure = STOP immediately, don't keep trying.
-5. **State limitations upfront** — if you can't guarantee something, say so BEFORE agreeing.
-6. **After kill: check filesystem** — orphans, lock files, temp dirs. Clean or report what can't be cleaned.
-
-Alternative: run steps individually (`personalscraper ingest`, then `personalscraper sort`, etc.) to maintain control between steps. Use `-v` only for debugging a specific step (generates 100× more output).
+- Running `personalscraper run` or any long-running command with user observation: NEVER run in background — foreground only, `timeout=600000` (a `block_background_pipeline.py` hook enforces this); create TODO tasks (bugs, inconsistencies, improvements) BEFORE launching, updated in real-time; show output after each step, incrementally, don't wait for the end; kill on 2 identical consecutive errors — systemic failure = STOP immediately; state limitations upfront, before agreeing; after a kill, check the filesystem (orphans, lock files, temp dirs) and clean or report what can't be cleaned. Alternative: run steps individually (`personalscraper ingest`, then `personalscraper sort`, etc.) to keep control between steps. Use `-v` only for debugging a specific step (100× more output).
 
 ### Code Conventions
 
-- **Google-style docstrings** mandatory on all modules, classes, functions, and methods
-- Docstrings include: description, `Args:`, `Returns:`, `Raises:` (as applicable)
-- **Inline comments** for non-trivial logic explaining the "why" (not the "what")
-- Docstring/comment language: **English**
-- **No French in the code, and no interface text in the code** — see §Language below. It is
-  enforced, not remembered: `python3 scripts/check-no-french.py` (in `make check` and in CI).
+- **Google-style docstrings** mandatory on all modules, classes, functions, and methods (description, `Args:`, `Returns:`, `Raises:`); **inline comments** for non-trivial logic explaining the "why"; docstring/comment language: **English**.
+- **No French in the code, and no interface text in the code** — see §Language below. Enforced by `python3 scripts/check-no-french.py` (in `make check` and in CI).
 - New tests: choose unit / integration / manual E2E — see `docs/reference/testing.md`.
-- **Renaming an identifier goes through `scripts/rename-identifiers.py`** — never by hand,
-  never with an ad-hoc regex. Every bypass has cost something: a rewritten route, eleven state
-  ids, eight interface texts and five rule assertions in one wave alone. **But the tool is not
-  the proof.** Its read-back check is skipped for `--values` runs and for Python files — and
-  `--values` is the mode that rewrote 429 lines of prose. So every rename batch is verified by
-  an oracle OUTSIDE the tool: re-read the diff (not the « N file(s) touched » line), and re-run
-  the harness rule suite. Two corruptions in this repository were found by reading the diff
-  after the tool reported success.
-- **A bug fix carries a regression test**, and the test is shown to FAIL against the code as it
-  stands before the fix. A test written after the fix that was never seen red proves only that
-  it agrees with the fix.
-- **Names are written out in full — no abbreviations.** `configuration`, not `cfg`; `message`,
-  not `msg`. A name is read far more often than it is typed, and a mutilated word costs its
-  reader a translation every time. The rule, its blacklist, what is NOT an abbreviation (language
-  conventions, acronyms, domain terms, and `dir` as a type suffix — measured at 488 occurrences,
-  never once bare) and the ratchet that freezes the existing debt without rewriting it:
-  `docs/reference/code-naming.md`. It covers `personalscraper/`, `scripts/` and
-  `frontend/maquette/`, parameters and locals included; TypeScript is already covered by
-  `check-no-french.py`'s vocabulary arm. One-letter names are never read — Clean Code licenses a
-  BRIEF name in a brief scope, never a word with its middle removed.
+- **Renaming an identifier goes through `scripts/rename-identifiers.py`** — never by hand, never with an ad-hoc regex. The tool's read-back check is skipped for `--values` runs and for Python files, so every rename batch is verified by an oracle OUTSIDE the tool: re-read the diff, and re-run the harness rule suite. Story: `CLAUDE.md@6a47304a4` § Code Conventions.
+- **A bug fix carries a regression test**, and the test is shown to FAIL against the code as it stands before the fix.
+- **Names are written out in full — no abbreviations.** The rule, its blacklist, what is NOT an abbreviation, and the ratchet that freezes the existing debt: `docs/reference/code-naming.md`. It covers `personalscraper/`, `scripts/` and `frontend/maquette/`, parameters and locals included.
 - **Module size**: soft warning at 800 non-blank LOC, hard ceiling 1000 LOC (exit 1). Run `python3 scripts/check-module-size.py` (also wired into `make check`).
 
 ### Phase Gate Checklist (MANDATORY before every phase gate commit)
 
-Every `chore(scope): phase N gate` commit MUST pass all of:
-
-1. **`make lint`** — ruff + mypy (both wired in Makefile). Zero errors.
-2. **`make test`** — all 9000+ tests pass. Check the summary line: `NNNN passed` with 0 failed/errors.
-3. **`make check`** — lint + test + module-size + typed-api guardrails. **Trial, a maquette wave's
-   own pull request (auditor order 26, 2026-09-13):** no local `make check` before it — CI's `test`
-   job (8 min, unconditional) is the authority; the pre-PR gate is `make lint` + the harness full
-   suite + `--a11y` + `--compare` + the pre-push pytest. Untouched for the `implement:phase` flow
-   above, and for every non-maquette pull request.
-4. **Residual import grep** — for every module deleted in this phase, grep both `personalscraper/` AND `tests/` for the old import path. Zero matches.
-5. **`python -c "import personalscraper"`** — smoke test.
-
-An ERROR (not just FAILED) in `make test` means test COLLECTION crashed — everything after it
-was skipped. Post-deletion and post-signature-change grep rules:
-`docs/reference/feature-lifecycle.md` §7.
+- Every `chore(scope): phase N gate` commit MUST pass: **`make lint`** (ruff + mypy, zero errors); **`make test`** (all pass, summary line `NNNN passed` with 0 failed/errors — an ERROR, not FAILED, means test COLLECTION crashed and everything after was skipped); **`make check`** (lint + test + module-size + typed-api guardrails), EXCEPT a maquette wave's own pull request (trial, auditor order 26) where CI's `test` job is the authority instead, and the pre-PR gate is `make lint` + the harness full suite + `--a11y` + `--compare` + the pre-push pytest; a **residual import grep** — for every module deleted in this phase, grep both `personalscraper/` AND `tests/` for the old import path, zero matches; and `python -c "import personalscraper"` as a smoke test. Post-deletion and post-signature-change grep rules: `docs/reference/feature-lifecycle.md` §7.
 
 ### Implementation Workflow (feature-oriented)
 
-The feature lifecycle is the plugin `implement@lounisbou`'s, five skills: `/implement:feature`
-(brainstorm → codename + SemVer → branch → plan), `/implement:phase` (every phase not done, inline —
-failing tests, the code, the project's gate, one commit and a check per sub-phase), `/implement:check`
-(a delivery or a commit range against the plan and the design), `/implement:close` (the full gate,
-the declared bump and the branch's summary — never a push, a pull request or a merge) and
-`/implement:prepare` (a future feature's design and plan on the roadmap). The pull request, its CI
-reading and the squash merge come after `/implement:close`, by the operator or the orchestrator.
-**Sonnet is no longer forbidden as a dispatch target** (operator, 2026-09-13 ~21:1x: « Sonnet
-autorisé, on retire ça… l'orchestrateur choisit ») — the tier map follows the routing table, and the
-orchestrator routes by the class of work. Branches `feat/{codename}` / `fix/{codename}`, commits
-scoped with the codename, squash merge. Full flow, milestone commits and the KanbanMate claim
-procedure: `docs/reference/feature-lifecycle.md` §7.
-
-**Claim a ticket that ALREADY EXISTS on the board before coding it** — `/kanban-work <ticket>`,
-so the autonomous KanbanMate daemon stays out of the way, and advance the card as you go.
-
-**Do NOT create a ticket for work you are about to do in this session** (operator, 2026-08-19).
-The claim procedure exists to keep this session and the daemon off each other's cards; it is not
-a bookkeeping ritual. Work that can be carried out in the session at hand is simply carried out
-— inventing and claiming a card for it is counterproductive.
-
-**A worktree is ALWAYS removed once its PR is merged** (operator, 2026-08-24). The local branch
-is deleted, then `ExitWorktree` with `action: "remove"` (with `discard_changes: true` for the
-superseded pre-merge commits) — a merged PR leaves no workspace behind. A worktree is a PR's
-scratch space, not its memorial.
+- The feature lifecycle is the plugin `implement@lounisbou`'s, five skills: `/implement:feature`, `/implement:phase`, `/implement:check`, `/implement:close`, `/implement:prepare`. The pull request, its CI reading and the squash merge come after `/implement:close`, by the operator or the orchestrator. Sonnet is no longer forbidden as a dispatch target — the orchestrator routes by the class of work. Branches `feat/{codename}` / `fix/{codename}`, commits scoped with the codename, squash merge. Full flow, milestone commits and the KanbanMate claim procedure: `docs/reference/feature-lifecycle.md` §7.
+- **Claim a ticket that ALREADY EXISTS on the board before coding it** — `/kanban-work <ticket>`, so the autonomous KanbanMate daemon stays out of the way. **Do NOT create a ticket for work you are about to do in this session** — the claim procedure keeps this session and the daemon off each other's cards, it is not a bookkeeping ritual.
+- **A worktree is ALWAYS removed once its PR is merged.** The local branch is deleted, then `ExitWorktree` with `action: "remove"` (`discard_changes: true` for superseded pre-merge commits).
 
 ### Move Rules (dispatch)
 
@@ -375,91 +142,22 @@ Invariants enforced by tests (do not regress; details in `docs/production/web-ui
 The operator communicates in French or English — respond in French when they write in French.
 Everything durable is **English only**: code comments, docstrings, maquette/harness sources, and
 all engineering documentation (`docs/`, `BUGS.md`, `CHANGELOG.md`,
-`IMPLEMENTATION.md`, this file). **Never mix languages within a document.** Exceptions:
+`IMPLEMENTATION.md`, this file). **Never mix languages within a document.**
 
-- **Two documents stay French, by name**: `docs/reference/product-intent.md`, the constitution,
-  and `docs/reference/operator-method.md`, his method (since 2026-09-13) — both dictated by the
-  operator and amended by the operator alone. The documents describing the
-  version in production (`docs/production/`, `README.md`) keep the language they were written
-  in — they are frozen and die at the switchover; the next version's operator documents are born
-  in English. The rule, the three families and their fates:
-  `docs/reference/documentation-model.md`.
-- French inside an English document is allowed **only** to quote UI copy / app screens and
-  sections named in French (in « guillemets »), media titles, or the operator verbatim.
-- Maquette/harness comments carry no reference to a session, a phase or a dated decision —
-  they must still read years from now, out of context.
+- **Two documents stay French, by name**: `docs/reference/product-intent.md`, the constitution, and `docs/reference/operator-method.md`, his method — both dictated by the operator and amended by the operator alone. The documents describing the version in production (`docs/production/`, `README.md`) keep the language they were written in — they are frozen and die at the switchover. The rule, the three families and their fates: `docs/reference/documentation-model.md`.
+- French inside an English document is allowed **only** to quote UI copy / app screens and sections named in French (in « guillemets »), media titles, or the operator verbatim. Maquette/harness comments carry no reference to a session, a phase or a dated decision — they must still read years from now, out of context.
 
 **The code itself contains NO French, and no interface text.** Two halves of one rule,
 enforced by `scripts/check-no-french.py` (fifteen arms, in `make check` and in CI):
 
-- **English names, everywhere and always**: identifiers, function/type/**class** names (code
-  AND CSS), **file and directory names**, and every message the tools print. A new file, a new
-  class, a new variable is named in English on the day it is written — this is not a cleanup
-  someone does later.
-- **No UI string lives in the code.** The French a reader of the interface sees lives in the
-  i18n resources: `frontend/maquette/design/src/i18n/fr.json` for the shell — read through
-  `useTranslation()` — and the same file's `server` namespace for the pages `serve.py` serves.
-  Extract strings, never retype them: a retyped string is a defect, because it renders
-  correctly while the reference is broken.
-- **`frontend/src` is EXEMPT from that rule, deliberately.** The production React app has no
-  i18n layer at all — no `i18n/` directory, no `useTranslation()` — and its French is written
-  straight into the components. That is the app the maquette shell is being built to replace,
-  so moving that copy into resources would be work thrown away with the app that holds it.
-  The exemption is the operator's, and it is not a licence to relax: **it is a RATCHET.**
-  `check_app_interface_text` reads that whole tree — JSX text nodes included, which carry no
-  quotes — and **refuses the count going UP**, against the baseline pinned in
-  `scripts/french-exemption-baseline.json`. It is counted in two figures, because they are not
-  the same thing: French in PRODUCTION components (the debt, and the only one the ratchet
-  guards) apart from French a TEST asserts, which is the app's rendered output and legitimate.
-  A printed number was not enough — it drifted by 7 inside the very PR that introduced it as a
-  control and nothing noticed, because a number nobody compares is a number nobody reads. An
-  exemption nobody counts is indistinguishable from an oversight — which is precisely how 842 of those
-  strings, three all-French shell scripts and `id="coquille"` each sat under a green gate.
-- **`data-*` attribute NAMES are code and follow the rule.** They were carved out here once,
-  and the operator overturned that: a `data-*` name is a name someone chose, so it is written
-  in English like any other. Their VALUES are not — `data-go="profil"` names a page, and a
-  page id is an address. A contract has three ends — the markup that emits it, the
-  `dataset.X` that reads it, and the rules that tap it — and they move in ONE step or the
-  interface half-works in a way no single file reveals.
-- **What is NOT French-in-the-code**, and must stay as it is: the French a harness hold
-  ASSERTS (that is the app's rendered output — translating it would silently stop measuring
-  anything), i18n interpolation placeholders, form field names, and the config keys the
-  settings dictionaries are keyed by. **« data VALUES » is not the escape hatch it was read
-  as**: a NAMED STATE id is a name someone chose (`window.__go("acq-now-idle")`), and 51 of
-  the maquette's 82 were French until 2026-08-20 because « it is a value » was accepted as
-  an answer. A value is a datum the app STORES or DISPLAYS — a title, a folder, a status
-  string from the backend. If a human typed it to designate something, it is a name. **Route paths are NOT on this list any more**
-  — #456 struck them off on the operator's ruling (« une route et un paramètre sont des NOMS,
-  pas des données ») and renamed the French addresses, answering the old ones with redirects.
-  ⚠ This paragraph used to add « which is why `/deconnexion` on the design host is still
-  French », and that had stopped being true: `serve.py` serves `/logout` and `/login`, and
-  `harness/logout.py` holds both — which is why that rule sits in the `--contracts` tier. A
-  sentence that outlives its subject is read as current by the next session; this one was, and
-  it sent L05 looking for three French routes that had already been renamed. Each such literal
-  carries a `# french-ok: <reason>` / `// french-ok: <reason>` pragma; a pragma with no reason
-  is itself a violation. The frozen CSS-class exceptions live in
-  `frontend/maquette/regions.json`'s `$vocabulary`, each with the reason it was kept.
-- **The guard asks « is this word one we use? », not « is this word French? »** The second
-  question is only ever as good as its list of French words, and that list had holes —
-  `suivante`, `trier`, `fermer`, `chargement`, `compte`, `monde` were invisible to it, so
-  « no violation » meant « none among the words we thought of » while a hundred and forty
-  French names sat under it. `scripts/code-vocabulary.txt` holds the words this codebase's
-  names are built from; a name built from a word nobody wrote down is refused, whatever
-  language it comes from. **Adding a word is one line, and that is the point**: a French word
-  can only enter by someone typing it into a file under review.
-- **A vocabulary SEEDED from the codebase certifies the status quo.** The first version of
-  that file was, so the twenty-four French words that twenty-nine names in
-  `design/src/engine/legacy.js` still needed came in with the rest and the gate went green
-  over them — the exact failure the arm was written to end. They live below a banner in the
-  file now, named as French on purpose, and `check_french_debt` refuses them to every file
-  but the dying engine, so the debt cannot spread while SP4-fin waits. **When the engine
-  goes, that section goes with it.**
-- **Every rule in this section has an ARM, or it is a sentence in a file.** `data-*` names
-  were brought under the rule and nothing read them for a wave: nineteen moved by hand and
-  four — `data-prendre`, `data-maintrub`, `data-qreg`, `data-apparence` — simply stayed.
-  A scope is checked the same way: `frontend/scripts/` is not `scripts/`, and that one word
-  of difference left an entire tool (`SORTIE`, `JAUNE`, `anneau_depuis_staging`) outside
-  every arm while the gate reported no violation.
+- **English names, everywhere and always**: identifiers, function/type/**class** names (code AND CSS), **file and directory names**, and every message the tools print.
+- **No UI string lives in the code.** The French a reader of the interface sees lives in the i18n resources: `frontend/maquette/design/src/i18n/fr.json` for the shell, and the same file's `server` namespace for the pages `serve.py` serves. Extract strings, never retype them.
+- **`frontend/src` is EXEMPT from that rule, deliberately** — the production React app has no i18n layer, and moving its copy into resources would be work thrown away with the app that holds it. **It is a RATCHET**: `check_app_interface_text` reads that whole tree and **refuses the count going UP**, against the baseline pinned in `scripts/french-exemption-baseline.json`. Story: `CLAUDE.md@6a47304a4` § Language.
+- **`data-*` attribute NAMES are code and follow the rule.** A `data-*` name is a name someone chose, so it is written in English like any other. Their VALUES are not — a page id or a stored/displayed datum is data, not a name; a NAMED STATE id (`window.__go("acq-now-idle")`) IS a name someone chose. Route paths are NOT exempt either — a route and a parameter are names, not data.
+- **What is NOT French-in-the-code**, and must stay as it is: the French a harness hold ASSERTS (the app's rendered output), i18n interpolation placeholders, form field names, and the config keys the settings dictionaries are keyed by. Each such literal carries a `# french-ok: <reason>` / `// french-ok: <reason>` pragma; a pragma with no reason is itself a violation. The frozen CSS-class exceptions live in `frontend/maquette/regions.json`'s `$vocabulary`.
+- **The guard asks « is this word one we use? », not « is this word French? »** `scripts/code-vocabulary.txt` holds the words this codebase's names are built from; a name built from a word nobody wrote down is refused, whatever language it comes from. Adding a word is one line, and that is the point.
+- **A vocabulary SEEDED from the codebase certifies the status quo.** The dying engine's French debt (`design/src/engine/legacy.js`) lives below a banner, named as French on purpose; `check_french_debt` refuses it to every file but that one, so the debt cannot spread. **When the engine goes, that section goes with it.**
+- **Every rule in this section has an ARM, or it is a sentence in a file.** Story: `CLAUDE.md@6a47304a4` § Language.
 
 ## Reference Index (lazy-load when relevant)
 
