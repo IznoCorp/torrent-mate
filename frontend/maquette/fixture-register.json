@@ -140,7 +140,8 @@
     "INCOMPLETE": {
       "class": "served",
       "why": "incomplete series with their owned/aired fractions",
-      "seed": null
+      "seed": null,
+      "converted": "L13b b·11 — the follow panel and the removal dialog read /api/library/incomplete from the cache, the library's lens already did"
     },
     "INDEX": {
       "class": "served",
@@ -161,7 +162,8 @@
     "LIBRARY": {
       "class": "served",
       "why": "the library listing — 345 of the 1 861 titles library.db holds",
-      "seed": null
+      "seed": null,
+      "converted": "L13b b·11 — whether the library holds a title is the exact /api/library/membership read (follow panel, removal dialog, addressed panels)"
     },
     "LIB_PAGE": {
       "class": "interface",
@@ -301,7 +303,8 @@
     "SEASONS": {
       "class": "served",
       "why": "season and episode counts per series",
-      "seed": null
+      "seed": null,
+      "converted": "L13b b·11 — the follow panel's season rows read /api/media/{provider}/{providerId}/seasons, the sheet's own read"
     },
     "SECRETS": {
       "class": "served",

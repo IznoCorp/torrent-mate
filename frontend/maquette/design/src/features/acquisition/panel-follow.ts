@@ -18,12 +18,14 @@
 // `ui/panel/contract`'s open union, which is not a feature import — invariant 7
 // holds.
 import i18next from "i18next";
-import { heldIdentity } from "../../lib/held-identity";
+import { heldIdentity, providerAddress } from "../../lib/held-identity";
+import { membershipQuery } from "../../lib/membership";
 import { sharedQueryClient } from "../../lib/query-client";
 import { panel } from "../../lib/shell-doors";
+import { seasonsQuery } from "../../lib/season-rows";
 import { store } from "../../lib/store-access";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
-import { followFacts } from "./follow-facts";
+import { followFacts, type Follow } from "./follow-facts";
 import { primaryAction, secondaryActions } from "./follow-actions";
 import { followsQuery, incompleteShowsQuery } from "./queries";
 
@@ -59,11 +61,63 @@ function redrawOnIdentityArrival(title: string): void {
     const shown = store.read().state.panelDescriptor as PanelDescriptor | undefined;
     const shownNow = panel?.isOpen() === true && shown?.address === address;
     if (shownNow && heldIdentity(title) === null) return;
+    if (shownNow && sharedQueryClient !== undefined && seasonsNotLanded(title)) return;
     cancel();
     if (cancelWaiting === cancel) cancelWaiting = null;
     if (shownNow) panel?.redraw();
   });
   cancelWaiting = cancel;
+}
+
+/**
+ * The seasons read of a medium, when its identity is known and the read is out.
+ *
+ * Args:
+ *     title: The medium.
+ *
+ * Returns:
+ *     The query to ask for, or null when nothing is out.
+ */
+function pendingSeasons(title: string) {
+  if (sharedQueryClient === undefined) return null;
+  const followed = sharedQueryClient.getQueryData<Follow[]>(followsQuery.queryKey) ?? [];
+  const ids = followed.find((one) => one.t === title)?.ids ?? heldIdentity(title)?.ids;
+  const address = providerAddress(ids);
+  if (address === null) return null;
+  const query = seasonsQuery(address.provider, address.id);
+  return sharedQueryClient.getQueryData(query.queryKey) === undefined ? query : null;
+}
+
+/**
+ * Whether a medium's seasons read is still out.
+ *
+ * Args:
+ *     title: The medium.
+ *
+ * Returns:
+ *     True while the panel would draw no season rows for want of the answer.
+ */
+function seasonsNotLanded(title: string): boolean {
+  return pendingSeasons(title) !== null;
+}
+
+/**
+ * Asks for a medium's seasons, and redraws the panel about it when they land.
+ *
+ * THE IDENTITY IS KNOWN ONLY ONCE THE FOLLOWS HAVE LANDED, so the seasons read
+ * cannot be one of the kind's declared needs: it is asked here, the moment the
+ * producer knows the address, and the panel is put back in place when it
+ * answers — the same redraw an identity's arrival uses, onto the entry already
+ * standing.
+ *
+ * Args:
+ *     title: The medium.
+ */
+function askForSeasons(title: string): void {
+  const query = pendingSeasons(title);
+  if (query === null || sharedQueryClient === undefined) return;
+  void sharedQueryClient.prefetchQuery(query);
+  redrawOnIdentityArrival(title);
 }
 
 /**
@@ -80,6 +134,7 @@ function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
   const facts = followFacts(title, cache);
   if (facts === null) return null;
   if (!facts.hasSheet) redrawOnIdentityArrival(title);
+  else if (facts.seasonsPending) askForSeasons(title);
   const translate = i18next.t.bind(i18next);
   const { follow, isFilm, seasons, fraction } = facts;
   const reference = window.__referentiel;
@@ -116,5 +171,9 @@ registerProducer("follow", {
   // FOLLOWS. Without the second, a panel typed onto any page but the
   // Médiathèque waits for an identity nobody asks for: no « Voir la fiche »,
   // owned cells from a threshold, initials for a poster (R176).
-  needs: [followsQuery, incompleteShowsQuery],
+  // AND WHAT THE LIBRARY HOLDS OF THIS VERY TITLE: the membership read is
+  // exact and per subject, so the kind's needs are a function of it — which
+  // takes the follow panel out of the boot's prefill by construction, and its
+  // first open about any title goes down the deferred path.
+  needs: (subject) => [followsQuery, incompleteShowsQuery, membershipQuery(subject)],
 });

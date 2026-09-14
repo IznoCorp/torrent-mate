@@ -1,5 +1,8 @@
 """R138 — an ask that arrives while the machine is busy SAYS SO, and goes on saying it.
 
+RE-AIMED: the season rows are `window.__mocks.seasons()` — the served seasons read's
+rows, the ones every season block now draws — since the engine's season table died.
+
 DOIT-4: an ask arriving while the pipeline runs is queued VISIBLY — « En file —
 pipeline en cours » — and never refused. The refusing half was already true: the
 layer answers `queued` and the verb says so in a message. **The word this rule
@@ -86,7 +89,7 @@ THE_MEDIUM_WITH_A_HOLE = """()=>{
     (seen) => seen === title || seen.endsWith(":" + title));
   for (const follow of (window.__followActions?.all() || [])) {
     if (!reachable(follow.t)) continue;
-    for (const [number, aired, owned] of (window.SEASONS[follow.t] || [])) {
+    for (const [number, aired, owned] of (window.__mocks.seasons()[follow.t] || [])) {
       if ((owned || 0) < (aired || 0))
         return {title: follow.t, season: number};
     }

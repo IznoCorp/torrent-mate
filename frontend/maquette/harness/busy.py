@@ -1,5 +1,8 @@
 """R124 — NE-DOIT-PAS-3: a legitimate action under a busy pipeline is ACCEPTED.
 
+RE-AIMED: the season rows are `window.__mocks.seasons()` — the served seasons read's
+rows, the ones every season block now draws — since the engine's season table died.
+
 THE CLAUSE. « ne jamais répondre 409 ou « occupé » à une action légitime ».
 `product-intent-map.md` reads it `partly`: R66 holds the pipeline PASS — asked
 for during a run, it is queued and says so — and « every OTHER mutation under a
@@ -133,7 +136,7 @@ THE_MEDIUM_WITH_A_HOLE = """()=>{
     (seen) => seen === title || seen.endsWith(":" + title));
   for (const follow of (window.__followActions?.all() || [])) {
     if (!reachable(follow.t)) continue;
-    for (const [, aired, owned] of (window.SEASONS[follow.t] || [])) {
+    for (const [, aired, owned] of (window.__mocks.seasons()[follow.t] || [])) {
       if ((owned || 0) < (aired || 0)) return {title: follow.t};
     }
   }

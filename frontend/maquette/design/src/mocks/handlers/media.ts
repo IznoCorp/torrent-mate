@@ -197,6 +197,25 @@ function airedBySeason(
   return aired;
 }
 
+/**
+ * The seasons read's answer for a medium known under these titles.
+ *
+ * @param titles Every title the medium's identity is held under.
+ * @returns The catalogue, the episodes held by season, and what aired by season.
+ */
+export function seasonsAnswer(titles: string[]) {
+  const found = underAnyTitle(MEDIA_SHEETS as ByTitle, titles) as
+    | Record<string, unknown>
+    | undefined;
+  const counted = underAnyTitle(SEASONS as ByTitle, titles);
+  const catalogue = (found?.seasons ?? counted ?? []) as unknown[];
+  return {
+    seasons: catalogue,
+    owned: (underAnyTitle(OWNED_EPISODES as ByTitle, titles) ?? {}) as Record<string, number[]>,
+    aired: airedBySeason(found, counted),
+  };
+}
+
 /** Every route this subject answers. */
 export function mediaRoutes(): MockRoute[] {
   return [
@@ -218,16 +237,7 @@ export function mediaRoutes(): MockRoute[] {
         // series »: the sheet carries four seasons and `SEASONS` holds three,
         // so the matrix drew one short. Same class as B-088: two families
         // keyed the same way are not the same answer.
-        const found = underAnyTitle(MEDIA_SHEETS as ByTitle, titles) as
-          | Record<string, unknown>
-          | undefined;
-        const counted = underAnyTitle(SEASONS as ByTitle, titles);
-        const catalogue = found?.seasons ?? counted ?? [];
-        return {
-          seasons: catalogue,
-          owned: underAnyTitle(OWNED_EPISODES as ByTitle, titles) ?? {},
-          aired: airedBySeason(found, counted),
-        };
+        return seasonsAnswer(titles);
       },
     ),
     route(

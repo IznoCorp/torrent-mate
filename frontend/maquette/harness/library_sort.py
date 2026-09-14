@@ -1,5 +1,8 @@
 """R78 — every sort goes BOTH ways, and each way says its own name.
 
+RE-AIMED: the incomplete shows are the served answer in the query cache
+(`["/api/library/incomplete"]`), since the engine's copy died.
+
 The library shipped with three sorts and one direction each: « Ajout récent »,
 « A → Z », « Les plus incomplets ». Asking for the other end of any of them was
 impossible — the operator reported it (E-001), and an operator who cannot ask
@@ -92,7 +95,7 @@ async def main():
         incomplete = await page.evaluate("""()=>{
           const shown = new Set([...document.querySelectorAll(
             '#libitems [data-part="card/title"], #libitems [data-part="tile"] b')].map((x) => x.textContent.trim()));
-          return window.__referentiel.INCOMPLETE
+          return window.__queries.getQueryData(["/api/library/incomplete"])
             .filter((show) => shown.has(show.t)).map((show) => show.t);}""")
         journal.check(
             "and it holds media the « incomplets » sort can actually rank",

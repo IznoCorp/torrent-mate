@@ -78,14 +78,6 @@ export type AcquisitionReference = EngineDrawing & EngineQueue & {
   // mutates its own DOM and a replaced node cannot animate — and a migrated
   // page asks it to fill the containers React has just drawn.
   addVerb: (result: SearchResult, index: number) => string;
-  // WHAT THE FOLLOW PANEL READS TO KNOW WHAT IS TRUE ABOUT A MEDIUM.
-  // `INCOMPLETE` is the ENGINE's thin arrow over the library's own query — the
-  // value is the world's and stays live — and a feature may not import another
-  // feature (invariant 7), so reading it through the reference is the
-  // transitional door that avoids inventing a second `lib/queue.ts`. It dies
-  // with the engine, at which point a shared `domain/` module is the
-  // arbitration invariant 10 already defers to a later wave.
-  INCOMPLETE: { t: string; o: number; a: number }[];
 };
 
 /**

@@ -89,13 +89,16 @@ export function useLibraryCategories() {
 }
 
 
+/** The shows the index knows are incomplete, as a query a surface and the removal dialog share. */
+export const libraryIncompleteQuery = {
+  queryKey: ["/api/library/incomplete"],
+  queryFn: async () =>
+    toEngineShape<IncompleteShow[]>("INCOMPLETE", await read("/api/library/incomplete")),
+};
+
 /** The shows the index knows are incomplete. */
 export function useLibraryIncomplete() {
-  return useQuery({
-    queryKey: ["/api/library/incomplete"],
-    queryFn: async () =>
-      toEngineShape<IncompleteShow[]>("INCOMPLETE", await read("/api/library/incomplete")),
-  });
+  return useQuery(libraryIncompleteQuery);
 }
 
 // What the list registers when it is on screen, and null when it is not.
@@ -219,6 +222,9 @@ export function installLibraryDelete(queryClient: QueryClient): void {
         // deleted ones alone — the sheet's key is the provider's identifier,
         // and nothing here maps a title to it.
         void queryClient.invalidateQueries({ queryKey: ["/api/media"] });
+        // AND WHAT THE LIBRARY SAYS IT HOLDS: every panel opened about a
+        // removed title afterwards asks again rather than answering from before.
+        void queryClient.invalidateQueries({ queryKey: ["/api/library/membership"] });
       }, () => {
         // AND ON A REFUSAL, which the `.finally` this replaced also covered.
         void queryClient.invalidateQueries({ queryKey: ["/api/library/items"] });

@@ -7,19 +7,21 @@
 // one of the two — that needs an identifier the backend does not serve — but it
 // can say the truth about what it is about to do.
 //
-// THREE READS STILL REACH THROUGH `window`: the library and the incomplete
-// shows are fixtures until their exact membership read replaces them, and the
-// removal itself is still the engine's. Whether a title is FOLLOWED is asked of
+// EVERY FIGURE IS A SERVED ANSWER: how many rows a title names is the exact
+// membership read, and an incomplete show's owned episodes are the incomplete
+// shows' read. The dialog asks for both before it opens, so it never counts
+// from a page of the listing. The removal itself is still the engine's. Whether a title is FOLLOWED is asked of
 // the `followedTitles` door, because the library never imports acquisition.
 import i18next from "i18next";
+import { membershipQuery, type Membership } from "../../lib/membership";
+import { sharedQueryClient } from "../../lib/query-client";
 import { dialog, followedTitles } from "../../lib/shell-doors";
+import { libraryIncompleteQuery } from "./queries";
 import type { DialogDescriptor } from "../../ui/dialog/contract";
 import type { IncompleteShow } from "./reference";
 
 declare global {
   interface Window {
-    /** The shows the index knows are incomplete — a fixture until its read replaces it. */
-    INCOMPLETE: IncompleteShow[];
     /** The engine's removal: the layer deletes, the selection ends, the page redraws. */
     actionDelete: (titles: string[]) => void;
   }
@@ -64,12 +66,15 @@ function counted(count: number, one: string, many: string): string {
  *     The rows it names, never fewer than one.
  */
 export function mediaNamedBy(title: string): number {
-  return Math.max(1, window.LIBRARY.filter((row) => row.t === title).length);
+  const held = sharedQueryClient?.getQueryData<Membership>(membershipQuery(title).queryKey);
+  return Math.max(1, held?.rows ?? 1);
 }
 
 /** The incomplete show a title names, if the index knows one. */
 function incompleteShow(title: string): IncompleteShow | undefined {
-  return window.INCOMPLETE.find((show) => show.t === title);
+  return sharedQueryClient
+    ?.getQueryData<IncompleteShow[]>(libraryIncompleteQuery.queryKey)
+    ?.find((show) => show.t === title);
 }
 
 /** The video files a title stands for: an incomplete show's owned episodes, otherwise its media. */
@@ -90,8 +95,14 @@ function totalOf(titles: string[], figure: (title: string) => number): number {
  *     title: The one title removed, or null when a selection is.
  *     many: The selection's titles, when there is one.
  */
-export function openDeleteDialog(title: string | null, many?: string[]): void {
+export async function openDeleteDialog(title: string | null, many?: string[]): Promise<void> {
   const titles = many && many.length > 0 ? many : [title ?? ""];
+  // THE ANSWERS FIRST: a dialog whose whole purpose is to say exactly what
+  // would go does not open on figures it has not read.
+  await Promise.all([
+    sharedQueryClient?.ensureQueryData(libraryIncompleteQuery),
+    ...titles.map((one) => sharedQueryClient?.ensureQueryData(membershipQuery(one))),
+  ]);
   const followingNow = followedTitles?.() ?? [];
   const followed = titles.filter(
     (one) => followingNow.includes(one) || incompleteShow(one) !== undefined,

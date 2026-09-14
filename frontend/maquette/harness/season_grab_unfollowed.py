@@ -1,5 +1,11 @@
 """R158 — a season with a hole is taken by someone who OWNS the show and does not follow it.
 
+RE-AIMED: the season rows are `window.__mocks.seasons()` — the served seasons read's
+rows, the ones every season block now draws — since the engine's season table died.
+
+RE-AIMED: the incomplete shows are the served answer in the query cache
+(`["/api/library/incomplete"]`), since the engine's copy died.
+
 THE PREMISE THIS RULE REFUSES was written in the code as a comment: « the panel
 is only ever drawn for [a follow] ». It was false. A card in the library's
 « Incomplets » lens carries `data-panel="media:<title>"`, the engine's
@@ -151,11 +157,11 @@ FOLLOWS = """()=>Object.fromEntries((window.__followActions?.all() || []).map(
 # from the data, before a finger moves.
 THE_SUBJECTS = """()=>{
   const followed = new Set((window.__followActions?.all() || []).map((one) => one.t));
-  const incomplete = (window.__referentiel?.INCOMPLETE || []).map((show) => show.t);
+  const incomplete = (window.__queries.getQueryData(["/api/library/incomplete"]) || []).map((show) => show.t);
   return {
     incomplete: incomplete.length,
     followedAmongThem: incomplete.filter((title) => followed.has(title)),
-    withAHole: incomplete.filter((title) => (window.SEASONS[title] || []).some(
+    withAHole: incomplete.filter((title) => (window.__mocks.seasons()[title] || []).some(
       ([number, aired, owned]) => (owned || 0) < (aired || 0))),
   };}"""
 
@@ -287,7 +293,7 @@ NOT_YET_AIRED = """(title)=>{
 # reads — the count the layer answers from. A title that data does not hold
 # has nothing to get.
 MISSING_IN_SEASON = """([title, season])=>{
-  const row = (window.SEASONS[title] || []).find(([number]) => number === season);
+  const row = (window.__mocks.seasons()[title] || []).find(([number]) => number === season);
   return row ? Math.max(0, (row[1] || 0) - (row[2] || 0)) : 0;}"""
 
 SAID = """()=>{

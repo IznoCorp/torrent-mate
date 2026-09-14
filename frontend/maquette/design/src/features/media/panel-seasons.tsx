@@ -93,11 +93,14 @@ function SeasonDetails({
   season,
   reference,
   served,
+  owns,
 }: {
   follow: Follow;
   season: Season;
   reference: MediaReference;
   served: Served;
+  /** Whether the library holds the medium. */
+  owns: boolean;
 }) {
   const { t } = useTranslation();
   const client = useQueryClient();
@@ -149,7 +152,16 @@ function SeasonDetails({
             text is right again. */}
         {t("common.season")} {num}{" "}
         <span className={seasonFraction()}>
-          {owned}/{aired}
+          {/* THE SHEET'S THREE CONVENTIONS, so the panel and the sheet say one
+              thing about one season: nothing aired is « à venir », an unknown
+              count is « ? », and a medium the library does not hold states
+              what aired and no fraction — a fraction is an assertion about what
+              one holds. */}
+          {rawAired === 0
+            ? t("screens.media.seasonUpcoming")
+            : owns
+              ? `${owned}/${rawAired ?? "?"}`
+              : `${rawAired ?? "?"} ${t("screens.media.episodesShort")}`}
         </span>{" "}
         {/* DOIT-4's VISIBLE HALF, ON THE SURFACE THE ASK WAS MADE FROM. The
             button below is where the operator acts, so this is where he looks
@@ -163,7 +175,9 @@ function SeasonDetails({
             {t("screens.media.seasonWaitingOnPipeline")}
           </span>
         ) : null}{" "}
-        {complete ? null : (
+        {/* A shortfall is an episode that AIRED and is not held — never one
+            of a medium nobody holds, nor of a count nobody knows. */}
+        {complete || !owns || rawAired === null ? null : (
           <span className={seasonShortfall()} data-part="season/missing">
             {missing}{" "}
             {missing > 1 ? t("common.missingPlural") : t("common.missing")}
@@ -225,6 +239,9 @@ function SeasonsBlock({
   const address = providerAddress(follow.ids ?? heldIdentity(follow.t)?.ids);
   const seasonsRead = useMediaSeasons(address?.provider ?? "", address?.id ?? "");
   const sheetRead = useMediaSheet(address?.provider ?? "", address?.id ?? "");
+  // WHETHER WE HOLD IT, read where the sheet reads it — the sheet's own
+  // `possede` — so the panel and the sheet state one fact about one season.
+  const owns = (sheetRead.data as { possede?: boolean } | null | undefined)?.possede === true;
   const served: Served = {
     owned: seasonsRead.data?.owned,
     episodes: (sheetRead.data as { eps?: Record<string, EpisodeCatalog> } | null | undefined)?.eps,
@@ -260,6 +277,7 @@ function SeasonsBlock({
           season={season}
           reference={reference}
           served={served}
+          owns={owns}
         />
       ))}
     </>

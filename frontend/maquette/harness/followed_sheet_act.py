@@ -1,5 +1,8 @@
 """R160 — the season act on a FOLLOWED show's own sheet takes THAT follow (B-382).
 
+RE-AIMED: the season rows are `window.__mocks.seasons()` — the served seasons read's
+rows, the ones every season block now draws — since the engine's season table died.
+
 ONE SHOW WAS TWO FOLLOWS. The media sheets are keyed by title and twenty
 identities carry two keys — « Silo (2023) » and « Silo » hold the same sheet —
 and the screen opened from a provider address is titled by the DATED one. The
@@ -123,12 +126,12 @@ AIM = """(value)=>{
 
 # WHETHER ANY AIRED EPISODE OF THE FOLLOW IS MISSING, from the data the follow
 # panel reads: a season whose owned count is below its aired count.
-HAS_A_HOLE = """(title)=>(window.SEASONS[title] || []).some(
+HAS_A_HOLE = """(title)=>(window.__mocks.seasons()[title] || []).some(
   ([, aired, owned]) => (owned || 0) < (aired || 0))"""
 
 # WHAT THE FOLLOW PANEL DRAWS MISSING for one season, from the data it reads.
 MISSING = """([title, season])=>{
-  const row = (window.SEASONS[title] || []).find(([number]) => number === season);
+  const row = (window.__mocks.seasons()[title] || []).find(([number]) => number === season);
   if (!row) return null;
   const missing = (row[1] || 0) - (row[2] || 0);
   return missing > 0 ? missing : 0;}"""

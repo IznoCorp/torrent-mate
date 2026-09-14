@@ -78,3 +78,7 @@ does not exist.
 ## Commit
 
 `feat(maquette-l13b): the library answers membership by exact title and the follow panel agrees with the served sheet`
+
+## Amendments
+
+- **Amended 2026-09-14 (l13b 4, rulings 94, 95):** rules bound R191 `library_membership.py`, R192 `follow_seasons.py`, R193 `incomplete_served.py`; Silo measured the OTHER way — the served sheet has FOUR seasons (S4 « à venir »), the engine's table three; R192's red is exactly six titles (Dexter: Resurrection, House of the Dragon, Silo, Star Trek: Strange New Worlds, Ted Lasso, Dark Matter); the panel's season summary takes the sheet's three conventions and its `possede`; the contract gains `readLibraryMembership` with `rows` (the removal dialog's count); backend demands (exact title(+year) membership → { inLibrary, rows, incomplete, ids }; ruling 55's year+kind on QueueCard/LibraryItem/LibraryRow/IncompleteShow) go to the steward's docs PR; frame-domain ceilings lib 23 → 28, app 138 → 139 (reasons in the baseline, steward's line owed); ORACLE NAMED BEFORE THE GATE: no named state draws a follow panel of the six titles (the two follow states are American Dad!, equal before the move, and Tintin, an incomplete show) — zero divergence expected, any divergence is STOP B.

@@ -124,6 +124,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/library/membership": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether the library holds one medium, asked by its exact title
+         * @description An exact read, answered from the WHOLE library rather than from a page of the listing: a title on page two is held as surely as one on page one. Keyed by exact title, with the year where the title alone is ambiguous — provider ids are not an identity (two rows can share one).
+         */
+        get: operations["readLibraryMembership"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/media/{provider}/{providerId}": {
         parameters: {
             query?: never;
@@ -1029,6 +1049,16 @@ export interface components {
             /** @description the poster's address, or null when none is known */
             poster: string | null;
         };
+        LibraryMembership: {
+            /** @description whether the library holds the title */
+            inLibrary: boolean;
+            /** @description how many library rows the title names — two when one title is held twice */
+            rows: number;
+            /** @description whether it is a series the library holds with holes */
+            incomplete: boolean;
+            /** @description the held medium's provider identity, or null when the library does not hold it or no sheet identifies it */
+            ids: components["schemas"]["ProviderIds"] | null;
+        };
         Follow: {
             title: string;
             /** @description movie or show */
@@ -1634,6 +1664,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IncompleteShow"][];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    readLibraryMembership: {
+        parameters: {
+            query: {
+                /** @description the medium's exact title */
+                title: string;
+                /** @description the medium's year, when the title alone names more than one */
+                year?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description what the library holds of that title */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryMembership"];
                 };
             };
             400: components["responses"]["Problem"];

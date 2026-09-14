@@ -1,5 +1,8 @@
 """R128 — what the seeds offer to a HAND, with no named state (B-345).
 
+RE-AIMED: the season rows are `window.__mocks.seasons()` — the served seasons read's
+rows, the ones every season block now draws — since the engine's season table died.
+
 THE HARNESS AND THE OPERATOR DO NOT REACH THE SAME INTERFACE. Every rule here
 arrives through a NAMED STATE — `design/src/harness/states/`, `window.__go` — which
 re-seeds the layer for the case it is about. The operator has no such door: he
@@ -53,14 +56,14 @@ QUEUE = """()=>{const now = window.__queue?.() || {};
   return {takeable: titles("takeable"), blocked: titles("blocked"),
           inFlight: titles("inFlight")};}"""
 
-# EVERY SEASON WITH A HOLE, decided from the DATA. `window.SEASONS` is
+# EVERY SEASON WITH A HOLE, decided from the DATA. `window.__mocks.seasons()` is
 # `[number, aired, owned]` per season; a hole is `owned < aired` — an episode
 # that HAS aired and is not held. An unaired episode is not a hole: it is not
 # out yet, and counting it would report a want nobody has.
 SEASON_HOLES = """()=>{
   const found = [];
   for (const follow of (window.__followActions?.all() || [])) {
-    for (const [number, aired, owned] of (window.SEASONS[follow.t] || [])) {
+    for (const [number, aired, owned] of (window.__mocks.seasons()[follow.t] || [])) {
       if ((owned || 0) < (aired || 0))
         found.push({title: follow.t, season: number, aired, owned});
     }

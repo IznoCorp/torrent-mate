@@ -13,6 +13,9 @@
 import MEDIA_SHEETS from "./seeds/media-sheets.json";
 import POSTERS from "./seeds/posters.json";
 import SETTINGS from "./seeds/settings.json";
+import SEASON_FAMILY from "./seeds/seasons.json";
+import { seasonsAnswer } from "./handlers/media";
+import { seasonsHeld } from "../lib/season-rows";
 
 /** What the layer exposes of its seeds. */
 export type MockSeeds = {
@@ -20,6 +23,11 @@ export type MockSeeds = {
   sheets: () => Record<string, Record<string, unknown>>;
   /** The settings catalogue, rubric by rubric, in the contract's names. */
   settings: () => { id: string; settings: { file: string; key: string; type: string }[] }[];
+  /**
+   * Every medium's season rows — number, aired (null when unknown), held — as
+   * the seasons read answers them and every season row is drawn from them.
+   */
+  seasons: () => Record<string, [number, number | null, number][]>;
 };
 
 /** The seeds the harness reads, composed on each call so no caller holds a copy it could mutate. */
@@ -34,4 +42,15 @@ export const mockSeeds: MockSeeds = {
       ),
     ),
   settings: () => structuredClone(SETTINGS) as ReturnType<MockSeeds["settings"]>,
+  seasons: () =>
+    Object.fromEntries(
+      [...new Set([...Object.keys(MEDIA_SHEETS), ...Object.keys(SEASON_FAMILY)])].map((title) => {
+        const answer = seasonsAnswer([title]);
+        const catalogue = answer.seasons.map((season) => {
+          const entry = season as { number?: number; season?: number };
+          return { n: Number(entry.number ?? entry.season) };
+        });
+        return [title, seasonsHeld({ seasons: catalogue, owned: answer.owned, aired: answer.aired })];
+      }),
+    ),
 };
