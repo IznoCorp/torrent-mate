@@ -153,14 +153,18 @@ class TestTheTreeItself:
         assert f"over {len(guard.harness_files())} harness rule file(s)" in line
 
     def test_it_actually_found_forwarders_to_check(self) -> None:
-        """A scope that empties would make « no violation » mean nothing."""
+        """A scope that empties would make « no violation » mean nothing.
+
+        2026-09-14: b·5 moved acqtab/pill/fmode/sugmode to the feature; the engine holds
+        page, go, lmode, phase until b·7.
+        """
         sources = "\n".join(
             p.read_text(encoding="utf-8")
             for p in guard.SOURCES.rglob("*")
             if p.is_file() and p.suffix in {".js", ".ts", ".tsx"}
         )
 
-        assert len(guard.FORWARDER.findall(guard.COMMENT.sub(" ", sources))) >= 5
+        assert len(guard.FORWARDER.findall(guard.COMMENT.sub(" ", sources))) >= 4
 
 
 class TestTheHardZeroFloor:
