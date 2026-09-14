@@ -20,9 +20,12 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   divergence; both mutations named. B-275 closes at b·13's closure commit beside B-290/B-397.
 - b·11 DONE: rules `397758dc4` (R191–R193, red), move `09bd737de`, gate fixes `751d532bd` + `937cee0f0`; last gates
   32 (16 named) and 26 (8 named) + 26 guards, 0 failed, no divergence; four mutations named. legacy.js 1643.
-- NEXT: b·12 « The pipeline's status is the layer's » (phase-b12-pipeline-status.md; ruling 74, 86-bis: `pipe` and
-  `phase`, the listener's last two branches). Then b·13. Read RULINGS 64–96 first; the steward's address is in your
-  launch prompt.
+- b·12 DONE: rule `86ccb19fa` (arrivals.py reads the layer's state, red), move `0fd43802b` (the engine's click
+  listener dies whole; legacy.js 1600), re-aims `7d12186c2`, retry hold `50c42e7e0`; gates green, oracle zero;
+  mutations named.
+- NEXT: b·13 « `legacy.js` dies » (phase-b13-legacy-js-dies.md; rulings 16, 57, 86-bis: applyState, render(), the
+  twelve constants' homes; then the full suite with --a11y, --compare, make lint; rebase onto main before the PR).
+  Read RULINGS 64–97 first; the steward is `Orch : TM frontend [31ca3c]` (its reference may change again).
 - ZSH TRAP, three times this session: a multi-word variable is ONE argument in zsh, and macOS bash has no
   `mapfile` — build rule lists and file lists in Python or spell them out.
 - LOGS: `~/Library/Logs/tm-l13b/` (ruling 76). Mutex and tests lock stay under `/private/tmp`.
@@ -345,4 +348,18 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   the library » + the delete walk; seasons → a constant → R192 on nine series, Silo named; incomplete → [] → R193 both
   halves; the dialog's data-toast put back → virtual.py « confirming removes THOSE TWO ». TRAP: an uncommitted doc line
   made mutate.sh refuse all four at the door (exit 1, no FAIL line) — `git status` before a series.
+- 2026-09-15 l13b 4 b·12 red on `86ccb19fa` (`l13b4-b12-red.log`): arrivals.py « the status read answers None » ×3 —
+  the status read carried no `state` at all. Move `0fd43802b`: L20's `state` verbatim, `pipe` verb in arrivals,
+  `data-retry` frame verb, the engine's click listener deleted whole (1643 → 1600), `window.__pipeline`.
+- 2026-09-15 l13b 4 b·12 gate (`l13b4-b12-gate.log`): 3 falls, attributed — busy.py and season_grab.py read the status
+  query's CACHE on pages where no surface observes it (None), queued_ask_mark.py still read the dead store key;
+  re-aimed to the layer's answer (`7d12186c2`); re-gate 21 (4 named) green, no divergence.
+- 2026-09-15 l13b 4 b·12 mutations: the verb's layer call removed → arrivals.py six holds by name; the retry verb
+  emptied → « NO RULE FELL » (`l13b4-b12-mutations.log`) — a verb born without a hold — so R90 gained « arr-error's
+  « Réessayer » asks every active read again » (`50c42e7e0`), green (`l13b4-b12-gate3.log`), then red by name under the
+  same mutation (« active answers 1 -> 1 », `l13b4-b12-mutations2.log`).
+- 2026-09-15 TRAP: the PreToolUse hook that guards network commands matches the word « fetch » anywhere in a Bash
+  command, heredoc text included, and blocks the whole command — write such an edit to a scratchpad .py file.
+- 2026-09-15 TRAP (order 36, steward [31ca3c]): a turn was ended on a background gate; a long run is waited for INSIDE
+  the tool call (a bounded loop polling the log for « heavy: l13b done »), never a turn ended on it.
 
