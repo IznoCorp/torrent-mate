@@ -107,6 +107,10 @@ registerVerb("clear-filter", () => {
 // said, as the delegation said it.
 registerVerb("search-again", (title, element) => {
   settleSwipeRow(element);
-  const label = (element.textContent ?? "").trim();
-  toast?.show({ message: i18next.t("verbs.acquisition.searchAgain", { label, title }) });
+  toast?.show({
+    message: i18next.t("verbs.acquisition.searchAgain", {
+      label: (element.textContent ?? "").trim(),
+      title: title,
+    }),
+  });
 });
