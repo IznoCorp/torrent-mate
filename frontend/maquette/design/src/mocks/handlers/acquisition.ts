@@ -46,6 +46,37 @@ function followFor(identifier: string) {
   return mockState().follows.find((follow) => follow.title === identifier);
 }
 
+const DECOMPOSED = "NFD";
+const COMBINING_MARKS = /[\u0300-\u036f]/g;
+const NEITHER_LETTER_NOR_DIGIT = /[^\p{Ll}\p{Nd}]/gu;
+
+/**
+ * A title or a release name reduced to what the two have in common.
+ *
+ * A RELEASE NAME SPELLS A TITLE WITH DOTS, and without its accents or its
+ * punctuation: « L'Odyssée » is `L.Odyssee.2026…`. Compared as written, every
+ * title of more than one word matched no release at all — the same list that
+ * does not depend on what it is a list of, reached through the spelling.
+ *
+ * @param spelled A title or a release name.
+ * @returns The letters and digits, lower-cased, accents removed.
+ */
+function folded(spelled: string): string {
+  return spelled.normalize(DECOMPOSED).replace(COMBINING_MARKS, "")
+    .toLowerCase().replace(NEITHER_LETTER_NOR_DIGIT, "");
+}
+
+/**
+ * The releases a search for one title turns up.
+ *
+ * @param title The medium's title, as the interface spells it.
+ * @returns Every seeded release whose name carries that title.
+ */
+function releasesFor(title: string) {
+  const wanted = folded(title);
+  return RELEASES.filter((release) => folded(String(release.name ?? "")).includes(wanted));
+}
+
 /**
  * The entry a follow is created from, by title: a search result or a suggestion.
  *
@@ -160,8 +191,9 @@ export function acquisitionRoutes(): MockRoute[] {
       (request) => {
         const found = followFor(request.parameters.followedId);
         if (found !== undefined) found.searches += 1;
-        // Derived from the seeded releases: how many the profile would accept.
-        return { found: RELEASES.length };
+        // Derived from the seeded releases OF THIS FOLLOW: a search is for one
+        // title, and counting every release answered the same number to all.
+        return { found: found === undefined ? 0 : releasesFor(found.title).length };
       },
     ),
     route(
@@ -296,17 +328,16 @@ export function acquisitionRoutes(): MockRoute[] {
     // because the query key carried no title either. A release list that does
     // not depend on what it is a list OF is not a list.
     route("readReleases", GET, "/api/acquisition/releases", (request) => {
-      const title = (request.query.get("title") ?? "").toLowerCase();
+      const title = request.query.get("title") ?? "";
       const season = request.query.get("season") ?? "";
       const episode = request.query.get("episode") ?? "";
-      return RELEASES.filter((release) => {
+      return releasesFor(title).filter((release) => {
         // A RELEASE CARRIES ITS SEASON AND EPISODE IN ITS NAME, which is what a
         // release name is. Reading them off a field the seed does not have and
         // falling back to « it matches » would make both parameters vacuous —
         // accepted and ignored, the defect this handler is being repaired for.
         const name = String(release.name ?? "");
         const counted = /S(?<season>\d+)E(?<episode>\d+)/i.exec(name);
-        if (title !== "" && !name.toLowerCase().includes(title)) return false;
         if (season !== "" && counted?.groups?.season !== undefined
             && Number(counted.groups.season) !== Number(season)) return false;
         if (episode !== "" && counted?.groups?.episode !== undefined
