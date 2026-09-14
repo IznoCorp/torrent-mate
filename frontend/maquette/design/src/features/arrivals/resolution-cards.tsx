@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 // sentence, and `t()` would only wrap the lookup in a second one.
 import fr from "../../i18n/fr.json";
 import { useArrivalsReference, type PendingDecision, type SettledDecision } from "./reference";
-import { iconButton, ruleNote, type ChipTone } from "../../ui/variants";
+import { ruleNote, type ChipTone } from "../../ui/variants";
 import {
   Card,
   CardBody,
@@ -21,7 +21,6 @@ import {
   CardTitle,
   CardTop,
 } from "../../ui/card";
-import { Icon } from "../../ui/icon";
 import { Chip } from "../../ui/chip";
 import { PosterArtwork } from "../../ui/poster";
 import { posterArtwork } from "../../lib/engine-drawing";
@@ -67,9 +66,11 @@ export function ReleaseCard({
   // a `div` carrying `data-resolve` is reached by no finger — and the attribute
   // sits on the element tapped, never on a child. Its top row is a `span`
   // because a button holds phrasing content only. What stays at the right edge
-  // is a MARK at the icon button's one size, never a control: a button inside
-  // this one would be invalid markup and a control nobody can name. Pressed, it
-  // wears the base layer's `:active`, like every button.
+  // is a MARK, never a control: a button inside this one would be invalid
+  // markup and a control nobody can name. Pressed, it
+  // wears the base layer's `:active`, like every button. THE MARK SAYS
+  // « Choisir » and draws no check: a check on every card read as « already
+  // selected » (B-500).
   //
   // AND IT IS NAMED FROM ITS DATA. A button's accessible name is its whole text
   // when nothing else says otherwise, so the card announced itself with its
@@ -118,8 +119,8 @@ export function ReleaseCard({
             ""
           )}
         </CardBody>
-        <span className={`${iconButton()} ${candidatePick()}`} data-part="card/pick" aria-hidden="true">
-          <Icon paths={icons.check} />
+        <span className={candidatePick()} data-part="card/pick" aria-hidden="true">
+          {t("screens.resolution.choose")}
         </span>
       </CardTop>
     </Card>
