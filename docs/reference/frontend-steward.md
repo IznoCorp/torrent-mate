@@ -65,85 +65,48 @@ there:
   launched with `orchestrator:iterm-agents`, its first act re-announcing its exact address to
   every running agent. A successor satisfies this office's « fresh session » condition as long as it
   never implemented the lot it audits: succession changes the session, not the separation;
-- **the tiers, and this project's one rule about them.** `orchestrator:model-routing` routes a
-  dispatch to `deep`, `standard` or `light` through `~/.claude/claude-orchestrator/models.json`.
-  **Since plugin 0.26.1 (installed 2026-09-12; 0.28.3 on 2026-09-13 — read `claude plugin list` before every launch and use THAT version's scripts) the launcher takes `--tier` and no longer `--model`**,
-  and the map on this machine binds all three tiers to `opus` (written by the steward that day on the
-  operator's « Go »; it had been EMPTY until then, which made the launcher type no model at all) —
-  so every launch of this office says `--tier deep` for an implementer, a reader and a successor.
-  **This bound was lifted by the operator on 2026-09-13 ~21:1x** (« Sonnet autorisé, on retire ça…
-  l'orchestrateur choisit »): the tier map now follows the routing table — deep on `opus`, standard and
-  light on `sonnet` — and the steward routes by the class of work, naming the tier in every spawn line
-  and reverting a drop that costs a second round (measure 15). `CLAUDE.md` § Implementation Workflow and
-  `docs/reference/feature-lifecycle.md:176` carry the same dated amendment.
-  The tier and the reading that chose it go in the launch report, as the skill asks;
+- **the tiers.** `orchestrator:model-routing` routes a dispatch to `deep`, `standard` or `light`
+  through `~/.claude/claude-orchestrator/models.json`; the launcher takes `--tier`, never `--model`
+  (since plugin 0.26.1). **Since the operator's ruling of 2026-09-13 ~21:1x** (« Sonnet autorisé, on
+  retire ça… l'orchestrateur choisit »), the tier map follows the routing table — deep on `opus`,
+  standard and light on `sonnet` — and the steward routes by the class of work, naming the tier in
+  every spawn line. `CLAUDE.md` § Implementation Workflow and `docs/reference/feature-lifecycle.md:176`
+  carry the same amendment. The tier and the reading that chose it go in the launch report;
 - **the launch itself.** **The steward LAUNCHES every wave's agent, and it ROTATES one whose context
   has passed the gate — itself, with `orchestrator:iterm-agents`, never by handing the operator an
-  invocation to paste (operator, 2026-09-05: « c'est à toi de lancer les agents, tes skills
-  d'orchestrateur sont faites pour ça ; ne pas le faire est une erreur critique »).** This REVERSES
-  the sentence of 2026-09-04 that had the operator launch each agent (« c'est toujours comme ça
-  qu'on procède »), and the successor steward paid for reading it as current: two reports ended by
-  handing the operator a path and an address, and an agent at 83 % context was left running until
-  he said so. The brief is merged, and the agent is spawned in the same move — `--dir` the checkout
-  the wave writes in (one writer per repository), `--right-of self` so the tab lands after the
-  steward's last open agent, or beside the steward when it has none (the launcher keeps that chain
-  itself, on the app's tab id, never on a tty, which is recycled: L21's round-three reader was
-  spawned on the tty the operator's closed session had held an hour before; `--left-of` and `move`
-  remain for repairing a layout after the fact), **`--trust` on every launch of this office, without
-  exception** (the host records trust per exact path, a worktree inherits nothing from its
-  repository, and every directory this office launches into is one it prepared itself), `--tier`
-  named explicitly (the tiers, above), the title in the SHAPE the launcher enforces since 0.26.1 —
-  `Agent : <subject>` for anything the steward spawns (an implementer, a reader, a probe) and
-  `Orch : <subject>` for the steward and its successor, the subject at most 25 characters; the
-  spelled-out `Implementer : …` / `Reviewer : …` / `Orchestrator : …` of the older convention are
-  REFUSED before a tab exists — because the title becomes the session's
-  `--name`, so it is the address `ListAgents` prints and the one `close --expect-title` guards on,
-  the prompt ONE LINE naming the brief's path and the steward's exact `ListAgents` name and
-  reference, everything else in the brief. Since plugin 0.22.1 the prompt is handed to the app
-  rather than typed: its length and its bytes are no hazard, and the truncation and the « illegal
-  byte sequence » this office met on its first launch belonged to the typed path, gone with it. The
-  launch runs the operator's login shell: `~/.zprofile` carries the PATH the agents need (brew,
-  pyenv, nvm, `~/.local/bin`) since 2026-09-11, and a spawned session that lacks `pm2`, `gh`,
-  `node` or the pinned `python3` is a defect of that file, measured on the session, never worked
-  around. Verify the spawn on the artifact (`list`, `verify --tty`, `ListAgents`), then wait for
-  the handshake; an agent past ~60 % is stood down at its unit boundary, its resume brief pushed
-  and proved by `ls-remote` BEFORE it stops, and `rotate` spawns its replacement first and closes
-  its tab after. **The steward's own succession passes `--successor`** (the tab lands immediately
-  right of the steward and takes its agent chain) with the title `Orch : <subject>`; the
-  2026-09-11 succession was spawned under the bare title `steward-successor`, and the plugin neither
-  derived a title from the predecessor nor refused one out of format — reported to the operator that
-  day as a plugin defect, to be repaired upstream, never here;
+  invocation to paste** (operator, 2026-09-05: « c'est à toi de lancer les agents, tes skills
+  d'orchestrateur sont faites pour ça ; ne pas le faire est une erreur critique »). The brief is
+  merged and the agent spawned in the same move — `--dir` the checkout the wave writes in,
+  `--right-of self` so the tab lands after the steward's last open agent, **`--trust` on every
+  launch without exception**, `--tier` named explicitly, the title in the shape the launcher
+  enforces — `Agent : <subject>` for anything the steward spawns, `Orch : <subject>` for the steward
+  and its successor (subject ≤ 25 characters) — the prompt ONE LINE naming the brief's path and the
+  steward's exact `ListAgents` name and reference, everything else in the brief. Verify the spawn on
+  the artifact, then wait for the handshake; an agent past ~60 % is stood down at its unit boundary,
+  its resume brief pushed and proved by `ls-remote` BEFORE it stops, and `rotate` spawns its
+  replacement first and closes its tab after. **The steward's own succession passes `--successor`**
+  (the tab lands immediately right of the steward and takes its agent chain) with the title
+  `Orch : <subject>`. Story: `docs/reference/frontend-steward.md@6a47304a4` § Instantiating a steward;
 - **the brief lint, with its known noise.** The skill lints every brief before a spawn
-  (`brief-lint.sh`, run with `bash`: it uses process substitution and dies under `sh`), and the
-  office runs it. On this repository's briefs it reads three things wrongly, measured on 2026-09-11
-  against L21's RESUME and round three's reader brief: an API route between backticks
-  (`/api/acquisition/follows/{title}/seasons/{n}/grab`) is taken for an absolute path that does not
-  exist; a shell array reference inside a fenced block (`${PIPESTATUS[0]}`) for an unexpanded
-  variable; and an i18n placeholder quoted in prose (`{{title}}`) for an unfilled placeholder of the
-  brief. The first two are named as false positives in the launch report, never repaired — a brief is
-  not rewritten to please a script; the third is avoided by writing `<title>`. A reader's brief is
-  held to the non-goals and STOP-and-ask checks like an implementer's: this office writes a
-  « Non-goals » section in both, and the lint reads 0 findings before any spawn. The generalisation
-  belongs to the plugin, not here. A third false positive joined the list on 2026-09-12: a glob in
-  prose (`/Users/izno/dev/worktrees/*`) is read as a path that does not exist;
+  (`brief-lint.sh`, run with `bash`, never `sh`), and the office runs it. It carries known false
+  positives on this repository's briefs (an API route in backticks, a shell array reference in a
+  fenced block, a glob in prose) — named in the launch report, never repaired; an i18n placeholder
+  is avoided by writing `<title>` instead. A reader's brief is held to the non-goals and
+  STOP-and-ask checks like an implementer's, and the lint reads 0 findings before any spawn;
 - **the MCP catalogue is absent on this machine, by design.** 0.26.1 reads
   `~/.claude/claude-orchestrator/mcp.json` to give a spawned session its servers; the file does not
   exist here, the launcher says so on stderr, and every agent of this office starts with NO MCP
   server. The harness needs none: it drives its own Playwright. A brief says so where it names the
   tier, so an agent never reaches for a tool it was not given;
-- **the launcher hung once, and the fallback that followed was WRONG (2026-09-12).** At 13:55 a `close --tty` printed
-  « closed 1 session » and hung, and every launcher call after it failed — a websocket HTTP 401, then a hang inside the
-  `iterm2` package's `auth.py` on the AppleScript `request cookie and key`. **The cause, measured that evening by the repair
-  session with `sample`: a CONTEXT MENU left open in iTerm2** — its nested event loop (`startRunningMenuEventLoop` held the
-  main thread) dispatches no AppleEvent, so the API server never answered; not the queue, not TCC, not the socket; a
-  `sheets=0` probe cannot see a menu. Escape closed it and the launcher answered again. Plugin 0.28.1 carries the lesson:
-  no unbounded `osascript`, a pre-probe, the cause named when it fails, the launch ladder `api` then `applescript` and
-  NOTHING ELSE. **The office had spawned three agents into tmux meanwhile, and the operator struck that out: « tmux n'est
-  pas une solution. Plus jamais d'agent tmux. » An agent is an iTerm2 tab and nothing else; a launcher that cannot make a
-  tab says why and STOPS, and the fault is reported — never routed round into a terminal the operator cannot see, place or
-  account for.** Two facts the outage taught still hold: `--settings '{"remoteControlAtStartup":false}'` is the
-  launcher's own flag (a session spawned from the steward's shell without it joins the steward's Remote Control bridge), and
-  **a launcher's « closed » is a claim, `ps -t <tty>` is the fact**;
+- **A launcher hang has a known cause and a known-wrong fallback (2026-09-12).** A stuck iTerm2
+  context menu can block the API server indefinitely with no visible symptom in the process table;
+  plugin 0.28.1's ladder (`api` then `applescript`, nothing else, a pre-probe, the cause named when
+  it fails) is the fix. **« tmux n'est pas une solution. Plus jamais d'agent tmux. »** (operator,
+  2026-09-12) — an agent is an iTerm2 tab and nothing else; a launcher that cannot make one says why
+  and STOPS, never routed into a terminal the operator cannot see. Two facts still hold:
+  `--settings '{"remoteControlAtStartup":false}'` is the launcher's own flag, and **a launcher's
+  « closed » is a claim, `ps -t <tty>` is the fact**. Story:
+  `docs/reference/frontend-steward.md@6a47304a4` § Instantiating a steward;
 - **the shared-machine discipline** in its generic form; the lock, the fan-out variable and the
   arithmetic of THIS machine stay in § « Instrument hygiene » below, and they are the stricter reading.
 
@@ -159,25 +122,18 @@ real session reference and a path into a downstream project's tree (its own test
 « nothing project- or machine-specific in the plugin », mutation-tested), so what is generic goes to the
 repository `LounisBou/claude-orchestrator` and what is this project's stays here.
 
-**Seven hours were lost on the night L19 closed to the rule above being absent.** The wave's agent
-sent four status messages and two harness requests to `personalscraper-c5` — a session that had once
-told it the machine was free — and waited; this office waited for a report that had been sent. The
-launch prompt had said « message the steward (`ListAgents` names the session) », a name to DISCOVER
-among three sessions sharing a prefix. The skill's rule is the repair; this paragraph is the reason
-it is not optional here, and the handoff memory carries the steward's address beside each agent's so
-a re-instantiated steward's first message reaches the right session.
+**The agent's launch prompt names the steward's exact `ListAgents` address — never « message the
+steward, discover the name »** (seven hours lost the night L19 closed to this rule's absence). The
+handoff memory carries the steward's address beside each agent's so a re-instantiated steward's
+first message reaches the right session. Story:
+`docs/reference/frontend-steward.md@6a47304a4` § Instantiating a steward.
 
-**Succession is the steward's to trigger, not to offer (operator, 2026-09-05 — three critical
-defects on the first succession).** At its context gate, at the next quiet boundary, the steward
-SPAWNS its successor with `orchestrator:iterm-agents` — `--permission-mode auto`, the operator's
-decision mode, or the successor stops at its first prompt in a tab nobody watches — with the
-succession brief as the startup prompt, and tells the operator AFTER the fact, in one line. It does
-not ask « hand over now or continue? »: the gate is not a choice. The successor's first task ends by
-CLOSING the predecessor's tab once it is idle, and the predecessor's session ends there; a brief that
-omits that step is defective. What happened on 2026-09-05: the steward announced its gate and waited
-(« le successeur n'est pas lancé, que se passe-t-il ? »), spawned without the decision mode, and its
-brief said « there is no tab to close ». The plugin's script defaults to the mode since 0.2.1; this
-paragraph is the office's half.
+**Succession is the steward's to trigger, not to offer** (operator, 2026-09-05, after three
+critical defects on the first succession). At its context gate, the steward SPAWNS its successor
+with `orchestrator:iterm-agents` under `--permission-mode auto` — or the successor stops at its
+first prompt in a tab nobody watches — with the succession brief as the startup prompt, and tells
+the operator AFTER the fact, in one line: it does not ask « hand over now or continue? ». The
+successor's first task ends by CLOSING the predecessor's tab once it is idle.
 
 **Building the context — from the repository, never from a conversation.** In order:
 `docs/reference/product-intent.md` (what the product must be) and `docs/reference/operator-method.md`
@@ -350,39 +306,27 @@ office once measured to be wrong by a factor of five. A report received that way
 any other: it is checked against the repository, never taken as the audit.
 
 **One machine, one harness at a time (2026-08-30).** The harness reads ONE served copy
-(`/tmp/tm-refonte/wrapped.html`) and ONE server (8899) per machine, and `make maquette-oracle`
-rebuilds and replaces that copy before it measures. The steward's first audit on the operator's machine
-ran the full suite and the oracle while the executing agent was running its own post-merge
-verification: two rules fell in the agent's run for no defect of theirs, and the served copy had been
-replaced under them. **That second half is the dangerous one, and it is not a flake**: the served
-root is a fixed path with no lock and no build stamp, `run.sh` rebuilds and re-copies it
-unconditionally at every invocation, so a rule caught by the swap measures A DIFFERENT BUILD from
-the one it was started against — a false reading that can go either way, pass included. The
-harness's own README warns only that a STALE copy measures the previous build, never that a fresh
-one can arrive mid-run. B-256 closed at L11 (#534): `served_copy.py` is the lock and the stamp,
-all three rebuilders call it, and every rule asserts the stamp at start and at end — the
-convention below still stands, because a lock held by one machine's tools does not reach a rule
-started before the lock existed.
-**The host on 8899 is run.sh's and is LEFT RUNNING by design** — `run.sh` starts it only when nothing
-listens there and never stops it, and every rule reads `http://127.0.0.1:8899/` rather than starting a
-server of its own. It is a static server over the served copy, so it is harmless to kill and harmless to
-leave; what is not harmless is killing it as « an orphan » between two readings, which is what this
-office did on 2026-09-04 (a `python3 server.py --serve 8899` at parent 1, a day and a half old) and
-then read three rules red on `ERR_CONNECTION_REFUSED`. The hygiene rule below says the office kills what
-IT starts — a process is matched to the rule by who started it, not by the shape of its `ps` line.
-Restart it as `run.sh` does: `(python3 frontend/maquette/harness/server.py --serve 8899 /tmp/tm-refonte &)`.
-**« Left running » is true of an UNWRAPPED invocation**: under `scripts/heavy.sh` the wrapper stops
-what it started when the run ends, so a wrapped `run.sh` leaves no host and the next unwrapped rule
-starts one — read `lsof -nP -iTCP:8899 -sTCP:LISTEN` before attributing a refused connection.
+(`/tmp/tm-refonte/wrapped.html`) and ONE server (8899) per machine; `make maquette-oracle` rebuilds
+and replaces that copy before it measures, unconditionally, with no lock and no build stamp of its
+own — a rule caught by the swap measures a DIFFERENT BUILD than the one it started against, which
+can pass falsely as easily as fail. `served_copy.py` is the lock and the stamp since B-256 (L11,
+#534): all three rebuilders call it, every rule asserts it at start and end. **The host on 8899 is
+`run.sh`'s and is LEFT RUNNING by design** — it starts it only when nothing listens there and never
+stops it; the hygiene rule below says the office kills only what IT starts, matched by who started
+it, never by the shape of its `ps` line. Restart as `run.sh` does:
+`(python3 frontend/maquette/harness/server.py --serve 8899 /tmp/tm-refonte &)`. An unwrapped
+invocation leaves the host running; under `scripts/heavy.sh` the wrapper stops what it started —
+read `lsof -nP -iTCP:8899 -sTCP:LISTEN` before attributing a refused connection. Story:
+`docs/reference/frontend-steward.md@6a47304a4` § The office.
 
 So the steward runs no instrument while an executing agent is running one — the two say so to each
 other first (`SendMessage`), and a rule that falls during an overlap is re-run alone before it is
 read as anything.
 
-**And the steward works in a worktree, never in the checkout an agent executes in.** Measured the
-same day: a `git checkout` in the shared tree carried the agent's uncommitted files onto the steward's
-branch and recreated one as a stray. `git worktree add` gives the office its own tree; the
-pre-push hook's test suite needs `npm ci` in both `frontend/` and `frontend/maquette/design/` there.
+**And the steward works in a worktree, never in the checkout an agent executes in** — a `git
+checkout` in the shared tree can carry the agent's uncommitted files onto the steward's branch.
+`git worktree add` gives the office its own tree; the pre-push hook's test suite needs `npm ci` in
+both `frontend/` and `frontend/maquette/design/` there.
 
 **Worktrees are this project's reading, by the operator's ruling of 2026-09-11.** The plugin's
 `workspace.sh` makes a CLONE per phase so the one-writer rule is a fact of the file system; here the
@@ -401,47 +345,23 @@ the directory's name.
 **A brief that a wave will execute lives in the REPOSITORY before that wave is launched.** Under
 `docs/features/<codename>/`, on a pushed branch, in English like every other engineering document —
 never in a session's scratch directory, never as an attachment in a conversation, never only in the
-steward's own context.
+steward's own context. **This is binding because it failed once (2026-08-29)**: six briefs
+composed in a remote session's `/tmp` worked only because the operator carried each file by hand;
+the seventh agent launched found neither document anywhere a second machine could reach. The brief
+is committed and pushed before the agent is called, the call names its path in the repository, and
+it is archived with its lot at the post-merge gesture like its design and its plan. Story:
+`docs/reference/frontend-steward.md@6a47304a4` § The office.
 
-**This is written here because it failed, on 2026-08-29, and the way it failed is the argument.**
-The briefs for L07, L07-bis, L08, L08-bis, L09 and L10 were all composed in a remote session's
-`/tmp` and handed over by attachment. It worked six times because the operator carried each file by
-hand. The seventh time an agent was launched to execute L10-bis, it began, looked for the two
-documents the brief announced, and **found them in neither the repository nor the home directory nor
-any scratchpad** — because they existed nowhere a second machine could reach, and would have ceased
-existing altogether when that container was reclaimed.
-
-**The cost is not the lost minutes.** An agent discovering mid-task that its own specification does
-not exist has learned that the office directing it does not guarantee what it hands over — and this
-office's entire authority is that its statements can be checked. **A steward whose deliverables live
-in a temporary directory is a steward asking to be trusted rather than read**, which is the exact
-posture it refuses in everyone else.
-
-**It is also the defect this register counts most.** « A fact that exists once cannot go stale » was
-the ruling that removed the duplicated lot status; here a fact existed once, in the one place that
-does not survive. And the reason each wave's reasoning has to be reconstructed from its squashed
-pull-request body — a body this office has just measured to be wrong by a factor of five — is that
-the brief explaining it was never anywhere else.
-
-**So: the brief is committed and pushed before the agent is called, and the call names its path in
-the repository.** A wave's brief is archived with its lot at the post-merge gesture, like its design
-and its plan.
-
-**The adversarial review is INDEPENDENT of the author, or it is not adversarial — measured on L12,
-2026-09-01.** The wave's agent could not dispatch reviewer agents in its session and ran the review
-as serialised lenses over its own work: four findings. The operator chose independent reviewers
-launched by the steward — read-only, one lens each, on a worktree PINNED at the pull request's
-head, findings relayed to the wave's agent as the sole writer: about forty, two of them blockers,
-and the L11 curve reproduced exactly — **40 → 10 → 3 → 0** over three rounds, each round aimed at
-the previous round's REPAIRS, which is where every round found its sharpest defect (a hold turned
-tautology by the fix beside it; a gallery whose rows shuffled on the one scroll direction no rule
-drove). The steward's own probes — Playwright on this machine, the CDP playback rate for a slow
-motion that is real — served the operator's perception when it disagreed with the record, never
-as validation: **the operator judges in the running application** — on his phone until 2026-09-06, on his Mac since: he ruled that day that device readings are OVER (« Mac seulement, aucun bug téléphone n'était pas présent et visible sur Mac »), after B-310's frame, read on the phone over CDP, proved readable on the Mac as well; the steward drives his phone again only when he asks, and a brief's « re-read on the device » step written before that date is void. Three
-consequences the office keeps: a review round is a fresh reader, not a fresh lens; the round after
-a repair reads the repair; and a defect found in the wave's OWN instruments during its gesture
-(B-291, a dangling pointer one file over from the paragraph that names the species) is filed with
-an owner in the plan's instruments' debts block, not repaired by the steward.
+**The adversarial review is INDEPENDENT of the author, or it is not adversarial** (measured on L12,
+2026-09-01: self-serialised lenses found four; independent reviewers launched by the steward — one
+lens each, read-only, on a worktree pinned at the PR's head — found about forty, curve **40 → 10 →
+3 → 0** over three rounds, each aimed at the previous round's repairs). **The operator judges in
+the running application** — on his Mac only since 2026-09-06 (« Mac seulement, aucun bug téléphone
+n'était pas présent et visible sur Mac ») — and the steward's own probes serve his perception when
+it disagrees with the record, never as validation on their own. Three consequences: a review round
+is a fresh reader, not a fresh lens; the round after a repair reads the repair; and a defect found
+in the wave's own instruments during its gesture is filed with an owner in the plan's instruments'
+debts block, not repaired by the steward.
 
 **The documentation model is the steward's to hold.** `docs/reference/documentation-model.md`
 says which version a document may describe and where it lives; the steward's audit reads a
@@ -451,76 +371,50 @@ landed wave against it — its folder deleted, its citations by commit, nothing 
 ## Instrument hygiene — the machine is an instrument too (operator, 2026-09-02)
 
 **Every process the office starts, the office kills. Everything it writes outside the repository, it
-deletes.** This is a rule of the office because the operator has had to enforce it twice: 117 GB
-removed by hand on 2026-08-26 when the boot disk filled and no command could start, and on
-2026-09-02 a machine at load 45 with 200 MB of memory free during a review — eight harness rules
-fanned out in parallel, each driving a real browser, overlapped with the repository's own test run,
-beside nine orphaned static servers and 739 MB of build copies. « Toujours nettoyer l'espace disque,
-la ram, les serveurs. TOUT ! »
-
-**Why it is not housekeeping.** On this machine kernel wired memory grows under heavy input/output
-and only a reboot reclaims it, so a memory squeeze outlives the run that caused it. A review that
-leaves the machine unusable is not finished, whatever its findings are worth.
-
-**What it obliges, and none of it is optional.** A reader's report saying « servers stopped » is not
-evidence — five survived that sentence: the office VERIFIES with `ps` that no server, no browser and
-no build of its own is left, after every probe and at the end of every round. Build trees,
-`node_modules`, `dist` and the screenshots of closed rounds are deleted as soon as the round they
-served is relayed; the reports, the probe scripts and the JSON readings are what is kept, and they
-are small. Load is never stacked: the full suite and the repository's test run go in sequence, the
-harness fans out to two or three rules rather than eight, and the office's readers run one at a time
-while a wave's gates are running. **Every reader's prompt carries the clause** — its own directory,
-its own ports, and the duty to kill what it started and delete what it built BEFORE it reports.
+deletes.** « Toujours nettoyer l'espace disque, la ram, les serveurs. TOUT ! » (operator, enforced
+twice by hand — 117 GB on 2026-08-26, a load of 45 with 200 MB free on 2026-09-02). On this machine
+kernel wired memory grows under heavy I/O and only a reboot reclaims it, so a squeeze outlives the
+run that caused it — a review that leaves the machine unusable is not finished, whatever its
+findings are worth. **What it obliges**: the office VERIFIES with `ps` that no server, browser or
+build of its own is left, after every probe and at the end of every round — a reader's report
+saying « servers stopped » is not evidence. Build trees, `node_modules`, `dist` and closed-round
+screenshots are deleted as soon as the round is relayed. Load is never stacked (full suite and test
+run in sequence, harness fans out to two or three rules, readers run one at a time). Every reader's
+prompt carries the clause — its own directory, its own ports, kill and delete before it reports.
 
 **The lock, `scripts/heavy.sh`, is what makes the rule hold when two sessions both believe they are
 alone.** Wrap every run that starts browsers, builds or a parallel test run — `sh scripts/heavy.sh
-<who> <command>`. It is a machine-wide mutex plus a readiness check: it waits for whoever is
-running, then waits again until there is room — **read from the run's CLASS since the tooling
-micro-wave (B-386, #589): `--class browser` for a harness run, `--class test` for a parallel pytest,
-a `make check` or a build, `--class rule` for a single-rule replay, each with its floor and the
-arithmetic beside it in the script; a run with no class keeps the historical 4 GB and load 6, and a
-lower floor by environment is REFUSED under a named class** (the 2 560 MB the operator allowed by hand
-on 2026-09-12, when four agents ran at once and the fixed floor held two closing walks for fifty
-minutes, is what the classes replaced) — and it
-watches the run, stopping ITS OWN child (exit 75, never anything else on the machine) after three
-consecutive samples below 2 GB free. It releases on exit, on an interrupt and on a kill, and a lock
+<who> <command>`. It is a machine-wide mutex plus a readiness check, read from the run's CLASS
+(B-386, #589): `--class browser` (4 096 MB / load 6) for a harness run, `--class test` (3 072 / 6)
+for a parallel pytest / `make check` / a build, `--class rule` (2 560 / 10) for a single-rule
+replay — an environment override may only RAISE the floor and LOWER the ceiling under a named
+class (a lower floor or higher ceiling is refused, exit 64); a call with no class keeps the
+historical 4 GB / 6. It watches the run, stopping ITS OWN child (exit 75, never anything else)
+after three consecutive samples below 2 GB free, and releases on exit, interrupt or kill; a lock
 older than forty-five minutes is treated as a dead session's.
 
-**The lock is a DIRECTORY, and the probe that reads it is `sh scripts/heavy.sh --held`** — the
-holder's name and exit 0, or « free » and exit 1 (B-326, 2026-09-06). `cat /private/tmp/tm-heavy/holder`
-reads a directory as a file and, silenced, prints NOTHING whether the lock is held or free: on the
-night the B-308 micro-wave closed, the wave read « free » from it twice as a proof the machine was
-clear, and the steward read it once and accused a wrapped contracts run of running unwrapped —
-neither output could tell them, and the wrapped run's own `heavy: … starts / done` lines were the
-evidence that settled it. A probe that cannot fail certifies nothing; the office reads the holder's
-name or `test -d`, never the directory.
+**The lock is a DIRECTORY**, and the probe that reads it is `sh scripts/heavy.sh --held` — the
+holder's name and exit 0, or « free » and exit 1 (B-326). `cat` on the holder path reads a
+directory as a file and prints NOTHING whether the lock is held or free — the office reads the
+holder's name or `test -d`, never `cat` on the directory.
 
-**And the fan-out has a NAME, `TM_HARNESS_JOBS`, which is the part a rule loses when it is written
-as a number.** Both `run.sh` and `scripts/harness-hold-counts.py` default it to the core count —
-eight here — so a run left to itself takes every core and drives eight browsers, and « fan-out two »
-is an instruction nobody can follow without being told the variable. The office said « fan-out two »
-to a wave, watched it comply, and then ran the hold-count recorder itself at the default and put the
-machine at a load of twenty-seven. Set it explicitly, every time: `TM_HARNESS_JOBS=2 sh
-scripts/heavy.sh <who> <command>`. The lock cannot save a run from its own parallelism — it holds
-the door, it does not hold the room.
+**The fan-out has a NAME, `TM_HARNESS_JOBS`** — `run.sh` and `scripts/harness-hold-counts.py`
+default it to the core count (eight here), so « fan-out two » is unenforceable without setting the
+variable: `TM_HARNESS_JOBS=2 sh scripts/heavy.sh <who> <command>`. The lock holds the door, not the
+room.
 
-**Three locks, by what the run READS (2026-09-12, five agents on one machine; amended 2026-09-13).** The mutex exists
-for the ONE served copy and the ONE 8899 host: what touches them — `run.sh` in any tier, the oracle,
-`harness-hold-counts.py`, `mutate.sh`, a single rule replayed against `/tmp/tm-refonte` — runs under the shared lock and is
-announced to the steward in one line before and one after. **Every pytest run, `make check` and `git push` (the pre-push
-hook runs the suite) of EVERY wave runs under ONE tests lock, `HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder`**, so test
-suites serialise across waves: on 2026-09-12 three pre-push suites side by side under three per-wave locks are what the
-kernel killed (a push and an a11y run at 1.3 GB free, another push at 96 % of its suite) — memory was never the constraint
-at any steward reading (4–5 GB free), the concurrency was. What is heavy and reads neither copy nor suite — `npm ci`, a build
-into a worktree's own `dist/` — keeps a per-wave lock. **The class model (B-386, #589) as CODED, not as first written here**:
-`--class browser` 4 096 MB / load 6, `--class test` 3 072 / 6, `--class rule` 2 560 / 10; under a named class the environment
-may only RAISE the floor and LOWER the ceiling (a lower floor or a higher ceiling is refused, exit 64); a call with NO class
-keeps the historical 4 GB / 6 and its environment overrides. The sentence this paragraph carried before — that the
-ceiling of 10 for own-lock runs is « the arbitration the class model now carries » — was false for `test` (6). On a host
-whose own 1-minute load runs 9–15 (fseventsd, Spotlight, a Plex transcode) a classed run may therefore wait without bound;
-the wrapper does not measure that wait (it prints « holding off » once and « starts » with no timestamp — filed), so the
-steward says which form a wave uses and reads the machine before accusing a run. Never a parallel test run beside a harness
-run, whatever the locks say: the office refused one at 333 MB unused.
+**Three locks, by what the run READS** (2026-09-12, five agents on one machine; amended
+2026-09-13). The mutex above is for the ONE served copy and the ONE 8899 host — `run.sh` in any
+tier, the oracle, `harness-hold-counts.py`, `mutate.sh`, a single rule replay — announced to the
+steward before and after. **Every pytest run, `make check` and `git push` (pre-push runs the
+suite) of EVERY wave runs under ONE tests lock**, `HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder`,
+so test suites serialise across waves — concurrency was the killer on 2026-09-12, not memory (4–5
+GB free at every steward reading). What is heavy and reads neither copy nor suite (`npm ci`, a
+build into a worktree's own `dist/`) keeps a per-wave lock. On a host whose own load runs 9–15 a
+classed run may wait without bound and the wrapper does not measure that wait — the steward says
+which form a wave uses and reads the machine before accusing a run. Never a parallel test run
+beside a harness run, whatever the locks say. Story:
+`docs/reference/frontend-steward.md@6a47304a4` § Instrument hygiene.
 
 **Its thresholds are arithmetic, not taste.** This host is 8 cores and 16 GB; one Playwright browser
 group costs about 1.1 GB; the baseline holds about 6 GB. A fan-out of eight therefore asks for more
@@ -541,112 +435,61 @@ would be a wrapper someone bypasses, and a rule bypassed once is a rule gone.
 what the measurement attributes to whom, and says it plainly: the operator asked whose it was, and «
 the agent's gates » was the answer he needed to hear with the counts behind it.
 
-**A marker that is a DIRECTORY prints nothing when read as a file — twice in one day.** `heavy.sh`'s
-holder (B-326) was the first; the host's plugin-cache markers `…/<version>/.in_use/` were the second,
-on 2026-09-11: `ls` on one prints its empty contents and `cat` prints nothing, and this office read
-« the marker is gone » from both while one held a pid file. Read `ls -A <dir> | wc -l`, never the
-directory. **An idle subscription taken on a session already idle fires at once and never reports
-its exit** — subscribe while the session is busy, or read `ps -p <pid>` when the decision needs the
-exit.
+**A marker that is a DIRECTORY prints nothing when read as a file** (`heavy.sh`'s holder, B-326;
+a plugin-cache `.in_use/` marker) — read `ls -A <dir> | wc -l`, never `cat` on the directory. **An
+idle subscription taken on a session already idle fires at once and never reports its exit** —
+subscribe while the session is busy, or read `ps -p <pid>` when the decision needs the exit.
 
-**Never `cd` into `frontend/maquette/design/src`, from any session.** The command-logging hook
-writes `.claude/logs/bash-commands.log` under the current directory, and `vite.config.mjs`'s
-`buildIdentity()` hashes all of `src/`, that log included: the build id moved (`c133d97cc1ff` →
-`22c6c46fbb42`) with no source change, from two of this office's own greps. « An unchanged build
-id proves an unchanged build » holds only while nobody shells there. Filed as B-384; until it
-closes, absolute paths from the repository root.
+**Never `cd` into `frontend/maquette/design/src`, from any session** (filed B-384: the
+command-logging hook writes its log under the current directory, and `vite.config.mjs`'s
+`buildIdentity()` hashes all of `src/`, log included — the build id can move with no source
+change). Absolute paths from the repository root until it closes.
 
-**Three traps of 2026-09-12, each paid once.** `gh pr merge --delete-branch` REMOVES the worktree checked out on that
-branch (two worktrees vanished at their merge, one under an agent still reading there) — remove the worktree by hand first,
-then delete the branch. A kill by the WRAPPER's name (`pkill -f "heavy.sh <wave>"`) kills every run of that wave, its own
-push included — kill by pid, or by the pattern of the wrapped command. A `TERM` sent to `sh heavy.sh` is deferred behind its
-foreground child and may never act: never escalate to `KILL` over a reference file mid-write (a truncated reference is
-B-291's species) — wait for the write. **And under memory pressure, closing a stood-down agent's tab BEFORE spawning its
-successor is allowed**, spawn-first notwithstanding, when its state is fully on the remote (ls-remote = head, tree clean,
-verified) and free memory reads under ~1.6 GB: a session costs 400–540 MB and a failed spawn is only a retry. Say it aloud.
+**Three traps of 2026-09-12, each paid once.** `gh pr merge --delete-branch` REMOVES the worktree
+checked out on that branch — remove the worktree by hand first, then delete the branch. A kill by
+the WRAPPER's name (`pkill -f "heavy.sh <wave>"`) kills every run of that wave, its own push
+included — kill by pid, or by the pattern of the wrapped command. A `TERM` sent to `sh heavy.sh` is
+deferred behind its foreground child — never escalate to `KILL` over a reference file mid-write,
+wait for the write. **Under memory pressure, closing a stood-down agent's tab BEFORE spawning its
+successor is allowed** when its state is fully on the remote and free memory reads under ~1.6 GB —
+say it aloud. Story: `docs/reference/frontend-steward.md@6a47304a4` § Instrument hygiene.
 
 ## What a review costs, and the five rules that make it cost less (L14, 2026-09-02)
 
-**L14 took seven review rounds where L12 took three**, and its curve did not fall the way L12's did:
-thirteen majors, then nine, then a blocker and seven, then nine, six, twelve and two — the
-seven counts `IMPLEMENTATION.md` records — and the twelve were not a new
-supply of defects — four of them were repairs announced and not delivered, one was a regression the
-repair itself introduced, and six were figures in documents. The yield was poor for reasons that are
-the office's before they are the wave's, and each has a rule.
+**L14 took seven review rounds where L12 took three**, most of the excess spent re-finding old
+ground or defects that were never really removed. The yield was poor for reasons that are the
+office's before they are the wave's, and each has a rule. Story:
+`docs/reference/frontend-steward.md@6a47304a4` § What a review costs.
 
-**1. A conversion wave does not carry a behaviour repair.** A conversion is proved cheaply — the
-oracle measures that nothing moved on the screen — and that proof covers nothing a behaviour change
-does. L14's brief attached two behaviour entries to a wave whose subject was cutting four files, and
-they landed on the two most intricate surfaces the prototype has, a virtualised list and a screen
-with two asynchronous reads. The conversion half was clean at the first round and stayed clean;
-every round after the first was the other half. **A behaviour entry gets its own wave, or it waits
-for the lot that owns its surface.**
+1. **A conversion wave does not carry a behaviour repair.** A conversion is proved cheaply — the
+   oracle measures that nothing moved on the screen — and that proof covers nothing a behaviour
+   change does. A behaviour entry gets its own wave, or it waits for the lot that owns its surface.
+2. **The deepest reading method applies from the FIRST round.** Build the prototype and walk it
+   against a control of the previous head, from round one — changing method mid-wave makes the
+   defect curve stop meaning anything.
+3. **« Repaired » without a reading is not repaired.** No head is reviewed until every item of the
+   previous round arrives with the probe reading that closes it, taken on a build of the candidate
+   against a control — or a sentence saying what the fixtures cannot show.
+4. **A repair lands with the rule that falls when it is reverted.** A repair without its rule is a
+   repair the next round pays for again, and the rule is cheapest written beside the fix.
+5. **Figures are written ONCE, on the final head.** Every repair moves line counts, hold counts,
+   walk counts and register tallies, so re-measuring each round writes numbers stale before the
+   round ends; one measured pass on the head about to merge.
+6. **A mutation is a claim until it is SEEN to fall.** Three inert mutations in one wave (#585)
+   removed nothing while claiming to — run the mutation and read its fall, like a rule.
+7. **Paint and hit-test are two readings, and `inert` separates them** (B-381, then R163): `inert`
+   removes an element from hit-testing without changing its paint. A PAINT hold lifts `inert`
+   before it reads; a TOUCH hold does not — write them as two holds.
+8. **A debt is a supposition until it is probed.** A brief carries the PROBE that shows the guard
+   green over the defect, never a diagnosis written from memory (the register guard, 2026-09-12:
+   two debts briefed from a conflict's shape both measured false as stated).
+9. **A guard is read on its EXIT CODE, and so is a mutation.** The verdict of an instrument is its
+   exit code; its last line is what it chose to say, not the verdict.
+10. **A guard can exit 0 over a drift only a TEST sees.** The comment-corpus baseline moves when a
+    file is added under `frontend/maquette/` and the guard stays green — only its pre-push test
+    falls; the baseline is re-recorded in the same commit and the diff read to confirm only the
+    count moved.
 
-**2. The deepest reading method applies from the FIRST round.** L14's readers read code for two
-rounds and only then began to build the prototype and walk it with a control build beside it. Every
-blocker and most of the surface defects came from walking. Changing method mid-wave means the defect
-population changes under the curve, so the curve stops meaning anything: round four was not finding
-new defects, it was finding old ground newly visible. **Build it and walk it from round one, against
-a control of the previous head.**
-
-**3. « Repaired » without a reading is not repaired.** The one round where the wave ran the readers'
-own probes before announcing its head found six majors; the round where it did not found twelve,
-four of which were repairs that had not happened. The probes existed three rounds before the office
-made running them a condition. **No head is reviewed until every item of the previous round arrives
-with the probe reading that closes it**, taken on a build of the candidate against a control — or
-with a sentence saying what the fixtures cannot show, which is an honest answer and a fast one.
-
-**4. A repair lands with the rule that falls when it is reverted.** Three of round six's four code
-defects were held by nothing: revert the line and every one of the suite's holds stayed green. That
-is why the same defect kept returning with its sign turned round. A repair without its rule is a
-repair the next round pays for again, and the rule is cheapest written beside the fix.
-
-**5. Figures are written ONCE, on the final head.** Line counts, hold counts, walk counts, the
-register's tallies: every repair moves them, so a wave that re-measures them each round writes
-numbers that are stale before the round ends. L14 paid about two majors a round for six rounds on
-exactly this. **The office does not count a stale figure as a finding during repair rounds**, tells
-its readers so, and requires one measured pass on the head that is about to merge.
-
-**6. A mutation is a claim until it is SEEN to fall — three inert ones in one wave (#585, 2026-09-12).**
-A repair's mutation is named in the commit; the round-one repairs of the resolution card named three
-that removed nothing: `hidden` added to an element whose `inline-grid` wins in Tailwind's canonical
-order; `inert` written in JSX, which React 19.2 drops (and set through a `ref`, the app clears it
-when a layer closes); an inline `height` under `.card`'s `min-height`. Each was proved inert rather
-than assumed — one by a `data-mutationprobe` added in the same edit, which landed while `inert` did
-not — and replaced by two mutations that bite. So a mutation is run and its FALL read, like a rule
-is; « the mutation removes the attribute » is a sentence until the hold's count moves.
-
-**7. Paint and hit-test are two readings, and `inert` separates them (B-381, then R163).** A rule
-that reads « the message is visible » through `elementFromPoint` reads HIT-TESTING, and `inert` on
-the background removes an element from hit-testing without changing its paint: R163 was green over
-the harness buttons painting on the message because the buttons were inert to the probe, not
-hidden. A PAINT hold lifts `inert` before it reads; a TOUCH hold does not, and the two are written as
-two holds. The same lesson had been paid once in L21 (B-381's « the screen also covers the message »
-was false for the same reason); it is written here so the third time is refused by a reader.
-
-**8. A debt is a supposition until it is probed (the register guard, 2026-09-12).** Two debts of
-`check-bug-register.py` were briefed from the SHAPE of a merge conflict the steward had resolved by
-hand — « a wrapped index row is invisible », « a row below the table is unread » — and the wave that
-took them measured both false as stated (the wrapped row IS refused, misdiagnosed and unnamed; the row
-below the table IS counted, invisible only to a Markdown reader) and a third fact nobody had written
-(the index was not in ascending order: three descents). The wave filed what it measured, not what it
-was told, and the office's brief was the defect. A brief carries the PROBE that shows the guard
-green over the defect, never a diagnosis written from memory.
-
-**9. A guard is read on its EXIT CODE, and so is a mutation (2026-09-12).** A wave ran `check-frontend-boundaries.py`
-twice and read its prose — « 4 module(s) reach outside the tree, 3 named », no word « violation », exit 1 two lines below —
-and reported its gate clean; the steward found the red by running the guard and reading `$?`. Another wave announced a
-27-guard script « running » whose creating command had failed on a misspelled path, swallowed by a `;`. The verdict of an
-instrument is its exit code; its last line is what it chose to say.
-
-**10. A guard can exit 0 over a drift only a TEST sees.** The comment-corpus baseline records how many files the corpus
-reads; a wave that adds a file under `frontend/maquette/` moves that `read` and the guard stays green — only
-`tests/scripts/test_check_maquette_comments.py`, in the pre-push suite, falls (`assert 358 == 365`). So « all guards exit 0 »
-is not « the push will pass »: the baseline is re-recorded in the commit that adds the file, and the diff is read to see
-that ONLY `read` moved.
-
-**And the arithmetic worth keeping.** Of L14's sixty-odd majors, roughly a dozen were defects a user
-would meet — a library that went blank, taps lost on icon-only buttons, a three-thousand-pixel jump
-on a rotation, an interface asserting about data still in flight, one selection deleting the wrong
-titles. The rest was the cost of proving those and of writing them down. That ratio is the thing to
-improve, and the five rules above are how; abandoning the dozen is not.
+**And the arithmetic worth keeping.** Of L14's sixty-odd majors, roughly a dozen were defects a
+user would actually meet. The rest was the cost of proving those and of writing them down. That
+ratio is the thing to improve; abandoning the dozen is not.

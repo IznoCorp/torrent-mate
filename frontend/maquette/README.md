@@ -301,21 +301,11 @@ See the binding rule above.
 
 ### 2. The CSS is the maquette's own — there is nothing to translate.
 
-**As this section was written, before L07.** BLOCK 2 of
-`frontend/maquette/design/refonte.html@60530dbd8` WAS the application's stylesheet, and the rule
-was: when the maquette replaces the app, that block ships as-is; nothing lifts it, rescopes it or
-copies it anywhere. L07 emptied BLOCK 2 of every style rule (D2/D3, Tailwind utilities behind
-typed variants instead), and L13a deleted the file itself — the distinction below is kept as the
-lesson it recorded, not as a description of a block that still exists.
-
-**This section used to describe the opposite, and that is the lesson worth keeping.**
-`scripts/extract-maquette-css.py` lifted BLOCK 2, scoped every selector under `.tm`, and wrote
-`frontend/src/styles/ps/app-surface.css`; an allowlist of 461 selectors in `regions.json` said
-what could ship; `harness/export.py` guarded the allowlist from the other side; and
-`scripts/parity-probe.py` proved the rescoping had not changed the rendering — 1 614 measurements
-and **7 minutes of CI on every PR**. All of it was built for the 2026-08-10 spec's model, in which
-the SHIPPED app was migrated towards the maquette surface by surface, so the two stylesheets had
-to coexist. The operator reversed that on 2026-08-13 and the tooling stayed until 2026-08-20.
+BLOCK 2 ships as-is; nothing lifts it, rescopes it or copies it anywhere — the extraction/rescoping
+tooling this rule once required (`scripts/extract-maquette-css.py`, the `.tm` scope, the 461-selector
+allowlist, `scripts/parity-probe.py`) was built for a migrate-the-app-surface-by-surface model the
+operator reversed on 2026-08-13, and it was retired 2026-08-20. Story:
+`frontend/maquette/README.md@6a47304a4` § The four working rules.
 
 **You do not translate a CSS that becomes the CSS.** What survives is the one distinction that
 was never about translation:
@@ -336,19 +326,11 @@ This catches "translating" at the moment it happens.
 
 ### 4. What replaced « zero divergence »
 
-`scripts/parity-probe.py` used to render the same DOM twice — once dressed by BLOCK 2, once by
-the extracted stylesheet — and diff `getBoundingClientRect` plus a fixed `getComputedStyle`
-subset over 51 regions × 49 states × 2 themes. It was the only thing that could catch the
-rescoping changing a cascade while the emitted text stayed exactly right, and it earned its keep:
-it caught two such defects on 2026-08-20 alone, one of them 7 300 divergences wide.
-
-**It was deleted with the extraction it measured.** There is no second stylesheet to be in parity
-WITH: BLOCK 2 is the app's CSS, full stop. Keeping the probe would have meant paying 7 minutes of
-CI per PR to compare a file with itself.
-
-What holds BLOCK 2 now is narrower and honest about it: `scripts/check-css-tokens.py` (every
-`var()` resolves), the 59 rule scripts in `harness/`, and the fact that a rendering change in the
-prototype IS the product changing — there is no copy of it left to diverge.
+The rescoping-parity probe (`scripts/parity-probe.py`) was deleted with the extraction it
+measured — there is no second stylesheet to be in parity WITH, BLOCK 2 is the app's CSS, full
+stop. What holds BLOCK 2 now is narrower and honest about it: `scripts/check-css-tokens.py`
+(every `var()` resolves), the rule scripts in `harness/`, and the fact that a rendering change in
+the prototype IS the product changing — there is no copy of it left to diverge.
 
 ## The scale — a design constant is a STEP, and it is declared once
 
