@@ -124,3 +124,8 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   read « 11414 passed » under a refusal; one retry passed all five checks. Read the verdict, not the print.
 - OWED b·8 (ruling 79 b): the swipe verbs `pause`, `remove` and `del` reach `window.collapseCard?.()` — the
   gesture state's move takes that reach away.
+- 2026-09-14 b·6 hold red #1 CRASHED (named nothing): with the engine's tile/selMode branch disabled, tile 0's
+  tap opened the engine's panel, its scrim blocked the next pg.click, Playwright timed out → « RULE CRASHED »
+  (77-bis working). The hold now prints its FAIL line right after the first tap.
+- OWED b·8 (ruling 79-bis): `pause`, `remove` and `search-again` settle their swipe row through
+  `window.openCard` and `window.collapseCard` (the library's `del` never collapsed).
