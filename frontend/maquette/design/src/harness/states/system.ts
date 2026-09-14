@@ -6,6 +6,11 @@
 // so an entry pins only what its state means to show.
 import { applyState, type NamedState } from "../drive";
 
+// How long a read is held back to show a section that is still waiting. Long
+// enough that the state can be looked at, and it is a latency rather than a
+// failure: what is drawn is « not yet », never « it broke ».
+const HELD_BACK = 60000;
+
 // THE PIPELINE'S STATES JOIN THIS TABLE ONE SURFACE AT A TIME. The global
 // levers, the veille, the locks, the passages and a passage's detail add their
 // named states here in the commit that draws the surface behind each id —
@@ -31,6 +36,74 @@ export function systemStates(): NamedState[] {
       "system-error",
       "Système — erreur",
       () => applyState({ page: "sys", phase: "error", fault: false }),
+    ],
+    [
+      "levers-idle",
+      "Leviers — rien ne tourne",
+      () => {
+        window.__mocks?.reset();
+        applyState({ page: "sys", phase: "ready", fault: false });
+      },
+    ],
+    [
+      "levers-running",
+      "Leviers — un passage en cours",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setPipelineState("running");
+        applyState({ page: "sys", phase: "ready", fault: false });
+      },
+    ],
+    [
+      "levers-paused",
+      "Leviers — tout est en pause",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setPipelineState("paused");
+        applyState({ page: "sys", phase: "ready", fault: false });
+      },
+    ],
+    [
+      "levers-queued",
+      "Leviers — un levier demandé pendant une maintenance",
+      () => {
+        // THE LOCK IS HELD BY SOMETHING ELSE, which is the precondition the
+        // clause is about: what is asked now WAITS, and is never refused.
+        window.__mocks?.reset();
+        window.__mocks?.setPipelineState("queued");
+        applyState({ page: "sys", phase: "ready", fault: false });
+      },
+    ],
+    [
+      "levers-trigger-off",
+      "Leviers — déclenchement automatique coupé",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setWatcherEnabled(false);
+        applyState({ page: "sys", phase: "ready", fault: false });
+      },
+    ],
+    [
+      "levers-loading",
+      "Leviers — chargement",
+      () => {
+        // THE PAGE IS READY AND THE SECTION IS NOT, which is the state §13 is
+        // about: the rest of Système has answered, and what the levers will say
+        // is still in flight. Driving the PAGE's own loading phase would draw
+        // the page-wide skeleton and prove nothing about this section.
+        window.__mocks?.reset();
+        window.__mocks?.setOperationOutcome("readLocks", { latencyMilliseconds: HELD_BACK });
+        window.__mocks?.setOperationOutcome("readPipeline", { latencyMilliseconds: HELD_BACK });
+        applyState({ page: "sys", phase: "ready", fault: false });
+      },
+    ],
+    [
+      "levers-error",
+      "Leviers — erreur",
+      () => {
+        window.__mocks?.reset();
+        applyState({ page: "sys", phase: "error", fault: false });
+      },
     ],
     [
       "locks-free",

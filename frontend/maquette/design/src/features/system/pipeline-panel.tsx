@@ -13,6 +13,7 @@
 import { useTranslation } from "react-i18next";
 import { guidance } from "../../ui/variants/layout";
 import { sectionHeading } from "../../ui/variants";
+import { Levers } from "./levers";
 import { LocksBlock } from "./locks";
 import type { ReactElement } from "react";
 
@@ -29,6 +30,7 @@ export function PipelinePanel(): ReactElement {
       <div className={guidance()} data-part="guidance">
         {t("screens.system.pipelineGuidance")}
       </div>
+      <Levers />
       <LocksBlock />
     </div>
   );

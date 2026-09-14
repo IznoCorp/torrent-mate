@@ -990,7 +990,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** What holds the pipeline, whether it is paused, whether the automatic trigger is paused, and what temporary entries a crash left behind */
+        /**
+         * What holds the pipeline, whether it is paused, whether the automatic trigger is paused, and what temporary entries a crash left behind
+         * @description The lock, the two sentinels and their ages are DERIVED — from the pipeline's own state and the one field the automatic trigger is held in (§13, one derivation per question). Only the sweep's entries are seeded. THE DEMAND: the `_tmp_dispatch_` folder of run ccc29054 as its captured output names it; the run succeeded, so the folder is a transient read as an orphan for the drawing — the backend's locks read will list real orphans with their age.
+         */
         get: operations["readLocks"];
         put?: never;
         post?: never;
@@ -1189,6 +1192,8 @@ export interface components {
             last: components["schemas"]["PipelineRunSummary"];
             /** @description whether the automatic trigger opens runs on its own. The layer PROJECTS it from the one field `setWatcher` writes, which the locks read also projects as `sentinels.watcherPaused` — one fact, two readers (§13). Not in the seed: it is store state, not a fixture */
             watcherEnabled?: boolean;
+            /** @description what the pipeline is doing RIGHT NOW. The layer projects it from the one field its verbs move; the backend answers it on the same read (`StatusResponse.state`). Not in the seed — store state, as `watcherEnabled` is */
+            state?: components["schemas"]["PipelineState"];
         };
         PipelineExecution: {
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
@@ -1554,7 +1559,7 @@ export interface components {
             watcherPaused: boolean;
             watcherPausedAgeS: number | null;
         };
-        /** @description A temporary entry a crash left behind. */
+        /** @description A temporary entry a crash left behind. THE DEMAND: the `_tmp_dispatch_` folder of run ccc29054 as its captured output names it; the run succeeded, so the folder is a transient read as an orphan for the drawing — the backend's locks read will list real orphans with their age. */
         TmpOrphan: {
             path: string;
             prefix: string;

@@ -166,7 +166,11 @@ export function pipelineRoutes(): MockRoute[] {
   return [
     route("readPipeline", GET, "/api/pipeline/status", () => {
       const state = mockState();
-      return { ...state.pipeline, watcherEnabled: state.watcherEnabled };
+      return {
+        ...state.pipeline,
+        state: state.pipelineState,
+        watcherEnabled: state.watcherEnabled,
+      };
     }),
     // A run asked for during a run is QUEUED and visibly so — never refused,
     // and never demoted back to running by the next tap, which is what a

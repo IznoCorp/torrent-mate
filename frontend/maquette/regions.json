@@ -234,6 +234,10 @@
     "system/locks": {
       "selector": "[data-region=\"system/locks\"]",
       "note": "the pipeline's lock, the two sentinels and the sweep"
+    },
+    "system/levers": {
+      "selector": "[data-region=\"system/levers\"]",
+      "note": "the bound, pause or resume, and the automatic trigger"
     }
   },
   "$reportedDefects": {

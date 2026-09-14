@@ -2,11 +2,11 @@
 
 ## STATE BLOCK (rewritten at every boundary — at most 40 lines)
 
-- **Updated**: 2026-09-14, phase 3 committed (Agent : l20 1).
+- **Updated**: 2026-09-14, phase 4 committed (Agent : l20 1).
 - **Branch / worktree**: `feat/maquette-l20`, `/Users/izno/dev/worktrees/wave-l20`, cut from `main`
   at `4f242ecb3`; plan re-target `b7e600cc5`.
-- **Phases done**: 1 (the contract), 2 (the comment), 3 (the host and the locks, R184).
-- **Next**: phase 4 — the levers (`plan/phase-04-levers.md`), rules R178/R179/R181 + R184's agreement half.
+- **Phases done**: 1 (the contract), 2 (the comment), 3 (the locks, R184), 4 (the levers, R178/R179/R181).
+- **Next**: ruling 6's tooling commit (the oracle acquires the served copy), then phase 5 — « Relancer la veille » (`plan/phase-05-watch-now.md`), rule R180.
 - **Waiting on**: nothing. Phase 8 waits for L13b's merge AND the steward's word.
 - **Rule numbers**: RULINGS-L20.md ruling 1 (a…h → R178–R185, j → R187, R186 unused).
 - **Register rows**: RULINGS-L20.md ruling 4 — L20's `BUGS.md` rows start at B-530 (L13b holds B-512–B-529).
@@ -118,3 +118,19 @@
 - 2026-09-14 — `mutate.sh` rebuilds the served copy but does NOT start the 8899 host: the first attempt
   read « FELL — the rule exited 1 with no FAIL line », which is an INSTRUMENT crash
   (ERR_CONNECTION_REFUSED), never a fall. Start the host first, kill it by captured PID.
+- 2026-09-14 — phase 4: R178/R179/R181 red first (levers.py 26 holds / 19 violations), R184's
+  agreement half red too (locks.py 23 holds / 2 violations, its 21 phase-3 holds still green).
+  Then 20 rules + 26 guards, no violation.
+- 2026-09-14 — TWO of my own holds were WEAK and the runs said so, both repaired before green:
+  (a) the finger test read « covered by nothing » on every lever — the section sits far down a long
+  page and `elementFromPoint` answers null OUTSIDE the viewport; a finger scrolls first, so the
+  press now scrolls the control to the centre before hit-testing; (b) `levers-loading` drove the
+  PAGE's loading phase, which draws the page-wide skeleton and proves nothing about this section —
+  it now holds the section's own reads back (60 s latency) over a READY page.
+- 2026-09-14 — INCIDENT (B-256's species): `oracle.py --accept` run as its OWN heavy invocation
+  measured ANOTHER WAVE'S BUILD — the ONE served copy was republished in the gap — and rewrote the
+  reference with 87 states, none of this lot's twelve. Caught by reading the diff, reverted, redone
+  with build+publish+serve+accept INSIDE ONE heavy invocation, and the new reference verified BY
+  NAME (99 states, 36 regions, the twelve present). Ruling 6 turns that into tooling.
+- 2026-09-14 — the contract's `Pipeline` gained `state`: the pipeline's run state was in NO read of
+  the maquette contract (the hole phase 8 repairs); the backend answers it as `StatusResponse.state`.

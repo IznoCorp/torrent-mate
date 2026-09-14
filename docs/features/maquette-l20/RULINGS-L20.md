@@ -59,3 +59,10 @@ malbouffe (2026)`, run `ccc29054` — its age taken from that run's timestamps, 
 folder is a transient read as an orphan for the drawing — the backend's locks read will list real
 orphans with their age », that sentence also a backend demand line in the register. The 26 states
 stay. (b) — dropping the state — refused. `locks-stale` by a layer dial (+3 lines in `mocks/index.ts`).
+
+## 6 — the oracle acquires the served copy (steward, 2026-09-14)
+
+After phase 4's gate, a small tooling commit of L20's: `oracle.py --accept` and `--record` ACQUIRE the
+served copy (`served_copy.py --acquire`, as `run.sh` and `mutate.sh` do) and assert its stamp is the
+current head before writing. A bare accept over a foreign build must REFUSE, never rewrite the
+reference. Its test is written FIRST, in the oracle's own test file, and seen red.

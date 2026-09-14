@@ -338,6 +338,7 @@ export function resetMockState(): void {
 export type MockDials = {
   setPipelineState: (state: PipelineState) => void;
   setLockStale: (stale: boolean) => void;
+  setWatcherEnabled: (enabled: boolean) => void;
   setSweepFinished: (finished: boolean) => void;
   setTmpOrphans: (present: boolean) => void;
 };
@@ -354,6 +355,11 @@ export const mockDials: MockDials = {
     const held = mockState();
     held.lockStale = stale;
     if (stale) held.pipelineSince = scenario().now;
+  },
+  setWatcherEnabled: (enabled: boolean) => {
+    const held = mockState();
+    held.watcherEnabled = enabled;
+    held.watcherPausedSince = enabled ? null : scenario().now;
   },
   setSweepFinished: (finished: boolean) => {
     mockState().sweepFinished = finished;

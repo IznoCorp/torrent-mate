@@ -1216,6 +1216,7 @@ virtual
 # which cannot be renamed. A reader tidying one of them away breaks a build.
 age
 command
+consequence
 counts
 day
 detecting
@@ -1224,7 +1225,9 @@ enabled
 free
 hour
 launch
+levers
 locks
+off
 oldest
 orphan
 orphans
@@ -1240,6 +1243,7 @@ summary
 swept
 timing
 trigger
+turn
 virtualised
 virtualizer
 visible

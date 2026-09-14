@@ -23,11 +23,11 @@ WHAT IS READ, and the four holds are not the same question:
      Maintenance command. So this block offers a cross-reference and no verb of
      its own — no mutating control anywhere inside it.
 
-WHAT IT DOES NOT READ. The agreement between these facts and the LEVERS —
-pause offered only when the pause sentinel is absent — belongs to the surface
-that draws a lever, which this one does not. It is the same rule's second half
-and it is written beside the levers rather than pretended to here: a hold over
-a control that does not exist yet would be green for the wrong reason.
+AND ITS SECOND HALF, THE AGREEMENT. Once the levers exist, the same rule reads
+them against these facts: pause is offered only while the pause sentinel is
+ABSENT, resume only while it is PRESENT. §13 — one question, one derivation. Two
+fields that can disagree is the defect, not something the reader should
+reconcile by looking twice.
 """
 import asyncio
 import pathlib
@@ -112,6 +112,9 @@ CONTROLS = """()=>[...document.querySelectorAll(
 ASKED = """()=>(window.__mocks?.answered?.() || [])
   .filter((call) => call.operationId === 'readLocks')
   .map((call) => call.status + ' ' + call.operationId)"""
+
+# WHETHER A CONTROL IS ON SCREEN, for the agreement half.
+PRESENT = """(part)=>Boolean(document.querySelector(`[data-part="${part}"]`))"""
 
 # THE SENTENCE A ZERO WEARS. The interface's own word for « the sweep found
 # nothing », which is a real answer and not an absence.
@@ -221,6 +224,24 @@ async def main():
         # line that measures nothing. The corpus is asserted in the same breath.
         journal.check("and no control inside it acts",
                       bool(controls) and all(one["go"] for one in controls), f"{controls}")
+
+        # 5 — THE AGREEMENT. The levers and these facts answer one question
+        # between them, so they cannot say different things about it.
+        for state, sentinel_on, offered, hidden in (
+            ("levers-running", False, "levers/pause", "levers/resume"),
+            ("levers-paused", True, "levers/resume", "levers/pause"),
+        ):
+            if not await drive(journal, page, state):
+                continue
+            fact = await page.evaluate(ROW_FACT, "locks/pause-sentinel")
+            said_on = bool(fact) and "Activée" in fact["value"]
+            journal.check(f"{state}: the pause sentinel reads as the state says",
+                          said_on is sentinel_on, f"{fact!r}")
+            journal.check(f"{state}: the lever offered agrees with that sentinel",
+                          await page.evaluate(PRESENT, offered)
+                          and not await page.evaluate(PRESENT, hidden),
+                          f"{offered} present={await page.evaluate(PRESENT, offered)}, "
+                          f"{hidden} present={await page.evaluate(PRESENT, hidden)}")
 
         await context.close()
         await browser.close()

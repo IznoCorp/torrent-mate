@@ -4448,6 +4448,10 @@
           "watcherEnabled": {
             "type": "boolean",
             "description": "whether the automatic trigger opens runs on its own. The layer PROJECTS it from the one field `setWatcher` writes, which the locks read also projects as `sentinels.watcherPaused` — one fact, two readers (§13). Not in the seed: it is store state, not a fixture"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PipelineState",
+            "description": "what the pipeline is doing RIGHT NOW. The layer projects it from the one field its verbs move; the backend answers it on the same read (`StatusResponse.state`). Not in the seed — store state, as `watcherEnabled` is"
           }
         },
         "required": [

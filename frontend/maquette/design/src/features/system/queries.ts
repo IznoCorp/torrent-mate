@@ -18,6 +18,7 @@ import { read } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
 import type { Fact } from "../../lib/engine-drawing";
 import type { CodeErrors, PipelineRun } from "./reference";
+import { useTranslation } from "react-i18next";
 import type { components } from "../../contract/types";
 
 type RunHistory = components["schemas"]["RunHistory"];
@@ -29,6 +30,16 @@ type RunHistory = components["schemas"]["RunHistory"];
  * @param family The fixture family its shape came from.
  * @returns The query, its answer already in the engine's names.
  */
+// THE SETTING THE LEVERS DRAW, by the key its own file owns. Named once here
+// so the row, the demand and the panel's address cannot drift apart.
+const BOUND_KEY = "pipeline.tunnels.max_parallel";
+
+/** The pipeline's status as the engine's markup reads it. */
+type PipelineStatus = { state?: string; watcherEnabled?: boolean };
+
+/** One rubric of the settings catalogue, in the engine's own field names. */
+type SettingsTopic = { r: { f: string; c: string; brut: unknown }[] };
+
 function useSystemRead<Result>(address: string, family: string) {
   return useQuery({
     queryKey: [address],
@@ -76,3 +87,50 @@ export const usePipelineHistory = () =>
       return toEngineShape<PipelineRun[]>("EXECUTIONS", carried);
     },
   });
+
+/**
+ * What the pipeline is doing, and whether its automatic trigger is on.
+ *
+ * THE SAME KEY AND THE SAME SHAPE AS ARRIVÉES', deliberately: one address, one
+ * cached answer. Two definitions of one key that shaped it differently would
+ * hand whichever surface mounted second the other one's idea of the payload —
+ * and the two would be right by turns. Arrivées is a FEATURE, so this is not
+ * imported from it (invariant 7): it is written the same way, and the shape is
+ * held by the contract both read through.
+ */
+export const usePipelineState = () =>
+  useQuery({
+    queryKey: ["/api/pipeline/status"],
+    queryFn: async () =>
+      toEngineShape<PipelineStatus>("PIPELINE", await read("/api/pipeline/status")),
+  });
+
+/**
+ * The bound on how many media may be handled at once, as the levers draw it.
+ *
+ * READ THROUGH THE OPERATION, never through the settings FEATURE (invariant 7):
+ * a read on the contract is not a feature import, and the identity this returns
+ * is the address of the setting's own panel, which is where it is edited.
+ *
+ * @returns Its identity and what it is worth, or undefined while the read is in
+ *   flight — the section prints nothing it does not yet know.
+ */
+export function useBoundSetting(): { identity: string; said: string } | undefined {
+  const { t } = useTranslation();
+  const { data: topics } = useQuery({
+    queryKey: ["/api/config/schema"],
+    queryFn: async () =>
+      toEngineShape<SettingsTopic[]>("SETTINGS", await read("/api/config/schema")),
+  });
+  if (topics === undefined) return undefined;
+  const setting = topics
+    .flatMap((topic) => topic.r)
+    .find((one) => one.c === BOUND_KEY);
+  if (setting === undefined) return undefined;
+  return {
+    identity: `${setting.f}:${setting.c}`,
+    said: setting.brut === null || setting.brut === undefined
+      ? t("screens.system.boundUnset")
+      : String(setting.brut),
+  };
+}

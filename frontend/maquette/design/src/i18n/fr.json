@@ -488,7 +488,19 @@
       "ageHours_one": "il y a une heure",
       "ageHours_other": "il y a {{count}} heures",
       "ageDays_one": "il y a un jour",
-      "ageDays_other": "il y a {{count}} jours"
+      "ageDays_other": "il y a {{count}} jours",
+      "leversGuidance": "Ces réglages valent pour tous les médias à la fois.",
+      "bound": "Tunnels en parallèle",
+      "boundEdit": "Régler",
+      "boundUnset": "non défini",
+      "pauseAll": "Mettre tout en pause",
+      "resumeAll": "Reprendre",
+      "nothingRunning": "Rien ne tourne.",
+      "pipelineQueued": "Demandé — ce passage attend que la maintenance en cours se termine.",
+      "automaticTrigger": "Déclenchement automatique",
+      "triggerIsOn": " — actif",
+      "triggerIsOff": " — coupé",
+      "automaticTriggerOff": "Les téléchargements terminés n'ouvrent plus de passage tout seuls."
     },
     "arrivals": {
       "introLead": "Arrivées porte la santé du PIPELINE",

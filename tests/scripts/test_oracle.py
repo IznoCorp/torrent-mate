@@ -313,4 +313,11 @@ def test_the_committed_reference_carries_a_platform():
     # `system-outage`, `shell/page` and `system/body`, 2 540.5 px tall to 2 899.4 — because the
     # page itself is longer now that it carries the section. That was read state by state in
     # the diff, not taken from the tool's success line, and no other state moved. 92 x 35 today.
-    assert reference["counts"] == {"states": 92, "regions": 35}
+    #
+    # 99 STATES AND 36 REGIONS. `system/levers` is the pipeline's levers on Système and its
+    # seven named states are the surface they draw. The existing measurements that moved are
+    # the twelve states that draw that page — the five locks states among them, because the
+    # levers land ABOVE them — plus `system` and `system-outage`. Read state by state in the
+    # diff, and verified BY NAME rather than by the count: a reference accepted over another
+    # wave's build came back with the right-looking total and none of this lot's states in it.
+    assert reference["counts"] == {"states": 99, "regions": 36}
