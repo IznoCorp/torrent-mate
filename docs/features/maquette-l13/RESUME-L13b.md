@@ -23,9 +23,16 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 - b·12 DONE: rule `86ccb19fa` (arrivals.py reads the layer's state, red), move `0fd43802b` (the engine's click
   listener dies whole; legacy.js 1600), re-aims `7d12186c2`, retry hold `50c42e7e0`; gates green, oracle zero;
   mutations named.
-- NEXT: b·13 « `legacy.js` dies » (phase-b13-legacy-js-dies.md; rulings 16, 57, 86-bis: applyState, render(), the
-  twelve constants' homes; then the full suite with --a11y, --compare, make lint; rebase onto main before the PR).
-  Read RULINGS 64–97 first; the steward is `Orch : TM frontend [31ca3c]` (its reference may change again).
+- b·13 NOT OPENED — STOP D (ruling 98), routed to the auditor. MEASURED on 289cfd2e1, the six figures:
+  (1) legacy.js 1 600 non-blank lines of live subject (constants, 13 unconverted fixtures, helpers, the settings
+  machine, render/currentState/applyState, the search mount, toast/openSheet/closeSheet/showSignIn, actionDelete);
+  (2) `window.__referentiel` read by 43–45 product files; (3) nine features/*/reference.ts slices, 37
+  useXReference() calls; (4) engine-shape.ts 41 call sites / 14 files / 23 families; (5) 20 files import engine/;
+  (6) check-mock-seeds counts 32 engine families. Proposed cut: (a) constants+helpers home, (b) fixtures convert or
+  seed, (c) settings machine + render/applyState + search mount + toast leave, (d) __referentiel + slices die,
+  (e) engine-shape families → contract names, (f) the file and its instruments die.
+- NEXT: the steward's word on the re-cut; meanwhile the FULL suite + --a11y + --compare on 289cfd2e1 (ruling 98).
+  Read RULINGS 64–98 first; the steward is `Orch : TM frontend [31ca3c]` (its reference may change again).
 - ZSH TRAP, three times this session: a multi-word variable is ONE argument in zsh, and macOS bash has no
   `mapfile` — build rule lists and file lists in Python or spell them out.
 - LOGS: `~/Library/Logs/tm-l13b/` (ruling 76). Mutex and tests lock stay under `/private/tmp`.
