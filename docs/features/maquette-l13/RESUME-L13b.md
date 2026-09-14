@@ -117,3 +117,10 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   acqtab/pill/fmode/sugmode out of the engine's `store.write({f: …dataset.x})` shape. MEASURED before the floor
   moved: a wrong `data-fmode="gird"` literal now passes the arm (exit 0, « 4 forwarded attribute(s) »).
   b·7 takes the last four; the arm's subject is decided then.
+- 2026-09-14 REBASE: `git rebase --onto origin/main 37e54d0fd` (a plain rebase would replay L13a against its own
+  squash) replayed 27 commits onto 304346145 with no stop; the comment baseline then read 420 against 422 (main's
+  R176/R177 rule files) → `96a9b8f72`; the one `--force-with-lease` pushed 6774bdea2...96a9b8f72.
+- 2026-09-14 TRAP: the pre-push hook runs pytest SILENTLY, then re-runs it to print on failure — the printed run
+  read « 11414 passed » under a refusal; one retry passed all five checks. Read the verdict, not the print.
+- OWED b·8 (ruling 79 b): the swipe verbs `pause`, `remove` and `del` reach `window.collapseCard?.()` — the
+  gesture state's move takes that reach away.

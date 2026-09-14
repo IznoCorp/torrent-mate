@@ -61,3 +61,4 @@ returns nothing.
 ## Amendments
 
 - **Amended 2026-09-13 (steward, the three arms' dry read, audit order 2):** the same dialog-door amendment as b·5 (the library never imports `app/dialog-host.ts`); `mediaNamedBy` reads `window.LIBRARY` until b·10-bis (ruling 41).
+- **Amended 2026-09-14 (ruling 79):** `tile` is NOT registered — the registry answers the first registered dataset key in attribute order and a tile emits `data-tile` before `data-mediasheet`; the library registers `selected-title` (selection mode only) and `data-tile` stays the rules' index. `.act`: pause/remove emit `data-pause`/`data-remove`, the three verbs call `window.collapseCard?.()` until b·8, « chercher » emits `data-toast`; the followed warning reads a `followedTitles` door in `lib/shell-doors.ts`; `clearq` → `data-clear-search` / `data-clear-filter`.
