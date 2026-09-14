@@ -505,7 +505,8 @@
       "watchRunning": "En cours…",
       "watchFigures": "{{detected}} nouveaux épisodes détectés, {{available}} disponibles, {{grabbed}} récupérés.",
       "watchNothing": "Rien de nouveau.",
-      "watchFailed": "La veille n'a pas pu s'exécuter."
+      "watchFailed": "La veille n'a pas pu s'exécuter.",
+      "boundOwed": "pas encore réglable — le serveur ne porte pas encore ce réglage"
     },
     "arrivals": {
       "introLead": "Arrivées porte la santé du PIPELINE",

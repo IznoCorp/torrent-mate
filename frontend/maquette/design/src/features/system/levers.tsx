@@ -63,11 +63,15 @@ export function Levers(): ReactElement {
         {t("screens.system.leversGuidance")}
       </div>
 
-      <button className={topicRow()} data-part="levers/bound" data-bound={bound?.identity}>
+      {/* A PATH ONLY WHERE THERE IS SOMEWHERE TO GO. While the key is a demand
+          the catalogue does not hold, the row says what it is worth — « pas
+          encore réglable » — and offers no door onto a panel that would not
+          open: DOIT-7 refuses a dead end, and a control leading nowhere is one. */}
+      <div className={topicRow()} data-part="levers/bound" data-bound={bound?.identity}>
         <span>{t("screens.system.bound")}</span>
         <span data-part="levers/bound-value">{bound?.said}</span>
-        <span>{t("screens.system.boundEdit")}</span>
-      </button>
+        {bound?.identity === undefined ? null : <span>{t("screens.system.boundEdit")}</span>}
+      </div>
 
       {/* THE ONE THE STATE ADMITS. Pause while a run is going, resume while it
           is held, and when nothing runs the reason rather than a dead control. */}

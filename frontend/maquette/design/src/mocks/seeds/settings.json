@@ -1250,8 +1250,7 @@
       "indexer",
       "notify",
       "web",
-      "config",
-      "pipeline"
+      "config"
     ],
     "settings": [
       {
@@ -1473,14 +1472,6 @@
         ],
         "name": "overlays",
         "displayedValue": "paths.json5, disks.json5, categories.json5 +15"
-      },
-      {
-        "file": "pipeline",
-        "key": "pipeline.tunnels.max_parallel",
-        "type": "number",
-        "raw": null,
-        "name": "max_parallel",
-        "note": "Combien de médias peuvent être traités en même temps."
       }
     ]
   },

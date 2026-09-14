@@ -115,7 +115,7 @@ export const usePipelineState = () =>
  * @returns Its identity and what it is worth, or undefined while the read is in
  *   flight — the section prints nothing it does not yet know.
  */
-export function useBoundSetting(): { identity: string; said: string } | undefined {
+export function useBoundSetting(): { identity?: string; said: string } | undefined {
   const { t } = useTranslation();
   const { data: topics } = useQuery({
     queryKey: ["/api/config/schema"],
@@ -126,7 +126,12 @@ export function useBoundSetting(): { identity: string; said: string } | undefine
   const setting = topics
     .flatMap((topic) => topic.r)
     .find((one) => one.c === BOUND_KEY);
-  if (setting === undefined) return undefined;
+  // THE KEY DOES NOT EXIST YET, and the row says so rather than inventing one.
+  // It is a DEMAND (§20-1 makes the bound « une variable de configuration
+  // réglable »), so the catalogue answers nothing for it — and a settings seed
+  // carrying a key no configuration file has is a seed the settings rule
+  // refuses, rightly: what this interface lists is the REAL configuration.
+  if (setting === undefined) return { identity: undefined, said: t("screens.system.boundOwed") };
   return {
     identity: `${setting.f}:${setting.c}`,
     said: setting.brut === null || setting.brut === undefined

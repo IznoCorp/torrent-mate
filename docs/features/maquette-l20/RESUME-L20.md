@@ -149,3 +149,9 @@
   `watch-idle`, `watch-running`, `watch-figures`, `watch-nothing`, `watch-error`.
 - 2026-09-14 — the oracle: 118 divergences, and `sheet-more` NOT among them — the panel's button
   gained an attribute and no pixel. 99×36 → 104×36, verified by name.
+- 2026-09-14 — MIDPOINT full suite (131 rules): 2 falls. `settings.py` was MINE and the rule was right
+  — it holds that every setting comes from a REAL configuration file, and the bound is a DEMAND whose
+  file does not exist. Repaired by taking the key OUT of the settings seed: the row says « pas encore
+  réglable » and offers no path onto a panel that would not open (DOIT-7). `load_more_scale.py` was an
+  INSTRUMENT fall — `BrowserType.launch: Timeout 180000ms` on a machine running two waves — and it
+  passes alone (8 rules, no violation).
