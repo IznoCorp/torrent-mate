@@ -242,8 +242,18 @@ if [ "$#" -ge 2 ] && { [ "$1 $2" = "--contracts --oracle" ] || [ "$1 $2" = "--or
   TIER="--contracts"
   WITH_ORACLE=1
   shift 2
+  # EACH ARGUMENT IS RESOLVED WHOLE, never by its `basename` alone: several
+  # paths an unsplit shell variable hands over as ONE word end in a rule that
+  # exists, and reading only that last name ran one rule and called the gate
+  # green. A path must name a file IN this directory; a bare name, a file beside
+  # this script.
+  harness_directory="$(cd "$HERE" && pwd -P)"
   for rule in "$@"; do
-    if [ ! -f "$HERE/$(basename "$rule")" ]; then
+    case "$rule" in
+      */*) rule_directory="$(cd "$(dirname "$rule")" 2>/dev/null && pwd -P || true)" ;;
+      *) rule_directory="$harness_directory" ;;
+    esac
+    if [ "$rule_directory" != "$harness_directory" ] || [ ! -f "$harness_directory/$(basename "$rule")" ]; then
       echo "run.sh: no rule named $rule beside $HERE/run.sh" >&2
       exit 2
     fi

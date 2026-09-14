@@ -209,6 +209,33 @@ def test_a_rule_name_with_no_file_is_refused_before_the_build(
     assert _count(journal, "npm run build") == 0, journal
 
 
+def test_several_rule_paths_passed_as_one_word_are_refused_before_the_build(
+    scratch_tree: Path,
+) -> None:
+    """Two paths an unsplit shell variable handed over as ONE argument name no file.
+
+    The check used to read only the argument's `basename`, which is the LAST path
+    of the joined word — a rule that exists — so a gate over thirty-five rules
+    ran one and read green (ruling 92).
+    """
+    joined = "frontend/maquette/harness/fallen.py frontend/maquette/harness/settings.py"
+    result, journal = _run(scratch_tree, "--contracts", "--oracle", joined)
+
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert _count(journal, "npm run build") == 0, journal
+    assert joined in result.stderr, result.stderr
+
+
+def test_a_rule_path_elsewhere_than_beside_the_script_is_refused(
+    scratch_tree: Path,
+) -> None:
+    """A path whose directory is not the harness names a file nobody runs."""
+    result, journal = _run(scratch_tree, "--contracts", "--oracle", "elsewhere/settings.py")
+
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert _count(journal, "npm run build") == 0, journal
+
+
 def test_a_hung_rule_is_an_instrument_fall_and_the_gate_still_ends(
     scratch_tree: Path,
 ) -> None:
