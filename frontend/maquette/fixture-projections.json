@@ -589,6 +589,10 @@
     "PIPELINE_RUNS": {
       "answers": "RunDetail[]",
       "file": "pipeline-runs"
+    },
+    "TMP_ORPHANS": {
+      "answers": "TmpOrphan[]",
+      "file": "tmp-orphans"
     }
   },
   "$shorthands": {

@@ -5,8 +5,10 @@
 // targets, and the two `.crossref` buttons keep the `data-go` / `data-page`
 // attributes the document-level delegation reads.
 //
-// Système answers ONE question: is the machine well? It is a pure renderer —
-// it writes nothing, ever. Its only inputs are `state.phase` (the skeleton and
+// Système answers ONE question: is the machine well? It READS to answer it —
+// the services, the schedulers, what holds the pipeline, the passages — and the
+// « Le pipeline » section is where what governs ALL media at once is read and,
+// as its levers land, set. Its own inputs stay `state.phase` (the skeleton and
 // error surfaces) and `state.panne` (the simulated-fault state, which no UI
 // control toggles: only the harness drives it, and only through `__go`).
 //
@@ -17,6 +19,7 @@ import { useTranslation } from "react-i18next";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { useSystemReference } from "../../features/system/reference";
+import { PipelinePanel } from "./pipeline-panel";
 import { useSchedulersDown } from "./fault";
 import { useUiState } from "../../lib/store-access";
 import {
@@ -95,6 +98,8 @@ export function SystemPage(): ReactElement | null {
         {t("screens.system.schedulerRest")}
       </div>
       {facts(state.fault ? SCHEDULERS_DOWN : SCHEDULERS)}
+
+      <PipelinePanel />
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.system.runs")}</h2>
       {facts(

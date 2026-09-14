@@ -25,6 +25,7 @@ import PENDING_DECISIONS from "./seeds/pending-decisions.json";
 import SETTLED_DECISIONS from "./seeds/settled-decisions.json";
 import PIPELINE from "./seeds/pipeline.json";
 import PIPELINE_RUNS from "./seeds/pipeline-runs.json";
+import TMP_ORPHANS from "./seeds/tmp-orphans.json";
 import LIBRARY_ITEMS from "./seeds/library-items.json";
 import STUCK from "./seeds/stuck.json";
 import MOVING from "./seeds/moving.json";
@@ -40,6 +41,7 @@ import SECRETS from "./seeds/secrets.json";
  * « le fichier a bougé » would make the ordinary case the surprising one.
  */
 const CHANGED_ON_DISK = "notify";
+import { scenario } from "./scenario";
 import type { components } from "../contract/types";
 
 /** The contract's own vocabulary for what the pipeline is doing. */
@@ -48,6 +50,9 @@ export type PipelineState = components["schemas"]["PipelineState"];
 // The state a pipeline is in when nothing is running. It is a token of the
 // contract's enum, and the type above is what refuses a misspelling of it.
 const IDLE: PipelineState = "idle";
+
+// The state a paused pipeline is in, for the dial that puts it there.
+const PAUSED: PipelineState = "paused";
 
 type Schemas = components["schemas"];
 
@@ -163,10 +168,20 @@ export type MockState = {
   pausedSince: string | null;
   /** When the automatic trigger was turned off, or null while it is on. */
   watcherPausedSince: string | null;
-  /** How many times the locks were read: the sweep's clock. */
-  locksReads: number;
   /** How many times each running veille was read: its clock. */
   runReads: Record<string, number>;
+  /**
+   * Whether the lock file outlived the process that took it.
+   *
+   * A PROPERTY OF THE FILE, not of the request, so it is a dial and never a
+   * scenario: no verb of this layer produces a stale lock, and the state that
+   * stands for « the machine crashed holding it » has to be able to say so.
+   */
+  lockStale: boolean;
+  /** Whether the bounded sweep for temporary entries has finished. */
+  sweepFinished: boolean;
+  /** The temporary entries a crash left behind, as the sweep found them. */
+  tmpOrphans: Schemas["TmpOrphan"][];
   /**
    * The stages of each journey the operator has opened, PER MEDIUM.
    *
@@ -275,8 +290,10 @@ const seeded = (): MockState => ({
   pipelineSince: null,
   pausedSince: null,
   watcherPausedSince: null,
-  locksReads: 0,
   runReads: {},
+  lockStale: false,
+  sweepFinished: true,
+  tmpOrphans: copyOf<Schemas["TmpOrphan"][]>(TMP_ORPHANS),
   journeyStages: {},
   metadataRefreshedAt: {},
   restartRequired: false,
@@ -308,3 +325,40 @@ export function mockState(): MockState {
 export function resetMockState(): void {
   current = seeded();
 }
+
+/**
+ * The dials a named state turns to reach a state no verb of this layer produces.
+ *
+ * A DIAL, NEVER A SCENARIO. A scenario says how an operation ANSWERS — its
+ * status, its latency; these say what the machine IS: its lock outlived a dead
+ * process, its sweep has not finished, a crash left entries behind. A named
+ * state runs synchronously, so it cannot ask the layer through the network and
+ * wait; it turns these instead.
+ */
+export type MockDials = {
+  setPipelineState: (state: PipelineState) => void;
+  setLockStale: (stale: boolean) => void;
+  setSweepFinished: (finished: boolean) => void;
+  setTmpOrphans: (present: boolean) => void;
+};
+
+/** Those dials, over the layer's own state. */
+export const mockDials: MockDials = {
+  setPipelineState: (state: PipelineState) => {
+    const held = mockState();
+    held.pipelineState = state;
+    held.pipelineSince = state === IDLE ? null : scenario().now;
+    held.pausedSince = state === PAUSED ? scenario().now : null;
+  },
+  setLockStale: (stale: boolean) => {
+    const held = mockState();
+    held.lockStale = stale;
+    if (stale) held.pipelineSince = scenario().now;
+  },
+  setSweepFinished: (finished: boolean) => {
+    mockState().sweepFinished = finished;
+  },
+  setTmpOrphans: (present: boolean) => {
+    mockState().tmpOrphans = present ? copyOf<Schemas["TmpOrphan"][]>(TMP_ORPHANS) : [];
+  },
+};

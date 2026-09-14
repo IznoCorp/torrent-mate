@@ -304,4 +304,13 @@ def test_the_committed_reference_carries_a_platform():
     # invisible to it. The reference GREW again — 87 entries added (one per state), 0 removed,
     # and not one of the 2 871 measurements that existed at 33 regions changed, verified by
     # reading the diff rather than the tool's own success line. 87 x 34 = 2 958 today.
-    assert reference["counts"] == {"states": 87, "regions": 34}
+    #
+    # 92 STATES AND 35 REGIONS, and this pin moves for a reason the two before it did not have.
+    # `system/locks` is the pipeline's locks block on Système, and its five named states —
+    # `locks-free`, `locks-held`, `locks-stale`, `locks-sweep-pending`, `locks-orphans` — are
+    # the surface that block draws. THE DIFFERENCE WITH EVERY EARLIER MOVE OF THIS PIN: the
+    # reference did not only GROW. Two existing measurements changed — `system` and
+    # `system-outage`, `shell/page` and `system/body`, 2 540.5 px tall to 2 899.4 — because the
+    # page itself is longer now that it carries the section. That was read state by state in
+    # the diff, not taken from the tool's success line, and no other state moved. 92 x 35 today.
+    assert reference["counts"] == {"states": 92, "regions": 35}

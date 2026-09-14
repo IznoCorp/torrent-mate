@@ -22,7 +22,7 @@ import { resolve, type MockRoute } from "./router";
 import { outcomeFor, resetScenario, scenario, setDefaultLatency, setOperationOutcome } from "./scenario";
 import { mockSeeds, type MockSeeds } from "./mock-seeds";
 import { answeredCalls, clearAnswered, recordAnswered } from "./answered";
-import { mockState, resetMockState } from "./state";
+import { mockDials, mockState, resetMockState, type MockDials } from "./state";
 import { installMockStream, resetStream, type StreamDriver } from "./stream";
 import { routes } from "./handlers";
 
@@ -341,6 +341,8 @@ export function installMockNetwork(): void {
     setRestartRequired: (owed: boolean) => {
       mockState().restartRequired = owed;
     },
+    // WHAT THE MACHINE IS, as opposed to how an operation answers.
+    ...mockDials,
     setOffline: (down: boolean) => {
       networkIsDown = down;
     },
@@ -366,7 +368,7 @@ declare global {
      * in. Optional, so a document served without it fails visibly at the call
      * site rather than here.
      */
-    __mocks?: MockSeeds & {
+    __mocks?: MockSeeds & MockDials & {
       routes: () => string[];
       /**
        * Every call this layer answered, in order.

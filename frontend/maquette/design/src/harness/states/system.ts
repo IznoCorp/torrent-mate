@@ -32,5 +32,57 @@ export function systemStates(): NamedState[] {
       "Système — erreur",
       () => applyState({ page: "sys", phase: "error", fault: false }),
     ],
+    [
+      "locks-free",
+      "Verrous — tout est libre",
+      () => {
+        // THE RESET FIRST, always: a lock left held by whatever state was
+        // driven before would make this one show the opposite of its name.
+        window.__mocks?.reset();
+        window.__mocks?.setTmpOrphans(false);
+        applyState({ page: "sys", phase: "ready", fault: false });
+      },
+    ],
+    [
+      "locks-held",
+      "Verrous — le pipeline tient le verrou",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setPipelineState("running");
+        window.__mocks?.setTmpOrphans(false);
+        applyState({ page: "sys", phase: "ready", fault: false });
+      },
+    ],
+    [
+      "locks-stale",
+      "Verrous — verrou obsolète",
+      () => {
+        // THE FILE OUTLIVED ITS PROCESS, which no verb of the layer produces:
+        // it is what a crash leaves, so it is turned on as a fact rather than
+        // asked for as an operation.
+        window.__mocks?.reset();
+        window.__mocks?.setLockStale(true);
+        window.__mocks?.setTmpOrphans(false);
+        applyState({ page: "sys", phase: "ready", fault: false });
+      },
+    ],
+    [
+      "locks-sweep-pending",
+      "Verrous — le balayage n'a pas fini",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setSweepFinished(false);
+        applyState({ page: "sys", phase: "ready", fault: false });
+      },
+    ],
+    [
+      "locks-orphans",
+      "Verrous — des entrées temporaires restent",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setTmpOrphans(true);
+        applyState({ page: "sys", phase: "ready", fault: false });
+      },
+    ],
   ];
 }

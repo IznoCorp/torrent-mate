@@ -7,11 +7,11 @@
     "unserved": "not served, with the reason written out"
   },
   "$counts": {
-    "served": 42,
+    "served": 43,
     "asset": 5,
     "interface": 29,
     "unserved": 3,
-    "total": 79
+    "total": 80
   },
   "$anonymous": {
     "count": 0,
@@ -405,6 +405,12 @@
       "why": "arrivals — what is ready to be grabbed",
       "seed": null,
       "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
+    },
+    "TMP_ORPHANS": {
+      "class": "served",
+      "why": "the temporary entries a crash leaves behind, as the locks read lists them",
+      "seed": null,
+      "converted": "L20 phase 3 — the `_tmp_dispatch_` folder of run ccc29054 as its captured output names it; the run succeeded, so the folder is a transient read as an orphan for the drawing — the backend's locks read will list real orphans with their age"
     },
     "TODAY": {
       "class": "unserved",

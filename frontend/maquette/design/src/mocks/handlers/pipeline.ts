@@ -243,22 +243,28 @@ export function pipelineRoutes(): MockRoute[] {
     }),
     route("readLocks", GET, "/api/maintenance/locks", () => {
       const state = mockState();
-      const held = state.pipelineState !== IDLE;
-      // THE SWEEP IS BOUNDED AND RUNS IN THE BACKGROUND, so the first read
-      // after a reset finds it unfinished and every later one finds it done —
-      // the layer's clock is a count of reads, never of milliseconds.
-      const swept = state.locksReads > 0;
-      state.locksReads += 1;
+      // A STALE LOCK IS STILL A HELD ONE. The file is there; what is gone is
+      // the process that wrote it, which is the whole difference between « the
+      // pipeline is working » and « nothing is running and nothing can start ».
+      const held = state.pipelineState !== IDLE || state.lockStale;
       return {
-        pipelineLock: { held, ageS: held ? ageSince(state.pipelineSince) : null, stale: false, pid: null },
+        pipelineLock: {
+          held,
+          ageS: held ? ageSince(state.pipelineSince) : null,
+          stale: state.lockStale,
+          pid: null,
+        },
         sentinels: {
           pause: state.pipelineState === PAUSED,
           pauseAgeS: ageSince(state.pausedSince),
           watcherPaused: !state.watcherEnabled,
           watcherPausedAgeS: ageSince(state.watcherPausedSince),
         },
-        sweep: swept
-          ? { status: SWEEP_READY, ageS: ageSince(scenario().now), orphans: [] }
+        // THE ENTRIES ARE NOT AN ANSWER UNTIL THE SWEEP HAS FINISHED (§13):
+        // an unfinished sweep answers `pending` and NO list, because « none
+        // found so far » and « none » are different facts.
+        sweep: state.sweepFinished
+          ? { status: SWEEP_READY, ageS: ageSince(scenario().now), orphans: state.tmpOrphans }
           : { status: SWEEP_PENDING, ageS: null, orphans: [] },
       };
     }),

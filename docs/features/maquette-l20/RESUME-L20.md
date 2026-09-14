@@ -2,11 +2,11 @@
 
 ## STATE BLOCK (rewritten at every boundary — at most 40 lines)
 
-- **Updated**: 2026-09-14, phase 2 committed and pushed (Agent : l20 1).
+- **Updated**: 2026-09-14, phase 3 committed (Agent : l20 1).
 - **Branch / worktree**: `feat/maquette-l20`, `/Users/izno/dev/worktrees/wave-l20`, cut from `main`
   at `4f242ecb3`; plan re-target `b7e600cc5`.
-- **Phases done**: 1 (the contract), 2 (the named states' home, a comment only).
-- **Next**: phase 3 — the host and the locks (`plan/phase-03-host-and-locks.md`), rule R184.
+- **Phases done**: 1 (the contract), 2 (the comment), 3 (the host and the locks, R184).
+- **Next**: phase 4 — the levers (`plan/phase-04-levers.md`), rules R178/R179/R181 + R184's agreement half.
 - **Waiting on**: nothing. Phase 8 waits for L13b's merge AND the steward's word.
 - **Rule numbers**: RULINGS-L20.md ruling 1 (a…h → R178–R185, j → R187, R186 unused).
 - **Register rows**: RULINGS-L20.md ruling 4 — L20's `BUGS.md` rows start at B-530 (L13b holds B-512–B-529).
@@ -95,3 +95,26 @@
   files, references unchanged (guard re-run: 216 references, 0 grown).
 - 2026-09-14 — the host switched this session's model on its own during the stop: it answered as
   claude-opus-5 until 13:12 and the gauge reads `<synthetic>` after. Said to the operator and the steward.
+- 2026-09-14 — phase 3: R184 read RED first (21 holds, 20 violations: « état inconnu : locks-free »,
+  every row null, no control), then GREEN in the contracts tier. locks.py was ADDED to run.sh's
+  CONTRACTS list — it falls when a named state or a data-part name moves, which is that tier's subject.
+- 2026-09-14 — a hold of mine was WEAK and the run said so: « the row carries a value » compared the
+  row's whole text against the length of its data-part name, and « Pause »+« Inactive » reads
+  `PauseInactive`. It now reads the emitter's own `flux/name` and `flux/value` parts separately.
+- 2026-09-14 — the oracle: 71 divergences, on `system`, `system-outage` and the five NEW states, and on
+  nothing else (no STOP A). Ratified with `oracle.py --accept`; the diff reads +5 states, the new region
+  `system/locks` (null on every state that does not draw it) and the two system states' page height
+  2540.5 → 2899.4. Regions 34 → 35, states 87 → 92.
+- 2026-09-14 — the layer gained DIALS (`mockDials` in state.ts, spread into `window.__mocks`): a named
+  state runs synchronously, so it cannot ask the layer through the network. `mocks/index.ts` sits at the
+  400-line ceiling — the dials cost it TWO lines (a spread, and `MockDials` on the existing
+  intersection), 395 → 397.
+- 2026-09-14 — `code-vocabulary.txt` gained 8 more English words (day, free, hour, locks, orphan,
+  orphans, parts, sentinels).
+- 2026-09-14 — phase 3 mutations, both SEEN to fall naming the right defect: a skeleton over the whole
+  block → « locks/pipeline · pause-sentinel · watcher-sentinel still answers while the sweep is
+  pending » (4 violations); the age dropped from a held lock → « a held lock says so AND says since
+  when », measured value `Pris —` (1 violation). Restored by the tool, tree clean.
+- 2026-09-14 — `mutate.sh` rebuilds the served copy but does NOT start the 8899 host: the first attempt
+  read « FELL — the rule exited 1 with no FAIL line », which is an INSTRUMENT crash
+  (ERR_CONNECTION_REFUSED), never a fall. Start the host first, kill it by captured PID.

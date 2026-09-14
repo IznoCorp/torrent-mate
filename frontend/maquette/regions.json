@@ -230,6 +230,10 @@
     "screen-resolution/body": {
       "selector": "[data-region=\"screen-resolution/body\"]",
       "note": "resolving a stuck folder"
+    },
+    "system/locks": {
+      "selector": "[data-region=\"system/locks\"]",
+      "note": "the pipeline's lock, the two sentinels and the sweep"
     }
   },
   "$reportedDefects": {

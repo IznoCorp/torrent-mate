@@ -3806,7 +3806,10 @@
             "$ref": "#/components/responses/Problem"
           }
         },
-        "x-unseeded": "derived, never seeded: the lock and the pause from the pipeline's state, the watcher sentinel from the one trigger field, the ages from the layer's frozen clock. No fixture holds a lock, and no real sweep entry was ever recorded to snapshot."
+        "description": "The lock, the two sentinels and their ages are DERIVED — from the pipeline's own state and the one field the automatic trigger is held in (§13, one derivation per question). Only the sweep's entries are seeded. THE DEMAND: the `_tmp_dispatch_` folder of run ccc29054 as its captured output names it; the run succeeded, so the folder is a transient read as an orphan for the drawing — the backend's locks read will list real orphans with their age.",
+        "x-seeded-from": [
+          "TMP_ORPHANS"
+        ]
       }
     }
   },
@@ -5676,7 +5679,7 @@
       },
       "TmpOrphan": {
         "type": "object",
-        "description": "A temporary entry a crash left behind.",
+        "description": "A temporary entry a crash left behind. THE DEMAND: the `_tmp_dispatch_` folder of run ccc29054 as its captured output names it; the run succeeded, so the folder is a transient read as an orphan for the drawing — the backend's locks read will list real orphans with their age.",
         "properties": {
           "path": {
             "type": "string"
