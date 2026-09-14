@@ -8,7 +8,7 @@ two findings and the shape of their repair, and restates nothing the plan alread
 
 ## Your orchestrator
 
-`Orch : TM frontend [7977d1]`, and no other session. Handshake first — message that exact name and
+The session named in your launch prompt (`Orch : TM frontend`, with the reference the prompt carries — a reference changes when the steward is resumed), and no other session. Handshake first — message that exact name and
 reference saying you have started, what you understood, and your measured context (the plugin's gauge
 `/Users/izno/.claude/plugins/cache/lounisbou/orchestrator/0.29.2/skills/context-gauge/scripts/context-gauge.sh`,
 its `context_percent=` and `source=` lines, run as the LAST tool call before any message carrying a
