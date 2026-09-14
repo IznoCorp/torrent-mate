@@ -95,6 +95,9 @@ ASKED_FOR = {
     # whole job: a contract that gains a 202 and a rule that goes on exercising
     # three operations would be green about the fourth.
     "rescrapeMedia": ("POST", "/api/media/tvdb/403245/rescrape"),
+    # The veille answers 202 with the run it launched, since its figures are read
+    # from that run rather than returned at once.
+    "runDetection": ("POST", "/api/acquisition/detect"),
     # The 200 family's witness. A read, because the plain success is what every
     # read answers and a rule holding only mutations would say nothing about
     # the fifty-five operations that make up the rest of the contract.

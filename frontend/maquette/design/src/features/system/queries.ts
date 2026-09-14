@@ -18,6 +18,9 @@ import { read } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
 import type { Fact } from "../../lib/engine-drawing";
 import type { CodeErrors, PipelineRun } from "./reference";
+import type { components } from "../../contract/types";
+
+type RunHistory = components["schemas"]["RunHistory"];
 
 /**
  * Reads one system resource.
@@ -56,6 +59,20 @@ export const useDependencies = () =>
 export const useSystemErrors = () =>
   useSystemRead<CodeErrors>("/api/system/errors", "ERRORS");
 
-/** The last runs, as the pipeline recorded them. */
+/**
+ * The last runs, as the pipeline recorded them.
+ *
+ * A PAGE NOW, and the rows the section draws are the ones carrying the
+ * fixture's line: the list still draws that line rather than composing its own
+ * from the counts, so a run with no line has nothing it could be drawn with
+ * yet. That filter goes when the list composes the line.
+ */
 export const usePipelineHistory = () =>
-  useSystemRead<PipelineRun[]>("/api/pipeline/history", "EXECUTIONS");
+  useQuery({
+    queryKey: ["/api/pipeline/history"],
+    queryFn: async () => {
+      const history = (await read("/api/pipeline/history")) as RunHistory;
+      const carried = history.runs.filter((run) => run.result !== undefined);
+      return toEngineShape<PipelineRun[]>("EXECUTIONS", carried);
+    },
+  });

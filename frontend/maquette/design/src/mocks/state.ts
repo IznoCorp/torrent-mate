@@ -24,6 +24,7 @@ import TAKEABLE from "./seeds/takeable.json";
 import PENDING_DECISIONS from "./seeds/pending-decisions.json";
 import SETTLED_DECISIONS from "./seeds/settled-decisions.json";
 import PIPELINE from "./seeds/pipeline.json";
+import PIPELINE_RUNS from "./seeds/pipeline-runs.json";
 import LIBRARY_ITEMS from "./seeds/library-items.json";
 import STUCK from "./seeds/stuck.json";
 import MOVING from "./seeds/moving.json";
@@ -145,6 +146,28 @@ export type MockState = {
    */
   pipelineState: PipelineState;
   /**
+   * EVERY RUN THE HISTORY HOLDS, in full — the list and a run's detail read
+   * this one array, so they cannot disagree. Seeded from a snapshot of real
+   * `pipeline_run` rows; a launched veille appends to it.
+   */
+  pipelineRuns: Schemas["RunDetail"][];
+  /**
+   * Whether the automatic trigger opens runs on its own. ONE field: the
+   * pipeline's status projects it and the locks project it inverted (§13).
+   * Store state, not a fixture, as `pipelineState` is.
+   */
+  watcherEnabled: boolean;
+  /** When the pipeline took its lock, or null while it is idle. */
+  pipelineSince: string | null;
+  /** When the pipeline was paused, or null while it is not. */
+  pausedSince: string | null;
+  /** When the automatic trigger was turned off, or null while it is on. */
+  watcherPausedSince: string | null;
+  /** How many times the locks were read: the sweep's clock. */
+  locksReads: number;
+  /** How many times each running veille was read: its clock. */
+  runReads: Record<string, number>;
+  /**
    * The stages of each journey the operator has opened, PER MEDIUM.
    *
    * WHY PER MEDIUM AND WHY MUTABLE. The layer answered ONE seeded list to every
@@ -247,6 +270,13 @@ const seeded = (): MockState => ({
   settings: copyOf<Schemas["SettingsTopic"][]>(SETTINGS),
   secrets: copyOf<Schemas["Secret"][]>(SECRETS),
   pipelineState: IDLE,
+  pipelineRuns: copyOf<Schemas["RunDetail"][]>(PIPELINE_RUNS),
+  watcherEnabled: true,
+  pipelineSince: null,
+  pausedSince: null,
+  watcherPausedSince: null,
+  locksReads: 0,
+  runReads: {},
   journeyStages: {},
   metadataRefreshedAt: {},
   restartRequired: false,

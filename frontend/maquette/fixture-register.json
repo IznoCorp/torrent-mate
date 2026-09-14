@@ -7,11 +7,11 @@
     "unserved": "not served, with the reason written out"
   },
   "$counts": {
-    "served": 41,
+    "served": 42,
     "asset": 5,
     "interface": 29,
     "unserved": 3,
-    "total": 78
+    "total": 79
   },
   "$anonymous": {
     "count": 0,
@@ -224,6 +224,12 @@
       "why": "the last run, told as its nine steps, with the counts pipeline_run recorded",
       "seed": null,
       "converted": "L09 phase 5 — Arrivées' pilot bar and last-run panel read /api/pipeline/status"
+    },
+    "PIPELINE_RUNS": {
+      "class": "served",
+      "why": "the pipeline's and the maintenance commands' runs, each with its steps, its counts and its captured output",
+      "seed": null,
+      "converted": "L20 phase 1 — a SNAPSHOT of real pipeline_run rows, read-only from library.db, never an engine literal (RULINGS-L20 #3)"
     },
     "POSTERS": {
       "class": "asset",

@@ -28,3 +28,24 @@ Gate logs under `~/Library/Logs/tm-l20/`. The shared mutex is shared with `Agent
 to the steward before and after every wrapped harness run, never a build beside its run. Harness
 tiers as SEPARATE invocations (`run.sh --contracts`, then `oracle.py --check`), `TM_HARNESS_JOBS=2`,
 until L13b's tooling reaches `main`. Phase 8 opens only on the steward's word, after L13b merges.
+
+## 3 — where the runs' and the locks' data come from (steward, 2026-09-14)
+
+Option A. `PIPELINE_RUNS` → `seeds/pipeline-runs.json`, a converted-class family with no engine
+origin (« L20 phase 1 — a SNAPSHOT of real pipeline_run rows, read-only from library.db, never an
+engine literal »). The rows are taken ONCE from `library.db` read-only (`sqlite3 "file:<path>?mode=ro"`,
+the exact query in the commit body), never at check time; trimmed to what `RunSummary`/`RunDetail`
+need — steps from `steps_json`, an `outputTail` only where a row has one, `error` as stored. A field
+the contract needs that no real row carries is ABSENT from the seed and said in the register as a
+backend demand, never made up. The locks handler is `x-unseeded`, deriving from state and the scenario
+clock; the sweep from the same snapshot or none. `EXECUTIONS` stays untouched until phase 6.
+B (subtract `EXECUTIONS` from legacy.js now) refused — phases 1–7 are engine-free and L13b would
+conflict. C (authored rows) refused — « never invented ».
+Secondary: phase 1 re-shapes `readPipelineHistory`, `features/system/queries.ts` unwraps `.runs` in the
+same commit, oracle at zero; the history items carry `EXECUTIONS`' verbatim fields beside `runUid`
+until phase 6. The register's « required and missing » is 15 measured (the plan's 14 is stale).
+
+## 4 — the register's row numbers (steward, 2026-09-14)
+
+`main`'s `BUGS.md` ends at B-511 (the docs PR #597, squash `4f242ecb3` — this branch's base); L13b holds
+B-512–B-529; L20's rows start at **B-530**, counted up, so the two open branches never collide.

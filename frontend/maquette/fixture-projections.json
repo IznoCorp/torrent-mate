@@ -585,6 +585,10 @@
       "$fact": true,
       "answers": "Fact[]",
       "file": "dependencies"
+    },
+    "PIPELINE_RUNS": {
+      "answers": "RunDetail[]",
+      "file": "pipeline-runs"
     }
   },
   "$shorthands": {

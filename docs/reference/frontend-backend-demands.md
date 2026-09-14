@@ -19,14 +19,14 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 59 |
+| operations the interface requires | 62 |
 | operations the backend has | 65 |
 | required and missing | 15 |
-| declared by both, different response shape | 44 |
-| declared by both, path parameter spelled differently | 14 |
-| declared by both, answered with a different status | 12 |
+| declared by both, different response shape | 47 |
+| declared by both, path parameter spelled differently | 15 |
+| declared by both, answered with a different status | 11 |
 | fields carried pre-formatted | 25 |
-| the backend has and the interface does not use | 21 |
+| the backend has and the interface does not use | 18 |
 
 ---
 
@@ -72,14 +72,16 @@ reports a difference for every optional field and drowns the real findings.
 | `GET /api/maintenance/destructive-log` (`readDeletionJournal`) | `label`, `rows`, `secondaryLine`, `total`, `value` | `actor`, `detail`, `entries`, `op`, `path`, `run_uid`, `ts` |
 | `GET /api/maintenance/disks` (`readDisks`) | `secondaryLine`, `tone`, `value` | `disks`, `free_gb`, `id`, `mounted`, `total_gb`, `used_pct` |
 | `GET /api/maintenance/index-health` (`readIndexHealth`) | `label`, `secondaryLine`, `tone`, `value` | `canonical_null`, `degraded`, `error`, `files`, `invalid`, `items`, `last_scan_finished_at`, `last_scan_id`, `last_scan_mode`, `last_scan_started_at`, `last_scan_status`, `last_scan_stuck`, `missing`, `movies`, `nfo`, `outbox_oldest_age_s`, `outbox_pending`, `repair_queue_oldest_age_s`, `repair_queue_pending`, `shows`, `size_gb`, `soft_deleted`, `valid` |
+| `GET /api/maintenance/locks` (`readLocks`) | `ageS`, `pauseAgeS`, `pipelineLock`, `watcherPaused`, `watcherPausedAgeS` | `age_s`, `pause_age_s`, `pid_alive`, `pipeline_lock`, `watcher_paused`, `watcher_paused_age_s` |
 | `GET /api/maintenance/schedulers` (`readSchedulers`) | `label`, `secondaryLine`, `tone`, `value` | `display_name`, `enabled`, `kind`, `last_outcome`, `last_run_at`, `name`, `schedule`, `schedulers` |
 | `GET /api/media/{provider}/{providerId}` (`readMediaSheet`) | `airDate`, `cast`, `castPortraits`, `duration`, `episodes`, `hero`, `ids`, `key`, `language`, `metadataRefreshedAt`, `name`, `number`, `poster`, `posterHighDefinition`, `rating`, `role`, `runtime`, `status`, `tmdbTelevisionId`, `trailer`, `trailerVideo` | `aired_count`, `degraded_reason`, `episode_count`, `owned_count`, `ownership`, `poster_url`, `provider`, `provider_id`, `season_number`, `series_status`, `trailer_url` |
-| `GET /api/pipeline/history` (`readPipelineHistory`) | `cause`, `result`, `succeeded`, `when` | `command`, `degraded`, `dry_run`, `duration_s`, `ended_at`, `kind`, `outcome`, `run_uid`, `runs`, `started_at`, `total`, `trigger` |
-| `GET /api/pipeline/status` (`readPipeline`) | `blockedCount`, `description`, `duration`, `facts`, `label`, `last`, `name`, `outcome`, `result`, `secondaryLine`, `steps`, `trigger`, `triggers`, `uid`, `when` | `paused`, `pid`, `run_uid`, `state`, `step`, `watcher_enabled` |
+| `GET /api/pipeline/history` (`readPipelineHistory`) | `available`, `cause`, `counts`, `detected`, `dryRun`, `durationS`, `endedAt`, `errorCount`, `grabbed`, `name`, `result`, `runUid`, `skipCount`, `startedAt`, `status`, `steps`, `succeeded`, `successCount`, `unmatchedCount`, `when` | `dry_run`, `duration_s`, `ended_at`, `run_uid`, `started_at` |
+| `GET /api/pipeline/history/{runUid}` (`readRun`) | `available`, `detected`, `dryRun`, `durationS`, `elapsedS`, `endedAt`, `errorCount`, `grabbed`, `optionsJson`, `outputTail`, `runUid`, `skipCount`, `startedAt`, `successCount`, `unmatchedCount` | `dry_run`, `duration_s`, `elapsed_s`, `ended_at`, `error_count`, `options_json`, `output_tail`, `run_uid`, `skip_count`, `started_at`, `success_count`, `unmatched_count` |
+| `GET /api/pipeline/status` (`readPipeline`) | `blockedCount`, `description`, `duration`, `facts`, `label`, `last`, `name`, `outcome`, `result`, `secondaryLine`, `steps`, `trigger`, `triggers`, `uid`, `watcherEnabled`, `when` | `paused`, `pid`, `run_uid`, `state`, `step`, `watcher_enabled` |
 | `GET /api/staging/media` (`readStaging`) | `chip`, `ids`, `moving`, `poster`, `secondaryLine`, `settled`, `strip`, `stuck`, `text`, `tone`, `withoutPoster` | `absent`, `ambiguous`, `awaiting_action`, `blocked_reason`, `category`, `category_id`, `continuation_requested_at`, `counts`, `decision_id`, `decision_trigger`, `disk`, `dispatch_target`, `episode_count`, `folder`, `has_nfo`, `has_poster`, `has_trailer`, `id`, `items`, `key`, `label`, `match`, `matched`, `media_kind`, `mode`, `modified_at`, `overview`, `page`, `page_size`, `position_stage`, `position_state`, `poster_url`, `provider_ids`, `relative_path`, `scraped`, `season`, `seasons`, `size_bytes`, `stages`, `state`, `total`, `video_count`, `with_trailer`, `year` |
 | `GET /api/version` (`readVersion`) | `commit` | `build_commit` |
 | `PATCH /api/acquisition/followed/{followedId}` (`updateFollow`) | `aired`, `fresh`, `ids`, `poster`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `id`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
-| `POST /api/acquisition/detect` (`runDetection`) | `available`, `detected`, `grabbed` | `run_uid` |
+| `POST /api/acquisition/detect` (`runDetection`) | `runUid` | `run_uid` |
 | `POST /api/acquisition/followed` (`createFollow`) | `aired`, `fresh`, `ids`, `poster`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `id`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
 | `POST /api/acquisition/followed/{followedId}/grab` (`grabForFollow`) | `releaseName` | `run_uid` |
 | `POST /api/acquisition/followed/{followedId}/search` (`searchForFollow`) | `found` | `run_uid` |
@@ -97,6 +99,7 @@ reports a difference for every optional field and drowns the real findings.
 | `POST /api/pipeline/pause` (`pausePipeline`) | — | `paused`, `pid`, `run_uid`, `step`, `watcher_enabled` |
 | `POST /api/pipeline/resume` (`resumePipeline`) | — | `paused`, `pid`, `run_uid`, `step`, `watcher_enabled` |
 | `POST /api/pipeline/run` (`runPipeline`) | `state`, `uid` | `queued`, `run_uid` |
+| `POST /api/pipeline/watcher` (`setWatcher`) | `watcherEnabled` | `watcher_enabled` |
 | `POST /api/staging/media/{mediaId}/continue` (`continueStagedMedia`) | — | `deferred`, `detail`, `media_id`, `run_uid` |
 | `POST /api/staging/media/{mediaId}/discard` (`discardStagedMedia`) | — | `detail`, `journaled`, `media_id`, `quarantine_path` |
 | `PUT /api/config/files/{name}` (`updateConfigurationFile`) | `conflict`, `restartRequired` | `restart_required`, `warnings` |
@@ -112,6 +115,7 @@ operator's call rather than this file's.
 | --- | --- |
 | `DELETE /api/acquisition/followed/{followedId}` | `DELETE /api/acquisition/followed/{followed_id}` |
 | `GET /api/media/{provider}/{providerId}` | `GET /api/media/{provider}/{provider_id}` |
+| `GET /api/pipeline/history/{runUid}` | `GET /api/pipeline/history/{run_uid}` |
 | `PATCH /api/acquisition/followed/{followedId}` | `PATCH /api/acquisition/followed/{followed_id}` |
 | `POST /api/acquisition/followed/{followedId}/grab` | `POST /api/acquisition/followed/{followed_id}/grab` |
 | `POST /api/acquisition/followed/{followedId}/search` | `POST /api/acquisition/followed/{followed_id}/search` |
@@ -142,7 +146,6 @@ a 200 is not a defect in either document, it is a decision nobody had written do
 | operation | operationId | the interface requires | the backend answers |
 | --- | --- | --- | --- |
 | `DELETE /api/acquisition/followed/{followedId}` | `deleteFollow` | `200` | `204` |
-| `POST /api/acquisition/detect` | `runDetection` | `200` | `202` |
 | `POST /api/acquisition/followed` | `createFollow` | `200` | `201` |
 | `POST /api/acquisition/followed/{followedId}/grab` | `grabForFollow` | `200` | `202` |
 | `POST /api/acquisition/followed/{followedId}/search` | `searchForFollow` | `200` | `202` |
@@ -209,12 +212,9 @@ production app, by a script, or by the operator.
 - `GET /api/decisions/activity`
 - `GET /api/decisions/{decision_id}`
 - `GET /api/health`
-- `GET /api/maintenance/locks`
-- `GET /api/pipeline/history/{run_uid}`
 - `GET /api/pipeline/stages`
 - `GET /api/registry/status`
 - `GET /api/staging/media/{media_id}/poster`
 - `POST /api/acquisition/ranking/preview`
 - `POST /api/config/validate`
-- `POST /api/pipeline/watcher`
 - `POST /api/staging/media/{media_id}/enqueue`
