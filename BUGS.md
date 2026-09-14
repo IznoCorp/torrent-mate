@@ -481,6 +481,7 @@ when the defect comes back.
 | B-509 | `bridge.py:300`'s hold « and the media sheet is gone » never asserts the sheet was open before the Back it reads | the reader round | `open` |
 | B-510 | Ruling 61's restoration is held by `bugs.py`'s crash on the missing button, not by a named hold asserting « Voir la fiche » present | the reader round | `open` |
 | B-511 | Ruling 61's register note says « 0 updates, 0 observers » where the measured candidate reads 1 observer on each empty-key query entry while the panel is open | the reader round | `open` |
+| B-530 | The navigation drawer closed by a firm leftward swipe shows itself open again for a fraction of a second as the closing animation ends | by operator | `open` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
 
@@ -833,6 +834,14 @@ measured on the candidate with the follow panel open on `/acquisition`, each emp
 Corrected here in B-503's own row. **Closes when**: the note in
 `docs/features/maquette-l13/plan/phase-a14-media-identity.md` (on `feat/maquette-l13b`) reads the
 measured count.
+
+**B-530 — the drawer closed by a swipe shows itself open again as the close ends.**
+
+Operator report, 2026-09-14 ~22:4x (tm-design, on the phone): a firm swipe-left closes the navigation
+drawer, and « il apparaît rouvert une fraction de seconde au moment où l'animation de fermeture se
+termine »; the bottom panel's swipe-down showed the same shape earlier. Two mechanisms to read: the
+click ending the drag answered by the tap registry under the finger, and a paint frame at the
+transition's end. **Owner**: the repair train of 2026-09-14.
 
 **B-477 — followed as held, sheet says not in the library.**
 Found by R173 (the mock-layer micro-wave). House of the Dragon (26/26), Ted Lasso (35/35) and Star
