@@ -380,6 +380,9 @@ holds the three ends.
   each need their own token (`--danger`, `--danger-text`, `--danger-fill`), decided once.
 - **« Secondary » written as `opacity` is not a colour at all** — it blends into whatever sits
   behind it, so what reaches the eye is a tone the palette never declared.
+- **`stopPropagation` does not stop a listener sitting BESIDE yours on the same node** — the tap
+  registry answers in CAPTURE on `document`, so a swallower must call `stopImmediatePropagation`
+  and be registered first, or the click it meant to swallow fires the verb under the finger.
 
 Story: `frontend/maquette/README.md@6a47304a4` § Traps this stylesheet paid for.
 

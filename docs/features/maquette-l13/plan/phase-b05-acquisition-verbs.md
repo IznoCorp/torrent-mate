@@ -58,3 +58,9 @@ Per INDEX « Gates ». In addition, the contract's count reads 0, the oracle sho
 
 - **Amended 2026-09-13 (steward, the three arms' dry read, audit order 2):** « imports the dialog host » is VOID (fan-in: `app/dialog-host.ts` is at 4 keys) — add a dialog DOOR to `lib/shell-doors.ts` (`fillDialogDoor`, a·2 R1's shape) and re-point `features/settings/panel-setting.ts` + `secret-verbs.ts` in the same commit; « by import of the panel host » → the `panel` door (`lib/shell-doors.ts`); `sheetprim` enters the vocabulary or stays a computed key never declared; carry a·2's owed removal of `features/acquisition/queries.ts` from `FAN_IN_EXEMPT` when the engine's last read of `followActions`/`suggestions` goes (ruling 10).
 - **Amended 2026-09-13 (ruling 73 b):** `actionResolve` (legacy.js `act=add:N` identify branch) and `actionTake` (the `sheetprim` branch) die here with their last callers, their `lib/engine-queue.ts` type lines with them.
+- **Amended 2026-09-14 (ruling 85, after the midpoint suite):** the tap registry answers in the
+  CAPTURE phase, beside the long press's click-swallower, while the engine's delegation answered in
+  the BUBBLE phase — so a swallower must call `stopImmediatePropagation` AND be installed first, or
+  the lift fires the verb the press's own panel put under the finger. R55 fell from this phase to
+  its repair (`4210f72d5`): `sheetprim` became a registered verb here, and every later phase moves
+  verbs into the same registry.

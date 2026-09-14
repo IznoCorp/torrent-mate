@@ -6,14 +6,14 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 
 - Branch `feat/maquette-l13b`, worktree `/Users/izno/dev/worktrees/wave-l13b`, REBASED on main `304346145` (L13a
   squashed, #596). Steward: the session named in your launch prompt (`Orch : TM frontend`, its reference changes).
-- Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13b`.
+- Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13b` (NOT pushed since `4210f72d5`: push at the next boundary under the tests lock).
 - b·1 `e3ae69b01`… b·4 — see the ledger; b·5 DONE (move + re-aim, ruling 75); b·6 DONE (`c74362af1`, rulings 79,
   79-bis, 82; holds proved both ways: selection.py, pause_verb.py R132, follows.py). Gate: 43 rules (28 named) + 26 guards, 0 failed, oracle no divergence, gate: no violation on `e4a16d970` (log 12:41 > commit 12:35); the two earlier 28-named gates fell on R164 alone (B-512)..
 - legacy.js non-blank: 2755. Surface-openers contract grep: 0. `FAN_IN_EXEMPT` keeps `features/acquisition/queries.ts`
   (the engine still reads `follows()` and `suggestions()`).
-- MIDPOINT full suite (brief order 5) ran on b·6's head: 128 rules (3 at a time, 17 min, swap 0 before and after), 1 failed; falls: touch.py (R55) « the long press opens the panel on the 5 surfaces — follows gallery » (25 holds, 1 violation), log midpoint-full-suite.log (owed).
-- NEXT (l13b 3): repair the midpoint falls listed in the ledger in ONE `fix(maquette-l13b)` commit, then b·7 (frame verbs, `plan/phase-b07-frame-verbs.md`; the attribute-order trap in the ledger is b·7's, and the
-  forwarder floor reaches 0 there — ruling 78). Read RULINGS 64–84 first; the steward's address is in your launch prompt.
+- MIDPOINT full suite (brief order 5) ran on b·6's head: 128 rules (3 at a time, 17 min, swap 0 before and after), 1 failed; its ONE fall (R55, follows gallery) is REPAIRED in `4210f72d5` (ruling 85, mechanism in the ledger), gate on that head: 19 rules (1 named) + 26 guards, 0 failed, no divergence, « gate: no violation », mutation fell by name.
+- NEXT: b·7 (frame verbs, `plan/phase-b07-frame-verbs.md`; the attribute-order trap in the ledger is b·7's, and the
+  forwarder floor reaches 0 there — ruling 78). Read RULINGS 64–85 first; the steward's address is in your launch prompt.
 - LOGS: `~/Library/Logs/tm-l13b/` (ruling 76). Mutex and tests lock stay under `/private/tmp`.
 - GATE FORM (ruling 66): `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13b frontend/maquette/harness/run.sh
   --contracts --oracle <rules>` — the ONLY form that reads rule names (ruling 81: anything else is refused, exit 64).
@@ -164,3 +164,36 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   first-registered-key rule (the attribute-order trap above) may now swallow the press. First step: R55 alone in
   the gate form on the pre-L13b base (37e54d0fd's tree on main 304346145) and on b·4/b·5/b·6 heads, then the fix
   proved both ways, in ONE `fix(maquette-l13b)` commit before b·7 opens.
+- 2026-09-14 l13b 3 TRAP, and it voided a reading: a DETACHED CHECKOUT of an older head runs THAT
+  tree's `run.sh`, which does not read rule names — the base reading came back « 18 rules », 0
+  named, no oracle, exit 0 (ruling 81's trap, in a new disguise: the tooling that reads names is
+  L13b's own first commit). The method that answers it: `touch.py` is byte-identical on every head
+  of this branch (md5 1f1a9404), so the INSTRUMENT stays at the branch's head and only
+  `frontend/maquette/design/src` is rolled back (`git checkout <sha> -- …`, tree dirty and said).
+  Other rules then fall on the mixed tree — expected, and only the named rule's line is read.
+- 2026-09-14 l13b 3 ATTRIBUTION of the midpoint fall: b·3 sources GREEN, b·4 GREEN, b·5
+  `ca3682762` RED, head RED (logs `l13b3-r55-sources-b0{3,4,5}.log`, `l13b3-r55-head.log`). R55
+  reproduces ALONE on the head — a real defect, not R164's intermittence.
+- 2026-09-14 l13b 3 MECHANISM (throwaway probe, never committed): the press's click-swallower
+  (`lib/press-arbitration.ts`) called `stopPropagation`, which stops a listener on another NODE and
+  leaves every other listener on `document` running. That sufficed while a panel's action was
+  answered by the engine's delegation in the BUBBLE phase (`legacy.js:2224`, no capture flag); the
+  tap registry answers in CAPTURE (`lib/verbs.ts:92`), BESIDE the swallower, so from b·5 the lift
+  fired acquisition's `sheetprim` (« Chercher maintenant », exactly under the thumb on a 204px
+  tile) and the panel closed again — PRODUCED, its text in place, never open. Probe before:
+  follows gallery `open: False` with « Kyma… Chercher maintenant » already rendered, library
+  `open: True`; after: both True. The panel's absence of `data-open` with its content present is
+  the signature to recognise next time.
+- 2026-09-14 l13b 3 FIX `4210f72d5`: `stopImmediatePropagation` in that swallower. It also MEASURES
+  the install order — it can only work if the swallower is registered before the registry, so the
+  green reading is the proof of an order nobody had written down. Proved both ways: red on
+  `8003a5a1c` twice (full suite, then alone), green after (`l13b3-fix-gate.log` 18:18 > commit
+  18:13), mutation `stopImmediatePropagation()` → `stopPropagation()` fell by name
+  (`l13b3-fix-mutation.log`, « FAIL the long press opens the panel on the 5 surfaces — follows
+  gallery », the rule exited 1), file restored, tree clean.
+- 2026-09-14 l13b 3 frontend gate before that commit (own lock): `npx tsc -b` clean, `npx vitest
+  run` 114/114 in 8 files.
+- 2026-09-14 ruling 85 (steward): no register row for a defect born and repaired inside the same
+  unshipped branch — the ledger and the pull request's body carry it; the MECHANISM gets a dated
+  amendment in `plan/phase-b05-acquisition-verbs.md` and a trap in `frontend/maquette/README.md`,
+  because every later phase moves verbs into that same capture-phase registry.
