@@ -33,7 +33,9 @@ is bypassed. Details: `docs/reference/testing.md` §Feature Map.
 **Every web-UI evolution must conform to `docs/reference/product-intent.md`** — the
 application's raison d'être, dictated by the operator. **When an implementation conflicts
 with this constitution, the implementation is wrong.** Read `product-intent.md` **before
-coding** any web surface; every web PR **cites the §§ it serves**.
+coding** any web surface; every web PR **cites the §§ it serves**. **Trial (auditor order 32,
+ratified at the next conversion PR): a CONVERSION pull request — nothing observable changes —
+cites no constitution §§; a BEHAVIOUR or surface pull request still does.**
 
 ### Design Reference — the maquette is authoritative (web-UI — BINDING)
 
@@ -41,8 +43,9 @@ coding** any web surface; every web PR **cites the §§ it serves**.
 constitution). Every design evolution **starts from the maquette, never from the code**.
 
 **Where inside it, since L07 (2026-08-25) — this line used to name one file.** It named
-`design/refonte.html`, which held a 4 136-line hand-written stylesheet and now holds not one
-style rule. The reference is the **tokens and the component catalogue**: `design/src/styles/theme.css`
+`frontend/maquette/design/refonte.html@60530dbd8`, which held a 4 136-line hand-written stylesheet
+and, by the time it was deleted at that squash, held not one style rule. The reference is the
+**tokens and the component catalogue, and only those**: `design/src/styles/theme.css`
 (the scale and the palette, a `@theme static` block), `design/src/styles/base.css` (the base layer),
 and the `variants.ts` of `design/src/ui/` and of each surface, where every drawing decision is
 written beside the class that applies it. `design/src/styles/legacy.css` is the dated residue the
@@ -296,7 +299,11 @@ Every `chore(scope): phase N gate` commit MUST pass all of:
 
 1. **`make lint`** — ruff + mypy (both wired in Makefile). Zero errors.
 2. **`make test`** — all 9000+ tests pass. Check the summary line: `NNNN passed` with 0 failed/errors.
-3. **`make check`** — lint + test + module-size + typed-api guardrails.
+3. **`make check`** — lint + test + module-size + typed-api guardrails. **Trial, a maquette wave's
+   own pull request (auditor order 26, 2026-09-13):** no local `make check` before it — CI's `test`
+   job (8 min, unconditional) is the authority; the pre-PR gate is `make lint` + the harness full
+   suite + `--a11y` + `--compare` + the pre-push pytest. Untouched for the `implement:phase` flow
+   above, and for every non-maquette pull request.
 4. **Residual import grep** — for every module deleted in this phase, grep both `personalscraper/` AND `tests/` for the old import path. Zero matches.
 5. **`python -c "import personalscraper"`** — smoke test.
 
@@ -313,7 +320,9 @@ failing tests, the code, the project's gate, one commit and a check per sub-phas
 the declared bump and the branch's summary — never a push, a pull request or a merge) and
 `/implement:prepare` (a future feature's design and plan on the roadmap). The pull request, its CI
 reading and the squash merge come after `/implement:close`, by the operator or the orchestrator.
-**Sonnet is forbidden as a dispatch target.** Branches `feat/{codename}` / `fix/{codename}`, commits
+**Sonnet is no longer forbidden as a dispatch target** (operator, 2026-09-13 ~21:1x: « Sonnet
+autorisé, on retire ça… l'orchestrateur choisit ») — the tier map follows the routing table, and the
+orchestrator routes by the class of work. Branches `feat/{codename}` / `fix/{codename}`, commits
 scoped with the codename, squash merge. Full flow, milestone commits and the KanbanMate claim
 procedure: `docs/reference/feature-lifecycle.md` §7.
 

@@ -467,6 +467,20 @@ when the defect comes back.
 | B-495 | `scripts/heavy.sh` prints « holding off » once and « starts » with no timestamp, so how long a wrapped run WAITED for the lock and the readiness floor is unmeasurable afterwards — on 2026-09-13 the steward could not say whether a classed run held for a minute or an hour behind a host whose own one-minute load ran 9–15 | the next tooling wave (frozen apparatus: not before a defect reaches the operator) | `open` |
 | B-496 | `hooks/pre-push`'s `run_check` runs a check with its output sent to `/dev/null` and, when it fails, RUNS IT AGAIN to show the output — so a check that falls once and passes on the re-run prints a green summary under « FAILED », and the only reading of the fall is discarded | the next tooling wave | `open` |
 | B-497 | `scripts/build-mock-seeds.py --check` counts every converted family's seed as « no family claims it », so the tool's own drift report is red on a tree with no drift | by L13a | `open` |
+| B-498 | Tile badges (`--waiting`, `--info`, `--warning`, `--neutral-signal`) draw with no fill the reader round could resolve to a declared token | the reader round | `open` |
+| B-499 | `scripts/mutate.sh` read no exit code before L13a — a rule falling with no FAIL line read as standing, so every mutation proof taken before the repair is unreplayed on its own | by L13a | `fixed #596` |
+| B-500 | The `card/pick` check mark on every resolution candidate card reads as « already selected »: nothing says the card is tappable to CHOOSE | by operator | `open` |
+| B-501 | « Rechercher une autre release » always lands on 0 candidates: the mock seed `releases.json` holds four releases, all Silo, and the handler filters by the title's presence in the release NAME | by operator | `open` |
+| B-502 | `index.html`'s `#ptr` utilities are erased by `__reposPTR`'s `className = "ptr"` at every driver reset — pre-existing, not repaired at a·18 | by review | `open` |
+| B-503 | `panel-seasons.tsx`'s first render seeds two DISABLED query entries with an empty provider/id before the identity is known — inert, measured at 1 observer while the panel is open | by review | `open` |
+| B-504 | `frontend/maquette/harness/panel.py` has no deadline: a mutation that should fell it (`hasSheet: false`) hangs the served-copy lock instead, unwatched for 47 min | the reader round | `open` |
+| B-505 | `scripts/mutate.sh` read a MISSING rule path (`python3` exit 2, « can't open file ») as « FELL » — eight green-looking verdicts over nothing on L13b's b·5 | by L13b | `open` |
+| B-506 | Without a mocks-on build, « Notes de conception » is drawn and answers nothing — its handler installs only `if (__MOCKS_BUILT_IN__)` | the reader round | `open` |
+| B-507 | `phase-a19`'s prescribed R72 (b) mutation is not the one the wave ran, and the plan's own mutation (removing the tag) does not fall alone — it fells (c) as well | the reader round | `open` |
+| B-508 | A typed media address whose read fails keeps an empty hero title and says « Bande-annonce inconnue. », unnamed by any ruling | the reader round | `open` |
+| B-509 | `bridge.py:300`'s hold « and the media sheet is gone » never asserts the sheet was open before the Back it reads | the reader round | `open` |
+| B-510 | Ruling 61's restoration is held by `bugs.py`'s crash on the missing button, not by a named hold asserting « Voir la fiche » present | the reader round | `open` |
+| B-511 | Ruling 61's register note says « 0 updates, 0 observers » where the measured candidate reads 1 observer on each empty-key query entry while the panel is open | the reader round | `open` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
 
@@ -703,6 +717,122 @@ why it stayed red unread. Measured before and after L13a's identity phase: the s
 next wave that touches the tool, which takes its debt.
 
 <sub>`python3 scripts/build-mock-seeds.py --check; echo $?` → 1, `23 seed(s) re-derived, 23 drifted`, 23 lines « no family claims it »</sub>
+
+**B-498 — tile badges carry no fill the reader round could resolve.**
+
+The reader round's inventory of what stays alive past L13a's gesture names `--waiting`, `--info`,
+`--warning` and `--neutral-signal` as declared nowhere it could find, for the tile badges that read
+them. **Owner**: the wave that next touches the badge tokens.
+
+**B-499 — `mutate.sh` read no exit code before L13a, so every earlier mutation proof is unreplayed.**
+
+Before `4c0e1d036`, `scripts/mutate.sh` did not read a rule's exit code: a rule that FELL with no
+`FAIL` line printed read as standing, so a proof taken before the repair cannot be trusted on its own
+words. **Repaired at a·13** (`tests/scripts/test_mutate.py`), landed on `main` with L13a's squash. The
+closing check is the reader round's (g): every mutation the wave claimed « seen to fall », replayed
+against the repaired tool on the final head — 31 claims, 27 fell (naming their defect), 3 confirmed as
+the wave's own named blind spots (M13, M24, M28), 1 unreplayable on an instrument hang (M14, B-504).
+
+<sub>`git show 4c0e1d036 --stat` · `/Users/izno/dev/review-archive/l13a/round-1/r1-A.md` § (g)</sub>
+
+**B-500 — the resolution candidate card's check mark reads as « already selected ».**
+
+Operator report, 2026-09-13 ~18:40 (tm-design, on `#585`/B-393's card): the `card/pick` check mark on
+EVERY candidate card reads as already chosen, and nothing says the card is tappable to choose one.
+Resolution candidate put to him: a « Choisir » pill per card (44 px, primary), no check until chosen; on
+tap the chosen card alone takes the check and the primary border for the 7 s undo window. Awaiting his
+word. **Owner**: the day's repair train, never L13a.
+
+**B-501 — « Rechercher une autre release » always lands on 0 candidates.**
+
+Operator report, 2026-09-13 ~18:40 (tm-design, #2): the mock seed `releases.json` holds four releases,
+all under Silo, and `mocks/handlers/acquisition.ts:272` filters candidates by the title's presence in
+the release's own NAME — so every other followed or queued title answers an empty list. Repair: a
+releases seed per followed/queued title, or a generated list keyed by title, with a rule reading a
+non-empty list for a title the acquisition screen offers the verb on. **Owner**: the day's repair train.
+
+**B-502 — `#ptr`'s own utilities are erased at every driver reset.**
+
+`__reposPTR`'s `className = "ptr"` overwrites `index.html`'s `#ptr` element at every driver reset,
+erasing whatever utility classes it carried — pre-existing, named at a·18 (ruling 59) and not repaired
+there. **Owner**: b·8, the gestures phase.
+
+**B-503 — two disabled query entries fire from an identity the panel does not have yet.**
+
+`panel-seasons.tsx`'s first render seeds two query entries (`["/api/media","",""]` and
+`["/api/media","","","seasons"]`) with an empty provider and id, before the follow panel's identity
+read lands — DISABLED, so no request leaves, but they sit in the query cache the whole time. Reader
+round's measurement (`.review/a11b_typed_follow.*.out`): **1 observer on each while the panel is open**,
+0 once it closes on `/media` — corrects ruling 61's register note of « 0 observers » (B-511). **Owner**:
+b·10-bis, where `LIBRARY`/`INCOMPLETE`/`knownMedium`/`SEASONS` die with their readers.
+
+**B-504 — `panel.py` has no deadline, and a mutation that should fell it hangs the machine's mutex.**
+
+Reader round finding A7 (M14, `hasSheet: false`): the mutation hung `panel.py` twice — 47 min
+unwatched, then 600 s under the reader's own watchdog — holding the served-copy lock the whole time,
+refusing another agent's gate at the door. Unreplayable as the wave claimed it. **Repaired on
+`feat/maquette-l13b`** (auditor order 27, ruling 69): a 10-minute `TM_RULE_TIMEOUT_SECONDS` deadline
+per rule invocation and per mutation, a timed-out rule named an INSTRUMENT fall, and `heavy.sh`'s
+stale-lock break reads the holder's own PID and breaks only when that process is gone. `main` inherits
+the repair at L13b's merge.
+
+<sub>`/Users/izno/dev/review-archive/l13a/round-1/r1-A.md` § (g), finding A7</sub>
+
+**B-505 — `mutate.sh` read a missing rule path as a fall.**
+
+Ruling 77 (L13b, b·5): `mutate.sh` ran `python3` on a rule path that did not exist, read the
+interpreter's own exit 2 (« can't open file ») as « FELL », and produced eight green-looking verdicts
+over nothing. **Repaired on `feat/maquette-l13b`**: a missing rule now reads `RULE NOT FOUND` (exit 64)
+distinct from `RULE CRASHED`. `main` inherits the repair at L13b's merge.
+
+**B-506 — without a mocks-on build, « Notes de conception » is drawn and answers nothing.**
+
+Reader round finding A3: the control's `#notesBtn` carries the engine's own handler in every build;
+the candidate's handler lives in `harness/panel.ts`, installed only `if (__MOCKS_BUILT_IN__)
+installHarness()` — a mocks-off build shows the button with nothing behind it. Invisible on the design
+host, which always builds with mocks. **Closes when**: the toggle lives where every build installs it,
+or the bar is not drawn without it — the steward's call, per ruling 31's « a reader's control ».
+
+**B-507 — R72 (b)'s mutation of record is not the plan's, and the plan's does not fall alone.**
+
+Reader round finding A4: `phase-a19:11-12` prescribes REMOVING the module tag so « (b) alone falls »;
+the wave instead duplicated it. Replayed: removing the tag fells (b) AND (c) together (« no bundle
+named — the module entry was not found »); duplicating it fells (b) alone, as the wave reported.
+**Closes when**: the phase file names the duplicate as (b)'s mutation and (c)'s dependency on it, or
+`harness/shell.py` reads the bundle independently of (b)'s tag.
+
+**B-508 — a typed media address whose read fails keeps an empty title.**
+
+Reader round finding A5: a typed `/media/<provider>/<id>` whose read answers 502 from the first byte
+keeps the hero title empty (`aria-label=""`, `data-key="mediaSheet:"`) and prints « Bande-annonce
+inconnue. » and « Distribution non lue. » — no ruling names the failed typed case, and
+`screens.media.trailerUnread` still reads « inconnue » where its siblings (`fr.json:301`) say
+« non lue ». **Closes when**: the failed typed screen names its title as unread with a non-empty
+accessible name, and the trailer's failure text reads « non lue ».
+
+**B-509 — `bridge.py:300`'s « the media sheet is gone » hold never asserts the sheet was open.**
+
+Reader round finding A6: the hold reads the sheet's key by selector after a Back and nothing before it
+checks the tap actually opened a media sheet — renaming the key (behaviour intact) fells no rule, only
+undoing the Back's own behaviour does. Old in kind (a·5 named the same shape for a `#screen` nothing
+opened), narrowed here, not closed. **Closes when**: a precondition hold asserts the tap opened the
+media sheet, by the same selector, before the Back.
+
+**B-510 — ruling 61's restoration is held by a crash, not a named hold.**
+
+Reader round finding A8: removing `redrawOnIdentityArrival(title)` fells `bugs.py` only through
+`TypeError: Cannot read properties of undefined (reading 'click')` at `bugs.py:31` — the step's own
+`chk("2. media sheet from a follow sheet")` never runs, so any other reason the button is missing reads
+the same crash. **Closes when**: the step asserts « Voir la fiche » present as a hold before it clicks.
+
+**B-511 — ruling 61's register note contradicts the measured observer count.**
+
+Reader round finding A9: the note reads « … `pending`, `fetchStatus` `idle`, 0 updates, 0 observers »;
+measured on the candidate with the follow panel open on `/acquisition`, each empty-key entry
+(`["/api/media","",""]` and `["/api/media","","","seasons"]`) carries **1 observer**, 0 once closed.
+Corrected here in B-503's own row. **Closes when**: the note in
+`docs/features/maquette-l13/plan/phase-a14-media-identity.md` (on `feat/maquette-l13b`) reads the
+measured count.
 
 **B-477 — followed as held, sheet says not in the library.**
 Found by R173 (the mock-layer micro-wave). House of the Dragon (26/26), Ted Lasso (35/35) and Star

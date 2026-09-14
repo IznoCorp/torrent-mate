@@ -1,8 +1,8 @@
 {
-  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 116 of 127 rule(s) report a hold count; the other 11 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
-  "taken_at_commit": "f1e7ac662482f1a2cfacb86bcffa4e2dd6aab724",
-  "taken_on": "2026-09-13",
-  "suite": "127 of 127 rule(s)",
+  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 117 of 128 rule(s) report a hold count; the other 11 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
+  "taken_at_commit": "304346145a5b7c2d34bbfa67ffeb04ab2b967d49",
+  "taken_on": "2026-09-14",
+  "suite": "128 of 128 rule(s)",
   "host": "http://127.0.0.1:8899/",
   "rules": {
     "acted_surface_redraws.py": {
@@ -98,6 +98,11 @@
     "chrome_pixels.py": {
       "exit": 0,
       "count": 4,
+      "source": "common.Journal summary"
+    },
+    "cold_follow_panel.py": {
+      "exit": 0,
+      "count": 5,
       "source": "common.Journal summary"
     },
     "content.py": {
@@ -210,6 +215,11 @@
       "count": null,
       "reason": "no recognized executed-count line in its output"
     },
+    "follows_list_posters.py": {
+      "exit": 0,
+      "count": 2,
+      "source": "common.Journal summary"
+    },
     "freshness.py": {
       "exit": 0,
       "count": 5,
@@ -302,7 +312,7 @@
     },
     "message_above_harness.py": {
       "exit": 0,
-      "count": 3,
+      "count": 2,
       "source": "common.Journal summary"
     },
     "message_over_layers.py": {
@@ -430,11 +440,6 @@
       "count": 14,
       "source": "common.Journal summary"
     },
-    "residue.py": {
-      "exit": 0,
-      "count": 19,
-      "source": "common.Journal summary"
-    },
     "resolution_card.py": {
       "exit": 0,
       "count": 12,
@@ -552,7 +557,7 @@
     },
     "shell.py": {
       "exit": 0,
-      "count": 4,
+      "count": 3,
       "source": "common.Journal summary"
     },
     "spent_deck_cleared.py": {
@@ -642,10 +647,10 @@
     }
   },
   "totals": {
-    "rules": 127,
-    "parseable": 116,
+    "rules": 128,
+    "parseable": 117,
     "unparseable": 11,
-    "holds": 2776,
+    "holds": 2762,
     "failed": 0
   }
 }

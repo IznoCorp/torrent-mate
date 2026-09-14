@@ -136,3 +136,21 @@ ownership index, a richer hello). This file adds the decisions those registers c
 ## 9. A resolve has an inverse — DOIT-7
 
 - A resolve needs an inverse, « remettre en attente »: the maquette answers a candidate picked on the resolution card with a message carrying « Annuler », and today holds the send back for the undo window because `continueStagedMedia` has no operation that puts a settled folder back in the queue (B-393).
+
+## 10. Year and kind, on every card that carries neither today — ruling 55, reading B, dictated later
+
+- `QueueCard`, `LibraryItem`, `LibraryRow` and `IncompleteShow` are asked to carry a medium's `year`
+  and `kind` (film or series) as first-class fields, not derived from a title string or skeletoned
+  in after the fact. Reading (A) of ruling 55 (L13a) accepted the tap priming title and poster only,
+  with year/genre/synopsis/cast in flight behind a skeleton — this entry is reading (B), the
+  standing demand the operator has yet to dictate a date for: that a list card need not wait on a
+  network read for the two facts a reader uses to tell two media of the same title apart.
+
+## 11. An exact-title membership read, not a fuzzy one — b·10-bis
+
+- The follow panel's owned cells and « Voir la fiche » are read TODAY off `LIBRARY`, `INCOMPLETE`
+  and `knownMedium` — engine-held fixture state a title string indexes loosely. L13's b·10-bis
+  phase replaces that with an EXACT-TITLE (+ year) membership read against the served library, the
+  same identity the media sheet already resolves by (rulings 41, 53). The backend brief inherits the
+  demand this exposes once the fixture is gone: a membership query keyed by the medium's identity
+  (provider + id, or exact title and year when no identity is held yet), not by a fuzzy title match.
