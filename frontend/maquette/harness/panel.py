@@ -858,7 +858,7 @@ async def main():
 
         await acquisition_page.evaluate("()=>window.__go('acq-now-loaded')")
         await acquisition_page.wait_for_timeout(400)
-        await acquisition_page.evaluate("()=>window.__panel.produce('more')")
+        await acquisition_page.click("[data-more]")
         await acquisition_page.wait_for_timeout(400)
         if check("the watch's panel offers its run",
                  await acquisition_page.query_selector("#sheet [data-standby]") is not None):
