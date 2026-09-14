@@ -6,33 +6,20 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 
 - Branch `feat/maquette-l13b`, worktree `/Users/izno/dev/worktrees/wave-l13b`, REBASED on main `304346145` (L13a
   squashed, #596). Steward: the session named in your launch prompt (`Orch : TM frontend`, its reference changes).
-- Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13b` (NOT pushed since `4210f72d5`: push at the next boundary under the tests lock).
-- b·1 `e3ae69b01`… b·4 — see the ledger; b·5 DONE (move + re-aim, ruling 75); b·6 DONE (`c74362af1`, rulings 79,
-  79-bis, 82; holds proved both ways: selection.py, pause_verb.py R132, follows.py). Gate: 43 rules (28 named) + 26 guards, 0 failed, oracle no divergence, gate: no violation on `e4a16d970` (log 12:41 > commit 12:35); the two earlier 28-named gates fell on R164 alone (B-512)..
-- legacy.js non-blank: 2755. Surface-openers contract grep: 0. `FAN_IN_EXEMPT` keeps `features/acquisition/queries.ts`
-  (the engine still reads `follows()` and `suggestions()`).
-- MIDPOINT full suite (brief order 5) ran on b·6's head: 128 rules (3 at a time, 17 min, swap 0 before and after), 1 failed; its ONE fall (R55, follows gallery) is REPAIRED in `4210f72d5` (ruling 85, mechanism in the ledger), gate on that head: 19 rules (1 named) + 26 guards, 0 failed, no divergence, « gate: no violation », mutation fell by name.
-- b·7 DONE (`edf19a718` + the gate's two repairs `cee7319df`; rulings 86, 86-bis, 87). SIX names moved, `pipe` and
-  `phase` stay on the listener's last branches, `applyState` and `render()` stay to b·11 — all three MEASURED, see
-  the ledger. Gate: 36 rules (22 named) + 26 guards, 0 failed, oracle no divergence, « gate: no violation » on
-  `cee7319df` (log 19:27 > commit 19:22). Five mutations, all named.
-- b·8 DONE (`109193b20` + the two hold commits `1260631c9`, `639e6e266`; rulings 88, 89). Gate: 27 rules (10
-  named) + 26 guards, 0 failed, oracle no divergence, « gate: no violation » — green first time. The guard's hold
-  falls by name on both of its mutations. legacy.js 2644 → 2284 non-blank. Rulings 79-bis and 59's owed items are
-  CLOSED (the window reaches and the indicator's erased utilities).
-- b·9 IS IN FLIGHT and its two rules are COMMITTED RED (`21a6a6f4f`, ruling 90): R188 `ladder_entries.py`
-  (9 violations / 16 holds) and R189 `redraw_entry.py` (three edits push FIVE entries). THE MOVE IS NOT DONE —
-  the branch head has those two failing rules, both outside the contracts tier, until it lands. What the move
-  must be, measured and written down so it is not re-derived: (1) each of the five openers closes the panel
-  WITHOUT unwinding its entry (`panel.close(true)`) and lets the screen push its own — today they call
-  `panel.close()` then a 240/260 ms timer; (2) `app/layers.ts`'s BACK branch on a `layer: "sheet"` entry must
-  REOPEN instead of stepping over, and the leftover a tab-bar tap buries is told apart by the page the entry was
-  opened on — so the entry has to carry more than `{ layer }`: `kind` and `subject`, composed in
-  `lib/navigation-entry.ts` (ruling 14's « written once »), which means `bridge.pushLayer`'s payload grows;
-  (3) B-397: re-producing on the entry that already records the panel REPLACES it — `producePanel`'s
-  `openOnCurrentEntry` special case becomes the general path; (4) the NINE timers go (ruling 90 a).
-- NEXT (l13b 4): finish b·9's move against those two rules, then b·10, b·10-bis, b·10-ter (ruling 74) and b·11.
-  Read RULINGS 64–90 first; the steward's address is in your launch prompt.
+- Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13b` (push at every boundary under the tests lock).
+- b·1–b·8 DONE (ledger: b·6 `c74362af1`, midpoint fix `4210f72d5`, b·7 `cee7319df`, b·8 `639e6e266`), every gate
+  green with no divergence and every mutation named. legacy.js non-blank 2284. `FAN_IN_EXEMPT` keeps
+  `features/acquisition/queries.ts` (the engine still reads `follows()` and `suggestions()`).
+- b·9 DONE: rules `38edae9e4` (R103 source hold, R188 re-aimed — ruling 91), move `57cef9fb1`, journey.py
+  re-aim `0bceb9578`; gate on the move 35 named, one fall (journey, D-L13-1's consequence), re-gate 22 (4 named)
+  + 26 guards, 0 failed, NO divergence. Five mutations, all named. Tooling `b64ae8f76` (ruling 92: run.sh resolves
+  each named rule whole). Phases renumbered by order 38 (ruling 93): b·10 panel's return, b·11 membership read,
+  b·12 pipe + phase, b·13 legacy.js dies.
+- NEXT: b·10 « The panel's return » — Back ALREADY reopens the panel since b·9 (R188); what is left is the drawn
+  return (`panel-down` in reverse under `leaving-panel`, none under `reduce`) and B-275's hold. Then b·11–b·13.
+  Read RULINGS 64–93 first; the steward's address is in your launch prompt.
+- ZSH TRAP, three times this session: a multi-word variable is ONE argument in zsh, and macOS bash has no
+  `mapfile` — build rule lists and file lists in Python or spell them out.
 - LOGS: `~/Library/Logs/tm-l13b/` (ruling 76). Mutex and tests lock stay under `/private/tmp`.
 - GATE FORM (ruling 66): `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13b frontend/maquette/harness/run.sh
   --contracts --oracle <rules>` — the ONLY form that reads rule names (ruling 81: anything else is refused, exit 64).
@@ -46,7 +33,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 - Push: the pre-push hook is the branch's own since order 35 (relative hooksPath); read its verdict, not its print.
 - Register rows: L13b owns B-512–B-529 (a reserved block, counted up from B-512; B-512 is R164);
   L20 writes from B-530.
-- Owed: b·11 full suite with `--a11y`, `--compare`, `make lint`; no local `make check`
+- Owed: b·13 full suite with `--a11y`, `--compare`, `make lint`; no local `make check`
   (ruling 68); b·8: the swipe verbs' reaches through `window.openCard`/`window.collapseCard`. Machine restarts
   Monday 05:00: pushed by 04:30, line to the steward at 04:45.
 
@@ -109,7 +96,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   04:55; every commit pushed and `git ls-remote` = HEAD by 04:30; RESUME-L13b.md at a phase boundary with its state
   block current (`Agent : l13b 2` reads it first); tree clean, no process left; one line to the steward at 04:45.
 - 2026-09-14 b·4: now-tab and arrivals card feet emit `data-take` / `data-resolution`; `.cfoot` died. `pipe`
-  refused by check-state-ownership.py when moved to a feature (ruling 74) → phase b·10-ter. `manual` mutation
+  refused by check-state-ownership.py when moved to a feature (ruling 74) → phase b·12. `manual` mutation
   crashed ident.py (null.click) → replayed: bugs.py « 8. manual search pre-filled → « None » ».
 - 2026-09-14 trap: zsh does not word-split `$F`; a multi-file variable passed to ruff failed with exit 2 and
   pytest never ran while an old log showed « passed » — run such lists through `bash -c` or spell them out.
@@ -222,7 +209,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   `pipe`, both until their conversions. `applyState` was moved to `app/layers.ts`, measured RED by the same arm (a
   write whose argument it cannot read is refused, not skipped) and moved back — ruling 16's move belongs to the
   phase that deletes the engine. `render()` has SEVEN product callers outside the delegation plus a not-found
-  settle, so it stays to b·11 and the frame's verbs redraw through it.
+  settle, so it stays to b·13 and the frame's verbs redraw through it.
 - 2026-09-14 b·7 shapes that worked: the frame's six verbs in `app/frame-verbs.ts`, registered at module
   evaluation and named in `shell.tsx` (283 lines, far from its ceiling); the acquisition landing dial written BY
   ACQUISITION through a `resetLandingDial` door (a page's dial is not the frame's to name, and a forwarded patch is
@@ -295,3 +282,28 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   its red is believed — twice in one phase, from two directions.
 - 2026-09-14 l13b 3 stood down here: gauge read before the push, everything on disk and pushed, tree clean,
   nothing running, working logs pruned and the cited ones kept (ruling 65).
+- 2026-09-14 l13b 4 b·9: exits.py (R103) reversal = `close_then_wait_sites()`, a source read of design/src naming
+  file:line for any `setTimeout` after `.close(`/`bridge.back(`/`.rewind(` in the same verb or any bare 240/260 ms
+  wait; red on exactly the nine of ruling 90 a (`l13b4-b09-r103-red.log`).
+- 2026-09-14 l13b 4 b·9 MOVE `57cef9fb1`: sheet entry `{ layer, kind, subject, openedOn }` (`layerEntry`,
+  `panelRecord`, `layerRecordOf` in lib/navigation-entry.ts); BACK onto a recorded sheet entry reopens when the
+  store's page == openedOn, else steps over; closing an open sheet onto a recorded entry reopens the one under it
+  (journey over follow); `isOnItsOwnEntry` in panel-host makes a same-kind-and-subject produce write no entry;
+  the screens door closes the panel with `close(true)` in go()'s commit (`leavePanel`); `screens.profile`/`add`
+  take `replace` (profile from the release screen, manual). Ladder before/after: the two route-to-route leaves
+  stay [list, destination] — the pop+push became one REPLACE.
+- 2026-09-14 l13b 4 b·9 gate on `57cef9fb1`: 35 named, 1 fall journey.py « one Back closes it — open=True » —
+  the journey now opens OVER the follow sheet; re-aimed out loud in `0bceb9578` (Back reopens panel=follow);
+  re-gate 22 rules (4 named) + 26 guards 0 failed, no divergence (`l13b4-b09-gate2.log`), swap 0.
+- 2026-09-14 l13b 4 b·9 mutations (`l13b4-b09-mutations.log`), all named: close(true) → close() → R188 pushes/Back
+  on mediasheet, releases, profile; the entry read removed → R189 « 6/4 -> 11/9 »; a 260 ms wait restored on
+  releases → R103 « features/releases/verbs.ts:93 »; take's close → close(true) → R188 « take acts and its panel's
+  entry unwinds — 5/3 -> 5/3 »; the same-page reopen removed → R188 Back ×1 on the three screens. The no-reopen
+  mutation does not fell journey (that path reopens through the ladder's rank branch, which R188's journey reads).
+- 2026-09-14 TRAP (ruling 92): the first b·9 gate passed 35 paths as ONE zsh word; run.sh's `basename` check read the
+  last path (`said_and_done.py`, which exists), ran 1 named rule and printed « gate: no violation ». Repaired in
+  `b64ae8f76`, red first.
+- 2026-09-14 order 38 (ruling 93): 73 references renamed in 21 files (`b·11` → `b·13` first, then the two
+  inserted phases), three phase files git-moved, R-b10bis-N labels → R-b11-N; `grep -rc 'b·10-bis\|b·10-ter'
+  docs/features/maquette-l13/` → 0.
+

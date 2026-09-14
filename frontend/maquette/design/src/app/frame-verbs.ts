@@ -11,7 +11,7 @@
 // SERVER STATE by `check-state-ownership.py`'s own table, and that arm refuses a
 // component — `app/` included, which it reads as one — writing such a key at a
 // ceiling of zero. They stay on the engine's last delegation branch until their
-// conversion (b·10-ter for the pipeline's endpoint), and the listener with them.
+// conversion (b·12 for the pipeline's endpoint), and the listener with them.
 //
 // THE DECLARATION RUNS AT MODULE EVALUATION, named once in
 // `app/panel-contributions.ts`, like every other registration the boot names.

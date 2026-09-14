@@ -1,6 +1,6 @@
-# Phase b·10-ter — The pipeline's status is the layer's
+# Phase b·12 — The pipeline's status is the layer's
 
-A BEHAVIOUR phase, added on 2026-09-13 by ruling 74, placed after b·10-bis and BEFORE b·11 because `legacy.js` cannot
+A BEHAVIOUR phase, added on 2026-09-13 by ruling 74, placed after b·11 and BEFORE b·13 because `legacy.js` cannot
 die while its `data-pipe` branch still writes the `pipe` store key — and that write cannot move to a feature as it
 stands: `scripts/check-state-ownership.py` refuses a component writing server state (its component ceiling is 0, and it
 STAYS 0).

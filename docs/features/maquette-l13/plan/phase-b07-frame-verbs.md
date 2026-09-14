@@ -75,7 +75,7 @@ listener, the `render()` re-aims and the mutations go in the report.
     why in place.
   - « `render()` has no caller left » is wrong: it has SEVEN product callers outside the delegation
     (six features' `redraw()` and `app/arrival.ts`) and it settles a page id the navigation table
-    does not carry, so it stays until b·11 (ruling 57) and the frame's verbs redraw through it.
+    does not carry, so it stays until b·13 (ruling 57) and the frame's verbs redraw through it.
   - The rule re-aim is 43 call lines in 9 files, not « 23 in 10 ».
   - The tap registry answers the first REGISTERED dataset key in ATTRIBUTE order, so registering
     `panel` made four emitters' order load-bearing — the three the design named plus the suggestion

@@ -3,8 +3,8 @@
 You implement **L13b**, the second sub-lot of **L13 — The engine's residue** (`docs/reference/frontend-architecture.md`
 § 4, entry `#### L13`, the CONTRACT). The lot's design is `docs/features/maquette-l13/DESIGN.md` and its plan
 `docs/features/maquette-l13/plan/INDEX.md` with one file per phase — **they are the specification and this brief
-restates none of it**. L13b is the TWELVE BEHAVIOUR phases b·1 to b·11 of that plan, in that order, **with b·10-bis
-between b·10 and b·11**: the engine's 62 delegation names registered by feature, its gesture listeners, one ladder
+restates none of it**. L13b is the THIRTEEN BEHAVIOUR phases b·1 to b·13 of that plan, in that order (renumbered by order 38,
+ruling 93): the engine's 62 delegation names registered by feature, its gesture listeners, one ladder
 shape (D-L13-1, ratified), the panel's return, the library's membership read, then `legacy.js` and its React-side
 support die. Every phase is a BEHAVIOUR change: **its rule is written FIRST and seen RED against the engine, then
 green, and its mutation is SEEN to fall** through `scripts/mutate.sh`; the oracle's divergences are NAMED per state
@@ -12,8 +12,8 @@ BEFORE the run (a divergence the phase did not name is STOP B).
 
 **Rulings 1–61 are in `docs/features/maquette-l13/RULINGS.md`** — one numbered file, non-reopenable; L13b appends
 from 62. The ones that shape L13b: 9 (doors, not import owners), 10 (`queries.ts` leaves `FAN_IN_EXEMPT` when the
-engine's last read goes), 16 (`applyState` leaves at b·7), 28 (D-L13-1 = A, STOP E lifted), 41 + 53 (b·10-bis's
-subjects), 57 (b·11's subjects and the twelve constants' homes), 59 (the #ptr utilities erased by `__reposPTR`, b·8's).
+engine's last read goes), 16 (`applyState` leaves at b·7), 28 (D-L13-1 = A, STOP E lifted), 41 + 53 (b·11's
+subjects), 57 (b·13's subjects and the twelve constants' homes), 59 (the #ptr utilities erased by `__reposPTR`, b·8's).
 
 ## Environment
 
@@ -68,11 +68,11 @@ subjects), 57 (b·11's subjects and the twelve constants' homes), 59 (the #ptr u
   measure (read `ls -lT` against `git log -1 --format=%ci`; a log older than its commit measured the working tree
   and is re-run). **The FULL SUITE runs TWICE in L13b (auditor's order 5)**: once at the MIDPOINT — after b·6 is
   committed and before b·7 opens, on b·6's head, its falls repaired by you in a `fix(maquette-l13b)` commit before
-  b·7 — and once at b·11 before the pull request, with `--a11y`, `--compare`, `make check`.
+  b·7 — and once at b·13 before the pull request, with `--a11y`, `--compare`, `make check`.
 - **The three arms, before and after (audit order 2)**: `python3 scripts/check-frame-domain.py` on the head BEFORE
   each phase's move (send its ceiling line); `python3 scripts/check-frontend-boundaries.py --arm fan-in` and
   `--arm cycles` AFTER b·5, b·6 and b·10; `python3 scripts/check-no-french.py` after every vocabulary addition and
-  `--counts` at b·11 (a vacuous arm shows there before it turns red). Exit codes are the verdict, never the prose.
+  `--counts` at b·13 (a vacuous arm shows there before it turns red). Exit codes are the verdict, never the prose.
 - **After each phase's commit and before any push**: `tests/scripts/test_check_maquette_comments.py` alone under
   the tests lock; `check-maquette-comments.py --record` INSIDE the phase's commit when a maquette file or a dated
   comment moved; read the diff (only `read` moves). `harness/page_host.py` is at 999/1000: zero-net-line edits only,
@@ -124,9 +124,9 @@ subjects), 57 (b·11's subjects and the twelve constants' homes), 59 (the #ptr u
 
 One commit per phase (plus the commit-before-mutation where a phase says so), conventional, scoped
 `maquette-l13b`, no attribution of any kind (`CLAUDE.md` § Commit Convention; `hooks/commit-msg` refuses it).
-Push at every stand-down and at b·11 under the tests lock, after `make check` and the full gate; merge
+Push at every stand-down and at b·13 under the tests lock, after `make check` and the full gate; merge
 `origin/main` first and bump the version above whatever `main` reads then (patch). Pull request READY, title
-`feat(maquette-l13b): the engine's verbs and the ladder's shape — legacy.js dies`, body: the twelve phases and
+`feat(maquette-l13b): the engine's verbs and the ladder's shape — legacy.js dies`, body: the thirteen phases and
 what each landed and deleted (by command, measured ONCE on the final head), every rule written with its red run
 and its mutation, the divergences named, the register rows closed, the hold-count movements, the midpoint suite's
 falls and their repairs, the ledger's final count (0), **and for the reader's affordance lens (auditor's order 6)

@@ -1,7 +1,7 @@
-# Phase b·10-bis — The library's membership read
+# Phase b·11 — The library's membership read
 
 A BEHAVIOUR phase, added on 2026-09-13 by rulings 41 and 53 of L13a (recorded in
-`docs/features/maquette-l13/RESUME.md@<L13a squash>`), placed between b·10 and b·11 because `legacy.js` cannot die
+`docs/features/maquette-l13/RESUME.md@<L13a squash>`), placed between b·10 and b·13 because `legacy.js` cannot die
 while it still holds `LIBRARY` (527 lines), `INCOMPLETE`, `knownMedium` and `SEASONS` (110 lines) and while product code
 still reads them. It is the ONE phase of L13b where the served answer changes what the screen says, and the rule that
 proves it is written RED against the engine first.
@@ -21,16 +21,16 @@ proves it is written RED against the engine first.
 
 ## The proof FIRST — rules written RED against the engine, then green
 
-- **R-b10bis-1 — membership is exact.** For five titles across the seed (two on the paged listing's first page, two
+- **R-b11-1 — membership is exact.** For five titles across the seed (two on the paged listing's first page, two
   beyond it, one absent from the library), the media sheet's « in the library » fact, the follow panel's `inLibrary`
   fact and the delete dialog's reachability all agree with `library-items.json`'s WHOLE seed. Red on the engine for the
   two beyond page one only if the engine copy differs from the seed (it « already ignores mock deletes », DESIGN § 5.1):
   the red reading is the DELETE walk — delete a title, reload, the fact must say absent; the engine says present.
   Mutation: the membership read answers `true` for every title.
-- **R-b10bis-2 — the follow panel agrees with the sheet.** For the ten followed titles that draw a season block, the
+- **R-b11-2 — the follow panel agrees with the sheet.** For the ten followed titles that draw a season block, the
   season count and each season's owned number equal `readMediaSeasons` for the follow's identity; **Silo's fourth season
   is named in the assertion** (red on the engine: four drawn, three served). Mutation: the panel reads a constant.
-- **R-b10bis-3 — INCOMPLETE is the served list.** The « incomplete shows » facts (five reader sites: `:4483`, `:7292`,
+- **R-b11-3 — INCOMPLETE is the served list.** The « incomplete shows » facts (five reader sites: `:4483`, `:7292`,
   `:8432`, `:29507`, `:30008` of the engine at a·10's head, re-taken on this phase's head) equal `/api/library/incomplete`
   on the library page and are reachable NOWHERE else without a read of their own. Mutation: the served list is emptied.
 - **The oracle**: the follow panel of the six disagreeing titles WILL move (a fourth season row disappears on Silo; owned
@@ -67,7 +67,7 @@ proves it is written RED against the engine first.
 - phase-a10's « the three readers ask the cache » (already amended); phase-b06:39's « reading the library query's cache »
   (amended at a·10 — this phase is where the two fixtures die); DESIGN § 5.1's `LIBRARY` row « dies at a·10 ».
 - The two blind spots L13a's reader round names (`panel-seasons.tsx` `ownedSeason`, `follow-facts.ts` `hasSheet`) gain
-  their rule here (R-b10bis-2).
+  their rule here (R-b11-2).
 
 ## Gate
 
