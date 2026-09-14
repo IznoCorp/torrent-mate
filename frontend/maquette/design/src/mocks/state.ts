@@ -339,6 +339,7 @@ export type MockDials = {
   setPipelineState: (state: PipelineState) => void;
   setLockStale: (stale: boolean) => void;
   setWatcherEnabled: (enabled: boolean) => void;
+  setAcquisitionQueueEmpty: (empty: boolean) => void;
   setSweepFinished: (finished: boolean) => void;
   setTmpOrphans: (present: boolean) => void;
 };
@@ -360,6 +361,14 @@ export const mockDials: MockDials = {
     const held = mockState();
     held.watcherEnabled = enabled;
     held.watcherPausedSince = enabled ? null : scenario().now;
+  },
+  setAcquisitionQueueEmpty: (empty: boolean) => {
+    // WHAT A VEILLE THAT FINDS NOTHING LOOKS LIKE. The three figures are
+    // derived from the acquisition queue, so an empty queue is the zero case —
+    // and the zero case is a real answer, not an absent one.
+    const held = mockState();
+    held.takeable = empty ? [] : copyOf<Schemas["QueueCard"][]>(TAKEABLE);
+    held.inFlight = empty ? [] : copyOf<Schemas["QueueCard"][]>(IN_FLIGHT);
   },
   setSweepFinished: (finished: boolean) => {
     mockState().sweepFinished = finished;

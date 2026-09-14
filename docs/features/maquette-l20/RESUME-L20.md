@@ -2,11 +2,11 @@
 
 ## STATE BLOCK (rewritten at every boundary — at most 40 lines)
 
-- **Updated**: 2026-09-14, phase 4 committed (Agent : l20 1).
+- **Updated**: 2026-09-14, phase 5 committed (Agent : l20 1).
 - **Branch / worktree**: `feat/maquette-l20`, `/Users/izno/dev/worktrees/wave-l20`, cut from `main`
   at `4f242ecb3`; plan re-target `b7e600cc5`.
-- **Phases done**: 1 (the contract), 2 (the comment), 3 (the locks, R184), 4 (the levers, R178/R179/R181).
-- **Next**: ruling 6's tooling commit (the oracle acquires the served copy), then phase 5 — « Relancer la veille » (`plan/phase-05-watch-now.md`), rule R180.
+- **Phases done**: 1 (contract), 2 (comment), 3 (locks, R184), 4 (levers, R178/R179/R181), 5 (the veille, R180).
+- **Next**: the MIDPOINT full suite (`run.sh`, no flag), then phase 6 — the history list (`plan/phase-06-history.md`), rule R182 — only if the gauge arithmetic allows.
 - **Waiting on**: nothing. Phase 8 waits for L13b's merge AND the steward's word.
 - **Rule numbers**: RULINGS-L20.md ruling 1 (a…h → R178–R185, j → R187, R186 unused).
 - **Register rows**: RULINGS-L20.md ruling 4 — L20's `BUGS.md` rows start at B-530 (L13b holds B-512–B-529).
@@ -134,3 +134,18 @@
   NAME (99 states, 36 regions, the twelve present). Ruling 6 turns that into tooling.
 - 2026-09-14 — the contract's `Pipeline` gained `state`: the pipeline's run state was in NO read of
   the maquette contract (the hole phase 8 repairs); the backend answers it as `StatusResponse.state`.
+- 2026-09-14 — phase 5: R180 green in the tier (21 rules, 26 guards). DEVIATION, said plainly: its
+  RED reading was NOT taken before the move — the rule and the code were written in one pass. The
+  defect it names is real on `main` (the « ⋮ » button carried `data-standby`, which nothing answers),
+  and the mutations below cover the same claims, but the red was owed and was not read.
+- 2026-09-14 — THREE probes of mine were wrong and the gate said so: (a) `page.evaluate` passes ONE
+  argument — a rule reading `(part, verb)` got the array as `part` and found nothing; (b) the counts
+  probe read « the newest run », which is a REAL snapshot row (the frozen clock is older than the
+  real passages), not the veille's — it now finds the run by what launched it; (c) the success-word
+  hold read the whole page, where the passages list says « réussi » about other runs — it now reads
+  the veille's own block and the message.
+- 2026-09-14 — DESIGN § 5 spells the veille's states in FRENCH (`veille-idle` …). A named state id is
+  a NAME and is English (CLAUDE.md § Language, and `check-no-french` refuses it): they are
+  `watch-idle`, `watch-running`, `watch-figures`, `watch-nothing`, `watch-error`.
+- 2026-09-14 — the oracle: 118 divergences, and `sheet-more` NOT among them — the panel's button
+  gained an attribute and no pixel. 99×36 → 104×36, verified by name.

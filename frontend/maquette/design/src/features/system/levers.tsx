@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { Skeletons } from "../../ui/state-surfaces";
 import { actionButton } from "../../ui/variants/controls";
 import { guidance, topicRow } from "../../ui/variants";
+import { WatchBlock } from "./watch";
 import { useLocks } from "./locks-queries";
 import { useBoundSetting, usePipelineState } from "./queries";
 import type { ReactElement } from "react";
@@ -106,6 +107,8 @@ export function Levers(): ReactElement {
           {t("screens.system.automaticTriggerOff")}
         </div>
       )}
+
+      <WatchBlock />
     </div>
   );
 }

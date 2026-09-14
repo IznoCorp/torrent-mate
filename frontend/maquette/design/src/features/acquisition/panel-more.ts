@@ -69,7 +69,11 @@ function standbyPanel(): PanelDescriptor {
             text: translate("panels.standby.runNow"),
             icone: icons().refresh,
             ton: "primary",
-            target: { standby: "1" },
+            // THE SAME VERB THE LEVERS SECTION EMITS, registered once in
+            // `features/system/watch-run.ts`. This button used to carry a name
+            // nothing answered: it said a sentence and asked the server for
+            // nothing, which is what the register row about it is.
+            target: { "watch-now": "" },
           },
         ],
       },

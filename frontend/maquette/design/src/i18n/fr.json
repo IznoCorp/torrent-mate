@@ -500,7 +500,12 @@
       "automaticTrigger": "Déclenchement automatique",
       "triggerIsOn": " — actif",
       "triggerIsOff": " — coupé",
-      "automaticTriggerOff": "Les téléchargements terminés n'ouvrent plus de passage tout seuls."
+      "automaticTriggerOff": "Les téléchargements terminés n'ouvrent plus de passage tout seuls.",
+      "watchIdle": "Veille : jamais lancée depuis cet écran.",
+      "watchRunning": "En cours…",
+      "watchFigures": "{{detected}} nouveaux épisodes détectés, {{available}} disponibles, {{grabbed}} récupérés.",
+      "watchNothing": "Rien de nouveau.",
+      "watchFailed": "La veille n'a pas pu s'exécuter."
     },
     "arrivals": {
       "introLead": "Arrivées porte la santé du PIPELINE",

@@ -106,6 +106,60 @@ export function systemStates(): NamedState[] {
       },
     ],
     [
+      "watch-idle",
+      "Veille — au repos",
+      () => {
+        window.__mocks?.reset();
+        applyState({ page: "sys", phase: "ready", fault: false });
+      },
+    ],
+    [
+      "watch-running",
+      "Veille — en cours",
+      () => {
+        // ASKED, AND STILL GOING. The run is appended `running` and the first
+        // read of it finds it so — a run that ended before anyone could read it
+        // would make « en cours » a state nobody reaches.
+        window.__mocks?.reset();
+        applyState({ page: "sys", phase: "ready", fault: false });
+        window.__watchNow?.();
+      },
+    ],
+    [
+      "watch-figures",
+      "Veille — le résultat chiffré",
+      () => {
+        // AND THE NUMBERS ARRIVE BY THE STREAM, never by a clock of the
+        // interface's own: the run ends, the event says so, and the read the
+        // event names is the one that answers with the counts.
+        window.__mocks?.reset();
+        applyState({ page: "sys", phase: "ready", fault: false });
+        window.__watchNow?.();
+        window.__mocks?.stream.emit("PipelineEnded", {});
+      },
+    ],
+    [
+      "watch-nothing",
+      "Veille — rien de nouveau",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setAcquisitionQueueEmpty(true);
+        applyState({ page: "sys", phase: "ready", fault: false });
+        window.__watchNow?.();
+        window.__mocks?.stream.emit("PipelineEnded", {});
+      },
+    ],
+    [
+      "watch-error",
+      "Veille — le run a échoué",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setOperationOutcome("runDetection", { status: 500 });
+        applyState({ page: "sys", phase: "ready", fault: false });
+        window.__watchNow?.();
+      },
+    ],
+    [
       "locks-free",
       "Verrous — tout est libre",
       () => {

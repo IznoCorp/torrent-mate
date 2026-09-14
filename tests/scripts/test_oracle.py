@@ -320,7 +320,13 @@ def test_the_committed_reference_carries_a_platform():
     # levers land ABOVE them — plus `system` and `system-outage`. Read state by state in the
     # diff, and verified BY NAME rather than by the count: a reference accepted over another
     # wave's build came back with the right-looking total and none of this lot's states in it.
-    assert reference["counts"] == {"states": 99, "regions": 36}
+    #
+    # 104 STATES, 36 REGIONS — five states and no new region: the veille's block lands INSIDE
+    # `system/levers`, which the previous lot already declared. The states that moved with it
+    # are the twelve that draw Système, and `sheet-more` did NOT: its button gained an
+    # attribute and not a pixel, which is what a verb moving onto the registry should look
+    # like. Read state by state, and the reference verified by NAME.
+    assert reference["counts"] == {"states": 104, "regions": 36}
 
 
 class TestItRefusesToWriteOverAForeignBuild:

@@ -1222,9 +1222,11 @@ day
 detecting
 detection
 enabled
+figures
 free
 hour
 launch
+launched
 levers
 locks
 off
