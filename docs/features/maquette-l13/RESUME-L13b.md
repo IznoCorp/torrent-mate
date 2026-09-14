@@ -16,9 +16,13 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   `phase` stay on the listener's last branches, `applyState` and `render()` stay to b·11 — all three MEASURED, see
   the ledger. Gate: 36 rules (22 named) + 26 guards, 0 failed, oracle no divergence, « gate: no violation » on
   `cee7319df` (log 19:27 > commit 19:22). Five mutations, all named.
-- NEXT: b·8 (the gestures, `plan/phase-b08-gestures.md`) — its owed items are in the state block below (the swipe
-  verbs' reaches through `window.openCard`/`window.collapseCard`, ruling 79/79-bis, and the #ptr utilities of
-  ruling 59). Read RULINGS 64–87 first; the steward's address is in your launch prompt.
+- b·8 DONE (`109193b20` + the two hold commits `1260631c9`, `639e6e266`; rulings 88, 89). Gate: 27 rules (10
+  named) + 26 guards, 0 failed, oracle no divergence, « gate: no violation » — green first time. The guard's hold
+  falls by name on both of its mutations. legacy.js 2644 → 2284 non-blank. Rulings 79-bis and 59's owed items are
+  CLOSED (the window reaches and the indicator's erased utilities).
+- NEXT: b·9 (one ladder shape, `plan/phase-b09-one-ladder-shape.md`, D-L13-1 ratified — ruling 28; B-290's index
+  reading is owed to its R-L13-a/b/c per ruling 70, and any NEW rule file takes R188 and up per ruling 83).
+  Read RULINGS 64–89 first; the steward's address is in your launch prompt.
 - LOGS: `~/Library/Logs/tm-l13b/` (ruling 76). Mutex and tests lock stay under `/private/tmp`.
 - GATE FORM (ruling 66): `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13b frontend/maquette/harness/run.sh
   --contracts --oracle <rules>` — the ONLY form that reads rule names (ruling 81: anything else is refused, exit 64).
@@ -239,3 +243,32 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 - 2026-09-14 b·7 figures: legacy.js 2755 → 2644 non-blank (ledger down), app/ frame-domain 138 unchanged, fan-in
   4/4, cycles 0, comment baseline `read` 424 → 425, vocabulary + « landing », forwarded-value arm and its tests
   deleted (B-513). Frontend gate: tsc -b clean, vitest 114/114; tests/scripts pair 127 passed.
+- 2026-09-14 b·8 landed in three commits (the move, then the hold, then the hold RE-DRIVEN): the swipe's shape in
+  `lib/swipe-arbitration.ts` with its thresholds named and identities read (`data-part`), Découvrir's two swipes in
+  `features/acquisition/card-gestures.ts` beside the feed functions they call, the pull's indicator in
+  `app/pull-indicator.ts` with the reset the harness drives. Ruling 59 repaired: the reset removes the two state
+  classes instead of writing `className = "ptr"`, which erased every utility the markup paints — index.html's
+  comment amended in the same commit.
+- 2026-09-14 b·8 MEASURED, and it is ruling 88's first catch: the engine's drag guard said `stopPropagation` and
+  was registered before the tap registry, so since the registry began the click ending a drag fired the verb under
+  the finger. `stopImmediatePropagation` + installed first is the repair.
+- 2026-09-14 b·8 TRAP, the day's second expensive one: AFTER A TOUCH DRAG THE BROWSER SUPPRESSES THE CLICK ITSELF
+  (the engine's own comment said so, and I wrote the hold with touch anyway). The hold passed, then stayed green
+  under BOTH mutations of the mechanism it was written for — a hold that measures the browser's suppression rather
+  than the guard. Re-driven with a MOUSE, it falls by name on both. Ask of every gesture hold: does the browser
+  deliver the event this hold reads, or does it swallow it for its own reasons?
+- 2026-09-14 b·8 the phase file's own proof was wrong twice: the travel threshold LOWERED to 0 is unobservable
+  (the axis dead zone is 6px, so a committed drag has always travelled more than 4), and the mutation that bites
+  is the threshold raised out of reach; and B-337's hold already existed (`pause_verb.py` hold 4), so the phase
+  keeps it green rather than writing it. Both said in the phase's amendment.
+- 2026-09-14 b·8 figures: five of the seven `window` gesture getters were read by NO rule (measured file by file)
+  and died with the `defineProperties` block, which does not go empty — `store` and `state` stay. `openCard` and
+  `swallowClick` are published from their new owners, so NO rule was re-aimed. Vocabulary + five words (degree,
+  guard, indicator, opacity, travel — the last two measured after the constants were named for what they are).
+  Guards: state-ownership clean, frame-domain app/ 138 unchanged, boundaries clean, markup-contracts clean,
+  no-french 0, comment baseline 425 → 426. tsc -b + vitest 114/114.
+- 2026-09-14 b·8 mutations: `stopImmediatePropagation` → `stopPropagation` and `DRAG_TRAVEL_PIXELS` → 100000 both
+  fell by name on press.py's new hold (« the click that ends a drag opens no panel »); the deck binding removed
+  (`deck/card` → `no-such-part`) fell deck.py by exit code (ruling 49), unnamed. Logs
+  `l13b3-b08-mutations{,2,3}.log`; the two first attempts (threshold → 0, and the touch-driven hold) are the
+  findings above.

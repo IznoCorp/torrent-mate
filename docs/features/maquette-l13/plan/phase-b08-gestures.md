@@ -60,3 +60,24 @@ readings, the capture-order reading and B-337's one-tap reading go in the report
 ## Amendments
 
 - **Amended 2026-09-13 (steward, the three arms' dry read, audit order 2):** the words the move declares (`guard`, `travel`, `indicator`, `dismissal`, `bind`) enter `code-vocabulary.txt` in the same commit or the names are built from words already there; `lib/` names no surface (`settingsPull` → `pull`); a `ui/` swipe row receives the feature's action as a prop (layering); the `#ptr` utilities erased by `__reposPTR`'s `className = "ptr"` at every driver reset are THIS phase's to repair (ruling 59).
+- **Amended 2026-09-14 (b·8 as landed; rulings 88 and 89, with two of the phase's own proofs corrected by
+  measurement):**
+  - **Ruling 88's line, answered before the move:** on `document`, in CAPTURE, the answerers are the tap
+    registry (`lib/verbs.ts`), the press's click-swallower (`lib/press-arbitration.ts`),
+    `lib/stacked-surface.ts`'s replay and — until this phase — the engine's drag guard. The guard was
+    registered FIRST and said `stopPropagation`, which reaches no listener beside it: so a click ending a
+    drag has fired the verb under the finger ever since the registry began. It moves to `lib/` with
+    `stopImmediatePropagation` and the boot installs it before the registry.
+  - **« the one-tap hold » did not exist in a form that bites, and a touch hold cannot.** After a TOUCH
+    drag the browser suppresses the click itself — the engine's own comment recorded it — so a touch
+    measurement is green whatever the guard does: written with touch first, NEITHER mutation moved it.
+    The hold is driven with a MOUSE (`press.py`, « the click that ends a drag opens no panel » + « and a
+    click that travelled nowhere still opens it ») and falls by name on both mutations.
+  - **The travel threshold to 0 is UNOBSERVABLE**, and the phase named it as the mutation: the axis dead
+    zone is 6px, so a drag that commits to an axis has always travelled more than 4px, and lowering the
+    threshold changes nothing any hold or any reader can see. The mutation that bites is the threshold
+    raised beyond reach (never armed), which is the defect the guard exists against.
+  - **B-337's hold was already written** (`pause_verb.py` hold 4, « acts on the FIRST tap »): the phase
+    keeps it green across the move rather than writing it. The register row stays open.
+  - The `defineProperties` block does NOT go empty: `store` and `state` are the product's own published
+    reads and stay. Five of the seven gesture getters were read by no rule at all.

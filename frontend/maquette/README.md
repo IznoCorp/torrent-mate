@@ -383,6 +383,10 @@ holds the three ends.
 - **`stopPropagation` does not stop a listener sitting BESIDE yours on the same node** — the tap
   registry answers in CAPTURE on `document`, so a swallower must call `stopImmediatePropagation`
   and be registered first, or the click it meant to swallow fires the verb under the finger.
+- **A reference reading that rolls `design/src` back discards uncommitted work** — commit before
+  checking older sources out under the branch's instrument, as `scripts/mutate.sh` requires.
+- **After a TOUCH drag the browser suppresses the click itself** — a hold about the click that
+  ends a drag drives it with a MOUSE, or it measures the browser, not the guard.
 
 Story: `frontend/maquette/README.md@6a47304a4` § Traps this stylesheet paid for.
 
