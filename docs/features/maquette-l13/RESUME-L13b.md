@@ -8,7 +8,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   squashed, #596). Steward: the session named in your launch prompt (`Orch : TM frontend`, its reference changes).
 - Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13b`.
 - b·1 `e3ae69b01`… b·4 — see the ledger; b·5 DONE (move + re-aim, ruling 75); b·6 DONE (`c74362af1`, rulings 79,
-  79-bis, 82; holds proved both ways: selection.py, pause_verb.py R132, follows.py). Gate: 43 rules (28 named) + 26 guards, 0 failed, oracle no divergence, gate: no violation on `e4a16d970` (log 12:41 > commit 12:35); the two earlier 28-named gates fell on R164 alone (B-498)..
+  79-bis, 82; holds proved both ways: selection.py, pause_verb.py R132, follows.py). Gate: 43 rules (28 named) + 26 guards, 0 failed, oracle no divergence, gate: no violation on `e4a16d970` (log 12:41 > commit 12:35); the two earlier 28-named gates fell on R164 alone (B-512)..
 - legacy.js non-blank: 2755. Surface-openers contract grep: 0. `FAN_IN_EXEMPT` keeps `features/acquisition/queries.ts`
   (the engine still reads `follows()` and `suggestions()`).
 - NEXT: the MIDPOINT full suite on b·6's head (brief: after b·6, before b·7; its falls repaired in one
@@ -25,6 +25,8 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 - Locks: browser mutex (`sh scripts/heavy.sh --held`); tests lock `/private/tmp/tm-heavy-tests/holder`; own lock
   `/private/tmp/tm-heavy-l13b/holder` (npm ci, tsc -b, vitest run).
 - Push: the pre-push hook is the branch's own since order 35 (relative hooksPath); read its verdict, not its print.
+- Register rows: L13b owns B-512–B-529 (a reserved block, counted up from B-512; B-512 is R164);
+  L20 writes from B-530.
 - Owed: midpoint full suite (above); b·11 full suite with `--a11y`, `--compare`, `make lint`; no local `make check`
   (ruling 68); b·8: the swipe verbs' reaches through `window.openCard`/`window.collapseCard`. Machine restarts
   Monday 05:00: pushed by 04:30, line to the steward at 04:45.
@@ -150,5 +152,8 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 - 2026-09-14 b·6 replays: cat, lmode, del (no hold fell in filters.py, gallery.py, remove_verb.py) and selmode,
   delsel (selection.py crashed) replayed against page_host.py, cards.py, audit2.py, virtual.py and
   selection_survives_the_tab.py — results in the next line.
-- 2026-09-14 b·6 gate: 43 rules (28 named) + 26 guards, 0 failed, oracle no divergence, gate: no violation on `e4a16d970` (log 12:41 > commit 12:35); the two earlier 28-named gates fell on R164 alone (B-498).
+- 2026-09-14 b·6 gate: 43 rules (28 named) + 26 guards, 0 failed, oracle no divergence, gate: no violation on `e4a16d970` (log 12:41 > commit 12:35); the two earlier 28-named gates fell on R164 alone (B-512).
 - 2026-09-14 b·6 mutations: all twelve by name — lens → url_state « changing a dial writes the QUERY »; sort and setsort → library_sort; clear-search → page_host; selected-title → selection.py; clear-filter → follows.py; search-again → pause_verb.py; replays: cat and lmode → page_host, del → audit2 « deleting a medium: no confirmation », selmode → virtual.py and R164, delsel → virtual.py « the dialog names THOSE TWO ».
+- 2026-09-14 R164's register row is B-512, not B-498: main's docs PR #597 (squash `4f242ecb3`) added B-498–B-511
+  after this branch's base; L13b's rows are the reserved block B-512–B-529 (next B-513), L20 writes from B-530.
+  `abd0ad88f` carries the first number in its message.
