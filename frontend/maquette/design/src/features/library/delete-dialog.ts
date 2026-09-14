@@ -15,7 +15,7 @@
 import i18next from "i18next";
 import { membershipQuery, type Membership } from "../../lib/membership";
 import { sharedQueryClient } from "../../lib/query-client";
-import { dialog, followedTitles } from "../../lib/shell-doors";
+import { dialog, followedTitles, toast } from "../../lib/shell-doors";
 import { libraryIncompleteQuery } from "./queries";
 import type { DialogDescriptor } from "../../ui/dialog/contract";
 import type { IncompleteShow } from "./reference";
@@ -154,18 +154,24 @@ export async function openDeleteDialog(title: string | null, many?: string[]): P
       text: say("followedText"),
     });
 
-  const remove = () => window.actionDelete(titles);
+  /* THE CONFIRMATION SAYS WHAT WAS DONE ITSELF, and carries no `data-toast`:
+     the tap registry answers a verb in the CAPTURE phase and stops the click
+     there, so a button carrying one never reached its own `onClick` and the
+     removal it confirms never ran. */
+  const removeSaying = (message: string) => () => {
+    window.actionDelete(titles);
+    toast?.show({ message });
+  };
   const actions: DialogDescriptor["actions"] = [];
   if (followed.length > 0) {
     actions.push({
       text: say("deleteAndStop"),
       tone: "danger",
-      target: { "data-toast": say("doneStopped") },
-      run: remove,
+      run: removeSaying(say("doneStopped")),
     });
-    actions.push({ text: say("deleteAndKeep"), target: { "data-toast": say("doneKept") }, run: remove });
+    actions.push({ text: say("deleteAndKeep"), run: removeSaying(say("doneKept")) });
   } else {
-    actions.push({ text: say("delete"), tone: "danger", target: { "data-toast": say("done") }, run: remove });
+    actions.push({ text: say("delete"), tone: "danger", run: removeSaying(say("done")) });
   }
   actions.push({ text: say("cancel"), tone: "ghost", dismiss: true });
   dialog?.open({ heading, body, actions });

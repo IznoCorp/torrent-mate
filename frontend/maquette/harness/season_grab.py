@@ -1,5 +1,8 @@
 """R125 — « Récupérer cette saison » really takes the season (B-301).
 
+A HOLE IS IN A SEASON ONE HOLDS (owned > 0): a series nobody holds draws its aired count and no
+shortfall, under the sheet's own convention, so its first season is no subject for this rule.
+
 RE-AIMED: the season rows are `window.__mocks.seasons()` — the served seasons read's
 rows, the ones every season block now draws — since the engine's season table died.
 
@@ -98,7 +101,7 @@ THE_MEDIUM_WITH_A_HOLE = """()=>{
   for (const follow of (window.__followActions?.all() || [])) {
     if (!reachable(follow.t)) continue;
     for (const [number, aired, owned] of (window.__mocks.seasons()[follow.t] || [])) {
-      if ((owned || 0) < (aired || 0))
+      if ((owned || 0) > 0 && (owned || 0) < (aired || 0))
         return {title: follow.t, season: number, aired, owned};
     }
   }

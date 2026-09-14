@@ -1,8 +1,7 @@
 """R158 — a season with a hole is taken by someone who OWNS the show and does not follow it.
 
-RE-AIMED: the season rows are `window.__mocks.seasons()` — the served read's rows, the ones
-every season block draws — and the fixture's holes `window.__mocks.seasonFamily()`, the seed,
-since the engine's season table died.
+RE-AIMED: the fixture's holes and the count a season's ask answers are `window.__mocks.seasonFamily()`,
+the seed the layer counts from, since the engine's season table (its copy) died.
 
 RE-AIMED: the incomplete shows are the served answer in the query cache
 (`["/api/library/incomplete"]`), since the engine's copy died.
@@ -294,7 +293,7 @@ NOT_YET_AIRED = """(title)=>{
 # reads — the count the layer answers from. A title that data does not hold
 # has nothing to get.
 MISSING_IN_SEASON = """([title, season])=>{
-  const row = (window.__mocks.seasons()[title] || []).find(([number]) => number === season);
+  const row = (window.__mocks.seasonFamily()[title] || []).find(([number]) => number === season);
   return row ? Math.max(0, (row[1] || 0) - (row[2] || 0)) : 0;}"""
 
 SAID = """()=>{
