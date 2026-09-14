@@ -56,7 +56,7 @@ async def main():
     # the store and on the rows, never on the field alone: a cross that only
     # blanked the input would leave the list filtered under an empty box.
     failures = []
-    await pg.click('[data-pill="all"]'); await pg.wait_for_timeout(250)
+    await pg.click('[data-pill="tout"]'); await pg.wait_for_timeout(250)  # french-ok: the « everything » pill's id, a data value the markup emits
     whole = await pg.evaluate("""()=>document.querySelectorAll('#view [data-part="card/title"]').length""")
     await pg.fill('#follq', 'zzz-no-such-follow'); await pg.wait_for_timeout(300)
     narrowed = await pg.evaluate("""()=>document.querySelectorAll('#view [data-part="card/title"]').length""")
