@@ -103,6 +103,9 @@ export function FollowsTab(): ReactElement {
   const descriptorOf = (follow: Follow, showStatus: boolean) => ({
     t: follow.t,
     ids: follow.ids,
+    // The row draws the poster the follow carries; without it the card falls
+    // back to the initials, in a box of the poster's size (R177).
+    poster: follow.poster,
     k: follow.k,
     s: [
       String(follow.y),
