@@ -2,31 +2,30 @@
 
 ## STATE BLOCK (rewritten at every boundary — at most 40 lines)
 
-- **Updated**: 2026-09-14, `Agent : l20 1` stood down at the phase-6 boundary (gauge 65, gate 80;
-  phase 7 estimated at 12, which leaves no margin for its gate, report and push).
+- **Updated**: 2026-09-14, `Agent : l20 2` at the phase-7 boundary; phase 8 waits for L13b's merge
+  and the steward's word.
 - **Branch / worktree**: `feat/maquette-l20`, `/Users/izno/dev/worktrees/wave-l20`, cut from `main`
   at `4f242ecb3`. HEAD = pushed head; `git ls-remote` proves it.
 - **Phases done**: 1 (contract), 2 (comment), 3 (locks, R184), 4 (levers, R178/R179/R181 + R184's
-  agreement half), 5 (veille, R180), 6 (history list, R182's list half). Plus ruling 6's tooling fix
-  and the midpoint repair.
-- **Next**: phase 7 — a run's detail and its folded log (`plan/phase-07-run-detail.md`): R183
-  (`harness/raw_log.py` — a DRAFT is committed, NEVER read red and deliberately NOT in run.sh's
-  CONTRACTS list: take its red first, rewrite it freely), R182's detail half into
-  `harness/run_history.py`, R186 seeded into `screen_addresses.py` + `back.py`, `ui/disclosure.tsx`.
-  **The route `/run/$runUid`, its `SCREEN_PARENTS` entry and a THIN `run-screen.tsx` already exist**
-  (phase 6 needed the address to be real) — phase 7 FILLS that screen, it does not create it.
+  agreement half), 5 (veille, R180), 6 (history list, R182's list half), 7 (run detail: R183, R182's
+  detail half, R187 in screen_addresses.py + back.py). Plus ruling 6's tooling fix and the midpoint
+  repair.
+- **Next**: phase 8 (`plan/phase-08-hand-path.md`) ONLY after L13b merges and on the steward's word —
+  re-cut against L13b's b·10-ter as merged, not against the plan.
 - **Then**: phase 8 only after L13b merges AND on the steward's word; phase 9 closes.
 - **Rule numbers**: ruling 1 — R178 levers-act, R179 DOIT-4, R180 veille, R181 §13-loading,
-  R182 history, R183 fold, R184 locks, R185 B-371 (phase 8), R186 addresses (R187 unused).
+  R182 history, R183 fold, R184 locks, R185 B-371 (phase 8), R187 addresses (R186 unused).
 - **Register rows**: ruling 4 — L20's `BUGS.md` rows start at B-530.
 - **Data**: ruling 3 — `seeds/pipeline-runs.json` (10 real rows) and ruling 5 — `seeds/tmp-orphans.json`
   (one real entry). Both converted-class families; locks are `x-unseeded`.
 - **Owed**: the composed row line LOSES « 1 bloqué » — the fixture's blocked count came from the
   engine's `blockedCount` and the real `steps_json` verify step has no equivalent (a demand, or
-  another field; not invented). `readRun` of an unknown uid answers `null` — `run-detail-not-found`
-  needs a 404, and the layer has no handler-level status (`mocks/index.ts` sits at 397/400).
-  Three feature files still write `<details>` raw (DESIGN § 9's debt) — NOT phase 7's to convert.
-- **Tooling**: tiers are SEPARATE invocations (`run.sh --contracts`, then `run.sh --oracle`),
+  another field; not invented). Three feature files still write `<details>` raw (DESIGN § 9's debt,
+  `ui/disclosure.tsx` now exists) — not this lot's to convert. Hold counts moved and NOT re-recorded
+  (phase 9's): screen_addresses.py 51→58, back.py 17→21, run_history.py and raw_log.py new (23, 13).
+  `mocks/state.ts` 398/400 non-blank.
+- **Tooling**: a scratch replay (acquire, build, publish, 8899 by captured pid, rules, release) is
+  described in the ledger; tiers are SEPARATE invocations (`run.sh --contracts`, then `run.sh --oracle`),
   `TM_HARNESS_JOBS=2`. The oracle now REFUSES to write over another wave's build (ruling 6) — accept
   inside ONE heavy invocation and verify the reference BY NAME, never by the total.
 - **Locks**: shared mutex `TM_HARNESS_JOBS=2 sh scripts/heavy.sh --class browser l20 …` (announce
@@ -198,3 +197,29 @@
   * a hold reading « the number appears somewhere in the line » is satisfied by any other number.
   * the settings rule holds that every setting comes from a REAL configuration file: a demanded key
     cannot sit in the settings seed.
+- 2026-09-14 — `Agent : l20 2` took over at phase 7 (handshake answered; gauge 10). Ruling 7 made on
+  the day: the running state derived from 2b598104 by `setRunInProgress`, a handler-chosen 404 through
+  `refused()`, the failed state marks no step (a demand line in the contract).
+- 2026-09-14 — phase 7 RED, every hold read with no crash after making the probes null-safe (the first
+  red crashed three rules after their first FAIL — a crash hides the holds behind it): raw_log.py 13 / 11,
+  run_history.py 23 / 9 (the list half stays green), screen_addresses.py 58 / 3, back.py 21 / 2.
+- 2026-09-14 — TRAP, measured: `offsetParent` is BLIND to a native fold. Chrome hides a closed
+  `<details>`' content with `content-visibility: hidden`, the boxes stay laid out, and `offsetParent`
+  stays non-null over lines nobody can see — the plan's own instrument read green over a closed fold's
+  « rendered » lines on the first green run. The hold now also asks `checkVisibility()`.
+- 2026-09-14 — `raw_log.py` ADDED to run.sh's CONTRACTS: it falls when a named state or a data-part
+  name moves, which is that tier's subject (locks.py's reason). `back.py` stays out of that tier.
+- 2026-09-14 — `mocks/state.ts` sits at 398 non-blank lines after the dial (ceiling 400);
+  `mocks/index.ts` unchanged at 397. The named states pick a run through `__mocks.pipelineRuns()`
+  (a seed accessor in `mock-seeds.ts`), never by a uid written in `system.ts`.
+- 2026-09-14 — phase 7 oracle: 96 divergences, all on the six new `run-detail*` states, Système's at
+  zero. Accepted inside one heavy invocation; verified by name: 107×37 → 113×38, added exactly the six,
+  every other state differs only by a null `run/body`.
+- 2026-09-14 — the replay tool: a scratch script acquires the served copy, builds, publishes, starts
+  8899 with a CAPTURED pid, runs named rules each to its own log, stops, releases — and refuses when
+  8899 already listens (it met l13b's host once, which is the refusal working).
+- 2026-09-14 — phase 7 mutations, all four SEEN to fall naming the right defect (`mutate.sh`, 8899 by
+  captured pid, tree restored): A `open` at rest → raw_log « at rest its lines are NOT rendered »; B the
+  null drawn as an empty box → raw_log « a passage whose output was not kept says so »; C the fold
+  pushing an entry → back.py « stacks nothing » (4 → 5); D steps ahead said « pas faite » → run_history
+  « each says — ». Logs `~/Library/Logs/tm-l20/p7-mutation-{a,b,c,d}.log`.
