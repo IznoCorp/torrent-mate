@@ -18,8 +18,11 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 - b·10 DONE: R190 `panel_return.py` `d027a8d0b` (red: drawing only), move `b1c3c602d` (reopening inside
   startViewTransition + `new(leaving-panel)` panel-down reverse); gate 34 (16 named) + 26 guards, 0 failed, no
   divergence; both mutations named. B-275 closes at b·13's closure commit beside B-290/B-397.
-- NEXT: b·11 « The library's membership read » (phase-b11-membership-read.md; rulings 41, 53, 61). Then b·12, b·13.
-  Read RULINGS 64–93 first; the steward's address is in your launch prompt.
+- b·11 DONE: rules `397758dc4` (R191–R193, red), move `09bd737de`, gate fixes `751d532bd` + `937cee0f0`; last gates
+  32 (16 named) and 26 (8 named) + 26 guards, 0 failed, no divergence; four mutations named. legacy.js 1643.
+- NEXT: b·12 « The pipeline's status is the layer's » (phase-b12-pipeline-status.md; ruling 74, 86-bis: `pipe` and
+  `phase`, the listener's last two branches). Then b·13. Read RULINGS 64–96 first; the steward's address is in your
+  launch prompt.
 - ZSH TRAP, three times this session: a multi-word variable is ONE argument in zsh, and macOS bash has no
   `mapfile` — build rule lists and file lists in Python or spell them out.
 - LOGS: `~/Library/Logs/tm-l13b/` (ruling 76). Mutex and tests lock stay under `/private/tmp`.
@@ -314,4 +317,32 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   (`l13b4-b10-mutations.log`): the reverse animation → `none` fell « return is DRAWN » (only root and tab-bar
   pseudo-elements seen); the transition removed from the ladder fell « seen: [] »; reduce halves green under both.
   The rank-branch reopening (a panel closed over a panel) is deliberately NOT drawn.
+- 2026-09-15 l13b 4 b·11 red on `397758dc4` (`l13b4-b11-red.log`): R191 only the delete walk (the five titles pass on the
+  engine, seed == copy); R193 only « the panel follows the answer »; R192 exactly six titles. Silo is the OTHER way:
+  served four seasons (S4 « à venir »), engine three.
+- 2026-09-15 l13b 4 b·11 MOVE `09bd737de`: contract `readLibraryMembership` { inLibrary, rows, incomplete, ids }
+  (`rows` keeps the removal dialog's « Doctor Who » count), `lib/membership.ts`, `lib/season-rows.ts` (query +
+  `seasonsHeld` out of features/media); knownMedium → `heldMedium` (followed or served membership, « not yet » while it
+  lands); the panel's season summary takes the sheet's conventions AND the sheet's `possede` (membership would make
+  American Dad! diverge: not in the library seed, its sheet holds its episodes); `window.__mocks.seasons()` (served
+  rows by identity) and `seasonFamily()` (the seed); legacy.js 2284 → 1643.
+- 2026-09-15 l13b 4 b·11 first gate: 16 falls (`l13b4-b11-gate.log`). Causes, all mine and repaired: followFacts
+  produced before membership/incomplete landed (sync produce path skips `needs`); a delete only INVALIDATED the
+  membership (a producer reads getQueryData synchronously) → removeQueries; seasonsHeld counted duplicate episode
+  numbers (Dark Matter 18/13) → a Set; the cold wait never asked for the seasons; the accessor looked one title up
+  (Silo's episodes live under « Silo (2023) »); the live-relay arm wanted a refresh rule for the new address;
+  compare-contracts regenerated `docs/reference/frontend-backend-demands.md` (generated, not hand-edited).
+- 2026-09-15 TRAP, OLDER THAN b·11 and found by its gate: the removal dialog's buttons carried `data-toast`; since the
+  toast verb moved into the tap registry (capture, document, stopPropagation) the click never reached React's
+  `onClick`, so « Supprimer » confirmed nothing — `virtual.py` « confirming removes THOSE TWO » was the first rule to
+  run it since. Repaired in `937cee0f0` (the confirmation shows its message from `run`); no register row (ruling 85).
+  ASK OF EVERY DESCRIPTOR: does a control carry BOTH a registered verb key and an onClick?
+- 2026-09-15 l13b 4 b·11 second gate (`l13b4-b11-gate2.log`) lost 7 contract rules to ERR_CONNECTION_REFUSED (the repair
+  train killed the 8899 host mid-run); they passed on the next run. Holds re-aimed: busy/queued_ask_mark/season_grab
+  a hole is owned > 0 && owned < aired (House of the Dragon, held by nobody, draws no shortfall);
+  season_grab_unfollowed's count reads `seasonFamily()`.
+- 2026-09-15 l13b 4 b·11 mutations (`l13b4-b11-mutations.log`), all named: inLibrary → true → R191 « Kyma … says NOT in
+  the library » + the delete walk; seasons → a constant → R192 on nine series, Silo named; incomplete → [] → R193 both
+  halves; the dialog's data-toast put back → virtual.py « confirming removes THOSE TWO ». TRAP: an uncommitted doc line
+  made mutate.sh refuse all four at the door (exit 1, no FAIL line) — `git status` before a series.
 
