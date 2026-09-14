@@ -47,6 +47,18 @@ if [ ! -f "$TARGET" ]; then
   exit 2
 fi
 
+# EVERY RULE IS FOUND BEFORE ANYTHING IS MUTATED. A rule named without its
+# directory made `python3` answer « can't open file » with exit 2, and the
+# verdict below read that exit as a fall: eight runs over nothing printed
+# eight « FELL ». A path that does not exist is refused here, with nothing
+# mutated and nothing built.
+for RULE in "$@"; do
+  if [ ! -f "$RULE" ]; then
+    echo "mutate: RULE NOT FOUND: $RULE — nothing was mutated" >&2
+    exit 64
+  fi
+done
+
 # THE REFUSAL, and it is the point of the script. A dirty tree means the
 # restore below would put back something other than what is being measured —
 # and, far worse, that `git checkout` would have thrown work away.
@@ -108,14 +120,36 @@ release_the_copy() {
   python3 frontend/maquette/harness/served_copy.py --release "$$"
   return 0
 }
+# THE HOST THIS SCRIPT STARTED, and only that one: a host some other run left
+# listening is that run's to stop.
+STARTED_HOST=""
+stop_the_host() {
+  [ -n "$STARTED_HOST" ] || return 0
+  kill "$STARTED_HOST" 2>/dev/null || true
+  STARTED_HOST=""
+  return 0
+}
 # The trap already restores the source; it gives the copy back too, on every
 # path out — a mutation tool that kept the lock after a Ctrl-C would block every
 # later run for an hour.
-trap 'restore; release_the_copy' EXIT INT TERM
+trap 'restore; stop_the_host; release_the_copy' EXIT INT TERM
 
 echo "mutate: $TARGET mutated. Rebuilding the served copy…"
 (cd frontend/maquette/design && npm run build >/dev/null 2>&1)
 python3 frontend/maquette/harness/served_copy.py --publish >/dev/null
+
+# THE RULES READ THE HARNESS HOST, and this script cannot count on one being
+# up: a wrapped run stops the host it started, and eight rules then raised
+# « connection refused », exited 1, and were each reported « FELL ». So the
+# host is started here exactly as `run.sh` starts it when nothing listens,
+# and stopped on the way out. `TM_HARNESS_PORT` moves it (the tests do).
+HARNESS_PORT="${TM_HARNESS_PORT:-8899}"
+if ! lsof -nP -iTCP:"$HARNESS_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "mutate: starting the harness host on 127.0.0.1:${HARNESS_PORT}…"
+  python3 frontend/maquette/harness/server.py --serve "$HARNESS_PORT" /tmp/tm-refonte >/dev/null 2>&1 &
+  STARTED_HOST=$!
+  sleep 2
+fi
 
 # EVERY RULE IS BOUNDED. A rule that hangs held the served copy for forty-five
 # minutes once, and a hung rule is not a verdict either way: it is an INSTRUMENT
@@ -126,7 +160,7 @@ BOUND="$(command -v timeout || command -v gtimeout || true)"
 [ -n "$BOUND" ] || echo "mutate: no timeout command on this machine — rules run unbounded" >&2
 
 FELL=0
-TIMED_OUT=0
+INSTRUMENT_FELL=0
 for RULE in "$@"; do
   echo "── $RULE ───────────────────────────────────────────"
   # CAPTURED, NOT PIPED. Under `pipefail` a pipeline takes the FAILING stage's
@@ -146,10 +180,18 @@ for RULE in "$@"; do
   if [ -n "$BOUND" ] && { [ "$STATUS" -eq 124 ] || [ "$STATUS" -eq 137 ]; }; then
     echo "  TIMED OUT after ${RULE_TIMEOUT_SECONDS} s — an INSTRUMENT fall: this rule gave no verdict"
     tail -5 "$OUTPUT"
-    TIMED_OUT=1
+    INSTRUMENT_FELL=1
   elif grep -E "^  FAIL|violation\(s\)" "$OUTPUT"; then
     FELL=1
     [ "$STATUS" -eq 0 ] || echo "  (the rule exited $STATUS)"
+  # A CRASH IS NOT A VERDICT. A Python traceback with no `FAIL` line, or exit 2
+  # (what `python3` answers when it cannot run the rule at all), is a rule that
+  # never measured anything — whatever its exit code says. A rule that falls
+  # prints its checks and exits 1.
+  elif [ "$STATUS" -eq 2 ] || grep -q "^Traceback" "$OUTPUT"; then
+    echo "  RULE CRASHED — the rule exited $STATUS with no FAIL line: an INSTRUMENT fall, no verdict"
+    tail -5 "$OUTPUT"
+    INSTRUMENT_FELL=1
   elif [ "$STATUS" -ne 0 ]; then
     echo "  FELL — the rule exited $STATUS with no FAIL line; its exit code is its verdict"
     tail -5 "$OUTPUT"
@@ -172,16 +214,17 @@ done
 # so its second call failed under `set -e` and took the release with it. It
 # returns early on a missing copy now, and `release_the_copy` gives back a lock
 # this process no longer holds, which `served_copy.release` refuses by pid.
-trap 'restore; release_the_copy' EXIT
-trap 'restore; release_the_copy; exit 130' INT
-trap 'restore; release_the_copy; exit 143' TERM
+trap 'restore; stop_the_host; release_the_copy' EXIT
+trap 'restore; stop_the_host; release_the_copy; exit 130' INT
+trap 'restore; stop_the_host; release_the_copy; exit 143' TERM
 restore
 (cd frontend/maquette/design && npm run build >/dev/null 2>&1)
 python3 frontend/maquette/harness/served_copy.py --publish >/dev/null
 
+stop_the_host
 release_the_copy
-if [ "$TIMED_OUT" -eq 1 ]; then
-  echo "mutate: TIMED OUT — an instrument fell, so this mutation is proved neither way."
+if [ "$INSTRUMENT_FELL" -eq 1 ]; then
+  echo "mutate: AN INSTRUMENT FELL (a rule timed out or crashed), so this mutation is proved neither way."
   exit 3
 fi
 [ "$FELL" -eq 1 ] || echo "mutate: NO RULE FELL. That is the finding."
