@@ -34,5 +34,284 @@
     "seeders": 22,
     "sizeGigabytes": 1.2,
     "score": 34
+  },
+  {
+    "name": "American.Dad.2005.MULTi.2160p.WEB-DL.DDP5.1.HDR.H265-FRATERNITY",
+    "resolution": "2160p",
+    "source": "WEB-DL",
+    "language": "MULTi",
+    "seeders": 142,
+    "sizeGigabytes": 8.4,
+    "score": 96
+  },
+  {
+    "name": "Backrooms.2026.MULTi.1080p.WEB-DL.DDP5.1.H264-FRATERNITY",
+    "resolution": "1080p",
+    "source": "WEB-DL",
+    "language": "MULTi",
+    "seeders": 318,
+    "sizeGigabytes": 3.1,
+    "score": 88
+  },
+  {
+    "name": "Dark.Matter.2004.VOSTFR.1080p.WEB-DL.H264-BRiNK",
+    "resolution": "1080p",
+    "source": "WEB-DL",
+    "language": "VOSTFR",
+    "seeders": 74,
+    "sizeGigabytes": 2.8,
+    "score": 61
+  },
+  {
+    "name": "Dead.Landes.S02E01.FRENCH.720p.WEBRip.x264-JiHEFF",
+    "resolution": "720p",
+    "source": "WEBRip",
+    "language": "FRENCH",
+    "seeders": 22,
+    "sizeGigabytes": 1.2,
+    "score": 34
+  },
+  {
+    "name": "Dexter.Resurrection.2025.MULTi.2160p.WEB-DL.DDP5.1.HDR.H265-FRATERNITY",
+    "resolution": "2160p",
+    "source": "WEB-DL",
+    "language": "MULTi",
+    "seeders": 142,
+    "sizeGigabytes": 8.4,
+    "score": 96
+  },
+  {
+    "name": "Earl.2005.MULTi.1080p.WEB-DL.DDP5.1.H264-FRATERNITY",
+    "resolution": "1080p",
+    "source": "WEB-DL",
+    "language": "MULTi",
+    "seeders": 318,
+    "sizeGigabytes": 3.1,
+    "score": 88
+  },
+  {
+    "name": "Farscape.1999.VOSTFR.1080p.WEB-DL.H264-BRiNK",
+    "resolution": "1080p",
+    "source": "WEB-DL",
+    "language": "VOSTFR",
+    "seeders": 74,
+    "sizeGigabytes": 2.8,
+    "score": 61
+  },
+  {
+    "name": "Friends.1994.FRENCH.720p.WEBRip.x264-JiHEFF",
+    "resolution": "720p",
+    "source": "WEBRip",
+    "language": "FRENCH",
+    "seeders": 22,
+    "sizeGigabytes": 1.2,
+    "score": 34
+  },
+  {
+    "name": "Furious.S01E01.MULTi.2160p.WEB-DL.DDP5.1.HDR.H265-FRATERNITY",
+    "resolution": "2160p",
+    "source": "WEB-DL",
+    "language": "MULTi",
+    "seeders": 142,
+    "sizeGigabytes": 8.4,
+    "score": 96
+  },
+  {
+    "name": "House.of.the.Dragon.2022.MULTi.1080p.WEB-DL.DDP5.1.H264-FRATERNITY",
+    "resolution": "1080p",
+    "source": "WEB-DL",
+    "language": "MULTi",
+    "seeders": 318,
+    "sizeGigabytes": 3.1,
+    "score": 88
+  },
+  {
+    "name": "I.Will.Find.You.S01E03.VOSTFR.1080p.WEB-DL.H264-BRiNK",
+    "resolution": "1080p",
+    "source": "WEB-DL",
+    "language": "VOSTFR",
+    "seeders": 74,
+    "sizeGigabytes": 2.8,
+    "score": 61
+  },
+  {
+    "name": "Kyma.l.onde.mysterieuse.2026.FRENCH.720p.WEBRip.x264-JiHEFF",
+    "resolution": "720p",
+    "source": "WEBRip",
+    "language": "FRENCH",
+    "seeders": 22,
+    "sizeGigabytes": 1.2,
+    "score": 34
+  },
+  {
+    "name": "L.Odyssee.2026.MULTi.2160p.WEB-DL.DDP5.1.HDR.H265-FRATERNITY",
+    "resolution": "2160p",
+    "source": "WEB-DL",
+    "language": "MULTi",
+    "seeders": 142,
+    "sizeGigabytes": 8.4,
+    "score": 96
+  },
+  {
+    "name": "La.cour.de.recre.1997.MULTi.1080p.WEB-DL.DDP5.1.H264-FRATERNITY",
+    "resolution": "1080p",
+    "source": "WEB-DL",
+    "language": "MULTi",
+    "seeders": 318,
+    "sizeGigabytes": 3.1,
+    "score": 88
+  },
+  {
+    "name": "Les.Animaniacs.1993.VOSTFR.1080p.WEB-DL.H264-BRiNK",
+    "resolution": "1080p",
+    "source": "WEB-DL",
+    "language": "VOSTFR",
+    "seeders": 74,
+    "sizeGigabytes": 2.8,
+    "score": 61
+  },
+  {
+    "name": "Les.Zinzins.de.l.Espace.1997.FRENCH.720p.WEBRip.x264-JiHEFF",
+    "resolution": "720p",
+    "source": "WEBRip",
+    "language": "FRENCH",
+    "seeders": 22,
+    "sizeGigabytes": 1.2,
+    "score": 34
+  },
+  {
+    "name": "Les.aventures.de.Tintin.1991.MULTi.2160p.WEB-DL.DDP5.1.HDR.H265-FRATERNITY",
+    "resolution": "2160p",
+    "source": "WEB-DL",
+    "language": "MULTi",
+    "seeders": 142,
+    "sizeGigabytes": 8.4,
+    "score": 96
+  },
+  {
+    "name": "Lucky.S02E07.MULTi.1080p.WEB-DL.DDP5.1.H264-FRATERNITY",
+    "resolution": "1080p",
+    "source": "WEB-DL",
+    "language": "MULTi",
+    "seeders": 318,
+    "sizeGigabytes": 3.1,
+    "score": 88
+  },
+  {
+    "name": "Monk.2002.VOSTFR.1080p.WEB-DL.H264-BRiNK",
+    "resolution": "1080p",
+    "source": "WEB-DL",
+    "language": "VOSTFR",
+    "seeders": 74,
+    "sizeGigabytes": 2.8,
+    "score": 61
+  },
+  {
+    "name": "Parks.and.Recreation.2009.FRENCH.720p.WEBRip.x264-JiHEFF",
+    "resolution": "720p",
+    "source": "WEBRip",
+    "language": "FRENCH",
+    "seeders": 22,
+    "sizeGigabytes": 1.2,
+    "score": 34
+  },
+  {
+    "name": "Premier.Contact.2016.MULTi.2160p.WEB-DL.DDP5.1.HDR.H265-FRATERNITY",
+    "resolution": "2160p",
+    "source": "WEB-DL",
+    "language": "MULTi",
+    "seeders": 142,
+    "sizeGigabytes": 8.4,
+    "score": 96
+  },
+  {
+    "name": "President.Curtis.S01E02.MULTi.1080p.WEB-DL.DDP5.1.H264-FRATERNITY",
+    "resolution": "1080p",
+    "source": "WEB-DL",
+    "language": "MULTi",
+    "seeders": 318,
+    "sizeGigabytes": 3.1,
+    "score": 88
+  },
+  {
+    "name": "Regular.Show.2010.VOSTFR.1080p.WEB-DL.H264-BRiNK",
+    "resolution": "1080p",
+    "source": "WEB-DL",
+    "language": "VOSTFR",
+    "seeders": 74,
+    "sizeGigabytes": 2.8,
+    "score": 61
+  },
+  {
+    "name": "SAV.des.emissions.2005.FRENCH.720p.WEBRip.x264-JiHEFF",
+    "resolution": "720p",
+    "source": "WEBRip",
+    "language": "FRENCH",
+    "seeders": 22,
+    "sizeGigabytes": 1.2,
+    "score": 34
+  },
+  {
+    "name": "Spider.Man.Brand.New.Day.2026.MULTi.2160p.WEB-DL.DDP5.1.HDR.H265-FRATERNITY",
+    "resolution": "2160p",
+    "source": "WEB-DL",
+    "language": "MULTi",
+    "seeders": 142,
+    "sizeGigabytes": 8.4,
+    "score": 96
+  },
+  {
+    "name": "Star.Trek.Strange.New.Worlds.2022.MULTi.1080p.WEB-DL.DDP5.1.H264-FRATERNITY",
+    "resolution": "1080p",
+    "source": "WEB-DL",
+    "language": "MULTi",
+    "seeders": 318,
+    "sizeGigabytes": 3.1,
+    "score": 88
+  },
+  {
+    "name": "Stargate.SG.1.1997.VOSTFR.1080p.WEB-DL.H264-BRiNK",
+    "resolution": "1080p",
+    "source": "WEB-DL",
+    "language": "VOSTFR",
+    "seeders": 74,
+    "sizeGigabytes": 2.8,
+    "score": 61
+  },
+  {
+    "name": "Ted.Lasso.2020.FRENCH.720p.WEBRip.x264-JiHEFF",
+    "resolution": "720p",
+    "source": "WEBRip",
+    "language": "FRENCH",
+    "seeders": 22,
+    "sizeGigabytes": 1.2,
+    "score": 34
+  },
+  {
+    "name": "The.Hawk.S01E04.MULTi.2160p.WEB-DL.DDP5.1.HDR.H265-FRATERNITY",
+    "resolution": "2160p",
+    "source": "WEB-DL",
+    "language": "MULTi",
+    "seeders": 142,
+    "sizeGigabytes": 8.4,
+    "score": 96
+  },
+  {
+    "name": "This.City.Is.Ours.S01E06.MULTi.1080p.WEB-DL.DDP5.1.H264-FRATERNITY",
+    "resolution": "1080p",
+    "source": "WEB-DL",
+    "language": "MULTi",
+    "seeders": 318,
+    "sizeGigabytes": 3.1,
+    "score": 88
+  },
+  {
+    "name": "Wicker.2026.VOSTFR.1080p.WEB-DL.H264-BRiNK",
+    "resolution": "1080p",
+    "source": "WEB-DL",
+    "language": "VOSTFR",
+    "seeders": 74,
+    "sizeGigabytes": 2.8,
+    "score": 61
   }
 ]

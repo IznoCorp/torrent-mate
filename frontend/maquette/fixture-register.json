@@ -273,7 +273,7 @@
       "class": "served",
       "why": "the release candidates. NOT REAL — no tracker is queried (README, What is real in here) — but a release list IS server state, so it is served and the register says where its values came from",
       "seed": null,
-      "converted": "L09 phase 8 — the release picker and the quality profile read /api/acquisition/releases"
+      "converted": "L09 phase 8 — the release picker and the quality profile read /api/acquisition/releases. The seed holds the four Silo rows the fixture carried, then ONE DERIVED ROW per title the acquisition offers « another release » on (follows, incomplete-shows, takeable, blocked, not-found, in-flight, not-found-loaded — Silo excepted): the title spelled with dots and without accents, then its episode when a card names one (SxxEyy) or else its year (the seed's own, or its media sheet's), then the quality tail, seeders, size and score of one of the four rows verbatim, taken in turn over the titles sorted. Nothing in a derived row is a value no seed holds (B-501)."
     },
     "RESOLUTIONS": {
       "class": "interface",
