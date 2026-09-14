@@ -5,7 +5,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 ## STATE
 
 - Branch `feat/maquette-l13b`, worktree `/Users/izno/dev/worktrees/wave-l13b`, stacked on L13a `37e54d0fd`;
-  rebase onto `main` only on the steward's word (after #596's squash). Steward: `Orch : TM frontend [7977d1]`.
+  rebase onto `main` only on the steward's word (after #596's squash). Steward: the session named in your launch prompt (`Orch : TM frontend`, its reference changes at every resume).
 - Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13b`.
 - Tooling landed: `701ae1aca`, `3023f2305`, `108904b51`, `63f6674a4` (see the ledger and rulings 66–69).
 - b·1 DONE (`e3ae69b01`), b·2 DONE (`4f157ca9f`), b·3 DONE (`6c6245fbd`, rulings 70/70-bis),
