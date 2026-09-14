@@ -221,3 +221,29 @@ def test_a_hung_rule_is_an_instrument_fall_and_the_gate_still_ends(
     assert "TIMED OUT: hung.py" in result.stdout, result.stdout
     assert "(1 timed out)" in result.stdout, result.stdout
     assert _count(journal, "oracle.py --check") == 1, journal
+
+
+def test_a_rule_name_after_a_single_tier_is_refused_before_the_build(
+    scratch_tree: Path,
+) -> None:
+    """`--contracts selection.py` read no name and still ran: a green over a rule that never ran.
+
+    Rule names are read only after `--contracts --oracle`; anywhere else the name
+    was dropped in silence, the log said « 0 named rule(s) » and the tier exited 0.
+    """
+    result, journal = _run(scratch_tree, "--contracts", "selection.py")
+
+    assert result.returncode == 64, result.stdout + result.stderr
+    assert "only read with --contracts --oracle" in result.stderr, result.stderr
+    assert _count(journal, "npm run build") == 0, journal
+
+
+def test_a_bare_rule_name_is_refused_rather_than_run_as_the_full_suite(
+    scratch_tree: Path,
+) -> None:
+    """`run.sh selection.py` fell through to the full suite: the one rule asked for was never singled out."""
+    result, journal = _run(scratch_tree, "selection.py")
+
+    assert result.returncode == 64, result.stdout + result.stderr
+    assert "only read with --contracts --oracle" in result.stderr, result.stderr
+    assert _count(journal, "npm run build") == 0, journal

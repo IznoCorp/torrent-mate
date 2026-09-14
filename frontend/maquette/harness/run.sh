@@ -249,6 +249,18 @@ if [ "$#" -ge 2 ] && { [ "$1 $2" = "--contracts --oracle" ] || [ "$1 $2" = "--or
     fi
     NAMED_RULES+=("$(basename "$rule")")
   done
+else
+  # AN ARGUMENT THIS SCRIPT DOES NOT READ IS REFUSED, never dropped. A rule
+  # named after a single tier was ignored in silence — « 0 named rule(s) », exit
+  # 0 — and a bare rule name ran the full suite: both read as a rule proved
+  # green that never ran.
+  case "$#:$TIER" in
+    0:|1:--contracts|1:--oracle|1:--a11y) ;;
+    *)
+      echo "run.sh: rule names are only read with --contracts --oracle — refused: $*" >&2
+      exit 64
+      ;;
+  esac
 fi
 ORACLE_ONLY=0
 A11Y_ONLY=0
