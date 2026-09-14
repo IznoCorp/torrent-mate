@@ -61,7 +61,7 @@
     "harness/common.py": 2,
     "harness/content.py": 1,
     "harness/drawer.py": 1,
-    "harness/exits.py": 2,
+    "harness/exits.py": 1,
     "harness/fanout.py": 5,
     "harness/feedback.py": 1,
     "harness/gestures.py": 2,
