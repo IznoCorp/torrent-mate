@@ -272,13 +272,14 @@ green rules.
 **typed component variants** (`class-variance-authority`), not as hand-written CSS class names:
 `<Card variant="compact" tone="warning">`, not `class="card card--compact"`.
 
-**Replaces.** The 4 052-line hand-written semantic stylesheet of `refonte.html`.
-<sub>`awk 'NR>=188' frontend/maquette/design/refonte.html | wc -l`</sub>
+**Replaces.** The 4 052-line hand-written semantic stylesheet of
+`frontend/maquette/design/refonte.html@60530dbd8` (deleted at L13a).
+<sub>`awk 'NR>=188' frontend/maquette/design/refonte.html | wc -l`</sub> — read at `60530dbd8`
 
 **Why.** Three reasons, in order of weight. Tailwind **enforces a scale by construction**, which
 is exactly the defect measured for the visual language — 21 distinct font sizes, 17 radii, 65
 padding values, 18 gaps.
-<sub>`cd frontend/maquette/design && grep -oE "padding:[^;]+;" refonte.html | sort -u | wc -l`</sub>
+<sub>`cd frontend/maquette/design && grep -oE "padding:[^;]+;" refonte.html | sort -u | wc -l`</sub> — read at `60530dbd8`
 Deleting a component then deletes its style, so **no orphan rule can accumulate** invisibly in a
 four-thousand-line sheet. And a **typed variant is checked by the compiler**, where a misspelt
 class name is silent — which is a stronger guarantee for an agent than any naming convention.
@@ -310,10 +311,11 @@ production by scanning from the project root.
 global can break a component at a distance. And an agent modifying a component opens **one file**
 instead of hunting a rule through four thousand lines.
 
-**What becomes void.** `refonte.html` stops carrying the stylesheet. §15 of the constitution names
-that file as the visual reference; when the CSS leaves it, the reference becomes **the tokens
-plus the component catalogue**, and §15 is amended in the same move rather than left pointing at
-a file that no longer holds its subject.
+**What became void.** `frontend/maquette/design/refonte.html@60530dbd8` stopped carrying the
+stylesheet, then was itself deleted at L13a. §15 of the constitution named that file as the
+visual reference; with the CSS gone from it, the reference became **the tokens plus the component
+catalogue**, and §15 was amended in the same move rather than left pointing at a file that no
+longer holds its subject.
 
 **Two more sheets shipped than this decision names — recorded by the steward's audit of L07,
 2026-08-25.** « Three layers, and nowhere else » is the text; five stylesheets exist:
@@ -1100,8 +1102,9 @@ wave's reason, and it holds: the phone frame is the frame inside which every mea
 repository is taken, so the instrument that proves the rest of the lot cannot be what the lot
 destroys on its way out. The paragraph above is kept as written — **the intent is unchanged, and
 the sheet still must not travel** — but « deleted » is now « separated and provably unshipped »,
-and the proof is the single import rather than the absence. `refonte.html` likewise survives, and
-its removal is carried into L13 with R72's renegotiation, above.
+and the proof is the single import rather than the absence.
+`frontend/maquette/design/refonte.html@60530dbd8` likewise survived this lot, and its removal was
+carried into L13a with R72's renegotiation, above.
 
 **This lot fixes the surface ORDER, and L09 reuses it.** Both lots walk every surface; walking
 them in the same sequence means the second pass reuses the understanding the first one built.
@@ -1361,8 +1364,9 @@ today. It is what makes haptics a one-file change if the platform ever allows th
 on focus. **The focus-zoom half is PAID and held — measured on 2026-08-31, not read.** L07 (#494,
 2026-08-25) put every field on `text-6` = 16 px, and R83 (`harness/type_scale.py`) refuses a focused
 field under 16 px: `docs/reference/frame-model.md` P13 reads true. This paragraph carried, until the steward's L11 audit,
-three field sizes (13, 14 and 12 px) and a command reading `refonte.html` — which has held no style
-rule since L07 — so it was stale six days before L11 opened, and the wave that paid the debt did not
+three field sizes (13, 14 and 12 px) and a command reading `frontend/maquette/design/refonte.html@60530dbd8`
+— which had held no style rule since L07, and was itself deleted at L13a — so it was stale six days
+before L11 opened, and the wave that paid the debt did not
 correct the plan that still charged it (§ 7.1's duty). What the episode taught still stands:
 `maximum-scale=1, user-scalable=no` had MASKED the defect rather than fixed it, L03 was right to
 remove them, and `scripts/check-viewport-directives.py` keeps both out of the tree.
@@ -1867,7 +1871,8 @@ cause — it REPLACES a layer's entry rather than pushing over it — `docs/refe
 `app/layers.ts`), the document-level delegation's
 FRAME verbs, the boot handshake (`__startEngine`), the engine-side seams (`__address`, `__bridge`,
 `__panel`, `__screens`, `__store`), the dead `#screen` layer with its three readers in the engine (and eight more in the harness — L13's design § 4.5, measured 2026-09-13) and the
-mount-node placement that rests on it (B-232), `refonte.html` and R72's renegotiation,
+mount-node placement that rests on it (B-232), `frontend/maquette/design/refonte.html@60530dbd8`
+(deleted at L13a) and R72's renegotiation,
 `legacy.css` and its guard, `__go`'s driving (which moves into a harness module of its own — it
 is the harness's, not the product's), and whatever fixture families L19 could not kill.
 
@@ -1938,6 +1943,8 @@ third of those entries name `src/styles/legacy.css`, whose death is this lot's; 
 renegotiation recorded in `regions.json` rather than a file deletion. Twelve live readers name the path — **sixteen on 2026-09-13** (L13's design § 7: `tests/scripts/test_build_identity.py` and `i18n/fr.json:14` joined the fourteen a `grep` of the path literal finds). **Done when** the fragment is gone, R72 is renegotiated with its two surviving holds
 mutation-tested, and the ledger has a home that outlives it. **Any earlier wave may take it** —
 nothing depends on waiting — provided it carries both, and folds neither into a conversion commit.
+**Done, at L13a** (`e2f510a8b`, `56da59aee`): the file is deleted, R72 keeps its two surviving
+holds mutation-tested, and `residue.py`'s reader half moved to `harness/factories.py` (ruling 59).
 
 
 ---
