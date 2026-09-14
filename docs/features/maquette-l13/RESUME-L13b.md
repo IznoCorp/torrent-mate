@@ -20,9 +20,19 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   named) + 26 guards, 0 failed, oracle no divergence, « gate: no violation » — green first time. The guard's hold
   falls by name on both of its mutations. legacy.js 2644 → 2284 non-blank. Rulings 79-bis and 59's owed items are
   CLOSED (the window reaches and the indicator's erased utilities).
-- NEXT: b·9 (one ladder shape, `plan/phase-b09-one-ladder-shape.md`, D-L13-1 ratified — ruling 28; B-290's index
-  reading is owed to its R-L13-a/b/c per ruling 70, and any NEW rule file takes R188 and up per ruling 83).
-  Read RULINGS 64–89 first; the steward's address is in your launch prompt.
+- b·9 IS IN FLIGHT and its two rules are COMMITTED RED (`21a6a6f4f`, ruling 90): R188 `ladder_entries.py`
+  (9 violations / 16 holds) and R189 `redraw_entry.py` (three edits push FIVE entries). THE MOVE IS NOT DONE —
+  the branch head has those two failing rules, both outside the contracts tier, until it lands. What the move
+  must be, measured and written down so it is not re-derived: (1) each of the five openers closes the panel
+  WITHOUT unwinding its entry (`panel.close(true)`) and lets the screen push its own — today they call
+  `panel.close()` then a 240/260 ms timer; (2) `app/layers.ts`'s BACK branch on a `layer: "sheet"` entry must
+  REOPEN instead of stepping over, and the leftover a tab-bar tap buries is told apart by the page the entry was
+  opened on — so the entry has to carry more than `{ layer }`: `kind` and `subject`, composed in
+  `lib/navigation-entry.ts` (ruling 14's « written once »), which means `bridge.pushLayer`'s payload grows;
+  (3) B-397: re-producing on the entry that already records the panel REPLACES it — `producePanel`'s
+  `openOnCurrentEntry` special case becomes the general path; (4) the NINE timers go (ruling 90 a).
+- NEXT (l13b 4): finish b·9's move against those two rules, then b·10, b·10-bis, b·10-ter (ruling 74) and b·11.
+  Read RULINGS 64–90 first; the steward's address is in your launch prompt.
 - LOGS: `~/Library/Logs/tm-l13b/` (ruling 76). Mutex and tests lock stay under `/private/tmp`.
 - GATE FORM (ruling 66): `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13b frontend/maquette/harness/run.sh
   --contracts --oracle <rules>` — the ONLY form that reads rule names (ruling 81: anything else is refused, exit 64).
@@ -272,3 +282,16 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   (`deck/card` → `no-such-part`) fell deck.py by exit code (ruling 49), unnamed. Logs
   `l13b3-b08-mutations{,2,3}.log`; the two first attempts (threshold → 0, and the touch-driven hold) are the
   findings above.
+- 2026-09-14 b·9 RED READINGS (logs `l13b3-b09-r188-red3.log`, `l13b3-b09-r189-red3.log`): R188 — `take`,
+  `journey`, `releases` and `profile` pop the panel's entry before the arrival pushes (length/index unchanged),
+  `mediasheet` pushes correctly but no opener reopens the panel on the way back; 9 violations over 16 holds.
+  R189 — three edits through the panel's own commit button pushed FIVE entries (6/4 → 11/9); « one Back closes
+  it » PASSES, and that half alone proves nothing because the first Back's own redraw closes the panel.
+- 2026-09-14 b·9 TWO INSTRUMENT TRAPS, both paid for and both written into the rules: a subject SCAN that opens
+  and closes a panel per candidate writes history, and without a reset before the reading four of R188's five
+  openers PASSED on a ladder the scan had left one entry deep — a green accident. And R189 first drove
+  `window.__changeSetting`, which files a pending edit WITHOUT re-producing the panel: it passed on the only
+  path that cannot stack an entry. A hold must drive what the defect travels through, and be run green before
+  its red is believed — twice in one phase, from two directions.
+- 2026-09-14 l13b 3 stood down here: gauge read before the push, everything on disk and pushed, tree clean,
+  nothing running, working logs pruned and the cited ones kept (ruling 65).
