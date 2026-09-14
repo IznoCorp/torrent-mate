@@ -10,9 +10,9 @@
   agreement half), 5 (veille, R180), 6 (history list, R182's list half), 7 (run detail: R183, R182's
   detail half, R187 in screen_addresses.py + back.py). Plus ruling 6's tooling fix and the midpoint
   repair.
-- **Next**: phase 8 (`plan/phase-08-hand-path.md`) ONLY after L13b merges and on the steward's word —
-  re-cut against L13b's b·10-ter as merged, not against the plan.
-- **Then**: phase 8 only after L13b merges AND on the steward's word; phase 9 closes.
+- **Next**: phase 8 next (`plan/phase-08-hand-path.md`), on the steward's word after L13b merges —
+  re-cut against L13b's b·10-ter as merged, not against the plan; 9 closes. `Agent : l20 2` STOOD
+  DOWN at the phase-7 boundary (L13b not merged, gauge 33).
 - **Rule numbers**: ruling 1 — R178 levers-act, R179 DOIT-4, R180 veille, R181 §13-loading,
   R182 history, R183 fold, R184 locks, R185 B-371 (phase 8), R187 addresses (R186 unused).
 - **Register rows**: ruling 4 — L20's `BUGS.md` rows start at B-530.
@@ -223,3 +223,5 @@
   null drawn as an empty box → raw_log « a passage whose output was not kept says so »; C the fold
   pushing an entry → back.py « stacks nothing » (4 → 5); D steps ahead said « pas faite » → run_history
   « each says — ». Logs `~/Library/Logs/tm-l20/p7-mutation-{a,b,c,d}.log`.
+- 2026-09-14 — phase 7 ACCEPTED by the steward on 5dd670772; L13b not merged, so l20 2 stood down.
+  The `<details>`/`offsetParent` trap written into `frontend/maquette/README.md`'s traps list.

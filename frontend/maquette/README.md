@@ -417,6 +417,10 @@ holds the three ends.
   element inherits into whatever happens to sit behind it, so what reaches the eye is a tone the
   palette never declared and nobody can reason about — which is how a count badge lost a third of
   its separation from the page without a single suspicious declaration to find.
+- **`offsetParent` cannot see a closed `<details>`.** Chrome hides a closed native disclosure's
+  content with `content-visibility: hidden`: every box stays laid out, so `offsetParent` is
+  non-null over lines nobody can see, and a hold reading only it is green over a fold that is shut.
+  « Can a reader see this » is `checkVisibility()`, which reads that ancestor — ask both.
 
 ## Every state has a name, and knows how to reach itself
 
