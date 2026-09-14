@@ -46,9 +46,9 @@ function followFor(identifier: string) {
   return mockState().follows.find((follow) => follow.title === identifier);
 }
 
-const DECOMPOSED = "NFD";
-const COMBINING_MARKS = /[\u0300-\u036f]/g;
-const NEITHER_LETTER_NOR_DIGIT = /[^\p{Ll}\p{Nd}]/gu;
+const DECOMPOSED_FORM = "NFD";
+const ACCENT_MARK = /[\u0300-\u036f]/g;
+const SEPARATOR = /[^\p{Ll}\p{Nd}]/gu;
 
 /**
  * A title or a release name reduced to what the two have in common.
@@ -61,9 +61,9 @@ const NEITHER_LETTER_NOR_DIGIT = /[^\p{Ll}\p{Nd}]/gu;
  * @param spelled A title or a release name.
  * @returns The letters and digits, lower-cased, accents removed.
  */
-function folded(spelled: string): string {
-  return spelled.normalize(DECOMPOSED).replace(COMBINING_MARKS, "")
-    .toLowerCase().replace(NEITHER_LETTER_NOR_DIGIT, "");
+function matchingKey(spelled: string): string {
+  return spelled.normalize(DECOMPOSED_FORM).replace(ACCENT_MARK, "")
+    .toLowerCase().replace(SEPARATOR, "");
 }
 
 /**
@@ -73,8 +73,8 @@ function folded(spelled: string): string {
  * @returns Every seeded release whose name carries that title.
  */
 function releasesFor(title: string) {
-  const wanted = folded(title);
-  return RELEASES.filter((release) => folded(String(release.name ?? "")).includes(wanted));
+  const wanted = matchingKey(title);
+  return RELEASES.filter((release) => matchingKey(String(release.name ?? "")).includes(wanted));
 }
 
 /**

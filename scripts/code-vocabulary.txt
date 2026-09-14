@@ -253,6 +253,7 @@ decisions
 deck
 declared
 decoded
+decomposed
 deep
 default
 defaults
