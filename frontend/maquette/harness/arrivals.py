@@ -88,6 +88,12 @@ def real_run(uid):
     return {"trigger": row["trigger"], "steps": steps}
 
 
+LAYER_STATE = """async ()=>{
+  const response = await fetch('/api/pipeline/status');
+  return (await response.json()).state ?? null;
+}"""
+
+
 async def on_arrivals(pg, pipe="idle"):
     """Drives to Arrivées in one of the pipeline's three states."""
     # THROUGH THE STORE, never by mutating the engine's alias in place: this
@@ -150,6 +156,12 @@ async def main():
         running = await pg.evaluate(READ)
         journal.check("pressing « lancer » sets the pipeline running",
                       running["status"] == "En cours", running["status"])
+        # AND THE LAYER SAYS SO, not only the page: the tap ASKS the pipeline
+        # to run, and the status read answers what it is doing — a banner the
+        # store alone flipped would forget a running pipeline on a reload.
+        layer = await pg.evaluate(LAYER_STATE)
+        journal.check("and the layer's status read answers « running »", layer == "running",
+                      f"the status read answers {layer!r}")
         journal.check("while running, another pass can still be ASKED for",
                       "start" in running["buttons"] and "stop" in running["buttons"],
                       str(running["buttons"]))
@@ -161,6 +173,9 @@ async def main():
         queued = await pg.evaluate(READ)
         journal.check("a pass asked for DURING another is queued, and says so",
                       queued["queued"], f"queued={queued['queued']} buttons={queued['buttons']}")
+        layer = await pg.evaluate(LAYER_STATE)
+        journal.check("and the layer's status read answers « queued » (DOIT-4)", layer == "queued",
+                      f"the status read answers {layer!r}")
         journal.check("and it is not refused: the running pass carries on",
                       queued["status"] == "En cours" and "stop" in queued["buttons"],
                       f"{queued['status']} · {queued['buttons']}")
@@ -170,6 +185,9 @@ async def main():
         stopped = await pg.evaluate(READ)
         journal.check("« arrêter » brings it back to rest", stopped["status"] == "Au repos",
                       stopped["status"])
+        layer = await pg.evaluate(LAYER_STATE)
+        journal.check("and the layer's status read answers « idle »", layer == "idle",
+                      f"the status read answers {layer!r}")
 
         # ── 2. the nine steps, in the engine's order ───────────────────────
         view = await on_arrivals(pg, "idle")
