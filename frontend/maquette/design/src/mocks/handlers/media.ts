@@ -216,6 +216,24 @@ export function seasonsAnswer(titles: string[]) {
   };
 }
 
+/* The two providers an identity is addressed by, in the order the served
+   address prefers them. */
+const FIRST_PROVIDER = "tvdb";
+const FALLBACK_PROVIDER = "tmdb";
+
+/**
+ * The seasons read's answer for one title, resolved through its identity as the route resolves it.
+ *
+ * @param title The title a rule asks about.
+ * @param ids Its provider identity, when one is known.
+ * @returns The same answer the route gives for that identity.
+ */
+export function seasonsAnswerFor(title: string, ids: Record<string, unknown> | undefined) {
+  const provider = ids?.[FIRST_PROVIDER] ? FIRST_PROVIDER : ids?.[FALLBACK_PROVIDER] ? FALLBACK_PROVIDER : null;
+  const titles = provider ? titlesFor(provider, String(ids?.[provider])) : [];
+  return seasonsAnswer(titles.length ? titles : [title]);
+}
+
 /** Every route this subject answers. */
 export function mediaRoutes(): MockRoute[] {
   return [

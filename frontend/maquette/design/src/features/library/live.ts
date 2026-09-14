@@ -10,12 +10,14 @@ const ITEMS_KEY = ["/api/library/items"];
 const CATEGORIES_KEY = ["/api/library/categories"];
 /** What is owned but incomplete. */
 const INCOMPLETE_KEY = ["/api/library/incomplete"];
+/** Whether one title is held — every title asked about, under one prefix. */
+const MEMBERSHIP_KEY = ["/api/library/membership"];
 
 /** What a server event refreshes on the library. */
 export const libraryLiveRules: readonly LiveRule[] = [
   {
     types: ["ItemDispatched", "LibraryScanCompleted"],
-    keys: [ITEMS_KEY, CATEGORIES_KEY, INCOMPLETE_KEY],
+    keys: [ITEMS_KEY, CATEGORIES_KEY, INCOMPLETE_KEY, MEMBERSHIP_KEY],
     because:
       "a dispatched item and a finished scan both change WHAT IS OWNED, which "
       + "is the one thing all three reads are about: the listing gains a row, a "
@@ -29,7 +31,7 @@ export const libraryLiveRules: readonly LiveRule[] = [
   },
   {
     types: ["FilmAcquired"],
-    keys: [INCOMPLETE_KEY],
+    keys: [INCOMPLETE_KEY, MEMBERSHIP_KEY],
     because:
       "completeness changed and nothing else did — the item was already in the "
       + "listing and already in its category. A rule that also refreshed those "

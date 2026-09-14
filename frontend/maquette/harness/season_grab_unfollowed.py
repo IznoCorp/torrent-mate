@@ -1,7 +1,8 @@
 """R158 — a season with a hole is taken by someone who OWNS the show and does not follow it.
 
-RE-AIMED: the season rows are `window.__mocks.seasons()` — the served seasons read's
-rows, the ones every season block now draws — since the engine's season table died.
+RE-AIMED: the season rows are `window.__mocks.seasons()` — the served read's rows, the ones
+every season block draws — and the fixture's holes `window.__mocks.seasonFamily()`, the seed,
+since the engine's season table died.
 
 RE-AIMED: the incomplete shows are the served answer in the query cache
 (`["/api/library/incomplete"]`), since the engine's copy died.
@@ -161,7 +162,7 @@ THE_SUBJECTS = """()=>{
   return {
     incomplete: incomplete.length,
     followedAmongThem: incomplete.filter((title) => followed.has(title)),
-    withAHole: incomplete.filter((title) => (window.__mocks.seasons()[title] || []).some(
+    withAHole: incomplete.filter((title) => (window.__mocks.seasonFamily()[title] || []).some(
       ([number, aired, owned]) => (owned || 0) < (aired || 0))),
   };}"""
 

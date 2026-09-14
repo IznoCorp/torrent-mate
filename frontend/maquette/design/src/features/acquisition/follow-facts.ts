@@ -70,13 +70,19 @@ export type FollowFacts = {
  */
 export function followFacts(title: string, cache: PanelCache): FollowFacts | null {
   const followed = cache.held<Follow[]>(followsQuery.queryKey);
-  if (followed === undefined) return null;
+  // NOT BEFORE WHAT IT STATES HAS LANDED: a panel drawn without the membership
+  // or the incomplete shows says « not in the library » and « complete » about
+  // a medium it simply has not asked about yet.
+  const membership = cache.held<Membership>(membershipQuery(title).queryKey);
+  const incompleteAnswer = cache.held<{ t: string; o: number; a: number }[]>(
+    incompleteShowsQuery.queryKey);
+  if (followed === undefined || membership === undefined || incompleteAnswer === undefined)
+    return null;
   const reference = window.__referentiel;
   // THE SERVED ANSWERS, every one of them: the incomplete shows, the
   // membership and the seasons are read from the cache the layer fills, never
   // from a copy the layer does not write.
-  const incompleteShows = (cache.held<{ t: string; o: number; a: number }[]>(
-    incompleteShowsQuery.queryKey) ?? []);
+  const incompleteShows = incompleteAnswer;
   const follow: Follow =
     followed.find((one) => one.t === title) ??
     incompleteShows
@@ -95,8 +101,7 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   const isFilm = follow.k === "movie";
   const incomplete = incompleteShows.some((show) => show.t === title);
   const isFollowed = followed.some((one) => one.t === title);
-  const membership = cache.held<Membership>(membershipQuery(title).queryKey);
-  const inLibrary = incomplete || membership?.inLibrary === true;
+  const inLibrary = incomplete || membership.inLibrary;
   const queue = queueNow();
   const toTake = queue.takeable.some((one) => one.t === title);
   const toResolve = queue.blocked

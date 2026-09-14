@@ -222,9 +222,11 @@ export function installLibraryDelete(queryClient: QueryClient): void {
         // deleted ones alone — the sheet's key is the provider's identifier,
         // and nothing here maps a title to it.
         void queryClient.invalidateQueries({ queryKey: ["/api/media"] });
-        // AND WHAT THE LIBRARY SAYS IT HOLDS: every panel opened about a
-        // removed title afterwards asks again rather than answering from before.
-        void queryClient.invalidateQueries({ queryKey: ["/api/library/membership"] });
+        // AND WHAT THE LIBRARY SAYS IT HOLDS is REMOVED, not merely marked
+        // stale: a producer reads the cache synchronously and would still see
+        // the answer from before, so every panel opened about a removed title
+        // afterwards has to ask again.
+        queryClient.removeQueries({ queryKey: ["/api/library/membership"] });
       }, () => {
         // AND ON A REFUSAL, which the `.finally` this replaced also covered.
         void queryClient.invalidateQueries({ queryKey: ["/api/library/items"] });

@@ -61,7 +61,11 @@ function redrawOnIdentityArrival(title: string): void {
     const shown = store.read().state.panelDescriptor as PanelDescriptor | undefined;
     const shownNow = panel?.isOpen() === true && shown?.address === address;
     if (shownNow && heldIdentity(title) === null) return;
-    if (shownNow && sharedQueryClient !== undefined && seasonsNotLanded(title)) return;
+    const pending = shownNow ? pendingSeasons(title) : null;
+    if (pending !== null && sharedQueryClient !== undefined) {
+      void sharedQueryClient.prefetchQuery(pending);
+      return;
+    }
     cancel();
     if (cancelWaiting === cancel) cancelWaiting = null;
     if (shownNow) panel?.redraw();
@@ -86,19 +90,6 @@ function pendingSeasons(title: string) {
   if (address === null) return null;
   const query = seasonsQuery(address.provider, address.id);
   return sharedQueryClient.getQueryData(query.queryKey) === undefined ? query : null;
-}
-
-/**
- * Whether a medium's seasons read is still out.
- *
- * Args:
- *     title: The medium.
- *
- * Returns:
- *     True while the panel would draw no season rows for want of the answer.
- */
-function seasonsNotLanded(title: string): boolean {
-  return pendingSeasons(title) !== null;
 }
 
 /**

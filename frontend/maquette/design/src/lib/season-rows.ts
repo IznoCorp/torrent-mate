@@ -70,7 +70,8 @@ export function seasonsHeld(held: SeasonsAnswer | undefined): [number, number | 
   const owned = held.owned ?? {};
   if (held.seasons.length) {
     return held.seasons.map((season) => {
-      const numbers = owned[String(season.n)] ?? [];
+      // A SET: an episode held twice is one episode held.
+      const numbers = [...new Set(owned[String(season.n)] ?? [])];
       const aired = held.aired[String(season.n)] ?? null;
       const own = aired ? numbers.filter((one) => one <= aired).length : numbers.length;
       return [season.n, aired, own];
@@ -80,5 +81,5 @@ export function seasonsHeld(held: SeasonsAnswer | undefined): [number, number | 
   return Object.keys(owned)
     .map(Number)
     .sort((left, right) => left - right)
-    .map((number) => [number, null, owned[String(number)].length]);
+    .map((number) => [number, null, new Set(owned[String(number)]).size]);
 }
