@@ -578,7 +578,7 @@ async def main():
           const x = window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.r)
             .find(y => y.type === 'list' && (y.brut || []).length > 1);
           SETTINGS_STATE.topic = window.__queries.getQueryData(['/api/config/schema']).find(r => r.r.includes(x)).id;
-          render(); window.__panel.produce("setting", settingId(x));}""")
+          window.__store.touch(); window.__panel.produce("setting", settingId(x));}""")
         await pg.wait_for_timeout(330)
         before = await pg.evaluate("""()=>document.querySelectorAll('#sheetin [data-part="field/list-item"]').length""")
         # The items as they are SEEN. The SECOND one is removed, never the
@@ -617,7 +617,7 @@ async def main():
           const texts = window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.r).filter(x => x.type === 'text');
           const x = texts[n];
           SETTINGS_STATE.topic = window.__queries.getQueryData(['/api/config/schema']).find(r => r.r.includes(x)).id;
-          render(); window.__panel.produce("setting", settingId(x));
+          window.__store.touch(); window.__panel.produce("setting", settingId(x));
           return {id: settingId(x), own: String(x.brut ?? '')};}"""
         read_field = """() => {const e = document.querySelector('#sheetin [data-part="field/input"]');
           return e ? {value: e.value, field: e.dataset.field} : null;}"""

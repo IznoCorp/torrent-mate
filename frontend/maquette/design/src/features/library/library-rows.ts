@@ -37,12 +37,17 @@ export function libraryTileMarkup(reference: LibraryReference, row: Row, index: 
     subtitle: row.f,
     artwork: posterArtwork(reference.icons, row.poster, row.t, row.k),
     check: selMode ? reference.svgIcon(reference.icons.check, 3) : undefined,
+    // WHAT A TAP MEANS IS WRITTEN FIRST. The registry answers the first
+    // registered key in ATTRIBUTE order, so the key a tap is FOR — the
+    // selection while one is being made, the medium's sheet otherwise — comes
+    // before `data-panel`, which the long press reaches. Written the other way
+    // round, a tap on a tile opened the panel and nothing opened the medium.
     attributes: {
       "data-tile": index,
-      "data-panel": `media:${row.t}`,
       ...(selMode
         ? { "aria-pressed": selected.has(row.t), "data-selected-title": row.t }
         : { "data-mediasheet": row.t }),
+      "data-panel": `media:${row.t}`,
     },
   });
 }

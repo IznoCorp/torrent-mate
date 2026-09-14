@@ -67,7 +67,14 @@ export const registeredLayers = {
 /* HOW A PAGE IS RESTORED, handed in by the engine, which still draws it: the
    layers hidden without touching history, the store written, the port back at
    the top when the patch names a new place, and the page drawn. It forwards a
-   patch it did not compose, so it stays beside the `render` it calls. */
+   patch it did not compose, so it stays beside the `render` it calls.
+
+   IT DID NOT LEAVE THE ENGINE AT b·7, and the reason is measured rather than
+   chosen: the restore writes a patch composed elsewhere, and
+   `check-state-ownership.py` refuses a store write whose argument it cannot
+   read — « a key it cannot classify is a key that would otherwise leave the
+   count meaning the ones I could read ». The engine is the one module that arm
+   exempts, so the restore leaves when the engine does. */
 let restorePage: (patch: Record<string, unknown>) => void = () => {};
 
 /**

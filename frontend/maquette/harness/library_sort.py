@@ -83,7 +83,7 @@ async def main():
         # that is asserted rather than assumed.
         # french-ok: a French search WORD, typed into the app's own search.
         await page.evaluate(
-            "()=>{window.__store.write({q: 'star', libCount: 24}); render();}")
+            "()=>{window.__store.write({q: 'star', libCount: 24}); window.__store.touch();}")
         await page.wait_for_timeout(700)
         narrowed = await page.evaluate(TITLES)
         journal.check(
@@ -176,7 +176,7 @@ async def main():
         # leaves none — neither is visible from the resting state, where the
         # normal direction is in force.
         await page.evaluate(
-            "()=>{window.__store.write({sortKey: 'az', sortReversed: true}); render();}")
+            "()=>{window.__store.write({sortKey: 'az', sortReversed: true}); window.__store.touch();}")
         await page.wait_for_timeout(400)
         marked = await open_sort_panel(page)
         current = [entry for entry in marked if entry["current"]]
@@ -194,7 +194,7 @@ async def main():
         # the reverse of the other — true of any comparator, and of a broken
         # one.
         await page.evaluate(
-            "()=>{window.__store.write({sortKey: 'az', sortReversed: false}); render();}")
+            "()=>{window.__store.write({sortKey: 'az', sortReversed: false}); window.__store.touch();}")
         await page.wait_for_timeout(500)
         alphabetical = await page.evaluate(TITLES)
         # Sorted by the PLATFORM's French collation, not by the app's — and not
@@ -216,11 +216,11 @@ async def main():
         # only the list would be a working sort on one half of the page.
         await page.evaluate(
             "()=>{window.__store.write({libMode: 'grid', sortKey: 'az',"
-            " sortReversed: false}); render();}")
+            " sortReversed: false}); window.__store.touch();}")
         await page.wait_for_timeout(600)
         grid_normal = await page.evaluate(TITLES)
         await page.evaluate(
-            "()=>{window.__store.write({sortReversed: true}); render();}")
+            "()=>{window.__store.write({sortReversed: true}); window.__store.touch();}")
         await page.wait_for_timeout(600)
         grid_reversed = await page.evaluate(TITLES)
         journal.check(
@@ -229,7 +229,7 @@ async def main():
             and grid_reversed == list(reversed(grid_normal)),
             f"{len(grid_normal)} tiles — {grid_normal[:1]}…{grid_normal[-1:]} "
             f"became {grid_reversed[:1]}…{grid_reversed[-1:]}")
-        await page.evaluate("()=>{window.__store.write({libMode: 'list'}); render();}")
+        await page.evaluate("()=>{window.__store.write({libMode: 'list'}); window.__store.touch();}")
         await page.wait_for_timeout(400)
 
         # A PREFERENCE, NOT A PLACE. The panel's own note says the sort stays on

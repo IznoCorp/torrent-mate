@@ -5,7 +5,7 @@
 // `run` builds the state. The driver resets the interface before every state,
 // so an entry pins only what its state means to show.
 import { applyState, type NamedState } from "../drive";
-import { openDrawer } from "../../engine/legacy.js";
+import { openDrawer } from "../../app/frame-verbs";
 
 export function drawerStates(): NamedState[] {
   return [

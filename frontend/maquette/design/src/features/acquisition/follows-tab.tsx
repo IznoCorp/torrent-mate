@@ -186,7 +186,11 @@ export function FollowsTab(): ReactElement {
       artwork: posterArtwork(icons, follow.poster, follow.t, follow.k),
       muted: paused,
       badge: tileBadgeOf(gridBadge(follow)),
-      attributes: { "data-panel": `media:${follow.t}`, "data-mediasheet": follow.t },
+      // THE SHEET IS NAMED FIRST, and the order is load-bearing: the registry
+      // answers the first registered key in ATTRIBUTE order, so `data-panel`
+      // written first would make a tap on the tile open the panel the LONG
+      // PRESS is for. A tap opens the medium; the press opens its panel.
+      attributes: { "data-mediasheet": follow.t, "data-panel": `media:${follow.t}` },
     });
   };
 

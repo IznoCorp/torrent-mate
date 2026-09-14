@@ -51,6 +51,11 @@ import ReactDOM from "react-dom/client";
 // which is a file rather than four lines here because it gains an entry per
 // feature converted and this file may only lose lines.
 import "./panel-contributions";
+// And the FRAME's own verbs — the page a control names, the two landings, the
+// drawer, a message, the surface phase and the addressed panel. They are named
+// here rather than in the list above, which is what the FEATURES contribute:
+// these are the shell answering for itself, and they register at evaluation.
+import "./frame-verbs";
 import { createStore } from "./store";
 import { installFocusManager } from "./focus";
 import { installMockNetwork } from "../mocks";

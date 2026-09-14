@@ -46,7 +46,10 @@ export function IncompleteLens({ rows }: {
                   all: show.a,
                 }),
                 artwork: posterArtwork(reference.icons, show.poster, show.t),
-                attributes: { "data-panel": `media:${show.t}`, "data-mediasheet": show.t },
+                // The sheet first: the registry answers the first registered
+                // key in attribute order, and a tap opens the medium while the
+                // long press opens its panel.
+                attributes: { "data-mediasheet": show.t, "data-panel": `media:${show.t}` },
               }),
             ).join("")}
         />

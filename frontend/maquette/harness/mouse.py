@@ -33,7 +33,7 @@ async def main():
         await pg.wait_for_timeout(700)
 
     # 1. Slide cards — the case the operator reported.
-    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'deck'}); render();}")
+    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'deck'}); window.__store.touch();}")
     await pg.wait_for_timeout(600)
     t0 = await pg.evaluate("""()=>document.querySelector('[data-part="deck/card"][data-depth="0"] [data-part="deck/title"]').textContent""")
     await drag('[data-part="deck/card"][data-depth="0"]', -180)
@@ -42,7 +42,7 @@ async def main():
     if not (t1 != t0): failures.append("slide cards, mouse left")
     # Reset between gestures: chaining two drags without one measures the
     # second against the state the first left, which is not what is being asked.
-    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'deck'}); render();}")
+    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'deck'}); window.__store.touch();}")
     await pg.wait_for_timeout(600)
     await drag('[data-part="deck/card"][data-depth="0"]', 180)
     n = await pg.evaluate("()=>state.sugGone.size")
@@ -57,7 +57,7 @@ async def main():
     if not (tr != 'none'): failures.append("follow row, mouse swipe")
 
     # 3. Suggestion card swipe in the list format.
-    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'list'}); render();}")
+    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'list'}); window.__store.touch();}")
     await pg.wait_for_timeout(600)
     before = await pg.evaluate("""()=>document.querySelectorAll('[data-part="suggestion/wrap"]').length""")
     await drag('[data-part="suggestion/wrap"]', 200)

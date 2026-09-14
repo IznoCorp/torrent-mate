@@ -97,7 +97,7 @@ async def main():
         # (a) A migrated page is drawn, and drawn ONCE.
         for identifier in SHELL_OWNED:
             await page.evaluate(f"()=>window.__store.write({{page: {identifier!r}}})")
-            await page.evaluate("()=>window.__referentiel.render()")
+            await page.evaluate("()=>window.__store.touch()")
             await page.wait_for_timeout(300)
             seen = await page.evaluate(READ)
             # « ONCE » is the residue hold's business, and it measures it
@@ -147,7 +147,7 @@ async def main():
             f"drawn {sorted(drawn)} against {sorted(SHELL_OWNED)}")
         for identifier in LEGACY_OWNED:
             await page.evaluate(f"()=>window.__store.write({{page: {identifier!r}}})")
-            await page.evaluate("()=>window.__referentiel.render()")
+            await page.evaluate("()=>window.__store.touch()")
             await page.wait_for_timeout(300)
             seen = await page.evaluate(READ)
             journal.check(
@@ -171,7 +171,7 @@ async def main():
         absent = []
         for identifier in walk:
             await page.evaluate(f"()=>window.__store.write({{page: {identifier!r}}})")
-            await page.evaluate("()=>window.__referentiel.render()")
+            await page.evaluate("()=>window.__store.touch()")
             await page.wait_for_timeout(300)
             seen = await page.evaluate(READ)
             if seen.get("absent"):
@@ -226,7 +226,7 @@ async def main():
         # stopped writing one of those attributes would break the page while
         # every existing rule stayed green.
         await page.evaluate("()=>window.__store.write({page: 'maint', maintTopic: null})")
-        await page.evaluate("()=>window.__referentiel.render()")
+        await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(300)
         refused = await tap("""#view [data-part="topic"][data-maintopic='scan']""")
         opened = await page.evaluate("""()=>({
@@ -276,7 +276,7 @@ async def main():
         # script, which reads as a broken rule instead of a named defect.
         await page.evaluate(SETTINGS_FROM_SCRATCH)
         await page.evaluate("()=>window.__store.write({page: 'cfg'})")
-        await page.evaluate("()=>window.__referentiel.render()")
+        await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(300)
 
         topic = await page.evaluate(
@@ -328,7 +328,7 @@ async def main():
           if (!setting) return null;
           const id = window.__referentiel.settingId(setting);
           window.__changeSetting(id, !setting.brut);
-          window.__referentiel.render();
+          window.__store.touch();
           return id;}""")
         await page.wait_for_timeout(300)
         refused = (await tap("#savebar [data-save]") if staged else "absent")
@@ -346,7 +346,7 @@ async def main():
 
         # A rubric's ENTRY carries its name: driving the state alone is undone.
         await page.evaluate("()=>{SETTINGS_STATE.topic = null; history.replaceState({}, '');}")
-        await page.evaluate("()=>window.__referentiel.render()")
+        await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(300)
         refused = await tap("#view [data-restart]")
         # The restart offer only exists because the save above raised it, so a
@@ -411,7 +411,7 @@ async def main():
             # french-ok: a French search WORD, typed into the app's own search
             # — the data a French interface is searched with, not a name.
             "()=>{SETTINGS_STATE.topic = null; SETTINGS_STATE.q = 'espace';}")
-        await page.evaluate("()=>window.__referentiel.render()")
+        await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(300)
         refused = await tap("#view [data-qsettings]")
         cleared = await page.evaluate(
@@ -448,7 +448,7 @@ async def main():
         await page.evaluate("()=>window.__reset()")
         await page.evaluate("()=>window.__store.write({page: 'lib', phase: 'ready',"
                             " libLens: 'cat', libMode: 'list', libCat: 'all', q: ''})")
-        await page.evaluate("()=>window.__referentiel.render()")
+        await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(400)
 
         refused = await tap("""#view [data-part="segment"] [data-lens='rec']""")
@@ -462,7 +462,7 @@ async def main():
             str(lens)[:120] if not refused else f"data-lens {refused}")
 
         await page.evaluate("()=>window.__store.write({libLens: 'cat'})")
-        await page.evaluate("()=>window.__referentiel.render()")
+        await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(400)
         wanted = await page.evaluate(
             """()=>{const b = [...document.querySelectorAll('#view [data-part="pill"][data-cat]')]"""
@@ -486,7 +486,7 @@ async def main():
             not refused and mode["mode"] == "grid" and mode["drawn"] == "grid",
             str(mode) if not refused else f"data-lmode {refused}")
         await page.evaluate("()=>window.__store.write({libMode: 'list', libCat: 'all'})")
-        await page.evaluate("()=>window.__referentiel.render()")
+        await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(400)
 
         # The selection bar is the FRAGMENT's node in `#device`: tapping the
@@ -503,7 +503,7 @@ async def main():
             and selecting["rows"] > 0,
             str(selecting) if not refused else f"data-selmode {refused}")
         await page.evaluate("()=>window.__store.write({selMode: false})")
-        await page.evaluate("()=>window.__referentiel.render()")
+        await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(400)
 
         # `data-del` is READ rather than tapped: the control lives behind a
@@ -525,7 +525,7 @@ async def main():
         await page.evaluate(
             # french-ok: a French search WORD, typed into the app's own search.
             "()=>{window.__store.write({q: 'stargate'});}")
-        await page.evaluate("()=>window.__referentiel.render()")
+        await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(400)
         refused = await tap("#view [data-clear-search]")
         cleared = await page.evaluate("""()=>({
@@ -553,21 +553,21 @@ async def main():
                 if message.type == "error" else None)
         await page.evaluate(SETTINGS_FROM_SCRATCH)
         await page.evaluate("()=>window.__store.write({page: 'cfg'})")
-        await page.evaluate("()=>window.__referentiel.render()")
+        await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(300)
         await page.evaluate("""()=>{
           const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap((topic) => topic.r)
             .find((x) => x.type === 'boolean');
           window.__changeSetting(
             window.__referentiel.settingId(setting), !setting.brut);
-          window.__referentiel.render();}""")
+          window.__store.touch();}""")
         await page.wait_for_timeout(300)
         raised = await page.evaluate("()=>!!document.querySelector('#savebar')")
         await page.evaluate("()=>{window.__store.write({page: 'lib'});"
-                            " window.__referentiel.render();}")
+                            " window.__store.touch();}")
         await page.wait_for_timeout(500)
         await page.evaluate("()=>{window.__store.write({page: 'cfg'});"
-                            " window.__referentiel.render();}")
+                            " window.__store.touch();}")
         await page.wait_for_timeout(500)
         returned = await page.evaluate("""()=>({
           roots: [...document.querySelector('#view').children]
@@ -591,7 +591,7 @@ async def main():
         await page.evaluate("()=>window.__reset()")
         await page.evaluate("()=>window.__store.write({page: 'acq',"
                             " acqTab: 'now', phase: 'ready'})")
-        await page.evaluate("()=>window.__referentiel.render()")
+        await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(400)
 
         refused = await tap("""#view [data-part="segment"] [data-acqtab='follows']""")
@@ -632,7 +632,7 @@ async def main():
 
         await page.evaluate("()=>window.__store.write({acqTab: 'discover',"
                             " followMode: 'list', sugMode: 'list'})")
-        await page.evaluate("()=>window.__referentiel.render()")
+        await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(500)
         refused = await tap("#view [data-sugmode='poster']")
         suggestions = await page.evaluate(
@@ -649,10 +649,10 @@ async def main():
         # wave chose deliberately — so it is held: React draws them, the
         # fragment fills them, and a re-render does not empty them.
         await page.evaluate("()=>window.__store.write({page: 'lib'})")
-        await page.evaluate("()=>window.__referentiel.render()")
+        await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(300)
         await page.evaluate("()=>window.__store.write({page: 'acq'})")
-        await page.evaluate("()=>window.__referentiel.render()")
+        await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(600)
         # WHO FILLED IT, not merely whether it is full: « some children »
         # is satisfied by React rendering one, which is exactly the
@@ -719,7 +719,7 @@ async def main():
         await page.evaluate("()=>window.__store.write({page: 'arr', maintTopic:"
                             " null, phase: 'ready', pipe: 'idle',"
                             " scen: 'loaded'})")
-        await page.evaluate("()=>window.__referentiel.render()")
+        await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(320)
         refused = await tap("""#view [data-part="pipeline"] [data-pipe='start']""")
         started = await page.evaluate(
@@ -1038,7 +1038,7 @@ async def main():
             set(value) { writes++; setter.call(this, value); },
             get() { return view.textContent; },
           });
-          window.__referentiel.render();
+          window.__store.touch();
           const drawn = {writes, children: view.children.length};
           // The control: one deliberate write, which the spy must count.
           view.innerHTML = '<i data-control></i>';

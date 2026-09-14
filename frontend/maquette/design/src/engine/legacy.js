@@ -34,6 +34,8 @@
 
 import { screens, panel, bridge, seam } from "./seams.js";
 import { installPressArbitration } from "../lib/press-arbitration";
+import { openAddressedPanel } from "../lib/shell-doors";
+import { hideLayers, installPageRestore } from "../app/layers";
 import { installPullGesture } from "../lib/pull-gesture";
 import { icons } from "../app/icons";
 /* THE STORE, IMPORTED. The shell creates it and installs it before anything
@@ -43,8 +45,7 @@ import { store } from "../lib/store-access";
    handler that reads a Back, the verbs that write a navigation and the table
    that reopens an addressed panel are `app/`'s; the click delegation below
    still calls them by name. */
-import { hideLayers, installPageRestore } from "../app/layers";
-import { replacePath, switchPage, switchPageFromLayer, walk } from "../app/page-switch";
+import { replacePath, walk } from "../app/page-switch";
 import { installKnownMedium } from "../app/addressed-panels";
 /* THE SETTINGS CATALOGUE, IMPORTED BACK. How a setting is identified,
    listed and read moved to the feature that owns settings when its panels did,
@@ -1931,29 +1932,10 @@ import {
      sacrificed to a rare action. */
 
 
-  /* Reads the panel an element addresses.
-     Split on the FIRST colon only: titles carry their own — « Dexter:
-     Resurrection » would otherwise address a panel for « Dexter ». */
-  function refPanel(element) {
-    // `panelName`, not `panel`: the seam the engine calls to OPEN a panel is
-    // named `panel`, and a local of the same name would shadow it silently
-    // inside this function. The value here is the attribute's text.
-    const panelName = element.dataset.panel;
-    const indexOf = panelName.indexOf(":");
-    return {
-      genre: panelName.slice(0, indexOf),
-      ref: panelName.slice(indexOf + 1),
-    };
-  }
-
-  /* Opens the panel an element addresses. One entry point, so a surface that
-     wants a panel states WHICH one and never how to build it. */
-  function openPanel(element) {
-    const { genre, ref } = refPanel(element);
-    if (genre === "sug") panel.produce("suggestion", ref);
-    else if (genre === "add") panel.produce("add", ref);
-    else panel.produce("follow", ref);
-  }
+  /* WHICH PANEL AN ELEMENT ADDRESSES, AND WHAT OPENING IT MEANS, ARE THE
+     FRAME'S — `app/frame-verbs.ts` answers `data-panel` and fills the door this
+     file's press reads. Only the press stays here, and it goes with the
+     gesture. */
 
   /* THE LONG PRESS — arbitrated in `lib/press-arbitration.ts`.
 
@@ -1994,7 +1976,7 @@ import {
       }
       return element;
     },
-    onPress: openPanel,
+    onPress: (element) => openAddressedPanel?.(element),
   });
 
   /* User menu.
@@ -2200,17 +2182,9 @@ import {
      table; and it REGISTERS with the ladder rather than being found by it, so
      the ladder's handler asks a registration instead of testing a class.
 
-     The verbs stay verbs. `openDrawer()` writes the store and pushes the
-     layer's own entry, exactly as it did — a conversion moves the drawing. */
-  function openDrawer() {
-    store.write({ drawerOpen: true });
-    try {
-      bridge.pushLayer("drawer");
-    } catch (error) {}
-  }
-  function closeDrawer(pop) {
-    seam.layers?.close("drawer", pop);
-  }
+     The verbs are verbs, and they are NOT this file's any more: opening the
+     drawer and closing it belong to the frame that answers the taps
+     (`app/frame-verbs.ts`, `app/layers.ts`). */
 
   /* THE APPEARANCE IS NOT THIS FILE'S ANY MORE. The three states, the stored
      choice, the live media listener and the attribute they write are
@@ -2228,63 +2202,19 @@ import {
     if (!closest) return;
     if (closest.tagName === "A") event.preventDefault();
 
-    if (closest.dataset.page) {
-      // Navigating CLOSES whatever is open above: without this, one changed
-      // page while staying stuck on the media sheet.
-      const leaving = currentState().page;
-      hideLayers();
-      store.write({ page: closest.dataset.page });
-      port.scrollTop = 0;
-      render();
-      switchPage(leaving);
-      return;
-    }
-    if (closest.dataset.go) {
-      /* A go control can sit INSIDE a layer — today only the user sheet's
-         « Profil et préférences »: every OTHER producer renders into
-         page-body `#view` content, which sits under every layer and is
-         therefore covered — untappable — the instant one is open (walked
-         control by control, BUGS.md B-024). Landing must LEAVE the layer:
-         every layer closes without touching history, and history is settled
-         HERE, by `switchPageFromLayer`, exactly as a drawer navigation settles
-         itself (see data-navgo). Letting the close unwind and the arrival push
-         would race, the asynchronous pop landing after the push and
-         overwriting it. */
-      const onLayer = history.state && history.state.layer;
-      const leaving = currentState().page;
-      closeDrawer(true);
-      panel.close(true);
-      // The settling below walks the layer's entry plus at most one page
-      // entry, on the assumption that at most one layer (drawer or sheet —
-      // never both at once) precedes a `data-go` tap. B-024 found that
-      // assumption unenforced in code, then walked every producer and found
-      // it latent — unreachable — because the one producer that can sit over
-      // a layer allows at most the sheet itself.
-      store.write({ page: closest.dataset.go });
-      if (closest.dataset.go === "acq")
-        store.write({ acqTab: "now" });
-      port.scrollTop = 0;
-      render();
-      try {
-        if (onLayer) switchPageFromLayer(leaving);
-        else switchPage(leaving);
-      } catch (error) {
-        console.error("data-go : écriture de navigation échouée", error);
-        window.__navEchec = true;
-      }
-      return;
-    }
-    if (closest.dataset.toast) {
-      toast(closest.dataset.toast);
-      return;
-    }
+  /* THE LAST BRANCH OF A DELEGATION THAT ANSWERED SIXTY-TWO NAMES.
 
-    // `data-take` HAS NO BRANCH HERE ANY MORE (B-309). It had two, told apart
-    // by guessing at the value. The release picker says `data-pick-release`
-    // now and the panel's take kept this name, so each has one meaning and one
-    // reader, and both answer on the tap registry.
-    if (closest.dataset.drawer) {
-      openDrawer();
+     Every other name is answered by the feature or the frame that owns it, on
+     the tap registry (`lib/verbs.ts`). `pipe` cannot follow them yet, and the
+     reason is a guard rather than an oversight: the key it writes is server
+     state, and `check-state-ownership.py` refuses a component — `app/` included,
+     which it reads as one — writing it at a ceiling of zero. It leaves with its
+     conversion to the pipeline's own endpoint, and this listener goes with it.
+     Until then the delegation is one branch long and answers one name. */
+
+    if (closest.dataset.phase) {
+      store.write({ phase: closest.dataset.phase });
+      render();
       return;
     }
     if (closest.dataset.pipe) {
@@ -2309,47 +2239,6 @@ import {
       );
       return;
     }
-    if (closest.dataset.navgo) {
-      const id = closest.dataset.navgo;
-      /* The drawer is NOT a route, so its entry does not survive the
-         destination — and neither does the entry of the page one is leaving.
-         A drawer entry is a top-level destination like any other, so § 16
-         rule 2 applies to it whole: `switchPageFromLayer` walks down to the
-         floor and settles the destination there, which is what makes one back
-         from the destination reach the entry page and not the médiathèque one
-         happened to open the drawer from.
-
-         This is also why history is settled here rather than by letting the
-         close unwind and the arrival push: a back is asynchronous, so its
-         pop would land after the push and overwrite it. The close is
-         therefore told not to touch history at all. */
-      const onDrawer = history.state && history.state.layer === "drawer";
-      const leaving = currentState().page;
-      closeDrawer(true);
-      store.write({ page: id });
-      port.scrollTop = 0;
-      render();
-      try {
-        if (onDrawer) switchPageFromLayer(leaving);
-        else switchPage(leaving);
-      } catch (error) {
-        console.error("data-navgo : écriture de navigation échouée", error);
-        window.__navEchec = true;
-      }
-      return;
-    }
-    if (closest.dataset.phase) {
-      store.write({ phase: closest.dataset.phase });
-      render();
-      return;
-    }
-    /* A card body opens the panel on a simple tap. The gallery reaches the
-       same panel by a long press, handled where the press is timed. */
-    if (closest.dataset.panel) {
-      openPanel(closest);
-      return;
-    }
-
   });
 
   /* Screens and sheets */
@@ -2859,7 +2748,6 @@ import {
    dependency is readable and a deletion breaks the build instead of a run. */
 export {
   applyState,
-  openDrawer,
   resetSettings,
   render,
   toast,
@@ -2918,14 +2806,13 @@ Object.assign(window, {
   dateFR,
   endCardDrag, endDeckDrag,
   endSugDrag, escapeHtml,
-  closeDrawer, changedFiles,
+  changedFiles,
   gridBadge, icons, initialsOf, drawerWidth,
   mountLoaders, mountSearch, fileName,
-  openPanel,
   openSheet,
-  openDrawer, panelUnderFinger,
+  panelUnderFinger,
   nextSearchFR,
-  ptr, refPanel, collapseCard,
+  ptr, collapseCard,
   settingId, resetSettings, render,
   select,
   stFraction, stLabel,

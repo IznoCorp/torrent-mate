@@ -28,6 +28,10 @@ export let dialog: Window["__dialog"];
 export let followedTitles: (() => string[]) | undefined;
 /** Rewrites the current history entry's address for a page setting — a tab, a lens. */
 export let replaceAddress: (() => boolean) | undefined;
+/** Opening the panel an element addresses — the press reads it while the gesture is still the engine's. */
+export let openAddressedPanel: ((element: Element) => void) | undefined;
+/** What a page puts back at its default when a landing arrives on it — filled by the page's own feature. */
+export let landOnPage: ((page: string) => void) | undefined;
 /** The history primitives the navigation logic speaks through. */
 export let bridge: Window["__bridge"];
 /** The screen openers. */
@@ -76,6 +80,28 @@ export function fillFollowedTitlesDoor(read: () => string[]): void {
  */
 export function fillReplaceAddressDoor(write: () => boolean): void {
   replaceAddress = write;
+}
+
+/**
+ * Fills the addressed-panel door, from the frame's verbs.
+ *
+ * @param open What opens the panel an element addresses.
+ */
+export function fillAddressedPanelDoor(open: (element: Element) => void): void {
+  openAddressedPanel = open;
+}
+
+/**
+ * Fills the landing door, from a feature that resets a dial on arrival.
+ *
+ * A page's dials are the page's own — the frame may not name one (invariant 10)
+ * and the state-ownership arm reads every write by the keys it can SEE, so the
+ * write is made where the dial is understood rather than forwarded as a patch.
+ *
+ * @param land What a feature does when a landing arrives on one of its pages.
+ */
+export function fillLandingDoor(land: (page: string) => void): void {
+  landOnPage = land;
 }
 
 /**

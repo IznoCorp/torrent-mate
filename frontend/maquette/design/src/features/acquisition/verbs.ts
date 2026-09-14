@@ -16,7 +16,7 @@
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { queueActions } from "../../lib/queue";
-import { panel, replaceAddress, toast } from "../../lib/shell-doors";
+import { fillLandingDoor, panel, replaceAddress, toast } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
 import { baseTitle } from "../../lib/titles";
 import { settleSwipeRow } from "./follow-verbs";
@@ -113,4 +113,14 @@ registerVerb("search-again", (title, element) => {
       title: title,
     }),
   });
+});
+
+/* ARRIVING AT THIS PAGE OPENS ITS FIRST TAB, whoever asked for it — the tab is a
+   setting of the page, and a landing from somewhere else is not the same as
+   looking at the page one is already on. The engine's own landing branch wrote
+   this dial itself; the frame that answers the tap now cannot, since the dial is
+   this page's name and not the frame's (invariant 10), so it asks through the
+   landing door and the write is made here. */
+fillLandingDoor((page) => {
+  if (page === "acq") store.write({ acqTab: "now" });
 });
