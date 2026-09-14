@@ -2,27 +2,37 @@
 
 ## STATE BLOCK (rewritten at every boundary — at most 40 lines)
 
-- **Updated**: 2026-09-14, phase 6 committed (Agent : l20 1).
+- **Updated**: 2026-09-14, `Agent : l20 1` stood down at the phase-6 boundary (gauge 65, gate 80;
+  phase 7 estimated at 12, which leaves no margin for its gate, report and push).
 - **Branch / worktree**: `feat/maquette-l20`, `/Users/izno/dev/worktrees/wave-l20`, cut from `main`
-  at `4f242ecb3`; plan re-target `b7e600cc5`.
-- **Phases done**: 1 (contract), 2 (comment), 3 (locks, R184), 4 (levers, R178/R179/R181), 5 (veille, R180), 6 (the history list, R182's list half).
-- **Next**: phase 7 — a run's detail and its folded log (`plan/phase-07-run-detail.md`), R183 + R182's detail half + R186. **The route `/run/$runUid` and a THIN screen already exist** (phase 6 needed the address to be real); phase 7 fills that screen, it does not create it.
-- **Waiting on**: nothing. Phase 8 waits for L13b's merge AND the steward's word.
-- **Rule numbers**: RULINGS-L20.md ruling 1 (a…h → R178–R185, j → R187, R186 unused).
-- **Register rows**: RULINGS-L20.md ruling 4 — L20's `BUGS.md` rows start at B-530 (L13b holds B-512–B-529).
-- **Data sources**: ruling 3 — `seeds/pipeline-runs.json` is a one-off real snapshot (`PIPELINE_RUNS`,
-  converted class); locks are `x-unseeded`, derived from layer state.
-- **Tooling**: `main`'s — tiers as separate invocations (`run.sh --contracts`, then `run.sh --oracle`),
-  `TM_HARNESS_JOBS=2`. A lone rule replay needs the 8899 host started by hand (ledger).
-- **Locks**: shared mutex `scripts/heavy.sh --class browser l20 …` (announce before/after to the
-  steward; shared with `Agent : l13b 2`); tests lock `HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder`;
-  own lock `HEAVY_LOCK=/private/tmp/tm-heavy-l20/holder` for `npm ci` and builds.
-- **Logs**: `~/Library/Logs/tm-l20/<phase>-<step>.log`; `npm ci` done in `frontend/maquette/design` only.
-- **Owed**: phase 3 — `locks-orphans` has no real entry (STOP D at its opening); phase 4 — the bound key
-  in `settings.json` (+ `format.test.ts`'s 159 corpus); phase 5 — the real detection counts differ from
-  DOIT-6's names; phase 6 — the transitional `result` filter in `queries.ts`, frozen clock vs snapshot
-  dates; phase 7 — `readRun` of an unknown uid answers `null`, a 404 is owed. Midpoint full suite after
-  phase 5; at phase 9 the full suite, `--a11y`, `--compare`, `make lint`, pre-push pytest, ONE PR READY.
+  at `4f242ecb3`. HEAD = pushed head; `git ls-remote` proves it.
+- **Phases done**: 1 (contract), 2 (comment), 3 (locks, R184), 4 (levers, R178/R179/R181 + R184's
+  agreement half), 5 (veille, R180), 6 (history list, R182's list half). Plus ruling 6's tooling fix
+  and the midpoint repair.
+- **Next**: phase 7 — a run's detail and its folded log (`plan/phase-07-run-detail.md`): R183
+  (`harness/raw_log.py` — a DRAFT is committed, NEVER read red and deliberately NOT in run.sh's
+  CONTRACTS list: take its red first, rewrite it freely), R182's detail half into
+  `harness/run_history.py`, R186 seeded into `screen_addresses.py` + `back.py`, `ui/disclosure.tsx`.
+  **The route `/run/$runUid`, its `SCREEN_PARENTS` entry and a THIN `run-screen.tsx` already exist**
+  (phase 6 needed the address to be real) — phase 7 FILLS that screen, it does not create it.
+- **Then**: phase 8 only after L13b merges AND on the steward's word; phase 9 closes.
+- **Rule numbers**: ruling 1 — R178 levers-act, R179 DOIT-4, R180 veille, R181 §13-loading,
+  R182 history, R183 fold, R184 locks, R185 B-371 (phase 8), R186 addresses (R187 unused).
+- **Register rows**: ruling 4 — L20's `BUGS.md` rows start at B-530.
+- **Data**: ruling 3 — `seeds/pipeline-runs.json` (10 real rows) and ruling 5 — `seeds/tmp-orphans.json`
+  (one real entry). Both converted-class families; locks are `x-unseeded`.
+- **Owed**: the composed row line LOSES « 1 bloqué » — the fixture's blocked count came from the
+  engine's `blockedCount` and the real `steps_json` verify step has no equivalent (a demand, or
+  another field; not invented). `readRun` of an unknown uid answers `null` — `run-detail-not-found`
+  needs a 404, and the layer has no handler-level status (`mocks/index.ts` sits at 397/400).
+  Three feature files still write `<details>` raw (DESIGN § 9's debt) — NOT phase 7's to convert.
+- **Tooling**: tiers are SEPARATE invocations (`run.sh --contracts`, then `run.sh --oracle`),
+  `TM_HARNESS_JOBS=2`. The oracle now REFUSES to write over another wave's build (ruling 6) — accept
+  inside ONE heavy invocation and verify the reference BY NAME, never by the total.
+- **Locks**: shared mutex `TM_HARNESS_JOBS=2 sh scripts/heavy.sh --class browser l20 …` (announce
+  before/after; shared with l13b); tests lock `HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder` for
+  pytest, `make check` and every push; own lock `/private/tmp/tm-heavy-l20/holder` for npm/tsc.
+- **Logs**: `~/Library/Logs/tm-l20/<phase>-<step>.log`.
 
 ---
 
@@ -174,3 +184,17 @@
   in the line », which any other number satisfies — a constant 9 where the layer said 1 stayed green
   because the duration « 1 min 44 » carries a 1. It now requires the count IN ITS OWN PHRASE
   (« 1 rangé », or « rien de nouveau » at zero).
+- 2026-09-14 — TRAPS PAID FOR, for whoever takes phase 7 (each cost a run):
+  * `page.evaluate` passes ONE argument — a probe reading `(a, b)` gets the array as `a`.
+  * `elementFromPoint` answers null OUTSIDE the viewport: a finger SCROLLS first, or every press
+    reads « covered by nothing ».
+  * a rule replayed alone needs the 8899 host: `run.sh` starts it and `heavy.sh` stops what it
+    started, so start it by hand after the build and kill it BY CAPTURED PID (never by pattern —
+    a pattern kill reaches the other wave's host).
+  * a Traceback with no FAIL line is a CRASH, never a fall.
+  * `mutate.sh` refuses a dirty tree: commit, then mutate.
+  * the frozen clock (2026-08-10) is OLDER than the real snapshot rows (08-14, 09-08), so « the
+    newest run » in the history is a real maintenance command, not the one a state just launched.
+  * a hold reading « the number appears somewhere in the line » is satisfied by any other number.
+  * the settings rule holds that every setting comes from a REAL configuration file: a demanded key
+    cannot sit in the settings seed.
