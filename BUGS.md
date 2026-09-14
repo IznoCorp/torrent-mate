@@ -470,7 +470,7 @@ when the defect comes back.
 | B-498 | Tile badges (`--waiting`, `--info`, `--warning`, `--neutral-signal`) draw with no fill the reader round could resolve to a declared token | the reader round | `open` |
 | B-499 | `scripts/mutate.sh` read no exit code before L13a — a rule falling with no FAIL line read as standing, so every mutation proof taken before the repair is unreplayed on its own | by L13a | `fixed #596` |
 | B-500 | The `card/pick` check mark on every resolution candidate card reads as « already selected »: nothing says the card is tappable to CHOOSE | by operator | `open` |
-| B-501 | « Rechercher une autre release » always lands on 0 candidates: the mock seed `releases.json` holds four releases, all Silo, and the handler filters by the title's presence in the release NAME | by operator | `open` |
+| B-501 | « Rechercher une autre release » always lands on 0 candidates: the mock seed `releases.json` holds four releases, all Silo, and the handler filters by the title's presence in the release NAME | by operator | `fixed #598` |
 | B-502 | `index.html`'s `#ptr` utilities are erased by `__reposPTR`'s `className = "ptr"` at every driver reset — pre-existing, not repaired at a·18 | by review | `open` |
 | B-503 | `panel-seasons.tsx`'s first render seeds two DISABLED query entries with an empty provider/id before the identity is known — inert, measured at 1 observer while the panel is open | by review | `open` |
 | B-504 | `frontend/maquette/harness/panel.py` has no deadline: a mutation that should fell it (`hasSheet: false`) hangs the served-copy lock instead, unwatched for 47 min | the reader round | `open` |
@@ -481,7 +481,7 @@ when the defect comes back.
 | B-509 | `bridge.py:300`'s hold « and the media sheet is gone » never asserts the sheet was open before the Back it reads | the reader round | `open` |
 | B-510 | Ruling 61's restoration is held by `bugs.py`'s crash on the missing button, not by a named hold asserting « Voir la fiche » present | the reader round | `open` |
 | B-511 | Ruling 61's register note says « 0 updates, 0 observers » where the measured candidate reads 1 observer on each empty-key query entry while the panel is open | the reader round | `open` |
-| B-530 | The navigation drawer closed by a firm leftward swipe shows itself open again for a fraction of a second as the closing animation ends | by operator | `open` |
+| B-530 | The navigation drawer closed by a firm leftward swipe shows itself open again for a fraction of a second as the closing animation ends | by operator | `fixed #598` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
 
@@ -744,6 +744,15 @@ Resolution candidate put to him: a « Choisir » pill per card (44 px, primary),
 tap the chosen card alone takes the check and the primary border for the 7 s undo window. Awaiting his
 word. **Owner**: the day's repair train, never L13a.
 
+**2026-09-15 — pill shipped #598; the marked-card half awaits the operator's word.** Ruled shape A on
+2026-09-14. Every candidate card now offers a « Choisir » pill (44 px, primary, a decorative span — the
+card stays the one button) and no card is marked before the pick: R161 h2 re-aimed from « the mark at
+the icon size » to « every card offers the pill, none carries a drawing », red on main, mutations the
+check mark in place of the word and beside it both fall. **The other half is not built**: measured on
+`arr-decision`, the resolution screen CLOSES on the pick (at 100 ms no screen is open; only the message
+« Identifié comme … Annuler » remains), so « the chosen card alone marked for the undo window » needs the
+screen kept open through the window — a behaviour change to R162 w2/w4, Back and the next folder.
+
 **B-501 — « Rechercher une autre release » always lands on 0 candidates.**
 
 Operator report, 2026-09-13 ~18:40 (tm-design, #2): the mock seed `releases.json` holds four releases,
@@ -751,6 +760,18 @@ all under Silo, and `mocks/handlers/acquisition.ts:272` filters candidates by th
 the release's own NAME — so every other followed or queued title answers an empty list. Repair: a
 releases seed per followed/queued title, or a generated list keyed by title, with a rule reading a
 non-empty list for a title the acquisition screen offers the verb on. **Owner**: the day's repair train.
+
+**FIXED #598.** `releases.json` keeps Silo's four rows and derives one per title the acquisition offers
+the verb on (the derivation is written in `fixture-register.json`, `RELEASES.converted`). The handler
+compared the title with the release name AS WRITTEN, so a multi-word title never matched its dotted
+name: both are compared folded now; the follow search's `found` and the quality profile count the
+title's own releases.
+
+    the rule            R194, `harness/release_candidates.py`: the titles enumerated from the cards of
+                        Acquisition › Suivis and › En cours, each picker opened through its own verb
+    seen RED first      on main's head, 14 of 14 titles empty from the follow panel, 6 of 6 from the queue
+    the mutations       the seed emptied for The Hawk → « empty: « The Hawk » » · the fold removed →
+                        ten follows and four queue titles named empty
 
 **B-502 — `#ptr`'s own utilities are erased at every driver reset.**
 
@@ -842,6 +863,24 @@ drawer, and « il apparaît rouvert une fraction de seconde au moment où l'anim
 termine »; the bottom panel's swipe-down showed the same shape earlier. Two mechanisms to read: the
 click ending the drag answered by the tap registry under the finger, and a paint frame at the
 transition's end. **Owner**: the repair train of 2026-09-14.
+
+**FIXED #598 — and the cause was neither mechanism.** Measured frame by frame on `main`: no click was
+answered under the pointer (`history.length` 4 → 4, the drawer stayed closed), and nothing reset the
+transform early. The gesture acknowledges itself with `feedback("commit", layer)`, and
+`[data-feedback]`'s `feedback-pulse` animated `transform: scale(0.985)`: an animation REPLACES the
+layer's own transform — its position — for 150 ms, so the menu's right edge went 148 → 285 px and the
+panel's top 448 → 314 px while both said closed. The keyframe now writes the individual `scale`
+property, which composes with `transform`.
+
+    the rule            R98, `harness/gestures.py`, four holds: the menu closed by a finger and by a
+                        mouse is never painted back open (rAF samples through the close), still closed
+                        with nothing pushed 1 s after the release, and the panel closed by a swipe down
+                        is never painted back up
+    seen RED first      on main's head, the three paint holds (285 px, 285 px, 314 px)
+    the mutations       the keyframe back to `transform: scale()` → the three paint holds fall ·
+                        `CLOSE_THRESHOLD` out of reach → five fall, « no close was recorded » ·
+                        a click reopening the menu 400 ms after the close → « still closed » and the
+                        paint holds fall (288 px)
 
 **B-477 — followed as held, sheet says not in the library.**
 Found by R173 (the mock-layer micro-wave). House of the Dragon (26/26), Ted Lasso (35/35) and Star
