@@ -132,6 +132,12 @@ post-merge gesture, and the citations move with it.
 `docs/superpowers/` — the brainstorming skill's default location for specs and plans — does not
 exist in this repository. A spec is a wave's design and lives with the wave.
 
+**For a lot cut into sub-lots** (ruled 2026-09-13), the model reads « wave » as the lot, not the
+sub-lot: the folder is the LOT's workspace, and it lives until the LAST sub-lot's gesture, not
+each sub-lot's own. A sub-lot's gesture deletes only the documents that are its alone (its brief,
+its resume) and cites them `@sha`; the folder, its design and its plan stay for the sub-lots still
+to come, and die together at the lot's own last gesture.
+
 ---
 
 ## 5. The guard, and where it runs
