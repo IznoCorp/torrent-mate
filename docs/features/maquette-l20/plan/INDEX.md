@@ -77,13 +77,13 @@ in the same tool call, **never `| tail -N` on a long gate**. Kill what you start
 | #   | Phase | What it lands | Register |
 | --- | --- | --- | --- |
 | 1 | [The contract](phase-01-contract.md) | four operations declared, three re-shaped, the mocks that MOVE, the demands regenerated, the rule labels bound to numbers | — |
-| 2 | [The named states leave the engine's ledger](phase-02-named-states.md) | `harness/states/system.ts`; the engine's table SHRINKS and its record follows | B-306's arm |
+| 2 | [The named states' home has already left the engine](phase-02-named-states.md) | one dated comment in `harness/states/system.ts` naming DESIGN § 5's 26; no code declared yet | — (B-306, B-352 closed by other lots) |
 | 3 | [The host, and the locks](phase-03-host-and-locks.md) | the « Pipeline » section of Système exists; the lock, the two sentinels and the sweep drawn | B-297 |
 | 4 | [The levers](phase-04-levers.md) | pause · resume · the automatic trigger · the bound's path; DOIT-4 on a lever; §13's loading | DOIT-3, DOIT-4 |
 | 5 | [« Relancer la veille »](phase-05-watch-now.md) | the veille's five states and DOIT-6's figures, from both emitters | DOIT-6, B-383 |
 | 6 | [The history list](phase-06-history.md) | the rows become paths; empty, degraded, loading, error | DOIT-6 |
 | 7 | [A run's detail, and its raw log folded](phase-07-run-detail.md) | the `/run/$runUid` screen, `ui/disclosure.tsx`, the log CLOSED by default | B-296 |
-| 8 | [B-371 — the path a hand takes](phase-08-hand-path.md) | `data-pipe` onto the verb registry, the engine's branch subtracted, the pastille reachable | B-371 |
+| 8 | [B-371 — the path a hand takes](phase-08-hand-path.md) — **opens after L13b merges**, re-cut against b·10-ter's shape then | `data-pipe` onto the verb registry, the engine's branch subtracted, the pastille reachable | B-371 |
 | 9 | [The close](phase-09-close.md) | the map, the register, the states counted, the report | all |
 
 ### The ordering, and its reason
@@ -93,11 +93,17 @@ in the same tool call, **never `| tail -N` on a long gate**. Kill what you start
 produces the demands, which is what makes the divergences of DESIGN § 3.2 decisions rather than
 discoveries.
 
-**The named states leave the engine SECOND, and it is not housekeeping.** `engine/states.js` is
-grandfathered at 786 non-blank lines and `scripts/check-frontend-boundaries.py` refuses the count
-going UP (B-306). This lot declares 26 states; **even two would be refused there.** Every phase
-after this one adds its ids to a file with no ceiling, so the block is met once instead of seven
-times. Phase 2 carries the measurement and the alternative it refused.
+**The named states' home already left the engine before this lot began, and phase 2 keeps its slot
+second anyway.** `frontend/maquette/design/src/engine/states.js@60530dbd8` was grandfathered at 786
+non-blank lines and `scripts/check-frontend-boundaries.py` refused the count going UP (B-306) — this
+lot declares 26 states, and **even two would have been refused there**, which is why the plan cut a
+phase to leave the engine before anything else could land. **L13a's phase a·1 performed that leaving
+whole, for all eleven surfaces, before this branch existed** (`304346145`); B-306 closed at
+`fixed #558` and B-352 (no surface born after L19 could enter the oracle's corpus for want of a home)
+closed at `fixed #596`, L13a's own pull request. Every phase from 3 on still adds its ids to
+`harness/states/system.ts`, a file with no ceiling, in this same order — phase 2 is re-cut to a single
+dated comment rather than renumbered away, and carries the historical measurement and the alternative
+once refused (`docs/features/maquette-l20/plan/phase-02-named-states.md`).
 
 **The host is a phase of its own** because it was the ruling's only subject (DESIGN § 1): cut by
 surface, the ruling would have touched four phases.
@@ -115,10 +121,15 @@ verb through the machinery phase 4 puts there.
 **The detail carries the disclosure primitive** because it is its only consumer in this lot; a
 primitive with no consumer is a primitive no rule can hold.
 
-**B-371 is LATE, and that is deliberate.** It is the lot's one engine subtraction and the one phase
-that moves an existing named state's precondition (`arr-queued`). Landing it early would put that
-oracle divergence before the surfaces that explain it, and would make every later phase's oracle
-reading harder to attribute.
+**B-371 is LATE, and that is deliberate — and now it is later still.** It is the lot's one engine
+subtraction and the one phase that moves an existing named state's precondition (`arr-queued`).
+Landing it early would put that oracle divergence before the surfaces that explain it, and would make
+every later phase's oracle reading harder to attribute. **Phases 1–7 are ENGINE-FREE** — none of them
+touches a `legacy.js` line, which is why L20 runs beside L13b rather than waiting for it. Phase 8 is
+the one phase that does, and its subject overlaps L13b's new phase b·10-ter, which converts the same
+`legacy.js` branch (`closest.dataset.pipe`) to the layer first: **phase 8 opens only after L13b
+merges**, and re-cuts against what b·10-ter actually did rather than executing as drawn
+(`phase-08-hand-path.md`'s own dated note).
 
 **The close is last** and re-reads the map and the register rather than trusting what the phases
 claimed.
@@ -161,9 +172,11 @@ Recorded here as § 7.1 asks, and written in full in DESIGN § 8. **No file outs
 2. **§ 8.2** — DOIT-6 is served by TWO operations; the clause map's row names one.
 3. **§ 8.3** — the parallelism bound exists in NO configuration file. It is a demand, and phase 1
    files it.
-4. **§ 8.4** — the named-state table cannot hold this lot's states, so phase 2 moves the Système
-   surface's slice of it out of the engine. No lot owed that; this one takes it because it is the
-   first that cannot proceed without it.
+4. **§ 8.4** — read this DESIGN section as history: it says the named-state table could not hold this
+   lot's states, so phase 2 would move the Système surface's slice of it out of the engine. **L13a
+   moved the whole table, all eleven surfaces, before this lot started** (`304346145`) — no lot owed
+   that either, and L20 no longer takes it. Phase 2 is re-cut to confirm the home already exists with
+   no ceiling (`docs/features/maquette-l20/plan/phase-02-named-states.md`).
 
 And one operation the contract's own clause map sends here that this lot DECLINES with its reason:
 `GET /api/pipeline/stages`, the Flow Board's eight stations of current stock — a board showing THE

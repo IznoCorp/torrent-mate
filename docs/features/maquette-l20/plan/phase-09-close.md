@@ -78,8 +78,12 @@ version. `scripts/check-implementation-state.py` holds the row by both.
 2. **Every mutation run**, with the hold that fell and the words it printed. A rule that never bit
    proves nothing.
 3. **The stale figures this wave re-measured**: `frontend/maquette/README.md` says the named states
-   number 54 (twice) and `product-intent.md` says 82; the count is **87 before this lot** and 113
-   after (`python3 -c "import re;print(len(re.findall(r'^\s*\[\s*\"([^\"]+)\"\s*,\s*\"', open('frontend/maquette/design/src/engine/states.js').read(), re.M)))"`).
+   number 54 (twice) and `product-intent.md` says 82; the count was **87 before this lot**
+   (`frontend/maquette/design/src/engine/states.js@60530dbd8`, before L13a moved it out — this wave's
+   own reading, 2026-09-14, summed the eleven files it moved to instead:
+   `python3 -c "import re,glob;print(sum(len(re.findall(r'^\s*\[\s*\"([^\"]+)\"\s*,\s*\"', open(f).read(), re.M)) for f in glob.glob('frontend/maquette/design/src/harness/states/*.ts')))"`,
+   read **87**) and is **113** after this lot's 26 land in `system.ts` — the same command, re-run once
+   more on the final head.
    **The README's own line is corrected on this branch; the constitution's is the operator's and is
    reported, never edited.**
 4. **« Guards green over what they do not read » — the recount**, added to `BUGS.md` § of that name

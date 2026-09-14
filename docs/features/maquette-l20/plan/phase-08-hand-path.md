@@ -1,5 +1,12 @@
 # Phase 8 — B-371: the path a hand takes
 
+> **Re-targeted by the steward on 2026-09-14**: this phase opens after L13b merges, not before — L13b's
+> new phase b·10-ter (`git show origin/feat/maquette-l13b:docs/features/maquette-l13/plan/phase-b10-ter-pipeline-status.md`)
+> converts the engine's `pipe` store key to `/api/pipeline/status` and the run/kill mutations, deleting
+> `legacy.js`'s `closest.dataset.pipe` branch — the exact subject this phase names below. When L13b has
+> merged, this phase re-cuts against b·10-ter's actual shape: it reads what b·10-ter already did before
+> writing anything, rather than executing this file as drawn.
+
 The lot's last repair, and the only one that subtracts from the engine. **B-371 is not a drawing —
 it is a PATH that does not exist.** DOIT-4's « En file » pastille is drawn, R138 passes on it, and
 no person can make it appear.
