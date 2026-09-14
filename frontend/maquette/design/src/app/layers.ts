@@ -163,9 +163,18 @@ export function announceEntries(entryCount: number): void {
  *
  * Args:
  *     record: The kind and subject the entry was written for.
+ *     drawn: True when nothing is open and the panel RETURNS — a Back from
+ *         the screen it was left for. The reopening then runs inside a view
+ *         transition, so the open panel is captured NEW under its
+ *         `leaving-panel` name and the stylesheet draws its return as the
+ *         departure read backwards. Motion is not decided here: under reduced
+ *         motion the panel carries no name and nothing moves.
  */
-function reopenPanelOfRecord(record: LayerRecord): void {
-  panel.openOnCurrentEntry(() => panel.produce(record.kind, record.subject));
+function reopenPanelOfRecord(record: LayerRecord, drawn = false): void {
+  const reopen = () =>
+    panel.openOnCurrentEntry(() => panel.produce(record.kind, record.subject));
+  if (drawn && document.startViewTransition) document.startViewTransition(reopen);
+  else reopen();
 }
 
 type NavigationEntry = {
@@ -245,7 +254,7 @@ export function onEngineBack(
     const record = layerRecordOf(state, "sheet");
     const samePage = record?.openedOn === String(store.read().state.page ?? "");
     if (record && (direction === "FORWARD" || samePage)) {
-      reopenPanelOfRecord(record);
+      reopenPanelOfRecord(record, true);
       return;
     }
     if (direction === "FORWARD") {
