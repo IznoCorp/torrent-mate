@@ -3,8 +3,13 @@
 THE RULING. The operator, on a phone reading « Candidats ambigus » for « Lucky »:
 « Le bouton de sélection prend trop de place, c'est toute la carte média qui
 doit être cliquable. » The candidate card is therefore ONE button carrying
-`data-resolve`, and what stays at its right edge is a decorative affordance at
-the icon size the button system offers — never the full-width pill it was.
+`data-resolve`, and what stays at its right edge is a decorative affordance —
+never the full-width pill it was.
+
+THE SECOND RULING (B-500). A check mark on every candidate read as « already
+selected », and nothing said the card was there to be chosen. The operator chose
+the affordance: a « Choisir » pill on every candidate — primary, a finger's
+height — and no check mark before the pick.
 
 WHAT IT READS, and each hold fails differently:
 
@@ -13,22 +18,16 @@ WHAT IT READS, and each hold fails differently:
       button carrying ITS OWN title in `data-resolve`, and a finger at the
       centre of its body lands inside that button. Held first, because the tap
       below is taken on one of them.
-  h2. THE AFFORDANCE IS THE ICON SIZE, no larger AND no smaller, it is drawn,
-      and it is a mark rather than a control. Its rendered box is compared with
-      a probe wearing `iconButton`'s own classes, read from the factory's
-      declaration through `factories.py`'s reader — so no pixel count is written
-      here, and a size the component does not offer cannot pass. A button inside
-      the card's button would be invalid markup and a control nobody can name,
-      hence the last half.
-
-      THE FLOOR IS HALF THE HOLD, and it was missing. A ceiling alone —
-      `width <= iconWidth` — is satisfied by zero, so the whole hold stayed
-      green over an affordance given `display: none`: the arithmetic ran over a
-      0 × 0 box and the nature hold read a tag and an attribute a hidden node
-      still carries. The only visible sign that a candidate card is an act
-      could have gone with nothing in the suite falling. So the size is held
-      both ways, and a second hold reads that a box exists at all and that
-      `visibility` has not taken it away.
+  h2. EVERY CARD OFFERS THE « CHOISIR » PILL, AND NO CARD IS MARKED. RE-AIMED,
+      and said so: this hold used to read ONE affordance held to the icon
+      button's size — the check mark B-500 retired. It now reads EVERY
+      candidate card: its `card/pick` says the word `fr.json` holds for it, is
+      drawn (a box, not made invisible) at least a finger tall, is painted in
+      the primary ground (compared with a probe wearing `bg-primary`, so no
+      colour is written here), and is a mark rather than a control — a button
+      inside the card's button would be invalid markup and a control nobody can
+      name. And no pill carries a drawing: the check mark inside it is the
+      « already selected » the ruling removed, whatever else the pill says.
   h10. EVERY CARD IS AT LEAST A FINGER TALL. The act is the whole card now, so
       the card IS the touch target and it owes the 44 px every other one in this
       harness owes. It measures 126, and a floor is written for the day the room
@@ -63,24 +62,22 @@ send — is `resolution_window.py`'s (R162). This rule stops at the folder leavi
 the queue, which the pick does at once.
 """
 import asyncio
+import json
 import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from common import ACTED, SETTLED, Journal, open_page
-from factories import read_factories
 
 from playwright.async_api import async_playwright
 
 # THE SCREEN WITH TIED CANDIDATES: « Lucky », four of five at the same score.
 TIED_STATE = "arr-decision"
 
-# THE FACTORY WHOSE ONE SIZE THE AFFORDANCE IS HELD TO.
-ICON_FACTORY = "iconButton"
-
-# A RENDERED BOX IS FRACTIONAL; a box equal to the probe's must not fall on a
-# rounding of the layout engine.
-SUBPIXEL = 0.5
+# THE WORD THE PILL SAYS, read from the resource the interface reads it from.
+CHOOSE = json.loads((pathlib.Path(__file__).resolve().parents[1] / "design" / "src"
+                     / "i18n" / "fr.json").read_text(encoding="utf-8"))[
+    "screens"]["resolution"].get("choose")
 
 # WHAT A FINGER NEEDS, and it is the figure every touch-target rule in this
 # harness holds: 44 px. The card measures 126 today, so this is a floor with
@@ -181,41 +178,32 @@ CARD_BOXES = """() => {
   });
 }"""
 
-# THE ACT'S MARK ON THE FIRST CANDIDATE, beside a probe wearing the icon size.
-AFFORDANCE = """(classes) => {
+# EVERY CANDIDATE'S PILL, beside a probe wearing the primary ground.
+PILLS = """() => {
   const screen = """ + SCREEN + """;
-  const card = screen.querySelector('[data-part="card"][data-nonmedia="candidat"]');
-  const mark = card?.querySelector('[data-part="card/pick"], [data-part="card/foot"]');
+  const cards = [...screen.querySelectorAll('[data-part="card"][data-nonmedia="candidat"]')];
   const probe = document.createElement('span');
-  probe.className = classes;
+  probe.className = 'bg-primary';
   document.body.appendChild(probe);
-  const icon = probe.getBoundingClientRect();
+  const primary = getComputedStyle(probe).backgroundColor;
   probe.remove();
-  const box = mark?.getBoundingClientRect();
-  return {part: mark?.dataset.part ?? null, tag: mark?.tagName ?? null,
-          hidden: mark?.getAttribute('aria-hidden') === 'true',
-          drawn: !!mark && getComputedStyle(mark).visibility !== 'hidden',
-          width: box?.width ?? null, height: box?.height ?? null,
-          iconWidth: icon.width, iconHeight: icon.height};
+  return cards.map((card) => {
+    const pill = card.querySelector('[data-part="card/pick"]');
+    const box = pill?.getBoundingClientRect();
+    return {title: (card.querySelector('[data-part="card/title"]')?.textContent || '').trim(),
+            tag: pill?.tagName ?? null,
+            text: (pill?.textContent || '').trim(),
+            hidden: pill?.getAttribute('aria-hidden') === 'true',
+            drawn: !!pill && getComputedStyle(pill).visibility !== 'hidden'
+                   && !!box && box.width > 0 && box.height > 0,
+            height: box?.height ?? 0,
+            primary: !!pill && getComputedStyle(pill).backgroundColor === primary,
+            drawing: !!pill?.querySelector('svg')};
+  });
 }"""
 
 # WHAT « À TRAITER » HOLDS, read where the surfaces read it.
 BLOCKED = "()=>(window.__queue?.().blocked || []).map((card) => card.t)"
-
-
-def icon_classes():
-    """Reads the classes `iconButton` declares: its base and its one size.
-
-    Returns:
-        The class list as one string, or an empty string when the button
-        system declares no such factory.
-    """
-    factories = read_factories()[0]
-    for factory in factories.values():
-        if factory["name"] == ICON_FACTORY:
-            sizes = [token for tokens in factory["branches"].values() for token in tokens]
-            return " ".join(factory["base"] + sizes)
-    return ""
 
 
 async def announced_names(context, page, selector):
@@ -306,9 +294,8 @@ async def pick_by_finger(page, state=TIED_STATE):
 async def main():
     """Runs the three holds against the tied screen."""
     journal = Journal("R161 — the candidate card is the gesture")
-    classes = icon_classes()
-    journal.check("the button system offers an icon size", bool(classes),
-                  classes or f"no {ICON_FACTORY} factory is declared")
+    journal.check("the resource holds the pill's word", bool(CHOOSE),
+                  f"screens.resolution.choose = {CHOOSE!r}")
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel="chrome")
         context, page = await open_page(browser)
@@ -339,23 +326,29 @@ async def main():
                       str([{key: offer[key] for key in ("title", "tag", "landsOn", "covering")}
                            for offer in offers if not offer["offered"]][:2]))
 
-        # ── h2: the affordance, its size and its nature ───────────────────
-        mark = await page.evaluate(AFFORDANCE, classes)
+        # ── h2: every card offers the pill, and no card is marked ─────────
+        pills = await page.evaluate(PILLS)
         journal.check(
-            "the affordance IS the icon size the system offers, no larger and no smaller",
-            mark["width"] is not None and mark["iconWidth"] > 0
-            and abs(mark["width"] - mark["iconWidth"]) <= SUBPIXEL
-            and abs(mark["height"] - mark["iconHeight"]) <= SUBPIXEL,
-            f"{mark['part']} {mark['width']}×{mark['height']} against "
-            f"{mark['iconWidth']}×{mark['iconHeight']}")
+            "every candidate card offers the « Choisir » pill, drawn at a finger's height",
+            bool(pills) and all(pill["text"] == CHOOSE and pill["drawn"]
+                                and pill["height"] >= TOUCH_FLOOR for pill in pills),
+            str([{key: pill[key] for key in ("title", "text", "drawn", "height")}
+                 for pill in pills if not (pill["text"] == CHOOSE and pill["drawn"]
+                                           and pill["height"] >= TOUCH_FLOOR)][:2])
+            or f"{len(pills)} pills")
         journal.check(
-            "and it is drawn — a box of its own, and not made invisible",
-            bool(mark["width"]) and bool(mark["height"]) and mark["drawn"],
-            f"{mark['part']} {mark['width']}×{mark['height']}, "
-            f"visible {mark['drawn']}")
-        journal.check("the affordance is a mark, not a control of its own",
-                      mark["tag"] is not None and mark["tag"] != "BUTTON" and mark["hidden"],
-                      f"{mark['part']} is a {mark['tag']}, aria-hidden {mark['hidden']}")
+            "and in the primary ground, as a mark and not a control of its own",
+            bool(pills) and all(pill["primary"] and pill["tag"] not in (None, "BUTTON")
+                                and pill["hidden"] for pill in pills),
+            str([{key: pill[key] for key in ("title", "tag", "primary", "hidden")}
+                 for pill in pills if not (pill["primary"] and pill["hidden"]
+                                           and pill["tag"] not in (None, "BUTTON"))][:2])
+            or f"{len(pills)} pills")
+        journal.check(
+            "and no card is marked before the pick — no drawing inside any pill",
+            bool(pills) and not any(pill["drawing"] for pill in pills),
+            str([pill["title"] for pill in pills if pill["drawing"]])
+            or f"{len(pills)} pills, none marked")
 
         # ── h10, h11: the card's own floor, and its single way in ─────────
         boxes = await page.evaluate(CARD_BOXES)
