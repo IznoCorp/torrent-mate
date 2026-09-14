@@ -1,9 +1,9 @@
 """R182 — the passages: a row is a path, the line is COMPOSED, and a short list admits it.
 
-TWO HALVES, AND THIS FILE SAYS WHICH IS WHICH. The LIST's holds are here and
-they are the ones below. The DETAIL's holds — a run's steps, its reasons, its
-remaining steps drawn as unknown — belong to the screen a row leads to, and they
-are added to this same file when that screen exists: one subject, one rule.
+TWO HALVES, AND THIS FILE SAYS WHICH IS WHICH. The LIST's holds are 1 to 5;
+the DETAIL's — the screen a row leads to — are 6 to 8. One subject, one rule:
+the list says a run happened, the detail says what happened in it, and both are
+read against the same answer.
 
 WHAT THE LIST IS HELD TO:
 
@@ -21,6 +21,19 @@ WHAT THE LIST IS HELD TO:
   5. THE TRIGGER IS IN WORDS. `watcher` reads « la veille », `web` reads « depuis
      l'interface ». A legend that teaches the reader a vocabulary is a standing
      refusal: the row says the thing itself.
+
+WHAT THE DETAIL IS HELD TO:
+
+  6. ONE ROW PER STEP THE LAYER ANSWERED, in its order, and each row's counts
+     are THOSE counts, each in its own phrase (« 3 réussis », « 79 ignorés »).
+     A digit found anywhere in the row is not a count: any other number
+     satisfies it.
+  7. `reasons[]` ARE DRAWN AS LINES, as many as the step recorded, verbatim —
+     §8's « chaque rien a sa raison ». A reason is data displayed, not copy.
+  8. A RUN STILL GOING DOES NOT ANSWER FOR ITS FUTURE. The live step says it is
+     under way, and every step the run has not reached is drawn as unknown
+     (« — ») — never « pas faite », never a count. §13: a part not yet known is
+     not printed as an answer.
 """
 import asyncio
 import pathlib
@@ -93,6 +106,44 @@ ROW_TEXT = """(runUid)=>{
 # HOW MANY ROWS ARE DRAWN.
 ROW_COUNT = """(part)=>document.querySelectorAll(`[data-part="${part}"]`).length"""
 
+# THE STATES OF A PASSAGE'S SCREEN.
+DETAIL = "run-detail"
+RUNNING = "run-detail-running"
+
+# WHAT THE LAYER ANSWERED FOR THE RUN ON SCREEN, read by the address the screen
+# is at — never by a uid written here, which would read a run the screen is not
+# showing and agree with it.
+ANSWERED_RUN = """async ()=>{
+  const uid = decodeURIComponent(location.pathname.split('/').pop());
+  const answer = await fetch('/api/pipeline/history/' + uid);
+  if (!answer.ok) return null;
+  const run = await answer.json();
+  if (!run) return null;
+  return {runUid: run.runUid, outcome: run.outcome,
+          steps: (run.steps || []).map((step) => ({
+            name: step.name, status: step.status,
+            successCount: step.successCount ?? 0, skipCount: step.skipCount ?? 0,
+            errorCount: step.errorCount ?? 0, unmatchedCount: step.unmatchedCount ?? 0,
+            reasons: step.reasons || []}))};
+}"""
+
+# WHAT THE SCREEN DREW, step by step.
+DRAWN_STEPS = """()=>[...document.querySelectorAll('[data-part="run/step"]')].map((row) => {
+  const text = (node) => node ? (node.textContent || '').replace(/\\s+/g, ' ').trim() : null;
+  return {
+    name: row.dataset.step || null,
+    status: text(row.querySelector('[data-part="run/step-status"]')),
+    counts: text(row.querySelector('[data-part="run/step-counts"]')),
+    reasons: [...row.querySelectorAll('[data-part="run/reason"]')].map(text),
+    whole: text(row),
+  };
+})"""
+
+# EACH COUNT AND THE PHRASE IT IS SAID IN — the singular stem, so « 1 réussi »
+# and « 3 réussis » both carry it and « 3 ignorés » does not.
+COUNT_PHRASES = (("successCount", "réussi"), ("skipCount", "ignoré"),
+                 ("errorCount", "en erreur"), ("unmatchedCount", "non identifié"))
+
 # The words the triggers are said with — the interface's own, never a legend.
 TRIGGER_WORDS = ("la veille", "depuis l'interface", "un téléchargement", "le planificateur",
                  "en ligne de commande", "le filet de sécurité")
@@ -120,7 +171,7 @@ async def drive(journal, page, state):
 
 
 async def main():
-    """Reads the passages: their rows, their line, their two bad cases."""
+    """Reads the passages: their rows, their line, their bad cases, and a run's detail."""
     journal = Journal("R182 — the passages: a row is a path, the line is composed, "
                       "and a short list admits it")
     async with async_playwright() as playwright:
@@ -186,6 +237,60 @@ async def main():
         journal.check("an empty list says so", bool(said) and "aucun" in said.lower(),
                       f"{said!r}")
         journal.check("and draws no row at all", rows == 0, f"{rows}")
+
+        # 6 — ONE ROW PER STEP, AND ITS COUNTS ARE THE LAYER'S.
+        await drive(journal, page, DETAIL)
+        run = await page.evaluate(ANSWERED_RUN)
+        drawn = await page.evaluate(DRAWN_STEPS)
+        answered_names = [step["name"] for step in (run or {}).get("steps", [])]
+        journal.check("the detail draws one row per step the layer answered, in its order",
+                      bool(answered_names) and [row["name"] for row in drawn] == answered_names,
+                      f"drawn {[row['name'] for row in drawn]} · answered {answered_names}")
+        wrong = []
+        for step in (run or {}).get("steps", []):
+            row = next((one for one in drawn if one["name"] == step["name"]), None)
+            for field, phrase in COUNT_PHRASES:
+                if step[field] and (row is None or f"{step[field]} {phrase}" not in (row["counts"] or "")):
+                    wrong.append(f"{step['name']}: {step[field]} {phrase} not in "
+                                 f"{row and row['counts']!r}")
+        journal.check("and each step's counts are THOSE counts, each in its own phrase",
+                      bool(answered_names) and not wrong, "; ".join(wrong[:4]))
+
+        # 7 — THE REASONS, AS MANY AS RECORDED, VERBATIM.
+        missing = []
+        for step in (run or {}).get("steps", []):
+            row = next((one for one in drawn if one["name"] == step["name"]), None)
+            said = (row or {}).get("reasons", [])
+            if len(said) != len(step["reasons"]):
+                missing.append(f"{step['name']}: {len(said)} drawn, {len(step['reasons'])} recorded")
+            elif any(" ".join(reason.split()) not in (line or "") for reason, line in zip(step["reasons"], said)):
+                missing.append(f"{step['name']}: a reason is not drawn as recorded")
+        journal.check("the reasons are drawn as lines, as many as recorded, verbatim",
+                      any(step["reasons"] for step in (run or {}).get("steps", [])) and not missing,
+                      "; ".join(missing[:4]))
+
+        # 8 — A RUN STILL GOING DOES NOT ANSWER FOR ITS FUTURE.
+        await drive(journal, page, RUNNING)
+        run = await page.evaluate(ANSWERED_RUN)
+        drawn = await page.evaluate(DRAWN_STEPS)
+        steps = (run or {}).get("steps", [])
+        journal.check("the layer answers the run as still going",
+                      bool(run) and run["outcome"] == "running", f"{run and run['outcome']!r}")
+        live = next((step for step in steps if step["status"] == "running"), None)
+        live_row = next((row for row in drawn if live and row["name"] == live["name"]), None)
+        journal.check("the live step says it is under way",
+                      bool(live_row) and "en cours" in (live_row["status"] or "").lower(),
+                      f"{live_row and live_row['status']!r}")
+        reached = {step["name"] for step in steps}
+        ahead = [row for row in drawn if row["name"] not in reached]
+        journal.check("the steps not yet reached are drawn",
+                      len(ahead) > 0, f"{len(drawn)} drawn, {len(reached)} answered")
+        journal.check("and each says « — », never « pas faite » and never a count",
+                      bool(ahead) and all((row["status"] or "") == "—"
+                                          and "pas faite" not in (row["whole"] or "").lower()
+                                          and not any(ch.isdigit() for ch in (row["whole"] or ""))
+                                          for row in ahead),
+                      f"{[(row['name'], row['status']) for row in ahead]}")
 
         await context.close()
         await browser.close()

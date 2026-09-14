@@ -22,6 +22,12 @@ stack run out — which is what closes an installed app on Android. A page canno
 close itself; exhausting its history is the only honest thing it can do, and
 this script checks that it does exactly that and nothing more.
 
+EXTENDED (R187) to one passage's screen. Opening it from a row of the passages
+is an ARRIVAL, so it stacks exactly one entry — read on `history.length`, never
+on the address alone, which a replace would also have changed. Opening its
+folded raw output is ADJUSTING the screen, so it stacks nothing and leaves the
+entry as it was; and one back from there leaves the screen, not the fold.
+
 THE `screen` FIELD READS `[data-part="screen"][data-open]`. It read the legacy
 `#screen` node, which nothing ever opened, so it was false whatever was on
 screen; it now says whether a screen is open. The hold count is unchanged.
@@ -221,6 +227,53 @@ async def main():
         check("and lands on the entry the dialog was opened over, not the one under it",
               landed == beneath, f"{beneath} → {landed}")
         await second.close()
+
+        # ── R187: A PASSAGE IS AN ARRIVAL, ITS FOLD IS AN ADJUSTMENT ──────
+        third = await b.new_context(viewport={"width": 390, "height": 844},
+                                    is_mobile=True, has_touch=True)
+        run_page = await third.new_page()
+        run_errors = []
+        run_page.on("pageerror", lambda e: run_errors.append(str(e)))
+        await run_page.goto("http://127.0.0.1:8899/", wait_until="load")
+        await run_page.evaluate("()=>window.__loadingDone?.()")
+        await run_page.evaluate("()=>window.__go('runs-list')")
+        await run_page.wait_for_timeout(500)
+        floor = await run_page.evaluate("()=>history.length")
+        uid = await run_page.evaluate(
+            """()=>{const row=document.querySelector('[data-part="runs/row"]');
+                    if(!row) return null; row.scrollIntoView({block:'center'}); row.click();
+                    return row.dataset.run;}""")
+        await run_page.wait_for_timeout(700)
+        opened = await run_page.evaluate(
+            """()=>({length: history.length, path: location.pathname,
+                     screen: !!document.querySelector('[data-part="screen"][data-open][data-key^="run:"]')})""")
+        check("opening a passage from its row stacks exactly one entry (R187)",
+              bool(uid) and opened["screen"] and opened["length"] == floor + 1
+              and opened["path"].endswith(uid or "\0"),
+              f"{floor} → {opened['length']}, {opened['path']}, screen={opened['screen']}")
+        entry = await run_page.evaluate("()=>JSON.stringify(history.state)")
+        folded = await run_page.evaluate(
+            """()=>{const toggle=document.querySelector('[data-part="run/log-toggle"]');
+                    if(!toggle) return false; toggle.scrollIntoView({block:'center'});
+                    toggle.click(); return true;}""")
+        await run_page.wait_for_timeout(400)
+        adjusted = await run_page.evaluate(
+            """()=>({length: history.length, entry: JSON.stringify(history.state),
+                     shown: Boolean(document.querySelector('[data-part="run/log"]')?.checkVisibility())})""")
+        check("opening its raw output stacks nothing and leaves the entry as it was (R187)",
+              folded and adjusted["shown"] and adjusted["length"] == opened["length"]
+              and adjusted["entry"] == entry,
+              f"toggle={folded} shown={adjusted['shown']} {opened['length']} → "
+              f"{adjusted['length']}, entry kept={adjusted['entry'] == entry}")
+        await run_page.go_back()
+        await run_page.wait_for_timeout(450)
+        left = await run_page.evaluate(
+            """()=>({screen: !!document.querySelector('[data-part="screen"][data-open]'),
+                     page: state.page})""")
+        check("and one back leaves the passage, not the fold, onto Système (R187)",
+              not left["screen"] and left["page"] == "sys", str(left))
+        check("no JS error around a passage", not run_errors, str(run_errors))
+        await third.close()
 
         check("no JS error", not errors, str(errors))
         await b.close()

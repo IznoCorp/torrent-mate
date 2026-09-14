@@ -66,3 +66,15 @@ After phase 4's gate, a small tooling commit of L20's: `oracle.py --accept` and 
 served copy (`served_copy.py --acquire`, as `run.sh` and `mutate.sh` do) and assert its stamp is the
 current head before writing. A bare accept over a foreign build must REFUSE, never rewrite the
 reference. Its test is written FIRST, in the oracle's own test file, and seen red.
+
+## 7 — phase 7: a run in flight, a run nobody holds, a failed run's steps (steward, 2026-09-14)
+
+As the implementer proposed. (1) `run-detail-running` is DERIVED from the snapshot's first pipeline row
+(2b598104) by a layer dial, `setRunInProgress`: its first five steps verbatim, the sixth live and
+knowing nothing, the rest absent — the provenance in the dial's comment and the ledger, ruling 5's
+shape; the remaining steps are named from the interface's own pipeline step order. (2) `readRun`
+answers 404 for an unknown run through a `refused(404, detail)` helper in `mocks/router.ts`,
+`mocks/index.ts` at zero net lines; the screen draws the sentence and a way back to Système. (3)
+`run-detail-failed` draws the error whole and marks NO step — the only real failed row records none;
+the rule does not hold « a step marked » there, and the contract carries one demand line: a failed
+run's steps with the failing one named.

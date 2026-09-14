@@ -242,6 +242,10 @@
     "system/runs": {
       "selector": "[data-region=\"system/runs\"]",
       "note": "the passages, each row a path to its own run"
+    },
+    "run/body": {
+      "selector": "[data-region=\"run/body\"]",
+      "note": "one passage: its steps, its reasons, its raw output folded away"
     }
   },
   "$reportedDefects": {

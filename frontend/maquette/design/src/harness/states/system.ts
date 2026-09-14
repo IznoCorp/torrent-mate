@@ -5,11 +5,33 @@
 // `run` builds the state. The driver resets the interface before every state,
 // so an entry pins only what its state means to show.
 import { applyState, type NamedState } from "../drive";
+import type { components } from "../../contract/types";
 
 // How long a read is held back to show a section that is still waiting. Long
 // enough that the state can be looked at, and it is a latency rather than a
 // failure: what is drawn is « not yet », never « it broke ».
 const HELD_BACK = 60000;
+
+// How long after its screen is asked for a fold is opened: the read has to
+// answer and the screen draw before there is a fold to open.
+const OPEN_AFTER = 300;
+
+type RunDetail = components["schemas"]["RunDetail"];
+
+/**
+ * Opens one passage's screen, over Système.
+ *
+ * THE RUN IS PICKED FROM THE LAYER'S OWN HISTORY by what the state is about —
+ * a failure, a maintenance command — never by an identifier written here,
+ * which would name a row the snapshot may not hold tomorrow.
+ *
+ * @param which Which run; the newest pipeline run when omitted.
+ */
+function openRun(which: (run: RunDetail) => boolean = (run) => run.kind === "pipeline"): void {
+  applyState({ page: "sys", phase: "ready", fault: false });
+  const run = (window.__mocks?.pipelineRuns() ?? []).find(which);
+  if (run) window.__screens.run(run.runUid);
+}
 
 // THE PIPELINE'S STATES JOIN THIS TABLE ONE SURFACE AT A TIME. The global
 // levers, the veille, the locks, the passages and a passage's detail add their
@@ -230,6 +252,47 @@ export function systemStates(): NamedState[] {
         window.__mocks?.setSweepFinished(false);
         applyState({ page: "sys", phase: "ready", fault: false });
       },
+    ],
+    [
+      "run-detail",
+      "Un passage — réussi",
+      () => openRun(),
+    ],
+    [
+      "run-detail-running",
+      "Un passage — encore en cours",
+      () => {
+        window.__mocks?.reset();
+        window.__mocks?.setRunInProgress(true);
+        openRun();
+      },
+    ],
+    [
+      "run-detail-failed",
+      "Un passage — échoué",
+      () => openRun((run) => run.outcome === "error"),
+    ],
+    [
+      "run-detail-log",
+      "Un passage — le journal brut déplié",
+      () => {
+        openRun();
+        // THE FOLD OPENED THE WAY A FINGER OPENS IT, once the screen is drawn:
+        // a state that set `open` in the markup would be a different screen.
+        window.setTimeout(() => {
+          document.querySelector<HTMLElement>('[data-part="run/log-toggle"]')?.click();
+        }, OPEN_AFTER);
+      },
+    ],
+    [
+      "run-detail-no-log",
+      "Un passage — sortie non conservée",
+      () => openRun((run) => run.kind === "pipeline" && !run.outputTail && run.outcome === "success"),
+    ],
+    [
+      "run-detail-maintenance",
+      "Un passage — une commande de maintenance",
+      () => openRun((run) => run.kind === "maintenance" && Boolean(run.optionsJson)),
     ],
     [
       "locks-orphans",

@@ -529,6 +529,72 @@
         "scrape-resolve": "une reprise d'identification"
       }
     },
+    "run": {
+      "back": "Retour",
+      "title": "Un passage",
+      "outcome": {
+        "success": "réussi",
+        "error": "échoué",
+        "running": "en cours",
+        "killed": "interrompu",
+        "paused": "en pause"
+      },
+      "triggeredBy": "déclenché par {{trigger}}",
+      "dryRun": "à blanc",
+      "steps": "Étapes",
+      "step": {
+        "ingest": "Arrivée des téléchargements",
+        "sort": "Tri par catégorie",
+        "clean": "Nettoyage des noms",
+        "scrape": "Identification",
+        "cleanup": "Nettoyage des restes",
+        "enforce": "Mise aux normes",
+        "verify": "Vérification",
+        "trailers": "Bandes-annonces",
+        "dispatch": "Rangement sur les disques",
+        "follow-detect": "Détection des suivis",
+        "search": "Recherche des sorties",
+        "grab": "Récupération"
+      },
+      "stepStatus": {
+        "success": "faite",
+        "skipped": "sautée",
+        "error": "en échec",
+        "running": "Étape en cours",
+        "unknown": "—"
+      },
+      "succeeded_one": "{{count}} réussi",
+      "succeeded_other": "{{count}} réussis",
+      "skipped_one": "{{count}} ignoré",
+      "skipped_other": "{{count}} ignorés",
+      "failed_one": "{{count}} en erreur",
+      "failed_other": "{{count}} en erreur",
+      "unmatched_one": "{{count}} non identifié",
+      "unmatched_other": "{{count}} non identifiés",
+      "counted": "{{name}} : {{count}}",
+      "count": {
+        "detected": "détectés",
+        "enqueued": "mis en file",
+        "skipped_owned": "déjà possédés",
+        "skipped_dup": "doublons",
+        "resurrected": "repris",
+        "closed_owned": "clos, déjà possédés",
+        "available": "disponibles",
+        "waiting": "en attente",
+        "grabbed": "récupérés",
+        "rc": "code de sortie"
+      },
+      "nothingCounted": "aucun élément",
+      "error": "Erreur enregistrée",
+      "options": "Options",
+      "rawLog": "Journal brut",
+      "noLog": "Sortie non conservée pour ce passage.",
+      "notFound": "Ce passage n'existe pas ou n'est plus enregistré.",
+      "notFoundBack": "Revenir aux passages",
+      "errorSubject": "ce passage",
+      "leftBehind": "Ce que ce passage a laissé",
+      "leftBehindLink": "Voir les arrivées"
+    },
     "arrivals": {
       "introLead": "Arrivées porte la santé du PIPELINE",
       "introRest": " — ce qui coince, ce qui est arrivé, et le passage lui-même. Une machine en peine est l'affaire de Système ; un média en peine est l'affaire d'ici. C'est cette coupure qui décide de la place de chaque panneau, et non la page dont il venait.",

@@ -3,6 +3,7 @@
 // The table is keyed by the contract's own path templates —
 // `/api/media/{provider}/{providerId}` — so a route this layer answers and a
 // route the contract declares cannot drift apart without a guard seeing it.
+import { setLastStatus } from "./answered";
 
 /** One request, as a handler receives it. */
 export type MockRequest = {
@@ -16,8 +17,53 @@ export type MockRequest = {
   body: unknown;
 };
 
-/** What a handler answers with: a payload, or a payload and a status. */
+/** What a handler answers with: a payload, or a refusal made by `refused`. */
 export type MockAnswer = unknown;
+
+// THE MARK A REFUSAL CARRIES, so no payload a handler returns can be mistaken
+// for one — a seed with a `status` field is data, not a decision.
+const REFUSAL = Symbol("refusal");
+
+/** A handler's own refusal: the status it chose, and the reason it gives. */
+type Refusal = { [REFUSAL]: true; status: number; detail: string };
+
+/**
+ * A handler's refusal to answer, with the status the contract declares for it.
+ *
+ * A HANDLER DECIDES SOME STATUSES ITSELF. A scenario arms a failure from
+ * outside; « no run carries that identifier » is known only once the handler
+ * has looked, and answering `null` with a 200 in its place would tell the
+ * interface the passage exists and is empty.
+ *
+ * @param status The status, one the operation declares.
+ * @param detail Why, in the problem body's own words.
+ * @returns The refusal, for the layer to answer with.
+ */
+export function refused(status: number, detail: string): Refusal {
+  return { [REFUSAL]: true, status, detail };
+}
+
+/**
+ * What one handler's answer comes to on the wire.
+ *
+ * AND THE RECORD SAYS THE SAME: a call recorded as 200 and answered 404 is the
+ * one disagreement `answered()` exists to make impossible.
+ *
+ * @param status The status the scenario settled on before the handler ran.
+ * @param answer What the handler returned.
+ * @returns The status and the body to send.
+ */
+export function settled(status: number, answer: MockAnswer): { status: number; payload: unknown } {
+  if (typeof answer !== "object" || answer === null || !(REFUSAL in answer)) {
+    return { status, payload: answer };
+  }
+  const refusal = answer as Refusal;
+  setLastStatus(refusal.status);
+  return {
+    status: refusal.status,
+    payload: { status: refusal.status, title: "refused by the handler", detail: refusal.detail },
+  };
+}
 
 /** One operation this layer answers. */
 export type MockRoute = {

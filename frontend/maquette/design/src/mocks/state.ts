@@ -51,6 +51,9 @@ export type PipelineState = components["schemas"]["PipelineState"];
 // contract's enum, and the type above is what refuses a misspelling of it.
 const IDLE: PipelineState = "idle";
 
+// How many steps the run caught in flight had finished.
+const STEPS_FINISHED = 5;
+
 // The state a paused pipeline is in, for the dial that puts it there.
 const PAUSED: PipelineState = "paused";
 
@@ -351,6 +354,7 @@ export type MockDials = {
   setHistoryDegraded: (degraded: boolean) => void;
   setSweepFinished: (finished: boolean) => void;
   setTmpOrphans: (present: boolean) => void;
+  setRunInProgress: (going: boolean) => void;
 };
 
 /** Those dials, over the layer's own state. */
@@ -392,5 +396,18 @@ export const mockDials: MockDials = {
   },
   setTmpOrphans: (present: boolean) => {
     mockState().tmpOrphans = present ? copyOf<Schemas["TmpOrphan"][]>(TMP_ORPHANS) : [];
+  },
+  setRunInProgress: (going: boolean) => {
+    // THE SNAPSHOT HOLDS NO RUN STILL GOING: this is its first real pipeline
+    // row caught after its fifth step — those five verbatim, the sixth live and
+    // knowing nothing yet, the rest not in the answer, as a run in flight is.
+    const runs = copyOf<Schemas["RunDetail"][]>(PIPELINE_RUNS);
+    const run = runs.find((one) => one.kind === "pipeline");
+    if (going && run) {
+      const live = run.steps[STEPS_FINISHED];
+      run.steps = [...run.steps.slice(0, STEPS_FINISHED), { name: live.name, status: "running" }];
+      Object.assign(run, { outcome: "running", endedAt: null, durationS: null, outputTail: null });
+    }
+    mockState().pipelineRuns = runs;
   },
 };

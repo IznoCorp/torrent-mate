@@ -63,6 +63,8 @@ type Screens = {
   // already holds them (`state.addQ`, a literal like `"identify"`) — the
   // validated union lives in `/add`'s own `validateSearch`, not here.
   add: (q?: string, mode?: string) => void;
+  // One passage, by its identifier — an arrival from the passages' list.
+  run: (runUid: string) => void;
 };
 
 declare global {
@@ -309,5 +311,6 @@ fillScreensDoor({
       },
     });
   },
+  run: (runUid: string) => go({ to: "/run/$runUid", params: { runUid } }),
 });
 }

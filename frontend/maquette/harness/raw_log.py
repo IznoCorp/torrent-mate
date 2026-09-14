@@ -7,8 +7,9 @@ until someone asks for it.
 
 WHAT IS READ, and each hold is a different claim:
 
-  1. AT REST THE LINES ARE NOT RENDERED. Read as `offsetParent === null` on the
-     content, NOT as « the `open` attribute is absent ». An attribute's absence
+  1. AT REST THE LINES ARE NOT RENDERED. Read on the content itself — its
+     `offsetParent` and `checkVisibility()` — NOT as « the `open` attribute is
+     absent ». An attribute's absence
      is a claim about markup; whether a reader can SEE the lines is the claim
      B-296 makes, and the two part company the moment anything styles the
      element.
@@ -40,10 +41,15 @@ LOG = "run/log"
 TOGGLE = "run/log-toggle"
 
 # WHETHER THE LINES ARE RENDERED AT ALL — the claim, and not the attribute.
+# `offsetParent` ALONE IS BLIND TO A NATIVE FOLD, and that was measured: Chrome
+# hides a closed `<details>`' content with `content-visibility: hidden`, which
+# leaves every box laid out, so `offsetParent` stays non-null over lines nobody
+# can see. `checkVisibility()` is the browser's own answer to « can a reader see
+# this », and it reads that ancestor; both must say yes.
 RENDERED = """(part)=>{
   const node = document.querySelector(`[data-part="${part}"]`);
   if (!node) return null;
-  return node.offsetParent !== null;
+  return node.offsetParent !== null && node.checkVisibility();
 }"""
 
 # WHAT THE BLOCK HOLDS.
@@ -71,18 +77,23 @@ PRESS = """(part)=>{
 # against what the fold reveals.
 ANSWERED_TAIL = """async ()=>{
   const uid = location.pathname.split('/').pop();
-  const detail = await (await fetch('/api/pipeline/history/' + uid)).json();
-  return detail.outputTail;
+  const answer = await fetch('/api/pipeline/history/' + uid);
+  const detail = answer.ok ? await answer.json() : null;
+  return detail ? detail.outputTail : null;
 }"""
 
-# WHO SCROLLS SIDEWAYS: the block may, the page may not.
+# WHO SCROLLS SIDEWAYS: the block may, and nothing around it may. The screen
+# scrolls inside its own viewport, so « the page » is read twice — the document
+# and the screen's viewport — and either one spilling sideways is the defect.
 SCROLLS = """(part)=>{
   const node = document.querySelector(`[data-part="${part}"]`);
-  const page = document.querySelector('#view') || document.scrollingElement;
+  const spills = (element) => Boolean(element) && element.scrollWidth > element.clientWidth + 1;
+  const viewport = document.querySelector('[data-part="screen"][data-open] [data-part="viewport"]');
   return {
-    block: node ? node.scrollWidth > node.clientWidth + 1 : null,
+    block: node ? spills(node) : null,
     blockCanScroll: node ? ['auto', 'scroll'].includes(getComputedStyle(node).overflowX) : null,
-    page: page ? page.scrollWidth > page.clientWidth + 1 : null,
+    page: spills(document.scrollingElement) || spills(viewport),
+    viewport: Boolean(viewport),
   };
 }"""
 
@@ -142,8 +153,8 @@ async def main():
         scrolling = await page.evaluate(SCROLLS, LOG)
         journal.check("the log block is the one allowed to scroll sideways",
                       scrolling["blockCanScroll"] is True, f"{scrolling}")
-        journal.check("and the page itself does not", scrolling["page"] is False,
-                      f"{scrolling}")
+        journal.check("and the page itself does not",
+                      scrolling["viewport"] and scrolling["page"] is False, f"{scrolling}")
 
         # 3 — A RUN WITH NO OUTPUT SAYS SO, and draws no empty box.
         await drive(journal, page, NO_LOG)

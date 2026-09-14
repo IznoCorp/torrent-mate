@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import type { components } from "../../contract/types";
 
 type RunHistory = components["schemas"]["RunHistory"];
+type RunDetail = components["schemas"]["RunDetail"];
 
 /**
  * Reads one system resource.
@@ -82,6 +83,22 @@ export const usePipelineHistory = () =>
   useQuery({
     queryKey: ["/api/pipeline/history"],
     queryFn: async () => (await read("/api/pipeline/history")) as RunHistory,
+  });
+
+/**
+ * One passage in full, by its identifier.
+ *
+ * UNDER THE HISTORY'S OWN KEY, so the veille's invalidation of the history
+ * reaches it too: the list and the passage cannot show two truths about one
+ * run. The shape is the contract's, the same one the veille reads it in.
+ *
+ * @param runUid The run's identifier.
+ * @returns The query.
+ */
+export const useRun = (runUid: string) =>
+  useQuery({
+    queryKey: ["/api/pipeline/history", runUid],
+    queryFn: async () => (await read(`/api/pipeline/history/${runUid}`)) as RunDetail,
   });
 
 /**

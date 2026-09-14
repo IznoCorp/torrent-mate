@@ -1525,6 +1525,7 @@ export interface components {
             kind: "pipeline" | "maintenance";
             /** @description the maintenance command a maintenance run ran; null for a pipeline run */
             command?: string | null;
+            /** @description the steps as far as the run got. A run that fails records none, so which step failed is not answered and the interface marks none — a failed run's steps with the failing one named is a demand */
             steps: components["schemas"]["StepTiming"][];
             /** @description the error as the run recorded it, verbatim */
             error?: string | null;

@@ -16,7 +16,7 @@ import PIPELINE_RUNS from "../seeds/pipeline-runs.json";
 import { GET, POST, field, route } from "./shared";
 import { mockState } from "../state";
 import { scenario } from "../scenario";
-import type { MockRequest, MockRoute } from "../router";
+import { refused, type MockRequest, type MockRoute } from "../router";
 import type { components } from "../../contract/types";
 
 type Schemas = components["schemas"];
@@ -61,6 +61,9 @@ const DETECTION_RUN_PREFIX = "detection-";
 const READS_WHILE_DETECTING = 1;
 
 const MILLISECONDS_PER_SECOND = 1000;
+
+// Why a run nobody holds is refused, in the problem body's own words.
+const UNKNOWN_RUN = "no run carries that identifier";
 
 // WHICH RUN EACH FIXTURE LINE BELONGS TO. The snapshot's first rows are the six
 // runs `EXECUTIONS` was read from, in its order — matched on their dates and
@@ -233,13 +236,13 @@ export function pipelineRoutes(): MockRoute[] {
         degraded: state.historyDegraded,
       };
     }),
-    // AN UNKNOWN RUN ANSWERS NULL for now: a handler has no way to choose its
-    // own status in this layer, and « a passage nobody holds » is a state the
-    // run's own screen draws, with the not-found answer it needs.
+    // AN UNKNOWN RUN IS REFUSED, as the backend refuses it: a 404 is the
+    // answer « nobody holds that passage » has, and the run's own screen draws
+    // it with a way back rather than an empty passage.
     route("readRun", GET, "/api/pipeline/history/{runUid}", (request) => {
       const state = mockState();
       const run = state.pipelineRuns.find((one) => one.runUid === request.parameters.runUid);
-      if (run === undefined) return null;
+      if (run === undefined) return refused(404, UNKNOWN_RUN);
       advanceDetection(state, run);
       return run;
     }),

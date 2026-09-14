@@ -5560,7 +5560,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/StepTiming"
-            }
+            },
+            "description": "the steps as far as the run got. A run that fails records none, so which step failed is not answered and the interface marks none — a failed run's steps with the failing one named is a demand"
           },
           "error": {
             "type": [

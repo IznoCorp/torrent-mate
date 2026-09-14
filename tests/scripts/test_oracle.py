@@ -331,7 +331,12 @@ def test_the_committed_reference_carries_a_platform():
     # its own: its rows are paths now, and three states say what the list can be — whole,
     # empty, or short for a bad reason. The states that moved with it are the ones that draw
     # Système; `sheet-more` stayed still again. Read state by state, verified by name.
-    assert reference["counts"] == {"states": 107, "regions": 37}
+    #
+    # 113 STATES, 38 REGIONS. `run/body` is one passage at its own address, and its six
+    # states — whole, still going, failed, its raw output opened, a run with no output kept,
+    # a maintenance command — are the only ones that moved: every other state gained a null
+    # `run/body` and nothing else, Système's included. Verified by name.
+    assert reference["counts"] == {"states": 113, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:

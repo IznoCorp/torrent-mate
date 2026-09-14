@@ -11,7 +11,8 @@
 // helper proved on tables this file wrote is a helper proved on the cases
 // somebody chose (B-093's shape).
 import { describe, expect, it } from "vitest";
-import { match, resolve, type MockRoute } from "./router";
+import { match, refused, resolve, settled, type MockRoute } from "./router";
+import { answeredCalls, clearAnswered, recordAnswered } from "./answered";
 import { routes } from "./handlers";
 
 /**
@@ -106,5 +107,25 @@ describe("the table the layer actually serves", () => {
   it("declares no two routes with the same method and template", () => {
     const seen = routes().map((declared) => `${declared.method} ${declared.template}`);
     expect(new Set(seen).size).toBe(seen.length);
+  });
+});
+
+describe("settled", () => {
+  it("passes a payload through with the scenario's status", () => {
+    expect(settled(200, { status: "idle" })).toEqual({ status: 200, payload: { status: "idle" } });
+    expect(settled(202, null)).toEqual({ status: 202, payload: null });
+  });
+
+  it("answers a handler's refusal with its own status and a problem body", () => {
+    const answer = settled(200, refused(404, "no run carries nobody"));
+    expect(answer.status).toBe(404);
+    expect(answer.payload).toMatchObject({ status: 404, detail: "no run carries nobody" });
+  });
+
+  it("corrects the record to the status really answered", () => {
+    clearAnswered();
+    recordAnswered({ operationId: "readRun", method: "GET", path: "/api/pipeline/history/x", status: 200 });
+    settled(200, refused(404, "no run carries x"));
+    expect(answeredCalls().map((call) => call.status)).toEqual([404]);
   });
 });

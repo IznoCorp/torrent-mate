@@ -18,7 +18,7 @@
 // network, never a silent empty object, and never a rejected promise: a mock
 // that answers something to everything hides a missing handler, and one that
 // throws hides the reason.
-import { resolve, type MockRoute } from "./router";
+import { resolve, settled, type MockRoute } from "./router";
 import { outcomeFor, resetScenario, scenario, setDefaultLatency, setOperationOutcome } from "./scenario";
 import { mockSeeds, type MockSeeds } from "./mock-seeds";
 import { answeredCalls, clearAnswered, recordAnswered } from "./answered";
@@ -194,20 +194,20 @@ async function answer(input: RequestInfo | URL, options?: RequestInit): Promise<
       );
     }
   }
-  const payload = found.route.handle({
+  const { status, payload } = settled(outcome.status, found.route.handle({
     path: address.pathname,
     parameters: found.parameters,
     query: address.searchParams,
     body,
-  });
+  }));
   // Only a MUTATION is recorded. A read carries no key in this application, and
   // recording reads would make the map grow without bound and would answer a
   // refetch with a stale body — a cache nobody asked for, inside the layer that
   // exists to be predictable.
   if (request.key !== null && request.method.toUpperCase() !== "GET") {
-    applied.set(request.key, { status: outcome.status, payload, arrivals: 1 });
+    applied.set(request.key, { status, payload, arrivals: 1 });
   }
-  return json(outcome.status, payload);
+  return json(status, payload);
 }
 
 /**

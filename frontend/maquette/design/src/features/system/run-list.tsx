@@ -45,7 +45,7 @@ const MAINTENANCE = "maintenance";
  * @param run The run.
  * @returns The day and the hour, in the shape the page already uses.
  */
-function whenItRan(run: RunSummary): string {
+export function whenItRan(run: Pick<RunSummary, "startedAt" | "when">): string {
   if (run.when !== undefined) return run.when;
   const instant = new Date(run.startedAt);
   const day = String(instant.getDate()).padStart(2, "0");
@@ -62,7 +62,7 @@ function whenItRan(run: RunSummary): string {
  * @param say The translator.
  * @returns The duration in words, or an empty string.
  */
-function durationInWords(seconds: number | null | undefined,
+export function durationInWords(seconds: number | null | undefined,
                          say: (key: string, options?: { count: number }) => string): string {
   if (seconds === null || seconds === undefined) return "";
   if (seconds < MINUTE) return say("screens.system.runSeconds", { count: Math.round(seconds) });
