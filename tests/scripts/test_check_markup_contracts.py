@@ -113,6 +113,7 @@ class TestTheTreeItself:
     # deleted, its own header says what was lost, and B-513 carries the defect
     # class it stopped guarding.
 
+
 class TestTheHardZeroFloor:
     """The FIRST class anchor is refused. There is no list to consult.
 
