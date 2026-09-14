@@ -325,6 +325,8 @@ Heures lues sur l'horloge de la machine sauf « ~ » (estimées par la session q
 
 | TM refonte 09-14 09:3x | 34 — les journaux de porte d'une vague vivent hors de `/private/tmp` (`~/Library/Logs/tm-<vague>/` ou `review-archive/<vague>/logs/`) ; mesure : le reboot de 05:00 a effacé `tm-l13a/` et `tm-l13b/` (0 fichier), un lecteur n'aurait rien eu à lire | appliqué 09:40 (dit aux deux agents ; ligne RESUME/brief au premier gate de l13b 2) | à lire au premier gate de l13b 2 |
 
+| TM refonte 09-14 11:12 | 35 — `core.hooksPath` relatif (`hooks`) dans la config partagée et dans `hooks/install.sh`, pour que chaque worktree exécute les hooks de SA branche ; mesure : chemin absolu lu sur wave-l13b, l'ordre 19 jamais exécuté, 3 flakes à preuve jetée (~25 min) | appliqué 11:1x (config relative, prouvé sur wave-l13b ; install.sh = ruling 80) | à lire au prochain push de L13b |
+
 ## Attentes nommées et décisions recommandées
 
 - **2026-09-13 02:53 (veille)** — recommandation : ouvrir L13a sans attendre le mot sur la découpe (19 phases identiques
@@ -437,6 +439,8 @@ Heures lues sur l'horloge de la machine sauf « ~ » (estimées par la session q
 | 09-14 | journaux de porte effacés par le reboot (`/private/tmp`) | preuve perdue, 0 min direct | répertoire de journaux sous /private/tmp | ordre 34 | — |
 
 | 09-14 | `mutate.sh` « FELL » sur une règle absente (exit 2) — 8 runs verts sur rien | 10 min | la réparation du 13 (« exit non nul = chute ») ne distinguait pas chute et plantage | ruling 77 : exit 64 « RULE NOT FOUND », « RULE CRASHED » sur exit 2 sans FAIL | à lire au prochain rejeu |
+
+| 09-14 | trois flakes pre-push à preuve jetée depuis un worktree | ~25 min | `core.hooksPath` absolu → les worktrees exécutent les hooks de main, jamais ceux de leur branche | ordre 35 (chemin relatif) | au prochain push |
 
 Total identifié le 2026-09-13 : ~13 h sur 17 h d'horloge de L13a.
 - **2026-09-13 22:37 — décision de l'opérateur pré-digérée : le restart de lundi 05:00** (garder : mémoire noyau rendue, toutes les

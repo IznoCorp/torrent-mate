@@ -217,7 +217,7 @@ reaches him.
    per bug.
 6. **Two agents in parallel at most** on this 16 GB machine.
 7. **L13 — the engine's death — is next**, once the in-flight waves land.
-8. **The agents' gate is 80 %, not 50 %** — measured with `orchestrator:context-gauge`, never estimated,
+8. **The agents' gate is 80 %, not the skill's ~60 %** — measured with `orchestrator:context-gauge`, never estimated,
    and read before every dispatch: an implementer past it is rotated at its unit boundary rather than
    pushed to a phase gate.
 9. **A sub-lot starts STACKED, during the previous round** — its branch cut and its agent spawned while
