@@ -104,7 +104,7 @@ export async function loadMoreSuggestions(): Promise<number> {
  */
 export function installSuggestionsLookup(queryClient: QueryClient): void {
   suggestionsCache = queryClient;
-  window.__suggestions = () =>
+  suggestions = () =>
     (queryClient.getQueryData(suggestionsQuery.queryKey) as unknown[] | undefined) ?? [];
   // AND IT IS ASKED FOR, because nothing else will. Every other read in this
   // file belongs to a component that subscribes; the deck belongs to the
@@ -114,11 +114,11 @@ export function installSuggestionsLookup(queryClient: QueryClient): void {
   // named state clears the cache so no measurement inherits a previous one's
   // pages, and a query with an OBSERVER is re-asked by that observer while one
   // without is not. This is the door `__reset` re-asks through.
-  window.__refillSuggestions = () => {
+  refillSuggestions = () => {
     reserveExhausted = false;
     void queryClient.prefetchQuery(suggestionsQuery);
   };
-  window.__refillSuggestions();
+  refillSuggestions();
 }
 
 /**
@@ -133,6 +133,26 @@ export const followsQuery = {
   queryKey: ["/api/acquisition/followed"],
   queryFn: async () =>
     toEngineShape<Follow[]>("FOLLOWS", await read("/api/acquisition/followed")),
+};
+
+/**
+ * The shows the library holds incomplete, asked for the IDENTITY they carry.
+ *
+ * A medium the library holds and nobody follows has its provider identity in
+ * this list and in no other, and the follow panel reads three things from that
+ * identity: whether a sheet stands behind the title, which episodes are owned,
+ * and the poster at its head. The Médiathèque asks for it for its own list; on
+ * every other page nothing did, so the follow panel's producer declares it.
+ *
+ * THE SAME KEY AND THE SAME PROJECTION as the library feature's own read, and
+ * written here rather than imported: two features never import each other
+ * (invariant 7). Both project the answer through the one `INCOMPLETE` family,
+ * so the cache holds one answer whichever of the two asked first.
+ */
+export const incompleteShowsQuery = {
+  queryKey: ["/api/library/incomplete"],
+  queryFn: async () =>
+    toEngineShape<unknown[]>("INCOMPLETE", await read("/api/library/incomplete")),
 };
 
 /** What the operator follows. */
@@ -168,7 +188,7 @@ export function installFollowActions(queryClient: QueryClient): void {
   const write = (follows: Follow[]) => queryClient.setQueryData(followsKey, follows);
   const refresh = () => void queryClient.invalidateQueries({ queryKey: followsKey });
 
-  window.__followActions = {
+  followActions = {
     setStatus: (title, status) => {
       const before = held();
       write(before.map((follow) =>
@@ -255,6 +275,13 @@ declare global {
     __suggestions?: () => unknown[];
   }
 }
+
+/** The discover deck's cards, read synchronously — filled at install. */
+export let suggestions: Window["__suggestions"];
+/** The deck's reserve, asked for again — filled at install. */
+export let refillSuggestions: (() => void) | undefined;
+/** The follows' verbs — filled at install. */
+export let followActions: Window["__followActions"];
 
 /**
  * What awaits the operator on this page — the navigation table's badge.

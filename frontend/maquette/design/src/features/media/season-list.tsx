@@ -4,13 +4,14 @@
 import { useTranslation } from "react-i18next";
 import { useMediaReference } from "./reference";
 import { SkeletonLine } from "../../ui/state-surfaces";
-import { factsPanel } from "../../ui/variants";
-import { queuedMark, seasonGrabSpacing, seasonGrabTaken, upcomingMark } from "./variants";
+import { actionButton, factsPanel } from "../../ui/variants";
+import { queuedMark, seasonGrabSpacing, seasonGrabTaken, upcomingMark, episodeCell, episodeDate, episodeDot, episodeNumber, episodeRow, episodeSet, episodeTitle, missingList, noInfo, seasonDisclosure, seasonFraction, seasonShortfall } from "./variants";
 import { useQueuedSeasons } from "./queued-seasons";
 import { askForSeason, useAskedInFlight } from "./season-grab";
-import { announcedAfter } from "./queries";
+import { announcedAfter, ownedSeason, type MediaSeasons } from "./queries";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields";
+import { dateLabel, numberRanges } from "./format";
 
 export function SeasonList({
   followed,
@@ -20,6 +21,7 @@ export function SeasonList({
   failed,
   ownershipKnown,
   seasons,
+  owned,
   owns,
   catalog,
   title,
@@ -42,6 +44,8 @@ export function SeasonList({
   followTitle: string;
   sheet: MediaSheetFields | null;
   seasons: [number, number | null, number][];
+  /** The episode numbers held, season by season, as the seasons read answered them. */
+  owned: MediaSeasons["owned"] | undefined;
   owns: boolean;
   catalog: CatalogSeason[];
   title: string;
@@ -64,9 +68,6 @@ export function SeasonList({
   ownershipKnown: boolean;
 }) {
   const {
-    ownedFor,
-    plages,
-    dateFR,
     EP_LABEL,
     TODAY,
   } = useMediaReference();
@@ -106,7 +107,7 @@ export function SeasonList({
         // the matrix all empty themselves through this one term, and the body
         // falls back to « Épisodes non détaillés pour cette saison », which
         // asserts nothing.
-        const held = ownershipKnown && owns ? ownedFor(title, row.n) : null;
+        const held = ownershipKnown && owns ? ownedSeason(owned, row.n) : null;
         /* The count is DERIVED from the owned numbers when they are known;
            a total that does not say where the holes are is no longer
            trusted. */
@@ -127,8 +128,8 @@ export function SeasonList({
         // nothing says only the date, and nothing when its row already prints it.
         const ahead = announcedAfter(list, TODAY);
         const upcomingNote = !ahead.length || (row.aired === 0 && !owns && row.air) ? null
-          : row.aired === 0 ? t("screens.media.upcomingFrom", { date: dateFR(ahead[0]) })
-            : t("screens.media.upcomingEpisodes", { count: ahead.length, date: dateFR(ahead[0]) });
+          : row.aired === 0 ? t("screens.media.upcomingFrom", { date: dateLabel(ahead[0]) })
+            : t("screens.media.upcomingEpisodes", { count: ahead.length, date: dateLabel(ahead[0]) });
         /* With no known total, reason up to the highest owned episode: a
            hole BELOW that maximum is a genuine gap, above it nothing is
            known. */
@@ -168,20 +169,20 @@ export function SeasonList({
                 // a flex container (they draw nothing) and its `textContent`
                 // is read as one sentence.
                 <div
-                  className={`eprow ${episodeState}`}
+                  className={episodeRow({ state: episodeState })}
                   data-part="episode/row"
                   data-announced={episodeState === "announced" || undefined}
                   data-in-library={episodeState === "in_library" || undefined}
                   key={episode.n}
                 >
-                  <span className="epdot"></span>{" "}
-                  <span className="en" data-part="episode/number">
+                  <span className={episodeDot({ state: episodeState })}></span>{" "}
+                  <span className={episodeNumber({ state: episodeState })} data-part="episode/number">
                     E{String(episode.n).padStart(2, "0")}
                   </span>{" "}
-                  <span className="et">{episode.t}</span>{" "}
-                  <span className="ed">
+                  <span className={episodeTitle()}>{episode.t}</span>{" "}
+                  <span className={episodeDate()}>
                     {episode.air
-                      ? dateFR(episode.air)
+                      ? dateLabel(episode.air)
                       : t("screens.media.dateUnknown")}
                     {episodeState === "in_library"
                       ? ""
@@ -198,7 +199,7 @@ export function SeasonList({
              it nothing is known, and it says so. */
           <>
             <div
-              className="eps"
+              className={episodeSet()}
               data-part="episode/set"
               style={{ marginTop: "8px" }}
             >
@@ -209,7 +210,7 @@ export function SeasonList({
                   : "to_grab";
                 return (
                   <span
-                    className={`ep ${episodeState}`}
+                    className={episodeCell({ state: episodeState })}
                     data-part="episode"
                     data-in-library={episodeState === "in_library" || undefined}
                     key={number}
@@ -227,7 +228,7 @@ export function SeasonList({
               })}
             </div>
             {row.aired == null ? (
-              <p className="noinfo" data-part="no-info" style={{ marginTop: "6px" }}>
+              <p className={noInfo()} data-part="no-info" style={{ marginTop: "6px" }}>
                 {t("screens.media.beyondEpisode", { n: bound })}
               </p>
             ) : (
@@ -239,21 +240,21 @@ export function SeasonList({
           // that read has landed: a skeleton over it would be waiting for a
           // thing already known — the same defect with its sign turned round.
           // It precedes the sheet's flight deliberately.
-          <p className="noinfo" data-part="no-info" style={{ marginTop: "8px" }}>
+          <p className={noInfo()} data-part="no-info" style={{ marginTop: "8px" }}>
             {t("screens.media.seasonAnnounced")}
           </p>
         ) : sheetInFlight ? (
-          <p className="noinfo" style={{ marginTop: "8px" }}>
+          <p className={noInfo()} style={{ marginTop: "8px" }}>
             <SkeletonLine width="half" />
           </p>
         ) : (
-          <p className="noinfo" data-part="no-info" style={{ marginTop: "8px" }}>
+          <p className={noInfo()} data-part="no-info" style={{ marginTop: "8px" }}>
             {t("screens.media.episodesNotDetailed")}
           </p>
         );
         return (
           <details
-            className="season"
+            className={seasonDisclosure()}
             data-part="season"
             key={row.n}
             open={ownershipKnown && !(complete || !owns)}
@@ -266,7 +267,7 @@ export function SeasonList({
                   row — would otherwise see « Saison 33/13 ». `summary` is a
                   flex container, so a whitespace-only node draws nothing. */}
               {t("common.season")} {row.n}{" "}
-              <span className="sfr">
+              <span className={seasonFraction()}>
                 {/* THE FRACTION IS OWNERSHIP, and a fraction is an assertion:
                     « 0/13 » about a medium whose `possede` has not arrived says
                     the reader holds none of it. The season's own total is the
@@ -299,7 +300,7 @@ export function SeasonList({
                 ""
               )}{" "}
               {ownershipKnown && owns && missing != null && missing > 0 ? (
-                <span className="miss" data-part="season/missing">
+                <span className={seasonShortfall()} data-part="season/missing">
                   {missing}{" "}
                   {missing > 1
                     ? t("common.missingPlural")
@@ -317,26 +318,26 @@ export function SeasonList({
                   // chip that counts what a reader is short of — and a date is
                   // not a shortfall: a rule counting « missing chips » read
                   // seven of them on a sheet missing nothing.
-                  className="miss" data-part="season/aired-on"
+                  className={seasonShortfall()} data-part="season/aired-on"
                   style={{
                     background: "transparent",
                     color: "var(--color-muted-foreground)",
                     fontWeight: 400,
                   }}
                 >
-                  {dateFR(row.air)}
+                  {dateLabel(row.air)}
                 </span>
               ) : (
                 ""
               )}
             </summary>
             {missingNums.length ? (
-              <p className="missing" data-part="season/missing-list">
+              <p className={missingList()} data-part="season/missing-list">
                 {t("screens.media.missingList", {
                   // french-ok: the INTERPOLATION placeholder, named by
                   // `missingList` in fr.json — renaming this half alone
                   // leaves « Manquants : {{liste}} » on screen.
-                  liste: plages(missingNums),
+                  liste: numberRanges(missingNums),
                 })}
               </p>
             ) : (
@@ -368,7 +369,7 @@ export function SeasonList({
             {(owns || followed) && !complete && !seasonUpcoming ? (
               <button
                 type="button"
-                className={`sact ${seasonGrabSpacing()} ${seasonGrabTaken()}`}
+                className={`${actionButton({ kind: "panelAction" })} ${seasonGrabSpacing()} ${seasonGrabTaken()}`}
                 data-part="season/grab"
                 data-grab-season={`${followTitle}|${row.n}`}
                 aria-busy={askedInFlight.has(`${followTitle}|${row.n}`) || undefined}

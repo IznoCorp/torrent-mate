@@ -10,13 +10,19 @@
 // reader imports nothing to be typed, and a member nobody's subject claims has
 // nowhere to be written down.
 
-import type { QueueCard } from "../../lib/engine-queue";
-
 import type { EngineDrawing } from "../../lib/engine-drawing";
 
 // A show the index knows is INCOMPLETE: owned over announced, and the year
 // that tells two shows of the same name apart.
-export type IncompleteShow = { t: string; o: number; a: number; y: number };
+export type IncompleteShow = {
+  t: string;
+  o: number;
+  a: number;
+  y: number;
+  poster?: string | null;
+  /** The provider identifiers — null for a title no sheet stands behind. */
+  ids?: Record<string, number | string> | null;
+};
 
 // A library CATEGORY pill: its id, its name, the count it claims, and the
 // engine's own category ids it stands for (`null` for « Tout »).
@@ -28,10 +34,15 @@ export type LibraryCategory = {
 };
 
 // A library ROW as the recent list holds one: a title and the line under it.
-export type LibraryRow = { t: string; f: string };
+export type LibraryRow = {
+  t: string;
+  f: string;
+  poster?: string | null;
+  /** The provider identifiers — null for a title no sheet stands behind. */
+  ids?: Record<string, number | string> | null;
+};
 
 export type LibraryReference = EngineDrawing & {
-  libRowHTML: (item: LibraryRow | QueueCard, index: number) => string;
   // The selection bar lives in `#device` and stays the FRAGMENT's: a component
   // asks for a repaint after it draws, exactly where `fillLib` asked for one.
   paintSelBar: () => void;

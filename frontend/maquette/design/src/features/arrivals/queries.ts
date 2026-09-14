@@ -7,8 +7,8 @@
 //
 // THE ANSWER IS CONVERTED BACK INTO THE ENGINE'S NAMES, and that is a
 // transitional step with a date rather than a design. This surface's MARKUP is
-// still drawn by producers in `legacy.js` (`cardHTML`, `secInner`,
-// `factRowsHTML`), which read `t`, `s`, `r`, `d`, `c`; the contract answers in
+// still drawn by a producer in `legacy.js` (`cardHTML`), which reads `t`, `s`,
+// `r`, `d`, `c`; the contract answers in
 // full English words. `lib/engine-shape.ts` inverts the projection L08
 // DECLARED, so the two ends cannot drift — and the whole conversion dies with
 // those producers at L13.
@@ -113,16 +113,12 @@ export function useDecisions() {
  * @param queryClient The cache the surfaces read.
  */
 export function installDecisionLookup(queryClient: QueryClient): void {
-  window.__pendingDecisions = () =>
+  pendingDecisions = () =>
     (queryClient.getQueryData(["/api/decisions/"]) as Decisions | undefined)?.pending ?? [];
 }
 
-declare global {
-  interface Window {
-    /** The pending decisions, read synchronously by the dying engine. */
-    __pendingDecisions?: () => PendingDecision[];
-  }
-}
+/** The pending decisions, read synchronously by the dying engine — filled at install. */
+export let pendingDecisions: (() => PendingDecision[]) | undefined;
 
 /**
  * What awaits the operator on this page — the navigation table's badge.

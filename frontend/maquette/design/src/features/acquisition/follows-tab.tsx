@@ -1,12 +1,18 @@
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import { SurfaceError } from "../../ui/state-surfaces";
+import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { useAcquisitionReference, type Follow } from "./reference";
 import { useFollows } from "./queries";
 import { useUiState } from "../../lib/store-access";
 import { FollowsFilters } from "./follows-filters";
-import { body, emptyNote, section as sectionClass, sectionCount, sectionTitle } from "../../ui/variants";
-import { Markup } from "../../ui/markup";
+import { body, emptyNote, posterGrid, section as sectionClass, sectionCount, sectionHead, sectionTitle, statusDot, swipeAction, type StatusTone } from "../../ui/variants";
+import { Markup, emptyNoteMarkup } from "../../ui/markup";
+import { posterArtwork } from "../../lib/engine-drawing";
+import { mediumCardMarkup } from "./card-markup";
+import { swipeRowMarkup } from "../../ui/rows";
+import { tileMarkup } from "../../ui/tile";
+import { tileBadgeOf } from "./tile-badge";
+import { cadence } from "./variants";
 
 // The swipe action a follow that can be searched again reveals. It is a
 // data-ATTRIBUTE VALUE the document-level delegation dispatches on — a contract
@@ -21,13 +27,9 @@ const SEARCH_AGAIN = "chercher"; // french-ok: a data-attribute value, a contrac
 export function FollowsTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
+  const reference = useAcquisitionReference();
   const {
     icons,
-    cardHTML,
-    tileHTML,
-    swipeHTML,
-    skelCardsInner,
-    emptyInner,
     svgIcon,
     stFraction,
     stLabel,
@@ -39,7 +41,7 @@ export function FollowsTab(): ReactElement {
     URGENCY,
     GROUPS,
     CADENCE_CRON,
-  } = useAcquisitionReference();
+  } = reference;
 
   // FROM THE CACHE (invariant 4). Following, unfollowing and grabbing are
   // mutations the engine's delegation still calls; their conversion is the
@@ -100,6 +102,10 @@ export function FollowsTab(): ReactElement {
 
   const descriptorOf = (follow: Follow, showStatus: boolean) => ({
     t: follow.t,
+    ids: follow.ids,
+    // The row draws the poster the follow carries; without it the card falls
+    // back to the initials, in a box of the poster's size (R177).
+    poster: follow.poster,
     k: follow.k,
     s: [
       String(follow.y),
@@ -144,13 +150,13 @@ export function FollowsTab(): ReactElement {
   });
 
   const rowOf = (follow: Follow, showStatus: boolean) =>
-    swipeHTML(
-      cardHTML(descriptorOf(follow, showStatus)),
+    swipeRowMarkup(
+      mediumCardMarkup(descriptorOf(follow, showStatus)),
       follow.k === "movie"
-        ? `<button class="act pause" data-part="swipe/action" data-action="pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipeStopSearching")}</button><button class="act remove" data-part="swipe/action" data-action="remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`
-        : `<button class="act pause" data-part="swipe/action" data-action="pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipePause")}</button><button class="act remove" data-part="swipe/action" data-action="remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`,
+        ? `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipeStopSearching")}</button><button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`
+        : `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipePause")}</button><button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`,
       follow.st === "pending" || follow.st === "to_grab"
-        ? `<button class="act resume" data-part="swipe/action" data-action="resume" data-swipeact="${SEARCH_AGAIN}">${svgIcon(icons.refresh)}${t("screens.acquisition.swipeSearch")}</button>`
+        ? `<button class="${swipeAction({ tone: "resume" })}" data-part="swipe/action" data-action="resume" data-swipeact="${SEARCH_AGAIN}">${svgIcon(icons.refresh)}${t("screens.acquisition.swipeSearch")}</button>`
         : "",
     );
 
@@ -172,13 +178,16 @@ export function FollowsTab(): ReactElement {
       stFraction(follow),
       paused ? t("screens.acquisition.paused") : null,
     ].filter(Boolean);
-    return tileHTML(
-      follow,
+    return tileMarkup({
+      title: follow.t,
       // The year remains the fallback for a tile with nothing else to say — a
       // film that is neither paused nor counted.
-      said.length ? said.join(" · ") : String(follow.y),
-      { muted: paused, badge: gridBadge(follow) },
-    );
+      subtitle: said.length ? said.join(" · ") : String(follow.y),
+      artwork: posterArtwork(icons, follow.poster, follow.t, follow.k),
+      muted: paused,
+      badge: tileBadgeOf(gridBadge(follow)),
+      attributes: { "data-panel": `media:${follow.t}`, "data-mediasheet": follow.t },
+    });
   };
 
   // EACH BRANCH DRAWS ITS OWN CONTAINER and fills it. The legacy interpolated a
@@ -188,10 +197,7 @@ export function FollowsTab(): ReactElement {
   let content: ReactElement;
   if (state.phase === "loading") {
     content = (
-      <Markup
-        className={sectionClass()} data-part="section"
-        html={skelCardsInner(5)}
-      />
+      <div className={sectionClass()} data-part="section"><Skeletons count={5} shape="card" /></div>
     );
   } else if (state.phase === "error") {
     content = (
@@ -201,7 +207,7 @@ export function FollowsTab(): ReactElement {
     content = (
       <Markup
         className={emptyNote()} data-part="empty-state"
-        html={emptyInner(
+        html={emptyNoteMarkup(
       term !== ""
         ? t("screens.acquisition.emptyFilter", {
             // ESCAPED, because this string is injected as HTML: i18next
@@ -223,7 +229,7 @@ export function FollowsTab(): ReactElement {
   } else if (state.followMode === "grid") {
     content = (
       <Markup
-        className="gallery" data-part="grid"
+        className={posterGrid()} data-part="grid"
         html={visible.map(tileOf).join("")}
       />
     );
@@ -243,7 +249,7 @@ export function FollowsTab(): ReactElement {
               key={group.l}
               className={sectionClass()} data-part="section"
               html={`
-            <div class="sechead" data-part="section/head"><span class="pip ${group.pip}" data-part="status-dot"></span><span class="${sectionTitle()}" data-part="section/title">${group.l}</span><span class="${sectionCount()}" data-part="section/count">${items.length}</span></div>
+            <div class="${sectionHead()}" data-part="section/head"><span class="${statusDot({ tone: group.pip as StatusTone })}" data-part="status-dot"></span><span class="${sectionTitle()}" data-part="section/title">${group.l}</span><span class="${sectionCount()}" data-part="section/count">${items.length}</span></div>
             ${items.map((item) => rowOf(item, showStatus)).join("")}
           `}
             />
@@ -263,7 +269,7 @@ export function FollowsTab(): ReactElement {
   return (
     <>
       <FollowsFilters pills={pills} />
-      <p className="cadence" data-part="cadence">{cadenceFR(CADENCE_CRON)}</p>
+      <p className={cadence()} data-part="cadence">{cadenceFR(CADENCE_CRON)}</p>
       <div className={body()} data-part="surface/body" data-region="acquisition/body">
         <div className="note" data-part="note">
           <b>{t("screens.acquisition.followsNoteLead")}</b>

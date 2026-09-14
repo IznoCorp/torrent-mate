@@ -589,7 +589,7 @@ for term today and the oracle says so; what is not held is the day one drifts. *
 cross-checks each variant against the rule shadowing it is arbitrated (operator, 2026-08-25)**,
 and it dies with this decision.
 
-**It is built, and it is `R80`** — `frontend/maquette/harness/residue.py`, in the per-phase
+**It is built, and it is `R80`** — `frontend/maquette/harness/residue.py@60530dbd8`, in the per-phase
 contracts tier. It pairs each residue selector with the typed variant wearing the same identity
 anchor and compares `getComputedStyle` IN THE DOCUMENT, on two sibling probes, for exactly the
 properties the residue declares — never as text, because `flex: 0 0 auto` and `flex-none` are one
@@ -1930,7 +1930,7 @@ that read them, which is this lot's subject. **No earlier wave can take it**: un
 above, this one is not separable from the engine's death.
 
 **Carried here by L07, 2026-08-25 — the prototype fragment, and R72's renegotiation.** L07 emptied
-`frontend/maquette/design/refonte.html` of every style rule and did **not** delete it. Two reasons,
+`frontend/maquette/design/refonte.html@60530dbd8` of every style rule and did **not** delete it. Two reasons,
 both recorded in that wave's `plan/phase-16-the-scaffolding-dies.md`: the file now carries the
 wave's **conversion ledger** — one entry per region, saying where its rules went and why — and a
 third of those entries name `src/styles/legacy.css`, whose death is this lot's; and **R72's hold

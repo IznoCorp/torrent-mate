@@ -15,6 +15,7 @@
 import i18next from "i18next";
 import { registerProducer, type PanelDescriptor } from "../../ui/panel/contract";
 import { SORT_DIRECTIONS, SORT_KEYS, sortWays } from "./sorting";
+import { store } from "../../lib/store-access";
 
 // THE ICONS COME THROUGH THE ENGINE'S DRAWING SLICE, not by importing
 // `app/icons.ts`: that module is outside `ui/` and `lib/`, so invariant 8's
@@ -33,7 +34,7 @@ const icons = () => window.__referentiel.icons;
 function sortPanel(): PanelDescriptor {
   const translate = i18next.t.bind(i18next);
   const named = sortWays();
-  const { sortKey, sortReversed } = window.__store.read().state;
+  const { sortKey, sortReversed } = store.read().state;
   return {
     title: translate("panels.sort.title"),
     meta: translate("panels.sort.note"),

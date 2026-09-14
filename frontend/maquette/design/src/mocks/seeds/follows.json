@@ -7,7 +7,12 @@
     "kind": "movie",
     "year": 2026,
     "status": "pending",
-    "fresh": true
+    "fresh": true,
+    "ids": {
+      "tmdb": "1365362",
+      "imdb": "tt34809883"
+    },
+    "poster": "assets/posters/16fd1cba.webp"
   },
   {
     "title": "L'Odyssée",
@@ -16,7 +21,12 @@
     "searches": 16,
     "kind": "movie",
     "year": 2026,
-    "status": "pending"
+    "status": "pending",
+    "ids": {
+      "tmdb": "1368337",
+      "imdb": "tt33764258"
+    },
+    "poster": "assets/posters/ff487f8b.webp"
   },
   {
     "title": "Spider-Man : Brand New Day",
@@ -25,7 +35,12 @@
     "searches": 19,
     "kind": "movie",
     "year": 2026,
-    "status": "pending"
+    "status": "pending",
+    "ids": {
+      "tmdb": "969681",
+      "imdb": "tt22084616"
+    },
+    "poster": "assets/posters/f369e6b2.webp"
   },
   {
     "title": "Wicker",
@@ -34,7 +49,12 @@
     "searches": 18,
     "kind": "movie",
     "year": 2026,
-    "status": "pending"
+    "status": "pending",
+    "ids": {
+      "tmdb": "1195803",
+      "imdb": "tt29611136"
+    },
+    "poster": "assets/posters/a406ec1c.webp"
   },
   {
     "title": "American Dad!",
@@ -45,7 +65,13 @@
     "year": 2005,
     "status": "up_to_date",
     "owned": 399,
-    "aired": 399
+    "aired": 399,
+    "ids": {
+      "tvdb": "73141",
+      "tmdb": "1433",
+      "imdb": "tt0397306"
+    },
+    "poster": "assets/posters/c5f2f023.webp"
   },
   {
     "title": "Dexter: Resurrection",
@@ -56,7 +82,13 @@
     "year": 2025,
     "status": "up_to_date",
     "owned": 96,
-    "aired": 96
+    "aired": 96,
+    "ids": {
+      "tmdb": "259909",
+      "imdb": "tt33043892",
+      "tvdb": 452595
+    },
+    "poster": "assets/posters/7cc2c0bb.webp"
   },
   {
     "title": "Furious",
@@ -67,7 +99,13 @@
     "year": 2026,
     "status": "up_to_date",
     "owned": 5,
-    "aired": 5
+    "aired": 5,
+    "ids": {
+      "tvdb": "468000",
+      "tmdb": "287238",
+      "imdb": "tt36303968"
+    },
+    "poster": "assets/posters/5bb49e46.webp"
   },
   {
     "title": "House of the Dragon",
@@ -78,7 +116,13 @@
     "year": 2022,
     "status": "up_to_date",
     "owned": 26,
-    "aired": 26
+    "aired": 26,
+    "ids": {
+      "tmdb": 94997,
+      "imdb": "tt11198330",
+      "tvdb": 371572
+    },
+    "poster": "assets/posters/318f61ab.webp"
   },
   {
     "title": "President Curtis",
@@ -89,7 +133,13 @@
     "year": 2026,
     "status": "up_to_date",
     "owned": 3,
-    "aired": 3
+    "aired": 3,
+    "ids": {
+      "tvdb": "466198",
+      "tmdb": "296756",
+      "imdb": "tt37692332"
+    },
+    "poster": "assets/posters/1d48eb5b.webp"
   },
   {
     "title": "Silo",
@@ -100,7 +150,13 @@
     "year": 2023,
     "status": "pending",
     "owned": 26,
-    "aired": 27
+    "aired": 27,
+    "ids": {
+      "tvdb": "403245",
+      "imdb": "tt14688458",
+      "tmdb": "125988"
+    },
+    "poster": "assets/posters/6d0da42b.webp"
   },
   {
     "title": "Star Trek: Strange New Worlds",
@@ -111,7 +167,13 @@
     "year": 2022,
     "status": "up_to_date",
     "owned": 33,
-    "aired": 33
+    "aired": 33,
+    "ids": {
+      "tmdb": 103516,
+      "imdb": "tt12327578",
+      "tvdb": 382389
+    },
+    "poster": "assets/posters/25415753.webp"
   },
   {
     "title": "Ted Lasso",
@@ -122,7 +184,13 @@
     "year": 2020,
     "status": "up_to_date",
     "owned": 35,
-    "aired": 35
+    "aired": 35,
+    "ids": {
+      "tmdb": 97546,
+      "imdb": "tt10986410",
+      "tvdb": 383203
+    },
+    "poster": "assets/posters/36c680ea.webp"
   },
   {
     "title": "Dark Matter",
@@ -133,7 +201,13 @@
     "year": 2004,
     "status": "disabled",
     "owned": 4,
-    "aired": 9
+    "aired": 9,
+    "ids": {
+      "tmdb": "62425",
+      "imdb": "tt4159076",
+      "tvdb": 292174
+    },
+    "poster": "assets/posters/870f8eb8.webp"
   },
   {
     "title": "Premier Contact",
@@ -142,6 +216,11 @@
     "searches": 6,
     "kind": "movie",
     "year": 2016,
-    "status": "disabled"
+    "status": "disabled",
+    "ids": {
+      "tmdb": 329865,
+      "imdb": "tt2543164"
+    },
+    "poster": "assets/posters/c8706d9f.webp"
   }
 ]

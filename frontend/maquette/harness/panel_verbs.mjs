@@ -15,7 +15,7 @@
  * map whose value is a translated call spanning three lines. Both are keys that
  * exist nowhere. « Which names does this object literal declare » has a node
  * kind for an answer, and the same argument `bare_elements.mjs` and
- * `rename.mjs` each make for their own subject.
+ * `rename.mjs@60530dbd8` each make for their own subject.
  *
  * THE DIALOG'S ACTIONS ARE A DIFFERENT SHAPE AND ARE REPORTED AS SUCH. A
  * `DialogAction` carries a `target` too, but the dialog spreads those keys

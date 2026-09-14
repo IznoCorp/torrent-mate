@@ -13,34 +13,11 @@
 // none carries a renderer. Everything else `render()` does still runs, because
 // the bar, the nav and the save bar are shared furniture.
 //
-// THE HANDOVER IS ANNOUNCED, and that is the whole of the difficulty. Leaving a
-// migrated page for a legacy one, the legacy's own `view.innerHTML = …` runs
-// FIRST, synchronously, from `render()` — and React would unmount the portal
-// after, on its own schedule, removing children that are already detached. That
-// throws `NotFoundError` and tears the root down, which this conversion has
-// measured once already, on a save bar.
-//
-// An earlier arrangement dodged it with a HOST ELEMENT: React portalled into a
-// `<div class="body">` of its own, the legacy's write removed that one node
-// whole, and React only ever touched children of a node it owned. It worked for
-// three pages that each emit exactly one root — and it cannot describe a page
-// that emits FOUR (the Médiathèque draws `.viewtabs`, `.filters`, `.countline`
-// and `.body` as siblings). Wrapping those four would be a markup change, which
-// this conversion does not make.
-//
-// So the fragment ANNOUNCES the handover instead, and EMPTIES the container when
-// it hands ownership over — both inside `render()`, the one place that already
-// knows which world owns the page:
-//
-//   · taking:    `view.innerHTML = ""`, once, on the transition; React draws
-//     into the empty container on its own schedule;
-//   · releasing: `window.__releasePage()` — synchronous, so React has let go of
-//     every node before the next statement writes the container.
-//
-// What was implicit and fragile is now explicit, and both halves are measured.
-import { useLayoutEffect, useSyncExternalStore } from "react";
+// NOTHING IS HANDED OVER. The engine writes `#view` nowhere, so the container
+// is React's whole: no other writer can detach the portal's children under it.
+import { useLayoutEffect } from "react";
 import type { ReactElement } from "react";
-import { createPortal, flushSync } from "react-dom";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useUiState } from "../lib/store-access";
 import { NAVIGATION, rowFor } from "./navigation";
@@ -51,30 +28,8 @@ import { body } from "../ui/variants";
 // other copies of the same fact. What the host needs from a row is exactly
 // what the row already carries.
 
-// The release, as a value React can subscribe to. It lives outside React
-// because the FRAGMENT is what asks for it, and `useSyncExternalStore` is the
-// same door every other out-of-React value comes through here.
-let released = false;
-const listeners = new Set<() => void>();
-
-function subscribeRelease(callback: () => void): () => void {
-  listeners.add(callback);
-  return () => {
-    listeners.delete(callback);
-  };
-}
-
-function setReleased(next: boolean): void {
-  if (released === next) return;
-  released = next;
-  for (const listener of listeners) listener();
-}
-
 declare global {
   interface Window {
-    // Called by the fragment's `render()` immediately BEFORE it writes `#view`
-    // for a page the shell does not own.
-    __releasePage?: () => void;
     // The pages this side claims. It USED to be published so the two page
     // tables could be compared — this file's and the engine's — because they
     // were independent lists kept identical by hand, and a disagreement in one
@@ -86,11 +41,7 @@ declare global {
   }
 }
 
-window.__releasePage = () => {
-  flushSync(() => setReleased(true));
-};
-
-window.__shellPages = NAVIGATION.map((row) => row.id);
+export const shellPages = NAVIGATION.map((row) => row.id);
 
 /**
  * The page's name, as a heading no one sees and every screen reader reads.
@@ -125,14 +76,6 @@ export function PageHost(): ReactElement | null {
   const page = useUiState().page as string | undefined;
   const phase = useUiState().phase as string | undefined;
   const migrated = rowFor(page);
-  const isReleased = useSyncExternalStore(subscribeRelease, () => released);
-
-  // Ownership resumes the moment a migrated page is current again. The fragment
-  // has already emptied `#view` by then — it does that on the same transition,
-  // for the same reason the shell used to do it itself.
-  useLayoutEffect(() => {
-    if (migrated && released) setReleased(false);
-  });
 
   // `aria-busy` ON THE MAIN REGION, from the ONE place that knows every page's
   // phase. Marked on each page instead, it would be eight call sites and the
@@ -146,7 +89,7 @@ export function PageHost(): ReactElement | null {
     else main.removeAttribute("aria-busy");
   }, [migrated, phase]);
 
-  if (!migrated || isReleased) return null;
+  if (!migrated) return null;
   const view = document.getElementById("view");
   if (!view) return null;
   const { Body, root, region } = migrated;

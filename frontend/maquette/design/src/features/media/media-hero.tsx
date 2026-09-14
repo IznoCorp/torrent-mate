@@ -6,7 +6,7 @@ import { Icon } from "../../ui/icon";
 import { SkeletonLine } from "../../ui/state-surfaces";
 import { useMediaReference, type MediaSheet, type Trailer } from "./reference";
 import type { MediaSheetFields } from "./sheet-fields";
-import { heroImage, heroMeta, heroNote, heroText, heroTitle, heroWrap, trailerPlay, trailerRow, trailerSource } from "./variants";
+import { heroImage, heroMeta, heroNote, heroText, heroTitle, heroWrap, trailerPlay, trailerRow, trailerSource, noInfo } from "./variants";
 
 export function MediaHero({
   title,
@@ -46,7 +46,9 @@ export function MediaHero({
           }
         ></div>
         <div className={heroText()} data-part="hero/content">
-          <h2 className={heroTitle()} data-part="hero/title">{title.split(" (")[0]}</h2>
+          <h2 className={heroTitle()} data-part="hero/title">
+            {title ? title.split(" (")[0] : inFlight ? <SkeletonLine width="half" /> : null}
+          </h2>
           <p className={heroMeta()}>
             {/* FIELD BY FIELD, NEVER BLOCK BY BLOCK, and this line is where the
                 difference shows. Gated on the whole sheet being null, a
@@ -165,13 +167,13 @@ export function MediaHero({
           </span>
         </a>
       ) : inFlight ? (
-        <p className="noinfo"><SkeletonLine width="half" /></p>
+        <p className={noInfo()}><SkeletonLine width="half" /></p>
       ) : (
         // A SENTENCE THAT SPEAKS FOR THE PROVIDER cannot be printed over a
         // read that never reached it. « Aucune bande-annonce fournie par le
         // provider » is an answer; after a failure the honest word is that
         // nobody knows.
-        <p className="noinfo" data-part="no-info">
+        <p className={noInfo()} data-part="no-info">
           {t(failed ? "screens.media.trailerUnread" : "screens.media.noTrailer")}
         </p>
       )}

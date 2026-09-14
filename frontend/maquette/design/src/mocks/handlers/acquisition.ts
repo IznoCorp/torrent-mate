@@ -46,6 +46,20 @@ function followFor(identifier: string) {
   return mockState().follows.find((follow) => follow.title === identifier);
 }
 
+/**
+ * The entry a follow is created from, by title: a search result or a suggestion.
+ *
+ * The follow verb is emitted on those two surfaces and on the media sheet they
+ * open, and both entries carry their medium's joined identity and poster.
+ *
+ * @param title The medium's title.
+ * @returns The entry, or undefined when neither holds it.
+ */
+function followedFrom(title: string) {
+  return SEARCH_RESULTS.results.find((result) => result.title === title)
+    ?? SUGGESTIONS.find((suggestion) => suggestion.title === title);
+}
+
 /** Every route this subject answers. */
 export function acquisitionRoutes(): MockRoute[] {
   return [
@@ -58,8 +72,12 @@ export function acquisitionRoutes(): MockRoute[] {
       // and a stranger's run status. A value taken from the wrong record is
       // worse than an invented one: it typechecks, and it reads as real.
       const year = Number(field(request.body, "year"));
+      const title = text(request.body, "title");
+      const provider = field(request.body, "provider");
+      const providerId = field(request.body, "providerId");
+      const source = followedFrom(title);
       const added = {
-        title: text(request.body, "title"),
+        title,
         kind: text(request.body, "kind"),
         year: Number.isFinite(year) ? year : NEWLY_ADDED_YEAR,
         status: NEWLY_ADDED_STATUS,
@@ -67,6 +85,14 @@ export function acquisitionRoutes(): MockRoute[] {
         since: NEWLY_ADDED_SINCE,
         searches: 0,
         fresh: true,
+        // THE MEDIUM'S IDENTITY: the request's own when it names one, and
+        // otherwise the joined identity of the entry it was followed from. A
+        // create naming neither records a follow the contract refuses (B-366);
+        // the layer does not invent an identity for it, and the cast says so.
+        ids: (typeof provider === "string" && typeof providerId === "number"
+          ? { [provider]: providerId }
+          : source?.ids ?? null) as (typeof state.follows)[number]["ids"],
+        poster: source?.poster ?? null,
       };
       state.follows = [added, ...state.follows];
       return added;

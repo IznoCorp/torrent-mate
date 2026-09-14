@@ -38,6 +38,10 @@ row b·6; § 2.2).
   `data-del` (registered here).
 - **`mediaNamedBy` and `openDeleteDialog`** move to `features/library/`, reading the library query's
   cache (a·10), with the delete dialog opened through the dialog host by import.
+  **Amended 2026-09-13 by phase a·10 (the steward's ruling 41):** « reading the library query's cache (a·10) » is
+  VOID. The paged listing has no exact answer. `mediaNamedBy` moves with the verb and reads `window.LIBRARY`, as
+  `follow-facts.ts:103` does, and `openDeleteDialog` reads `window.INCOMPLETE`. Both switch in b·10-bis, where the
+  two fixtures die.
 - **`paintSelBar`**, the empty function, dies. With the `tile` branch goes the comment B-465 names
   (« paintSelBar() below draws the bar directly »), and **B-465 closes** because its subject is
   deleted.

@@ -159,7 +159,7 @@ fire on the scope L07 restructured. And the login arm could not see the failure 
 comment describes, because the wrapper it warns about is invisible chunk by chunk. All six
 repaired, each with a mutation seen red and restored.
 
-**One rule was simply absent.** `scripts/check-legacy-css-residue.py` was named by `legacy.css`'s
+**One rule was simply absent.** `scripts/check-legacy-css-residue.py@60530dbd8` was named by `legacy.css`'s
 header, by the plan twice, by the DESIGN twice, by this file — and by **§15 of the constitution**.
 It did not exist, so nothing bounded 2 470 lines and ACC-16 could not run. Written, wired into
 `make check` and CI, mutation-tested three ways.

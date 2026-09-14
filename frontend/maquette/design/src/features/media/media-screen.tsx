@@ -21,13 +21,12 @@ import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import {
   useMediaReference,
-  type MediaReference,
   type MediaSheet,
   type Trailer,
 } from "../../features/media/reference";
 import { useStoreContent } from "../../lib/store-access";
 import { isRequestFailure } from "../../lib/query-client";
-import { seasonsHeld, useMediaSeasons, useMediaSheet } from "./queries";
+import { carriedSheet, seasonsHeld, useMediaSeasons, useMediaSheet } from "./queries";
 import { backAction, body as bodyClass, screen, screenBar, scrollport, sectionHeading } from "../../ui/variants";
 import { Icon } from "../../ui/icon";
 import { SkeletonLine, SurfaceError } from "../../ui/state-surfaces";
@@ -36,32 +35,20 @@ import { MediaHero } from "./media-hero";
 import { MediaDetails } from "./media-details";
 import { MediaLibraryFacts } from "./media-library-facts";
 import type { Follow, MediaSheetFields } from "./sheet-fields";
+import { bridge } from "../../lib/shell-doors";
+import { baseTitle } from "../../lib/titles";
 
-// The banner prefers the wide visual; the vertical poster is only a fallback,
-// and nothing at all when there is neither — same resolution order as the
-// legacy sheet, base title included.
-function artworkFor(reference: MediaReference, title: string): string | null {
-  const { HERO_IMAGES, POSTERS, baseTitle } = reference;
-  return (
-    HERO_IMAGES[title] ??
-    HERO_IMAGES[baseTitle(title)] ??
-    POSTERS[title] ??
-    POSTERS[baseTitle(title)] ??
-    null
-  );
-}
+/** What the route hands the screen: the follows, owned by another feature, so they compose in the route. */
+export type MediaScreenProperties = { readFollows: () => unknown[] };
 
-export function MediaScreen() {
-  // The address names a PROVIDER ID (DOIT-11); the catalogue is keyed by title.
-  // The crossing happens in the engine, from the fixture itself, so the two
-  // cannot drift. An id nobody carries resolves to `null` and the screen
-  // renders its own honest empty case — the same answer it already gave an
-  // unknown title, and the only honest one for a stale bookmark.
+export function MediaScreen({ readFollows }: MediaScreenProperties) {
+  // The address names a PROVIDER ID (DOIT-11), and it is all the screen needs
+  // to ask. The title is the sheet's own once the read lands, and what the tap
+  // knew while it is out; an id nobody carries answers nothing and the screen
+  // renders its own honest empty case — the only honest one for a stale bookmark.
   const { provider, id } = useParams({ from: "/media/$provider/$id" });
-  const lookup = useMediaReference();
-  const title = (lookup.titleForProviderId(provider, id) ?? "").normalize("NFC");
   // `world.follows` is MUTATED IN PLACE by the still-legacy follow act
-  // (`actionFollow`, refonte.html) — the reference never changes, so
+  // (`actionFollow`, refonte.html@60530dbd8) — the reference never changes, so
   // `useWorld()` alone would not notice. Subscribing to `version` forces the
   // re-render on that bump, and the read below then sees the mutated list
   // fresh: this is what flips the « Suivre » button to « Suivi » without the
@@ -71,10 +58,10 @@ export function MediaScreen() {
   // holding them when the queue converted — so the sheet had been quietly
   // reporting « not followed » for everything, which the oracle cannot see
   // because no named state opens a sheet for a title the operator follows.
-  const follows = (window.__followActions?.all() ?? []) as Follow[];
+  const follows = readFollows() as Follow[];
   const reference = useMediaReference();
   const { t } = useTranslation();
-  const { icons, baseTitle, trailerIds } = reference;
+  const { icons } = reference;
 
   // FROM THE CACHE, BY ADDRESS (invariant 4, DOIT-11). The engine looked its
   // sheet up by TITLE out of a fixture keyed by title; the address is the
@@ -90,8 +77,11 @@ export function MediaScreen() {
   // costs the reader nothing they already had.
   const failed = sheetRead.isError;
   const sheet = (sheetRead.data
-    ?? (failed ? (reference.sheetFor(title) ?? null) : null)) as
+    ?? (failed ? (carriedSheet(provider, id) ?? null) : null)) as
     (MediaSheet & MediaSheetFields) | null;
+  // THE SHEET'S TITLE, or what the tap knew of it. An address typed with no tap
+  // behind it has neither while the read is out, and the hero draws a skeleton.
+  const title = String(sheet?.title ?? "").normalize("NFC");
   // IN FLIGHT is two states, and reading one of them is reading half. With
   // placeholder data the query reports `success` and `isPlaceholderData` while
   // the read is still out; with none — an address no title answers — it
@@ -219,25 +209,24 @@ export function MediaScreen() {
           // prints in 30 px.
           `/media/${provider}/${id}`
         : null;
-  const artwork = artworkFor(reference, title);
-  // THE SERVED FIELD FIRST, and the reference only as what the tap knew. The
-  // payload carries `trailerVideo` and the screen read none of it: a synchronous
-  // lookup in the engine's fixture answered at frame one, so the skeleton drawn
-  // while the sheet is out stood over an absence already known — and a served
-  // trailer the fixture does not hold would never have appeared.
-  const trailer = ((sheet?.trailerVideo as Trailer | undefined)
-    ?? trailerIds[title] ?? trailerIds[baseTitle(title)] ?? null);
+  // THE SERVED SHEET ALONE. The banner prefers the wide visual and falls back
+  // to the vertical poster, and draws nothing when the sheet carries neither;
+  // the trailer is its `trailerVideo`. While the read is out the placeholder
+  // carries none of the three, so the trailer's place is a skeleton.
+  const artwork = (sheet?.hero as string | null | undefined)
+    ?? (sheet?.poster as string | null | undefined) ?? null;
+  const trailer = (sheet?.trailerVideo as Trailer | null | undefined) ?? null;
 
   return (
     <section
-      className={`${screen()} open`}
+      className={screen({ open: true })}
       data-part="screen"
       data-open=""
       data-key={`mediaSheet:${title}`}
       aria-label={title}
     >
       <div className={screenBar()} data-part="screen/bar">
-        <button className={backAction()} data-part="screen/back" onClick={() => window.__bridge.back()}>
+        <button className={backAction()} data-part="screen/back" onClick={() => bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.media.back")}
         </button>{" "}
@@ -330,6 +319,7 @@ export function MediaScreen() {
             followed={followed}
             followTitle={followTitle}
             seasons={sorted}
+            owned={catalogue?.owned}
             own={own}
             aired={aired}
             pct={pct}

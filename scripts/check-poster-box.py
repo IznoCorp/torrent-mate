@@ -12,13 +12,12 @@ THIS IS WHY P29 IS ORDERED BEFORE P24 (D-L12-2). A declared box is not a
 neighbour of virtualisation, it is its precondition — a virtualiser measuring an
 undeclared box measures a box that is still growing.
 
-WHERE IT READS, AND WHY BOTH PLACES. The five declarations live in
-`styles/legacy.css` today, which is the dying stylesheet with a date of death at
-L13 (D10). Moving them into the typed variants is that lot's work, not this one's
-— so this guard reads the variants AND the stylesheets, exactly as
-`check-compositor-css.py` does and for the same reason: a guard that read only
-one of them would report the whole inventory missing on the day the declarations
-move, and — far worse — would report nothing at all once they had.
+WHERE IT READS, AND WHY BOTH PLACES. The declarations live in the typed variants,
+where they moved from the engine's residue stylesheet, which is gone. This guard
+still reads the variants AND the stylesheets, exactly as `check-compositor-css.py`
+does and for the same reason: a declaration written back into a stylesheet is
+still a declared box, and a guard that read only the variants would call it
+missing.
 
 WHAT IT HOLDS: a floor on the number of declared poster boxes, so a declaration
 that vanishes is a failure rather than a silence. The floor is a measurement, not
@@ -70,7 +69,15 @@ SKIP = {"node_modules", "dist", "__pycache__"}
 # `styles/legacy.css` (`.poster`, the card poster, `.tile .p`, `.sheetposter`,
 # `.sk.tile`). Re-take it the same way whenever it legitimately moves — a floor
 # somebody typed is a floor that drifts, which is B-272.
-BOX_FLOOR = 5
+#
+# LOWERED TO 4 at L13a a·11, with the residue's last two: `.poster` and
+# `.dcard .p` left `legacy.css` with the card's and the deck's last bare writers.
+# The four left are `ui/variants/card.ts`'s folder, `surfaces.ts`'s poster frame
+# and panel poster, and `tile.ts`'s tile poster.
+#
+# RE-TAKEN AT 4 when `legacy.css` itself was deleted, by the same method: at 5
+# the guard falls, at 4 it passes, and all four are in the variants.
+BOX_FLOOR = 4
 
 CORPUS_FLOOR = 100
 

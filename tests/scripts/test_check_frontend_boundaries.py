@@ -869,7 +869,6 @@ class TestTheRecordIsARatchetToo:
             ledger.REPOSITORY_ROOT = root
             ledger.GRANDFATHERED = {
                 "engine/legacy.js": ("L13 — the engine dies by subtraction, surface by surface", engine_lines),
-                "engine/states.js": before_table["engine/states.js"],
             }
             violations = guard.arm_size(design)
         finally:

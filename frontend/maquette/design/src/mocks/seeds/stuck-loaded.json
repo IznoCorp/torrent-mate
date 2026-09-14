@@ -14,7 +14,9 @@
       0,
       0
     ],
-    "withoutPoster": true
+    "withoutPoster": true,
+    "ids": null,
+    "poster": null
   },
   {
     "title": "S.W.A.T.",
@@ -26,7 +28,9 @@
       "blocked",
       0,
       0
-    ]
+    ],
+    "ids": null,
+    "poster": null
   },
   {
     "title": "doc_fr_2026_final",
@@ -39,6 +43,8 @@
       0,
       0
     ],
-    "withoutPoster": true
+    "withoutPoster": true,
+    "ids": null,
+    "poster": null
   }
 ]

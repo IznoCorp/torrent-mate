@@ -1,12 +1,12 @@
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import { SurfaceError } from "../../ui/state-surfaces";
-import { useAcquisitionReference } from "./reference";
+import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
+import { mediumCardMarkup, type MediumCard } from "./card-markup";
 import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useUiState } from "../../lib/store-access";
 import { body, crossReference, crossReferenceLink, crossReferenceStrong, emptyNote, section as sectionClass } from "../../ui/variants";
-import { Markup } from "../../ui/markup";
+import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
 
 // « En cours » — five sections of urgency, one coloured pip each, and a counter
 // that IS its own link. The page's own note calls this the language reference
@@ -14,12 +14,6 @@ import { Markup } from "../../ui/markup";
 export function NowTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const {
-    cardHTML,
-    secInner,
-    emptyInner,
-    skelCardsInner,
-  } = useAcquisitionReference();
 
   if (state.phase !== "ready") {
     return (
@@ -27,10 +21,7 @@ export function NowTab(): ReactElement {
         {state.phase === "error" ? (
           <SurfaceError subject={t("screens.acquisition.errorNow")} />
         ) : (
-          <Markup
-            className={sectionClass()} data-part="section"
-            html={skelCardsInner(4)}
-          />
+          <div className={sectionClass()} data-part="section"><Skeletons count={4} shape="card" /></div>
         )}
       </div>
     );
@@ -65,7 +56,7 @@ export function NowTab(): ReactElement {
     cards.length === 0 || inner === "" ? null : (
       <Markup tag="section"
         className={sectionClass()} data-part="section"
-        html={secInner(pip, title, String(cards.length), inner, note)}
+        html={sectionInnerMarkup(pip, title, String(cards.length), inner, note)}
       />
     );
 
@@ -78,7 +69,7 @@ export function NowTab(): ReactElement {
       {nothing ? (
         <Markup
           className={emptyNote()} data-part="empty-state"
-          html={emptyInner(
+          html={emptyNoteMarkup(
               t("screens.acquisition.nowEmptyTitle"),
               `${t("screens.acquisition.nowEmptyBodyBefore")}<b>${t("screens.acquisition.nowEmptyBodyCount")}</b>${t("screens.acquisition.nowEmptyBodyAfter")}`,
             )}
@@ -90,10 +81,7 @@ export function NowTab(): ReactElement {
         takeable,
         takeable
           .map((card) =>
-            cardHTML(card, {
-              foot: t("screens.acquisition.takeableFoot"),
-              footSolid: true,
-            }),
+            mediumCardMarkup(card as MediumCard, { label: t("screens.acquisition.takeableFoot"), solid: true }),
           )
           .join(""),
       )}
@@ -103,7 +91,7 @@ export function NowTab(): ReactElement {
         blocked,
         blocked
           .map((card) =>
-            cardHTML(card, { foot: t("screens.acquisition.blockedFoot") }),
+            mediumCardMarkup(card as MediumCard, { label: t("screens.acquisition.blockedFoot") }),
           )
           .join(""),
       )}
@@ -127,20 +115,20 @@ export function NowTab(): ReactElement {
         "info",
         t("screens.acquisition.inflight"),
         inflight,
-        inflight.map((card) => cardHTML(card)).join(""),
+        inflight.map((card) => mediumCardMarkup(card as MediumCard)).join(""),
       )}
       {section(
         "waiting",
         t("screens.acquisition.notfound"),
         notfound,
-        notfound.map((card) => cardHTML(card)).join(""),
+        notfound.map((card) => mediumCardMarkup(card as MediumCard)).join(""),
         `<b>${t("screens.acquisition.notfoundNoteLead")}</b>${t("screens.acquisition.notfoundNoteRest")}`,
       )}
       {section(
         "success",
         t("screens.acquisition.doneToday"),
         doneToday,
-        doneToday.map((card) => cardHTML(card)).join(""),
+        doneToday.map((card) => mediumCardMarkup(card as MediumCard)).join(""),
       )}
     </div>
   );

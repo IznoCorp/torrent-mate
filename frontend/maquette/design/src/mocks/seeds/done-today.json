@@ -5,7 +5,13 @@
     "chip": {
       "tone": "success",
       "text": "En médiathèque"
-    }
+    },
+    "ids": {
+      "tvdb": "456595",
+      "tmdb": "248226",
+      "imdb": "tt13592494"
+    },
+    "poster": "assets/posters/c2b20ac0.webp"
   },
   {
     "title": "Smiling Friends",
@@ -13,7 +19,13 @@
     "chip": {
       "tone": "success",
       "text": "En médiathèque"
-    }
+    },
+    "ids": {
+      "tmdb": "126506",
+      "imdb": "tt12074628",
+      "tvdb": 379403
+    },
+    "poster": "assets/posters/ee12deb9.webp"
   },
   {
     "title": "On l'appelait Robin des Bois",
@@ -21,7 +33,12 @@
     "chip": {
       "tone": "success",
       "text": "En médiathèque"
-    }
+    },
+    "ids": {
+      "tmdb": "1284465",
+      "imdb": "tt32273171"
+    },
+    "poster": "assets/posters/91d3af04.webp"
   },
   {
     "title": "Ninja Turtles",
@@ -29,6 +46,11 @@
     "chip": {
       "tone": "success",
       "text": "En médiathèque"
-    }
+    },
+    "ids": {
+      "tmdb": "98566",
+      "imdb": "tt1291150"
+    },
+    "poster": "assets/posters/a4bd5f70.webp"
   }
 ]

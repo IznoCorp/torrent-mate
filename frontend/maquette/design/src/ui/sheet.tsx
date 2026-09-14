@@ -7,7 +7,7 @@
 // measures the React layer without knowing anything changed. Only the owner
 // moved.
 //
-// It paints ABOVE a legacy `#screen` for the same reason it always did: the
+// It paints ABOVE a screen: the
 // sheet is z-47 and a screen is z-45, and the React mount node (`#shell`)
 // creates no stacking context of its own, so the two z-indexes are compared
 // in the SAME context even though the elements now live in different subtrees.
@@ -17,6 +17,7 @@
 // both states on the same element, and the legacy `#sheetin` likewise kept its
 // content after closing.
 import { useLayoutEffect, useRef, useState } from "react";
+import { closeLayers } from "../app/layers";
 import { useUiState } from "../lib/store-access";
 import { feedback } from "../lib/feedback";
 import { PanelContent } from "../ui/panel";
@@ -128,10 +129,10 @@ export function Sheet({
         className={sheetScrim({ open: scrimOpen })}
         // The scrim is shared ground: the drawer and the dialog raise it
         // themselves and a tap on it closes whichever of the three is up. The
-        // engine still owns that decision — reproduced here by calling the
-        // verb it publishes, rather than by closing the sheet alone and
+        // ladder owns that decision (`app/layers.ts`) — reproduced here by
+        // calling its verb, rather than by closing the sheet alone and
         // leaving the other two open.
-        onClick={() => window.__closeLayers?.()}
+        onClick={() => closeLayers()}
       />
       {/* A MODAL DIALOG, and only while it is open. The layer is rendered
           always — closed is a class, not an absence — so a permanent

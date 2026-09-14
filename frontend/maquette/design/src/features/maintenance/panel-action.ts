@@ -17,6 +17,7 @@ import { registerProducer, type PanelCache, type PanelDescriptor } from "../../u
 import { maintenanceActionsQuery } from "./queries";
 import { riskLabel, riskPip } from "./risks";
 import type { MaintenanceAction } from "./reference";
+import { store } from "../../lib/store-access";
 
 /**
  * Finds one maintenance command among those the layer answered.
@@ -56,7 +57,7 @@ function maintenancePanel(
   // switch says: the note below is the whole reason, and the engine read it
   // the same way. The switch is ephemeral interface state and is read from the
   // store, which is where invariant 4 puts it.
-  const dry = deletes ? true : Boolean(window.__store.read().state.maintBlanc);
+  const dry = deletes ? true : Boolean(store.read().state.maintBlanc);
   return {
     address: "action:" + identifier,
     title: action.l,

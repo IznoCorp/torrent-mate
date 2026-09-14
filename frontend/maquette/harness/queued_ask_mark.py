@@ -26,8 +26,9 @@ button that is already there, then opens a follow and asks for a season. The
 layer answers `queued` because `pipelineState` is not idle — the same fact this
 rule arranges — so what he sees by hand is what this rule reads.
 
-NO NAMED STATE, and it is B-352: `engine/states.js` is grandfathered AT its
-record, so the pastille cannot be given a state and the oracle never sees it.
+NO NAMED STATE, and it was B-352: the named-state table was grandfathered AT its
+record when this rule was written, so the pastille got no state and the oracle
+never sees it.
 Its drawing is held here, and by his hand.
 
 WHAT IT READS, and each fails differently:

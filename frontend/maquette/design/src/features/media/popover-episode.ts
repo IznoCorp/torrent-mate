@@ -12,9 +12,35 @@
 // feature that draws the cell the reader tapped
 // (`features/media/panel-seasons.tsx`).
 import i18next from "i18next";
+import { heldIdentity, providerAddress } from "../../lib/held-identity";
+import { sharedQueryClient } from "../../lib/query-client";
+import { dateLabel } from "./format";
 
-/** One episode of a season's catalogue, as the référentiel answers it. */
+/** One episode of a season's catalogue, as the served sheet answers it. */
 type Episode = { n: number; t?: string; air?: string | null };
+
+/**
+ * The episode catalogue of the medium drawn under one title, from the cache.
+ *
+ * THE CELL WAS DRAWN FROM A SHEET THAT LANDED — the screen's, or the panel's —
+ * so the cache holds it: the title gives the medium's identity, and the identity
+ * finds the sheet whichever provider its address was read under.
+ *
+ * @param title The title the cell was drawn under.
+ * @returns The catalogue, season by season, or undefined.
+ */
+function catalogueOf(title: string): Record<string, Episode[]> | undefined {
+  const wanted = providerAddress(heldIdentity(title)?.ids);
+  if (wanted === null || sharedQueryClient === undefined) return undefined;
+  for (const query of sharedQueryClient.getQueryCache().getAll()) {
+    const [address, , , part] = query.queryKey as unknown[];
+    if (address !== "/api/media" || part !== undefined) continue;
+    const sheet = query.state.data as { ids?: Record<string, number | string>; eps?: Record<string, Episode[]> } | null | undefined;
+    const held = providerAddress(sheet?.ids);
+    if (sheet?.eps && held?.provider === wanted.provider && held.id === wanted.id) return sheet.eps;
+  }
+  return undefined;
+}
 
 /**
  * Builds what the popover says about one episode.
@@ -37,10 +63,9 @@ export function episodeSaying(
   if (written === undefined) return null;
   const [title, season, number, state] = written.split("|");
   const reference = window.__referentiel;
-  const sheet = reference.sheetFor(title) as { eps?: Record<string, Episode[]> } | null;
   const episode =
-    sheet?.eps?.[season]?.find((one) => String(one.n) === number) ?? null;
-  const airDate = episode?.air ? reference.dateFR(episode.air) : null;
+    catalogueOf(title)?.[season]?.find((one) => String(one.n) === number) ?? null;
+  const airDate = episode?.air ? dateLabel(episode.air) : null;
   // ANNOUNCED IS EITHER OF TWO THINGS, and both are read: a date still ahead of
   // today, or a state the catalogue already calls announced. A rule that read
   // only the first would go green the day the fixture's dates fell behind.
@@ -60,14 +85,3 @@ export function episodeSaying(
     note: reference.EP_LABEL[state] ?? "",
   };
 }
-
-declare global {
-  interface Window {
-    /** What the popover says about an episode — read by the delegation. */
-    __episodeSaying?: (cell: HTMLElement) => {
-      title: string; text: string; note: string;
-    } | null;
-  }
-}
-
-window.__episodeSaying = episodeSaying;

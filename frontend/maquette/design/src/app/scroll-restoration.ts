@@ -5,10 +5,8 @@
 import { history } from "./history-bridge";
 
 /* ── SCROLL FOLLOWS THE HISTORY ENTRY ─────────────────────────────────────
-   A screen opened OVER another one used to be the same LAYER replacing its
-   own content, and the legacy layer restored the covered screen's scroll
-   itself when it unwound (`closeScreen`). Router-owned screens replace each
-   other by UNMOUNTING instead: the covered screen's DOM — and its scroll
+   A screen opened OVER another one replaces it by UNMOUNTING it: the
+   covered screen's DOM — and its scroll
    offset with it — is gone by the time one comes back to it, and the
    operator lands at the top of the list they had walked down.
 
@@ -20,10 +18,9 @@ import { history } from "./history-bridge";
    Reading happens in the history subscription, which runs BEFORE React
    commits the new route: the outgoing screen is still in the DOM at that
    instant, which is the only moment its position can still be read.
-   `[data-part="screen"][data-open]` resolves the React screen first (`#shell`
-   precedes the legacy `#screen` in document order), which is exactly the one
-   that is about to be unmounted; a legacy screen above it keeps its own
-   restoration. With no screen open it is `#port`, the page's own viewport —
+   `[data-part="screen"][data-open]` resolves that screen, which is exactly
+   the one about to be unmounted. With no screen open it is `#port`, the
+   page's own viewport —
    see `activePort` for why that half was missing for a wave.
 
    WHAT THIS REPAIR DOES AND DOES NOT PAY OFF. `frontend-architecture.md` § 1

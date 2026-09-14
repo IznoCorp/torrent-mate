@@ -295,14 +295,15 @@ async def hold_one_entry_one_owner(journal, browser, warmed):
 
     if warmed:
         # THE FANART IS PUT IN THE CACHE BEFORE THE ARRIVAL. Its URL is the one
-        # the media screen will paint, read from the fixture the same way the
-        # screen reads it, and fetched in THIS context so the browser holds it.
+        # the media screen will paint — the served sheet's `hero`, which is what
+        # the screen reads — and it is fetched in THIS context so the browser
+        # holds it. RE-AIMED: it was read from the engine's wide-visual table,
+        # which died when the screen began reading the payload; the count is
+        # unchanged.
         warmed_source = await page.evaluate("""async ()=>{
-          const reference = window.__referentiel;
-          const title = reference.titleForProviderId('tmdb', '1284465');
-          const sheet = title ? reference.sheetFor(title) : null;
-          const source = (window.HERO_IMAGES || {})[title]
-            || (sheet && sheet.hero) || null;
+          const answer = await fetch('/api/media/tmdb/1284465');
+          const sheet = answer.ok ? await answer.json() : null;
+          const source = (sheet && sheet.hero) || null;
           if (!source) return null;
           const image = new Image();
           image.src = source;
@@ -499,15 +500,15 @@ READ_PRIMING = """()=>{
   const sheet = window.__queries.getQueryCache().getAll()
     .find((query) => query.queryKey[0] === '/api/media'
                      && query.queryKey.length === 3);
-  // THE META LINE, NOT THE TITLE. The title is derived from the ROUTE
-  // (`titleForProviderId`) and is drawn whether or not anything primed the
-  // query — reading it left this hold green with `placeholderData` DELETED,
-  // which is the trap its own comment says it refuses. The year and the type
-  // come from the sheet payload, and only priming puts them on screen before
-  // the read lands.
-  const meta = document.querySelector('[data-part="hero/content"] p');
+  // THE TITLE, AND ONLY PRIMING DRAWS IT BEFORE THE READ LANDS. RE-AIMED, said out
+  // loud: this read the META line, because the title was
+  // derived from the route by the engine's resolver and drawn whether or not
+  // anything primed. The resolver is gone; the title now comes from the sheet or
+  // from what the tap carried, and a tap carries a title and a poster — not the
+  // year and the type. With `placeholderData` deleted the title is a skeleton.
+  const heading = document.querySelector('[data-part="hero/title"]');
   return {
-    meta: ((meta && meta.textContent) || '').trim(),
+    title: ((heading && heading.textContent) || '').trim(),
     // THE CACHE IS EMPTY UNTIL THE READ LANDS. `state.status === 'pending'`
     // said only that a read was outstanding, which is true with or without
     // priming; placeholder data lives on the observer and never in
@@ -542,8 +543,7 @@ async def hold_the_priming(journal, browser):
     early = await page.evaluate(READ_PRIMING)
     journal.check(
         "the media screen opens with PRIMED facts while its read is in flight",
-        early["cacheEmpty"] and len(early["meta"]) > 2
-        and "inconnu" not in early["meta"].lower(),
+        early["cacheEmpty"] and len(early["title"]) > 1,
         f"read {early} — the screen must show the facts the tap already knew. "
         "« Métadonnées inconnues » is the screen's OWN empty case and is what a "
         "screen with no priming draws, so a length check alone passes over "

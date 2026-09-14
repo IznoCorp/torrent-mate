@@ -57,3 +57,27 @@ reads only history citations.
 ## Commit
 
 `chore(maquette-l13): legacy.css, its guard and the rule that compared it to the variants are deleted`
+
+## Amendment — 2026-09-13, ruling 59 (the steward, on the implementer's STOP D)
+
+**VOID in this file**: « Delete `residue.py` and `tests/scripts/test_residue.py` » read as the whole module and
+the whole test; and « their drawing moves into the variant that `#ptr` wears, as class-qualified utilities ».
+Measured at the opening of a·18 on `f4b0732ae`:
+
+- `harness/resolution_card.py:71` imports `read_factories` from `residue.py`. The reader half of `residue.py`
+  (`VARIANT_SOURCES`, `FACTORY`, `CVA_CALL`, `LITERAL`, `balanced`, `split_top_level`, `without_comments`,
+  `read_factories`) moves as is into `harness/factories.py`, and `resolution_card.py` imports it from there. The
+  reader's tests move to `tests/scripts/test_factories.py`; R80's own tests die with it. The five « `residue.py`
+  reads a branch through its literals » comments name `factories.py`.
+- `window.__reposPTR` (`engine/legacy.js`) writes `ptr.className = "ptr"`, and the driver's reset
+  (`harness/drive.ts`), `press.py` and `touch.py` call it: a utility on `#ptr` does not survive it. The rotation
+  and the armed colour move onto the child `.spin` as parent-qualified utilities, `[.ptr.loading_&]:…` and
+  `[.ptr.armed_&]:text-primary`.
+- **FILED, NOT REPAIRED — b·8's**: the same reset erases the utilities `index.html` gives `#ptr` itself (its grid,
+  its clipping, its zero height, its transition, its colour) in every state the driver builds.
+- Measured without a hole: `setOpen` has no caller, so `.scrim.open` and `.sheet.open` have no engine emitter;
+  `.panel` is `factsPanel()` and `.linkbtn` is `countLineAction()`, term for term; `csstokens_login.py`'s
+  `LEGACY_STYLESHEET` left at a·17; `markup_dressing.py`'s two `.surferr button` reasons are rewritten with
+  `surfaceError()`.
+- **A blind spot, for the reader round** (L13a writes no rule): with `[.ptr.loading_&]:[animation:…]` removed from
+  `.spin`, neither `press.py` nor `touch.py` falls — no rule reads that the pull's spinner turns while it loads.

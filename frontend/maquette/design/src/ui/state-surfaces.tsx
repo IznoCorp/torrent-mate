@@ -14,20 +14,19 @@
 // `dangerouslySetInnerHTML`: the markup, the French and the retry all lived in
 // `legacy.js`'s `surfErrInner`. That is the engine reaching into a converted
 // surface, and D5 says its share dies with the surface that stops needing it.
-// The engine keeps `surfErr` for the surfaces IT still draws; what leaves is
-// its last component reader.
+// Nothing draws it from a string any more.
 //
 // THE RETRY STAYS DELEGATED until a surface has a query to re-ask. See the
 // note on `SurfaceError`: a callback was written here and taken back in the
 // same phase, because it made a component write a server-state key.
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
-import { skeletonLine, surfaceError } from "./variants";
+import { skeleton, skeletonLine, surfaceError } from "./variants";
 
 /**
  * The placeholders a surface shows while its data is in flight.
  *
- * THE MARKUP IS THE ENGINE'S, kept to the character. `sk` carries the shimmer,
+ * THE MARKUP IS THE ONE THE ENGINE DREW, kept to the character. `sk` carries the shimmer,
  * `data-skeleton` is what the harness counts, and `tile` against `skcard` is
  * the difference between a gallery cell and a list row. Re-deriving any of that
  * here would move a rectangle the oracle measures, for no reason at all.
@@ -46,7 +45,7 @@ export function Skeletons({
       {Array.from({ length: count }, (_, index) => (
         <div
           key={index}
-          className={shape === "tile" ? "sk tile" : "sk skcard"}
+          className={skeleton({ shape })}
           data-skeleton=""
           data-part={shape === "tile" ? "tile" : undefined}
         />
@@ -70,7 +69,7 @@ export function SkeletonLine({
   /** Roughly how long the sentence will be. */
   width?: "full" | "wide" | "half" | "short";
 }): ReactElement {
-  return <span className={`sk ${skeletonLine({ width })}`} data-skeleton="" aria-hidden="true" />;
+  return <span className={`${skeleton({ shape: "line" })} ${skeletonLine({ width })}`} data-skeleton="" aria-hidden="true" />;
 }
 
 /**
@@ -79,7 +78,7 @@ export function SkeletonLine({
  * IT OWNS ITS OUTER ELEMENT, which the six call sites drew themselves in two
  * different ways: five through the typed variant, and the library through the
  * raw `surferr` class inside a string the engine built. The two render
- * identically — they are one of R80's sixteen pairs, declaring the same terms —
+ * identically — the residue rule and the variant declared the same terms —
  * so unifying them moves nothing, and the oracle is what says so rather than
  * this sentence.
  *

@@ -1,50 +1,116 @@
 [
   {
     "title": "On l'appelait Robin des Bois",
-    "secondaryLine": "2026 · Film"
+    "secondaryLine": "2026 · Film",
+    "ids": {
+      "tmdb": "1284465",
+      "imdb": "tt32273171"
+    },
+    "poster": "assets/posters/91d3af04.webp"
   },
   {
     "title": "The Bombing of Pan Am 103",
-    "secondaryLine": "6/6 épisodes"
+    "secondaryLine": "6/6 épisodes",
+    "ids": {
+      "tvdb": "456595",
+      "tmdb": "248226",
+      "imdb": "tt13592494"
+    },
+    "poster": "assets/posters/c2b20ac0.webp"
   },
   {
     "title": "Batman Caped Crusader",
-    "secondaryLine": "10/10 épisodes"
+    "secondaryLine": "10/10 épisodes",
+    "ids": {
+      "tvdb": "403170",
+      "tmdb": "125909",
+      "imdb": "tt14681596"
+    },
+    "poster": null
   },
   {
     "title": "Ninja Turtles",
-    "secondaryLine": "2014 · Film"
+    "secondaryLine": "2014 · Film",
+    "ids": {
+      "tmdb": "98566",
+      "imdb": "tt1291150"
+    },
+    "poster": "assets/posters/a4bd5f70.webp"
   },
   {
     "title": "President Curtis",
-    "secondaryLine": "1/6 épisodes"
+    "secondaryLine": "1/6 épisodes",
+    "ids": {
+      "tvdb": "466198",
+      "tmdb": "296756",
+      "imdb": "tt37692332"
+    },
+    "poster": "assets/posters/1d48eb5b.webp"
   },
   {
     "title": "Big Chicken",
-    "secondaryLine": "2026 · Documentaire"
+    "secondaryLine": "2026 · Documentaire",
+    "ids": {
+      "tmdb": "1728056",
+      "imdb": "tt43657327"
+    },
+    "poster": null
   },
   {
     "title": "Marjorie Prime",
-    "secondaryLine": "2017 · Film"
+    "secondaryLine": "2017 · Film",
+    "ids": {
+      "tmdb": "426254",
+      "imdb": "tt4978710"
+    },
+    "poster": "assets/posters/8c34a93a.webp"
   },
   {
     "title": "Furious",
-    "secondaryLine": "1/8 épisodes"
+    "secondaryLine": "1/8 épisodes",
+    "ids": {
+      "tvdb": "468000",
+      "tmdb": "287238",
+      "imdb": "tt36303968"
+    },
+    "poster": "assets/posters/5bb49e46.webp"
   },
   {
     "title": "The Hawk",
-    "secondaryLine": "3/8 épisodes"
+    "secondaryLine": "3/8 épisodes",
+    "ids": {
+      "tmdb": "254528",
+      "imdb": "tt27550719",
+      "tvdb": 450088
+    },
+    "poster": "assets/posters/71d10ce4.webp"
   },
   {
     "title": "Margin Call",
-    "secondaryLine": "2011 · Film"
+    "secondaryLine": "2011 · Film",
+    "ids": {
+      "tmdb": "50839",
+      "imdb": "tt1615147"
+    },
+    "poster": "assets/posters/be927a14.webp"
   },
   {
     "title": "Supergirl",
-    "secondaryLine": "2026 · Film"
+    "secondaryLine": "2026 · Film",
+    "ids": {
+      "tmdb": "1081003",
+      "imdb": "tt8814476"
+    },
+    "poster": "assets/posters/1767323b.webp"
   },
   {
     "title": "Rick and Morty",
-    "secondaryLine": "71/71 épisodes"
+    "secondaryLine": "71/71 épisodes",
+    "ids": {
+      "tmdb": "60625",
+      "imdb": "tt2861424",
+      "tvdb": 275274
+    },
+    "poster": null
   }
 ]

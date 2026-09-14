@@ -57,3 +57,9 @@ OUTPUT. The steward is told before the full-suite run. **STOP C: the pull reques
 ## Commit
 
 `chore(maquette-l13): the engine file and every instrument that read it are deleted`
+
+## Amended 2026-09-13 — a fan-in exemption to remove
+
+a·2 added `features/acquisition/queries.ts` to `FAN_IN_EXEMPT` in `scripts/check-frontend-boundaries.py`,
+because `engine/seams.ts` imports it. If an earlier L13b phase has not removed the entry with the engine's
+last read of `followActions`/`suggestions`, this phase removes it with `engine/seams.ts`.

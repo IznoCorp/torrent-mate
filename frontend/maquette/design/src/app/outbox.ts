@@ -319,7 +319,7 @@ export async function forgetOutbox(): Promise<void> {
   announce();
 }
 
-// PUBLISHED HERE AND NOT BY THE BOOT, for the reason `shell.tsx` states about
+// DECLARED AND FILLED HERE, NOT BY THE BOOT, for the reason `shell.tsx` states about
 // itself: it owns WHEN a thing is installed, and the module owns WHAT. The
 // engine's seams and the mock layer's already work this way, each declaring its
 // own surface beside the functions it exposes.
@@ -343,6 +343,9 @@ declare global {
   }
 }
 
+/** The outbox's driving surface — filled by `publishOutboxSeam`, published by the harness as `window.__outbox`. */
+export let outboxSeam: Window["__outbox"];
+
 /**
  * Publishes the outbox's driving surface. Called by the boot.
  *
@@ -361,7 +364,7 @@ declare global {
 export function publishOutboxSeam(
   issue: (method: string, path: string, body?: unknown) => Promise<unknown>,
 ): void {
-  globalThis.window.__outbox = {
+  outboxSeam = {
     depth: outboxDepth,
     subscribe: subscribeToOutbox,
     forget: forgetOutbox,

@@ -25,6 +25,9 @@ import type { QueryClient } from "@tanstack/react-query";
 import { read } from "../lib/query-client";
 import { toEngineShape } from "../engine/engine-shape";
 import { queueKey, stagingKey } from "../lib/queue";
+import { store } from "../lib/store-access";
+import { refillSuggestions } from "../features/acquisition/queries";
+import { refillProducers } from "./panel-host";
 
 /** What the engine reads with no component to ask for it.
  *
@@ -43,13 +46,16 @@ const NEEDED = [
   },
 ] as const;
 
+/** Re-asks for what the engine reads and no component observes — filled at install. */
+export let refillEngineData: (() => void) | undefined;
+
 /**
  * Installs the door that asks for what the engine reads.
  *
  * @param queryClient The cache the accessors read.
  */
 export function installEngineData(queryClient: QueryClient): void {
-  window.__refillEngineData = () => {
+  refillEngineData = () => {
     for (const { key, address, family } of NEEDED) {
       void queryClient.prefetchQuery({
         queryKey: key,
@@ -59,7 +65,7 @@ export function installEngineData(queryClient: QueryClient): void {
     // THE QUEUE, in whichever world is in force. The engine's nav badges and
     // its journey panel read it, and neither is a component.
     const scenario =
-      String(window.__store?.read().state.scen ?? "") === "loaded" ? "loaded" : "";
+      String(store?.read().state.scen ?? "") === "loaded" ? "loaded" : "";
     const parameters = new URLSearchParams(scenario ? { scenario } : {});
     void queryClient.prefetchQuery({
       queryKey: stagingKey(scenario),
@@ -87,21 +93,12 @@ export function installEngineData(queryClient: QueryClient): void {
         };
       },
     });
-    window.__refillSuggestions?.();
+    refillSuggestions?.();
     // AND WHAT THE MOVED PRODUCERS READ. A producer is called from a click and
     // cannot await, so its reads are asked for here with the rest — beside the
     // list this file exists to hold rather than inside it, because a producer
     // that has moved declares its own needs and this file is the one that dies.
-    window.__refillProducers?.();
+    refillProducers?.();
   };
-  window.__refillEngineData();
-}
-
-declare global {
-  interface Window {
-    /** Re-asks for what the engine reads and no component observes. */
-    __refillEngineData?: () => void;
-    /** The discover deck's own reserve, asked for by its feature. */
-    __refillSuggestions?: () => void;
-  }
+  refillEngineData();
 }

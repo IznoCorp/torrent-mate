@@ -31,6 +31,13 @@ repository. It starts its own server with a hash it sets, on its own port.
 
 It does not read production. `GET /api/version` and R27 are the other side of
 this question and belong to the shipped application; nothing here touches them.
+
+RE-AIMED WHEN THE PRODUCT STOPPED READING `window`. The host writes the identity
+as a JSON element — `<script type="application/json" id="served-identity">` —
+and no longer as an inline script assigning `window.__servedIdentity`;
+`lib/served-identity.ts` reads that element. Every hold below reads the element
+instead of the global, and the drawer's published cases are driven by WRITING
+it, as the host does. The holds and their count are unchanged.
 """
 import asyncio
 import base64
@@ -57,6 +64,20 @@ PASSWORD = "harness-only-password"
 # accepts it; only a space would be refused, and the payload needs none.
 HOSTILE_BRANCH = "</script><img/src=x/onerror=alert(1)>"
 IDENTITY = '[data-part="shell/served-identity"]'
+# The element the host writes the identity into, as it opens in the served document.
+IDENTITY_ELEMENT = '<script type="application/json" id="served-identity">'
+# How the rule stands in for the host: the same element, created when the static
+# copy the suite reads has none.
+WRITE_IDENTITY = """(identity)=>{
+    let element = document.getElementById('served-identity');
+    if (!element) {
+        element = document.createElement('script');
+        element.type = 'application/json';
+        element.id = 'served-identity';
+        document.head.append(element);
+    }
+    element.textContent = JSON.stringify(identity);
+}"""
 
 _journal = None
 
@@ -119,10 +140,9 @@ def document(cookie: str) -> str:
 
 def published(page_text: str) -> str | None:
     """Returns the identity payload the document publishes, as raw text."""
-    marker = "window.__servedIdentity="
-    if marker not in page_text:
+    if IDENTITY_ELEMENT not in page_text:
         return None
-    return page_text.split(marker, 1)[1].split(";</script>", 1)[0]
+    return page_text.split(IDENTITY_ELEMENT, 1)[1].split("</script>", 1)[0]
 
 
 async def read_drawer():
@@ -139,9 +159,8 @@ async def read_drawer():
         # The published case is driven here rather than measured against the
         # design host, so that the DRAWER's two states are read the same way.
         # That the host really publishes this shape is the server half below.
-        await page.evaluate("""()=>{window.__servedIdentity =
-            {branch:'branch-under-test', detached:false,
-             commit:'0badc0de', dirty:true};}""")
+        await page.evaluate(WRITE_IDENTITY, {"branch": "branch-under-test", "detached": False,
+                                             "commit": "0badc0de", "dirty": True})
         await page.evaluate("()=>window.__go('acq-now-idle')")
         await page.wait_for_timeout(200)
         await page.evaluate("()=>window.__go('drawer-navigation')")
@@ -150,7 +169,9 @@ async def read_drawer():
             "(selector)=>{const block=document.querySelector(selector);"
             "return {known: block.hasAttribute('data-known'),"
             " lines: [...block.children].map(line=>line.textContent)};}", IDENTITY)
-        await page.evaluate("()=>{window.__servedIdentity.dirty = false;}")
+        await page.evaluate("""()=>{const element = document.getElementById('served-identity');
+            const identity = JSON.parse(element.textContent); identity.dirty = false;
+            element.textContent = JSON.stringify(identity);}""")
         await page.evaluate("()=>window.__go('acq-now-idle')")
         await page.wait_for_timeout(200)
         await page.evaluate("()=>window.__go('drawer-navigation')")
@@ -165,8 +186,8 @@ async def read_drawer():
         # where it renders a branch — plausible, wrong, and unreadable as an
         # anomaly. The incident that opened this defect WAS a detached checkout
         # two commits behind, read as a branch.
-        await page.evaluate("""()=>{window.__servedIdentity =
-            {branch:'', detached:true, commit:'0badc0de', dirty:false};}""")
+        await page.evaluate(WRITE_IDENTITY, {"branch": "", "detached": True,
+                                             "commit": "0badc0de", "dirty": False})
         await page.evaluate("()=>window.__go('acq-now-idle')")
         await page.wait_for_timeout(200)
         await page.evaluate("()=>window.__go('drawer-navigation')")
@@ -329,7 +350,7 @@ def main() -> None:
         # existed nothing said so. `json.dumps` escapes `"` and the backslash and
         # nothing else that matters inside a script body; a git ref may contain
         # `<`, `>` and `/`, so a branch named to close the element left
-        # `window.__servedIdentity=` as a syntax error — the drawer then said
+        # its JSON unparseable — the drawer then said
         # « unavailable » on exactly the branch that broke it — and turned the
         # rest into live markup on the design host's own origin.
         #
@@ -359,9 +380,9 @@ def main() -> None:
         check("and its markup does not become markup",
               "<img" not in served, served.strip()[:150])
         carried = ""
-        if "window.__servedIdentity=" in served:
-            carried = json.loads(served.split("window.__servedIdentity=", 1)[1]
-                                 .split(";</script>", 1)[0]).get("branch", "")
+        if IDENTITY_ELEMENT in served:
+            carried = json.loads(served.split(IDENTITY_ELEMENT, 1)[1]
+                                 .split("</script>", 1)[0]).get("branch", "")
         check("while the escaped value still round-trips to the branch it names",
               carried == HOSTILE_BRANCH, repr(carried)[:150])
 

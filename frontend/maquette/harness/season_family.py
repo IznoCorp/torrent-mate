@@ -40,6 +40,11 @@ that aired in 1997 and keeps its act because everything in it is missing.
 
 Every count below is read from the data the surface is drawn from, and every word
 from `fr.json`: nothing about a fixture is typed here but the subjects' titles.
+
+RE-AIMED, said out loud: the address and the catalogue were read from `addressIdsFor` and `sheetFor`. The engine's sheet table and
+its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
+`__carriedFor` — the seed the served read answers from, published by the harness
+driver — and the hold count is unchanged.
 """
 import asyncio
 import json
@@ -115,7 +120,7 @@ FAMILIES = """async ([followsPath, incompletePath, seasonsPath, sheetPath]) => {
   const reference = window.__referentiel;
   const shows = [];
   for (const title of Object.keys(window.SEASONS || {})) {
-    const address = reference.addressIdsFor(title);
+    const address = window.__addressOf(title);
     let seasons = null;
     let sheet = null;
     if (address) {
@@ -158,13 +163,13 @@ ROW = """([scope, word, season]) => {
 # interface formats it.
 CATALOGUE = """([key, season]) => {
   const reference = window.__referentiel;
-  const sheet = reference.sheetFor(key);
-  const episodes = (sheet && sheet.eps && sheet.eps[String(season)]) || [];
-  const total = ((sheet && sheet.seasons) || []).find((one) => one.n === season);
-  const ahead = episodes.filter((one) => one.air && one.air > reference.TODAY)
-    .map((one) => one.air).sort();
-  return {total: total ? total.ep : null,
-          aired: episodes.filter((one) => one.air && one.air <= reference.TODAY).length,
+  const sheet = window.__sheetOf(key);
+  const episodes = (sheet && sheet.episodes && sheet.episodes[String(season)]) || [];
+  const total = ((sheet && sheet.seasons) || []).find((one) => one.number === season);
+  const ahead = episodes.filter((one) => one.airDate && one.airDate > reference.TODAY)
+    .map((one) => one.airDate).sort();
+  return {total: total ? total.episodes : null,
+          aired: episodes.filter((one) => one.airDate && one.airDate <= reference.TODAY).length,
           ahead: ahead.length,
           firstAhead: ahead.length ? reference.dateFR(ahead[0]) : null};
 }"""
@@ -301,7 +306,7 @@ async def one_season_on_both_surfaces(page, journal, errors, bare, key, season):
     missing = aired - owned
 
     errors.clear()
-    await page.evaluate("(title)=>window.__screens.mediaSheet(title)", key)
+    await page.evaluate("(title)=>window.__screens.mediaSheet(title, window.__carriedFor(title) ?? undefined)", key)
     await page.wait_for_timeout(SETTLED * 3)
     sheet = await page.evaluate(ROW, [SHEET_SCOPE, SEASON_WORD, season])
     await page.evaluate("(id)=>window.__go(id)", START_STATE)
@@ -343,7 +348,7 @@ async def a_season_not_yet_aired(page, journal):
     journal.check(f"« {title} » season {season} has not aired: nothing of it before today, "
                   "and a date after it",
                   catalogue["aired"] == 0 and catalogue["firstAhead"] is not None, str(catalogue))
-    await page.evaluate("(title)=>window.__screens.mediaSheet(title)", title)
+    await page.evaluate("(title)=>window.__screens.mediaSheet(title, window.__carriedFor(title) ?? undefined)", title)
     await page.wait_for_timeout(SETTLED * 3)
     row = await page.evaluate(ROW, [SHEET_SCOPE, SEASON_WORD, season])
     journal.check(f"« {title} » season {season}: drawn « {UPCOMING_WORD} », with its date",
@@ -359,7 +364,7 @@ async def a_season_not_yet_aired(page, journal):
     catalogue = await page.evaluate(CATALOGUE, [title, season])
     await page.evaluate("(id)=>window.__go(id)", START_STATE)
     await page.wait_for_timeout(SETTLED)
-    await page.evaluate("(title)=>window.__screens.mediaSheet(title)", title)
+    await page.evaluate("(title)=>window.__screens.mediaSheet(title, window.__carriedFor(title) ?? undefined)", title)
     await page.wait_for_timeout(SETTLED * 3)
     row = await page.evaluate(ROW, [SHEET_SCOPE, SEASON_WORD, season])
     journal.check(f"« {title} » season {season} aired entire and nothing of it is held: it "

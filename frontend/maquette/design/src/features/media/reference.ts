@@ -12,14 +12,14 @@
 
 import type { EngineDrawing } from "../../lib/engine-drawing";
 
-// A media sheet, exactly as `SHEETS_RAW` shapes one in refonte.html — a
+// A media sheet, exactly as the served read shapes one in the engine's names — a
 // movie and a show share most fields but not all (a show carries `seasons`
 // and `eps`, a movie carries `duree`), and the source stays untyped JS. A
 // loose index type is the honest shape here rather than a speculative
 // closed one: a component narrows the fields it actually reads.
 export type MediaSheet = Record<string, unknown>;
 
-// One YouTube trailer reference, as `trailerIds` shapes one per title.
+// One YouTube trailer reference, as a sheet's `trailerVideo` carries it.
 export type Trailer = {
   key: string;
   name: string;
@@ -27,26 +27,8 @@ export type Trailer = {
 };
 
 export type MediaReference = EngineDrawing & {
-  sheetFor: (title: string) => MediaSheet | null;
-  // The sheet's ADDRESS is `/media/:provider/:id` (DOIT-11), the catalogue is
-  // keyed by title: these two cross the vocabularies, in the engine, from the
-  // fixture itself. `null` from `addressIdsFor` is §11's explicit case — a
-  // medium with no provider id has no sheet, and leads to the resolution.
-  titleForProviderId: (provider: string, id: string) => string | null;
-  addressIdsFor: (title: string) => { provider: string; id: string } | null;
-  seasonsOf: (title: string) => [number, number | null, number][];
-  ownedFor: (title: string, season: number) => Set<number> | null;
   EP_LABEL: Record<string, string>;
   TODAY: string;
-  CAST: Record<string, string>;
-  // Media-sheet data: hero banners, posters, cast portraits, trailers and
-  // episode-status labels, plus the lookup/formatting helpers a sheet or a
-  // season list reads them through — see refonte.html's `sheetFor` /
-  // `seasonsOf` / `ownedFor` neighbourhood for the exact resolution rules
-  // (title normalisation, year-suffix stripping) a re-implementation would
-  // otherwise silently diverge from.
-  HERO_IMAGES: Record<string, string>;
-  trailerIds: Record<string, Trailer>;
 };
 
 /**

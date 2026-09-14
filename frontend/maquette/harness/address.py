@@ -17,6 +17,14 @@ one discipline: answer honestly what you do not have.
 
 Everything the account surface claims about the session is compared against
 `web.json5` — the real file, not a number written beside it.
+
+THE SURFACE'S TEXT IS READ RENDERED (`innerText`), NOT AS `textContent`, and the
+two differ now. The facts are components: a label, a value and the next block
+are sibling elements with no text node between them, so `textContent` glued
+them into one word — « Adresse » + the address + the next sentence — and the
+address pattern read that chimera as a second, invented account. `innerText`
+separates blocks the way they are drawn. Nothing moved on screen, and the
+oracle said so; only the text reading had to follow.
 """
 import asyncio
 import os
@@ -31,7 +39,7 @@ WEB = pathlib.Path(os.path.expanduser("~/.torrentmate/config/web.json5"))
 READ = """() => ({
   overflow: document.querySelector('#port').scrollWidth - document.querySelector('#port').clientWidth,
   page: state.page,
-  text: document.querySelector('#view').textContent.replace(/\\s+/g, ' ').trim(),
+  text: document.querySelector('#view').innerText.replace(/\\s+/g, ' ').trim(),
   empty: (document.querySelector('#view [data-part="empty-state"] b') || {}).textContent || '',
   exits: [...document.querySelectorAll('#view button')].map((b) => ({
     text: b.textContent.trim(),

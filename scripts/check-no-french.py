@@ -29,7 +29,7 @@ it, so an arm added without a heading here fails the gate:
    dated records keep the names they were written with, and rewriting a record
    would falsify it.
 4. **Class names** — `class X` declarations, and the CSS classes the maquette
-   DECLARES (`design/refonte.html`) plus the app's own stylesheets
+   DECLARES (`design/src/styles/*.css`) plus the app's own stylesheets
    (`frontend/src/styles/ps/*.css`) — which are no longer extracted from it:
    that machinery went on 2026-08-20, the maquette REPLACES the app. A class name is one name shared by four
    worlds, which is why it gets an arm of its own.
@@ -157,7 +157,7 @@ from nofrench_dictionary import check_dictionary  # noqa: E402
 # Arm 9 — the only arm whose corpus is the shell. See its header.
 from nofrench_shell import check_shell_scripts  # noqa: E402
 from nofrench_lexicon import (  # noqa: E402
-    DEBT_BANNER, vocabulary, DEBT_FILE, DICTIONARY_EXCEPTIONS, EXTRACTED_CSS, FRAGMENT,
+    DEBT_BANNER, vocabulary, DEBT_FILE, DICTIONARY_EXCEPTIONS, EXTRACTED_CSS,
     FRENCH_TOKENS, FROZEN_IDENTIFIERS, FROZEN_PATH_SEGMENTS, HARNESS, MAQUETTE,
     REGIONS, ROOT, SCRIPTS, SHELL, VOCABULARY, deaccent, french_tokens_in,
     french_tokens_in_flat, has_accent, read, relative, scope_of,
@@ -204,8 +204,13 @@ def remedy(path: Path) -> str:
 
 def check_strings(violations: list[str]) -> None:
     """Runs the string arm over the shell, the servers and the hold labels."""
+    # `design/src/harness/` joins the harness's scope for THIS arm: it is the
+    # instrument's own chrome, in the operator's language, shipping nowhere, and
+    # the French a harness ASSERTS is the app's output. Its identifiers stay held
+    # by arm 2. The line dies with the directory.
     strict: list[Path] = [p for p in SHELL.rglob("*") if p.is_file()
-                          and p.suffix in {".ts", ".tsx"} and "i18n" not in p.parts]
+                          and p.suffix in {".ts", ".tsx"} and "i18n" not in p.parts
+                          and p.relative_to(SHELL).parts[0] != "harness"]
     strict += maquette_servers()
     strict += sorted(HARNESS.glob("*.mjs"))
     # The repository's own tools speak to a DEVELOPER, so they speak English.
@@ -403,31 +408,20 @@ def check_class_names(violations: list[str]) -> None:
     # and declared 49 class names no arm read.
     # THE MAQUETTE'S STYLESHEETS, ALL OF THEM. This read `refonte.html` alone,
     # which was the whole of the prototype's CSS until L07 converted it — the
-    # fragment holds no rule now, and the classes that remain declared live in
-    # the residue and in the harness sheet. The arm went vacuous on the day the
+    # fragment is gone, and the classes that remain declared live in
+    # the base layer and in the harness sheet. The arm went vacuous on the day the
     # last rule left, and refused itself: « its scope is empty, so its `no
     # violation` means nothing » is this guard working, not failing.
     maquette_styles = sorted(
         (ROOT / "frontend" / "maquette" / "design" / "src" / "styles").glob("*.css"))
-    sheets = ([FRAGMENT] + maquette_styles
+    sheets = (maquette_styles
               + sorted((ROOT / "frontend" / "src").rglob("*.css")))
     for path in sheets:
         if not path.is_file():
             continue
         source = read(path)
-        if path is FRAGMENT:
-            # The fragment is one document: only its <style> blocks declare CSS.
-            source = "\n".join(
-                m.group(1) for m in re.finditer(
-                    r"<style[^>]*>(.*?)</style>", source, re.S))
         declared = declared_css_classes(source)
-        # THE FRAGMENT IS PART OF THE MAQUETTE SCOPE, not a scope of its own.
-        # It held the prototype's whole stylesheet and now holds none of it,
-        # and a scope that can legitimately reach zero cannot also be the thing
-        # the vacuity check watches. Folding it in keeps ONE counter over the
-        # maquette's declared classes — which is what must never reach zero,
-        # and which the guard can therefore refuse when it does.
-        scope = "maquette" if path == FRAGMENT or path in maquette_styles else "app"
+        scope = "maquette" if path in maquette_styles else "app"
         # REGISTERED UNCONDITIONALLY. Guarding this with `if declared:` is what
         # a scope needs in order to disappear quietly, and a scope that
         # disappears is exactly what the vacuity check exists to catch: move
@@ -613,11 +607,10 @@ def check_unread_javascript(violations: list[str]) -> None:
     Args:
         violations: The accumulator every arm appends to.
     """
-    # Each entry is here because it was MOVED, not written: its French
+    # The entry is here because it was MOVED, not written: its French
     # identifiers predate the rule and only a conversion — not a rename — will
-    # reach them. `legacy.js` is the engine; `states.js` is the scenario table
-    # lifted out of it, whose entries call the engine's own French names.
-    allowed = {SHELL / "engine" / "legacy.js", SHELL / "engine" / "states.js"}
+    # reach them. `legacy.js` is the engine.
+    allowed = {SHELL / "engine" / "legacy.js"}
     unread = {path for path in SHELL.rglob("*.js") if path.is_file()}
     for path in sorted(unread - allowed):
         violations.append(

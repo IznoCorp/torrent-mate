@@ -5,7 +5,13 @@
     "chip": {
       "tone": "warning",
       "text": "À récupérer"
-    }
+    },
+    "ids": {
+      "tmdb": "254528",
+      "imdb": "tt27550719",
+      "tvdb": 450088
+    },
+    "poster": "assets/posters/71d10ce4.webp"
   },
   {
     "title": "Backrooms",
@@ -13,7 +19,12 @@
     "chip": {
       "tone": "warning",
       "text": "À récupérer"
-    }
+    },
+    "ids": {
+      "tmdb": "1083381",
+      "imdb": "tt26657236"
+    },
+    "poster": "assets/posters/4b65bd0d.webp"
   },
   {
     "title": "Wicker",
@@ -21,6 +32,11 @@
     "chip": {
       "tone": "warning",
       "text": "À récupérer"
-    }
+    },
+    "ids": {
+      "tmdb": "1195803",
+      "imdb": "tt29611136"
+    },
+    "poster": "assets/posters/a406ec1c.webp"
   }
 ]

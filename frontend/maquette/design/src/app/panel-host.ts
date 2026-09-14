@@ -19,18 +19,26 @@ import {
 import type { QueryClient } from "@tanstack/react-query";
 import { addressOf, isScreenPath, withPanel } from "../lib/addresses";
 import type { Store } from "./store";
+import { fillPanelDoor, bridge } from "../lib/shell-doors";
+import { store } from "../lib/store-access";
+import { registerLayer, unwindLayer } from "./layers";
 
 declare global {
   interface Window {
     // The probe R56 calls to prove the panel REFUSES a block nobody declared.
-    // Published here because the constructor it exercises is a component now.
+    // Filled here because the constructor it exercises is a component now.
     __unknownPanel: () => void;
     // The same probe one level up: a panel KIND nobody produces must raise.
     __unknownProducer: () => void;
-    /** Re-asks for what the moved producers read and no component observes. */
-    __refillProducers?: () => void;
   }
 }
+
+/** Re-asks for what the moved producers read — filled at install. */
+export let refillProducers: (() => void) | undefined;
+/** R56's probe — filled at install, published by the harness as `window.__unknownPanel`. */
+export let unknownPanel: (() => void) | undefined;
+/** The same probe one level up, published as `window.__unknownProducer`. */
+export let unknownProducer: (() => void) | undefined;
 
 /* The bottom panel, as the shell's verbs — what every legacy producer calls
    instead of the dead `openSheet(html)`. The descriptor of FACTS crosses
@@ -61,7 +69,7 @@ function panelAddress(address: string): string {
     return (
       window.location.pathname + withPanel(window.location.search, address)
     );
-  const { state } = window.__store.read();
+  const { state } = store.read();
   return addressOf(String(state.page ?? ""), state, address);
 }
 
@@ -107,7 +115,7 @@ function openPanelOnCurrentEntry(open: () => void): void {
 }
 
 /**
- * Installs the panel's verbs onto the published seam.
+ * Installs the panel's verbs into the panel door.
  *
  * Called from the boot once the store exists and after the history bridge is
  * in place — `openPanel` below pushes a layer entry through it.
@@ -150,7 +158,7 @@ function openPanel(descriptor: PanelDescriptor): void {
     // D1's second tier: a panel whose subject is stable travels in the query,
     // so a reload reopens it. One with no `address` is transient and keeps the
     // address it opened over.
-    window.__bridge.pushLayer(
+    bridge.pushLayer(
       "sheet",
       descriptor.address ? panelAddress(descriptor.address) : undefined,
     );
@@ -179,8 +187,8 @@ function closePanel(pop?: boolean): void {
   openSubject = "";
   flushSync(() => store.write({ panelOpen: false }));
   // `pop` means the entry is already being popped by the gesture that got us
-  // here; otherwise the layer unwinds its own, through the engine's latch.
-  if (!pop) window.__derouler?.("sheet");
+  // here; otherwise the layer unwinds its own, through the ladder's latch.
+  if (!pop) unwindLayer("sheet");
 }
 
 // The STORE answers, never the DOM: a legacy caller asks in the middle of its
@@ -288,13 +296,13 @@ function held<Result>(key: readonly unknown[]): Result | undefined {
    through, and `app/engine-data.ts` — the engine's own list of what nothing
    observes — calls it beside its own. It dies when that file does.
 
-   PUBLISHED HERE AND FIRST CALLED THERE, which is an ordering and was measured:
+   FILLED HERE AND FIRST CALLED THERE, which is an ordering and was measured:
    this module is installed BEFORE `installMockNetwork()`, so a fetch started on
    this line leaves before there is a layer to answer it, and the cache stays
    empty in a way that reads exactly like a producer with nothing to say. The
    first fill is `installEngineData`'s, which runs after the mocks — the same
    position `installSuggestionsLookup` fills its own reserve from. */
-window.__refillProducers = () => {
+refillProducers = () => {
   for (const required of producerNeeds()) void queryClient.prefetchQuery(required);
 };
 
@@ -349,7 +357,7 @@ function redrawPanel(): void {
   openPanelOnCurrentEntry(() => producePanel(kind, subject));
 }
 
-window.__panel = {
+fillPanelDoor({
   open: openPanel,
   close: closePanel,
   isOpen: isPanelOpen,
@@ -362,17 +370,21 @@ window.__panel = {
      with what it expects to be moved, so a registration lost in a refactor is
      a fallen rule instead of a panel that silently stops opening. */
   producers: registeredProducers,
-};
+});
+
+// ON THE LADDER, as a rung: Back asks this registration whether the sheet is
+// up and closes it through the same verb the door does.
+registerLayer("sheet", { isOpen: isPanelOpen, close: closePanel });
 
 /* Lets the contract check prove the refusal rather than trust the comment on
    it: a block type nobody declared must raise, not draw nothing. Called as a
    plain function, not rendered — the dispatcher refuses before it reads
    anything else, which is what makes the refusal provable from outside. */
-window.__unknownPanel = () => refuseBlock({ type: "ceci-n-existe-pas" });
+unknownPanel = () => refuseBlock({ type: "ceci-n-existe-pas" });
 
 /* And the same proof for the producer registry: a kind nobody registered must
    raise rather than open an empty panel. Called as a plain function, so the
    refusal is provable from outside without a tap, which would measure the
    delegation at the same time and leave two candidates for one failure. */
-window.__unknownProducer = () => producePanel("ceci-n-existe-pas");
+unknownProducer = () => producePanel("ceci-n-existe-pas");
 }

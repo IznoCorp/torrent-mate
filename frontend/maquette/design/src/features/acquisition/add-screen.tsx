@@ -1,7 +1,7 @@
 // design/src/screens/add.tsx
-// The second pilot: legacy `openAddScreen(query, mode)` (`refonte.html`) reborn
+// The second pilot: legacy `openAddScreen(query, mode)` (`refonte.html@60530dbd8`) reborn
 // as a real route (`/add`) and a final component. Markup is TRANSPLANTED,
-// not translated — every tag and class below is one `refonte.html`'s BLOCK 2
+// not translated — every tag and class below is one `refonte.html@60530dbd8`'s BLOCK 2
 // CSS already targets (`.screen`, `.addform`, `.addrow`, `.reslist`, `.byid`,
 // `.addfoot`…), so the same stylesheet applies unchanged.
 //
@@ -43,7 +43,7 @@ import { go } from "../../lib/navigate";
 import { useAcquisitionReference } from "../../features/acquisition/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
 import { useProviderSearch } from "./search-queries";
-import { actionButton, backAction, emptyNote, resultCount, screen, screenBar, scrollport, searchField, searchInput, surfaceError } from "../../ui/variants";
+import { actionButton, backAction, emptyNote, resultCount, screen, screenBar, scrollport, searchField, searchInput, section, surfaceError } from "../../ui/variants";
 import { AddFooter } from "./add-footer";
 import {
   addForm,
@@ -52,10 +52,14 @@ import {
   byIdentifierBody,
   refusalReason,
   resultList,
+  segmentSmall,
   suggestionChip,
   suggestions,
 } from "../../features/acquisition/variants";
 import { Markup } from "../../ui/markup";
+import { bridge } from "../../lib/shell-doors";
+import { baseTitle } from "../../lib/titles";
+import { mediumCardMarkup, type MediumCard } from "./card-markup";
 
 type Mode = "follow" | "identify";
 
@@ -67,7 +71,7 @@ export function AddScreen() {
   const hasQuery = query !== "";
 
   // `state.added` is a Set MUTATED IN PLACE by the still-legacy cross-world
-  // "add:N" panel act and the replace-confirm dialog (refonte.html) — both
+  // "add:N" panel act and the replace-confirm dialog (refonte.html@60530dbd8) — both
   // bump the store's `version` without producing a new `state` reference,
   // which `useUiState()` alone would not notice (`useSyncExternalStore`
   // compares the selected value by reference). Subscribing to `version`
@@ -84,8 +88,6 @@ export function AddScreen() {
 
   const {
     icons,
-    baseTitle,
-    cardHTML,
     addVerb,
     render,
   } = useAcquisitionReference();
@@ -117,9 +119,8 @@ export function AddScreen() {
   // Leaving a ROUTER-OWNED screen back onto legacy ground is not a `back`
   // (however many entries deep the operator is, this always lands on the
   // right page) and not a `data-go` click either — that shared delegated
-  // handler's own history handling (`closeScreen`, `screenStack`,
-  // `__bridge.remplacer`) is built for the LEGACY layer stack, which this
-  // screen no longer belongs to. The router entry is REPLACED with the
+  // handler's own history handling is built for the engine's layers, which
+  // this screen does not belong to. The router entry is REPLACED with the
   // destination — the same "the layer's entry becomes the arrival" semantics
   // `data-go`'s own comment describes, expressed as a router-owned replace
   // instead of a `__bridge.remplacer` — and the legacy state is written +
@@ -162,7 +163,7 @@ export function AddScreen() {
   const rows = filtered
     .map(({ r, i }) => {
       const done = added.has(i);
-      return cardHTML({
+      return mediumCardMarkup({
         t: r.t,
         k: r.k === "Film" ? "movie" : "show",
         s: `${r.y} · ${r.k === "Film" ? t("common.film") : t("common.series")} · TMDB`,
@@ -176,20 +177,22 @@ export function AddScreen() {
               ]
             : null,
         panel: `add:${i}`,
-      });
+        poster: r.poster,
+        ids: r.ids,
+      } as MediumCard);
     })
     .join("");
 
   return (
     <section
-      className={`${screen()} open`}
+      className={screen({ open: true })}
       data-part="screen"
       data-open=""
       data-key={`add:${mode}`}
       aria-label={t("screens.add.landmark")}
     >
       <div className={screenBar()} data-part="screen/bar">
-        <button className={backAction()} data-part="screen/back" onClick={() => window.__bridge.back()}>
+        <button className={backAction()} data-part="screen/back" onClick={() => bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.add.back")}
         </button>
@@ -266,7 +269,7 @@ export function AddScreen() {
             />
           </div>
           <div className={addRow()}>
-            <div className="segmini" data-part="segment-small">
+            <div className={segmentSmall()} data-part="segment-small">
               {/* NOT interface copy: these three are the VALUES of
                   `state.addKind`, written to the legacy store, compared
                   against below (`addKind === "Tout"`, `=== "Films"`) and
@@ -295,7 +298,7 @@ export function AddScreen() {
                 </button>
               ))}
             </div>
-            <button className={`btnprimary ${actionButton()}`} onClick={() => search(query)}>
+            <button className={actionButton({ kind: "submit" })} onClick={() => search(query)}>
               {t("screens.add.search")}
             </button>
           </div>
@@ -321,7 +324,7 @@ export function AddScreen() {
               {t("screens.add.mostRelevant")}
             </p>
             <Markup
-              className={`${resultList()} sec`}
+              className={`${resultList()} ${section()}`}
               data-part="result/list"
               html={rows}
             />
@@ -354,7 +357,7 @@ export function AddScreen() {
               : t("screens.add.byIdAdd")}
           </summary>
           <div className={byIdentifierBody()}>
-            <div className="segmini" data-part="segment-small" style={{ alignSelf: "flex-start" }}>
+            <div className={segmentSmall()} data-part="segment-small" style={{ alignSelf: "flex-start" }}>
               {["TMDB", "TVDB", "IMDB"].map((element) => (
                 <button
                   key={element}
@@ -389,7 +392,7 @@ export function AddScreen() {
               )}
             </p>
             <button
-              className={`btnprimary ${actionButton()}`}
+              className={actionButton({ kind: "submit" })}
               disabled
               style={{ alignSelf: "flex-start", padding: "9px 16px" }}
             >

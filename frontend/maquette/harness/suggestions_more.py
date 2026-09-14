@@ -29,8 +29,8 @@ WHAT IT READS, and each fails differently:
      count of nothing.
 
 THE SPENT PILE IS BUILT BY THIS RULE, not navigated to: no named state reaches
-the end mark, and `engine/states.js` is grandfathered so one cannot be added
-(B-352). The rule writes `sugGone` itself and lets the deck redraw.
+the end mark, and the named-state table was grandfathered when this rule was
+written, so none could be added (B-352). The rule writes `sugGone` itself and lets the deck redraw.
 """
 import asyncio
 import pathlib

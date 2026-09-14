@@ -87,12 +87,10 @@
          legacy engine below keeps every surface not yet migrated. The mount
          node starts here, a plain sibling of the fragment's phone frame, but
          shell.tsx relocates it into `.device` before the first render —
-         see that file's own comment — so a migrated screen (`/profile/$title`,
-         `/add`) is contained by the phone frame the same way the legacy
-         `#screen` is, and paints behind it when both are open at once. -->
+         see that file's own comment — so a screen (`/profile/$title`, `/add`)
+         is contained by the phone frame. -->
     <div id="shell"></div>
     <script type="module" src="/src/app/shell.tsx"></script>
-    <!-- maquette -->
     <!-- The application shell. It used to live in the fragment, and it is here
          now for one reason: the engine captures its containers at module
          evaluation — `view = F('#view')` and its siblings — and a module
@@ -320,8 +318,14 @@
                transition-[height] duration-200 ease-standard text-muted-foreground"
         id="ptr"
       >
+        <!-- The pull's two engine-written states are read ON THE SPINNER, not on
+             `#ptr`: the engine resets `#ptr`'s class list to « ptr » whenever it
+             puts the indicator back, and a utility written on `#ptr` would not
+             survive that. -->
         <div
-          class="spin w-[16px] h-[16px] rounded-full border-2 border-border border-t-primary"
+          class="spin w-[16px] h-[16px] rounded-full border-2 border-border border-t-primary
+                 [.ptr.armed_&]:text-primary
+                 [.ptr.loading_&]:[animation:spin_var(--duration-loop-1)_linear_infinite]"
         ></div>
       </div>
       <div id="view"></div>
@@ -485,21 +489,6 @@
           <path d="M12 16v-4M12 8h.01" />
         </svg>
       </button>
-      <button
-        id="scenBtn"
-        aria-label="Harnais"
-        title="Harnais — états et données"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-        >
-          <path d="M3 6h18M3 12h12M3 18h6" />
-        </svg>
-      </button>
     </div>
 
     <!-- The action button is rendered by the shell
@@ -508,19 +497,18 @@
          one of them being measured and the other being shown. -->
 
     <!-- The tab bar is rendered by the shell (`src/app/tab-bar.tsx`), at this
-         same id and these same classes, into `#shell` — which sits inside this
-         frame, earlier in document order. It is absent here on purpose: two
-         elements answering `#nav` is one of them being measured and the other
+         same id and these same classes, into `#shell`, which sits inside this
+         frame. It is absent here on purpose: two elements answering `#nav` is
+         one of them being measured and the other
          being shown. -->
 
     <!-- The drawer is rendered by the shell (`src/app/drawer.tsx`, over
          `src/ui/drawer.tsx`), at this same id and this same identity class,
          into `#shell`. Absent here on purpose: two elements answering
          `#drawer` is one of them being measured and the other being shown. -->
-    <div class="screen" id="screen" data-part="screen"></div>
     <!-- The scrim and the bottom sheet are rendered by the shell
          (`src/components/sheet.tsx`), at these same ids and classes, into
-         `#shell` — which sits inside this frame, earlier in document order.
+         `#shell`, which sits inside this frame.
          They are absent here on purpose: two elements answering `#sheet` is
          one of them being measured and the other being shown. -->
     <!-- The confirmation layer is rendered by the shell

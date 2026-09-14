@@ -7,6 +7,11 @@ that keeps every rule's hold count could not read it: it was carried as
 holds is a rule that can quietly stop holding anything. Two browsers are opened
 one after the other and one journal spans both — the summary is what ends the
 process, so it is called once, at the end of the second.
+
+RE-AIMED, said out loud: the expected episode was read from `sheetFor`; it is read from the sheet the read answers. The engine's sheet table and
+its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
+`__carriedFor` — the seed the served read answers from, published by the harness
+driver — and the hold count is unchanged.
 """
 
 import asyncio
@@ -43,11 +48,11 @@ async def main():
         expected = await pg.evaluate("""(written)=>{
           if (!written) return null;
           const [title, season, number] = written.split('|');
-          const sheet = window.__referentiel.sheetFor(title);
-          const one = (sheet?.eps?.[season] || []).find(
-            (e) => String(e.n) === number);
-          return one ? {title: one.t || null,
-                        air: one.air ? window.__referentiel.dateFR(one.air) : null}
+          const sheet = window.__sheetOf(title);
+          const one = (sheet?.episodes?.[season] || []).find(
+            (e) => String(e.number) === number);
+          return one ? {title: one.title || null,
+                        air: one.airDate ? window.__referentiel.dateFR(one.airDate) : null}
                      : null;}""", tapped)
         await pg.evaluate(js); await pg.wait_for_timeout(320)
         txt = await pg.evaluate("""()=>document.querySelector('[data-part="episode/popover"]')?.innerText.replace(/\\n/g,' | ')""")

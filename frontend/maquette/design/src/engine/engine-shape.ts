@@ -2,8 +2,8 @@
 //
 // WHY THIS EXISTS AT ALL, and it is a transitional thing with a date. L09 moves
 // where a surface's DATA comes from; it does not rewrite the markup. Several
-// surfaces are still drawn by producers that live in `legacy.js` — `cardHTML`,
-// `secInner`, `factRowsHTML` — and those read the engine's own field names
+// surfaces are still drawn by producers that live in `legacy.js` — `cardHTML`
+// among them — and those read the engine's own field names
 // (`t`, `s`, `r`, `d`, `c`). The data now arrives from the mock layer in the
 // CONTRACT's names (`title`, `secondaryLine`, `reason`, `folder`, `candidates`),
 // because L08 renamed every key into full English words on its way out.

@@ -10,7 +10,7 @@
 import { Store as TanStackStore } from "@tanstack/store";
 
 export type UiState = { page: string; [key: string]: unknown };
-export type StoreContent = { state: UiState; world: unknown; version: number };
+export type StoreContent = { state: UiState; version: number };
 
 // MEMBER NAMES ARE THE SEAM: the legacy fragment calls `read`, `write`,
 // `adoptState`, `adoptWorld`, `touch` and reads `store` by those exact
@@ -21,14 +21,12 @@ export type Store = {
   read(): StoreContent;
   write(patch: Partial<UiState>): void;
   adoptState(initial: UiState): void;
-  adoptWorld(world: unknown): void;
   touch(): void;
 };
 
 export function createStore(): Store {
   const store = new TanStackStore<StoreContent>({
     state: { page: "acq" },
-    world: null,
     version: 0,
   });
   return {
@@ -46,8 +44,6 @@ export function createStore(): Store {
         state: initial,
         version: prev.version + 1,
       })),
-    adoptWorld: (world) =>
-      store.setState((prev) => ({ ...prev, world, version: prev.version + 1 })),
     touch: () =>
       store.setState((prev) => ({ ...prev, version: prev.version + 1 })),
   };

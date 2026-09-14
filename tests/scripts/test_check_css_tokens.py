@@ -114,8 +114,7 @@ def application_css() -> str:
 
     IT USED TO MEAN BLOCK 2 ALONE, and that stopped being the application's CSS
     when L07 converted it: the fragment holds no rule at all now, and what
-    ships is the token layer, the base layer, the residue and whatever is left
-    of the fragment. Reading only the fragment made the sibling test — « a
+    ships is the token layer and the base layer. Reading only the fragment made the sibling test — « a
     scope that empties would make `no violation` mean nothing » — fire on a
     scope that had emptied ON PURPOSE, which is the test doing its job and the
     helper being out of date.
@@ -131,14 +130,13 @@ class TestTheSheetItself:
         assert verdict(application_css()) == ([], [], [])
 
     def test_the_block_actually_uses_tokens(self) -> None:
-        """A scope that empties would make « no violation » mean nothing."""
+        """A scope that empties would make « no violation » mean nothing.
+
+        RE-TAKEN, NOT RELAXED: the floor was « more than 100 » over 106 uses, and
+        the nine uses `styles/legacy.css` held left with that stylesheet. What is
+        read now is the fragment, the token layer and the base layer, and the
+        measured count is 97 — a floor at the count, so one use vanishing falls.
+        """
         css = guard.COMMENT.sub(" ", application_css())
 
-        assert len(guard.USE.findall(css)) > 100
-
-    def test_the_split_is_still_there_to_read(self) -> None:
-        """The whole rule rests on BLOCK 2 being findable; pin that."""
-        whole = guard.FRAGMENT.read_text(encoding="utf-8")
-
-        assert guard.BLOCK_2 in whole
-        assert whole.find("<style") < whole.find(guard.BLOCK_2) < whole.find("</style>")
+        assert len(guard.USE.findall(css)) >= 97

@@ -97,10 +97,9 @@ export function unitOf(setting: Setting): string | null {
 
 declare global {
   interface Window {
-    // The seam the fragment's own panel title and the rule that reads the
-    // detector both go through. Published from the module that owns the
-    // naming, so it exists for anyone who has imported it — and the fragment,
-    // which calls it from a click, runs long after the shell has evaluated.
+    // The seam the settings panel's title and the rule that reads the
+    // detector both go through. The module that owns the naming exports it,
+    // and the harness publishes it for the rule.
     __settingLabels: {
       label: (setting: Setting) => string;
       subject: (setting: Setting) => string;
@@ -110,7 +109,7 @@ declare global {
   }
 }
 
-window.__settingLabels = {
+export const settingLabels = {
   label: settingLabel,
   subject: settingSubject,
   unit: unitOf,

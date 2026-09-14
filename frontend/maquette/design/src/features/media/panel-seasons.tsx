@@ -12,18 +12,23 @@
 import { useTranslation } from "react-i18next";
 import { useMediaReference, type MediaReference } from "./reference";
 import { useQueryClient } from "@tanstack/react-query";
+import { heldIdentity, providerAddress } from "../../lib/held-identity";
+import { useServerStateVersion } from "../../lib/query-client";
+import { ownedSeason, useMediaSeasons, useMediaSheet, type MediaSeasons } from "./queries";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
-import { queuedMark, seasonGrabSpacing, seasonGrabTaken } from "./variants";
+import { queuedMark, seasonGrabSpacing, seasonGrabTaken, episodeCell, episodeSet, legend, legendSwatch, seasonDisclosure, seasonFraction, seasonShortfall, type EpisodeState } from "./variants";
+import { actionButton } from "../../ui/variants";
 import { askForSeason, useAskedInFlight } from "./season-grab";
 import { useQueuedSeasons } from "./queued-seasons";
 
-// The slice of a "follow" record the season blocks read: `t` for lookups
-// against the référentiel (`sheetFor`/`ownedFor`), `st` as the fallback state
-// when a season has no per-episode ownership data. Only these two fields are
-// ever read, whatever else the caller's object carries.
-export type Follow = { t: string; st?: string };
+// The slice of a "follow" record the season blocks read: `ids` for the medium's
+// two served reads — the owned numbers and the episode catalogue — `t` for the
+// cache to be asked when the record carries no `ids`, and `st` as the fallback
+// state when a season has no per-episode ownership data.
+export type Follow = { t: string; st?: string; ids?: Record<string, number | string> | null };
 
-export type Season = ReturnType<MediaReference["seasonsOf"]>[number];
+/** A season of a series: its number, the episodes aired (null when unknown), the episodes owned. */
+export type Season = [number, number | null, number];
 
 // The kind this file adds to the panel's block map. Declared here, beside what
 // draws it, so the two halves of the contract cannot drift apart.
@@ -33,11 +38,10 @@ declare module "../../ui/panel/contract" {
   }
 }
 
-// Lifecycle order and swatch classes for the season legend — refonte.html
-// keeps `EP_ORDER`/`EP_SWATCH` private (only `EP_LABEL` is published on the
-// référentiel). Both are small, static, keyed on the same six states
-// `EP_LABEL` already carries, so they are reproduced here verbatim rather
-// than re-derived.
+// Lifecycle order for the season legend — refonte.html@60530dbd8 kept `EP_ORDER`
+// private (only `EP_LABEL` is published on the référentiel). It is small,
+// static and keyed on the same six states `EP_LABEL` carries, so it is
+// reproduced here verbatim; each state's swatch is `legendSwatch`'s variant.
 const EP_ORDER = [
   "unverified",
   "announced",
@@ -47,29 +51,25 @@ const EP_ORDER = [
   "in_library",
 ] as const;
 
-const EP_SWATCH: Record<string, string> = {
-  unverified: "sw-muted",
-  announced: "sw-upcoming",
-  pending: "sw-waiting",
-  to_grab: "sw-warning",
-  acquiring: "sw-info",
-  in_library: "sw-success",
-};
-
 type EpisodeCatalog = { n: number; air?: string | null }[];
 
-// Presence is read from the LIST of owned numbers when the référentiel
+/** What the medium's two served reads answered, as the season blocks read them. */
+type Served = {
+  owned: MediaSeasons["owned"] | undefined;
+  episodes: Record<string, EpisodeCatalog> | undefined;
+};
+
+// Presence is read from the LIST of owned numbers when the seasons read
 // knows it, never from a `num <= owned` threshold that assumes the hole is
-// at the end of the season — the same correction `epState` applies on the
-// media sheet.
+// at the end of the season — the same correction the media sheet applies.
 function epState(
-  reference: MediaReference,
+  served: Served,
   follow: Follow,
   seasonNum: number,
   number: number,
   owned: number,
 ): string {
-  const held = reference.ownedFor(follow.t, seasonNum);
+  const held = ownedSeason(served.owned, seasonNum);
   if (held)
     return held.has(number)
       ? "in_library"
@@ -84,24 +84,20 @@ function epState(
   return "to_grab";
 }
 
-function catalogFor(
-  reference: MediaReference,
-  follow: Follow,
-  number: number,
-): EpisodeCatalog | null {
-  const sheet = reference.sheetFor(follow.t) as { eps?: unknown } | null;
-  const eps = sheet?.eps as Record<string, EpisodeCatalog> | undefined;
-  return eps?.[String(number)] ?? null;
+function catalogFor(served: Served, number: number): EpisodeCatalog | null {
+  return served.episodes?.[String(number)] ?? null;
 }
 
 function SeasonDetails({
   follow,
   season,
   reference,
+  served,
 }: {
   follow: Follow;
   season: Season;
   reference: MediaReference;
+  served: Served;
 }) {
   const { t } = useTranslation();
   const client = useQueryClient();
@@ -116,7 +112,7 @@ function SeasonDetails({
   // An ANNOUNCED episode appears in the matrix but NEVER in the
   // denominator: it is not missing, it is not out yet. The provider
   // catalogue knows more than what has aired.
-  const catalog = catalogFor(reference, follow, num);
+  const catalog = catalogFor(served, num);
   const total = Math.max(aired, catalog ? catalog.length : 0);
   const cells = Array.from({ length: total }, (_, index) => {
     const number = index + 1;
@@ -124,11 +120,11 @@ function SeasonDetails({
     const upcoming = Boolean(info?.air && info.air > reference.TODAY);
     const state = upcoming
       ? "announced"
-      : epState(reference, follow, num, number, owned);
+      : epState(served, follow, num, number, owned);
     return (
       <button
         key={number}
-        className={`ep ${state}`}
+        className={episodeCell({ state: state as EpisodeState })}
         data-part="episode"
         data-announced={state === "announced" || undefined}
         data-in-library={state === "in_library" || undefined}
@@ -140,7 +136,7 @@ function SeasonDetails({
     );
   });
   return (
-    <details className="season" data-part="season" open={!complete}>
+    <details className={seasonDisclosure()} data-part="season" open={!complete}>
       <summary>
         {/* The blanks between these children are NOT decoration: the legacy
             `saisonsHTML` carried a line break at each of them, and JSX drops
@@ -152,7 +148,7 @@ function SeasonDetails({
             whitespace-only node draws nothing: the fix is invisible and the
             text is right again. */}
         {t("common.season")} {num}{" "}
-        <span className="sfr">
+        <span className={seasonFraction()}>
           {owned}/{aired}
         </span>{" "}
         {/* DOIT-4's VISIBLE HALF, ON THE SURFACE THE ASK WAS MADE FROM. The
@@ -168,25 +164,23 @@ function SeasonDetails({
           </span>
         ) : null}{" "}
         {complete ? null : (
-          <span className="miss" data-part="season/missing">
+          <span className={seasonShortfall()} data-part="season/missing">
             {missing}{" "}
             {missing > 1 ? t("common.missingPlural") : t("common.missing")}
           </span>
         )}
       </summary>
-      <div className="eps" data-part="episode/set">
+      <div className={episodeSet()} data-part="episode/set">
         {cells}
       </div>
       {/* THE VERB, DRAWN ONLY OVER A HOLE (B-301).
 
-          IT WEARS `sact`, the class the panel's own actions wear, because that
-          is what it IS — an action inside a panel. A first version used
-          `ui/variants/controls`'s `actionButton`, which turns out to be an
-          ORPHAN: nothing in the application uses it and it carries layout with
-          no colour at all, so the button drew with no border, no background and
-          the inherited text colour — a pale label on a pale panel, which is how
-          the operator saw it on his phone. `.sact` is the residue that paints
-          every other action here, and it dies when they do. The matrix showed « 1
+          IT IS A PANEL ACTION, drawn as the panel's own actions are:
+          `actionButton({ kind: "panelAction" })`, which wears `sact` and carries
+          the border, the ground and the colours. A first version wore the
+          layout alone, with no colour at all, and the button drew as a pale
+          label on a pale panel, which is how the operator saw it on the phone.
+          The matrix showed « 1
           manquant » and offered nothing; DOIT-3 is « agir là où l'on observe ».
           A complete season carries no button, because a button that can only
           say « nothing to do » is worse than no button.
@@ -199,7 +193,7 @@ function SeasonDetails({
       {complete ? null : (
         <button
           type="button"
-          className={`sact ${seasonGrabSpacing()} ${seasonGrabTaken()}`}
+          className={`${actionButton({ kind: "panelAction" })} ${seasonGrabSpacing()} ${seasonGrabTaken()}`}
           data-part="season/grab"
           data-grab-season={`${follow.t}|${num}`}
           aria-busy={askedInFlight.has(`${follow.t}|${num}`) || undefined}
@@ -224,8 +218,19 @@ function SeasonsBlock({
 }) {
   const reference = useMediaReference();
   const { follow, seasons } = block;
+  // THE MEDIUM'S IDENTITY, from the record or from the cache — re-asked when any
+  // read lands, because the list that holds a medium nobody follows can land
+  // after the panel opened.
+  useServerStateVersion();
+  const address = providerAddress(follow.ids ?? heldIdentity(follow.t)?.ids);
+  const seasonsRead = useMediaSeasons(address?.provider ?? "", address?.id ?? "");
+  const sheetRead = useMediaSheet(address?.provider ?? "", address?.id ?? "");
+  const served: Served = {
+    owned: seasonsRead.data?.owned,
+    episodes: (sheetRead.data as { eps?: Record<string, EpisodeCatalog> } | null | undefined)?.eps,
+  };
   const hasUpcoming = seasons.some((season) =>
-    (catalogFor(reference, follow, season[0]) ?? []).some(
+    (catalogFor(served, season[0]) ?? []).some(
       (episode) => episode.air && episode.air > reference.TODAY,
     ),
   );
@@ -234,16 +239,16 @@ function SeasonsBlock({
     ...seasons.flatMap((season) => [
       ...(season[2] > 0 ? ["in_library"] : []),
       ...((season[1] ?? 0) > season[2]
-        ? [epState(reference, follow, season[0], season[1] ?? 0, season[2])]
+        ? [epState(served, follow, season[0], season[1] ?? 0, season[2])]
         : []),
     ]),
   ]);
   return (
     <>
-      <div className="legend" data-part="legend">
+      <div className={legend()} data-part="legend">
         {EP_ORDER.filter((state) => statesPresent.has(state)).map((state) => (
           <span key={state}>
-            <i className={EP_SWATCH[state]} />
+            <i className={legendSwatch({ state })} />
             {reference.EP_LABEL[state]}
           </span>
         ))}
@@ -254,6 +259,7 @@ function SeasonsBlock({
           follow={follow}
           season={season}
           reference={reference}
+          served={served}
         />
       ))}
     </>

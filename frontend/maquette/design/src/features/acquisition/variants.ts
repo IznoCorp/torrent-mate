@@ -1,7 +1,14 @@
 // ACQUISITION'S ADD SCREEN, as typed variants.
 //
-// `.btnprimary` and `.segmini` are NOT here: the engine emits both, so their
-// rules are in `src/styles/legacy.css` with their date of death (D-L07-5).
+// AND DÉCOUVRIR'S SHAPES, « Suivis »' cadence line, and the small segmented
+// control the add screen and the drawer share.
+//
+// The engine's gestures still find these surfaces by their class — `.sugwrap`,
+// `.deck`, `.dcard`, `.dhint.l`, `.dhint.r` — and write `dragging`, `out` and
+// `gone` straight to them, so each factory keeps its identity class and carries
+// those states as class-qualified utilities. The deck card's one- and three-letter
+// parts lead with a utility, and the markup writes `p`, `cap`, `t`, `m` and `why`
+// beside them.
 import { cva } from "../../ui/cva";
 
 /** The add screen's form block. */
@@ -82,4 +89,117 @@ export const addFooterAction = cva(
 export const addFooterDismiss = cva(
   "grid place-items-center size-[44px] -mr-4 [border:0] bg-transparent " +
     "text-muted-foreground [&>svg]:size-5",
+);
+
+/** « Suivis »' line saying when the machine searches next. */
+export const cadence = cva("cadence text-2 text-muted-foreground pt-4 px-7 pb-0");
+
+/**
+ * A small segmented control: its buttons side by side on a muted ground, the
+ * pressed one lifted.
+ */
+export const segmentSmall = cva(
+  "segmini flex gap-1 p-1 bg-muted rounded-3 " +
+    "[&_button]:[border:0] [&_button]:rounded-2 [&_button]:[background:transparent] " +
+    "[&_button]:text-muted-foreground [&_button]:text-3 [&_button]:font-semibold [&_button]:py-3 [&_button]:px-6 " +
+    "[&_button[aria-pressed=true]]:bg-background [&_button[aria-pressed=true]]:text-foreground " +
+    "[&_button[aria-pressed=true]]:[box-shadow:var(--mq-shadow-vsw)]",
+);
+
+/**
+ * A suggestion row, which a swipe either way dismisses. It claims the vertical
+ * pan, selects no text and drags no picture, for the swipe row's reasons; a
+ * dismissed one collapses before it leaves.
+ */
+export const suggestionWrap = cva(
+  "sugwrap relative overflow-hidden rounded-3 touch-pan-y select-none [&_img]:[-webkit-user-drag:none] " +
+    "[&.gone]:[transition:height_var(--duration-3)_var(--ease-standard),opacity_var(--duration-2)_var(--ease-standard),margin_var(--duration-3)_var(--ease-standard)] " +
+    "[&.gone]:[height:0]! [&.gone]:opacity-0 [&.gone]:mb-[calc(var(--spacing-7)*-1)]",
+);
+
+/** What a sliding suggestion uncovers: the dismissal's word, on both sides. */
+export const suggestionBack = cva(
+  "sugback absolute inset-0 flex items-center justify-between py-0 px-8 rounded-3 bg-muted " +
+    "text-muted-foreground text-3 font-bold [&_span]:flex [&_span]:items-center [&_span]:gap-3 " +
+    "[&_svg]:w-[16px] [&_svg]:h-[16px]",
+);
+
+/**
+ * The surface holding the deck: the body, with less room under the pile. The
+ * utility is qualified by its own class so it outranks the body's own padding.
+ */
+export const deckBody = cva("deckbody [&.deckbody]:pb-5");
+
+/**
+ * The pile. No `flex: 1`: in a column flex container that sets a 0 basis on the
+ * vertical axis, which silently overrides the height the deck measures.
+ */
+export const deckPile = cva(
+  "deck relative flex-[0_0_auto] min-h-[340px] touch-pan-y select-none [&_img]:[-webkit-user-drag:none]",
+);
+
+/**
+ * One card of the pile. The cards behind say « there is more » without costing
+ * a pixel of the card being read, and one joining the back rises from under the
+ * deck. The two curves differ on purpose: the card settles a touch after it has
+ * finished fading, which reads as picked up rather than snapped.
+ */
+export const deckCardFrame = cva(
+  "dcard absolute inset-0 flex flex-col border border-border rounded-4 bg-card overflow-hidden " +
+    "[box-shadow:var(--mq-shadow-pop)] origin-[50%_100%] will-change-transform " +
+    "[transition:transform_var(--duration-4)_var(--ease-emphasized),opacity_var(--duration-3)_var(--ease-standard)] " +
+    "data-[depth='1']:[transform:translateY(9px)_scale(0.955)] data-[depth='1']:opacity-75 " +
+    "data-[depth='2']:[transform:translateY(18px)_scale(0.91)] data-[depth='2']:opacity-45 " +
+    "data-[depth='3']:[transform:translateY(30px)_scale(0.86)] data-[depth='3']:opacity-0 " +
+    "[&.dragging]:transition-none [&.out]:opacity-0 " +
+    "select-none [-webkit-touch-callout:none] [&_img]:[-webkit-user-drag:none] [&_img]:[-webkit-touch-callout:none]",
+);
+
+/** The deck card's poster: the control that opens the sheet, filling the card. */
+export const deckPoster = cva(
+  "flex-1 min-h-0 block w-full [border:0] p-0 bg-muted relative [font-size:var(--text-display)] leading-none " +
+    "[&_img]:w-full [&_img]:h-full [&_img]:object-cover [&_img]:block",
+);
+
+/**
+ * The caption on the poster's foot, on a gradient that closes on a solid colour.
+ * It reserves the floating « + »'s footprint rather than running under it.
+ */
+export const deckCaption = cva(
+  "absolute [inset:auto_0_0] pt-[40px] pr-[76px] pb-[12px] pl-[14px] text-left " +
+    "[background:linear-gradient(to_bottom,transparent,color-mix(in_oklab,var(--color-card)_72%,transparent)_46%,var(--color-card))]",
+);
+
+/** The deck card's title. */
+export const deckTitle = cva("block text-7 font-bold tracking-[-0.015em] leading-[1.15]");
+
+/** The deck card's year, kind and rating. */
+export const deckMeta = cva("block mt-1 text-3 text-muted-foreground");
+
+/** Why the suggestion is made, set off by a rule on its left. */
+export const deckReason = cva(
+  "block mt-3 text-2 text-muted-foreground border-l-2 border-border pl-4 leading-[1.4] " +
+    "[&_b]:text-foreground [&_b]:font-semibold",
+);
+
+/**
+ * The verb a swipe shows under the thumb, on the side the card is going. The two
+ * directions do not mean the same thing: « Passer » decides nothing and does not
+ * wear the colour of a refusal; « Pas intéressé » removes the card.
+ */
+export const deckHint = cva(
+  "dhint absolute top-[14px] py-2 px-5 rounded-full border-2 text-3 font-extrabold tracking-[0.03em] opacity-0 " +
+    "[transition:opacity_var(--duration-1)_var(--ease-standard)] pointer-events-none",
+  {
+    variants: {
+      side: {
+        left:
+          "l left-[14px] [transform:rotate(-9deg)] border-muted-foreground text-muted-foreground " +
+          "[background:color-mix(in_oklab,var(--color-muted-foreground)_12%,var(--color-card))]",
+        right:
+          "r right-[14px] [transform:rotate(9deg)] border-danger text-danger " +
+          "[background:color-mix(in_oklab,var(--color-danger)_14%,var(--color-card))]",
+      },
+    },
+  },
 );

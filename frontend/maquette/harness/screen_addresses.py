@@ -42,7 +42,7 @@ underneath. And unlike a `QualityProfile` name, a title here resolves
 against a real per-title record (`sheetFor`) — so the unknown-title hold
 is not "the screen has nothing to fail a lookup against" but "the legacy
 template it was transplanted from never had a not-found branch either":
-`openFiche(title)` (`refonte.html`, deleted when this screen became a real
+`openFiche(title)` (`refonte.html@60530dbd8`, deleted when this screen became a real
 route — recovered from the commit that deleted it) built the SAME markup
 whether `sheetFor(title)` found a record or not, every field simply
 printing "inconnu" in its place. What the harness holds for the mediaSheet:
@@ -62,6 +62,11 @@ the arrivals under a resolution, the acquisition page under the release picker
 — because a stack synthesised from the hierarchy is what puts a real page under
 a link opened from outside, and a rule expecting one page under all three would
 pass over every parent being wrong but one.
+
+RE-AIMED, said out loud: the two sheet addresses were read from `addressIdsFor`. The engine's sheet table and
+its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
+`__carriedFor` — the seed the served read answers from, published by the harness
+driver — and the hold count is unchanged.
 """
 import asyncio
 import json
@@ -104,20 +109,22 @@ TITLE = "Silo"
 # corrects this on the way in.
 UNKNOWN_ADDRESS = "N'Existe%20Pas"
 
-# The mediaSheet titles below are picked straight from the embedded référentiel
-# (`refonte.html`'s `SHEETS_RAW`/`HERO_IMAGES`/`trailerIds`), not invented:
+# The mediaSheet titles below are picked straight from the served sheets
+# (`readMediaSheet`'s `hero` and `trailerVideo`), not invented — RE-AIMED from
+# the engine's wide-visual and trailer tables, which died when the screen began
+# reading the payload, with every count unchanged:
 # `Silo (2023)` carries both a hero image and a trailer (`sheetFor` resolves
 # it directly, no `baseTitle` fallback needed), which is what makes holds
 # (f)-(h) meaningful rather than vacuous. `Broadchurch` is the states
-# table's own pick for "no trailer" (`fiche-sans-trailer`, refonte.html) —
-# its `trailerIds` entry is absent and its sheet carries `trailer: null`
+# table's own pick for "no trailer" (`fiche-sans-trailer`, refonte.html@60530dbd8) —
+# its served sheet carries no `trailerVideo` and `trailer: null`
 # explicitly, and its cast/seasons are otherwise fully populated so the
 # ONLY `p.noinfo` the screen draws is the trailer's.
 SHEET_TITLE = "Silo (2023)"
 TITLE_WITHOUT_TRAILER = "Broadchurch"
 
 # `Backrooms.2026.MULTi.2160p.WEB-DL` is the embedded référentiel's own
-# folder waiting to be resolved (`refonte.html`'s `arr-charge` state opens
+# folder waiting to be resolved (`refonte.html@60530dbd8`'s `arr-charge` state opens
 # it as the default « Résoudre → » target — `ident.py` walks that exact
 # path) — and the real regression case for `server.py`'s dotted-segment
 # fallback fix: its deepest path segment carries dots of its own, which the
@@ -126,7 +133,7 @@ TITLE_WITHOUT_TRAILER = "Broadchurch"
 # SPA, not merely the raw HTTP response `server.py`'s own self-test covers.
 RESOLUTION_FOLDER = "Backrooms.2026.MULTi.2160p.WEB-DL"
 # `Silo` is the states table's own pick for `screen-releases`
-# (`window.__screens.releases("Silo")`, refonte.html).
+# (`window.__screens.releases("Silo")`, refonte.html@60530dbd8).
 RELEASES_TITLE = "Silo"
 
 SCREEN_STATE = """() => {
@@ -428,7 +435,7 @@ async def main():
             # coupling, and this one would rot the day the fixture moved.
             ctx, pg, errors = await open_at(browser, f"{base}/")
             sheet_ids = await pg.evaluate(
-                f"()=>window.addressIdsFor({json.dumps(SHEET_TITLE)})")
+                f"()=>window.__addressOf({json.dumps(SHEET_TITLE)})")
             await ctx.close()
             journal.check(
                 "(e2) the media sheet's own address ids are resolvable",
@@ -522,7 +529,7 @@ async def main():
             # missing field. ────────────────────────────────────────────
             ctx, pg, errors = await open_at(browser, f"{base}/")
             no_trailer_ids = await pg.evaluate(
-                f"()=>window.addressIdsFor({json.dumps(TITLE_WITHOUT_TRAILER)})")
+                f"()=>window.__addressOf({json.dumps(TITLE_WITHOUT_TRAILER)})")
             await ctx.close()
             no_trailer_address = (
                 f"{base}/media/{no_trailer_ids['provider']}/{no_trailer_ids['id']}")

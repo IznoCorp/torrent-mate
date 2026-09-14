@@ -77,6 +77,11 @@ What none of them reads is the address ALONE, and that is the part that
 mattered: a rule exercising only the cold load let two defects through under
 green holds, because the destination's address is right whichever stack was
 built under it.
+
+RE-AIMED, said out loud: the sheet is opened with the identity a tap carries, which the engine's resolver no longer supplies. The engine's sheet table and
+its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
+`__carriedFor` — the seed the served read answers from, published by the harness
+driver — and the hold count is unchanged.
 """
 import asyncio
 import json
@@ -609,7 +614,7 @@ async def main():
         # library's root and the filter would be gone.
         ctx, pg, errors = await open_page(b, PROTOTYPE + "media?lens=inc")
         depth = await pg.evaluate("()=>history.length")
-        await pg.evaluate(f"()=>window.__screens.mediaSheet({json.dumps(SHEET_TITLE)})")
+        await pg.evaluate(f"()=>window.__screens.mediaSheet({json.dumps(SHEET_TITLE)}, window.__carriedFor({json.dumps(SHEET_TITLE)}) ?? undefined)")
         await pg.wait_for_timeout(500)
         opened = await pg.evaluate("()=>history.length")
         journal.check(

@@ -1,7 +1,5 @@
-// The shell's whole job is to change NOTHING: the prototype is injected
-// verbatim, after Vite's own HTML processing, so no minifier and no script
-// extraction ever touches it. The real conversion happens module by module
-// in later sub-projects; this file is the chassis they will move into.
+// The shell builds `index.html` and `src/`: the document is Vite's own, and
+// nothing is injected into it any more.
 import { mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
@@ -30,15 +28,6 @@ const BUILD_ID = buildIdentity(ROOT);
 function injectPrototype() {
   return {
     name: "inject-prototype",
-    transformIndexHtml: {
-      // "post" runs after Vite's internal transforms: the fragment below is
-      // emitted untransformed — byte-for-byte the source file.
-      order: "post",
-      handler(html) {
-        const fragment = readFileSync(resolve(ROOT, "refonte.html"), "utf8");
-        return html.replace("<!-- maquette -->", () => fragment);
-      },
-    },
     closeBundle() {
       // The fragment's image URLs are relative `assets/...`; the build links
       // the real files in rather than copying 10 MB per build. `dist/` is

@@ -32,7 +32,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 MODULE = ROOT / "frontend" / "maquette" / "design" / "build-identity.mjs"
 
-ROOT_FILES = ("index.html", "refonte.html", "sw.js", "package.json")
+ROOT_FILES = ("index.html", "sw.js", "package.json")
 
 
 def git(repository: Path, *arguments: str) -> None:

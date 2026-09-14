@@ -4,7 +4,10 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { useLibraryReference, type IncompleteShow } from "./reference";
 import { useUiState } from "../../lib/store-access";
-import { body, section } from "../../ui/variants";
+import { body, posterGrid, section } from "../../ui/variants";
+import { posterArtwork } from "../../lib/engine-drawing";
+import { libraryCardMarkup } from "./card-markup";
+import { tileMarkup } from "../../ui/tile";
 import { Markup } from "../../ui/markup";
 
 export function IncompleteLens({ rows }: {
@@ -20,7 +23,7 @@ export function IncompleteLens({ rows }: {
 }): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { cardHTML, tileHTML } = useLibraryReference();
+  const reference = useLibraryReference();
   const INCOMPLETE = rows;
   return (
     <div className={body()} data-part="surface/body" data-region="library/body">
@@ -34,22 +37,24 @@ export function IncompleteLens({ rows }: {
       </div>
       {state.libMode === "grid" ? (
         <Markup
-          className="gallery" data-part="grid"
+          className={posterGrid()} data-part="grid"
           html={INCOMPLETE.map((show: IncompleteShow) =>
-              tileHTML(
-                show,
-                t("screens.library.incompleteEpisodes", {
+              tileMarkup({
+                title: show.t,
+                subtitle: t("screens.library.incompleteEpisodes", {
                   owned: show.o,
                   all: show.a,
                 }),
-              ),
+                artwork: posterArtwork(reference.icons, show.poster, show.t),
+                attributes: { "data-panel": `media:${show.t}`, "data-mediasheet": show.t },
+              }),
             ).join("")}
         />
       ) : (
         <Markup
           className={section()} data-part="section"
           html={INCOMPLETE.map((show: IncompleteShow) =>
-              cardHTML({
+              libraryCardMarkup({
                 t: show.t,
                 s: t(
                   show.a - show.o > 1
@@ -59,6 +64,8 @@ export function IncompleteLens({ rows }: {
                 ),
                 f: `${show.o}/${show.a}`,
                 chip: ["warning", t("screens.library.incompleteChip")],
+                poster: show.poster,
+                ids: show.ids,
               }),
             ).join("")}
         />

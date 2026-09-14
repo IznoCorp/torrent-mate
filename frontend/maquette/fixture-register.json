@@ -9,12 +9,12 @@
   "$counts": {
     "served": 41,
     "asset": 5,
-    "interface": 30,
-    "unserved": 5,
-    "total": 81
+    "interface": 29,
+    "unserved": 3,
+    "total": 78
   },
   "$anonymous": {
-    "count": 1,
+    "count": 0,
     "why": "pure literals declared inside an ANONYMOUS function. They are not inventoried — a name built on a line number is renamed by every edit above it — and the count is held here so their exclusion is a figure somebody compares rather than a figure somebody printed."
   },
   "families": {
@@ -37,7 +37,8 @@
     "BACK_WINDOW": {
       "class": "interface",
       "why": "how long the exit guard stays armed",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·3 — the exit guard's window moved OUT of the engine with the ladder's page switch, into `app/page-switch.ts`, rather than to a seed: a timing is the interface's own, never a server's answer"
     },
     "BLOCKED": {
       "class": "served",
@@ -53,7 +54,8 @@
     "CAST": {
       "class": "asset",
       "why": "cast portraits",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·13 — the cast reads the served sheet's `castPortraits`; the seed stays, composed into `readMediaSheet`"
     },
     "CATS": {
       "class": "served",
@@ -132,7 +134,8 @@
     "HERO_IMAGES": {
       "class": "asset",
       "why": "wide visuals, one per title",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·13 — the media screen reads the served sheet's `hero`; the seed stays, composed into `readMediaSheet`"
     },
     "INCOMPLETE": {
       "class": "served",
@@ -173,7 +176,8 @@
     "MAINT_ACTIONS": {
       "class": "served",
       "why": "the maintenance action catalogue — the backend already serves one at /api/maintenance/actions",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·15 — the engine's copy was dead data: the page and the command panel read `readMaintenanceActions`, and the seed stays, answered there"
     },
     "MAINT_TOPICS": {
       "class": "interface",
@@ -206,7 +210,8 @@
     "OWNED": {
       "class": "served",
       "why": "owned episode numbers, season by season, for 247 series",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·14.2 — the season list and the follow panel's matrix read `readMediaSeasons.owned`; the seed stays, answered there"
     },
     "PENDING_DECISIONS": {
       "class": "served",
@@ -223,7 +228,8 @@
     "POSTERS": {
       "class": "asset",
       "why": "poster paths, one per title",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·13 — every reader reads a `poster` field (lists since a·11, the sheet, and a decision's candidates and choice since a·13); the seed stays, joined into those payloads"
     },
     "POSTERS_HD": {
       "class": "asset",
@@ -310,7 +316,8 @@
     "SETTINGS": {
       "class": "served",
       "why": "the configuration schema, section by section and field by field",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·16 — the page, the engine's field verbs and the named states read the served catalogue, and the seed stays, answered there"
     },
     "SETTLED": {
       "class": "served",
@@ -324,15 +331,11 @@
       "seed": null,
       "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
     },
-    "SHEETS_OLD": {
-      "class": "unserved",
-      "why": "a superseded media-sheet shape. Nothing reads it: the only reference outside its own declaration is the Object.assign that publishes the engine's names on window for the harness, and no rule and no module names it. It dies with the engine (L13)",
-      "seed": null
-    },
     "SHEETS_RAW": {
       "class": "served",
       "why": "the media sheets — title, year, rating, synopsis, cast, provider ids, status",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·14.2 — every crossing reads the list item's `ids` or the served sheet; the seed stays, answered by `readMediaSheet` and `readMediaSeasons`"
     },
     "STARTUP_MS": {
       "class": "interface",
@@ -343,7 +346,8 @@
     "STRIP_LABELS": {
       "class": "interface",
       "why": "the five pipeline positions, named in French for the strip that draws them",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·11 — the strip's last engine builder died with the card's, and the five words are `surfaces.card.stages` in `fr.json`, read by `ui/card.tsx`'s strip and `ui/card-markup.ts`'s. Not `served`: the words a stage is called are the interface's"
     },
     "STUCK": {
       "class": "served",
@@ -417,11 +421,6 @@
       "why": "how a decision was reached, said in French",
       "seed": null
     },
-    "factRowsHTML.TONS": {
-      "class": "interface",
-      "why": "the mapping from the operator's word for a tone to the stylesheet's. Declared inside factRowsHTML, so it carries a qualified name",
-      "seed": null
-    },
     "icons": {
       "class": "interface",
       "why": "the interface's own icon paths. A server never sends a drawing",
@@ -443,17 +442,14 @@
     "plages.out": {
       "class": "unserved",
       "why": "an accumulator plages() fills, empty at its declaration",
-      "seed": null
-    },
-    "screenStack": {
-      "class": "unserved",
-      "why": "an accumulator the engine pushes onto. `const` binds the array, never its contents, so its literal value is an empty start and not a fact",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·11 — the function it lived in left the engine for the media sheet that calls it, as `numberRanges` in `features/media/format.ts`, and the accumulator is its local. Not `served`: a working variable is no answer anyone sends"
     },
     "trailerIds": {
       "class": "asset",
       "why": "YouTube trailer ids, from TMDB /videos",
-      "seed": null
+      "seed": null,
+      "converted": "L13a phase a·13 — the media screen reads the served sheet's `trailerVideo` alone; the seed stays, composed into `readMediaSheet`"
     }
   },
   "$converted": "A FAMILY THE ENGINE NO LONGER DECLARES, because the surface that read it now reads the mock layer instead (D5 — the engine dies by subtraction, surface by surface). Its class is unchanged: it is still `served`, and its seed is still what the layer answers with. What changes is WHAT HOLDS THE SEED. `--arm correspondence` compared it against the engine's own literal, and that literal is gone — so for a converted family that arm has nothing left to compare and says so by name rather than passing over it in silence, which would be the vacuity this whole file is built against. Two instruments still hold it: `--arm schema` validates it against the contract, and the ORACLE holds the rendering it produces at zero divergence — which is the stronger of the two, since it reads the bytes all the way to the screen. The value of `converted` names the wave and the surface, so the day somebody asks « when did this stop being checkable against the engine » the answer is in the file."

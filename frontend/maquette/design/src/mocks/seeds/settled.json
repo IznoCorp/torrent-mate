@@ -1,10 +1,18 @@
 [
   {
     "title": "Stuart Fails to Save the Universe (2026)",
-    "secondaryLine": "nouveau sur Disk1 · aujourd'hui à 07 h 10"
+    "secondaryLine": "nouveau sur Disk1 · aujourd'hui à 07 h 10",
+    "ids": null,
+    "poster": null
   },
   {
     "title": "Star Trek: Strange New Worlds (2022)",
-    "secondaryLine": "S04E04 fusionné sur Disk3 · hier à 15 h 25"
+    "secondaryLine": "S04E04 fusionné sur Disk3 · hier à 15 h 25",
+    "ids": {
+      "tmdb": 103516,
+      "imdb": "tt12327578",
+      "tvdb": 382389
+    },
+    "poster": "assets/posters/25415753.webp"
   }
 ]

@@ -9,7 +9,7 @@
 //
 // WHAT IT OBSERVES, AND WHY IT NEEDS NOTHING FROM THE ENGINE. Every layer in
 // this prototype already announces itself: `setOpen(element, on)` toggles the
-// `data-open` attribute on `#drawer`, `#screen`, `#dlg` and `#scrim`, and the
+// `data-open` attribute on `#drawer`, `#dlg` and `#scrim`, and the
 // React side (`components/sheet.tsx`, the five screens) emits the same
 // attribute itself. So this module watches an attribute that exists rather than
 // asking anyone to call it. Nothing in the engine changes; the contract is
@@ -24,17 +24,17 @@
 // THE BACKGROUND IS THE FRAME'S OTHER CHILDREN, never the layer's ancestors.
 // Marking `document.body` inert would mark the layer too.
 import { setLayerOpen } from "./layer-presence";
+import { closeLayers } from "./layers";
+import { bridge } from "../lib/shell-doors";
 
 // The layer roots, in the stacking order the engine already unwinds — drawer,
 // then screen, then sheet — so the topmost open layer is the last one here that
 // carries `data-open`.
 //
-// A SCREEN IS SELECTED BY ITS PART, NEVER BY `#screen`. There is one legacy
-// screen with that id and FIVE migrated ones that are `<section data-part=
-// "screen">` with no id at all, so an id selector traps focus in the layer the
-// engine still draws and silently ignores every screen that has been converted
-// — which is most of them, and all of the ones a later lot will add. This was
-// the shape of the first version of this file.
+// A SCREEN IS SELECTED BY ITS PART, NEVER BY AN ID. Every screen is a
+// `<section data-part="screen">` with no id at all, so an id selector would
+// silently ignore every one of them. This was the shape of the first version
+// of this file.
 const LAYERS = [
   "#drawer",
   '[data-part="screen"]',
@@ -268,17 +268,17 @@ export function installFocusManager(): void {
       if (!open.length) return;
       event.preventDefault();
       // TWO VERBS, because the layers close two different ways and pretending
-      // otherwise leaves one of them stuck. `__closeLayers` closes the dialog,
+      // otherwise leaves one of them stuck. `closeLayers` closes the dialog,
       // the sheet and the drawer — the three the scrim covers — and it
       // deliberately does not close a SCREEN: a screen is a history entry, and
-      // what closes one is a back. Sending Escape to `__closeLayers` on a
+      // what closes one is a back. Sending Escape to `closeLayers` on a
       // screen did nothing at all, silently, with the background still inert.
       //
       // Both verbs are the ones the interface already has. Nothing new is
       // written here: a second closer would give one gesture two answers.
       const top = open[open.length - 1];
-      if (top.matches('[data-part="screen"]')) window.__bridge?.back();
-      else window.__closeLayers?.();
+      if (top.matches('[data-part="screen"]')) bridge?.back();
+      else closeLayers();
     },
     true,
   );

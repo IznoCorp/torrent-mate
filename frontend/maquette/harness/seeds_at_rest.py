@@ -1,7 +1,7 @@
 """R128 — what the seeds offer to a HAND, with no named state (B-345).
 
 THE HARNESS AND THE OPERATOR DO NOT REACH THE SAME INTERFACE. Every rule here
-arrives through a NAMED STATE — `engine/states.js`, `window.__go` — which
+arrives through a NAMED STATE — `design/src/harness/states/`, `window.__go` — which
 re-seeds the layer for the case it is about. The operator has no such door: he
 opens the design host on his phone and walks, so what he can try is exactly what
 the seeds hold AT REST. B-345 is the gap between the two, and it was paid for:

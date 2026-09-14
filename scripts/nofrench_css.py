@@ -21,7 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from nofrench_lexicon import (  # noqa: E402
-    EXTRACTED_CSS, FRAGMENT, FROZEN_IDENTIFIERS, REGIONS, ROOT, examined,
+    EXTRACTED_CSS, FROZEN_IDENTIFIERS, REGIONS, ROOT, examined,
     french_tokens_in, has_accent, read, relative, split_identifier, vocabulary,
 )
 
@@ -153,7 +153,7 @@ def check_custom_properties(violations: list[str]) -> None:
     # document outside — narrower than arm 7, which already walks all of
     # `frontend/src`. A scope that is narrower than its sibling's is a hole
     # nobody chose.
-    sheets = [p for p in (FRAGMENT, ROOT / "frontend" / "maquette" / "design" / "index.html")
+    sheets = [p for p in (ROOT / "frontend" / "maquette" / "design" / "index.html",)
               if p.exists()]
     sheets += sorted((ROOT / "frontend" / "src").rglob("*.css"))
     sheets += sorted((ROOT / "frontend" / "src").rglob("*.tsx"))

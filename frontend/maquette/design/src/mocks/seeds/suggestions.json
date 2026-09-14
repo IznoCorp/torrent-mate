@@ -10,7 +10,12 @@
         "emphasis": "4"
       },
       " titres de votre médiathèque, dont Ninja Turtles et Supergirl."
-    ]
+    ],
+    "ids": {
+      "tmdb": 618354,
+      "imdb": "tt11079116"
+    },
+    "poster": "assets/posters/8c015ccd.webp"
   },
   {
     "title": "Alita : Battle Angel",
@@ -23,7 +28,12 @@
         "emphasis": "3"
       },
       " titres de votre médiathèque, dont Ninja Turtles et Supergirl."
-    ]
+    ],
+    "ids": {
+      "tmdb": 399579,
+      "imdb": "tt0437086"
+    },
+    "poster": "assets/posters/c1b27af1.webp"
   },
   {
     "title": "Numéro quatre",
@@ -36,7 +46,12 @@
         "emphasis": "3"
       },
       " titres de votre médiathèque, dont Supergirl et Disclosure Day."
-    ]
+    ],
+    "ids": {
+      "tmdb": 46529,
+      "imdb": "tt1464540"
+    },
+    "poster": "assets/posters/6384180c.webp"
   },
   {
     "title": "Avengers : Endgame",
@@ -49,7 +64,12 @@
         "emphasis": "Supergirl"
       },
       " et The Mandalorian and Grogu."
-    ]
+    ],
+    "ids": {
+      "tmdb": 299534,
+      "imdb": "tt4154796"
+    },
+    "poster": "assets/posters/ae8ad9f9.webp"
   },
   {
     "title": "L'Incroyable Hulk",
@@ -62,7 +82,12 @@
         "emphasis": "Ninja Turtles"
       },
       " et The Mandalorian and Grogu."
-    ]
+    ],
+    "ids": {
+      "tmdb": 1724,
+      "imdb": "tt0800080"
+    },
+    "poster": "assets/posters/fe215451.webp"
   },
   {
     "title": "Man of Steel",
@@ -75,7 +100,12 @@
         "emphasis": "Supergirl"
       },
       " et The Mandalorian and Grogu."
-    ]
+    ],
+    "ids": {
+      "tmdb": 49521,
+      "imdb": "tt0770828"
+    },
+    "poster": "assets/posters/c7eac7b1.webp"
   },
   {
     "title": "X-Men : Dark Phoenix",
@@ -88,7 +118,12 @@
         "emphasis": "Supergirl"
       },
       " et The Mandalorian and Grogu."
-    ]
+    ],
+    "ids": {
+      "tmdb": 320288,
+      "imdb": "tt6565702"
+    },
+    "poster": "assets/posters/dced7652.webp"
   },
   {
     "title": "Premier Contact",
@@ -101,7 +136,12 @@
         "emphasis": "Marjorie Prime"
       },
       " et Disclosure Day."
-    ]
+    ],
+    "ids": {
+      "tmdb": 329865,
+      "imdb": "tt2543164"
+    },
+    "poster": "assets/posters/c8706d9f.webp"
   },
   {
     "title": "Ant-Man et la Guêpe : Quantumania",
@@ -114,7 +154,12 @@
         "emphasis": "Ninja Turtles"
       },
       " et Supergirl."
-    ]
+    ],
+    "ids": {
+      "tmdb": 640146,
+      "imdb": "tt10954600"
+    },
+    "poster": "assets/posters/7c6dcfa1.webp"
   },
   {
     "title": "The Venture Bros",
@@ -127,7 +172,13 @@
         "emphasis": "Batman Caped Crusader (2024)"
       },
       " et President Curtis (2026)."
-    ]
+    ],
+    "ids": {
+      "tmdb": 2418,
+      "imdb": "tt0417373",
+      "tvdb": 72306
+    },
+    "poster": "assets/posters/6ff244f0.webp"
   },
   {
     "title": "Fast Charlie",
@@ -140,7 +191,12 @@
         "emphasis": "On l'appelait Robin des Bois"
       },
       " et Margin Call."
-    ]
+    ],
+    "ids": {
+      "tmdb": 945937,
+      "imdb": "tt6722400"
+    },
+    "poster": "assets/posters/e4531baf.webp"
   },
   {
     "title": "Grimsburg",
@@ -153,7 +209,13 @@
         "emphasis": "Batman Caped Crusader (2024)"
       },
       " et President Curtis (2026)."
-    ]
+    ],
+    "ids": {
+      "tmdb": 202224,
+      "imdb": "tt15791752",
+      "tvdb": 420069
+    },
+    "poster": "assets/posters/ad425699.webp"
   },
   {
     "title": "Solo: A Star Wars Story",
@@ -166,7 +228,12 @@
         "emphasis": "Supergirl"
       },
       " et The Mandalorian and Grogu."
-    ]
+    ],
+    "ids": {
+      "tmdb": 348350,
+      "imdb": "tt3778644"
+    },
+    "poster": "assets/posters/fe351baf.webp"
   },
   {
     "title": "L'Assassin",
@@ -179,7 +246,13 @@
         "emphasis": "Batman Caped Crusader (2024)"
       },
       " et Furious (2026)."
-    ]
+    ],
+    "ids": {
+      "tmdb": 262352,
+      "imdb": "tt33246591",
+      "tvdb": 453648
+    },
+    "poster": "assets/posters/02b6cc3e.webp"
   },
   {
     "title": "Power Rangers",
@@ -192,7 +265,12 @@
         "emphasis": "Supergirl"
       },
       " et The Mandalorian and Grogu."
-    ]
+    ],
+    "ids": {
+      "tmdb": 305470,
+      "imdb": "tt3717490"
+    },
+    "poster": "assets/posters/7f43bb65.webp"
   },
   {
     "title": "Agent Elvis",
@@ -205,7 +283,13 @@
         "emphasis": "Batman Caped Crusader (2024)"
       },
       " et President Curtis (2026)."
-    ]
+    ],
+    "ids": {
+      "tmdb": 110126,
+      "imdb": "tt10814036",
+      "tvdb": 417944
+    },
+    "poster": "assets/posters/a70005a1.webp"
   },
   {
     "title": "Marvel's M.O.D.O.K.",
@@ -218,7 +302,13 @@
         "emphasis": "Batman Caped Crusader (2024)"
       },
       " et President Curtis (2026)."
-    ]
+    ],
+    "ids": {
+      "tmdb": 111312,
+      "imdb": "tt9811118",
+      "tvdb": 361834
+    },
+    "poster": "assets/posters/dedeaa2e.webp"
   },
   {
     "title": "Un Duplex pour 3",
@@ -231,7 +321,12 @@
         "emphasis": "Alison Wheeler La Promesse d'un soir"
       },
       " et Alexandre Kominek Bâtard sensible."
-    ]
+    ],
+    "ids": {
+      "tmdb": 7288,
+      "imdb": "tt0266489"
+    },
+    "poster": "assets/posters/e6223423.webp"
   },
   {
     "title": "Les Trois Corniauds",
@@ -244,7 +339,12 @@
         "emphasis": "Alison Wheeler La Promesse d'un soir"
       },
       " et Alexandre Kominek Bâtard sensible."
-    ]
+    ],
+    "ids": {
+      "tmdb": 76489,
+      "imdb": "tt0383010"
+    },
+    "poster": "assets/posters/143d81fe.webp"
   },
   {
     "title": "L'Embrouille est dans le sac",
@@ -257,7 +357,12 @@
         "emphasis": "Alison Wheeler La Promesse d'un soir"
       },
       " et Alexandre Kominek Bâtard sensible."
-    ]
+    ],
+    "ids": {
+      "tmdb": 11890,
+      "imdb": "tt0102603"
+    },
+    "poster": "assets/posters/22916d60.webp"
   },
   {
     "title": "Impostor",
@@ -270,7 +375,12 @@
         "emphasis": "Disclosure Day"
       },
       " et The Mandalorian and Grogu."
-    ]
+    ],
+    "ids": {
+      "tmdb": 4965,
+      "imdb": "tt0160399"
+    },
+    "poster": "assets/posters/13857bdc.webp"
   },
   {
     "title": "Green Lantern : Le Complot",
@@ -283,7 +393,12 @@
         "emphasis": "Supergirl"
       },
       " et The Mandalorian and Grogu."
-    ]
+    ],
+    "ids": {
+      "tmdb": 17445,
+      "imdb": "tt1384590"
+    },
+    "poster": "assets/posters/8eb07471.webp"
   },
   {
     "title": "Green Lantern : Méfiez-vous de mon pouvoir",
@@ -296,7 +411,12 @@
         "emphasis": "Ninja Turtles"
       },
       " et Supergirl."
-    ]
+    ],
+    "ids": {
+      "tmdb": 887357,
+      "imdb": "tt20192230"
+    },
+    "poster": "assets/posters/ae0cfb7c.webp"
   },
   {
     "title": "Monsieur le député",
@@ -309,7 +429,12 @@
         "emphasis": "Alison Wheeler La Promesse d'un soir"
       },
       " et Alexandre Kominek Bâtard sensible."
-    ]
+    ],
+    "ids": {
+      "tmdb": 10411,
+      "imdb": "tt0104114"
+    },
+    "poster": "assets/posters/efcb4366.webp"
   },
   {
     "title": "Touche pas à mon gazon",
@@ -322,7 +447,12 @@
         "emphasis": "Alison Wheeler La Promesse d'un soir"
       },
       " et Scary Movie."
-    ]
+    ],
+    "ids": {
+      "tmdb": 24109,
+      "imdb": "tt0076059"
+    },
+    "poster": "assets/posters/c980f704.webp"
   },
   {
     "title": "LOL 2.0",
@@ -335,7 +465,12 @@
         "emphasis": "Alison Wheeler La Promesse d'un soir"
       },
       " et Alexandre Kominek Bâtard sensible."
-    ]
+    ],
+    "ids": {
+      "tmdb": 1477170,
+      "imdb": "tt36841139"
+    },
+    "poster": "assets/posters/4446b96e.webp"
   },
   {
     "title": "Thunderstruck",
@@ -348,7 +483,12 @@
         "emphasis": "Alison Wheeler La Promesse d'un soir"
       },
       " et Alexandre Kominek Bâtard sensible."
-    ]
+    ],
+    "ids": {
+      "tmdb": 119738,
+      "imdb": "tt2041488"
+    },
+    "poster": "assets/posters/385f0198.webp"
   },
   {
     "title": "American Dreamer",
@@ -361,7 +501,12 @@
         "emphasis": "Alison Wheeler La Promesse d'un soir"
       },
       " et Alexandre Kominek Bâtard sensible."
-    ]
+    ],
+    "ids": {
+      "tmdb": 931461,
+      "imdb": "tt13884444"
+    },
+    "poster": "assets/posters/d3a6ee9f.webp"
   },
   {
     "title": "Y-a-t'il quelqu'un pour l'ambulance ?",
@@ -374,7 +519,12 @@
         "emphasis": "Alison Wheeler La Promesse d'un soir"
       },
       " et Alexandre Kominek Bâtard sensible."
-    ]
+    ],
+    "ids": {
+      "tmdb": 32450,
+      "imdb": "tt0103872"
+    },
+    "poster": "assets/posters/93c35a04.webp"
   },
   {
     "title": "Jim Gaffigan: Beyond the Pale",
@@ -387,7 +537,12 @@
         "emphasis": "Alison Wheeler La Promesse d'un soir"
       },
       " et Alexandre Kominek Bâtard sensible."
-    ]
+    ],
+    "ids": {
+      "tmdb": 108930,
+      "imdb": "tt0815456"
+    },
+    "poster": "assets/posters/3c1db608.webp"
   },
   {
     "title": "Eddie Murphy: Delirious",
@@ -400,7 +555,12 @@
         "emphasis": "Alison Wheeler La Promesse d'un soir"
       },
       " et Alexandre Kominek Bâtard sensible."
-    ]
+    ],
+    "ids": {
+      "tmdb": 15251,
+      "imdb": "tt0085474"
+    },
+    "poster": "assets/posters/2c335975.webp"
   },
   {
     "title": "Jim Gaffigan: Mr. Universe",
@@ -413,7 +573,12 @@
         "emphasis": "Alison Wheeler La Promesse d'un soir"
       },
       " et Alexandre Kominek Bâtard sensible."
-    ]
+    ],
+    "ids": {
+      "tmdb": 101449,
+      "imdb": "tt2273321"
+    },
+    "poster": "assets/posters/2ebba739.webp"
   },
   {
     "title": "Spider-Man : Brand New Day",
@@ -426,7 +591,12 @@
         "emphasis": "Ninja Turtles"
       },
       "."
-    ]
+    ],
+    "ids": {
+      "tmdb": "969681",
+      "imdb": "tt22084616"
+    },
+    "poster": "assets/posters/f369e6b2.webp"
   },
   {
     "title": "Esprits criminels",
@@ -439,7 +609,13 @@
         "emphasis": "Furious (2026)"
       },
       "."
-    ]
+    ],
+    "ids": {
+      "tmdb": 4057,
+      "imdb": "tt0452046",
+      "tvdb": 75710
+    },
+    "poster": "assets/posters/401a8c4a.webp"
   },
   {
     "title": "Avengers : Infinity War",
@@ -452,7 +628,12 @@
         "emphasis": "Supergirl"
       },
       "."
-    ]
+    ],
+    "ids": {
+      "tmdb": 299536,
+      "imdb": "tt4154756"
+    },
+    "poster": "assets/posters/09f67054.webp"
   },
   {
     "title": "Arrow",
@@ -465,7 +646,13 @@
         "emphasis": "Batman Caped Crusader (2024)"
       },
       "."
-    ]
+    ],
+    "ids": {
+      "tmdb": 1412,
+      "imdb": "tt2193021",
+      "tvdb": 257655
+    },
+    "poster": "assets/posters/c46f5064.webp"
   },
   {
     "title": "Avatar : De feu et de cendres",
@@ -478,7 +665,12 @@
         "emphasis": "The Mandalorian and Grogu"
       },
       "."
-    ]
+    ],
+    "ids": {
+      "tmdb": 83533,
+      "imdb": "tt1757678"
+    },
+    "poster": "assets/posters/c6fe065e.webp"
   },
   {
     "title": "Manhunt",
@@ -491,6 +683,12 @@
         "emphasis": "The Bombing of Pan Am 103"
       },
       "."
-    ]
+    ],
+    "ids": {
+      "tmdb": "155533",
+      "imdb": "tt16912512",
+      "tvdb": 414337
+    },
+    "poster": "assets/posters/8f47fa10.webp"
   }
 ]

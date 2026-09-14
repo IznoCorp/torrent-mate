@@ -19,13 +19,8 @@
 // that answers something to everything hides a missing handler, and one that
 // throws hides the reason.
 import { resolve, type MockRoute } from "./router";
-import {
-  outcomeFor,
-  resetScenario,
-  scenario,
-  setDefaultLatency,
-  setOperationOutcome,
-} from "./scenario";
+import { outcomeFor, resetScenario, scenario, setDefaultLatency, setOperationOutcome } from "./scenario";
+import { mockSeeds, type MockSeeds } from "./mock-seeds";
 import { answeredCalls, clearAnswered, recordAnswered } from "./answered";
 import { mockState, resetMockState } from "./state";
 import { installMockStream, resetStream, type StreamDriver } from "./stream";
@@ -300,7 +295,8 @@ export function installMockNetwork(): void {
     },
   });
 
-  window.__mocks = {
+  window.__mocks = mockLayer = {
+    ...mockSeeds,
     routes: () => routes().map((route) => `${route.method} ${route.template}`),
     answered: answeredCalls,
     stream,
@@ -370,7 +366,7 @@ declare global {
      * in. Optional, so a document served without it fails visibly at the call
      * site rather than here.
      */
-    __mocks?: {
+    __mocks?: MockSeeds & {
       routes: () => string[];
       /**
        * Every call this layer answered, in order.
@@ -412,5 +408,8 @@ declare global {
    */
   const __MOCKS_BUILT_IN__: boolean;
 }
+
+/** The mock layer's driving surface, once installed — what `app/` imports rather than reading `window.__mocks`. */
+export let mockLayer: Window["__mocks"];
 
 export type { MockRoute };

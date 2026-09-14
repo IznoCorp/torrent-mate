@@ -30,6 +30,7 @@ import { createHeldActions } from "./held-actions";
 import { HELD, read, send } from "./query-client";
 import { toEngineShape } from "../engine/engine-shape";
 import type { QueueCard } from "./engine-queue";
+import { store } from "./store-access";
 
 /** The staging queue, as Arrivées and the deck both read it. */
 export type Staging = {
@@ -65,7 +66,7 @@ let heldClient: QueryClient | null = null;
  */
 export function firstStuckFolder(): string | null {
   const scenario =
-    String(window.__store?.read().state.scen ?? "") === "loaded" ? "loaded" : "";
+    String(store?.read().state.scen ?? "") === "loaded" ? "loaded" : "";
   const staging = heldClient?.getQueryData<Staging>(stagingKey(scenario));
   const first = staging?.stuck[0]?.t;
   return typeof first === "string" ? first : null;
@@ -84,7 +85,7 @@ export function firstStuckFolder(): string | null {
  */
 export function queueNow(): Staging & AcquisitionQueue {
   const scenario =
-    String(window.__store?.read().state.scen ?? "") === "loaded" ? "loaded" : "";
+    String(store?.read().state.scen ?? "") === "loaded" ? "loaded" : "";
   const staging = heldClient?.getQueryData<Staging>(stagingKey(scenario));
   const queue = heldClient?.getQueryData<AcquisitionQueue>(queueKey(scenario));
   return {
@@ -280,10 +281,10 @@ export const ADDRESSES_THAT_MOVE_TOGETHER: readonly (readonly string[])[] = [
  */
 export function installQueueActions(queryClient: QueryClient): void {
   heldClient = queryClient;
-  window.__queue = queueNow;
+  queueLists = queueNow;
 
   const scenarioNow = () =>
-    String((window.__store?.read().state.scen ?? "") === "loaded" ? "loaded" : "");
+    String((store?.read().state.scen ?? "") === "loaded" ? "loaded" : "");
 
   // THE SEND, apart from the optimistic write: a resolve sends at once, a pick
   // when its window closes, and a refusal puts back what each took, its own way.
@@ -331,7 +332,7 @@ export function installQueueActions(queryClient: QueryClient): void {
     }
   });
 
-  window.__queueActions = {
+  queueActions = {
     resolve: (title, choice) => void settle(title, "resolved", choice),
     // A PICK ON THE CANDIDATE CARD, whose send WAITS: a gesture can be wrong and
     // the contract cannot put a resolve back, so the folder leaves both lists at
@@ -347,7 +348,7 @@ export function installQueueActions(queryClient: QueryClient): void {
         send: () => void deliver(scenario, title, "resolved", restore, choice),
         putBack: () => {
           restore();
-          window.__store.touch();
+          store.touch();
         },
         drawAgain: () => void takeOutOfQueue(queryClient, scenario, title),
       });
@@ -412,3 +413,8 @@ declare global {
     };
   }
 }
+
+/** The queue's lists — filled at install, published by the harness as `window.__queue`. */
+export let queueLists: typeof queueNow | undefined;
+/** The queue's four verbs — filled at install. */
+export let queueActions: Window["__queueActions"];

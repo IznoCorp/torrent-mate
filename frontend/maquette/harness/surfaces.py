@@ -1,4 +1,10 @@
-"""The surfaces a medium is shown on, walked one by one."""
+"""The surfaces a medium is shown on, walked one by one.
+
+A PANEL IS CLOSED THROUGH `window.__panel.close()`, and a screen through
+`window.__bridge.back()` — the seams the harness publishes. The engine's
+`window.__close` shortcut forwarded to the same two and is gone; the hold count
+is unchanged.
+"""
 
 import asyncio
 
@@ -50,7 +56,7 @@ async def main():
     print("  adding an ALREADY owned title:", await pg.evaluate("()=>{const g=document.querySelector('#dlg');return {open:g.hasAttribute('data-open'),title:g.querySelector('h1,h2,h3')?.textContent};}"))
     await shot(pg, "surfaces-replace")
     await pg.evaluate("""()=>document.querySelector('[data-part="dialog/button"][data-dialog-dismiss]').click()"""); await pg.wait_for_timeout(300)
-    await pg.evaluate("()=>__close('screen')"); await pg.wait_for_timeout(400)
+    await pg.evaluate("""()=>document.querySelector('[data-part="screen"][data-open]') && window.__bridge.back()"""); await pg.wait_for_timeout(400)
 
     print("── season matrix ──")
     await pg.click('[data-acqtab="follows"]'); await pg.wait_for_timeout(350)

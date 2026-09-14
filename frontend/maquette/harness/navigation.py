@@ -14,10 +14,15 @@ What this holds to:
 
 1. `navigate(` appears in `design/src/` exactly TWICE, comments blanked: once
    inside `go()`'s own body in `lib/navigate.ts` — the product's single
-   door — and once in the
-   engine's `window.__go`, which is not a journey but the harness's state
-   driver resetting the router before it applies a named state. Both are
-   named and bounded; a third would fail. A source-level count, the same
+   door — and once in `harness/drive.ts`, the state driver behind
+   `window.__go`, which is not a journey but the harness resetting the router
+   before it applies a named state. Both are named and bounded; a third would
+   fail.
+
+   RE-AIMED, NOT WIDENED: the exemption named `legacy.js`, because the state
+   driver lived in the engine. The driver left the engine for the harness
+   module with its one call, and the exemption follows it to that one file —
+   still one site, still bounded at one. A source-level count, the same
    discipline R74 already holds the engine's raw `history.*` calls to.
 
    The engine's call was invisible to this rule until the engine moved under
@@ -119,6 +124,10 @@ def without_line_comments(source):
 # failed, once, and that failure is what proved it reads what it names.
 GO_HOME = "navigate.ts"
 
+# The state driver's file, relative to `design/src/`: its one reset is the second
+# bounded call.
+DRIVER = "harness/drive.ts"
+
 
 def count_navigate_outside_go(design_src):
     """Counts `navigate(` calls under `design/src/`, and how many sit
@@ -128,41 +137,41 @@ def count_navigate_outside_go(design_src):
         design_src: The `design/src/` directory.
 
     Returns:
-        `(total, outside_go, engine)` — the total call count after comments
+        `(total, outside_go, driver)` — the total call count after comments
         are blanked, how many of those are NOT inside `export function go(`'s
-        body, and how many belong to the engine's state driver.
+        body, and how many belong to the harness's state driver.
     """
     total = 0
     outside_go = 0
-    engine_calls: list[int] = []
+    driver_calls: list[int] = []
     # `.js` TOO, and it is not a formality: the legacy engine moved under
     # `design/src/` and it navigates the router once. The count this rule
     # publishes says « under design/src/ », so a glob that quietly skips the
     # biggest file there would make the sentence false while the rule stayed
-    # green. Its one call is accounted for below rather than ignored.
+    # green. The state driver's one call now lives in `harness/drive.ts`, and it
+    # is accounted for below rather than ignored.
     files = (sorted(design_src.rglob("*.ts")) + sorted(design_src.rglob("*.tsx"))
              + sorted(design_src.rglob("*.js")))
     for file in files:
         cleaned = without_line_comments(file.read_text(encoding="utf-8"))
         positions = [m.start() for m in re.finditer(r"\bnavigate\(", cleaned)]
         total += len(positions)
-        if file.name == "legacy.js":
-            # THE ENGINE'S ONE CALL, and it is not a journey. `window.__go` is
-            # the harness's state DRIVER: before it applies a named state it
-            # resets the router the same way it clears the legacy screen
-            # stack, so a measurement never inherits the route a previous one
-            # navigated to. It is a `replace`, so driving states never grows
-            # history — which is what hold 3 measures from the outside.
-            # Counted, named, and bounded at one: a SECOND call in this file
-            # would be a real door, and would fail here.
-            engine_calls.extend(positions)
+        if file.relative_to(design_src).as_posix() == DRIVER:
+            # THE STATE DRIVER'S ONE CALL, and it is not a journey. `window.__go`
+            # is the harness's state DRIVER: before it applies a named state it
+            # resets the router, so a measurement never inherits the route a
+            # previous one navigated to. It is a `replace`, so driving states
+            # never grows history — which is what hold 3 measures from the
+            # outside. Counted, named, and bounded at one: a SECOND call in this
+            # file would be a real door, and would fail here.
+            driver_calls.extend(positions)
             continue
         if file.name != GO_HOME:
             outside_go += len(positions)
             continue
         start, end = go_body_bounds(cleaned)
         outside_go += sum(1 for pos in positions if not (start >= 0 and start <= pos <= end))
-    return total, outside_go, len(engine_calls)
+    return total, outside_go, len(driver_calls)
 
 
 def go_body_bounds(cleaned):
@@ -211,13 +220,13 @@ async def main():
     journal = Journal("R76 — navigation through one door")
 
     # ─── Hold 1: one door, source-checked ──────────────────────────────
-    total, outside_go, engine = count_navigate_outside_go(DESIGN_SRC)
+    total, outside_go, driver = count_navigate_outside_go(DESIGN_SRC)
     journal.check(
-        "navigate( appears only inside go()'s body, or in the engine's state "
+        "navigate( appears only inside go()'s body, or in the harness's state "
         "driver, and there is exactly one of each",
-        total == 2 and outside_go == 0 and engine == 1,
-        f"{total} call(s) in total, {outside_go} outside go(), {engine} in the "
-        "engine's driver")
+        total == 2 and outside_go == 0 and driver == 1,
+        f"{total} call(s) in total, {outside_go} outside go(), {driver} in the "
+        "state driver")
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(channel="chrome")

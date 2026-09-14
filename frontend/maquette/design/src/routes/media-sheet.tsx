@@ -11,7 +11,15 @@
 
 import { createRoute } from "@tanstack/react-router";
 import { rootRoute } from "../app/root-route";
+import { followActions } from "../features/acquisition/queries";
 import { MediaScreen } from "../features/media/media-screen";
+
+// THE FOLLOWS COMPOSE HERE. The media screen says whether its medium is
+// followed, and the follows are the acquisition feature's: two features never
+// import each other (invariant 7), so the route hands one to the other.
+function MediaRouteScreen() {
+  return <MediaScreen readFollows={() => followActions?.all() ?? []} />;
+}
 
 // The media sheet: ONE screen for every medium, reached from a poster, a tile,
 // a suggestion or a panel act.
@@ -33,5 +41,5 @@ import { MediaScreen } from "../features/media/media-screen";
 export const mediaRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/media/$provider/$id",
-  component: MediaScreen,
+  component: MediaRouteScreen,
 });

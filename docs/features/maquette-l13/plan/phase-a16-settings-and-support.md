@@ -57,3 +57,40 @@ helper that no component replaces.
 ## Commit
 
 `refactor(maquette-l13): settings read the served catalogue and the engine's drawing bridge dies`
+
+## Amendment — 2026-09-13, ruling 57 (the steward, on the implementer's STOP D re-take)
+
+**VOID in this file**: « The React-side support dies here, because its last reader is converted », with its
+two sub-bullets; « Guard exemptions lose their subject in this commit »; the gate's « with the two exemptions
+gone ». Measured at the opening of a·16 on `9c083a9b7`:
+
+- `engine/engine-shape.ts`: 40 `toEngineShape` call sites in 13 files, 23 families still projected
+  (`grep -rhoE 'toEngineShape(Entry)?<[^>]*>\("[A-Z_]+"' --include='*.ts' --include='*.tsx' frontend/maquette/design/src | sort | uniq -c`).
+  No surface phase switched its components to the contract's names, and `LIBRARY`/`INCOMPLETE` are b·10-bis's.
+- `window.__referentiel`: 40 product files read about 22 members — `render` (b·7), `addVerb` (b·5),
+  `INCOMPLETE`/`stFraction` (b·10-bis), the settings field verbs `SETTINGS_STATE`, `changeSetting`, `settingId`,
+  `typedValue`, `rawValue`, `changedFiles`, `fileName` (b·1), and interface constants the engine holds. The three
+  readers this file named were not the list: `app/history-bridge.ts` reads it zero times.
+- `lib/engine-drawing.ts`: 24 importers. `app/engine-redraw.ts` exists to call `__referentiel.render`;
+  `app/engine-data.ts` prefetches through `toEngineShape`.
+- The seam re-count: 2 `dangerouslySetInnerHTML` sites (`ui/icon.tsx`, `ui/markup.tsx`); the other four
+  grep lines are comments.
+
+**WHERE IT WENT: b·11**, with `legacy.js`, its last publisher — `engine/engine-shape.ts` and its test,
+`lib/engine-drawing.ts`, `window.__referentiel` with `app/reference.d.ts` and the `*Reference` slices,
+`app/engine-data.ts`, `app/engine-redraw.ts`, the `FAN_IN_EXEMPT` and `OUTSIDE_IMPORTS_ALLOWED` engine entries,
+and the reference-slice arm of `scripts/check-frontend-boundaries.py`, whose `text.index("window.__referentiel = {")`
+raises the day the object goes.
+
+**PLAN GAP, for the steward's L13b brief**: b·11 needs HOMES for the interface constants the engine holds and
+nothing else holds today — `icons` (27 sites; `app/icons.ts` exists, and no feature imports an `app/` module but
+`dialog-host`), `EP_LABEL`, `TODAY`, `REASON_LABEL`, `REASON_DETAIL`, `REASON_TONE`, `ST_TONE`, `stLabel`,
+`MAINT_TOPICS`, `SERVICES_PANNE`, `AUDIOS`, `RESOLUTIONS`.
+
+**What a·16 lands**: `allSettings` is gone — the page reads `flattenSettings` over its query's data, the engine's
+field verbs read `heldSettings()` (`features/settings/queries.ts`, the same function over the cache), and the
+named field states read the seed the served read answers from (`window.__mocks.settings()`). `SETTINGS` dies;
+`resetSettings` stays (b·1's). `readonly` is a variant of `panelField`, and it carries the note's zero margin
+(`[&_.rulenote]:m-0`), measured: without it the oracle diverged on `settings-field-structure`,
+`shell/sheet-content` 14 px taller.
+

@@ -259,6 +259,39 @@ def test_the_memory_reader_covers_both_operating_systems() -> None:
     assert 'if [ -z "$free" ] || [ -z "$load" ]' in body, "an unmeasurable machine still waits"
 
 
+# A `vm_stat` reading taken on this machine while a browser-class gate was held
+# off for fourteen minutes: free and inactive make 3 868 MB, the speculative
+# pages 1 837 MB more.
+VM_STAT_WITH_SPECULATIVE_PAGES = """\
+Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                    6648.
+Pages active:                                400000.
+Pages inactive:                              240956.
+Pages speculative:                           117584.
+Pages wired down:                            274432.
+"""
+
+
+def test_the_speculative_pages_macos_reclaims_first_are_counted_free(tmp_path: Path) -> None:
+    """THE SPECULATIVE PAGES ARE FREE MEMORY, and the Darwin reader left them out.
+
+    They are the file cache macOS pre-fetches and hands back before anything
+    else, which is what Linux's `MemAvailable` already counts on the other
+    branch. Summing only free and inactive held an a·10 gate for nine minutes
+    and an a·13 gate for fourteen over 5.7 GB the machine could have given.
+    The reading is the one `vm_stat` printed then, served by a stand-in.
+    """
+    stand_in = tmp_path / "bin"
+    stand_in.mkdir()
+    reader = stand_in / "vm_stat"
+    reader.write_text(f"#!/bin/sh\ncat <<'READING'\n{VM_STAT_WITH_SPECULATIVE_PAGES}READING\n")
+    reader.chmod(0o755)
+    result = run(tmp_path / "holder", "true", PATH=f"{stand_in}:{os.environ['PATH']}")
+    assert result.returncode == 0, result.stderr
+    # (6 648 + 240 956 + 117 584) pages x 16 384 bytes = 5 706 MB.
+    assert "starts (5706MB free" in result.stderr, result.stderr
+
+
 # ── The readiness floor, read from the run's class (B-386) ───────────────────
 # There was ONE floor for every run: a single rule replayed against the served
 # copy waited behind the same 4 GB and load 6 a two-browser suite needs, and a

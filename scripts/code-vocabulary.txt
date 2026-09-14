@@ -166,6 +166,7 @@ categories
 category
 cats
 ceil
+cell
 cells
 chance
 change
@@ -296,6 +297,7 @@ direction
 directions
 disarm
 discipline
+disclosure
 discover
 disk
 disks
@@ -318,6 +320,7 @@ drawer
 drawing
 drawn
 draws
+driven
 driver
 drop
 dry
@@ -451,7 +454,6 @@ had
 harness
 has
 hauteur
-hclose
 hd
 head
 header
@@ -463,7 +465,6 @@ heir
 held
 hello
 hero
-hgo
 hide
 hint
 hints
@@ -477,9 +478,6 @@ hooks
 host
 hot
 hours
-hphase
-hscen
-htmdb
 html
 hue
 hues
@@ -511,6 +509,7 @@ inflight
 info
 informative
 initial
+initials
 inner
 input
 inset
@@ -827,9 +826,11 @@ queue
 queued
 quiet
 radius
+ranges
 rank
 ratifies
 ratify
+rating
 raw
 react
 read
@@ -968,6 +969,7 @@ secrets
 section
 seed
 seeded
+seeds
 seen
 seg
 segment
@@ -1002,6 +1004,7 @@ sheetgrab
 sheetin
 sheets
 shell
+shortfall
 shorthands
 shot
 show
@@ -1289,7 +1292,6 @@ masquer
 mois
 panne
 pilotage
-plages
 remis
 repos
 restant

@@ -369,3 +369,46 @@ export function destinationOf(pathname: string, search: string): Destination {
   }
   return { page, dials, panel };
 }
+
+/** The address model, as the engine asks for it. */
+export type AddressSeam = {
+  /** The sign-in screen's own path, so the engine writes it by name. */
+  signInPath: string;
+  /** The page every other page sits on — the root of the hierarchy. The engine
+   * synthesises a stack from it on a cold link and steps back onto it when a tab
+   * is tapped, and neither is the engine's to name. */
+  homePage: string;
+  /** The name the addressed panel travels under, so the engine can ask whether
+   * an address carried one at all without spelling it itself. */
+  panelParameter: string;
+  /** A query string with the panel parameter taken off, rest verbatim. */
+  withoutPanel: (search: string) => string;
+  compose: (state: Record<string, unknown>) => string;
+  parse: (
+    pathname: string,
+    search: string,
+  ) => {
+    page: string;
+    dials: Record<string, string>;
+    notFound?: string;
+    signIn?: boolean;
+    panel?: string;
+    screen?: boolean;
+  };
+};
+
+/**
+ * The address model, handed to the engine: `compose` turns the state it holds
+ * into the address that state should be seen at, `parse` turns an address back
+ * into the state it names. It reads `state.page` and the dial fields straight
+ * off the object the engine hands over — the engine's own vocabulary, so
+ * nothing translates on the way across.
+ */
+export const addressSeam: AddressSeam = {
+  signInPath: SIGN_IN_PATH,
+  homePage: HOME_PAGE,
+  panelParameter: PANEL_PARAMETER,
+  withoutPanel: withoutPanel,
+  compose: (state) => addressOf(String(state.page ?? ""), state),
+  parse: destinationOf,
+};

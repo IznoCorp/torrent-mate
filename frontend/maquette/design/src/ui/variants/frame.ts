@@ -34,8 +34,8 @@ import { cva } from "../cva";
      55  the drawer `drawer` (ui/variants/frame.ts) · the install proposal `.installbar` (index.html)
      56  the confirmation        `dialog` (ui/variants/frame.ts)
      57  the message             `messageHost` (ui/variants/frame.ts)
-     60  the popover `popover` (ui/variants/frame.ts) · the skip link `.skip-link` (styles/base.css) · the harness's opened panel `.hpanel` (styles/legacy.css) · the sign-in gate `.loginscreen` (styles/legacy.css)
-     70  the splash `.splash` (styles/legacy.css) · the harness's desktop switch `.desktop-switch` (styles/harness.css)
+     60  the popover `popover` (ui/variants/frame.ts) · the skip link `.skip-link` (styles/base.css) · the sign-in gate `.loginscreen` (styles/base.css, the entry block)
+     70  the splash `.splash` (styles/base.css, the entry block) · the harness's desktop switch `.desktop-switch` (styles/harness.css)
 
    EVERY ENTRY NAMES ITS FILE, which is what makes the claim above readable by something other than a
    person: `scripts/csstokens_ranks.py` parses these lines against every `z-index` and `z-` utility the
@@ -57,12 +57,10 @@ import { cva } from "../cva";
    of the background it marks `inert`, for the same reason: a message a finger
    cannot close is a control that does nothing.
 
-   THE HARNESS HAS TWO ENTRIES, and it used to have one — « the harness panel » at 60, while
-   `styles/harness.css` declared the buttons at 70, the splash's rank. So a message drawn along the top
-   of the frame, exactly where those buttons sit, was painted UNDER chrome that is in no production
-   build (B-394). The buttons are 53: above the surfaces a verb is pressed from, under the drawer, the
-   confirmation and the message. The opened panel stays 60, because it is the instrument the prototype
-   is driven with and a message over it would hide the control one is reaching for.
+   THE HARNESS BAR IS 53, and `styles/harness.css` once declared it at 70, the splash's rank. So a
+   message drawn along the top of the frame, exactly where the bar sits, was painted UNDER chrome that is
+   in no production build (B-394). At 53 it is above the surfaces a verb is pressed from, under the
+   drawer, the confirmation and the message.
 
    AND THE MESSAGE HAS TWO POSITIONS FOR ITS ONE RANK. A rank decides what is
    painted where two layers meet; it cannot keep them from meeting. The sheet
@@ -412,8 +410,8 @@ export const dialogActions = cva("dlgacts flex flex-col gap-3");
    unlayered, so the LATER rule won property by property — which is why the
    padding here is `py-5 px-6` and not the `p-5` the first rule asked for. A
    variant carrying only one of the two would have rendered identically (the
-   residue wins over utilities) and disagreed with it, which is exactly the
-   drift R80 exists to catch, and did. */
+   residue won over utilities) and disagreed with it, which is exactly the
+   drift R80 was written to catch, and caught. */
 export const dialogButton = cva(
   "dlgbtn flex items-center justify-center gap-4 w-full min-h-[44px] py-5 px-6 "
     + "rounded-3 text-4 font-semibold text-center border",

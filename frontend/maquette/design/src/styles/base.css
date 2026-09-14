@@ -2,7 +2,7 @@
    has. Reset, typeface, the accessibility surfaces L03 delivered, and every
    declaration the COMPOSITOR reads.
 
-   IT CAME OUT OF BLOCK 1, AND THAT IS THE POINT. `refonte.html` splits into
+   IT CAME OUT OF BLOCK 1, AND THAT IS THE POINT. `refonte.html@60530dbd8` splits into
    BLOCK 1 — the prototype's harness, which stops existing at switchover — and
    BLOCK 2, the application's own stylesheet. The split was right about its
    purpose and wrong about its contents: six regions of BLOCK 1 were the
@@ -181,6 +181,13 @@
       transform: rotate(360deg);
     }
   }
+
+  /* A skeleton's shimmer: the gradient walks across the box once per loop. */
+  @keyframes sh {
+    to {
+      background-position: -400% 0;
+    }
+  }
 }
 
 /* `hidden` HIDES, WHATEVER ELSE THE ELEMENT WEARS — one rule, in place of the
@@ -328,6 +335,13 @@
 .addrow .btnprimary {
   width: auto;
   padding-inline: var(--spacing-7);
+}
+
+/* A submit button that cannot be pressed yet reads as unavailable. Unlayered,
+   like the rest of this group, so the hover feedback further down — unlayered
+   too, and less specific — cannot lift it back towards full strength. */
+.btnprimary:disabled {
+  opacity: 0.5;
 }
 
 /* The tab bar sits above a screen (z-50), so a screen must reserve its
@@ -1028,3 +1042,217 @@
   -webkit-user-select: none;
   user-select: none;
 }
+
+/* ── THE ENTRY — the sign-in screen and the startup screen ─────────────
+   The document's own markup, drawn before any module has run, so its rules
+   are base rules — and they stay HAND-WRITTEN, not utilities, because
+   `serve.py` composes the host's sign-in page by extracting this block as RAW
+   TEXT into a page Tailwind never processes: a utility would arrive there as a
+   class name with no stylesheet behind it. UNLAYERED, as they were when they
+   were written: inside `@layer base` a utility on the same element would win.
+
+   B-056 lives in here — the startup bar's keyframe name is French. It moved
+   as it was: the fix needs both ends moved in one step and an arm of the
+   no-French guard. */
+/* login:entry:start */
+/* Login — the unauthenticated entry screen.
+   It covers the shell rather than sitting inside it: the top bar shows a
+   session that does not exist yet, and the tab bar offers pages that would
+   only answer with a redirect. Centred, one column, and it stays reachable
+   with the on-screen keyboard open — which is why it scrolls rather than
+   centring by absolute offsets. */
+.loginscreen {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-8);
+  padding: var(--spacing-9) var(--spacing-8);
+  overflow-y: auto;
+  background: var(--color-background);
+}
+
+.loginscreen[hidden] {
+  display: none;
+}
+
+/* The tall brand block. `.brand` is the topbar's — small and horizontal —
+   and this one belongs to the full-screen surfaces that carry no interface
+   yet: the entry screen and the startup screen. They share it so that
+   signing in never changes identity halfway through. */
+.brandbig {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-5);
+  color: var(--color-foreground);
+}
+
+.brandbig .mk {
+  width: 40px;
+  height: 40px;
+  color: var(--color-primary);
+}
+
+.brandbig .wm {
+  font-size: var(--text-7);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.brandbig em {
+  font-style: normal;
+  color: var(--color-primary-text);
+}
+
+.logincard {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+  padding: var(--spacing-8) var(--spacing-8);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-4);
+  background: var(--color-card);
+}
+
+.logintitle {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-6);
+  font-weight: 600;
+}
+
+.loginsub {
+  margin: calc(var(--spacing-3) * -1) 0 var(--spacing-2);
+  text-align: center;
+  font-size: var(--text-3);
+  color: var(--color-muted-foreground);
+}
+
+.loginfield {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  font-size: var(--text-3);
+  color: var(--color-muted-foreground);
+}
+
+.loginfield input {
+  /* --text-6 is 16px, and that is not a style choice: below it, iOS Safari
+     zooms the page on focus and the frame never comes back. */
+  font:
+    400 var(--text-6) "Geist",
+    system-ui,
+    sans-serif;
+  color: var(--color-foreground);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-3);
+  padding: var(--spacing-4) var(--spacing-5);
+}
+
+.loginfield input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.loginerr {
+  margin: 0;
+  font-size: var(--text-3);
+  color: var(--color-danger);
+}
+
+.loginerr[hidden] {
+  display: none;
+}
+
+.loginsubmit {
+  margin-top: var(--spacing-2);
+  padding: var(--spacing-5) var(--spacing-7);
+  border: 0;
+  border-radius: var(--radius-3);
+  font:
+    600 var(--text-5) "Geist",
+    system-ui,
+    sans-serif;
+  color: var(--color-primary-foreground);
+  background: var(--color-primary);
+}
+
+/* Startup — the wait between signing in and an interface being there.
+
+   This document is large, and a phone spends seconds fetching and parsing it
+   before a single pixel of the interface exists. A wait shown blank is read
+   as a failure, so the screen holds the brand still and says what is
+   happening. It is the FIRST thing the document paints, which is why it sits
+   at the top of the frame in source order: an element declared after
+   megabytes of embedded artwork would appear only once the wait is over.
+
+   The bar is deliberately indeterminate. Nothing here knows how far along
+   the load is, and a bar that pretends to would be lying at every frame. */
+.splash {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-8);
+  padding: var(--spacing-9) var(--spacing-8);
+  background: var(--color-background);
+}
+
+/* An author `display` rule beats `[hidden]`: without this the attribute is
+   set and nothing happens. */
+.splash[hidden] {
+  display: none;
+}
+
+.splashbar {
+  width: 132px;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+/* The bar FILLS, from nothing to full, over the five seconds a cold load is
+   budgeted. It is not a measurement of the load — nothing here knows how far
+   along that is — it is a measurement of the WAIT, which is what the person
+   watching is actually living through. A bar that fills answers « how much
+   longer », where a shuttle that slides back and forth answers nothing and
+   reads the same at one second and at ten.
+
+   It never reaches the end on its own: the interface arrives first and takes
+   the screen away. Should the load outlast the budget, the bar stops full
+   and the message below is what keeps speaking. */
+.splashbar i {
+  display: block;
+  width: 0%;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  animation: splashremplit var(--duration-loop-3) linear forwards;
+}
+
+@keyframes splashremplit {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.splashmsg {
+  margin: 0;
+  font-size: var(--text-3);
+  color: var(--color-muted-foreground);
+}
+/* login:entry:end */

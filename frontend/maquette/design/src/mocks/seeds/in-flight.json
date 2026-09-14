@@ -12,7 +12,13 @@
     "chip": {
       "tone": "info",
       "text": "Ingestion"
-    }
+    },
+    "ids": {
+      "tvdb": "466198",
+      "tmdb": "296756",
+      "imdb": "tt37692332"
+    },
+    "poster": "assets/posters/1d48eb5b.webp"
   },
   {
     "title": "Furious",
@@ -27,7 +33,13 @@
     "chip": {
       "tone": "info",
       "text": "Scraping"
-    }
+    },
+    "ids": {
+      "tvdb": "468000",
+      "tmdb": "287238",
+      "imdb": "tt36303968"
+    },
+    "poster": "assets/posters/5bb49e46.webp"
   },
   {
     "title": "This City Is Ours",
@@ -42,6 +54,12 @@
     "chip": {
       "tone": "info",
       "text": "Téléchargement 68 %"
-    }
+    },
+    "ids": {
+      "tmdb": "255570",
+      "imdb": "tt31438328",
+      "tvdb": 446897
+    },
+    "poster": "assets/posters/5d3f5d00.webp"
   }
 ]

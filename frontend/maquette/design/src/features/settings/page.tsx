@@ -1,7 +1,7 @@
 // design/src/pages/settings.tsx
 // The third migrated PAGE, and the largest data surface in the prototype:
 // legacy `viewReglages()` / `vueRubrique()` / `vueSecrets()` /
-// `chercheReglagesHTML()` / `ligneReglageHTML()` (`refonte.html`) reborn as a
+// `chercheReglagesHTML()` / `ligneReglageHTML()` (`refonte.html@60530dbd8`) reborn as a
 // final component. Markup is TRANSPLANTED, not translated.
 //
 // ONE NAVIGATES BY WHAT ONE WANTS TO CHANGE, NEVER BY FILE. The engine keeps
@@ -29,6 +29,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../../ui/icon";
+import { Chip } from "../../ui/chip";
 import { useSettingsReference, type Setting, type SettingsTopic } from "../../features/settings/reference";
 import { useStoreContent } from "../../lib/store-access";
 import { settingInWords } from "./format";
@@ -36,9 +37,11 @@ import { useConfigurationStatus, useSecrets, useSettings } from "./queries";
 import { settingLabel } from "../../features/settings/labels";
 import { backAction, emptyNote, factsPanel, loadError, loadErrorAction, qualityHint, searchClear, searchField, searchInput, sectionHeading, topicRow } from "../../ui/variants";
 import { SaveBar, SettingsBanners } from "./banners";
+import { flattenSettings } from "./catalog";
 import { settingsRow } from "./variants";
 import { guidance } from "../../ui/variants/layout";
-import { Markup } from "../../ui/markup";
+import { Markup, emptyNoteMarkup } from "../../ui/markup";
+import { bridge } from "../../lib/shell-doors";
 
 // The pending-edit marker and the row's own identity live on the same element:
 // the row IS the control the delegation reads.
@@ -128,7 +131,7 @@ function TopicView({ topic }: { topic: SettingsTopic }): ReactElement {
       <button
         className={backAction()}
         data-part="screen/back"
-        onClick={() => window.__bridge.back()}
+        onClick={() => bridge.back()}
       >
         {t("screens.settings.allTopics")}
       </button>
@@ -158,9 +161,6 @@ export function SettingsPage(): ReactElement | null {
   const { t } = useTranslation();
   const {
     SETTINGS_STATE,
-    emptyInner,
-    chipHTML,
-    allSettings,
     changedFiles,
   } = useSettingsReference();
   // FROM THE CACHE (invariant 4). The panel says a value from what the
@@ -177,7 +177,7 @@ export function SettingsPage(): ReactElement | null {
         <button
           className={backAction()}
           data-part="screen/back"
-          onClick={() => window.__bridge.back()}
+          onClick={() => bridge.back()}
         >
           {t("screens.settings.allTopics")}
         </button>
@@ -195,15 +195,12 @@ export function SettingsPage(): ReactElement | null {
                 {secret.l}{" "}
                 <span className="rf" data-part="setting/origin">{secret.k}</span>
               </span>
-              <Markup tag="span"
-                className="rv"
-                data-part="setting/value"
-                html={chipHTML(
-                    secret.def
-                      ? ["success", t("screens.settings.secretSet")]
-                      : ["warning", t("screens.settings.secretUnset")],
-                  )}
-              />
+              <span className="rv" data-part="setting/value">
+                <Chip
+                  tone={secret.def ? "success" : "warning"}
+                  label={secret.def ? t("screens.settings.secretSet") : t("screens.settings.secretUnset")}
+                />
+              </span>
             </button>
           ))}
         </div>
@@ -223,7 +220,7 @@ export function SettingsPage(): ReactElement | null {
         <>
           <Markup
             className={emptyNote()} data-part="empty-state"
-            html={emptyInner(t("screens.settings.unknownTopic"), "")}
+            html={emptyNoteMarkup(t("screens.settings.unknownTopic"), "")}
           />
           <SaveBar />
         </>
@@ -240,7 +237,7 @@ export function SettingsPage(): ReactElement | null {
 
   const query = SETTINGS_STATE.q.trim().toLowerCase();
   if (query) {
-    const all = allSettings();
+    const all = flattenSettings(SETTINGS);
     const found = all.filter(
       (setting) =>
         settingLabel(setting).toLowerCase().includes(query) ||
@@ -253,7 +250,7 @@ export function SettingsPage(): ReactElement | null {
         {found.length === 0 ? (
           <Markup
             className={emptyNote()} data-part="empty-state"
-            html={emptyInner(
+            html={emptyNoteMarkup(
                 t("screens.settings.noMatchTitle"),
                 t("screens.settings.noMatchBody"),
               )}

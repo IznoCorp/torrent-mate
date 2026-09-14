@@ -6,7 +6,7 @@
  * written inside a template string that a text reader sees as prose. The
  * question « does this element carry a class? » has a node kind for an answer
  * and nothing else gives it reliably — which is the same argument
- * `rename.mjs` makes for its own subject.
+ * `rename.mjs@60530dbd8` makes for its own subject.
  *
  * WHAT COUNTS AS PAINTING. Only the tags whose user-agent appearance is wrong
  * on a dark surface when nothing dresses them: a control, a field, a link, an

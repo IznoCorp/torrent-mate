@@ -116,7 +116,7 @@ SCREENSHOTS = pathlib.Path(__file__).resolve().parent / "__screenshots__"
 # it is written, which is the only version of this list that stops rotting.
 #
 # TWO THINGS ARE DELIBERATELY OUT, and neither is an oversight:
-#   `src/engine/states.js` — the scenario table. It is the HARNESS's fixture,
+#   `src/harness/states/` — the named-state table. It is the HARNESS's fixture,
 #       not the product's source, and a rule that read it would measure the
 #       instrument rather than the thing measured.
 #   `src/i18n/` — the interface's words. They are read through their own
@@ -124,9 +124,7 @@ SCREENSHOTS = pathlib.Path(__file__).resolve().parent / "__screenshots__"
 #       « the design's sources » would make every language rule ambiguous
 #       about what it just matched.
 _COMPONENT_TREE = ROOT / "design" / "src"
-_NOT_THE_DESIGN = (
-    _COMPONENT_TREE / "engine" / "states.js",
-)
+_NOT_THE_DESIGN = _COMPONENT_TREE / "harness" / "states"
 
 
 def _component_sources():
@@ -143,13 +141,12 @@ def _component_sources():
         found.extend(_COMPONENT_TREE.rglob(suffix))
     return sorted(
         path for path in found
-        if path not in _NOT_THE_DESIGN
+        if _NOT_THE_DESIGN not in path.parents
         and "i18n" not in path.relative_to(_COMPONENT_TREE).parts
     )
 
 
 DESIGN_SOURCES = (
-    ROOT / "design" / "refonte.html",
     ROOT / "design" / "index.html",
 ) + tuple(_component_sources())
 

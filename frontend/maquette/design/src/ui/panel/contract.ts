@@ -22,7 +22,7 @@ import type { JSX } from "react";
 
 // A `richText` segment: plain text, a mono/code aside (`{ m }`), or an
 // emphasised aside (`{ e }`) — exactly the three shapes `richText` switches
-// on in refonte.html.
+// on in refonte.html@60530dbd8.
 export type Segment = string | { m: string } | { e: string };
 export type RichTextValue = string | Segment[];
 
@@ -94,7 +94,8 @@ export type PanelDescriptor = {
   subtitle?: string;
   meta?: RichTextValue;
   puce?: [string, string] | null;
-  poster?: { t: string; k?: string };
+  // `source` is the picture the producer's own data carries for the medium.
+  poster?: { t: string; k?: string; source?: string | null };
   avatar?: string;
   // A block may be ABSENT and say so in place: a caller writes
   // `setting.note ? { type: "note", … } : null` inline rather than assembling

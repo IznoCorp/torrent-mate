@@ -40,7 +40,7 @@ export function useProviderSearch(query: string) {
  * @param queryClient The cache the surface reads.
  */
 export function installSearchLookup(queryClient: QueryClient): void {
-  window.__searchResults = () => {
+  searchResults = () => {
     // THE ROUTER'S OWN `q`, read the way the screen reads it. `state.addQ` is
     // the ENTRY query and is stale the moment the operator types; two readings
     // of one question is what §13 forbids, and here it would have the engine's
@@ -59,3 +59,6 @@ declare global {
     __searchResults?: () => SearchResults;
   }
 }
+
+/** What the current search turned up — filled at install. */
+export let searchResults: Window["__searchResults"];

@@ -12,6 +12,9 @@ nobody. This rule holds the law that prevents it — the shell empties `#view`
 when it takes ownership, the fragment stops writing there for a page it no
 longer owns, and handing back needs nothing because the fragment's own write
 removes what React left.
+
+The view switch is read on the list container's `data-part`, re-aimed from an
+equality on its class: the grid's class is a utility string, and no anchor.
 """
 import ast
 import asyncio
@@ -61,9 +64,9 @@ READ = """()=>{
 # A CLASS ATTRIBUTE IS NO LONGER AN IDENTITY. Since L07 a converted element
 # carries its identity class AND the utilities that style it, so a hold
 # comparing `className` by EQUALITY reads the styling as though it were the
-# name — and four of them fell the day the page body became
-# `body flex flex-col gap-7 …`. What these holds mean is « the host drew the
-# page's root », and that is membership, not equality.
+# name — four fell when the page body became `body flex …`, one more when the
+# suggestion grid became `gallery grid …`. What these holds mean is « the host
+# drew the root », and that is membership, not equality.
 def identities(names):
     """Returns the identity class of each element's class attribute.
 
@@ -245,7 +248,7 @@ async def main():
           const row = document.querySelector('#view [data-part="flux"] [data-part="flux/row"] [data-part="flux/row-body"][data-maintact]');
           if (!row) return null;
           const id = row.dataset.maintact;
-          const action = window.__referentiel.MAINT_ACTIONS.find((x) => x.id === id);
+          const action = window.__queries.getQueryData(['/api/maintenance/actions']).find((x) => x.id === id);
           return {id, title: action ? action.l : null};}""")
         refused = (await tap('#view [data-part="flux"] [data-part="flux/row"] [data-part="flux/row-body"][data-maintact]')
                    if wanted else "absent")
@@ -320,7 +323,7 @@ async def main():
         # the legacy's own verb rather than typed, because what is held here is
         # the tap, not the field.
         staged = await page.evaluate("""()=>{
-          const setting = window.__referentiel.allSettings()
+          const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap((topic) => topic.r)
             .find((x) => x.type === 'boolean');
           if (!setting) return null;
           const id = window.__referentiel.settingId(setting);
@@ -476,13 +479,11 @@ async def main():
             f"{wanted} → {chosen}" if not refused else f"data-cat {refused}")
 
         refused = await tap("#view [data-lmode='grid']")
-        mode = await page.evaluate("""()=>({
-          mode: window.__store.read().state.libMode,
-          drawn: (document.querySelector('#libitems')||{}).className || null,
-        })""")
+        mode = await page.evaluate("()=>({mode: window.__store.read().state.libMode,"
+                                   " drawn: document.querySelector('#libitems')?.dataset.part || null})")
         journal.check(
             "a real tap on the view switch really switches the view",
-            not refused and mode["mode"] == "grid" and mode["drawn"] == "gallery",
+            not refused and mode["mode"] == "grid" and mode["drawn"] == "grid",
             str(mode) if not refused else f"data-lmode {refused}")
         await page.evaluate("()=>window.__store.write({libMode: 'list', libCat: 'all'})")
         await page.evaluate("()=>window.__referentiel.render()")
@@ -555,7 +556,7 @@ async def main():
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(300)
         await page.evaluate("""()=>{
-          const setting = window.__referentiel.allSettings()
+          const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap((topic) => topic.r)
             .find((x) => x.type === 'boolean');
           window.__referentiel.changeSetting(
             window.__referentiel.settingId(setting), !setting.brut);
@@ -641,7 +642,7 @@ async def main():
         journal.check(
             "a real tap on a suggestion mode redraws the suggestions",
             not refused and suggestions["mode"] == "poster"
-            and suggestions["grid"] == "gallery" and suggestions["tiles"] > 0,
+            and identities([suggestions["grid"]]) == ["gallery"] and suggestions["tiles"] > 0,
             str(suggestions) if not refused else f"data-sugmode {refused}")
 
         # THE CONTAINERS ARE THE FRAGMENT'S TO FILL, and that seam is what this

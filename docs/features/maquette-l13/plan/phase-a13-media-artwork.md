@@ -49,3 +49,26 @@ served sheet does not carry.
 ## Commit
 
 `refactor(maquette-l13): the media screen reads its artwork and cast from the served sheet`
+
+## Amendment — 2026-09-13 (ruling 45, from a·11's STOP D)
+
+**a·13 owns the death of `POSTERS`**, which a·11 could not carry (see phase-a11 § Amendment). Before deleting the
+table, a·13 declares `poster` on `DecisionCandidate` and `DecisionChoice` (`contract/types.d.ts`, the a·6 kind of
+change: types, seeds and demands regenerated) and switches `features/arrivals/resolution-cards.tsx:100` and
+`:161` to it; then `posterArtworkFor()` dies, and the table, its `__referentiel` member and its window export
+leave the engine, with the harness readers re-taken by the widened grep (`window.POSTERS`, `POSTERS[`,
+`reference.POSTERS`). `POSTERS` is marked `converted` in `fixture-register.json` in that commit.
+
+## Amendment — 2026-09-13 (a·13's reading: two named differences)
+
+**The exact join changes one reachable answer, named here for the reader round.** A decision's candidate is joined
+EXACTLY (`exactPoster`, the engine's `opts.exact`): « Lucky (2006) » carries null. A settled choice is joined by title
+then base title, as `DecisionCard` read it; but a choice the mock handler RECORDS (`settle()`) takes the chosen
+candidate's own `poster` — so resolving « Lucky (2006) » now settles on null, where the engine drew another Lucky's
+poster by base title, the neighbour's picture `decision.py` forbids on the candidate. No named state and no rule walks
+it (`5e1ca3308`).
+
+**The placeholder carries none of the artwork.** The media screen's placeholder is the engine's sheet, which has no
+`hero`, `poster`, `trailerVideo` or `castPortraits`: while the read is out, and after it fails, the banner draws no
+picture, the trailer's place is its skeleton or « non lue », and the cast shows initials — where the engine's tables
+answered at frame one. It is this phase's move, read from the served sheet alone.

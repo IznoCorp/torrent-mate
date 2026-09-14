@@ -88,6 +88,9 @@ export type PullGesture = {
   readonly reset: () => void;
 };
 
+/** The pull's own numbers, once a pull is installed — published by the harness as `window.__gestures.pull`. */
+export let pullNumbers: Record<string, number> | undefined;
+
 /**
  * Installs the pull gesture on a scrollport.
  *
@@ -104,13 +107,10 @@ export function installPullGesture(options: PullGestureOptions): PullGesture {
 
   // The same driving surface the press arbitration publishes, for the same
   // reason: a rule that re-types 44 is a second source of truth.
-  window.__gestures = {
-    ...(window.__gestures ?? {}),
-    pull: {
-      armPixels: PULL_ARM_PIXELS,
-      capPixels: PULL_CAP_PIXELS,
-      damping: PULL_DAMPING,
-    },
+  pullNumbers = {
+    armPixels: PULL_ARM_PIXELS,
+    capPixels: PULL_CAP_PIXELS,
+    damping: PULL_DAMPING,
   };
   // How far the pull has actually come, damped and capped. The release reads
   // it rather than recomputing from the finger: one arithmetic, one place.

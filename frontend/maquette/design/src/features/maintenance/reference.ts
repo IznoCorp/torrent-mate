@@ -38,7 +38,6 @@ export type MaintenanceTopic = {
 
 export type MaintenanceReference = EngineDrawing & {
   MAINT_TOPICS: MaintenanceTopic[];
-  MAINT_ACTIONS: MaintenanceAction[];
   JOURNAL: DeletionJournal;
 };
 

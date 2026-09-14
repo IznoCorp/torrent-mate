@@ -9,21 +9,29 @@ the tap already knew, in real content, and draws a SKELETON for the parts still
 to come. Never an answer.
 
 WHY NOTHING SAW IT, and why this rule cannot read the page as it is served.
-The prototype's placeholder is the engine's COMPLETE sheet, so during priming
-here no field is ever missing and no assertion is ever printed: a rule that
-reads the full placeholder is green over the defect it is written for — the
-species the register counts most. The real backend's projection carries
-`{t, f}`, and THAT is the case driven here: the reference's `sheetFor` is
-wrapped to answer the title alone for the sheet under
-test, and the read is held back through the mock layer's own knob.
+The placeholder is what the navigation entry CARRIES, and a tap carries a list
+item's title, poster and identity. A rule that reads only that is blind to how
+the screen draws a knowledge thinner or richer, so each walk opens the screen
+on an entry whose carried object it writes itself (`window.__openCarrying`),
+and the read is held back through the mock layer's own knob.
 
-HOW THE TWO SEAMS ARE REACHED BEFORE THE SCREEN FIRST RENDERS. A cold load
-mounts the screen and issues the read at boot, so a wrapper installed after
-`load` is installed after the placeholder was computed. Both seams are
-published by assignment onto `window`, so an init script defines a SETTER for
-each: the reference is wrapped the instant it is published, and the latency is
-set the instant the layer is installed. The boot's own reads are slowed by the
-same latency; the screen does not wait for them.
+HOW THE SEAMS ARE REACHED BEFORE THE READ IS ISSUED. The latency is set the
+instant the layer is installed, by an init script defining a SETTER on
+`window.__mocks`; the screen is then opened on its carried entry, so the read
+it issues is the slow one. The boot's own reads are slowed by the same latency;
+the screen does not wait for them.
+
+RE-AIMED, said out loud. The thinning seam wrapped the engine's
+`sheetFor`, which is gone with the sheet table: it moved to the entry the
+harness writes. A walk is opened by that tap rather than by a cold load of the
+address, because the boot REPLACES the arriving entry's state. `KEPT` names
+carried fields now, and the identity is among them because the screen primes
+only from an entry about its own address. (d) compared the engine's COMPLETE
+placeholder with the thinned one; no tap carries a complete sheet any more (a
+tap primes title and poster only — the difference phase-a14 names), so (d)
+holds « what is carried is content, the rest a skeleton », and (e) keeps the
+carried title after a failure without claiming the cast. The count is
+unchanged.
 
 WHAT IT DRIVES. TWELVE cold loads, and each one is a walk of its own — the count
 is the number of `cold_load` calls below, and it has been wrong in three
@@ -106,7 +114,7 @@ FILM_TITLE = "Marjorie Prime"
 # line was gated on the whole sheet being null, and with those two present it
 # never took the branch that printed « année inconnue · Série » about a medium
 # whose kind was in flight.
-KEPT = ["t"]
+KEPT = ["title", "ids"]
 # AND A PARTIAL ONE, which is where « field by field » is the whole question.
 # With NOTHING known the hero draws one skeleton for its whole metadata line and
 # the per-field branches are never reached — so a walk on the leanest projection
@@ -115,7 +123,7 @@ KEPT = ["t"]
 # screen that prints « Série » for a kind it has not got says so out loud. That
 # defect was live until a reader found it by reading; the mutation
 # for it passes over the lean walk and falls here.
-KEPT_PARTIAL = ["y"]
+KEPT_PARTIAL = ["title", "ids", "y"]
 # Long enough that every reading below is taken with the read still out under
 # the suite's parallel load, and short enough that the rule stays cheap.
 LATENCY_MILLISECONDS = 2000
@@ -130,14 +138,18 @@ MOUNT_DEADLINE_MILLISECONDS = 1500
 # read from the run and written here with the enumeration that produces it; a
 # part gained or lost moves it, deliberately, and the rule says which.
 #
-# The parts, on the `{t}` thinning, as the rule PRINTS them: the year and the
-# kind of the hero's metadata line — separately, which is what « field by field »
-# means — the genres, the rating, the trailer, the cast section's HEADING and its
-# row LABEL (both are the kind, said in other words), the synopsis, the
-# director's value, the cast strip, the VALUES of the two rows the library block
-# draws while ownership is unknown — the rows name what they are waiting for, so
-# only their answers wait — the two lines of the identifiers row, and the
-# actions. Fifteen, and the rule prints them.
+# The parts, on the thinning to a title and its identity, as the rule PRINTS
+# them: the year and the kind of the hero's metadata line — separately, which is
+# what « field by field » means — the genres, the rating, the trailer, the cast
+# section's HEADING and its row LABEL (both are the kind, said in other words),
+# the synopsis, the director's value, the cast strip, the VALUES of the two rows
+# the library block draws while ownership is unknown — the rows name what they
+# are waiting for, so only their answers wait — and the actions. Thirteen, and
+# the rule prints them.
+#
+# THE TWO LINES OF THE IDENTIFIERS ROW LEFT THE COUNT, said out
+# loud: the screen primes only from an entry about its own address, so the
+# thinnest entry carries the identity, and a part that is carried is content.
 #
 # The address in the bar is NOT among them any more: it is the address the reader
 # navigated with, known at frame one, and a skeleton stood over it. The count has
@@ -151,30 +163,12 @@ MOUNT_DEADLINE_MILLISECONDS = 1500
 # floor: a wrong number here is loud, where a floor is silent. It has moved
 # twice since, both times because a part that had been asserting started
 # waiting, and both times the rule said so.
-SKELETONS_EXPECTED = 15
+SKELETONS_EXPECTED = 13
 
-INTERCEPT = """({ title, kept, latency, thin, fail, failSeasons, ownershipUnknown, seasonsFirst, bareUnknownWord }) => {
+INTERCEPT = """({ latency, fail, failSeasons, ownershipUnknown, seasonsFirst, bareUnknownWord }) => {
   // THE INTERFACE'S OWN WORD FOR AN UNKNOWN, put where the reading below can
   // compare against it rather than typed into the comparison.
   window.__bareUnknownWord = bareUnknownWord;
-  let reference;
-  Object.defineProperty(window, '__referentiel', {
-    configurable: true,
-    get() { return reference; },
-    set(value) {
-      reference = value;
-      if (!thin || !value || typeof value.sheetFor !== 'function') return;
-      const full = value.sheetFor.bind(value);
-      window.__fullSheetFor = full;
-      value.sheetFor = (asked) => {
-        const sheet = full(asked);
-        if (!sheet || asked !== title) return sheet;
-        const thinned = {};
-        for (const key of kept) if (key in sheet) thinned[key] = sheet[key];
-        return thinned;
-      };
-    },
-  });
   let mocks;
   Object.defineProperty(window, '__mocks', {
     configurable: true,
@@ -301,6 +295,7 @@ READ = """() => {
     noInfos: screen ? [...screen.querySelectorAll('[data-part="no-info"]')].map((p) => p.textContent) : [],
     bodyChildren: ((screen && screen.querySelector('[data-region="screen-media/body"]')) || { children: [] }).children.length,
     cast: !!(screen && screen.querySelector('[data-part="cast"]')),
+    artwork: !!(screen && screen.querySelector('[data-part="hero"]:not([data-no-poster])')),
     synopsis: (((screen && screen.querySelector('[data-part="heading"]')) || {}).nextElementSibling || {}).textContent || '',
     inFlight: window.__mocks ? window.__mocks.inFlight() : -1,
     // IS THE SHEET'S OWN READ OUT? `inFlight()` counts every request the layer
@@ -416,19 +411,39 @@ async def address_of(browser, title=None):
         The address, as the router reads it.
     """
     context, page = await open_page(browser)
-    ids = await page.evaluate("(t)=>window.addressIdsFor(t)", title or TITLE)
+    ids = await page.evaluate("(t)=>window.__addressOf(t)", title or TITLE)
     await context.close()
     return f"{PROTOTYPE}media/{ids['provider']}/{ids['id']}"
 
 
+# THE TAP, WRITTEN BY THE RULE. Thinned, the entry carries the `kept` fields of
+# the sheet the read answers — `y` is the engine's name for its year — and
+# otherwise exactly what a tap on a list item carries.
+OPEN_CARRYING = """({ provider, identifier, title, kept, thin }) => {
+  const sheet = window.__sheetOf(title) || {};
+  const carried = thin
+    ? Object.fromEntries(kept.map((key) => [key, key === 'y' ? sheet.year : sheet[key]]))
+    : window.__carriedFor(title);
+  window.__openCarrying(provider, identifier, carried);
+}"""
+
+# WHAT THE ENTRY CARRIES, against the sheet it was thinned from.
+CARRIED_KEYS = """(title)=>{
+  const full = window.__sheetOf(title);
+  const carried = (history.state && history.state.carried) || null;
+  return { fullKeys: full ? Object.keys(full).length : 0,
+           thinKeys: carried ? Object.keys(carried) : null };
+}"""
+
+
 async def cold_load(browser, address, thin, fail=False, kept=None, seasons_first=False,
                     title=None, fail_seasons=False, ownership_unknown=False):
-    """Opens the sheet cold with the two seams intercepted from the first byte.
+    """Opens the sheet on a carried entry, with the layer's knobs set from the first byte.
 
     Args:
         browser: A launched browser.
         address: The sheet's address.
-        thin: Whether to thin the placeholder to what a list row carries.
+        thin: Whether the entry carries only `kept`, rather than what a tap carries.
         fail: Whether the sheet's own read answers with a failure.
         kept: Which fields the thinned placeholder keeps. `KEPT` by default.
         seasons_first: Whether the seasons answer at once while the sheet waits.
@@ -442,8 +457,8 @@ async def cold_load(browser, address, thin, fail=False, kept=None, seasons_first
     """
     context = await browser.new_context(**PHONE)
     await context.add_init_script(
-        f"({INTERCEPT})({{ title: {(title or TITLE)!r}, kept: {(kept or KEPT)!r}, "
-        f"latency: {LATENCY_MILLISECONDS}, thin: {'true' if thin else 'false'}, "
+        f"({INTERCEPT})({{ "
+        f"latency: {LATENCY_MILLISECONDS}, "
         f"fail: {'true' if fail else 'false'}, "
         f"failSeasons: {'true' if fail_seasons else 'false'}, "
         f"ownershipUnknown: {'true' if ownership_unknown else 'false'}, "
@@ -452,9 +467,13 @@ async def cold_load(browser, address, thin, fail=False, kept=None, seasons_first
     page = await context.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    await page.goto(address, wait_until="load")
+    await page.goto(PROTOTYPE, wait_until="load")
     await page.evaluate("()=>window.__loadingDone?.()")
     await page.evaluate("()=>document.querySelector('#toastx')?.click()")
+    provider, identifier = address.rstrip("/").split("/")[-2:]
+    await page.evaluate(OPEN_CARRYING, {"provider": provider, "identifier": identifier,
+                                        "title": title or TITLE, "kept": kept or KEPT,
+                                        "thin": thin})
     waited = 0
     while waited < MOUNT_DEADLINE_MILLISECONDS:
         if await page.evaluate("""()=>!!document.querySelector('[data-part="screen"][data-open]')"""):
@@ -512,22 +531,15 @@ async def main():
 
         # ─── The thinned walk: the case the real backend produces ─────────
         context, page, errors = await cold_load(browser, address, thin=True)
-        thinned = await page.evaluate("""(title)=>{
-          const full = window.__fullSheetFor ? window.__fullSheetFor(title) : null;
-          const thin = window.__referentiel.sheetFor(title);
-          return { fullKeys: full ? Object.keys(full).length : 0,
-                   thinKeys: thin ? Object.keys(thin) : null };
-        }""", TITLE)
+        thinned = await page.evaluate(CARRIED_KEYS, TITLE)
         journal.check(
-            "(a) the reference is wrapped and the placeholder is THINNED — the "
-            "flight has a subject",
+            "(a) the entry carries a THINNED knowledge — the flight has a subject",
             thinned["fullKeys"] > 6 and thinned["thinKeys"] is not None
             and set(thinned["thinKeys"]) <= set(KEPT)
             and len(thinned["thinKeys"]) < thinned["fullKeys"],
-            f"full sheet {thinned['fullKeys']} key(s), placeholder {thinned['thinKeys']} "
-            f"— the title is the fixture's KEY, not a field, so a sheet thinned to "
-            f"it carries no field at all, which is the leanest projection a tap can "
-            f"know and the hardest case for the screen")
+            f"full sheet {thinned['fullKeys']} key(s), carried {thinned['thinKeys']} "
+            f"— a title and the identity that lets the screen prime from it, the "
+            f"leanest knowledge a tap can carry and the hardest case for the screen")
         early = await page.evaluate(READ)
         # THE SUBJECT FIRST, AND ON ITS OWN LINE. A hold that conflates « the
         # screen is open and its read is out » with « and here is what it draws »
@@ -598,13 +610,15 @@ async def main():
         context, page, errors = await cold_load(browser, address, thin=False)
         control = await page.evaluate(READ)
         journal.check(
-            "(d) the control — the complete placeholder, same latency — draws "
-            "FEWER skeletons, and the parts it carries are content while the "
-            "read is out",
+            "(d) the control — what a tap on a list item carries, same latency — "
+            "draws what it carries as content and the rest as skeletons: its "
+            "poster stands while the read is out, and nothing more waits than on "
+            "the title alone",
             control["open"] and control["sheetOut"]
-            and control["skeletons"] < early["skeletons"]
-            and control["cast"] and len(control["synopsis"]) > 40,
-            f"read {control} against {early['skeletons']} skeleton(s) thinned")
+            and control["skeletons"] == early["skeletons"]
+            and control["artwork"] and not early["artwork"],
+            f"read {control} against {early['skeletons']} skeleton(s) and artwork "
+            f"{early['artwork']} on the title alone")
         journal.check("no JS error on the control walk", not errors, str(errors))
         await context.close()
 
@@ -633,10 +647,10 @@ async def main():
         for said in broken["noInfos"]:
             outside = outside.replace(said, "")
         journal.check(
-            "(e) a FAILED read draws the error surface, keeps what the tap knew, "
-            "and asserts nothing about what it never got",
+            "(e) a FAILED read draws the error surface, keeps the title the tap "
+            "carried, and asserts nothing about what it never got",
             broken["open"] and broken["failed"] and broken["skeletons"] == 0
-            and TITLE in broken["title"] and broken["cast"]
+            and TITLE in broken["title"]
             and not [answer for answer in ASSERTIONS if answer in outside],
             f"read {broken}; assertion(s) outside the no-info paragraphs: "
             f"{[answer for answer in ASSERTIONS if answer in outside]}")
@@ -964,7 +978,7 @@ async def main():
             browser, address, thin=True, kept=KEPT_PARTIAL)
         partial = await page.evaluate(READ)
         year = await page.evaluate(
-            "(title)=>String((window.__fullSheetFor(title) || {}).y || '')", TITLE)
+            "(title)=>String((window.__sheetOf(title) || {}).year || '')", TITLE)
         journal.check(
             "(f) with the YEAR known and the kind not, the year is content and "
             "the kind is a skeleton — a field waits for its own answer",
@@ -986,16 +1000,12 @@ async def main():
         context, page, errors = await cold_load(
             browser, await address_of(browser, NOT_OWNED_TITLE),
             thin=True, seasons_first=True, title=NOT_OWNED_TITLE)
-        thinned_apart = await page.evaluate('''(title)=>{
-          const full = window.__fullSheetFor ? window.__fullSheetFor(title) : null;
-          const thin = window.__referentiel.sheetFor(title);
-          return { fullKeys: full ? Object.keys(full).length : 0,
-                   thinKeys: thin ? Object.keys(thin).length : null };
-        }''', NOT_OWNED_TITLE)
+        thinned_apart = await page.evaluate(CARRIED_KEYS, NOT_OWNED_TITLE)
         journal.check(
             "(g-i) this walk's own placeholder is thinned — the walk that "
             "exists because a previous version measured a complete one",
-            thinned_apart["fullKeys"] > 6 and thinned_apart["thinKeys"] == 0,
+            thinned_apart["fullKeys"] > 6 and thinned_apart["thinKeys"] is not None
+            and sorted(thinned_apart["thinKeys"]) == sorted(KEPT),
             f"full sheet {thinned_apart['fullKeys']} key(s), placeholder "
             f"{thinned_apart['thinKeys']} key(s) — a floor on the skeleton "
             f"count is not this check: a complete placeholder leaves a skeleton "

@@ -45,6 +45,22 @@ row 16; INDEX's page order, D-L07-7).
 Per INDEX « Gates ». In addition, the commit body lists the card rules that died and the ones that
 wait for a·11.
 
+## Amendment — 2026-09-13, what the conversion measured
+
+Taken by the implementer at the phase's own reading, ruling 32 applied; it voids no sentence above and fills three.
+
+- **No `legacy.css` rule dies here.** The emit scan of DESIGN § 2.6, re-taken over `design/src` outside `engine/`,
+  finds every card class this phase names still written by `cardHTML` for the acquisition tabs, the add screen and
+  the incomplete lens. Each rule waits for a·11, which removes `cardHTML`; the `.flux` frame waits for a·15.
+- **Two files beside `ui/card.tsx`.** Its factories are `ui/variants/card.ts`: `check-markup-contracts.py` reads a
+  variant as declared only under a `variants` name, and `ui/variants/surfaces.ts` had no room under the module ceiling.
+  The staging card is composed in `features/arrivals/arrival-card.tsx`, because which panel a body addresses and what
+  a poster opens are the feature's to say (invariant 10).
+- **R80's floor moves to the measured count, 10 → 25.** Fifteen pairs added, none removed: the fourteen card anchors
+  (`.card`, `.ccol`, `.ctop`, `.cbody`, `.ctitle`, `.csub`, `.creason`, `.cov`, `.cmeta`, `.caption`, `.folder`,
+  `.dlabel`, `.strip`, `.st`) and `.flux` ↔ `factList()`. They fall with `cardHTML` at a·11 (the card) and with the
+  last `flux` emitter at a·15. `check-poster-box.py`'s floor moves 5 → 6: the folder's box in `ui/variants/card.ts`.
+
 ## Commit
 
 `refactor(maquette-l13): arrivals and the resolution screen draw the card as a component`

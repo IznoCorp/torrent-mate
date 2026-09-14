@@ -22,6 +22,9 @@ import JOURNEY_STAGES from "../seeds/journey-stages.json";
 import { POST, route } from "./shared";
 import { mockState } from "../state";
 import type { MockRoute } from "../router";
+import type { components } from "../../contract/types";
+
+type Schemas = components["schemas"];
 
 // The pipeline is BUSY unless it is idle. DOIT-4 turns on this one word: an ask
 // that arrives while the machine is working is queued VISIBLY — « En file —
@@ -161,8 +164,9 @@ function episodesMissingFromSeason(title: string, season: number): number {
  *
  * BUILT FROM THE LIBRARY'S OWN RECORD OF THE SHOW, and from nothing else. The
  * only surface that reaches this path is the « Incomplets » lens, and the
- * incomplete show it drew carries the year and the owned and aired counts; a
- * medium the library does not hold gets the blanks `createFollow` uses.
+ * incomplete show it drew carries the year, the owned and aired counts, and its
+ * joined identity and poster; a medium the library does not hold gets the blanks
+ * `createFollow` uses.
  *
  * @param title The medium, by title.
  * @returns A follow record in the contract's shape.
@@ -170,6 +174,7 @@ function episodesMissingFromSeason(title: string, season: number): number {
 function beginFollow(title: string) {
   const show = (INCOMPLETE_SHOWS as {
     title: string; owned: number; aired: number; year: number;
+    ids: Record<string, string | number> | null; poster: string | null;
   }[]).find((one) => one.title === title);
   return {
     title,
@@ -180,6 +185,11 @@ function beginFollow(title: string) {
     since: NEWLY_FOLLOWED_SINCE,
     searches: 0,
     fresh: true,
+    // THE IDENTITY AND THE POSTER of the incomplete show it was asked from. A
+    // medium the library does not hold has neither, which the contract refuses
+    // (B-366); the layer does not invent one, and the cast says so.
+    ids: (show?.ids ?? null) as Schemas["Follow"]["ids"],
+    poster: show?.poster ?? null,
     ...(show === undefined ? {} : { owned: show.owned, aired: show.aired }),
   };
 }

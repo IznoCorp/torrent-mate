@@ -2,6 +2,16 @@
 ALL states, never a patch on the single case that was reported.
 
 The stance is to try to make the prototype FAIL, not to confirm it.
+
+THE ROOT LADDER HAS NO `#screen` RUNG. It had one, for a legacy node nothing
+ever opened, so the rung was identically false; it was removed rather than
+replaced, because the generic `[data-part="screen"][data-open][data-key]` rung
+already present covers every screen. The hold count is unchanged.
+
+RE-AIMED, said out loud: R1's filled-in sheet was read from `sheetFor`; it is read from the sheet the read answers. The engine's sheet table and
+its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
+`__carriedFor` — the seed the served read answers from, published by the harness
+driver — and the hold count is unchanged.
 """
 import asyncio
 import json
@@ -52,22 +62,21 @@ async def main():
           // answers to ONE generic rung: any OPEN screen carries a `data-key`,
           // so the identity itself is never read here, only its presence —
           // naming each prefix would have re-opened the same hole for the
-          // next screen that migrates. It sits LAST, after the legacy
-          // dialog/screen/sheet trio, so every pre-existing case resolves
+          // next screen that migrates. It sits LAST, after the dialog and
+          // the sheet, so every pre-existing case resolves
           // exactly as it did, and a layer opened OVER a route (a panel, a
           // dialog) is still what gets read. Without this rung, a state
           // opening any of those routes falls through to `#view` and the
           // rules pass on a page the state never shows — a rule gone quiet,
           // not a rule satisfied.
           const root = document.querySelector('#dlg').hasAttribute('data-open') ? document.querySelector('#dlg')
-                     : document.querySelector('#screen').hasAttribute('data-open') ? document.querySelector('#screen')
                      : document.querySelector('#sheet').hasAttribute('data-open') ? document.querySelector('#sheet')
                      : document.querySelector('[data-part="screen"][data-open][data-key]')
                      ?? document.querySelector('#view');
 
           // R1 — every tappable poster leads to a FILLED-IN sheet
           R.hollowSheets = [...root.querySelectorAll('[data-mediasheet]')].map(el=>el.dataset.mediasheet)
-            .filter(t=>{const f=sheetFor(t); return !f || !f.ov || !f.g || !(f.cast||[]).length;});
+            .filter(t=>{const f=window.__sheetOf(t); return !f || !f.overview || !f.genres || !(f.cast||[]).length;});
 
           // R2 — HARDENED: a button must have a declared DESTINATION, not
           // merely a known class. Whitelisting by class blessed every sheet
@@ -75,7 +84,7 @@ async def main():
           // flinching.
           R.deadButtons = [...root.querySelectorAll('button, a')]
             .filter(el=>el.getBoundingClientRect().height>0 && !el.disabled
-                    && !el.closest('[data-part="harness/bar"]') && !el.closest('[data-part="harness/panel"]')
+                    && !el.closest('[data-part="harness/bar"]')
                     && !el.closest('details:not([open])'))
             // An href IS a destination — the trailer is a genuine outbound
             // link to YouTube.
@@ -92,7 +101,7 @@ async def main():
 
           // R3 — touch targets: every control is at least 40px on one axis
           R.targetsTooSmall = [...root.querySelectorAll('button,a')].filter(el=>{
-            if (!vis(el) || el.closest('[data-part="harness/bar"]') || el.closest('[data-part="harness/panel"]')) return false;
+            if (!vis(el) || el.closest('[data-part="harness/bar"]')) return false;
             const b=el.getBoundingClientRect();
             // DECLARED EXCEPTION: the episode cell is 31 × 27 in the SHIPPED
             // component. At 13 cells per row, 44px would demand 572px of
@@ -111,7 +120,7 @@ async def main():
           // (overflow-x hidden/clip) AND that fits within the frame itself. A
           // clipping ancestor that overflows clips nothing, it moves the
           // problem.
-          const SCROLLERS = '[data-part="pill/list"],[data-part="cast"],[data-part="episode/set"],[data-part="harness/panel"]';
+          const SCROLLERS = '[data-part="pill/list"],[data-part="cast"],[data-part="episode/set"]';
           const clipped = (el) => {
             for (let p = el.parentElement; p && p !== root.parentElement; p = p.parentElement) {
               const ox = getComputedStyle(p).overflowX;
@@ -217,8 +226,7 @@ async def main():
           // would leave every state that opens a route inspecting nothing at
           // all: its `[data-part="viewport"]` padding and the reachability of its last action
           // are exactly what this rule holds on it.
-          const layers = [['#screen','[data-part="viewport"]'],
-                          ['[data-part="screen"][data-open][data-key]','[data-part="viewport"]']];
+          const layers = [['[data-part="screen"][data-open][data-key]','[data-part="viewport"]']];
           for (const [sel, inner] of layers) {
             const el = document.querySelector(sel);
             // The mediaSheet's selector matches only while it is open, so an absent
@@ -300,7 +308,7 @@ async def main():
           // this check never learned about a screen migrated off `#screen`
           // onto a real route (`/resolution/$folder` among them) — the SAME
           // generic entry as the root ladder's covers it here too.
-          const layer=()=>['#sheet','#screen','#dlg'].some(s=>document.querySelector(s).hasAttribute('data-open'))
+          const layer=()=>['#sheet','#dlg'].some(s=>document.querySelector(s).hasAttribute('data-open'))
             || !!document.querySelector('[data-part="screen"][data-open][data-key]');
           b.click(); await new Promise(r=>setTimeout(r,320));
           if (snap()===before && !layer()) out.push(`${id} : « ${lab} » changes nothing`);

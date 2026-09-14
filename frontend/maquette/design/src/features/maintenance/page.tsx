@@ -1,5 +1,5 @@
 // design/src/pages/maintenance.tsx
-// The second migrated PAGE: legacy `viewMaintenance()` (`refonte.html`) reborn
+// The second migrated PAGE: legacy `viewMaintenance()` (`refonte.html@60530dbd8`) reborn
 // as a final component. Markup is TRANSPLANTED, not translated.
 //
 // Two levels and a panel, the shape the settings already use: the rubrics, a
@@ -17,26 +17,25 @@
 // and error surfaces) and `state.maintTopic` (which rubric is open, `null` for the
 // list) — and the delegation is what writes them.
 import { useTranslation } from "react-i18next";
-import { SurfaceError } from "../../ui/state-surfaces";
+import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
 import { useMaintenanceReference } from "../../features/maintenance/reference";
-import { type Fact } from "../../lib/engine-drawing";
 import { useUiState } from "../../lib/store-access";
 import { useDeletionJournal, useMaintenanceActions } from "./queries";
-import { backAction, section, sectionHeading, topicRow } from "../../ui/variants";
+import { backAction, factList, section, sectionHeading, topicRow } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 import { Markup } from "../../ui/markup";
+import { FactRows, type FactRow } from "../../ui/fact-rows";
 // The risk vocabulary is the FEATURE's, since its panel lives here: the
 // page and the panel read one derivation of « what does this command risk »
 // rather than a copy each (§13).
 import { riskLabel } from "./risks";
+import { bridge } from "../../lib/shell-doors";
 
 export function MaintenancePage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
   const {
-    factRowsHTML,
-    skelCardsInner,
     MAINT_TOPICS,
   } = useMaintenanceReference();
   // FROM THE CACHE (invariant 4).
@@ -47,18 +46,14 @@ export function MaintenancePage(): ReactElement | null {
     return state.phase === "error" ? (
       <SurfaceError subject={t("screens.maintenance.errorSubject")} />
     ) : (
-      <Markup
-        className={section()} data-part="section"
-        html={skelCardsInner(3)}
-      />
+      <div className={section()} data-part="section"><Skeletons count={3} shape="card" /></div>
     );
   }
 
-  const facts = (rows: Fact[]) => (
-    <Markup tag="ol"
-      className="flux" data-part="flux"
-      html={factRowsHTML(rows)}
-    />
+  const facts = (rows: FactRow[]) => (
+    <ol className={factList()} data-part="flux">
+      <FactRows rows={rows} />
+    </ol>
   );
 
   // One rubric open: its commands, and the way back to all of them.
@@ -75,7 +70,7 @@ export function MaintenancePage(): ReactElement | null {
         <button
           className={backAction()}
           data-part="screen/back"
-          onClick={() => window.__bridge.back()}
+          onClick={() => bridge.back()}
         >
           {t("screens.maintenance.allCommands")}
         </button>

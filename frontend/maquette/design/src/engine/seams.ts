@@ -18,11 +18,28 @@
 // at the call sites. What it is: a declared dependency — the import list now
 // says what the engine needs — and a name the BUNDLER resolves, so a typo is a
 // failed build instead of `undefined is not a function` on a click nobody
-// tested. The `window` surface does not shrink: the harness drives through
-// `__screens`, `__panel` and `__bridge` itself, so those stay published for it,
-// and R74 describes them as what they now are — a driving surface, not a
-// bridge between two worlds.
+// tested. The same objects are published for the rules by the harness, under
+// `__screens`, `__panel` and `__bridge`, and R74 describes them as what they
+// now are — a driving surface, not a bridge between two worlds.
+import type { CarriedIdentity } from "../lib/navigation-entry";
 import type { PanelDescriptor } from "../ui/panel/contract";
+import { dialog } from "../app/dialog-host";
+import { entry, loadingDone } from "../app/entry";
+import { registeredLayers } from "../app/layers";
+import { navigation } from "../app/navigation-seam";
+import { popover } from "../app/popover-host";
+import { followVerbs } from "../features/acquisition/follow-verbs";
+import { followActions, suggestions } from "../features/acquisition/queries";
+import { searchResults } from "../features/acquisition/search-queries";
+import { pendingDecisions } from "../features/arrivals/queries";
+import { deleteLibraryItems } from "../features/library/queries";
+import { sortWays } from "../features/library/sorting";
+import { episodeSaying } from "../features/media/popover-episode";
+import { settingsVerbs } from "../features/settings/panel-setting";
+import { addressSeam } from "../lib/addresses";
+import { queueActions, queueLists } from "../lib/queue";
+import { toast } from "../lib/shell-doors";
+import { stackedSurfaces } from "../lib/stacked-surface";
 
 // The nav cluster's primitives. Named as the fragment spells them, because the
 // fragment is the caller.
@@ -45,7 +62,7 @@ export type Bridge = {
 // its old `openX(...)`.
 export type Screens = {
   profile: (title: string) => void;
-  mediaSheet: (title: string) => void;
+  mediaSheet: (title: string, carried?: CarriedIdentity) => void;
   releases: (title: string) => void;
   resolution: (folder?: string, replace?: boolean) => void;
   add: (q?: string, mode?: string) => void;
@@ -129,3 +146,74 @@ export function installSeams(seams: {
   if (bridge) throw new Error("installSeams: already installed");
   ({ bridge, screens, panel } = seams);
 }
+
+/* EVERYTHING ELSE THE ENGINE ASKS, declared rather than read off `window`.
+   A build without the mock layer installs no harness, so a name the engine
+   read off `window` would be a name nothing published there.
+
+   GETTERS, for two reasons. Most of these are filled by an install that runs
+   after this module evaluates, and a getter reads the owner's live binding at
+   the moment of the call. And the engine already has locals called `toast`,
+   `entry` and `suggestions`: `seam.toast` cannot be shadowed by one. */
+export const seam = {
+  get address() {
+    return addressSeam;
+  },
+  get deleteLibraryItems() {
+    return deleteLibraryItems;
+  },
+  get dialog() {
+    return dialog;
+  },
+  get entry() {
+    return entry;
+  },
+  get episodeSaying() {
+    return episodeSaying;
+  },
+  get followActions() {
+    return followActions;
+  },
+  get followVerbs() {
+    return followVerbs;
+  },
+  get layers() {
+    return registeredLayers;
+  },
+  get loadingDone() {
+    return loadingDone;
+  },
+  get navigation() {
+    return navigation;
+  },
+  get pendingDecisions() {
+    return pendingDecisions;
+  },
+  get popover() {
+    return popover;
+  },
+  get queue() {
+    return queueLists;
+  },
+  get queueActions() {
+    return queueActions;
+  },
+  get searchResults() {
+    return searchResults;
+  },
+  get settingsVerbs() {
+    return settingsVerbs;
+  },
+  get sortWays() {
+    return sortWays;
+  },
+  get stackedSurfaces() {
+    return stackedSurfaces;
+  },
+  get suggestions() {
+    return suggestions;
+  },
+  get toast() {
+    return toast;
+  },
+};

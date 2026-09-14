@@ -112,7 +112,11 @@ META_WINDOW = 400
 # one in `installable.py`. The floor refuses a reader that has stopped
 # finding them: zero metas found would otherwise satisfy the arm above
 # vacuously, which is B-085's shape written into a brand-new rule.
-META_FLOOR = 6
+#
+# RE-TAKEN AT 5 when the prototype fragment was deleted: `serve.py`'s « missing
+# prototype » page, one of its four metas, left with the file it announced as
+# missing. Five are found, and five is the floor.
+META_FLOOR = 5
 
 # P11 — THE UNIT THE FRAME IS SIZED IN.
 #

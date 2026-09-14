@@ -9,9 +9,22 @@ import { useTranslation } from "react-i18next";
 // sentence, and `t()` would only wrap the lookup in a second one.
 import fr from "../../i18n/fr.json";
 import { useArrivalsReference, type PendingDecision, type SettledDecision } from "./reference";
-import { iconButton, ruleNote } from "../../ui/variants";
+import { iconButton, ruleNote, type ChipTone } from "../../ui/variants";
+import {
+  Card,
+  CardBody,
+  CardMeta,
+  CardOverview,
+  CardPoster,
+  CardReason,
+  CardSubtitle,
+  CardTitle,
+  CardTop,
+} from "../../ui/card";
 import { Icon } from "../../ui/icon";
-import { Markup } from "../../ui/markup";
+import { Chip } from "../../ui/chip";
+import { PosterArtwork } from "../../ui/poster";
+import { posterArtwork } from "../../lib/engine-drawing";
 import { candidateCard, candidatePick } from "./variants";
 
 // A RELEASE is not a medium, and its card is deliberately a different object.
@@ -24,10 +37,9 @@ import { candidateCard, candidatePick } from "./variants";
 //
 // The legacy twin was `releaseCardHTML(titre, meta, confiance, opts)`; the
 // props below are that signature. Its emission stopped being the twin's the
-// day the card became the gesture, below. The poster's inner markup comes from
-// the published
-// `posterBox` rather than from a re-implementation: its image-or-initials
-// fallback is exactly what a second copy would drift on.
+// day the card became the gesture, below. The poster is `PosterArtwork`, resolved
+// by `posterArtwork` — the one resolution every poster goes through, because a
+// second copy of its image-or-initials fallback is exactly what would drift.
 export function ReleaseCard({
   title,
   year,
@@ -42,12 +54,13 @@ export function ReleaseCard({
   opts: {
     genre?: string;
     k?: "movie" | "show";
-    exact?: boolean;
+    poster?: string | null;
     noPoster?: boolean;
     overview?: string;
   };
 }) {
-  const { posterBox, icons } = useArrivalsReference();
+  const reference = useArrivalsReference();
+  const { icons } = reference;
   const { t } = useTranslation();
   // THE CARD IS THE GESTURE: one tap anywhere on it picks the candidate. It is a
   // BUTTON because the engine's delegation answers `button` and nothing else —
@@ -69,27 +82,26 @@ export function ReleaseCard({
   // drift apart. The poster is `aria-hidden`: an image with an empty `alt` is
   // already silent, its initials fallback is not, and neither is part of a name.
   return (
-    <button
+    <Card
+      as="button"
       type="button"
-      className={`card ${candidateCard()}`}
-      data-part="card"
+      className={candidateCard()}
       data-nonmedia={opts.genre || "release"}
       data-resolve={title || undefined}
       aria-label={year ? `${title} ${year}` : title}
     >
-      <span className="ctop" data-part="card/top">
-        <Markup tag="span"
-          className="poster"
-          data-part="card/poster"
+      <CardTop as="span">
+        <CardPoster
           aria-hidden="true"
           title={
             opts.noPoster ? t("screens.resolution.noPosterTitle") : undefined
           }
-          html={posterBox(title, opts.k, { exact: opts.exact })}
-        />
-        <span className="cbody" data-part="card/body">
-          <span className="ctitle" data-part="card/title">{title}</span>
-          <span className="csub" data-part="card/subtitle">{meta}</span>
+        >
+          <PosterArtwork artwork={posterArtwork(icons, opts.poster, title, opts.k)} />
+        </CardPoster>
+        <CardBody as="span">
+          <CardTitle>{title}</CardTitle>
+          <CardSubtitle>{meta}</CardSubtitle>
           {/* The synopsis is what actually SEPARATES four series with nearly
               the same name, so it belongs on the card that asks to choose
               between them. It is an `overview`, not a reason: it clamps
@@ -97,22 +109,20 @@ export function ReleaseCard({
               Carrying it here is also what makes leaving the screen
               unnecessary: an arbitration that sends you to a full sheet to
               decide loses the queue you were working through. */}
-          {opts.overview ? <span className="cov" data-part="card/overview">{opts.overview}</span> : ""}
+          {opts.overview ? <CardOverview>{opts.overview}</CardOverview> : ""}
           {confidence ? (
-            <span className="cmeta" data-part="card/meta">
-              <span className="chip info" data-part="chip" data-tone="info">
-                {t("screens.resolution.confidence")} {confidence}
-              </span>
-            </span>
+            <CardMeta>
+              <Chip tone="info" label={<>{t("screens.resolution.confidence")} {confidence}</>} />
+            </CardMeta>
           ) : (
             ""
           )}
-        </span>
+        </CardBody>
         <span className={`${iconButton()} ${candidatePick()}`} data-part="card/pick" aria-hidden="true">
           <Icon paths={icons.check} />
         </span>
-      </span>
-    </button>
+      </CardTop>
+    </Card>
   );
 }
 
@@ -135,62 +145,58 @@ export function ReleaseCard({
 // site ever passed it and the click delegation reads no such attribute, so it
 // would be a button leading nowhere.
 export function DecisionCard({ decision }: { decision: SettledDecision }) {
+  const reference = useArrivalsReference();
   const {
-    posterBox,
-    svgIcon,
     icons,
     DECISION_STATE,
     DECISION_STATE_DETAIL,
     REASON_TONE,
     REASON_LABEL,
     VIA_LABEL,
-  } = useArrivalsReference();
+  } = reference;
   const settled = decision.state != null;
   const state = settled ? DECISION_STATE[decision.state] : null;
-  const poster =
+  const artwork =
     settled && decision.choice
-      ? posterBox(decision.choice.t, decision.k)
-      : `<span class="pfall" data-part="card/poster-fallback">${svgIcon(decision.k === "movie" ? icons.film : icons.tv, 1.25)}<b>?</b></span>`;
+      ? posterArtwork(icons, decision.choice.poster, decision.choice.t, decision.k)
+      : { source: undefined, icon: decision.k === "movie" ? icons.film : icons.tv, label: "?" };
   const identity = decision.choice
     ? `${decision.choice.t} · ${decision.choice.p.toUpperCase()} ${decision.choice.id} · ${VIA_LABEL[decision.choice.via] ?? decision.choice.via}`
     : null;
   return (
-    <div className="card" data-part="card" data-nonmedia="decision">
-      <div className="ctop" data-part="card/top">
-        <Markup tag="span"
-          className="poster"
-          data-part="card/poster"
-          html={poster}
-        />
-        <span className="cbody" data-part="card/body">
-          <span className="ctitle" data-part="card/title" title={decision.d}>
+    <Card data-nonmedia="decision">
+      <CardTop>
+        <CardPoster>
+          <PosterArtwork artwork={artwork} />
+        </CardPoster>
+        <CardBody as="span">
+          <CardTitle title={decision.d}>
             <code>{decision.d}</code>
-          </span>
-          <span className="csub" data-part="card/subtitle">{decision.when}</span>
+          </CardTitle>
+          <CardSubtitle>{decision.when}</CardSubtitle>
           {/* What was chosen is the most useful line here — it is the answer
               one comes back to read — so it wraps rather than truncating. On
               one line it lost its provider id and how it was found, which is
               exactly what one comes back for. */}
-          {identity ? <span className="creason" data-part="card/reason">{identity}</span> : ""}
-          <span className="cmeta" data-part="card/meta">
-            <span className={`chip ${REASON_TONE[decision.reason] ?? "neutral"}`} data-part="chip"
-              data-tone={REASON_TONE[decision.reason] ?? "neutral"}>
-              {REASON_LABEL[decision.reason] ?? decision.reason}
-            </span>
+          {identity ? <CardReason>{identity}</CardReason> : ""}
+          <CardMeta>
+            <Chip
+              tone={(REASON_TONE[decision.reason] ?? "neutral") as ChipTone}
+              label={REASON_LABEL[decision.reason] ?? decision.reason}
+            />
             {state ? (
-              <span
-                className={`chip ${state[0]}`} data-part="chip" data-tone={state[0]}
+              <Chip
+                tone={state[0] as ChipTone}
+                label={state[1]}
                 title={DECISION_STATE_DETAIL[decision.state] ?? ""}
-              >
-                {state[1]}
-              </span>
+              />
             ) : (
               ""
             )}
-          </span>
-        </span>
-      </div>
-    </div>
+          </CardMeta>
+        </CardBody>
+      </CardTop>
+    </Card>
   );
 }
 
@@ -226,14 +232,14 @@ export function Candidates({ decision }: { decision: PendingDecision }) {
               ? null
               : `${Math.round(candidate.s * 100)} %`
           }
-          /* Exact match only, and the placeholder when the provider has no
+          /* Its OWN picture only, and the placeholder when the provider has no
              picture: a candidate wearing a neighbour's poster is the one
              mistake this screen cannot make. The absence is said by the
              placeholder itself, not by a sentence in a line that truncates. */
           opts={{
             genre: "candidat",
             k: decision.k,
-            exact: true,
+            poster: candidate.poster,
             noPoster: candidate.sans,
             overview: candidate.resume,
           }}

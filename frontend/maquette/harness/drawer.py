@@ -27,6 +27,10 @@ What the drawer owes, and what this script holds it to:
    other side. A bottom panel opened halfway down a list sent the list home.
 5. Every entry is legible, the current one included, measured as PAINTED:
    the label's colour against the colours composited behind it.
+
+THE REGISTRY IT READS AS `window.__layers` is `app/layers.ts`'s, the module the
+ladder's handler walks it from. RE-AIMED in its source only: the published
+name is the same, and so is this rule's hold count.
 """
 import asyncio
 
@@ -191,7 +195,7 @@ async def main():
         # THE RUNG IS ON THE LADDER, and it is asked for by name. Since L15 the
         # drawer is a component and the back handler no longer reads the
         # drawer's style class at all — it asks a REGISTRATION
-        # (`app/layer-registry.ts`). A rung that stopped registering is
+        # (`app/layers.ts`). A rung that stopped registering is
         # invisible to every hold shaped like « Back closed what was open »:
         # the drawer would simply never be the thing Back reached, and the pop
         # would spend the entry underneath instead. The registration is read

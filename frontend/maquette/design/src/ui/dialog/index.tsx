@@ -130,11 +130,8 @@ export function Dialog({
                 does.
 
                 IT IS NOT `data-dismiss`, and the qualifier is not decoration:
-                the engine's own delegation reads `closest.dataset.dismiss` and
-                calls `dismissSug(Number(…))` on it. An empty value is falsy so
-                the collision was inert — and would have become `dismissSug(0)`
-                the first time anyone gave this attribute a value. Found by a
-                reader of the seams. */}
+                a bare verb-shaped name is one a delegated handler can come to
+                answer, and this control must answer to nothing but the dialog. */}
             {descriptor.actions.map((action, at) => (
               <button
                 key={at}

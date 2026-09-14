@@ -25,6 +25,8 @@ export type DecisionCandidate = {
   s: number;
   sans?: boolean;
   resume?: string;
+  // The candidate's own picture, never one found under its title without the year.
+  poster: string | null;
 };
 
 // The choice recorded once a decision resolves — the winning candidate's
@@ -36,6 +38,7 @@ export type DecisionChoice = {
   p: string;
   id: number;
   via: "pick" | "search_override";
+  poster: string | null;
 };
 
 // Fields common to a decision whichever side of resolution it is on — the
@@ -54,7 +57,7 @@ type DecisionCommon = {
 
 // A folder still waiting on an operator's call, exactly as `PENDING_DECISIONS`
 // shapes one. `c` is empty when the provider returned no candidate at all
-// (see refonte.html's "Backrooms" row) — the other shape besides a populated
+// (see refonte.html@60530dbd8's "Backrooms" row) — the other shape besides a populated
 // list, never absent outright.
 export type PendingDecision = DecisionCommon & { c: DecisionCandidate[] };
 

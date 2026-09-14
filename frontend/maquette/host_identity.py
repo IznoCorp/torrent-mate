@@ -138,7 +138,7 @@ def with_served_identity(document: bytes, root: Path) -> bytes:
     # not belt-and-braces. `json.dumps` escapes `"` and `\\` and nothing else
     # that matters inside a `<script>` body: a git ref may legally contain `<`,
     # `>` and `/`, so a branch named `</script><img src=x onerror=…>` closes the
-    # element, leaves `window.__servedIdentity=` as a syntax error — the drawer
+    # element early and leaves its JSON unparseable — the drawer
     # then says « unavailable » on exactly the branch that broke it — and turns
     # the rest into live markup on the design host's own origin. Verified with
     # `git check-ref-format --branch`, which accepts that name.
@@ -155,7 +155,10 @@ def with_served_identity(document: bytes, root: Path) -> bytes:
                  .replace(">", "\\u003e")
                  .replace("&", "\\u0026")
                  .encode("utf-8"))
-    script = b"<script>window.__servedIdentity=" + published + b";</script>"
+    # A JSON ELEMENT, NOT A SCRIPT ASSIGNING A GLOBAL: the module that words the
+    # identity reads the element where it lies, so nothing is read off `window`.
+    script = (b'<script type="application/json" id="served-identity">'
+              + published + b"</script>")
     marker = IDENTITY_MARKER.encode("utf-8")
     head, found, rest = document.partition(marker)
     if not found:

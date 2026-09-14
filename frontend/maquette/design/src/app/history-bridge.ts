@@ -7,9 +7,14 @@
 // boot, which is why each half is a function rather than a module-level
 // assignment — the order relative to `window.__startEngine` is load-bearing
 // and it stays legible in one place.
+import { carryingState, type CarriedIdentity } from "../lib/navigation-entry";
+import { heldIdentity, providerAddress } from "../lib/held-identity";
 import { createBrowserHistory } from "@tanstack/react-router";
 import { go } from "../lib/navigate";
 import { firstStuckFolder } from "../lib/queue";
+import { fillBridgeDoor, fillScreensDoor, panel, screens } from "../lib/shell-doors";
+import { store } from "../lib/store-access";
+import { announceEntries } from "./layers";
 
 // The bridge's contract, stated once. The verbs are the legacy nav cluster's
 // primitives, and their names are the fragment's own; the state objects
@@ -38,9 +43,9 @@ type Bridge = {
 type Screens = {
   profile: (title: string) => void;
   // The media sheet — the centre of the product. `title` crosses as a plain
-  // string here too; the percent-encoding and the NFC normalisation are done
-  // below, on write, and again by `MediaScreen` on read.
-  mediaSheet: (title: string) => void;
+  // string here too; `carried` is what the caller knows of the item when it
+  // knows it, and the cache is asked otherwise.
+  mediaSheet: (title: string, carried?: CarriedIdentity) => void;
   // The release-choice screen — same `title`-crosses-as-a-plain-string
   // contract as `mediaSheet`/`profile` above. Unlike them, it also writes
   // `state.relatedTitle` (the legacy first line of `openReleases`, still read by
@@ -64,19 +69,9 @@ declare global {
   interface Window {
     __bridge: Bridge;
     __screens: Screens;
-    // The layer-unwind bookkeeping stays ENGINE-side (the named-entry check
-    // and the one-in-flight latch live with the popstate handler that consumes
-    // them); the fragment publishes it so the shell's own layer can announce
-    // its close the same way every legacy layer does.
-    __derouler?: (layer: string) => void;
-    // The same bookkeeping for a traversal of SEVERAL entries at once: the
-    // shell says how many ENTRIES it settles, and the engine — which owns the
-    // latch and the popstate handler reading it — turns that into the number
-    // of pops it must swallow.
-    __announcePops?: (entryCount: number) => void;
     // B-026's probe: raised by every write that fails silently otherwise
     // (`recordPath`, `data-navgo`, and this file's own `openPanel`),
-    // declared here (`refonte.html` declares and resets it for its own two
+    // declared here (`refonte.html@60530dbd8` declares and resets it for its own two
     // sites) so this file's own catch can set it without a type error.
     __navEchec?: boolean;
   }
@@ -126,7 +121,7 @@ export function installHistoryBridge(): void {
 // (via `pushLayer`, still a `layer` entry) needs the SAME forwarding a layer
 // opened anywhere else gets, or its own unwind guard never runs and closing
 // it silently stops working.
-window.__bridge = {
+fillBridgeDoor({
   record: (state: unknown, url: string) => {
     history.push(url, state);
     history.flush();
@@ -161,7 +156,7 @@ window.__bridge = {
   rewind: (n: number) => {
     if (n <= 0) return;
     history.flush();
-    window.__announcePops?.(n);
+    announceEntries(n);
     history.go(-n);
   },
   onBack: (
@@ -175,7 +170,7 @@ window.__bridge = {
       )
         callback(location.state, action.type);
     }),
-};
+});
 }
 
 /**
@@ -188,21 +183,23 @@ export function installScreenBridge(): void {
 // NFC-normalised here, once, on write — `QualityScreen` normalises again on
 // read so an entry arriving by direct URL (not through this bridge) is
 // covered too.
-window.__screens = {
+fillScreensDoor({
   profile: (title: string) =>
     go({ to: "/quality/$name", params: { name: title.normalize("NFC") } }),
-  // The sheet is addressed by PROVIDER ID (DOIT-11), and callers hold a title,
+  // The sheet is addressed by PROVIDER ID (DOIT-11), and a tap holds a title,
   // so the crossing happens here — the seam, which is where every other
-  // title-to-address translation already happens.
+  // title-to-address translation already happens. WHAT THE TAP KNEW is the
+  // item the card was drawn from, and the cache holds it: its identity gives
+  // the address, and its title, poster and identity travel on the entry, so the
+  // screen draws them on its first frame while its own read is out.
   //
   // §11's single exception is honoured rather than worked around: a medium with
   // no provider id has NO sheet, and the surface must lead to the resolution
-  // instead of to a dead link. Measured on the fixture the day this landed, all
-  // 259 sheets carry ids, so this branch is unreachable today — it is here
-  // because the rule is, not because a case demanded it.
-  mediaSheet: (title: string) => {
-    const ids = window.__referentiel.addressIdsFor(title.normalize("NFC"));
-    if (!ids) return window.__screens.resolution();
+  // instead of to a dead link.
+  mediaSheet: (title: string, carried?: CarriedIdentity) => {
+    const known = carried ?? heldIdentity(title.normalize("NFC"));
+    const ids = providerAddress(known?.ids);
+    if (!known || !ids) return screens.resolution();
     // THE PANEL LEAVES INSIDE THE COMMIT, so the transition captures it OPEN
     // and its departure has something to draw.
     //
@@ -229,9 +226,9 @@ window.__screens = {
     // handler. Nothing here counts the pops on the way back; that rule belongs
     // with the arbitration.
     go(
-      { to: "/media/$provider/$id", params: ids },
+      { to: "/media/$provider/$id", params: ids, state: carryingState(known) },
       () => {
-        if (window.__panel.isOpen()) window.__panel.close(true);
+        if (panel.isOpen()) panel.close(true);
       },
     );
   },
@@ -243,7 +240,7 @@ window.__screens = {
   // itself — so it writes the store directly rather than through
   // `data.ts`'s `writeUiState` component door.
   releases: (title: string) => {
-    window.__store.write({ relatedTitle: title });
+    store.write({ relatedTitle: title });
     go({
       to: "/releases/$title",
       params: { title: title.normalize("NFC") },
@@ -277,7 +274,7 @@ window.__screens = {
     // a door opening onto nothing.
     const first = firstStuckFolder();
     const target = folder ?? (typeof first === "string" ? first : null);
-    window.__store.write({ resolveTarget: target });
+    store.write({ resolveTarget: target });
     go({
       to: "/resolution/$folder",
       // An address that changed with the interface language would no longer
@@ -289,7 +286,7 @@ window.__screens = {
   },
   // Kept in sync in `window.__store.write` BEFORE navigating: `state.addMode` is
   // still read by the untouched cross-world "add:N" panel act (it decides
-  // ASSOCIATE vs regular add — see refonte.html) and by `addVerb`, and
+  // ASSOCIATE vs regular add — see refonte.html@60530dbd8) and by `addVerb`, and
   // `state.addQ` still seeds the FAB's next open. Neither is written again
   // after this call — typing on `/add` updates the ROUTER's search params
   // only, through `go()` directly, not through this bridge — so a value
@@ -303,7 +300,7 @@ window.__screens = {
     // it writes the store directly rather than through data.ts's
     // `writeUiState` write door (components must use that one; see its own
     // doc comment).
-    window.__store.write({ addQ: q ?? "", addMode: validMode });
+    store.write({ addQ: q ?? "", addMode: validMode });
     go({
       to: "/add",
       search: {
@@ -312,5 +309,5 @@ window.__screens = {
       },
     });
   },
-};
+});
 }

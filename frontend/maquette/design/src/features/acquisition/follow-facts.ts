@@ -14,6 +14,7 @@
 // READ FROM THE SAME DERIVATIONS the urgency sections read. A section that
 // computes what is to be grabbed while the panel computes it separately is two
 // answers to one question, and they part company on the first change (§13).
+import { heldIdentity } from "../../lib/held-identity";
 import { queueNow } from "../../lib/queue";
 import type { PanelCache } from "../../ui/panel/contract";
 import { followsQuery } from "./queries";
@@ -117,7 +118,7 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
     inLibrary,
     toTake,
     toResolve,
-    hasSheet: reference.sheetFor(title) != null,
+    hasSheet: (follow.ids ?? heldIdentity(title)?.ids) != null,
     // ONE DERIVATION: the card's fraction, the header's, and the sum of the
     // season headers all read this computation.
     fraction: isFilm

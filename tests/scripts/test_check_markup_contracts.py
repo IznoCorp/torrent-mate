@@ -73,7 +73,7 @@ class TestReadersOf:
         assert "idle" in guard.readers_of("pipe", 'store.write({ pipe: "idle" })')
 
     def test_an_unrelated_field_does_not_leak(self) -> None:
-        """`phase` must not collect what `hphase` compares."""
+        """`phase` must not collect what `otherphase` compares."""
         assert guard.readers_of("phase", 'x.otherphase === "nope"') == set()
 
 
@@ -253,7 +253,9 @@ class TestTheHardZeroFloor:
         class) key matches; what is proven is the keying, not the reason.
         """
         fixture = tmp_path / "audit.py"
-        fixture.write_text("\n" * 100 + "el.classList.contains('ep')\n", encoding="utf-8")
+        # Line 110: the declared site `("audit.py", 110, "ep")`. The key is the line, so
+        # the fixture follows the assertion when a docstring above it grows.
+        fixture.write_text("\n" * 109 + "el.classList.contains('ep')\n", encoding="utf-8")
         monkeypatch.setattr(anchors, "harness_files", lambda: [fixture])
         monkeypatch.setattr(anchors, "ROOT", tmp_path)
 
@@ -752,10 +754,20 @@ class TestImperativeEmission:
         The day THAT goes, this reading has no subject in this repository and
         the honest move is to say so here rather than to widen the search until
         something matches.
-        """
-        engine = guard.SOURCES / "engine" / "legacy.js"
 
-        assert "harness/panel" in guard.emitted_named_values(engine)["data-part"]
+        RE-AIMED, NOT WIDENED: the panel did not go, it MOVED — out of the engine
+        into the harness module, built in script exactly as before, emitting the
+        same value. The reading follows it to its one new file; it still names
+        one site and one value.
+
+        RE-AIMED A SECOND TIME, NOT WIDENED: the harness panel is gone. The one
+        other site that builds a part in script is the virtual window's spacer,
+        and the reading names that file and that value instead — still one site,
+        one value, and a subject that exists.
+        """
+        spacer = guard.SOURCES / "ui" / "virtual-rows.tsx"
+
+        assert "window/spacer" in guard.emitted_named_values(spacer)["data-part"]
 
 
 class TestHeldSelectors:

@@ -27,7 +27,6 @@ import re
 from common import Journal, design_source, open_page, without_comments
 from playwright.async_api import async_playwright
 
-PROTOTYPE = pathlib.Path(__file__).resolve().parent.parent / "design" / "refonte.html"
 
 _journal = None
 

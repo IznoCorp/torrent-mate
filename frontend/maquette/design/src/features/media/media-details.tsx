@@ -6,6 +6,8 @@ import { SkeletonLine } from "../../ui/state-surfaces";
 import { useMediaReference } from "./reference";
 import type { Follow } from "./sheet-fields";
 import { actionButton, factsPanel, keyValueRow, sectionHeading, sheetActions } from "../../ui/variants";
+import { dateLabel } from "./format";
+import { noInfo } from "./variants";
 
 export function MediaDetails({
   title,
@@ -36,7 +38,7 @@ export function MediaDetails({
    */
   metadataRefreshedAt: string | null;
 }) {
-  const { icons, dateFR } = useMediaReference();
+  const { icons } = useMediaReference();
   const { t } = useTranslation();
   return (
     <>
@@ -94,7 +96,7 @@ export function MediaDetails({
             <span>{t("screens.media.metadataRefreshed")}</span>
             <span data-part="media/refreshed">
               {metadataRefreshedAt
-                ? dateFR(metadataRefreshedAt) ?? metadataRefreshedAt
+                ? dateLabel(metadataRefreshedAt) ?? metadataRefreshedAt
                 : t("screens.media.metadataRefreshedValue")}
             </span>
           </div>
@@ -116,14 +118,14 @@ export function MediaDetails({
                 been asked. `data-rescrape` is the verb both surfaces share —
                 this one and the follow panel's — and it calls the operation. */}
             <button
-              className={`sact ${actionButton()}`}
+              className={actionButton({ kind: "panelAction" })}
               data-part="sheet/action"
               data-rescrape={title}
             >
               <Icon paths={icons.refresh} />
               {t("screens.media.rescrape")}
             </button>{" "}
-            <button className={`sact danger ${actionButton()}`} data-part="sheet/action" data-tone="danger" data-del={title}>
+            <button className={actionButton({ kind: "panelAction", tone: "danger" })} data-part="sheet/action" data-tone="danger" data-del={title}>
               <Icon paths={icons.trash} />
               {t("screens.media.delete")}
             </button>
@@ -143,12 +145,12 @@ export function MediaDetails({
           inFlight ? (
             <SkeletonLine width="half" />
           ) : (
-            <p className="noinfo" data-part="no-info">
+            <p className={noInfo()} data-part="no-info">
               {t("screens.media.followWaitsForKind")}
             </p>
           )
         ) : followed ? (
-          <button className={`mediaadd done ${actionButton()}`} data-part="media/add" disabled>
+          <button className={actionButton({ kind: "add", tone: "done" })} data-part="media/add" disabled>
             <Icon paths={icons.check} />
             {isFilm ? t("screens.media.added") : t("screens.media.followed")}
           </button>
@@ -158,7 +160,7 @@ export function MediaDetails({
           // screen re-renders from the store instead — the follow act
           // bumps it, and the button becomes `mediaadd done` in place.
           <button
-            className={`mediaadd ${actionButton()}`}
+            className={actionButton({ kind: "add" })}
             data-part="media/add"
             data-follow={title}
             // french-ok: a data-* VALUE, frozen with the DOM contract

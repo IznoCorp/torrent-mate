@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 r"""Serve the design prototype over HTTP, behind its own login screen.
 
-`refonte.html` is a head-less fragment: it starts at `<title>` and owns no
-`<html>` or `<head>`, because it is authored to be embedded by a host page.
-Served raw as a top-level document it renders in quirks mode, and a phone with
-no viewport meta falls back to the legacy 980px layout viewport and scales the
-frame down to roughly 40 % — measured, not feared.
-
 This server serves the Vite build (`dist/index.html`), rebuilt when its
 inputs are newer. The harness measures the source through its own copy of the
 design root, and R72 is the bridge that keeps the two interchangeable: both
@@ -109,34 +103,30 @@ DESIGN_ROOT = Path(
     renamed_env("TM_DESIGN_ROOT", "TM_DESIGN_RACINE")
     or Path(__file__).resolve().parent / "design"
 ).resolve()
-PROTOTYPE = DESIGN_ROOT / "refonte.html"
 # The base layer (D3). It carries the `login:font` and `login:socle` regions
-# the sign-in gate inherits, which lived in the fragment's BLOCK 1 until L07.
+# the sign-in gate inherits, which lived in the fragment's BLOCK 1 until L07,
+# and `login:entry`, the sign-in screen's and the startup screen's own rules —
+# hand-written, since a page built by text extraction cannot receive utilities
+# from a stylesheet it never loads.
 BASE_STYLESHEET = DESIGN_ROOT / "src" / "styles" / "base.css"
 # The token layer (D3). It holds the scale inside a Tailwind `@theme` block,
 # which is why the gate wraps what it extracts rather than emitting it as-is.
 THEME_STYLESHEET = DESIGN_ROOT / "src" / "styles" / "theme.css"
-# The residue (D-L07-5). It carries `login:style` and `login:splashstyle`: the
-# sign-in screen and the splash belong to L13, so their CSS is still written by
-# hand — which is also what keeps this gate composable, since a page built by
-# text extraction cannot receive utilities from a stylesheet it never loads.
-LEGACY_STYLESHEET = DESIGN_ROOT / "src" / "styles" / "legacy.css"
 # The document Vite owns, and where the application shell's markup lives — the
 # phone frame, the sign-in card, the startup screen. The login gate clones
-# those from here; its style comes from the three stylesheets above, not from
+# those from here; its style comes from the two stylesheets above, not from
 # the prototype fragment, which carries no rule.
 SHELL_DOCUMENT = DESIGN_ROOT / "index.html"
 DIST = DESIGN_ROOT / "dist" / "index.html"
 # The build inputs that always exist, at the design root.
 BUILD_INPUTS = (
-    PROTOTYPE,
     SHELL_DOCUMENT,
     DESIGN_ROOT / "vite.config.mjs",
     DESIGN_ROOT / "build-identity.mjs",
 )
 
 # The shell's own translation resource. Everything this host SERVES in French —
-# the sign-in gate, the two 503s, the offline page, the manifest's description —
+# the sign-in gate, the build failure's 503, the offline page, the manifest's description —
 # reads its words here, because the application has exactly one place where its
 # French lives and a second copy is a second thing to keep in step.
 TEXTS = DESIGN_ROOT / "src" / "i18n" / "fr.json"
@@ -216,7 +206,7 @@ PASSWORD_HASH = os.environ.get(
 SESSION_SECRET = secrets.token_bytes(32)
 COOKIE_NAME = "tm_design"
 
-ASSETS_DIR = PROTOTYPE.parent / "assets"
+ASSETS_DIR = DESIGN_ROOT / "assets"
 
 # Where the build writes the shell's module entry (`build.assetsDir` = "vite",
 # kept out of `dist/assets` because a symlink owns that name).
@@ -251,23 +241,6 @@ ASSET_FILE = {
     "/apple-touch-icon.png": "apple-touch-icon-design.png",
     "/favicon.svg": "favicon.svg",
 }
-
-
-def missing_page() -> bytes:
-    """Returns the 503 shown when the served checkout has no prototype.
-
-    Returns:
-        A complete HTML document.
-    """
-    texts = served_texts()["missing"]
-    return (
-        '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content">'
-        f"<title>{texts['title']}</title></head><body "
-        'style="font:16px system-ui;max-width:34em;margin:12vh auto;padding:0 1.5em">'
-        f"<h1>{texts['heading']}</h1><p>{texts['body']}</p>"
-        f"<p>{texts['reassurance']}</p></body></html>"
-    ).encode()
 
 
 def build_failure(error: str) -> bytes:
@@ -384,10 +357,10 @@ def login_page(refused: bool) -> bytes:
     """
     # FOUR SOURCES, AND THE PROTOTYPE FRAGMENT IS NONE OF THEM. The MARKUP the
     # gate clones — the sign-in card and the startup screen — is the
-    # application shell, in `index.html`. The STYLE comes from the three
-    # stylesheets: the scale and the palette from `theme.css`, the typeface
-    # and the reset from `base.css`, the sign-in screen's own style and the
-    # splash from `legacy.css`. Every `login:*` region left the fragment.
+    # application shell, in `index.html`. The STYLE comes from two
+    # stylesheets: the scale and the palette from `theme.css`; the typeface,
+    # the reset, the sign-in screen's own style and the splash from `base.css`.
+    # Every `login:*` region left the fragment.
     #
     # Each `extract` below names exactly ONE file, which is the shape the login
     # arm of `scripts/check-css-tokens.py` follows — a concatenated source left
@@ -397,7 +370,6 @@ def login_page(refused: bool) -> bytes:
     # its design.
     base_source = BASE_STYLESHEET.read_text()
     theme_source = THEME_STYLESHEET.read_text()
-    legacy_source = LEGACY_STYLESHEET.read_text()
     markup_source = SHELL_DOCUMENT.read_text()
     markup = extract(markup_source, "markup")
     # The screen is drawn hidden inside the shell and centred against it. Here
@@ -413,8 +385,10 @@ def login_page(refused: bool) -> bytes:
     # attributes it needs, in whatever order.
     markup = re.sub(r'(<div[^>]*\bid="login"[^>]*?)\s+hidden\b', r"\1", markup,
                     count=1)
-    markup = markup.replace('<form class="logincard" id="loginform"',
-                            '<form class="logincard" id="loginform" method="post" action="/login"', 1)
+    # BY PATTERN ON THE ID, for the reason just above: the form's classes are
+    # styling and may change; `id="loginform"` is the anchor its script reads.
+    markup = re.sub(r'(<form\b[^>]*?\bid="loginform")', r'\1 method="post" action="/login"',
+                    markup, count=1)
     if refused:
         markup = markup.replace('id="loginerr" hidden', 'id="loginerr"', 1)
     # Inside the prototype the startup screen is what the document opens on;
@@ -449,7 +423,7 @@ def login_page(refused: bool) -> bytes:
                + extract(theme_source, "palette-light"))
     styles = (scale + extract(base_source, "font")
               + palette + extract(base_source, "socle")
-              + extract(legacy_source, "style") + extract(legacy_source, "splashstyle"))
+              + extract(base_source, "entry"))
     # After the extract, so they win: inside the prototype the screen covers a
     # phone frame; here it IS the page.
     adjustments = """
@@ -515,14 +489,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             input was newer.
 
         Raises:
-            FileNotFoundError: When `refonte.html` is absent (branch without
-                the prototype) — the caller answers with the missing page.
             RuntimeError: When the build fails or a build input is missing —
                 the caller answers with the error message, never with a stale
                 document.
         """
-        if not PROTOTYPE.exists():
-            raise FileNotFoundError(PROTOTYPE)
         try:
             sources = mtime_sources()
         except FileNotFoundError as absent:
@@ -738,9 +708,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         try:
             body = self._document()
-        except FileNotFoundError:
-            self._send_page(503, missing_page)
-            return
         except RuntimeError as error:
             self._send(503, build_failure(str(error)))
             return
@@ -802,7 +769,7 @@ def main() -> int:
     # binding wider would publish the prototype on the LAN behind the proxy's
     # back, outside whatever access control the proxy applies.
     with Server(("127.0.0.1", port), Handler) as httpd:
-        print(f"prototype served on http://127.0.0.1:{port} from {PROTOTYPE}", flush=True)
+        print(f"prototype served on http://127.0.0.1:{port} from {DESIGN_ROOT}", flush=True)
         httpd.serve_forever()
     return 0
 

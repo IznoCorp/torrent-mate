@@ -1,17 +1,14 @@
-"""R72 — the Vite shell emits the prototype verbatim in the built envelope.
+"""R72 — the Vite shell emits its module entry, and the bundle it names exists.
 
-`design/` carries a Vite project whose one job is to emit the prototype
-verbatim inside a real envelope, unminified and unextracted. A shell that
-transformed anything — an inline script, a re-written attribute, an asset
-URL that stopped resolving — would make every later conversion step start
-from a lie. The rule verifies that: (a) the prototype fragment (refonte.html)
-is emitted byte-for-byte verbatim, exactly once, in the built output; (b)
-the module entry for the shell is present (Vite rewrites the src path); (c)
-the named bundle file exists on disk under dist/vite/. The build gate and
-the fragment hold keep source and build interchangeable for every later
-measurement. R72_SKIP_BUILD=1 skips the build gate so a mutation applied to
-dist/ survives the run — mutation runs only, never a way to pass the build
-check.
+`design/` carries a Vite project that builds the prototype into a real envelope.
+The rule verifies that (b) the module entry for the shell is emitted exactly
+once (Vite rewrites the src path) and (c) the bundle that entry names exists on
+disk under dist/vite/. Hold (a) — the prototype fragment emitted byte-for-byte
+verbatim, exactly once — was retired when the fragment was deleted: nothing is
+injected into the document any more, so there is nothing to find verbatim. The
+letters are kept so R72's recorded history still lines up with them.
+R72_SKIP_BUILD=1 skips the build gate so a mutation applied to dist/ survives
+the run — mutation runs only, never a way to pass the build check.
 """
 import os
 import pathlib
@@ -44,17 +41,10 @@ def build(journal):
 
 
 def run_holds(journal):
-    """Run the three holds on the built output. Called after build succeeds."""
+    """Run the two holds on the built output. Called after build succeeds."""
     emitted = (DESIGN / "dist" / "index.html").read_text(encoding="utf-8")
-    fragment = (DESIGN / "refonte.html").read_text(encoding="utf-8")
 
-    # Hold 1: Fragment emitted verbatim, exactly once
-    journal.check(
-        "the fragment is emitted verbatim, exactly once",
-        emitted.count(fragment) == 1,
-        f"fragment emitted {emitted.count(fragment)} time(s)")
-
-    # Hold 2: the module entry is present. Read attribute by attribute rather
+    # Hold (b): the module entry is present. Read attribute by attribute rather
     # than as one pattern: the emitted tag's attribute order is the bundler's
     # business, and a rule that fixed it would fail on a bundler upgrade while
     # the envelope was still correct.
@@ -74,7 +64,7 @@ def run_holds(journal):
         matching_tags == 1,
         f"{matching_tags} match(es) found")
 
-    # Hold 3: the named bundle exists on disk. It reports either way — a hold
+    # Hold (c): the named bundle exists on disk. It reports either way — a hold
     # that vanished when the hold above it failed would drop the run's count
     # without a line saying so, and a rule is read by its count.
     if bundle_name:
@@ -91,7 +81,7 @@ def run_holds(journal):
 
 
 def main():
-    journal = Journal("R72 — the shell emits the fragment verbatim")
+    journal = Journal("R72 — the shell emits its module entry and its bundle")
     if not build(journal):
         # `summary()` RAISES SystemExit(1) as soon as any hold has failed, and a
         # failed build is exactly that — so this is the exit, not a fall-through:

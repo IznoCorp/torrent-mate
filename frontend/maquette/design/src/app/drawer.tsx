@@ -25,13 +25,13 @@ import {
   currentAppearance,
 } from "./appearance";
 import { installDrawerDismissGesture } from "./drawer-gesture";
-import { registerLayer } from "./layer-registry";
+import { registerLayer, unwindLayer } from "./layers";
 import { NAVIGATION, type NavigationGroup, type NavigationRow } from "./navigation";
 import { Drawer } from "../ui/drawer";
 import { Icon } from "../ui/icon";
 import { useServerStateVersion } from "../lib/query-client";
 import { servedIdentityLines } from "../lib/served-identity";
-import { useStoreContent, writeUiState } from "../lib/store-access";
+import { useStoreContent, writeUiState, store } from "../lib/store-access";
 import {
   drawerEntry,
   drawerEntryCount,
@@ -45,6 +45,7 @@ import {
   drawerIdentitySecondary,
   drawerNavigation,
 } from "../ui/variants";
+import { segmentSmall } from "../features/acquisition/variants";
 
 /** The groups, in the order the table first names them. */
 function grouped(): { key: NavigationGroup; rows: NavigationRow[] }[] {
@@ -72,7 +73,7 @@ export function NavigationDrawer(): ReactElement {
   // THE GESTURE ATTACHES ONCE THE NODE EXISTS. It used to be installed from the
   // boot, which was before React drew anything: `#drawer` was static markup
   // then. E-002 is unchanged — it is still the frame's gesture, still closing
-  // through `window.__closeLayers` so a swipe and a scrim tap share one path.
+  // through `closeLayers` so a swipe and a scrim tap share one path.
   // THE CLEANUP IS THE POINT, not tidiness: an effect that installs listeners
   // and returns nothing leaks a set on every remount, and `React.StrictMode` —
   // on, in `shell.tsx` — double-invokes it besides.
@@ -85,19 +86,19 @@ export function NavigationDrawer(): ReactElement {
   useEffect(
     () =>
       registerLayer("drawer", {
-        isOpen: () => window.__store.read().state.drawerOpen === true,
+        isOpen: () => store.read().state.drawerOpen === true,
         close: (pop) => close(pop),
       }),
     [],
   );
 
   function close(pop?: boolean): void {
-    if (window.__store.read().state.drawerOpen !== true) return;
+    if (store.read().state.drawerOpen !== true) return;
     if (closing.current) return;
     closing.current = true;
     try {
       writeUiState({ drawerOpen: false });
-      if (!pop) window.__derouler?.("drawer");
+      if (!pop) unwindLayer("drawer");
     } finally {
       closing.current = false;
     }
@@ -153,11 +154,7 @@ export function NavigationDrawer(): ReactElement {
       <div className={drawerGroup()}>
         <p className={drawerGroupTitle()}>{t("navigation.appearanceGroup")}</p>
         <div
-          // `.segmini` IS THE ENGINE'S, and it stays a bare class for that
-          // reason: the engine emits the same segment elsewhere, so its rules
-          // are residue that outlives this drawer and `add-screen.tsx` already
-          // wears it the same way.
-          className="segmini"
+          className={segmentSmall()}
           data-part="segment-small"
           role="group"
           aria-label={t("navigation.appearanceLabel")}
@@ -172,7 +169,7 @@ export function NavigationDrawer(): ReactElement {
                 // Reflected in place: the drawer stays open — choosing an
                 // appearance is not a navigation, and watching the theme change
                 // IS the feedback. The bump is what redraws the pressed state.
-                window.__store.touch();
+                store.touch();
               }}
             >
               {t(`navigation.appearance.${mode}`)}

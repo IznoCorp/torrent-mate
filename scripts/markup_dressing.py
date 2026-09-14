@@ -191,33 +191,27 @@ def check_orphan_variants() -> int:
 # above it does and a guard that has to be re-baselined after every edit is a
 # guard people re-baseline without reading.
 #
-# EVERY ONE OF THE FIVE `legacy` REASONS DIES AT L13. They are painted today by
-# `src/styles/legacy.css`, which goes when the engine does — and on that day
-# each becomes a real bare element unless its surface has been converted first.
-# That is the same latency B-223's `.t` and `.k` carry, and naming it here is
-# what makes it findable then rather than reportable by the operator.
+# THE TWO `.surferr button` REASONS ARE THE VARIANT'S. Both buttons sit inside
+# `surfaceError()`, whose `[&_button]:…` utilities dress them as `castPortrait()`
+# dresses a portrait, so neither is a latent bare element.
 BARE_ALLOWED = {
     ("ui/state-surfaces.tsx", "button"): (
-        1, "the error surface's retry, painted by `.surferr button` "
-           "(legacy.css:445) until L13"),
+        1, "the error surface's retry, and NOT latent: `surfaceError()` dresses "
+           "it with `[&_button]:…`, as `castPortrait()` dresses a portrait"),
     ("features/acquisition/discover-tab.tsx", "button"): (
         1, "the « connect TMDB » action, inside the same `surfaceError()` and "
-           "painted by the same `.surferr button` until L13"),
+           "dressed by the same `[&_button]:…`"),
     ("features/acquisition/add-screen.tsx", "button"): (
-        2, "the two `.segmini` segment controls, painted by "
-           "`.segmini button` (legacy.css:1553). The engine emits `.segmini` "
-           "too, which is why its rules were left in `legacy.css` with a date "
-           "of death rather than converted (D-L07-5)"),
+        2, "the two segment controls, and NOT latent: `segmentSmall()` dresses "
+           "them with `[&_button]:…`, as `castPortrait()` dresses a portrait"),
     ("app/drawer.tsx", "button"): (
-        1, "the `.segmini` appearance control — one SITE, drawn once per "
-           "appearance — painted by "
-           "`.segmini button` and `.segmini button[aria-pressed=\"true\"]`, "
-           "exactly as `add-screen.tsx`'s two are. The engine emits `.segmini` "
-           "too, which is why its rules stayed in `legacy.css` with a date of "
-           "death rather than converting with the drawer (D-L07-5)"),
-    ("ui/panel/index.tsx", "img"): (
-        1, "the panel's poster, painted by `.sheetposter img` "
-           "(legacy.css:1929) until L13"),
+        1, "the appearance control — one SITE, drawn once per appearance — and "
+           "NOT latent: `segmentSmall()` dresses it, as it dresses "
+           "`add-screen.tsx`'s two"),
+    ("ui/poster.tsx", "img"): (
+        1, "a poster's picture, and NOT latent: its frame dresses it entirely — "
+           "`sheetPoster()` with `[&_img]:…` and `posterFrame()` with "
+           "`[&>img]:…` — as `castPortrait()` dresses a cast portrait"),
     ("features/media/media-cast.tsx", "img"): (
         1, "a cast portrait, and this one is NOT latent: `castPortrait()` "
            "constrains it with `[&_img]:w-full [&_img]:h-full "
@@ -258,7 +252,7 @@ def check_bare_elements() -> int:
     That decision was right, and it is exactly what makes bare tags a category
     worth counting.
 
-    IT IS A PARSER, NOT A REGEX, and the reason is the same one `rename.mjs`
+    IT IS A PARSER, NOT A REGEX, and the reason is the same one `rename.mjs@60530dbd8`
     gives: an attribute list spans lines, a `className` may be a template
     literal or a conditional, and an element can be written inside a template
     string a text reader sees as prose. `does this element carry a class` has a
@@ -273,10 +267,8 @@ def check_bare_elements() -> int:
         this reader cannot know. The number skipped for that reason is PRINTED
         rather than described, so the blind spot is a figure someone can watch
         move.
-      - WHETHER A LISTED SITE'S REASON IS STILL TRUE. Five of the six reasons
-        below are « painted by `legacy.css` until L13 ». Nothing here re-reads
-        that stylesheet; when it dies, these five become real and this list is
-        where they are written down.
+      - WHETHER A LISTED SITE'S REASON IS STILL TRUE. Each reason names the
+        variant that dresses its element, and nothing here re-reads it.
       - The engine and the shell. `index.html` is hand-written markup and
         `engine/legacy.js` is the dying JavaScript; neither is TSX.
 

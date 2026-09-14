@@ -66,7 +66,8 @@ from nofrench_lexicon import (  # noqa: E402
     vocabulary,
 )
 
-STATES = MAQUETTE / "design" / "src" / "engine" / "states.js"
+# The table is one file per surface; the arm reads them joined.
+STATES = MAQUETTE / "design" / "src" / "harness" / "states"
 ORACLE_REFERENCE = MAQUETTE / "oracle-reference.json"
 
 # The three shapes, in the order they appear above. The generated one yields the
@@ -83,7 +84,7 @@ ENTRY_FROM_TEMPLATE = re.compile(r'`([A-Za-z][\w-]*)-\$\{(\w+)\}`')
 TEMPLATE_MEMBER = re.compile(r'\["([A-Za-z][\w-]*)",\s*"')
 # `].map((` — the end of the array a generated family is built from. The members
 # are found by matching that bracket BACKWARDS rather than by sweeping the file:
-# a sweep read every `["word", "` in `states.js` and invented
+# a sweep read every `["word", "` in the state table and invented
 # `settings-field-signin` out of a single-line entry three hundred lines away.
 # An expansion that over-generates is a corpus with names nobody wrote in it,
 # and it fails on the ones it invented rather than on the ones that exist.
@@ -99,7 +100,7 @@ def declared_state_identifiers(source: str) -> set[str]:
     """Collects every state id the table declares, in all three shapes.
 
     Args:
-        source: The whole of `engine/states.js`.
+        source: The whole state table, every file of `harness/states/` joined.
 
     Returns:
         The ids, with a generated family expanded into the names its template
@@ -137,7 +138,7 @@ def _receiver_array(source: str, closing: int) -> str:
     of one family cannot be drawn from another part of the file.
 
     Args:
-        source: The whole of `engine/states.js`.
+        source: The whole state table, every file of `harness/states/` joined.
         closing: The offset of the `]` that ends the receiver.
 
     Returns:
@@ -188,10 +189,10 @@ def check_state_identifiers(violations: list[str]) -> None:
     # the test agreeing with the fix, which this register refuses by name.
     #
     # The debt is owed to `legacy.js` alone (`check_french_debt`), and
-    # `states.js` is not `legacy.js`. Excluding it costs nothing: no current id
+    # the state table is not `legacy.js`. Excluding it costs nothing: no current id
     # fails.
     words = vocabulary() - vocabulary(debt_only=True)
-    source = read(STATES)
+    source = "\n".join(read(path) for path in sorted(STATES.glob("*.ts")))
     declared = declared_state_identifiers(source)
     measured = measured_state_identifiers()
 

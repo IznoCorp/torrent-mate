@@ -25,8 +25,8 @@ arm then reads:
     block that declares it;
   * every `z-<n>` or `z-[<n>]` utility in `design/src/**/*.ts(x)`, with the
     exported name of the variant that carries it;
-  * every such utility in the shell's own markup, `design/index.html` and
-    `design/refonte.html`, with the identity class of the element wearing it.
+  * every such utility in the shell's own markup, `design/index.html`, with the
+    identity class of the element wearing it.
     THAT ARM IS NOT AN EXTRA. The shell's markup lives in `index.html` because
     the engine captures its containers before React renders — so the frame's own
     header and its install proposal declare their ranks there and nowhere else,
@@ -57,8 +57,8 @@ DESIGN = pathlib.Path(__file__).resolve().parents[1] / "frontend/maquette/design
 LIST_FILE = DESIGN / "ui/variants/frame.ts"
 
 # THE SHELL'S OWN MARKUP. `index.html` carries the phone frame, the topbar, the
-# drawer and the layer hosts; `refonte.html` is what is left of the fragment.
-SHELL_MARKUP = ("index.html", "refonte.html")
+# drawer and the layer hosts.
+SHELL_MARKUP = ("index.html",)
 
 # A CLASS ATTRIBUTE, across the lines it is written over: the shell's are long
 # enough to wrap, and a single-line reader would have missed the install
@@ -79,7 +79,7 @@ SITE = re.compile(r"`([^`]+)`\s+\(([^)]+)\)")
 # exactly the sentence a real rank would hide behind, so they are written down
 # here, where the arm reads them, rather than left to be recognised.
 LOCAL_DETAILS = {
-    (".st .d", 1): "a dot on the stepper's own connector line",
+    ("stripDot", 1): "the same dot, drawn by its variant, over the stepper's own connector line",
     ("sheetDragBand", 1): "the sheet's drag band over the sheet's own head",
     ("::view-transition-group(shell-tab-bar)", 10):
         "the ORDER OF TRANSITION GROUPS, a stacking space of its own that exists "

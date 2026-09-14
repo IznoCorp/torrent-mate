@@ -21,6 +21,8 @@ const icons = () => window.__referentiel.icons;
 // result, so a slice declared here would be a second shape of one record and
 // the compiler would be right to refuse it.
 import type { SearchResult } from "./reference";
+import { store } from "../../lib/store-access";
+import { searchResults } from "./search-queries";
 
 /**
  * Builds a search result's descriptor.
@@ -33,11 +35,11 @@ import type { SearchResult } from "./reference";
  *     The descriptor, or null while the search has not answered.
  */
 function addPanel(position: string, cache: PanelCache): PanelDescriptor | null {
-  const answered = window.__searchResults?.();
+  const answered = searchResults?.();
   const result = answered?.results?.[Number(position)] as SearchResult | undefined;
   if (result === undefined) return null;
   const translate = i18next.t.bind(i18next);
-  const state = window.__store.read().state;
+  const state = store.read().state;
   const identifying = state.addMode === "identify";
   const done = (state.added as Set<number>).has(Number(position));
   return {

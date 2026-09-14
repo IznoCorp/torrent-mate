@@ -32,6 +32,7 @@
 // and every surface that pushes inside a page answers. Nothing else changes:
 // the engine's rewind was reading a count it ASSUMED, and now it reads one
 // that is told to it.
+import { bridge } from "./shell-doors";
 
 // EVERY SURFACE THAT HAS PUSHED INSIDE A PAGE, asked rather than counted here:
 // each one knows whether it is open and this module never learns what any of
@@ -51,19 +52,11 @@ const stacked: (() => boolean)[] = [];
 /**
  * How many surfaces inside the page have an entry of their own right now.
  *
- * Published on the window because its reader is the dying engine's rewind,
- * which no module imports — the same door every other driving seam uses, and
- * it dies with the engine.
+ * Exported for the dying engine's rewind, which asks it through
+ * `engine/seams.ts` — and it dies with the engine.
  */
-function stackedSurfaces(): number {
+export function stackedSurfaces(): number {
   return stacked.filter((isOpen) => isOpen()).length;
-}
-
-declare global {
-  interface Window {
-    /** How many surfaces inside the page have pushed an entry of their own. */
-    __stackedSurfaces?: () => number;
-  }
 }
 
 /** The `data-*` a control carries when tapping it changes the page. */
@@ -106,7 +99,6 @@ export function giveTheEntryBackFirst(isOpen: () => boolean): () => void {
     return posed;
   };
   stacked.push(hasItsOwnEntry);
-  window.__stackedSurfaces = stackedSurfaces;
   document.addEventListener("click", (event) => {
     if (!hasItsOwnEntry()) return;
     if ((history.state as { layer?: unknown } | null)?.layer !== undefined) return;
@@ -121,7 +113,7 @@ export function giveTheEntryBackFirst(isOpen: () => boolean): () => void {
     }, { once: true });
     // THROUGH THE BRIDGE: the router's history instance is named by the file
     // that creates it, and a module that steps back asks that file to.
-    window.__bridge.back();
+    bridge.back();
   }, true);
   // WHAT THE SURFACE CALLS WHEN IT HAS PUSHED. Handed back rather than
   // exported, so there is no way to claim an entry for a surface that never

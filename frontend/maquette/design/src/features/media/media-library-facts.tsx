@@ -1,12 +1,14 @@
 // What the library holds of a medium: not owned, a film owned, or a series
 // with its seasons, aired and owned counts and completeness — and the season
 // list beneath.
+import type { MediaSeasons } from "./queries";
 import { useTranslation } from "react-i18next";
 import { useMediaReference, type MediaSheet } from "./reference";
 import { SkeletonLine } from "../../ui/state-surfaces";
 import { SeasonList } from "./season-list";
 import type { CatalogSeason, MediaSheetFields } from "./sheet-fields";
 import { factsPanel, keyValueRow, sectionHeading, statusDot } from "../../ui/variants";
+import { baseTitle } from "../../lib/titles";
 
 export function MediaLibraryFacts({
   sheet,
@@ -17,6 +19,7 @@ export function MediaLibraryFacts({
   followed,
   followTitle,
   seasons,
+  owned,
   own,
   aired,
   pct,
@@ -46,6 +49,8 @@ export function MediaLibraryFacts({
   /** The title the season act addresses — see `SeasonList`. */
   followTitle: string;
   seasons: [number, number | null, number][];
+  /** The episode numbers held, season by season — handed to the season list. */
+  owned: MediaSeasons["owned"] | undefined;
   own: number;
   aired: number;
   pct: number | null;
@@ -70,7 +75,6 @@ export function MediaLibraryFacts({
   /** Whether the SHEET's read is still out — the season list's episode lists come from it. */
   sheetInFlight: boolean;
 }) {
-  const { baseTitle } = useMediaReference();
   const { t } = useTranslation();
   return (
     <div>
@@ -211,7 +215,7 @@ export function MediaLibraryFacts({
                     value it qualifies. */}
                 {seasonsInFlight && pct === null ? null : (
                   <span
-                    className={`pip ${pct === 100 ? "success" : pct === null ? "neutral" : "warning"}`} data-part="status-dot"
+                    className={statusDot({ tone: pct === 100 ? "success" : pct === null ? "neutral" : "warning" })} data-part="status-dot"
                   ></span>
                 )}
                 {pct === null
@@ -231,6 +235,7 @@ export function MediaLibraryFacts({
         sheetInFlight={sheetInFlight}
         sheet={sheet}
         seasons={seasons}
+        owned={owned}
         owns={owns}
         catalog={catalog}
         title={title}

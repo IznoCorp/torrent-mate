@@ -15,8 +15,8 @@
 // « asks nothing of the engine: it watches the attribute both worlds already
 // emit ». ZERO LINES ARE ADDED TO THE ENGINE.
 //
-// CLOSING GOES THROUGH THE SEAM THE SCRIM ALREADY USES. `window.__closeLayers`
-// is published by the engine and called by `ui/sheet.tsx`'s scrim; the layer
+// CLOSING GOES THROUGH THE VERB THE SCRIM ALREADY USES. `closeLayers` is the
+// ladder's (`app/layers.ts`) and called by `ui/sheet.tsx`'s scrim; the layer
 // ladder is drawer → screen → sheet, so with the drawer open it closes the
 // drawer. A second closing path would be a second navigation history.
 //
@@ -47,7 +47,7 @@
 //
 // The transition is neutralised inline. The class this file used to add was
 // written to cancel it « exactly as the sheet's does », and cancelled
-// nothing: the sheet has a rule in `legacy.css` and the drawer had none,
+// nothing: the sheet's variant has a rule and the drawer had none,
 // so the 300 ms transition stayed in force for the whole drag. Measured: the
 // drawer lagged 40 to 53 px behind the finger and never caught up — 38 %. The
 // comment described a mechanism that did not exist, which is worse than no
@@ -58,7 +58,7 @@
 // own link-drag: `pointerdown`, one `pointermove`, `dragstart`, `pointercancel`
 // — the SAME signature as the touch failure above, from a different cause, and
 // the gesture died on five sixths of the band. The engine had paid for this one
-// too and written the remedy down (`legacy.css:578-587`, about dragging a
+// too and written the remedy down (`styles/legacy.css@f7e1a82a7`, about dragging a
 // picture): « it swallows the pointer stream outright … invisible to a touch
 // test, fatal to a mouse one. » R98 stayed green because its mouse hold drags at
 // the drawer's vertical middle, which happens to fall in the gap between two
@@ -74,6 +74,7 @@
 // because a grip zone is not a spacing step and the scale stops at 24px
 // (`styles/theme.css`). A finger confirms it or moves it.
 import { feedback } from "../lib/feedback";
+import { closeLayers } from "./layers";
 
 const BAND = 72;
 
@@ -118,16 +119,16 @@ export function installDrawerDismissGesture(): () => void {
     if (!isOpen() || !inBand(clientX)) return;
     drag = { x: clientX, dx: 0 };
     // THE TRANSITION IS NEUTRALISED INLINE, not through a class, and the class
-    // this used to add cancelled nothing. `.sheet.dragging` is a rule in
-    // `legacy.css`; `.drawer` had none, so the 300 ms transition stayed in
+    // this used to add cancelled nothing. `.sheet.dragging` is a utility on
+    // the sheet's variant; `.drawer` had none, so the 300 ms transition stayed in
     // force for the whole drag and the drawer lagged 40-53 px behind the finger
     // — measured, 38 %. A comment claiming a mechanism that does not exist is
     // worse than no comment.
     //
     // WHY INLINE RATHER THAN A RULE, and both alternatives were tried and
     // refused by a guard that was right. A `.drawer.dragging` rule beside its
-    // twin GROWS `legacy.css`, and the residue may only shrink — it is an
-    // exception with a date of death. An arbitrary variant on the drawer's own
+    // twin grew `legacy.css`, whose ceiling refused any growth, and that
+    // stylesheet is gone now. An arbitrary variant on the drawer's own
     // class makes Tailwind generate that class name as a utility, and
     // `check-tailwind-confinement.py` refuses that: `DECLARED_COLLISIONS` is
     // empty on purpose, because a colliding name does not override one property,
@@ -157,14 +158,14 @@ export function installDrawerDismissGesture(): () => void {
     // A CANCEL IS NOT A LIFT. It puts the drawer back rather than closing it on
     // a gesture the browser took away — `sheet.tsx`'s `endDrag(true)`.
     //
-    // CLOSING GOES THROUGH THE SEAM THE SCRIM ALREADY USES. `__closeLayers` is
-    // published by the engine and called by `ui/sheet.tsx`'s scrim; the ladder
+    // CLOSING GOES THROUGH THE VERB THE SCRIM ALREADY USES. `closeLayers` is
+    // the ladder's and called by `ui/sheet.tsx`'s scrim; the ladder
     // is drawer → screen → sheet, so with the drawer open it closes the drawer.
     // A second closing path would be a second navigation history.
     if (!cancelled && current.dx > CLOSE_THRESHOLD) {
       // Through the seam, like every other gesture — one call site (D9).
       feedback("commit", drawer);
-      window.__closeLayers?.();
+      closeLayers();
     }
   }
 
@@ -174,7 +175,7 @@ export function installDrawerDismissGesture(): () => void {
   // This returned `void` and the effect that calls it had no cleanup, so under
   // `React.StrictMode` — which is on, `shell.tsx` — the effect ran TWICE and
   // installed the gesture twice. Two independent `drag` states, so one dismiss
-  // called `window.__closeLayers()` twice and acknowledged itself twice.
+  // called `closeLayers()` twice and acknowledged itself twice.
   //
   // ⚠ AND IT IS NOT WHAT EXPLAINS B-278. The double `data-feedback` mark that
   // led here SURVIVED this cleanup, measured — so StrictMode's double-invoke is

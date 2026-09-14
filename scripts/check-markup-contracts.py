@@ -22,12 +22,9 @@ working while every gate stayed green:
   * `data-phase="prete"` on the « Réessayer » button of every error
     surface. No reader knows `prete`, so the retry wrote a phase nothing
     renders and the error screen never cleared.
-  * `data-hscen="reel"` / `"charge"` on the harness's data-scenario dial,
-    whose readers compare `real` / `loaded`. Clicking « État réel » landed
-    on the loaded branch and both buttons showed unpressed.
 
-Neither was found by reading the diff, by the 50-rule suite, or by a
-sweep for French strings — they are not French-vs-English, they are
+It was found neither by reading the diff, nor by the 50-rule suite, nor by
+a sweep for French strings — it is not French-vs-English, it is
 markup-vs-reader. This arm asks the only question that catches them:
 **does anything understand what this button writes?**
 
@@ -208,7 +205,7 @@ from markup_verbs import check_panel_verbs  # noqa: E402
 
 # `store.write({ pipe: closest.dataset.pipe })` — the handler that FORWARDS a
 # markup value into a store field. The two names differ often enough
-# (`data-hphase` → `phase`) that both are captured.
+# (`data-lmode` → `libMode`) that both are captured.
 FORWARDER = re.compile(
     r"store\.write\(\{\s*(?P<field>\w+)\s*:\s*\w+\.dataset\.(?P<attr>\w+)\s*,?\s*\}\)")
 

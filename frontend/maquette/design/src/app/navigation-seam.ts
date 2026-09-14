@@ -2,7 +2,7 @@
 //
 // The engine still draws the tab bar and the drawer, and it is the LAST thing
 // it will still draw from a page list. It no longer carries one: it asks here,
-// exactly as it asks `window.__address` for a path, and the answer is the one
+// exactly as it asks the address model for a path, and the answer is the one
 // table (`app/navigation.ts`).
 //
 // THE LABELS CROSS ALREADY TRANSLATED. The table holds keys, `fr.json` holds
@@ -34,28 +34,26 @@ export type NavigationRowForEngine = {
   badge: number;
 };
 
-declare global {
-  interface Window {
-    /** The navigation table, read by the engine while it still draws from one. */
-    __navigation?: {
+/** The navigation table, read by the engine while it still draws from one. Filled at install. */
+export let navigation:
+  | {
       rows: () => NavigationRowForEngine[];
       ids: () => string[];
       has: (id: string) => boolean;
       actionButtonOn: (id: string) => boolean;
       notFoundPage: string;
-    };
-  }
-}
+    }
+  | undefined;
 
 /**
- * Publishes the navigation table on the seam the engine reads.
+ * Fills the navigation table the engine reads.
  *
  * Called from the boot BEFORE the engine starts: the engine's own first render
  * asks for the bar, and a seam installed after it would leave the interface
  * opening with an empty bar until something moved.
  */
 export function installNavigationSeam(): void {
-  window.__navigation = {
+  navigation = {
     rows: () =>
       NAVIGATION.map((row) => ({
         id: row.id,

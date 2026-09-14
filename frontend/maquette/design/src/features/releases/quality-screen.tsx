@@ -3,10 +3,10 @@
 // screen — resolution floor, required audio, two locks; NOT the account page
 // at `?page=profil`, which stays legacy) reborn as a real route and a final
 // component. Markup is TRANSPLANTED, not translated: every tag and class
-// below is the one `refonte.html`'s BLOCK 2 CSS already targets
+// below is the one `refonte.html@60530dbd8`'s BLOCK 2 CSS already targets
 // (`.screen`, `.screen.open`, `.screen .port`, `.qgroup`, `.opt`, …), so the
 // same stylesheet applies unchanged and the rule harness measures the same
-// geometry it measured on the legacy `#screen`.
+// geometry.
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useReleases } from "./queries";
@@ -15,6 +15,8 @@ import { useReleasesReference, type Release, type Resolution } from "../../featu
 import { useUiState, writeUiState } from "../../lib/store-access";
 import { actionButton, backAction, body, factsPanel, keyValueRow, option, optionKind, optionLabel, optionList, optionMark, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, settingRow, sheetActions, toggleSwitch } from "../../ui/variants";
 import { qualityGroup } from "../../features/releases/variants";
+import { bridge } from "../../lib/shell-doors";
+import { baseTitle } from "../../lib/titles";
 
 // The field names are the legacy state's own — `state.profil` is written and
 // read by the engine under these exact keys.
@@ -60,7 +62,6 @@ export function QualityScreen() {
     RESOLUTIONS,
     AUDIOS,
     icons,
-    baseTitle,
   } = useReleasesReference();
   const { t } = useTranslation();
   // FROM THE CACHE (invariant 4).
@@ -88,14 +89,14 @@ export function QualityScreen() {
 
   return (
     <section
-      className={`${screen()} open`}
+      className={screen({ open: true })}
       data-part="screen"
       data-open=""
       data-key={`profile:${title}`}
       aria-label={title}
     >
       <div className={screenBar()} data-part="screen/bar">
-        <button className={backAction()} data-part="screen/back" onClick={() => window.__bridge.back()}>
+        <button className={backAction()} data-part="screen/back" onClick={() => bridge.back()}>
           <Icon paths={icons.left} />
           {t("screens.profile.back")}
         </button>
@@ -270,7 +271,7 @@ export function QualityScreen() {
           </div>
 
           <button
-            className={`cfoot ${actionButton()}`}
+            className={actionButton({ kind: "cardFoot" })}
             data-part="card/foot"
             data-toast={t("screens.profile.rankingToast")}
           >
@@ -282,7 +283,7 @@ export function QualityScreen() {
 
           <div className={sheetActions()} data-part="sheet/actions">
             <button
-              className={`sact primary ${actionButton()}`}
+              className={actionButton({ kind: "panelAction", tone: "primary" })}
               data-part="sheet/action"
               data-tone="primary"
               data-toast={t("screens.profile.saveToast")}

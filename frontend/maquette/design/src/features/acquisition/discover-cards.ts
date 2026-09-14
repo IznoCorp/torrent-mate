@@ -10,11 +10,17 @@
 // reading exactly what they read before. The card STATES which panel it
 // addresses and never how to build it.
 //
-// THE SHARED EMITTERS ARE THE ENGINE'S AND ARE CALLED VERBATIM. `cardHTML` and
-// `tileHTML` draw every row and tile in this application; a copy here would be
-// a second definition of one shape, and the rows they emit carry the `data-*`
+// THE SHARED EMITTERS ARE CALLED, NEVER COPIED. The engine's `cardHTML` draws
+// every card and `ui/tile.ts` every tile in this application; a copy here would
+// be a second definition of one shape, and the rows they emit carry the `data-*`
 // the delegation reads.
 import i18next from "i18next";
+import { posterArtwork } from "../../lib/engine-drawing";
+import { mediumCardMarkup } from "./card-markup";
+import { richTextMarkup } from "./rich-text";
+import { posterArtworkMarkup } from "../../ui/poster";
+import { tileMarkup } from "../../ui/tile";
+import { deckCaption, deckCardFrame, deckHint, deckMeta, deckPoster, deckReason, deckTitle, suggestionBack, suggestionWrap } from "./variants";
 
 declare global {
   interface Window {
@@ -38,6 +44,9 @@ export type Suggestion = {
   k: string;
   note: number | string;
   why: unknown;
+  poster?: string | null;
+  /** The provider identifiers — null for a title no sheet stands behind. */
+  ids?: Record<string, number | string> | null;
 };
 
 const drawing = () => window.__referentiel;
@@ -58,18 +67,20 @@ const say = (key: string, values?: Record<string, unknown>) =>
 export function suggestionRow(suggestion: Suggestion, position: number): string {
   const reference = drawing();
   const dismiss = say("notInterested");
-  return `<div class="sugwrap" data-part="suggestion/wrap" data-dismissable="${position}">
-      <div class="sugback">
+  return `<div class="${suggestionWrap()}" data-part="suggestion/wrap" data-dismissable="${position}">
+      <div class="${suggestionBack()}">
         <span>${reference.svgIcon(reference.icons.x)}${dismiss}</span>
         <span>${dismiss}${reference.svgIcon(reference.icons.x)}</span>
       </div>
-      ${reference.cardHTML({
+      ${mediumCardMarkup({
         t: suggestion.t,
         k: suggestion.k === "Film" ? "movie" : "show",
         s: `${suggestion.y} · ${suggestion.k}`,
         note: suggestion.note,
         r: suggestion.why,
         panel: `sug:${position}`,
+        poster: suggestion.poster,
+        ids: suggestion.ids,
       })}
     </div>`;
 }
@@ -85,15 +96,17 @@ export function suggestionRow(suggestion: Suggestion, position: number): string 
  *     The tile's markup.
  */
 export function suggestionTile(suggestion: Suggestion, position: number): string {
-  return drawing().tileHTML(
-    { t: suggestion.t, k: suggestion.k === "Film" ? "movie" : "show" },
-    `${suggestion.y} · ${suggestion.k}`,
-    {
-      panel: `sug:${position}`,
-      dismiss: position,
-      badge: { tone: "note", txt: String(suggestion.note) },
+  return tileMarkup({
+    title: suggestion.t,
+    subtitle: `${suggestion.y} · ${suggestion.k}`,
+    artwork: posterArtwork(drawing().icons, suggestion.poster, suggestion.t, suggestion.k === "Film" ? "movie" : "show"),
+    badge: { tone: "overlay", text: String(suggestion.note) },
+    attributes: {
+      "data-dismissable": position,
+      "data-panel": `sug:${position}`,
+      "data-mediasheet": suggestion.t,
     },
-  );
+  });
 }
 
 /**
@@ -121,22 +134,22 @@ export function deckCard(
   const escape = reference.escapeHtml;
   const poster = window.POSTERS_HD[suggestion.t]
     ? `<img src="${window.POSTERS_HD[suggestion.t]}" alt="" loading="lazy">`
-    : reference.posterBox(suggestion.t, suggestion.k === "Film" ? "movie" : "show");
+    : posterArtworkMarkup(posterArtwork(reference.icons, suggestion.poster, suggestion.t, suggestion.k === "Film" ? "movie" : "show"));
   // THE GESTURE LABELS BELONG TO THE TOP CARD ALONE — it is the only one a
   // finger can reach, and `advanceDeck` moves them with the place rather than
   // with the card.
   const hints =
     depth === 0
-      ? `<span class="dhint l">${say("skip")}</span>` +
-        `<span class="dhint r">${say("notInterested")}</span>`
+      ? `<span class="${deckHint({ side: "left" })}">${say("skip")}</span>` +
+        `<span class="${deckHint({ side: "right" })}">${say("notInterested")}</span>`
       : "";
-  return `<article class="dcard" data-part="deck/card" data-deck="${position}" data-depth="${depth}" data-panel="sug:${position}">
-      <button class="p" data-mediasheet="${escape(suggestion.t)}" aria-label="Fiche de ${escape(suggestion.t)}">
+  return `<article class="${deckCardFrame()}" data-part="deck/card" data-deck="${position}" data-depth="${depth}" data-panel="sug:${position}">
+      <button class="p ${deckPoster()}" data-mediasheet="${escape(suggestion.t)}" aria-label="Fiche de ${escape(suggestion.t)}">
         ${poster}
-        <span class="cap">
-          <span class="t" data-part="deck/title">${escape(suggestion.t)}</span>
-          <span class="m">${escape(suggestion.y)} · ${escape(suggestion.k)} · ${escape(String(suggestion.note))}${say("onTmdb")}</span>
-          <span class="why">${window.richText(suggestion.why)}</span>
+        <span class="cap ${deckCaption()}">
+          <span class="t ${deckTitle()}" data-part="deck/title">${escape(suggestion.t)}</span>
+          <span class="m ${deckMeta()}">${escape(suggestion.y)} · ${escape(suggestion.k)} · ${escape(String(suggestion.note))}${say("onTmdb")}</span>
+          <span class="why ${deckReason()}">${richTextMarkup(suggestion.why)}</span>
         </span>
       </button>
       ${hints}
@@ -146,7 +159,7 @@ export function deckCard(
 /** The gesture labels the card that takes the top place has to inherit. */
 export function deckHints(): string {
   return (
-    `<span class="dhint l">${say("skip")}</span>` +
-    `<span class="dhint r">${say("notInterested")}</span>`
+    `<span class="${deckHint({ side: "left" })}">${say("skip")}</span>` +
+    `<span class="${deckHint({ side: "right" })}">${say("notInterested")}</span>`
   );
 }

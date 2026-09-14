@@ -278,7 +278,7 @@ async def hold_the_drawer(journal, browser):
         links["inBand"] > 0 and links["undraggable"] == links["inBand"],
         f"{links['undraggable']} of {links['inBand']} links covering the band "
         f"carry `-webkit-user-drag: none` and `user-select: none` "
-        f"({links['total']} in the menu) — the remedy `legacy.css:578-587` "
+        f"({links['total']} in the menu) — the remedy `styles/legacy.css@f7e1a82a7` "
         "already writes for the same class: « it swallows the pointer stream "
         "outright … invisible to a touch test, fatal to a mouse one »")
 

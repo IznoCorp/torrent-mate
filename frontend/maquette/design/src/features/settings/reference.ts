@@ -18,7 +18,7 @@ import type { EngineDrawing } from "../../lib/engine-drawing";
 export type Secret = { k: string; l: string; def?: boolean };
 
 // One editable setting, as `allSettings()` flattens one — the legacy
-// settings-panel row (see refonte.html's `SETTINGS`) merged with the
+// settings-panel row (see refonte.html@60530dbd8's `SETTINGS`) merged with the
 // enclosing rubric it belongs to. `brut` / `v` stay untyped: a setting's
 // raw and current value can be a string, a number, or a nested structure
 // (e.g. the `disks` array), and the source never declares which.
@@ -69,14 +69,12 @@ export type SettingsTopic = {
 };
 
 export type SettingsReference = EngineDrawing & {
-  SETTINGS: SettingsTopic[];
   SETTINGS_STATE: SettingsState;
   SECRETS: Secret[];
-  // Réglages (settings) panel actions — read the full setting list, derive
+  // Réglages (settings) panel actions — derive
   // a setting's storage id, coerce a raw field input back to its stored
-  // type, and apply/open a pending edit. See refonte.html's `SETTINGS`
+  // type, and apply/open a pending edit. See refonte.html@60530dbd8's `SETTINGS`
   // neighbourhood for the file/rubric structure `Setting.rubrique` carries.
-  allSettings: () => Setting[];
   settingId: (setting: Setting) => string;
   // The value a field must DRAW: the pending edit when there is one, the
   // file's `brut` otherwise. The pending-edit overlay itself stays private to

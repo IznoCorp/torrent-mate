@@ -291,7 +291,7 @@ when the defect comes back.
 | B-229 | The confirmation dialog is not on the back ladder | by survey | `fixed #528` |
 | B-230 | The engine re-adds a viewport refusal to any host without a viewport meta | by survey | `fixed #528` |
 | B-231 | The tab bar is rebuilt from scratch on every render | by survey | `fixed #528` |
-| B-232 | Two dead layers: the page-render branch and `#screen` | by survey | `open` |
+| B-232 | Two dead layers: the page-render branch and `#screen` | by survey | `fixed #596` |
 | B-233 | `theme-color` is a constant while the document paints light | by survey | `fixed #528` |
 | B-234 | The viewport meta declares no `interactive-widget` | by survey | `fixed #540` |
 | B-235 | No desktop navigation exists beyond the drawer | by survey | `open` |
@@ -408,7 +408,7 @@ when the defect comes back.
 | B-346 | A paragraph that OPENS with another entry's identifier is read as that entry's body head, so it truncates the entry it lives in and — being the first such head in the file — makes the real entry's body the discarded one; `check-bug-register`'s closure arm was blind to B-310 and B-249 at once, and 25 second-or-later heads sit in the register today | by the micro-wave | `fixed #589` |
 | B-350 | A PAUSED SERIES is dimmed in the follows grid with no word saying why: the tile's caption is `stFraction(follow) ?? paused`, so a fraction always outranks the word — a paused FILM says « en pause » only because it has no fraction | by L13 | `fixed #572` |
 | B-351 | `check-maquette-comments.py` reads five suffixes and `.mjs` is not one of them, so every `.mjs` under `frontend/maquette/` is invisible to the comment rule AND to the corpus count the floor is derived from — one real occupant measured, `vite.config.mjs:143`'s « (L08) » | by L21 | `open` |
-| B-352 | `engine/states.js` is grandfathered at 786 non-blank lines and the size arm refuses both the growth AND the raise of its record, so NO surface born after L19 can be given a named state — and a state nobody names is a surface the oracle never measures | by L21 | `open` |
+| B-352 | `engine/states.js` is grandfathered at 786 non-blank lines and the size arm refuses both the growth AND the raise of its record, so NO surface born after L19 can be given a named state — and a state nobody names is a surface the oracle never measures | by L21 | `fixed #596` |
 | B-353 | UNDOING A REMOVAL DOES NOT RESTORE THE FOLLOW, it creates a new one wearing the same name: the layer's delete DROPS the record and the only way back is a CREATE, so the year, « suivi depuis » and the search count are lost and the status comes back right only by coincidence | by L21 | `fixed #572` |
 | B-360 | The pre-push gate refuses a push over a GREEN suite and shows the reason to nobody: each check runs silently first and, when that pytest dies of a signal, is rerun visibly — the rerun's « 11 325 passed » is printed and its result discarded, so the reader gets a green summary, then « Push aborted », and the failure in no output; three refusals in one morning on two branches, the same push landing on its next attempt | 1× | `open` |
 | B-361 | A Maintenance rubric cannot be left either — entering it writes `?topic=…` by replacement, pushes no entry and draws no back, so the system Back leaves « Maintenance » for Acquisition; B-332's shape on the second page that has rubrics, measured on the operator's phone by the real path | 1× | `fixed #588` |
@@ -466,6 +466,7 @@ when the defect comes back.
 | B-492 | Out of the desktop frame the overflow B-491 confined is the APP's own cascade — no element of the shell clips its absolute layers — so once `harness.css` ships nowhere a desktop document can scroll beside `#port` again | by the scroll-jump micro-wave | `open` |
 | B-495 | `scripts/heavy.sh` prints « holding off » once and « starts » with no timestamp, so how long a wrapped run WAITED for the lock and the readiness floor is unmeasurable afterwards — on 2026-09-13 the steward could not say whether a classed run held for a minute or an hour behind a host whose own one-minute load ran 9–15 | the next tooling wave (frozen apparatus: not before a defect reaches the operator) | `open` |
 | B-496 | `hooks/pre-push`'s `run_check` runs a check with its output sent to `/dev/null` and, when it fails, RUNS IT AGAIN to show the output — so a check that falls once and passes on the re-run prints a green summary under « FAILED », and the only reading of the fall is discarded | the next tooling wave | `open` |
+| B-497 | `scripts/build-mock-seeds.py --check` counts every converted family's seed as « no family claims it », so the tool's own drift report is red on a tree with no drift | by L13a | `open` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
 
@@ -688,6 +689,20 @@ verdict arrives with a reading that contradicts it. **The repair's shape**: run 
 into a file, and print that file on failure — the failing pass's own output, never a second
 execution. The same blind spot as `harness-hold-counts.py` (B-307's sixth instance), in another
 instrument. Filed, not repaired: the apparatus is frozen.
+
+**B-497 — `build-mock-seeds.py --check` reports the converted seeds as orphans.**
+
+The generator exempts a converted family's seed by name in two places — its own `--write` branch keeps the file, and
+`check-mock-seeds.py`'s correspondence arm counts it as « no longer re-derivable » — and `--check` exempts it in none: its
+last loop reads « every seed file that `build()` did not build » as « no family claims it ». Since L09 a converted family
+is exactly a seed `build()` cannot build, so the tool's own drift report exits 1 on a tree with no drift, listing the 23
+converted seeds one per line. Nothing reads `--check` in CI (the guard is `check-mock-seeds.py`, which is green), which is
+why it stayed red unread. Measured before and after L13a's identity phase: the same 23 lines, and nothing else.
+
+**Owner**: the phase of L13 that next touches the generator — a·10 or a·11, which kill `LIBRARY` and `INCOMPLETE` — or the
+next wave that touches the tool, which takes its debt.
+
+<sub>`python3 scripts/build-mock-seeds.py --check; echo $?` → 1, `23 seed(s) re-derived, 23 drifted`, 23 lines « no family claims it »</sub>
 
 **B-477 — followed as held, sheet says not in the library.**
 Found by R173 (the mock-layer micro-wave). House of the Dragon (26/26), Ted Lasso (35/35) and Star
@@ -1334,7 +1349,7 @@ the next wave that opens `legacy.js`.
 Measured on scratch trees, each restored, the repository never touched:
 
 - a `z-index` inside a `<style>` block of the shell's markup → **exit 0**. The markup arm reads
-  `class="…"` attributes only, and **`frontend/maquette/design/refonte.html` has a `<style>` at
+  `class="…"` attributes only, and **`frontend/maquette/design/refonte.html@60530dbd8` has a `<style>` at
   line 3** — a live file, not a hypothesis (it carries no `z-index` today; the reader checked).
 - a stylesheet in a SUBdirectory of `styles/` → **exit 0**: the arm globs `*.css`, not `rglob`.
   Every stylesheet the maquette has is `styles/*.css` today, so nothing is missed now.
@@ -1791,6 +1806,15 @@ again. Until then the gap widens by one entry per surface that would have wanted
 <sub>L21, 2026-09-06 · both refusals produced by `python3 scripts/check-frontend-boundaries.py`
 after adding one state to `engine/states.js`, then after raising the record in
 `scripts/frontend_size_ledger.py` · reverted, tree clean, arm reads 0</sub>
+
+> **Closed by L13a.** `engine/states.js` is deleted: the named states and the seams that drive them
+> (`__go`, `__states`, `__reset`) moved into the harness module `frontend/maquette/design/src/harness/`
+> (`drive.ts`, `states/<surface>.ts`), which no size record grandfathers, and the ledger's `states.js`
+> entry left in the same commit. A surface born after this can be given a named state, and so enter
+> the oracle's corpus, at the ordinary 400-line ceiling of the file that holds its states. The status
+> turns to `fixed #596` with this pull request.
+
+<sub>`ls frontend/maquette/design/src/engine/states.js` → No such file · `grep -n "window.__go = go" frontend/maquette/design/src/harness/drive.ts` → one line</sub>
 
 **B-351 — the comment rule cannot see a `.mjs`, and does not say so.**
 
@@ -7636,7 +7660,7 @@ and rounding it to a step un-hides the element.
 <sub>read in the browser on the served build — `padding: 10px 18px`, `border-radius: 0px 0px 12px 12px` · mutation: `16px` back in place — « `16px` is on no step of the spacing scale », exit 1</sub>
 
 **B-067 — R80, and its own proof is that the oracle cannot supply one.**
-`frontend/maquette/harness/residue.py` pairs each residue selector with the typed variant wearing
+`frontend/maquette/harness/residue.py@60530dbd8` pairs each residue selector with the typed variant wearing
 its identity anchor and compares `getComputedStyle` IN THE DOCUMENT, on two sibling probes, for
 exactly the properties the residue declares. Never as text: `flex: 0 0 auto` and `flex-none` are
 one value written twice. **Sixteen pairs stand where the finding named seven.** Registered as R80
@@ -7723,7 +7747,7 @@ measured at.
 <sub>`python3 scripts/check-code-abbreviations.py --list-baseline` → `"total": 1789` over 347 files</sub>
 
 **B-077 — the tests written to cover the browser-free half needed a browser to be collected.**
-`residue.py` imported `playwright` at module level, so `tests/scripts/test_residue.py` — whose
+`residue.py` imported `playwright` at module level, so `tests/scripts/test_residue.py@60530dbd8` — whose
 whole subject is the four PURE functions — could not be imported in CI's `test` job, which
 installs no browser. Green locally, where playwright is installed; an **ERROR** on the runner,
 which is a COLLECTION crash and therefore not one test failing but the module and everything
@@ -9757,6 +9781,17 @@ relative to it. Machinery nobody can justify, kept because nobody measured it (D
 **L13's**, with the rest of the residue; the survey's inventory is what says the branch is dead.
 
 <sub>`sed -n 7655,7745p legacy.js | grep -c "render:"` → 0 · `grep -n "screenStack" legacy.js`</sub>
+
+> **Closed by L13a.** The page-render branch had already left: `render()` writes `#view` nowhere,
+> and its own comment records the subtraction. `#screen` is deleted with everything that read it —
+> the node in `index.html`, `closeScreen`, `screenStack`, the unwind latch, the ladder's `screen`
+> rung, `window.__close`, and the mount-node placement, which now appends `#shell` to `#device`, the
+> place it already held among the frame's elements. The harness's eight readers lost a rung that
+> was identically false, or had a field re-aimed to `[data-part="screen"][data-open]`; the one hold
+> that was vacuous (`bridge.py`, « the media sheet is gone ») now reads the media sheet by its key.
+> The status turns to `fixed #596` with this pull request.
+
+<sub>`grep -c 'id="screen"' frontend/maquette/design/index.html` → 0 · `grep -cE "screenStack|closeScreen" frontend/maquette/design/src/engine/legacy.js` → 0</sub>
 
 **B-233 — `theme-color` is a constant while the document paints light.**
 `index.html:20` declares `<meta name="theme-color" content="#0b0b0d">` once. The inline script

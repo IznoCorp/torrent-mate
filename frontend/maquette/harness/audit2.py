@@ -1,5 +1,24 @@
 """Second adversarial pass — uniformity, consistency, honesty of the text.
 Aimed at what a screenshot does not show.
+
+THE ROOT LADDER HAS NO `#screen` RUNG. It had one, for a legacy node nothing
+ever opened, so the rung was identically false; it was removed rather than
+replaced, because the generic `[data-part="screen"][data-open][data-key]` rung
+already present covers every screen. The hold count is unchanged.
+
+R13'S « WITHOUT A VISUAL » SAMPLE IS READ FROM THE SERVED SHEET. RE-AIMED, and
+said here: it filtered the titles on the engine's wide-visual table, by title and
+then by title without the year, and the table died when the media screen began
+painting the payload's `hero`. So it asks `readMediaSheet` for each title's
+address instead — which is also truer: « Furious » and « Batman Caped Crusader »,
+the two the table picked, open on a sheet that DOES carry a visual (their other
+titles hold it), where « Widow's Bay (2026) » and « Widow's Bay » open on one
+that does not. The hold count is unchanged.
+
+RE-AIMED, said out loud: R13's sample, R29's owned numbers and R30's series and canonical titles were read from `SHEETS_RAW`, `OWNED`, `sheetFor`, `ownedFor`, `addressIdsFor` and `titleForProviderId`; R29 reads the owned numbers from the served seasons read. The engine's sheet table and
+its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
+`__carriedFor` — the seed the served read answers from, published by the harness
+driver — and the hold count is unchanged.
 """
 import asyncio
 import json
@@ -47,7 +66,6 @@ async def main():
         # the state does not show.
         bad=await pg.evaluate("""()=>{
           const r=document.querySelector('#dlg').hasAttribute('data-open')?'#dlg'
-                 :document.querySelector('#screen').hasAttribute('data-open')?'#screen'
                  :document.querySelector('#sheet').hasAttribute('data-open')?'#sheet'
                  :document.querySelector('[data-part="screen"][data-open][data-key]')?'[data-part="screen"][data-open][data-key]'
                  :'#view';
@@ -131,18 +149,26 @@ async def main():
     # suggestion, film and series.
     orders=await pg.evaluate("""async ()=>{
       const out={}, picks=[];
-      const titles=Object.keys(SHEETS_RAW ?? {});
+      const titles=Object.keys(window.__mocks.sheets()), ownedOf={}; for (const t of Object.keys(window.__mocks.sheets())) { const at=window.__addressOf(t); const o=at ? (await (await fetch(`/api/media/${at.provider}/${at.id}/seasons`)).json()).owned : null; if (o && Object.keys(o).length) ownedOf[t]=o; }
       const take=(pred, n)=>titles.filter(pred).slice(0, n);
-      const incomplete=(t)=>{const s=OWNED[t]??OWNED[baseTitle(t)];
-        if(!s) return false; const f=sheetFor(t); if(!f?.seasons) return false;
-        return f.seasons.some(x=>x.ep && (s[String(x.n)]??[]).length < x.ep);};
-      picks.push(...take(t=>sheetFor(t)?.k==='movie', 2));
-      picks.push(...take(t=>sheetFor(t)?.k==='show' && !incomplete(t), 2));
+      const incomplete=(t)=>{const s=ownedOf[t];
+        if(!s) return false; const f=window.__sheetOf(t); if(!f?.seasons) return false;
+        return f.seasons.some(x=>x.episodes && (s[String(x.number)]??[]).length < x.episodes);};
+      picks.push(...take(t=>window.__sheetOf(t)?.kind==='movie', 2));
+      picks.push(...take(t=>window.__sheetOf(t)?.kind==='show' && !incomplete(t), 2));
       picks.push(...take(incomplete, 4));
-      picks.push(...take(t=>!(HERO_IMAGES[t]??HERO_IMAGES[baseTitle(t)]), 2));
+      const withoutVisual=[];
+      for (const t of titles) {
+        if (withoutVisual.length===2) break;
+        const at=window.__addressOf(t);
+        const answer=at ? await fetch(`/api/media/${at.provider}/${at.id}`) : null;
+        const served=answer?.ok ? await answer.json() : null;
+        if (!served?.hero) withoutVisual.push(t);
+      }
+      picks.push(...withoutVisual);
       for (const t of [...new Set(picks)]) {
         window.__reset(); applyState({page:'lib', phase:'ready'});
-        window.__screens.mediaSheet(t);
+        window.__screens.mediaSheet(t, window.__carriedFor(t) ?? undefined);
         await new Promise(r=>setTimeout(r,240));
         const b=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"] [data-part="surface/body"]');
         if (!b) { out[t]=['EMPTY SHEET']; continue; }
@@ -259,7 +285,7 @@ async def main():
           // The media sheet left `#screen` for a real route; it is added here
           // by the identity it carries, or this rule about ALL media sheets
           // would stop seeing the very screen it is named after.
-          const root=document.querySelector('#screen[data-open], #sheet[data-open]')
+          const root=document.querySelector('#sheet[data-open]')
                   || document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
           const hero=root && root.querySelector('[data-part="hero/content"]');
           if (!hero) continue;
@@ -302,7 +328,7 @@ async def main():
         window.__go(s); await new Promise(r=>setTimeout(r,300));
         // Same reason as R26 above: the sheet is a route now, and it is where
         // the trailer lives — read it by its key or this rule goes quiet.
-        const root=document.querySelector('#screen[data-open], #sheet[data-open]')
+        const root=document.querySelector('#sheet[data-open]')
                 || document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
         if (!root || !root.querySelector('[data-part="hero/content"]')) continue;
         const el=root.querySelector('[data-part="media/trailer"]');
@@ -327,12 +353,11 @@ async def main():
     backs=await pg.evaluate("""async ()=>{const sig={}, glued=[];
       for (const s of window.__states()) {
         window.__go(s); await new Promise(r=>setTimeout(r,300));
-        // The screen carrying the bar is the legacy layer when it is up, and
-        // otherwise the migrated mediaSheet, named by its own key: leaving the
+        // The screen carrying the bar is the mediaSheet, named by its own
+        // key: leaving the
         // mediaSheet out would silently drop five states from this sweep, and a
         // rule that has gone quiet is not a rule that passes.
-        const screen=document.querySelector('#screen[data-open]')
-                  || document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
+        const screen=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
         const bar=screen?.querySelector('[data-part="screen/bar"]');
         if (!bar) continue;
         const btn=bar.querySelector('[data-part="screen/back"]');
@@ -372,17 +397,17 @@ async def main():
       // ALL series with an INTERNAL hole, not a sample: that is where the
       // threshold and the list diverge, so that is where the rule has a chance
       // to bite.
-      const withHoles=Object.entries(OWNED).filter(([t,s])=>
-        Object.values(s).some(l=>l.length && l.some((n,i)=>n!==i+1))).map(([t])=>t);
+      const ownedOf={}; for (const t of Object.keys(window.__mocks.sheets())) { const at=window.__addressOf(t); const o=at ? (await (await fetch(`/api/media/${at.provider}/${at.id}/seasons`)).json()).owned : null; if (o && Object.keys(o).length) ownedOf[t]=o; }
+      const withHoles=Object.entries(ownedOf).filter(([t,s])=>Object.values(s).some(l=>l.length && l.some((n,i)=>n!==i+1))).map(([t])=>t);
       if (!withHoles.length) return ['no series with an internal hole — the rule would be vacuous'];
       let inspected=0;
       for (const title of withHoles) {
         window.__reset(); applyState({page:'lib', phase:'ready'});
-        window.__screens.mediaSheet(title);
+        window.__screens.mediaSheet(title, window.__carriedFor(title) ?? undefined);
         await new Promise(r=>setTimeout(r,240));
         for (const det of document.querySelectorAll('[data-part="screen"][data-open][data-key^="mediaSheet:"] details[data-part="season"]')) {
           const num=Number((det.querySelector('summary')?.textContent||'').match(/Saison\\s+(\\d+)/)?.[1]);
-          const owned=ownedFor(title, num);
+          const owned=ownedOf[title] ? new Set(ownedOf[title][String(num)] ?? []) : null;
           if (!owned) continue;
           // BOTH renderings: titled rows AND the numbered matrix.
           const cells=[...det.querySelectorAll('[data-part="episode/row"]')].map(r=>[
@@ -407,7 +432,7 @@ async def main():
     # must not have two faces depending on the data it happens to have.
     renders=await pg.evaluate("""async ()=>{
       const c={rows:[], matrix:[], mixed:[], neverOpened:[], noSeason:[]};
-      const series=Object.keys(SHEETS_RAW).filter(t=>sheetFor(t)?.k!=='movie');
+      const series=Object.keys(window.__mocks.sheets()).filter(t=>window.__sheetOf(t)?.kind!=='movie');
       // The sheet is a ROUTE now: it commits a frame later than an `innerHTML`
       // assignment did. A FIXED wait makes this rule's coverage depend on how
       // loaded the host is — one too short and every sheet reads « no season »,
@@ -418,12 +443,12 @@ async def main():
         // The sheet is addressed by PROVIDER ID, so two catalogue keys for one
         // work — « Rick and Morty » and « Rick and Morty (2013) » — share ONE
         // address and open ONE sheet, keyed by whichever title the reverse
-        // index resolved. Waiting for the title one ASKED for would report
+        // served read answered. Waiting for the title one ASKED for would report
         // « never opened » about a sheet that opened correctly. Resolved
-        // through the application's own two functions rather than a rule of
-        // thumb about year suffixes.
-        const ids=window.addressIdsFor(t);
-        const canonical=ids ? (window.titleForProviderId(ids.provider, ids.id) ?? t) : t;
+        // through the sheet the read answers for the title's identity rather
+        // than a rule of thumb about year suffixes.
+        const ids=window.__addressOf(t);
+        const canonical=ids ? (window.__sheetOf(t)?.title ?? t) : t;
         const key='mediaSheet:'+canonical.normalize('NFC');
         for (let i=0;i<40;i++) {
           const el=document.querySelector('[data-part="screen"][data-open][data-key^="mediaSheet:"]');
@@ -434,7 +459,7 @@ async def main():
       };
       for (const t of series) {
         window.__reset(); applyState({page:'lib',phase:'ready'});
-        window.__screens.mediaSheet(t);
+        window.__screens.mediaSheet(t, window.__carriedFor(t) ?? undefined);
         const s=await waitFor(t);
         if (!s) { c.neverOpened.push(t); continue; }
         const dets=[...s.querySelectorAll('details[data-part="season"]')];

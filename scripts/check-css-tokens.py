@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Refuses a `var()` the maquette's application CSS cannot resolve.
 
-WHAT THIS CLOSES. `frontend/maquette/design/refonte.html` is split in two:
-BLOCK 1 is the prototype harness — the phone frame, the demo bars, the design
-notes — and BLOCK 2 is the application's own CSS, the stylesheet that BECOMES
-the app's when the maquette replaces it (product-intent §15).
+WHAT THIS CLOSES. The maquette's application CSS — the token layer and the base
+layer — is the stylesheet that BECOMES the app's when the maquette replaces it
+(product-intent §15); `src/styles/harness.css` is the prototype's harness and
+must not ship.
 
-Every token BLOCK 2 uses must be declared in BLOCK 2. A `var()` resolved only
-by a declaration sitting up in BLOCK 1 works today, inside the prototype, and
-resolves to nothing the day BLOCK 1 stops shipping — which is the whole point
-of the split. That is exactly the state this rule was written for: thirty-five
+Every token the application CSS uses must be declared in it. A `var()` resolved
+only by a declaration in the harness sheet works today, inside the prototype,
+and resolves to nothing the day the harness stops shipping — which is the whole
+point of the split. That is exactly the state this rule was written for: thirty-five
 tokens used and ONE declared, across 458 `var()` calls.
 
 WHAT COUNTS AS RESOLVED. The same block declares the custom property, OR it is
@@ -22,8 +22,8 @@ A token declared ONLY under a conditional scope (a theme attribute, a media
 condition) and used unconditionally is refused too: it renders correctly in the
 one state someone happened to look at, and to nothing everywhere else.
 
-THE SCALE ARM. `--arm scale` holds a second thing: every design constant BLOCK 2
-spends is a STEP declared in the scale block, and nowhere else. It is a wall:
+THE SCALE ARM. `--arm scale` holds a second thing: every design constant the application
+CSS spends is a STEP declared in the scale block, and nowhere else. It is a wall:
 the first off-scale declaration is refused, by selector, property and literal,
 with the step it sits nearest to so the reader can fold it in one edit.
 
@@ -73,17 +73,6 @@ from csstokens_patterns import COMMENT, DECLARATION, RUNTIME_PREFIX, USE
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# The maquette's own application CSS — BLOCK 2 of the prototype. It used to be
-# the GENERATED copy under `frontend/src/styles/ps/`; that copy existed to carry
-# the design into the shipped app surface by surface, a model the operator
-# reversed. The maquette replaces the app, so the source is the subject.
-FRAGMENT = ROOT / "frontend" / "maquette" / "design" / "refonte.html"
-
-# The comment that opens the application half. The extractor used the same
-# boundary, and reusing it is the point: a rule that disagreed with the file
-# about where the application CSS begins would be measuring a third thing.
-BLOCK_2 = "BLOCK 2"
-
 
 # One top-level rule: its selector prelude, and its body.
 RULE = re.compile(r"([^{}]+)\{([^{}]*)\}", re.S)
@@ -105,12 +94,6 @@ BASE_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "bas
 # block now rather than a `:root` one — the declarations between the markers
 # are unchanged, which is what lets this arm read it the same way it always did.
 THEME_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "theme.css"
-
-# The residue (D-L07-5). It holds `login:style` and `login:splashstyle`: the
-# sign-in screen and the splash belong to L13, so their CSS stays hand-written
-# — which is what keeps the gate composable at all, since a page built by text
-# extraction cannot receive utilities from a stylesheet it never loads.
-LEGACY_LAYER = ROOT / "frontend" / "maquette" / "design" / "src" / "styles" / "legacy.css"
 
 # The scale block's own markers. Its declarations ARE the steps, so the ratchet
 # excludes the span before it counts anything: a scale that had to answer for
@@ -520,70 +503,34 @@ def unresolved(css: str) -> tuple[list[str], list[str], list[str]]:
     return sorted(undefined), sorted(only_conditional), sorted(bare_runtime)
 
 
-def block_two() -> str | None:
-    """Slices BLOCK 2 out of the prototype, comments and all.
-
-    One slicing for every arm: an arm that disagreed with the file about where
-    the application CSS begins would be measuring a third thing.
-
-    Returns:
-        BLOCK 2's text, or `None` when the harness/application split is gone —
-        in which case the caller has already been told why.
-    """
-    if not FRAGMENT.exists():
-        print(
-            f"check-css-tokens: {FRAGMENT} not found — the scope is empty, so "
-            "a « no violation » here would mean nothing",
-            file=sys.stderr,
-        )
-        return None
-
-    whole = FRAGMENT.read_text(encoding="utf-8")
-    start = whole.find("<style")
-    end = whole.find("</style>", start)
-    marker = whole.find(BLOCK_2, start) if start >= 0 else -1
-    if start < 0 or end < 0 or marker < 0 or marker > end:
-        print(
-            "check-css-tokens: no <style> carrying BLOCK 2 in the maquette — "
-            "the harness/application split is gone and this rule cannot tell "
-            "them apart",
-            file=sys.stderr,
-        )
-        return None
-    return whole[whole.rfind("/*", start, marker) : end]
-
-
 def application_stylesheet() -> str | None:
     """Returns every stylesheet the APPLICATION ships, concatenated.
 
     THE SUBJECT IS UNCHANGED AND THE FILES ARE NOT. This arm has always asked
     one question: does the application's own CSS resolve every `var()` it uses
     ON ITS OWN, once the prototype's harness stops shipping? That used to be
-    `refonte.html`'s BLOCK 2 and nothing else. Since L07 the application's CSS
-    is FOUR files — the tokens, the base layer, the residue, and what is left
-    of BLOCK 2 — and reading only the last of them reported the entire scale as
-    dangling the moment it moved into `@theme`.
+    the prototype fragment's BLOCK 2; since L07 the application's CSS is the
+    token layer and the base layer, and the fragment is gone.
 
     Widening the read is therefore the opposite of relaxing the arm: a token
     declared in a file that does NOT ship would still be counted missing,
-    because these three are named one by one rather than globbed.
+    because these files are named one by one rather than globbed.
 
     Returns:
         The concatenation, joined by a newline so no pattern matches across the
-        seam between two files, or `None` when BLOCK 2 cannot be located — the
+        seam between two files, or `None` when neither layer can be read — the
         failure that must stay loud.
     """
-    fragment = block_two()
-    if fragment is None:
+    parts = [path.read_text(encoding="utf-8")
+             for path in (THEME_LAYER, BASE_LAYER) if path.exists()]
+    if not parts:
+        print(
+            "check-css-tokens: neither the token layer nor the base layer was "
+            "found — the scope is empty, so a « no violation » here would mean "
+            "nothing",
+            file=sys.stderr,
+        )
         return None
-    parts = [fragment]
-    # THE RESIDUE SHIPS, so its `var()` calls must resolve like any other. It
-    # joined this list when L07 emptied BLOCK 2: 462 of the uses this arm was
-    # written to check had moved into it, and a scope that empties makes « no
-    # violation » mean nothing — which is what the guard's own test says.
-    for path in (THEME_LAYER, BASE_LAYER, LEGACY_LAYER):
-        if path.exists():
-            parts.append(path.read_text(encoding="utf-8"))
     return "\n".join(parts)
 
 
@@ -651,12 +598,12 @@ def token_arm() -> int:
     # the residue's own tokens somewhere else entirely.
     shipped = ", ".join(
         name for name, path in (
-            ("theme.css", THEME_LAYER), ("base.css", BASE_LAYER), ("legacy.css", LEGACY_LAYER),
+            ("theme.css", THEME_LAYER), ("base.css", BASE_LAYER),
         ) if path.exists()
     )
     print(
         f"check-css-tokens: the application's stylesheet "
-        f"({FRAGMENT.name} BLOCK 2{', ' + shipped if shipped else ''}) — "
+        f"({shipped}) — "
         f"{len(used)} token(s) used, {len(declared)} declared, "
         "no unresolved `var()`."
     )

@@ -105,6 +105,23 @@ What this holds to:
    account for from the outside; the words are held against the engine's own
    source as well as heard on a console, so rewording one fells this rule
    rather than quietly leaving it listening for a line nothing prints.
+
+RE-AIMED, count unchanged: the sign-in gate is taken off through
+`window.__entry.hideSignIn()`, the entry seam the harness publishes. It was
+`window.hideSignIn()`, a forwarder the engine published and no longer declares;
+the forwarder called this same verb, with `false` outside a driven state.
+
+RE-AIMED, said out loud: the sheet's address was read from `addressIdsFor`. The engine's sheet table and
+its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
+`__carriedFor` — the seed the served read answers from, published by the harness
+driver — and the hold count is unchanged.
+
+RE-AIMED, said out loud: the maintenance command a cold `?panel=action:` reopens was
+the first entry of the engine's action table, which was dead data and is gone. It is
+the first command the served catalogue answers (`readMaintenanceActions`), asked at
+the address the page reads, and the hold count is unchanged. The setting it reopens
+is the first the served catalogue answers, for the same reason: the engine's
+settings table is gone.
 """
 import asyncio
 import json
@@ -168,8 +185,9 @@ PANEL_SUBJECTS = {
     "journey": ("()=>{const flying=(window.__queue?.().inFlight||[])[0];"
                 " if (flying && flying.t) return flying.t;"
                 " return ((window.__followActions?.all()||[])[0]||{}).t||'';}"),
-    "setting": "()=>{const s=window.allSettings()[0]; return s?window.settingId(s):'';}",
-    "action": "()=>(window.MAINT_ACTIONS[0]||{}).id||''",
+    "setting": ("async()=>{const topics=await (await fetch('/api/config/schema')).json();"
+                " const s=((topics[0]||{}).settings||[])[0]; return s?s.file+':'+s.key:'';}"),
+    "action": "async()=>((await (await fetch('/api/maintenance/actions')).json())[0]||{}).id||''",
 }
 
 # One concrete value per `$segment` a screen route carries, so the address
@@ -296,7 +314,7 @@ async def main():
         await pg.wait_for_timeout(300)
         journal.check("raising the gate from inside writes its address",
                       path(pg.url) == "/login", f"{before} -> {path(pg.url)}")
-        await pg.evaluate("()=>window.hideSignIn()")
+        await pg.evaluate("()=>window.__entry.hideSignIn()")
         await pg.wait_for_timeout(300)
         journal.check("and letting it through gives the address back",
                       path(pg.url) == HOME, pg.url)
@@ -325,7 +343,7 @@ async def main():
         journal.check("and the failed navigation write is on record",
                       broken["failed"] is True, f"__navEchec={broken['failed']}")
         await pg.evaluate("()=>{ window.__bridge.replace = window.__savedReplace; }")
-        await pg.evaluate("()=>window.hideSignIn()")
+        await pg.evaluate("()=>window.__entry.hideSignIn()")
         await pg.wait_for_timeout(300)
         journal.check("no JS error when a navigation write is refused", not errors, str(errors))
         await ctx.close()
@@ -342,7 +360,7 @@ async def main():
         await pg.evaluate(
             """()=>{ window.__savedReplace = window.__bridge.replace;
                      window.__bridge.replace = () => { throw new Error("refused"); }; }""")
-        await pg.evaluate("()=>window.hideSignIn()")
+        await pg.evaluate("()=>window.__entry.hideSignIn()")
         await pg.wait_for_timeout(300)
         released = await pg.evaluate(
             """()=>({down: document.querySelector('#login').hidden,
@@ -410,7 +428,7 @@ async def main():
         # page it sits on — and a not-found page underneath surfaces only once
         # the screen closes, on the stable link the wave exists to serve.
         ctx, pg, errors = await open_page(b)
-        sheet_ids = await pg.evaluate(f"()=>window.addressIdsFor({json.dumps(SHEET_TITLE)})")
+        sheet_ids = await pg.evaluate(f"()=>window.__addressOf({json.dumps(SHEET_TITLE)})")
         await ctx.close()
         # A fixture that moved leaves this empty, and reading a provider id off
         # it would raise where the rule should FALL: a traceback names the line

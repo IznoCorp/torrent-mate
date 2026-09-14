@@ -22,7 +22,9 @@
 // name, and a name two features claimed could never have had one.
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
-import { queueNow } from "../../lib/queue";
+import { queueNow, queueActions } from "../../lib/queue";
+import { panel, toast } from "../../lib/shell-doors";
+import { baseTitle } from "../../lib/titles";
 
 /**
  * Takes the medium a `data-take` value names.
@@ -39,12 +41,12 @@ import { queueNow } from "../../lib/queue";
 registerVerb("take", (value) => {
   if (!queueNow().takeable.some((one) => one.t === value)) return;
   const reference = window.__referentiel;
-  window.__panel.close();
-  window.__queueActions?.take(value);
+  panel.close();
+  queueActions?.take(value);
   reference.render();
-  window.__toast?.show({
+  toast?.show({
     message: i18next.t("verbs.arrivals.taken", {
-      title: reference.baseTitle(value),
+      title: baseTitle(value),
     }),
   });
 });

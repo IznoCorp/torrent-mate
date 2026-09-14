@@ -58,7 +58,7 @@ def prepare_scratch() -> None:
     # about a host that was perfectly fine. A build INPUT is a third end: adding
     # one means every place that assembles a build tree learns about it in the
     # same move.
-    for name in ("refonte.html", "index.html", "vite.config.mjs",
+    for name in ("index.html", "vite.config.mjs",
                  "build-identity.mjs", "package.json", "sw.js"):
         shutil.copy(design / name, SCRATCH / name)
     # The envelope names a module entry: without its source the scratch build
@@ -219,8 +219,12 @@ def main():
             f"{response_portal.status}, {len(portal_body)} bytes")
 
         # (b) An edited source is served rebuilt — never yesterday's build.
-        with open(SCRATCH / "refonte.html", "a") as file_:
-            file_.write("\n<!-- r73-probe -->\n")
+        # The source edited is `index.html`, the document the build starts
+        # from: the fragment it used to append to is gone.
+        document = (SCRATCH / "index.html").read_text(encoding="utf-8")
+        assert document.count("</body>") == 1, "index.html has no single </body>"
+        (SCRATCH / "index.html").write_text(
+            document.replace("</body>", "<!-- r73-probe -->\n</body>"), encoding="utf-8")
         response, served = request_("/", cookie)
         journal.check("an edited source is rebuilt on the fly",
                          response.status == 200 and b"r73-probe" in served,

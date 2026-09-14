@@ -48,7 +48,6 @@ DEBT_FILE = "frontend/maquette/design/src/engine/legacy.js"
 SHELL = MAQUETTE / "design" / "src"
 HARNESS = MAQUETTE / "harness"
 REGIONS = MAQUETTE / "regions.json"
-FRAGMENT = MAQUETTE / "design" / "refonte.html"
 EXTRACTED_CSS = ROOT / "frontend" / "src" / "styles" / "ps"
 SCRIPTS = ROOT / "scripts"
 
@@ -187,11 +186,6 @@ FROZEN_PATH_SEGMENTS = {
     # for the thing » without anyone having asked them. An exemption that
     # borrows an authority it never obtained is indistinguishable from an
     # oversight. It is in `code-vocabulary.txt` now, like any other word we use.
-    "refonte": (
-        "The legacy fragment (`refonte.html`), named verbatim by R72 and by "
-        "every rule that reads it. It DIES at SP4-end; renaming a file on its "
-        "way out buys nothing and costs every pointer at it."
-    ),
 }
 
 # Files NOBODY WRITES. The vocabulary arm asks « is this word one we use? »,

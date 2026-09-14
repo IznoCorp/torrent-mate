@@ -13,7 +13,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import { SurfaceError } from "../../ui/state-surfaces";
+import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { Icon } from "../../ui/icon";
 import { useAcquisitionReference } from "./reference";
 import { useUiState } from "../../lib/store-access";
@@ -23,6 +23,7 @@ import { Markup } from "../../ui/markup";
 // the engine's reference, which is what a surface does once its content has
 // stopped being the engine's.
 import { deckHTML, fillSug, mountDeck, sugFoot } from "./discover-feed";
+import { deckBody } from "./variants";
 
 // « Découvrir » — what one might want, which is the only surface here that
 // asks nothing of the operator: the bar's badge never counts it.
@@ -35,7 +36,7 @@ import { deckHTML, fillSug, mountDeck, sugFoot } from "./discover-feed";
 export function DiscoverTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { icons, skelCardsInner } = useAcquisitionReference();
+  const { icons } = useAcquisitionReference();
 
   // THE FRAGMENT FILLS WHAT THIS DRAWS, and it has to be asked AFTER the
   // drawing: `render()` calls the same verbs, but it calls them before React
@@ -129,7 +130,7 @@ export function DiscoverTab(): ReactElement {
     return (
       <>
         {selector}
-        <div className={`${body()} deckbody`} data-part="surface/body"></div>
+        <div className={`${body()} ${deckBody()}`} data-part="surface/body"></div>
       </>
     );
   }
@@ -138,7 +139,7 @@ export function DiscoverTab(): ReactElement {
     <>
       {selector}
       <div
-        className={`${body()}${state.sugMode === "deck" ? " deckbody" : ""}`}
+        className={`${body()}${state.sugMode === "deck" ? ` ${deckBody()}` : ""}`}
         data-part="surface/body"
       >
         <div className="note" data-part="note">
@@ -194,10 +195,7 @@ export function DiscoverTab(): ReactElement {
           {t("screens.acquisition.gesturesNoteAfter")}
         </div>
         {state.phase === "loading" ? (
-          <Markup
-            className={sectionClass()} data-part="section"
-            html={skelCardsInner(4)}
-          />
+          <div className={sectionClass()} data-part="section"><Skeletons count={4} shape="card" /></div>
         ) : state.phase === "error" ? (
           <SurfaceError subject={t("screens.acquisition.errorSuggestions")} />
         ) : null}

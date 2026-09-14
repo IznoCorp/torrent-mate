@@ -18,10 +18,13 @@
 // click delegation and its swipe handlers all still call them by name, and the
 // day it goes this file loses an importer rather than a subject.
 import i18next from "i18next";
-import { actionButton, loadFooterAction } from "../../ui/variants";
+import { actionButton, emptyNote, endMark, loadFooterAction, posterGrid, skeleton } from "../../ui/variants";
 import { cx } from "../../ui/cva";
 import { deckCard, deckHints, suggestionRow, suggestionTile, type Suggestion } from "./discover-cards";
-import { isReserveExhausted } from "./queries";
+import { isReserveExhausted, suggestions } from "./queries";
+import { store } from "../../lib/store-access";
+import { toast } from "../../lib/shell-doors";
+import { deckPile } from "./variants";
 
 /** How many more the footer asks for at a time. */
 const BATCH = 30;
@@ -57,8 +60,8 @@ let lastFooter = "";
 const drawing = () => window.__referentiel;
 const say = (key: string, values?: Record<string, unknown>) =>
   i18next.t(`discover.${key}`, values ?? {});
-const reserve = (): Suggestion[] => (window.__suggestions?.() ?? []) as Suggestion[];
-const uiState = () => window.__store.read().state;
+const reserve = (): Suggestion[] => (suggestions?.() ?? []) as Suggestion[];
+const uiState = () => store.read().state;
 
 /**
  * The order the pile is spent in, minus what has been dismissed.
@@ -84,12 +87,12 @@ export function deckOrder(): number[] {
   const order = state.sugOrder as number[] | undefined;
   const held = reserve().length;
   if (!order || order.length > held) {
-    window.__store.write({ sugOrder: reserve().map((one, index) => index) });
+    store.write({ sugOrder: reserve().map((one, index) => index) });
   } else if (order.length < held) {
     const arrived = [];
     for (let position = order.length; position < held; position += 1)
       arrived.push(position);
-    window.__store.write({ sugOrder: [...order, ...arrived] });
+    store.write({ sugOrder: [...order, ...arrived] });
   }
   const gone = uiState().sugGone as Set<number>;
   return (uiState().sugOrder as number[]).filter((one) => !gone.has(one));
@@ -105,7 +108,7 @@ export function deckOrder(): number[] {
  */
 export function passerSug(position: number): void {
   const rest = deckOrder().filter((one) => one !== position);
-  window.__store.write({ sugOrder: [...rest, position] });
+  store.write({ sugOrder: [...rest, position] });
 }
 
 /**
@@ -146,7 +149,7 @@ export function nothingLeftHTML(inList = false): string {
   const offer = exhausted
     ? ""
     : `<button class="${cx(actionButton({ size: "footer" }), loadFooterAction())}" data-sugmore="1">${reference.svgIcon(reference.icons.refresh)}${say("loadThirtyMore")}</button>`;
-  return `<div class="empty" data-part="empty-state"><b>${say("allSeenLead")}</b>
+  return `<div class="${emptyNote()}" data-part="empty-state"><b>${say("allSeenLead")}</b>
         <p>${say(restKey, { count: reserve().length })}</p>
         ${offer}</div>`;
 }
@@ -161,7 +164,7 @@ export function deckHTML(): string {
     .map(([suggestion, position], depth) => deckCard(suggestion, position, depth))
     .reverse()
     .join("");
-  return `<div class="deck" data-part="deck">${pile}</div>`;
+  return `<div class="${deckPile()}" data-part="deck">${pile}</div>`;
 }
 
 /**
@@ -271,7 +274,7 @@ export function fillSug(): void {
     return;
   }
   const draw = state.sugMode === "poster" ? suggestionTile : suggestionRow;
-  box.className = state.sugMode === "poster" ? "gallery" : "";
+  box.className = state.sugMode === "poster" ? posterGrid() : "";
   const gone = state.sugGone as Set<number>;
   const markup = reserve()
     .slice(0, state.sugCount as number)
@@ -301,7 +304,7 @@ export function dismissSug(position: number): void {
   const gone = uiState().sugGone as Set<number>;
   const undo = () => {
     gone.delete(position);
-    window.__store.touch();
+    store.touch();
   };
   const message = say("dismissed", { title: reserve()[position].t });
   if (uiState().sugMode === "deck") {
@@ -310,9 +313,9 @@ export function dismissSug(position: number): void {
     // Set mutated in place, so React needs the explicit bump a `write` would
     // otherwise have given it for free.
     gone.add(position);
-    window.__store.touch();
+    store.touch();
     refreshDeck();
-    window.__toast?.show({
+    toast?.show({
       message,
       undo: () => {
         undo();
@@ -324,12 +327,12 @@ export function dismissSug(position: number): void {
   const row = document.querySelector<HTMLElement>(`[data-dismissable="${position}"]`);
   if (!row) return;
   gone.add(position);
-  window.__store.touch();
+  store.touch();
   forgetDrawnFeed();
   row.style.height = row.getBoundingClientRect().height + "px";
   requestAnimationFrame(() => row.classList.add("gone"));
   window.setTimeout(() => row.remove(), COLLAPSE);
-  window.__toast?.show({
+  toast?.show({
     message,
     undo: () => {
       undo();
@@ -345,7 +348,7 @@ export function sugFoot(): void {
   if (!foot) return;
   const state = uiState();
   if ((state.sugCount as number) >= reserve().length) {
-    const end = `<p class="endmark">${say("endOfReserve", { loaded: reserve().length })}</p>`;
+    const end = `<p class="${endMark()}">${say("endOfReserve", { loaded: reserve().length })}</p>`;
     if (end !== lastFooter || foot.innerHTML === "") {
       lastFooter = end;
       foot.innerHTML = end;
@@ -354,7 +357,7 @@ export function sugFoot(): void {
   }
   const waiting =
     `<div style="display:flex;flex-direction:column;gap:14px">` +
-    `${'<div class="sk row" data-skeleton="" style="height:104px"></div>'.repeat(2)}</div>`;
+    `${`<div class="${skeleton({ shape: "row" })}" data-skeleton="" style="height:104px"></div>`.repeat(2)}</div>`;
   if (waiting !== lastFooter || foot.innerHTML === "") {
     lastFooter = waiting;
     foot.innerHTML = waiting;
@@ -373,10 +376,10 @@ export function sugFoot(): void {
 export function loadMoreSug(): void {
   const state = uiState();
   if (state.sugLoading || (state.sugCount as number) >= reserve().length) return;
-  window.__store.write({ sugLoading: true });
+  store.write({ sugLoading: true });
   sentinel?.disconnect();
   window.setTimeout(() => {
-    window.__store.write({
+    store.write({
       sugLoading: false,
       sugCount: Math.min(reserve().length, (uiState().sugCount as number) + BATCH),
     });
@@ -397,28 +400,8 @@ export function remountSuggestionLoader(): void {
   }
 }
 
-declare global {
-  interface Window {
-    /**
-     * The feed's own driving seam, for the harness.
-     *
-     * These names were among the 254 the engine republished on `window` so the
-     * rule suite could drive them; they left with the feed, and a rule reading
-     * `deckOrder()` off the global stopped finding it. Published here rather
-     * than left to the engine — `window.__sortWays` and `window.__settingLabels`
-     * are the same arrangement: the feature owns the answer and the harness
-     * reads it through one named door.
-     */
-    __discover?: {
-      order: () => number[];
-      pass: (position: number) => void;
-      advance: (position: number, direction: number) => void;
-      dismiss: (position: number) => void;
-    };
-  }
-}
-
-window.__discover = {
+/** The deck's own driving seam — its order and its three moves; the harness publishes it as `window.__discover`. */
+export const discover = {
   order: deckOrder,
   pass: passerSug,
   advance: advanceDeck,

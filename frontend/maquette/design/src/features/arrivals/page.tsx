@@ -15,18 +15,14 @@
 // action asked during a run is QUEUED, visibly, never refused with « busy, try
 // again ».
 //
-// The cards go through `cardHTML` and the fact rows through `factRowsHTML`,
-// both reused VERBATIM: the delegated handlers depend on that markup being
-// byte-exact. A section goes through `secInner`, the inside of the `secHTML`
-// the acquisition page's five sections still share — this component draws the
-// `<section class="sec">` itself, because React cannot set the outer markup of
-// a node it also renders,
-// and it reproduces the outer function's EMPTY case by drawing no section at
-// all.
+// The cards are `ArrivalCard`, the one card every list draws, carrying the
+// attributes the delegated handlers read. The run's steps are `FactRows`. A
+// section with no card is not drawn at all.
 import { useTranslation } from "react-i18next";
-import { SurfaceError } from "../../ui/state-surfaces";
+import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
-import { useArrivalsReference, type PipelineFact } from "../../features/arrivals/reference";
+import { type PipelineFact } from "../../features/arrivals/reference";
+import { ArrivalCard } from "./arrival-card";
 import { usePipeline } from "./queries";
 import { useStaging } from "../../lib/queue";
 import { type QueueCard } from "../../lib/engine-queue";
@@ -36,6 +32,7 @@ import {
   crossReference,
   crossReferenceLink,
   emptyNote,
+  factList,
   liveDot,
   liveEmphasis,
   liveStrip,
@@ -46,6 +43,7 @@ import {
   sectionHead,
   sectionTitle,
   statusDot as statusDotClass,
+  type StatusTone,
   } from "../../ui/variants";
 import {
   pilotActions,
@@ -55,7 +53,8 @@ import {
   pilotQualifier,
   pilotTitle,
 } from "./variants";
-import { Markup } from "../../ui/markup";
+import { Markup, emptyNoteMarkup } from "../../ui/markup";
+import { FactRows } from "../../ui/fact-rows";
 
 // The nine steps, told as the last run left them. A step with nothing recorded
 // at all reads « rien à faire »; a step that BLOCKED something says so and
@@ -130,16 +129,16 @@ function PipelineBar(): ReactElement | null {
                 {t("screens.arrivals.queuedRest")}
               </span>
             </div>
-            <button className={`cfoot ${actionButton()}`} data-part="card/foot" data-pipe="stop">
+            <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-pipe="stop">
               {t("screens.arrivals.stopPipeline")}
             </button>
           </>
         ) : (
           <div className={pilotActions()}>
-            <button className={`cfoot ${actionButton()}`} data-part="card/foot" data-pipe="start">
+            <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-pipe="start">
               {t("screens.arrivals.runAfterwards")}
             </button>
-            <button className={`cfoot ${actionButton()}`} data-part="card/foot" data-pipe="stop">
+            <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-pipe="stop">
               {t("screens.arrivals.stop")}
             </button>
           </div>
@@ -159,7 +158,7 @@ function PipelineBar(): ReactElement | null {
           })}
         </span>
       </div>
-      <button className={`cfoot solid ${actionButton()}`} data-part="card/foot" data-solid="" data-pipe="start">
+      <button className={actionButton({ kind: "cardFoot", tone: "solid" })} data-part="card/foot" data-solid="" data-pipe="start">
         {t("screens.arrivals.startPipeline")}
       </button>
     </section>
@@ -170,7 +169,6 @@ function PipelineBar(): ReactElement | null {
 // recorded; nothing here is derived from what the page shows.
 function LastRun(): ReactElement | null {
   const { t } = useTranslation();
-  const { factRowsHTML } = useArrivalsReference();
   const { data: PIPELINE } = usePipeline();
   if (!PIPELINE) return null;
   const run = PIPELINE.last;
@@ -192,10 +190,9 @@ function LastRun(): ReactElement | null {
           {t("screens.arrivals.triggeredWhen", { when: run.when })}
         </span>
       </div>
-      <Markup tag="ol"
-        className="flux" data-part="flux"
-        html={factRowsHTML(lastRunRows(PIPELINE.steps, run.facts, t))}
-      />
+      <ol className={factList()} data-part="flux">
+        <FactRows rows={lastRunRows(PIPELINE.steps, run.facts, t)} />
+      </ol>
     </section>
   );
 }
@@ -203,7 +200,6 @@ function LastRun(): ReactElement | null {
 export function ArrivalsPage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
-  const { cardHTML, secInner, emptyInner, skelCardsInner } = useArrivalsReference();
   // WHICH WORLD. The prototype carries two and the harness switches between
   // them; the key carries it, so a surface never reads the other one's cards.
   const scenario = state.scen === "loaded" ? "loaded" : "";
@@ -217,10 +213,7 @@ export function ArrivalsPage(): ReactElement | null {
     return state.phase === "error" ? (
       <SurfaceError subject={t("screens.arrivals.errorSubject")} />
     ) : (
-      <Markup
-        className={sectionClass()} data-part="section"
-        html={skelCardsInner(3)}
-      />
+      <div className={sectionClass()} data-part="section"><Skeletons count={3} shape="card" /></div>
     );
   }
 
@@ -229,20 +222,26 @@ export function ArrivalsPage(): ReactElement | null {
   const settled = staging?.settled ?? [];
   const nothing = stuck.length + moving.length + settled.length === 0;
 
-  // A section that would be empty is not drawn at all — the outer `secHTML`
-  // answered the empty string, and an empty string renders nothing.
+  // A section that would be empty is not drawn at all.
   const section = (
-    pip: string,
+    tone: StatusTone,
     title: string,
     cards: QueueCard[],
-    inner: string,
-    note?: string,
+    foot?: { label: string; act: string },
+    note?: ReactElement,
   ) =>
-    cards.length === 0 || inner === "" ? null : (
-      <Markup tag="section"
-        className={sectionClass()} data-part="section"
-        html={secInner(pip, title, String(cards.length), inner, note)}
-      />
+    cards.length === 0 ? null : (
+      <section className={sectionClass()} data-part="section">
+        <div className={sectionHead()} data-part="section/head">
+          <span className={statusDotClass({ tone })} data-part="status-dot"></span>
+          <span className={sectionTitle()} data-part="section/title">{title}</span>
+          <span className={sectionCount()} data-part="section/count">{cards.length}</span>
+        </div>
+        {note ? <div className="note" data-part="note">{note}</div> : null}
+        {cards.map((card, index) => (
+          <ArrivalCard key={`${index}:${String(card.t)}`} card={card} foot={foot} />
+        ))}
+      </section>
     );
 
   return (
@@ -276,7 +275,7 @@ export function ArrivalsPage(): ReactElement | null {
       {nothing ? (
         <Markup
           className={emptyNote()} data-part="empty-state"
-          html={emptyInner(
+          html={emptyNoteMarkup(
               t("screens.arrivals.emptyTitle"),
               t("screens.arrivals.emptyBody"),
             )}
@@ -286,15 +285,11 @@ export function ArrivalsPage(): ReactElement | null {
         "danger",
         t("screens.arrivals.stuckTitle"),
         stuck,
-        stuck
-          .map((card) =>
-            cardHTML(card, {
-              foot: t("screens.arrivals.stuckFoot"),
-              footAct: "resolve",
-            }),
-          )
-          .join(""),
-        `<b>${t("screens.arrivals.stuckNoteLead")}</b>${t("screens.arrivals.stuckNoteRest")}`,
+        { label: t("screens.arrivals.stuckFoot"), act: "resolve" },
+        <>
+          <b>{t("screens.arrivals.stuckNoteLead")}</b>
+          {t("screens.arrivals.stuckNoteRest")}
+        </>,
       )}
       {state.scen !== "real" ? (
         <button className={crossReference()} data-part="cross-reference" data-go="acq">
@@ -306,13 +301,11 @@ export function ArrivalsPage(): ReactElement | null {
         "info",
         t("screens.arrivals.movingTitle"),
         moving,
-        moving.map((card) => cardHTML(card)).join(""),
       )}
       {section(
         "success",
         t("screens.arrivals.settledTitle"),
         settled,
-        settled.map((card) => cardHTML(card)).join(""),
       )}
     </>
   );

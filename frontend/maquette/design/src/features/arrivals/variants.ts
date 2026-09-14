@@ -7,10 +7,8 @@
 // the strip found its second wearer the only way it could, as 9.9px of oracle
 // divergence on a page this phase never touched.
 //
-// WHAT IS NOT HERE IS THE RUN'S NINE STEPS. `.flux` and everything under it —
-// the row, its name, its result, its reason, its key — is written by the
-// engine, so its rules are in `src/styles/legacy.css` with their date of death
-// rather than half-converted here.
+// WHAT IS NOT HERE IS THE RUN'S NINE STEPS: the list and its rows are the fact
+// list other pages draw too, so they are `factList()` and `ui/fact-rows.tsx`.
 import { cva } from "../../ui/cva";
 
 /**
@@ -60,13 +58,8 @@ export const pilotActions = cva(
  * THE BUTTON'S OWN DEFAULTS ARE UNDONE HERE, because this prototype carries no
  * preflight: a `<button>` arrives with the browser's small control font, its
  * control text colour, a padding and centred text, while the card's box comes
- * from `.card` in the residue. Only what makes a button read as the card it was
- * is written here.
- *
- * IT DOES NOT ANCHOR ON `.card`, and that is deliberate: an anchor claims the
- * residue rule of the same name, and `residue.py` then compares the pair the way
- * it compares a conversion — this factory converts nothing, it sits beside a rule
- * three cards still wear. The class stays on the element, where it always was.
+ * from `card()`, worn beside this factory. Only what makes a button read as the
+ * card it was is written here, and so it claims no anchor of its own.
  */
 export const candidateCard = cva("text-left p-0 [font:inherit] text-inherit");
 

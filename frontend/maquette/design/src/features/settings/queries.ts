@@ -4,9 +4,10 @@
 // VALUE is never read back, and the layer answers only which keys there are and
 // whether each is defined.
 import { useQuery } from "@tanstack/react-query";
-import { HELD, read, send } from "../../lib/query-client";
+import { HELD, read, send, sharedQueryClient } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
-import type { Secret, SettingsTopic } from "./reference";
+import { flattenSettings } from "./catalog";
+import type { Secret, Setting, SettingsTopic } from "./reference";
 
 /**
  * The settings, by topic, as a query DEFINITION.
@@ -25,6 +26,18 @@ export const settingsQuery = {
 /** The settings, by topic. */
 export function useSettings() {
   return useQuery(settingsQuery);
+}
+
+/**
+ * Every setting the cache holds, flattened out of its rubric.
+ *
+ * For a caller that is not a component — a verb answering a tap on a field the
+ * panel has already drawn, so the catalogue it asks for is in the cache.
+ *
+ * @returns One entry per setting, empty while the catalogue has not been read.
+ */
+export function heldSettings(): Setting[] {
+  return flattenSettings(sharedQueryClient?.getQueryData<SettingsTopic[]>(settingsQuery.queryKey) ?? []);
 }
 
 /** Which secrets exist, and whether each is defined — as a definition. */

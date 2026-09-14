@@ -50,6 +50,8 @@ exactly what they drove before (DESIGN § 4.1; § 3, rows 1–5).
 - **L20's plan.** Its phase 2 creates `design/src/states/system.ts` (new file, L20's plan), which loses its subject here
   (DESIGN § 9.3). Re-targeting it is the steward's job; this phase does not touch L20's plan.
 
+**Amended 2026-09-13, on a measurement the design missed** (the steward's ruling of the same day). `applyState` is PRODUCT code as well as the harness's: the engine's back handler restores a page through it, under the latch, on a popstate onto a nav entry (`grep -nE "applyState\(" frontend/maquette/design/src/engine/legacy.js`, inside `onEngineBack`). So it STAYS in the engine, exported, and `harness/drive.ts` imports it and publishes `window.applyState` for the seven rules that call it. This makes VOID « the published `applyState` » in the move's `drive.ts` item, « `applyState` » in its deleted list, and DESIGN § 3 row 4's home for it: the product never depends on the instrument. Phase a·3 moves it with `onEngineBack`. **The same holds for the `window.state` getter**, which DESIGN § 6 sends out in a·1: the engine reads the bare `state` itself (the boot's `Object.assign(state, …)`), so the getter stays published by the engine at evaluation — moved to the harness install, which runs after the boot, the boot threw « state is not defined » and the contracts tier fell on fifteen checks.
+
 ## Gate
 
 Per INDEX « Gates ». In addition: `--arm size` no longer lists `engine/states.js`; the lift-out figures and the B-352 replay
@@ -58,3 +60,29 @@ are in the report. STOP D if one surface's states cannot fit under 400 non-blank
 ## Commit
 
 `refactor(maquette-l13): the driving seams and the named states leave the engine for the harness module`
+
+## Amendment — 2026-09-13, the operator's ruling on Q2
+
+**Q2 is ruled (B): the ≡ harness panel dies.** The operator, verbatim: « Je ne l'utilise pas ! À la base
+il était fait pour le contrôle des agents, pour vérifier facilement un état, pas pour moi. » The named
+states stay reachable through `window.__go`, and the dials through the console. This phase is not
+reopened: the panel landed in `design/src/harness/panel.ts`, and it leaves in ONE later commit of L13a,
+**a·18-bis**, before a·19's full gate.
+
+What a·18-bis deletes: `harness/panel.ts` and its five verbs (`hscen`, `hphase`, `htmdb`, `hgo`,
+`hclose`), the « ≡ » button's markup, every `styles/harness.css` rule only the panel used (with any R80
+pair it removes named), and the i18n keys only the panel read.
+
+**« Tapped by no rule » above is not true**, measured on 2026-09-13 before any deletion
+(`grep -nE "notesBtn|scenBtn|harness/bar|harness/panel" frontend/maquette/harness/*.py`):
+`hiding.py` reads `#notesBtn`; `message_above_harness.py` reads `[data-part="harness/bar"]`,
+`[data-part="harness/panel"]` and `#scenBtn`; `chrome.py` reads `[data-part="harness/bar"]`; `audit.py`
+and `dest.py` exclude both parts from their sweeps. **Those readers go with the panel, in the same
+a·18-bis commit** (the steward's ruling, 2026-09-13): the holds of `hiding.py`,
+`message_above_harness.py` and `chrome.py` whose subject is the panel are removed with it, each named
+in the commit body with the hold count it takes away, and the two exclusions in `audit.py` and
+`dest.py` are dropped. a·18-bis runs the grep rule for every name it removes over `harness/*.py` before
+its gate.
+
+**Ruling 31 — 2026-09-13, the steward, on the grep re-taken that day. It makes VOID the paragraph above where they differ.** The operator's word kills the ≡ PANEL and nothing else. It goes: the panel half of `harness/panel.ts` and its five `h*` verbs, the « ≡ » opener `#scenBtn`, the `.hpanel` rules wherever they live (they are in `styles/legacy.css`, not `harness.css`), the i18n keys only the panel used, `scripts/markup_verbs.py`'s five `registerVerb h*` answers, `check-markup-contracts.py`'s `data-hscen`/`data-hphase` contract and its two test assertions, and `hscen` in `code-vocabulary.txt`. It STAYS: `[data-part="harness/bar"]` (the bar keeps the notes button) and `#notesBtn` « Notes de conception » with its toggle code — a reader's control, not an agent's, which the ruling never named. So `hiding.py` and `chrome.py` (R51) do NOT move; `message_above_harness.py` drops its `harness/panel` and `#scenBtn` reads and keeps `harness/bar`; `audit.py` and `dest.py` drop `harness/panel` from their exclusions and keep `harness/bar`. **ORDER**: the commit runs BEFORE a·18 and is renumbered **a·17-bis**, because a stylesheet cannot die while a component still needs its `.hpanel` rules; a·18 then deletes a file nothing reads.
+

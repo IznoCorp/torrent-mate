@@ -47,7 +47,7 @@ export function installReleasesLookup(queryClient: QueryClient): void {
   // screen », and since the key carries the title there is one entry per title
   // rather than one entry. The most recently answered is the one being looked
   // at — the same reading the redraw bridge takes, and for the same reason.
-  window.__releases = () => {
+  releases = () => {
     const answered = queryClient.getQueryCache().getAll()
       .filter((entry) => entry.queryKey[0] === "/api/acquisition/releases"
               && entry.state.data !== undefined)
@@ -62,3 +62,6 @@ declare global {
     __releases?: () => Release[];
   }
 }
+
+/** The releases on screen — filled at install. */
+export let releases: Window["__releases"];

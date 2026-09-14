@@ -38,6 +38,11 @@ opened by a legacy producer through `window.__panel`, never by a component
 holding a reference to the block. Two of the three ends present is a panel that
 throws on a kind it declares, and it throws where the PRODUCER wrote it, far
 from the file that forgot.
+
+RE-AIMED, said out loud: the sheet's address was read from `addressIdsFor`, and the in-app door is opened with the identity a tap carries. The engine's sheet table and
+its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
+`__carriedFor` — the seed the served read answers from, published by the harness
+driver — and the hold count is unchanged.
 """
 import asyncio
 import pathlib
@@ -697,7 +702,7 @@ async def main():
         await pg_ids.goto(PROTOTYPE, wait_until="load")
         await pg_ids.evaluate("()=>window.__loadingDone?.()")
         await pg_ids.wait_for_timeout(300)
-        ids = await pg_ids.evaluate(f"()=>window.addressIdsFor({SHEET_TITLE!r})")
+        ids = await pg_ids.evaluate(f"()=>window.__addressOf({SHEET_TITLE!r})")
         await ctx_ids.close()
         check("the media sheet's own address ids are resolvable",
               bool(ids and ids.get("provider") and ids.get("id")), str(ids))
@@ -738,7 +743,7 @@ async def main():
         await pg7.goto(PROTOTYPE, wait_until="load")
         await pg7.evaluate("()=>window.__loadingDone?.()")
         await pg7.wait_for_timeout(300)
-        await pg7.evaluate(f"()=>window.__screens.mediaSheet({SHEET_TITLE!r})")
+        await pg7.evaluate(f"()=>window.__screens.mediaSheet({SHEET_TITLE!r}, window.__carriedFor({SHEET_TITLE!r}) ?? undefined)")
         await pg7.wait_for_timeout(500)
         await pg7.evaluate(f"()=>window.__panel.produce('follow', {FOLLOW_TITLE!r})")
         await pg7.wait_for_timeout(500)

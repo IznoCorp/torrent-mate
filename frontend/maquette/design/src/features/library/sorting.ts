@@ -11,7 +11,7 @@
 //
 // PUBLISHED FOR THE ENGINE AND FOR THE RULE, which is `settings-labels.ts`'s
 // arrangement exactly: the feature owns the answer, the fragment reads it
-// through `window.__sortWays`, and `harness/library_sort.py` reads the NAMES
+// through `engine/seams.ts`, and `harness/library_sort.py` reads the NAMES
 // from the prototype rather than restating them — a rule carrying its own copy
 // of six labels goes green the day the interface renames one.
 import i18next from "i18next";
@@ -54,5 +54,3 @@ declare global {
     __sortWays?: () => Record<string, SortWay>;
   }
 }
-
-window.__sortWays = sortWays;

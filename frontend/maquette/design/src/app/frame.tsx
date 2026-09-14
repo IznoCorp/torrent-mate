@@ -18,7 +18,6 @@ import { ActionButton } from "./action-button";
 import { BottomSlot } from "./bottom-slot";
 import { NavigationDrawer } from "./drawer";
 import { installAppearance } from "./appearance";
-import { installLayerRegistry } from "./layer-registry";
 import { DialogLayer } from "./dialog-layer";
 import { installDialogHost } from "./dialog-host";
 import { installEntry } from "./entry";
@@ -38,7 +37,6 @@ import { TabBar } from "./tab-bar";
 // writes anything: the engine imports through `app/shell.tsx`, and the shell
 // imports this file with the rest of the frame.
 installToastHost();
-installLayerRegistry();
 installDialogHost();
 installPopoverHost();
 installEntry();

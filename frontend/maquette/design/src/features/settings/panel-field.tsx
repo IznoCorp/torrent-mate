@@ -18,6 +18,7 @@ import { settingLabel, unitOf } from "../../features/settings/labels";
 import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
 import { fieldInput, fieldKnob, fieldLabel, fieldToggle, fieldUnit, listAdd, listItem, listRemove, panelField } from "./variants";
 import { ruleNote } from "../../ui/variants";
+import { panel } from "../../lib/shell-doors";
 
 // The kind this file adds to the panel's block map. Declared here, beside what
 // draws it, so the two halves of the contract cannot drift apart.
@@ -28,7 +29,7 @@ declare module "../../ui/panel/contract" {
 }
 
 // `fileName` is pure formatting off a `Setting`'s own fields —
-// refonte.html keeps it private (not published on `__referentiel`) but it
+// refonte.html@60530dbd8 keeps it private (not published on `__referentiel`) but it
 // carries no engine state, so it is reproduced verbatim rather than
 // re-derived differently. HOW A SETTING IS NAMED is not reproduced at all:
 // `settings-labels.ts` is the one implementation, read by the page that lists
@@ -63,7 +64,7 @@ function FieldBlock({
 
   if (setting.type === "structure")
     return (
-      <div className={`${panelField()} readonly`} data-part="field" data-read-only="">
+      <div className={panelField({ readOnly: true })} data-part="field" data-read-only="">
         <p className={ruleNote()}>
           {t("settings.field.structureBefore")}{" "}
           <b>{t("settings.field.structureWord")}</b>{" "}
@@ -157,7 +158,7 @@ function FieldBlock({
         placeholder={empty ? t("settings.field.undefinedPlaceholder") : ""}
         aria-label={settingLabel(setting)}
         // The ONE place mountSearch's `.fieldinput` `onchange` binding
-        // (refonte.html) is replaced by a component-owned handler — and it is
+        // (refonte.html@60530dbd8) is replaced by a component-owned handler — and it is
         // the SAME event, bound natively rather than through React's synthetic
         // `onChange`. Three reasons, all measured rather than stylistic:
         //   · the DOM `change` event commits on blur, once; React's `onChange`
@@ -179,7 +180,7 @@ function FieldBlock({
             // REDRAWN THROUGH THE SEAM: the producer is this feature's
             // now, and the panel is re-opened by kind rather than by a function
             // the engine published.
-            window.__panel.produce("setting", id);
+            panel.produce("setting", id);
           };
           element.addEventListener("change", commit);
           return () => element.removeEventListener("change", commit);

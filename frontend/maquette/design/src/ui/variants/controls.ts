@@ -39,8 +39,8 @@ export const actionButton = cva(
        *
        * EVERY BRANCH IS A STRING LITERAL, and that is not a style. A shared
        * constant, or a template built from one, makes the branch unreadable to
-       * `residue.py`, which reads a factory through its literals and says so
-       * when it cannot — the pair then silently stops being compared. That
+       * `harness/factories.py`, which reads a factory through its literals and
+       * says so when it cannot. That
        * lesson was paid for once already, at the price of a gate quieted
        * rather than passed.
        *
@@ -64,8 +64,69 @@ export const actionButton = cva(
           "min-h-[40px] p-4 text-3 " +
           "[&>svg]:w-[16px] [&>svg]:h-[16px] [&>svg]:flex-none",
       },
+      /**
+       * WHAT THE BUTTON IS, and the identity class it wears in front.
+       *
+       * `panelAction` is an action inside a panel or a screen's action list
+       * (`sact`); `cardFoot` is the option a card or a list offers at its foot
+       * (`cfoot`); `add` takes a medium in (`mediaadd`); `submit` sends a form
+       * (`btnprimary`). The class stays because rules select it — the base
+       * layer's icon rules among them — and it is the name the interface
+       * reads.
+       */
+      kind: {
+        panelAction: "sact border",
+        cardFoot: "cfoot mt-4 border",
+        add: "mediaadd border",
+        submit: "btnprimary flex-none [border:0]",
+      },
+      /**
+       * ITS TONE. The tone class is kept for the same reason as the kind's.
+       *
+       * THE COLOURS ARE NOT HERE, they are in `compoundVariants` below, one
+       * entry per kind and tone, and each entry carries all of them. Tailwind
+       * orders two utilities setting the same property by their NAME, so a
+       * plain border written in the kind and a tone's border written here would
+       * be decided by the alphabet — `border-border` sorts before
+       * `border-primary` and would lose to it whatever the tone said.
+       */
+      tone: {
+        plain: "",
+        primary: "primary",
+        danger: "danger",
+        solid: "solid",
+        owned: "owned",
+        done: "done",
+      },
     },
-    defaultVariants: { size: "screen" },
+    compoundVariants: [
+      {
+        kind: "panelAction",
+        tone: "plain",
+        class: "border-border bg-transparent text-foreground [&_svg]:text-muted-foreground",
+      },
+      {
+        kind: "panelAction",
+        tone: "danger",
+        class: "border-border bg-transparent text-danger [&_svg]:text-muted-foreground",
+      },
+      {
+        kind: "panelAction",
+        tone: "primary",
+        class: "border-primary bg-primary text-primary-foreground [&_svg]:text-primary-foreground",
+      },
+      { kind: "cardFoot", tone: "plain", class: "border-primary bg-transparent text-primary" },
+      { kind: "cardFoot", tone: "solid", class: "border-primary bg-primary text-primary-foreground" },
+      // The action is still offered, but it will REPLACE something already
+      // owned — the tone says so before the dialog does.
+      { kind: "cardFoot", tone: "owned", class: "border-warning bg-transparent text-warning" },
+      { kind: "add", tone: "plain", class: "border-primary bg-primary text-primary-foreground" },
+      // Carried out, and it stays readable and in place: the receipt for the
+      // tap, not a button that vanished.
+      { kind: "add", tone: "done", class: "border-border bg-transparent text-muted-foreground" },
+      { kind: "submit", tone: "plain", class: "bg-primary text-primary-foreground" },
+    ],
+    defaultVariants: { size: "screen", tone: "plain" },
   },
 );
 

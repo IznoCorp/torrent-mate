@@ -33,8 +33,8 @@ at. Each layer is now driven into its own exit and read there.
 
 THE ONE LAYER IT DOES NOT HOLD, and why, so nobody reads its absence as an
 oversight: the SCREEN (`ui/variants/layout.ts`'s `screen`). Its closed state is
-the variant's BASE and its open state is a residue rule the engine toggles
-(`.screen.open` in `styles/legacy.css`), so the closed-state-only idiom cannot
+the variant's BASE and its open state was a residue rule the engine toggled
+(`.screen.open`, since folded into the variant's `open` branch), so the closed-state-only idiom cannot
 be expressed on it without splitting the variant in two — which is restructuring
 a layer this lot did not convert. It carries the same defect today, it is
 recorded as such in B-249, and it belongs to whichever lot converts the screen.
@@ -48,6 +48,10 @@ nobody in this wave may change.
 AND IT CANNOT SEE A FLASH. A flash is a paint, and no assertion here can time
 one. What it reads is the fact the flash is made of: a layer that stops being
 visible before it has finished leaving.
+
+THE REGISTRY IT READS AS `window.__layers` is `app/layers.ts`'s, the module the
+ladder's handler walks it from. RE-AIMED in its source only: the published
+name is the same, and so is this rule's hold count.
 """
 import asyncio
 import pathlib
@@ -74,7 +78,7 @@ LONG_PRESS = """()=>{
 }"""
 
 # EVERY LAYER OF THE FRAME THAT LEAVES ON A TRANSITION. The screen is absent by
-# name — see the header — and the harness panel ships nowhere.
+# name — see the header.
 LAYERS = {
     "scrim": "#scrim",
     "sheet": "#sheet",

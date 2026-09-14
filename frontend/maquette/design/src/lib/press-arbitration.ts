@@ -161,19 +161,19 @@ declare global {
   }
 }
 
+/** The press's own numbers, once an arbitration is installed — published by the harness as `window.__gestures.press`. */
+export let pressNumbers: Record<string, number> | undefined;
+
 export function installPressArbitration(
   options: PressArbitrationOptions,
 ): PressArbitration {
   let press: PressInFlight | null = null;
   let swallowClick: Point | null = null;
 
-  window.__gestures = {
-    ...(window.__gestures ?? {}),
-    press: {
-      milliseconds: PRESS_MILLISECONDS,
-      tolerancePixels: PRESS_TOLERANCE_PIXELS,
-      settleMilliseconds: PRESS_SETTLE_MILLISECONDS,
-    },
+  pressNumbers = {
+    milliseconds: PRESS_MILLISECONDS,
+    tolerancePixels: PRESS_TOLERANCE_PIXELS,
+    settleMilliseconds: PRESS_SETTLE_MILLISECONDS,
   };
 
   function cancelPress(): void {
