@@ -28,7 +28,7 @@ oracle said so; only the text reading had to follow.
 
 RE-AIMED, count unchanged: the avatar opens the account panel through `data-account`,
 the account's own name; the engine's value-dispatched `data-sheet="utilisateur"` was split
-by owner and `data-sheet` keeps only acquisition's `plus`.
+by owner, and acquisition's `plus` became a valueless `data-more`.
 """
 import asyncio
 import os

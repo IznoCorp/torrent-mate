@@ -1,8 +1,10 @@
-// THE SHELL'S FOUR DOORS — the message, the panel, the history and the screens.
+// THE SHELL'S FIVE DOORS — the message, the panel, the confirmation, the
+// history and the screens.
 //
 // A verb that shows a message, a producer that closes the panel, a screen that
 // steps back: each asks one of these. They are OWNED by the shell's hosts
-// (`app/toast-host.ts`, `app/panel-host.ts`, `app/history-bridge.ts`), which
+// (`app/toast-host.ts`, `app/panel-host.ts`, `app/dialog-host.ts`,
+// `app/history-bridge.ts`), which
 // fill them when they install. They are DECLARED here because a door every
 // feature passes through belongs where the frame keeps what it shares: a module
 // outside `ui/` and `lib/` that every feature imported would be the hub
@@ -20,6 +22,8 @@
 export let toast: Window["__toast"];
 /** The panel's verbs. */
 export let panel: Window["__panel"];
+/** The confirmation's verbs. */
+export let dialog: Window["__dialog"];
 /** The history primitives the navigation logic speaks through. */
 export let bridge: Window["__bridge"];
 /** The screen openers. */
@@ -41,6 +45,15 @@ export function fillToastDoor(verbs: NonNullable<Window["__toast"]>): void {
  */
 export function fillPanelDoor(verbs: Window["__panel"]): void {
   panel = verbs;
+}
+
+/**
+ * Fills the confirmation door, from the confirmation host's install.
+ *
+ * @param verbs What opening and closing a confirmation call.
+ */
+export function fillDialogDoor(verbs: Window["__dialog"]): void {
+  dialog = verbs;
 }
 
 /**

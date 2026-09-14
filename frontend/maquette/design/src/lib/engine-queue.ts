@@ -30,12 +30,4 @@ export type EngineQueue = {
   derivedInflight: () => QueueCard[];
   derivedNotfound: () => QueueCard[];
   derivedDoneToday: () => QueueCard[];
-  // Agreeing with the machine (`actionLeave`) or with a candidate
-  // (`actionResolve`, `choice` the chosen title when the operator picked
-  // one) both remove the folder from wherever it is queued and hand it back
-  // to the pipeline; `actionTake` restarts a takeable item instead.
-  // Each toasts and re-renders on success; `actionLeave` also reports
-  // whether the folder was found at all.
-  actionResolve: (title: string, choice?: string) => void;
-  actionTake: (title: string) => void;
 };

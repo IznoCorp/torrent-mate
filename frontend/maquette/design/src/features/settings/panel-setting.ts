@@ -16,8 +16,7 @@ import { flattenSettings, settingIdentifier, valueShown } from "./catalog";
 import { HELD, send, sharedQueryClient } from "../../lib/query-client";
 import { configurationStatusQuery, settingsQuery, writeConfigurationFile } from "./queries";
 import type { Setting, SettingsTopic } from "./reference";
-import { panel, toast } from "../../lib/shell-doors";
-import { dialog } from "../../app/dialog-host";
+import { dialog, panel, toast } from "../../lib/shell-doors";
 import { settingLabels } from "./labels";
 import { changeSetting } from "./pending-edits";
 

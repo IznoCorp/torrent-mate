@@ -1494,13 +1494,6 @@ import {
   /* THE FOLLOWS, read from the layer. Same reason as `queued()`: these callers
      ask from click handlers that cannot await, and they read the same cache the
      deck draws. */
-  /* WHAT A SEARCH TURNED UP, and WHAT A RELEASE PICKER LISTS, read from the
-     layer. Both were fixtures here and left at L09; both are indexed into from
-     click handlers that cannot await. They go with the delegation at L13. */
-  function searchResults() {
-    return seam.searchResults?.() ?? { total: 0, shown: 0, results: [] };
-  }
-
   function follows() {
     return seam.followActions?.all() ?? [];
   }
@@ -1522,22 +1515,6 @@ import {
      Every action really moves the data. What an implementer must reproduce
      is not « a toast appears » but « the card leaves À récupérer, appears
      in En vol at the taken step, and the badge loses 1 ». */
-
-  function actionTake(title) {
-    /* Same as the two above. */
-    seam.queueActions?.take(title);
-    render();
-    toast(`« ${baseTitle(title)} » récupéré — suivez-le dans « En vol ».`);
-  }
-
-  function actionResolve(title, choice, picked) {
-    /* The move is the layer's, the sentence is this
-       function's. A PICK on the candidate card waits and answers an undo. */
-    const undo = seam.queueActions?.[picked ? "pick" : "resolve"](title, choice);
-    render();
-    const message = `Identifié comme « ${choice ?? title} » — le pipeline reprend jusqu'à la médiathèque.`;
-    if (typeof undo === "function") toastUndo(message, undo); else toast(message);
-  }
 
   function actionDelete(titres) {
     /* THE REMOVAL IS THE LAYER'S SINCE L09. `world.lib` stopped holding the
@@ -1917,12 +1894,6 @@ import {
     DECISION_STATE,
     DECISION_STATE_DETAIL,
     VIA_LABEL,
-    // Thin arrows over `derived.blocked` / `derived.stuck` — `derived` itself
-    // is already initialized above this literal, but the wrapper still earns
-    // its keep: it publishes a STABLE function reference while the value each
-    // call returns stays live against the scenario switch inside `derived`.
-    actionResolve,
-    actionTake,
     toast,
   };
 
@@ -2200,12 +2171,7 @@ import {
      back out of what it had just written so the layer could name itself. The
      layer is `ui/dialog/index.tsx` and its verbs are `app/dialog-host.ts`'s,
      behind a DESCRIPTOR of facts: a heading, blocks, and actions carrying the
-     `data-*` this file's own delegation still reads.
-
-     `closeDlg` stays a VERB the producers say. */
-  function closeDlg() {
-    seam.dialog?.close();
-  }
+     `data-*` this file's own delegation still reads. */
 
   /* Re-rendering a screen must NEVER send the operator back to the top:
      ticking a box at the bottom of a form jumped to the top, which makes
@@ -2331,13 +2297,6 @@ import {
       }
       return;
     }
-    if (closest.dataset.acqtab) {
-      store.write({ acqTab: closest.dataset.acqtab });
-      port.scrollTop = 0;
-      render();
-      replacePath();
-      return;
-    }
     if (closest.dataset.lens) {
       // Changing lens changes the list: start again from the first page. And the
       // SELECTION goes with it — a tick taken in another listing is one the
@@ -2365,49 +2324,15 @@ import {
       render();
       return;
     }
-    if (closest.dataset.pill) {
-      store.write({ pill: closest.dataset.pill });
-      render();
-      return;
-    }
-    if (closest.dataset.fmode) {
-      store.write({ followMode: closest.dataset.fmode });
-      render();
-      return;
-    }
-    if (closest.dataset.sugmode) {
-      store.write({ sugMode: closest.dataset.sugmode });
-      render();
-      return;
-    }
     if (closest.dataset.toast) {
       toast(closest.dataset.toast);
       return;
     }
 
-    if (closest.dataset.sheetprim) {
-      const [split, split2] = closest.dataset.sheetprim.split("|");
-      panel.close();
-      setTimeout(() => {
-        if (split2 === "to_grab") actionTake(split);
-        else
-          toast(
-            `Recherche lancée pour « ${baseTitle(split)} » — le résultat s'affichera sur la carte.`,
-          );
-      }, 240);
-      return;
-    }
     // `data-take` HAS NO BRANCH HERE ANY MORE (B-309). It had two, told apart
     // by guessing at the value. The release picker says `data-pick-release`
     // now and the panel's take kept this name, so each has one meaning and one
     // reader, and both answer on the tap registry.
-    if (closest.dataset.standby) {
-      panel.close();
-      toast(
-        "Veille lancée — 12 suivis balayés, 0 nouvelle release conforme. Prochain passage à 15 h 20.",
-      );
-      return;
-    }
     if (closest.dataset.drawer) {
       openDrawer();
       return;
@@ -2484,14 +2409,6 @@ import {
       render();
       return;
     }
-    if (closest.dataset.tmdb) {
-      store.write({ tmdb: true });
-      render();
-      toast(
-        "Compte TMDB connecté — la réserve se remplit, vos notes sont lues.",
-      );
-      return;
-    }
     if (closest.dataset.clearq) {
       if (closest.dataset.clearq === "lib")
         // THE SELECTION GOES WITH THE QUESTION. Clearing the search widens what
@@ -2547,118 +2464,10 @@ import {
       openDeleteDialog(closest.dataset.del);
       return;
     }
-    if (closest.dataset.sheet === "plus") {
-      // THE PRODUCER HAS LEFT. `features/acquisition/panel-more.ts` answers.
-      panel.produce("more");
-      return;
-    }
-    if (closest.dataset.act?.startsWith("add:")) {
-      // The act carries the list POSITION, not the title: a search can
-      // return the same title twice — « Star Wars : The Clone Wars » is both a
-      // film and a series here — so the title does not identify the result.
-      const index = Number(closest.dataset.act.slice(4));
-      const result = searchResults().results[index];
-      if (currentState().addMode === "identify") {
-        // This ASSOCIATES: the stuck folder becomes this medium and the pipeline
-        // resumes. No follow is created — that was not the request.
-        const target = currentState().resolveTarget;
-        // No render() on this branch until the delayed actionResoudre()
-        // fires — the bump is explicit so React sees the pick immediately.
-        currentState().added.add(index);
-        store.touch();
-        /* ONE settlement for the TWO entries this journey stacked — the
-           result's panel, and `/add` itself, a router-owned address (which
-           is why no screen layer is closed here). The panel is ASKED before it is closed, because the layer's
-           own entry is what decides the count, and it is closed DOM-only
-           (`close(true)`) so it does not unwind on its own: its unwind plus a
-           raw `__bridge.retour()` were two backs racing in the same task, only
-           one of them announced, and the surplus pop was then read as the
-           operator's own back gesture. */
-        const entries = (panel.isOpen() ? 1 : 0) + 1;
-        panel.close(true);
-        bridge.rewind(entries);
-        setTimeout(() => {
-          actionResolve(target, result.t);
-          toast(
-            `« ${baseTitle(target ?? "")} » identifié comme « ${result.t} » — le scrape reprend, aucun suivi créé.`,
-          );
-        }, 260);
-        return;
-      }
-      // The act lives in the result's panel, which must not stay open
-      // behind what comes next — the dialog below, or the re-rendered list.
-      // The identify branch above settles its own layer, with the entry count
-      // its single settlement needs, so this close is the follow branches'.
-      panel.close();
-      if (result.owned) {
-        seam.dialog?.open({
-          heading: `Remplacer « ${result.t} » ?`,
-          body: [
-            {
-              type: "paragraph",
-              runs: [
-                {
-                  text:
-                    "Ce " +
-                    (result.k === "Film" ? "film est déjà" : "média est déjà") +
-                    " en médiathèque. L'acquisition ",
-                },
-                { text: "remplacera", strong: true },
-                { text: " la version en place par celle qui sera récupérée." },
-              ],
-            },
-          ],
-          actions: [
-            {
-              text: "Remplacer",
-              tone: "danger",
-              target: { "data-confirmadd": String(index) },
-            },
-            { text: "Annuler", tone: "ghost", dismiss: true },
-          ],
-        });
-        return;
-      }
-      // The screen stays open, re-rendered in place with the "added" chip
-      // and (once this is the first) the footer: `AddScreen` re-renders
-      // itself from this same store bump, so no redraw call belongs here
-      // any more.
-      currentState().added.add(index);
-      store.touch();
-      seam.followVerbs?.follow(result.t, result.k);
-      return;
-    }
-    if (closest.dataset.confirmadd) {
-      currentState().added.add(Number(closest.dataset.confirmadd));
-      store.touch();
-      closeDlg();
-      toast(
-        "Ajouté — la version en place sera remplacée une fois la nouvelle récupérée.",
-      );
-      return;
-    }
-    if (closest.dataset.journey) {
-      // THE PRODUCER HAS LEFT, and its 260 ms wait went with it: the panel
-      // leaves inside the navigation's own commit, as `data-mediasheet`
-      // already did once B-249's wait left that branch. R103 refuses the gap on
-      // this path now rather than printing it.
-      panel.close();
-      panel.produce("journey", closest.dataset.journey);
-      return;
-    }
     /* A card body opens the panel on a simple tap. The gallery reaches the
        same panel by a long press, handled where the press is timed. */
     if (closest.dataset.panel) {
       openPanel(closest);
-      return;
-    }
-    if (closest.dataset.complete) {
-      store.write({ page: "acq", acqTab: "now" });
-      panel.close();
-      render();
-      toast(
-        `« ${baseTitle(closest.dataset.complete)} » : recherche des épisodes manquants lancée.`,
-      );
       return;
     }
 
@@ -3409,10 +3218,9 @@ Object.assign(window, {
   ST_LABEL,
   ST_LABEL_MOVIE, ST_TONE,
   URGENCY, VIA_LABEL,
-  actionTake, actionResolve,
   actionDelete, addVerb, showSignIn,
   baseTitle, beforeReset, cadenceFR,
-  closeDlg, closeSheet,
+  closeSheet,
   dateFR,
   endCardDrag, endDeckDrag,
   endSugDrag, escapeHtml,

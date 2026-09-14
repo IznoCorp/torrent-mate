@@ -45,7 +45,7 @@ export function AcquisitionTabs(): ReactElement {
       <button
         className={moreButton()}
         aria-label={t("screens.acquisition.moreLabel")}
-        data-sheet="plus"
+        data-more
       >
         <Icon paths={icons.more} />
       </button>

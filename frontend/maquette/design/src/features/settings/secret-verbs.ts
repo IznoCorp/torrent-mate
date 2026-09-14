@@ -17,8 +17,7 @@ import i18next from "i18next";
 import { HELD, sharedQueryClient } from "../../lib/query-client";
 import { registerVerb } from "../../lib/verbs";
 import { configurationStatusQuery, secretsQuery, writeSecret } from "./queries";
-import { panel, toast } from "../../lib/shell-doors";
-import { dialog } from "../../app/dialog-host";
+import { dialog, panel, toast } from "../../lib/shell-doors";
 
 /** What the layer is asked, and what each outcome is called. */
 type Act = "replace" | "remove";

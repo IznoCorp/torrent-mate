@@ -29,7 +29,6 @@ import { registeredLayers } from "../app/layers";
 import { navigation } from "../app/navigation-seam";
 import { followVerbs } from "../features/acquisition/follow-verbs";
 import { followActions, suggestions } from "../features/acquisition/queries";
-import { searchResults } from "../features/acquisition/search-queries";
 import { deleteLibraryItems } from "../features/library/queries";
 import { sortWays } from "../features/library/sorting";
 import { addressSeam } from "../lib/addresses";
@@ -184,9 +183,6 @@ export const seam = {
   },
   get queueActions() {
     return queueActions;
-  },
-  get searchResults() {
-    return searchResults;
   },
   get sortWays() {
     return sortWays;

@@ -7,7 +7,7 @@
 // a medium.
 //
 // NO HANDLER IS ATTACHED HERE. The document-level delegation answers
-// `data-mediasheet`, `data-panel` and `data-act` on the button tapped, which is
+// `data-mediasheet` and `data-panel` on the button tapped, which is
 // why every attribute below is one the delegation reads.
 import i18next from "i18next";
 import { initials } from "../../lib/titles";

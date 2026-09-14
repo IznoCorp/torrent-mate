@@ -2,7 +2,7 @@
 
 RE-AIMED, count unchanged: the avatar opens the account panel through `data-account`,
 the account's own name; the engine's value-dispatched `data-sheet="utilisateur"` was split
-by owner and `data-sheet` keeps only acquisition's `plus`.
+by owner, and acquisition's `plus` became a valueless `data-more`.
 """
 import asyncio
 
@@ -139,7 +139,7 @@ async def main():
     await pg.evaluate("""()=>document.querySelector('[data-part="screen"][data-open] [data-panel^="add:"]').click()""")
     await pg.wait_for_timeout(450)
     added = await pg.evaluate("""()=>{
-      const act=document.querySelector('#sheet [data-act^="add:"]');
+      const act=document.querySelector('#sheet [data-add]');
       if (act){ act.click(); return true; } return false;}""")
     await pg.wait_for_timeout(400)
     # An owned result answers with the replace dialog first; confirming it is
