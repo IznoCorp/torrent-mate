@@ -111,6 +111,24 @@ async def hold(journal):
                       f"{seen}/{len(ERROR_STATES)} — a corpus smaller than the "
                       f"declaration is a rule reading less than it says")
 
+        # « RÉESSAYER » RE-ASKS, where no caller gave it a read of its own: the
+        # frame answers `data-retry` by asking every active read again. Read as
+        # the ANSWERS the cache counts, which move only when a read was asked.
+        await page.evaluate("(id)=>window.__go(id)", "arr-error")
+        await page.wait_for_timeout(400)
+        answers = """()=>window.__queries.getQueryCache().getAll()
+            .filter((query) => query.getObserversCount() > 0)
+            .reduce((total, query) => total + query.state.dataUpdateCount, 0)"""
+        before = await page.evaluate(answers)
+        tapped = await page.evaluate(
+            """()=>{const retry = document.querySelector('[data-part="surface-error/retry"][data-retry]');
+                    if (!retry) return false; retry.click(); return true;}""")
+        await page.wait_for_timeout(600)
+        after = await page.evaluate(answers)
+        journal.check("arr-error's « Réessayer » asks every active read again",
+                      tapped and after > before,
+                      f"tapped={tapped}, active answers {before} -> {after}")
+
         # No React error anywhere in the walk. B-108 was 22 of them over 83
         # states, and nothing read them.
         journal.check("no error was raised walking the error states",
