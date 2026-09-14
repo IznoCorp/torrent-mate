@@ -15,8 +15,10 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   + 26 guards, 0 failed, NO divergence. Five mutations, all named. Tooling `b64ae8f76` (ruling 92: run.sh resolves
   each named rule whole). Phases renumbered by order 38 (ruling 93): b·10 panel's return, b·11 membership read,
   b·12 pipe + phase, b·13 legacy.js dies.
-- NEXT: b·10 « The panel's return » — Back ALREADY reopens the panel since b·9 (R188); what is left is the drawn
-  return (`panel-down` in reverse under `leaving-panel`, none under `reduce`) and B-275's hold. Then b·11–b·13.
+- b·10 DONE: R190 `panel_return.py` `d027a8d0b` (red: drawing only), move `b1c3c602d` (reopening inside
+  startViewTransition + `new(leaving-panel)` panel-down reverse); gate 34 (16 named) + 26 guards, 0 failed, no
+  divergence; both mutations named. B-275 closes at b·13's closure commit beside B-290/B-397.
+- NEXT: b·11 « The library's membership read » (phase-b11-membership-read.md; rulings 41, 53, 61). Then b·12, b·13.
   Read RULINGS 64–93 first; the steward's address is in your launch prompt.
 - ZSH TRAP, three times this session: a multi-word variable is ONE argument in zsh, and macOS bash has no
   `mapfile` — build rule lists and file lists in Python or spell them out.
@@ -306,4 +308,10 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 - 2026-09-14 order 38 (ruling 93): 73 references renamed in 21 files (`b·11` → `b·13` first, then the two
   inserted phases), three phase files git-moved, R-b10bis-N labels → R-b11-N; `grep -rc 'b·10-bis\|b·10-ter'
   docs/features/maquette-l13/` → 0.
+- 2026-09-14 l13b 4 b·10: R190 red on `d027a8d0b` (`l13b4-b10-r190-red.log`) — « return is DRAWN — pseudo-elements
+  seen: [] »; B-275's half and the two reduce halves were already green (b·9 made the reopening). Move `b1c3c602d`;
+  gate `l13b4-b10-gate.log` 34 rules (16 named) + 26 guards, 0 failed, no divergence. Mutations
+  (`l13b4-b10-mutations.log`): the reverse animation → `none` fell « return is DRAWN » (only root and tab-bar
+  pseudo-elements seen); the transition removed from the ladder fell « seen: [] »; reduce halves green under both.
+  The rank-branch reopening (a panel closed over a panel) is deliberately NOT drawn.
 
