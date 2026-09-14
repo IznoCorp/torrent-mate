@@ -1,5 +1,8 @@
 """R138 — an ask that arrives while the machine is busy SAYS SO, and goes on saying it.
 
+RE-AIMED: the pipeline's busy state is read from the layer's status read — the one the
+interface now draws from — since the store key the interface kept of it died.
+
 A HOLE IS IN A SEASON ONE HOLDS (owned > 0): a series nobody holds draws its aired count and no
 shortfall, under the sheet's own convention, so its first season is no subject for this rule.
 
@@ -81,7 +84,7 @@ RUN_THE_PIPELINE = """async()=>{
 # LAYER decides whether an ask is queued, the SCREEN decides whether the
 # operator can see that it is busy. A hold on one alone passes while the other
 # says the opposite.
-DRAWN_AS_BUSY = """()=>window.__store.read().state.pipe"""
+DRAWN_AS_BUSY = """async ()=>(await (await fetch('/api/pipeline/status')).json()).state"""
 
 # THE MEDIUM WITH A HOLE, among the rows actually drawn — a subject the panel
 # can be raised on AND that has something to ask for.

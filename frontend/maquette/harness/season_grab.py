@@ -1,5 +1,8 @@
 """R125 — « Récupérer cette saison » really takes the season (B-301).
 
+RE-AIMED: the pipeline's busy state is read from the layer's status read — the one the
+interface now draws from — since the store key the interface kept of it died.
+
 A HOLE IS IN A SEASON ONE HOLDS (owned > 0): a series nobody holds draws its aired count and no
 shortfall, under the sheet's own convention, so its first season is no subject for this rule.
 
@@ -259,7 +262,7 @@ async def open_a_season_panel(page, journal, when, put_to_work=False):
         journal.check(
             "and the interface is drawing it busy too, so this half measures "
             "the clause and not the verb",
-            await page.evaluate("()=>window.__queries.getQueryData(['/api/pipeline/status'])?.state") == "running")
+            await page.evaluate("async ()=>(await (await fetch('/api/pipeline/status')).json()).state") == "running")
     subject = await page.evaluate(THE_MEDIUM_WITH_A_HOLE)
     journal.check(
         f"the fixture really holds a season with a hole, so this walk has a "

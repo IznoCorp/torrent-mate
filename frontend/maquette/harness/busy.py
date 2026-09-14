@@ -1,5 +1,8 @@
 """R124 — NE-DOIT-PAS-3: a legitimate action under a busy pipeline is ACCEPTED.
 
+RE-AIMED: the pipeline's busy state is read from the layer's status read — the one the
+interface now draws from — since the store key the interface kept of it died.
+
 A HOLE IS IN A SEASON ONE HOLDS (owned > 0): a series nobody holds draws its aired count and no
 shortfall, under the sheet's own convention, so its first season is no subject for this rule.
 
@@ -239,7 +242,7 @@ async def main():
         await page.wait_for_timeout(SETTLED)
         await page.evaluate("""()=>window.__pipeline("running")""")
         await page.wait_for_timeout(SETTLED)
-        running = await page.evaluate("()=>window.__queries.getQueryData(['/api/pipeline/status'])?.state")
+        running = await page.evaluate("async ()=>(await (await fetch('/api/pipeline/status')).json()).state")
         journal.check(
             "the scenario really has the pipeline busy, so this walk measures "
             "the clause and not the actions",
@@ -299,7 +302,7 @@ async def main():
         journal.check(
             "the follows list has the pipeline busy too, so this half measures "
             "the clause and not the page",
-            await page.evaluate("()=>window.__queries.getQueryData(['/api/pipeline/status'])?.state") == "running")
+            await page.evaluate("async ()=>(await (await fetch('/api/pipeline/status')).json()).state") == "running")
 
         drawn = await page.evaluate(
             """()=>[...document.querySelectorAll('[data-panel]')].map(
