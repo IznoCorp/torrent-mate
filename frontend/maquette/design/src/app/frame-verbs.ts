@@ -22,6 +22,7 @@
 // here even though that is most of what it does: `render()` also settles a page
 // id the navigation table does not carry, and a page write is the one place
 // where that branch has a subject. It becomes a touch when the engine goes.
+import { sharedQueryClient } from "../lib/query-client";
 import { registerVerb } from "../lib/verbs";
 import { store } from "../lib/store-access";
 import {
@@ -139,6 +140,12 @@ export function openDrawer(): void {
 
 registerVerb("drawer", () => {
   openDrawer();
+});
+
+/* « RÉESSAYER » ON A SURFACE THAT HOLDS NO READ OF ITS OWN: every active read is
+   asked again, which is what the word promises. */
+registerVerb("retry", () => {
+  void sharedQueryClient?.refetchQueries({ type: "active" });
 });
 
 /* A MESSAGE A CONTROL CARRIES, said as it is written on the control. */

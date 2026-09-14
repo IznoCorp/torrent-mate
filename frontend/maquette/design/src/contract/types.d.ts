@@ -1166,6 +1166,8 @@ export interface components {
                 [key: string]: string;
             };
             last: components["schemas"]["PipelineRunSummary"];
+            /** @description what the pipeline is doing RIGHT NOW. The layer projects it from the one field its verbs move; the backend answers it on the same read (`StatusResponse.state`). Not in the seed — store state, as `watcherEnabled` is */
+            state?: components["schemas"]["PipelineState"];
         };
         PipelineExecution: {
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */

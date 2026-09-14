@@ -153,7 +153,7 @@ async def main():
         await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
         await page.wait_for_timeout(SETTLED)
         started = await page.evaluate(RUN_THE_PIPELINE)
-        await page.evaluate("""()=>window.__store.write({pipe: "running"})""")
+        await page.evaluate("""()=>window.__pipeline("running")""")
         await page.wait_for_timeout(SETTLED)
         drawn = await page.evaluate(DRAWN_AS_BUSY)
         journal.check(

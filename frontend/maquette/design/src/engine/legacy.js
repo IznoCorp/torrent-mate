@@ -1577,53 +1577,6 @@ import {
      directly; the `data-apparence` branch of the delegation went with it, and
      with it the last French `data-*` name this file wrote. */
 
-  /* Global delegation */
-  document.addEventListener("click", (event) => {
-    // A navigation link is an <a>, not a <button>: delegation that looked
-    // only at buttons left the drawer inert.
-    const closest = event.target.closest("button, a[data-navgo]");
-    if (!closest) return;
-    if (closest.tagName === "A") event.preventDefault();
-
-  /* THE LAST BRANCH OF A DELEGATION THAT ANSWERED SIXTY-TWO NAMES.
-
-     Every other name is answered by the feature or the frame that owns it, on
-     the tap registry (`lib/verbs.ts`). `pipe` cannot follow them yet, and the
-     reason is a guard rather than an oversight: the key it writes is server
-     state, and `check-state-ownership.py` refuses a component — `app/` included,
-     which it reads as one — writing it at a ceiling of zero. It leaves with its
-     conversion to the pipeline's own endpoint, and this listener goes with it.
-     Until then the delegation is one branch long and answers one name. */
-
-    if (closest.dataset.phase) {
-      store.write({ phase: closest.dataset.phase });
-      render();
-      return;
-    }
-    if (closest.dataset.pipe) {
-      /* Asked while a run is already going, a run is QUEUED and says so
-         (DOIT-4). « Occupé, réessaie » is the answer this interface does not
-         give: it puts the burden of remembering on the operator. */
-      store.write({
-        pipe:
-          closest.dataset.pipe === "stop"
-            ? "idle"
-            : currentState().pipe === "idle"
-              ? "running"
-              : "queued",
-      });
-      render();
-      toast(
-        currentState().pipe === "running"
-          ? "Pipeline lancé — il se raconte ici, étape par étape."
-          : currentState().pipe === "queued"
-            ? "En file — votre passage partira dès que celui-ci sera fini."
-            : "Pipeline arrêté. Ce qui était déjà rangé le reste.",
-      );
-      return;
-    }
-  });
-
   /* Screens and sheets */
   const MOIS = [
     "janv.",

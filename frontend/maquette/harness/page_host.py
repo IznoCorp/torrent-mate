@@ -717,13 +717,13 @@ async def main():
         await page.evaluate("()=>window.__reset()")
         # EVERY DIAL NAMED — four of five until a rubric gained an ENTRY.
         await page.evaluate("()=>window.__store.write({page: 'arr', maintTopic:"
-                            " null, phase: 'ready', pipe: 'idle',"
+                            " null, phase: 'ready',"
                             " scen: 'loaded'})")
         await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(320)
         refused = await tap("""#view [data-part="pipeline"] [data-pipe='start']""")
         started = await page.evaluate(
-            "()=>({pipe: window.__store.read().state.pipe,"
+            "()=>({pipe: window.__queries.getQueryData(['/api/pipeline/status'])?.state,"
             " controls: [...document.querySelectorAll('#view [data-pipe]')]"
             ".map((x) => x.dataset.pipe)})")
         journal.check(
@@ -736,7 +736,7 @@ async def main():
         # is QUEUED — visibly — never refused with « busy, try again ».
         refused = await tap("""#view [data-part="pipeline"] [data-pipe='start']""")
         queued = await page.evaluate(
-            "()=>({pipe: window.__store.read().state.pipe,"
+            "()=>({pipe: window.__queries.getQueryData(['/api/pipeline/status'])?.state,"
             """ live: !!document.querySelector('#view [data-part="pipeline"] [data-part="live-activity"]')})""")
         journal.check(
             "and asked again DURING a run, the next pass is queued, not refused",
@@ -748,7 +748,7 @@ async def main():
         # running bar over a stopped pipeline satisfies the store alone — which
         # is the half its two siblings above already read.
         stopped = await page.evaluate("""()=>({
-          pipe: window.__store.read().state.pipe,
+          pipe: window.__queries.getQueryData(['/api/pipeline/status'])?.state,
           idle: !!document.querySelector('#view [data-part="pipeline"] [data-part="status-dot"][data-tone="neutral"]'),
           start: !!document.querySelector('#view [data-part="pipeline"] [data-part="card/foot"][data-solid]'),
           controls: [...document.querySelectorAll('#view [data-pipe]')]

@@ -25,6 +25,7 @@ import { registerVerb } from "../../lib/verbs";
 import { queueNow, queueActions } from "../../lib/queue";
 import { bridge, panel, screens, toast } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
+import { sharedQueryClient, send } from "../../lib/query-client";
 import { pendingDecisions } from "./queries";
 import { baseTitle } from "../../lib/titles";
 
@@ -107,4 +108,26 @@ registerVerb("manual", (folder) => {
   // The search takes the arbitration's place: a REPLACE, the ladder a pop and a
   // push used to leave.
   screens.add(query, "identify", true);
+});
+
+/* THE PIPELINE'S TWO COMMANDS ASK THE LAYER. « lancer » runs a pass — asked
+   while one is going, the pass is QUEUED and says so (DOIT-4): « busy, try
+   again » is the answer this interface does not give. « arrêter » stops it.
+   The status read is asked again afterwards, so the bar draws what the
+   pipeline is doing rather than what the tap hoped for. */
+registerVerb("pipe", (command) => {
+  const path = command === "stop" ? "/api/pipeline/kill" : "/api/pipeline/run";
+  void send("POST", path, {}).then(async (answered) => {
+    await sharedQueryClient?.refetchQueries({ queryKey: ["/api/pipeline/status"] });
+    const state = (answered as { state?: string } | undefined)?.state;
+    toast?.show({
+      message: i18next.t(
+        state === "running"
+          ? "verbs.arrivals.pipelineStarted"
+          : state === "queued"
+            ? "verbs.arrivals.pipelineQueued"
+            : "verbs.arrivals.pipelineStopped",
+      ),
+    });
+  });
 });

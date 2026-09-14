@@ -19,12 +19,37 @@ import type { UiState } from "../app/store";
 // `applyState` is the engine's — the ladder's handler restores a page through
 // it — and the states start through the same verb, re-exported here beside their type.
 import { drivenWithoutHistory } from "../app/page-switch";
-import { applyState, resetSettings } from "../engine/legacy.js";
+import { applyState as applyEngineState, resetSettings } from "../engine/legacy.js";
 import { resetPullIndicator } from "../app/pull-indicator";
 import { heldIdentity, providerAddress } from "../lib/held-identity";
 import type { CarriedIdentity } from "../lib/navigation-entry";
 
-export { applyState };
+/**
+ * Puts the pipeline in a state, as its verbs would have, and asks its status again.
+ *
+ * WHAT THE PIPELINE IS DOING IS THE LAYER'S ANSWER, never a store key: a named
+ * state that shows a running or queued pipeline moves the layer's own field and
+ * the bar reads it back through the status read, as a tap does.
+ *
+ * Args:
+ *     state: The pipeline's state.
+ */
+function setPipeline(state: string): void {
+  window.__mocks?.setPipelineState(state as Parameters<NonNullable<typeof window.__mocks>["setPipelineState"]>[0]);
+  void window.__queries?.refetchQueries({ queryKey: ["/api/pipeline/status"] });
+}
+
+/**
+ * Builds a state patch by patch, the way a named state does.
+ *
+ * Args:
+ *     patch: The store keys to write — and `pipe`, which moves the layer instead.
+ */
+export function applyState(patch: Record<string, unknown>): void {
+  const { pipe, ...rest } = patch;
+  if (typeof pipe === "string") setPipeline(pipe);
+  applyEngineState(rest);
+}
 
 /** One named state: the id `__go` takes, its label in words, and how to build it. */
 export type NamedState = [id: string, label: string, run: () => void];
@@ -202,10 +227,14 @@ export function installDriver(states: NamedState[]): void {
   window.__sheetOf = sheetOf;
   // Rules build some states by hand, patch by patch, the way a named state does.
   window.applyState = applyState;
+  // The pipeline's state for a rule, through the layer — see `setPipeline`.
+  window.__pipeline = setPipeline;
 }
 
 declare global {
   interface Window {
+    /** Puts the pipeline in a state through the layer, and asks its status again. */
+    __pipeline: (state: string) => void;
     /** Drives the prototype into a named state, without a click. */
     __go: (stateId: string, options?: { keep?: boolean }) => string;
     /** Every named state's id, in table order. */

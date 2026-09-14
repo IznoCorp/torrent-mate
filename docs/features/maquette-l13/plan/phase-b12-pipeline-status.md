@@ -31,3 +31,8 @@ STAYS 0).
 ## Commit
 
 `feat(maquette-l13b): the pipeline's status and its run are the layer's`
+
+## Amendments
+
+- **Amended 2026-09-15 (l13b 4, ruling 97):** who else answers — `data-pipe` moves to the capture registry (arrivals), `data-phase` becomes the frame's valueless `data-retry` (re-asks every active read), and the engine's click listener dies whole; `Pipeline` gains L20's optional `state` verbatim, the mock projects it from `pipelineState`, and the harness moves it through `window.__pipeline(state)` (`__mocks.setPipelineState` + refetch) — `applyState({ pipe })` routes there, so the nine named states are unchanged; red: arrivals.py « the status read answers None » ×3; oracle NAMED before the gate: zero divergence expected (the three arrivals states draw the same bar from the layer's state).
+

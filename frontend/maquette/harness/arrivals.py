@@ -95,14 +95,14 @@ LAYER_STATE = """async ()=>{
 
 
 async def on_arrivals(pg, pipe="idle"):
-    """Drives to Arrivées in one of the pipeline's three states."""
+    """Drives to Arrivées in one of the pipeline's three states — the state through the layer (RE-AIMED from a store key)."""
     # THROUGH THE STORE, never by mutating the engine's alias in place: this
     # page is drawn by the shell now, and a component reads the store. An
     # in-place write leaves the object's identity unchanged, so React never
     # re-renders and the measurement lands on whatever page was drawn before —
     # measured, not assumed: it read the acquisition page's roots.
     await pg.evaluate(
-        f"()=>{{window.__store.write({{page: 'arr', pipe: '{pipe}'}}); window.__store.touch();}}")
+        f"()=>{{window.__pipeline('{pipe}'); window.__store.write({{page: 'arr'}}); window.__store.touch();}}")
     await pg.wait_for_timeout(320)
     return await pg.evaluate(READ)
 

@@ -4340,6 +4340,10 @@
           },
           "last": {
             "$ref": "#/components/schemas/PipelineRunSummary"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PipelineState",
+            "description": "what the pipeline is doing RIGHT NOW. The layer projects it from the one field its verbs move; the backend answers it on the same read (`StatusResponse.state`). Not in the seed — store state, as `watcherEnabled` is"
           }
         },
         "required": [

@@ -250,7 +250,7 @@ async def open_a_season_panel(page, journal, when, put_to_work=False):
     await page.wait_for_timeout(SETTLED)
     if put_to_work:
         started = await page.evaluate(RUN_THE_PIPELINE)
-        await page.evaluate("""()=>window.__store.write({pipe: "running"})""")
+        await page.evaluate("""()=>window.__pipeline("running")""")
         await page.wait_for_timeout(SETTLED)
         journal.check(
             "the LAYER really has the pipeline busy at the moment of the act — "
@@ -259,7 +259,7 @@ async def open_a_season_panel(page, journal, when, put_to_work=False):
         journal.check(
             "and the interface is drawing it busy too, so this half measures "
             "the clause and not the verb",
-            await page.evaluate("()=>window.__store.read().state.pipe") == "running")
+            await page.evaluate("()=>window.__queries.getQueryData(['/api/pipeline/status'])?.state") == "running")
     subject = await page.evaluate(THE_MEDIUM_WITH_A_HOLE)
     journal.check(
         f"the fixture really holds a season with a hole, so this walk has a "
