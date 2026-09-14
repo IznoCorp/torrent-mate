@@ -70,8 +70,12 @@ there:
   **Since plugin 0.26.1 (installed 2026-09-12; 0.28.3 on 2026-09-13 — read `claude plugin list` before every launch and use THAT version's scripts) the launcher takes `--tier` and no longer `--model`**,
   and the map on this machine binds all three tiers to `opus` (written by the steward that day on the
   operator's « Go »; it had been EMPTY until then, which made the launcher type no model at all) —
-  so every launch of this office says `--tier deep` for an implementer, a reader and a successor,
-  and **no tier of this project is ever bound to Sonnet** (`CLAUDE.md` § Implementation Workflow).
+  so every launch of this office says `--tier deep` for an implementer, a reader and a successor.
+  **This bound was lifted by the operator on 2026-09-13 ~21:1x** (« Sonnet autorisé, on retire ça…
+  l'orchestrateur choisit »): the tier map now follows the routing table — deep on `opus`, standard and
+  light on `sonnet` — and the steward routes by the class of work, naming the tier in every spawn line
+  and reverting a drop that costs a second round (measure 15). `CLAUDE.md` § Implementation Workflow and
+  `docs/reference/feature-lifecycle.md:176` carry the same dated amendment.
   The tier and the reading that chose it go in the launch report, as the skill asks;
 - **the launch itself.** **The steward LAUNCHES every wave's agent, and it ROTATES one whose context
   has passed the gate — itself, with `orchestrator:iterm-agents`, never by handing the operator an
@@ -213,6 +217,59 @@ reaches him.
    per bug.
 6. **Two agents in parallel at most** on this 16 GB machine.
 7. **L13 — the engine's death — is next**, once the in-flight waves land.
+8. **The agents' gate is 80 %, not 50 %** — measured with `orchestrator:context-gauge`, never estimated,
+   and read before every dispatch: an implementer past it is rotated at its unit boundary rather than
+   pushed to a phase gate.
+9. **A sub-lot starts STACKED, during the previous round** — its branch cut and its agent spawned while
+   the round before it (a reader round, a gate) is still running, so the machine's two-agent ceiling is
+   never idle waiting on a verdict.
+10. **Cold-start diet** — an agent's launch prompt carries state at ≤ 40 lines plus pointers (the ledger,
+    `RULINGS.md`, the four required readings), never a rebuilt history.
+11. **Phases stay ≤ 15 points, with a stated mean** — a phase sized past that is cut before it is
+    dispatched.
+12. **Instruments that read true, kept as they are**: `heavy.sh`'s accounting of the speculative pages
+    macOS reclaims first, `mutate.sh`'s exit-code read (B-499), `run.sh`'s one build per phase gate.
+
+   Figures for 8–12: `b·1`'s first code commit landed 14 min after spawn (mean 26 min that day); 17 of 17
+   gates read 0 min hold-off since order 3; two agents live at once, never more. **PROVISIONAL until their
+   fate is re-read**: measures 9 and 11 in particular, against the next lot's actual phase sizes.
+13. **The steward's own succession gate is 80 %, the same arithmetic as the agents'** — a quiet boundary;
+    never start a verdict, a merge or a gesture whose measured cost would cross it. Figure: three
+    successions on 2026-09-13 (56 %, ~60 %, 51 % at hand-off) ≈ 30 min each.
+14. **Writing diet** — a running-log memory entry ≤ 1 line per event; a line to the auditor ≤ 6 lines
+    unless it carries a decision (two readings and its cost); agents' reports the same; a fact is written
+    ONCE (the succession brief is durable, a memory-log line is a pointer to it). Figure: ~50 context
+    points spent over 4 h of prose no gate ever read.
+15. **The Sonnet ban is lifted** (operator, 2026-09-13 ~21:1x: « Sonnet autorisé, on retire ça… l'orchestrateur
+    choisit »): the tier map follows the routing table — deep on `opus`, standard and light on `sonnet` —
+    and the steward routes by the CLASS of work, names the tier in every spawn line, and reverts a drop
+    that costs a second round. `CLAUDE.md:316` and `docs/reference/feature-lifecycle.md:176` carry the
+    same amendment, dated.
+16. **Diet at the strictest** (operator, 2026-09-13 ~21:1x: « Diète : on va au plus strict »): ≤ 3 lines to
+    the auditor unless a decision; the memory log written at boundaries only, four fields (head, clock
+    time, verdict with the log's name, gauge); a succession brief is a ≤ 40-line state block plus
+    pointers; agents' reports the same. Ratified after twenty held lines.
+17. **ONE phase-gate invocation in `run.sh`** — build once, then contracts, then the oracle, then the
+    phase's re-aimed rules replayed on the SAME served copy, one verdict block; a phase holds the mutex
+    once. Fate: a b-phase gate ≤ 4 min (today 7–9 min).
+18. **The contracts tier's fan-out is `TM_HARNESS_JOBS=3`**, measured once with `vm_stat` and
+    `vm.swapusage` before and after (a rule costs ≈ 400 MB); back to 2 if swap moves.
+19. **No local `make check` before a maquette wave's pull request** — CI's `test` job (8 min,
+    unconditional) is the authority; the pre-PR gate is `make lint` + the full suite + `--a11y` +
+    `--compare` + the pre-push pytest. Measured: 11 259 tests ran three times before #596 for 0 defects
+    outside the harness. This crosses `CLAUDE.md` § Phase Gate Checklist item 3 (« `make check` ») as
+    written for the `implement:phase` flow — amended there for maquette waves, dated the same word.
+
+**Plugin, audit and the method file, as they stand at this lot's close.** The orchestrator plugin is
+`0.29.2`. **An audit runs only on the operator's word** — never spontaneously, and never as a standing
+poll — and while an audit session and the steward are both live, a request routes to the auditor FIRST.
+`docs/reference/operator-method.md` is the operator's own method file (§ 3 of the documentation model):
+its home is `docs/reference/`, and it is amended only by the operator, relayed through whichever session
+he is dictating to that day. **Checklist line, paid at 20:09 on 2026-09-13**: `npm ci` in BOTH
+`frontend/` and `frontend/maquette/design/` before a fresh worktree's first push — the pre-push hook's
+test suite needs both. **The cited-logs rule** (reader's inventory finding, 2026-09-13 ~20:5x): a log a
+RESUME, a phase amendment or a commit body CITES is kept under the wave's log directory until the merge;
+only UNCITED working logs are pruned at stand-down.
 
 ## The office
 
