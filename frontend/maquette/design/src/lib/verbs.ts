@@ -95,13 +95,20 @@ export function installVerbs(): void {
       for (const key of Object.keys(node.dataset)) {
         const act = actions.get(key);
         if (act === undefined) continue;
-        // PROPAGATION STOPS HERE, so the engine's delegation does not also
-        // walk this element looking for a branch of its own. A verb answered
-        // twice acts twice, and an undo that ran twice would put back something
-        // nobody removed. The DEFAULT is left alone: these are `<button>`s
-        // outside a form, so preventing it would suppress focus and the
-        // browser's own affordances for nothing.
+        // PROPAGATION STOPS HERE, so no other delegation walks this element
+        // looking for a branch of its own. A verb answered twice acts twice,
+        // and an undo that ran twice would put back something nobody removed.
         event.stopPropagation();
+        // AND A VERB ON A LINK ANSWERS INSTEAD OF THE LINK. « The default is
+        // left alone: these are `<button>`s outside a form » was true of every
+        // verb this registry had until the frame's arrived — and the drawer's
+        // entries are `<a>`s, which is why the engine's own delegation called
+        // `preventDefault()` on them. Without it the browser followed the href,
+        // the document reloaded, and the destination was replaced by the
+        // opening page: measured on five drawer entries at once (`drawer.py`,
+        // « page=acq drawer=False »). A `<button>` keeps its default, so focus
+        // and the browser's own affordances are untouched.
+        if (node.tagName === "A") event.preventDefault();
         act(node.dataset[key] ?? "", node);
         return;
       }

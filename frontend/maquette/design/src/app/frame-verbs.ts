@@ -27,7 +27,7 @@ import { store } from "../lib/store-access";
 import {
   bridge,
   fillAddressedPanelDoor,
-  landOnPage,
+  resetLandingDial,
   panel,
   toast,
 } from "../lib/shell-doors";
@@ -101,7 +101,7 @@ registerVerb("go", (page) => {
      arriving at the acquisition page from elsewhere has always opened its first
      tab. The frame does not name that dial — it is the page's, and the write is
      made where it is understood. */
-  landOnPage?.(page);
+  resetLandingDial?.(page);
   scrollPortToTop();
   redraw();
   settleLanding(fromLayer, leaving, "go");

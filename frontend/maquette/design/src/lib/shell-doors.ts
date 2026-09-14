@@ -31,7 +31,7 @@ export let replaceAddress: (() => boolean) | undefined;
 /** Opening the panel an element addresses — the press reads it while the gesture is still the engine's. */
 export let openAddressedPanel: ((element: Element) => void) | undefined;
 /** What a page puts back at its default when a landing arrives on it — filled by the page's own feature. */
-export let landOnPage: ((page: string) => void) | undefined;
+export let resetLandingDial: ((page: string) => void) | undefined;
 /** The history primitives the navigation logic speaks through. */
 export let bridge: Window["__bridge"];
 /** The screen openers. */
@@ -101,7 +101,7 @@ export function fillAddressedPanelDoor(open: (element: Element) => void): void {
  * @param land What a feature does when a landing arrives on one of its pages.
  */
 export function fillLandingDoor(land: (page: string) => void): void {
-  landOnPage = land;
+  resetLandingDial = land;
 }
 
 /**
