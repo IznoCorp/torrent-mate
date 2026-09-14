@@ -245,8 +245,7 @@ else
     # count one too high. Named here rather than detected, because « a rule
     # has a main() » is false for 71 of the 96 files in this directory and a
     # clever test that drops a real rule is worse than a list. `factories.py`
-    # is the `cva()` reader `resolution_card.py` imports, and holds no rule
-    # either.
+    # is the `cva()` reader a rule may import, and holds no rule either.
     case "$(basename "$s")" in
       common.py|desktop_frame_page.py|factories.py) continue ;;
     esac
