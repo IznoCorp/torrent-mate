@@ -89,6 +89,13 @@ async def main():
         if any(character.isdigit() for character in empty["caption"]):
             failures.append(f"the empty caption states a count: {empty['caption']!r}")
 
+    # THE TAP TICKS THE MEDIUM ITS TILE NAMES. The titles are read off the tiles
+    # before they are tapped, so the dialog below can be held to naming exactly
+    # them — a tap that ticked by position, or ticked nothing, names others.
+    ticked = await pg.evaluate("""()=>[0, 2, 5].map((i)=>
+        document.querySelector(`[data-tile='${i}']`)?.dataset.selectedTitle ?? null)""")
+    if None in ticked:
+        failures.append(f"a tile in selection mode carries no data-selected-title: {ticked!r}")
     await pg.click("[data-tile='0']"); await pg.wait_for_timeout(150)
     one = await bar()
     print("  after 1 tap :", one)
@@ -115,6 +122,10 @@ async def main():
         return {title:g.querySelector('h1,h2,h3').textContent, rows:g.querySelectorAll('[data-part="dialog/manifest"] li').length,
                 choices:[...g.querySelectorAll('[data-part="dialog/button"]')].map(x=>x.textContent.trim())};}"""))
     await shot(pg, "selection-delete-multiple")
+    said = await pg.evaluate("()=>(document.querySelector('#dlg')||{}).textContent || ''")
+    missing = [title for title in ticked if title is None or title not in said]
+    if missing:
+        failures.append(f"the delete dialog does not name the ticked media: {missing!r}")
 
     # AND LEAVING TAKES THE BAR AWAY. A bar that outlives its selection is the
     # residue an appended-per-open node never left and a mounted component can:
