@@ -441,8 +441,8 @@ its oracle divergence named.
 
 **Measured before naming them**: 87 states existed
 (`frontend/maquette/design/src/engine/states.js@60530dbd8`,
-`python3 -c "import re;print(len(re.findall(r'^\s*\[\s*\"([^\"]+)\"\s*,\s*\"', open('frontend/maquette/design/src/engine/states.js').read(), re.M)))"`
-run against that commit). Read live, on this branch, the same total holds, summed across the eleven
+`git show 60530dbd8:frontend/maquette/design/src/engine/states.js | python3 -c "import re,sys;print(len(re.findall(r'^\s*\[\s*\"([^\"]+)\"\s*,\s*\"', sys.stdin.read(), re.M)))"`
+— re-pointed at the blob on 2026-09-14, since the file no longer exists in the tree). Read live, on this branch, the same total holds, summed across the eleven
 files the table moved to:
 
     python3 -c "import re,glob;print(sum(len(re.findall(r'^\s*\[\s*\"([^\"]+)\"\s*,\s*\"', open(f).read(), re.M)) for f in glob.glob('frontend/maquette/design/src/harness/states/*.ts')))"
@@ -627,12 +627,12 @@ so nobody invents a seventh topic for one key.
 > (§ 9 below is the debts a plan still owes; this is not one of those — it is a debt already paid).
 
 The commands below ran against `frontend/maquette/design/src/engine/states.js@60530dbd8`, before
-L13a deleted it:
+L13a deleted it (the first re-pointed at that blob on 2026-09-14, since the file is gone from the tree):
 
-    grep -cve '^[[:space:]]*$' frontend/maquette/design/src/engine/states.js
+    git show 60530dbd8:frontend/maquette/design/src/engine/states.js | grep -cve '^[[:space:]]*$'
     sed -n '94,98p' scripts/frontend_size_ledger.py
 
-`engine/states.js` read **786** non-blank lines and the ledger recorded it at **786**, grandfathered
+`engine/states.js@60530dbd8` read **786** non-blank lines and the ledger then recorded it at **786**, grandfathered
 to « L13 — the scenario table goes with the engine it drives ».
 `scripts/check-frontend-boundaries.py` **refused the count going UP** — B-306, discharged by L19 in
 #558 exactly because a grandfathered file grew 77 lines under a decision titled « dies by
