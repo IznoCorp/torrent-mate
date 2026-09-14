@@ -97,6 +97,12 @@ async def main():
     if None in ticked:
         failures.append(f"a tile in selection mode carries no data-selected-title: {ticked!r}")
     await pg.click("[data-tile='0']"); await pg.wait_for_timeout(150)
+    # SAID AT ONCE, not only at the end: a tap that ticks nothing can leave a layer
+    # up that blocks every later tap, and a rule that crashes there names nothing.
+    first = await pg.evaluate("(title)=>window.__store.read().state.selected.has(title)", ticked[0])
+    if not first:
+        failures.append(f"a selection tap did not tick the medium its tile names: {ticked[0]!r}")
+        print(f"  FAIL a selection tap ticks the medium its tile names — {ticked[0]!r} not ticked")
     one = await bar()
     print("  after 1 tap :", one)
     if one is None or one["destructiveDisabled"]:
