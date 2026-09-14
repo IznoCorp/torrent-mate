@@ -481,6 +481,7 @@ when the defect comes back.
 | B-509 | `bridge.py:300`'s hold « and the media sheet is gone » never asserts the sheet was open before the Back it reads | the reader round | `open` |
 | B-510 | Ruling 61's restoration is held by `bugs.py`'s crash on the missing button, not by a named hold asserting « Voir la fiche » present | the reader round | `open` |
 | B-511 | Ruling 61's register note says « 0 updates, 0 observers » where the measured candidate reads 1 observer on each empty-key query entry while the panel is open | the reader round | `open` |
+| B-512 | `selection_survives_the_tab.py` (R164) reads « the Médiathèque draws the bar over a real selection » red under the 28-named gate load and green alone — 2 red / 2 green on b·6's head in that shape, green before the move in the 19-rule shape; at the failing instant the bar exists and the point at its centre hits a tile's poster; its detail string is armed to name what hid the bar; owner b·11's full suite | by L13b | `open` |
 | B-530 | The navigation drawer closed by a firm leftward swipe shows itself open again for a fraction of a second as the closing animation ends | by operator | `fixed #598` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**

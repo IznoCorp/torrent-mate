@@ -4,29 +4,30 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 
 ## STATE
 
-- Branch `feat/maquette-l13b`, worktree `/Users/izno/dev/worktrees/wave-l13b`, stacked on L13a `37e54d0fd`;
-  rebase onto `main` only on the steward's word (after #596's squash). Steward: the session named in your launch prompt (`Orch : TM frontend`, its reference changes at every resume).
+- Branch `feat/maquette-l13b`, worktree `/Users/izno/dev/worktrees/wave-l13b`, REBASED on main `304346145` (L13a
+  squashed, #596). Steward: the session named in your launch prompt (`Orch : TM frontend`, its reference changes).
 - Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13b`.
-- Tooling landed: `701ae1aca`, `3023f2305`, `108904b51`, `63f6674a4`, `{tooling}` (rulings 66–69, 77/77-bis).
-- b·1 DONE (`e3ae69b01`), b·2 DONE (`4f157ca9f`), b·3 DONE (`6c6245fbd`, rulings 70/70-bis),
-  b·4 DONE (`bec2b0d5b`, rulings 73–74; `pipe` stays in the engine for the NEW phase b·10-ter),
-  b·5 DONE (`d8d1a3e8b` move + `ebc53e4ea` re-aim, ruling 75; gate and mutations in the ledger).
-- legacy.js non-blank: 3060. Surface-openers contract grep: 0. `FAN_IN_EXEMPT` keeps `features/acquisition/queries.ts`
+- b·1 `e3ae69b01`… b·4 — see the ledger; b·5 DONE (move + re-aim, ruling 75); b·6 DONE (`c74362af1`, rulings 79,
+  79-bis, 82; holds proved both ways: selection.py, pause_verb.py R132, follows.py). Gate: 43 rules (28 named) + 26 guards, 0 failed, oracle no divergence, gate: no violation on `e4a16d970` (log 12:41 > commit 12:35); the two earlier 28-named gates fell on R164 alone (B-498)..
+- legacy.js non-blank: 2755. Surface-openers contract grep: 0. `FAN_IN_EXEMPT` keeps `features/acquisition/queries.ts`
   (the engine still reads `follows()` and `suggestions()`).
-- NEXT: b·6 (library verbs), `plan/phase-b06-library-verbs.md` — its first hold is `selectedTitle`; the dialog-door
-  amendment is already landed (`lib/shell-doors.ts` `dialog`, b·5).
-- LOGS: `~/Library/Logs/tm-l13b/` (ruling 76). The mutex and the tests lock stay under `/private/tmp`.
-- Phase gate form (ruling 66): `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13b
-  frontend/maquette/harness/run.sh --contracts --oracle <the phase's rules>` (~270 s once the mutex is free).
-- Mutations: `mutate.sh <verbs file> "t.replace('registerVerb(\"x\",', 'void (\"x\",')" frontend/maquette/harness/<rule>.py`
-  — FULL rule paths; since `{tooling}` it refuses a missing path and starts the 8899 host itself (77/77-bis). Read the
-  NAMED check line (`FAIL …`), never the « FELL » line; « RULE CRASHED » is an instrument fall.
-- Features register at module evaluation, named in `app/panel-contributions.ts`: a new `install…Verbs` import in
-  `app/feature-verbs.ts` costs app/ domain words that `check-frame-domain.py` refuses over 138.
+- NEXT: the MIDPOINT full suite on b·6's head (brief: after b·6, before b·7; its falls repaired in one
+  `fix(maquette-l13b)` commit), THEN b·7 (frame verbs, `plan/phase-b07-frame-verbs.md`; the attribute-order trap
+  below is b·7's, and the forwarder floor reaches 0 there — ruling 78).
+- LOGS: `~/Library/Logs/tm-l13b/` (ruling 76). Mutex and tests lock stay under `/private/tmp`.
+- GATE FORM (ruling 66): `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13b frontend/maquette/harness/run.sh
+  --contracts --oracle <rules>` — the ONLY form that reads rule names (ruling 81: anything else is refused, exit 64).
+- MUTATIONS: `mutate.sh <file> "t.replace('registerVerb(\"x\",', 'void (\"x\",')" frontend/maquette/harness/<rule>.py`
+  — full paths (77), it starts the host itself (77-bis); read the NAMED `FAIL` line; « RULE CRASHED » proves nothing.
+- A hold that can meet a blocked page prints its FAIL line at once (selection.py's lesson); a print-only rule
+  cannot fall by name.
+- Registration: module evaluation, named in `app/panel-contributions.ts` (feature-verbs.ts costs app/ domain words).
 - Locks: browser mutex (`sh scripts/heavy.sh --held`); tests lock `/private/tmp/tm-heavy-tests/holder`; own lock
   `/private/tmp/tm-heavy-l13b/holder` (npm ci, tsc -b, vitest run).
-- Owed: full suite at the midpoint (after b·6, before b·7) and at b·11 with `--a11y`, `--compare`, `make lint`;
-  no local `make check` (ruling 68). Machine restarts Monday 05:00: pushed by 04:30, line to the steward at 04:45.
+- Push: the pre-push hook is the branch's own since order 35 (relative hooksPath); read its verdict, not its print.
+- Owed: midpoint full suite (above); b·11 full suite with `--a11y`, `--compare`, `make lint`; no local `make check`
+  (ruling 68); b·8: the swipe verbs' reaches through `window.openCard`/`window.collapseCard`. Machine restarts
+  Monday 05:00: pushed by 04:30, line to the steward at 04:45.
 
 ## LEDGER (append-only)
 
@@ -129,3 +130,25 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   (77-bis working). The hold now prints its FAIL line right after the first tap.
 - OWED b·8 (ruling 79-bis): `pause`, `remove` and `search-again` settle their swipe row through
   `window.openCard` and `window.collapseCard` (the library's `del` never collapsed).
+- 2026-09-14 b·6 HOLDS (proved both ways, gate form): selection.py « a selection tap ticks the medium its tile
+  names » (red: « On l'appelait Robin des Bois » not ticked); pause_verb.py R132 « a pending follow's « Chercher »
+  says the search and the row comes back to rest » (red: « Chercher — Kyma » never said); follows.py's first named
+  check, the search cross (red: filter kept, 0 rows of 14).
+- 2026-09-14 TRAP (ruling 81): `run.sh --contracts <rule>` read NO name — « 0 named rule(s) », exit 0 — so two
+  « green » steps ran the 18 contracts and not the hold; only `--contracts --oracle <rules>` reads names.
+- 2026-09-14 TRAP: a disabled engine branch can leave a layer up that blocks the next pg.click → Playwright
+  timeout → RULE CRASHED; a hold that can meet it prints its FAIL line at once. A print-only rule (follows.py
+  before b·6) cannot fall by name; a bare-assert rule (actions.py) falls as a crash.
+- 2026-09-14 TRAP: follows.py's hold clicked `[data-pill="all"]`; the « everything » pill's id is `tout` — the
+  rule timed out green AND red alike. A hold is run green before its red is believed.
+- 2026-09-14 b·6 move `c74362af1`: legacy.js 3060 → 2755; B-465 closes by grep (paintSelBar: nothing). The fan-in
+  arm measured app/page-switch.ts at 5 > 4 → a `replaceAddress` door in lib/shell-doors.ts; check-state-ownership
+  classifies `selectedMedia` (interface); the forwarder floor 4 → 3. Comment baseline `read` 422 → 424.
+- 2026-09-14 TRAP: b·6's first gate fell on ONE GUARD, check-i18n-placeholders.py — it reads a shorthand
+  `{ label, title }` as title only and says « renders {{label}} literally »; the keys written out → exit 0
+  (`f6ac6d688`). A gate's « 0 rules fell » is not its verdict: read `gate:`.
+- 2026-09-14 b·6 replays: cat, lmode, del (no hold fell in filters.py, gallery.py, remove_verb.py) and selmode,
+  delsel (selection.py crashed) replayed against page_host.py, cards.py, audit2.py, virtual.py and
+  selection_survives_the_tab.py — results in the next line.
+- 2026-09-14 b·6 gate: 43 rules (28 named) + 26 guards, 0 failed, oracle no divergence, gate: no violation on `e4a16d970` (log 12:41 > commit 12:35); the two earlier 28-named gates fell on R164 alone (B-498).
+- 2026-09-14 b·6 mutations: all twelve by name — lens → url_state « changing a dial writes the QUERY »; sort and setsort → library_sort; clear-search → page_host; selected-title → selection.py; clear-filter → follows.py; search-again → pause_verb.py; replays: cat and lmode → page_host, del → audit2 « deleting a medium: no confirmation », selmode → virtual.py and R164, delsel → virtual.py « the dialog names THOSE TWO ».
