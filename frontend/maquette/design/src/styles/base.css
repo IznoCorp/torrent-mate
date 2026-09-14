@@ -1006,10 +1006,17 @@
   }
 }
 
+/* `scale`, NEVER `transform: scale()`. An animation on `transform` REPLACES the
+   element's own transform for its whole duration, and on a layer whose
+   position IS its transform — the menu, the panel — the pulse interpolated the
+   closing layer from off-screen toward a bare scale and back: painted open again
+   for 150 ms while every attribute said closed (B-530). The individual property
+   composes with `transform` instead, so a surface that is not moved scales
+   exactly as before and a surface that is moved keeps its place. */
 @keyframes feedback-pulse {
   50% {
     opacity: 0.82;
-    transform: scale(0.985);
+    scale: 0.985;
   }
 }
 
