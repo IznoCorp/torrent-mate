@@ -12,8 +12,13 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 - legacy.js non-blank: 2755. Surface-openers contract grep: 0. `FAN_IN_EXEMPT` keeps `features/acquisition/queries.ts`
   (the engine still reads `follows()` and `suggestions()`).
 - MIDPOINT full suite (brief order 5) ran on b·6's head: 128 rules (3 at a time, 17 min, swap 0 before and after), 1 failed; its ONE fall (R55, follows gallery) is REPAIRED in `4210f72d5` (ruling 85, mechanism in the ledger), gate on that head: 19 rules (1 named) + 26 guards, 0 failed, no divergence, « gate: no violation », mutation fell by name.
-- NEXT: b·7 (frame verbs, `plan/phase-b07-frame-verbs.md`; the attribute-order trap in the ledger is b·7's, and the
-  forwarder floor reaches 0 there — ruling 78). Read RULINGS 64–85 first; the steward's address is in your launch prompt.
+- b·7 DONE (`edf19a718` + the gate's two repairs `cee7319df`; rulings 86, 86-bis, 87). SIX names moved, `pipe` and
+  `phase` stay on the listener's last branches, `applyState` and `render()` stay to b·11 — all three MEASURED, see
+  the ledger. Gate: 36 rules (22 named) + 26 guards, 0 failed, oracle no divergence, « gate: no violation » on
+  `cee7319df` (log 19:27 > commit 19:22). Five mutations, all named.
+- NEXT: b·8 (the gestures, `plan/phase-b08-gestures.md`) — its owed items are in the state block below (the swipe
+  verbs' reaches through `window.openCard`/`window.collapseCard`, ruling 79/79-bis, and the #ptr utilities of
+  ruling 59). Read RULINGS 64–87 first; the steward's address is in your launch prompt.
 - LOGS: `~/Library/Logs/tm-l13b/` (ruling 76). Mutex and tests lock stay under `/private/tmp`.
 - GATE FORM (ruling 66): `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13b frontend/maquette/harness/run.sh
   --contracts --oracle <rules>` — the ONLY form that reads rule names (ruling 81: anything else is refused, exit 64).
@@ -197,3 +202,40 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   unshipped branch — the ledger and the pull request's body carry it; the MECHANISM gets a dated
   amendment in `plan/phase-b05-acquisition-verbs.md` and a trap in `frontend/maquette/README.md`,
   because every later phase moves verbs into that same capture-phase registry.
+- 2026-09-14 b·7 MEASURED against its own plan, three corrections (rulings 86, 86-bis): the engine's listener
+  answered EIGHT keys, not seven; `phase` is server state by `check-state-ownership.py`'s table and `app/` is a
+  COMPONENT bucket of that arm at a share ceiling of 0 (`COMPONENT_BUCKETS`, line 55) — so `phase` stays beside
+  `pipe`, both until their conversions. `applyState` was moved to `app/layers.ts`, measured RED by the same arm (a
+  write whose argument it cannot read is refused, not skipped) and moved back — ruling 16's move belongs to the
+  phase that deletes the engine. `render()` has SEVEN product callers outside the delegation plus a not-found
+  settle, so it stays to b·11 and the frame's verbs redraw through it.
+- 2026-09-14 b·7 shapes that worked: the frame's six verbs in `app/frame-verbs.ts`, registered at module
+  evaluation and named in `shell.tsx` (283 lines, far from its ceiling); the acquisition landing dial written BY
+  ACQUISITION through a `resetLandingDial` door (a page's dial is not the frame's to name, and a forwarded patch is
+  what the ownership arm refuses); the press opening through an `openAddressedPanel` door until b·8; `openDrawer`
+  exported as a function because a named state opens the drawer without a tap.
+- 2026-09-14 b·7 TRAP, and it is the day's most expensive: `stopPropagation` does not stop a listener BESIDE yours
+  on the same node, and the tap registry (capture, `document`) now sits beside two such listeners. It cost two
+  defects the gate caught and a third found earlier: (1) the press's click-swallower — R55, repaired in
+  `4210f72d5`; (2) `lib/stacked-surface.ts`, which gives its entry back and REPLAYS the tap: its `stopPropagation`
+  no longer reached the page verbs, so the switch ran twice, the second walk landed on the exit guard and the
+  guard's push destroyed every forward entry (`history.length` 5 → 3, `url_state.py`'s topic gone) —
+  `stopImmediatePropagation` in `cee7319df`; (3) the registry never called `preventDefault` on a LINK, which the
+  engine's delegation did, so the drawer's `<a>` entries reloaded the document and the opening page replaced the
+  destination (`drawer.py`, five falls). ASK OF EVERY VERB MOVED FROM NOW ON: who else answers this click, and in
+  which phase?
+- 2026-09-14 b·7 method note: the attribute-order trap must be re-asked for EVERY newly registered name, on every
+  element that carries it — `panel` made four emitters' order load-bearing and the design named three; the fourth
+  (`discover-cards.ts`) was found by walking every element carrying both keys.
+- 2026-09-14 TRAP (my own, and it cost two repairs): reading a reference by rolling `design/src` back and then
+  `git checkout HEAD -- frontend/maquette/design/src` DISCARDS uncommitted work in that tree — two fixes made
+  between the gate and the reference reading were wiped silently and had to be re-applied. `mutate.sh` refuses a
+  dirty tree for exactly this reason; a reference reading deserves the same rule: commit first.
+- 2026-09-14 b·7 mutations, all named: `page` → url_state.py « changing page writes the PATH »; `panel` →
+  cards.py R43/R44 « the body opened no panel » (panel.py did not fall, surfaces.py and actions.py CRASHED);
+  `drawer` → selection_survives_the_tab.py « every page the drawer offers is walked to by a finger » (drawer.py
+  and journey.py CRASHED); `stopImmediatePropagation` → `stopPropagation` → url_state.py's topic hold; the link's
+  `preventDefault` removed → drawer.py's five entries. Logs `l13b3-b07-mutations{,2}.log`.
+- 2026-09-14 b·7 figures: legacy.js 2755 → 2644 non-blank (ledger down), app/ frame-domain 138 unchanged, fan-in
+  4/4, cycles 0, comment baseline `read` 424 → 425, vocabulary + « landing », forwarded-value arm and its tests
+  deleted (B-513). Frontend gate: tsc -b clean, vitest 114/114; tests/scripts pair 127 passed.
