@@ -60,7 +60,7 @@ async def main():
     whole = await pg.evaluate("""()=>document.querySelectorAll('#view [data-part="card/title"]').length""")
     await pg.fill('#follq', 'zzz-no-such-follow'); await pg.wait_for_timeout(300)
     narrowed = await pg.evaluate("""()=>document.querySelectorAll('#view [data-part="card/title"]').length""")
-    await pg.click('#view [data-clearq="foll"]'); await pg.wait_for_timeout(300)
+    await pg.click('#view [data-clear-filter]'); await pg.wait_for_timeout(300)
     cleared = await pg.evaluate("""()=>({filter: window.__store.read().state.filter,
         rows: document.querySelectorAll('#view [data-part="card/title"]').length})""")
     if narrowed >= whole or cleared["filter"] != "" or cleared["rows"] != whole:

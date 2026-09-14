@@ -43,9 +43,6 @@ export type LibraryRow = {
 };
 
 export type LibraryReference = EngineDrawing & {
-  // The selection bar lives in `#device` and stays the FRAGMENT's: a component
-  // asks for a repaint after it draws, exactly where `fillLib` asked for one.
-  paintSelBar: () => void;
   // Every sort, in both directions, each with its own name — the table E-001
   // made two-dimensional. A rule reads the NAMES from here rather than
   // restating them.

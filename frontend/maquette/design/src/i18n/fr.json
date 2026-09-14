@@ -984,6 +984,40 @@
     }
   },
   "verbs": {
+    "library": {
+      "sorted": "Trié par {{way}}.",
+      "delete": {
+        "headingMany": "Supprimer {{media}} médias ?",
+        "headingOneTitleMany": "Supprimer « {{title}} » — {{media}} médias ?",
+        "headingOne": "Supprimer « {{title}} » ?",
+        "dryRun": "Simulation — rien ne sera supprimé tant que vous n'aurez pas validé que cette liste dit vrai.",
+        "fileOne": "{{count}} fichier",
+        "fileMany": "{{count}} fichiers",
+        "otherOne": "et {{count}} autre",
+        "otherMany": "et {{count}} autres",
+        "exactly": "Voici exactement ce qui serait supprimé :",
+        "videoFiles": "Fichiers vidéo",
+        "videoFilesValue": "{{files}} · {{size}}",
+        "size": "{{size}} Go",
+        "metadata": "Métadonnées (NFO, affiches, fanart)",
+        "metadataValue": "{{count}} fichiers",
+        "libraryRows": "Lignes de la médiathèque",
+        "itemOne": "{{count}} item",
+        "itemMany": "{{count}} items",
+        "plexEntry": "Entrée Plex",
+        "plexEntryValue": "{{count}} · à vérifier",
+        "followedOne": "« {{title}} » est suivi.",
+        "followedMany": "{{count}} de ces médias sont suivis.",
+        "followedText": "Sans action de votre part, ces épisodes seront re-téléchargés à la prochaine recherche.",
+        "deleteAndStop": "Supprimer et arrêter le suivi",
+        "doneStopped": "Simulation terminée — 0 fichier touché. Le suivi aurait été arrêté.",
+        "deleteAndKeep": "Supprimer, garder le suivi",
+        "doneKept": "Simulation terminée — 0 fichier touché. Le suivi aurait été conservé.",
+        "delete": "Supprimer",
+        "done": "Simulation terminée — 0 fichier touché.",
+        "cancel": "Annuler"
+      }
+    },
     "acquisition": {
       "taken": "« {{title}} » récupéré — suivez-le dans « En vol ».",
       "searchStarted": "Recherche lancée pour « {{title}} » — le résultat s'affichera sur la carte.",
@@ -998,7 +1032,8 @@
       "replaceAfter": " la version en place par celle qui sera récupérée.",
       "replace": "Remplacer",
       "replaceCancel": "Annuler",
-      "replacementQueued": "Ajouté — la version en place sera remplacée une fois la nouvelle récupérée."
+      "replacementQueued": "Ajouté — la version en place sera remplacée une fois la nouvelle récupérée.",
+      "searchAgain": "{{label}} — {{title}}"
     },
     "arrivals": {
       "taken": "« {{title}} » récupéré — suivez-le dans « En vol ».",

@@ -1831,11 +1831,6 @@ import {
     /* Published for the MEASUREMENT of the deck's gesture: a rule drives the
        two halves the way the swipe handler drives them, and reads what the
        animation is doing one frame later. */
-    /* The selection bar stays the FRAGMENT's: it lives in `#device`, React
-       never draws it, and the component only asks for it to be repainted after
-       a render — the legacy owns that node from creation to removal, which is
-       what keeps two worlds from writing one element. */
-    paintSelBar,
     /* How many titles the prototype really carries, which the end mark says
        out loud rather than letting the end of the list contradict the « of
        1 861 » counter. A thin arrow, like `derivedStuck`: the value is the
@@ -1911,15 +1906,6 @@ import {
   /* The name of the sort in force, which is what the control on the count line
      reads. `sortReversed` is a store field like any other and, like `sortKey`, it
      stays OUT of the address: the sort is a preference, not a place (A7). */
-  function sortLabel() {
-    /* THE NAMES ARE THE FEATURE'S — `features/library/sorting.ts`, read
-       through `engine/seams.ts` rather than a copy kept here, the way a
-       setting's label is read from the settings feature. */
-    const named = seam.sortWays();
-    return named[currentState().sortKey][
-      currentState().sortReversed ? "inverse" : "normal"
-    ];
-  }
   const LIB_PAGE = 24;
 
   /* THE PAGE'S OWN DERIVATION, and it stays HERE while the drawing leaves.
@@ -1944,15 +1930,6 @@ import {
      A simple tap still opens the sheet: the most frequent path is never
      sacrificed to a rare action. */
 
-  /* THE SELECTION BAR IS NOT DRAWN HERE ANY MORE. It was created per open and
-     appended to `#device`; it is `features/library/selection-bar.tsx` now,
-     rendered into the frame's bottom slot and reading the same store fields.
-     This function stayed a VERB the delegation and the drivers still say —
-     `paintSelBar()` after a tile toggles — so that moving the drawing did not
-     take away the vocabulary. It draws nothing: the store bump beside every
-     call site is what the component listens to. It goes with the library's
-     verbs at L19. */
-  function paintSelBar() {}
 
   /* Reads the panel an element addresses.
      Split on the FIRST colon only: titles carry their own — « Dexter:
@@ -2297,33 +2274,6 @@ import {
       }
       return;
     }
-    if (closest.dataset.lens) {
-      // Changing lens changes the list: start again from the first page. And the
-      // SELECTION goes with it — a tick taken in another listing is one the
-      // reader cannot see to untick, and « Supprimer » would still offer it.
-      store.write({
-        libLens: closest.dataset.lens,
-        selected: new Set(),
-        });
-      port.scrollTop = 0;
-      render();
-      replacePath();
-      return;
-    }
-    if (closest.dataset.cat) {
-      store.write({
-        libCat: closest.dataset.cat,
-        selected: new Set(),
-        });
-      port.scrollTop = 0;
-      render();
-      return;
-    }
-    if (closest.dataset.lmode) {
-      store.write({ libMode: closest.dataset.lmode });
-      render();
-      return;
-    }
     if (closest.dataset.toast) {
       toast(closest.dataset.toast);
       return;
@@ -2388,80 +2338,9 @@ import {
       }
       return;
     }
-    if (closest.dataset.sort) {
-      // THE PRODUCER HAS LEFT. `features/library/panel-sort.ts` answers.
-      panel.produce("sort");
-      return;
-    }
-    if (closest.dataset.setsort) {
-      store.write({
-        sortKey: closest.dataset.setsort,
-        sortReversed: closest.dataset.reversed === "1",
-        selected: new Set(),
-      });
-      panel.close();
-      render();
-      toast(`Trié par ${sortLabel().toLowerCase()}.`);
-      return;
-    }
     if (closest.dataset.phase) {
       store.write({ phase: closest.dataset.phase });
       render();
-      return;
-    }
-    if (closest.dataset.clearq) {
-      if (closest.dataset.clearq === "lib")
-        // THE SELECTION GOES WITH THE QUESTION. Clearing the search widens what
-        // is on screen, and the ticks taken under the narrower listing are not
-        // the ones a reader is looking at.
-        store.write({ q: "", selected: new Set() });
-      else store.write({ filter: "" });
-      render();
-      return;
-    }
-    if (closest.dataset.selmode) {
-      store.write({ selMode: closest.dataset.selmode === "1", selectedMedia: 0 });
-      // Set mutated in place; render() right below carries the bump.
-      currentState().selected.clear();
-      render();
-      return;
-    }
-    if (closest.dataset.delsel) {
-      // THE SET HOLDS TITLES, so the dialog names what the reader ticked. It
-      // used to read each entry as an index into the SOURCE array while the
-      // ticks were taken on the LISTING — so under any order but the source's
-      // it named other media and destroyed them: ticking « 3% » and « À la
-      // recherche de Harry » under A → Z deleted « Ninja Turtles » and « Big
-      // Chicken », and the two ticked rows stayed.
-      openDeleteDialog(null, [...state.selected]);
-      return;
-    }
-    if (closest.dataset.tile != null && currentState().selMode) {
-      const title = closest.dataset.selectedTitle;
-      if (title == null) return;
-      if (currentState().selected.has(title)) currentState().selected.delete(title);
-      else currentState().selected.add(title);
-      // paintSelBar() below draws the bar directly, not through render():
-      // the explicit bump is what tells React the selection changed.
-      // THE BAR COUNTS MEDIA, not ticks. One press on a title this library holds
-      // twice lights both rows and the dialog says « 2 médias »; a caption
-      // reading « 1 sélectionné » beside them is the only figure in the flow
-      // still counting something else. Written rather than touched: a write
-      // bumps too, and hold (f) drives `write({})` on nine states to prove a
-      // surface keeps its nodes across one.
-      store.write({
-        selectedMedia: [...currentState().selected].reduce(
-          (accumulator, element) => accumulator + mediaNamedBy(element),
-          0,
-        ),
-      });
-      closest.setAttribute("aria-pressed", String(currentState().selected.has(title)));
-      paintSelBar();
-      return;
-    }
-    if (closest.dataset.del) {
-      panel.close();
-      openDeleteDialog(closest.dataset.del);
       return;
     }
     /* A card body opens the panel on a simple tap. The gallery reaches the
@@ -2471,191 +2350,7 @@ import {
       return;
     }
 
-    if (closest.classList.contains("act")) {
-      const textContent = closest
-        .closest(".swipe")
-        .querySelector(".ctitle").textContent;
-      // Through the shared close, so what is recorded about the open row — and
-      // about where it rests — cannot drift from what is on screen. Clearing
-      // the transform alone left the next drag resuming from a drawer that was
-      // no longer open, which is the jump seen from the other side.
-      const card = closest.closest(".swipe").querySelector(".card");
-      if (openCard === card) collapseCard();
-      else card.style.transform = "";
-      if (closest.classList.contains("remove"))
-        return currentState().page === "lib"
-          ? openDeleteDialog(textContent)
-          : seam.followVerbs?.removeFollow(textContent);
-      if (closest.classList.contains("pause"))
-        return seam.followVerbs?.pause(textContent);
-      toast(`${closest.textContent.trim()} — ${textContent}`);
-      return;
-    }
   });
-
-  /* Deletion */
-  /* How many library rows one title names. The delete acts BY TITLE — the only
-     key the contract offers — so a title naming two rows is two media, and every
-     figure the interface prints about a selection has to say so. */
-  function mediaNamedBy(title) {
-    return Math.max(1, LIBRARY.filter((row) => row.t === title).length);
-  }
-
-  function openDeleteDialog(title, many) {
-    const titles = many && many.length > 0 ? many : [title];
-    const multi = titles.length > 1;
-    const inc = (title2) =>
-      INCOMPLETE.find((INCOMPLETE2) => INCOMPLETE2.t === title2);
-    const followed = titles.filter(
-      (title2) =>
-        follows().some((follow) => follow.t === title2) || !!inc(title2),
-    );
-    // HOW MANY MEDIA EACH TITLE NAMES, and it is not always one. The delete
-    // acts BY TITLE — the only key the contract offers — and this library holds
-    // « Doctor Who » twice, 2005 and 2023 — ONE duplicated title in 345 rows,
-    // 344 of them distinct. (The first version of this sentence said five, a
-    // count taken over a window that ran past this array into the next one.)
-    // Confirming one of them removes both, and the count below said one file:
-    // a manifest whose whole purpose is « voici exactement ce qui serait
-    // supprimé » naming half of it. The interface cannot delete one of the two
-    // — that needs an identifier the backend does not serve, and the demand is
-    // recorded — but it can say the truth about what it is about to do.
-    const mediaFor = mediaNamedBy;
-    const files = titles.reduce(
-      (accumulator, element) =>
-        accumulator + (inc(element) ? inc(element).o : mediaFor(element)),
-      0,
-    );
-    const media = titles.reduce(
-      (accumulator, element) => accumulator + mediaFor(element),
-      0,
-    );
-    // What the four rows above the fold account for, so « et N autres » names
-    // media like every other figure in this dialog.
-    const shown = titles.slice(0, 4).reduce(
-      (accumulator, element) => accumulator + mediaFor(element),
-      0,
-    );
-    // AND THE FOLLOWED WARNING TOO. A followed title that names two rows is two
-    // media coming back at the next search. Latent while no duplicated title is
-    // followed, which is exactly how it would ship unnoticed.
-    const followedMedia = followed.reduce(
-      (accumulator, element) => accumulator + mediaFor(element),
-      0,
-    );
-    const size = (files * 0.41).toFixed(1).replace(".", ",") + " Go";
-    /* NOT ESCAPED, and it is the one `escapeHtml` site in this file that must
-       not be: the heading crosses as a DESCRIPTOR field and is rendered as a
-       React text node, which escapes it itself. Escaped here it was escaped
-       twice — « Supprimer « Lilo &amp; Stitch » ? » on every title carrying an
-       ampersand, and the seeds carry five. The other thirty-five sites still
-       feed `innerHTML` and still need it. */
-    const head = multi
-      ? `Supprimer ${media} médias ?`
-      : media > 1
-        ? `Supprimer « ${titles[0]} » — ${media} médias ?`
-        : `Supprimer « ${titles[0]} » ?`;
-    seam.dialog?.open({
-      heading: head,
-      body: [
-        {
-          type: "dryRun",
-          text:
-            "Simulation — rien ne sera supprimé tant que vous n'aurez pas " +
-            "validé que cette liste dit vrai.",
-        },
-        ...(multi
-          ? [
-              {
-                type: "manifest",
-                entries: [
-                  ...titles.slice(0, 4).map((title2) => ({
-                    text: title2,
-                    value: `${inc(title2) ? inc(title2).o : mediaFor(title2)} fichier${(inc(title2) ? inc(title2).o : mediaFor(title2)) > 1 ? "s" : ""}`,
-                  })),
-                  ...(titles.length > 4
-                    ? [
-                        {
-                          text: `et ${media - shown} autre${media - shown > 1 ? "s" : ""}`,
-                          value: "",
-                        },
-                      ]
-                    : []),
-                ],
-              },
-            ]
-          : []),
-        {
-          type: "paragraph",
-          runs: [{ text: "Voici exactement ce qui serait supprimé :" }],
-        },
-        {
-          type: "manifest",
-          entries: [
-            { text: "Fichiers vidéo", value: `${files} · ${size}` },
-            {
-              text: "Métadonnées (NFO, affiches, fanart)",
-              value: `${files * 3} fichiers`,
-            },
-            {
-              text: "Lignes de la médiathèque",
-              // THE MEDIA, not the titles: one title can name two rows, and this
-              // manifest's whole purpose is to say exactly what would go.
-              value: `${media} item${media > 1 ? "s" : ""}`,
-            },
-            { text: "Entrée Plex", value: `${media} · à vérifier` },
-          ],
-        },
-        ...(followed.length > 0
-          ? [
-              {
-                type: "warning",
-                strong:
-                  followed.length === 1
-                    ? `« ${followed[0]} » est suivi.`
-                    : `${followedMedia} de ces médias sont suivis.`,
-                text:
-                  "Sans action de votre part, ces épisodes seront " +
-                  "re-téléchargés à la prochaine recherche.",
-              },
-            ]
-          : []),
-      ],
-      actions: [
-        ...(followed.length > 0
-          ? [
-              {
-                text: "Supprimer et arrêter le suivi",
-                tone: "danger",
-                target: {
-                  "data-toast":
-                    "Simulation terminée — 0 fichier touché. Le suivi aurait été arrêté.",
-                },
-                run: () => actionDelete(titles),
-              },
-              {
-                text: "Supprimer, garder le suivi",
-                target: {
-                  "data-toast":
-                    "Simulation terminée — 0 fichier touché. Le suivi aurait été conservé.",
-                },
-                run: () => actionDelete(titles),
-              },
-            ]
-          : [
-              {
-                text: "Supprimer",
-                tone: "danger",
-                target: {
-                  "data-toast": "Simulation terminée — 0 fichier touché.",
-                },
-                run: () => actionDelete(titles),
-              },
-            ]),
-        { text: "Annuler", tone: "ghost", dismiss: true },
-      ],
-    });
-  }
 
   /* Screens and sheets */
   const MOIS = [
@@ -3164,7 +2859,6 @@ import {
    dependency is readable and a deletion breaks the build instead of a run. */
 export {
   applyState,
-  openDeleteDialog,
   openDrawer,
   resetSettings,
   render,
@@ -3227,14 +2921,13 @@ Object.assign(window, {
   closeDrawer, changedFiles,
   gridBadge, icons, initialsOf, drawerWidth,
   mountLoaders, mountSearch, fileName,
-  openDeleteDialog,
   openPanel,
   openSheet,
-  openDrawer, paintSelBar, panelUnderFinger,
+  openDrawer, panelUnderFinger,
   nextSearchFR,
   ptr, refPanel, collapseCard,
   settingId, resetSettings, render,
-  select, sortLabel,
+  select,
   stFraction, stLabel,
   sugVerb,
   svgIcon, toast, toastUndo,

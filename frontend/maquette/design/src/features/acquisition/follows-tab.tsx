@@ -153,10 +153,10 @@ export function FollowsTab(): ReactElement {
     swipeRowMarkup(
       mediumCardMarkup(descriptorOf(follow, showStatus)),
       follow.k === "movie"
-        ? `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipeStopSearching")}</button><button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`
-        : `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipePause")}</button><button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`,
+        ? `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause" data-pause="${escapeHtml(follow.t)}">${svgIcon(icons.x)}${t("screens.acquisition.swipeStopSearching")}</button><button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove" data-remove="${escapeHtml(follow.t)}">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`
+        : `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause" data-pause="${escapeHtml(follow.t)}">${svgIcon(icons.x)}${t("screens.acquisition.swipePause")}</button><button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove" data-remove="${escapeHtml(follow.t)}">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`,
       follow.st === "pending" || follow.st === "to_grab"
-        ? `<button class="${swipeAction({ tone: "resume" })}" data-part="swipe/action" data-action="resume" data-swipeact="${SEARCH_AGAIN}">${svgIcon(icons.refresh)}${t("screens.acquisition.swipeSearch")}</button>`
+        ? `<button class="${swipeAction({ tone: "resume" })}" data-part="swipe/action" data-action="resume" data-swipeact="${SEARCH_AGAIN}" data-search-again="${escapeHtml(follow.t)}">${svgIcon(icons.refresh)}${t("screens.acquisition.swipeSearch")}</button>`
         : "",
     );
 

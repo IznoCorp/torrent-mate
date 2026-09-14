@@ -5,7 +5,8 @@
 // `run` builds the state. The driver resets the interface before every state,
 // so an entry pins only what its state means to show.
 import { applyState, type NamedState } from "../drive";
-import { openDeleteDialog, render } from "../../engine/legacy.js";
+import { render } from "../../engine/legacy.js";
+import { openDeleteDialog } from "../../features/library/delete-dialog";
 
 export function libraryStates(): NamedState[] {
   // The store the shell creates and publishes, read when the table is built.

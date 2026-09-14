@@ -228,6 +228,30 @@ type FollowVerbs = {
 // ONE VERB, TWO EMITTERS, and the element is what tells them apart — which is
 // why the registry hands the element to the act rather than the value alone.
 export const followVerbs: FollowVerbs = { follow, pause, removeFollow };
+
+declare global {
+  interface Window {
+    /** The swipe card whose drawer is open — the gesture's state, still the engine's. */
+    openCard?: HTMLElement | null;
+    /** Closes the open swipe drawer. */
+    collapseCard?: () => void;
+  }
+}
+
+/**
+ * Puts a swipe row back at rest after one of its actions is tapped.
+ *
+ * Exactly what the delegation did: the open card collapses, any other card
+ * loses its drag offset. A tap from the panel has no row, and nothing moves.
+ *
+ * @param element The action tapped.
+ */
+export function settleSwipeRow(element: HTMLElement): void {
+  const card = element.closest(".swipe")?.querySelector<HTMLElement>(".card");
+  if (!card) return;
+  if (window.openCard === card) window.collapseCard?.();
+  else card.style.transform = "";
+}
 registerVerb("follow", (title, element) => {
   const at = element.dataset.sugidx;
   const suggestion = at === undefined
@@ -258,7 +282,8 @@ registerVerb("follow", (title, element) => {
 // waited here goes with the branch (B-249). The panel leaves inside the
 // navigation's own commit, so the wait bought nothing but a state that had
 // already moved being announced late.
-registerVerb("pause", (title) => {
+registerVerb("pause", (title, element) => {
+  settleSwipeRow(element);
   panel.close();
   pause(title);
 });
@@ -268,7 +293,8 @@ registerVerb("pause", (title) => {
 // `__followVerbs` — and there it is one of TWO destinations, since the same
 // class on a library row opens a confirmation dialog rather than removing a
 // follow. That arbitration is the engine's drawing and stays with it.
-registerVerb("remove", (title) => {
+registerVerb("remove", (title, element) => {
+  settleSwipeRow(element);
   panel.close();
   removeFollow(title);
 });

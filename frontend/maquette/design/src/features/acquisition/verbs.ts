@@ -16,10 +16,10 @@
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { queueActions } from "../../lib/queue";
-import { panel, toast } from "../../lib/shell-doors";
+import { panel, replaceAddress, toast } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
 import { baseTitle } from "../../lib/titles";
-import { replacePath } from "../../app/page-switch";
+import { settleSwipeRow } from "./follow-verbs";
 
 /** Redraws the page the engine still draws beside the components. */
 function redraw(): void {
@@ -34,7 +34,7 @@ registerVerb("acqtab", (tab) => {
   const port = document.getElementById("port");
   if (port !== null) port.scrollTop = 0;
   redraw();
-  replacePath();
+  replaceAddress?.();
 });
 registerVerb("pill", (pill) => {
   store.write({ pill });
@@ -96,3 +96,17 @@ registerVerb("journey", (title) => {
   panel.produce("journey", title);
 });
 registerVerb("more", () => panel.produce("more"));
+
+// The follows' search cross: an empty filter shows the whole list again.
+registerVerb("clear-filter", () => {
+  store.write({ filter: "" });
+  redraw();
+});
+
+// A swipe row's « search again »: the row comes back to rest and the act is
+// said, as the delegation said it.
+registerVerb("search-again", (title, element) => {
+  settleSwipeRow(element);
+  const label = (element.textContent ?? "").trim();
+  toast?.show({ message: i18next.t("verbs.acquisition.searchAgain", { label, title }) });
+});

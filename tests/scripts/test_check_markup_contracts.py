@@ -156,7 +156,7 @@ class TestTheTreeItself:
         """A scope that empties would make « no violation » mean nothing.
 
         2026-09-14: b·5 moved acqtab/pill/fmode/sugmode to the feature; the engine holds
-        page, go, lmode, phase until b·7.
+        page, go, lmode, phase until b·7. b·6 moved lmode; the engine holds page, go, phase.
         """
         sources = "\n".join(
             p.read_text(encoding="utf-8")
@@ -164,7 +164,7 @@ class TestTheTreeItself:
             if p.is_file() and p.suffix in {".js", ".ts", ".tsx"}
         )
 
-        assert len(guard.FORWARDER.findall(guard.COMMENT.sub(" ", sources))) >= 4
+        assert len(guard.FORWARDER.findall(guard.COMMENT.sub(" ", sources))) >= 3
 
 
 class TestTheHardZeroFloor:

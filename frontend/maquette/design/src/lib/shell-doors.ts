@@ -24,6 +24,10 @@ export let toast: Window["__toast"];
 export let panel: Window["__panel"];
 /** The confirmation's verbs. */
 export let dialog: Window["__dialog"];
+/** The titles followed right now — asked by a feature that may not import acquisition. */
+export let followedTitles: (() => string[]) | undefined;
+/** Rewrites the current history entry's address for a page setting — a tab, a lens. */
+export let replaceAddress: (() => boolean) | undefined;
 /** The history primitives the navigation logic speaks through. */
 export let bridge: Window["__bridge"];
 /** The screen openers. */
@@ -54,6 +58,24 @@ export function fillPanelDoor(verbs: Window["__panel"]): void {
  */
 export function fillDialogDoor(verbs: Window["__dialog"]): void {
   dialog = verbs;
+}
+
+/**
+ * Fills the followed-titles door, from the follows' install.
+ *
+ * @param read What answers the titles followed right now.
+ */
+export function fillFollowedTitlesDoor(read: () => string[]): void {
+  followedTitles = read;
+}
+
+/**
+ * Fills the address-replacing door, from the page switch.
+ *
+ * @param write What rewrites the current entry's address, answering whether it did.
+ */
+export function fillReplaceAddressDoor(write: () => boolean): void {
+  replaceAddress = write;
 }
 
 /**

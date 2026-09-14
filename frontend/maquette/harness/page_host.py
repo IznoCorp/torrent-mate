@@ -527,17 +527,17 @@ async def main():
             "()=>{window.__store.write({q: 'stargate'});}")
         await page.evaluate("()=>window.__referentiel.render()")
         await page.wait_for_timeout(400)
-        refused = await tap("#view [data-clearq]")
+        refused = await tap("#view [data-clear-search]")
         cleared = await page.evaluate("""()=>({
           q: window.__store.read().state.q,
           field: (document.querySelector('#libq')||{}).value,
-          cross: !!document.querySelector('#view [data-clearq]'),
+          cross: !!document.querySelector('#view [data-clear-search]'),
         })""")
         journal.check(
             "a real tap on the search's cross clears the field AND the search",
             not refused and cleared["q"] == "" and cleared["field"] == ""
             and not cleared["cross"],
-            str(cleared) if not refused else f"data-clearq {refused}")
+            str(cleared) if not refused else f"data-clear-search {refused}")
 
         # (c-quater) LEAVING A MIGRATED PAGE MUST NOT KILL THE SHELL. This is
         # the half of the ownership law no hold covered, and it cost a real

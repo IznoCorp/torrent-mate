@@ -8,6 +8,7 @@ import { HELD, read, send } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
 import type { Follow } from "./reference";
 import { queueNow } from "../../lib/queue";
+import { fillFollowedTitlesDoor } from "../../lib/shell-doors";
 
 /**
  * The suggestions the discover deck draws, as a query definition.
@@ -187,6 +188,7 @@ export function installFollowActions(queryClient: QueryClient): void {
   const held = () => queryClient.getQueryData<Follow[]>(followsKey) ?? [];
   const write = (follows: Follow[]) => queryClient.setQueryData(followsKey, follows);
   const refresh = () => void queryClient.invalidateQueries({ queryKey: followsKey });
+  fillFollowedTitlesDoor(() => held().map((follow) => follow.t));
 
   followActions = {
     setStatus: (title, status) => {

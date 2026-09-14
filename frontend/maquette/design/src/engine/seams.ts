@@ -27,10 +27,8 @@ import { dialog } from "../app/dialog-host";
 import { entry, loadingDone } from "../app/entry";
 import { registeredLayers } from "../app/layers";
 import { navigation } from "../app/navigation-seam";
-import { followVerbs } from "../features/acquisition/follow-verbs";
 import { followActions, suggestions } from "../features/acquisition/queries";
 import { deleteLibraryItems } from "../features/library/queries";
-import { sortWays } from "../features/library/sorting";
 import { addressSeam } from "../lib/addresses";
 import { queueActions, queueLists } from "../lib/queue";
 import { toast } from "../lib/shell-doors";
@@ -166,9 +164,6 @@ export const seam = {
   get followActions() {
     return followActions;
   },
-  get followVerbs() {
-    return followVerbs;
-  },
   get layers() {
     return registeredLayers;
   },
@@ -183,9 +178,6 @@ export const seam = {
   },
   get queueActions() {
     return queueActions;
-  },
-  get sortWays() {
-    return sortWays;
   },
   get stackedSurfaces() {
     return stackedSurfaces;
