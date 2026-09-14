@@ -321,3 +321,63 @@ def test_the_committed_reference_carries_a_platform():
     # diff, and verified BY NAME rather than by the count: a reference accepted over another
     # wave's build came back with the right-looking total and none of this lot's states in it.
     assert reference["counts"] == {"states": 99, "regions": 36}
+
+
+class TestItRefusesToWriteOverAForeignBuild:
+    """The reference is only ever written from the copy THIS tree built.
+
+    B-256's species, met for real: `--accept` run as its own invocation
+    measured another wave's build — the machine has ONE served copy — and
+    rewrote the reference with that wave's states, at a total that looked
+    entirely plausible. `run.sh` and `mutate.sh` acquire the copy before they
+    touch it; the two paths that WRITE the reference did not.
+    """
+
+    def test_a_copy_built_from_another_tree_is_refused(self, monkeypatch) -> None:
+        """A stamp that is not this tree's is a refusal, never a rewrite."""
+        oracle = load()
+        monkeypatch.setattr(
+            oracle.served_copy, "read_stamp", lambda: {"source_stamp": 111, "commit": "abc", "token": "t"}
+        )
+        monkeypatch.setattr(oracle.served_copy, "source_stamp", lambda: 222)
+        agreed, why = oracle.served_copy_is_this_tree()
+        assert agreed is False
+        assert "111" in why and "222" in why
+
+    def test_the_copy_this_tree_built_is_accepted(self, monkeypatch) -> None:
+        """And the ordinary case still writes."""
+        oracle = load()
+        monkeypatch.setattr(
+            oracle.served_copy, "read_stamp", lambda: {"source_stamp": 333, "commit": "abc", "token": "t"}
+        )
+        monkeypatch.setattr(oracle.served_copy, "source_stamp", lambda: 333)
+        agreed, why = oracle.served_copy_is_this_tree()
+        assert agreed is True
+        assert why == ""
+
+    def test_an_unstamped_copy_is_refused(self, monkeypatch) -> None:
+        """A copy carrying no stamp says nothing about what it holds."""
+        oracle = load()
+        monkeypatch.setattr(oracle.served_copy, "read_stamp", lambda: None)
+        agreed, why = oracle.served_copy_is_this_tree()
+        assert agreed is False
+        assert "stamp" in why
+
+    def test_both_write_paths_consult_it(self) -> None:
+        """Neither `--record` nor `--accept` may write without asking.
+
+        THE WHOLE CHAIN, not one name of it: the two paths ask the refusal, and
+        the refusal asks the stamp. Written first against the stamp's own name,
+        which held only half the chain — a path could call it and ignore what it
+        answered.
+        """
+        source = SCRIPT.read_text(encoding="utf-8")
+        record = source[source.index("async def record(") : source.index("async def check(")]
+        check = source[source.index("async def check(") :]
+        refusal = source[source.index("def refuse_a_foreign_build(") : source.index("async def record(")]
+        for half, name in ((record, "record"), (check, "check")):
+            assert "refuse_a_foreign_build()" in half, (
+                f"{name} writes the reference without asking whether the served copy is this tree's build"
+            )
+            assert "return 1" in half, f"{name} asks, and must REFUSE on the answer rather than write anyway"
+        assert "served_copy_is_this_tree()" in refusal, "the refusal answers without reading the served copy's stamp"
