@@ -10,8 +10,8 @@
 // outside `ui/` and `lib/` that every feature imported would be the hub
 // invariant 8 refuses.
 //
-// THEY ARE `let`, AND THAT IS THE WHOLE MECHANISM — the one `engine/seams.ts`
-// uses. Each is filled at its host's install, after this module has evaluated;
+// THEY ARE `let`, AND THAT IS THE WHOLE MECHANISM — the one
+// `engine/seams.ts@13a66a35b` used. Each is filled at its host's install, after this module has evaluated;
 // an ES export is a live binding, so a caller reads the filled value at call
 // time, which is the only time it calls.
 //

@@ -1,8 +1,8 @@
 // The strangler shell. One owner for the URL and the history: this router.
-// The legacy engine keeps its navigation LOGIC (what to push, when to
-// unwind) and loses only its primitives — it speaks to the bridge door,
-// implemented on the router's history. `window.__go` keeps driving
-// states without navigation, exactly as before.
+// The legacy engine (`engine/legacy.js@13a66a35b`) kept its navigation LOGIC
+// (what to push, when to unwind) and lost only its primitives; what navigates
+// now speaks to the bridge door, implemented on the router's history.
+// `window.__go` drives states without navigation, as it did then.
 //
 // Every name reached from the legacy fragment — the window seams, their
 // member names, the route paths and the `data-*` vocabulary — is the seam

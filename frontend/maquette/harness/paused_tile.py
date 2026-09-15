@@ -5,9 +5,9 @@ and says nothing, while a paused film says « en pause ». One state, drawn twic
 announced once.
 
 THE MECHANISM, and it is one character. The tile's caption was
-`stFraction(follow) ?? (disabled ? paused : year)`, and `stFraction` answers
-null for a FILM and only for a film (`legacy.js`: `if (follow.k === "movie")
-return null`). Every series therefore has a fraction, the `??` never reached its
+`stFraction(follow) ?? (disabled ? paused : year)`, and `stFraction` answered
+null for a FILM and only for a film (`engine/legacy.js@13a66a35b`:
+`if (follow.k === "movie") return null`). Every series therefore has a fraction, the `??` never reached its
 second branch for one, and the word was unreachable for exactly the media that
 have episodes to count. A paused film said the word only because it had no
 figure to say instead.
