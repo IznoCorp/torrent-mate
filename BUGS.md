@@ -451,7 +451,7 @@ when the defect comes back.
 | B-462 | The candidate card's accessible name is its title and year alone, so the confidence, the provider, the kind and the synopsis are announced to nobody on the screen whose whole job is choosing between near-identical candidates | by review | `open` |
 | B-463 | `csstokens_ranks.py` attributes a rank to the nearest `export const` above it, so a rank declared under an unrelated binding passes silently at an already-recorded number and names the wrong site at any other | by review | `open` |
 | B-464 | The same arm never opens three scopes: a `<style>` block in the shell's markup, a `.css` in a subdirectory of `styles/`, and a negative `-z-N` utility | by review | `open` |
-| B-465 | `engine/legacy.js:9344` still says « paintSelBar() below draws the bar directly » four lines above the call to the now-empty function | by review | `open` |
+| B-465 | `engine/legacy.js:9344` still says « paintSelBar() below draws the bar directly » four lines above the call to the now-empty function | by review | `fixed #601` |
 | B-466 | `ui/variants/frame.ts` sits at 399 non-blank lines against a hard ceiling of 400, and the arm this wave added is what will demand the four-hundredth | by review | `open` |
 | B-470 | The media sheet carries the SAME « Re-scraper les métadonnées » the follow panel does, drawn as `data-toast`, so it too said a sentence and sent nothing — a fifth verb of B-383's class, named in no entry because round two's reader swept panel producers and a sheet is a screen | by the mock-layer micro-wave | `fixed #592` |
 | B-471 | `readMediaSeasons` DECLARES `Season[]` (`{season, owned, aired}`) and ANSWERS the sheet's catalogue (`{number, episodes, airDate}`): two different shapes at one operation, and `contract-conformance.test.ts` cannot see it because it reads only a response's first-level required fields, never an element's | by the mock-layer micro-wave | `open` |
@@ -483,6 +483,10 @@ when the defect comes back.
 | B-511 | Ruling 61's register note says « 0 updates, 0 observers » where the measured candidate reads 1 observer on each empty-key query entry while the panel is open | the reader round | `open` |
 | B-512 | `selection_survives_the_tab.py` (R164) reads « the Médiathèque draws the bar over a real selection » red under the 28-named gate load and green alone — 2 red / 2 green on b·6's head in that shape, green before the move in the 19-rule shape; at the failing instant the bar exists and the point at its centre hits a tile's poster; its detail string is armed to name what hid the bar; owner b·13's full suite | by L13b | `open` |
 | B-513 | The « a markup literal nobody compares » class is UNGUARDED since b·7: `check-markup-contracts.py`'s forwarded-value arm read `store.write({f: …dataset.x})` — the engine's delegation — and checked every emitted `data-*` literal against the readers that compare it, which is what caught `data-phase="prete"` (B-031) and a `data-fmode="gird"` that rendered nothing. The engine forwards nothing now: each name is answered through the tap registry, where a verb receives `node.dataset[key]`, so the same defect is writable and nothing reads for it. Re-aiming the arm at the registry's reads WIDENS its subject (ruling 78, measure 1), so it was deleted rather than re-pointed (ruling 87). Candidate: an arm reading the registry's dataset reads, after L13 — the operator's or the auditor's call | by L13b | `open` |
+| B-514 | `queued_ask_mark.py` (R138) lost its SCREEN half at b·12's re-aim and still claims it: `DRAWN_AS_BUSY` now reads the same LAYER as `RUN_THE_PIPELINE` (`fetch('/api/pipeline/status')`, the `pipe` store key it compared against deleted), so a mutation making the arrivals bar draw « Au repos » while the layer runs stays green; owner L13r r·3, or the next repair train | the reader round | `open` |
+| B-515 | « Réessayer » on the Arrivées error re-asks `GET /api/staging/media` with no pending or busy sign, and the named error state's injected failure has no path to clear on the maquette's mock — honest behaviour, no product defect underneath; owner L13c | the reader round | `open` |
+| B-516 | `follow_seasons.py` (R192)'s named case and floor read the SEED, not the comparison: `if not sheet and not panel: continue` skips a series drawing no rows on both surfaces, « Silo is among the series compared » checks `NAMED in series`, and the floor `compared >= 5` holds for 9 series — a mutation making Silo answer nothing on both surfaces (as 4 of the 9 already do) stays green; owner the next repair train | the reader round | `open` |
+| B-517 | Two comments outside `engine/legacy.js` still name the deleted `paintSelBar` as a living model — `features/library/page.tsx:18-25` and `features/acquisition/discover-tab.tsx:12` — true on L13b's control head, false since b·6 (`c74362af1`, B-465's own gesture); owner L13r r·6 | the reader round | `open` |
 | B-530 | The navigation drawer closed by a firm leftward swipe shows itself open again for a fraction of a second as the closing animation ends | by operator | `fixed #598` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
@@ -1523,6 +1527,15 @@ in the file that holds the seam — the sentence a reader uses to judge who owns
 the next wave that opens `legacy.js`.
 
 <sub>reader B, maquette-resolution-card round two, 2026-09-12 (B6) · read against `selection-bar.tsx`, `bottom-slot.tsx`, `navigation.ts` and `engine/legacy.js` on both builds · `frontend/maquette/design/src/engine/legacy.js:9344` and `:7788`</sub>
+
+**Closed #601, by grep.** `paintSelBar` left `engine/legacy.js` whole at b·6 (`c74362af1`) — the
+call, the `function paintSelBar() {}` at `:7788` and the comment at `:9344` all went together, not
+edited apart: `rg -n --type js paintSelBar frontend/maquette/design/src/engine/legacy.js` reads 0
+on `main`. The comment does not survive to say who draws the bar wrong; it does not survive at
+all. **Two DIFFERENT comments making the same false claim, in files this wave did not touch, are
+filed separately as B-517.**
+
+<sub>steward, docs-l13b-close, 2026-09-15 · `rg -n --type js paintSelBar frontend/maquette/design/src/engine/legacy.js` → 0 matches on `5df76af33`</sub>
 
 **B-464 — three scopes `csstokens_ranks.py` never opens.**
 
