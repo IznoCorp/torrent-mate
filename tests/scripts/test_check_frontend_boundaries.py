@@ -899,9 +899,7 @@ class TestTheRecordIsARatchetToo:
     def test_a_new_entry_has_nothing_to_compare(self, tmp_path) -> None:
         """A file grandfathered for the first time is not a raise."""
         root = self._repository(tmp_path, before=100, after=100)
-        raised, _ = self._read(
-            root, {STAND_IN: ("L13 — a lot", 100), "engine/states.js": ("L13 — a lot", 900)}
-        )
+        raised, _ = self._read(root, {STAND_IN: ("L13 — a lot", 100), "engine/states.js": ("L13 — a lot", 900)})
         assert raised == []
 
     def test_it_says_so_when_it_cannot_engage(self, tmp_path) -> None:
