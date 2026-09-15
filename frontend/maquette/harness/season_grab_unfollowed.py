@@ -99,6 +99,11 @@ RE-AIMED, said out loud: the seasons still to air and the follow's sheet were re
 its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
 `__carriedFor` — the seed the served read answers from, published by the harness
 driver — and the hold count is unchanged.
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), an incomplete
+show's as `title`, where they were the engine's `t`, `k` and `st`. The holds
+and what they compare are unchanged.
 """
 import asyncio
 import json
@@ -153,13 +158,13 @@ NEWLY_FOLLOWED_KEYS = (
 ANSWERED = "()=>(window.__mocks?.answered?.() || [])"
 
 FOLLOWS = """()=>Object.fromEntries((window.__followActions?.all() || []).map(
-  (one) => [one.t, one.st]))"""
+  (one) => [one.title, one.status]))"""
 
 # WHICH INCOMPLETE SHOWS HAVE A HOLE THE MATRIX DRAWS, and which are followed —
 # from the data, before a finger moves.
 THE_SUBJECTS = """()=>{
-  const followed = new Set((window.__followActions?.all() || []).map((one) => one.t));
-  const incomplete = (window.__queries.getQueryData(["/api/library/incomplete"]) || []).map((show) => show.t);
+  const followed = new Set((window.__followActions?.all() || []).map((one) => one.title));
+  const incomplete = (window.__queries.getQueryData(["/api/library/incomplete"]) || []).map((show) => show.title);
   return {
     incomplete: incomplete.length,
     followedAmongThem: incomplete.filter((title) => followed.has(title)),

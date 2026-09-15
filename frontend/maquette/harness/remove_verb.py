@@ -33,6 +33,10 @@ and found « Chercher maintenant », a different act entirely; a label is the on
 thing on a button that is allowed to change. This surface emits `data-action`
 on every swipe action and the markup contract holds those values, so the
 attribute is both stabler and already guarded.
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), where they were
+the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -50,7 +54,7 @@ FOLLOWS_STATE = "acq-follows-list"
 # be redrawn from anything and a rule reading its own subject twice reads it
 # from one place.
 FOLLOWS = """()=>(window.__followActions?.all() || []).map(
-  (one) => ({t: one.t, k: one.k, st: one.st}))"""
+  (one) => ({t: one.title, k: one.kind, st: one.status}))"""
 
 # ONE FOLLOW, WHOLE. The undo restores what was removed, and « restored » has
 # to mean every field it had: a follow rebuilt from its title alone comes back
@@ -59,7 +63,7 @@ FOLLOWS = """()=>(window.__followActions?.all() || []).map(
 # so the comparison is of values and not of a reference the layer may reuse.
 ONE_FOLLOW = """(title)=>{
   const one = (window.__followActions?.all() || []).find(
-    (follow) => follow.t === title);
+    (follow) => follow.title === title);
   return one ? JSON.parse(JSON.stringify(one)) : null;}"""
 
 # THE REMOVAL IN THE PANEL, found by the ATTRIBUTE it carries. Its LABEL

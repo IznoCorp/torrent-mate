@@ -89,13 +89,13 @@ export function mediaNamedBy(title: string): number {
 function incompleteShow(title: string): IncompleteShow | undefined {
   return sharedQueryClient
     ?.getQueryData<IncompleteShow[]>(libraryIncompleteQuery.queryKey)
-    ?.find((show) => show.t === title);
+    ?.find((show) => show.title === title);
 }
 
 /** The video files a title stands for: an incomplete show's owned episodes, otherwise its media. */
 function filesOf(title: string): number {
   const show = incompleteShow(title);
-  return show ? show.o : mediaNamedBy(title);
+  return show ? show.owned : mediaNamedBy(title);
 }
 
 /** The total of one figure over several titles. */

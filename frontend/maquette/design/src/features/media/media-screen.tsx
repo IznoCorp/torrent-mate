@@ -169,7 +169,7 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
   // — the asymmetry is the legacy sheet's, transplanted rather than
   // reconciled here.
   const follow = follows.find(
-    (one) => baseTitle(one.t) === baseTitle(title),
+    (one) => baseTitle(one.title) === baseTitle(title),
   );
   const followed = follow !== undefined;
   // AND THE FOLLOW IT FINDS IS THE ONE THE SEASON ACT ADDRESSES (B-382). A sheet
@@ -177,7 +177,7 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
   // the sheet's own key asked about a follow that does not exist, and the
   // answer began a second one beside it. One show, one identity — the test, the
   // address and the waiting seasons all read the follow this line found.
-  const followTitle = follow?.t ?? title;
+  const followTitle = follow?.title ?? title;
   const catalog = (sheet?.seasons ?? [])
     .slice()
     .sort((slice, index) => index.n - slice.n);

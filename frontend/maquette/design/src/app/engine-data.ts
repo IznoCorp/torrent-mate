@@ -23,7 +23,6 @@
 // It goes with the engine at L13, and it goes in one file.
 import type { QueryClient } from "@tanstack/react-query";
 import { read } from "../lib/query-client";
-import { toEngineShape } from "../engine/engine-shape";
 import { queueKey, stagingKey } from "../lib/queue";
 import { store } from "../lib/store-access";
 import { refillSuggestions } from "../features/acquisition/queries";
@@ -42,7 +41,6 @@ const NEEDED = [
   {
     key: ["/api/acquisition/followed"],
     address: "/api/acquisition/followed",
-    family: "FOLLOWS",
   },
 ] as const;
 
@@ -56,10 +54,10 @@ export let refillEngineData: (() => void) | undefined;
  */
 export function installEngineData(queryClient: QueryClient): void {
   refillEngineData = () => {
-    for (const { key, address, family } of NEEDED) {
+    for (const { key, address } of NEEDED) {
       void queryClient.prefetchQuery({
         queryKey: key,
-        queryFn: async () => toEngineShape<unknown>(family, await read(address)),
+        queryFn: async () => read(address),
       });
     }
     // THE QUEUE, in whichever world is in force. The engine's nav badges and

@@ -2,26 +2,17 @@
 //
 // The shapes this feature's reads answer, declared where the subject lives.
 
+import type { Schemas } from "../../lib/contract-schemas";
+
 // A FOLLOW, as the world holds one: a title, its kind, its year, the status the
 // acquisition engine last put it in, and — for a series — whether the show is
-// still running. `fresh` is what pushes a newly-added follow to the top.
-export type Follow = {
-  t: string;
-  k: string;
-  y: number | string;
-  st: string;
-  serie?: string;
-  fresh?: boolean;
-  since?: string;
-  searches?: number;
-  poster?: string | null;
-  /** The provider identifiers. A follow always has them (B-366). */
-  ids?: Record<string, number | string> | null;
-  /** A series' episodes aired, when its catalogue is known. */
-  aired?: number | null;
-  /** A series' episodes held. */
-  own?: number;
-};
+// still running (`showStatus`). `fresh` is what pushes a newly-added follow to the top.
+export type Follow = Schemas["Follow"];
+
+// What a follow's words and facts are drawn from: a served follow, or the
+// subject a panel composes for a medium not followed yet (an incomplete show,
+// a title) — its identity and status, and whatever else is known.
+export type FollowSubject = Pick<Follow, "title" | "kind" | "year" | "status"> & Partial<Follow>;
 
 // A search hit, exactly as the mock `SEARCH` constant shapes one. `k` is the
 // French kind label used throughout the legacy templates ("Film" / "Série"),

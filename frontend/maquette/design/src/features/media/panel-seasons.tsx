@@ -23,10 +23,10 @@ import { episodeStateLabel } from "./format";
 import { useQueuedSeasons } from "./queued-seasons";
 
 // The slice of a "follow" record the season blocks read: `ids` for the medium's
-// two served reads — the owned numbers and the episode catalogue — `t` for the
-// cache to be asked when the record carries no `ids`, and `st` as the fallback
+// two served reads — the owned numbers and the episode catalogue — `title` for
+// the cache to be asked when the record carries no `ids`, and `status` as the fallback
 // state when a season has no per-episode ownership data.
-export type Follow = { t: string; st?: string; ids?: Record<string, number | string> | null };
+export type Follow = { title: string; status?: string; ids?: Record<string, number | string> | null };
 
 /** A season of a series: its number, the episodes aired (null when unknown), the episodes owned. */
 export type Season = [number, number | null, number];
@@ -73,14 +73,14 @@ function epState(
   if (held)
     return held.has(number)
       ? "in_library"
-      : follow.st === "pending"
+      : follow.status === "pending"
         ? "pending"
-        : follow.st === "acquiring"
+        : follow.status === "acquiring"
           ? "acquiring"
           : "to_grab";
   if (number <= owned) return "in_library";
-  if (follow.st === "pending") return "pending";
-  if (follow.st === "acquiring") return "acquiring";
+  if (follow.status === "pending") return "pending";
+  if (follow.status === "acquiring") return "acquiring";
   return "to_grab";
 }
 
@@ -104,7 +104,7 @@ function SeasonDetails({
   const client = useQueryClient();
   // WHICH SEASONS ARE WAITING on the pipeline, read from the cache so the row
   // redraws the moment one is answered « queued ».
-  const waiting = useQueuedSeasons(follow.t);
+  const waiting = useQueuedSeasons(follow.title);
   const askedInFlight = useAskedInFlight();
   const [num, rawAired, owned] = season;
   const aired = rawAired ?? 0;
@@ -129,7 +129,7 @@ function SeasonDetails({
         data-part="episode"
         data-announced={state === "announced" || undefined}
         data-in-library={state === "in_library" || undefined}
-        data-ep={`${follow.t}|${num}|${number}|${state}`}
+        data-ep={`${follow.title}|${num}|${number}|${state}`}
         aria-label={`S${String(num).padStart(2, "0")}E${String(number).padStart(2, "0")} — ${episodeStateLabel(state)}`}
       >
         {String(number).padStart(2, "0")}
@@ -207,10 +207,10 @@ function SeasonDetails({
           type="button"
           className={`${actionButton({ kind: "panelAction" })} ${seasonGrabSpacing()} ${seasonGrabTaken()}`}
           data-part="season/grab"
-          data-grab-season={`${follow.t}|${num}`}
-          aria-busy={askedInFlight.has(`${follow.t}|${num}`) || undefined}
+          data-grab-season={`${follow.title}|${num}`}
+          aria-busy={askedInFlight.has(`${follow.title}|${num}`) || undefined}
           onClick={() => {
-            void askForSeason(client, follow.t, num);
+            void askForSeason(client, follow.title, num);
           }}
         >
           {t("panels.follow.grabSeason", { season: num })}
@@ -233,7 +233,7 @@ function SeasonsBlock({
   // read lands, because the list that holds a medium nobody follows can land
   // after the panel opened.
   useServerStateVersion();
-  const address = providerAddress(follow.ids ?? heldIdentity(follow.t)?.ids);
+  const address = providerAddress(follow.ids ?? heldIdentity(follow.title)?.ids);
   const seasonsRead = useMediaSeasons(address?.provider ?? "", address?.id ?? "");
   const sheetRead = useMediaSheet(address?.provider ?? "", address?.id ?? "");
   // WHETHER WE HOLD IT, read where the sheet reads it — the sheet's own

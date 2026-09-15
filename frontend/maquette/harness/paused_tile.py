@@ -35,6 +35,10 @@ else, and a rule may not select on one (the anchor arm's hard zero) — so which
 tiles are paused is read from the LAYER, and each one is then found by the
 address its own markup carries. That is also the stronger reading: it compares
 the drawing against the data rather than against itself.
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), where they were
+the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -58,7 +62,7 @@ PAUSED_WORD = "en pause"
 # fraction is rebuilt from the same two numbers the drawing reads, so hold 3
 # compares two answers to one question rather than the drawing with itself.
 FOLLOWS = """()=>(window.__followActions?.all() || []).map(
-  (one) => ({t: one.t, k: one.k, st: one.st, own: one.own, aired: one.aired}))"""
+  (one) => ({t: one.title, k: one.kind, st: one.status, own: one.owned, aired: one.aired}))"""
 
 # WHAT ONE TILE SAYS, found by the ADDRESS its markup carries rather than by its
 # position: the grid is ordered and filtered by the layer, so an index here

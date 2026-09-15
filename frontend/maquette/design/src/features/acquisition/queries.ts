@@ -6,6 +6,7 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { HELD, read, send } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
+import type { Schemas } from "../../lib/contract-schemas";
 import type { Follow } from "./types";
 import { queueNow } from "../../lib/queue";
 import { fillFollowedTitlesDoor } from "../../lib/shell-doors";
@@ -133,7 +134,7 @@ export function installSuggestionsLookup(queryClient: QueryClient): void {
 export const followsQuery = {
   queryKey: ["/api/acquisition/followed"],
   queryFn: async () =>
-    toEngineShape<Follow[]>("FOLLOWS", await read("/api/acquisition/followed")),
+    read<Follow[]>("/api/acquisition/followed"),
 };
 
 /**
@@ -147,13 +148,13 @@ export const followsQuery = {
  *
  * THE SAME KEY AND THE SAME PROJECTION as the library feature's own read, and
  * written here rather than imported: two features never import each other
- * (invariant 7). Both project the answer through the one `INCOMPLETE` family,
- * so the cache holds one answer whichever of the two asked first.
+ * (invariant 7). Both read the answer as the contract's schema types it, so
+ * the cache holds one answer whichever of the two asked first.
  */
 export const incompleteShowsQuery = {
   queryKey: ["/api/library/incomplete"],
   queryFn: async () =>
-    toEngineShape<unknown[]>("INCOMPLETE", await read("/api/library/incomplete")),
+    read<Schemas["IncompleteShow"][]>("/api/library/incomplete"),
 };
 
 /**
@@ -202,13 +203,13 @@ export function installFollowActions(queryClient: QueryClient): void {
   const held = () => queryClient.getQueryData<Follow[]>(followsKey) ?? [];
   const write = (follows: Follow[]) => queryClient.setQueryData(followsKey, follows);
   const refresh = () => void queryClient.invalidateQueries({ queryKey: followsKey });
-  fillFollowedTitlesDoor(() => held().map((follow) => follow.t));
+  fillFollowedTitlesDoor(() => held().map((follow) => follow.title));
 
   followActions = {
     setStatus: (title, status) => {
       const before = held();
       write(before.map((follow) =>
-        follow.t === title ? { ...follow, st: status } : follow));
+        follow.title === title ? { ...follow, st: status } : follow));
       void send("PATCH", `/api/acquisition/followed/${encodeURIComponent(title)}`,
                 { status })
         .catch((refusal) => { write(before); throw refusal; })
@@ -221,7 +222,7 @@ export function installFollowActions(queryClient: QueryClient): void {
     },
     remove: (title) => {
       const before = held();
-      write(before.filter((follow) => follow.t !== title));
+      write(before.filter((follow) => follow.title !== title));
       void send("DELETE", `/api/acquisition/followed/${encodeURIComponent(title)}`)
         .catch((refusal) => { write(before); throw refusal; })
         .then((outcome) => { if (outcome !== HELD) refresh(); },
@@ -244,7 +245,7 @@ export function installFollowActions(queryClient: QueryClient): void {
       const before = held();
       write([follow as Follow, ...before]);
       void send("POST",
-                `/api/acquisition/followed/${encodeURIComponent(follow.t)}/restore`)
+                `/api/acquisition/followed/${encodeURIComponent(follow.title)}/restore`)
         .catch((refusal) => { write(before); throw refusal; })
         .then((outcome) => { if (outcome !== HELD) refresh(); },
               () => { refresh(); });
@@ -253,7 +254,7 @@ export function installFollowActions(queryClient: QueryClient): void {
       const before = held();
       write([follow as Follow, ...before]);
       void send("POST", "/api/acquisition/followed", {
-        title: follow.t, kind: follow.k,
+        title: follow.title, kind: follow.kind,
       })
         .catch((refusal) => { write(before); throw refusal; })
         .then((outcome) => { if (outcome !== HELD) refresh(); },
@@ -282,7 +283,7 @@ declare global {
        * the three fields an addition needs would restore a different follow —
        * one with no year and no « suivi depuis ».
        */
-      add: (follow: Partial<Follow> & Pick<Follow, "t" | "k" | "st">) => void;
+      add: (follow: Partial<Follow> & Pick<Follow, "title" | "kind" | "status">) => void;
       /** Puts a removed follow back as it was — never a create (B-353). */
       restore: (follow: Follow) => void;
       all: () => Follow[];

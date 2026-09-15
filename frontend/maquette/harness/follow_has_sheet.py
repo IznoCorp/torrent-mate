@@ -34,6 +34,10 @@ RE-AIMED, said out loud: R156 asked the engine's `sheetFor`; it asks the sheet t
 its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
 `__carriedFor` — the seed the served read answers from, published by the harness
 driver — and the hold count is unchanged.
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), where they were
+the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -52,7 +56,7 @@ FOLLOWS_STATE = "acq-follows-list"
 # offers a poster when its item carries provider ids, and the sheet behind them
 # is what `__sheetOf` picks the way the served read picks it.
 FOLLOWS_AND_SHEETS = """()=>{
-  const all = (window.__followActions?.all?.() || []).map((one) => one.t);
+  const all = (window.__followActions?.all?.() || []).map((one) => one.title);
   const sheetOf = window.__sheetOf;
   if (typeof sheetOf !== 'function') return {resolver: false, all, without: []};
   return {resolver: true, all,

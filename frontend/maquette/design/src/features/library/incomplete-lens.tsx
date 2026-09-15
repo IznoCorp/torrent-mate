@@ -40,16 +40,16 @@ export function IncompleteLens({ rows }: {
           className={posterGrid()} data-part="grid"
           html={INCOMPLETE.map((show: IncompleteShow) =>
               tileMarkup({
-                title: show.t,
+                title: show.title,
                 subtitle: t("screens.library.incompleteEpisodes", {
-                  owned: show.o,
-                  all: show.a,
+                  owned: show.owned,
+                  all: show.aired,
                 }),
-                artwork: posterArtwork(reference.icons, show.poster, show.t),
+                artwork: posterArtwork(reference.icons, show.poster, show.title),
                 // The sheet first: the registry answers the first registered
                 // key in attribute order, and a tap opens the medium while the
                 // long press opens its panel.
-                attributes: { "data-mediasheet": show.t, "data-panel": `media:${show.t}` },
+                attributes: { "data-mediasheet": show.title, "data-panel": `media:${show.title}` },
               }),
             ).join("")}
         />
@@ -58,14 +58,14 @@ export function IncompleteLens({ rows }: {
           className={section()} data-part="section"
           html={INCOMPLETE.map((show: IncompleteShow) =>
               libraryCardMarkup({
-                t: show.t,
+                t: show.title,
                 s: t(
-                  show.a - show.o > 1
+                  show.aired - show.owned > 1
                     ? "screens.library.incompleteSubMany"
                     : "screens.library.incompleteSubOne",
-                  { year: show.y, count: show.a - show.o },
+                  { year: show.year, count: show.aired - show.owned },
                 ),
-                f: `${show.o}/${show.a}`,
+                f: `${show.owned}/${show.aired}`,
                 chip: ["warning", t("screens.library.incompleteChip")],
                 poster: show.poster,
                 ids: show.ids,

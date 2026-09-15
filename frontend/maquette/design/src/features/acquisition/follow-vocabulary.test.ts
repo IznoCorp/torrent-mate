@@ -18,16 +18,16 @@ import {
   gridBadge,
   nextSearchTime,
 } from "./follow-vocabulary";
-import type { Follow } from "./types";
+import type { FollowSubject } from "./types";
 
-const series = (status: string, extra: Partial<Follow> = {}): Follow => ({
-  t: "Silo",
-  k: "show",
-  y: 2023,
-  st: status,
+const series = (status: string, extra: Partial<FollowSubject> = {}): FollowSubject => ({
+  title: "Silo",
+  kind: "show",
+  year: 2023,
+  status,
   ...extra,
 });
-const film = (status: string): Follow => ({ t: "Dune", k: "movie", y: 2021, st: status });
+const film = (status: string): FollowSubject => ({ title: "Dune", kind: "movie", year: 2021, status });
 
 describe("followStatusLabel", () => {
   it("says a series' status with the series word", () => {
@@ -55,14 +55,14 @@ describe("followStatusLabel", () => {
 describe("followFraction and gridBadge", () => {
   it("gives a film no fraction and a series its held/aired, or « — » with no catalogue", () => {
     expect(followFraction(film("pending"))).toBeNull();
-    expect(followFraction(series("pending", { aired: 7, own: 6 }))).toBe("6/7");
+    expect(followFraction(series("pending", { aired: 7, owned: 6 }))).toBe("6/7");
     expect(followFraction(series("pending"))).toBe("—");
   });
 
   it("badges what is actionable, marks what has no verdict, and says nothing otherwise", () => {
     expect(gridBadge(film("pending"))).toEqual({ txt: "•", tone: "pending" });
-    expect(gridBadge(series("to_grab", { aired: 10, own: 7 }))).toEqual({ txt: "3", tone: "to_grab" });
-    expect(gridBadge(series("acquiring", { aired: 5, own: 5 }))).toEqual({ txt: "1", tone: "acquiring" });
+    expect(gridBadge(series("to_grab", { aired: 10, owned: 7 }))).toEqual({ txt: "3", tone: "to_grab" });
+    expect(gridBadge(series("acquiring", { aired: 5, owned: 5 }))).toEqual({ txt: "1", tone: "acquiring" });
     expect(gridBadge(series("verifying"))).toEqual({ txt: "?", tone: "muted" });
     expect(gridBadge(series("up_to_date"))).toBeNull();
   });

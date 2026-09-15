@@ -37,6 +37,10 @@ at rest.
 RE-AIMED when the queue's cards took the contract's names: a card's title is
 read as `title` (it was the engine's `t`). The holds and what they compare are
 unchanged.
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), where they were
+the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -50,7 +54,7 @@ from playwright.async_api import async_playwright
 # THE FOLLOWS THE LAYER HOLDS, with the two fields this rule asks about: what
 # the follow is and what state it is in.
 FOLLOWS = """()=>(window.__followActions?.all() || []).map(
-  (one) => ({t: one.t, k: one.k, st: one.st}))"""
+  (one) => ({t: one.title, k: one.kind, st: one.status}))"""
 
 # THE QUEUE THE LAYER HOLDS. `window.__queue` answers the lists the arrivals
 # surfaces are drawn from, so this is the same answer the screen was built from
@@ -67,9 +71,9 @@ QUEUE = """()=>{const now = window.__queue?.() || {};
 SEASON_HOLES = """()=>{
   const found = [];
   for (const follow of (window.__followActions?.all() || [])) {
-    for (const [number, aired, owned] of (window.__mocks.seasons()[follow.t] || [])) {
+    for (const [number, aired, owned] of (window.__mocks.seasons()[follow.title] || [])) {
       if ((owned || 0) < (aired || 0))
-        found.push({title: follow.t, season: number, aired, owned});
+        found.push({title: follow.title, season: number, aired, owned});
     }
   }
   return found;}"""

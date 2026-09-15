@@ -2,17 +2,11 @@
 //
 // The shapes this feature's reads answer, declared where the subject lives.
 
+import type { Schemas } from "../../lib/contract-schemas";
+
 // A show the index knows is INCOMPLETE: owned over announced, and the year
 // that tells two shows of the same name apart.
-export type IncompleteShow = {
-  t: string;
-  o: number;
-  a: number;
-  y: number;
-  poster?: string | null;
-  /** The provider identifiers — null for a title no sheet stands behind. */
-  ids?: Record<string, number | string> | null;
-};
+export type IncompleteShow = Schemas["IncompleteShow"];
 
 // A library CATEGORY pill: its id, its name, the count it claims, and the
 // engine's own category ids it stands for (`null` for « Tout »).

@@ -2,9 +2,7 @@
 //
 // The shapes this feature's reads answer, declared where the subject lives.
 
-import type { components } from "../../contract/types";
-
-type Schemas = components["schemas"];
+import type { Schemas } from "../../lib/contract-schemas";
 
 // One TVDB/TMDB candidate offered for a decision still awaiting arbitration.
 // `withoutPoster` marks a candidate with no poster at the provider (the

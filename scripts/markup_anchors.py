@@ -162,13 +162,13 @@ CONTAINS = re.compile(r"classList\.contains\(\s*(['\"])([^'\"]*)\1\s*\)")
 # a DECLARATION shared, never an extraction: the two readers still walk
 # the corpus by their own passes.
 GENRE_SITES = {
-    ("audit.py", 110, "ep"): (
+    ("audit.py", 114, "ep"): (
         "R3 measures the DRAWN size of the episode cell, and the declared "
         "31 x 27 exception is about that geometry: at 13 cells per row a "
         "44px target would demand 572px of width. The subject is the "
         "applied style, so a `data-*` would keep the rule true after the "
         "class is gone and it would measure less than it does today"),
-    ("audit.py", 176, "radio"): (
+    ("audit.py", 180, "radio"): (
         "R7 asks which SHAPE an option is drawn as — a radio or a "
         "checkbox — and the shape is what the class applies. Reading a "
         "`data-*` would answer what the option IS, which is the question "

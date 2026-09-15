@@ -38,7 +38,7 @@ export type MediaSheetFields = {
 
 // The slice of the simulated world this screen reads: the follow list, and
 // only its titles.
-export type Follow = { t: string };
+export type Follow = { title: string };
 
 // One row of the season list: an owned-seasons row (`[n, aired, own]` from
 // `seasonsOf`) and a catalogue row (`{ n, ep, air }` from the sheet) are

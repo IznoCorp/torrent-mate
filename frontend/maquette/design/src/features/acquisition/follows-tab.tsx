@@ -53,25 +53,25 @@ export function FollowsTab(): ReactElement {
     {
       id: "series",
       label: t("screens.acquisition.pillSeries"),
-      count: follows.filter((follow) => follow.k !== "movie").length,
+      count: follows.filter((follow) => follow.kind !== "movie").length,
     },
     {
       id: "movies",
       label: t("screens.acquisition.pillMovies"),
-      count: follows.filter((follow) => follow.k === "movie").length,
+      count: follows.filter((follow) => follow.kind === "movie").length,
     },
     {
       id: "pause",
       label: t("screens.acquisition.pillPaused"),
-      count: follows.filter((follow) => follow.st === "disabled").length,
+      count: follows.filter((follow) => follow.status === "disabled").length,
     },
   ];
 
   const matches = (follow: Follow) =>
     state.pill === "tout" ||
-    (state.pill === "series" && follow.k !== "movie") ||
-    (state.pill === "movies" && follow.k === "movie") ||
-    (state.pill === "pause" && follow.st === "disabled");
+    (state.pill === "series" && follow.kind !== "movie") ||
+    (state.pill === "movies" && follow.kind === "movie") ||
+    (state.pill === "pause" && follow.status === "disabled");
   const term = (state.filter as string).trim().toLocaleLowerCase();
   const normalise = (text: string) =>
     text
@@ -79,38 +79,38 @@ export function FollowsTab(): ReactElement {
       .replace(/[\u0300-\u036f]/g, "")
       .toLocaleLowerCase();
   const matchesName = (follow: Follow) =>
-    term === "" || normalise(follow.t).includes(normalise(term));
+    term === "" || normalise(follow.title).includes(normalise(term));
   const visible = follows
     .filter((follow) => matches(follow) && matchesName(follow))
     .sort(
       (left, right) =>
         (left.fresh ? 0 : 1) - (right.fresh ? 0 : 1) ||
-        URGENCY[left.st] - URGENCY[right.st] ||
-        left.t.localeCompare(right.t, "fr"),
+        URGENCY[left.status] - URGENCY[right.status] ||
+        left.title.localeCompare(right.title, "fr"),
     );
 
   // Read ONCE for the whole list: every card names the same next slot.
   const next = cadenceExpression ? nextSearchTime(cadenceExpression, new Date()) : null;
 
   const seriesState = (follow: Follow) =>
-    follow.k === "movie"
+    follow.kind === "movie"
       ? null
-      : follow.serie === "Continuing"
+      : follow.showStatus === "Continuing"
         ? t("screens.acquisition.seriesOngoing")
-        : follow.serie === "Ended"
+        : follow.showStatus === "Ended"
           ? t("screens.acquisition.seriesEnded")
           : null;
 
   const descriptorOf = (follow: Follow, showStatus: boolean) => ({
-    title: follow.t,
+    title: follow.title,
     ids: follow.ids,
     // The row draws the poster the follow carries; without it the card falls
     // back to the initials, in a box of the poster's size (R177).
     poster: follow.poster,
-    k: follow.k,
+    k: follow.kind,
     secondaryLine: [
-      String(follow.y),
-      follow.k === "movie"
+      String(follow.year),
+      follow.kind === "movie"
         ? t("screens.acquisition.movie")
         : t("screens.acquisition.series"),
       seriesState(follow),
@@ -118,7 +118,7 @@ export function FollowsTab(): ReactElement {
       .filter(Boolean)
       .join(" · "),
     reason:
-      follow.st === "pending"
+      follow.status === "pending"
         ? [
             t("screens.acquisition.noConformRelease"),
             next ? t("screens.acquisition.nextSearch", { at: next }) : null,
@@ -128,7 +128,7 @@ export function FollowsTab(): ReactElement {
         : undefined,
     f: followFraction(follow) ?? undefined,
     chip: showStatus
-      ? { tone: STATUS_TONE[follow.st], text: followStatusLabel(follow) }
+      ? { tone: STATUS_TONE[follow.status], text: followStatusLabel(follow) }
       : undefined,
     caption:
       [
@@ -153,11 +153,11 @@ export function FollowsTab(): ReactElement {
   const rowOf = (follow: Follow, showStatus: boolean) =>
     swipeRowMarkup(
       mediumCardMarkup(descriptorOf(follow, showStatus)),
-      follow.k === "movie"
-        ? `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause" data-pause="${escapeHtml(follow.t)}">${svgIcon(icons.x)}${t("screens.acquisition.swipeStopSearching")}</button><button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove" data-remove="${escapeHtml(follow.t)}">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`
-        : `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause" data-pause="${escapeHtml(follow.t)}">${svgIcon(icons.x)}${t("screens.acquisition.swipePause")}</button><button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove" data-remove="${escapeHtml(follow.t)}">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`,
-      follow.st === "pending" || follow.st === "to_grab"
-        ? `<button class="${swipeAction({ tone: "resume" })}" data-part="swipe/action" data-action="resume" data-swipeact="${SEARCH_AGAIN}" data-search-again="${escapeHtml(follow.t)}">${svgIcon(icons.refresh)}${t("screens.acquisition.swipeSearch")}</button>`
+      follow.kind === "movie"
+        ? `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause" data-pause="${escapeHtml(follow.title)}">${svgIcon(icons.x)}${t("screens.acquisition.swipeStopSearching")}</button><button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove" data-remove="${escapeHtml(follow.title)}">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`
+        : `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause" data-pause="${escapeHtml(follow.title)}">${svgIcon(icons.x)}${t("screens.acquisition.swipePause")}</button><button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove" data-remove="${escapeHtml(follow.title)}">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`,
+      follow.status === "pending" || follow.status === "to_grab"
+        ? `<button class="${swipeAction({ tone: "resume" })}" data-part="swipe/action" data-action="resume" data-swipeact="${SEARCH_AGAIN}" data-search-again="${escapeHtml(follow.title)}">${svgIcon(icons.refresh)}${t("screens.acquisition.swipeSearch")}</button>`
         : "",
     );
 
@@ -174,24 +174,24 @@ export function FollowsTab(): ReactElement {
   // keeps its figure AND carries the word. A film has no fraction and the join
   // leaves it exactly as it was.
   const tileOf = (follow: Follow) => {
-    const paused = follow.st === "disabled";
+    const paused = follow.status === "disabled";
     const said = [
       followFraction(follow),
       paused ? t("screens.acquisition.paused") : null,
     ].filter(Boolean);
     return tileMarkup({
-      title: follow.t,
+      title: follow.title,
       // The year remains the fallback for a tile with nothing else to say — a
       // film that is neither paused nor counted.
-      subtitle: said.length ? said.join(" · ") : String(follow.y),
-      artwork: posterArtwork(icons, follow.poster, follow.t, follow.k),
+      subtitle: said.length ? said.join(" · ") : String(follow.year),
+      artwork: posterArtwork(icons, follow.poster, follow.title, follow.kind),
       muted: paused,
       badge: tileBadgeOf(gridBadge(follow)),
       // THE SHEET IS NAMED FIRST, and the order is load-bearing: the registry
       // answers the first registered key in ATTRIBUTE order, so `data-panel`
       // written first would make a tap on the tile open the panel the LONG
       // PRESS is for. A tap opens the medium; the press opens its panel.
-      attributes: { "data-mediasheet": follow.t, "data-panel": `media:${follow.t}` },
+      attributes: { "data-mediasheet": follow.title, "data-panel": `media:${follow.title}` },
     });
   };
 
@@ -243,7 +243,7 @@ export function FollowsTab(): ReactElement {
       <>
         {followGroups().map((group) => {
           const items = visible.filter((follow) =>
-            group.statuses.includes(follow.st),
+            group.statuses.includes(follow.status),
           );
           if (items.length === 0) return null;
           // A heterogeneous group KEEPS the chip on its cards: its header

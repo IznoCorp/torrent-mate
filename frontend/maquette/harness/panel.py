@@ -43,6 +43,10 @@ RE-AIMED, said out loud: the sheet's address was read from `addressIdsFor`, and 
 its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
 `__carriedFor` — the seed the served read answers from, published by the harness
 driver — and the hold count is unchanged.
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), where they were
+the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -807,7 +811,7 @@ async def main():
         found = await acquisition_page.evaluate("""async ()=>{
           const found = {primary: null, complete: null};
           for (const follow of (window.__followActions?.all() || [])) {
-            window.__panel.produce('follow', follow.t);
+            window.__panel.produce('follow', follow.title);
             await new Promise((resolve) => setTimeout(resolve, 200));
             const primary = document.querySelector('#sheet [data-sheetprim]');
             const complete = document.querySelector('#sheet [data-complete]');

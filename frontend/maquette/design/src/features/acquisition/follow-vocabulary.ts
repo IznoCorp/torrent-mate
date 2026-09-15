@@ -7,7 +7,7 @@
 // `i18n/fr.json` under `screens.acquisition`; this file decides only which one.
 import i18next from "i18next";
 import { escapeHtml } from "../../lib/markup-text";
-import type { Follow } from "./types";
+import type { FollowSubject } from "./types";
 
 /** The tone of a status chip, by status token. */
 export const STATUS_TONE: Record<string, string> = {
@@ -67,10 +67,10 @@ export function followGroups(): FollowGroup[] {
  * @param follow The follow.
  * @returns The status word.
  */
-export function followStatusLabel(follow: Follow): string {
-  const movieKey = `screens.acquisition.movieStatus.${follow.st}`;
-  if (follow.k === "movie" && i18next.exists(movieKey)) return i18next.t(movieKey);
-  return i18next.t(`screens.acquisition.status.${follow.st}`);
+export function followStatusLabel(follow: FollowSubject): string {
+  const movieKey = `screens.acquisition.movieStatus.${follow.status}`;
+  if (follow.kind === "movie" && i18next.exists(movieKey)) return i18next.t(movieKey);
+  return i18next.t(`screens.acquisition.status.${follow.status}`);
 }
 
 /**
@@ -80,10 +80,10 @@ export function followStatusLabel(follow: Follow): string {
  * @param follow The follow.
  * @returns The fraction, « — », or null for a film.
  */
-export function followFraction(follow: Follow): string | null {
-  if (follow.k === "movie") return null;
+export function followFraction(follow: FollowSubject): string | null {
+  if (follow.kind === "movie") return null;
   if (follow.aired == null) return "—";
-  return `${follow.own ?? 0}/${follow.aired}`;
+  return `${follow.owned ?? 0}/${follow.aired}`;
 }
 
 /**
@@ -94,15 +94,15 @@ export function followFraction(follow: Follow): string | null {
  * @param follow The follow.
  * @returns The badge's text and tone, or null.
  */
-export function gridBadge(follow: Follow): { txt: string; tone: string } | null {
-  if (follow.st === "to_grab" || follow.st === "acquiring" || follow.st === "pending") {
-    if (follow.k === "movie") return { txt: "•", tone: follow.st };
+export function gridBadge(follow: FollowSubject): { txt: string; tone: string } | null {
+  if (follow.status === "to_grab" || follow.status === "acquiring" || follow.status === "pending") {
+    if (follow.kind === "movie") return { txt: "•", tone: follow.status };
     return {
-      txt: String(Math.max(1, (follow.aired ?? 0) - (follow.own ?? 0))),
-      tone: follow.st,
+      txt: String(Math.max(1, (follow.aired ?? 0) - (follow.owned ?? 0))),
+      tone: follow.status,
     };
   }
-  if (follow.st === "unverified" || follow.st === "verifying") return { txt: "?", tone: "muted" };
+  if (follow.status === "unverified" || follow.status === "verifying") return { txt: "?", tone: "muted" };
   return null;
 }
 

@@ -39,6 +39,10 @@ and said so once. It is held on what the LAYER answered, never on the screen.
 RE-AIMED when the queue's cards took the contract's names: a card's title is
 read as `title` (it was the engine's `t`). The holds and what they compare are
 unchanged.
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), where they were
+the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
 """
 import asyncio
 import json
@@ -199,7 +203,7 @@ async def hold_the_place(page, journal):
     # absorbs nothing — a panel that rightly does not move. RE-AIMED, said here.
     followed = await page.evaluate(
         """()=>{const family = window.__mocks?.seasonFamily?.() || {};
-          return (window.__followActions?.all?.() || []).map((one) => one.t)
+          return (window.__followActions?.all?.() || []).map((one) => one.title)
             .filter((title) => (family[title] || []).some(([, aired, owned]) => owned < aired));}""")
     subject = ""
     place = None
@@ -323,7 +327,7 @@ async def hold_the_taken_act(page, journal):
     # absorbs nothing — a panel that rightly does not move. RE-AIMED, said here.
     followed = await page.evaluate(
         """()=>{const family = window.__mocks?.seasonFamily?.() || {};
-          return (window.__followActions?.all?.() || []).map((one) => one.t)
+          return (window.__followActions?.all?.() || []).map((one) => one.title)
             .filter((title) => (family[title] || []).some(([, aired, owned]) => owned < aired));}""")
     asked = ""
     for title in followed:
@@ -513,7 +517,7 @@ async def hold_the_named_answer(page, journal):
         await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
         await page.wait_for_timeout(SETTLED)
         followed = await page.evaluate(
-            """()=>(window.__followActions?.all?.() || []).map((one) => one.t)""")
+            """()=>(window.__followActions?.all?.() || []).map((one) => one.title)""")
         asked = ""
         for title in followed:
             await page.evaluate("(t)=>window.__panel.produce('follow', t)", title)
@@ -654,7 +658,7 @@ async def main():
         # a hole, for the reason written above the first walk (RE-AIMED).
         followed = await page.evaluate(
             """()=>{const family = window.__mocks?.seasonFamily?.() || {};
-              return (window.__followActions?.all?.() || []).map((one) => one.t)
+              return (window.__followActions?.all?.() || []).map((one) => one.title)
                 .filter((title) => (family[title] || []).some(([, aired, owned]) => owned < aired));}""")
         holed = ""
         for title in followed:

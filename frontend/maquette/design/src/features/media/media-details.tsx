@@ -58,7 +58,7 @@ export function MediaDetails({
             <span>
               {follows.some(
                 (follow) =>
-                  follow.t === title || follow.t === title.split(" (")[0],
+                  follow.title === title || follow.title === title.split(" (")[0],
               )
                 ? t("screens.media.followActive")
                 : t("screens.media.followInactive")}

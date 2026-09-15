@@ -56,6 +56,10 @@ WHAT IT READS, and each fails differently:
      have failed against a build that toasts and forgets.
   5. AND NOTHING WAS REFUSED — no error, and the message is the queued one
      rather than a refusal (NE-DOIT-PAS-3).
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), where they were
+the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -94,10 +98,10 @@ THE_MEDIUM_WITH_A_HOLE = """()=>{
   const reachable = (title) => drawn.some(
     (seen) => seen === title || seen.endsWith(":" + title));
   for (const follow of (window.__followActions?.all() || [])) {
-    if (!reachable(follow.t)) continue;
-    for (const [number, aired, owned] of (window.__mocks.seasons()[follow.t] || [])) {
+    if (!reachable(follow.title)) continue;
+    for (const [number, aired, owned] of (window.__mocks.seasons()[follow.title] || [])) {
       if ((owned || 0) > 0 && (owned || 0) < (aired || 0))
-        return {title: follow.t, season: number};
+        return {title: follow.title, season: number};
     }
   }
   return null;}"""

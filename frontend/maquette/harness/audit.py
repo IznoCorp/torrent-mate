@@ -12,6 +12,10 @@ RE-AIMED, said out loud: R1's filled-in sheet was read from `sheetFor`; it is re
 its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
 `__carriedFor` — the seed the served read answers from, published by the harness
 driver — and the hold count is unchanged.
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), where they were
+the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
 """
 import asyncio
 import json
@@ -281,7 +285,7 @@ async def main():
                       show:{add:'Suivre',pause:'Mettre en pause',retrait:'Retirer le suivi'}};
       for (const f of (window.__followActions?.all()||[])) {
         const lab = stLabel(f);
-        if (f.k==='movie' && /jour|Terminé/.test(lab)) out.push(`movie « ${f.t} » wears « ${lab} » (series vocabulary)`);
+        if (f.kind==='movie' && /jour|Terminé/.test(lab)) out.push(`movie « ${f.title} » wears « ${lab} » (series vocabulary)`);
       }
       return out;}""")
     ran('R9')

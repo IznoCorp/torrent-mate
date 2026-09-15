@@ -93,7 +93,7 @@ export function useLibraryCategories() {
 export const libraryIncompleteQuery = {
   queryKey: ["/api/library/incomplete"],
   queryFn: async () =>
-    toEngineShape<IncompleteShow[]>("INCOMPLETE", await read("/api/library/incomplete")),
+    read<IncompleteShow[]>("/api/library/incomplete"),
 };
 
 /** The shows the index knows are incomplete. */
