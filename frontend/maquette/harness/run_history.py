@@ -36,6 +36,7 @@ WHAT THE DETAIL IS HELD TO:
      not printed as an answer.
 """
 import asyncio
+import json
 import pathlib
 import sys
 
@@ -98,6 +99,28 @@ TEXT = """(part)=>{
 }"""
 
 # WHAT ONE PASSAGE'S ROW SAYS, found by the run it stands for.
+# EVERY ROW'S OUTCOME WORD AND LINE, with what the layer answered for it.
+ROWS_SAID = """async ()=>{
+  const answer = await (await fetch('/api/pipeline/history')).json();
+  return (answer.runs || []).map((run) => {
+    const row = document.querySelector(`[data-run="${run.runUid}"]`);
+    const said = (part) => {
+      const node = row && row.querySelector(`[data-part="${part}"]`);
+      return node ? (node.textContent || '').replace(/\\s+/g, ' ').trim() : null;
+    };
+    return {runUid: run.runUid, command: run.command, outcome: run.outcome,
+            detected: ((run.steps || [])[0] || {}).counts?.detected ?? null,
+            word: said('runs/outcome'), line: said('runs/line')};
+  });
+}"""
+
+# THE WORDS THE LIST SAYS, from the interface's own resources.
+SENTENCES = json.loads(
+    (pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "i18n" / "fr.json")
+    .read_text(encoding="utf-8"))["screens"]["system"]
+OUTCOME_WORDS = {"success": "runSucceeded", "error": "runFailed", "running": "runRunning",
+                 "killed": "runKilled", "paused": "runPaused"}
+
 ROW_TEXT = """(runUid)=>{
   const row = document.querySelector(`[data-run="${runUid}"]`);
   return row ? (row.textContent || '').replace(/\\s+/g, ' ').trim() : null;
@@ -222,6 +245,32 @@ async def main():
                       bool(line) and any(word in line.lower() for word in TRIGGER_WORDS)
                       and (first is None or first["trigger"] not in line),
                       f"{line!r} for trigger={first['trigger'] if first else None!r}")
+
+        # 6 — THE OUTCOME WORD IS THE OUTCOME'S (NE-DOIT-PAS-1). A run still
+        # going is never « réussi », and a detection's line says what it
+        # detected — never « rien de nouveau » over a count.
+        await drive(journal, page, "watch-running")
+        rows = await page.evaluate(ROWS_SAID)
+        going = [row for row in rows if row["outcome"] == "running"]
+        journal.check("a run still going is listed, so the non-terminal word has a subject",
+                      bool(going), f"{[row['outcome'] for row in rows]}")
+        for row in going + [row for row in rows if row["outcome"] != "running"][:1]:
+            expected = SENTENCES.get(OUTCOME_WORDS[row["outcome"]])
+            journal.check(f"the {row['outcome']} row {row['runUid'][:8]} says its own outcome word",
+                          bool(expected) and row["word"] == expected,
+                          f"said {row['word']!r}, expected {expected!r}")
+        detections = [row for row in rows
+                      if row["command"] == "follow-detect" and row["detected"]]
+        journal.check("a detection that counted something is listed", bool(detections),
+                      f"{[(row['command'], row['detected']) for row in rows]}")
+        for row in detections:
+            phrase = (SENTENCES.get("detectedCount_other") or "").replace(
+                "{{count}}", str(row["detected"]))
+            journal.check(f"detection {row['runUid'][:8]}'s line says what it detected, "
+                          "never « rien de nouveau »",
+                          bool(phrase) and phrase in (row["line"] or "")
+                          and SENTENCES["runNothing"] not in (row["line"] or ""),
+                          f"line {row['line']!r}, expected {phrase!r}")
 
         # 3 — A LIST THAT MAY BE SHORT SAYS SO.
         await drive(journal, page, DEGRADED)

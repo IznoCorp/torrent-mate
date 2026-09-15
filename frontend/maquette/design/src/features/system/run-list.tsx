@@ -33,6 +33,21 @@ const DISPATCH = "dispatch";
 const VERIFY = "verify";
 /** What a maintenance run is, as the contract's own token spells it. */
 const MAINTENANCE = "maintenance";
+/** The command a veille runs, as the history records it. */
+const DETECTION_COMMAND = "follow-detect";
+
+/**
+ * THE WORD EACH OUTCOME WEARS, one per outcome (NE-DOIT-PAS-1): a run still
+ * going, stopped or paused is not « réussi », and a map with two words for five
+ * outcomes is how it came to say so.
+ */
+const OUTCOME_WORDS: Record<components["schemas"]["RunOutcome"], string> = {
+  success: "screens.system.runSucceeded",
+  error: "screens.system.runFailed",
+  running: "screens.system.runRunning",
+  killed: "screens.system.runKilled",
+  paused: "screens.system.runPaused",
+};
 
 /**
  * When a passage ran, as the row says it.
@@ -79,6 +94,23 @@ export function durationInWords(seconds: number | null | undefined,
 function whatItDid(run: RunSummary,
                    say: (key: string, options?: { count: number }) => string): string {
   const steps = run.steps ?? [];
+  const duration = durationInWords(run.durationS, say);
+  // PER KIND. A detection counts what it detected, and « rien de nouveau »
+  // over a count is the report contradicting itself; a run still going and a
+  // command whose steps count nothing have nothing to report yet but their time.
+  if (run.command === DETECTION_COMMAND || run.kind === MAINTENANCE || run.outcome === "running") {
+    const found = run.command === DETECTION_COMMAND
+      ? (steps[0]?.counts as { detected?: number } | undefined)?.detected
+      : undefined;
+    const parts = [];
+    if (found !== undefined) {
+      parts.push(found === 0
+        ? say("screens.system.runNothing", { count: 0 })
+        : say("screens.system.detectedCount", { count: found }));
+    }
+    if (duration !== "") parts.push(duration);
+    return parts.join(" · ");
+  }
   const dispatched = steps.find((step) => step.name === DISPATCH)?.successCount ?? 0;
   const verified = steps.find((step) => step.name === VERIFY);
   const blocked = (verified?.errorCount ?? 0) + (verified?.unmatchedCount ?? 0);
@@ -89,7 +121,6 @@ function whatItDid(run: RunSummary,
     ? say("screens.system.runNothing", { count: 0 })
     : say("screens.system.runSorted", { count: dispatched }));
   if (blocked > 0) parts.push(say("screens.system.runBlocked", { count: blocked }));
-  const duration = durationInWords(run.durationS, say);
   if (duration !== "") parts.push(duration);
   return parts.join(" · ");
 }
@@ -131,11 +162,7 @@ export function RunList(): ReactElement {
                     ? t("screens.system.runCommand", { command: run.command })
                     : t(`screens.system.trigger.${run.trigger}`, { defaultValue: run.trigger })}
                 </span>
-                <span data-part="runs/outcome">
-                  {run.outcome === "error"
-                    ? t("screens.system.runFailed")
-                    : t("screens.system.runSucceeded")}
-                </span>
+                <span data-part="runs/outcome">{run.outcome ? t(OUTCOME_WORDS[run.outcome]) : null}</span>
               </span>
               <span className={runLine()} data-part="runs/line">{whatItDid(run, t)}</span>
             </button>
