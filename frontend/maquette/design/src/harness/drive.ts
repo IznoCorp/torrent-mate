@@ -98,6 +98,9 @@ function reset(): boolean {
     pill: "tout",
     filter: "",
     q: "",
+    // The library's category is a dial a state can pin; one that does must not
+    // leave the next state's count line reading another category's total.
+    libCat: "all",
     sugCount: 30,
     selMode: false,
     selected: new Set(),

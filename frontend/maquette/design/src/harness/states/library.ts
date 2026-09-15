@@ -79,6 +79,31 @@ export function libraryStates(): NamedState[] {
       },
     ],
     [
+      "lib-selection-filtered",
+      "Médiathèque — sélection gardée sous « Films »",
+      () => {
+        // THE SAME THREE TITLES, then the category a reader switches to: the
+        // documentary is ticked and no longer drawn, and the bar still counts it.
+        applyState({
+          page: "lib",
+          libLens: "cat",
+          libCat: "movies",
+          libMode: "grid",
+          phase: "ready",
+          selMode: true,
+        });
+        // french-ok: media titles, which are data.
+        store.write({
+          selected: new Set([
+            "On l'appelait Robin des Bois",
+            "Big Chicken Le complot de la malbouffe",
+            "Marjorie Prime",
+          ]),
+        });
+        redraw();
+      },
+    ],
+    [
       "lib-delete",
       "Médiathèque — dialogue de suppression",
       () => {
