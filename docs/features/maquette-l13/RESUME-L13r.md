@@ -5,42 +5,39 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
 ## STATE
 
 - Branch `feat/maquette-l13r`, worktree `/Users/izno/dev/worktrees/wave-l13r`, cut from L13b's PR head
-  `fcaff976f` (#601). L13b squashed onto main as `5df76af33`, merged in at `e76d619aa` (tree unchanged).
+  `fcaff976f` (#601). main `cdde26731` merged in at `9b81c5f49` (docs only, no conflict).
   Steward: the session named in your launch prompt (`Orch : TM frontend`, its reference changes).
 - Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13r`.
-- Phases (ruling 101): r·1 constants and helpers → r·2 served fixtures → r·3 the engine's product verbs (BEHAVIOUR)
-  → r·4 the engine's frame verbs (BEHAVIOUR) → [midpoint full suite] → r·5 the reference dies → r·6 contract names
-  (STOP D with a cut at its opening; never one phase) → r·7 the file dies + the full gate + the PR.
-  r·1 DONE (`12f3e242b`), r·2 DONE (`d997e7c59`), r·3 DONE (`4168932d6`), r·4 DONE (`688dab291`); all pushed.
-- MIDPOINT full suite (`midpoint-full-suite.log`): ONE fall, `poster.py` (R114) « the posters ACTUALLY landed once
-  released — 9 decoded while withheld and 9 after ». Reproduced alone twice. BISECTED: green on r·1's head
-  `0d313dd2a`, red on r·2's `c29a5c5c7` — r·2 introduced it; not the avatar install (mutation removing it: still
-  red). Green on main's L13b head at 05:58 (`tm-steward/gesture-l13b-0529.log`, 5 holds). Suspect to read first: a
-  request the page route no longer sees (a service worker, or an image loaded before the route) since r·2.
-- NEXT (`Agent : l13r 2`): REPAIR R114's fall before r·5 (the midpoint's falls are the wave's), then r·5
-  (`plan/phase-r05-reference-dies.md`). Frame-domain after r·4: lib/ 28, app/ 139.
-- legacy.js non-blank: 1 600 at the cut, 1 274 after r·1, 888 after r·2, 663 after r·3, 534 after r·4 (55 of code). `scripts/frontend_size_ledger.py`
+- Phases (ruling 101): r·1 → r·2 → r·3 (BEHAVIOUR) → r·4 (BEHAVIOUR) → [midpoint full suite] → r·5 the reference
+  dies → r·6 contract names (STOP D with a cut at its opening; never one phase) → r·7 the file dies + full gate + PR.
+  r·1 `12f3e242b`, r·2 `d997e7c59`, r·3 `4168932d6`, r·4 `688dab291`, R114 repair `3ddcd70d5`, r·5 `412b75075` — DONE.
+- MIDPOINT's one fall (`poster.py`, R114) REPAIRED (ledger): the rule held by accident until r·2.
+- NEXT: r·6 (`plan/phase-r06-*.md`) — MEASURE at its opening (families, call sites per family, readers) and send ONE
+  STOP D with a cut into sub-phases ≤ 15 each, one family group per commit. Frame-domain after r·5: lib/ 28, app/ 121.
+- legacy.js non-blank: 1 600 at the cut, 1 274 r·1, 888 r·2, 663 r·3, 534 r·4, 493 r·5. `scripts/frontend_size_ledger.py`
   re-recorded DOWNWARD in every phase's commit.
-- OWED (r·1's republications): `legacy.js` publishes `stLabel`, `cadenceFR`, `nextSearchFR` on `window` (readers
-  `audit.py`, `content.py` → re-aimed at r·7) and `__referentiel.baseTitle`/`dateFR` (readers `followed_sheet_act.py`,
-  `pop.py`, `season_family.py` → re-aimed at r·5) from their new homes; r·3 adds `SETTINGS_STATE`/`settingId` (owed r·5);
-  r·4 leaves `applyState` (literal-key restore in `app/layers.ts`), `select`, `icons` to r·7 (ruling 102).
+- OWED TO r·7: `legacy.js`'s `Object.assign(window, …)` publishes `SETTINGS_STATE`, `icons`, `settingId`, `select`,
+  `cadenceFR`, `nextSearchFR`, `stLabel` — readers `settings.py`, `page_host.py` (SETTINGS_STATE/settingId, re-aimed
+  at r·5), `audit.py`, `content.py` (the three vocabulary names) → re-aimed from their homes when the file dies;
+  `applyState` (literal-key restore in `app/layers.ts`, ruling 102), `select`, `icons` (the engine's import).
 - LOGS: `~/Library/Logs/tm-l13r/`. Mutex `sh scripts/heavy.sh --held`; tests lock `/private/tmp/tm-heavy-tests/holder`;
   own lock `/private/tmp/tm-heavy-l13r/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13r frontend/maquette/harness/run.sh --contracts
   --oracle <full rule paths>` — the only form that reads rule names (rulings 66, 81, 92).
-- MUTATIONS: `sh scripts/mutate.sh <full path> "<expr>" frontend/maquette/harness/<rule>.py`; commit before; read the
-  NAMED FAIL line; « RULE CRASHED » / « RULE NOT FOUND » prove nothing (ruling 77).
-- Push: the pre-push hook is the branch's own (relative hooksPath); a docs-only push takes the fast path; a code push
-  runs the suite (~14 min) under the tests lock. `tests/scripts/test_check_maquette_comments.py` alone before any push.
+- MUTATIONS: `sh scripts/mutate.sh <full path> "<expr>" <rule paths…>`; commit before; read the NAMED FAIL line;
+  « RULE CRASHED » / « RULE NOT FOUND » prove nothing (ruling 77). A mutate run over two rules can pass 600 s:
+  launch it in the background and poll its log for `heavy: l13r done`.
+- HOLD COUNTS: `harness-hold-counts.py` needs a host on 8899 (start one as `mutate.sh` does, stop it after).
+- Push: the pre-push hook is the branch's own; a docs-only push takes the fast path; a code push runs the suite
+  (~14 min) under the tests lock. `tests/scripts/test_check_maquette_comments.py` alone before any push.
 - Register: no rows during the wave (ruling 85) — ledger lines; the steward numbers rows at the close.
-- Traps inherited from L13b (RESUME-L13b.md's ledger, read on this branch): zsh does not word-split a multi-word
-  variable; a detached checkout runs THAT head's run.sh (names read only by the branch's tooling); the tap registry
-  answers the first registered key in ATTRIBUTE order; `stopPropagation` does not stop a listener BESIDE yours;
-  a touch drag suppresses the click itself; a scan that writes history needs a reset before reading; the pre-push
-  hook re-runs a failed suite to print it.
-- Owed at r·6: `--a11y`, hold-counts `--compare` (baseline `taken_at_commit` re-pointed to main's sha in a copy),
-  `make lint`, merge main in, version bump above main's, PR READY (conversion: no §§; r·3's behaviour said).
+- Traps: zsh does not word-split a multi-word variable (a `$M` command prefix is exit 127); a detached checkout runs
+  THAT head's run.sh; the tap registry answers the first registered key in ATTRIBUTE order; `stopPropagation` does not
+  stop a listener BESIDE yours; a touch drag suppresses the click itself; `page.route` never sees a request the service
+  worker answers; `rename-identifiers.py` refuses a `{ name, type X }` import as a shorthand property (use
+  `--properties`) and may already have written other files when it says « Nothing written ».
+- Owed at r·7: `--a11y`, hold-counts `--compare` (baseline `taken_at_commit` re-pointed to main's sha in a copy),
+  `make lint`, merge main in, version bump above main's, PR READY (conversion: no §§; r·3's/r·4's behaviour said).
 
 ## LEDGER (append-only)
 
@@ -81,3 +78,22 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
 - 2026-09-15 MIDPOINT: `poster.py` falls (state block); bisect logs `midpoint-poster-bisect-r01.log` (green),
   `midpoint-poster-bisect-r02.log` (red), `midpoint-poster-diag-avatar.log` (the avatar is not the cause). Stood down
   at 68 % measured; the repair is `Agent : l13r 2`'s first act.
+- 2026-09-15 R114 held by accident until r·2 (the service worker never registered under the withheld avatar):
+  `page.route` never sees a request the worker answers; the worker registers on `load`; the engine's synchronous
+  avatar, withheld, kept `load` from firing; since r·2 the avatar arrives with the account read. Repair
+  `3ddcd70d5`: `service_workers="block"` in `poster.py`, said in its comment. Probe `r114-probe-head.log`, gate
+  `r114-fix-gate.log` (19 rules, 1 named, oracle no divergence), mutation `r114-mutation-poster.log` (FAIL by name).
+  The species goes to the README's traps at r·7 (steward).
+- 2026-09-15 r·5 (ruling 104): `window.__referentiel` died (5 members, product read `icons` only); `icons` door in
+  `lib/shell-doors.ts` filled by `app/shell.tsx`; nine hooks renamed to `useEngineDrawing` by the tool; slices →
+  `features/<f>/types.ts` (account's deleted); `app/reference.d.ts`, `EngineQueue` and the reference-slice arm died
+  (`lib/engine-queue.ts` keeps `QueueCard`, six readers — the opening measurement said the file was dead, corrected).
+  493 non-blank. Frame-domain before lib/ 28, app/ 139; after lib/ 28, app/ 121 (ceiling lowered in the commit).
+  Gate `r05-gate.log`: 22 rules (5 named), 26 guards, oracle no divergence; `r05-hold-counts.json`: the five
+  re-aimed rules at their baseline counts (settings 68, page_host 44, pop 17, followed_sheet_act 12, season_family
+  48). Mutations by name: `r05-mutation-pop-season_family.log`, `r05-mutation-followed_sheet_act.log`,
+  `r05-mutation-settings-page_host.log`. Boundaries fan-in 4/4, cycles 0.
+- 2026-09-15 r·5 tool finding: `scripts/rename-identifiers.py --root=…` refused `useAcquisitionReference` as a
+  shorthand property in `import { useX, type Y }` (an import specifier, not an object) and printed « Nothing
+  written, in any file » while four other files of that run WERE rewritten; re-run with `--properties`, the diff read
+  and typechecked. For the steward (the tool is main's).
