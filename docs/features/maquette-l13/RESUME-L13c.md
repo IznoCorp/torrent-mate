@@ -57,3 +57,6 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   first read as inherited — they were this state's); `libLens`/`libMode` leak too but the reference
   records it (probe `c01-probe-dials.log`, B-539). Dialog fold at four kept (ruling 116): a
   selection of ≥ 5 names hidden titles only inside « et N autres » — for the operator.
+- 2026-09-15 c·1 close: the oracle accepted `lib-selection-filtered` by name (`2092bbb27`, diff = the one
+  state + count + baseCommit); re-gate `c01-gate-3.log` « gate: no violation ». Ruling 116 carries the
+  operator's A.
