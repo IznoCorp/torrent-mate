@@ -28,13 +28,21 @@ them against these facts: pause is offered only while the pause sentinel is
 ABSENT, resume only while it is PRESENT. §13 — one question, one derivation. Two
 fields that can disagree is the defect, not something the reader should
 reconcile by looking twice.
+
+AND THE AGREEMENT A HAND REACHES. A named state clears the reads' cache, so a
+block read right after `__go` is always fresh — which is exactly where a stale
+lock row cannot be seen. The walk below opens NO state door: it reads the block,
+starts the pipeline from Arrivées by a finger, comes back, pauses and resumes by
+the levers, stops from Arrivées, and comes back again. At every return the row
+agrees with the layer's locks read, and the layer's lock agrees with the
+pipeline's own state — « Libre » over a running pipeline is the defect.
 """
 import asyncio
 import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import Journal, SETTLED, open_page
+from common import ACTED, Journal, SETTLED, open_page
 
 from playwright.async_api import async_playwright
 
@@ -120,6 +128,53 @@ PRESENT = """(part)=>Boolean(document.querySelector(`[data-part="${part}"]`))"""
 # nothing », which is a real answer and not an absence.
 NONE_SAID = "Aucune"
 
+# THE LAYER'S OWN ANSWERS, asked directly so the drawing is compared against
+# what the server says and not against what the walk hoped for.
+LAYER = """async ()=>{
+  const locks = await (await fetch('/api/maintenance/locks')).json();
+  const status = await (await fetch('/api/pipeline/status')).json();
+  return {held: locks.pipelineLock.held, pause: locks.sentinels.pause,
+          watcherPaused: locks.sentinels.watcherPaused, state: status.state};
+}"""
+
+# PRESSING A CONTROL THE WAY A FINGER DOES: scrolled into view, hit-tested at its
+# centre, clicked only when nothing covers it.
+PRESS = """(selector)=>{
+  const control = document.querySelector(selector);
+  if (!control) return {found: false, pressed: false, covered: ''};
+  control.scrollIntoView({block: 'center'});
+  const box = control.getBoundingClientRect();
+  const hit = document.elementFromPoint(box.left + box.width / 2,
+                                        box.top + box.height / 2);
+  const mine = Boolean(hit) && (hit === control || control.contains(hit));
+  if (mine) hit.click();
+  return {found: true, pressed: mine,
+          covered: mine ? '' : ((hit && (hit.dataset.part || hit.tagName)) || 'nothing')};}"""
+
+SYSTEM_TAB = '#nav button[data-page="sys"]'
+ARRIVALS_TAB = '#nav button[data-page="arr"]'
+START = '[data-part="pipeline"] [data-pipe="start"]'
+STOP = '[data-part="pipeline"] [data-pipe="stop"]'
+
+# THE WORD A HELD LOCK AND AN ACTIVE PAUSE WEAR, the interface's own.
+HELD_SAID = "Pris"
+PAUSE_SAID = "Activée"
+
+# WHAT COUNTS THE STATE DOORS, installed before the application assigns them.
+COUNT_THE_DOORS = """(() => {
+  window.__doorsOpened = [];
+  let held;
+  Object.defineProperty(window, "__go", {
+    configurable: true,
+    get: () => held,
+    set: (value) => {
+      held = typeof value === "function"
+        ? (...args) => { window.__doorsOpened.push("__go"); return value(...args); }
+        : value;
+    },
+  });
+})();"""
+
 
 async def drive(journal, page, state):
     """Drives one named state and holds that it is reachable at all.
@@ -148,6 +203,81 @@ async def drive(journal, page, state):
     journal.check(f"{state} is a state the table declares", reached, detail)
     await page.wait_for_timeout(SETTLED)
     return reached
+
+
+async def press(journal, page, selector, claim):
+    """Presses one control by a finger and holds that it was reachable.
+
+    Args:
+        journal: The run's journal.
+        page: The prototype's page.
+        selector: The control's selector.
+        claim: What the hold says.
+
+    Returns:
+        Whether the control was pressed.
+    """
+    aim = await page.evaluate(PRESS, selector)
+    journal.check(claim, aim["found"] and aim["pressed"], str(aim))
+    await page.wait_for_timeout(ACTED)
+    return aim["found"] and aim["pressed"]
+
+
+async def agrees(journal, page, moment):
+    """Holds that the drawn rows say what the layer answers, and the layer agrees with itself.
+
+    Args:
+        journal: The run's journal.
+        page: The prototype's page, on Système.
+        moment: Where in the walk the reading is taken, for the failure line.
+    """
+    lock = await page.evaluate(ROW_FACT, "locks/pipeline")
+    pause = await page.evaluate(ROW_FACT, "locks/pause-sentinel")
+    layer = await page.evaluate(LAYER)
+    said_held = bool(lock) and HELD_SAID in lock["value"]
+    said_pause = bool(pause) and PAUSE_SAID in pause["value"]
+    journal.check(f"{moment}: « Verrou du pipeline » says what the locks read answers",
+                  bool(lock) and said_held is layer["held"], f"{lock!r}, layer {layer}")
+    journal.check(f"{moment}: the layer's lock agrees with the pipeline's own state",
+                  layer["held"] is (layer["state"] != "idle"), f"layer {layer}")
+    journal.check(f"{moment}: the pause sentinel says what the locks read answers",
+                  bool(pause) and said_pause is layer["pause"], f"{pause!r}, layer {layer}")
+
+
+async def agreement_by_hand(journal, browser):
+    """Walks start, pause, resume and stop by a finger, reading the block at every return.
+
+    Args:
+        journal: The run's journal.
+        browser: A launched browser.
+    """
+    context, page = await open_page(browser)
+    await context.add_init_script(COUNT_THE_DOORS)
+    await page.reload(wait_until="load")
+    await page.evaluate("()=>window.__loadingDone?.()")
+    await page.evaluate("()=>document.querySelector('#toastx')?.click()")
+    await page.wait_for_timeout(SETTLED)
+
+    steps = (
+        (SYSTEM_TAB, "Système is reached by a finger", "at rest"),
+        (ARRIVALS_TAB, "Arrivées is reached by a finger", None),
+        (START, "« Lancer le pipeline » is pressed by a finger", None),
+        (SYSTEM_TAB, "Système is reached again by a finger", "after a hand start"),
+        ('[data-part="levers/pause"]', "« Mettre tout en pause » is pressed", "after a pause"),
+        ('[data-part="levers/resume"]', "« Reprendre » is pressed", "after a resume"),
+        (ARRIVALS_TAB, "Arrivées is reached again by a finger", None),
+        (STOP, "« Arrêter » is pressed by a finger", None),
+        (SYSTEM_TAB, "Système is reached a third time by a finger", "after a hand stop"),
+    )
+    for selector, claim, moment in steps:
+        if not await press(journal, page, selector, claim):
+            break
+        if moment is not None:
+            await agrees(journal, page, moment)
+    opened = await page.evaluate("()=>window.__doorsOpened")
+    journal.check("and the walk opened no state door — `__go` called zero times",
+                  opened == [], str(opened))
+    await context.close()
 
 
 async def main():
@@ -244,6 +374,9 @@ async def main():
                           f"{hidden} present={await page.evaluate(PRESENT, hidden)}")
 
         await context.close()
+
+        # 6 — THE AGREEMENT A HAND REACHES, in a page no state was driven in.
+        await agreement_by_hand(journal, browser)
         await browser.close()
     journal.summary()
 

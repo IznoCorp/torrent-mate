@@ -119,7 +119,14 @@ registerVerb("manual", (folder) => {
    under way and the layer answers 409, which is SAID in its own sentence and
    never read as a stop. « arrêter » stops it. The status read is asked again
    afterwards, so the bar draws what the pipeline is doing rather than what the
-   tap hoped for. */
+   tap hoped for — AND THE LOCKS READ IS INVALIDATED beside it: a pass taking or
+   freeing the pipeline's lock is one fact with two readers, and Système's
+   block, cached from an earlier visit, would otherwise say « Libre » over a
+   running pipeline. It is invalidated rather than refetched because Système is
+   not on screen here: the read is marked stale and asked again when the block
+   is next drawn. */
+const LOCKS = ["/api/maintenance/locks"];
+
 registerVerb("pipe", (command) => {
   const path = command === "stop" ? "/api/pipeline/kill" : "/api/pipeline/run";
   void send("POST", path, {})
@@ -139,6 +146,7 @@ registerVerb("pipe", (command) => {
     })
     .then(async (sentence) => {
       await sharedQueryClient?.refetchQueries({ queryKey: ["/api/pipeline/status"] });
+      await sharedQueryClient?.invalidateQueries({ queryKey: LOCKS });
       toast?.show({ message: i18next.t(sentence) });
     });
 });
