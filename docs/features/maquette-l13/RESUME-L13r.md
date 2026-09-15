@@ -13,15 +13,14 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   r·1 `12f3e242b`, r·2 `d997e7c59`, r·3 `4168932d6`, r·4 `688dab291`, R114 repair `3ddcd70d5`, r·5 `412b75075`,
   r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7`, r·9 `4fb1b2418` (+ `f6393dcf6`), r·10 `e827267b6`,
   r·11 `e572a0708`, main 60c6d9b1d (L20 #603) merged `9e978aeaa` (+ `2864fb7c3`), r·12 `7238cd33b`, r·13 `9506bf881`
-  (+ `3dcde3533`), r·14 `2f6a56be3` — DONE.
-- NEXT: r·15 `plan/phase-r15-the-file-dies.md` (ruling 111: the code only ≈ 12–14; instruments r·16, gate r·17). On `2f6a56be3`: `engine/legacy.js` 638 lines (493 non-blank; its body from l.293, `applyState`
-  l.455, the `Object.assign(window, …)` l.627 — the owed list below), `engine/seams.ts` 191, `app/engine-data.ts` 102,
-  `app/engine-redraw.ts` 45, `lib/engine-drawing.ts` 49; the parser arms `classification` + `correspondence`, the builder
-  `scripts/build-mock-seeds.py`, `scripts/extract-maquette-fixtures.mjs`, `fixture-projections.json` (answers/file/join —
-  `answers` is read by the schema arm, which STAYS: its home is r·15's question), `ci.yml:103–104`, B-497; `ENGINE_SOURCES`,
-  the French debt section, the size-ledger entry, `resync.py`, the harness reads. Sweep: reads, literals, JS blocks,
-  quoted keys in harness lists. Then the full gate + PR. Frame-domain lib/ 28, app/ 121.
-- OWED TO r·15/r·16: `legacy.js`'s `Object.assign(window, …)` publishes `SETTINGS_STATE`, `icons`, `settingId`, `select`,
+  (+ `3dcde3533`), r·14 `2f6a56be3`, r·15 `2014905dd` — DONE.
+- NEXT: r·16 `plan/phase-r16-the-instruments-die.md` — OPEN IT BY A MEASURE and one STOP D (re-cut if > 15). FIRST ACT:
+  delete `engine/legacy.js` (unimported, comments only since r·15) with what reads the file — the five guards the probe
+  named (check-frontend-boundaries typing arm, check-no-french's French debt, check-mock-seeds' extractor,
+  check-maquette-unit-tests, check-state-ownership's ENGINE_SOURCES), `said_and_done.py`, `page_host.py` l.952 (999/1000),
+  the size-ledger entry; then the 18 scripts / 6 tests / registers / ci.yml:103–104 / resync.py, the schema arm's
+  `answers` home, B-497. Frame-domain lib/ 28, app/ 132 (ruling 112).
+- DONE AT r·15 (was owed): `legacy.js`'s `Object.assign(window, …)` published `SETTINGS_STATE`, `icons`, `settingId`, `select`,
   `cadenceFR`, `nextSearchFR`, `stLabel` — readers `settings.py`, `page_host.py` (SETTINGS_STATE/settingId, re-aimed
   at r·5), `audit.py`, `content.py` (the three vocabulary names) → re-aimed from their homes when the file dies;
   `applyState` (literal-key restore in `app/layers.ts`, ruling 102), `select`, `icons` (the engine's import).
@@ -213,3 +212,13 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
 - 2026-09-15 ruling 111: r·15 measured ≥ 30 (legacy.js's live code ≈ applyState + the publications; 18 scripts, 6 tests,
   8 rules, the registers and ci.yml read the engine; then the full gate) and cut — r·15 the code, r·16 the instruments,
   r·17 the full gate + PR (files, INDEX, BRIEF, state block re-pointed).
+- 2026-09-15 ruling 111-precision: `legacy.js` stays unimported and comment-only until r·16's first act (probe: five guards
+  red without the file). Ruling 112: the literal restore raises frame-domain app/ 121 → 132.
+- 2026-09-15 r·15 (rulings 111, 112): `applyState` dead — the ladder's restore in `app/layers.ts` with literal keys, the
+  named states' patch written by `harness/drive.ts`; SETTINGS_STATE, settingId, cadenceFR, nextSearchFR, stLabel published
+  by `harness/publish.ts` (icons, select: no reader); `engine/seams.ts` + `installSeams` deleted, the panel door's type and
+  `window.__panel` → `ui/panel/door.ts` (contract.ts would have been 401/400); `legacy.js` imported by nothing, its
+  comments only (460 non-blank, ledger re-recorded). Gate `r15-gate.log` on `2014905dd`: 31 rules (10 named), 26 guards,
+  oracle no divergence. `r15-hold-counts.json`: eight at baseline; boot_order 20 → 18 = its two removed holds
+  (installSeams' subject); back.py 17 → 21 = L20's four checks from the merge. Mutation `r15-mutation-boot_order.log`
+  (installArrival above installPanelHost): FAIL by name.
