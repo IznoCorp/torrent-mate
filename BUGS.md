@@ -398,7 +398,7 @@ when the defect comes back.
 | B-336 | The library's kind chips (« Tout · Films · Séries », with counts) scroll horizontally with a VISIBLE scrollbar on the phone; the strip should hide it as `pillscroll` does | 1× | `open` |
 | B-337 | A follow card swiped open: the first tap on a revealed action does nothing, the second acts — systematic on the phone | 1× | `open` |
 | B-338 | After a panel's departure the invisible scrim stays hit-testable over the media screen for ~380 ms — `opacity 0`, `visibility` still `visible` until its delayed flip — so a tap on the fresh screen lands on nothing | by the steward | `fixed #573` |
-| B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens » | 1× | `open` |
+| B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens » | 1× | `to confirm` |
 | B-340 | The « + » button reopens the add screen with the LAST query and mode still in place — after identifying an arrival, a new search starts on « Marvels Spider-Man 2 v1 526 0 -Mephis… », 0 results, and the « 2 médias ajoutés » strip of the previous visit | 1× | `to confirm` |
 | B-341 | A settings field commits its edit only when the finger LEAVES it — no validation affordance in the panel — which the operator reads as counter-intuitive; the pending edit then says « Valeur actuelle » for the value not yet written | 1× | `fixed #588` |
 | B-342 | « Enregistrer » says « Enregistré — torrent.json5 » and the row shows the ORIGINAL value again: the mock's write records the file name and never the value, so the next read contradicts the toast | 1× | `fixed #588` |
@@ -3986,6 +3986,16 @@ residue for `ui/variants` with its `disabled:` half. The operator ratifies, or n
 residue dies there).
 
 <sub>operator's screenshot, 2026-09-06 10:10 · `grep -n "desactive" frontend/maquette/design/src/features/acquisition/panel-add.ts frontend/maquette/design/src/ui/panel/index.tsx` · `grep -n "\.sact" frontend/maquette/design/src/styles/legacy.css` → 1674, 1688, 1694, 1697, 1703, none with `:disabled` · `grep -n ":disabled" …/legacy.css` → `.btnprimary:disabled` only</sub>
+
+**REPAIRED, in two halves (ruling 118).** The opacity half landed with L20 (`60c6d9b1d`, #603):
+`disabled:opacity-50` on the action variant's base, after this entry was filed. L13c c·3 closes the
+rest: a spent act wears no « + » (`features/acquisition/panel-add.ts` — the producer knows it is spent,
+the variant stays neutral). **R197** `disabled_action.py` reads two real add panels of one answer, one
+result added by a finger: the spent act is disabled and a re-tap adds nothing, its drawing differs
+from the available act on `opacity` in the dark theme, the light theme and with reduced motion, and it
+wears no « + ». Written before any move, it read green on the first three holds — said in its
+docstring — and red on the icon; the mutation removing `disabled:opacity-50` fells the three drawing
+holds by name, the one handing `icons.plus` back fells the icon hold. Waiting for the operator's hand.
 
 **B-340 — the « + » button reopens the add screen where the last visit left it.**
 Reported by the operator on 2026-09-06 with a screenshot, verbatim: « Une fois que j'ai cliqué sur la

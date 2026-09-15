@@ -16,7 +16,8 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   states at rest (B-345's library half) → c·9 the close (register re-read, `REPORT.md`, the lot's
   gesture, the pull request).
 - DONE: c·1 (`a78287834`…`8cf2fa574`, B-312 `to confirm`, B-539 filed), c·2 (`069fb3a8e` + `f67401890`,
-  B-340 `to confirm`). L13r squashed on main as `08400a22a`: merged in before c·3. NEXT: c·3.
+  B-340 `to confirm`), merge of L13r's squash `08400a22a` (`0a32a745a`, pushed), c·3 (`9848c02b4`,
+  B-339 `to confirm`). NEXT: c·4 (same shape likely: `pillScroll` already carries the idiom).
 - LOGS: `~/Library/Logs/tm-l13c/`. Mutex `sh scripts/heavy.sh --held`; tests lock
   `/private/tmp/tm-heavy-tests/holder`; own lock `/private/tmp/tm-heavy-l13c/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13c
@@ -69,3 +70,10 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   search seed gives the film « Star Wars : The Clone Wars » the series' identifiers (tmdb 4194) — the
   key now carries the kind; the seed itself is the fixture-identity class, left as it is. A new name
   word must be in `scripts/code-vocabulary.txt` — run check-no-french before every commit.
+- 2026-09-15 c·3 (`Agent : l13c 1`): STOP D → ruling 118. R197 `disabled_action.py`, 5 holds; reading
+  `c03-reading-detail.log` (opacity alone differs, L20's half), red `c03-red.log` (the « + » hold),
+  green `c03-gate.log` on `9848c02b4` (25 rules, 3 named, oracle no divergence), mutations
+  `c03-mutations.log` (base half removed → 3 drawing holds; plus handed back → the icon hold). The
+  merge of `08400a22a` (`0a32a745a`): 15 conflicts resolved by re-applying c·1/c·2 onto main's files,
+  checked by script (merge delta = main delta on 18 code files). A green reading before the move is
+  not a pass: replay the rule directly to read WHAT differs before claiming a defect gone.

@@ -18,6 +18,8 @@
   rule reading raw `opacity` would pass against the tree as it stands, before any move. The phase's
   own DESIGN choice — which property carries the "spent" reading — is unmade by this measure and is
   not for this commit to pick.
+- **Landed (2026-09-15, ruling 118).** The opacity half was L20's (`60c6d9b1d`); R197, 5 holds, lands
+  as the guard, s1–s3 green from the start; the spent act loses its « + »; B-339 `to confirm`.
 
 A BEHAVIOUR change: the panel action variant that a·8 converted from `.sact` gains its `disabled:`
 half, so a spent action is not drawn like an available one (DESIGN § 10, B-339).
