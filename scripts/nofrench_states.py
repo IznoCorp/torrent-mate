@@ -175,11 +175,12 @@ def check_state_identifiers(violations: list[str]) -> None:
     Args:
         violations: The accumulator every arm appends to.
     """
-    # THE DEBT WORDS ARE EXCLUDED, and without this the arm could not catch the
-    # very id it was written for. `vocabulary()` returns the WHOLE file, the
-    # section banner-marked « THE ENGINE'S LAST FRENCH WORDS » included — and
-    # that section holds `panne`. So `system-panne` would have passed in
-    # silence, along with `repos`, `courant`, `masquer` and twenty more.
+    # UNTIL L13r (`design/src/engine/legacy.js@13a66a35b`), the debt words were
+    # excluded here: `vocabulary()` returned the WHOLE file, the section
+    # banner-marked « THE ENGINE'S LAST FRENCH WORDS » included — and that
+    # section held `panne`. So `system-panne` would have passed in silence,
+    # along with `repos`, `courant`, `masquer` and twenty more, had the
+    # subtraction not been made.
     #
     # THE MUTATION THAT « PROVED » THIS ARM WAS MEASURED IN THE WRONG WORLD.
     # Restoring `system-panne` did make the arm fall — on the CROSS-CHECK, which
@@ -188,10 +189,10 @@ def check_state_identifiers(violations: list[str]) -> None:
     # proves the cross-check works and says nothing about the vocabulary; it is
     # the test agreeing with the fix, which this register refuses by name.
     #
-    # The debt is owed to `legacy.js` alone (`check_french_debt`), and
-    # the state table is not `legacy.js`. Excluding it costs nothing: no current id
-    # fails.
-    words = vocabulary() - vocabulary(debt_only=True)
+    # The debt was owed to `legacy.js` alone (`check_french_debt`), and the
+    # state table was never `legacy.js`. The engine and the debt section are
+    # both gone since L13r r·16 — `vocabulary()` is now the whole of it.
+    words = vocabulary()
     source = "\n".join(read(path) for path in sorted(STATES.glob("*.ts")))
     declared = declared_state_identifiers(source)
     measured = measured_state_identifiers()

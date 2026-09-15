@@ -1,6 +1,6 @@
 {
   "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 130 of 141 rule(s) report a hold count; the other 11 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
-  "taken_at_commit": "60c6d9b1df21ef9395407b91939e37dd7991c149",
+  "taken_at_commit": "08400a22a32da7077dc49b26aa2de6fce97aff74",
   "taken_on": "2026-09-15",
   "suite": "141 of 141 rule(s)",
   "host": "http://127.0.0.1:8899/",
@@ -17,7 +17,7 @@
     },
     "add_footer.py": {
       "exit": 0,
-      "count": 11,
+      "count": 13,
       "source": "common.Journal summary"
     },
     "address.py": {
@@ -62,7 +62,7 @@
     },
     "boot_order.py": {
       "exit": 0,
-      "count": 20,
+      "count": 18,
       "source": "common.Journal summary"
     },
     "bridge.py": {
@@ -372,7 +372,7 @@
     },
     "page_host.py": {
       "exit": 0,
-      "count": 44,
+      "count": 43,
       "source": "common.Journal summary"
     },
     "palette.py": {
@@ -517,7 +517,7 @@
     },
     "said_and_done.py": {
       "exit": 0,
-      "count": 17,
+      "count": 16,
       "source": "common.Journal summary"
     },
     "scen.py": {
@@ -572,7 +572,7 @@
     },
     "secret_acts.py": {
       "exit": 0,
-      "count": 14,
+      "count": 15,
       "source": "common.Journal summary"
     },
     "seeds_at_rest.py": {
@@ -715,7 +715,7 @@
     "rules": 141,
     "parseable": 130,
     "unparseable": 11,
-    "holds": 3131,
+    "holds": 3130,
     "failed": 0
   }
 }

@@ -698,6 +698,20 @@ mocked; the history renders every named state at 390 px with no overflow; a run'
 log folded and the levers read the lock and the sentinels (B-296, B-297); the oracle records the
 surfaces as new.
 
+#### L22 — Arrivées dans Acquisition · *depends on L13, L19, L20, L21*
+
+**Objective.** A BEHAVIOUR lot on existing surfaces — the Acquisition page, the card and its one
+ladder, the candidates screen — and the death of Arrivées as a destination of its own. Inserted by
+the auditor's lot-order delegation (2026-09-15) before L16, after L13; startable stacked on L13c's
+head at its PR READY. Its design is nine tenths dictated by the operator's nine organisation
+rulings of 2026-09-15, in `docs/reference/operator-method.md`.
+
+**Where it lives (invariant 10).** The Acquisition page — the card, its one ladder, and the
+candidates screen; Arrivées itself dies as this lot lands.
+
+**Done when.** The Acquisition page draws the card, its one ladder and the candidates screen as
+the operator's nine rulings dictate, and Arrivées no longer exists as a destination of its own.
+
 #### L16 — §18, the ratio · *depends on L15, L19, L10*
 
 **Objective.** DOIT-13: the ratio is read PER TRACKER, obligations are a « rien » with their

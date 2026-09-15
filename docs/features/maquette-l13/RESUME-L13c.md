@@ -1,12 +1,12 @@
 # L13c — resume brief (STATE BLOCK ≤ 40 lines, rewritten at every boundary; ledger below, append-only)
 
 Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md` (L13c appends from
-110).
+115).
 
 ## STATE
 
 - Branch `feat/maquette-l13c`, worktree `/Users/izno/dev/worktrees/wave-l13c`, cut from L13r's PR
-  head `<L13r head>`. L13r's squash onto `main` and merge are the steward's, named when they land.
+  head `08400a22a` (its squash on `main`). L13r's squash onto `main` and merge are the steward's, named when they land.
   Steward: the session named in your launch prompt (`Orch : TM frontend`, its reference changes).
 - Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13c`.
 - Phases (`plan/INDEX.md` § « L13c »): c·1 the selection survives the lens (B-312) → c·2 a fresh add
@@ -45,5 +45,5 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
 ## LEDGER (append-only)
 
 - 2026-09-15 (steward): branch not yet cut. BRIEF-L13c.md and this file written AHEAD (order 39),
-  on the model of BRIEF-L13r.md / RESUME-L13r.md, before L13r's own pull request opens. c·1 open for
+  on the model of `docs/features/maquette-l13/BRIEF-L13r.md@08400a22a` / `docs/features/maquette-l13/RESUME-L13r.md@08400a22a`, before L13r's own pull request opens. c·1 open for
   `Agent : l13c 1` once the steward spawns it, stacked on L13r's head per measure 9.
