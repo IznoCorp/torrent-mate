@@ -6,40 +6,42 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
 
 - Branch `feat/maquette-l13r`, worktree `/Users/izno/dev/worktrees/wave-l13r`, cut from L13b's PR head
   `fcaff976f` (#601). main `cdde26731` merged in at `9b81c5f49` (docs only, no conflict).
-  Steward: the session named in your launch prompt (`Orch : TM frontend`, its reference changes).
-- Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13r`.
+  Steward: the session named in your launch prompt. Head: `git log -1`; pushed: `git ls-remote`.
 - Phases (ruling 101): r·1 → r·2 → r·3 (BEHAVIOUR) → r·4 (BEHAVIOUR) → [midpoint full suite] → r·5 the reference
   dies → r·6–r·13 contract names by family group (rulings 105–107) → r·14 the file dies + full gate + PR.
   r·1 `12f3e242b`, r·2 `d997e7c59`, r·3 `4168932d6`, r·4 `688dab291`, R114 repair `3ddcd70d5`, r·5 `412b75075`,
   r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7`, r·9 `4fb1b2418` (+ `f6393dcf6`), r·10 `e827267b6`, r·11 `e572a0708` — DONE.
-- MIDPOINT's one fall (`poster.py`, R114) REPAIRED (ledger): the rule held by accident until r·2.
-- NEXT: r·12 (`plan/phase-r12-…`: the system
-  families + JOURNAL + SCHEDULERS, `Fact`'s keys), r·13 (the sheet), each file's « Method » (ruling 105)
-  PLUS the multi-line harness sweep on the phase's dated line (r·6's amendment). Frame-domain after r·11: lib/ 28, app/ 121. Before each gate: the harness JS sweep (reads AND object literals handed
-  to the product) AND the `toEngineShape` calls with a string/generic family and their keys (steward's method lines).
-  Steward: `Orch : TM frontend [ba1693]` since the succession during r·6.
-- legacy.js non-blank: 1 600 at the cut, 1 274 r·1, 888 r·2, 663 r·3, 534 r·4, 493 r·5. `scripts/frontend_size_ledger.py`
+- NEXT (`Agent : l13r 3`): r·12 `plan/phase-r12-system-families-and-facts.md` — OPEN IT BY A MEASURE and one STOP D.
+  Ruling 107's decision: `Fact`'s keys become full words (label / value / secondaryLine / tone), no hand-written
+  projection survives; only if the measure exceeds 15 with that rename does the conversion live in `lib/` and `ui/`
+  keep its vocabulary, said with the count. Measure: every reader of `Fact` (`lib/engine-drawing.ts` declares it;
+  `features/system/{fault.ts,fault.test.ts,queries.ts}`, `features/maintenance/types.ts`, and `ui/fact-rows.tsx`'s own
+  input type); `features/system/queries.ts`'s `useSystemRead(address, family)` sites — SERVICES (found at r·11's
+  stand-down, in NO ruling's list: say it), SCHEDULERS, DISKS, INDEX, DEPENDENCIES, ERRORS, EXECUTIONS; JOURNAL at
+  `features/maintenance/queries.ts:38`; `fault.test.ts:49`'s `toEngineShape("SCHEDULERS")`; the harness sweep (reads,
+  object literals, generic families). Method per ruling 105 + the steward's lines on `phase-r06/r08/r10`. Then r·13
+  the sheet (`lib/season-rows.ts` + `features/media/queries.ts`, engine-shape.ts dies), r·14 the file dies + PR.
+  Frame-domain after r·11: lib/ 28, app/ 121. MIDPOINT's R114 fall repaired (ledger).
+- legacy.js non-blank: 1 600 at the cut, 1 274 r·1, 888 r·2, 663 r·3, 534 r·4, 493 r·5 (r·6–r·11 did not touch it). `scripts/frontend_size_ledger.py`
   re-recorded DOWNWARD in every phase's commit.
 - OWED TO r·14: `legacy.js`'s `Object.assign(window, …)` publishes `SETTINGS_STATE`, `icons`, `settingId`, `select`,
   `cadenceFR`, `nextSearchFR`, `stLabel` — readers `settings.py`, `page_host.py` (SETTINGS_STATE/settingId, re-aimed
   at r·5), `audit.py`, `content.py` (the three vocabulary names) → re-aimed from their homes when the file dies;
   `applyState` (literal-key restore in `app/layers.ts`, ruling 102), `select`, `icons` (the engine's import).
-- LOGS: `~/Library/Logs/tm-l13r/`. Mutex `sh scripts/heavy.sh --held`; tests lock `/private/tmp/tm-heavy-tests/holder`;
-  own lock `/private/tmp/tm-heavy-l13r/holder`.
+  OWED TO THE PR BODY / docs PR (steward): the `decision.kind` enum demand (r·7); the instrument minors the steward
+  filed (crash instead of FAIL under a shape mutation; vacuous holds: url_state, deck_verbs, audit, page_host, address).
+- LOGS `~/Library/Logs/tm-l13r/`; mutex `sh scripts/heavy.sh --held`; tests lock `/private/tmp/tm-heavy-tests/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13r frontend/maquette/harness/run.sh --contracts
   --oracle <full rule paths>` — the only form that reads rule names (rulings 66, 81, 92).
 - MUTATIONS: `sh scripts/mutate.sh <full path> "<expr>" <rule paths…>`; commit before; read the NAMED FAIL line;
   « RULE CRASHED » / « RULE NOT FOUND » prove nothing (ruling 77). A mutate run over two rules can pass 600 s:
   launch it in the background and poll its log for `heavy: l13r done`.
-- HOLD COUNTS: `harness-hold-counts.py` needs a host on 8899 (start one as `mutate.sh` does, stop it after).
-- Push: the pre-push hook is the branch's own; a docs-only push takes the fast path; a code push runs the suite
-  (~14 min) under the tests lock. `tests/scripts/test_check_maquette_comments.py` alone before any push.
-- Register: no rows during the wave (ruling 85) — ledger lines; the steward numbers rows at the close.
+- HOLD COUNTS need a host on 8899 (start it as `mutate.sh` does). Push: code push = suite ~14 min under the tests lock,
+  never while the mutex is held; `test_check_maquette_comments.py` first. No register rows (ruling 85).
 - Traps: zsh does not word-split a multi-word variable (a `$M` command prefix is exit 127); a detached checkout runs
   THAT head's run.sh; the tap registry answers the first registered key in ATTRIBUTE order; `stopPropagation` does not
-  stop a listener BESIDE yours; a touch drag suppresses the click itself; `page.route` never sees a request the service
-  worker answers; `rename-identifiers.py` refuses a `{ name, type X }` import as a shorthand property (use
-  `--properties`) and may already have written other files when it says « Nothing written ».
+  stop a listener BESIDE yours; `page.route` never sees a request the service worker answers; `rename-identifiers.py`
+  refuses `{ name, type X }` imports (use `--properties`) and may have written files when it says « Nothing written ».
 - Owed at r·14: `--a11y`, hold-counts `--compare` (baseline `taken_at_commit` re-pointed to main's sha in a copy),
   `make lint`, merge main in, version bump above main's, PR READY (conversion: no §§; r·3's/r·4's behaviour said).
 
@@ -173,3 +175,6 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   not fall (its action title is printed, compared by no hold); `r11-mutation-account.log` — address did not fall
   (with no address drawn, « every address drawn is the account's » holds over an empty set); `r11-mutation-follows-
   audit2.log` — audit2 FELL by its exit verdict.
+- 2026-09-15 stand-down of `Agent : l13r 2` after r·11 (gauge 59 + r·12 ≈ 15 left no margin for r·12's opening STOP; the
+  steward's call). SERVICES found projected through `useSystemRead` at the stand-down, in no ruling's list — r·12's
+  measure says it.
