@@ -276,20 +276,11 @@ This rule is also recorded in `docs/reference/product-intent.md` and in the proj
 
 ## Why this file exists at all
 
-A previous rebuild of one page cost days it should not have. Its post-mortem names two
-causes:
-
-1. **Translating instead of transplanting.** Prototype fragments were grafted onto existing
-   component skeletons. Every detail _resembled_; the whole diverged.
-2. **Eyeball validation.** "Present in the DOM" was treated as "conformant". Several
-   "it's ready" claims collapsed on contact with the operator's thumb.
-
-Underneath both: the parity harness was built **after** the code, as a repair, and it
-measured a **deployed** build — so every loop cost minutes and measuring became something to
-skip.
-
-This directory inverts that. The prototype comes first, the CSS is generated from it, and the
-measurement runs locally on every change.
+**This directory inverts a defect a previous rebuild paid for**: translating a prototype instead
+of transplanting it, and validating by eyeball ("present in the DOM" read as "conformant") rather
+than by measurement built before the code and run locally on every change. The prototype comes
+first, the CSS is generated from it, and the measurement runs locally on every change. Story:
+`frontend/maquette/README.md@6a47304a4` § Why this file exists at all.
 
 ---
 
@@ -301,21 +292,11 @@ See the binding rule above.
 
 ### 2. The CSS is the maquette's own — there is nothing to translate.
 
-**As this section was written, before L07.** BLOCK 2 of
-`frontend/maquette/design/refonte.html@60530dbd8` WAS the application's stylesheet, and the rule
-was: when the maquette replaces the app, that block ships as-is; nothing lifts it, rescopes it or
-copies it anywhere. L07 emptied BLOCK 2 of every style rule (D2/D3, Tailwind utilities behind
-typed variants instead), and L13a deleted the file itself — the distinction below is kept as the
-lesson it recorded, not as a description of a block that still exists.
-
-**This section used to describe the opposite, and that is the lesson worth keeping.**
-`scripts/extract-maquette-css.py` lifted BLOCK 2, scoped every selector under `.tm`, and wrote
-`frontend/src/styles/ps/app-surface.css`; an allowlist of 461 selectors in `regions.json` said
-what could ship; `harness/export.py` guarded the allowlist from the other side; and
-`scripts/parity-probe.py` proved the rescoping had not changed the rendering — 1 614 measurements
-and **7 minutes of CI on every PR**. All of it was built for the 2026-08-10 spec's model, in which
-the SHIPPED app was migrated towards the maquette surface by surface, so the two stylesheets had
-to coexist. The operator reversed that on 2026-08-13 and the tooling stayed until 2026-08-20.
+BLOCK 2 ships as-is; nothing lifts it, rescopes it or copies it anywhere — the extraction/rescoping
+tooling this rule once required (`scripts/extract-maquette-css.py`, the `.tm` scope, the 461-selector
+allowlist, `scripts/parity-probe.py`) was built for a migrate-the-app-surface-by-surface model the
+operator reversed on 2026-08-13, and it was retired 2026-08-20. Story:
+`frontend/maquette/README.md@6a47304a4` § The four working rules.
 
 **You do not translate a CSS that becomes the CSS.** What survives is the one distinction that
 was never about translation:
@@ -336,19 +317,11 @@ This catches "translating" at the moment it happens.
 
 ### 4. What replaced « zero divergence »
 
-`scripts/parity-probe.py` used to render the same DOM twice — once dressed by BLOCK 2, once by
-the extracted stylesheet — and diff `getBoundingClientRect` plus a fixed `getComputedStyle`
-subset over 51 regions × 49 states × 2 themes. It was the only thing that could catch the
-rescoping changing a cascade while the emitted text stayed exactly right, and it earned its keep:
-it caught two such defects on 2026-08-20 alone, one of them 7 300 divergences wide.
-
-**It was deleted with the extraction it measured.** There is no second stylesheet to be in parity
-WITH: BLOCK 2 is the app's CSS, full stop. Keeping the probe would have meant paying 7 minutes of
-CI per PR to compare a file with itself.
-
-What holds BLOCK 2 now is narrower and honest about it: `scripts/check-css-tokens.py` (every
-`var()` resolves), the 59 rule scripts in `harness/`, and the fact that a rendering change in the
-prototype IS the product changing — there is no copy of it left to diverge.
+The rescoping-parity probe (`scripts/parity-probe.py`) was deleted with the extraction it
+measured — there is no second stylesheet to be in parity WITH, BLOCK 2 is the app's CSS, full
+stop. What holds BLOCK 2 now is narrower and honest about it: `scripts/check-css-tokens.py`
+(every `var()` resolves), the rule scripts in `harness/`, and the fact that a rendering change in
+the prototype IS the product changing — there is no copy of it left to diverge.
 
 ## The scale — a design constant is a STEP, and it is declared once
 
@@ -395,28 +368,20 @@ holds the three ends.
 
 ## Traps this stylesheet paid for
 
-- **The composed sign-in page does not get BLOCK 2.** It gets the `login:*` chunks `serve.py`
-  chooses, and nothing else. So a rule that reads the MARKERS in the file is reading what the
-  page is offered, not what it is served: dropping a chunk from the server's composition leaves
-  every marker in place and the rule green over a page missing a declaration it still uses. The
-  login arm reads `serve.py`'s own `extract()` calls now.
-- **A contrast repair verified on one theme repairs one of the two.** The audit drives the named
-  states in the default theme only, so a light theme carrying 2.1:1 text sits under a green hard
-  zero — and that is not hypothetical, it was found by driving `data-theme` by hand. Measure a
-  colour in BOTH themes, or half the palette is uncertified.
-- **A `font:` shorthand declares a size without ever writing `font-size`.** A family's extractor
-  is a CLAIM about which properties spend the constant, and a shorthand is the shape that claim
-  forgets: four literals sat inside shorthands under a green « text 0 ». The zero was true of what
-  was read and false of the stylesheet.
-- **A tone has THREE jobs and no colour does two of them well.** `--danger` is the SIGNAL — the
-  pip, the tint, the border, the label on a card. As a LABEL on a tint of itself it landed under
-  AA; as the GROUND a solid destructive control paints behind its white text it was too light for
-  AA the other way. Darkening the signal was never available: it is a label in five other places.
-  So the family carries a signal, a `--danger-text` and a `--danger-fill`, each decided once.
-- **« Secondary » written as `opacity` is not a colour at all.** It blends whatever tone the
-  element inherits into whatever happens to sit behind it, so what reaches the eye is a tone the
-  palette never declared and nobody can reason about — which is how a count badge lost a third of
-  its separation from the page without a single suspicious declaration to find.
+- **The composed sign-in page does not get BLOCK 2** — a MARKER-reading rule can stay green over
+  a page missing a declaration it still serves; the login arm reads `serve.py`'s own `extract()`
+  calls instead.
+- **A contrast repair verified on one theme repairs one of the two** — measure a colour in BOTH
+  themes, or half the palette is uncertified.
+- **A `font:` shorthand declares a size without ever writing `font-size`** — an extractor that
+  claims to cover a property must read shorthands too, or a hard zero can be true of what it read
+  and false of the stylesheet.
+- **A tone has THREE jobs and no colour does two of them well** — a signal, a label and a fill
+  each need their own token (`--danger`, `--danger-text`, `--danger-fill`), decided once.
+- **« Secondary » written as `opacity` is not a colour at all** — it blends into whatever sits
+  behind it, so what reaches the eye is a tone the palette never declared.
+
+Story: `frontend/maquette/README.md@6a47304a4` § Traps this stylesheet paid for.
 
 ## Every state has a name, and knows how to reach itself
 
@@ -449,10 +414,9 @@ overflow and raises no JS error. **A state that renders nothing fails the pass.*
 
 ## `regions.json` — the project's memory
 
-It used to carry the extraction contract too: `exportedSelectors` (the 461-entry allowlist),
-`harnessSelectors`, `probe`, `regions`, `states`, `scope` and `outOfScope`. All seven served the
-CSS extraction and its parity probe, and went with them on 2026-08-20 — there is nothing to
-export to. What is left is the part that was never machinery:
+The extraction contract's fields (`exportedSelectors`, `harnessSelectors`, `probe`, `regions`,
+`states`, `scope`, `outOfScope`) went with the CSS extraction and its parity probe on 2026-08-20
+(§ The four working rules). What is left is the part that was never machinery:
 
 - **`$vocabulary`** — the frozen CSS-name exceptions, each with the reason it was kept. Read by
   the no-French guard's class-name and custom-property arms.
@@ -460,11 +424,6 @@ export to. What is left is the part that was never machinery:
 - **`$adversarialReview`** — the rule set (R1…R64) plus `$methodLessons`: what each rule
   exists for, and what a rule that failed to bite taught. `$reportedDefects` lists the
   defects found by hand, each with its test in `harness/bugs.py`.
-
-It used to carry the probe's emulation settings, the `computedStyle` subset to diff, the
-allowlist of accepted divergences and `outOfScope`. All four went with the parity probe on
-2026-08-20 — see the section above. What is left is the project's memory, and `$vocabulary`,
-which the no-French guard reads.
 
 ## What is real in here, and what is not
 
@@ -566,12 +525,12 @@ in `make check`.
 
 ## Two rules the prototype itself re-taught, the hard way
 
-- **R7 — `minmax(0, 1fr)`, never `1fr`.** An `auto` grid track's floor is the item's
-  _intrinsic_ size, so a horizontally-scrolling pill train sized its track to max-content and
-  blew a 390px frame out to 910px.
-- **R8 — an author `display` rule beats `[hidden]`.** A class declaring `display: grid` made
-  `el.hidden = true` do nothing. Any class declaring a `display` must declare its own hidden
-  case.
+- **R7 — `minmax(0, 1fr)`, never `1fr`.** An `auto` grid track's floor is the item's intrinsic
+  size, which can blow a fixed-width frame out past its bound.
+- **R8 — an author `display` rule beats `[hidden]`.** Any class declaring a `display` must
+  declare its own hidden case, or `el.hidden = true` does nothing.
+
+Story: `frontend/maquette/README.md@6a47304a4` § Two rules the prototype itself re-taught, the hard way.
 
 ## One card, one behaviour — and one panel per medium
 
@@ -588,18 +547,15 @@ disagree.
 - An **inline action** exists only where a section exists _for_ that action
   (« À récupérer », « Ça coince »). It is a shortcut, never the only way in.
 
-The last two clauses are the ones that matter. An action reachable from a single
-surface disappears the moment that surface is displayed differently: the poster
-view of « Incomplets » offered no way to complete a series, because the only
-« Compléter » was a button drawn on a card, and a gallery draws no cards. When
-the rule that forbids this (R43) was first run, it found the same hole in
-« Récupérer » and in « Résoudre » — neither of which anyone had reported.
+**The last two clauses are the ones that matter**: an action reachable from a single surface
+disappears the moment that surface is displayed differently, which is what R43 holds. Story:
+`frontend/maquette/README.md@6a47304a4` § One card, one behaviour.
 
 **The panel is derived, not passed in.** One builder reads what is true about the
 medium — followed, incomplete, in the library, to grab, blocked, has a sheet —
-and every action follows from that. This is what makes the panel reached from a
+and every action follows from that, which is what makes the panel reached from a
 gallery identical to the panel reached from a card, by construction rather than
-by vigilance. Two builders existed before, and neither offered everything.
+by vigilance.
 
 An element states **which** panel it addresses (`data-panel="media:<title>"`) and
 never how to build it. Addressing it by list index is forbidden: an index belongs
@@ -700,104 +656,39 @@ window.
 
 `serve.py` serves a manifest, the brand icons and a service worker, so the prototype installs
 to a home screen like the app does. **Since L11 the worker precaches the SHELL** — the document,
-the bundles and the icons — and nothing under `/api/` or the stream.
+the bundles and the icons — and nothing under `/api/` or the stream: a navigation goes to the
+NETWORK first and falls back to the cache, so a design judged live is never served yesterday's
+build; the update discipline reloads once when the served build stops matching the running one,
+signalled by `/build.json` (never the commit, since the design host's tree stays dirty across a
+whole editing session).
 
-**This line used to read « the worker caches nothing », and that was a real decision with a real
-reason**: a caching worker would serve yesterday's prototype to someone judging today's design,
-which is the single failure a design reference cannot afford. It was not overturned by ignoring
-it. It was overturned by removing the failure it names, and there are two halves to that:
+**The worker is BUILT, not written in `serve.py`** — its source is `design/sw.js`, the build
+writes the actual bundle names with their content hashes into `design/dist/sw.js`, and `run.sh`
+copies it into the served copy. **The precache happens in TWO MOMENTS**, forced by the host: a
+worker installs from whichever document is in front of it, which here is the SIGN-IN GATE (`/`
+answers 401 there), so the install attempts everything and requires nothing — the running
+application then asks for the shell to be completed (`cache-shell`), and **R105 reads the cache
+after boot and refuses a shell with no bundle in it**, so a completion that failed once repairs
+itself the next time. Story: `frontend/maquette/README.md@6a47304a4` § It installs.
 
-- **A navigation goes to the NETWORK first** and falls back to the cache. Whoever can reach the
-  host sees what the host has now; the cache answers only when the network does not. Assets are
-  cache-first, and that is safe because they carry content hashes — a name in the cache is bytes
-  that have never changed, and a build that changes them changes their names.
-- **The update discipline reloads once** when the served build stops matching the running one
-  (`app/worker-registration.ts`): a check on load, on `visibilitychange` and every 15 minutes.
-  The signal is `/build.json` and **not** the commit — the design host is the machine the
-  prototype is edited on, and a dirty tree keeps one commit across a whole session of edits.
-  It is not under `/api/` either, and that is not tidiness: the mock layer replaces the page's
-  `fetch` and answers only the maquette's contract, so a poll there would be satisfied by a
-  fixture and could never fail.
+**The invitation is actually offered, and it has two forms, not cosmetic variants (R51):**
 
-**The worker is BUILT, not written in `serve.py`.** The source is `design/sw.js`; the build
-writes `design/dist/sw.js` with the bundle names it actually emitted, because those names carry
-content hashes and a list restated by hand would be wrong in the silent direction — precaching a
-file that no longer exists while the one that does goes uncached. `run.sh` copies it into the
-served copy, without which the harness host has no `/sw.js` at all: its fallback handler folds
-any unknown path onto the document, so registration would receive an HTML body and refuse it on
-the MIME type, with nothing said.
+- **Android and desktop** capture `beforeinstallprompt` and prevent its default, replaying it on
+  a gesture — the banner offers a button.
+- **iOS Safari** fires nothing and offers no API — the banner _is_ the guide: it walks
+  Partager → « Sur l'écran d'accueil » → Ajouter.
 
-**The precache happens in TWO MOMENTS, and the host is what forces it.** A worker installs from
-whichever document a browser has in front of it, and here that is the SIGN-IN GATE — a browser
-reads the manifest of the page it is on, never one waiting behind a cookie. On the gate, `/`
-itself answers **401** (the login page is served with that status) and so does `/vite/*`: the
-prototype is what the password protects. So the install ATTEMPTS everything and requires nothing
-— on the gate it gets the manifest, the icons and the offline notice — and the running
-application asks for the shell to be completed (`cache-shell`), which is the first moment the
-document and the bundles are reachable, because the page is running from them. What guarantees
-the shell is whole is therefore a RULE and not an install: **R105 reads the cache after boot and
-refuses a shell with no bundle in it.** The application asks on every boot, so a completion that
-failed once repairs itself the next time.
+It sits above the tab bar, since a bottom-anchored close button lands unreachable under the fixed
+bar. iOS also needs `apple-mobile-web-app-capable` and `apple-mobile-web-app-title` — it reads
+neither the manifest's `display` nor its `short_name`.
 
-The obvious design — require the document, attempt the rest — was tried and produces exactly one
-symptom: « the service worker never became ready », a 401 in the console, and no registration
-left behind. `cache.addAll` and `Promise.all` both fail the install as a whole; `allSettled` is
-the difference.
-
-**Two more traps, both silent.** `clients.claim()` fires `controllerchange` on the very first
-visit of every visitor, so an unguarded reload-on-swap would reload the application once on first
-load — in the harness, in the middle of every measurement in the suite. And `set_offline` does
-not reach the requests a service worker makes in Chromium, so P7 measured that way would be green
-because the NETWORK answered: R105 raises its own scratch server and stops it, which is the only
-reading with nothing behind it.
-
-**And it is actually offered**, which is the half that was missing: the banner existed and nothing
-ever showed it — it was reachable only by driving to its named state, so on a real phone it never
-appeared. Android and desktop capture `beforeinstallprompt` **and prevent its default**, or the
-browser posts its own proposal in its own place and ours never gets a turn; the event is then
-replayed on a gesture, the only moment a browser accepts a prompt. iOS Safari fires nothing and
-offers no API, so nothing waits for an event there: the page knows it is Safari on iOS and not
-already standalone, and that is enough. Nobody is asked while already installed, nobody is asked
-over the entry screen, and a refusal is not repeated in the same session.
-
-The invitation has two forms, and they are not cosmetic variants (R51):
-
-- **Android and desktop** fire `beforeinstallprompt`, which a page may capture and replay on a
-  gesture — so the banner offers a button.
-- **iOS Safari** fires nothing. There is no event to await and no API to call, so the banner
-  _is_ the guide: it walks Partager → « Sur l'écran d'accueil » → Ajouter. A single banner
-  saying « installez-moi » on both would be a dead end on one of them.
-
-It sits **above** the tab bar. Anchored to the bottom edge its close button lands under the
-fixed bar and cannot be reached — reported from a real phone, on both platforms.
-
-iOS also reads neither the manifest's `display` nor its `short_name`: standalone mode and the
-home-screen label need `apple-mobile-web-app-capable` and `apple-mobile-web-app-title`, or the
-icon opens a Safari tab instead of an app.
-
-**And it installs as a DIFFERENT application.** The shipped app installs as « TorrentMate »;
-this one installs as « TorrentMate Design », in the manifest's `name`, in its `short_name` —
-the home-screen label on Android — and in the iOS meta, because Safari reads neither manifest
-field. An abbreviation is not a distinction: two entries on one home screen that differ only
-by one teaches nobody which is which, and the one that gets opened is whichever was tapped
-last. The manifest also declares an explicit `id`; left out, the identity falls back to
-`start_url`, which is « / » on both, so nothing but the origin separates them — and an origin
-is not something a home screen shows.
-
-**And it serves its own icons.** A name distinguishes two entries in a list; on a home screen
-what is seen first is the picture, and two identical pictures under different labels are still
-two identical pictures. Three sets now form one family — the app's plain, staging's with a cyan
-ring, the design host's with a yellow one — generated by `frontend/scripts/make-design-icons.py`
-rather than drawn, so the ring cannot drift between them: the shape is read off the staging set
-pixel by pixel, antialiasing included, and repainted.
-
-The MASKABLE variants take a **circular** ring instead, inside the safe zone. A launcher crops a
-maskable icon to its own shape and a ring at the edge is simply cut; staging can afford to drop
-the ring there because it also recolours the mark, but this set recolours nothing, so a ringless
-maskable icon would be byte-identical to the app's — and Android prefers the maskable one for the
-home screen. The very icon the operator would see would be the one saying nothing.
-
-R52 compares every served icon against the application's, byte for byte.
+**It installs as a DIFFERENT application** — « TorrentMate Design », in the manifest's `name`,
+`short_name` and `id`, and in the iOS meta — so it never shares a home-screen entry with the
+shipped app. **It serves its own icons**, one family of three sets (app plain, staging cyan ring,
+design host yellow ring) generated by `frontend/scripts/make-design-icons.py` so the ring cannot
+drift between them; the MASKABLE variants take a circular ring inside the safe zone instead, since
+a launcher crops to its own shape and Android prefers the maskable one for the home screen. R52
+compares every served icon against the application's, byte for byte.
 
 ## A decision is a FOLDER, and the screen never forgets it
 
@@ -941,74 +832,36 @@ regex built for `rgb()` mean nothing.
 
 ## A trap that cost real time: **screenshots are not an oracle**
 
-Every capture a rule takes goes through `common.shot` and lands in
-`harness/__screenshots__/`, gitignored: a reading aid you open when a rule fails, never a
-proof — a path relative to the caller once scattered 127 of them across the repository
-root, where a blanket `*.png` rule hid every one.
-
-Two captures of the **same, unmodified file** disagreed on 8 to 15 of the 47 states. Skeleton
-shimmer, the media-sheet header entrance, async decode of the embedded WebP visuals: none of
-it settles on a schedule you can wait out reliably. Freezing animations and awaiting
-`img.decode()` narrowed it and did not close it.
-
-A run of that oracle "proved" 20 states changed after a deletion. They had not. The deletion
-was correct all along.
-
-**Use the deterministic oracle instead** — bounding rectangles plus a fixed `getComputedStyle`
-subset. That is what the parity probe used before it was deleted with the extraction it
-measured, and the recipe outlives it. And for the specific question
-"is this rule dead?", there is an exact answer that needs no oracle:
-
-```js
-document.querySelectorAll(".act.grab").length; // over all 47 states → 0 means it can never apply
-```
-
-combined with "the source never writes this class name" (so no interaction can produce it).
-That is a proof, not a sample. `harness/export.py` ran exactly that, and went with the
-allowlist it guarded — the question and its answer are recorded here because the NEXT dead-rule
-hunt will need them.
+**Every capture a rule takes (`common.shot`, gitignored under `harness/__screenshots__/`) is a
+reading aid for a failed rule, never a proof** — two captures of the same unmodified file can
+disagree on several states from animation and async-decode timing alone. **Use the deterministic
+oracle instead** — bounding rectangles plus a fixed `getComputedStyle` subset. For the narrower
+question "is this rule dead?", an exact answer needs no oracle at all: a selector count of zero
+over every state, combined with "the source never writes this class name", is a proof rather than
+a sample (`harness/export.py`). Story:
+`frontend/maquette/README.md@6a47304a4` § A trap that cost real time.
 
 ## And one trap that no synthetic test can catch
 
-Swipe gestures **must claim the horizontal axis** with `touch-action: pan-y` on the row itself
-(never on an ancestor — `touch-action` intersects down the whole chain). A passive listener
-that claims nothing lets the browser take the gesture and fire `touchcancel`: the swipe then
-works **only under synthetic events**, which are never cancelled. This exact divergence has
-happened here — the code was present, the test was green, and a real thumb found nothing.
+**Swipe gestures must claim the horizontal axis with `touch-action: pan-y` on the row itself**
+(never on an ancestor) — a passive listener that claims nothing lets the browser take the gesture,
+and the swipe then works only under synthetic events, which are never cancelled; a real thumb
+finds nothing. `harness/touch.py` drives every gesture through real browser input
+(`Input.dispatchTouchEvent`) rather than a synthetic event object, which is the only instrument
+that can tell the two apart.
 
-**Every gesture answers a pointer, not only a finger.** The handlers listen for pointer events,
-so one path serves finger, mouse and pen — the interface is used from a desktop browser too, at a
-phone width. Two things a touch-only implementation never meets, both found by testing with a
-real mouse on a browser with no touch at all:
+**Every gesture answers a pointer, not only a finger** — the interface is used from a desktop
+browser too, at a phone width — held by `harness/mouse.py` (every gesture with a real mouse) and
+`harness/deck.py` (the deck with touch-type pointer events). Two consequences that follow: the end
+of a drag is listened for on the window (a mouse release outside the frame never reaches a
+listener bound to the scrollport), and images inside a draggable surface disable the browser's
+native picture drag.
 
-- **The end of a drag is listened for on the window.** A touch is captured implicitly by the
-  element that received the start; a mouse is not, so a release outside the frame never reaches a
-  listener bound to the scrollport, and the gesture hangs half-done.
-- **Images inside a draggable surface disable the browser's native picture drag**, which
-  otherwise swallows the pointer stream outright — two moves, never an up.
-
-The **axis claim** stays in `touch-action`: it is what makes a real touch gesture arrive at all,
-and no synthetic event exercises it, so it is asserted on the declaration itself.
-`harness/mouse.py` proves every gesture with a real mouse; `harness/deck.py` proves the deck
-with pointer events of type « touch ».
-
-**And a pointer stream is not a touch stream.** Two gestures on the scrollport — the pull to
-refresh and the swipe between views — were lost the day the gesture layer moved to pointer
-events, and no script noticed, because every script drove them synthetically. The cause is that
-the compositor owns vertical panning inside a scroller: the moment it claims the gesture it
-fires `pointercancel` and stops delivering `pointermove`, while the touch stream for the same
-finger keeps arriving. Measured: one pointer move, then cancel, against ten `touchmove`.
-
-The usual answer — claim the axis in `touch-action` — is **not available on the scrollport**:
-`pan-y` there intersects down onto `.pillscroll` and `.cast`, which declare `pan-x pan-y` and
-would then pan on neither axis. So the surfaces that CAN claim their axis (a swipeable row, a
-deck card) keep the pointer path, and the scrollport reads the finger from touch events and
-everything else from pointer events — one implementation, two sources, never both for the same
-finger. `pointercancel` is deliberately ignored for a finger; ending on it would undo the fix.
-
-`harness/touch.py` drives all of it through `Input.dispatchTouchEvent`, which is real browser
-input rather than an event object handed to a listener. That is the only oracle that can tell
-the two apart.
+**A pointer stream is not a touch stream on the scrollport**, where `pan-y` is not available to
+claim (it intersects down onto siblings that need both axes) — so the scrollport reads the finger
+from touch events and everything else from pointer events, one implementation, two sources, never
+both for the same finger. Story:
+`frontend/maquette/README.md@6a47304a4` § And one trap that no synthetic test can catch.
 
 ---
 
