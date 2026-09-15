@@ -6,7 +6,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
 ## STATE
 
 - Branch `feat/maquette-l13c`, worktree `/Users/izno/dev/worktrees/wave-l13c`, cut from L13r's PR
-  head `<L13r head>`. L13r's squash onto `main` and merge are the steward's, named when they land.
+  head `22166378e`. L13r's squash onto `main` and merge are the steward's, named when they land.
   Steward: the session named in your launch prompt (`Orch : TM frontend`, its reference changes).
 - Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13c`.
 - Phases (`plan/INDEX.md` § « L13c »): c·1 the selection survives the lens (B-312) → c·2 a fresh add
