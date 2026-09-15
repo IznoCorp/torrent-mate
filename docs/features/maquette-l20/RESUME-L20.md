@@ -2,35 +2,27 @@
 
 ## STATE BLOCK (rewritten at every boundary — at most 40 lines)
 
-- **Updated**: 2026-09-14, `Agent : l20 2` at the phase-7 boundary; phase 8 waits for L13b's merge
-  and the steward's word.
-- **Branch / worktree**: `feat/maquette-l20`, `/Users/izno/dev/worktrees/wave-l20`, cut from `main`
-  at `4f242ecb3`. HEAD = pushed head; `git ls-remote` proves it.
-- **Phases done**: 1 (contract), 2 (comment), 3 (locks, R184), 4 (levers, R178/R179/R181 + R184's
-  agreement half), 5 (veille, R180), 6 (history list, R182's list half), 7 (run detail: R183, R182's
-  detail half, R187 in screen_addresses.py + back.py). Plus ruling 6's tooling fix and the midpoint
-  repair.
-- **Next**: phase 8 next (`plan/phase-08-hand-path.md`), on the steward's word after L13b merges —
-  re-cut against L13b's b·10-ter as merged, not against the plan; 9 closes. `Agent : l20 2` STOOD
-  DOWN at the phase-7 boundary (L13b not merged, gauge 33).
-- **Rule numbers**: ruling 1 — R178 levers-act, R179 DOIT-4, R180 veille, R181 §13-loading,
-  R182 history, R183 fold, R184 locks, R185 B-371 (phase 8), R187 addresses (R186 unused).
+- **Updated**: 2026-09-15, `Agent : l20 3` at the phase-8 boundary; phase 9 next (rulings 8 and 9).
+- **Branch / worktree**: `feat/maquette-l20`, `/Users/izno/dev/worktrees/wave-l20`; L13b merged in at
+  9025348e6 (a merge, never a rebase). HEAD = pushed head; `git ls-remote` proves it.
+- **Phases done**: 1–7 as before; 8 (R185 + ruling 8's 409, the suite's three falls repaired).
+- **Next**: phase 9 (`plan/phase-09-close.md`) WITH ruling 9 inside it (« Lancer ensuite » → « Lancer »
+  disabled while a pass runs: one hold red first, one mutation). Owed to phase 9 § 1: `--a11y` fails on this
+  lot's locks/levers markup (see the ledger). § 4: the hold-counts baseline must be RE-RECORDED — `--compare`
+  refuses a baseline naming L13b's pre-squash head.
+- **Rule numbers**: ruling 1 — R178–R185, R187 (R186 unused). R185 = `harness/queued_by_hand.py`.
 - **Register rows**: ruling 4 — L20's `BUGS.md` rows start at B-530.
-- **Data**: ruling 3 — `seeds/pipeline-runs.json` (10 real rows) and ruling 5 — `seeds/tmp-orphans.json`
-  (one real entry). Both converted-class families; locks are `x-unseeded`.
-- **Owed**: the composed row line LOSES « 1 bloqué » — the fixture's blocked count came from the
-  engine's `blockedCount` and the real `steps_json` verify step has no equivalent (a demand, or
-  another field; not invented). Three feature files still write `<details>` raw (DESIGN § 9's debt,
-  `ui/disclosure.tsx` now exists) — not this lot's to convert. Hold counts moved and NOT re-recorded
-  (phase 9's): screen_addresses.py 51→58, back.py 17→21, run_history.py and raw_log.py new (23, 13).
-  `mocks/state.ts` 398/400 non-blank.
-- **Tooling**: a scratch replay (acquire, build, publish, 8899 by captured pid, rules, release) is
-  described in the ledger; tiers are SEPARATE invocations (`run.sh --contracts`, then `run.sh --oracle`),
-  `TM_HARNESS_JOBS=2`. The oracle now REFUSES to write over another wave's build (ruling 6) — accept
-  inside ONE heavy invocation and verify the reference BY NAME, never by the total.
-- **Locks**: shared mutex `TM_HARNESS_JOBS=2 sh scripts/heavy.sh --class browser l20 …` (announce
-  before/after; shared with l13b); tests lock `HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder` for
-  pytest, `make check` and every push; own lock `/private/tmp/tm-heavy-l20/holder` for npm/tsc.
+- **Data**: ruling 3 `seeds/pipeline-runs.json`, ruling 5 `seeds/tmp-orphans.json`.
+- **Owed**: the composed row line loses « 1 bloqué » (a demand); three raw `<details>` sites (DESIGN § 9);
+  hold counts moved and not re-recorded — screen_addresses.py 51→58, back.py 17→21, run_history.py 23,
+  raw_log.py 13, queued_by_hand.py 19, machine.py 92→90, url_state.py 99→102. `mocks/state.ts` 398/400,
+  `harness/page_host.py` 999/1000. mocks.py's R85 is re-aimed here AND on feat/maquette-l13r (r·2): keep both.
+- **Tooling (L13b's, now on this branch)**: `run.sh --contracts --oracle <rule paths>` is the only form that
+  reads names; `TM_HARNESS_JOBS=3` for that tier, 2 for the full suite. Long runs are WAITED FOR inside the
+  tool call (order 36): ≤ 595 s, or a bounded poll of the log for `heavy: l20 done`.
+- **Locks**: shared mutex `TM_HARNESS_JOBS=… sh scripts/heavy.sh --class browser l20 …` (announce
+  before/after); tests lock `HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder` for pytest and every push; own
+  lock `/private/tmp/tm-heavy-l20/holder` for npm/tsc.
 - **Logs**: `~/Library/Logs/tm-l20/<phase>-<step>.log`.
 
 ---
@@ -236,3 +228,23 @@
   draws « Lancer ensuite » (`data-pipe="start"`) while a pass runs, under the comment « asking for
   another one is a legitimate thing to want », and under ruling 8 it reads 409 every time outside a
   maintenance lock. Ruling 9 gives it to phase 9.
+- 2026-09-15 — phase 8: R185 committed (998d6dbbe), mutation A fell (verb send no-op → « the RUN
+  OPERATION is answered » and « the pastille is PRESENT »); ruling 8's holds read RED first, then the move
+  (eb6728096), mutation B fell (second pass re-queued → the 409 and its sentence). RE-AIMED, said in the
+  body: R66 arrivals.py and page_host.py reach the queue behind a maintenance run; R85 mocks.py reads the
+  status after a run. page_host.py sits at 999 non-blank (ceiling 1000) — its first re-aim read 1006.
+- 2026-09-15 — FULL SUITE at JOBS=2 (141 rules): 3 falls, all this lot's phases meeting L13b's merge —
+  panel.py (L13b's new hold on `data-standby`, which phase 5 had renamed `data-watch-now`), machine.py (the
+  passages left the badge lists at phase 6), url_state.py (`/run/$runUid` had no concrete address). Repaired
+  (11e7d86e2): panel.py re-aimed, L13b's dead `standby` verb and its made-up sentence deleted; `runs` out of
+  machine.py's DERIVED (−2 holds); url_state.py's example from the snapshot's first run. Replayed green;
+  mutation C (the panel's target back to `standby`) fell on « the watch's panel offers its run ».
+- 2026-09-15 — `--a11y` FAILS on this lot's states (phase 9 § 1's): `list`/`listitem` in the locks block
+  (`div` children of `ol[data-part=flux]`), `color-contrast` on the levers' buttons; dark 157 violations,
+  light 269 against a ceiling of 149. Log `p8-a11y.log`.
+- 2026-09-15 — HOLD COUNTS: `--compare` REFUSES — the baseline names 0dafb67d, L13b's branch head, not an
+  ancestor after the squash; re-recording is phase 9 § 4's (full suite, `failed` first). Read by running each
+  touched rule alone: queued_ask_mark.py 7 = 7 (R138 unchanged), page_host.py 44 = 44, mocks.py 27 = 27,
+  season_grab.py 16, journey_verbs.py 16 unchanged; machine.py 92 → 90 and url_state.py 99 → 102 are this
+  lot's; arrivals.py 24 → 27 and panel.py 51 → 58/59 were already so on the merged tree before any edit
+  (L13b's moves over its own baseline); queued_by_hand.py new, 19.
