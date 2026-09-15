@@ -1,4 +1,4 @@
-# r·14 — `legacy.js`, `seams.ts` and every instrument that reads them die; the full gate
+# r·15 — `legacy.js`, `seams.ts` and every instrument that reads them die; the full gate
 
 Q5 = B (ruling 99, 2026-09-15): this is a phase of L13r — The engine's residue; renamed from `phase-residue-N`.
 
@@ -9,6 +9,8 @@ Q5 = B (ruling 99, 2026-09-15): this is a phase of L13r — The engine's residue
 2026-09-15 (ruling 106, amended by order 38): the system families projected through `features/system/queries.ts`'s generic `family` parameter are a new phase r·11; the sheet became r·12 and « the file dies » r·13.
 
 2026-09-15 (ruling 107): r·10 as ruling 105 cut it measured ≈ 18 and was cut — r·10 settings and secrets, r·11 library, maintenance actions and account, r·12 the system families with JOURNAL and SCHEDULERS (every family whose rows are `Fact`, one decision on `Fact`), r·13 the sheet, r·14 « the file dies ».
+
+2026-09-15 (ruling 109): r·13 measured ≈ 18–19 and was cut — r·13 the sheet (conversion only), r·14 « the projection dies » (new), r·15 « the file dies ».
 
 **Kind**: DELETION. **Cost**: Estimate ≤ 15 points (measure 11). The mean of L13b's measured phase costs is 11 (b·9 13, b·10 3, b·11 21, b·12 6.5); a phase above the mean says why.
 

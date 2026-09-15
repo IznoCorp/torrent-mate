@@ -255,6 +255,7 @@ Measured on `1cb0a2dc1` after b·13 was measured and not opened (ruling 98). Q5 
 | r·10 | [settings and secrets](phase-r10-settings-and-secrets.md) — ruling 107 | conversion | SETTINGS, SECRETS | their projections |
 | r·11 | [library, maintenance actions, account](phase-r11-library-maintenance-account.md) — ruling 107 | conversion | LIBRARY, CATS, MAINT_ACTIONS, ACCOUNT | their projections |
 | r·12 | [the system families and the facts](phase-r12-system-families-and-facts.md) — rulings 106, 107 | conversion | DISKS, INDEX, DEPENDENCIES, ERRORS, EXECUTIONS, SCHEDULERS, JOURNAL; `Fact`'s keys | their projections |
-| r·13 | [the sheet](phase-r13-the-sheet.md) — ruling 105 | conversion | SHEETS_RAW | engine-shape.ts, its test, the lossless arm, the projection families |
-| r·14 | [the file dies](phase-r14-the-file-dies.md) | deletion + full gate | — | legacy.js, seams.ts, engine-data, engine-redraw, engine-drawing, their instruments |
+| r·13 | [the sheet](phase-r13-the-sheet.md) — rulings 105, 109 | conversion | SHEETS_RAW | its projection |
+| r·14 | [the projection dies](phase-r14-the-projection-dies.md) — ruling 109 | deletion | — | engine-shape.ts, its test, the lossless arm, the projection families |
+| r·15 | [the file dies](phase-r15-the-file-dies.md) | deletion + full gate | — | legacy.js, seams.ts, engine-data, engine-redraw, engine-drawing, their instruments |
 
