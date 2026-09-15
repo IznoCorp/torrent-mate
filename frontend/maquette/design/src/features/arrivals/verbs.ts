@@ -90,9 +90,9 @@ registerVerb("next", (current) => {
   const decisions = pendingDecisions?.() ?? [];
   const following = lists.blocked
     .concat(lists.stuck)
-    .map((card) => decisions.find((decision) => decision.d === card.title) ?? null)
-    .find((decision) => decision !== null && decision.d !== current);
-  if (following) screens.resolution(following.d, true);
+    .map((card) => decisions.find((decision) => decision.folder === card.title) ?? null)
+    .find((decision) => decision !== null && decision.folder !== current);
+  if (following) screens.resolution(following.folder, true);
 });
 
 // No match for the folder: a pre-filled identification search, its query the

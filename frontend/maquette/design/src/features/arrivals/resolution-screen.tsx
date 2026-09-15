@@ -87,7 +87,7 @@ export function ResolutionScreen() {
   const { data: queue } = useAcquisitionQueue(scenario);
   const settledDecisions = decisions?.settled ?? [];
   const decisionPending = (subject: string | null) =>
-    decisions?.pending.find((entry) => entry.d === subject) ?? null;
+    decisions?.pending.find((entry) => entry.folder === subject) ?? null;
   // A folder either HAS a pending decision or it has none, and the screen must
   // not borrow one. Showing another folder's candidates would be the worst
   // possible lie on the one screen whose job is to name what is on disk.
@@ -100,11 +100,11 @@ export function ResolutionScreen() {
     .concat(staging?.stuck ?? [])
     .filter((card: QueueCard) => decisionPending(card.title) != null);
   const rank = decision
-    ? pending.findIndex((card: QueueCard) => card.title === decision.d) + 1
+    ? pending.findIndex((card: QueueCard) => card.title === decision.folder) + 1
     : 0;
-  // The legacy screen picked its own subject between `decision.d` and
+  // The legacy screen picked its own subject between `decision.folder` and
   // `state.resolveTarget`; here the ROUTE PARAM is the identity, and
-  // `decisionPending` matches on that very `d` — so the two legacy branches
+  // `decisionPending` matches on that very `folder` — so the two legacy branches
   // are one value. A target the door could not resolve at all reaches this
   // screen as the legacy's own last resort, « élément inconnu ».
   return (
@@ -198,7 +198,7 @@ export function ResolutionScreen() {
               </h2>
               <p className={qualityHint()}>{t("screens.resolution.settledHint")}</p>
               {settledDecisions.slice(0, 6).map((settled) => (
-                <DecisionCard key={settled.d} decision={settled} />
+                <DecisionCard key={settled.folder} decision={settled} />
               ))}
             </>
           ) : (

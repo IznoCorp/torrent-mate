@@ -27,7 +27,7 @@
     "design/src/features/acquisition/add-footer.tsx": 3,
     "design/src/features/acquisition/queries.ts": 2,
     "design/src/features/acquisition/variants.ts": 1,
-    "design/src/features/arrivals/queries.ts": 4,
+    "design/src/features/arrivals/queries.ts": 2,
     "design/src/features/media/queries.ts": 1,
     "design/src/features/media/variants.ts": 1,
     "design/src/features/releases/queries.ts": 1,

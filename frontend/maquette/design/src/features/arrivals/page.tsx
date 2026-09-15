@@ -21,7 +21,7 @@
 import { useTranslation } from "react-i18next";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
-import { type PipelineFact } from "../../features/arrivals/types";
+import { type PipelineFact, type PipelineStep } from "../../features/arrivals/types";
 import { ArrivalCard } from "./arrival-card";
 import { usePipeline } from "./queries";
 import { useStaging } from "../../lib/queue";
@@ -62,25 +62,25 @@ import { FactRows } from "../../ui/fact-rows";
 // different on purpose: a step that looked and found everything already in
 // order is not a step that had nothing to look at.
 function lastRunRows(
-  steps: { n: string; l: string }[],
+  steps: PipelineStep[],
   facts: PipelineFact[],
   t: (key: string, options?: Record<string, unknown>) => string,
 ) {
-  const byName = Object.fromEntries(facts.map((fact) => [fact.n, fact]));
+  const byName = Object.fromEntries(facts.map((fact) => [fact.name, fact]));
   return steps.map((step) => {
-    const fact: PipelineFact = byName[step.n] || { n: step.n };
-    const nothing = !fact.r && !fact.s && !fact.blockedCount;
+    const fact: PipelineFact = byName[step.name] || { name: step.name };
+    const nothing = !fact.result && !fact.secondaryLine && !fact.blockedCount;
     return {
-      l: step.l,
-      k: step.n,
+      l: step.label,
+      k: step.name,
       v: fact.blockedCount
-        ? `${fact.r ? fact.r + " · " : ""}${t("screens.arrivals.blockedCount", { count: fact.blockedCount })}`
-        : fact.r || "",
+        ? `${fact.result ? fact.result + " · " : ""}${t("screens.arrivals.blockedCount", { count: fact.blockedCount })}`
+        : fact.result || "",
       s: fact.blockedCount
-        ? `${fact.s ? fact.s + " · " : ""}${t("screens.arrivals.blockedBelow")}`
+        ? `${fact.secondaryLine ? fact.secondaryLine + " · " : ""}${t("screens.arrivals.blockedBelow")}`
         : nothing
           ? t("screens.arrivals.nothingToDo")
-          : fact.s || "",
+          : fact.secondaryLine || "",
       state: fact.blockedCount ? "danger" : "",
     };
   });
@@ -109,7 +109,7 @@ function PipelineBar(): ReactElement | null {
           <span className={pilotQualifier()}>
             {t("screens.arrivals.stepOf", {
               count: PIPELINE.steps.length,
-              label: step.l,
+              label: step.label,
             })}
           </span>
         </div>
@@ -177,7 +177,7 @@ function LastRun(): ReactElement | null {
       <div className={sectionHead()} data-part="section/head">
         <span className={statusDotClass({ tone: "success" })} data-part="status-dot" data-tone="success"></span>
         <span className={sectionTitle()} data-part="section/title">{t("screens.arrivals.lastRunTitle")}</span>
-        <span className={sectionCount()} data-part="section/count">{run.duree}</span>
+        <span className={sectionCount()} data-part="section/count">{run.duration}</span>
       </div>
       <div className={liveStrip()} data-part="live-activity">
         <span
@@ -186,7 +186,7 @@ function LastRun(): ReactElement | null {
         ></span>
         <span>
           {t("screens.arrivals.triggeredBy")}
-          <b className={liveEmphasis()}>{PIPELINE.declencheurs[run.declencheur]}</b>
+          <b className={liveEmphasis()}>{PIPELINE.triggers[run.trigger]}</b>
           {t("screens.arrivals.triggeredWhen", { when: run.when })}
         </span>
       </div>
