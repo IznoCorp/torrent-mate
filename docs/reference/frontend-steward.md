@@ -217,7 +217,9 @@ reaches him.
 17. **ONE phase-gate invocation in `run.sh`** — build once, then contracts, then the oracle, then the
     phase's re-aimed rules replayed on the SAME served copy, one verdict block; a phase holds the mutex
     once. Fate: a b-phase gate ≤ 4 min (today 7–9 min). Ratified 2026-09-14: a b-phase gate now runs
-    267–271 s, against 7–9 min before.
+    267–271 s, against 7–9 min before. **L20: PR READY 10:04, reader spawned 10:13 = 9 min — the
+    implementer did not report READY at once; a PR READY is reported the second it exists
+    (2026-09-15).**
 18. **The contracts tier's fan-out is `TM_HARNESS_JOBS=3`**, measured once with `vm_stat` and
     `vm.swapusage` before and after (a rule costs ≈ 400 MB); back to 2 if swap moves.
 19. **No local `make check` before a maquette wave's pull request** — CI's `test` job (8 min,

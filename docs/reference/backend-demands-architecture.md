@@ -154,3 +154,30 @@ ownership index, a richer hello). This file adds the decisions those registers c
   same identity the media sheet already resolves by (rulings 41, 53). The backend brief inherits the
   demand this exposes once the fixture is gone: a membership query keyed by the medium's identity
   (provider + id, or exact title and year when no identity is held yet), not by a fuzzy title match.
+
+## 12. The global levers and the history's four gaps — §20, DOIT-6, L20
+
+- **The parallelism bound does not exist in any configuration file.** §20-1 makes it « une variable
+  de configuration réglable »; measured, no `pipeline.json5` exists among the 19 files and no topic
+  of the settings read answers it (`docs/features/maquette-l20/DESIGN.md@60c6d9b1d` § 8.3). The
+  design proposes a new key `pipeline.tunnels.max_parallel` (type `number`), filed in the `service`
+  topic (« Ce qui tourne »); the topic assignment is the settings feature's catalogue to confirm.
+- **A failed run's steps carry no failing step.** `GET /api/pipeline/history/{run_uid}` answers a
+  failed run's `steps_json` empty; the interface draws the error whole and marks no step, honestly,
+  but a real reading needs the steps up to and including the one that failed, named (ruling 7,
+  `docs/features/maquette-l20/RULINGS-L20.md@60c6d9b1d` #7).
+- **`RunSummary` carries no blocked count.** The maquette's composed line (« 1 rangé · 1 bloqué · 1
+  min 44 ») is honest for its seed only: the real verify step has no blocked count, so a real run's
+  line loses « N bloqué ». The backend owes the counts on the summary, not only inside the detail's
+  `steps[]` — reading each row's detail to compose one list is N+1 reads.
+- **A maintenance run's lock is invisible where the locks are drawn.** `GET /api/maintenance/locks`
+  answers `held` from the pipeline's own state only; under a running MAINTENANCE command (the
+  veille, for instance) the endpoint still answers `held:false`, so the interface cannot draw
+  « Pris » for a maintenance lock a hand can otherwise reach (`r1-C.md` finding C3). The lock this
+  route answers needs to reflect a maintenance run's hold, not the pipeline's alone.
+
+**Already covered, not repeated here**: a second PIPELINE pass answering 409 always, with queuing
+reserved for a MAINTENANCE lock, is §1's own single-trigger-discipline point — « one lock
+discipline for N tunnels is a design question for the brief, not a licence for a second
+mechanism » — which L20 confirmed rather than found (`DESIGN.md@60c6d9b1d` § 3.2 point 3, ruling
+L20-8).

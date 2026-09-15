@@ -1,13 +1,13 @@
 {
   "$comment": "The accessibility findings under `data-theme=\"light\"`, which this tier drove for nobody until L10-bis: it measured the DEFAULT theme only, so 154 findings counted by hand during L06 were invisible to it (B-055). THIS FILE IS READ BY `--check` AND THAT IS DELIBERATE — it is a RATCHET, a ceiling that may fall and may not rise, not the tolerance `a11y-debt.json` refuses to be. The dark floor stays a hard zero; remediating this list is a campaign with its own design, and what is held here meanwhile is that nothing is ADDED to it.",
-  "takenAtCommit": "e876cb9576c6fc32bac61e2efd6f1b91019c4424",
+  "takenAtCommit": "60c6d9b1df21ef9395407b91939e37dd7991c149",
   "platform": "Darwin/arm64",
   "counts": {
-    "states": 87,
+    "states": 113,
     "byRule": {
-      "color-contrast": 149
+      "color-contrast": 147
     },
-    "total": 149
+    "total": 147
   },
   "states": {
     "acq-add-empty": [],
@@ -18,31 +18,31 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          "button[data-panel=\"sug:0\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:1\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:10\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:11\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:12\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:13\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:14\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:15\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:16\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:17\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:18\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:19\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:2\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:20\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:21\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:22\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:24\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:26\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:28\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:3\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:4\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:5\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:7\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:8\"] > .cmeta[data-part=\"card/meta\"] > .crating",
-          "button[data-panel=\"sug:9\"] > .cmeta[data-part=\"card/meta\"] > .crating"
+          "button[data-panel=\"sug:0\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:1\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:10\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:11\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:12\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:13\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:14\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:15\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:16\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:17\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:18\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:19\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:2\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:20\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:21\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:22\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:24\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:26\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:28\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:3\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:4\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:5\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:7\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:8\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]",
+          "button[data-panel=\"sug:9\"] > .cmeta.mt-3.flex-wrap > .crating.px-3.\\[border-color\\:color-mix\\(in_oklab\\,var\\(--color-success\\)_40\\%\\,transparent\\)\\]"
         ]
       }
     ],
@@ -60,11 +60,11 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".swipe[data-part=\"swipe\"]:nth-child(5) > .card[data-part=\"card\"] > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .chip.waiting[data-part=\"chip\"]",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .chip.waiting[data-part=\"chip\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .chip.waiting[data-part=\"chip\"]",
-          "button[data-panel=\"media:Silo\"] > .cmeta[data-part=\"card/meta\"] > .chip.waiting[data-part=\"chip\"]",
-          "button[data-panel=\"media:Wicker\"] > .cmeta[data-part=\"card/meta\"] > .chip.waiting[data-part=\"chip\"]"
+          ".swipe.\\[\\&_img\\]\\:\\[-webkit-user-drag\\:none\\][data-part=\"swipe\"]:nth-child(5) > .card.grid-cols-\\[auto_1fr\\].min-h-\\[126px\\] > .ccol.p-4.flex-1 > .ctop.gap-5[data-part=\"card/top\"] > .cbody.\\[background\\:transparent\\][data-part=\"card/body\"] > .cmeta.mt-3[data-part=\"card/meta\"] > .chip.px-3.leading-\\[15px\\]",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta.mt-3[data-part=\"card/meta\"] > .chip.px-3.leading-\\[15px\\]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta.mt-3[data-part=\"card/meta\"] > .chip.px-3.leading-\\[15px\\]",
+          "button[data-panel=\"media:Silo\"] > .cmeta.mt-3[data-part=\"card/meta\"] > .chip.px-3.leading-\\[15px\\]",
+          "button[data-panel=\"media:Wicker\"] > .cmeta.mt-3[data-part=\"card/meta\"] > .chip.px-3.leading-\\[15px\\]"
         ]
       }
     ],
@@ -74,11 +74,11 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".swipe[data-part=\"swipe\"]:nth-child(4) > .card[data-part=\"card\"] > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Silo\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Wicker\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]"
+          ".swipe.\\[\\&_img\\]\\:\\[-webkit-user-drag\\:none\\][data-part=\"swipe\"]:nth-child(4) > .card.grid-cols-\\[auto_1fr\\].min-h-\\[126px\\] > .ccol.p-4.flex-1 > .ctop.gap-5[data-part=\"card/top\"] > .cbody.text-left.\\[background\\:transparent\\] > .cmeta.mt-3[data-part=\"card/meta\"] > .waiting.\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\]",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta.mt-3[data-part=\"card/meta\"] > .waiting.\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta.mt-3[data-part=\"card/meta\"] > .waiting.\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\]",
+          "button[data-panel=\"media:Silo\"] > .cmeta.mt-3[data-part=\"card/meta\"] > .waiting.\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\]",
+          "button[data-panel=\"media:Wicker\"] > .cmeta.mt-3[data-part=\"card/meta\"] > .waiting.\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\]"
         ]
       }
     ],
@@ -100,11 +100,11 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          ".cbody[data-panel=\"media:Wicker\"][data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "section:nth-child(3) > .card[data-part=\"card\"] > .ccol > .cfoot[data-part=\"card/foot\"][data-act=\"\"]"
+          ".card.grid-cols-\\[auto_1fr\\].items-stretch:nth-child(5) > .ccol.p-4.flex-1 > .ctop.gap-5[data-part=\"card/top\"] > .cbody.\\[background\\:transparent\\][data-part=\"card/body\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          ".cbody.\\[background\\:transparent\\][data-panel=\"media:Wicker\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-resolution=\"Lucky\"]"
         ]
       }
     ],
@@ -114,9 +114,9 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          "button[data-panel=\"media:Dead Landes\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "button[data-panel=\"media:I Will Find You\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "section:nth-child(3) > .card[data-part=\"card\"] > .ccol > .cfoot[data-part=\"card/foot\"][data-act=\"\"]"
+          "button[data-panel=\"media:Dead Landes\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:I Will Find You\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-resolution=\"Lucky\"]"
         ]
       }
     ],
@@ -129,8 +129,8 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(3) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]",
-          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(4) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]"
+          ".card.grid-cols-\\[auto_1fr\\][data-nonmedia=\"dossier\"]:nth-child(3) > .ccol.p-4.flex-1 > .cfoot.border-primary[data-resolution=\"\"]",
+          ".card.grid-cols-\\[auto_1fr\\][data-nonmedia=\"dossier\"]:nth-child(4) > .ccol.p-4.flex-1 > .cfoot.border-primary[data-resolution=\"\"]"
         ]
       }
     ],
@@ -140,9 +140,9 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(3) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]",
-          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(4) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]",
-          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(5) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]"
+          ".card.grid-cols-\\[auto_1fr\\][data-nonmedia=\"dossier\"]:nth-child(3) > .ccol.p-4.flex-1 > .cfoot.border-primary[data-resolution=\"\"]",
+          ".card.grid-cols-\\[auto_1fr\\][data-nonmedia=\"dossier\"]:nth-child(4) > .ccol.p-4.flex-1 > .cfoot.border-primary[data-resolution=\"\"]",
+          ".card.grid-cols-\\[auto_1fr\\][data-nonmedia=\"dossier\"]:nth-child(5) > .ccol.p-4.flex-1 > .cfoot.border-primary[data-resolution=\"\"]"
         ]
       }
     ],
@@ -153,8 +153,8 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(3) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]",
-          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(4) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]",
+          ".card.grid-cols-\\[auto_1fr\\][data-nonmedia=\"dossier\"]:nth-child(3) > .ccol.p-4.flex-1 > .cfoot.border-primary[data-resolution=\"\"]",
+          ".card.grid-cols-\\[auto_1fr\\][data-nonmedia=\"dossier\"]:nth-child(4) > .ccol.p-4.flex-1 > .cfoot.border-primary[data-resolution=\"\"]",
           "button[data-pipe=\"stop\"]"
         ]
       }
@@ -175,9 +175,8 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(3) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]",
-          ".card[data-nonmedia=\"dossier\"][data-part=\"card\"]:nth-child(4) > .ccol > .cfoot[data-act=\"resolve\"][data-part=\"card/foot\"]",
-          "button[data-pipe=\"start\"]",
+          ".card.grid-cols-\\[auto_1fr\\][data-nonmedia=\"dossier\"]:nth-child(3) > .ccol.p-4.flex-1 > .cfoot.border-primary[data-resolution=\"\"]",
+          ".card.grid-cols-\\[auto_1fr\\][data-nonmedia=\"dossier\"]:nth-child(4) > .ccol.p-4.flex-1 > .cfoot.border-primary[data-resolution=\"\"]",
           "button[data-pipe=\"stop\"]"
         ]
       }
@@ -235,12 +234,19 @@
           "button[aria-label=\"S03E11 — En médiathèque\"]",
           "button[aria-label=\"S03E12 — À récupérer\"]",
           "button[aria-label=\"S03E13 — En médiathèque\"]",
-          "details:nth-child(4) > summary > .miss[data-part=\"season/missing\"]",
-          "details:nth-child(5) > summary > .miss[data-part=\"season/missing\"]",
-          "details:nth-child(6) > summary > .miss[data-part=\"season/missing\"]"
+          "details:nth-child(4) > summary > .miss.px-3[data-part=\"season/missing\"]",
+          "details:nth-child(5) > summary > .miss.px-3[data-part=\"season/missing\"]",
+          "details:nth-child(6) > summary > .miss.px-3[data-part=\"season/missing\"]"
         ]
       }
     ],
+    "levers-error": [],
+    "levers-idle": [],
+    "levers-loading": [],
+    "levers-paused": [],
+    "levers-queued": [],
+    "levers-running": [],
+    "levers-trigger-off": [],
     "lib-delete": [
       {
         "rule": "color-contrast",
@@ -272,6 +278,11 @@
     "lib-recent": [],
     "lib-search-empty": [],
     "lib-selection": [],
+    "locks-free": [],
+    "locks-held": [],
+    "locks-orphans": [],
+    "locks-stale": [],
+    "locks-sweep-pending": [],
     "maintenance": [],
     "maintenance-delete": [],
     "maintenance-loading": [],
@@ -313,12 +324,12 @@
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
           ".hn",
-          "details[open=\"\"] > .panel.bg-card[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(1) > .en[data-part=\"episode/number\"]",
-          "details[open=\"\"] > .panel.bg-card[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(2) > .en[data-part=\"episode/number\"]",
-          "details[open=\"\"] > .panel.bg-card[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(3) > .en[data-part=\"episode/number\"]",
-          "details[open=\"\"] > .panel.bg-card[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(4) > .en[data-part=\"episode/number\"]",
-          "details[open=\"\"] > .panel.bg-card[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(5) > .en[data-part=\"episode/number\"]",
-          "details[open=\"\"] > .panel.bg-card[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(6) > .en[data-part=\"episode/number\"]"
+          "details[open=\"\"] > .panel.py-1[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(1) > .text-success.en.min-w-\\[34px\\]",
+          "details[open=\"\"] > .panel.py-1[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(2) > .text-success.en.min-w-\\[34px\\]",
+          "details[open=\"\"] > .panel.py-1[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(3) > .text-success.en.min-w-\\[34px\\]",
+          "details[open=\"\"] > .panel.py-1[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(4) > .text-success.en.min-w-\\[34px\\]",
+          "details[open=\"\"] > .panel.py-1[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(5) > .text-success.en.min-w-\\[34px\\]",
+          "details[open=\"\"] > .panel.py-1[data-part=\"panel\"] > .in_library.eprow[data-in-library=\"true\"]:nth-child(6) > .text-success.en.min-w-\\[34px\\]"
         ]
       }
     ],
@@ -342,16 +353,7 @@
         ]
       }
     ],
-    "not-found": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".mt-3"
-        ]
-      }
-    ],
+    "not-found": [],
     "profile": [
       {
         "rule": "color-contrast",
@@ -368,11 +370,11 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          ".cbody[data-panel=\"media:Wicker\"][data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "section:nth-child(3) > .card[data-part=\"card\"] > .ccol > .cfoot[data-part=\"card/foot\"][data-act=\"\"]"
+          ".card.grid-cols-\\[auto_1fr\\].items-stretch:nth-child(5) > .ccol.p-4.flex-1 > .ctop.gap-5[data-part=\"card/top\"] > .cbody.\\[background\\:transparent\\][data-part=\"card/body\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          ".cbody.\\[background\\:transparent\\][data-panel=\"media:Wicker\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-resolution=\"Lucky\"]"
         ]
       }
     ],
@@ -382,11 +384,11 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          ".cbody[data-panel=\"media:Wicker\"][data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "section:nth-child(3) > .card[data-part=\"card\"] > .ccol > .cfoot[data-part=\"card/foot\"][data-act=\"\"]"
+          ".card.grid-cols-\\[auto_1fr\\].items-stretch:nth-child(5) > .ccol.p-4.flex-1 > .ctop.gap-5[data-part=\"card/top\"] > .cbody.\\[background\\:transparent\\][data-part=\"card/body\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          ".cbody.\\[background\\:transparent\\][data-panel=\"media:Wicker\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-resolution=\"Lucky\"]"
         ]
       }
     ],
@@ -396,11 +398,11 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          ".cbody[data-panel=\"media:Wicker\"][data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "section:nth-child(3) > .card[data-part=\"card\"] > .ccol > .cfoot[data-part=\"card/foot\"][data-act=\"\"]"
+          ".card.grid-cols-\\[auto_1fr\\].items-stretch:nth-child(5) > .ccol.p-4.flex-1 > .ctop.gap-5[data-part=\"card/top\"] > .cbody.\\[background\\:transparent\\][data-part=\"card/body\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          ".cbody.\\[background\\:transparent\\][data-panel=\"media:Wicker\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-resolution=\"Lucky\"]"
         ]
       }
     ],
@@ -410,11 +412,11 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          ".cbody[data-panel=\"media:Wicker\"][data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "section:nth-child(3) > .card[data-part=\"card\"] > .ccol > .cfoot[data-part=\"card/foot\"][data-act=\"\"]"
+          ".card.grid-cols-\\[auto_1fr\\].items-stretch:nth-child(5) > .ccol.p-4.flex-1 > .ctop.gap-5[data-part=\"card/top\"] > .cbody.\\[background\\:transparent\\][data-part=\"card/body\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          ".cbody.\\[background\\:transparent\\][data-panel=\"media:Wicker\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-resolution=\"Lucky\"]"
         ]
       }
     ],
@@ -424,14 +426,23 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".card[data-part=\"card\"]:nth-child(5) > .ccol > .ctop[data-part=\"card/top\"] > .cbody[data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          ".cbody[data-panel=\"media:Wicker\"][data-part=\"card/body\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta[data-part=\"card/meta\"] > .waiting.chip[data-tone=\"waiting\"]",
-          "section:nth-child(3) > .card[data-part=\"card\"] > .ccol > .cfoot[data-part=\"card/foot\"][data-act=\"\"]"
+          ".card.grid-cols-\\[auto_1fr\\].items-stretch:nth-child(5) > .ccol.p-4.flex-1 > .ctop.gap-5[data-part=\"card/top\"] > .cbody.\\[background\\:transparent\\][data-part=\"card/body\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          ".cbody.\\[background\\:transparent\\][data-panel=\"media:Wicker\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-panel=\"media:L'Odyssée\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
+          "button[data-resolution=\"Lucky\"]"
         ]
       }
     ],
+    "run-detail": [],
+    "run-detail-failed": [],
+    "run-detail-log": [],
+    "run-detail-maintenance": [],
+    "run-detail-no-log": [],
+    "run-detail-running": [],
+    "runs-degraded": [],
+    "runs-empty": [],
+    "runs-list": [],
     "screen-profile": [],
     "screen-releases": [
       {
@@ -439,10 +450,10 @@
         "impact": "serious",
         "help": "Elements must meet minimum color contrast ratio thresholds",
         "targets": [
-          ".best > .rt.flex-wrap.gap-2 > .sc.font-bold.text-primary",
-          "article:nth-child(4) > .rt.flex-wrap.gap-2 > .sc.font-bold.text-primary",
-          "article:nth-child(5) > .rt.flex-wrap.gap-2 > .sc.font-bold.text-primary",
-          "article:nth-child(6) > .rt.flex-wrap.gap-2 > .sc.font-bold.text-primary",
+          ".best > .rt.flex-wrap.gap-2 > .sc.text-primary.ml-auto",
+          "article:nth-child(4) > .rt.flex-wrap.gap-2 > .sc.text-primary.ml-auto",
+          "article:nth-child(5) > .rt.flex-wrap.gap-2 > .sc.text-primary.ml-auto",
+          "article:nth-child(6) > .rt.flex-wrap.gap-2 > .sc.text-primary.ml-auto",
           "button[data-pick-release=\"1\"]",
           "button[data-pick-release=\"2\"]",
           "button[data-pick-release=\"3\"]"
@@ -485,6 +496,11 @@
     "system": [],
     "system-error": [],
     "system-loading": [],
-    "system-outage": []
+    "system-outage": [],
+    "watch-error": [],
+    "watch-figures": [],
+    "watch-idle": [],
+    "watch-nothing": [],
+    "watch-running": []
   }
 }
