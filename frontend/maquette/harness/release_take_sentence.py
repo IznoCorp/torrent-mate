@@ -171,8 +171,8 @@ async def main():
         journal.check(
             "the picker really offers a release to choose, and says which "
             "medium it is choosing for — the rest of this rule reads both",
-            offer is not None and offer["resolution"] != ""
-            and offer["subject"] != "",
+            offer is not None and bool(offer["resolution"])
+            and bool(offer["subject"]),
             str(offer))
         if offer is None or not offer["resolution"] or not offer["subject"]:
             await context.close()
