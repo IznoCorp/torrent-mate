@@ -248,6 +248,11 @@ Measured on `1cb0a2dc1` after b·13 was measured and not opened (ruling 98). Q5 
 | r·3 | [the engine's product verbs](phase-r03-engine-product-verbs.md) — ruling 101 | behaviour | settings machine, addVerb, actionDelete, the press | mountSearch, openSheet, 7 reader-less names |
 | r·4 | [the engine's frame verbs](phase-r04-engine-frame-verbs.md) — ruling 101; the MIDPOINT full suite follows | behaviour | render/currentState/applyState, toast/closeSheet/showSignIn, `__navEchec` | — |
 | r·5 | [the reference dies](phase-r05-reference-dies.md) | conversion | — | `__referentiel`, 9 slices, reference.d.ts |
-| r·6 | [contract names](phase-r06-contract-names.md) | conversion, may be lot-sized | 24 families, 41 call sites | engine-shape.ts |
-| r·7 | [the file dies](phase-r07-the-file-dies.md) | deletion + full gate | — | legacy.js, seams.ts, engine-data, engine-redraw, engine-drawing, their instruments |
+| r·6 | [the queue cards](phase-r06-queue-cards.md) — ruling 105 | conversion | 8 `$card` families | their projection |
+| r·7 | [arrivals decisions and pipeline](phase-r07-arrivals-decisions-and-pipeline.md) — ruling 105 | conversion | PENDING_DECISIONS, DECISIONS_REGLEES, PIPELINE | their projections |
+| r·8 | [follows and incompletes](phase-r08-follows-and-incompletes.md) — ruling 105 | conversion | FOLLOWS, INCOMPLETE | their projections |
+| r·9 | [suggestions, search, releases](phase-r09-suggestions-search-releases.md) — ruling 105 | conversion | SUGGESTIONS, SEARCH, RELEASES | their projections |
+| r·10 | [library, settings, maintenance, account](phase-r10-library-settings-maintenance-account.md) — ruling 105 | conversion | LIBRARY, CATS, SETTINGS, SECRETS, MAINT_ACTIONS, JOURNAL, ACCOUNT, SCHEDULERS | their projections |
+| r·11 | [the sheet](phase-r11-the-sheet.md) — ruling 105 | conversion | SHEETS_RAW | engine-shape.ts, its test, the lossless arm, the projection families |
+| r·12 | [the file dies](phase-r12-the-file-dies.md) | deletion + full gate | — | legacy.js, seams.ts, engine-data, engine-redraw, engine-drawing, their instruments |
 
