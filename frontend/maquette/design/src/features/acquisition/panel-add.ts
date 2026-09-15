@@ -68,7 +68,11 @@ function addPanel(position: string, cache: PanelCache): PanelDescriptor | null {
             // ONE DERIVATION: the add SCREEN draws the same word on its own
             // rows, so `addVerb` answers both (§13).
             text: addVerb(result),
-            icone: icons.plus,
+            // A SPENT ACT WEARS NO « + »: its label already says what was
+            // done, and a plus beside the check offers the act again (B-339).
+            // The variant draws it disabled; only this producer knows it is
+            // spent.
+            icone: done ? undefined : icons.plus,
             ton: "primary",
             desactive: done,
             target: { add: position },
