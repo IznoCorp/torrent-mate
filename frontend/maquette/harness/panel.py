@@ -45,11 +45,17 @@ its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
 driver — and the hold count is unchanged.
 """
 import asyncio
+import json
 import pathlib
 import re
 
 from common import PHONE, PROTOTYPE, Journal, design_source, open_page
 from playwright.async_api import async_playwright
+
+# WHAT THE VEILLE'S VERB SAYS WHEN IT IS ACCEPTED, read from the resources.
+WATCH_LAUNCHED = json.loads(
+    (pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "i18n" / "fr.json")
+    .read_text(encoding="utf-8"))["verbs"].get("system", {}).get("watchLaunched")
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -873,6 +879,12 @@ async def main():
                   .filter((call) => call.operationId === "runDetection").map((call) => call.status)""")
             check("and its tap asks the server for a veille, and is answered",
                   asked == [202], f"runDetection answered {asked}")
+            # DOIT-4: the answer is visible where the tap landed — the sheet
+            # draws no run, so the verb's own message is what a person sees.
+            message = await acquisition_page.evaluate(said)
+            check("and the veille's answer is SAID on the sheet's surface",
+                  bool(WATCH_LAUNCHED) and WATCH_LAUNCHED in message,
+                  f"said {message!r}, expected {WATCH_LAUNCHED!r}")
 
         await acquisition_page.evaluate("()=>window.__go('acq-discover-degraded')")
         await acquisition_page.wait_for_timeout(500)

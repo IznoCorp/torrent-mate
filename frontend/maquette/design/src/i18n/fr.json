@@ -1227,6 +1227,9 @@
       "removeHeld": "Retrait gardé — il sera envoyé dès le retour du réseau.",
       "removeRefused": "La clé n'a pas pu être retirée."
     },
+    "system": {
+      "watchLaunched": "Veille lancée — elle est en cours, son résultat s'affichera dans Système."
+    },
     "maintenance": {
       "started": "Commande lancée — suivez-la dans « Arrivées ».",
       "queued": "Commande en file — pipeline en cours.",

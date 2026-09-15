@@ -12,7 +12,9 @@
 // interface keeps the identifier and reads the RUN; what makes the numbers
 // arrive is the stream, never a clock of this file's own (NE-DOIT-PAS-8).
 import { useQuery } from "@tanstack/react-query";
+import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
+import { toast } from "../../lib/shell-doors";
 import { HELD, read, send, sharedQueryClient } from "../../lib/query-client";
 import type { components } from "../../contract/types";
 
@@ -33,15 +35,17 @@ type Launched = { runUid?: string; failed?: boolean };
  * A REFUSAL IS KEPT TOO. « It failed » is a state the block must draw — loudly,
  * and with no success word anywhere near it — so it is recorded here rather
  * than swallowed into a promise nobody reads.
+ *
+ * @returns Whether the server accepted the veille.
  */
-async function launchTheWatch(): Promise<void> {
+async function launchTheWatch(): Promise<boolean> {
   try {
     const answer = await send<{ runUid: string }>("POST", "/api/acquisition/detect");
-    if (answer === undefined || answer === HELD) return;
+    if (answer === undefined || answer === HELD) return false;
     sharedQueryClient?.setQueryData(LAUNCHED, { runUid: answer.runUid } satisfies Launched);
   } catch {
     sharedQueryClient?.setQueryData(LAUNCHED, { failed: true } satisfies Launched);
-    return;
+    return false;
   }
   // THE HISTORY IS A PREFIX OF THE RUN'S OWN KEY, so invalidating it reaches
   // the detail as well: one invalidation, and the list and the run cannot show
@@ -51,10 +55,17 @@ async function launchTheWatch(): Promise<void> {
   // lock for its whole run — the block saying « Libre » over it would be the
   // same disagreement a pass started from Arrivées once caused.
   await sharedQueryClient?.invalidateQueries({ queryKey: LOCKS });
+  return true;
 }
 
+// THE ACT ANSWERS WHERE THE FINGER PRESSED (DOIT-4). The « ⋮ » sheet draws no
+// run, so without a message a press there changed nothing a person could see;
+// the message is the verb's, so it says the same from either emitter. A named
+// state launching a veille goes through `watchNow` and raises none.
 registerVerb("watch-now", () => {
-  void launchTheWatch();
+  void launchTheWatch().then((launched) => {
+    if (launched) toast?.show({ message: i18next.t("verbs.system.watchLaunched") });
+  });
 });
 
 declare global {

@@ -101,9 +101,14 @@ COUNTS = """async ()=>{
 }"""
 
 # THE INTERFACE'S OWN SENTENCES.
-SENTENCES = json.loads(
+RESOURCES = json.loads(
     (pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "i18n" / "fr.json")
-    .read_text(encoding="utf-8"))["screens"]["system"]
+    .read_text(encoding="utf-8"))
+SENTENCES = RESOURCES["screens"]["system"]
+VERB_SENTENCES = RESOURCES["verbs"].get("system", {})
+
+# THE MESSAGE THE LAST ACT RAISED.
+MESSAGE = """()=>window.__toast?.read()?.message?.message || ''"""
 
 # WHAT THE LAYER SAYS OF THE RUN THE VEILLE LAUNCHED: still going, or how it ended.
 LAUNCHED_OUTCOME = """async ()=>{
@@ -196,6 +201,12 @@ async def main():
         await page.wait_for_timeout(ACTED)
         called = await page.evaluate(ANSWERED, "runDetection")
         journal.check("pressing THAT one CALLS runDetection too", bool(called), f"{called}")
+        # AND IT ANSWERS WHERE THE FINGER PRESSED (DOIT-4): the sheet draws no
+        # run, so the act's own message is the only thing a person there sees.
+        message = await page.evaluate(MESSAGE)
+        journal.check("and the sheet's press is answered on its surface, in the verb's sentence",
+                      bool(VERB_SENTENCES.get("watchLaunched")) and message == VERB_SENTENCES.get("watchLaunched"),
+                      f"said {message!r}, expected {VERB_SENTENCES.get('watchLaunched')!r}")
 
         # 2 — THE FIGURES DRAWN ARE THE LAYER'S.
         await drive(journal, page, FIGURES)
