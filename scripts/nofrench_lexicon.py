@@ -404,7 +404,6 @@ examined: dict[str, int] = {
     "unread javascript / shell": 0,
     "name words / shell": 0,
     "data-* names / markup": 0,
-    "french debt words / vocabulary": 0,
     "lines / shell scripts": 0,
     "interface text / app (exempt)": 0,
     "name words / dictionary": 0,

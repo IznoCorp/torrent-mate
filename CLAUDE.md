@@ -148,7 +148,7 @@ all engineering documentation (`docs/`, `BUGS.md`, `CHANGELOG.md`,
 - French inside an English document is allowed **only** to quote UI copy / app screens and sections named in French (in « guillemets »), media titles, or the operator verbatim. Maquette/harness comments carry no reference to a session, a phase or a dated decision — they must still read years from now, out of context.
 
 **The code itself contains NO French, and no interface text.** Two halves of one rule,
-enforced by `scripts/check-no-french.py` (fifteen arms, in `make check` and in CI):
+enforced by `scripts/check-no-french.py` (fourteen arms, in `make check` and in CI):
 
 - **English names, everywhere and always**: identifiers, function/type/**class** names (code AND CSS), **file and directory names**, and every message the tools print.
 - **No UI string lives in the code.** The French a reader of the interface sees lives in the i18n resources: `frontend/maquette/design/src/i18n/fr.json` for the shell, and the same file's `server` namespace for the pages `serve.py` serves. Extract strings, never retype them.
@@ -156,7 +156,7 @@ enforced by `scripts/check-no-french.py` (fifteen arms, in `make check` and in C
 - **`data-*` attribute NAMES are code and follow the rule.** A `data-*` name is a name someone chose, so it is written in English like any other. Their VALUES are not — a page id or a stored/displayed datum is data, not a name; a NAMED STATE id (`window.__go("acq-now-idle")`) IS a name someone chose. Route paths are NOT exempt either — a route and a parameter are names, not data.
 - **What is NOT French-in-the-code**, and must stay as it is: the French a harness hold ASSERTS (the app's rendered output), i18n interpolation placeholders, form field names, and the config keys the settings dictionaries are keyed by. Each such literal carries a `# french-ok: <reason>` / `// french-ok: <reason>` pragma; a pragma with no reason is itself a violation. The frozen CSS-class exceptions live in `frontend/maquette/regions.json`'s `$vocabulary`.
 - **The guard asks « is this word one we use? », not « is this word French? »** `scripts/code-vocabulary.txt` holds the words this codebase's names are built from; a name built from a word nobody wrote down is refused, whatever language it comes from. Adding a word is one line, and that is the point.
-- **A vocabulary SEEDED from the codebase certifies the status quo.** The dying engine's French debt (`design/src/engine/legacy.js`) lives below a banner, named as French on purpose; `check_french_debt` refuses it to every file but that one, so the debt cannot spread. **When the engine goes, that section goes with it.**
+- **A vocabulary SEEDED from the codebase certifies the status quo.** The dying engine's French debt (`design/src/engine/legacy.js@13a66a35b`) lived below a banner, named as French on purpose, until the engine went: `check_french_debt` and the vocabulary's debt section died with it at L13r.
 - **Every rule in this section has an ARM, or it is a sentence in a file.** Story: `CLAUDE.md@6a47304a4` § Language.
 
 ## Reference Index (lazy-load when relevant)
