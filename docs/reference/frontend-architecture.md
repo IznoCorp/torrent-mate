@@ -654,7 +654,7 @@ own was refused: it recreates the destination §20 removed. The design and the n
 `main` at `docs/features/maquette-l20/` (#587, squash `d9221ebf9`); the operator reads the drawing
 there before the lot opens, after the `maquette-settings` micro-wave merges.
 
-**Amended 2026-09-12 from that design's measurements (§ 8 of `docs/features/maquette-l20/DESIGN.md`),
+**Amended 2026-09-12 from that design's measurements (§ 8 of `docs/features/maquette-l20/DESIGN.md@60c6d9b1d`),
 and each line below replaces what the entry said before it:**
 
 - **« relancer la veille » is NOT `POST /api/pipeline/watcher`.** That operation takes `{enabled}`
