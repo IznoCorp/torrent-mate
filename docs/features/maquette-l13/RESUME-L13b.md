@@ -36,9 +36,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   (light 149/149), hold-counts --compare: no failure, eleven rises + seven new rules (movements below), make lint 0.
 - The residue is PLANNED (pending Q5): six phase files `plan/phase-residue-1…6-*.md` and INDEX « Residue (pending
   Q5) », with every figure measured on `1cb0a2dc1`. The two re-aims' mutations fell by name on this head.
-- NEXT: the operator's word on Q5 → l13b 5 renames the residue phases (b·13… or the sub-lot's letter) and executes
-  them; or the PR opens from this head. No closure commit, no PR until then. Read RULINGS 64–98 first; steward
-  `Orch : TM frontend [31ca3c]`.
+- NEXT: Q5 = B (RULING 99): L13b CLOSES at b·12; l13b 5 does the closure ONLY — bump, residue renames to L13r (r·1–r·6), push, PR READY, then the `fixed #<PR>` rows on the docs-only path; nothing of the residue is executed on this branch.
 - ZSH TRAP, three times this session: a multi-word variable is ONE argument in zsh, and macOS bash has no
   `mapfile` — build rule lists and file lists in Python or spell them out.
 - LOGS: `~/Library/Logs/tm-l13b/` (ruling 76). Mutex and tests lock stay under `/private/tmp`.
