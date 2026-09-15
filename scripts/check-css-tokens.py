@@ -13,8 +13,8 @@ point of the split. That is exactly the state this rule was written for: thirty-
 tokens used and ONE declared, across 458 `var()` calls.
 
 WHAT COUNTS AS RESOLVED. The same block declares the custom property, OR it is
-a RUNTIME token: `--tm-*` names are measured and published by script
-(`design/src/engine/legacy.js`), never declared in CSS. Those must carry a
+a RUNTIME token: `--tm-*` names are measured and published by script, never
+declared in CSS. Those must carry a
 fallback at every use — a runtime token with no fallback resolves to nothing
 until the script that sets it has run, which is a flash this rule also prevents.
 

@@ -347,7 +347,7 @@ def validate_search_bodies(text: str) -> tuple[list[tuple[str, str, str]], list[
 def navigation_page_ids(root: Path) -> list[str]:
     """Read the page ids the navigation table declares.
 
-    IT USED TO READ THE ENGINE. `PAGES_OF()` in `engine/legacy.js` was one of
+    IT USED TO READ THE ENGINE. `PAGES_OF()` in the deleted `engine/legacy.js` was one of
     four copies of the page list, and this reader held it against the address
     model. L15 left one table — `app/navigation.ts` — so the subject moved with
     it, and the hold is the same hold: an address with no page is an address

@@ -872,9 +872,8 @@ def arm_mocks(root: Path) -> int:
             # this arm refuses. The defect is a COMPONENT reading one: it would
             # render identically while never going through the network seam, so
             # nothing would measure the wiring. A test reading the committed
-            # seed is the oracle OUTSIDE the tool — the artefact is held byte
-            # for byte against `legacy.js` by `check-mock-seeds.py`, and
-            # asserting against anything else would be asserting against the
+            # seed is the oracle OUTSIDE the tool — the artefact is held against
+            # its contract schema by `check-mock-seeds.py`, and asserting against anything else would be asserting against the
             # code under test. A test renders nothing and ships nowhere.
             if is_test(source):
                 continue

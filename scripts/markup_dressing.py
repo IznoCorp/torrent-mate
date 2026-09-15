@@ -269,8 +269,7 @@ def check_bare_elements() -> int:
         move.
       - WHETHER A LISTED SITE'S REASON IS STILL TRUE. Each reason names the
         variant that dresses its element, and nothing here re-reads it.
-      - The engine and the shell. `index.html` is hand-written markup and
-        `engine/legacy.js` is the dying JavaScript; neither is TSX.
+      - The shell. `index.html` is hand-written markup, not TSX.
 
     Returns:
         1 when a painting element is bare at an unlisted site, 0 otherwise.

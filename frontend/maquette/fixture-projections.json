@@ -1,9 +1,8 @@
 {
-  "$comment": "WHERE EACH CONVERTED FIXTURE FAMILY'S SEED LIVES, WHAT IT ANSWERS, AND WHICH OF ITS FIELDS ARE JOINED FROM OTHER SEEDS. No family is re-derived from the engine any more, so nothing here projects: a family declares the contract schema its seed `answers` (read by check-mock-seeds.py's schema arm), the seed `file` it is written to, and, where its entries carry fields another family holds, the `join` that re-derives them (both read by scripts/build-mock-seeds.py for the correspondence guard).",
+  "$comment": "WHERE EACH CONVERTED FIXTURE FAMILY'S SEED LIVES, AND WHAT IT ANSWERS. No family is re-derived from the engine any more, so nothing here projects: a family declares the contract schema its seed `answers` (read by check-mock-seeds.py's schema arm) and the seed `file` it is written to (read by its schema and provenance arms).",
   "$operations": {
     "answers": "the contract schema this family's seed must validate against. A tiny expression: `Name` is `#/components/schemas/Name`, a lowercase name is a primitive type, `X[]` is a list of X, and `{X}` is a map whose values are X. It is declared PER FAMILY rather than read off the operation, because most operations compose several families into one envelope — the acquisition queue is five buckets and the media sheet is seven families — so validating a family against its operation's whole response schema would report a mismatch for every one of them.",
-    "file": "the seed file this family is written to, WITHOUT its extension. Declared rather than derived from the family's own name, because the family names are the ENGINE's — French in one case, abbreviated in several — while these files are new and are named in English, written out in full, on the day they are written. The `_REAL` suffix the engine uses for the calm scenario becomes the bare name here, and the dense one carries `-loaded`: the engine's suffix says which is the exception, and it is the other way round.",
-    "join": "fields ADDED after the projection, from other families, and never from the family's own literal. `entries` names where the entries are — `$item` each element of a top-level list, `$value` each value of a top-level map, `/key[]` each element of the list under that key, `[]/key[]` each element of the list under that key in each element of a top-level list, `[]/key` the object under that key in each element that carries one — and `fields` maps each added field to its source: `ids` the provider identity of the media sheet the entry's title resolves to (null when none), `poster` the poster under the entry's title, then under its title without the year (null when absent), `exactPoster` the poster under the entry's own title only (null when absent), `key` the entry's own top-level key. The lossless comparison reads the projection before the join."
+    "file": "the seed file this family is written to, WITHOUT its extension. Declared rather than derived from the family's own name, because the family names are the ENGINE's — French in one case, abbreviated in several — while these files are new and are named in English, written out in full, on the day they are written. The `_REAL` suffix the engine uses for the calm scenario becomes the bare name here, and the dense one carries `-loaded`: the engine's suffix says which is the exception, and it is the other way round."
   },
   "families": {
     "ACCOUNT": {
@@ -20,25 +19,11 @@
     },
     "LIBRARY": {
       "answers": "LibraryItem[]",
-      "file": "library-items",
-      "join": {
-        "entries": "$item",
-        "fields": {
-          "ids": "ids",
-          "poster": "poster"
-        }
-      }
+      "file": "library-items"
     },
     "RECENT": {
       "answers": "LibraryRow[]",
-      "file": "recent",
-      "join": {
-        "entries": "$item",
-        "fields": {
-          "ids": "ids",
-          "poster": "poster"
-        }
-      }
+      "file": "recent"
     },
     "CATS": {
       "answers": "LibraryCategory[]",
@@ -46,48 +31,19 @@
     },
     "INCOMPLETE": {
       "answers": "IncompleteShow[]",
-      "file": "incomplete-shows",
-      "join": {
-        "entries": "$item",
-        "fields": {
-          "ids": "ids",
-          "poster": "poster"
-        }
-      }
+      "file": "incomplete-shows"
     },
     "FOLLOWS": {
       "answers": "Follow[]",
-      "file": "follows",
-      "join": {
-        "entries": "$item",
-        "fields": {
-          "ids": "ids",
-          "poster": "poster"
-        }
-      }
+      "file": "follows"
     },
     "SEARCH": {
       "answers": "SearchResults",
-      "file": "search-results",
-      "join": {
-        "entries": "/results[]",
-        "fields": {
-          "ids": "ids",
-          "poster": "poster"
-        }
-      }
+      "file": "search-results"
     },
     "SUGGESTIONS": {
       "answers": "Suggestion[]",
-      "file": "suggestions",
-      "join": {
-        "entries": "$item",
-        "fields": {
-          "ids": "ids",
-          "poster": "poster",
-          "posterHighDefinition": "posterHighDefinition"
-        }
-      }
+      "file": "suggestions"
     },
     "RELEASES": {
       "answers": "Release[]",
@@ -123,33 +79,15 @@
     },
     "PENDING_DECISIONS": {
       "answers": "PendingDecision[]",
-      "file": "pending-decisions",
-      "join": {
-        "entries": "[]/candidates[]",
-        "fields": {
-          "poster": "exactPoster"
-        }
-      }
+      "file": "pending-decisions"
     },
     "DECISIONS_REGLEES": {
       "answers": "SettledDecision[]",
-      "file": "settled-decisions",
-      "join": {
-        "entries": "[]/choice",
-        "fields": {
-          "poster": "poster"
-        }
-      }
+      "file": "settled-decisions"
     },
     "SHEETS_RAW": {
       "answers": "{MediaSheet}",
-      "file": "media-sheets",
-      "join": {
-        "entries": "$value",
-        "fields": {
-          "title": "key"
-        }
-      }
+      "file": "media-sheets"
     },
     "SEASONS": {
       "answers": "{Season[]}",
@@ -189,124 +127,47 @@
     },
     "TAKEABLE": {
       "answers": "QueueCard[]",
-      "file": "takeable",
-      "join": {
-        "entries": "$item",
-        "fields": {
-          "ids": "ids",
-          "poster": "poster"
-        }
-      }
+      "file": "takeable"
     },
     "BLOCKED": {
       "answers": "QueueCard[]",
-      "file": "blocked",
-      "join": {
-        "entries": "$item",
-        "fields": {
-          "ids": "ids",
-          "poster": "poster"
-        }
-      }
+      "file": "blocked"
     },
     "INFLIGHT": {
       "answers": "QueueCard[]",
-      "file": "in-flight",
-      "join": {
-        "entries": "$item",
-        "fields": {
-          "ids": "ids",
-          "poster": "poster"
-        }
-      }
+      "file": "in-flight"
     },
     "NOTFOUND": {
       "answers": "QueueCard[]",
-      "file": "not-found-loaded",
-      "join": {
-        "entries": "$item",
-        "fields": {
-          "ids": "ids",
-          "poster": "poster"
-        }
-      }
+      "file": "not-found-loaded"
     },
     "NOTFOUND_REAL": {
       "answers": "QueueCard[]",
-      "file": "not-found",
-      "join": {
-        "entries": "$item",
-        "fields": {
-          "ids": "ids",
-          "poster": "poster"
-        }
-      }
+      "file": "not-found"
     },
     "DONE_TODAY": {
       "answers": "QueueCard[]",
-      "file": "done-today",
-      "join": {
-        "entries": "$item",
-        "fields": {
-          "ids": "ids",
-          "poster": "poster"
-        }
-      }
+      "file": "done-today"
     },
     "STUCK": {
       "answers": "QueueCard[]",
-      "file": "stuck-loaded",
-      "join": {
-        "entries": "$item",
-        "fields": {
-          "ids": "ids",
-          "poster": "poster"
-        }
-      }
+      "file": "stuck-loaded"
     },
     "STUCK_REAL": {
       "answers": "QueueCard[]",
-      "file": "stuck",
-      "join": {
-        "entries": "$item",
-        "fields": {
-          "ids": "ids",
-          "poster": "poster"
-        }
-      }
+      "file": "stuck"
     },
     "MOVING": {
       "answers": "QueueCard[]",
-      "file": "moving",
-      "join": {
-        "entries": "$item",
-        "fields": {
-          "ids": "ids",
-          "poster": "poster"
-        }
-      }
+      "file": "moving"
     },
     "SETTLED": {
       "answers": "QueueCard[]",
-      "file": "settled-loaded",
-      "join": {
-        "entries": "$item",
-        "fields": {
-          "ids": "ids",
-          "poster": "poster"
-        }
-      }
+      "file": "settled-loaded"
     },
     "SETTLED_REAL": {
       "answers": "QueueCard[]",
-      "file": "settled",
-      "join": {
-        "entries": "$item",
-        "fields": {
-          "ids": "ids",
-          "poster": "poster"
-        }
-      }
+      "file": "settled"
     },
     "SERVICES": {
       "answers": "Fact[]",

@@ -12,6 +12,8 @@ only), `check-mock-seeds.py`'s `classification` and `correspondence` arms and `N
 `answers` (a home when `fixture-projections.json`'s `file`/`join` die), `scripts/refresh-maquette-fixture.py` and its
 test, `ci.yml:103–104` and `tests/scripts/test_ci_filter_covers_the_guards.py`.
 
+2026-09-15 (r·17, ruling 114 Q2): the stale docstrings corrected, one line each — check-css-tokens (runtime tokens), markup_dressing (the shell only), check-markup-contracts (the emission sites), classify-rule-anchors and markup_anchors (the design sites), rename_readers (the deleted file held the emoji), check-frontend-boundaries (a seed is held against its contract schema), boundaries_addressing (the deleted engine), refresh-maquette-fixture (the deleted engine), markup_verbs (the answering side).
+
 ## Gate
 
 Per INDEX « Gates »: contracts + oracle + the rules touched, logs postdating the commit; every guard touched exits 0

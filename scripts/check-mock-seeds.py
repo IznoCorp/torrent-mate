@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Holds the correspondence between the maquette's mock seeds and its fixtures.
+"""Holds the maquette's mock seeds against the register, the contract and the handlers.
 
 THE CLAUSE THIS GUARD EXISTS FOR, and it is L08's binding one: every shape the
 mock layer serves is SEEDED FROM THE FIXTURE IT REPLACES. A mock returning
@@ -10,12 +10,6 @@ divergence. Invented mock data would forfeit that proof for nothing.
 WHAT EACH ARM DOES NOT READ, asked before the arms were written and answered
 here rather than left for a reader to reconstruct. A guard is green for two
 reasons and only one of them is good.
-
-  correspondence  Re-derives every seed from `legacy.js` and compares it, byte
-                  for byte, with the committed one. It does NOT read the
-                  handlers, so a handler ignoring its seed passes here. It is
-                  also the arm that goes red after `refresh-maquette-fixture.py`
-                  rewrites `FOLLOWS` from the live database — which is wanted.
 
   schema          Validates every seed against the contract schema of the
                   operation that names it. This is what sees an unprojected
@@ -51,10 +45,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -63,7 +55,12 @@ MAQUETTE = ROOT / "frontend" / "maquette"
 REGISTER = MAQUETTE / "fixture-register.json"
 CONTRACT = MAQUETTE / "contract" / "openapi.json"
 SEEDS = MAQUETTE / "design" / "src" / "mocks" / "seeds"
-BUILDER = ROOT / "scripts" / "build-mock-seeds.py"
+PROJECTIONS = MAQUETTE / "fixture-projections.json"
+
+# The classes whose families have a seed. `interface` and `unserved` do not:
+# routing a label or a long-press delay through a mock would have the interface
+# asking a server for its own words.
+SEEDED_CLASSES = ("served", "asset")
 
 METHODS = ("get", "post", "put", "patch", "delete")
 
@@ -73,21 +70,40 @@ METHODS = ("get", "post", "put", "patch", "delete")
 MINIMUM_PAYLOAD_MODULES = 8
 
 
-def builder():
-    """Loads the seed builder as a module, so both read one implementation.
-
-    Two copies of a projection are two places for one of them to drift, and the
-    drift would be invisible: each copy would still be internally consistent.
-    """
-    specification = importlib.util.spec_from_file_location("mock_seed_builder", BUILDER)
-    module = importlib.util.module_from_spec(specification)
-    specification.loader.exec_module(module)
-    return module
-
-
 def register() -> dict:
     """The classification of every fixture family."""
     return json.loads(REGISTER.read_text(encoding="utf-8"))["families"]
+
+
+def converted_families() -> list[str]:
+    """The seeded families whose seed is committed rather than rebuilt, in order.
+
+    Returns:
+        Their names — every seeded family, since no fixture is rebuilt any more.
+    """
+    return sorted(name for name, entry in register().items()
+                  if entry["class"] in SEEDED_CLASSES and entry.get("converted"))
+
+
+def file_for(name: str) -> Path:
+    """The seed file one family is written to, as `fixture-projections.json` names it.
+
+    DECLARED, NEVER DERIVED FROM THE FAMILY NAME: the families carry the dead
+    engine's spelling, and a seed file is named in English, in full.
+
+    Args:
+        name: The family.
+
+    Returns:
+        The seed file.
+
+    Raises:
+        SystemExit: When the family declares no file name.
+    """
+    chosen = json.loads(PROJECTIONS.read_text(encoding="utf-8"))["families"].get(name, {}).get("file")
+    if not chosen:
+        raise SystemExit(f"check-mock-seeds: {name} is served and {PROJECTIONS.name} declares no `file` for it")
+    return SEEDS / (chosen + ".json")
 
 
 def contract() -> dict:
@@ -157,53 +173,7 @@ def strictly(schema: object) -> object:
     return schema
 
 
-def arm_correspondence(module) -> int:
-    """Refuse a committed seed that differs from the fixture it was taken from.
-
-    Returns:
-        The number of seeds that have drifted.
-    """
-    built = module.build()
-    drifted: list[str] = []
-    compared = 0
-    for path, text in built.items():
-        target = Path(path)
-        if not target.is_file():
-            drifted.append(f"{target.name}: missing — the family is served and has no seed")
-        elif target.read_text(encoding="utf-8") != text:
-            drifted.append(f"{target.name}: differs from the fixture it was taken from. "
-                           f"Rebuild with `python3 scripts/build-mock-seeds.py --write`")
-        else:
-            compared += 1
-    # A CONVERTED FAMILY'S SEED IS STILL CLAIMED, and it can no longer be
-    # re-derived: the engine's literal it came from is gone. Its file is
-    # exempted from « no family claims it » BY NAME, from the register's own
-    # declaration, and the count is printed — an arm that compared 43 where it
-    # used to compare 46 must say so, or the shrinking is the silent kind.
-    kept = {str(module.file_for(name)) for name in module.converted_families()}
-    for existing in sorted(SEEDS.glob("*.json")):
-        if str(existing) not in built and str(existing) not in kept:
-            drifted.append(f"{existing.name}: no family claims it")
-    # A CONVERTED SEED'S JOINED FIELDS ARE STILL RE-DERIVED: they come from the
-    # media sheets and the posters, not from the family's own lost literal.
-    joined_held = 0
-    for path, text in module.rejoined().items():
-        if Path(path).read_text(encoding="utf-8") != text:
-            drifted.append(f"{Path(path).name}: its joined fields differ from the families "
-                           f"they are joined from. Rebuild with "
-                           f"`python3 scripts/build-mock-seeds.py --write`")
-        else:
-            joined_held += 1
-    print(f"  correspondence: {compared} seed(s) re-derived from legacy.js and "
-          f"identical, {len(kept)} no longer re-derivable (converted — held by the "
-          f"contract's schema and by the oracle instead), {joined_held} of those with "
-          f"their joined fields re-derived and identical, {len(drifted)} out of step")
-    for entry in drifted:
-        print(f"    {entry}", file=sys.stderr)
-    return len(drifted)
-
-
-def arm_schema(module) -> int:
+def arm_schema() -> int:
     """Refuse a seed that does not answer the contract schema naming it.
 
     THIS IS THE ARM THAT SEES AN UNPROJECTED FAMILY: a family whose keys were
@@ -221,7 +191,7 @@ def arm_schema(module) -> int:
         return 1
 
     document = contract()
-    declared = json.loads(module.PROJECTIONS.read_text(encoding="utf-8"))["families"]
+    declared = json.loads(PROJECTIONS.read_text(encoding="utf-8"))["families"]
     failures: list[str] = []
     validated = 0
     # THE CONVERTED FAMILIES ARE VALIDATED TOO, and leaving them out was the
@@ -230,13 +200,13 @@ def arm_schema(module) -> int:
     # so by name — and this one is what still holds it. Dropping it here would
     # have made « held by the contract's schema » a sentence the code did not
     # honour, on the very seeds that lost their other reader.
-    for name in module.seeded_families() + module.converted_families():
+    for name in converted_families():
         expression = declared.get(name, {}).get("answers")
         if not expression:
             failures.append(f"{name}: no `answers` declared, so nothing can be validated "
                             f"against it — which would read as a pass")
             continue
-        seed = json.loads(module.file_for(name).read_text(encoding="utf-8"))
+        seed = json.loads(file_for(name).read_text(encoding="utf-8"))
         schema = dict(schema_of(expression))
         schema["components"] = strictly(document["components"])
         try:
@@ -259,7 +229,7 @@ def arm_schema(module) -> int:
     return len(failures)
 
 
-def arm_provenance(module) -> int:
+def arm_provenance() -> int:
     """Hold the register, the seed files and the contract in step, all ways.
 
     Returns:
@@ -267,9 +237,9 @@ def arm_provenance(module) -> int:
     """
     classified = register()
     served = {name for name, entry in classified.items()
-              if entry["class"] in module.SEEDED_CLASSES}
+              if entry["class"] in SEEDED_CLASSES}
     on_disk = {path.stem for path in SEEDS.glob("*.json")}
-    expected = {module.file_for(name).stem for name in served}
+    expected = {file_for(name).stem for name in served}
     named = {family for _, operation in operations(contract())
              for family in operation.get("x-seeded-from", [])}
 
@@ -325,7 +295,7 @@ HANDLER_LITERAL_ALLOWANCES = (
 )
 
 
-def arm_handlers(module) -> int:
+def arm_handlers() -> int:
     """Refuse a data literal in a handler module.
 
     WHAT IT READS. Every string and number literal in `mocks/handlers/*.ts`,
@@ -339,9 +309,6 @@ def arm_handlers(module) -> int:
     this arm would not know. What it forbids is the raw material: with no
     literal to build from, a payload has nowhere to come from but a seed or the
     request.
-
-    Args:
-        module: The seed builder, for the paths it already knows.
 
     Returns:
         The number of literals no allowance covers.
@@ -461,7 +428,7 @@ def arm_handlers(module) -> int:
 
 
 
-def arm_generated(module) -> int:
+def arm_generated() -> int:
     """Hold the generated contract types against the contract itself.
 
     WHY THIS EXISTS BESIDE `make check-contract-types`. That target regenerates
@@ -476,9 +443,6 @@ def arm_generated(module) -> int:
     none the contract does not. It is weaker than byte-identity and it is not a
     substitute for it — a hand edit inside an operation's body would pass here
     and fail there. Both are named where the exemptions are granted.
-
-    Args:
-        module: The seed builder, for the paths it already knows.
 
     Returns:
         The number of ways the file and the contract disagree.
@@ -517,7 +481,6 @@ def arm_generated(module) -> int:
 ARMS = {
     "generated": arm_generated,
     "handlers": arm_handlers,
-    "correspondence": arm_correspondence,
     "provenance": arm_provenance,
     "schema": arm_schema,
 }
@@ -525,65 +488,7 @@ ARMS = {
 
 # The order the arms run in when all of them do. Cheapest and most fundamental
 # first, so a failure names the smallest thing that is wrong.
-ARM_ORDER = ("correspondence", "schema", "provenance", "generated", "handlers")
-
-
-EXTRACTOR = ROOT / "scripts" / "extract-maquette-fixtures.mjs"
-
-# THE ARMS THAT READ THE ENGINE THROUGH THE TypeScript PARSER, and only those.
-# `correspondence` reaches it through the builder; the arm that ran the
-# extractor directly, `classification`, left with the engine it read. The other four read JSON and text — the
-# contract, the seeds, the generated types, the handler modules — and need
-# neither node nor an install.
-#
-# NAMED RATHER THAN COUNTED, and the distinction cost a correction: a first
-# version of the skip below announced « the 7 arms that read the engine through
-# its parser » beside `len(ARMS)`, which was false about four of them AND was a
-# second copy of a list that already exists. Two written exemptions — the
-# vocabulary arm's and the boundary guard's, both for `contract/types.d.ts` —
-# rest on `generated` running wherever the guards do, and skipping it would
-# have left them resting on a check that read nothing.
-NEEDS_THE_PARSER = ("correspondence",)
-
-# The extractor's own exit code for « there is no TypeScript install here ».
-# Distinguished from every other failure ON PURPOSE: a syntax error in the
-# extractor exits 1, an unknown flag exits 2, and collapsing those into « no
-# install » would announce a confident WRONG reason while returning success —
-# which is worse than failing, and is the shape B-046 records.
-NO_TYPESCRIPT_INSTALL = 3
-
-
-def typescript_install() -> str | None:
-    """Returns the TypeScript install the extractor would parse through.
-
-    ASKED OF THE EXTRACTOR, never re-derived here. The candidate paths are the
-    extractor's own, and a second copy of them in this file would be a table
-    that rots — the extractor is where they belong, so it is the extractor that
-    is asked.
-
-    Returns:
-        The resolved install path when there is one, or None when the extractor
-        answered `NO_TYPESCRIPT_INSTALL`.
-
-    Raises:
-        RuntimeError: When the extractor could not answer at all — it is
-            missing, node is absent, it timed out, or it failed for any reason
-            other than the absence of an install. That is not « cannot run
-            here »; it is a broken instrument, and it must be loud.
-    """
-    try:
-        run = subprocess.run(["node", str(EXTRACTOR), "--typescript-install"],
-                             cwd=ROOT, capture_output=True, text=True, timeout=60)
-    except (OSError, subprocess.SubprocessError) as failure:
-        raise RuntimeError(f"the extractor could not be run: {failure!r}")
-    if run.returncode == NO_TYPESCRIPT_INSTALL:
-        return None
-    if run.returncode != 0 or not run.stdout.strip():
-        raise RuntimeError(
-            f"the extractor answered {run.returncode} to --typescript-install "
-            f"instead of 0 or {NO_TYPESCRIPT_INSTALL}: "
-            f"{(run.stderr or run.stdout).strip()[-300:] or 'nothing at all'}")
-    return run.stdout.strip()
+ARM_ORDER = ("schema", "provenance", "generated", "handlers")
 
 
 def main() -> int:
@@ -594,30 +499,6 @@ def main() -> int:
                         help="print the inventory this guard holds, and refuse nothing")
     arguments = parser.parse_args()
 
-    # A CLONE WITH NO npm INSTALL CANNOT RUN THE ARM THAT PARSES THE
-    # ENGINE, and it must say which rather than fall over. With no install
-    # this guard used to answer a ten-line node traceback and a non-zero exit —
-    # inside `make check`, two lines above
-    # `openapi-drift: skipped (frontend/node_modules absent)` and
-    # `contract-types: skipped (…)`, which handle exactly the same absence.
-    #
-    # THE SKIP IS NARROW AND LOUD. Narrow, because four arms need no parser at
-    # all and two written exemptions rest on one of them. Loud, because a skip
-    # that reads like a pass is the failure this repository counts in
-    # `BUGS.md` § Guards green over what they do not read. And it is not
-    # reachable where the gate matters: the one continuous-integration job that
-    # runs this guard (`harness-contracts`, through `run.sh --contracts`)
-    # installs `frontend/maquette/design` first.
-    try:
-        without_the_parser = typescript_install() is None
-    except RuntimeError as broken:
-        # A BROKEN INSTRUMENT IS NOT A SKIP. The guard exits non-zero and names
-        # what failed, rather than printing a node traceback or — worse —
-        # announcing « no TypeScript install » about an extractor that is
-        # merely broken.
-        print(f"check-mock-seeds: {broken}", file=sys.stderr)
-        return 1
-
     if arguments.list:
         classified = register()
         for name in sorted(classified):
@@ -626,22 +507,9 @@ def main() -> int:
         print(f"  {len(classified)} family(ies)")
         return 0
 
-    # The builder module is loaded EITHER WAY: importing it runs no node, and
-    # the four arms below read their inputs through its constants. Only the
-    # arm that CALLS the extractor is skipped.
-    module = builder()
-
     print(f"check-mock-seeds: {SEEDS.relative_to(ROOT)}")
     selected = [arguments.arm] if arguments.arm else ARM_ORDER
-    if without_the_parser:
-        skipped = [name for name in selected if name in NEEDS_THE_PARSER]
-        selected = [name for name in selected if name not in NEEDS_THE_PARSER]
-        if skipped:
-            print(f"  SKIPPED, no TypeScript install: {', '.join(skipped)} — "
-                  f"{len(skipped)} arm(s) that read the engine through its parser "
-                  f"checked NOTHING. Run `npm ci` in frontend/maquette/design or "
-                  f"in frontend. The {len(selected)} arm(s) below did run.")
-    violations = sum(ARMS[name](module) for name in selected)
+    violations = sum(ARMS[name]() for name in selected)
     if violations:
         print(f"check-mock-seeds: {violations} violation(s)")
         return 1

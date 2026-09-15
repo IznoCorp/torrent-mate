@@ -9,7 +9,7 @@ arm with a corpus of its own lives beside it rather than inside it.
 Corpus, emission side: every `.ts` and `.tsx` file under
 `frontend/maquette/design/src`, read through the TypeScript parser by
 `harness/panel_verbs.mjs`. Answering side: the same tree's
-`registerVerb` declarations, and the dying engine `src/engine/legacy.js`.
+`registerVerb` declarations and the `dataset` reads beside them.
 
 THE DEFECT CLASS, and it is the reason `lib/verbs.ts` exists at all. A
 panel action is `{ text, icone, target }` where `target` is a map of DATA

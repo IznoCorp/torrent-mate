@@ -41,7 +41,7 @@ def utf16_offsets(text):
 
     JavaScript counts a string in UTF-16 CODE UNITS and Python in code points,
     so an emoji — two units, one character — shifts every offset after it by
-    one. `design/src/engine/legacy.js` holds four of them, the first at
+    one. The deleted `design/src/engine/legacy.js` held four of them, the first at
     character 88 847, and every span the parser reported past that point landed
     four characters late: a string literal was cut in half, `"en_attente"`
     arriving as `"en_` in one chunk and `attente"` in the next, so a rename

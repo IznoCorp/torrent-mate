@@ -95,9 +95,8 @@ rule below.
 
 THE FALSE-POSITIVE RULE, AND IT IS A RULE, NOT A LIST. A candidate
 string is a selector only if EVERY class token it carries is EMITTED by
-at least one of the three design sites — `frontend/maquette/design/
-index.html`, `design/src/engine/legacy.js` and the sources under
-`design/src` — as a class= / className= token, OR the string carries
+at least one of the design sites — `frontend/maquette/design/
+index.html` and the sources under `design/src` — as a class= / className= token, OR the string carries
 selector structure: a combinator, an attribute block, a comma list.
 `.json5` fails both — nothing emits a class named json5, and the string
 has no structure — while `.tile[data-panel]` passes on structure and

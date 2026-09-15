@@ -47,8 +47,8 @@ WHAT ARM 2 READS, AND THE THREE REFUSALS.
         helper's argument, a comparison. THE FALSE-POSITIVE RULE, AND
         IT IS A RULE, NOT A LIST: a candidate string is a selector only
         if EVERY class token it carries is EMITTED by at least one of
-        the three design sites — `index.html`, `src/engine/legacy.js`
-        and the sources under `design/src` — as a class= / className=
+        the design sites — `index.html` and the sources under
+        `design/src` — as a class= / className=
         token, OR the string carries selector structure: a combinator,
         an attribute block, a comma list. `.json5` fails both — nothing
         emits a class named json5, and the string has no structure —
