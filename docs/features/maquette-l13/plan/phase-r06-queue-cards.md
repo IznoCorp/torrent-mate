@@ -2,7 +2,7 @@
 
 2026-09-15 (ruling 105): r·6 « contract names » was cut into six numbered sub-phases, one family group each — r·6 queue cards, r·7 arrivals decisions and pipeline, r·8 follows and incompletes, r·9 suggestions, search and releases, r·10 library, settings, maintenance, account and SCHEDULERS, r·11 the sheet — and « the file dies » became r·12.
 
-2026-09-15 (r·6 done; steward, cost 0, for r·7–r·11): before each family's gate the harness `.py` files' multi-line JS blocks are swept for the family's one-letter keys and what the sweep finds is listed on the phase's dated line, even when zero — r·6's line grep missed `page_host.py`'s `first.t`, which the first gate caught as a crash. r·6's sweep: ten readers (two_picks, resolution_card, busy, take, resolution_window, seeds_at_rest, acted_surface_redraws, journey_verbs, url_state, page_host); remaining one-letter reads in those files belong to follows (r·8) and settings (r·10).
+2026-09-15 (r·6 done; steward, cost 0, for r·7–r·12): before each family's gate the harness `.py` files' multi-line JS blocks are swept for the family's one-letter keys and what the sweep finds is listed on the phase's dated line, even when zero — r·6's line grep missed `page_host.py`'s `first.t`, which the first gate caught as a crash. r·6's sweep: ten readers (two_picks, resolution_card, busy, take, resolution_window, seeds_at_rest, acted_surface_redraws, journey_verbs, url_state, page_host); remaining one-letter reads in those files belong to follows (r·8) and settings (r·10).
 
 **Kind**: CONVERSION. **Cost**: Estimate ≈ 11 points (measure 11, ≤ 15).
 

@@ -1,22 +1,26 @@
-# r·11 — The media sheet take the contract's names
+# r·11 — The system families take the contract's names
 
-2026-09-15 (ruling 105): r·6 « contract names » was cut into six numbered sub-phases, one family group each — r·6 queue cards, r·7 arrivals decisions and pipeline, r·8 follows and incompletes, r·9 suggestions, search and releases, r·10 library, settings, maintenance, account and SCHEDULERS, r·11 the sheet — and « the file dies » became r·12.
+2026-09-15 (ruling 106, amended by order 38): the system families projected through `features/system/queries.ts`'s generic `family` parameter are a new phase r·11; the sheet became r·12 and « the file dies » r·13.
 
-**Kind**: CONVERSION. **Cost**: Estimate ≈ 15 points (measure 11, ≤ 15).
+**Kind**: CONVERSION. **Cost**: Estimate ≈ 12 points (measure 11, ≤ 15; the mean of L13b's measured phases is 11).
 
 ## Measured
 
-On `533c160e5` (STOP D answered by ruling 105): SHEETS_RAW (20 renames, the entry form, keyed by data). `MediaSheet` read by 8 files, typed `Record<string, unknown>`. With the last family: `engine/engine-shape.ts`, its test, `check-mock-seeds.py --arm lossless` and `fixture-projections.json`'s families die.
+On `42e333d1b` (ruling 106): `features/system/queries.ts`'s `useSystemRead(address, family)` projects DISKS, INDEX,
+DEPENDENCIES (the `$fact` shorthand: `l`→label, `ton`→tone, `v`→value, `s`→secondaryLine), ERRORS, EXECUTIONS
+(`q`/`ok`/`d`/`r` renames) and SCHEDULERS (also `$fact`, and r·10's by ruling 105 — whichever phase comes first takes
+it, said on its dated line); each read's key is its address. Readers: the system page, the maintenance page's
+schedulers, `features/system/fault.ts` and its test, `lib/engine-drawing.ts`'s `Fact`.
 
 ## The proof first
 
-no new rule; the surfaces' rules, the re-aimed cache readers and `check-mock-seeds.py --arm lossless` (the projection's
-own proof, over the families still projected).
+no new rule; the surfaces' rules, the re-aimed cache readers and `check-mock-seeds.py --arm lossless` over the families
+still projected.
 
 ## Named states and the oracle
 
 The named states that draw each family are re-taken by grep at the phase's opening (`window.__go` ids under
-`harness/states/`), and the `__queries` readers under `harness/` grepped for the family's engine field names.
+`harness/states/`), and the `__queries` readers under `harness/` grepped for the families' engine field names.
 
 ## Method (ruling 105)
 

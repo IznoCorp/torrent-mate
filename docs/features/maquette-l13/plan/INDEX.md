@@ -253,6 +253,7 @@ Measured on `1cb0a2dc1` after b·13 was measured and not opened (ruling 98). Q5 
 | r·8 | [follows and incompletes](phase-r08-follows-and-incompletes.md) — ruling 105 | conversion | FOLLOWS, INCOMPLETE | their projections |
 | r·9 | [suggestions, search, releases](phase-r09-suggestions-search-releases.md) — ruling 105 | conversion | SUGGESTIONS, SEARCH, RELEASES | their projections |
 | r·10 | [library, settings, maintenance, account](phase-r10-library-settings-maintenance-account.md) — ruling 105 | conversion | LIBRARY, CATS, SETTINGS, SECRETS, MAINT_ACTIONS, JOURNAL, ACCOUNT, SCHEDULERS | their projections |
-| r·11 | [the sheet](phase-r11-the-sheet.md) — ruling 105 | conversion | SHEETS_RAW | engine-shape.ts, its test, the lossless arm, the projection families |
-| r·12 | [the file dies](phase-r12-the-file-dies.md) | deletion + full gate | — | legacy.js, seams.ts, engine-data, engine-redraw, engine-drawing, their instruments |
+| r·11 | [the system families](phase-r11-system-families.md) — ruling 106 | conversion | DISKS, INDEX, DEPENDENCIES, ERRORS, EXECUTIONS (SCHEDULERS) | their projections |
+| r·12 | [the sheet](phase-r12-the-sheet.md) — ruling 105 | conversion | SHEETS_RAW | engine-shape.ts, its test, the lossless arm, the projection families |
+| r·13 | [the file dies](phase-r13-the-file-dies.md) | deletion + full gate | — | legacy.js, seams.ts, engine-data, engine-redraw, engine-drawing, their instruments |
 
