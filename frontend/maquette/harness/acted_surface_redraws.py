@@ -645,9 +645,13 @@ async def main():
         # ── THE SEASON, AND ITS COUNT AND ITS MARK ─────────────────────────
         await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
         await page.wait_for_timeout(SETTLED)
-        # The panel is produced for each followed title until one offers a grab.
+        # The panel is produced for each followed title until one offers a grab
+        # — among the follows whose season family the layer counts from holds
+        # a hole, for the reason written above the first walk (RE-AIMED).
         followed = await page.evaluate(
-            """()=>(window.__followActions?.all?.() || []).map((one) => one.t)""")
+            """()=>{const family = window.__mocks?.seasonFamily?.() || {};
+              return (window.__followActions?.all?.() || []).map((one) => one.t)
+                .filter((title) => (family[title] || []).some(([, aired, owned]) => owned < aired));}""")
         holed = ""
         for title in followed:
             await page.evaluate("(t)=>window.__panel.produce('follow', t)", title)
