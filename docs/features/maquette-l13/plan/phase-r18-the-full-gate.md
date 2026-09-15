@@ -12,4 +12,5 @@ Merge `origin/main` in; bump the version above main's (patch); the full harness 
 `scripts/harness-hold-counts.py --compare` (baseline `taken_at_commit` re-pointed to main's sha in a copy, the repo
 file untouched, said), `make lint`; `check-no-french.py --counts`; then the pull request READY titled
 `refactor(maquette-l13r): the engine's residue — legacy.js dies`, a CONVERSION pull request citing no constitution §§
-(order 32) — r·3's and r·4's behaviour half said in the body with its rules. Body per `BRIEF-L13r.md` § Delivery.
+(order 32) — r·3's and r·4's behaviour half said in the body with its rules. Body per
+`docs/features/maquette-l13/BRIEF-L13r.md@08400a22a` § Delivery.

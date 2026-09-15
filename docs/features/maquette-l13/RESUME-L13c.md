@@ -45,5 +45,5 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
 ## LEDGER (append-only)
 
 - 2026-09-15 (steward): branch not yet cut. BRIEF-L13c.md and this file written AHEAD (order 39),
-  on the model of BRIEF-L13r.md / RESUME-L13r.md, before L13r's own pull request opens. c·1 open for
+  on the model of `docs/features/maquette-l13/BRIEF-L13r.md@08400a22a` / `docs/features/maquette-l13/RESUME-L13r.md@08400a22a`, before L13r's own pull request opens. c·1 open for
   `Agent : l13c 1` once the steward spawns it, stacked on L13r's head per measure 9.
