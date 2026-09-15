@@ -31,7 +31,7 @@ is bypassed. Details: `docs/reference/testing.md` §Feature Map.
 ### Product Intent — product constitution (web-UI — BINDING)
 
 - Every web-UI evolution must conform to `docs/reference/product-intent.md` — the application's raison d'être, dictated by the operator; when an implementation conflicts with the constitution, the implementation is wrong.
-- Every web PR cites the §§ it serves, except a CONVERSION PR (nothing observable changes), which cites none (trial, auditor order 32). Story: `CLAUDE.md@6a47304a4` § Product Intent.
+- Every web PR cites the §§ it serves, except a CONVERSION PR (nothing observable changes), which cites none (operator, 2026-09-14). Story: `CLAUDE.md@6a47304a4` § Product Intent.
 
 ### Design Reference — the maquette is authoritative (web-UI — BINDING)
 
