@@ -4,6 +4,8 @@
 
 2026-09-15 (ruling 107): r·10 as ruling 105 cut it measured ≈ 18 and was cut — r·10 settings and secrets, r·11 library, maintenance actions and account, r·12 the system families with JOURNAL and SCHEDULERS (every family whose rows are `Fact`, one decision on `Fact`), r·13 the sheet, r·14 « the file dies ».
 
+2026-09-15 (r·10 done): harness sweep — reads: 35 lines in 7 rules (settings, settings_editing, page_host, producers, secret_acts, seeds_at_rest, redraw_entry); object LITERALS handed to the product with engine keys: `settings.py:478` (`__settingLabels.label({f, c, n})`, missed by the read sweep, caught by the first gate, now `{file, key, name}`) and no other; `settings.py:95` reads a topic's `r.f`, a key neither the engine nor the contract gives a topic, left. Calls with a string or generic family on these keys: none. `Setting.topic` is optional — only a flattened setting carries its rubric.
+
 **Kind**: CONVERSION. **Cost**: Estimate ≈ 10 points (measure 11, ≤ 15).
 
 ## Measured

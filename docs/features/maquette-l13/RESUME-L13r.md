@@ -11,12 +11,12 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
 - Phases (ruling 101): r·1 → r·2 → r·3 (BEHAVIOUR) → r·4 (BEHAVIOUR) → [midpoint full suite] → r·5 the reference
   dies → r·6–r·13 contract names by family group (rulings 105–107) → r·14 the file dies + full gate + PR.
   r·1 `12f3e242b`, r·2 `d997e7c59`, r·3 `4168932d6`, r·4 `688dab291`, R114 repair `3ddcd70d5`, r·5 `412b75075`,
-  r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7`, r·9 `4fb1b2418` (+ `f6393dcf6`) — DONE.
+  r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7`, r·9 `4fb1b2418` (+ `f6393dcf6`), r·10 `e827267b6` — DONE.
 - MIDPOINT's one fall (`poster.py`, R114) REPAIRED (ledger): the rule held by accident until r·2.
-- NEXT: r·10 settings + secrets (`plan/phase-r10-…`), then r·11 (library, maintenance actions, account), r·12 (system
+- NEXT: r·11 library + maintenance actions + account (`plan/phase-r11-…`), then r·12 (system
   families + JOURNAL + SCHEDULERS, `Fact`'s keys), r·13 (the sheet), each file's « Method » (ruling 105)
-  PLUS the multi-line harness sweep on the phase's dated line (r·6's amendment). Frame-domain after r·9: lib/ 28, app/ 121. Before each gate: the harness JS sweep AND the list of
-  `toEngineShape` calls with a string/generic family and the keys they write (steward's method lines, ruling 105).
+  PLUS the multi-line harness sweep on the phase's dated line (r·6's amendment). Frame-domain after r·10: lib/ 28, app/ 121. Before each gate: the harness JS sweep (reads AND object literals handed
+  to the product) AND the `toEngineShape` calls with a string/generic family and their keys (steward's method lines).
   Steward: `Orch : TM frontend [ba1693]` since the succession during r·6.
 - legacy.js non-blank: 1 600 at the cut, 1 274 r·1, 888 r·2, 663 r·3, 534 r·4, 493 r·5. `scripts/frontend_size_ledger.py`
   re-recorded DOWNWARD in every phase's commit.
@@ -155,3 +155,12 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
 - 2026-09-15 ruling 107: r·10 measured ≈ 18 and cut — r·10 settings + secrets, r·11 library + maintenance actions +
   account, r·12 every `Fact` family (system, JOURNAL, SCHEDULERS) with `Fact`'s keys in full words, r·13 the sheet, r·14
   the file dies (files moved, INDEX, BRIEF, state block re-pointed; dated and ledger lines keep their numbers).
+- 2026-09-15 r·10 (ruling 107): SETTINGS and SECRETS left the projection; `SettingsTopic`/`Setting`/`Secret` are the
+  contract's schemas (`Setting.topic` optional, flattened only); 50 typed sites at line:column; 35 harness lines in 7
+  rules re-aimed. First gate `r10-gate.log` FELL on settings.py alone (a crash): the rule hands the product a literal
+  `{f, c, n}` (line 478) that the read sweep could not see (`r10-settings-alone.log`); fixed, amended. Gate
+  `r10-gate-2.log` on `e827267b6`: 23 rules (7 named), 26 guards, oracle no divergence; `r10-hold-counts.json`: the
+  seven at baseline. Grouped mutation `r10-mutation-settings.log` (both reads back to the engine's keys): settings,
+  settings_editing, page_host, redraw_entry FAIL by name; producers, secret_acts and seeds_at_rest crashed (the
+  mutation empties the settings page the product draws from contract names; seeds_at_rest's crash is ON its re-aimed
+  read `topic.settings`) — no verdict, ruling 77.
