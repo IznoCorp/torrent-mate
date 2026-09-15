@@ -102,13 +102,13 @@ export function FollowsTab(): ReactElement {
           : null;
 
   const descriptorOf = (follow: Follow, showStatus: boolean) => ({
-    t: follow.t,
+    title: follow.t,
     ids: follow.ids,
     // The row draws the poster the follow carries; without it the card falls
     // back to the initials, in a box of the poster's size (R177).
     poster: follow.poster,
     k: follow.k,
-    s: [
+    secondaryLine: [
       String(follow.y),
       follow.k === "movie"
         ? t("screens.acquisition.movie")
@@ -117,7 +117,7 @@ export function FollowsTab(): ReactElement {
     ]
       .filter(Boolean)
       .join(" · "),
-    r:
+    reason:
       follow.st === "pending"
         ? [
             t("screens.acquisition.noConformRelease"),
@@ -128,7 +128,7 @@ export function FollowsTab(): ReactElement {
         : undefined,
     f: followFraction(follow) ?? undefined,
     chip: showStatus
-      ? ([STATUS_TONE[follow.st], followStatusLabel(follow)] as [string, string])
+      ? { tone: STATUS_TONE[follow.st], text: followStatusLabel(follow) }
       : undefined,
     caption:
       [

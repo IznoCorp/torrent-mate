@@ -239,7 +239,7 @@ export function ArrivalsPage(): ReactElement | null {
         </div>
         {note ? <div className="note" data-part="note">{note}</div> : null}
         {cards.map((card, index) => (
-          <ArrivalCard key={`${index}:${String(card.t)}`} card={card} foot={foot} />
+          <ArrivalCard key={`${index}:${card.title}`} card={card} foot={foot} />
         ))}
       </section>
     );

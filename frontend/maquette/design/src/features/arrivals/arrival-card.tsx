@@ -37,19 +37,6 @@ import { PosterArtwork } from "../../ui/poster";
 import { actionButton, posterFallback, type ChipTone } from "../../ui/variants";
 
 /** A staging card in the engine's names, narrowed to what this card reads. */
-type StagingCard = {
-  t: string;
-  k?: string;
-  s?: string;
-  r?: string;
-  chip?: [string, string] | null;
-  strip?: (number | string)[];
-  noposter?: boolean;
-  poster?: string | null;
-  /** The provider identifiers — null for a title no sheet stands behind. */
-  ids?: Record<string, number | string> | null;
-};
-
 /**
  * Where the journey stands at one stage, from the value the strip carries.
  *
@@ -78,8 +65,8 @@ export function ArrivalCard({
 }): ReactElement {
   const reference = useEngineDrawing();
   const { t } = useTranslation();
-  const card = queued as StagingCard;
-  const title = card.t;
+  const card = queued;
+  const title = card.title;
   // A sheet stands behind a card exactly when the card carries provider ids.
   const hasSheet = card.ids != null;
   // french-ok: a panel ADDRESS and the non-medium marker, contract values the delegation and R46 read
@@ -94,12 +81,12 @@ export function ArrivalCard({
           aria-label={t("surfaces.card.sheetOf", { title })}
           data-mediasheet={title}
         >
-          {card.noposter ? (
+          {card.withoutPoster ? (
             <span className={posterFallback()} data-part="card/poster-fallback">
               <b>{initials(title)}</b>
             </span>
           ) : (
-            <PosterArtwork artwork={posterArtwork(reference.icons, card.poster, title, card.k)} />
+            <PosterArtwork artwork={posterArtwork(reference.icons, card.poster, title)} />
           )}
         </CardPoster>
       ) : (
@@ -114,11 +101,11 @@ export function ArrivalCard({
         <CardTop>
           <CardBody data-panel={hasSheet ? `media:${title}` : folderAddress}>
             <CardTitle title={title}>{title}</CardTitle>
-            {card.s ? <CardSubtitle>{card.s}</CardSubtitle> : null}
-            {card.r ? <CardReason>{card.r}</CardReason> : null}
+            {card.secondaryLine ? <CardSubtitle>{card.secondaryLine}</CardSubtitle> : null}
+            {card.reason ? <CardReason>{card.reason}</CardReason> : null}
             {card.chip ? (
               <CardMeta>
-                <Chip tone={card.chip[0] as ChipTone} label={card.chip[1]} />
+                <Chip tone={card.chip.tone as ChipTone} label={card.chip.text} />
               </CardMeta>
             ) : null}
           </CardBody>

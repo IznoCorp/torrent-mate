@@ -65,15 +65,15 @@ export function useStaging(scenario: string) {
     queryKey: ["/api/staging/media", scenario],
     queryFn: async () => {
       const query = new URLSearchParams(scenario ? { scenario } : {});
-      const answer = await read<Record<string, unknown[]>>("/api/staging/media", query);
+      const answer = await read<Record<string, QueueCard[]>>("/api/staging/media", query);
       // EACH LIST CONVERTS UNDER ITS OWN FAMILY, because that is what the
       // declaration says: the three share the `$card` shorthand, and naming
       // them separately is what keeps the day one of them stops sharing it from
       // being silent.
       return {
-        stuck: toEngineShape<QueueCard[]>("STUCK_REAL", answer.stuck),
-        moving: toEngineShape<QueueCard[]>("MOVING", answer.moving),
-        settled: toEngineShape<QueueCard[]>("SETTLED_REAL", answer.settled),
+        stuck: answer.stuck,
+        moving: answer.moving,
+        settled: answer.settled,
       } satisfies Staging;
     },
   });

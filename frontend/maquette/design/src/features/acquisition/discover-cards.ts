@@ -60,11 +60,11 @@ export function suggestionRow(suggestion: Suggestion, position: number): string 
         <span>${dismiss}${svgIcon(icons.x)}</span>
       </div>
       ${mediumCardMarkup({
-        t: suggestion.t,
+        title: suggestion.t,
         k: suggestion.k === "Film" ? "movie" : "show",
-        s: `${suggestion.y} · ${suggestion.k}`,
+        secondaryLine: `${suggestion.y} · ${suggestion.k}`,
         note: suggestion.note,
-        r: suggestion.why,
+        reason: suggestion.why,
         panel: `sug:${position}`,
         poster: suggestion.poster,
         ids: suggestion.ids,

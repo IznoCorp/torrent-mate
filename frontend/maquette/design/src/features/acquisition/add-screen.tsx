@@ -59,7 +59,7 @@ import {
 import { Markup } from "../../ui/markup";
 import { bridge, redraw } from "../../lib/shell-doors";
 import { baseTitle } from "../../lib/titles";
-import { mediumCardMarkup, type MediumCard } from "./card-markup";
+import { mediumCardMarkup } from "./card-markup";
 import { addVerb } from "./add-label";
 
 type Mode = "follow" | "identify";
@@ -161,22 +161,22 @@ export function AddScreen() {
     .map(({ r, i }) => {
       const done = added.has(i);
       return mediumCardMarkup({
-        t: r.t,
+        title: r.t,
         k: r.k === "Film" ? "movie" : "show",
-        s: `${r.y} · ${r.k === "Film" ? t("common.film") : t("common.series")} · TMDB`,
+        secondaryLine: `${r.y} · ${r.k === "Film" ? t("common.film") : t("common.series")} · TMDB`,
         overview: r.ov,
         chip: done
-          ? ["success", addVerb(r, i)]
+          ? { tone: "success", text: addVerb(r, i) }
           : r.owned
-            ? [
-                identify ? "success" : "warning",
-                t("screens.add.alreadyInLibrary"),
-              ]
+            ? {
+                tone: identify ? "success" : "warning",
+                text: t("screens.add.alreadyInLibrary"),
+              }
             : null,
         panel: `add:${i}`,
         poster: r.poster,
         ids: r.ids,
-      } as MediumCard);
+      });
     })
     .join("");
 

@@ -103,10 +103,10 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   const isFollowed = followed.some((one) => one.t === title);
   const inLibrary = incomplete || membership.inLibrary;
   const queue = queueNow();
-  const toTake = queue.takeable.some((one) => one.t === title);
+  const toTake = queue.takeable.some((one) => one.title === title);
   const toResolve = queue.blocked
     .concat(queue.stuck ?? [])
-    .some((one) => one.t === title);
+    .some((one) => one.title === title);
   const held = seasons.reduce((total, season) => total + season[2], 0);
   const aired = seasons.reduce((total, season) => total + (season[1] ?? 0), 0);
   return {

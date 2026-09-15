@@ -33,6 +33,10 @@ AND IT READS BOTH ENDS. The LAYER's answer says the seed holds the subject; the
 SCREEN says a finger could find it. Either alone is half the question: a seed
 nothing draws is unreachable, and a card drawn from a state nobody seeded is not
 at rest.
+
+RE-AIMED when the queue's cards took the contract's names: a card's title is
+read as `title` (it was the engine's `t`). The holds and what they compare are
+unchanged.
 """
 import asyncio
 import pathlib
@@ -52,7 +56,7 @@ FOLLOWS = """()=>(window.__followActions?.all() || []).map(
 # surfaces are drawn from, so this is the same answer the screen was built from
 # rather than a second opinion about it.
 QUEUE = """()=>{const now = window.__queue?.() || {};
-  const titles = (list) => (now[list] || []).map((one) => one && one.t).filter(Boolean);
+  const titles = (list) => (now[list] || []).map((one) => one && one.title).filter(Boolean);
   return {takeable: titles("takeable"), blocked: titles("blocked"),
           inFlight: titles("inFlight")};}"""
 

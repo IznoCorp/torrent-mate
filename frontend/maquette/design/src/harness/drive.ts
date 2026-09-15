@@ -212,7 +212,7 @@ export function installDriver(states: NamedState[]): void {
   /* The media the pipeline is currently refusing. The rule that keeps them OFF
      the machine's page has to know their names, and a rule that cannot reach
      them compares against an empty list and passes whatever it is shown. */
-  window.__blocked = () => (window.__queue?.() ?? { stuck: [] }).stuck.map((card) => card.t);
+  window.__blocked = () => (window.__queue?.() ?? { stuck: [] }).stuck.map((card) => card.title);
   /* Clears ALL harness chrome before a capture or a measurement: the harness
      buttons float above the shell, which is a measured region and must carry
      nothing that does not exist in the app. */

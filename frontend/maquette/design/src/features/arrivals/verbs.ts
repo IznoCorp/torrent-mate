@@ -42,7 +42,7 @@ import { baseTitle } from "../../lib/titles";
  * which is B-249's shape, and R123 reads the queue at 120 ms to say it is gone.
  */
 registerVerb("take", (value) => {
-  if (!queueNow().takeable.some((one) => one.t === value)) return;
+  if (!queueNow().takeable.some((one) => one.title === value)) return;
   panel.close();
   queueActions?.take(value);
   redraw();
@@ -90,7 +90,7 @@ registerVerb("next", (current) => {
   const decisions = pendingDecisions?.() ?? [];
   const following = lists.blocked
     .concat(lists.stuck)
-    .map((card) => decisions.find((decision) => decision.d === card.t) ?? null)
+    .map((card) => decisions.find((decision) => decision.d === card.title) ?? null)
     .find((decision) => decision !== null && decision.d !== current);
   if (following) screens.resolution(following.d, true);
 });

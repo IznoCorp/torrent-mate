@@ -28,7 +28,6 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { createHeldActions } from "./held-actions";
 import { HELD, read, send } from "./query-client";
-import { toEngineShape } from "../engine/engine-shape";
 import type { QueueCard } from "./engine-queue";
 import { store } from "./store-access";
 
@@ -68,7 +67,7 @@ export function firstStuckFolder(): string | null {
   const scenario =
     String(store?.read().state.scen ?? "") === "loaded" ? "loaded" : "";
   const staging = heldClient?.getQueryData<Staging>(stagingKey(scenario));
-  const first = staging?.stuck[0]?.t;
+  const first = staging?.stuck[0]?.title;
   return typeof first === "string" ? first : null;
 }
 
@@ -117,12 +116,12 @@ export function useStaging(scenario: string) {
     queryKey: stagingKey(scenario),
     queryFn: async () => {
       const parameters = new URLSearchParams(scenario ? { scenario } : {});
-      const answer = await read<Record<string, unknown[]>>(
+      const answer = await read<Record<string, QueueCard[]>>(
         "/api/staging/media", parameters);
       return {
-        stuck: toEngineShape<QueueCard[]>("STUCK_REAL", answer.stuck),
-        moving: toEngineShape<QueueCard[]>("MOVING", answer.moving),
-        settled: toEngineShape<QueueCard[]>("SETTLED_REAL", answer.settled),
+        stuck: answer.stuck,
+        moving: answer.moving,
+        settled: answer.settled,
       } satisfies Staging;
     },
   });
@@ -139,14 +138,14 @@ export function useAcquisitionQueue(scenario: string) {
     queryKey: queueKey(scenario),
     queryFn: async () => {
       const parameters = new URLSearchParams(scenario ? { scenario } : {});
-      const answer = await read<Record<string, unknown[]>>(
+      const answer = await read<Record<string, QueueCard[]>>(
         "/api/acquisition/to-handle", parameters);
       return {
-        takeable: toEngineShape<QueueCard[]>("TAKEABLE", answer.takeable),
-        blocked: toEngineShape<QueueCard[]>("BLOCKED", answer.blocked),
-        inFlight: toEngineShape<QueueCard[]>("INFLIGHT", answer.inFlight),
-        notFound: toEngineShape<QueueCard[]>("NOTFOUND_REAL", answer.notFound),
-        doneToday: toEngineShape<QueueCard[]>("DONE_TODAY", answer.doneToday),
+        takeable: answer.takeable,
+        blocked: answer.blocked,
+        inFlight: answer.inFlight,
+        notFound: answer.notFound,
+        doneToday: answer.doneToday,
       } satisfies AcquisitionQueue;
     },
   });
@@ -172,7 +171,7 @@ function takeOutOfQueue(
 ): { staging?: Staging; queue?: AcquisitionQueue } {
   const staging = queryClient.getQueryData<Staging>(stagingKey(scenario));
   const queue = queryClient.getQueryData<AcquisitionQueue>(queueKey(scenario));
-  const without = (cards: QueueCard[]) => cards.filter((card) => card.t !== title);
+  const without = (cards: QueueCard[]) => cards.filter((card) => card.title !== title);
   if (staging) {
     queryClient.setQueryData<Staging>(stagingKey(scenario), {
       ...staging, stuck: without(staging.stuck),
@@ -221,9 +220,9 @@ function putOneBack(
   title: string,
 ): void {
   const restored = (now: QueueCard[], before: QueueCard[] | undefined) => {
-    const index = before?.findIndex((card) => card.t === title) ?? -1;
+    const index = before?.findIndex((card) => card.title === title) ?? -1;
     const card = before?.[index];
-    if (card === undefined || now.some((one) => one.t === title)) return now;
+    if (card === undefined || now.some((one) => one.title === title)) return now;
     return [...now.slice(0, index), card, ...now.slice(index)];
   };
   const staging = queryClient.getQueryData<Staging>(stagingKey(scenario));
@@ -364,7 +363,7 @@ export function installQueueActions(queryClient: QueryClient): void {
       const queued = [
         ...(staging?.stuck ?? []),
         ...(queue?.blocked ?? []),
-      ].some((card) => card.t === title);
+      ].some((card) => card.title === title);
       if (!queued) return false;
       void settle(title, "left");
       return true;
@@ -402,7 +401,7 @@ export function installQueueActions(queryClient: QueryClient): void {
 declare global {
   interface Window {
     /** The queue's lists, read synchronously by the dying engine. */
-    __queue?: () => Record<string, { t?: unknown }[]>;
+    __queue?: () => Record<string, QueueCard[]>;
     /** The queue's four verbs, called by the dying engine's delegation. */
     __queueActions?: {
       resolve: (title: string, choice?: string) => void;

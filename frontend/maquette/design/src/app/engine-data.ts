@@ -73,9 +73,9 @@ export function installEngineData(queryClient: QueryClient): void {
         const answer = await read<Record<string, unknown[]>>(
           "/api/staging/media", parameters);
         return {
-          stuck: toEngineShape("STUCK_REAL", answer.stuck),
-          moving: toEngineShape("MOVING", answer.moving),
-          settled: toEngineShape("SETTLED_REAL", answer.settled),
+          stuck: answer.stuck,
+          moving: answer.moving,
+          settled: answer.settled,
         };
       },
     });
@@ -85,11 +85,11 @@ export function installEngineData(queryClient: QueryClient): void {
         const answer = await read<Record<string, unknown[]>>(
           "/api/acquisition/to-handle", parameters);
         return {
-          takeable: toEngineShape("TAKEABLE", answer.takeable),
-          blocked: toEngineShape("BLOCKED", answer.blocked),
-          inFlight: toEngineShape("INFLIGHT", answer.inFlight),
-          notFound: toEngineShape("NOTFOUND_REAL", answer.notFound),
-          doneToday: toEngineShape("DONE_TODAY", answer.doneToday),
+          takeable: answer.takeable,
+          blocked: answer.blocked,
+          inFlight: answer.inFlight,
+          notFound: answer.notFound,
+          doneToday: answer.doneToday,
         };
       },
     });

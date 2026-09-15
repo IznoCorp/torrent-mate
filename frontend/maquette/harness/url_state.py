@@ -122,6 +122,10 @@ the first command the served catalogue answers (`readMaintenanceActions`), asked
 the address the page reads, and the hold count is unchanged. The setting it reopens
 is the first the served catalogue answers, for the same reason: the engine's
 settings table is gone.
+
+RE-AIMED when the queue's cards took the contract's names: a card's title is
+read as `title` (it was the engine's `t`). The holds and what they compare are
+unchanged.
 """
 import asyncio
 import json
@@ -183,7 +187,7 @@ PANEL_SUBJECTS = {
     # removes. So the in-flight list is asked first and a followed medium
     # answers when it is empty; both are subjects a cold load can resolve.
     "journey": ("()=>{const flying=(window.__queue?.().inFlight||[])[0];"
-                " if (flying && flying.t) return flying.t;"
+                " if (flying && flying.title) return flying.title;"
                 " return ((window.__followActions?.all()||[])[0]||{}).t||'';}"),
     "setting": ("async()=>{const topics=await (await fetch('/api/config/schema')).json();"
                 " const s=((topics[0]||{}).settings||[])[0]; return s?s.file+':'+s.key:'';}"),

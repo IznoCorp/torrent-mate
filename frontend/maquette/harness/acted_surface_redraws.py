@@ -35,6 +35,10 @@ their tone taken as a VALUE.
 AND THE THIRD HOLD IS THE DOUBLE PRESS. Two presses with no settle between them
 sent two identical requests and produced one message: the interface asked twice
 and said so once. It is held on what the LAYER answered, never on the screen.
+
+RE-AIMED when the queue's cards took the contract's names: a card's title is
+read as `title` (it was the engine's `t`). The holds and what they compare are
+unchanged.
 """
 import asyncio
 import json
@@ -80,7 +84,7 @@ ON_SCREEN = """()=>{
 # a title written into a rule goes stale the day the fixture moves.
 QUEUE_SUBJECTS = """()=>{const now = window.__queue?.() || {};
   return [...(now.inFlight || []), ...(now.blocked || []), ...(now.takeable || [])]
-    .map((one) => one.t);}"""
+    .map((one) => one.title);}"""
 
 # THE STAGES THE LAYER HOLDS for one journey, as the cache has them.
 STAGES_HELD = """(title)=>{

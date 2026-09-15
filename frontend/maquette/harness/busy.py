@@ -36,6 +36,10 @@ DOIT-4's other half. **It does not exist** — measured, `grep "En file"` finds 
 nowhere in `i18n/fr.json` and nowhere in the tree outside the pipeline pass's own
 sentence — and drawing it is a behaviour change, which a conversion lot does not
 carry. The clause map names its owner, rather than this rule pretending to cover it.
+
+RE-AIMED when the queue's cards took the contract's names: a card's title is
+read as `title` (it was the engine's `t`). The holds and what they compare are
+unchanged.
 """
 import asyncio
 import pathlib
@@ -65,8 +69,8 @@ FOLLOWS_STATE = "acq-follows-list"
 REFUSALS = ("occupé", "occupee", "occupée", "déjà en cours", "réessayez plus tard")
 
 QUEUE = """()=>({
-  takeable: (window.__queue?.().takeable || []).map((one) => one.t),
-  inFlight: (window.__queue?.().inFlight || []).map((one) => one.t),
+  takeable: (window.__queue?.().takeable || []).map((one) => one.title),
+  inFlight: (window.__queue?.().inFlight || []).map((one) => one.title),
   follows: (window.__followActions?.all() || []).map((one) => one.t)})"""
 
 # THE THREE OPERATIONS THIS WAVE ADDED, by the operationId the contract names.

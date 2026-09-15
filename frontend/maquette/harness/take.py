@@ -30,6 +30,10 @@ WHAT IT READS, and each fails differently:
   3. THE RELEASE SCREEN'S OWN TAKE STILL WORKS. The two branches share an
      attribute, so a repair that fixed one by breaking the other would leave
      this rule green if it read only the panel's side.
+
+RE-AIMED when the queue's cards took the contract's names: a card's title is
+read as `title` (it was the engine's `t`). The holds and what they compare are
+unchanged.
 """
 import asyncio
 import pathlib
@@ -41,8 +45,8 @@ from common import ACTED, Journal, PANEL_IN, PANEL_OUT, SETTLED, open_page
 from playwright.async_api import async_playwright
 
 QUEUE = """()=>({
-  takeable: (window.__queue?.().takeable || []).map((one) => one.t),
-  inFlight: (window.__queue?.().inFlight || []).map((one) => one.t)})"""
+  takeable: (window.__queue?.().takeable || []).map((one) => one.title),
+  inFlight: (window.__queue?.().inFlight || []).map((one) => one.title)})"""
 
 
 async def main():

@@ -1,8 +1,8 @@
-// the engine's derived read model over the staging queue
+// the staging queue's card, as the contract answers it
 //
-// A queue card exactly as `BLOCKED` / `STUCK` / `STUCK_REAL` shape one — the
-// source carries more fields (`s`, `chip`, `strip`, `noposter`…) than any one
-// reader needs, so this stays the same loose index shape as `MediaSheet`
-// rather than a speculative closed type: a caller narrows the fields it
-// actually reads, starting with `t` to match against a decision's `d`.
-export type QueueCard = Record<string, unknown>;
+// One card of every list the queue reads — stuck, moving, settled, takeable,
+// blocked, in flight, not found, done today — in the contract's own names
+// (`title`, `secondaryLine`, `reason`, `chip`, `withoutPoster`).
+import type { components } from "../contract/types";
+
+export type QueueCard = components["schemas"]["QueueCard"];

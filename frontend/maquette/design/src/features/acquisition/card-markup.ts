@@ -22,17 +22,17 @@ import { richTextMarkup } from "./rich-text";
 
 /** A medium as an acquisition list holds one, in the engine's field names. */
 export type MediumCard = {
-  t: string;
+  title: string;
   k?: string;
-  s?: string;
-  r?: unknown;
+  secondaryLine?: string;
+  reason?: unknown;
   f?: string;
-  chip?: [string, string] | null;
+  chip?: { tone: string; text: string } | null;
   note?: number | string;
   caption?: string;
   fresh?: boolean;
   strip?: (number | string)[];
-  noposter?: boolean;
+  withoutPoster?: boolean;
   overview?: string;
   panel?: string;
   poster?: string | null;
@@ -59,7 +59,7 @@ function stageState(value: number | string): StripState {
 /**
  * One medium's card.
  *
- * TWO DIFFERENT ABSENCES, never merged: `noposter` says there is no artwork, a
+ * TWO DIFFERENT ABSENCES, never merged: `withoutPoster` says there is no artwork, a
  * missing identity says there is no medium — a list item carries provider ids
  * exactly when a sheet stands behind its title. A card with no artwork still has a
  * sheet, and still leads to it.
@@ -69,11 +69,11 @@ function stageState(value: number | string): StripState {
  * @returns The card's markup.
  */
 export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot): string {
-  const title = medium.t;
+  const title = medium.title;
   const hasSheet = medium.ids != null;
   // french-ok: a panel ADDRESS and the non-medium marker, contract values the delegation and R46 read
   const folderAddress = `dossier:${title}`;
-  const artworkMarkup = medium.noposter
+  const artworkMarkup = medium.withoutPoster
     ? `<span class="${posterFallback()}" data-part="card/poster-fallback"><b>${escapeMarkup(initials(title))}</b></span>`
     : posterArtworkMarkup(posterArtwork(icons, medium.poster, title, medium.k));
   const stages = i18next.t("surfaces.card.stages", { returnObjects: true }) as string[];
@@ -95,11 +95,11 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot): str
           },
         },
     body: { "data-panel": medium.panel || (hasSheet ? `media:${title}` : folderAddress) },
-    subtitle: medium.s,
-    reason: medium.r ? richTextMarkup(medium.r) : undefined,
+    subtitle: medium.secondaryLine,
+    reason: medium.reason ? richTextMarkup(medium.reason) : undefined,
     overview: medium.overview,
     fraction: medium.f,
-    chip: medium.chip ? { tone: medium.chip[0], label: medium.chip[1] } : null,
+    chip: medium.chip ? { tone: medium.chip.tone, label: medium.chip.text } : null,
     rating: medium.note != null ? String(medium.note) : undefined,
     caption: medium.caption,
     fresh: medium.fresh ? i18next.t("surfaces.card.freshTag") : undefined,

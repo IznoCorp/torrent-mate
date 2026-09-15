@@ -98,9 +98,9 @@ export function ResolutionScreen() {
   // counted only one of them would be wrong on the other.
   const pending = (queue?.blocked ?? [])
     .concat(staging?.stuck ?? [])
-    .filter((card: QueueCard) => decisionPending(card.t as string) != null);
+    .filter((card: QueueCard) => decisionPending(card.title) != null);
   const rank = decision
-    ? pending.findIndex((card: QueueCard) => card.t === decision.d) + 1
+    ? pending.findIndex((card: QueueCard) => card.title === decision.d) + 1
     : 0;
   // The legacy screen picked its own subject between `decision.d` and
   // `state.resolveTarget`; here the ROUTE PARAM is the identity, and
