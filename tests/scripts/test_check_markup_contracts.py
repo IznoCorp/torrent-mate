@@ -1168,23 +1168,21 @@ class TestPanelVerbs:
     a regular expression and is answered by its own component.
     """
 
-    def _tree(self, tmp_path, panel: str, engine: str = "") -> None:
-        """Writes a source tree the two corpora can be pointed at."""
+    def _tree(self, tmp_path, panel: str, reader: str = "") -> None:
+        """Writes a source tree the two corpora can be pointed at: a panel, and a reader beside it."""
         (tmp_path / "features").mkdir(parents=True, exist_ok=True)
         (tmp_path / "features" / "panel.ts").write_text(panel, encoding="utf-8")
-        (tmp_path / "engine").mkdir(parents=True, exist_ok=True)
-        (tmp_path / "engine" / "legacy.js").write_text(engine, encoding="utf-8")
+        (tmp_path / "features" / "reader.ts").write_text(reader, encoding="utf-8")
 
-    def _read(self, tmp_path, monkeypatch, panel: str, engine: str = "") -> int:
+    def _read(self, tmp_path, monkeypatch, panel: str, reader: str = "") -> int:
         """Runs the arm over a tree of exactly what a case is about.
 
         The floor is lowered to zero here and held by its own case below: every
         other case reads one or two actions, and a floor meant to catch an
         extractor that stopped working would refuse all of them.
         """
-        self._tree(tmp_path, panel, engine)
+        self._tree(tmp_path, panel, reader)
         monkeypatch.setattr(verbs, "SOURCES", tmp_path)
-        monkeypatch.setattr(verbs, "ENGINE", tmp_path / "engine" / "legacy.js")
         monkeypatch.setattr(verbs, "VERB_FLOOR", 0)
         return verbs.check_panel_verbs()
 
@@ -1209,28 +1207,11 @@ class TestPanelVerbs:
             == 0
         )
 
-    def test_the_dying_engine_answers_too(self, tmp_path, monkeypatch) -> None:
-        """A verb the engine still reads is answered until its branch goes.
-
-        The engine dies by SUBTRACTION (D5), so this arm falls the day a branch
-        is deleted before its verb reaches the registry — which is the arm doing
-        its work, not the arm getting in the way.
-        """
-        assert (
-            self._read(
-                tmp_path,
-                monkeypatch,
-                'const a = { text: "x", target: { mediasheet: t } };',
-                "if (closest.dataset.mediasheet) openSheet(closest.dataset.mediasheet);",
-            )
-            == 0
-        )
-
-    def test_the_engine_spellings_are_the_same_name(self, tmp_path, monkeypatch) -> None:
+    def test_the_two_spellings_are_the_same_name(self, tmp_path, monkeypatch) -> None:
         """`dataset.journeyRequeue` answers `data-journey-requeue`.
 
         The two spellings are one name. Comparing them as written would refuse a
-        verb the engine reads every time it is tapped.
+        verb its reader reads every time it is tapped.
         """
         assert (
             self._read(
@@ -1349,7 +1330,6 @@ class TestPanelVerbs:
         """
         self._tree(tmp_path, "export const nothing = 1;")
         monkeypatch.setattr(verbs, "SOURCES", tmp_path)
-        monkeypatch.setattr(verbs, "ENGINE", tmp_path / "engine" / "legacy.js")
 
         assert verbs.check_panel_verbs() == 1
         assert "under the floor" in capsys.readouterr().err

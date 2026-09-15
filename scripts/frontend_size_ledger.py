@@ -91,9 +91,8 @@ GENERATED = {
 # exactly the work the label exists to demand. What must not be silent is the
 # STALENESS: a record that no longer describes the file is a record nobody
 # compared, so it is printed on every run rather than discovered at an audit.
-GRANDFATHERED = {
-    "engine/legacy.js": ("L13 — the engine dies by subtraction, surface by surface", 460),
-}
+# EMPTY SINCE THE ENGINE WAS DELETED (L13r): `engine/legacy.js` was its one entry.
+GRANDFATHERED: dict[str, tuple[str, int]] = {}
 
 
 # WHAT REFUSES A RECORD THAT IS RAISED, and it is a different question from the

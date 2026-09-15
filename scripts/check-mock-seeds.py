@@ -11,13 +11,6 @@ WHAT EACH ARM DOES NOT READ, asked before the arms were written and answered
 here rather than left for a reader to reconstruct. A guard is green for two
 reasons and only one of them is good.
 
-  classification  Reads the engine's declared fixtures against the register,
-                  both ways. It does NOT read what the seeds contain. It holds a
-                  NAMED INVENTORY and never a count: a floor placed at today's
-                  number is satisfied by construction on the day it is written
-                  and can only ever catch a later decrease — the shape B-075
-                  found five times over.
-
   correspondence  Re-derives every seed from `legacy.js` and compares it, byte
                   for byte, with the committed one. It does NOT read the
                   handlers, so a handler ignoring its seed passes here. It is
@@ -162,68 +155,6 @@ def strictly(schema: object) -> object:
     if isinstance(schema, list):
         return [strictly(item) for item in schema]
     return schema
-
-
-def arm_classification(module) -> int:
-    """Refuse a fixture family the register does not name, and the reverse.
-
-    Returns:
-        The number of names out of step.
-    """
-    declared = set(register())
-    found = set(module.fixtures())
-    unclassified = sorted(found - declared)
-    # A FAMILY THE REGISTER DECLARES `converted` IS EXPECTED TO BE ABSENT. L09
-    # wires a surface and deletes the fixture it read (D5), so « the engine no
-    # longer declares it » stops being a defect for that family and becomes the
-    # record of a decision. It is NOT a way to silence the check: the entry
-    # names the wave and the surface, and the count is printed either way, so a
-    # family that vanished without anybody declaring it still fails.
-    converted = {name for name, entry in register().items() if entry.get("converted")}
-    vanished = sorted(declared - found - converted)
-    unrecorded = sorted(converted & found)
-    # THE CLASS IS HELD, and only the NAMES were. The counts live in the
-    # register beside the classification, so a family moved from `served` to
-    # `interface` has to be moved in two places by a hand that meant it —
-    # visible in a diff instead of silent.
-    counts: dict[str, int] = {}
-    for entry in register().values():
-        counts[entry["class"]] = counts.get(entry["class"], 0) + 1
-    counts["total"] = len(declared)
-    document = json.loads(REGISTER.read_text(encoding="utf-8"))
-    recorded = document["$counts"]
-    miscounted = recorded != counts
-    # The literals inside ANONYMOUS functions are excluded from the inventory on
-    # purpose, and the exclusion is a figure somebody compares rather than one
-    # somebody printed: it could go from one to nine with every guard green.
-    anonymous = int(module.subprocess.run(
-        ["node", str(module.EXTRACTOR), "--anonymous"],
-        capture_output=True, text=True, cwd=ROOT, check=True).stdout.strip())
-    held = document.get("$anonymous", {}).get("count")
-    if held != anonymous:
-        miscounted = True
-        print(f"    the register holds {held} anonymous literal(s) and the engine declares "
-              f"{anonymous} — a family excluded from the inventory has appeared or gone",
-              file=sys.stderr)
-    print(f"  classification: {len(found)} fixture(s) in the engine, "
-          f"{len(declared)} in the register, {len(converted)} converted, "
-          f"{len(unclassified) + len(vanished) + len(unrecorded) + int(miscounted)} "
-          f"out of step")
-    for name in unrecorded:
-        print(f"    {name}: the register calls it converted and the engine still "
-              f"declares it — a fixture that outlived its own removal",
-              file=sys.stderr)
-    if miscounted:
-        print(f"    the register's $counts says {recorded} and its families are {counts} — "
-              f"a class was changed and the tally beside it was not",
-              file=sys.stderr)
-    for name in unclassified:
-        print(f"    {name}: the engine declares it and the register does not "
-              f"classify it", file=sys.stderr)
-    for name in vanished:
-        print(f"    {name}: the register classifies it and the engine no longer "
-              f"declares it", file=sys.stderr)
-    return len(unclassified) + len(vanished) + len(unrecorded) + int(miscounted)
 
 
 def arm_correspondence(module) -> int:
@@ -584,7 +515,6 @@ def arm_generated(module) -> int:
 
 
 ARMS = {
-    "classification": arm_classification,
     "generated": arm_generated,
     "handlers": arm_handlers,
     "correspondence": arm_correspondence,
@@ -595,15 +525,14 @@ ARMS = {
 
 # The order the arms run in when all of them do. Cheapest and most fundamental
 # first, so a failure names the smallest thing that is wrong.
-ARM_ORDER = ("classification", "correspondence", "schema", "provenance", "generated",
-             "handlers")
+ARM_ORDER = ("correspondence", "schema", "provenance", "generated", "handlers")
 
 
 EXTRACTOR = ROOT / "scripts" / "extract-maquette-fixtures.mjs"
 
 # THE ARMS THAT READ THE ENGINE THROUGH THE TypeScript PARSER, and only those.
-# `classification` runs the extractor directly; `correspondence` reaches it
-# through the builder. The other four read JSON and text — the
+# `correspondence` reaches it through the builder; the arm that ran the
+# extractor directly, `classification`, left with the engine it read. The other four read JSON and text — the
 # contract, the seeds, the generated types, the handler modules — and need
 # neither node nor an install.
 #
@@ -614,7 +543,7 @@ EXTRACTOR = ROOT / "scripts" / "extract-maquette-fixtures.mjs"
 # vocabulary arm's and the boundary guard's, both for `contract/types.d.ts` —
 # rest on `generated` running wherever the guards do, and skipping it would
 # have left them resting on a check that read nothing.
-NEEDS_THE_PARSER = ("classification", "correspondence")
+NEEDS_THE_PARSER = ("correspondence",)
 
 # The extractor's own exit code for « there is no TypeScript install here ».
 # Distinguished from every other failure ON PURPOSE: a syntax error in the
@@ -665,8 +594,8 @@ def main() -> int:
                         help="print the inventory this guard holds, and refuse nothing")
     arguments = parser.parse_args()
 
-    # A CLONE WITH NO npm INSTALL CANNOT RUN THE TWO ARMS THAT PARSE THE
-    # ENGINE, and it must say which two rather than fall over. With no install
+    # A CLONE WITH NO npm INSTALL CANNOT RUN THE ARM THAT PARSES THE
+    # ENGINE, and it must say which rather than fall over. With no install
     # this guard used to answer a ten-line node traceback and a non-zero exit —
     # inside `make check`, two lines above
     # `openapi-drift: skipped (frontend/node_modules absent)` and
@@ -699,7 +628,7 @@ def main() -> int:
 
     # The builder module is loaded EITHER WAY: importing it runs no node, and
     # the four arms below read their inputs through its constants. Only the
-    # two arms that CALL the extractor are skipped.
+    # arm that CALLS the extractor is skipped.
     module = builder()
 
     print(f"check-mock-seeds: {SEEDS.relative_to(ROOT)}")

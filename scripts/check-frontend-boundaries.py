@@ -582,9 +582,8 @@ TYPING_ESCAPES = (
 def arm_typing(root: Path) -> int:
     """Refuse `any` and the type-checker suppressions, from a floor of zero.
 
-    The engine is exempt and it is the only exemption: `legacy.js` is
-    JavaScript that `tsc` does not check at all, so the question does not
-    arise there. It dies with L13.
+    Nothing is exempt: the engine, the one bucket `tsc` never checked, is
+    deleted.
 
     Args:
         root: The directory to read.
@@ -595,8 +594,6 @@ def arm_typing(root: Path) -> int:
     found = []
     for file in source_files(root):
         module = file.relative_to(root).as_posix()
-        if bucket_of(module) == "engine":
-            continue
         for number, line in enumerate(file.read_text(encoding="utf-8").splitlines(), 1):
             for pattern in TYPING_ESCAPES:
                 if pattern.search(line):

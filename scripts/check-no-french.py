@@ -34,7 +34,7 @@ it, so an arm added without a heading here fails the gate:
    that machinery went on 2026-08-20, the maquette REPLACES the app. A class name is one name shared by four
    worlds, which is why it gets an arm of its own.
 5. **Unread JavaScript** — a `.js` under the shell that every other arm's globs
-   walk past. One file is allowed to be there (the legacy engine); a second one
+   walk past. None is allowed there since the legacy engine was deleted; one
    turning up would be a scope silently emptying.
 6. **Vocabulary** — the question turned around. Not « is this word French? »,
    whose answer is only ever as good as the list of French words behind it, but
@@ -591,37 +591,27 @@ def check_vocabulary(violations: list[str]) -> None:
 
 
 def check_unread_javascript(violations: list[str]) -> None:
-    """Refuses a `.js` under the shell that no arm reads, except the engine.
+    """Refuses a `.js` under the shell that no arm reads.
 
     Every arm above globs `.ts`/`.tsx`, so a JavaScript file under
-    `design/src/` is examined by none of them. That is correct for exactly one
-    file — the legacy engine, moved there byte for byte, whose French
-    identifiers predate the rule and would be rewritten by a conversion, not by
-    a rename. It is wrong for anything else: a NEW `.js` would be new code, in
-    the one scope where nobody is looking.
+    `design/src/` is examined by none of them. One file was allowed there —
+    the legacy engine, moved byte for byte, whose French identifiers predated
+    the rule — and it is deleted, so the allowance went with it. A NEW `.js`
+    would be new code, in the one scope where nobody is looking.
 
-    An implicit exclusion is what this file exists to distrust — it reports
-    « no violation » about a scope it never opened. So the exclusion is written
-    down, and it is a list of one.
+    WHAT IT EXAMINES IS EVERY FILE UNDER THE SHELL, each asked whether it is
+    JavaScript: counting only the `.js` files found would count zero on the
+    tree this arm wants, and read as a scope never opened.
 
     Args:
         violations: The accumulator every arm appends to.
     """
-    # The entry is here because it was MOVED, not written: its French
-    # identifiers predate the rule and only a conversion — not a rename — will
-    # reach them. `legacy.js` is the engine.
-    allowed = {SHELL / "engine" / "legacy.js"}
-    unread = {path for path in SHELL.rglob("*.js") if path.is_file()}
-    for path in sorted(unread - allowed):
+    walked = [path for path in SHELL.rglob("*") if path.is_file()]
+    for path in sorted(path for path in walked if path.suffix == ".js"):
         violations.append(
             f"{relative(path)} is JavaScript under the shell, which no arm "
-            "reads — write it in TypeScript, or name it here with the reason "
-            "it is exempt")
-    for path in sorted(allowed - unread):
-        violations.append(
-            f"{relative(path)} is named as exempt but does not exist — the "
-            "exemption outlived its subject")
-    examined["unread javascript / shell"] += len(unread)
+            "reads — write it in TypeScript")
+    examined["unread javascript / shell"] += len(walked)
 
 
 # Words `aspell` reports as French-and-not-English that are NOT French names

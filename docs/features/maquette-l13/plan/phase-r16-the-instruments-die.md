@@ -20,6 +20,8 @@ is removed, not new apparatus.
 
 2026-09-15 (ruling 113): r·16 measured ≈ 20–24 and was cut — r·16 the file and its readers, r·17 the fixture apparatus dies (new), r·18 the full gate and the pull request. r·16 keeps: `engine/legacy.js` deleted, the five probe guards, the size-ledger entry, `markup_verbs.py`'s `ENGINE`, `said_and_done.py`, `page_host.py`, their tests; `docs/reference/frontend-architecture.md` l.269/271 re-cite `design/src/engine/legacy.js@13a66a35b` (narrow authorization, diff shown in this file); `CLAUDE.md` is not edited by the implementer. The extractor, builder, register, classification/correspondence arms, the `answers` home, refresh-maquette-fixture and ci.yml:103–104 are r·17's.
 
+2026-09-15 (r·16, ruling 113's narrow authorization): the only citation check-docs-cited-paths refused after the deletion was `IMPLEMENTATION.md` l.39 — `-`…`frontend/maquette/design/src/engine/legacy.js`, and every migrated…` / `+`…`frontend/maquette/design/src/engine/legacy.js@13a66a35b`, and every migrated…`; `CLAUDE.md` and `docs/reference/frontend-architecture.md` cite the path without its full prefix and were accepted, so neither was edited.
+
 ## Gate
 
 Per INDEX « Gates »: contracts + oracle + the rules touched, logs postdating the commit; every guard touched exits 0

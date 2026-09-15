@@ -36,7 +36,7 @@ L07 the visual reference is the TOKENS and the COMPONENT CATALOGUE**, not one fi
 and of each surface, where every drawing decision is written beside the class that applies it.
 `src/styles/legacy.css` is the dated residue the dying engine still consumes, and `refonte.html` is now
 the CONVERSION LEDGER alone — it carries no style rule, and it dies with the residue at L13. The engine is
-`frontend/maquette/design/src/engine/legacy.js`, and every migrated surface starts in its own component.
+`frontend/maquette/design/src/engine/legacy.js@13a66a35b`, and every migrated surface starts in its own component.
 **Bug register:** `BUGS.md` at the repo root — every reported defect, one closed at a time.
 
 ---

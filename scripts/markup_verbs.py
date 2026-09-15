@@ -91,11 +91,8 @@ from markup_text import (  # noqa: E402
     COMMENT, HARNESS, ROOT, SOURCES, attribute_of,
 )
 
-# The extractor, and the file the size ledger is watching shrink. `ENGINE`
-# is named rather than derived because the message below tells an author
-# NOT to answer a verb there; the reading itself spans the whole tree.
+# The extractor; the reading itself spans the whole tree.
 VERB_EXTRACTOR = HARNESS / "panel_verbs.mjs"
-ENGINE = SOURCES / "engine" / "legacy.js"
 
 # What a read can be written in. The engine is JavaScript and everything
 # that has left it is TypeScript, so the corpus is all three.
@@ -308,9 +305,7 @@ def check_panel_verbs() -> int:
                   "button takes the tap and does nothing — silently, with no "
                   "error anywhere. Declare it with `registerVerb(\"" + verb +
                   "\", …)` in the feature that owns it, which is what "
-                  "`lib/verbs.ts` exists for. A branch in `engine/legacy.js` "
-                  "is NOT the answer: the engine dies by subtraction (D5) and "
-                  "the size ledger refuses it upward.", file=sys.stderr)
+                  "`lib/verbs.ts` exists for.", file=sys.stderr)
 
     unreadable = calls - len(registered)
     if unreadable > 0:

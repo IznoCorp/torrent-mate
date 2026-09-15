@@ -74,6 +74,30 @@ def copy_design_src(tmp_path: Path) -> Path:
     return root
 
 
+# A STAND-IN FOR A GRANDFATHERED FILE. The ledger's one real entry, the legacy
+# engine, is deleted and the list is empty, so a case about the list builds the
+# file it is about: a feature module over the ceiling, recorded at its count.
+STAND_IN = "features/oversized.ts"
+STAND_IN_LINES = 460
+
+
+def grandfathered_tree(tmp_path: Path, monkeypatch, label: str) -> Path:
+    """Copy the tree, add one file over the ceiling, and record it under `label`.
+
+    Args:
+        tmp_path: The pytest scratch directory for this test.
+        monkeypatch: The fixture that restores the ledger afterwards.
+        label: The promise the record carries.
+
+    Returns:
+        The copy's root.
+    """
+    root = copy_design_src(tmp_path)
+    (root / STAND_IN).write_text("export const line = 0;\n" * STAND_IN_LINES, encoding="utf-8")
+    monkeypatch.setitem(guard.ledger.GRANDFATHERED, STAND_IN, (label, STAND_IN_LINES))
+    return root
+
+
 def write_add_route(root: Path, member: str, prelude: str = "") -> None:
     """Rewrite the `/add` route around one `validateSearch` member.
 
@@ -594,37 +618,25 @@ class TestTreeArmNestedCopy:
 class TestSizeArmReadsTheLabel:
     """B-073 — the grandfathered list guaranteed its membership, never its promise."""
 
-    def test_a_label_leading_with_a_landed_lot_is_a_violation(self, monkeypatch, capsys) -> None:
+    def test_a_label_leading_with_a_landed_lot_is_a_violation(self, tmp_path, monkeypatch, capsys) -> None:
         """Refuse an entry promising a lot the plan already marks `LANDED`."""
-        monkeypatch.setitem(
-            guard.ledger.GRANDFATHERED,
-            "engine/legacy.js",
-            ("L07 — long since been and gone", guard.ledger.GRANDFATHERED["engine/legacy.js"][1]),
-        )
-        violations = guard.arm_size(DESIGN_SRC)
+        root = grandfathered_tree(tmp_path, monkeypatch, "L07 — long since been and gone")
+        violations = guard.arm_size(root)
         captured = capsys.readouterr()
         assert violations == 1, captured.err
         assert "leads with L07, which IMPLEMENTATION.md records as already landed" in captured.err
 
-    def test_a_lot_that_has_not_landed_is_accepted(self, monkeypatch, capsys) -> None:
+    def test_a_lot_that_has_not_landed_is_accepted(self, tmp_path, monkeypatch, capsys) -> None:
         """`L13` is absent from the landed row, so the promise still stands."""
-        monkeypatch.setitem(
-            guard.ledger.GRANDFATHERED,
-            "engine/legacy.js",
-            ("L13 — the engine dies by subtraction", guard.ledger.GRANDFATHERED["engine/legacy.js"][1]),
-        )
-        violations = guard.arm_size(DESIGN_SRC)
+        root = grandfathered_tree(tmp_path, monkeypatch, "L13 — the engine dies by subtraction")
+        violations = guard.arm_size(root)
         captured = capsys.readouterr()
         assert violations == 0, captured.err
 
-    def test_a_label_naming_no_lot_is_a_violation(self, monkeypatch, capsys) -> None:
+    def test_a_label_naming_no_lot_is_a_violation(self, tmp_path, monkeypatch, capsys) -> None:
         """A label nobody can act on is the state B-073 found the list in."""
-        monkeypatch.setitem(
-            guard.ledger.GRANDFATHERED,
-            "engine/legacy.js",
-            ("big, and someone will look", guard.ledger.GRANDFATHERED["engine/legacy.js"][1]),
-        )
-        violations = guard.arm_size(DESIGN_SRC)
+        root = grandfathered_tree(tmp_path, monkeypatch, "big, and someone will look")
+        violations = guard.arm_size(root)
         captured = capsys.readouterr()
         assert violations == 1, captured.err
         assert "leads with no lot" in captured.err
@@ -677,7 +689,7 @@ class TestSizeArmReadsTheLabel:
             "comparison could not be made at all"
         )
 
-    def test_a_label_naming_a_lot_the_plan_never_declares_is_a_violation(self, monkeypatch, capsys) -> None:
+    def test_a_label_naming_a_lot_the_plan_never_declares_is_a_violation(self, tmp_path, monkeypatch, capsys) -> None:
         """A lot that will never run is a promise nobody can call in.
 
         Holding the label only against the LANDED set left this green for ever:
@@ -689,12 +701,8 @@ class TestSizeArmReadsTheLabel:
         test that enumerates the plan's lots is a test the plan falsifies by
         growing.
         """
-        monkeypatch.setitem(
-            guard.ledger.GRANDFATHERED,
-            "engine/legacy.js",
-            ("L99 — some lot that does not exist", guard.ledger.GRANDFATHERED["engine/legacy.js"][1]),
-        )
-        violations = guard.arm_size(DESIGN_SRC)
+        root = grandfathered_tree(tmp_path, monkeypatch, "L99 — some lot that does not exist")
+        violations = guard.arm_size(root)
         captured = capsys.readouterr()
         assert violations == 1, captured.err
         assert "which the plan does not declare" in captured.err
@@ -721,51 +729,51 @@ class TestSizeArmReadsTheCount:
     leave a record nobody compared, which is the state B-073 found the labels in.
     """
 
-    def test_a_file_at_its_record_is_clean(self, tmp_path, capsys) -> None:
-        """The tree as it stands: every record describes its file."""
-        root = copy_design_src(tmp_path)
+    def test_a_file_at_its_record_is_clean(self, tmp_path, monkeypatch, capsys) -> None:
+        """A file at its record: the record describes it."""
+        root = grandfathered_tree(tmp_path, monkeypatch, "L13 — it dies by subtraction")
         violations = guard.arm_size(root)
         captured = capsys.readouterr()
         assert violations == 0, captured.err
         assert "grandfathered counts:" in captured.out
 
-    def test_one_line_added_to_a_grandfathered_file_is_a_violation(self, tmp_path, capsys) -> None:
+    def test_one_line_added_to_a_grandfathered_file_is_a_violation(self, tmp_path, monkeypatch, capsys) -> None:
         """B-306's own defect, in its smallest form: ONE line, refused."""
-        root = copy_design_src(tmp_path)
-        engine = root / "engine" / "legacy.js"
+        root = grandfathered_tree(tmp_path, monkeypatch, "L13 — it dies by subtraction")
+        engine = root / STAND_IN
         engine.write_text(
             engine.read_text(encoding="utf-8") + "\n// one line, which is all it takes\n", encoding="utf-8"
         )
         violations = guard.arm_size(root)
         captured = capsys.readouterr()
         assert violations == 1, captured.out
-        assert "engine/legacy.js" in captured.err
+        assert STAND_IN in captured.err
         assert "1 more" in captured.err
         assert "may not be EXTENDED" in captured.err
 
-    def test_a_file_below_its_record_is_printed_and_not_refused(self, tmp_path, capsys) -> None:
+    def test_a_file_below_its_record_is_printed_and_not_refused(self, tmp_path, monkeypatch, capsys) -> None:
         """A subtraction is the list working — and it is never silent."""
-        root = copy_design_src(tmp_path)
-        engine = root / "engine" / "legacy.js"
+        root = grandfathered_tree(tmp_path, monkeypatch, "L13 — it dies by subtraction")
+        engine = root / STAND_IN
         kept = [line for line in engine.read_text(encoding="utf-8").splitlines() if line.strip()][:-3]
         engine.write_text("\n".join(kept) + "\n", encoding="utf-8")
         violations = guard.arm_size(root)
         captured = capsys.readouterr()
         assert violations == 0, captured.err
         assert "[RE-RECORD]" in captured.out
-        assert "engine/legacy.js" in captured.out
+        assert STAND_IN in captured.out
         assert "re-recorded later" in captured.out
 
-    def test_the_record_is_measured_the_way_the_arm_measures(self, tmp_path, capsys) -> None:
+    def test_the_record_is_measured_the_way_the_arm_measures(self, tmp_path, monkeypatch, capsys) -> None:
         """Blank lines move neither reading, so the two cannot drift apart.
 
         The record and the reading come from ONE loop — the arm's own — and this
         case is what says so from outside: a hundred blank lines added to the
-        engine change nothing, where a record taken with `wc -l` would have made
+        file change nothing, where a record taken with `wc -l` would have made
         the guard refuse a file nobody had extended.
         """
-        root = copy_design_src(tmp_path)
-        engine = root / "engine" / "legacy.js"
+        root = grandfathered_tree(tmp_path, monkeypatch, "L13 — it dies by subtraction")
+        engine = root / STAND_IN
         engine.write_text(engine.read_text(encoding="utf-8") + "\n" * 100, encoding="utf-8")
         violations = guard.arm_size(root)
         captured = capsys.readouterr()
@@ -805,7 +813,7 @@ class TestTheRecordIsARatchetToo:
 
         def write(count: int) -> None:
             ledger.write_text(
-                f'GRANDFATHERED = {{\n    "engine/legacy.js": ("L13 — it dies by subtraction", {count}),\n}}\n',
+                f'GRANDFATHERED = {{\n    "{STAND_IN}": ("L13 — it dies by subtraction", {count}),\n}}\n',
                 encoding="utf-8",
             )
 
@@ -850,9 +858,9 @@ class TestTheRecordIsARatchetToo:
     def test_a_record_raised_is_refused(self, tmp_path) -> None:
         """THE DEFECT: the ledger edited upward, in the commit that grows the file."""
         root = self._repository(tmp_path, before=100, after=120)
-        raised, where = self._read(root, {"engine/legacy.js": ("L13 — a lot", 120)})
+        raised, where = self._read(root, {STAND_IN: ("L13 — a lot", 120)})
         assert len(raised) == 1, (raised, where)
-        assert "engine/legacy.js" in raised[0]
+        assert STAND_IN in raised[0]
         assert "100" in raised[0] and "120" in raised[0]
         assert "may only go" in raised[0]
 
@@ -860,15 +868,13 @@ class TestTheRecordIsARatchetToo:
         """And it reaches the arm's count, which is what the exit code reads."""
         root = self._repository(tmp_path, before=100, after=120)
         design = copy_design_src(tmp_path)
-        engine_lines = sum(
-            1 for line in (design / "engine" / "legacy.js").read_text(encoding="utf-8").splitlines() if line.strip()
-        )
+        (design / STAND_IN).write_text("export const line = 0;\n" * STAND_IN_LINES, encoding="utf-8")
         ledger = guard.ledger
         before_root, before_table = ledger.REPOSITORY_ROOT, ledger.GRANDFATHERED
         try:
             ledger.REPOSITORY_ROOT = root
             ledger.GRANDFATHERED = {
-                "engine/legacy.js": ("L13 — the engine dies by subtraction, surface by surface", engine_lines),
+                STAND_IN: ("L13 — the engine dies by subtraction, surface by surface", STAND_IN_LINES),
             }
             violations = guard.arm_size(design)
         finally:
@@ -881,20 +887,20 @@ class TestTheRecordIsARatchetToo:
     def test_a_record_lowered_is_not(self, tmp_path) -> None:
         """A record going DOWN is the work the label demands, not a violation."""
         root = self._repository(tmp_path, before=120, after=100)
-        raised, where = self._read(root, {"engine/legacy.js": ("L13 — a lot", 100)})
+        raised, where = self._read(root, {STAND_IN: ("L13 — a lot", 100)})
         assert raised == [], (raised, where)
 
     def test_an_unchanged_record_is_not(self, tmp_path) -> None:
         """The ordinary case."""
         root = self._repository(tmp_path, before=100, after=100)
-        raised, where = self._read(root, {"engine/legacy.js": ("L13 — a lot", 100)})
+        raised, where = self._read(root, {STAND_IN: ("L13 — a lot", 100)})
         assert raised == []
 
     def test_a_new_entry_has_nothing_to_compare(self, tmp_path) -> None:
         """A file grandfathered for the first time is not a raise."""
         root = self._repository(tmp_path, before=100, after=100)
         raised, _ = self._read(
-            root, {"engine/legacy.js": ("L13 — a lot", 100), "engine/states.js": ("L13 — a lot", 900)}
+            root, {STAND_IN: ("L13 — a lot", 100), "engine/states.js": ("L13 — a lot", 900)}
         )
         assert raised == []
 
@@ -918,7 +924,7 @@ class TestTheRecordIsARatchetToo:
         marker = tmp_path / "it-ran"
         text = (
             f'import pathlib\npathlib.Path({str(marker)!r}).write_text("x")\n'
-            'GRANDFATHERED = {"engine/legacy.js": ("L13 — a lot", 100)}\n'
+            f'GRANDFATHERED = {{"{STAND_IN}": ("L13 — a lot", 100)}}\n'
         )
-        assert ledger.parse_recorded(text) == {"engine/legacy.js": 100}
+        assert ledger.parse_recorded(text) == {STAND_IN: 100}
         assert not marker.exists()
