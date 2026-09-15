@@ -11,15 +11,20 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
 - Phases (ruling 101): r·1 constants and helpers → r·2 served fixtures → r·3 the engine's product verbs (BEHAVIOUR)
   → r·4 the engine's frame verbs (BEHAVIOUR) → [midpoint full suite] → r·5 the reference dies → r·6 contract names
   (STOP D with a cut at its opening; never one phase) → r·7 the file dies + the full gate + the PR.
-  r·1 DONE (`12f3e242b`), r·2 DONE (`d997e7c59`, pushed `c29a5c5c7`), r·3 DONE (`4168932d6`).
-- NEXT: r·4 (`plan/phase-r04-engine-frame-verbs.md`: rule first where none taps, red, green, mutation), then the
-  MIDPOINT suite in this session, then stand down; `Agent : l13r 2` takes r·5 on. Frame-domain after r·3:
-  lib/ 28, app/ 139.
-- legacy.js non-blank: 1 600 at the cut, 1 274 after r·1, 888 after r·2, 663 after r·3. `scripts/frontend_size_ledger.py`
+  r·1 DONE (`12f3e242b`), r·2 DONE (`d997e7c59`), r·3 DONE (`4168932d6`), r·4 DONE (`688dab291`); all pushed.
+- MIDPOINT full suite (`midpoint-full-suite.log`): ONE fall, `poster.py` (R114) « the posters ACTUALLY landed once
+  released — 9 decoded while withheld and 9 after ». Reproduced alone twice. BISECTED: green on r·1's head
+  `0d313dd2a`, red on r·2's `c29a5c5c7` — r·2 introduced it; not the avatar install (mutation removing it: still
+  red). Green on main's L13b head at 05:58 (`tm-steward/gesture-l13b-0529.log`, 5 holds). Suspect to read first: a
+  request the page route no longer sees (a service worker, or an image loaded before the route) since r·2.
+- NEXT (`Agent : l13r 2`): REPAIR R114's fall before r·5 (the midpoint's falls are the wave's), then r·5
+  (`plan/phase-r05-reference-dies.md`). Frame-domain after r·4: lib/ 28, app/ 139.
+- legacy.js non-blank: 1 600 at the cut, 1 274 after r·1, 888 after r·2, 663 after r·3, 534 after r·4 (55 of code). `scripts/frontend_size_ledger.py`
   re-recorded DOWNWARD in every phase's commit.
 - OWED (r·1's republications): `legacy.js` publishes `stLabel`, `cadenceFR`, `nextSearchFR` on `window` (readers
   `audit.py`, `content.py` → re-aimed at r·7) and `__referentiel.baseTitle`/`dateFR` (readers `followed_sheet_act.py`,
-  `pop.py`, `season_family.py` → re-aimed at r·5) from their new homes; r·3 adds `SETTINGS_STATE`/`settingId` (owed r·5).
+  `pop.py`, `season_family.py` → re-aimed at r·5) from their new homes; r·3 adds `SETTINGS_STATE`/`settingId` (owed r·5);
+  r·4 leaves `applyState` (literal-key restore in `app/layers.ts`), `select`, `icons` to r·7 (ruling 102).
 - LOGS: `~/Library/Logs/tm-l13r/`. Mutex `sh scripts/heavy.sh --held`; tests lock `/private/tmp/tm-heavy-tests/holder`;
   own lock `/private/tmp/tm-heavy-l13r/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13r frontend/maquette/harness/run.sh --contracts
@@ -67,3 +72,12 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   red with its branch mutated, red again on `add-label.ts` (`r03-mutation-add_footer.log`). Gate `r03-gate.log`: 35
   rules (19 named), 26 guards, oracle no divergence; holds: add_footer 11 → 13 (the two written), 18 others unchanged.
   The reference-slice arm refuses an empty corpus: `SettingsReference` declares the two names still published.
+- 2026-09-15 r·4 (rulings 102, 103): `render` → `app/redraw.ts` behind the `redraw` door (18 product readers,
+  `app/engine-redraw.ts`, two harness state tables); `state`, `store`, `view`, `render`, `toast`, `closeSheet`,
+  `showSignIn` published by `harness/publish.ts`; `__navEchec` → `app/page-switch.ts`; `toastUndo` died; `applyState`
+  stays. `check-state-ownership.py`: `notFound`, `sugCount`, `sugLoading` reclassified interface, `discover-feed.ts`'s
+  dead exemption deleted, ceiling 7 → 0; `test_check_maquette_comments.py`'s debt floor 200 → 190 (199 measured).
+  Gate `r04-gate.log`: 33 rules (20 named), 26 guards, oracle no divergence; `r04-hold-counts.json`: 0 movement.
+- 2026-09-15 MIDPOINT: `poster.py` falls (state block); bisect logs `midpoint-poster-bisect-r01.log` (green),
+  `midpoint-poster-bisect-r02.log` (red), `midpoint-poster-diag-avatar.log` (the avatar is not the cause). Stood down
+  at 68 % measured; the repair is `Agent : l13r 2`'s first act.
