@@ -1,4 +1,4 @@
-# r·15 — `legacy.js`, `seams.ts` and every instrument that reads them die; the full gate
+# r·15 — The engine's last code dies: `legacy.js` and `seams.ts`
 
 Q5 = B (ruling 99, 2026-09-15): this is a phase of L13r — The engine's residue; renamed from `phase-residue-N`.
 
@@ -11,6 +11,8 @@ Q5 = B (ruling 99, 2026-09-15): this is a phase of L13r — The engine's residue
 2026-09-15 (ruling 107): r·10 as ruling 105 cut it measured ≈ 18 and was cut — r·10 settings and secrets, r·11 library, maintenance actions and account, r·12 the system families with JOURNAL and SCHEDULERS (every family whose rows are `Fact`, one decision on `Fact`), r·13 the sheet, r·14 « the file dies ».
 
 2026-09-15 (ruling 109): r·13 measured ≈ 18–19 and was cut — r·13 the sheet (conversion only), r·14 « the projection dies » (new), r·15 « the file dies ».
+
+2026-09-15 (ruling 111): r·15 measured ≥ 30 and was cut — r·15 the engine's last code dies, r·16 the engine's instruments die, r·17 the full gate and the pull request. This file keeps the code: `applyState` → `app/layers.ts` in literal keys (ruling 102, the key list measured at opening, under R188–R190), the window publications → `harness/publish.ts` under the same names, `select`/`port`, `legacy.js` and `engine/seams.ts` deleted, `app/engine-data.ts`/`app/engine-redraw.ts` dead or re-homed by measure; `lib/engine-drawing.ts` untouched. The instruments are r·16's, the full gate r·17's; ≈ 12–14.
 
 **Kind**: DELETION. **Cost**: Estimate ≤ 15 points (measure 11). The mean of L13b's measured phase costs is 11 (b·9 13, b·10 3, b·11 21, b·12 6.5); a phase above the mean says why.
 

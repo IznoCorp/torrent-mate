@@ -257,5 +257,7 @@ Measured on `1cb0a2dc1` after b·13 was measured and not opened (ruling 98). Q5 
 | r·12 | [the system families and the facts](phase-r12-system-families-and-facts.md) — rulings 106, 107 | conversion | DISKS, INDEX, DEPENDENCIES, ERRORS, EXECUTIONS, SCHEDULERS, JOURNAL; `Fact`'s keys | their projections |
 | r·13 | [the sheet](phase-r13-the-sheet.md) — rulings 105, 109 | conversion | SHEETS_RAW | its projection |
 | r·14 | [the projection dies](phase-r14-the-projection-dies.md) — ruling 109 | deletion | — | engine-shape.ts, its test, the lossless arm, the projection families |
-| r·15 | [the file dies](phase-r15-the-file-dies.md) | deletion + full gate | — | legacy.js, seams.ts, engine-data, engine-redraw, engine-drawing, their instruments |
+| r·15 | [the engine's last code dies](phase-r15-the-file-dies.md) — ruling 111 | deletion | applyState, the window publications | legacy.js, seams.ts, engine-data, engine-redraw |
+| r·16 | [the engine's instruments die](phase-r16-the-instruments-die.md) — ruling 111 | deletion | the schema arm's `answers` | the parser arms, builder, extractor, registers, resync.py, their tests |
+| r·17 | [the full gate](phase-r17-the-full-gate.md) — ruling 111 | full gate + PR | — | — |
 

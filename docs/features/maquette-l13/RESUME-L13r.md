@@ -8,20 +8,20 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   `fcaff976f` (#601). main `cdde26731` merged in at `9b81c5f49` (docs only, no conflict).
   Steward: the session named in your launch prompt. Head: `git log -1`; pushed: `git ls-remote`.
 - Phases (ruling 101): r·1 → r·2 → r·3 (BEHAVIOUR) → r·4 (BEHAVIOUR) → [midpoint full suite] → r·5 the reference
-  dies → r·6–r·13 contract names by family group (rulings 105–108) → r·14 the projection dies (ruling 109) → r·15 the file dies + full gate + PR.
+  dies → r·6–r·13 contract names by family group (rulings 105–108) → r·14 the projection dies (ruling 109) → r·15 the engine's last code dies → r·16 its instruments die
+  → r·17 the full gate + PR (ruling 111).
   r·1 `12f3e242b`, r·2 `d997e7c59`, r·3 `4168932d6`, r·4 `688dab291`, R114 repair `3ddcd70d5`, r·5 `412b75075`,
   r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7`, r·9 `4fb1b2418` (+ `f6393dcf6`), r·10 `e827267b6`,
   r·11 `e572a0708`, main 60c6d9b1d (L20 #603) merged `9e978aeaa` (+ `2864fb7c3`), r·12 `7238cd33b`, r·13 `9506bf881`
   (+ `3dcde3533`), r·14 `2f6a56be3` — DONE.
-- NEXT: r·15 `plan/phase-r15-the-file-dies.md` — OPEN IT BY A MEASURE and one STOP D (its « Measured » is from
-  `1cb0a2dc1` and stale). On `2f6a56be3`: `engine/legacy.js` 638 lines (493 non-blank; its body from l.293, `applyState`
+- NEXT: r·15 `plan/phase-r15-the-file-dies.md` (ruling 111: the code only ≈ 12–14; instruments r·16, gate r·17). On `2f6a56be3`: `engine/legacy.js` 638 lines (493 non-blank; its body from l.293, `applyState`
   l.455, the `Object.assign(window, …)` l.627 — the owed list below), `engine/seams.ts` 191, `app/engine-data.ts` 102,
   `app/engine-redraw.ts` 45, `lib/engine-drawing.ts` 49; the parser arms `classification` + `correspondence`, the builder
   `scripts/build-mock-seeds.py`, `scripts/extract-maquette-fixtures.mjs`, `fixture-projections.json` (answers/file/join —
   `answers` is read by the schema arm, which STAYS: its home is r·15's question), `ci.yml:103–104`, B-497; `ENGINE_SOURCES`,
   the French debt section, the size-ledger entry, `resync.py`, the harness reads. Sweep: reads, literals, JS blocks,
   quoted keys in harness lists. Then the full gate + PR. Frame-domain lib/ 28, app/ 121.
-- OWED TO r·15: `legacy.js`'s `Object.assign(window, …)` publishes `SETTINGS_STATE`, `icons`, `settingId`, `select`,
+- OWED TO r·15/r·16: `legacy.js`'s `Object.assign(window, …)` publishes `SETTINGS_STATE`, `icons`, `settingId`, `select`,
   `cadenceFR`, `nextSearchFR`, `stLabel` — readers `settings.py`, `page_host.py` (SETTINGS_STATE/settingId, re-aimed
   at r·5), `audit.py`, `content.py` (the three vocabulary names) → re-aimed from their homes when the file dies;
   `applyState` (literal-key restore in `app/layers.ts`, ruling 102), `select`, `icons` (the engine's import).
@@ -39,7 +39,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   THAT head's run.sh; the tap registry answers the first registered key in ATTRIBUTE order; `stopPropagation` does not
   stop a listener BESIDE yours; `page.route` never sees a request the service worker answers; `rename-identifiers.py`
   refuses `{ name, type X }` imports (use `--properties`) and may have written files when it says « Nothing written ».
-- Owed at r·15: `--a11y`, hold-counts `--compare` (baseline `taken_at_commit` re-pointed to main's sha in a copy),
+- Owed at r·17: `--a11y`, hold-counts `--compare` (baseline `taken_at_commit` re-pointed to main's sha in a copy),
   `make lint`, merge main in, version bump above main's, PR READY (conversion: no §§; r·3's/r·4's behaviour said).
 
 ## LEDGER (append-only)
@@ -210,3 +210,6 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   test no longer writes the declaration; `switchover.py`'s comment names `mocks/declared-status.ts`. tsc 0, vitest 53,
   pytest 103, check-mock-seeds clean. Gate `r14-gate.log` on `2f6a56be3`: 24 rules (1 named, switchover.py, comment only),
   26 guards, oracle no divergence. No re-aim, no mutation. `build-mock-seeds.py --check` red before and after = B-497.
+- 2026-09-15 ruling 111: r·15 measured ≥ 30 (legacy.js's live code ≈ applyState + the publications; 18 scripts, 6 tests,
+  8 rules, the registers and ci.yml read the engine; then the full gate) and cut — r·15 the code, r·16 the instruments,
+  r·17 the full gate + PR (files, INDEX, BRIEF, state block re-pointed).
