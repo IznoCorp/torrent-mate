@@ -200,7 +200,7 @@ export function installDiscoverSwipe(frame: HTMLElement): void {
         advanceDeck(position, 1);
         const gone = (suggestions?.() ?? [])[position] as Suggestion | undefined;
         toast?.show({
-          message: i18next.t("discover.dismissed", { title: gone?.t ?? "" }),
+          message: i18next.t("discover.dismissed", { title: gone?.title ?? "" }),
           undo: () => {
             (store.read().state.sugGone as Set<number>).delete(position);
             store.touch();

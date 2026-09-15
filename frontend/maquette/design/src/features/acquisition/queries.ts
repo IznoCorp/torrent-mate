@@ -5,7 +5,6 @@
 // the reserve of suggestions its deck draws, and the follows it lists.
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { HELD, read, send } from "../../lib/query-client";
-import { toEngineShape } from "../../engine/engine-shape";
 import type { Schemas } from "../../lib/contract-schemas";
 import type { Follow } from "./types";
 import { queueNow } from "../../lib/queue";
@@ -37,9 +36,7 @@ export const suggestionsQuery = {
     // So the reserve GROWS instead. `loadMoreSuggestions` appends the next
     // page, indices already held keep their meaning, and what was dismissed
     // stays dismissed because `sugGone` holds positions into this same list.
-    toEngineShape<unknown[]>(
-      "SUGGESTIONS",
-      await read<unknown[]>("/api/acquisition/suggestions", new URLSearchParams())),
+    read<Schemas["Suggestion"][]>("/api/acquisition/suggestions", new URLSearchParams()),
 };
 
 // The cache the deck's paging reads, captured where it is already handed over.
@@ -81,15 +78,15 @@ export async function loadMoreSuggestions(): Promise<number> {
   // THE ENGINE'S OWN FIELD NAME, because what is held has already been
   // converted; the value is the same title either way, and asking for `title`
   // here would page from the beginning for ever.
-  const last = held[held.length - 1] as { t?: string } | undefined;
-  if (last?.t !== undefined) parameters.set("after", last.t);
-  const batch = await read<unknown[]>("/api/acquisition/suggestions", parameters);
+  const last = held[held.length - 1] as { title?: string } | undefined;
+  if (last?.title !== undefined) parameters.set("after", last.title);
+  const batch = await read<Schemas["Suggestion"][]>("/api/acquisition/suggestions", parameters);
   if (batch.length === 0) {
     reserveExhausted = true;
     return 0;
   }
   reserveExhausted = false;
-  const arrived = toEngineShape<unknown[]>("SUGGESTIONS", batch);
+  const arrived = batch;
   suggestionsCache.setQueryData(suggestionsQuery.queryKey, [...held, ...arrived]);
   return arrived.length;
 }
@@ -107,7 +104,7 @@ export async function loadMoreSuggestions(): Promise<number> {
 export function installSuggestionsLookup(queryClient: QueryClient): void {
   suggestionsCache = queryClient;
   suggestions = () =>
-    (queryClient.getQueryData(suggestionsQuery.queryKey) as unknown[] | undefined) ?? [];
+    (queryClient.getQueryData(suggestionsQuery.queryKey) as Schemas["Suggestion"][] | undefined) ?? [];
   // AND IT IS ASKED FOR, because nothing else will. Every other read in this
   // file belongs to a component that subscribes; the deck belongs to the
   // engine, and a seam over a cache nobody filled answers empty for ever.
@@ -289,7 +286,7 @@ declare global {
       all: () => Follow[];
     };
     /** The discover deck's cards, read synchronously by the dying engine. */
-    __suggestions?: () => unknown[];
+    __suggestions?: () => Schemas["Suggestion"][];
   }
 }
 

@@ -44,8 +44,8 @@ function addPanel(position: string, cache: PanelCache): PanelDescriptor | null {
   const identifying = state.addMode === "identify";
   const done = (state.added as Set<number>).has(Number(position));
   return {
-    title: result.t,
-    meta: translate("panels.add.meta", { year: result.y, kind: result.k }),
+    title: result.title,
+    meta: translate("panels.add.meta", { year: result.year, kind: result.kind }),
     blocs: [
       // DOIT-8's FIRST HALF, and the second is the confirmation the act raises:
       // a film the library already owns is announced as a REPLACEMENT before
@@ -77,7 +77,7 @@ function addPanel(position: string, cache: PanelCache): PanelDescriptor | null {
           {
             text: translate("panels.add.seeSheet"),
             icone: icons.eye,
-            target: { mediasheet: result.t },
+            target: { mediasheet: result.title },
           },
         ],
       },

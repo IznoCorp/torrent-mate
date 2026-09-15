@@ -305,7 +305,7 @@ export function dismissSug(position: number): void {
     gone.delete(position);
     store.touch();
   };
-  const message = say("dismissed", { title: reserve()[position].t });
+  const message = say("dismissed", { title: reserve()[position].title });
   if (uiState().sugMode === "deck") {
     // In the deck the whole pile changes, not one row: re-render, and the undo
     // restores both the suggestion and its place in the order. `sugGone` is a

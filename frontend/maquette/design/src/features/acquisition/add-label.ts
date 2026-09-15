@@ -25,7 +25,7 @@ export function addVerb(result: SearchResult, index: number): string {
   const state = store.read().state;
   const identify = state.addMode === "identify";
   const added = state.added as Set<number>;
-  const film = result.k === "Film";
+  const film = result.kind === "Film";
   const say = (key: string) => i18next.t(`screens.add.verb.${key}`);
   if (added.has(index)) {
     return say(identify ? "associated" : film ? "added" : "followed");

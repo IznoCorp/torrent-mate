@@ -78,7 +78,7 @@ registerVerb("pick-release", (value) => {
   redraw();
   toast?.show({
     message: i18next.t("verbs.releases.taken", {
-      quality: `${chosen.res} ${chosen.src} ${chosen.lang}`,
+      quality: `${chosen.resolution} ${chosen.source} ${chosen.language}`,
       title: baseTitle(title),
     }),
   });

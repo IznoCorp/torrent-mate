@@ -155,16 +155,16 @@ export function AddScreen() {
     .map((r, i) => ({ r, i }))
     .filter(
       ({ r }) =>
-        addKind === "Tout" || (addKind === "Films") === (r.k === "Film"),
+        addKind === "Tout" || (addKind === "Films") === (r.kind === "Film"),
     );
   const rows = filtered
     .map(({ r, i }) => {
       const done = added.has(i);
       return mediumCardMarkup({
-        title: r.t,
-        k: r.k === "Film" ? "movie" : "show",
-        secondaryLine: `${r.y} · ${r.k === "Film" ? t("common.film") : t("common.series")} · TMDB`,
-        overview: r.ov,
+        title: r.title,
+        k: r.kind === "Film" ? "movie" : "show",
+        secondaryLine: `${r.year} · ${r.kind === "Film" ? t("common.film") : t("common.series")} · TMDB`,
+        overview: r.overview,
         chip: done
           ? { tone: "success", text: addVerb(r, i) }
           : r.owned

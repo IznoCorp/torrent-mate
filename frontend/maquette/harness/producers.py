@@ -27,6 +27,11 @@ THREE PROPERTIES, and each one fails differently.
 WHAT IT DOES NOT READ, said before what it does: whether a producer's
 descriptor is CORRECT in its details. That is the oracle's, surface by surface,
 at zero divergence. This rule reads the seam.
+
+RE-AIMED when the suggestions, the search and the releases took the contract's
+names: a suggestion's and a search result's title are read as `title`, a
+suggestion's kind as `kind`, where they were the engine's short keys. The holds
+and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -63,14 +68,14 @@ DRIVEN = (
     ("sort", "", "window.__i18n.t('panels.sort.title')"),
     ("more", "", "window.__i18n.t('panels.standby.title')"),
     ("journey", "Furious", "'Furious'"),
-    ("suggestion", "0", "window.__suggestions()[0].t"),
+    ("suggestion", "0", "window.__suggestions()[0].title"),
     ("follow", "Silo", "'Silo'"),
     # `add` WAS THE ONE REGISTERED KIND NOTHING DROVE — ten moved, nine walked,
     # and the tenth's order and subject were held by nothing at all. It needs a
     # search to have happened, because its subject is a POSITION in what the
     # operator just typed, so the walk asks for one first (`__addSearch`) rather
     # than opening the panel over an empty answer.
-    ("add", "0", "window.__searchResults().results[0].t"),
+    ("add", "0", "window.__searchResults().results[0].title"),
 )
 
 # WHAT A PANEL SAYS ABOUT RISK, read on the DRAWN chip. It is here because the
@@ -268,8 +273,8 @@ async def main():
         # over a panel that says the right word and draws the wrong promise.
         kinds = await page.evaluate("""()=>{
           const all = window.__suggestions();
-          const film = all.findIndex((s) => s.k === 'Film');
-          const series = all.findIndex((s) => s.k !== 'Film');
+          const film = all.findIndex((s) => s.kind === 'Film');
+          const series = all.findIndex((s) => s.kind !== 'Film');
           return {film, series};}""")
         journal.check(
             "the reserve carries both a film and a series, so « the verb "

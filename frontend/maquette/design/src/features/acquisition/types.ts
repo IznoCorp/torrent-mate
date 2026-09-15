@@ -20,20 +20,6 @@ export type FollowSubject = Pick<Follow, "title" | "kind" | "year" | "status"> &
 // poster's aspect ratio — the two are deliberately different vocabularies at
 // two different seams, and a migrated screen converts between them exactly
 // where `openAddScreen` used to.
-export type SearchResult = {
-  t: string;
-  y: string;
-  k: "Film" | "Série"; // french-ok: a data VALUE — the label is read from fr.json at the render
-  ov: string;
-  owned: boolean;
-  followed: boolean;
-  poster?: string | null;
-  /** The provider identifiers — null for a title no sheet stands behind. */
-  ids?: Record<string, number | string> | null;
-};
+export type SearchResult = Schemas["SearchResult"];
 
-export type SearchResults = {
-  total: number;
-  shown: number;
-  results: SearchResult[];
-};
+export type SearchResults = Schemas["SearchResults"];

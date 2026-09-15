@@ -2,14 +2,8 @@
 //
 // The shapes this feature's reads answer, declared where the subject lives.
 
-export type Release = {
-  n: string;
-  res: string;
-  src: string;
-  lang: string;
-  s: number;
-  go: number;
-  sc: number;
-};
+import type { Schemas } from "../../lib/contract-schemas";
+
+export type Release = Schemas["Release"];
 
 export type Resolution = "720p" | "1080p" | "2160p";

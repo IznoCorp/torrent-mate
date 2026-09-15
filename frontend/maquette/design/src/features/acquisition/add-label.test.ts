@@ -21,8 +21,8 @@ const store = {
 };
 installStore(store as unknown as Parameters<typeof installStore>[0]);
 
-const film = { t: "Dune", y: "2021", k: "Film", ov: "", owned: false, followed: false } as SearchResult;
-const series = { ...film, t: "Silo", k: "Série" } as SearchResult; // french-ok: a data value the search answers
+const film = { title: "Dune", year: "2021", kind: "Film", overview: "", owned: false, followed: false } as SearchResult;
+const series = { ...film, title: "Silo", kind: "Série" } as SearchResult; // french-ok: a data value the search answers
 const ownedFilm = { ...film, owned: true };
 
 beforeEach(() => store.write({ addMode: "add", added: new Set<number>() }));

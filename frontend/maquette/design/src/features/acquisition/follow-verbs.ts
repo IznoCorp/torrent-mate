@@ -29,7 +29,7 @@ import { followActions, suggestions } from "./queries";
 import { baseTitle } from "../../lib/titles";
 
 /** A suggestion as the reserve holds it — the two fields this act reads. */
-type Suggestion = { t: string; k: string };
+type Suggestion = { title: string; kind: string };
 
 /** How long a dismissed row takes to collapse, in milliseconds. */
 const COLLAPSE = 320;
@@ -266,7 +266,7 @@ registerVerb("follow", (title, element) => {
   // AN ABSENT KIND IS SPELLED AS ONE, not as the series' own word: the test
   // below asks whether it is a film, so the empty string answers « series »
   // without this file holding a second interface word to keep in step.
-  follow(title, suggestion?.k ?? element.dataset.fkind ?? "");
+  follow(title, suggestion?.kind ?? element.dataset.fkind ?? "");
   // AND THE STORE IS TOUCHED AGAIN, for the sheet's own button: `add` writes
   // the cache in place, so without this the button never learns the follow
   // happened and stays « Suivre » under the finger that pressed it.

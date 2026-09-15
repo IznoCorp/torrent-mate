@@ -10,7 +10,7 @@
 import { escapeMarkup } from "../../ui/markup";
 
 /** One segment of a text that carries emphasis. */
-type Segment = string | { e?: string; m?: string };
+type Segment = string | { emphasis?: string; m?: string };
 
 /**
  * Writes a text that carries emphasis as markup.
@@ -25,7 +25,7 @@ export function richTextMarkup(value: unknown): string {
     .map((segment) => {
       if (typeof segment === "string") return escapeMarkup(segment);
       if (segment.m != null) return `<code>${escapeMarkup(segment.m)}</code>`;
-      return `<b>${escapeMarkup(segment.e)}</b>`;
+      return `<b>${escapeMarkup(segment.emphasis)}</b>`;
     })
     .join("");
 }

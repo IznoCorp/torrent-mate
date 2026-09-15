@@ -11,13 +11,14 @@
 // results, so which panel opens becomes a behaviour decision. Preserved rather
 // than revisited.
 import { icons } from "../../lib/shell-doors";
+import type { Schemas } from "../../lib/contract-schemas";
 import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import { suggestionsQuery } from "./queries";
 
 
 /** One suggestion, as the deck draws it. */
-type Suggestion = { t: string; y: string; k: string; note: string; why: string };
+type Suggestion = Schemas["Suggestion"];
 
 /**
  * Builds a suggestion's descriptor.
@@ -35,16 +36,17 @@ function suggestionPanel(position: string, cache: PanelCache): PanelDescriptor |
   const suggestion = reserve?.[Number(position)];
   if (suggestion === undefined) return null;
   const translate = i18next.t.bind(i18next);
-  const isFilm = suggestion.k === "Film";
+  const isFilm = suggestion.kind === "Film";
   return {
-    title: suggestion.t,
+    title: suggestion.title,
     meta: translate("panels.suggestion.metaRating", {
-      year: suggestion.y,
-      kind: suggestion.k,
-      rating: suggestion.note,
+      year: suggestion.year,
+      kind: suggestion.kind,
+      rating: suggestion.rating,
     }),
     blocs: [
-      { type: "note", text: suggestion.why },
+      // The panel's rich text marks emphasis as `e`; the served reason says `emphasis`.
+      { type: "note", text: suggestion.why.map((part) => (typeof part === "string" ? part : { e: part.emphasis })) },
       {
         type: "actions",
         actions: [
@@ -57,12 +59,12 @@ function suggestionPanel(position: string, cache: PanelCache): PanelDescriptor |
               : "panels.suggestion.followSeries"),
             icone: icons.plus,
             ton: "primary",
-            target: { follow: suggestion.t, sugidx: position },
+            target: { follow: suggestion.title, sugidx: position },
           },
           {
             text: translate("panels.suggestion.seeSheet"),
             icone: icons.eye,
-            target: { mediasheet: suggestion.t },
+            target: { mediasheet: suggestion.title },
           },
         ],
       },

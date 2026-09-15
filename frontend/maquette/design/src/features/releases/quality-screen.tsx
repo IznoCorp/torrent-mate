@@ -44,14 +44,14 @@ function countKept(profile: QualityProfile, releases: Release[]): number {
   return releases.filter((release) => {
     if (
       profile.min_resolution &&
-      order[release.res] < order[profile.min_resolution]
+      order[release.resolution] < order[profile.min_resolution]
     )
       return false;
     if (profile.required_audio.length) {
       const tier =
-        release.lang === "VOSTFR"
+        release.language === "VOSTFR"
           ? "VOSTFR"
-          : release.lang === "VO"
+          : release.language === "VO"
             ? "VO"
             : "VF";
       if (!profile.required_audio.includes(tier)) return false;
