@@ -13,14 +13,14 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   r·1 `12f3e242b`, r·2 `d997e7c59`, r·3 `4168932d6`, r·4 `688dab291`, R114 repair `3ddcd70d5`, r·5 `412b75075`,
   r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7`, r·9 `4fb1b2418` (+ `f6393dcf6`), r·10 `e827267b6`,
   r·11 `e572a0708`, main 60c6d9b1d (L20 #603) merged `9e978aeaa` (+ `2864fb7c3`), r·12 `7238cd33b`, r·13 `9506bf881`
-  (+ `3dcde3533`), r·14 `2f6a56be3`, r·15 `2014905dd` (+ `13a66a35b`), r·16 `b73d066e9` — DONE.
-- NEXT: r·17 `plan/phase-r17-the-fixture-apparatus-dies.md` — OPEN IT BY A MEASURE and one STOP D. On `b73d066e9`:
-  `scripts/extract-maquette-fixtures.mjs` (reads a deleted file; only `--typescript-install` still answers, used by
-  check-mock-seeds' parser gate), `scripts/build-mock-seeds.py` (B-497), `fixture-register.json`, the correspondence arm
-  and NEEDS_THE_PARSER/`typescript_install` in check-mock-seeds (+ test_check_mock_seeds' skip tests), the schema arm's
-  `answers` home, `refresh-maquette-fixture.py` + its test, `ci.yml:103–104` + test_ci_filter_covers_the_guards; stale
-  docstrings naming legacy.js in ~8 scripts. Owed to the docs PR (steward): CLAUDE.md l.159 and the vocabulary's
-  « THE ENGINE'S LAST FRENCH WORDS » section with `check_french_debt` (CLAUDE.md names fifteen arms). Frame-domain lib/ 28, app/ 132.
+  (+ `3dcde3533`), r·14 `2f6a56be3`, r·15 `2014905dd` (+ `13a66a35b`), r·16 `b73d066e9` (+ `76952efbb`), r·17 `5424d27a6`,
+  order 43 `f6050c052` — DONE.
+- NEXT: r·18 `plan/phase-r18-the-full-gate.md` — merge `origin/main` in, bump the version above main's (patch), the full
+  harness suite, `--a11y`, `harness-hold-counts.py --compare` (baseline re-pointed to main's sha in a COPY), `make lint`,
+  `check-no-french.py --counts`, then the PR READY `refactor(maquette-l13r): the engine's residue — legacy.js dies`
+  (conversion, no §§; r·3/r·4's behaviour said). Owed to the docs PR (steward): CLAUDE.md l.159 + the vocabulary's debt
+  section and `check_french_debt` (fifteen arms); the joined ids/poster drift guard lost with correspondence (B-513's
+  shape); B-497's closure; the `decision.kind` enum demand (r·7); the instrument minors. Frame-domain lib/ 28, app/ 132.
 - DONE AT r·15 (was owed): `legacy.js`'s `Object.assign(window, …)` published `SETTINGS_STATE`, `icons`, `settingId`, `select`,
   `cadenceFR`, `nextSearchFR`, `stLabel` — readers `settings.py`, `page_host.py` (SETTINGS_STATE/settingId, re-aimed
   at r·5), `audit.py`, `content.py` (the three vocabulary names) → re-aimed from their homes when the file dies;
@@ -234,3 +234,12 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   (2 named), 26 guards, oracle no divergence; pytest 306 passed. Mutations: `r16-mutation-said_and_done.log` (the verb
   renamed) — the registry hold FAIL by name; `r16-mutation-page_host-2.log` (a ghost row in a comment of
   `app/navigation.ts`) — « one page table » FAIL by name. `CLAUDE.md` l.159 not edited (the session's guardrail).
+- 2026-09-15 ruling 114: r·17 measured — check-mock-seeds needs the register and `file`/`answers` for provenance and
+  schema; the extractor only answered the parser gate; `refresh-maquette-fixture.py` rewrites a seed and is alive.
+- 2026-09-15 r·17 (ruling 114): `build-mock-seeds.py` and `extract-maquette-fixtures.mjs` deleted; check-mock-seeds lost
+  correspondence (the joined ids/poster drift check with it, filed) and the parser gate (+ test_check_mock_seeds.py),
+  keeps SEEDED_CLASSES/converted_families/file_for locally; `join` left fixture-projections.json, the register stays;
+  ci.yml's filter names the guard alone; nine stale docstrings corrected. Auditor's order 43 `f6050c052`: design/src's
+  `legacy.js` mentions 18 lines → 15, 0 uncited (all `engine/legacy.js@13a66a35b`, past tense), the contract description
+  re-cited and types regenerated. Gate `r17-gate.log` on `f6050c052`: 24 rules (1 named, content.py), 26 guards, oracle
+  no divergence; pytest touched 265 passed. No rule re-aimed, no mutation.
