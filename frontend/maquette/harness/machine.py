@@ -108,8 +108,10 @@ BLOCKS = (
 # half that needs no data: a badge says what its WORD means. Badge PRESENCE is
 # not held here either, and deliberately: the errors block draws a second row
 # that carries no state at all, exactly as the legacy did.
+# THE PASSAGES LEFT THIS LIST: they are rows that lead to a passage's own screen
+# now, and say their outcome as a word with no badge, so there is no tone to
+# agree with a word. R182 holds the history.
 DERIVED = (
-    ("Exécutions du pipeline", "runs", "run", None),
     ("Erreurs de code", "codeErrors", "code-error row", None),
 )
 

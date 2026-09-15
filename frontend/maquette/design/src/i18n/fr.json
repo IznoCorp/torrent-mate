@@ -1153,7 +1153,6 @@
       "taken": "« {{title}} » récupéré — suivez-le dans « En vol ».",
       "searchStarted": "Recherche lancée pour « {{title}} » — le résultat s'affichera sur la carte.",
       "completionStarted": "« {{title}} » : recherche des épisodes manquants lancée.",
-      "watchStarted": "Veille lancée — 12 suivis balayés, 0 nouvelle release conforme. Prochain passage à 15 h 20.",
       "tmdbConnected": "Compte TMDB connecté — la réserve se remplit, vos notes sont lues.",
       "identified": "« {{target}} » identifié comme « {{title}} » — le scrape reprend, aucun suivi créé.",
       "replaceHeading": "Remplacer « {{title}} » ?",

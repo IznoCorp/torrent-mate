@@ -860,14 +860,19 @@ async def main():
         await acquisition_page.wait_for_timeout(400)
         await acquisition_page.click("[data-more]")
         await acquisition_page.wait_for_timeout(400)
+        # RE-AIMED: the panel's button said a sentence and asked for nothing
+        # (« Veille lancée — 12 suivis balayés… », figures nobody measured); it
+        # emits `data-watch-now` now, the levers' own verb, so what is held is
+        # that the tap ASKS the server for a veille.
         if check("the watch's panel offers its run",
-                 await acquisition_page.query_selector("#sheet [data-standby]") is not None):
-            await acquisition_page.click("#sheet [data-standby]")
+                 await acquisition_page.query_selector("#sheet [data-watch-now]") is not None):
+            await acquisition_page.click("#sheet [data-watch-now]")
             await acquisition_page.wait_for_timeout(600)
-            closed = not await acquisition_page.evaluate(panel_open)
-            message = await acquisition_page.evaluate(said)
-            check("and its tap closes the panel and says the run",
-                  closed and "Veille lancée" in message, f"closed={closed} said={message!r}")
+            asked = await acquisition_page.evaluate(
+                """()=>(window.__mocks?.answered?.() || [])
+                  .filter((call) => call.operationId === "runDetection").map((call) => call.status)""")
+            check("and its tap asks the server for a veille, and is answered",
+                  asked == [202], f"runDetection answered {asked}")
 
         await acquisition_page.evaluate("()=>window.__go('acq-discover-degraded')")
         await acquisition_page.wait_for_timeout(500)
