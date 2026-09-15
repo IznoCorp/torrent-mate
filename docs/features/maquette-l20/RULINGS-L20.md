@@ -78,3 +78,23 @@ answers 404 for an unknown run through a `refused(404, detail)` helper in `mocks
 `run-detail-failed` draws the error whole and marks NO step — the only real failed row records none;
 the rule does not hold « a step marked » there, and the contract carries one demand line: a failed
 run's steps with the failing one named.
+
+## 8 — phase 8: a second pipeline pass is refused, and the queue is the maintenance lock's (auditor, § 10, relayed by the steward, 2026-09-15)
+
+Q1 = A. The mock answers 409 to a second PIPELINE pass and queues only under a MAINTENANCE lock
+(DESIGN § 3.2 l.222–228, validated at #587); the verb gains one fr.json sentence for the 409 (never
+« arrêté »); b·12's comment in `features/arrivals/verbs.ts` is rewritten to say so; `arr-queued`'s
+precondition becomes a maintenance lock, its drawing unchanged, oracle 0 expected (any divergence is
+STOP B); R138 re-read with its hold count unchanged; second mutation: the mock re-queues a second
+pass → the 409 hold falls by name. Q2: R185's red is a mutation-red (the verb's send made a no-op →
+holds 4 and 7 fall by name), said as « red against main does not exist: main has the path ». Phase 8
+= R185 + this; then the FULL suite at `TM_HARNESS_JOBS=2` (B-369's precondition moves), `--a11y`,
+and phase 9 closes.
+
+## 9 — « Lancer ensuite » while a pass runs (auditor, § 10, relayed by the steward, 2026-09-15)
+
+« Lancer ensuite » becomes « Lancer » DISABLED while a pass runs (§ 12: an inactive action looks
+inactive), enabled again at idle; the queue is offered only under a maintenance lock. Owner: L20
+phase 9 — the lot that moves the premise carries its consequence in the same pull request. About 3
+points, one hold, red first (the disabled state under `running`), one mutation; the register row goes
+in L20's own docs pull request. Phase 8 stays as ruled 8 says; this is not folded into it.

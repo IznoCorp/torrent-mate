@@ -225,3 +225,14 @@
   « each says — ». Logs `~/Library/Logs/tm-l20/p7-mutation-{a,b,c,d}.log`.
 - 2026-09-14 — phase 7 ACCEPTED by the steward on 5dd670772; L13b not merged, so l20 2 stood down.
   The `<details>`/`offsetParent` trap written into `frontend/maquette/README.md`'s traps list.
+- 2026-09-15 — `Agent : l20 3` took over at phase 8. `git merge --no-edit 5df76af33` (L13b): 10 files
+  in conflict, all resolved by re-applying this lot's phases (b·12's `state` on `Pipeline` was
+  identical to phase 4's; its `setPipelineState` export dropped for `mockDials`); the register
+  regenerated, `comment-references-baseline.json`'s `read` re-recorded (the only pre-push fall);
+  pushed 9025348e6. Merged tree: `run.sh --contracts --oracle`, JOBS=3 — 23 rules, 26 guards, oracle 0.
+- 2026-09-15 — b·12 already landed phase 8's move (`features/arrivals/verbs.ts` `registerVerb("pipe")`,
+  the engine's branch dead), so phase 8 = R185 (mutation-red: main has the path) + ruling 8's 409.
+- 2026-09-15 — A CONTROL THAT ALWAYS REFUSES, named by ruling 8's premise: `features/arrivals/page.tsx:138`
+  draws « Lancer ensuite » (`data-pipe="start"`) while a pass runs, under the comment « asking for
+  another one is a legitimate thing to want », and under ruling 8 it reads 409 every time outside a
+  maintenance lock. Ruling 9 gives it to phase 9.
