@@ -32,10 +32,11 @@ reconcile by looking twice.
 AND THE AGREEMENT A HAND REACHES. A named state clears the reads' cache, so a
 block read right after `__go` is always fresh — which is exactly where a stale
 lock row cannot be seen. The walk below opens NO state door: it reads the block,
-starts the pipeline from Arrivées by a finger, comes back, pauses and resumes by
-the levers, stops from Arrivées, and comes back again. At every return the row
-agrees with the layer's locks read, and the layer's lock agrees with the
-pipeline's own state — « Libre » over a running pipeline is the defect.
+starts the pipeline from Arrivées by a finger, comes back, pauses, resumes, and
+cuts and restores the automatic trigger by the levers, stops from Arrivées, and
+comes back again. At every return each row agrees with the layer's locks read,
+and the locks read agrees with the pipeline's own status — « Libre » over a
+running pipeline is the defect.
 """
 import asyncio
 import pathlib
@@ -134,7 +135,8 @@ LAYER = """async ()=>{
   const locks = await (await fetch('/api/maintenance/locks')).json();
   const status = await (await fetch('/api/pipeline/status')).json();
   return {held: locks.pipelineLock.held, pause: locks.sentinels.pause,
-          watcherPaused: locks.sentinels.watcherPaused, state: status.state};
+          watcherPaused: locks.sentinels.watcherPaused, state: status.state,
+          watcherEnabled: status.watcherEnabled};
 }"""
 
 # PRESSING A CONTROL THE WAY A FINGER DOES: scrolled into view, hit-tested at its
@@ -159,6 +161,7 @@ STOP = '[data-part="pipeline"] [data-pipe="stop"]'
 # THE WORD A HELD LOCK AND AN ACTIVE PAUSE WEAR, the interface's own.
 HELD_SAID = "Pris"
 PAUSE_SAID = "Activée"
+WATCHER_PAUSED_SAID = "Désactivé"
 
 # WHAT COUNTS THE STATE DOORS, installed before the application assigns them.
 COUNT_THE_DOORS = """(() => {
@@ -233,15 +236,23 @@ async def agrees(journal, page, moment):
     """
     lock = await page.evaluate(ROW_FACT, "locks/pipeline")
     pause = await page.evaluate(ROW_FACT, "locks/pause-sentinel")
+    watcher = await page.evaluate(ROW_FACT, "locks/watcher-sentinel")
     layer = await page.evaluate(LAYER)
     said_held = bool(lock) and HELD_SAID in lock["value"]
     said_pause = bool(pause) and PAUSE_SAID in pause["value"]
+    said_watcher_paused = bool(watcher) and WATCHER_PAUSED_SAID in watcher["value"]
     journal.check(f"{moment}: « Verrou du pipeline » says what the locks read answers",
                   bool(lock) and said_held is layer["held"], f"{lock!r}, layer {layer}")
     journal.check(f"{moment}: the layer's lock agrees with the pipeline's own state",
                   layer["held"] is (layer["state"] != "idle"), f"layer {layer}")
     journal.check(f"{moment}: the pause sentinel says what the locks read answers",
                   bool(pause) and said_pause is layer["pause"], f"{pause!r}, layer {layer}")
+    journal.check(f"{moment}: the trigger sentinel says what the locks read answers",
+                  bool(watcher) and said_watcher_paused is layer["watcherPaused"],
+                  f"{watcher!r}, layer {layer}")
+    journal.check(f"{moment}: the locks read's trigger sentinel agrees with the pipeline's own "
+                  "trigger — one fact, two readers",
+                  layer["watcherPaused"] is (not layer["watcherEnabled"]), f"layer {layer}")
 
 
 async def agreement_by_hand(journal, browser):
@@ -265,6 +276,10 @@ async def agreement_by_hand(journal, browser):
         (SYSTEM_TAB, "Système is reached again by a finger", "after a hand start"),
         ('[data-part="levers/pause"]', "« Mettre tout en pause » is pressed", "after a pause"),
         ('[data-part="levers/resume"]', "« Reprendre » is pressed", "after a resume"),
+        ('[data-part="levers/watcher"]', "the automatic trigger is cut by a finger",
+         "after the trigger is cut"),
+        ('[data-part="levers/watcher"]', "and turned back on by a finger",
+         "after the trigger is back"),
         (ARRIVALS_TAB, "Arrivées is reached again by a finger", None),
         (STOP, "« Arrêter » is pressed by a finger", None),
         (SYSTEM_TAB, "Système is reached a third time by a finger", "after a hand stop"),

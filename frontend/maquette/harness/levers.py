@@ -28,7 +28,9 @@ lock and the trigger carry no printed value: not a zero, not a default, not
 flight is a lie in waiting.
 """
 import asyncio
+import json
 import pathlib
+import re
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -126,6 +128,28 @@ TEXT = """(part)=>{
 # what this rule is trying to prove FOLLOWS it.
 PIPELINE_STATE = """async ()=>(await (await fetch('/api/pipeline/status')).json()).state"""
 
+# WHETHER THE AUTOMATIC TRIGGER IS ON, asked of the layer: « setWatcher was
+# called » is true of a press that sent the wrong value, so the hold reads the
+# state the press left.
+WATCHER_ENABLED = """async ()=>(await (await fetch('/api/pipeline/status')).json()).watcherEnabled"""
+
+# THE INTERFACE'S OWN SENTENCES, read from its resources rather than retyped.
+DESIGN = pathlib.Path(__file__).resolve().parent.parent / "design" / "src"
+SENTENCES = json.loads((DESIGN / "i18n" / "fr.json").read_text(encoding="utf-8"))["screens"]["system"]
+
+# THE BOUND'S OWN SETTING, named by the key the section reads, and what the
+# settings seed holds for it. The section draws the seed's value when it holds
+# one, and says the setting is owed when it does not — so a figure printed
+# there that no seed holds is the §13 lie this reads for.
+BOUND_KEY = re.search(r'const BOUND_KEY = "([^"]+)"',
+                      (DESIGN / "features" / "system" / "queries.ts").read_text(encoding="utf-8")).group(1)
+SEEDED_BOUND = [
+    setting.get("raw")
+    for topic in json.loads((DESIGN / "mocks" / "seeds" / "settings.json").read_text(encoding="utf-8"))
+    for setting in topic.get("settings", [])
+    if setting.get("key") == BOUND_KEY
+]
+
 
 async def drive(journal, page, state):
     """Drives one named state and holds that the table declares it.
@@ -196,6 +220,28 @@ async def main():
         await page.wait_for_timeout(ACTED)
         called = await page.evaluate(ANSWERED, "setWatcher")
         journal.check("pressing it CALLS setWatcher", bool(called), f"{called}")
+        enabled = await page.evaluate(WATCHER_ENABLED)
+        label = await page.evaluate(TEXT, WATCHER)
+        journal.check("and the trigger is OFF afterwards, on the layer and on the control",
+                      enabled is False and label is not None
+                      and label.endswith(SENTENCES["triggerIsOff"].strip()),
+                      f"watcherEnabled={enabled}, control says {label!r}")
+        await page.evaluate(PRESS, WATCHER)
+        await page.wait_for_timeout(ACTED)
+        enabled = await page.evaluate(WATCHER_ENABLED)
+        label = await page.evaluate(TEXT, WATCHER)
+        journal.check("and a second press turns it back ON, on the layer and on the control",
+                      enabled is True and label is not None
+                      and label.endswith(SENTENCES["triggerIsOn"].strip()),
+                      f"watcherEnabled={enabled}, control says {label!r}")
+
+        # R181 — WHEN READY, THE BOUND SAYS WHAT THE SEED HOLDS, and nothing else.
+        await drive(journal, page, IDLE)
+        expected = str(SEEDED_BOUND[0]) if SEEDED_BOUND else SENTENCES["boundOwed"]
+        bound = await page.evaluate(TEXT, BOUND_VALUE)
+        journal.check(f"{BOUND_VALUE} says what the settings seed holds for {BOUND_KEY} "
+                      f"({'its value' if SEEDED_BOUND else 'no entry, so the setting is owed'})",
+                      bound == expected, f"{bound!r}, expected {expected!r}")
 
         await drive(journal, page, TRIGGER_OFF)
         said = await page.evaluate(SAID)
@@ -220,6 +266,10 @@ async def main():
         journal.check("and nothing says « occupé »",
                       not any(word in said.lower() for word in REFUSALS),
                       f"{[word for word in REFUSALS if word in said.lower()]}")
+        queued = await page.evaluate(TEXT, "levers/queued")
+        journal.check("and its queueing is SAID, in the interface's own sentence",
+                      bool(queued) and queued == SENTENCES["pipelineQueued"],
+                      f"{queued!r}, expected {SENTENCES['pipelineQueued']!r}")
 
         # R181 — §13: what has not answered is not printed as an answer.
         await drive(journal, page, LOADING)
@@ -228,7 +278,12 @@ async def main():
         journal.check("the levers' place is drawn while the read is in flight",
                       await page.evaluate(SKELETON, LEVERS) is True,
                       f"{await page.evaluate(SKELETON, LEVERS)}")
-        for part in (BOUND_VALUE, PAUSE, RESUME, WATCHER):
+        # THE LOCK IS READ HERE TOO, since the clause names it: « Libre » before
+        # the locks read answered is the same lie as a bound printed as 0.
+        journal.check("the lock's place is drawn while its read is in flight",
+                      await page.evaluate(SKELETON, "locks") is True,
+                      f"{await page.evaluate(SKELETON, 'locks')}")
+        for part in (BOUND_VALUE, PAUSE, RESUME, WATCHER, "locks/pipeline"):
             text = await page.evaluate(TEXT, part)
             journal.check(f"{part} prints no value while the read is in flight",
                           text in (None, ""), f"{text!r}")

@@ -144,10 +144,15 @@ async def main():
                       f"{await page.evaluate(RENDERED, LOG)}")
         tail = await page.evaluate(ANSWERED_TAIL)
         shown = await page.evaluate(TEXT, LOG)
-        sample = "" if not tail else " ".join(str(tail).split())[-60:]
-        journal.check("what it shows is the run's own output, verbatim",
-                      bool(shown) and bool(sample) and sample in shown,
-                      f"{sample!r} in {(shown or '')[-120:]!r}")
+        # THE WHOLE TAIL, not its last characters: a block that dropped the
+        # head of the output still ends the same way, and « verbatim » is a
+        # claim about every line. Whitespace is collapsed on both sides, since
+        # the part is read as text.
+        whole = "" if not tail else " ".join(str(tail).split())
+        journal.check("what it shows is the run's own output, verbatim and WHOLE",
+                      bool(shown) and bool(whole) and shown == whole,
+                      f"shown {len(shown or '')} characters, answered {len(whole)}; "
+                      f"first difference at {next((index for index, (left, right) in enumerate(zip(shown or '', whole)) if left != right), min(len(shown or ''), len(whole)))}")
 
         # 4 — THE BLOCK SCROLLS SIDEWAYS, THE PAGE DOES NOT.
         scrolling = await page.evaluate(SCROLLS, LOG)
