@@ -7,7 +7,7 @@
 // panel and nothing else, and the card says it is not a medium.
 //
 // NO HANDLER IS ATTACHED HERE. The document-level delegation answers
-// `data-mediasheet`, `data-panel` and `data-act` on the button tapped, which is
+// `data-mediasheet` and `data-panel` on the button tapped, which is
 // why every attribute below is the one the engine's string builder writes for
 // the same card.
 import type { ReactElement } from "react";
@@ -75,7 +75,7 @@ export function ArrivalCard({
   foot,
 }: {
   card: QueueCard;
-  foot?: { label: string; act: string };
+  foot?: { label: string; attributes: Record<string, string> };
 }): ReactElement {
   const reference = useArrivalsReference();
   const { t } = useTranslation();
@@ -130,7 +130,7 @@ export function ArrivalCard({
           />
         ) : null}
         {foot ? (
-          <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-act={foot.act}>
+          <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" {...foot.attributes}>
             {foot.label}
           </button>
         ) : null}

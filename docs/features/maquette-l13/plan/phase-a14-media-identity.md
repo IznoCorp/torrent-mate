@@ -109,7 +109,7 @@ triples are served, and on 0 when the triples stay `SEASONS`' and only the owned
 served. Measured offline: `python3 /private/tmp/tm-l13a/a142-compare-seasons.py`. So a·14.2 stays a conversion:
 `panel-seasons.tsx` and `popover-episode.ts` read the owned numbers and the episodes served by the follow's identity,
 and **`SEASONS`, its read in `followFacts`, the `window.SEASONS` harness readers and the seasons half of the seed
-accessor move to b·10-bis**, where the same function already converts `LIBRARY` and `INCOMPLETE` (ruling 41) — a
+accessor move to b·11**, where the same function already converts `LIBRARY` and `INCOMPLETE` (ruling 41) — a
 behaviour phase, its rule first, Silo's fourth season named there. This voids ruling 52's « `SEASONS` moves to a·14.2 ».
 
 **Ruling 54: the ONE `window.__mocks` seed accessor of DESIGN § 4.2 lands in a·14.2, reduced to the sheets family**
@@ -156,4 +156,4 @@ queries' `enabled` — `pending` with `fetchStatus` `idle`, no update, no observ
 an empty segment leaves (a `fetch` spy saw only `/api/media/tvdb/72668` and its seasons). Nothing fires, so nothing is
 repaired there.
 Register note, filed: « panel-seasons.tsx's first render seeds two disabled query entries with an empty
-provider/id before the identity is known — inert, filed; owner b·10-bis (the seasons read by identity) ».
+provider/id before the identity is known — inert, filed; owner b·11 (the seasons read by identity) ».

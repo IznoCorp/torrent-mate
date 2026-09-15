@@ -63,5 +63,10 @@ export const pilotActions = cva(
  */
 export const candidateCard = cva("text-left p-0 [font:inherit] text-inherit");
 
-/** The mark at a candidate card's right edge, in the tone of the act it marks. */
-export const candidatePick = cva("text-primary");
+/** The « Choisir » pill at a candidate card's right edge: a finger's height, in
+ *  the primary ground, and never a check mark — a mark on every card read as
+ *  « already selected » (B-500). It is decorative: the card is the button. */
+export const candidatePick = cva(
+  "inline-flex items-center justify-center self-center flex-none min-h-[44px] px-6 mr-5 "
+    + "rounded-full bg-primary text-primary-foreground text-3 font-semibold whitespace-nowrap",
+);

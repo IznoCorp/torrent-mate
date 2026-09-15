@@ -104,7 +104,17 @@ export function giveTheEntryBackFirst(isOpen: () => boolean): () => void {
     if ((history.state as { layer?: unknown } | null)?.layer !== undefined) return;
     const control = pageChanger(event.target);
     if (control === null) return;
-    event.stopPropagation();
+    /* NOBODY ELSE ANSWERS THIS CLICK, and `stopPropagation` was not enough to
+       say so. It stops the listeners on other NODES, and the page-changing
+       verbs used to live on one — the engine's delegation, in the bubble
+       phase. They are answered by the tap registry now, which listens in
+       CAPTURE on this very node: a listener beside this one, which propagation
+       does not reach. So the switch ran here AND again on the replayed tap,
+       walking history twice — and the second walk landed on the exit guard,
+       whose handler pushes the current address back on and takes every forward
+       entry with it. Measured: the maintenance topic's entry gone
+       (`url_state.py`), `history.length` 5 → 3. */
+    event.stopImmediatePropagation();
     window.addEventListener("popstate", () => {
       // THE TAP IS MADE AGAIN, not simulated: the same element, the same
       // listeners, the same delegation — over a stack that is now the shape the

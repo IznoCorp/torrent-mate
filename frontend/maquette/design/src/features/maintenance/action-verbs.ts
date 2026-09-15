@@ -96,12 +96,14 @@ async function runAction(
 }
 
 /**
- * Declares the maintenance command's verb to the tap registry.
+ * Declares the maintenance commands' verbs to the tap registry.
  *
  * Args:
  *     client: The cache the maintenance surfaces read.
  */
 export function installMaintenanceVerbs(client: QueryClient): void {
+  // A command's row opens its panel; `panel-action.ts` produces it.
+  registerVerb("maintact", (identifier) => panel.produce("action", identifier));
   // THE DRY-NESS TRAVELS ON THE ELEMENT, beside the identifier. The panel
   // decides it — a destructive command is always blank whatever the page's
   // switch says — and a verb that recomputed it from the store would be a

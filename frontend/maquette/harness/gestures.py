@@ -36,10 +36,11 @@ WHAT THIS RULE DOES NOT READ, said before what it does:
     whole reason exercise 3 exists.
   - IT DOES NOT READ THE THRESHOLD'S RIGHTNESS. 70px on each axis is reused from
     the sheet's own constant. Whether a thumb agrees is a finger's answer.
-  - IT DOES NOT MEASURE A PAINTING. That the drawer follows the finger is held
-    as a transform that MOVED, not as a rendering; the oracle owns renderings,
-    and these two gestures are expected to cost it nothing — which is verified
-    in the wave rather than assumed here.
+  - IT DOES NOT MEASURE A RENDERING. That the drawer follows the finger is held
+    as a transform that MOVED; the oracle owns renderings. ONE PAINTED READING
+    IS HELD, and only one: the layer's box, frame by frame through a close
+    (B-530), because a close that paints the layer back open for 150 ms is
+    closed in every attribute a single reading can reach.
 """
 import asyncio
 import pathlib
@@ -48,7 +49,7 @@ import sys
 from playwright.async_api import async_playwright
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import PHONE, Journal, open_page
+from common import PHONE, PROTOTYPE, Journal, open_page
 
 # The band widths the gestures declare, so a rule and a variant read one number
 # rather than two spellings of it.
@@ -189,6 +190,167 @@ async def sheet_is_open(page):
     """Says whether the panel is still up."""
     return await page.evaluate(
         """()=>document.querySelector("#sheet")?.hasAttribute("data-open") === true""")
+
+
+async def record_the_close(page, selector, edge):
+    """Starts sampling a layer's PAINTED edge on every animation frame.
+
+    A close is a motion, and a reading taken once after it — « closed » — is
+    true of a layer that spent 150 ms back at its open position on the way
+    (B-530). So the whole close is read frame by frame, from before the drag
+    until well past the transition's end, and judged by `the_worst_frame`.
+
+    Args:
+        page: The Playwright page.
+        selector: The layer — `#drawer` or `#sheet`.
+        edge: The box edge that moves on the close — `right` for the menu,
+            `top` for the panel.
+    """
+    await page.evaluate(
+        """({ selector, edge }) => {
+             const layer = document.querySelector(selector);
+             const frames = [];
+             const start = performance.now();
+             window.__closeFrames = frames;
+             const sample = () => {
+               frames.push({
+                 at: Math.round(performance.now() - start),
+                 open: layer.hasAttribute("data-open"),
+                 edge: Math.round(layer.getBoundingClientRect()[edge]),
+               });
+               if (performance.now() - start < 2400) requestAnimationFrame(sample);
+             };
+             requestAnimationFrame(sample);
+           }""",
+        {"selector": selector, "edge": edge})
+
+
+async def the_worst_frame(page, toward_open):
+    """Reads the recorded close back and finds the frame nearest its open position.
+
+    The reference is the last frame still open before the FIRST closed one —
+    where the finger released the layer — because a close from there may only
+    move away from it. Every frame after it is judged, a frame that says open
+    again included: a layer reopened under the pointer is the same defect seen
+    in its attribute, and reading only the frames that still say closed would
+    report it as « no close ».
+
+    Args:
+        page: The Playwright page.
+        toward_open: -1 when a SMALLER edge is nearer open (the panel's top),
+            +1 when a LARGER one is (the menu's right edge).
+
+    Returns:
+        `None` when no close was recorded at all, else a dict with the release
+        edge, the worst frame after it and how many frames were read.
+    """
+    frames = await page.evaluate("()=>window.__closeFrames")
+    first_closed = next(
+        (index for index, frame in enumerate(frames)
+         if index > 0 and frames[index - 1]["open"] and not frame["open"]), None)
+    if first_closed is None:
+        return None
+    closing = frames[first_closed:]
+    reference = frames[first_closed - 1]["edge"]
+    worst = max(closing, key=lambda frame: frame["edge"] * toward_open)
+    return {"released": reference, "worst": worst, "frames": len(closing)}
+
+
+# How far past the release a painted frame may sit — rounding, never a motion.
+PAINT_TOLERANCE = 2
+
+
+async def hold_the_close_is_never_painted_open(journal, browser):
+    """B-530: a layer closed by its swipe stays closed on every painted frame.
+
+    THE CAUSE IS NEITHER THE GESTURE NOR ITS ORDER, and it was measured before
+    anything was repaired. The gesture acknowledges itself with
+    `feedback("commit", layer)`, and `[data-feedback]` runs `feedback-pulse`,
+    whose keyframe wrote `transform: scale(0.985)`. An ANIMATION on `transform`
+    replaces the layer's own transform — which is its position — so for the
+    pulse's 150 ms the close interpolated from `translateX(-100%)` toward a
+    plain scale and back: the menu's right edge went 0 → 285 → 0, the panel's
+    top 844 → 314 → 844. Closed in the attribute, open on the screen.
+
+    DRIVEN BY A MOUSE AND BY A FINGER: the pulse does not care which, and the
+    operator's report is a finger. The menu is also read 1 s after a mouse
+    release for the other shape a swipe's end can take — a click answered under
+    the pointer reopening it — on its attribute and on `history.length`.
+    """
+    context, page = await open_page(browser)
+    where = await open_drawer(page)
+    await record_the_close(page, "#drawer", "right")
+    await touch_drag(page, (where["right"] - 10, where["middle"]), (-TRAVEL, 0))
+    await page.wait_for_timeout(900)
+    close = await the_worst_frame(page, +1)
+    journal.check(
+        "the menu closed by a finger is never painted back open while it closes",
+        close is not None
+        and close["worst"]["edge"] <= close["released"] + PAINT_TOLERANCE,
+        "no close was recorded — the swipe did not close the menu"
+        if close is None else
+        f"released with its right edge at {close['released']}px, it was painted "
+        f"at {close['worst']['edge']}px {close['worst']['at']} ms into the "
+        f"recording ({close['frames']} closing frames read) — an animation on "
+        "`transform` replacing the layer's position")
+    await context.close()
+
+    context = await browser.new_context(**{**PHONE, "has_touch": False})
+    page = await context.new_page()
+    await page.goto(PROTOTYPE, wait_until="load")
+    await page.evaluate("()=>window.__loadingDone?.()")
+    where = await open_drawer(page)
+    length_before = await page.evaluate("()=>history.length")
+    await record_the_close(page, "#drawer", "right")
+    await page.mouse.move(where["right"] - 10, where["middle"])
+    await page.mouse.down()
+    for step in range(1, 9):
+        await page.mouse.move(where["right"] - 10 - TRAVEL * step / 8,
+                              where["middle"])
+        await page.wait_for_timeout(16)
+    await page.mouse.up()
+    await page.wait_for_timeout(1000)
+    close = await the_worst_frame(page, +1)
+    journal.check(
+        "the menu closed by a mouse swipe is never painted back open while it closes",
+        close is not None
+        and close["worst"]["edge"] <= close["released"] + PAINT_TOLERANCE,
+        "no close was recorded — the swipe did not close the menu"
+        if close is None else
+        f"released with its right edge at {close['released']}px, it was painted "
+        f"at {close['worst']['edge']}px {close['worst']['at']} ms into the "
+        f"recording ({close['frames']} closing frames read)")
+    state = await page.evaluate(
+        """()=>({ open: document.querySelector("#drawer").hasAttribute("data-open"),
+                  length: history.length })""")
+    journal.check(
+        "and one second after the release it is still closed, with nothing pushed",
+        not state["open"] and state["length"] == length_before,
+        f"`data-open` {'present' if state['open'] else 'absent'}, "
+        f"`history.length` {length_before} → {state['length']} — a click answered "
+        "under the pointer reopens the menu and pushes its entry again")
+
+    where = await open_sheet(page)
+    await record_the_close(page, "#sheet", "top")
+    await page.mouse.move(where["middle"], where["top"] + SHEET_BAND - 12)
+    await page.mouse.down()
+    for step in range(1, 9):
+        await page.mouse.move(where["middle"],
+                              where["top"] + SHEET_BAND - 12 + TRAVEL * step / 8)
+        await page.wait_for_timeout(16)
+    await page.mouse.up()
+    await page.wait_for_timeout(1000)
+    close = await the_worst_frame(page, -1)
+    journal.check(
+        "the panel closed by a swipe down is never painted back up while it closes",
+        close is not None
+        and close["worst"]["edge"] >= close["released"] - PAINT_TOLERANCE,
+        "no close was recorded — the swipe did not close the panel"
+        if close is None else
+        f"released with its top at {close['released']}px, it was painted at "
+        f"{close['worst']['edge']}px {close['worst']['at']} ms into the recording "
+        f"({close['frames']} closing frames read)")
+    await context.close()
 
 
 async def hold_the_drawer(journal, browser):
@@ -389,6 +551,7 @@ async def hold(journal):
         browser = await play.chromium.launch(channel="chrome")
         await hold_the_drawer(journal, browser)
         await hold_the_sheet(journal, browser)
+        await hold_the_close_is_never_painted_open(journal, browser)
         await browser.close()
     journal.summary(errors)
 

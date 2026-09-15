@@ -31,7 +31,7 @@
 // it can never write a binding.
 import { addressSeam } from "../lib/addresses";
 import { navigationState } from "../lib/navigation-entry";
-import { bridge } from "../lib/shell-doors";
+import { bridge, fillReplaceAddressDoor } from "../lib/shell-doors";
 import { stackedSurfaces } from "../lib/stacked-surface";
 import { store } from "../lib/store-access";
 
@@ -285,3 +285,8 @@ export function switchPageFromLayer(leaving: string): void {
      anywhere else the destination is an arrival and stacks on the floor. */
   walk.afterUnwind = currentState().page === homePage ? replacePath : recordPath;
 }
+
+// THE FEATURES REACH THE REPLACE THROUGH A DOOR, not by importing this module: a
+// tab or a lens is a page setting every feature may write, and a module every
+// feature imported would be the hub the fan-in arm refuses.
+fillReplaceAddressDoor(replacePath);

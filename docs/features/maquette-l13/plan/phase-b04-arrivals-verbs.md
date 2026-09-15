@@ -52,3 +52,8 @@ reading of the `next` hold and the mutations go in the report.
 ## Commit
 
 `feat(maquette-l13): the arrivals feature answers its own delegation names`
+
+## Amendments
+
+- **Amended 2026-09-13 (steward, the three arms' dry read, audit order 2):** route through `app/panel-contributions.ts`'s side-effect line (cost 0) rather than `app/feature-verbs.ts` (+2); new `data-*` names into the vocabulary in the same commit.
+- **Amended 2026-09-13 (rulings 73 and 74):** the card feet emit `data-take` and `data-resolution` (never `data-resolve`, which means « pick this candidate », B-474); `actionLeave` dies here, `actionResolve`/`actionTake` in b·5; `pipe` does NOT move — `check-state-ownership.py` refuses a feature writing server state — and converts at b·12.

@@ -26,7 +26,6 @@ export function LibraryList(): ReactElement {
   useStoreContent((content) => content.version);
   const { t } = useTranslation();
   const reference = useLibraryReference();
-  const { paintSelBar } = reference;
   const footRef = useRef<HTMLDivElement | null>(null);
   const grid = state.libMode === "grid";
   // FROM THE CACHE, PAGE BY PAGE (invariant 4). Four keys leave the interface's
@@ -87,9 +86,6 @@ export function LibraryList(): ReactElement {
   // repainting on every draw would destroy and rebuild a node the legacy left
   // alone — and that node lives in `#device`, beside the settings save bar.
   const drawsRows = state.phase === "ready" && rows.length > 0;
-  useEffect(() => {
-    if (drawsRows) paintSelBar();
-  });
 
   // ONE PAGE MORE, asked for by the sentinel coming into view. The cache owns
   // the whole of it now: whether one is in flight, whether the last one failed,

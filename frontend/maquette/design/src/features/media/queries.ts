@@ -15,22 +15,14 @@ import { read } from "../../lib/query-client";
 import { toEngineShapeEntry } from "../../engine/engine-shape";
 import { currentEntryState } from "../../lib/navigate";
 import { carriedBy } from "../../lib/navigation-entry";
+import { seasonsHeld, seasonsQuery, type SeasonsAnswer } from "../../lib/season-rows";
 
 /** One sheet, as the layer composes it. */
 export type MediaSheetPayload = Record<string, unknown>;
 
-/** What the seasons read answers: the catalogue, and what we hold of it. */
-export type MediaSeasons = {
-  seasons: { n: number; ep?: number | null }[];
-  owned: Record<string, number[]>;
-  /**
-   * How many episodes of each season have AIRED, keyed by season number: the
-   * layer's derivation from the catalogue's own dates, and the denominator of
-   * every season row. The catalogue's `ep` is its TOTAL, announced episodes
-   * included, which is not the same question.
-   */
-  aired: Record<string, number | null>;
-};
+/** What the seasons read answers — written once, in `lib/season-rows.ts`. */
+export type MediaSeasons = SeasonsAnswer;
+export { seasonsHeld };
 
 /**
  * What the current entry carries about the sheet at one address.
@@ -100,20 +92,7 @@ export function useMediaSheet(provider: string, identifier: string) {
  */
 export function useMediaSeasons(provider: string, identifier: string) {
   return useQuery({
-    queryKey: ["/api/media", provider, identifier, "seasons"],
-    queryFn: async () => {
-      const answered = await read<Record<string, unknown>>(
-        `/api/media/${encodeURIComponent(provider)}/${encodeURIComponent(identifier)}/seasons`);
-      // The catalogue is the sheet's own, so it wears the sheet's names: one
-      // entry of `SHEETS_RAW` carrying nothing but its seasons.
-      const shaped = toEngineShapeEntry<Record<string, unknown>>(
-        "SHEETS_RAW", { seasons: answered.seasons });
-      return {
-        seasons: (shaped.seasons ?? []) as MediaSeasons["seasons"],
-        owned: (answered.owned ?? {}) as MediaSeasons["owned"],
-        aired: (answered.aired ?? {}) as MediaSeasons["aired"],
-      } satisfies MediaSeasons;
-    },
+    ...seasonsQuery(provider, identifier),
     enabled: provider !== "" && identifier !== "",
   });
 }
@@ -158,39 +137,3 @@ export function announcedAfter(
     .sort();
 }
 
-/**
- * Crosses a season catalogue with what we hold, once.
- *
- * ONE DERIVATION PER QUESTION (§13). « How complete is this season » is asked on
- * the sheet, on the matrix and in the popover; the engine answered it in
- * `seasonsOf`, and this is that answer moved rather than a second one written.
- *
- * WHAT AIRED IS THE LAYER'S ANSWER, never the catalogue's total. `ep` counts
- * the episodes a provider has ANNOUNCED, and a « manquant » is an episode that
- * has aired and is not held: dividing by the total drew « 6/10 · 4 manquants »
- * over a season of which seven had aired, three episodes missing that nobody
- * could have (B-380). A season the answer gives no count for is not a season
- * that aired zero: the interface then draws « n owned » rather than « n of m ».
- * And an owned number ABOVE what aired is not counted — a season of which ten
- * have aired cannot be eleven-tenths complete.
- *
- * @param held What the layer answered.
- * @returns One entry per season: its number, what aired, and what we hold.
- */
-export function seasonsHeld(held: MediaSeasons | undefined): [number, number | null, number][] {
-  if (held === undefined) return [];
-  const owned = held.owned ?? {};
-  if (held.seasons.length) {
-    return held.seasons.map((season) => {
-      const numbers = owned[String(season.n)] ?? [];
-      const aired = held.aired[String(season.n)] ?? null;
-      const own = aired ? numbers.filter((one) => one <= aired).length : numbers.length;
-      return [season.n, aired, own];
-    });
-  }
-  // No catalogue: the owned seasons are known, the totals are not.
-  return Object.keys(owned)
-    .map(Number)
-    .sort((left, right) => left - right)
-    .map((number) => [number, null, owned[String(number)].length]);
-}

@@ -822,16 +822,12 @@
    the reader is leaving. It carries its own name and its OLD snapshot slides
    DOWN — its natural closing gesture — while transition A plays underneath.
 
-   ONLY THE DEPARTURE IS DRAWN HERE. The prose that used to stand in this place
-   promised the mirror — « AND BACK PLAYS THE MIRROR … it reopens the panel » —
-   beside a `::view-transition-new` rule that animated nothing: Back lands on the
-   list with the panel shut, measured. Both the promise and the rule are gone.
-
-   Reopening a panel on a backward step is the ladder's own HANDLER, which this
-   lot does not touch. The behaviour is filed and owned, and the reverse of
-   `panel-down` is written the day the return exists — which is also the day its
-   shape can be verified. A rule kept « because it costs nothing » is machinery
-   nobody dares delete a year later.
+   AND BACK DRAWS THE RETURN. The panel's entry stays under the screen's, so a
+   Back lands on it and the ladder puts the panel back inside a view transition:
+   the open panel is captured NEW under the same name, and
+   `::view-transition-new(leaving-panel)` plays `panel-down` in REVERSE — the
+   departure's own curve read backwards, so the gesture that took the panel away
+   is the one that brings it back.
 
    FOR THE DEPARTURE TO EXIST AT ALL the panel has to be captured OPEN, which is
    why the seam closes it inside the navigation's commit (`lib/navigate.ts`'s
@@ -845,6 +841,13 @@
        here it is the one a reader SEES. Without it `panel-down` ends and the
        snapshot returns to the panel as it was captured, open and at rest, over
        a media screen that is already fully in (B-310). */
+    animation-fill-mode: both;
+  }
+
+  ::view-transition-new(leaving-panel) {
+    animation: panel-down var(--duration-4) var(--ease-standard) reverse;
+    /* Held at the panel's hidden end before the return starts, for the reason
+       the departure holds its own end after it finishes. */
     animation-fill-mode: both;
   }
 }
@@ -1006,10 +1009,17 @@
   }
 }
 
+/* `scale`, NEVER `transform: scale()`. An animation on `transform` REPLACES the
+   element's own transform for its whole duration, and on a layer whose
+   position IS its transform — the menu, the panel — the pulse interpolated the
+   closing layer from off-screen toward a bare scale and back: painted open again
+   for 150 ms while every attribute said closed (B-530). The individual property
+   composes with `transform` instead, so a surface that is not moved scales
+   exactly as before and a surface that is moved keeps its place. */
 @keyframes feedback-pulse {
   50% {
     opacity: 0.82;
-    transform: scale(0.985);
+    scale: 0.985;
   }
 }
 

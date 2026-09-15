@@ -50,3 +50,7 @@ first-holds' red readings and the mutations go in the report.
 ## Commit
 
 `feat(maquette-l13): account, maintenance and releases answer their own delegation names`
+
+## Amendments
+
+- **Amended 2026-09-13 (steward, the three arms' dry read, audit order 2):** `app/entry.ts` reaches 4 fan-in keys exactly — the next importer is refused; every NEW `data-*` name's words enter `code-vocabulary.txt` in the same commit; frame-domain cost measured before and after.

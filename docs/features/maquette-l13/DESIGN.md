@@ -36,8 +36,7 @@ wrong).** Everything else is the evidence under them.
 
 ## 1. The cut — an arbitration for the operator
 
-Sent to the steward on 2026-09-13 (message « L13 CUT ARBITRATION »). **The operator's ruling is
-PENDING; this design and the plan proceed on the recommendation.** If the ruling is A, `plan/INDEX.md`
+Sent to the steward on 2026-09-13 (message « L13 CUT ARBITRATION »). **RULED B by the operator on 2026-09-13** (three sub-lots; reading A refused as mixing conversion and behaviour in one review); **Q2 ruled (ii) the same day — the ≡ harness panel died at L13a a·17-bis** (ruling 31: `harness/bar` and `#notesBtn` stay). **The folder `docs/features/maquette-l13/` is the LOT's** (ruling 58): it dies at L13c's post-merge gesture; each sub-lot's gesture deletes only its own brief and resume, cited by commit. If the ruling is A, `plan/INDEX.md`
 merges its three phase tables into one and no phase file changes.
 
 **(A) One wave.** One branch, one squash, 39 phases chained, one reader round at the end. Cost: a
@@ -223,7 +222,7 @@ primitive phase converts the variant and leaves the rule while an engine helper 
 | 62 delegation names | engine | registered verbs in the owning feature (§ 6) | b·1–7 | each move lands with the rule that held it; a verb held by none gets its rule first, red on the engine branch |
 | gesture listeners (swipe, suggestion card, deck, drag guard, `__reposPTR`) | `E:30896–31270` | `lib/` for the arbitration shape, the feature for which surface uses it | b·8 | R55, R98, R112, `deck.py`, `drag.py`, `press.py`; B-337's one-tap hold |
 | the 240/260 ms close-then-wait timers | 10 sites | die with B-290's one shape | b·9 | `exits.py`'s inventory refuses them |
-| `legacy.js`, `engine/seams.ts`, the extractor's `ENGINE`, the seed builder's and `check-mock-seeds.py`'s three parser arms, `check-state-ownership.py` `ENGINE_SOURCES`, `check-no-french.py`'s allowed set + `check_unread_javascript` allow-list, `nofrench_lexicon.py` `DEBT_FILE`, `code-vocabulary.txt`'s FRENCH DEBT section (1260–1300, 24 words), the ledger entry, `harness/mocks.py`'s `TODAY` read, `said_and_done.py`'s engine read, `page_host.py:951`, `navigation.py:149`, `frontend/maquette/resync.py` | live | deleted or re-aimed in ONE commit | b·11 | `make check` exit 0; size arm lists no GRANDFATHERED; the contract's `grep -cE` reads 0 by construction |
+| `legacy.js`, `engine/seams.ts`, the extractor's `ENGINE`, the seed builder's and `check-mock-seeds.py`'s three parser arms, `check-state-ownership.py` `ENGINE_SOURCES`, `check-no-french.py`'s allowed set + `check_unread_javascript` allow-list, `nofrench_lexicon.py` `DEBT_FILE`, `code-vocabulary.txt`'s FRENCH DEBT section (1260–1300, 24 words), the ledger entry, `harness/mocks.py`'s `TODAY` read, `said_and_done.py`'s engine read, `page_host.py:951`, `navigation.py:149`, `frontend/maquette/resync.py` | live | deleted or re-aimed in ONE commit | b·13 | `make check` exit 0; size arm lists no GRANDFATHERED; the contract's `grep -cE` reads 0 by construction |
 
 ---
 
@@ -342,7 +341,7 @@ the phase that converts each family.
 | `HERO_IMAGES` | 826–1153 (328) | `media-screen.tsx:44` | `hero-images.json` + `MediaSheet.hero`, unread | dies; the screen reads `sheet.hero` | a·13 |
 | `trailerIds` | 1160–2474 (1 315) | `media-screen.tsx:229`, a fallback | `trailers.json` + `trailerVideo`, read first | dies | a·13 |
 | `OWNED` | 2481–3863 (1 383) | `ownedFor` → `season-list.tsx:109`, `panel-seasons.tsx:72` | `owned-episodes.json` + `readMediaSeasons.owned` | dies | a·14 |
-| `LIBRARY` | 3938–4464 (527) | `mediaNamedBy`, `knownMedium`, `follow-facts.ts:103` | `library-items.json` + `readLibraryItems`; **the engine copy already ignores mock deletes** | dies; the three readers ask an EXACT membership read the contract gains (amended 2026-09-13, ruling 41: the paged listing narrows all three, so it is a behaviour change, not a·10's) | b·10-bis |
+| `LIBRARY` | 3938–4464 (527) | `mediaNamedBy`, `knownMedium`, `follow-facts.ts:103` | `library-items.json` + `readLibraryItems`; **the engine copy already ignores mock deletes** | dies; the three readers ask an EXACT membership read the contract gains (amended 2026-09-13, ruling 41: the paged listing narrows all three, so it is a behaviour change, not a·10's) | b·11 |
 | `MAINT_ACTIONS` | 4641–4876 (236) | none in product; `page_host.py:248`, `url_state.py`, one type in `maintenance/reference.ts` | `maintenance-actions.json` | **dead data** | a·15 |
 | `SETTINGS` | 5756–7217 (1 462) | `allSettings` (the engine's field verbs, `settings/page.tsx:163,243`), `states.js:707` | `settings.json` + `readSettings` | dies; `allSettings` = `flattenSettings(cache)` — the engine's field branches read it through the same function until L13b ph. 1 | a·16 |
 | `CAST` | 9701–9872 (172) | `media-cast.tsx:91` | `cast-portraits.json` + `castPortraits`, unread | dies | a·13 |
@@ -433,6 +432,8 @@ after with its count unchanged. A name held by no rule — measured: `to`, `dele
 files — gets its hold written FIRST, red against the engine branch deleted on purpose, before the
 branch moves.
 
+**Amended 2026-09-13 (§ 7.1, rulings 73–74):** `.cfoot`'s « Résoudre » does NOT become `data-resolve` — that name means « pick this candidate » (`resolution-cards.tsx:90`, B-474); the arbitration opener is the arrivals feature's `data-resolution`, and « Récupérer » emits `data-take`. `pipe` is not a move: it converts at b·12.
+
 ---
 
 ## 7. `refonte.html`, R72 and the ledger's home (L13a phase 19)
@@ -462,14 +463,14 @@ path from its inputs).
 
 ---
 
-## 8. The ladder's shape (L13b phases 9–10) — an ARCHITECTURE decision for the operator
+## 8. The ladder's shape (L13b phases 9–10) — RATIFIED by the operator on 2026-09-13 (Q3 = A)
 
 **B-290's arbitration, written out.** Today a layer left for an arrival has two shapes: « Voir la
 fiche » closes the panel inside the navigation's commit and KEEPS its entry (Back crosses two:
 `history.state.__TSR_index` 3 → 1); its siblings (`releases`, `profile`, `take`) POP the entry and
 push 240/260 ms later. B-397 is a third: a panel re-produced after an edit pushes another entry.
 
-**Proposed decision D-L13-1: a layer left for an arrival KEEPS its entry, and Back onto it REOPENS
+**Decision D-L13-1 (ratified 2026-09-13): a layer left for an arrival KEEPS its entry, and Back onto it REOPENS
 it.** § 16 rule 1 read literally: opening a panel is an arrival, so the panel is on the stack, and
 Back from the screen it opened returns to it — which is B-275's own wording (« Back should reopen it
 over the list »). The entry records what reopens it — `{ layer: "sheet", kind, subject }`, written

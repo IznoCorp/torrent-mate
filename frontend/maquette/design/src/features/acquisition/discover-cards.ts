@@ -101,10 +101,13 @@ export function suggestionTile(suggestion: Suggestion, position: number): string
     subtitle: `${suggestion.y} · ${suggestion.k}`,
     artwork: posterArtwork(drawing().icons, suggestion.poster, suggestion.t, suggestion.k === "Film" ? "movie" : "show"),
     badge: { tone: "overlay", text: String(suggestion.note) },
+    // The sheet before the panel: the registry answers the first registered
+    // key in attribute order, and `data-dismissable` is a gesture's marker
+    // rather than a verb, so it answers nothing.
     attributes: {
       "data-dismissable": position,
-      "data-panel": `sug:${position}`,
       "data-mediasheet": suggestion.t,
+      "data-panel": `sug:${position}`,
     },
   });
 }

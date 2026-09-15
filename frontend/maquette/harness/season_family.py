@@ -1,5 +1,8 @@
 """R173 — one season family: every surface counts what has AIRED (B-380).
 
+RE-AIMED: the season family is `window.__mocks.seasonFamily()` — the seed the engine's
+season table was a copy of — since that table died.
+
 « MANQUANT » IS AN EPISODE THAT HAS AIRED AND IS NOT HELD. An episode the
 catalogue announces and nobody has broadcast yet cannot be held, so it is not
 missing: it is drawn to say a release is coming, and it is offered no act. The
@@ -11,7 +14,7 @@ THE AIRED COUNT IS DERIVED, ONCE, IN THE LAYER — from the catalogue's own epis
 dates against the referential's today — and every family that states a count
 must agree with it. Four families state one, and they are read here:
 
-  1. THE SEASON FAMILY (`window.SEASONS`, `[number, aired, owned]`), which the
+  1. THE SEASON FAMILY (`window.__mocks.seasonFamily()`, `[number, aired, owned]`), which the
      follow panel and every rule looking for « a season with a hole » read;
   2. THE LAYER's seasons answer — the `aired` it derives and the owned numbers it
      holds — which the sheet reads. Where the sheet is OWNED, the owned count is
@@ -119,7 +122,7 @@ FAMILIES = """async ([followsPath, incompletePath, seasonsPath, sheetPath]) => {
   };
   const reference = window.__referentiel;
   const shows = [];
-  for (const title of Object.keys(window.SEASONS || {})) {
+  for (const title of Object.keys(window.__mocks.seasonFamily())) {
     const address = window.__addressOf(title);
     let seasons = null;
     let sheet = null;
@@ -130,7 +133,7 @@ FAMILIES = """async ([followsPath, incompletePath, seasonsPath, sheetPath]) => {
       seasons = await read(at(seasonsPath));
       sheet = await read(at(sheetPath));
     }
-    shows.push({title, family: window.SEASONS[title], address,
+    shows.push({title, family: window.__mocks.seasonFamily()[title], address,
                 aired: seasons ? seasons.aired : null,
                 owned: seasons ? seasons.owned : null,
                 sheetOwned: sheet ? sheet.owned === true : false});
@@ -291,7 +294,7 @@ async def one_season_on_both_surfaces(page, journal, errors, bare, key, season):
     await page.evaluate("(id)=>window.__go(id)", START_STATE)
     await page.wait_for_timeout(SETTLED)
     family = await page.evaluate(
-        "([title, season])=>(window.SEASONS[title] || []).find(([n]) => n === season) || null",
+        "([title, season])=>(window.__mocks.seasonFamily()[title] || []).find(([n]) => n === season) || null",
         [bare, season])
     catalogue = await page.evaluate(CATALOGUE, [key, season])
     journal.check(f"{where}: the catalogue announces more than has aired — the case where "

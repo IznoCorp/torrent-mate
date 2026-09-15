@@ -175,6 +175,29 @@ async def main():
               any("manuellement" in x for x in without["exits"])
               and any("Laisser tel quel" in x for x in without["exits"]))
 
+        # ── « Suivant » opens the NEXT folder's arbitration, in place ──────
+        # The address is the screen's identity, so the next folder REPLACES the
+        # entry: one entry in, one out, and a single Back still leaves the
+        # arbitration rather than walking the folders already answered. Read
+        # after the screen has had time to change, never by timing the change.
+        await pg.evaluate("()=>window.__go('arr-decision')")
+        await pg.wait_for_timeout(420)
+        await pg.evaluate("()=>window.__screens.resolution()")
+        await pg.wait_for_timeout(420)
+        standing = """()=>{const screen = document.querySelector('[data-part="screen"][data-open][data-key^="resolution:"]');
+          return {key: screen ? screen.dataset.key : null,
+                  path: decodeURIComponent(location.pathname + location.search),
+                  depth: history.length, next: !!document.querySelector('[data-next]')};}"""
+        first = await pg.evaluate(standing)
+        if check("a folder among several offers « Suivant »", first["next"], str(first)):
+            await pg.click("[data-next]")
+            await pg.wait_for_timeout(660)
+            moved = await pg.evaluate(standing)
+            check("and « Suivant » opens the NEXT folder's arbitration, replacing its entry",
+                  moved["key"] is not None and moved["key"] != first["key"]
+                  and moved["path"] != first["path"] and moved["depth"] == first["depth"],
+                  f"{first} → {moved}")
+
         # ── answering empties the queue, on BOTH lists ────────────────────
         for state_, list_, exit_ in (
             ("arr-decision", "blocked", "[data-resolve]"),

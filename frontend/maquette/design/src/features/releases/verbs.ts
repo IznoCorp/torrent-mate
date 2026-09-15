@@ -26,7 +26,7 @@
 // halves at once: WHICH candidate was retained, and WHERE the medium went.
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
-import { bridge, toast } from "../../lib/shell-doors";
+import { bridge, panel, screens, toast } from "../../lib/shell-doors";
 import { queueActions } from "../../lib/queue";
 import { releases } from "./queries";
 import { baseTitle } from "../../lib/titles";
@@ -83,4 +83,19 @@ registerVerb("pick-release", (value) => {
       title: baseTitle(title),
     }),
   });
+});
+
+/* THE TWO SURFACE-OPENERS. Each opens its screen at once: the screen's door
+   closes the panel inside the navigation's own commit and keeps its entry, so a
+   Back from the screen comes back to the panel. */
+
+// Another release: the release screen for the title the panel names.
+registerVerb("releases", (title) => screens.releases(title));
+
+// The quality profile. Both are ROUTES: from the release screen the profile
+// takes that screen's place — a REPLACE, the ladder a pop and a push used to
+// leave — and from a panel it lands on top of the panel's entry.
+registerVerb("profile", (profile) => {
+  const fromReleases = !!document.querySelector('.screen.open[data-key^="releases:"]');
+  screens.profile(profile, fromReleases);
 });

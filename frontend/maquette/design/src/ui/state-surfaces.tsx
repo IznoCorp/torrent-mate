@@ -85,13 +85,11 @@ export function SkeletonLine({
  * `role="alert"` is L03's and it stays: an error nobody is told about is
  * NE-DOIT-PAS-5 with extra steps.
  *
- * THE RETRY RE-ASKS WHERE A CALLER GIVES IT SOMETHING TO ASK, and is delegated
- * everywhere else. The button carried `data-phase="ready"` alone: the engine's
- * document-level handler writes a PAGE's UI phase and re-asks nothing, so on a
- * surface that owns a query the control said « Réessayer » and did something
- * else. A caller holding a read passes `onRetry`; the delegation attribute is
- * emitted only when none does, so the surfaces the engine still draws keep the
- * behaviour they had.
+ * THE RETRY RE-ASKS: a caller holding a read passes `onRetry`, and when none
+ * does the control carries `data-retry`, which the frame answers by asking
+ * every active read again — what « Réessayer » means. It once wrote a page's
+ * UI phase instead and re-asked nothing, so the control said « Réessayer » and
+ * did something else.
  *
  * AND A FAILURE CARRIES ITS OWN REASON. `detail` is what the server said — data,
  * never copy — and it stands where the body sentence would. That sentence
@@ -145,7 +143,7 @@ export function SurfaceError({ subject, detail, onRetry }: {
       <button
         data-part="surface-error/retry"
         onClick={onRetry}
-        data-phase={onRetry ? undefined : "ready"}
+        data-retry={onRetry ? undefined : ""}
       >
         {t("surfaces.error.retry")}
       </button>

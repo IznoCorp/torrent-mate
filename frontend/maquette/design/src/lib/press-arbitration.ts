@@ -164,12 +164,16 @@ declare global {
 /** The press's own numbers, once an arbitration is installed — published by the harness as `window.__gestures.press`. */
 export let pressNumbers: Record<string, number> | undefined;
 
+/** Whether a click is being swallowed as a press's own lift — published by the harness as `window.swallowClick`. */
+export let pressSwallowClick: (() => boolean) | undefined;
+
 export function installPressArbitration(
   options: PressArbitrationOptions,
 ): PressArbitration {
   let press: PressInFlight | null = null;
   let swallowClick: Point | null = null;
 
+  pressSwallowClick = () => swallowClick !== null;
   pressNumbers = {
     milliseconds: PRESS_MILLISECONDS,
     tolerancePixels: PRESS_TOLERANCE_PIXELS,
@@ -310,6 +314,15 @@ export function installPressArbitration(
   });
 
   // A press that opened the panel must not ALSO fire what the lift lands on.
+  //
+  // IT STOPS THE CLICK IMMEDIATELY, and `stopPropagation` alone did not.
+  // Propagation stops a listener on ANOTHER node; it leaves every other
+  // listener on THIS one — `document` — to run. That cost nothing while the
+  // only thing answering a tap on `document` was a delegation in the BUBBLE
+  // phase, which propagation does stop; the tap registry answers in the
+  // CAPTURE phase, beside this handler, so from the moment a panel's own
+  // action became a registered verb the lift fired it and the panel it had
+  // just opened closed again under the finger.
   document.addEventListener(
     "click",
     (event) => {
@@ -321,7 +334,7 @@ export function installPressArbitration(
       swallowClick = null;
       if (distance > PRESS_TOLERANCE_PIXELS) return;
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
     },
     { capture: true },
   );

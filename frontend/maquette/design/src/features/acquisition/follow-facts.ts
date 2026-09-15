@@ -14,26 +14,12 @@
 // READ FROM THE SAME DERIVATIONS the urgency sections read. A section that
 // computes what is to be grabbed while the panel computes it separately is two
 // answers to one question, and they part company on the first change (§13).
-import { heldIdentity } from "../../lib/held-identity";
+import { heldIdentity, providerAddress } from "../../lib/held-identity";
+import { membershipQuery, type Membership } from "../../lib/membership";
+import { seasonsQuery, seasonsHeld, type SeasonsAnswer } from "../../lib/season-rows";
 import { queueNow } from "../../lib/queue";
 import type { PanelCache } from "../../ui/panel/contract";
-import { followsQuery } from "./queries";
-
-declare global {
-  interface Window {
-    /**
-     * The library's rows and the season catalogue, as the dying engine
-     * publishes them for the harness to drive through.
-     *
-     * READ HERE AND NOT THROUGH THE REFERENCE, because the reference does not
-     * carry them and ADDING to it would be adding to the engine — which D5
-     * forbids outside a defect that destroys data. They are the same objects
-     * the engine's own producer read; both die with it.
-     */
-    LIBRARY: { t: string }[];
-    SEASONS: Record<string, [number, number, number][]>;
-  }
-}
+import { followsQuery, incompleteShowsQuery } from "./queries";
 
 // THE FEATURE'S OWN RECORD, not a looser copy of it. A slice declared here
 // would be a second shape of one thing, and the vocabulary the panel hands on —
@@ -46,7 +32,10 @@ export type { Follow };
 /** What is true about the medium a follow panel is about. */
 export type FollowFacts = {
   follow: Follow;
-  seasons: [number, number, number][];
+  /** Number, episodes aired (null when the answer gives no count), episodes held. */
+  seasons: [number, number | null, number][];
+  /** The medium has an identity and its seasons read has not landed yet. */
+  seasonsPending: boolean;
   isFilm: boolean;
   /** In the library and missing episodes. */
   incomplete: boolean;
@@ -81,11 +70,19 @@ export type FollowFacts = {
  */
 export function followFacts(title: string, cache: PanelCache): FollowFacts | null {
   const followed = cache.held<Follow[]>(followsQuery.queryKey);
-  if (followed === undefined) return null;
+  // NOT BEFORE WHAT IT STATES HAS LANDED: a panel drawn without the membership
+  // or the incomplete shows says « not in the library » and « complete » about
+  // a medium it simply has not asked about yet.
+  const membership = cache.held<Membership>(membershipQuery(title).queryKey);
+  const incompleteAnswer = cache.held<{ t: string; o: number; a: number }[]>(
+    incompleteShowsQuery.queryKey);
+  if (followed === undefined || membership === undefined || incompleteAnswer === undefined)
+    return null;
   const reference = window.__referentiel;
-  const incompleteShows = reference.INCOMPLETE as {
-    t: string; o: number; a: number;
-  }[];
+  // THE SERVED ANSWERS, every one of them: the incomplete shows, the
+  // membership and the seasons are read from the cache the layer fills, never
+  // from a copy the layer does not write.
+  const incompleteShows = incompleteAnswer;
   const follow: Follow =
     followed.find((one) => one.t === title) ??
     incompleteShows
@@ -94,24 +91,28 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
       }))
       .find((one) => one.t === title) ??
     { t: title, k: "show", y: "", st: "up_to_date" };
-  const seasons = (window.SEASONS[title] ?? [])
+  const address = providerAddress(follow.ids ?? heldIdentity(title)?.ids);
+  const seasonsAnswer = address
+    ? cache.held<SeasonsAnswer>(seasonsQuery(address.provider, address.id).queryKey)
+    : undefined;
+  const seasons = seasonsHeld(seasonsAnswer)
     .slice()
     .sort((one, other) => other[0] - one[0]);
   const isFilm = follow.k === "movie";
   const incomplete = incompleteShows.some((show) => show.t === title);
   const isFollowed = followed.some((one) => one.t === title);
-  const inLibrary =
-    incomplete || window.LIBRARY.some((row) => row.t === title);
+  const inLibrary = incomplete || membership.inLibrary;
   const queue = queueNow();
   const toTake = queue.takeable.some((one) => one.t === title);
   const toResolve = queue.blocked
     .concat(queue.stuck ?? [])
     .some((one) => one.t === title);
   const held = seasons.reduce((total, season) => total + season[2], 0);
-  const aired = seasons.reduce((total, season) => total + season[1], 0);
+  const aired = seasons.reduce((total, season) => total + (season[1] ?? 0), 0);
   return {
     follow,
     seasons,
+    seasonsPending: address !== null && seasonsAnswer === undefined,
     isFilm,
     incomplete,
     isFollowed,

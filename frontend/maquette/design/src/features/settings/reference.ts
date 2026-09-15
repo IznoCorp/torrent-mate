@@ -76,12 +76,7 @@ export type SettingsReference = EngineDrawing & {
   // type, and apply/open a pending edit. See refonte.html@60530dbd8's `SETTINGS`
   // neighbourhood for the file/rubric structure `Setting.rubrique` carries.
   settingId: (setting: Setting) => string;
-  // The value a field must DRAW: the pending edit when there is one, the
-  // file's `brut` otherwise. The pending-edit overlay itself stays private to
-  // the engine — this returns the value, never the map.
-  rawValue: (setting: Setting) => unknown;
   typedValue: (setting: Setting, text: string) => unknown;
-  changeSetting: (id: string, value: unknown) => void;
   displayedValue: (setting: Setting) => unknown;
   fileName: (file: string) => string;
   changedFiles: () => string[];

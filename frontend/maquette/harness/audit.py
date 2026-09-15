@@ -296,7 +296,7 @@ async def main():
       // not — a false accusation is as expensive as a missed defect.
       const out=[]; const snap=()=>JSON.stringify({t:(window.__queue?.().takeable||[]).length,i:(window.__queue?.().inFlight||[]).length,s:(window.__queue?.().stuck||[]).length,
         m:(window.__queue?.().moving||[]).length,f:(window.__followActions?.all()||[]).length,l:(window.__queries?.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages?.[0]?.loaded ?? 0),p:state.page,tab:state.acqTab,lens:state.libLens,
-        pipe:state.pipe});
+        pipe:window.__queries?.getQueryData(['/api/pipeline/status'])?.state});
       for (const id of ['acq-now-loaded','arr-loaded','lib-incomplete']) {
         window.__go(id); await new Promise(r=>setTimeout(r,220));
         const btns=[...document.querySelectorAll('#view [data-part="card/foot"]')];

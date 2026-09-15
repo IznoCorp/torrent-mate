@@ -16,9 +16,9 @@ import { flattenSettings, settingIdentifier, valueShown } from "./catalog";
 import { HELD, send, sharedQueryClient } from "../../lib/query-client";
 import { configurationStatusQuery, settingsQuery, writeConfigurationFile } from "./queries";
 import type { Setting, SettingsTopic } from "./reference";
-import { panel, toast } from "../../lib/shell-doors";
-import { dialog } from "../../app/dialog-host";
+import { dialog, panel, toast } from "../../lib/shell-doors";
 import { settingLabels } from "./labels";
+import { changeSetting } from "./pending-edits";
 
 // THE ICONS COME THROUGH THE ENGINE'S DRAWING SLICE, not by importing
 // `app/icons.ts`, and it is invariant 8 that decides. `app/icons.ts` is outside
@@ -171,20 +171,15 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
    this feature's. So is the redraw and the sentence that follows — both through
    seams that die with the engine.
 
-   THE WAIT IS THE PANEL'S EXIT, unchanged at 200 ms: the panel closes, then the
-   page is redrawn and the message said. Shortening or removing it is a
-   behaviour change and this is a conversion. */
-const CANCEL_SETTLE_MILLISECONDS = 200;
-
+   The panel closes, and the page is redrawn and the message said in the same
+   tap: the layer's own exit animates while the page under it changes. */
 function cancelEdit(identifier: string): void {
   window.__referentiel.SETTINGS_STATE.modifs.delete(identifier);
   panel.close();
-  window.setTimeout(() => {
-    window.__referentiel.render();
-    toast?.show({
-      message: i18next.t("panels.setting.cancelledToast"),
-    });
-  }, CANCEL_SETTLE_MILLISECONDS);
+  window.__referentiel.render();
+  toast?.show({
+    message: i18next.t("panels.setting.cancelledToast"),
+  });
 }
 
 /** The verbs the settings panels offer, called by the click delegation. */
@@ -273,7 +268,7 @@ function commitEdit(identifier: string): void {
     (sharedQueryClient?.getQueryData<SettingsTopic[]>(settingsQuery.queryKey))
       ?? []).find((one) => settingIdentifier(one) === identifier);
   if (setting === undefined) return;
-  reference.changeSetting(identifier, reference.typedValue(setting, field.value));
+  changeSetting(identifier, reference.typedValue(setting, field.value));
   panel.produce("setting", identifier);
 }
 

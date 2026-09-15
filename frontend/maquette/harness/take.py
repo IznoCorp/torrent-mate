@@ -141,6 +141,31 @@ async def main():
                 """()=>[...document.querySelectorAll('[data-part="screen"][data-open]')]
                         .some((one) => (one.dataset.key || '').startsWith('releases:'))"""))
 
+        # ── ANOTHER RELEASE, FROM A FOLLOW'S PANEL ─────────────────────────
+        # The panel's « Chercher une autre release » names the title it chases;
+        # its tap closes the panel and opens the release screen for THAT title,
+        # at its address — read after the screen has had time to open, never
+        # by timing the opening itself.
+        await page.evaluate("()=>window.__go('followsheet-gaps')")
+        await page.wait_for_timeout(SETTLED)
+        chase = await page.evaluate(
+            """()=>{const one = document.querySelector('#sheet [data-releases]');
+                    return one ? one.dataset.releases : null;}""")
+        if journal.check(
+                "a follow still being acquired offers « Chercher une autre release »",
+                chase is not None, str(chase)):
+            await page.click('#sheet [data-releases]')
+            await page.wait_for_timeout(PANEL_OUT + 260 + SETTLED)
+            opened = await page.evaluate(
+                """()=>{const screen = document.querySelector('[data-part="screen"][data-open]');
+                        return {key: screen ? screen.dataset.key : null,
+                                path: decodeURIComponent(location.pathname)};}""")
+            journal.check(
+                "and its tap opens the release screen for THAT title, at its address",
+                opened["key"] == f"releases:{chase}"
+                and opened["path"] == f"/releases/{chase}",
+                f"{chase!r} → {opened}")
+
         await context.close()
         await browser.close()
     journal.summary()

@@ -262,6 +262,41 @@ async def main():
             f"{swiped_subject['st']} → "
             f"{moved_once['st'] if moved_once else None} on « {target['label']} »")
 
+        # « CHERCHER » ON A PENDING FOLLOW: the left drawer's act says the search and
+        # puts the row back at rest. The left drawer is uncovered by the card
+        # travelling RIGHT, and only a pending follow draws it.
+        await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
+        await page.wait_for_timeout(SETTLED)
+        pending_row = await page.evaluate("""()=>{
+            const action = document.querySelector('#view [data-part="swipe/action"][data-action="resume"]');
+            const row = action && action.closest('[data-part="swipe"]');
+            const card = row && row.querySelector('[data-part="card"]');
+            if (!card) return null;
+            const box = card.getBoundingClientRect();
+            return {x: box.left + box.width / 2, y: box.top + box.height / 2,
+                    title: (card.querySelector('[data-part="card/title"]') || {}).textContent || ''};}""")
+        if journal.check("a pending follow draws « Chercher » in its row", pending_row is not None):
+            await finger_swipe(page, (pending_row["x"] - 60, pending_row["y"]),
+                               (pending_row["x"] + 100, pending_row["y"]))
+            await page.wait_for_timeout(SETTLED)
+            search = await page.evaluate("""()=>{
+                const act = document.querySelector('#view [data-part="swipe/action"][data-action="resume"]');
+                const box = act.getBoundingClientRect();
+                return {x: box.left + box.width / 2, y: box.top + box.height / 2,
+                        label: (act.textContent || '').trim()};}""")
+            await finger_tap(page, (search["x"], search["y"]))
+            await page.wait_for_timeout(ACTED)
+            after = await page.evaluate("""(title)=>{
+                const said = (document.querySelector('#toast') || {}).textContent || '';
+                const card = [...document.querySelectorAll('#view [data-part="swipe"] [data-part="card"]')]
+                  .find((one) => ((one.querySelector('[data-part="card/title"]') || {}).textContent || '') === title);
+                return {said, rest: !!card && card.style.transform === '' && !window.openCard};}""",
+                pending_row["title"])
+            journal.check(
+                "a pending follow's « Chercher » says the search and the row comes back to rest",
+                f"{search['label']} — {pending_row['title']}" in after["said"] and after["rest"],
+                f"{search['label']} / {pending_row['title']}: {after}")
+
         journal.check("and the whole gesture raises no error", not errors, str(errors))
 
         await context.close()

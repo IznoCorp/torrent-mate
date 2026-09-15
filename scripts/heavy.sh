@@ -175,15 +175,33 @@ fi
 
 # ── Take the lock ────────────────────────────────────────────────────────────
 announced=0
+silent_announced=0
 while :; do
     if mkdir "$LOCK" 2>/dev/null; then
         echo "$WHO" > "$LOCK/who"
+        # THE PID IS WRITTEN BESIDE THE NAME: this shell lives exactly as long
+        # as the run it wraps, so it is the fact the breaker below can ask.
+        echo "$$" > "$LOCK/pid"
         break
     fi
     holder=$(cat "$LOCK/who" 2>/dev/null || echo "someone")
-    # A lock older than 45 minutes is a session that died holding it.
+    # A lock older than 45 minutes is BROKEN ONLY WHEN ITS HOLDER IS GONE. Age
+    # alone broke the lock of a run that was alive and hung, and the next
+    # session rebuilt the served copy under it. A holder alive and silent is
+    # held off and said aloud, never broken; a lock with no pid (written before
+    # the pid was) is judged by its age, as it always was.
     if [ -n "$(find "$LOCK" -maxdepth 0 -mmin +45 2>/dev/null)" ]; then
-        echo "heavy: breaking a stale lock held by $holder" >&2
+        holder_pid=$(cat "$LOCK/pid" 2>/dev/null || true)
+        if [ -n "$holder_pid" ] && kill -0 "$holder_pid" 2>/dev/null; then
+            if [ "$silent_announced" -eq 0 ]; then
+                since=$(stat -c %Y "$LOCK" 2>/dev/null || stat -f %m "$LOCK")
+                echo "heavy: holding off — $holder (pid $holder_pid) is alive and silent for $(( ($(date +%s) - since) / 60 )) min; the lock is not broken" >&2
+                silent_announced=1
+            fi
+            sleep 3
+            continue
+        fi
+        echo "heavy: breaking a stale lock held by $holder${holder_pid:+ (pid $holder_pid is gone)}" >&2
         rm -rf "$LOCK"
         continue
     fi

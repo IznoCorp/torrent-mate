@@ -25,6 +25,10 @@ them into one word — « Adresse » + the address + the next sentence — and t
 address pattern read that chimera as a second, invented account. `innerText`
 separates blocks the way they are drawn. Nothing moved on screen, and the
 oracle said so; only the text reading had to follow.
+
+RE-AIMED, count unchanged: the avatar opens the account panel through `data-account`,
+the account's own name; the engine's value-dispatched `data-sheet="utilisateur"` was split
+by owner, and acquisition's `plus` became a valueless `data-more`.
 """
 import asyncio
 import os
@@ -116,7 +120,7 @@ async def main():
         # ── the account surface, reached the way one reaches it ────────────
         await pg.evaluate("()=>applyState({page: 'acq', phase: 'ready'})")
         await pg.wait_for_timeout(250)
-        await pg.tap('[data-sheet="utilisateur"]')
+        await pg.tap('[data-account]')
         await pg.wait_for_timeout(420)
         menu = await pg.evaluate(
             """()=>[...document.querySelectorAll('[data-part="sheet/actions"] [data-part="sheet/action"]')].map((b) => ({

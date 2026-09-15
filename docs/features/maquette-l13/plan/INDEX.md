@@ -10,10 +10,12 @@ Design: `docs/features/maquette-l13/DESIGN.md`. Contract:
 
 The design's § 1 recommends **three sub-lots — L13a (conversion), L13b and L13c (behaviour)** — each a
 wave of its own, with its own branch, squash, reader round and Mac walk, in that fixed order. The
-operator's ruling is pending when this is written.
+operator RULED B on 2026-09-13 (decision round; ruling 27 of `RULINGS.md`).
 
-- **If the ruling is B (three sub-lots)**: each table below is one wave; its pull request is its
-  STOP C; the next sub-lot opens from `main` after the previous one's post-merge gesture.
+- **Ruled B (three sub-lots)**: each table below is one wave; its pull request is its
+  STOP C. **L13b opens STACKED on L13a's final head (auditor's order 7, 2026-09-13) and is rebased onto `main`
+  after L13a's squash; L13c opens the same way on L13b's.** A full suite runs at each sub-lot's MIDPOINT
+  (after b·6, after c·5) beside the last phase's (auditor's order 5, 2026-09-13).
 - **If the ruling is A (one wave)**: the three tables are one, the phases keep their numbers
   (`a·1` … `c·9`), there is one STOP C at the end. **No phase file changes.**
 
@@ -49,7 +51,7 @@ Anything believed necessary outside the contract: STOP and ask the steward first
 
 **A phase is a unit of attribution, not a gate.** Each is ONE commit (two where the phase says « commit
 before the mutation »), and its gate is the contracts tier plus the oracle — minutes, not the full suite.
-The full gate runs three times in the whole lot: before each sub-lot's pull request (a·19, b·11, c·9).
+The full gate runs three times in the whole lot: before each sub-lot's pull request (a·19, b·13, c·9).
 
 The count follows from two rules, not from appetite. One kind of change per phase means a verb move and
 a timer removal cannot share a commit; and one surface per conversion phase (D-L07-7) means an oracle
@@ -57,7 +59,7 @@ divergence names its surface. Merged further, a divergence would have two candid
 unattributable result « surface by surface » exists to avoid.
 
 **Phases that are a single mechanical commit with no new rule**: a·4, a·5, a·6, a·12, a·15, a·17, a·18,
-a·19, b·3, b·7, b·11. **Phases that write a rule first**: b·1, b·2, b·4, b·5, b·6, b·8, b·9, b·10 and all
+a·19, b·3, b·7, b·13. **Phases that write a rule first**: b·1, b·2, b·4, b·5, b·6, b·8, b·9, b·10 and all
 of L13c. The rest of L13a are conversions whose proof is the oracle and the unchanged hold counts.
 
 ---
@@ -133,7 +135,7 @@ and binds the label to the next free number then.
 | a·13 | [Média — artwork and cast](phase-a13-media-artwork.md) | `sheet.hero`, `sheet.castPortraits`, `trailerVideo` read | `HERO_IMAGES`, `CAST`, `trailerIds` | `audit2.py`, `screen_addresses.py`, `transition.py` | — |
 | a·14 | [Média — seasons and identity](phase-a14-media-identity.md) | season tree variants; `ids` read by every crossing | `SHEETS_RAW`, `OWNED`, `sheetFor`, `titleForProviderId`, `addressIdsFor`, `ownedFor` | `audit2.py`, `screen_addresses.py`, `priming.py`, `panel.py`, `url_state.py` | — |
 | a·15 | [Système, Maintenance, Compte](phase-a15-system-maintenance-account.md) | `flux`, fact rows | `MAINT_ACTIONS` | `page_host.py:248`, `url_state.py` | — |
-| a·16 | [Configuration, and the engine's support](phase-a16-settings-and-support.md) | `allSettings` over the cache; `field`/`readonly`/`rulenote` | `SETTINGS`. **Amended 2026-09-13 (ruling 57)**: `engine-shape.ts`, `engine-data.ts`, `engine-redraw.ts`, `lib/engine-drawing.ts`, `__referentiel` are VOID here and go to b·11 | `settings.py`, `page_host.py`, `url_state.py` | — |
+| a·16 | [Configuration, and the engine's support](phase-a16-settings-and-support.md) | `allSettings` over the cache; `field`/`readonly`/`rulenote` | `SETTINGS`. **Amended 2026-09-13 (ruling 57)**: `engine-shape.ts`, `engine-data.ts`, `engine-redraw.ts`, `lib/engine-drawing.ts`, `__referentiel` are VOID here and go to b·13 | `settings.py`, `page_host.py`, `url_state.py` | — |
 | a·17 | [The entry's styles](phase-a17-entry-styles.md) | the 13 shell classes' rules in an `entry` block of `styles/base.css` that `serve.py` extracts | their `legacy.css` rules | `logout.py`, `startup.py`; `serve.py:416`, `serve.py:452` | — |
 | a·17-bis | The ≡ harness panel dies — the operator's ruling on Q2, 2026-09-13 ([phase-a01](phase-a01-harness-module.md) § Amendment); **ruling 31** (2026-09-13) scopes it and orders it BEFORE a·18, renumbered from a·18-bis: `legacy.css` cannot die while a component still needs its `.hpanel` rules | — | the panel half of `harness/panel.ts` and its five `h*` verbs (`hclose`, `hgo`, `hscen`, `hphase`, `htmdb`); the « ≡ » opener `#scenBtn` in `design/index.html` (« Harnais — états et données »); the `.hpanel` rules, which live in `styles/legacy.css`; the i18n keys only the panel read; `closeHarnessPanel` in `harness/drive.ts` and `__etatsDetailles`, which only the panel reads; `.hpanel` in `app/layers.ts:93`; the comments naming « the ≡ panel » (`ui/variants/frame.ts:37`, `app/shell.tsx:47`, `harness/index.ts`, every `harness/states/*.ts:4`). **STAYS** (ruling 31): `[data-part="harness/bar"]`, `#notesBtn` and its toggle code | `message_above_harness.py` drops its `harness/panel` and `#scenBtn` reads and keeps `harness/bar`; `audit.py:82,99,118` and `dest.py:46` drop `harness/panel` from their exclusions and keep `harness/bar`; `hiding.py` (`#notesBtn`) and `chrome.py` (R51, `harness/bar`) do NOT move. Outside the harness, re-taken by grep on 2026-09-13: `scripts/markup_verbs.py`'s answers to the five `registerVerb h*`; `scripts/check-markup-contracts.py:25,211` (the `data-hscen`/`data-hphase` contract) and its two assertions in `tests/scripts/test_check_markup_contracts.py:76,765`; `scripts/nofrench_values.py:30,66`; `scripts/code-vocabulary.txt:482` (`hscen`; the other four `h*` words at `:455,467,481,483` go if no name uses them any more). `harness/panel_verbs.mjs` reads `ui/panel` action targets and is NOT a reader of the ≡ | — |
 | a·18 | [`legacy.css` dies](phase-a18-legacy-css-dies.md) | — | `legacy.css`, its import, residue guard + ceiling, R80 + `test_residue.py`, baseline row, `markup_dressing` lines | `check-poster-box.py`, `csstokens_login.py`; `resolution_card.py` → `harness/factories.py` (ruling 59) | — |
@@ -153,8 +155,9 @@ and binds the label to the next free number then.
 | b·8 | [The gestures](phase-b08-gestures.md) | swipe rows, suggestion card, deck, drag guard, pull indicator | `E` gesture block | the one-tap hold | B-337 |
 | b·9 | [One ladder shape](phase-b09-one-ladder-shape.md) | D-L13-1; the redraw replaces | the 240/260 ms timers | R-L13-a, R-L13-b; `exits.py` refuses the gap | B-290, B-397 |
 | b·10 | [The panel's return](phase-b10-panel-return.md) | Back reopens the panel; `panel-down`'s reverse | — | R-L13-c | B-275 |
-| b·10-bis | The library's membership read (added 2026-09-13 by a·10, ruling 41; the steward writes its phase file) | an exact membership read by title (and year) in the contract; `mediaNamedBy`, `knownMedium`, `follow-facts.ts`'s `inLibrary` and `openDeleteDialog` read it; **and, by ruling 53 (2026-09-13), the follow panel's season block reads `readMediaSeasons` by the follow's identity (Silo's fourth season named), with the seasons half of the `window.__mocks` seed accessor**; the harness re-aims at the `window.__mocks` seeds, the nine `window.SEASONS` readers among them (`busy.py`, `followed_sheet_act.py`, `message_over_layers.py`, `queued_ask_mark.py`, `season_family.py`, `season_grab_unfollowed.py`, `season_grab.py`, `seeds_at_rest.py`, `priming.py` — re-taken by grep) | `LIBRARY`, `INCOMPLETE`, `SEASONS`, `knownMedium`, their window exports | first for the membership read, and first for the season block | — |
-| b·11 | [`legacy.js` dies](phase-b11-legacy-js-dies.md) | — | `legacy.js`, `seams.ts`, and (ruling 57, from a·16) `engine-shape.ts` and its test, `engine-data.ts`, `engine-redraw.ts`, `lib/engine-drawing.ts`, `__referentiel` with `reference.d.ts` and the slices, the two exemptions and the reference-slice arm — the interface constants they publish need homes first (phase-a16 § Amendment), the parser arms, the debt section, the ledger entry, `resync.py` — and the ~547 lines of `LIBRARY`, `INCOMPLETE` and `knownMedium`, gone at b·10-bis first | the four harness reads of the file | — |
+| b·11 | [The library's membership read](phase-b11-membership-read.md) (added 2026-09-13 by a·10, ruling 41; rulings 53, 61) | an exact membership read by title (and year) in the contract; `mediaNamedBy`, `knownMedium`, `follow-facts.ts`'s `inLibrary` and `openDeleteDialog` read it; **and, by ruling 53 (2026-09-13), the follow panel's season block reads `readMediaSeasons` by the follow's identity (Silo's fourth season named), with the seasons half of the `window.__mocks` seed accessor**; the harness re-aims at the `window.__mocks` seeds, the nine `window.SEASONS` readers among them (`busy.py`, `followed_sheet_act.py`, `message_over_layers.py`, `queued_ask_mark.py`, `season_family.py`, `season_grab_unfollowed.py`, `season_grab.py`, `seeds_at_rest.py`, `priming.py` — re-taken by grep) | `LIBRARY`, `INCOMPLETE`, `SEASONS`, `knownMedium`, their window exports | first for the membership read, and first for the season block | — |
+| b·12 | [The pipeline's status is the layer's](phase-b12-pipeline-status.md) (added 2026-09-13 by ruling 74) | the `pipe` store key → `usePipeline()` / `/api/pipeline/status`; the `data-pipe` verb asks runPipeline / killPipeline; page.tsx:102/122 and app/arrival.ts:29 re-aimed; arr-idle / arr-running / arr-queued re-aimed | legacy.js's `data-pipe` branch, the `pipe` store key | arrivals.py, page_host.py green before and after; red with the layer call removed | — |
+| b·13 | [`legacy.js` dies](phase-b13-legacy-js-dies.md) — **VOID for L13b (ruling 99, 2026-09-15): its subject is L13r's r·1–r·6** | — | `legacy.js`, `seams.ts`, and (ruling 57, from a·16) `engine-shape.ts` and its test, `engine-data.ts`, `engine-redraw.ts`, `lib/engine-drawing.ts`, `__referentiel` with `reference.d.ts` and the slices, the two exemptions and the reference-slice arm — the interface constants they publish need homes first (phase-a16 § Amendment), the parser arms, the debt section, the ledger entry, `resync.py` — and the ~547 lines of `LIBRARY`, `INCOMPLETE` and `knownMedium`, gone at b·11 first | the four harness reads of the file | — |
 
 ## L13c — What the engine was blocking (BEHAVIOUR)
 
@@ -221,8 +224,8 @@ OUTPUT (B-346).
 harness is re-run alone before it is read, and the re-run's loss of load is said in the same breath
 (B-277, B-307).
 
-**The « In flight » row is written when the pull request opens** — pull request number first, then the
-version; `scripts/check-implementation-state.py` holds the row by both.
+**The « In flight » row is the steward's per-lot docs PR's (auditor's order 15, 2026-09-13)**: the wave does not touch
+`IMPLEMENTATION.md` beyond a citation the paths guard forces; the pull request body carries the figures.
 
 ---
 
@@ -233,3 +236,17 @@ version; `scripts/check-implementation-state.py` holds the row by both.
 2. **`legacy.css` is a conversion, not a deletion** — design § 2.6 and § 9.5: 92 classes style React
    components without a variant. It is eleven phases of L13a, not one.
 3. **The phase count** — the brief's example cut named four sub-lots; the design recommends three (§ 1).
+
+## L13r — The engine's residue
+
+Measured on `1cb0a2dc1` after b·13 was measured and not opened (ruling 98). Q5 = B (ruling 99): L13b closes at b·12 and this residue is a sub-lot of its own, run between L13b and L13c (L13a → L13b → L13r → L13c).
+
+| Phase | File | Kind | Moves | Dies |
+| --- | --- | --- | --- | --- |
+| r·1 | [constants and helpers](phase-r01-constants-and-helpers.md) | conversion | 20 interface constants, 10 helpers | 4 dead names |
+| r·2 | [served fixtures](phase-r02-served-fixtures.md) | conversion | 11 served families + POSTERS_HD + TODAY to their seeds | 13 literals |
+| r·3 | [engine verbs and drawing](phase-r03-engine-verbs-and-drawing.md) | behaviour | settings machine, render/currentState/applyState, search mount, toast/openSheet/closeSheet/showSignIn | — |
+| r·4 | [the reference dies](phase-r04-reference-dies.md) | conversion | — | `__referentiel`, 9 slices, reference.d.ts |
+| r·5 | [contract names](phase-r05-contract-names.md) | conversion, may be lot-sized | 24 families, 41 call sites | engine-shape.ts |
+| r·6 | [the file dies](phase-r06-the-file-dies.md) | deletion + full gate | — | legacy.js, seams.ts, engine-data, engine-redraw, engine-drawing, their instruments |
+

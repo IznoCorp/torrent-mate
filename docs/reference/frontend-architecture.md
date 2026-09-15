@@ -19,16 +19,9 @@ is the plan for it.
    sections and this file used to name only the second.
 2. Come back here and find **the first lot that has not landed and whose dependencies all
    have**. That is the work. There is no other selection rule, and lots are not reordered for
-   convenience.
-
-   **The two halves live in two files on purpose, and that is what makes the rule reliable.** This
-   file names the ORDER and the DEPENDENCIES — « *depends on L01, L05, L08* » — and it carries **no
-   status**, because a status here is a second copy of something `IMPLEMENTATION.md` already owns
-   as *the only state*. It was removed on 2026-08-28 after L09 merged and left `NOT STARTED` behind
-   in this file, so this very rule elected the lot that had just landed. Adding the update to the
-   post-merge list was the obvious answer and was refused on the evidence written in § 5: that list
-   has been skipped three times out of four, and a sixth entry on a skipped list changes nothing.
-   **A fact that exists once cannot go stale.**
+   convenience. **This file carries no status** — only the ORDER and the DEPENDENCIES — because a
+   status here would be a second copy of what `IMPLEMENTATION.md` already owns as the only state;
+   a fact that exists once cannot go stale. Story: `docs/reference/frontend-architecture.md@6a47304a4` § 0.
    **If that lot carries a blocking note**, take the next one that satisfies the same rule, and
    say in the wave's plan which lot you skipped and why. A blocked lot is not a reason to stop
    or to go asking where to start — this file is where to start.
@@ -64,46 +57,22 @@ This file covers items 2, 3 and 4 of `IMPLEMENTATION.md` § THE OBJECTIVE → RE
 language, the application itself, and the legacy engine — plus the safety net they all need and
 the method they all follow.
 
-**L10-ter — the application template** (operator, 2026-08-28). A design phase whose deliverable is
-this file rather than any code: an inventory, computed rather than kept by hand, of every surface
-the dying engine still draws; a model of the application's frame, part by part, each saying where it
-lives under invariant 10; the PWA's « as close to a mobile application as possible » restated as
-testable properties; and every lot from L11 to L14 re-read against that model and marked unchanged,
-re-cut or replaced. **It is not a lot**: it writes no code, nothing schedules it, and § 0's
-selection rule must not reach it. **Where and when its findings are converted is the phase's own to
-decide**, and it may amend this file's lots and their order under § 7.1. Invariant 10 had been
-binding since L09 with its subject — the frame — never modelled; **that was the debt, and this
-phase paid it**: the frame is modelled in thirteen parts in `docs/reference/frame-model.md` § 2, as the paragraph below
-records. Its definition and its agent's brief are read at
-`git show d3892d18:docs/features/maquette-l10-ter/DESIGN.md` — the folder left the tree at that
-wave's own post-merge gesture, as every wave's does.
+**L10-ter — the application template** (operator, 2026-08-28, ran 2026-08-29). A design phase, not
+a lot — it writes no code, nothing schedules it, § 0's selection rule must not reach it, and it may
+amend this file's lots and their order under § 7.1. Its products: `docs/reference/frame-survey.md`
+(the inventory of every surface the engine still draws — chrome, entry, the ladder's handler, all
+ten bottom-panel producers, the Découvrir feed, 71 delegation verbs), `docs/reference/frame-model.md`
+(the frame modelled in thirteen parts under invariant 10), and `docs/reference/product-intent-map.md`
+(the DOIT/NE-DOIT-PAS clause map). It reordered the plan in five places: **L15** (the frame) inserted
+before L11; **L19** (the producers) inserted after L12; **L20** (the control station) placed after
+L19; **L16, L17, L18** placed after L20; **L13** re-cut to what did not die by subtraction. Story:
+`docs/reference/frontend-architecture.md@6a47304a4` § 1.
 
-**It RAN on 2026-08-29, and this is what it decided** — its products are `docs/reference/frame-survey.md`, `docs/reference/frame-model.md`,
-`QUESTIONS.md` under that folder and `docs/reference/product-intent-map.md`; the lots below are
-the conversion. **The engine draws no page** (`PAGES_OF()` has eight entries, all `shellOwned`,
-none with a `render`) and no screen (`#screen` is opened by nothing); what it still owns is **the
-frame's chrome** — tab bar, drawer, dialog, toast, the selection slot, the popover layer — **the
-entry** (splash, login, install, appearance), **the ladder's handler**, **all ten bottom-panel
-producers** (zero on the React side), the Découvrir feed, and the 71 verbs of its click delegation.
-Six of those are the frame; the frame is modelled in thirteen parts in `docs/reference/frame-model.md` § 2; and the
-plan changes in five places: **L15 — the frame** is inserted before L11, because an offline shell
-(L11) caches the chrome and the chrome must be the product's before it is cached, and a transition
-between two layers (L12) needs both layers to be components; **L19 — the producers** is inserted
-after L12, because D5's « surface by surface » was applied to the pages and never to the sheets'
-content, so sixty fixture families had no owner (B-236); **L20 — the control station** is `/control` and `/pipeline`, which item 1 below kept
-outside this file and the clause map (`product-intent-map.md`) could not leave ownerless — four
-DOIT clauses hang on them, placed right after L19; **L16, L17, L18** are §18, §19 and §17,
-placed after L20 so a new surface inherits the producer template rather than being converted
-twice; and **L13 is re-cut** to what really did not die by subtraction. The
-order is the file's order, below. Every lot from L11 to L14 carries what the model does to it,
-under its own heading. **The where and the when are here; the progress is `IMPLEMENTATION.md`.**
-
-**THREE LOTS WERE OWED AND ARE DECLARED — §17, §18 and §19 of the constitution.** The operator
-dictated three sections on 2026-08-26 and no lot of this file answered any of them; on 2026-08-29
-they were recorded here without a number, an order or a position, so § 0's rule could not reach
-them, and **L10-ter placed them the same day: L16 (§18), L17 (§19), L18 (§17)**, in Phase 5 below,
-after L20.
-The measurement that scheduled them stays here as the record of what existed on the day:
+**THREE LOTS WERE OWED AND ARE DECLARED — §17, §18 and §19 of the constitution**, dictated
+2026-08-26, unanswered by any lot until L10-ter placed them 2026-08-29: **L16 (§18), L17 (§19),
+L18 (§17)**, in Phase 5, after L20 — cheapest first (§18 → §19 → §17), because L17 depends on the
+tracker surface L16 draws. The measurement that scheduled them, as the record of what existed on
+the day it was taken:
 
 | Section | What exists today | What it is asked for |
 | --- | --- | --- |
@@ -111,71 +80,26 @@ The measurement that scheduled them stays here as the record of what existed on 
 | **§19 — cross-seed is seen and decided** | 797 lines of engine injecting at third parties, emitting `CrossSeedInjected` and `CrossSeedRejected` | **everything**: zero routes in either contract, no event relayed to the stream. D7's case — the interface declares what it requires and the backend follows (§15) |
 | **§17 — accounts, rights and Plex identity** | one role, one account, `GET /api/auth/me` saying nothing of rights | **a model, then surfaces.** None of the 53 declared operations concerns another user, a role or a permission. And one requirement on existing code: the read-only role must be ABSORBED by the rights model, never sit beside it — two authorisation paths is NE-DOIT-PAS-7 |
 
-**Why they sit where they sit.** §17 and §19 need new screens, and a screen is the template
-L10-ter defined (`docs/reference/frame-model.md` § 1: four kinds of surface, one table, a slot and a verb per layer).
-Placing them before the template exists is drawing them twice — so they follow L15; and placing
-them before the sheets' producers have a React template (L19) would draw §18's per-tracker panel
-in the engine's style, so they follow L19 too. The order §18 → §19 → §17 stands — cheapest first,
-largest last — and one measured reason is added: §19 is « the direct continuation of §18 »
-(the constitution's own words) and extends the tracker surface L16 draws, so L17 depends on L16.
-
-**One thing that could not wait, and it is why this paragraph exists at all.**
-`frontend-backend-demands.md` § 4 lists `obligations` among the operations « the switchover MAY
-retire », and nothing in that list distinguishes an operation the new design outgrew from one it
-has not reached yet. **Retiring `obligations` would have retired §18's subject.** The case is real
-and it would have gone the wrong way, which is the verdict column B-142 asks for.
-
-**And B-142 is the reason all four were invisible.** Three instruments measure this interface —
-`IMPLEMENTATION.md` § THE OBJECTIVE, the demands register, `audit_design_coverage.py` — and **all
-three compare the interface to what already exists**: pages against pages, the maquette against the
-running backend, design documents against tests. **None reads `product-intent.md`**, the only
-document saying what the product must BE. A capability the constitution requires, that neither the
-maquette nor the backend has, is invisible to every gate here. Without it, the next section the
-operator dictates is invisible the same way — and three were dictated in one day.
-
-**Its mapping is written and its instrument is placed** (2026-08-29). The arm needs a declared
-mapping from each DOIT clause to the surface that serves it, and **a mapping is a design decision,
-not a grep** — so L10-ter wrote it: `docs/reference/product-intent-map.md`, one row per DOIT and
-NE-DOIT-PAS clause, a verdict, a proof or an owning lot — three rows `to draw`, five more with a
-« to draw » half. The arm that reads it is specified in
-`docs/reference/frame-model.md` § 4 and **built by L15**, the first lot after the phase — a phase forbidden to write a
-guard does not write one, and a wave's arm gets a wave's adversarial review.
+**Its mapping is written and its instrument is placed** (2026-08-29): `docs/reference/product-intent-map.md`,
+one row per DOIT/NE-DOIT-PAS clause, a verdict, a proof or an owning lot. The arm that reads it is
+specified in `docs/reference/frame-model.md` § 4 and built by L15. Story:
+`docs/reference/frontend-architecture.md@6a47304a4` § 1.
 
 **Also named here and deliberately unscheduled — the SEMANTIC SCROLL INDEX** (operator,
-2026-08-26). A list would offer an index shaped by its own sort: letters when sorted
-alphabetically, month markers when sorted by date. It is **not a scrollbar** — D11 settles that
-one — but a separate control, the shape a phone's fast-scroller has. It is written down so the
-objective is not lost, and it is **not a lot**: nothing schedules it, and § 0's selection rule must
-not reach it.
-
-**Three things keep the door open, and they cost nothing now.** The list must expose its sort key
-in an INDEXABLE form — first letter, month — in the DATA CONTRACT rather than in the markup, which
-is L09's decision to make when it wires the library. The scroll container must stay one identified
-element (`#port`, already true). And programmatic scrolling must have one path — which is a debt
-today: **B-140** records that the mechanism knew one port out of two — L10 repaired that, so this
-function is now the one path for HISTORY-driven scrolling, and an index that jumps to a letter
-would write through it. **The clause is still not paid**: `app/focus.ts` writes `#port.scrollTop`
-from the skip link, on the very element that function owns, and `ui/sheet.tsx` resets a panel's own
-offset. ⚠ This sentence cited **B-104** until 2026-08-28, which is about the generated contract
-types living under `mocks/` and has nothing to do with scrolling. The wrong number was copied out
-of here into the repair's own comment — a mis-citation in a binding file propagates.
-
-**The design risk, stated with the objective**: a control that both scrolls AND jumps teaches two
-things in one object, and on a six-pixel-wide thumb the margin between « I am scrolling » and « I
-jumped to M » is thin. Two functions, two objects — the bar stays a bar, the index appears when it
-serves.
+2026-08-26): a list index shaped by its own sort (letters, month markers), not a scrollbar (D11
+settles that), the shape a phone's fast-scroller has. **Not a lot** — nothing schedules it. Three
+things keep the door open at no cost now: the sort key must be exposed in an INDEXABLE form in the
+data contract (L09's decision), the scroll container stays one identified element (`#port`), and
+programmatic scrolling has one path (**B-140**, not fully paid — `app/focus.ts` and `ui/sheet.tsx`
+still bypass it). A control that both scrolls and jumps teaches two things in one object, so it
+stays two objects: the bar, and the index that appears when it serves.
 
 **Item 1 is a lot since 2026-08-29 — L20, the control station.** `/control` (8 panels) and
-`/pipeline` (10 panels) were kept outside this file as « surfaces still to be drawn, blocked by
-nothing ». The clause map could not leave them there: DOIT-1, DOIT-3, DOIT-5 and DOIT-6 each have
-a half that only those pages serve, and a clause whose surface has no lot is a clause nobody
-owes. They follow the existing method — drawn in the maquette first, named states, a rule that
-bites — and where their panels land stays the operator's open UX question (`IMPLEMENTATION.md`),
-written into L20 as its blocking note. **What this makes void**: « not blocked by any lot below »
-— L20 depends on L15 and L19, so the standing freedom to draw those two pages at any moment is
-withdrawn, deliberately: drawn before the producer template, they would be drawn twice. Whether
-they wait behind the three constitution lots as well is the operator's (`QUESTIONS.md` Q9); the
-plan places them before.
+`/pipeline` (10 panels), kept outside this file as pageless, could not stay there once the clause
+map found DOIT-1, DOIT-3, DOIT-5 and DOIT-6 each owed a half only those pages serve. They follow the
+existing method (drawn in the maquette first); where their panels land is the operator's open UX
+question (`IMPLEMENTATION.md`). L20 depends on L15 and L19 — drawn before the producer template,
+they would be drawn twice.
 
 ---
 
@@ -224,47 +148,25 @@ what the implementation owes and records what was built. Three rules stand; a fo
 considered and rejected — see rule 4 below.
 
 1. **Back pops, and the stack holds only deliberate arrivals.** Opening a surface — a sheet, a
-   resolution, a panel — pushes. Adjusting one — a filter, an inner tab, a sort, a lens —
-   replaces. The engine did NOT work this way before phase 11: `recordPath()` had eight call
-   sites and seven pushed a SETTING. Phase 11 split it into `recordPath()` (arrivals) and
-   `replacePath()` (settings), and gave each page switch its own verb (rule 2).
+   resolution, a panel — pushes. Adjusting one — a filter, an inner tab, a sort, a lens — replaces.
 2. **Switching a top-level page REPLACES, with the entry page kept beneath.** The stack under any
-   top-level page is `[guard, /acquisition]`; under a non-home page
-   `[guard, /acquisition, /page]`. Switching between two non-home pages replaces the top; going
-   TO `/acquisition` from elsewhere pops back onto the floor already there (pushing or replacing
-   would leave two acquisition entries, and a silent Back). Back from any page lands on
-   `/acquisition`; Back from there arms the exit guard. That is Android's
-   `popUpTo(startDestination)` said in this codebase's terms — taken because a system Back drives
-   a PWA, where no platform stacks visited tabs.
+   top-level page is `[guard, /acquisition]`; under a non-home page `[guard, /acquisition, /page]`.
+   Going TO `/acquisition` from elsewhere pops back onto the floor already there. Back from any
+   page lands on `/acquisition`; Back from there arms the exit guard — Android's
+   `popUpTo(startDestination)` in this codebase's terms.
 3. **Where no stack exists, synthesise it from the hierarchy.** A cold link poses the real parent
-   under the screen — the library under a media sheet, the arrivals under a resolution, read off
-   the emitter of the screen's own opener rather than guessed — and that parent is **rendered**,
-   not merely recorded (`SCREEN_PARENTS` in `lib/addresses.ts`). **What this does NOT simplify,
-   measured before phase 11 opened**: a panel's entry composed over the parent still stops the
-   router matching the screen's own path and unmounts the sheet (finding 9.3) — the panel hangs
-   off the screen's own address whatever page sits beneath, so 9.3's fix stands independently.
+   under the screen — read off the emitter of the screen's own opener, not guessed — and that
+   parent is **rendered**, not merely recorded (`SCREEN_PARENTS` in `lib/addresses.ts`).
 4. **Up is a separate gesture, and it is drawn.** Back pops; Up climbs one level whatever the
-   path. **NOT delivered** — no lot carries it yet; it is a surface to be drawn in the maquette
-   first, like every surface.
+   path. **NOT delivered** — no lot carries it yet; a surface to be drawn in the maquette first.
 
-**Replaces** the reading under which every screen resolved to the home page (D-8.1, struck by
-phase 11 naming this decision). That was not only a UX default: it is the mechanism behind a
-reviewed defect — a cold screen address carrying a panel composed the panel's entry over the home
-page and the sheet unmounted behind it. Naming the real parent removes the cause.
-
-**The trap this decision exists to forbid**: sending **Back** to the declared parent while a
-stack entry exists. History first; the parent is a floor, never a destination.
-
-**Deliberately not done, so it is a choice and not an omission**: per-page stacks. Leaving the
-library with a sheet open and returning lands on the library's root, not back in the sheet. It is
-added only if real use asks.
-
-**What it cost in proof, and this part had already been paid once before phase 11.** The cases
-are held SEPARATELY, in R69's own rule: an in-app walk whose Back returns to the real origin, a
-cold link whose floor is the parent, a page switch that stacks nothing (asserted on
-`history.length`, never on the address alone), and an exit guard that arms only at
-`/acquisition`. A hold that exercises only the cold load is how two of L05's defects passed under
-green rules.
+**Replaces** the reading under which every screen resolved to the home page (D-8.1) — the
+mechanism behind a reviewed defect where a cold screen address composed a panel's entry over the
+home page and the sheet unmounted behind it. **The trap this decision exists to forbid**: sending
+Back to the declared parent while a stack entry exists — history first, the parent is a floor,
+never a destination. **Deliberately not done**: per-page stacks — leaving the library with a sheet
+open and returning lands on the library's root, added only if real use asks. Story:
+`docs/reference/frontend-architecture.md@6a47304a4` § D1b.
 
 ### D2 — Tailwind v4 provides the implementation; CVA components provide the API
 
@@ -317,45 +219,14 @@ visual reference; with the CSS gone from it, the reference became **the tokens p
 catalogue**, and §15 was amended in the same move rather than left pointing at a file that no
 longer holds its subject.
 
-**Two more sheets shipped than this decision names — recorded by the steward's audit of L07,
-2026-08-25.** « Three layers, and nowhere else » is the text; five stylesheets exist:
-
-| Sheet | What it is | Standing |
-| --- | --- | --- |
-| `styles/theme.css` | the Tokens layer | D3, as written |
-| `styles/base.css` | the Base layer | D3, as written |
-| the surfaces' `variants.ts` | « everything else, in the component » | D3, as written |
-| `styles/legacy.css` | the dying engine's residue, bounded and dated, dies with L13 — **as a CONVERSION, surface by surface, not a deletion** (measured 2026-09-13, L13's design § 2.6: 92 of its 148 classes style React components that have no variant; R80's pair floor is 15, not sixteen) | **arbitrated by the operator** in L07's `DESIGN.md` § 2, and held by `check-legacy-css-residue.py` |
-| `styles/harness.css` | the phone frame — imported once, and the only sheet that never ships | **a departure from L07's letter**, taken in the wave and carried by its merge |
-
-**Arbitrated by the operator, 2026-08-25: D3 is WIDENED, and the two are named as transitory.**
-Three layers remain the target and the destination. Beside them, and only them, live two sheets
-that exist to disappear, each carrying the date it dies. « Nowhere else » now means: no SIXTH
-sheet, and no transitory sheet without its end named here.
-
-The distinction that makes this a widening and not a dilution: a layer is where CSS is meant to
-live; a transitory sheet is CSS that has not finished leaving. `legacy.css` is what the dying
-engine still needs and it dies with **L13**; `harness.css` is the phone frame and it dies at
-**switchover**. Neither may grow, and when their date arrives the absence is checked against this
-paragraph.
-
-**« Both are held by a guard » was half true, and the correction wave between L08 and L09 is what
-read it.** `legacy.css` is held — `check-legacy-css-residue.py`, classes, declarations and rules,
-at the ceiling. **`harness.css` is held by nothing at all**: no guard measures its size, its rule
-count or its growth, and the only script that names it (`check-compositor-css.py`) names it to
-EXCLUDE it. So the sentence read as a pair of held files when one of them was on trust — which is
-the arm-less directive `CLAUDE.md` § Language warns about, one file over.
-
-**And « may not grow » needs its one exception stated, because that wave grew it.** B-081 restored
-the design-note pair — `.note { display: none }` and `:root.notes .note { display: block }` — which
-L07 deleted with BLOCK 1 and which belongs to this sheet: the notes are the prototype's
-annotations and they ship nowhere. **Restoring what was wrongly taken out of a sheet is not the
-accumulation this decision forbids**; taking new work INTO it would be. Whoever writes the guard
-this paragraph now admits is missing should measure from after that repair, not from before it.
-
-**Why it is not cosmetic.** L13 removes `legacy.css` and the switchover removes `harness.css`.
-Whoever reads D3 on that day must be able to tell that the three layers were always the target
-and that two sheets were passing through — not that the decision was quietly ignored twice.
+**Arbitrated by the operator, 2026-08-25: D3 is WIDENED.** Five stylesheets exist, not three:
+the three layers above, plus two named as TRANSITORY, each carrying the date it dies —
+`styles/legacy.css` (the dying engine's residue, bounded by `check-legacy-css-residue.py`, dies
+with **L13** as a conversion surface by surface, not a deletion) and `styles/harness.css` (the
+phone frame, imported once, ships nowhere, dies at **switchover**, held by no guard today).
+« Nowhere else » now means: no sixth sheet, and no transitory sheet without its end named here.
+Neither may grow — `legacy.css`'s one exception is restoring what a prior wave wrongly deleted
+from it (B-081), never new work. Story: `docs/reference/frontend-architecture.md@6a47304a4` § D3.
 
 ### D4 — Rules anchor on `data-*`, never on a style class
 
@@ -386,80 +257,26 @@ file reveals.
 cross-cutting parts are lifted once and early; the rest dies with each surface as that surface is
 converted and wired.
 
-**AMENDED 2026-09-03, and the amendment is the operator's to overrule.** L14 (`9ce9b0508`) ADDED to
-the engine: `legacy.js` +68 non-blank lines and `states.js` +9, against a decision whose title is «
-dies by subtraction ». The reason is good and the edit should stand: the library's bulk delete keyed
-its selection by a row's POSITION in the listing on screen and read that position back as an index
-into the source array, so under any sort or search a confirmed delete named and destroyed media the
-reader had never ticked. Keying by title, dropping the selection when the listing's question
-changes, and counting the media each title names is the repair of a data-destroying defect, and «
-file it for L13 » would have been the wrong call.
+**AMENDED 2026-09-03 (operator's to overrule): the engine may be added to only to stop a defect
+that destroys or loses the operator's data, and every such edit is amended here with its commit.**
+L14 (`9ce9b0508`) added lines to repair a bulk-delete defect that named and destroyed media the
+reader had never ticked — a data-destroying bug, so the edit stands under the exception. Anything
+else waits for the surface that kills the code. The size arm holds this since 2026-09-05:
+`scripts/frontend_size_ledger.py` gives every grandfathered file a recorded count, refused upward,
+so an addition to the engine has to be declared to land. **Two more additions are declared and
+ruled covered** (L19, `9fa13da57`, operator « D5 couvert » 2026-09-05): `closest.dataset.reloadsettings`
+and `closest.dataset.confirmrestart`, both inside a net −816 non-blank lines, both leaving with the
+settings' other verbs when `legacy.js` no longer exists (L13).
 
-**What the amendment costs, said plainly.** D5 is BINDING, and for a day the tree contradicted it
-with the only living record inside a state-file cell the next wave overwrites. So the rule stands
-with one exception written into it: **the engine may be added to only to stop a defect that destroys
-or loses the operator's data, and every such edit is amended here with its commit.** Anything else
-waits for the surface that kills the code. **The size arm holds this since 2026-09-05** — B-306 said
-a grandfathered file had no recorded count, so it could grow without limit and the guard still
-printed clean; L19 gave each of the four a count in `scripts/frontend_size_ledger.py`, refused
-upward and re-recorded downward, so an addition to the engine now has to be declared to land.
-
-**Declared here, because that is the rule's own letter: L19 (`9fa13da57`) ADDED two branches to the
-engine's delegation — `closest.dataset.reloadsettings` and `closest.dataset.confirmrestart`, the
-readers of B-299's reload offer and B-300's confirmation — inside a net −816 non-blank lines.**
-Neither stops a data-destroying defect in the exception's strict sense: B-299 keeps the operator's
-edits from being thrown away on a conflict, B-300 keeps a household's service from one tap. The
-ledger read the file DOWNWARD, so no arm could have asked, and the lot's own entry names them only to
-explain a count. Recorded by the steward's audit of 2026-09-05 so the exception is not widened in
-silence. **The operator ruled the same day that the exception COVERS them** (« D5 couvert »): the
-edits stand, declared here with their commit as the rule asks, and both leave with the settings'
-other verbs when `legacy.js` no longer exists (L13's first clause).
-
-**Why, and this is a measurement rather than a preference.** `legacy.js` was 34 650 lines when
-this was decided, of which **27 678 (79 %) are fixtures** — `SHEETS_RAW` alone is 20 538 lines of
-episode catalogue — and the engine's actual code about **6 949 lines**. **Re-measured on
-2026-09-05, at the close of L19**: **31 645 non-blank** (`grep -cve '^[[:space:]]*$' frontend/maquette/design/src/engine/legacy.js`),
-816 fewer than the 32 461 read on 2026-09-03, which was itself 565 fewer than L10-ter read on
-2026-08-29 — and those earlier aggregates CONCEALED a growth, see the amendment above. Of the
-31 645, **26 375** sit in the **9** declarations over 100 lines the method below finds. **That
-second figure did not move across L19 at all**, and the reason is written into that lot's entry: a
-producer was never a family's last reader, so a fixture family dies with the DRAWING and not with
-the producing. L09's « sixty families » counts every fixture constant whatever its size, which is a
-different figure and not this one.
-<sub>method: bracket-match every `const X = [` / `const X = {` declaration and sum the spans over 100 lines</sub>
-Most of that fixture stops existing when real data arrives. Killing the engine before the data
-layer means facing 34 650 lines; killing it as surfaces convert means facing seven thousand,
-in pieces, each with the oracle green.
-
-**Measured again on 2026-08-29, at L10-ter, and the subtraction has a shape nobody had drawn.**
-The engine draws no page and no screen any more; it still draws the FRAME (tab bar, drawer,
-dialog, toast — `docs/reference/frame-survey.md` § 1.2) and still PRODUCED every sheet's content (ten `panel.open`
-producers, zero on the React side) — which is why sixty fixture families outlived L09: their
-readers are producers, not markup. « Surface by surface » therefore has two more passes to make,
-and they are lots: **L15** for the frame's chrome and entry, **L19** for the producers. What stays
-cross-cutting is smaller than this decision first said, and it is L13's.
-
-**Both passes have landed, and the producing half is measured out.** L15 took the frame; L19 took
-the producers, and `grep -c "panel\.open(" frontend/maquette/design/src/engine/legacy.js` reads
-**0** since 2026-09-05 — the ten are ten React producers in their features, and the two remaining
-`panel.open` call sites are the harness's own. **The sentence above is kept in the past tense
-rather than deleted**: it is the reasoning that scheduled the two lots, and what it predicted about
-the fixture is exactly what did NOT happen — see the refreshed figure above, and L19's entry for
-the measurement.
-
-**What is cross-cutting and does NOT strangle surface by surface**: the document-level event
-delegation, the boot handshake, and the **156** top-level declarations republished on `window` for
-the harness to drive through — a figure that read **254** until 2026-09-05 and had been false for
-several lots: `main` carried **158** before the B-308 micro-wave took two of them away.
-<sub>method: the names of the single `Object.assign(window, {…})` block of `engine/legacy.js`, split
-on commas</sub> **Navigation was on this list and is LIFTED**: L05 took the address
-model out of the engine — `URL_DEFAULTS`, `urlFromState`, `stateFromUrl` and the `baseAddress`
-plumbing — leaving it the navigation LOGIC (when to record an arrival, what the entry carries, how
-a back unwinds the layers). `openScreen` went with them, having lost every caller. `__go` and the
-named states remain the harness's own driving seam and belong to L13. The
-delegation and the boot are L13's, which is the last lot of the engine's death. **`/login` and
-the splash were on this list until 2026-08-29 and are L15's now** — they are the frame's entry
-(`docs/reference/frame-model.md` § 2 Part 9), and §17 redraws the gate, which cannot happen while it is engine code.
+**Why — measured, not preferred.** Most of `legacy.js` is fixture data (79 % at the decision's
+writing), and killing the engine before the data layer (L09) means facing all of it at once;
+killing it surface by surface means facing it in pieces, each with the oracle green. **The
+subtraction has two more passes than first thought, both now landed**: **L15** took the frame
+(tab bar, drawer, dialog, toast, entry) and **L19** took the ten `panel.open` producers — both
+confirmed at zero remaining call sites in the engine. What still stays cross-cutting, until L13:
+the document-level event delegation, the boot handshake, and the top-level declarations republished
+on `window` for the harness to drive through (navigation itself left with L05). Story:
+`docs/reference/frontend-architecture.md@6a47304a4` § D5.
 
 ### D6 — Accessibility is a lot, not a side effect
 
@@ -502,37 +319,18 @@ one run of that oracle "proved" twenty states had changed after a deletion that 
 along.
 
 **What it does NOT see, and the operator arbitrated keeping it that way (2026-08-25).** The probe
-reads the rectangle and the computed properties **of the element itself**. A `::before` or
-`::after` that stops being painted changes neither, so the oracle stays green — correctly, by its
-own contract. L07 phase 15 produced the lived example: a legibility gradient written across four
-concatenated string literals was never generated, leaving hero text on the bare image, and
-**R26 caught it** because R26 reads `getComputedStyle(element, "::after")`.
-
-The oracle is not widened: the measurement count and the two machine-bound references stay as
-they are. **A pseudo-element that carries a function is covered by a named rule instead** — that
-is the contract, and a surface that relies on one without such a rule is the defect, not the
-oracle.
-
-**The same clause covers DESCENDANTS, and L15 produced the lived examples (2026-08-30).** A region
-resolves to the nodes its selector names and the 19 properties are read on those nodes — never on a
-child. Two defects the adversarial review of #528 found by eye were replayed by the steward with the
-oracle green over both: `dialogParagraph` stripped of its colour, and `selectionAction` carrying
-`bg-transparent` in its base (white on white under the light theme, contrast 1.00) — 167 divergences
-before, 167 after, all on `shell/sheet-content`, in both cases
-(`sed -i '' 's/ text-muted-foreground\"/\"/' frontend/maquette/design/src/ui/variants/frame.ts && make maquette-oracle`).
-The oracle is still not widened: **a child node that carries a function is covered by a named rule**,
-exactly as a pseudo-element is, and the two surfaces above are held by none today (B-252).
+reads the rectangle and the computed properties of the element itself — never a `::before`/`::after`
+pseudo-element, and never a descendant (a region's 19 properties are read on the nodes its selector
+names, not their children; amended 2026-08-30 with the same rule). **A pseudo-element or a
+descendant that carries a function is covered by a named rule instead** — the oracle is not
+widened, and a surface relying on one without such a rule is the defect, not the oracle.
 
 **A RULE may read pixels; the ORACLE never does — amended by the steward's L12 audit, 2026-09-01.**
-L12's R118 (`frontend/maquette/harness/chrome_pixels.py`) samples the tab bar's own box
-mid-transition against the same box settled, with a control, and refuses a drift — the defect it
-holds (a bar painted UNDER a transition group, drift 52 of 255) exists only in the pixels the
-transition layer paints, so no geometry-and-style reading can hold that surface. That is not the
-comparison this decision refuses: the L01 measurement is between TWO RUNS of an unmodified page,
-where 8 to 15 states diverge by noise; R118 compares ONE region with ITSELF at two moments of ONE
-run. The line stays where it was — the oracle is not widened, screenshots are not a
-non-regression instrument — and a rule that needs a pixel says why in its own file, carries a
-control, and is bounded like B-277 on the side it can still lie on.
+L12's R118 (`frontend/maquette/harness/chrome_pixels.py`) compares one region with itself at two
+moments of one run (mid-transition against settled, with a control) — a different comparison from
+the oracle's two-runs-of-an-unmodified-page measurement, so it does not widen the oracle. A rule
+that needs a pixel says why in its own file and carries a control. Story:
+`docs/reference/frontend-architecture.md@6a47304a4` § D8.
 
 ### D9 — What a library is adopted for, and where motion lives
 
@@ -575,49 +373,18 @@ one file, `design/src/styles/legacy.css`, deliberately **unlayered** so it wins 
 `@layer utilities` on the markup the engine draws. It may not grow, a guard
 (`check-legacy-css-residue.py`) refuses any addition, and it dies with **L13**.
 
-**Arbitrated by the operator on 2026-08-24**, during L07, under the name **D-L07-5**. Promoted
-here on 2026-08-25 by the steward's audit, because the only definition of it lived in
-`docs/archive/features/maquette-l07/DESIGN.md@79ccebe2` — and history is frozen, and it is
-never revised, so the sole justification for keeping a 2 470-line stylesheet alive could no
-longer be corrected if its terms changed. `legacy.css`'s header cites **this** address.
+**Arbitrated by the operator on 2026-08-24**, during L07, under the name **D-L07-5**.
 
-**What it costs, and it is recorded rather than discovered.** Unlayered normal declarations beat
-every cascade layer whatever the specificity — including on markup that COMPONENTS draw. B-067
-found **seven** shared identity anchors carrying both a residue rule and a typed variant, so on
-those elements a variant can be edited and change nothing on screen. **The guard that answers it
-found sixteen** — the seven is the finding's tally, kept because it is what the register records,
-and the measured count is below. The declarations are identical term
-for term today and the oracle says so; what is not held is the day one drifts. **The guard that
-cross-checks each variant against the rule shadowing it is arbitrated (operator, 2026-08-25)**,
-and it dies with this decision.
-
-**It is built, and it is `R80`** — `frontend/maquette/harness/residue.py@60530dbd8`, in the per-phase
-contracts tier. It pairs each residue selector with the typed variant wearing the same identity
-anchor and compares `getComputedStyle` IN THE DOCUMENT, on two sibling probes, for exactly the
-properties the residue declares — never as text, because `flex: 0 0 auto` and `flex-none` are one
-value written twice and a guard carrying Tailwind's mapping by hand would be a table that rots.
-**Sixteen pairs stand where the finding named seven.**
-
-**Its own proof is that the oracle cannot supply one.** With `emptyNote()`'s `rounded-3` moved to
-`rounded-2`, R80 falls naming the anchor and the term — « residue « 8px » vs variant « 6px » » —
-while the oracle runs green over the same tree, 2 739 measurements, no divergence. That is B-067
-demonstrated rather than asserted, and it is why this guard is not something the oracle could have
-been widened into.
-
-**It measures under BOTH motion preferences, and that is not thoroughness for its own sake.** Part
-of the residue sits inside `@media (prefers-reduced-motion: no-preference)`; a utility carries no
-such condition unless it is written `motion-safe:`. The two sides then agree to the character
-under one preference and disagree under the other — which is how the hero's entrance was found
-animating for a reader who had asked for no motion (B-076), against invariant 14, with the oracle
-and the accessibility tier both green.
-
-**What it does not stage is counted and named on every run**, not left to be discovered: the
-selectors wearing an anchor no variant claims (the engine's own markup — the residue's whole
-purpose); the qualifiers the ENGINE writes through `classList`, which no variant emits; and the
-descendant pairs, whose one- and two-letter anchors collide across contexts — `.dcard .t` and
-`.sechead .t` would both pair with `sectionTitle()` and only one of them is that variant. It holds
-a FLOOR on the number of pairs found, because a pairing that found nothing would print « no
-divergence » and mean « I compared nothing » — which a first version of it did.
+**What it costs.** Unlayered normal declarations beat every cascade layer whatever the specificity
+— including on markup that COMPONENTS draw, so a variant can be edited and change nothing on
+screen while the residue still wins. Held by `R80` (`frontend/maquette/harness/residue.py@60530dbd8`,
+contracts tier): it pairs each residue selector with the typed variant wearing the same identity
+anchor and compares `getComputedStyle` in the document, on two sibling probes, for exactly the
+properties the residue declares — **sixteen pairs**, and it measures under both motion preferences
+(a utility with no `motion-safe:` disagrees with the residue under reduced motion, which is how
+B-076 was found). It counts what it does not yet stage on every run rather than leaving it to be
+discovered, and holds a floor on the number of pairs found so an empty pairing cannot read as
+« no divergence ». Story: `docs/reference/frontend-architecture.md@6a47304a4` § D10.
 
 ### D11 — The scrollbar is STYLED, never replaced (operator, 2026-08-26)
 
@@ -701,56 +468,17 @@ declined, consumer L16).
     navigation. Held by a count per directory, refused upward — never by an interdiction, so a
     shared component that genuinely needs a domain word is one reviewed line, not a wall.
 
-    **Measured on 2026-08-26, outside comments**: `ui/` carries **one** domain word across 1 162
-    lines, `lib/` carries them only in `addresses.ts` and in `engine-drawing.ts` (which dies with
-    L13), and `app/` concentrates them in three files — `shell.tsx`, `page-host.tsx`,
-    `reference.d.ts` — all three being the list of pages, which every framework has somewhere.
-    **This invariant freezes a property that is already true; it does not ask for a refactor.**
-
-    **Re-measured on 2026-08-27, at L09's close, and it MOVED — §7.1 makes saying so the wave's
-    duty.** Two new files carry domain words, and one of them carries a great many:
-
-    | File | Domain words | Why |
-    | --- | ---: | --- |
-    | `lib/queue.ts` | 169 | The staging and acquisition queue, shared by Arrivées and Acquisition. Invariant 7 is absolute — two features may not import each other — so a queue both read had nowhere else to go. |
-    | `app/engine-data.ts` | 34 | What the dying engine reads with no component to ask for it: four addresses and ten family names. |
-    | `app/history-bridge.ts` | 17 | A slice of `shell.tsx`, whose words came with it. |
-    | `app/live-updates.ts` | 18 | L10. Six features named three times each — the import, the
-      spread and the type. It names no EVENT and no KEY: which events refresh which data lives in
-      `features/<domain>/live.ts`, with the domain. |
-
-    **Re-measured again at L10's close, and it moved by 18 — §7.1 makes saying so the wave's
-    duty.** `app/live-updates.ts` is one import per feature, which is the same species as
-    `router-tree.tsx`'s one import per page: the frame naming its pages, the exception this
-    invariant blesses by name. What would have been a violation is the file production has — a
-    central map carrying forty event names and twenty query keys, belonging to no domain at all —
-    and it is what D-L10-1 refuses. `app/connection-notice.tsx`, the other file L10 adds to `app/`,
-    carries **zero**: it reads a condition and draws it, and could not name a media item.
-
-    <sub>method: strip comments per line, count occurrences of the nine feature names in
-    `app/live-updates.ts` and `app/connection-notice.tsx`. ⚠ The first attempt stripped `//.*`
-    under `re.DOTALL`, which swallows the file from its first comment to the end, and reported
-    **0** — a measurement that read nothing, in the wave that filed three entries about exactly
-    that.</sub>
-
-    **169 is not « one reviewed line », and calling it that would be the dishonest reading.**
-    `lib/queue.ts` argues its own case in its header, and the case is sound — but what it really
-    is, is the frame carrying a subject because the ONLY alternative available today was worse.
-    Two arbitrations follow from it, and neither is this lot's to take: whether a shared domain
-    module belongs in a `domain/` bucket of its own rather than in `lib/`, and whether B-100 (this
-    invariant is unarmed) is worth arming now that there is something for an arm to refuse.
-    Recorded here so the next wave decides it rather than inheriting it.
-
-    **Its subject is MODELLED since 2026-08-29** — `docs/reference/frame-model.md`
-    § 2, thirteen parts, each saying where it lives under this invariant, what it owns and what it
-    never knows. The invariant was binding for three lots before its subject had a definition;
-    that debt is paid, and a fourteenth part is a hole in the model, said so in the wave that
-    finds it.
-
-    **Why it is not written for the extraction.** A frame that does not name its subject is easier
-    to read, easier to test and easier to move between waves — that alone pays for it. Reusing it
-    on another product is a consequence, never the justification, and the day a measure here can
-    only be defended by that future is the day it has gone too far.
+    **This invariant freezes a property that was already true (measured 2026-08-26) and has since
+    drifted twice, tracked rather than silently accepted** (§7.1's duty): `lib/queue.ts` (169 domain
+    words — the staging/acquisition queue two features both read, with nowhere else to go under
+    invariant 7), `app/engine-data.ts` (34 — what the dying engine reads with no component to ask
+    for it), `app/history-bridge.ts` (17), `app/live-updates.ts` (18, one import per feature — the
+    same species as the frame naming its pages). **169 is not "one reviewed line"**: it is the frame
+    carrying a subject because the only alternative today was worse, and it leaves two open
+    arbitrations — a `domain/` bucket of its own, and whether B-100 (this invariant is unarmed) is
+    worth arming. **Its subject is MODELLED since 2026-08-29** — `docs/reference/frame-model.md` § 2,
+    thirteen parts, each saying where it lives under this invariant. Story:
+    `docs/reference/frontend-architecture.md@6a47304a4` § 3, invariant 10.
 
 11. **Every change lands with a rule that bites**, mutation-tested: break the behaviour on
    purpose, confirm the rule falls and names the right defect, restore.
@@ -793,336 +521,35 @@ separate waves since.
 
 #### L01 — The recorded oracle
 
-**Objective.** One command that says whether the maquette renders today what it rendered at a
-known-good commit.
-
-> **Where the measurement technique lives now, because it is no longer in the tree.** Retiring
-> the translation layer removed `parity-probe.py`, the extraction and, with them, the `probe`
-> block of `regions.json` — correctly: they served the abandoned surface-by-surface model. But
-> `probe` also held the only replayable measurement recipe this repository ever proved, and it
-> is **recovered from history, not reinvented**:
->
-> ```
-> git show <last commit before the untranslate merge>:frontend/maquette/regions.json
-> ```
->
-> Six keys, and each earns its place: `viewport` (390 × 844, DPR 2, mobile, touch — a geometry
-> read at another width answers a question nobody asked), `assertBeforeMeasuring` (refuse to
-> measure if the viewport is not really that), `computedStyleSubset` (**17 properties**;
-> amended to **19** by L01 — `opacity` and `visibility` — because `#scrim` opening changes
-> neither the other 17 nor its rectangle, so an overlay could stop appearing and the oracle
-> would stay green. Evidence in `docs/archive/features/maquette-l01/DESIGN.md@79ccebe2`),
-> `knownAbsent`, `neutralise` (what to switch off before reading — this is friction
-> counter-measure 1, already solved once), and `allowlist` (justified divergences).
->
-> Recover it deliberately, with a comment saying where it came from. Rebuilding the list by
-> judgement re-opens a question that was already settled by measurement.
-
-**What it measures.** Per *(named state × region)*: the bounding rectangle, plus the fixed subset
-of computed style properties above. States come from `states.js` — the single source, **never
-counted by regex**: some entries are written out and others generated by a `.map()`, so a pattern
-match undercounts, and has already reported a wrong figure in this repository. Regions are
-re-declared for this purpose: one region per block a user perceives as a unit. The 51 regions of
-the retired probe were chosen for the extraction contract and are not automatically the right
-list.
-
-**What it does not do.** It is not a functional test — the rule suite is, and it now runs by
-itself: `frontend/maquette/harness/run.sh` builds the prototype, copies it where the harness
-reads it, and runs the rules in two tiers — `--contracts` (minutes, on every pull request) and
-the full suite (the gate before a wave merges). The oracle is a **third** tier and
-does not duplicate either: rules say the behaviour still holds, the oracle says the rendering did
-not move. It is not a screenshot (D8).
-
-**Its shape.** Three modes: record the reference, compare and fail on divergence, accept a
-reviewed change. The reference is **a committed JSON**, stably sorted and formatted, so a visual
-change is read **in the pull request's diff**, region by region.
-
-**Friction is the risk, and it is designed against.** Five causes, each already met here:
-animations and asynchronous image decode (animations off, reduced motion forced, images decoded
-before measuring, and an explicit settle signal rather than a delay in milliseconds);
-non-deterministic data (frozen clock, frozen fixtures — a rule has already failed here because a
-scheduler fired); slowness (one browser, one context, states driven in-page); unreadable diffs
-(sorted JSON, report grouped by state, naming the property and its before/after); and false
-positives, which disarm an oracle within weeks (an allowlist, each entry carrying its written
-reason).
-
-**Done when.** It runs in one command; it fails on a deliberate one-pixel padding change and
-names the right region; its reference is committed; it is wired into the gate; and its five
-friction counter-measures are each exercised rather than asserted.
-
-**Two notes for later, so the oracle is not caught out by lots that come after it.** When real
-data replaces the fixtures (L09), determinism moves to the mock layer — **the oracle then depends
-on L08**, so plan the two together rather than against each other. And once L12 lands view
-transitions, a transition in flight moves the very rectangles this measures: the oracle reads
-**at rest**, which its settle signal must guarantee rather than assume.
+**Landed** — PR #467, squash `59931d45c`. The oracle is one command: it records, per named state × region, the bounding rectangle and a fixed subset of computed style, replays it on demand, and is wired into `run.sh` as its third tier. Body: `docs/reference/frontend-architecture.md@6a47304a4` § L01.
 
 #### L02 — Test anchors move to `data-*` · *depends on L01*
 
-**Objective.** No rule selects on a style class. 280 calls move onto `data-*` contracts.
-
-**Why before the visual language.** If the anchors move during the conversion, a falling rule
-cannot be attributed — anchor or style. Separated, each failure has one possible cause.
-
-**Half of D4's contract is already held, and this lot must not duplicate it.**
-`scripts/check-markup-contracts.py` refuses a `data-*` VALUE the markup emits that no reader
-understands — the three-ends defect, and it was written after a rename that looked contained
-broke six contracts while `make lint`, `make test` and `make check` all stayed green. What it
-does not hold is the other half, which is this lot: **what a rule is allowed to anchor on.**
-Extend the existing guard rather than adding a second one beside it.
-
-**Done when.** The classification measured in D4 reports zero class-anchored selection calls; a
-rule refuses the next one; every moved contract has its three ends moved in the same commit; the
-suite is green at unchanged hold counts.
+**Landed** — PR #470, squash `77811666a`. 280 selector calls moved off CSS classes onto `data-*` contracts; the classification this lot measured now reports zero class-anchored selections. Body: `docs/reference/frontend-architecture.md@6a47304a4` § L02.
 
 ### Phase 1 — The contracts of markup and structure
 
 #### L03 — Accessibility · *depended on L01*
 
-**Objective.** Landmarks, roles, accessible names, focus order, focus visibility, keyboard paths,
-and focus management on every layer opening and closing.
-
-**Done when.** Every screen has its landmark; every interactive element has an accessible name; a
-layer traps and restores focus; the whole application is reachable by keyboard; an automated
-audit runs in the gate; and the oracle is green — the non-visual part of this lot must move
-nothing.
-
-**Landed** — branch `feat/maquette-l03`, design `docs/archive/features/maquette-l03/DESIGN.md@79ccebe2`, its plan beside it in that commit.
-`axe-core` over the 83 named states went from **744 violations over 7 rules to 0**, with the
-oracle at **0 divergence over 2 739 measurements**: the non-visual part moved nothing, measured
-rather than asserted. The gate is `frontend/maquette/harness/run.sh --a11y` — a fourth tier, in
-the full suite and in CI on every maquette pull request — and its floor is a hard zero, no
-threshold and no tolerated list.
-
-**What an audit cannot see is held by R81** (`harness/focus.py`, 15 holds): focus entering a layer
-and returning to the control that opened it, `Escape`, the skip link landing FOCUS and not merely
-scroll, `aria-busy`, and every error surface announcing. An audit reads the markup of one moment;
-these are sequences, and the two instruments do not overlap.
-
-**Two rules are asked only where they can be answered**, and it is a condition rather than a list
-of excepted states: `landmark-one-main` and `page-has-heading-one` describe the document AT REST,
-and with a modal layer open the background is deliberately `inert`, therefore out of the
-accessibility tree. The split is printed on every run — 65 states asked, 18 could not.
+**Landed** — PR #475, squash `737ce5e94`. `axe-core` over the 83 named states went from 744 violations over 7 rules to 0, oracle at 0 divergence over 2 739 measurements, held by `run.sh --a11y`'s hard-zero floor. Body: `docs/reference/frontend-architecture.md@6a47304a4` § L03.
 
 #### L04 — Boundaries and the tree · *depended on L01*
 
-**Why here.** Every lot after this one creates files. Deciding afterwards means moving them
-twice. **And why it depends on the oracle**: this lot breaks two import cycles, which is a change
-to code and not a move — without the oracle nothing proves the rendering survived it.
-
-**What was wrong, and what the lot did to it.** The left column is the measurement that
-SCHEDULED this lot; the right one is what the same command reports now. Refreshing it is the
-wave's duty rather than an amendment (§ 7.1): what was decided is untouched, and a figure left
-standing after the work that falsified it is the stale-directive disease this file exists to
-fight.
-
-| Defect | Measured before | Now |
-| --- | --- | --- |
-| **Two import cycles** | `components/panel.tsx ↔ data.ts` and `screens/add.tsx ↔ shell.tsx` — 3 simple cycles over 2 back-edges | **0**, held by `check-frontend-boundaries.py --arm cycles`. The first back-edge's whole substance was a DUPLICATE: `data.ts` declared a `Panel` type byte-identical to the one already in `seams.ts` |
-| **One hub module** | `data.ts`, **17 importers** of ~21 modules — 4 store hooks, ~30 domain types and the engine's 108-member surface at once | **it does not exist.** The store hooks are `lib/store-access.ts`, the engine's surface is two `lib/engine-*.ts` layers plus one slice per feature, and 10 members no component read are gone from the type |
-| Its symptom | 6 files import `data` twice, once for types and once for values | **0**, held by `--arm duplicate-import` |
-| **Grouped by technical kind** | changing one feature means opening `pages/…`, `components/…`, `data.ts` and `i18n/fr.json` | grouped by SUBJECT: `features/<domain>/` holds its page, its screens and its slice |
-| A split about to become a lie | `pages/` ÷ `screens/` encodes a distinction D1 removes | both folders are gone |
-| **No bundle splitting at all** | zero `lazy()`, zero dynamic `import()` | **unchanged, and deliberately** — it belongs to L12, which changes loading behaviour where this lot changed nothing observable |
-| No unit-level test | all proof is the browser harness; a pure function is proved through a browser | **unchanged.** Arbitrated by the operator on 2026-08-22 and OWNED BY L09 — see the note under that lot: the mock layer a non-vacuous test rests on is L08's, and tests written before it would invent their own fakes |
-| Names that say nothing | `data.ts`, `store.ts`, `panel.tsx` — and `media.tsx` is a screen while `library.tsx` is a page | each file is named for what it holds, inside the subject that changes it |
-
-<sub>every figure: `python3 scripts/check-frontend-boundaries.py`, which prints what each of its eight arms derived</sub>
-
-**What was right and is now HELD**: 0 `any`, 0 `as any`, 0 `@ts-ignore`, 0 `@ts-expect-error` —
-a ratchet from zero, which was free then and impossible to introduce later. `--arm typing` holds
-it at a hard zero.
-
-**The target tree.**
-
-```
-src/
-  app/          boot, providers, the router tree, service worker
-  routes/       one address, one file — thin: it loads and composes
-  features/<domain>/   components, hooks, model.ts (its types),
-                       queries.ts (its reads and mutations), *.test.ts
-  ui/           CVA primitives — no domain knowledge
-  lib/          domain-free helpers
-  styles/       tokens.css · base.css   (D3)
-  mocks/        handlers and fixture seeds   (L08)
-```
-
-**The rule that decides where a file goes.** A tree only survives if there is a decision
-procedure; without one every agent invents their own.
-
-> **A file lives with what makes it change.**
-> One surface makes it change → `features/<that surface>/`. Two surfaces make it change for
-> their own reasons → either it knows no domain and belongs in `ui/` or `lib/`, or **it is two
-> files**. It knows no domain → `ui/` if it renders, `lib/` if it does not.
->
-> **Never create a folder for a KIND of file.** No root `hooks/`, no `types/`, no `utils/`.
-> That is what produced `data.ts`.
-
-Its corollary is what dissolves the hub: **a type belongs to the feature that owns the concept**,
-never to a shared module. `data.ts` is not slimmed, it stops existing.
-
-**The order inside this lot.** A single-shot move of the tree is unreviewable.
-
-1. **Break the two cycles** — the only real code change here, so it lands alone and is proved
-   alone.
-2. **Split `data.ts`** — types to their features, store hooks to `app/`, fixtures where L08 will
-   pick them up.
-3. **Move to the target tree.** No logic changes, so the oracle proves zero divergence.
-   Renames go through `scripts/rename-identifiers.py`: a rename needs a parser, not a regex.
-4. **Install the guards**, each mutation-tested.
-5. **Record the files over the ceiling** with the lot that will convert each.
-
-**What this lot does NOT touch.** Bundle splitting belongs to L12: it changes loading behaviour,
-and nothing here may change anything observable.
-
-**And one known defect deliberately left alone**: the harness is **54 `.py` files flat, with no
-subdirectory** (53 rules plus `common.py`, the shared plumbing), so nothing says which rule
-covers which surface without reading it. It is the same disease one level up.
-<sub>`ls frontend/maquette/harness/*.py | wc -l`</sub>
-Moving them means changing as many paths cited across documents and briefs
-— a real cost for a gain in comfort. It is recorded here so it is known, and it is not scheduled;
-it waits for a stronger reason than tidiness.
-
-**Done when** — seven guards, each failing on a deliberate violation and wired into the gate:
-
-1. **no import cycle** (the two above are gone);
-2. **a fan-in ceiling** — a module outside `ui/` and `lib/` imported by more than a set number of
-   features is refused. This is the one that would have stopped `data.ts` at four importers
-   instead of seventeen, and it is the only guard here that acts *before* the defect exists;
-3. **layering** — `ui/` and `lib/` never import `features/` or `routes/`; two features never
-   import each other;
-4. **size** — the module ceiling (invariant 6), covering the frontend;
-5. **the typing ratchet** — no `any`, no `ts-ignore`, from today's zero;
-6. **no duplicate import** from one module;
-7. **one address, one file.**
-
-Plus: the tree matches the target, `data.ts` no longer exists, and grandfathered files are listed
-with their converting lot.
+**Landed** — PR #478, squash `668130636`. The two import cycles and the `data.ts` hub are gone; the tree is grouped by domain under `features/`, and seven guards (`check-frontend-boundaries.py`) hold the target tree in the gate. Body: `docs/reference/frontend-architecture.md@6a47304a4` § L04.
 
 #### L05 — Routing · *depended on L01, L04*
 
-**Objective.** D1 in force. Every page and screen on a real path, state in the query, layers
-ranked in three tiers.
-
-**Why it is worth more than it looks, and why it is not deferred.** It pays twice. Lifting
-navigation out of the engine is the first subtraction of D5 — and once every named state has an
-address, **the harness can drive by URL instead of through `window.__go`**, which detaches it
-from the 254 republished globals. That detachment is what makes L13 finishable, and it is also
-what lets **the oracle outlive the engine**: an oracle that drives through a seam dies with the
-seam. Deferring this lot costs both.
-
-**Done when.** No page identity survives in a query and no state in a path, both checked; a deep
-address lands on its state cold; Back and Forward behave on every tier; R69 is renegotiated with
-its reason recorded; the oracle is green.
+**Landed** — PR #482, squash `c4e52ca54`. Every page and screen sits on a real path with state in the query and layers ranked in three tiers; navigation logic left the engine for `lib/`. Body: `docs/reference/frontend-architecture.md@6a47304a4` § L05.
 
 ### Phase 2 — The visual language
 
 #### L06 — The scale · *depended on L01*
 
-**Objective.** One declared scale — space, type, radius, duration, easing — and every declaration
-folded onto it. **What landed is 32 tokens in one `:root` block** at the top of BLOCK 2: nine
-spacing steps, eight text steps plus one display size, five radii, and, for motion, four
-touch-response durations, three loop periods and two named curves. The contract forecast the 65
-padding values onto « roughly eight » steps, the 21 type sizes onto « about seven » and the 17
-radii onto « about five »; that forecast is written down here rather than quietly replaced,
-because space and type each needed ONE step more than it allowed and the operator arbitrated both
-(space keeps 24px, type keeps the 10px step). All four families read zero off-scale declarations, and
-`check-css-tokens.py --arm scale` refuses the next one outright — no baseline file, no mode that
-can write one, and the motion family held in two dimensions at once because a curve is not a
-number.
-
-**A family of tokens is not CSS at all, and this lot had to decide their fate.** `--tm-*` names
-are *measured and published at runtime*, never declared in a stylesheet, which is why
-`scripts/check-css-tokens.py` treats them apart and demands a fallback at every use — a runtime
-token with no fallback resolves to nothing until the script has run, which is a visible flash.
-The engine dies in L13, so these needed a home before then. **D-L06-4 gave them one: the SHELL
-publishes `--tm-bottom-bar-h`** (`design/src/app/bar-height.ts`), the engine keeps no copy of it,
-and the eight `var()` uses keep their `, 0px` fallback — the guard still demands it. R84
-(`runtime_tokens.py`, 8 holds) holds the three ends: exactly one publisher and it lives under
-`app/`, counted over the whole source tree rather than grepped in the engine, because a rule
-reading « the engine does not publish » stays green over a second publisher added anywhere else;
-the published value equal to the bar's own rendered height; and it still equal once the bar is
-forced to a height no state draws.
-
-**L03 HANDED THIS LOT A MEASUREMENT, and D-L06-5 paid it: 42 findings → 0.** Colour contrast is
-an accessibility criterion that lands on the palette, so L03 measured it, recorded it and
-deliberately did not enforce it (D-L03-4): `frontend/maquette/a11y-contrast.json` held
-**42 `color-contrast` findings over 18 of the 83 named states, on 10 distinct elements.** The
-split written here was « 27 of the 42 are the count badge »; the record is LIVE rather than
-frozen, and by the time the repair ran it read **34 of 42** on that badge — which is the whole
-reason a figure in this file carries the command that reproduces it. The badge's defect was not a
-tone at all but an **opacity blend**: secondary was written as `opacity`, so what reached the eye
-was a colour the palette never declared. The danger family gained `--danger-fill` for the ground a
-solid destructive control paints, the light theme's `--primary-foreground` override was REMOVED —
-dark text on the brand fill in both themes, one decision instead of two that happened to agree —
-and four label sites moved to `--primary-text`. `color-contrast` now sits INSIDE the enforced
-hard-zero floor rather than beside it in a record.
-<sub>`python3 frontend/maquette/a11y.py --check` runs the floor, contrast included.</sub>
-
-**A SECOND THING L03 HANDS OVER, and it is the price of a decision the operator took knowingly.**
-L03 removed `maximum-scale=1, user-scalable=no` from the viewport meta — 83 of its 744 violations,
-one per state, WCAG 1.4.4. Those directives were forbidding the pinch-zoom a low-vision reader
-depends on, and the hard-zero floor left no third option: excluding the rule would have been a
-tolerated list of one.
-
-What they were also buying, measured rather than assumed: **`.search input` was `font-size: 13px`**,
-below the 16px threshold at which iOS auto-zooms a focused field, so focusing the search field on
-an iPhone zoomed the page. The repair is 16px, and it belonged here because it moves the type
-scale — which L03 could not do under a floor of zero oracle divergence. **D-L06-6 was arbitrated
-on its wide reading**: not that one field but all THREE, because a field that zooms is a field
-that zooms whichever screen draws it. R83 (`type_scale.py`, 9 holds) measures the rendered size in
-the browser rather than the declaration, since only the browser says what a token resolves to
-under the cascade.
-
-**And one thing L03 measured that this lot does NOT inherit**: touch-target size (WCAG 2.5.8) was
-expected to be a debt and is not. `target-size` runs, is applicable — 49 nodes evaluated in a
-single state, none of them skipped — and reports **0 violations over the 83 states**.
-
-**Done when.** The scale is declared in one place; no declaration sits outside it; a check refuses
-the next one; the `--tm-*` family has a decided home and its fallbacks still hold; the 42 contrast
-findings are gone and `a11y.py`'s contrast run is empty; `.search input` reads at least 16px so a
-focused field no longer zooms iOS; the oracle records the intended visual changes as accepted, each
-reviewed.
+**Landed** — PR #490, squash `a4418e6a9`. One declared scale (32 tokens) replaced 65 padding values, 21 type sizes and 17 radii; the 42 colour-contrast findings and the auto-zooming search field are both at zero. Body: `docs/reference/frontend-architecture.md@6a47304a4` § L06.
 
 #### L07 — Tailwind and CVA, surface by surface · *depended on L02, L04, L06*
 
-**Objective.** D2 in force. Each surface converts on its own, oracle green at every step.
-
-**Why surface by surface.** A single-shot conversion of 4 043 lines produces one unreviewable
-diff and one unattributable failure.
-
-**BLOCK 1 must not travel.** The prototype's stylesheet is split in two on purpose: BLOCK 1 is
-the phone frame, the demo bars and the design notes — scaffolding that stops existing at
-switchover — and BLOCK 2 is the application's own CSS. Converting BLOCK 1 into components would
-carry the scaffolding into the product. It is deleted, not converted, and its disappearance is
-part of this lot's proof rather than a later tidy-up.
-
-**What L07 actually did, recorded 2026-08-25 after the lot landed.** BLOCK 1 was **separated, not
-deleted**: it is `design/src/styles/harness.css`, imported once and by nothing that ships. The
-wave's reason, and it holds: the phone frame is the frame inside which every measurement in this
-repository is taken, so the instrument that proves the rest of the lot cannot be what the lot
-destroys on its way out. The paragraph above is kept as written — **the intent is unchanged, and
-the sheet still must not travel** — but « deleted » is now « separated and provably unshipped »,
-and the proof is the single import rather than the absence.
-`frontend/maquette/design/refonte.html@60530dbd8` likewise survived this lot, and its removal was
-carried into L13a with R72's renegotiation, above.
-
-**This lot fixes the surface ORDER, and L09 reuses it.** Both lots walk every surface; walking
-them in the same sequence means the second pass reuses the understanding the first one built.
-Write the order down in this wave's plan.
-
-**The risk this lot carries, and it has already gone off once.** Some CSS here is
-**load-bearing, not cosmetic**, and a utility conversion is exactly how it disappears without a
-sound. `user-drag: none` and `user-select: none` are the known case: deleting one selector from a
-group once took the whole `user-drag` block with it, native image drag came back and **swallowed
-the pointer stream** — one down, two moves, never an up — and three gesture tests failed for a
-reason that looked nothing like a CSS deletion. Anything the compositor reads (`touch-action`,
-`user-drag`, `user-select`, `overscroll-behavior`, `-webkit-tap-highlight-color`) belongs in the
-base layer and is held by a rule, before a single surface converts.
-
-**Done when.** No hand-written component stylesheet remains; CSS is in its three layers (D3); the
-compositor-facing declarations above are in the base layer and a rule refuses their removal; the
-Tailwind scan is confined and proved not to reach production output; §15 of the constitution is
-amended to name the new visual reference; the oracle is green on every state at every step.
+**Landed** — PR #494, squash `5fdbfc9a6`. Every surface converts to Tailwind utilities behind typed CVA variants, oracle green at each step; BLOCK 1 survives as the harness-only `harness.css`, and the compositor-facing declarations are held by a rule. Body: `docs/reference/frontend-architecture.md@6a47304a4` § L07.
 
 ### Phase 3 — The application
 
@@ -1135,270 +562,29 @@ none of the others: no surface is wired to any of it, which is L09's.
 
 #### L08 — The data contract and the mocks · *depended on L04*
 
-**Objective.** D7 in force. The contract the interface requires, plus a mock layer serving it, so
-the maquette codes against a real shape with no backend touched.
-
-**The mocks are seeded from the fixtures that exist today, and this is binding.** A mock that
-returns exactly what the current fixture returns makes L09 provable: wiring a surface to it
-renders the same thing, so **the oracle proves the wiring at zero divergence**. It turns the
-largest lot of the plan from an unverifiable rewrite into a refactor with a proof, surface by
-surface — and it costs nothing extra, because those fixtures have to be read anyway to know the
-shapes. Invented mock data would forfeit that proof for no gain.
-
-**Done when.** The contract exists as its own artefact; every shape the mock layer serves is
-seeded from the fixture it replaces, and a check holds that correspondence; the layer also serves
-failure and latency; divergences from the existing backend contract are recorded as demands;
-determinism is sufficient for the oracle to depend on it.
-
-**Landed** — PR **#503**, merged 2026-08-26, version 0.98.42, squash `ce1d7b5a`. Design and plan
-in `docs/archive/features/maquette-l08/DESIGN.md@79ccebe2`. The
-contract is `frontend/maquette/contract/openapi.json`: 49 paths, 53 operations, 43 schemas, its
-TypeScript types generated and held against drift two ways. 46 seeds, built from `legacy.js` by a declared
-projection and held by `scripts/check-mock-seeds.py` — seven arms, each of which says what it
-does NOT read before it says what it does. The demands are COMPUTED, not written
-(`docs/reference/frontend-backend-demands.md`, `scripts/compare-contracts.py --check`).
-
-**The oracle reads 0 divergence over 2 739 measurements with the layer live**, which is this
-lot's own proof: it displays nothing. The oracle is a LOCAL gate (§ 5), so that reading is the
-operator's machine's and is not reproducible on a runner.
-
-**Two limits are recorded rather than glossed.** The seam replaces the network call in process, so
-what a real one does with caching, redirects and abort signals is not proved here (D-L08-2's
-stated cost). And the layer LIFTS OUT, measured on demand: 2 807 428 bytes with it built in,
-1 571 705 with the flag off.
-
-**What it cost to get right, and it is the reason the arms are what they are.** Two families
-shipped UNPROJECTED while the builder reported success and « lossless » — a leaf-value check
-cannot see a projection that never ran. The contract was wrong about its own data in five places,
-each found by validating the seeds against it. `serie` is a show's RUN STATUS and was renamed
-`series`, which no automatic check could have caught. And the extractor's own reader judged
-`const settle = afterUnwind` a literal, because it walked an initializer's children and never the
-initializer.
+**Landed** — PR #503, squash `ce1d7b5a4`. The contract (`frontend/maquette/contract/openapi.json`: 49 paths, 53 operations) and its 46 fixture-seeded mocks exist; the oracle reads 0 divergence over 2 739 measurements with the layer live. Body: `docs/reference/frontend-architecture.md@6a47304a4` § L08.
 
 #### L09 — The data layer, surface by surface · *depended on L01, L05, L08*
 
-**Objective.** Server state in its query cache, mutations with their optimistic paths and their
-rollbacks, the two state-ownership invariants (4 and 5) in force. Each surface takes its data and **its share of the
-fixture dies with it** (D5). Surfaces are walked in the order L07 fixed.
-
-**Its proof comes from L08.** The mocks are seeded from the fixtures they
-replace — 46 of them, held byte for byte against `legacy.js` by
-`scripts/check-mock-seeds.py --arm correspondence` — so a wired surface renders what it rendered
-before, and the oracle holds the wiring at zero divergence. Three things L08 built are this lot's
-to use: `window.__mocks.reset()`, so a named state is reached from a known store; the scenario
-surface, so a surface's loading and error states are driven by the same failure the interface will
-really meet; and `window.__mocks.quiet()`, which `oracle.py`'s settle already reads — it resolves
-immediately today because nothing fetches, and it is what stops a wired surface being measured
-mid-flight. If a surface cannot be wired at zero divergence, the difference is understood and
-accepted explicitly — never waved through as "the data changed".
-
-**The largest single lever on how native this feels sits in this lot, and it is not a library.**
-An action must answer the finger before the network does. Every mutation carries its optimistic
-path and its rollback; a surface that waits for a round trip to acknowledge a tap feels like a
-web page, and no amount of animation later repairs that.
-
-**THIS LOT OWES THE UNIT-TEST LAYER, and the debt is L04's, deliberately handed here.** The
-maquette has no test runner at all: every proof is a browser rule, so a pure function is proved
-through a browser. L04 measured **11** pure functions worth testing — the meatiest being
-`epState`, whose **8 branches** are touched today by **3 assertions in one browser rule** — and
-the operator arbitrated on 2026-08-22 that nothing be installed then. The reason is this lot's
-own dependency: **L08 builds the mock layer**, seeded from the fixtures it replaces, and tests
-written before it exists would invent their fakes by hand — which is precisely what makes a test
-vacuous, twice paid for in this repository. The target tree already reserves
-`features/<domain>/*.test.ts`; what is missing is the runner and the tests, and they belong here.
-
-**Done when.** No surface reads a fixture; the fixture literals are gone from the engine; state
-ownership is settled — no ambient mutable object read from everywhere; every mutation has an
-optimistic path and a rollback, or a written reason why it cannot; the oracle is green
-against the mocks, or its divergences are accepted one by one with reasons.
+**Landed** — PR #509, squash `27096f31c`. Server state moved into the query cache with optimistic mutations and rollbacks on every surface; each surface's share of the fixture died with it (D5). Body: `docs/reference/frontend-architecture.md@6a47304a4` § L09.
 
 #### L10 — The live relay · *depends on L09*
 
-**Objective.** The event stream, and the cache invalidations it drives.
-
-
-**Where it lives (invariant 10).** A relay, its reconnection policy and its replay window are the application's SHAPE, not its subject: they belong in `lib/`, never under a `features/` folder because that is the surface the work was tested against.
-**Done when.** A server event refreshes exactly what it should and nothing else; reconnection and
-loss are handled visibly; no polling remains where an event exists.
+**Landed** — PR #512 and #513, squash `3c66dd36f`. The event stream drives exactly the invalidations it should, loss and reconnection are visible, and no polling remains where an event exists. Body: `docs/reference/frontend-architecture.md@6a47304a4` § L10.
 
 #### L15 — The frame · *depends on L07, L09*
 
-**Objective.** The engine draws nothing of the frame, and the template exists: one navigation
-table, four kinds of surface, a slot and a verb for every layer. Declared by L10-ter on
-2026-08-29 — `docs/reference/frame-model.md` is its design, part by part, and
-`docs/reference/frame-survey.md` § 1.2 is its inventory. It is numbered after L14 and placed before L11 because
-**this file's order decides, not the number** (§ 5), and renumbering moves citations (B-103).
-
-**Why before L11 and L12, measured.** L11's offline shell CACHES the chrome, and the chrome is the
-engine's today — an offline shell built first would cache `legacy.js`, 33 026 non-blank lines of
-which 26 366 are fixtures, and be rebuilt when the chrome moved. L12's transition between two
-layers needs both layers to be components; the drawer and the dialog are engine markup.
-
-**What it converts** — six surfaces, the entry, and the table:
-
-| Part (`docs/reference/frame-model.md` § 2) | What moves | From | To |
-| --- | --- | --- | --- |
-| 5 — the table | `PAGES_OF` and `NAVIGATION` (engine), `PAGES` (page host), `PAGE_PATHS` (addresses) — **four copies of one fact** | the engine, twice | **one** `app/navigation.ts`: id · path · component · label key · icon · group · in the bar · action button · `badge()` — invariant 10's third exception, and the engine holds no copy |
-| 6 — the chrome | the tab bar (`renderNav`, rebuilt on every `render()` — B-231), the drawer's chrome, the FAB's toggle, the selection **slot** | engine `innerHTML` | `app/tab-bar.tsx`, `app/drawer.tsx`, `app/action-button.tsx`, `app/bottom-slot.tsx`; the library's selection bar becomes its own component portalled into the slot |
-| 7 — the layers | the dialog (`openDlg(html)`, 2 producers — `grep -n "openDlg(" legacy.js`, minus the definition), the toast (34 callers — 29 `toast(`, 5 `toastUndo(`, definitions subtracted), the popover LAYER | engine `innerHTML` | `ui/dialog.tsx`, `ui/toast.tsx`, `ui/popover.tsx` behind DESCRIPTORS on the seam the sheet already uses (`app/panel-host.ts` is the precedent: facts cross, markup is the component's); **the scrim gets one owner**; **the dialog gets its rung** on the ladder (B-229, D1's third tier) and its place in the z-order (B-237: it paints under the tab bar) |
-| 9 — the entry | splash, login gate, install proposal, appearance (`legacy.js:9678–9915`, `10116`) | engine logic over static markup | `app/splash.ts`, `app/sign-in.tsx`, `app/install.ts`, `app/appearance.ts`; `theme-color` follows the theme (B-233); the viewport fallback that re-adds `user-scalable=no` is removed (B-230) |
-
-**One kind of change, and how it stays one.** The conversions above are DRAWING moves, proved by
-the oracle at zero divergence — the sheet's own conversion (SP4b) is the precedent. **Six things
-in this lot are BEHAVIOUR changes, and each lands in its own commit with its own rule, never inside
-a conversion commit**: the dialog's rung on the ladder (B-229), the dialog's z-order (B-237),
-`theme-color` following the theme (B-233), the removal of the viewport fallback (B-230), **the sheet
-covering the tab bar (B-248, P31 — dictated by the operator on 2026-08-30: a bottom layer rises
-from the screen's bottom edge OVER the bar, which is not seen while the layer is open; the oracle
-WILL diverge on the sheet's open states and every divergence is named as this decision's)**, and **the flash between a sheet
-action and the page it opens (B-249, reported by the operator the same day)**. The
-ladder's HANDLER (`onEngineBack`, `unwindLayer`, `hideLayers`, `__closeLayers`) stays in the
-engine until L13 — the drawer and the dialog REGISTER with it through the seam, exactly as the
-sheet does through `window.__panel`. Every engine edit is a subtraction or a call through a seam;
-a line added to the engine that is neither is the defect.
-
-**What it must not do.** Extend a grandfathered file — `features/acquisition/page.tsx` and
-`features/library/page.tsx` are two of L14's four, and the selection bar and the Découvrir
-containers live beside them in new files. Draw a desktop rail: **Q1 was answered on 2026-08-30 —
-the drawer alone, at every width, and not frozen**; a rail is drawn only if real use asks for it. Move a producer (L19). Move the handler (L13). Draw a
-pixel differently: the rendering of every part is validated (mission of 2026-08-19).
-
-**It builds B-142's instrument.** The map is `docs/reference/product-intent-map.md`; the arm is
-`docs/reference/frame-model.md` § 4 — it refuses a clause with no row, a row naming a surface absent from the tree, a
-« to draw » row naming no lot, a « served » row naming no proof; it prints one line per clause and
-never a count alone; it runs in the contracts tier, over the `docs` filter, and its mutation is
-seen red before it merges.
-
-**Where it lives (invariant 10).** `app/` for hosts, chrome and entry; `ui/` for primitives;
-`lib/` for nothing new. The table is the exception the invariant names; a badge is a FUNCTION the
-row points at, exported by the feature, so the frame names the feature once and its counters never.
-
-**Done when.** The inventory command (`docs/reference/frame-survey.md` § 1.1) lists only the Découvrir feed, the
-popover's content and the harness panel — nothing of the frame; `#nav`, `#drawer`, `#dlg` and
-`#toast` are React-rendered at their ids; one navigation table, and `grep -n "PAGES_OF\|NAVIGATION"
-legacy.js` lists the seam's read sites only — no declaration of either; P1, P2, P3's dialog rung, P14's landmine and P21
-(`docs/reference/frame-model.md` § 3) are each held by a rule seen to bite; the B-142 arm is in the contracts tier with
-its mutation; the oracle is green at every step or its divergences are accepted with reasons; the
-hold counts are unchanged; the accessibility tier reads zero over every named state.
+**Landed** — PR #528, squash `212faf0ae`. The engine draws none of the frame's chrome any more — tab bar, drawer, dialog, toast, popover and the entry (splash/sign-in/install/appearance) are React, against the model in `docs/reference/frame-model.md`. Body: `docs/reference/frontend-architecture.md@6a47304a4` § L15.
 
 #### L11 — Offline and PWA · *depends on L09, L15*
 
-**Objective.** Service worker, offline shell, queued mutations that depart on reconnection, and
-the platform entry points a media application owes — receiving a shared link, and being the
-handler its links deserve.
-
-
-**Where it lives (invariant 10).** The service worker, the offline shell, the mutation queue and the install entry points are frame, not feature. They live in `app/` or `lib/`. A service worker under `features/` is the single most likely misplacement of this whole plan, because the page one happens to be testing is not the thing being built.
-
-**Re-read against the model by L10-ter (2026-08-29): UNCHANGED in objective, RE-CUT in its
-dependencies and its proof.** It now depends on L15, for the reason written there. Its design is
-`docs/reference/frame-model.md` § 2 Part 13 — what the worker caches (the shell: document, bundles, icons, fonts; never
-`/api/*` nor the stream), the update discipline production already proved (`web-ui.md` § PWA:
-`registerType: 'prompt'`, a check on load, on visibility and every 15 minutes, one reload) — **with
-the signal and the ORDER changed by L11**: `/build.json` against a build identity baked into the
-bundle, never `/api/version`, because the mock layer answers only the contract and a poll there
-could not fail; and the reload following `controllerchange` rather than the poll, because
-`registration.update()` resolves when a worker begins installing and reading `waiting` straight
-after it swaps nothing (B-262), and a queue that holds opaque envelopes a feature's
-`queries.ts` enqueues. Its « Done when » is made measurable by **P7, P8 and P9** of `docs/reference/frame-model.md`
-§ 3, and the entry points it names are the operator's **Q4** (`QUESTIONS.md`): `share_target`
-landing on `/add`, `launch_handler`, `handle_links` — recommended all three, decided by nobody yet.
-**Done when.** The application opens and reads offline (P7); a mutation issued offline departs on
-reconnection, exactly once (P8); the entry points Q4 selects are declared in the manifest and
-reached by a rule; and installation and its entry points are exercised on a real device.
-
-**Two of those clauses were written naming an instrument, and L11 disproved one and could not use
-the other — recorded here because a plan that keeps prescribing a disproved instrument sends the
-next reader to it.** `context.set_offline` does NOT reach the requests a service worker makes in
-Chromium, so P7 measured that way is green because the NETWORK answered; R105 raises its own scratch
-server and stops it. « L10's fake transport » is the relay's, and a mutation is not a relay event —
-P8 runs on the mock layer's own `setOffline`, which rejects the way an outage does rather than
-answering a status. **And the device clause is the one L11 did NOT satisfy**: the operating-system
-half of `share_target`, the standalone reading and P30's runtime half are all device-only,
-written down and dated rather than claimed (`REPORT.md`). It is L11's declared deferral, not a
-clause quietly dropped. **Q4 was answered on 2026-08-30: all
-three** — `share_target` landing on `/add` pre-filled, `launch_handler`, `handle_links` — and a
-principle with it: **every entry point the platform offers an installed application is declared,
-unless a written reason says why not.** « La meilleure intégration possible » is the operator's
-phrase and the lot's bar.
+**Landed** — PR #534, squash `39363e1da`. Service worker, offline shell and a mutation queue that departs on reconnection are in place; all three Q4 entry points (`share_target`, `launch_handler`, `handle_links`) are declared. Body: `docs/reference/frontend-architecture.md@6a47304a4` § L11.
 
 ### Phase 4 — Native interaction
 
 #### L12 — Native interaction · *depends on L05, L07, L15*
 
-**Objective.** View transitions, gestures, mobile geometry, and the performance floor beneath
-them. D9 governs every library question in this lot; its verdict table is the answer, not a
-starting point for a new argument.
-
-**Transitions.** Declared, through the platform's own view transitions. Not scripted.
-
-**The shared element that carried a poster from a card into its sheet was BUILT AND WITHDRAWN**
-(operator, 2026-08-31): he watched it on his own phone and declined it. What ships instead is
-transition A, which shares nothing — the arriving fanart fades while the body rises — on the
-reasoning `docs/reference/frame-model.md`'s P6 row already carried: there is nothing honest to share between a 2:3
-poster and a wide banner, and morphing one into the other is an animation pretending two pictures
-are one. The sentence is kept in this form, rather than deleted, so no later reader takes the
-absence for an oversight.
-
-**Gestures.** The press / drag / scroll arbitration already written here is kept and moved, not
-replaced. It encodes two things a general library does not know: a long press and a drag are
-**opposite** cases for the compositor and one rule cannot serve both — a drag is claimed on the
-first movement and cancels immediately, a press only once the finger has really travelled, and
-the tolerance must live on the pointer stream because Chrome delivers **no `touchmove` at all**
-for a drift of a few pixels. And the click a long press causes is swallowed **by its point**, not
-by a delay and not by a target: that click arrives 1 ms after the lift, so no timer can tell it
-from a deliberate tap.
-
-**A hard-won constraint applies throughout**: a synthetic event is not a finger. It is never
-cancelled, so it cannot tell whether a gesture survives the compositor. Two gestures were lost
-that way and no script noticed. A real mouse on a browser with no touch at all found two more.
-
-**Pressed states.** `@media (hover: hover)` for hover, `:active` for pressure, no JavaScript
-(D9). Verify on a device whether `:active` still needs a touch listener to fire; if it does, the
-remedy is one empty listener, never a per-component JavaScript state.
-
-**Feedback seam.** One `feedback(kind)` call site that every gesture passes through, visual
-today. It is what makes haptics a one-file change if the platform ever allows them (D9).
-
-**Mobile geometry.** Safe areas, dynamic viewport units, contained overscroll, no accidental zoom
-on focus. **The focus-zoom half is PAID and held — measured on 2026-08-31, not read.** L07 (#494,
-2026-08-25) put every field on `text-6` = 16 px, and R83 (`harness/type_scale.py`) refuses a focused
-field under 16 px: `docs/reference/frame-model.md` P13 reads true. This paragraph carried, until the steward's L11 audit,
-three field sizes (13, 14 and 12 px) and a command reading `frontend/maquette/design/refonte.html@60530dbd8`
-— which had held no style rule since L07, and was itself deleted at L13a — so it was stale six days
-before L11 opened, and the wave that paid the debt did not
-correct the plan that still charged it (§ 7.1's duty). What the episode taught still stands:
-`maximum-scale=1, user-scalable=no` had MASKED the defect rather than fixed it, L03 was right to
-remove them, and `scripts/check-viewport-directives.py` keeps both out of the tree.
-Then: contained overscroll, the virtual keyboard resizing content rather than the viewport, scroll restored per
-history entry.
-
-**The performance floor**, because none of the above survives a slow surface. The library holds
-1 861 titles, so no long list renders unvirtualised. Images that a transition carries are decoded
-before they are needed — the same asynchronous decode that makes the oracle flicker makes a
-shared-element transition tear.
-
-
-**Where it lives (invariant 10).** A gesture arbitration is vocabulary: it belongs to `ui/` or `lib/`. What stays feature-local is which gesture a given surface offers, never how a press, a drag and a scroll are told apart.
-
-**It also owes B-252's two rules (operator, 2026-08-30)**: one reading `color` of the dialog's
-paragraph under both themes, one reading the danger action's contrast under `data-theme="light"`
-— the two child-node defects D8's descendants clause records.
-
-**Re-read against the model by L10-ter (2026-08-29): UNCHANGED in objective, RE-CUT in what it
-may assume.** It depends on L15 now: a view transition between the drawer, a dialog and a page
-needs each of them to be a component, and they are engine markup until L15. The arbitration moves
-to `lib/` here; **each surface's USE of it moves with its producer in L19**, so this lot converts
-the vocabulary and the React surfaces (the sheet's drag, the screens) and leaves the deck's and
-the rows' engine-side callers to L19. Its properties are **P5, P11, P16, P17, P20, P24, P25, P26 and P29** of
-`docs/reference/frame-model.md` § 3; **B-234** (no `interactive-widget` on the viewport meta, so the keyboard resizes
-the viewport by default) is its. The interaction budget is a device-only protocol, written and
-dated — not a gate (`docs/reference/frame-model.md` § 3.1).
-**Done when.** Every transition is declared rather than scripted, the one named spring excepted;
-every gesture is proved against a real pointer stream **and** against a real mouse; reduced motion
-is defined for each of them (the reduced-motion invariant); the feedback seam has exactly one call site; no
-unvirtualised long list remains; and the interaction budget is measured on a real device, not in
-a headless browser.
+**Landed** — PR #540, squash `7f2ec99a4`. View transitions, the press/drag/scroll gesture arbitration, mobile geometry and the interaction budget landed; the library's 1 861 titles are virtualised through `@tanstack/react-virtual`. Body: `docs/reference/frontend-architecture.md@6a47304a4` § L12.
 
 ### Phase 5 — The producers, and what the constitution owes
 
@@ -1425,274 +611,15 @@ stay on `main` (#587) and the lot opens after L13. The measure and its six sibli
 
 #### L14 — The surfaces that outgrew their file · *depends on L07, L09*
 
-**Objective.** The four feature surfaces that sit over the 400-line hard ceiling come back under
-it, by decomposition: `features/acquisition/page.tsx` (756), `features/media/media-screen.tsx`
-(796), `features/library/page.tsx` (613), `features/arrivals/resolution-screen.tsx` (430).
-
-**Why it exists as a lot rather than as a line in someone else's.** It was one, and the promise
-expired unpaid. Those four files carried the label « L09 — the data layer takes it » in
-`check-frontend-boundaries.py`'s grandfather list, and L09 landed having reduced the largest of
-them by **thirteen lines out of the three hundred and fifty-six it owed**. The premise was simply
-wrong: what makes those files long is not the fetching L09 moved out, it is markup and variants —
-`page.tsx` holds four whole tabs, `media-screen.tsx` holds a season list and an icon set, and the
-same `Icon` component is written out twice in two different files.
-
-**Why nobody noticed.** The label was held against the plan's own per-lot status, and that status
-said `NOT STARTED` for L09 for a full wave after L09 merged. A guard reading a stale word reported
-a promise that had already expired. The status left the plan on 2026-08-28 for that reason among
-others; this lot is the debt the stale word was hiding.
-
-**Where it lives (invariant 10).** Each extracted component stays inside its own feature folder
-unless a second feature already reads it. The duplicated `Icon` is the one exception in sight: a
-component two features draw is vocabulary, and vocabulary lives in `ui/`.
-
-**Its position in this file was last, deliberately, and the operator pulled it forward on
-2026-08-30** (Q3): nothing depends on it, but L19 — the lot that moves the producers out of two of
-these four files — works far better in files already cut. It sits at the head of Phase 5 now.
-
-**Re-read against the model by L10-ter (2026-08-29): UNCHANGED in objective; the sentence above
-was refreshed** (it named « L10 to L13 » as the lots worked in oversized files, and the list has
-grown). Two lots now write beside its four files before it runs — L15 (the selection bar, the Découvrir containers) and L19 (the
-producers) — and neither may extend them; each creates its files beside the page. **Q3 was answered on 2026-08-30: before L19** — this lot now sits at the head of Phase 5, so the
-producers move into files already cut.
-
-**It also owns half of B-247** (2026-08-30, from L15's review): a store bump replaces a feature
-page's DOM nodes, so a write between `pointerdown` and `click` destroys the tap. The repair is in the
-surfaces — a page whose nodes keep identity across a store write — and the four files this lot
-decomposes are where two of them live; L19 owes the same for the producers it moves.
-
-**It also owns B-283** (2026-08-31, from L12's review): while the media sheet's read is in flight,
-the screen prints its UNKNOWN parts as ANSWERS — « aucun synopsis », « aucune distribution », « pas
-de bande-annonce », seasons « unknown » — assertions about data that has not arrived, which §13
-refuses. The maquette cannot exhibit it: its placeholder is the engine's COMPLETE sheet, so no
-field is ever missing during priming, and the real backend's projection carries `{t, f}`. The
-repair is a line in `features/media/media-screen.tsx`, one of the four files this lot decomposes
-and that no earlier wave may extend — which is why L12 filed it rather than fixing it.
-
-**One consequence of B-247's surface half was RULED on 2026-09-04** (B-305, D-L14-3): a row
-opened by a swipe stays open across a store write that did not concern it. The old snap was the
-engine's redraw, not a design; it is not restored, and the hold that keeps the ruling true is in
-§ 5's debts block.
-
-**Done when.** No file under `frontend/maquette/design/src` is at or over 400 non-blank lines with
-the sole exception of the dying engine's two, `engine/legacy.js` and `engine/states.js`, which
-L13 removes; no component is written out twice; every extraction is proved by the oracle, whose
-whole subject is that nothing moved on the screen.
+**Landed** — PR #547, squash `9ce9b0508`. The four feature files over the 400-line ceiling are decomposed back under it, by domain. Body: `docs/reference/frontend-architecture.md@6a47304a4` § L14.
 
 #### L19 — The producers · *depends on L15, L09, L12*
 
-**Objective.** Every surface the engine still PRODUCES moves to its feature, with its share of the
-fixture dying (D5): the ten `panel.open` producers (the follow sheet, the journey, the « ⋮ », the
-account menu, a setting, the seasons, the acquisition status — `grep -n "panel\.open("
-legacy.js`), the Découvrir feed (list, poster, deck, footer — the one feature surface still
-drawn by `innerHTML` after L15), the episode popover's content, and the delegation verbs those
-surfaces own (`data-cancelsetting` is the settings feature's; `data-take` is the arrivals'). The
-frame's own verbs (`data-drawer`, `data-navgo`, `data-sheet`) are not this lot's.
-
-**Why it exists as a lot.** L13 said the sixty fixture families « belong to surfaces the ENGINE
-still draws — their literals cannot leave before their markup does ». The markup left with the
-pages; the families stayed because their readers are producers, and no lot owed those. **A debt
-with no named owner is a debt nobody pays, and it reappears in the last lot** — this is the
-last lot's debt, named and moved.
-
-**Where it lives (invariant 10).** `features/<domain>/` — a producer is a function from the
-cache to a descriptor, and it lives with what makes it change. It reads the query cache, never
-the engine's accessors; each moved producer takes its `installX` seam out of `app/shell.tsx`.
-
-**One kind of change.** A descriptor rendered by `ui/panel` from a React producer is the same
-descriptor rendered from the engine's — the oracle proves each move at zero divergence, surface
-by surface, in L07's order. A verb that moves is a behaviour move and lands in its own commit with
-the rule that held it before, unchanged in count. **Measured on 2026-09-04: no rule holds either verb**
-— `grep -ln 'data-take' frontend/maquette/harness/*.py` and `grep -ln 'cancelsetting' …` return nothing —
-so the rule is written FIRST, on the engine's side, seen red under a mutation of the engine's branch, and
-the move is then read green by it; a rule written after the move proves only that it agrees with the move.
-
-**What it must not do.** Extend a grandfathered file (L14's four) — a producer becomes a new file
-beside its page. Add a feature: DOIT-4, DOIT-8, NE-DOIT-PAS-3 and NE-DOIT-PAS-9's missing
-INSTRUMENTS are built here because these are the producers that draw those surfaces, but no
-surface changes.
-
-**Two debts named here so they have an owner (2026-08-30).** The other half of **B-247**: a producer
-moved into its feature keeps its nodes across a store write, so a tap between `pointerdown` and
-`click` survives — held by R100's `isSameNode` shape on the producer's surface. And the producer half
-of **B-249**: the 260 ms `setTimeout` beside `data-mediasheet` that R103 measures and PRINTS is
-removed with the producer that carries it, and R103 then REFUSES the gap instead of printing it.
-**That one is already discharged, and the line is kept saying so rather than deleted** (L12,
-2026-08-31): the `data-mediasheet` branch lost its close-and-wait entirely — the panel now leaves
-inside the navigation's own commit, which is what the delay was standing in for — so what L19
-inherits here is the SHAPE, at the other `setTimeout(…, 260)` sites the delegation still holds, not
-this one.
-
-**Two surfaces placed here on 2026-09-02** (the operator, on the steward's inventory). When the
-settings producer moves, it DRAWS the two banners production has and the maquette only declares —
-`SettingsState.conflict` is set to `false` at boot and never raised, drawn or copied: the version
-conflict, production's 412 when the file changed under the editor (B-299); and a confirmation before
-« Redémarrer maintenant », which today restarts on the tap while a restart cuts the service for the
-whole household, §17 (B-300). Both are work inside the file the producer becomes, and neither adds a
-verb. **The verbs §20 names for a tunnel are NOT this lot's** — a season grab from the sheet,
-requeue and rescrape from the journey are L21's, so that « no surface changes » stays exactly true
-here.
-
-**Done when.** `grep -c "panel\.open(" legacy.js` reads 0; the inventory command lists only the
-harness panel; the fixture families that fed the producers are gone (D5's bracket-match method reads
-the difference); the delegation handles only the frame's verbs; the four map rows above read
-`served` with a rule that bit; the oracle is green or its divergences accepted with reasons. The
-settings' two banners draw (B-299, B-300), each with a rule seen red.
-
-**Measured at the close of L19, 2026-09-05. The « Done when » above is not edited** (§ 7.1) — three
-of its clauses are discharged here instead, and they are discharged differently: one is a
-measurement the plan asked for, one is a departure from it, and the third — a surface measured
-absent and placed — was recorded by the wave in the clause map and in `IMPLEMENTATION.md` and not
-here, and is written in by the steward's audit of 2026-09-05.
-
-**« The fixture families that fed the producers are gone » — the MEASUREMENT.** They are not.
-D5's bracket-match method reads **9 declarations over 100 lines, 26 375 lines, unchanged** across
-the wave, while the register records **four families converted** — `RISQUES`, `TRIS`, `SUG_BATCH`
-and `openJourneySheet`'s steps — and `legacy.js` loses **816** non-blank lines (32 461 → 31 645).
-<sub>method: D5's bracket-match on `frontend/maquette/design/src/engine/legacy.js`, run at both ends · `grep -cve '^[[:space:]]*$'` on the same file · the converted count is `fixture-register.json`, 27 → 31</sub>
-**A producer was never their last reader.** `SHEETS_RAW`, `OWNED` and `CAST` sit behind `sheetFor`
-/ `seasonsOf` / `ownedFor`, which the media feature reads; `SETTINGS` behind `allSettings`, which
-the engine's own field verbs still call; `LIBRARY`, `POSTERS`, `HERO_IMAGES` and `trailerIds`
-behind `cardHTML`, `tileHTML` and `posterBox` — the shared emitters every list and every gallery
-still goes through; `MAINT_ACTIONS` behind the maintenance PAGE's own read. **The families that die
-with a producer are the ones a producer ALONE read, and there were four.** This is the measurement
-the clause asked for, not a change to it: L13's entry already inherits « only what L19 MEASURES it
-could not remove », and what was missing was the measurement. **L09 was told the sixty families
-« belong to surfaces the ENGINE still draws » and L10-ter corrected it to « surfaces the engine
-still PRODUCES ». Both are half of it, and this is the half neither said: a family's last reader is
-whoever DRAWS it, and drawing outlived producing.**
-
-**« The delegation handles only the frame's verbs » — a DEPARTURE, ratified.** It does not, and
-this lot did not attempt it. `grep -c "closest\.dataset\." frontend/maquette/design/src/engine/legacy.js`
-reads **133**, over **73** distinct names
-(`grep -o "closest\.dataset\.[A-Za-z0-9_]*" … | sed 's/.*\.//' | sort -u | wc -l`; 132 over 71 on
-`main`). **Neither figure is a verb count, and no lot has ever produced one**: `index`, `ep`,
-`sugidx` and `selectedTitle` are data the handler reads off the tapped node, not acts. This lot
-moved **two** verbs — `data-cancelsetting` and `data-take`, the two its own objective names — and
-added the two its two behaviour phases required, `data-confirmrestart` and `data-reloadsettings`,
-which is where the +1 comes from. **`data-take` moved by HALF, said here so nobody reads it as
-gone**: the panel's take carries a TITLE and is the arrivals feature's since B-309; the release
-screen's take carries an INDEX and is still the engine's branch on the line after the arrivals
-door — `grep -c "closest\.dataset\.take" frontend/maquette/design/src/engine/legacy.js` reads
-**3**, not 0 — with its own `setTimeout(…, 260)` and B-322's two toasts. It had no owner in any lot
-until the steward's audit of 2026-09-05 placed it with L21 — **ratified by the operator the same day** (B-323).
-
-**Why the rest were not moved.** « One kind of change per wave » (§ 0) forbids a conversion wave
-carrying a behaviour repair, and a verb reader IS behaviour: moving ONE — `data-take` — uncovered a
-defect nobody had measured, where an unguarded branch swallowed every `data-take` in the document
-and « Récupérer maintenant » threw and took nothing (**B-309**). Sixty-odd of those in one wave is
-not a conversion.
-
-**RATIFIED BY THE OPERATOR, 2026-09-05** — « OK pour le placement L13 et L21 » — so the remainder
-is placed rather than left, and written into those two lots' **Done when** on the same word:
-
-- the verbs that OPEN a surface — `data-mediasheet`, `data-journey`, `data-resolve`,
-  `data-releases`, `data-profile` — move with the delegation itself, and that is **L13**;
-- the acquisition's own acts — `data-follow`, `data-pause`, `data-remove`, `data-dropsug`,
-  `data-sugmore` — are behaviour on producers L19 has just placed in their features, and that is
-  **L21**.
-
-**« The four map rows above read `served` with a rule that bit » — THREE DO, and the fourth is
-placed.** DOIT-8, NE-DOIT-PAS-3 and NE-DOIT-PAS-9 read `served` in
-`docs/reference/product-intent-map.md`, held by R121, R124 and R122. DOIT-4 reads `partly`: R124
-serves the ACCEPTANCE half of every mutation, and the resolve queue's own « En file » pastille — the
-VISIBLE half — was measured not to exist (`grep -n "en file" frontend/maquette/design/src/i18n/fr.json`
-finds one key, `arrivals.queuedBold`, the pipeline pass's own sentence), and drawing it is a surface
-change this contract forbids. **It is L21's, written into that lot's « Done when » below**; the map
-row said so on the day, and this file did not.
-<sub>steward's audit, 2026-09-05: `python3 scripts/check-intent-map.py` clean; the four rows read in the map</sub>
-
-**And R103's promised reversal, in the same shape — with its COUNT re-taken by the steward's audit
-of 2026-09-05.** The wave wrote « two of the seven `setTimeout(…, 260)` sites left with this lot;
-five did not », counting with `grep -c "setTimeout(.*260)"` — a command that reads a site only
-when its call and its delay share a line. Counting the delay wherever it sits,
-`grep -c ', 260)' frontend/maquette/design/src/engine/legacy.js` reads **9 at `4c0e274a7` and 7 on
-`main`**: two callbacks span several lines and were never in the inventory — the release screen's
-`data-take` branch (`actionTake(currentState().relatedTitle)` after `bridge.back()`) and the `add:`
-identify branch (`actionResolve(target, result.t)` after `bridge.rewind`). Both predate this lot.
-So two of NINE left with it — `data-journey`'s, which R103 refuses, and the panel's `data-take`,
-which R123 reads at 120 ms — and **seven remain**: five named by the call they wrap in
-`frontend/maquette/harness/exits.py` rather than swept into a blanket refusal, and two named nowhere
-until **B-323**. `docs/reference/frame-survey.md` § 1.1 had already named the species, about the
-`innerHTML` count: a count that depends on where a line breaks. The reversal is complete when the
-last site goes, and the last site is not this lot's.
+**Landed** — PR #558, squash `9fa13da57`. Every surface the engine still produced (ten `panel.open` producers) moved to its own feature component; the engine's remaining edits are declared D5 exceptions. Body: `docs/reference/frontend-architecture.md@6a47304a4` § L19.
 
 #### L21 — The tunnel's verbs · *depends on L19*
 
-**Objective.** DOIT-3 — « agir là où l'on observe » — applied to a tunnel (§20). Three verbs the
-maquette's surfaces show the NEED for and do not offer: « Récupérer cette saison » from the media
-sheet's seasons panel, which prints a season as `to_grab` and offers nothing (`POST
-/api/acquisition/follows/{followed_id}/seasons/{season}/grab` is uncalled — B-301); « Remettre en
-file » and « Re-scraper » from the journey sheet, which is the tunnel seen by the operator and where
-§20 says a blocked tunnel « reprend là où il s'est arrêté, par l'opérateur » (`POST
-/api/acquisition/journeys/{info_hash}/requeue` and `/rescrape` are uncalled — B-302).
-
-**Why it is a lot of its own, and a small one** (operator, 2026-09-02). These verbs were placed with
-L19 by the clause map, and L19's contract says « no surface changes »: a producer moves at zero
-divergence, and a verb changes what the interface does. Putting them in L19 meant amending that
-sentence and loading the largest remaining lot further. A behaviour lot after it keeps L19's
-contract exact and lands each verb with its rule seen red, on producers L19 has just put in their
-feature — about four phases.
-
-**Where it lives (invariant 10).** On the producers L19 moved: the seasons panel in
-`features/media/` and the journey in `features/acquisition/`. The media feature calls the
-acquisition OPERATION through its own `queries.ts` — invariant 7 forbids importing the acquisition
-feature, and a mutation on the contract is not a feature import.
-
-**What it must hold.** DOIT-4: a verb asked while the parallelism bound is met is queued VISIBLY,
-never « occupé » (§20). NE-DOIT-PAS-3: no 409 on a legitimate ask. §17: the verbs land unconditional
-here — who may act on whose tunnel is L18's gate, which hides them per role afterwards; this lot
-does not draw a right it cannot yet read. NE-DOIT-PAS-9 is untouched: nothing here draws a medium.
-
-**Done when.** The three operations are called and mocked (seeded from the running backend's shapes,
-D7); each verb has a rule that walks it and reads the queued state; the map's DOIT-3 row names the
-three as `served`; B-301 and B-302 read `fixed`.
-
-**Carried here by L19, ratified by the operator on 2026-09-05, and it is a fourth thing this lot
-finishes**: the acquisition's own delegation verbs — `data-follow`, `data-pause`, `data-remove`,
-`data-dropsug`, `data-sugmore` — move out of the engine's delegation onto the producers L19 has
-just placed in `features/acquisition/`. They are behaviour, which is why L19's contract could not
-carry them and why this lot can. **Done when** each of the five is read by its feature and by no
-engine branch (`grep -c "closest\.dataset\.follow" frontend/maquette/design/src/engine/legacy.js`
-and its four siblings read 0), each landing with the rule that held it before.
-
-**Two more placed here by the steward's audit of L19 (2026-09-05), both RATIFIED by the operator
-the same day — the first said by the clause map on the day and only now written where the lots
-are; the second placed by the audit.** (1) **DOIT-4's « En file » pastille on the resolve queue.** L19 measured it absent and
-could not draw it — a surface change its contract forbade — and the map's DOIT-4 row reads `partly`
-for exactly that half. (2) **`data-take`'s release-screen half.** An INDEX into the offered releases,
-still read by the engine's delegation on the line after the arrivals door, carrying its own
-`setTimeout(…, 260)` and B-322's two toasts, which move with it (B-323). It is an act of
-acquisition on a surface React already emits, which is this lot's shape; the other reading placed it
-with the delegation in L13, and the operator chose this one (« OK L21 pour data-take »). **Done
-when**, for both: the map's DOIT-4 row
-reads `served` with a rule that reads the pastille on a queued mutation, and
-`grep -c "closest\.dataset\.take" frontend/maquette/design/src/engine/legacy.js` reads **0** like the
-five above, each landing with its rule seen red first.
-
-**And B-313, ratified by the operator on 2026-09-05** (« OK B-313 pour L21 »): the follow panel
-offers « Voir le parcours » twice whenever its primary ladder falls through to the journey, because
-the secondary row emits it unconditionally where « Voir la fiche » beside it is guarded. One
-condition, mirroring that guard, on the producer this lot already opens — and the rule its entry
-names: a panel's actions are counted BY LABEL, a label appearing twice is refused, written first and
-red on `main`'s panel for a medium with no sheet. **Done when** B-313 reads `fixed` under that rule.
-
-**Two more, ratified by the operator on 2026-09-06 from his own test session on the design host, both
-read on this lot's head.** **B-337** — a follow card swiped open ignores the FIRST tap on its revealed
-action; those actions are `data-pause` and `data-remove`, the verbs this lot moves, so the rule that
-moves them taps each ONCE with a real touch and holds that the act happened (if the reading shows the
-swipe itself eats the click rather than the tap's path, the lot says so and the entry goes back to L13).
-**B-339** — a disabled panel action is drawn like an enabled one (`.sact` carries no `:disabled` rule);
-this lot draws a not-available state for DOIT-4's queued button, and that state's floor is the
-disabled drawing: the action's variant leaves the residue for `ui/variants` with its `disabled:` half,
-in its own commit. **Done when** both read `fixed` under their rules.
-
-**Two more, ruled by the operator on 2026-09-06 (round 2, questions 2 and 3).** **B-350** — a paused SERIES
-tile on the follows grid is dimmed and says nothing where a paused film says « en pause » (one `??` in
-`tileOf`: fraction OR word): the caption carries both, with a rule reading « a dimmed tile carries a word ».
-**B-345's acquisition half** — the acquisition seeds offer AT REST a takeable arrival for a followed medium,
-a blocked one, a paused follow and a season with a hole, with a rule that counts them, so every verb of this
-lot can be tried by a hand without a named state. **Done when** both read `fixed` under their rules.
+**Landed** — PR #572, squash `2ffdc4ba3`. The acquisition tunnel's verbs — grab a season, re-queue, re-scrape — are wired through a domain-free tap registry (`lib/verbs.ts`). Body: `docs/reference/frontend-architecture.md@6a47304a4` § L21.
 
 #### L20 — The global levers and the history · *depends on L15, L19, L10*
 
@@ -2046,176 +973,62 @@ failure and **no error** (an error means collection crashed and everything after
 accepted with reasons. The suite runs itself now; it used to run only when someone remembered,
 and on the day it did not, six contracts broke under three green gates.
 
-**Write the landed row when the pull request opens, not after the merge.** A wave edits
-`IMPLEMENTATION.md` on its own branch, so a row that waits for the merge to be written is a row
-that never gets written — three consecutive waves left the table announcing themselves « in
-flight » after landing, and each time the next reader was told the previous lot was still running.
-The pull request number exists the moment the pull request does. Being an hour ahead of the merge
-is a smaller error than being permanently behind it, and it is self-correcting: a wave that does
-not merge fixes its own row.
-
-**That rule fixed one half of the problem and the count did not move: four waves out of four.**
-It answers « the row is missing while the pull request is open ». It cannot answer « the row is
-wrong once the pull request has merged », because the only branch that could write the landed row
-is the one the merge has just consumed. So the row is now written twice, and the second write is
-the one nobody is holding: **moving a wave from « In flight » to « Last landed » belongs to the
-post-merge steps below, beside re-recording the references** — same moment, same person, same
-list that already says it is not optional.
-
-Recording it there is necessary and, on the evidence, not sufficient: that list has been skipped
-three times out of four as well, and the steward went on to measure a miss at the close of L09, of
-L10 and of L10-bis in a row. **What settles it is a check rather than a sentence**, and the shape is
-cheap because the row already carries the wave's version: if `personalscraper/__init__.py` on `main`
-has reached the version the « In flight » row names, that wave has landed and the row is stale —
-offline, exact, and green on the wave's own branch, where the two differ by construction. It says
-nothing between waves, when no row names a version, and it prints what it read there rather than
-letting a vacuous pass read as a verdict. **And it says nothing about a prose-only wave either**:
-a `no-version-bump` pull request names no version, so its « In flight » row was cleared by hand and
-held by nothing — B-238, found by the first such row (L10-ter's). **Closed by the steward on
-2026-08-30**: the row also names its pull request, and a squash merge writes that number into the
-subject `main` carries — `… (#521)` — so a row whose pull request `main` already holds in a
-subject has landed, offline and exactly like the version. A row in flight that names neither is
-refused outright: nothing could hold it. The wave's pull request is the FIRST `#NNN` in the cell.
-
-**BUILT on 2026-08-29 as `scripts/check-implementation-state.py`, and building it corrected this
-paragraph twice.** « Has reached » is an ORDERING, not an equality: written as equality — the
-reading the sentence above invites, and the first one implemented — the arm reported clean over the
-very defect it was written for, because L10-bis's row named `0.98.51` while `main` carried `0.98.52`
-after a follow-up pull request re-anchored the oracle and bumped once more. **A wave that merges
-alongside any other change overshoots by construction.** And the guard is wired into the contracts
-tier with `IMPLEMENTATION.md` added to the workflow's `docs` filter, because
-`tests/scripts/test_ci_filter_covers_the_guards.py` refused it otherwise: a guard whose subject no
-filter names runs in no job, and a post-merge gesture is *precisely* a pull request touching that
-file alone.
-
-**The steward built it, and § 7.2's boundary moved to allow that — on the operator's instruction,
-2026-08-29.** The sentence this paragraph used to end on said a guard is code and the steward does
-not carry code. That held for four waves and produced four misses; the office now carries an
-instrument when the defect it measures is the office's own subject and no wave will take it.
+**Write the landed row when the pull request opens, not after the merge** — a row waiting for the
+merge is a row that never gets written; the PR number exists the moment the PR does, and a wave
+that does not merge fixes its own row. **The row is written a second time, in the post-merge
+gesture** (below), because the branch that could write it is consumed by the merge — checked by
+`scripts/check-implementation-state.py` (built 2026-08-29, in the contracts tier): a row naming a
+version `main` has already reached is stale, offline and exact. Story:
+`docs/reference/frontend-architecture.md@6a47304a4` § 5.
 
 **The oracle is a LOCAL gate, and that changes who can close a wave.** Its measurements are bound
-to the machine that took them — the same unmodified tree reads differently on a Linux runner — so
-`--check` refuses to compare across a mismatch and the oracle is never wired into CI. An agent
-working anywhere but that machine can establish that a wave *claims* the rendering held, and how,
-but cannot certify it. Plan the wave knowing the certification happens where the oracle runs.
+to the machine that took them, so `--check` never runs in CI. An agent working anywhere but that
+machine can establish that a wave *claims* the rendering held, but cannot certify it.
 
-**TWO references carry a commit pointer, and both are re-recorded after the squash** — the
-oracle's `baseCommit` and the hold-count baseline's `taken_at_commit`
-(`frontend/maquette/hold-counts-baseline.json`). This paragraph named only the first, and L12's
-post-merge gesture applied it to the letter and left the second naming the head of the branch the
-squash erased (B-291, found by the wave in the hour after its merge, re-recorded by the steward's
-audit at `b4b75a67a`). Nothing reads that pointer, which is why it could die in silence; until
-`harness-hold-counts.py` refuses a pointer that is not an ancestor of `main`, the gesture checks it
-by hand: `git merge-base --is-ancestor $(python3 -c "import json;print(json.load(open('frontend/maquette/hold-counts-baseline.json'))['taken_at_commit'])") origin/main`.
+**Two references carry a commit pointer and both are re-recorded after the squash**: the oracle's
+`baseCommit` and the hold-count baseline's `taken_at_commit`
+(`frontend/maquette/hold-counts-baseline.json`) — both must name the squash, checked by
+`git merge-base --is-ancestor <pointer> origin/main` until an arm does it. **The baseline is never
+re-recorded while a rule is failing** — the gesture reads `failed` first; if not zero, the rule is
+repaired first, or the reason is written into the baseline's record and the register entry that
+owns it.
 
-**And both pointers read `HEAD` at the moment of the recording — so `HEAD` IS the squash when they
-are recorded, not a commit of the gesture's own branch** (added 2026-09-06, on the first recording of
-#573's gesture, which named the gesture's docs commit: a commit its own squash would have erased, B-291
-one gesture later with a green `--is-ancestor` on the day). The gesture's worktree is checked out at the
-squash, the references are recorded there, and the gesture's edits are committed AFTER — or, if the
-docs commit came first, it is soft-reset onto the squash and the recording taken again before one
-commit carries everything. A pointer that names the squash survives the gesture's own merge; any other
-survives nothing.
+**The post-merge gesture, five steps, all at the same moment, none optional:**
 
-**AND THE BASELINE IS NOT RE-RECORDED WHILE A RULE IS FAILING** — added 2026-09-05, on B-291's
-second form, which L19 met and could not repair. Re-recording runs the whole suite and writes what
-it read; run over a suite with `failed > 0`, the row it writes is indistinguishable from a good one
-and every later comparison rests on it. **So the gesture reads `failed` FIRST.** If it is not zero,
-the failing rule is repaired before the gesture, or the reason it is failing is written into the
-baseline's own record and into the register entry that owns it — and the gesture says which of the
-two it did. At the time this was written the standing case is **B-308**, `machine.py`'s « as many
-schedulers drawn as PM2 schedules », which reads 6 drawn against 7 real and is nobody's lot yet.
-
-**And re-record the reference after the squash merge.** The reference names the commit it
-measured; squashing replaces that commit, so on a fresh clone the pointer names nothing and
-`--check` refuses to run at all. **It is two commands, and the first is not optional:**
-
-```
-make maquette-oracle                            # builds, copies to the served root, starts 8899
-python3 frontend/maquette/oracle.py --record    # then records against what is actually served
-```
-
-`make maquette-oracle` runs `--check`, so it FAILS on a dangling reference — that is expected, and
-it is run for its preparation: `oracle.py` reads `http://127.0.0.1:8899/`, and without
-that build and copy it would measure the previous build, or nothing. There is no make target for
-`--record`; `make maquette-oracle --record` passes the flag to `make`, not to the oracle.
-
-This is written here rather than in the state section because that is where it was written when
-the wave that had just written it merged without doing it — a mandatory manual step recorded only
-in a file about *where things stand* is a step the next wave never reads.
-
-**The same moment owes a third thing: move the wave's row from « In flight » to « Last landed »**,
-and name the next lot. It sits here, with the two commands, for the reason the paragraph above
-gives — it is the only step of the three that cannot be done from the wave's own branch.
-
-**And a fourth: DELETE the wave's folder and cite it by commit** — `docs/features/<codename>/`
-leaves the tree (`git rm -r`), and every citation of a file in it that a living document still
-needs is rewritten to `` `path@sha` `` in the same step, `sha` being `origin/main` at that moment
-(`docs/reference/documentation-model.md` § 2; the guard's history arm refuses the folder coming
-back under `docs/archive/`). **The step is the post-merge gesture's, never the wave's own
-branch's**: the commit that holds the folder for good is the wave's SQUASH commit, which exists
-only after the merge — a wave that deleted its folder on its branch and cited its branch head
-would cite a commit the squash erases and the branch deletion loses, which is B-291's dangling
-pointer one file over, and a `path@sha` that names a dead commit reads exactly like one that
-names a live one until `git show` is asked. A file the wave wrote that has become a durable reference — a model,
-a survey, a rule — is not left in the folder as an exception: it moves to `docs/reference/` under
-a name that says what it is, with its citations (the frame's model and survey did, on
-2026-09-01: `docs/reference/frame-model.md`, `docs/reference/frame-survey.md`). Added on
-2026-08-26 by B-083 as an ARCHIVE step, after the third wave out of eight where the gesture
-slipped; turned into a deletion on 2026-09-01 when `docs/archive/` left the tree, because a
-second copy of history in the tree was 224 000 lines a reader could open by mistake. The
-operator arbitrated a step here rather than a guard — the check is cheap to imagine and this
-list is not, on the evidence, cheap to remember.
-
-**And a fifth, and it is a measurement rather than a gesture: recount « guards green over what
-they do not read »** in `BUGS.md` § Guards green over what they do not read, adding the wave's own
-figure with the pull request or register entry that establishes it. B-085's whole finding is that
-seventeen instances across three consecutive waves were each recorded as an incident of their own
-wave and no figure anywhere carried the total — so the shape read as bad luck three times instead
-of as the dominant failure mode of this repository's instruments. A total nobody recounts is a
-total that stops being true at the next wave. **Zero is a real answer and it is written down**: a
-wave that found none says so, in its row, with the same authority as a wave that found six.
+1. **Re-record the oracle's reference against the squash** — two commands, the first not optional:
+   ```
+   make maquette-oracle                            # builds, copies to the served root, starts 8899
+   python3 frontend/maquette/oracle.py --record    # then records against what is actually served
+   ```
+2. **Move the wave's row from « In flight » to « Last landed »**, and name the next lot.
+3. **Delete the wave's folder and cite it by commit** — `docs/features/<codename>/` leaves the
+   tree (`git rm -r`), and every citation still needed is rewritten to `` `path@sha` `` in the same
+   step, `sha` being `origin/main` at that moment (`docs/reference/documentation-model.md` § 2). A
+   file that became a durable reference (a model, a survey, a rule) moves to `docs/reference/`
+   under its own name instead of staying in the folder as an exception.
+4. **Re-record the hold-count baseline's `taken_at_commit`** against the same squash.
+5. **Recount « guards green over what they do not read »** in `BUGS.md` § Guards green over what
+   they do not read, adding the wave's own figure — zero is a real answer, written down with the
+   same authority as a nonzero one.
 
 **The maquette first.** Nothing about a surface is decided anywhere else. A surface is drawn
 before it is coded, with named states and a rule that bites.
 
-**Placed here by the operator's rulings of 2026-09-06 — the first ones from his test session on the design
-host, the rest from the decision round of the same day (round 2, questions 1 and 8) — each with its reading in
-`BUGS.md`, none reopening what this entry already says**: **B-312** (the library's selection survives a lens
-change — RULED 2026-09-05; the two writers of `selected: new Set()`, the engine's and `library-head.tsx`'s,
-are one fact here), **B-327** (« Réglages » draws the seventh scheduler when the `SETTINGS` family converts —
-option E refused), **B-331** (the pull indicator's 1 100 ms pretence and its centring), **B-336** (the kind
-chips hide their scrollbar as `pillscroll` does), **B-340** (the « + » opens a FRESH add screen; `addQ`,
-`addMode` and `added` leave the engine with the add screen's state). **Done when** each reads `fixed` under
-a rule seen red first, or is placed elsewhere by a ruling written here. **What the same round placed
-ELSEWHERE, on purpose**: the settings defects that are React's, the mock's, or a verb the registry can take
-off the engine — **B-334**, **B-335**, **B-341**, **B-342**, **B-343**, **B-332** and **B-361** (a rubric of
-Réglages or Maintenance is an ARRIVAL: it pushes and draws its back — both confirmed on the operator's
-phone by the real path) and the settings half of **B-345** — go to the **`maquette-settings` micro-wave**
-(`docs/features/maquette-settings/BRIEF.md@a155b54fb`) after L21 merges and before L20, because they repair without
-an engine edit on the verb registry L21 built and because they are what keeps B-299 and B-300 unconfirmable
-by hand; **B-344** to the **`maquette-desktop-frame` tooling micro-wave**
-(`docs/features/maquette-desktop-frame/BRIEF.md@33cb259d9`) after the departure micro-wave merges; and the library's
-share of **B-345** stays here with the fixture clause.
+**Five register entries are placed here by the operator's rulings of 2026-09-06** (B-312, B-327,
+B-331, B-336, B-340 — each `fixed` under a rule seen red first, or placed elsewhere by a ruling
+written here); a further eight are routed to the `maquette-settings` and `maquette-desktop-frame`
+micro-waves instead (B-334, B-335, B-341, B-342, B-343, B-332, B-361, B-344), and the library's
+share of B-345 stays here. Full readings: `BUGS.md`. Story:
+`docs/reference/frontend-architecture.md@6a47304a4` § 5.
 
 ### One lot at a time
 
-**The lots run strictly in sequence — one lot, one branch, one merge, then the next.** The
-operator ruled this on 2026-08-22, and it settles a question this file used to leave open.
-
-The temptation to parallelise is real and this plan indulged it: it defined a criterion — a lot
-may run alongside another only if it never writes the oracle's reference — applied it to the
-thirteen lots, and found exactly one qualifying pair, L08 beside the rendering track. The gain
-was costed in the same breath as **a fraction of the calendar, not a transformation**, with part
-of it spent on the second branch rebasing and re-running a full adversarial review. Weighed
-against a failure mode nothing announces, that trade was refused. **Sequence is the ruling; the
-pair no longer exists to be scheduled.**
-
-**The risk that decided it is worth keeping, because it is the one that does not announce
-itself.** The oracle's reference is the single shared proof artefact. Two branches that each
-accept divergences merge two "validated" states, and **one can mask the other's regression** with
-nothing to show for it. Every other collision — two branches editing one file — arrives as a
-conflict someone has to resolve. This one arrives as green.
+**The lots run strictly in sequence — one lot, one branch, one merge, then the next** (operator,
+2026-08-22). A parallelism criterion was tried and refused: the oracle's reference is the single
+shared proof artefact, and two branches that each accept divergences can merge two "validated"
+states where one masks the other's regression, with nothing to show for it — unlike an ordinary
+file conflict, this one arrives as green. Story:
+`docs/reference/frontend-architecture.md@6a47304a4` § 5.
 
 **What is refused, and why it stays refused:**
 
@@ -2255,17 +1068,13 @@ met before it fires rather than after.
 | An entry animation replays AFTER the transition that already drew it | **L12** | CSS animations on a tree mounted under `startViewTransition` do not START until it ENDS — rendering is frozen for the capture — so an element-side entry replays over a snapshot showing the final state. Appear, flash, reappear. `:active-view-transition` cannot guard it: by the time the animation starts the transition is over and the selector no longer matches. **An entry has ONE OWNER**, and on a surface reached by a transition that owner is the transition |
 
 **The oracle's silence over a BEHAVIOUR wave is evidence of nothing — a wave that writes
-behaviour is held by rules or by nobody.** Measured at L11: no divergence over 2 958 measurements
-while four adversarial rounds found ~40, 13, 7 and 0 product defects under a permanently green
-gate — correct on the oracle's part (nothing drew a pixel differently), and exactly why its green
-says nothing about such a lot. D8 states what the oracle proves; this trap is the converse, and
-it bit a wave whose every tier was green.
+behaviour is held by rules or by nobody.** D8 states what the oracle proves; this trap is the
+converse (measured at L11: zero divergence while four adversarial rounds found real defects under
+a permanently green gate).
 
 **And one that has not gone off yet, named because its shape is known**: a `var()` naming a token
-nobody declared renders as nothing rather than failing. It is a landmine, not a crash, and it sat
-in this codebase undetected across 449 `var()` calls. `scripts/check-css-tokens.py` refuses it
-today, and L06 kept it true as the token source moved: `--tm-bottom-bar-h` is published by the
-shell now, the fallback is still demanded at every use, and R84 holds the publisher to being one.
+nobody declared renders as nothing rather than failing — a landmine, not a crash. `scripts/check-css-tokens.py`
+refuses it today, and R84 holds every publisher of a runtime token to being the only one.
 
 ---
 

@@ -95,3 +95,60 @@ export function entryPatch(holder: Record<string, unknown>): Record<string, unkn
 export function navigationState(): Record<string, unknown> {
   return { tm: "nav", ...entryPatch(store.read().state) };
 }
+
+/* WHAT A LAYER'S ENTRY RECORDS, so a Back onto it can put the layer back. A
+   layer left for an arrival keeps its entry, and the entry is all that is left
+   of it once the arrival has closed it: the kind and the subject it was
+   produced from, and the page it was opened on — which is what tells an entry
+   left by an arrival from the leftover a page switch buries under a layer. */
+export type LayerRecord = { kind: string; subject: string; openedOn: string };
+
+/**
+ * The state a layer's entry carries — its name, and what reopens it.
+ *
+ * Args:
+ *     layer: The rung's name.
+ *     record: What reopens it, for a layer produced from a kind and a subject;
+ *         none for a layer nothing can produce again.
+ *
+ * Returns:
+ *     The entry's state.
+ */
+export function layerEntry(layer: string, record?: LayerRecord): Record<string, unknown> {
+  return record ? { layer, ...record } : { layer };
+}
+
+/**
+ * The record a panel's entry carries, read on the page as it stands now.
+ *
+ * Args:
+ *     kind: The panel's kind.
+ *     subject: What it was produced for.
+ *
+ * Returns:
+ *     The record, its page read from the store.
+ */
+export function panelRecord(kind: string, subject: string): LayerRecord {
+  return { kind, subject, openedOn: String(store.read().state.page ?? "") };
+}
+
+/**
+ * What a layer's entry records, if it records anything.
+ *
+ * Args:
+ *     state: An entry's state, as the history holds it.
+ *     layer: The rung the entry must belong to.
+ *
+ * Returns:
+ *     The record, or undefined for an entry of another rung or one that
+ *     records nothing.
+ */
+export function layerRecordOf(state: unknown, layer: string): LayerRecord | undefined {
+  const entry = state as Record<string, unknown> | null | undefined;
+  if (!entry || entry.layer !== layer || typeof entry.kind !== "string") return undefined;
+  return {
+    kind: entry.kind,
+    subject: String(entry.subject ?? ""),
+    openedOn: String(entry.openedOn ?? ""),
+  };
+}

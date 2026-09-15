@@ -81,7 +81,11 @@ export function NowTab(): ReactElement {
         takeable,
         takeable
           .map((card) =>
-            mediumCardMarkup(card as MediumCard, { label: t("screens.acquisition.takeableFoot"), solid: true }),
+            mediumCardMarkup(card as MediumCard, {
+              label: t("screens.acquisition.takeableFoot"),
+              solid: true,
+              attributes: { "data-take": String(card.t) },
+            }),
           )
           .join(""),
       )}
@@ -91,7 +95,10 @@ export function NowTab(): ReactElement {
         blocked,
         blocked
           .map((card) =>
-            mediumCardMarkup(card as MediumCard, { label: t("screens.acquisition.blockedFoot") }),
+            mediumCardMarkup(card as MediumCard, {
+              label: t("screens.acquisition.blockedFoot"),
+              attributes: { "data-resolution": String(card.t) },
+            }),
           )
           .join(""),
       )}

@@ -64,8 +64,10 @@ export function QualityScreen() {
     icons,
   } = useReleasesReference();
   const { t } = useTranslation();
-  // FROM THE CACHE (invariant 4).
-  const { data: RELEASES = [] } = useReleases();
+  // FROM THE CACHE (invariant 4). THE TITLE'S RELEASES, not every release: the
+  // profile is opened for one medium, and « kept out of » a list holding every
+  // other title's releases counted what this medium was never offered.
+  const { data: RELEASES = [] } = useReleases(title ? baseTitle(title) : "");
   const kept = countKept(profile, RELEASES);
 
   function writeProfile(patch: Partial<QualityProfile>): void {

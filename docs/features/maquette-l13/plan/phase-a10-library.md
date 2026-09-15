@@ -67,7 +67,7 @@ instead (DESIGN § 2.5, § 2.6, § 5.1; § 3, rows 16 and 18).
   - `INCOMPLETE`'s query is exact in content (12 = 12) but fetched only by `features/library/page.tsx`, and two of
     its engine readers (`knownMedium`, `openDeleteDialog`) stay.
 
-  **The owner is a new L13b phase, b·10-bis « the library's membership read »**, before b·11 (INDEX). It is a
+  **The owner is a new L13b phase, b·11 « the library's membership read »**, before b·13 (INDEX). It is a
   BEHAVIOUR phase: the contract gains an exact read (membership by exact title, the year where two rows share
   `ids`), its rule first and red against the engine; `LIBRARY`, `INCOMPLETE` and `knownMedium` die there with their
   readers, and the harness reads (`panel.py`, `url_state.py`, `said_and_done.py`, `library_sort.py`,

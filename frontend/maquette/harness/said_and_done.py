@@ -69,7 +69,7 @@ SHEET_STATE = "mediasheet-series"
 # library — and the medium, named, because the verb is drawn only for a follow
 # the library HOLDS and the list carries follows that it does not.
 # « Dark Matter » is the ONE follow the library holds under the same title —
-# measured, not chosen: `inLibrary` matches `window.LIBRARY` on an exact title,
+# measured, not chosen: `inLibrary` is the exact membership read of the title,
 # and of the fourteen follows it is the only one that does (B-383's own reading
 # named three, which was read on another scenario). A row that stops being
 # there fails this hold with `found False` rather than measuring another

@@ -253,10 +253,12 @@ decisions
 deck
 declared
 decoded
+decomposed
 deep
 default
 defaults
 degraded
+degree
 del
 delay
 delete
@@ -449,6 +451,7 @@ ground
 group
 grouped
 groups
+guard
 guidance
 had
 harness
@@ -504,6 +507,7 @@ included
 incoming
 incomplete
 index
+indicator
 inert
 inflight
 info
@@ -547,6 +551,7 @@ lab
 label
 labels
 landed
+landing
 lanes
 large
 last
@@ -626,6 +631,7 @@ mediasheet
 medium
 member
 members
+membership
 message
 meta
 method
@@ -703,6 +709,7 @@ on
 once
 one
 only
+opacity
 open
 opened
 opener
@@ -1169,6 +1176,7 @@ transact
 transaction
 transition
 translate
+travel
 travelled
 trim
 tuples

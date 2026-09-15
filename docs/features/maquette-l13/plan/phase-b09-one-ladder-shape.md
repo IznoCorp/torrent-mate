@@ -58,3 +58,8 @@ the report.
 ## Commit
 
 `feat(maquette-l13): a layer left for an arrival keeps its entry and a redraw replaces it`
+
+## Amendments
+
+- **Amended 2026-09-13 (steward, the three arms' dry read, audit order 2):** the entry's keys are written once in `lib/navigation-entry.ts` (a·3, ruling 14), never again in `app/panel-host.ts`; D-L13-1 ratified (ruling 28) — STOP E lifted.
+- **Amended 2026-09-14 (l13b 4, rulings 88, 90, 91):** who else answers — no click moves (the openers keep their names on the capture registry); the pops are answered by `app/layers.ts` alone, BUBBLE of the router's history subscription; nine close-then-wait timers, not ten (the two `row.remove()` after `COLLAPSE` stay); `take` is an act, R188's counter-hold; the two route-to-route leaves (manual, profile from the release screen) are REPLACE; oracle strict, zero divergence named.

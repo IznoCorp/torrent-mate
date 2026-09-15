@@ -1,8 +1,9 @@
 """The `cva()` factory reader — every typed variant's anchor, base and branches, read as text.
 
-NOT A RULE: plumbing a rule borrows, like `common.py`. `resolution_card.py`
-reads `iconButton`'s base through it, so the affordance is compared with the
-factory's own declaration rather than with a pixel count written in the rule.
+NOT A RULE: plumbing a rule may borrow, like `common.py`. NO RULE BORROWS IT
+TODAY: `resolution_card.py` read `iconButton`'s base through it to hold the
+candidate card's check mark to the icon size, and B-500 retired that mark for a
+pill held to a finger's height.
 
 It was the reading half of R80, which compared the engine's residue stylesheet
 with the variants that stylesheet shadowed. R80 died with the stylesheet; this

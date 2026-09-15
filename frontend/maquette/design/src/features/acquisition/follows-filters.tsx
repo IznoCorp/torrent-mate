@@ -51,7 +51,7 @@ export function FollowsFilters({ pills }: { pills: FollowPill[] }): ReactElement
         {state.filter ? (
           <button
             className={searchClear()}
-            data-clearq="foll"
+            data-clear-filter
             aria-label={t("screens.acquisition.clearLabel")}
           >
             <Icon paths={icons.x} />

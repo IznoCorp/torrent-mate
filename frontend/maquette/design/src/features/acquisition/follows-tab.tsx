@@ -153,10 +153,10 @@ export function FollowsTab(): ReactElement {
     swipeRowMarkup(
       mediumCardMarkup(descriptorOf(follow, showStatus)),
       follow.k === "movie"
-        ? `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipeStopSearching")}</button><button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`
-        : `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause">${svgIcon(icons.x)}${t("screens.acquisition.swipePause")}</button><button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`,
+        ? `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause" data-pause="${escapeHtml(follow.t)}">${svgIcon(icons.x)}${t("screens.acquisition.swipeStopSearching")}</button><button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove" data-remove="${escapeHtml(follow.t)}">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`
+        : `<button class="${swipeAction({ tone: "pause" })}" data-part="swipe/action" data-action="pause" data-swipeact="pause" data-pause="${escapeHtml(follow.t)}">${svgIcon(icons.x)}${t("screens.acquisition.swipePause")}</button><button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="remove" data-remove="${escapeHtml(follow.t)}">${svgIcon(icons.trash)}${t("screens.acquisition.swipeRemove")}</button>`,
       follow.st === "pending" || follow.st === "to_grab"
-        ? `<button class="${swipeAction({ tone: "resume" })}" data-part="swipe/action" data-action="resume" data-swipeact="${SEARCH_AGAIN}">${svgIcon(icons.refresh)}${t("screens.acquisition.swipeSearch")}</button>`
+        ? `<button class="${swipeAction({ tone: "resume" })}" data-part="swipe/action" data-action="resume" data-swipeact="${SEARCH_AGAIN}" data-search-again="${escapeHtml(follow.t)}">${svgIcon(icons.refresh)}${t("screens.acquisition.swipeSearch")}</button>`
         : "",
     );
 
@@ -186,7 +186,11 @@ export function FollowsTab(): ReactElement {
       artwork: posterArtwork(icons, follow.poster, follow.t, follow.k),
       muted: paused,
       badge: tileBadgeOf(gridBadge(follow)),
-      attributes: { "data-panel": `media:${follow.t}`, "data-mediasheet": follow.t },
+      // THE SHEET IS NAMED FIRST, and the order is load-bearing: the registry
+      // answers the first registered key in ATTRIBUTE order, so `data-panel`
+      // written first would make a tap on the tile open the panel the LONG
+      // PRESS is for. A tap opens the medium; the press opens its panel.
+      attributes: { "data-mediasheet": follow.t, "data-panel": `media:${follow.t}` },
     });
   };
 

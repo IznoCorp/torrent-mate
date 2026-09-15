@@ -19,9 +19,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 62 |
+| operations the interface requires | 63 |
 | operations the backend has | 65 |
-| required and missing | 15 |
+| required and missing | 16 |
 | declared by both, different response shape | 47 |
 | declared by both, path parameter spelled differently | 15 |
 | declared by both, answered with a different status | 11 |
@@ -41,6 +41,7 @@ than a blank page.
 | `GET /api/library/categories` | `readLibraryCategories` | The categories and their counts |
 | `GET /api/library/incomplete` | `readLibraryIncomplete` | The series with holes, and how big each hole is |
 | `GET /api/library/items` | `readLibraryItems` | The library listing, one page of it |
+| `GET /api/library/membership` | `readLibraryMembership` | Whether the library holds one medium, asked by its exact title |
 | `GET /api/library/recent` | `readLibraryRecent` | The most recently added titles |
 | `GET /api/media/{provider}/{providerId}/seasons` | `readMediaSeasons` | The seasons of a show, and what the library holds of each |
 | `GET /api/system/dependencies` | `readDependencies` | The external dependencies, and whether each answers |

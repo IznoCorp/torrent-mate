@@ -164,7 +164,7 @@ async def main():
         # ── the library says what a medium is ABOUT ─────────────────────────
         for lens, name in (("cat", "Médias"), ("rec", "Récents")):
             await pg.evaluate("(l)=>{window.__store.write({page: 'lib',"
-                              " libLens: l, libMode: 'list'}); render();}", lens)
+                              " libLens: l, libMode: 'list'}); window.__store.touch();}", lens)
             await pg.wait_for_timeout(650)
             seen = await pg.evaluate("""()=>{
               const cards = [...document.querySelectorAll('#libitems [data-part="card"]')];
@@ -207,7 +207,7 @@ async def main():
               st.textContent = '[data-part="card/overview"]{-webkit-line-clamp:'
                                + n + ' !important}';}""", n)
             await pg.evaluate("()=>{window.__store.write({page: 'lib',"
-                              " libLens: 'cat', libMode: 'list'}); render();}")
+                              " libLens: 'cat', libMode: 'list'}); window.__store.touch();}")
             await pg.wait_for_timeout(520)
             return await pg.evaluate(
                 """()=>[...document.querySelectorAll('#libitems [data-part="card"]')]
@@ -224,7 +224,7 @@ async def main():
         await pg.evaluate("""()=>{const st = document.querySelector('#clamptrial');
                                if (st) st.remove();}""")
         await pg.evaluate("()=>{window.__store.write({page: 'lib',"
-                          " libLens: 'cat', libMode: 'list'}); render();}")
+                          " libLens: 'cat', libMode: 'list'}); window.__store.touch();}")
         await pg.wait_for_timeout(520)
 
         # A clamped line must SAY it is clamped rather than stop mid-word.
@@ -288,7 +288,7 @@ async def main():
             starts = {}
             for lens in ("cat", "rec", "inc"):
                 await pg.evaluate("([l, m])=>{window.__store.write({page: 'lib',"
-                                  " libLens: l, libMode: m}); render();}", [lens, mode])
+                                  " libLens: l, libMode: m}); window.__store.touch();}", [lens, mode])
                 await pg.wait_for_timeout(620)
                 starts[lens] = await pg.evaluate("""()=>{
                   const frame = document.querySelector('#device').getBoundingClientRect();

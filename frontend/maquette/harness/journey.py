@@ -704,8 +704,18 @@ async def main():
 
         await reopen_page.go_back()
         await reopen_page.wait_for_timeout(500)
-        closed = await reopen_page.evaluate("()=>window.__panel.isOpen()")
-        journal.check("one Back closes it", not closed, f"open={closed}")
+        # RE-AIMED under the ladder's one shape: the journey is opened OVER the
+        # follow sheet, and a layer left for an arrival keeps its entry — so one
+        # Back closes the journey and PUTS BACK the sheet it was asked from. It
+        # used to read « the panel is closed », which is the shape where the
+        # follow sheet's entry was popped before the journey pushed its own.
+        back = await reopen_page.evaluate(
+            """()=>({open: window.__panel.isOpen(), address: location.search})""")
+        journal.check(
+            "one Back closes it and puts back the follow sheet it was opened from",
+            back["open"] and "panel=follow" in back["address"]
+            and "panel=journey" not in back["address"],
+            f"open={back['open']} {back['address']!r}")
 
         await reopen_page.evaluate(
             """()=>window.__queries.removeQueries(

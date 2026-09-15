@@ -219,6 +219,7 @@
       "removeAria": "Retirer {{valeur}}",
       "emptyList": "Aucune valeur. La liste est vide, ce qui n'est pas la même chose qu'une valeur absente.",
       "add": "Ajouter",
+      "addedItem": "valeur {{position}}",
       "undefinedPlaceholder": "non défini",
       "durationFormat": "format 72h"
     }
@@ -405,6 +406,7 @@
       "back": "Retour",
       "noPosterTitle": "Aucune affiche chez le provider pour ce candidat.",
       "confidence": "confiance",
+      "choose": "Choisir",
       "numbers": [
         "",
         "Un",
@@ -989,7 +991,8 @@
     "installing": "Installation en cours — l'icône arrive sur votre écran d'accueil.",
     "installRefused": "Installation refusée — le bandeau reviendra à la prochaine visite.",
     "installed": "TorrentMate est installé.",
-    "oneMoreBack": "Encore un retour pour quitter TorrentMate."
+    "oneMoreBack": "Encore un retour pour quitter TorrentMate.",
+    "refreshed": "Actualisé."
   },
   "panels": {
     "maintenance": {
@@ -1112,8 +1115,64 @@
     }
   },
   "verbs": {
+    "library": {
+      "sorted": "Trié par {{way}}.",
+      "delete": {
+        "headingMany": "Supprimer {{media}} médias ?",
+        "headingOneTitleMany": "Supprimer « {{title}} » — {{media}} médias ?",
+        "headingOne": "Supprimer « {{title}} » ?",
+        "dryRun": "Simulation — rien ne sera supprimé tant que vous n'aurez pas validé que cette liste dit vrai.",
+        "fileOne": "{{count}} fichier",
+        "fileMany": "{{count}} fichiers",
+        "otherOne": "et {{count}} autre",
+        "otherMany": "et {{count}} autres",
+        "exactly": "Voici exactement ce qui serait supprimé :",
+        "videoFiles": "Fichiers vidéo",
+        "videoFilesValue": "{{files}} · {{size}}",
+        "size": "{{size}} Go",
+        "metadata": "Métadonnées (NFO, affiches, fanart)",
+        "metadataValue": "{{count}} fichiers",
+        "libraryRows": "Lignes de la médiathèque",
+        "itemOne": "{{count}} item",
+        "itemMany": "{{count}} items",
+        "plexEntry": "Entrée Plex",
+        "plexEntryValue": "{{count}} · à vérifier",
+        "followedOne": "« {{title}} » est suivi.",
+        "followedMany": "{{count}} de ces médias sont suivis.",
+        "followedText": "Sans action de votre part, ces épisodes seront re-téléchargés à la prochaine recherche.",
+        "deleteAndStop": "Supprimer et arrêter le suivi",
+        "doneStopped": "Simulation terminée — 0 fichier touché. Le suivi aurait été arrêté.",
+        "deleteAndKeep": "Supprimer, garder le suivi",
+        "doneKept": "Simulation terminée — 0 fichier touché. Le suivi aurait été conservé.",
+        "delete": "Supprimer",
+        "done": "Simulation terminée — 0 fichier touché.",
+        "cancel": "Annuler"
+      }
+    },
+    "acquisition": {
+      "taken": "« {{title}} » récupéré — suivez-le dans « En vol ».",
+      "searchStarted": "Recherche lancée pour « {{title}} » — le résultat s'affichera sur la carte.",
+      "completionStarted": "« {{title}} » : recherche des épisodes manquants lancée.",
+      "watchStarted": "Veille lancée — 12 suivis balayés, 0 nouvelle release conforme. Prochain passage à 15 h 20.",
+      "tmdbConnected": "Compte TMDB connecté — la réserve se remplit, vos notes sont lues.",
+      "identified": "« {{target}} » identifié comme « {{title}} » — le scrape reprend, aucun suivi créé.",
+      "replaceHeading": "Remplacer « {{title}} » ?",
+      "replaceMovieOwned": "Ce film est déjà en médiathèque. L'acquisition ",
+      "replaceMediumOwned": "Ce média est déjà en médiathèque. L'acquisition ",
+      "replaceEmphasis": "remplacera",
+      "replaceAfter": " la version en place par celle qui sera récupérée.",
+      "replace": "Remplacer",
+      "replaceCancel": "Annuler",
+      "replacementQueued": "Ajouté — la version en place sera remplacée une fois la nouvelle récupérée.",
+      "searchAgain": "{{label}} — {{title}}"
+    },
     "arrivals": {
-      "taken": "« {{title}} » récupéré — suivez-le dans « En vol »."
+      "taken": "« {{title}} » récupéré — suivez-le dans « En vol ».",
+      "left": "« {{title}} » laissé tel quel — le résultat automatique est conservé, rien n'a été re-scrapé.",
+      "pipelineStarted": "Pipeline lancé — il se raconte ici, étape par étape.",
+      "pipelineQueued": "En file — votre passage partira dès que celui-ci sera fini.",
+      "pipelineStopped": "Pipeline arrêté. Ce qui était déjà rangé le reste.",
+      "resolved": "Identifié comme « {{choice}} » — le pipeline reprend jusqu'à la médiathèque."
     },
     "media": {
       "seasonAsked": "Saison {{season}} de « {{title}} » demandée — {{count}} épisodes à récupérer.",

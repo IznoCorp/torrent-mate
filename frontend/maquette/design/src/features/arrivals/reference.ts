@@ -62,6 +62,8 @@ type DecisionCommon = {
 export type PendingDecision = DecisionCommon & { c: DecisionCandidate[] };
 
 export type Pipeline = {
+  /** What the pipeline is doing right now, as the status read answers it. */
+  state?: "idle" | "running" | "queued" | "paused" | "stopping";
   steps: PipelineStep[];
   declencheurs: Record<string, string>;
   last: {

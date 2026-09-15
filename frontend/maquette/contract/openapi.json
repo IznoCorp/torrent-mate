@@ -528,6 +528,70 @@
         ]
       }
     },
+    "/api/library/membership": {
+      "get": {
+        "operationId": "readLibraryMembership",
+        "summary": "Whether the library holds one medium, asked by its exact title",
+        "description": "An exact read, answered from the WHOLE library rather than from a page of the listing: a title on page two is held as surely as one on page one. Keyed by exact title, with the year where the title alone is ambiguous — provider ids are not an identity (two rows can share one).",
+        "tags": [
+          "library"
+        ],
+        "parameters": [
+          {
+            "name": "title",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the medium's exact title"
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "the medium's year, when the title alone names more than one"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "what the library holds of that title",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryMembership"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "LIBRARY",
+          "INCOMPLETE"
+        ]
+      }
+    },
     "/api/media/{provider}/{providerId}": {
       "get": {
         "operationId": "readMediaSheet",
@@ -4083,6 +4147,40 @@
           "poster",
           "title",
           "year"
+        ]
+      },
+      "LibraryMembership": {
+        "type": "object",
+        "properties": {
+          "inLibrary": {
+            "type": "boolean",
+            "description": "whether the library holds the title"
+          },
+          "rows": {
+            "type": "integer",
+            "description": "how many library rows the title names — two when one title is held twice"
+          },
+          "incomplete": {
+            "type": "boolean",
+            "description": "whether it is a series the library holds with holes"
+          },
+          "ids": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ProviderIds"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the held medium's provider identity, or null when the library does not hold it or no sheet identifies it"
+          }
+        },
+        "required": [
+          "ids",
+          "inLibrary",
+          "incomplete",
+          "rows"
         ]
       },
       "Follow": {

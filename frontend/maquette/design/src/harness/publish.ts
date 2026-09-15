@@ -17,6 +17,7 @@
 // a name no rule reads is published nowhere: its readers import it.
 import i18next from "../i18n";
 import { dialog } from "../app/dialog-host";
+import { popover } from "../app/popover-host";
 import { entry, loadingDone } from "../app/entry";
 import { closeLayers, registeredLayers } from "../app/layers";
 import { resetLiveUpdates, unmatchedCount, unmatchedEvents } from "../app/live-updates";
@@ -33,7 +34,10 @@ import { deleteLibraryItems, libraryNextPage } from "../features/library/queries
 import { sortWays } from "../features/library/sorting";
 import { releases } from "../features/releases/queries";
 import { settingLabels } from "../features/settings/labels";
-import { pressNumbers } from "../lib/press-arbitration";
+import { changeSetting } from "../features/settings/pending-edits";
+import { pressNumbers, pressSwallowClick } from "../lib/press-arbitration";
+import { openRow } from "../lib/swipe-arbitration";
+import { resetPullIndicator } from "../app/pull-indicator";
 import { pullNumbers } from "../lib/pull-gesture";
 import { sharedQueryClient } from "../lib/query-client";
 import { queueActions, queueLists } from "../lib/queue";
@@ -51,6 +55,10 @@ declare global {
   interface Window {
     /** The interface's store — the domain hooks and the probes read its state. */
     __store: Store;
+    /** The frame's popover door — how a rule closes a popover it opened. */
+    __popover: typeof popover;
+    /** Files a setting's pending edit — how a rule stages a change it does not type. */
+    __changeSetting: typeof changeSetting;
     // The query cache. It is the one place server state lives (invariant 4), so
     // a rule asking « what does this surface hold, and did a mutation put it
     // back? » asks it here.
@@ -118,6 +126,7 @@ export function publishSeams(): void {
   };
   publish("__store", () => store);
   publish("__queries", () => sharedQueryClient);
+  publish("__changeSetting", () => changeSetting);
   publish("__relay", () => relay);
   publish("__i18n", () => i18next);
   publish("__toast", () => toast);
@@ -127,6 +136,7 @@ export function publishSeams(): void {
   publish("__unknownPanel", () => unknownPanel);
   publish("__unknownProducer", () => unknownProducer);
   publish("__dialog", () => dialog);
+  publish("__popover", () => popover);
   publish("__layers", () => registeredLayers);
   publish("__closeLayers", () => closeLayers);
   publish("armedExit", () => walk.armedExit);
@@ -154,6 +164,22 @@ export function publishSeams(): void {
   // alone, a year without its kind — writes the carried object itself.
   publish("__openCarrying", () => (provider: string, id: string, carried: Record<string, unknown>) =>
     go({ to: "/media/$provider/$id", params: { provider, id }, state: { [CARRIED_KEY]: carried } }));
+  /* THE TWO GESTURE NAMES A RULE ACTUALLY READS, and only those two. The engine
+     published seven on `window` — `cardDrag`, `openCard`, `openCardDx`,
+     `clickAfterDrag`, `swallowClick`, `deckDrag`, `sugDrag` — and five of them
+     were read by NOTHING, measured rule file by rule file. A driving surface
+     nobody drives through is a surface that does not exist, so the five went
+     with the engine's `defineProperties` block and these two are published from
+     the modules that now own them: the open row (`pause_verb.py` asks whether a
+     row came back to rest) and the press's swallow (`press.py` asks whether the
+     lift's click was marked). */
+  publish("openCard", () => openRow());
+  /* THE INDICATOR'S RESET, which five holds drive between measurements: a
+     refresh in flight outlives a change of state, so a rule that did not put it
+     back inherited the previous state's spinner. It was `window.__reposPTR`,
+     written by the engine; it is published here from the frame's indicator. */
+  publish("__reposPTR", () => resetPullIndicator);
+  publish("swallowClick", () => pressSwallowClick?.() === true);
   // Two gestures each own their numbers, and a rule reads them as one table —
   // present once the gesture that owns them has been installed, as before.
   publish("__gestures", () => {
