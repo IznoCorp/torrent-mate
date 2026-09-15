@@ -98,3 +98,10 @@ inactive), enabled again at idle; the queue is offered only under a maintenance 
 phase 9 — the lot that moves the premise carries its consequence in the same pull request. About 3
 points, one hold, red first (the disabled state under `running`), one mutation; the register row goes
 in L20's own docs pull request. Phase 8 stays as ruled 8 says; this is not folded into it.
+
+## 10 — the queued bar after ruling 8 (auditor, § 10, relayed by the steward, 2026-09-15)
+
+Reading (a): `arr-queued`'s bar follows the moved premise — no gauge and no step of a pass that does not run, the
+copy « Votre passage est en file — il partira dès que la maintenance en cours sera finie », `arrivals.py:190–192`
+re-aimed aloud, the divergence declared on `arr-queued` before the run. Reading (b), a screen contradicting its own
+toast, refused. The direct consequence of ruling 8; reversible by the operator's word. Repaired in round one (C7).
