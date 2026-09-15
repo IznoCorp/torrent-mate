@@ -21,6 +21,8 @@
   session's Forbidden list) so it does not close B-336 itself; it flags that the
   phase's "Red today on readings 2 and 3" premise may already be false on this tree, which is a STOP
   for the phase's own opening reading, not a rewrite here.
+- **Landed (2026-09-16, ruling 119).** Red on the variant's COMPUTED value (`thin`, the unlayered
+  global rule wins); `[scrollbar-width:none]!`; R198, 4 holds; B-336 `to confirm`.
 
 A BEHAVIOUR change: the library's kind chips' strip, converted in a·10, takes `pillscroll`'s two
 declarations so that it scrolls without showing a bar (DESIGN § 10, B-336).

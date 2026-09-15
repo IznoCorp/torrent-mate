@@ -17,7 +17,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   gesture, the pull request).
 - DONE: c·1 (`a78287834`…`8cf2fa574`, B-312 `to confirm`, B-539 filed), c·2 (`069fb3a8e` + `f67401890`,
   B-340 `to confirm`), merge of L13r's squash `08400a22a` (`0a32a745a`, pushed), c·3 (`9848c02b4`,
-  B-339 `to confirm`). NEXT: c·4 (same shape likely: `pillScroll` already carries the idiom).
+  B-339 `to confirm`), c·4 (`30658ccf7`, B-336 `to confirm`). NEXT: c·5, then the MIDPOINT full suite.
 - LOGS: `~/Library/Logs/tm-l13c/`. Mutex `sh scripts/heavy.sh --held`; tests lock
   `/private/tmp/tm-heavy-tests/holder`; own lock `/private/tmp/tm-heavy-l13c/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13c
@@ -77,3 +77,11 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   merge of `08400a22a` (`0a32a745a`): 15 conflicts resolved by re-applying c·1/c·2 onto main's files,
   checked by script (merge delta = main delta on 18 code files). A green reading before the move is
   not a pass: replay the rule directly to read WHAT differs before claiming a defect gone.
+- 2026-09-16 c·4 (`Agent : l13c 1`): ruling 119. R198 `kind_chips_scrollbar.py`, 4 holds; red
+  `c04-red.log` (computed `thin` at 390 and 369 px although the strip wears `pillScroll`), green
+  `c04-gate-2.log` on `30658ccf7` (25 rules, 2 named, oracle no divergence), mutation
+  `c04-mutation.log` (both widths fall). Traps paid: an unlayered `*` rule in `base.css` beats every
+  layered utility — read the COMPUTED value, never the class; headless Chrome paints overlay bars, so
+  a drawn-bar-height hold cannot fall (dropped, said); `ui/variants/controls.ts` sits at the 400-line
+  ceiling — run check-frontend-boundaries before committing a comment there. Owed, not this phase's:
+  the media cast strip (`features/media/variants.ts`) carries the same defeated idiom.

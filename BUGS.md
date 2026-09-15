@@ -395,7 +395,7 @@ when the defect comes back.
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
 | B-334 | The secret panel's « Remplacer la valeur » does nothing: the action's whole effect is a `data-toast` the engine's dead message element answers, and no store, seed or cache moves | 1× | `fixed #588` |
 | B-335 | The secret panel's « Retirer la clé » does nothing and asks nothing: the same `data-toast` shape as B-334, on a destructive act that owes a confirmation (B-300's form) | 1× | `fixed #588` |
-| B-336 | The library's kind chips (« Tout · Films · Séries », with counts) scroll horizontally with a VISIBLE scrollbar on the phone; the strip should hide it as `pillscroll` does | 1× | `open` |
+| B-336 | The library's kind chips (« Tout · Films · Séries », with counts) scroll horizontally with a VISIBLE scrollbar on the phone; the strip should hide it as `pillscroll` does | 1× | `to confirm` |
 | B-337 | A follow card swiped open: the first tap on a revealed action does nothing, the second acts — systematic on the phone | 1× | `open` |
 | B-338 | After a panel's departure the invisible scrim stays hit-testable over the media screen for ~380 ms — `opacity 0`, `visibility` still `visible` until its delayed flip — so a tap on the fresh screen lands on nothing | by the steward | `fixed #573` |
 | B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens » | 1× | `to confirm` |
@@ -3881,6 +3881,15 @@ two declarations. Owner: **L13**, with the library's engine half; if a wave open
 it takes the two declarations with it.
 
 <sub>operator, 2026-09-06 · `grep -rn "kindAll" frontend/maquette/design/src` → the ADD screen only (`add-screen.tsx:283`), not the library · `grep -n "pillscroll" frontend/maquette/design/src/ui/variants/controls.ts` → the idiom</sub>
+
+**REPAIRED IN L13c c·4, ruling 119.** The strip was already drawn by `library-head.tsx` through
+`pillScroll`, whose `[scrollbar-width:none]` was written and never computed: `styles/base.css`'s
+`* { scrollbar-width: thin }` is unlayered and beats every layered utility. The declaration takes
+Tailwind's important mark in that variant alone. **R198** `kind_chips_scrollbar.py` reads the strip at
+390 and 369 px — it overflows and a horizontal wheel moves it, and its computed `scrollbar-width` is
+`none` — red on the tree (`thin` at both widths), green after; the mutation removing the two
+declarations fells both `scrollbar-width` holds by name. The media cast strip wears the same defeated
+idiom and was not touched. Waiting for the operator's hand.
 
 **B-337 — a swiped-open follow card ignores the first tap on its revealed action.**
 Reported by the operator on 2026-09-06, verbatim: « Lorsqu'on glisse une carte de suivi à droite ou à
