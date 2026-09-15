@@ -16,8 +16,7 @@ WHAT THE ORDER IS, AND WHY EACH STEP CANNOT MOVE:
   installNavigation(...)      hands `go()` the router and the history
   installScreenBridge()       every opener it installs navigates through `go()`
   createStore()               the panel host receives it as an ARGUMENT
-  installPanelHost(store, …)  must exist before the seams are handed over
-  installSeams({...})         the engine imports these three names
+  installPanelHost(store, …)  must exist before the arrival boots
   installArrival(store)       the arrival boots, and everything above must be real
   installLiveUpdates(client)  L10. It invalidates INTO the query cache and
                               receives it as an argument, the same reason
@@ -37,6 +36,11 @@ WHAT THE ORDER IS, AND WHY EACH STEP CANNOT MOVE:
                               stated the position as a constraint and nothing
                               read it: the two steps before it were added to
                               this rule and this one was not
+
+RE-AIMED, said out loud: the engine's `installSeams` step and its two holds —
+« the engine's imported seams are filled » and « no second installation is
+claimed » — left with the engine that imported the three names; nothing reads
+them by import any more.
 
 READ AT THE SOURCE, AND THEN IN THE BROWSER, because neither alone is enough.
 The source says the calls are in order; it cannot say the application survived
@@ -106,7 +110,6 @@ BOOT_STEPS = (
     # its argument list — a pointer that misses its target is how a rule
     # goes quiet, and this one holds a POSITION rather than a signature.
     (r"^installPanelHost\(store,", "installPanelHost(store, …)"),
-    (r"^installSeams\(\{", "installSeams({…})"),
     (r"^installArrival\(", "installArrival(store)"),
     (r"^installLiveUpdates\(queryClient\);", "installLiveUpdates(queryClient)"),
     (r"^installRelay\(\);", "installRelay()"),
@@ -212,46 +215,6 @@ async def hold_the_browser(journal):
                       answered["ok"] and answered["value"] is False,
                       f"isOpen() → {answered['value']}")
 
-        # The engine reaches the same three objects by IMPORT, filled by
-        # `installSeams`. Calling it a second time is refused, and that refusal
-        # is the only observable proof from outside that it ran at all.
-        # AND THE ANSWER REACHES A HOLD. This read `window.__seamsInstalledProbe`
-        # into `refused`, printed it in a message, and held on something else
-        # entirely — so the probe could answer anything, or not exist, and the
-        # rule said the same thing. Either it is worth reading or it is not.
-        probe = await page.evaluate(
-            """() => {
-                const seams = window.__seamsInstalledProbe;
-                return seams === undefined ? "no probe" : seams;
-            }""")
-        # THE CALL AND THE READ ARE TWO STEPS SINCE L12, and the reason is a
-        # deliberate behaviour change rather than a flake.
-        #
-        # `lib/navigate.ts` runs its commit INSIDE `startViewTransition`
-        # (P5), so the address settles when the browser has taken its
-        # snapshot rather than before the next statement. Reading
-        # `location.pathname` in the same evaluate as the call therefore
-        # reads the address the screen was opened FROM.
-        #
-        # What this hold is about is unchanged: that the engine's imported
-        # seams are filled, proved by a screen opening at all. Synchrony is
-        # a different property and it is now deliberately not one — the
-        # shortcut that kept it produced a transition whose « old » snapshot
-        # was the new page.
-        await page.evaluate("() => { window.__screens.profile('Silo'); }")
-        await page.wait_for_timeout(400)
-        opened = (await page.evaluate(
-            "() => location.pathname")).startswith("/quality/")
-        journal.check("the engine's imported seams are filled",
-                      # The engine drives every screen through them; a screen
-                      # opening at all is that proof, and it is cheaper and
-                      # less coupled than exporting a probe for it.
-                      opened, f"probe={probe}")
-        journal.check("and no second installation is claimed",
-                      # The probe exists only if something installed twice and
-                      # left a trace. « no probe » is the healthy answer, and
-                      # saying so is what makes reading it worth anything.
-                      probe == "no probe", str(probe))
 
         await browser.close()
 

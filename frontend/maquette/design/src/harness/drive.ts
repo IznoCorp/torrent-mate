@@ -16,10 +16,9 @@
 import { refillEngineData } from "../app/engine-data";
 import { navigation } from "../app/navigation-seam";
 import type { UiState } from "../app/store";
-// `applyState` is the engine's — the ladder's handler restores a page through
-// it — and the states start through the same verb, re-exported here beside their type.
 import { drivenWithoutHistory } from "../app/page-switch";
-import { applyState as applyEngineState } from "../engine/legacy.js";
+import { hideLayers } from "../app/layers";
+import { redraw } from "../lib/shell-doors";
 import { resetSettings } from "./settings-reset";
 import { resetPullIndicator } from "../app/pull-indicator";
 import { heldIdentity, providerAddress } from "../lib/held-identity";
@@ -41,7 +40,9 @@ function setPipeline(state: string): void {
 }
 
 /**
- * Builds a state patch by patch, the way a named state does.
+ * Builds a state patch by patch, the way a named state does: the layers hidden
+ * without touching history, the store written, the port back at the top when the
+ * patch names a new place, and the page drawn.
  *
  * Args:
  *     patch: The store keys to write — and `pipe`, which moves the layer instead.
@@ -49,7 +50,13 @@ function setPipeline(state: string): void {
 export function applyState(patch: Record<string, unknown>): void {
   const { pipe, ...rest } = patch;
   if (typeof pipe === "string") setPipeline(pipe);
-  applyEngineState(rest);
+  hideLayers();
+  window.__store.write(rest as Partial<UiState>);
+  if (rest.page || rest.libLens || rest.q !== undefined) {
+    const port = document.querySelector("#port");
+    if (port) port.scrollTop = 0;
+  }
+  redraw();
 }
 
 /** One named state: the id `__go` takes, its label in words, and how to build it. */

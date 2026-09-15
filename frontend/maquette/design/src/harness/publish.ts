@@ -13,7 +13,7 @@
 // find on `window` at that same moment.
 //
 // WHAT IS NOT HERE. The mock layer publishes `window.__mocks` itself, because
-// only `app/` may import `mocks/`. The dying engine publishes its own names. And
+// only `app/` may import `mocks/`. And
 // a name no rule reads is published nowhere: its readers import it.
 import i18next from "../i18n";
 import { dialog } from "../app/dialog-host";
@@ -33,7 +33,10 @@ import { searchResults } from "../features/acquisition/search-queries";
 import { deleteLibraryItems, libraryNextPage } from "../features/library/queries";
 import { sortWays } from "../features/library/sorting";
 import { releases } from "../features/releases/queries";
+import { cadenceSentence, followStatusLabel, nextSearchTime } from "../features/acquisition/follow-vocabulary";
+import { settingIdentifier } from "../features/settings/catalog";
 import { settingLabels } from "../features/settings/labels";
+import { SETTINGS_STATE } from "../features/settings/state";
 import { changeSetting } from "../features/settings/pending-edits";
 import { pressNumbers, pressSwallowClick } from "../lib/press-arbitration";
 import { openRow } from "../lib/swipe-arbitration";
@@ -112,6 +115,16 @@ declare global {
     __baseTitle?: typeof baseTitle;
     /** A date as the interface writes it — what a rule compares a drawn date with. */
     __dateLabel?: typeof dateLabel;
+    /** The settings screen's working state — what a rule resets and reads between walks. */
+    SETTINGS_STATE?: typeof SETTINGS_STATE;
+    /** How a setting is identified — what a rule composes a setting's address with. */
+    settingId?: typeof settingIdentifier;
+    /** A follow's cadence in words, under the rules' own name for it. */
+    cadenceFR?: typeof cadenceSentence;
+    /** A follow's next search time in words, under the rules' own name for it. */
+    nextSearchFR?: typeof nextSearchTime;
+    /** A follow's status label, under the rules' own name for it. */
+    stLabel?: typeof followStatusLabel;
     /** Opens a medium's screen on an entry carrying exactly what a rule hands it. */
     __openCarrying?: (provider: string, id: string, carried: Record<string, unknown>) => void;
   }
@@ -209,6 +222,14 @@ export function publishSeams(): void {
      the modules that now own them: the open row (`pause_verb.py` asks whether a
      row came back to rest) and the press's swallow (`press.py` asks whether the
      lift's click was marked). */
+  /* FIVE NAMES THE RULES READ BARE, published from the modules that own them
+     under the names the rules always used: the settings screen's working state
+     and a setting's identifier, and three sentences a follow is described with. */
+  publish("SETTINGS_STATE", () => SETTINGS_STATE);
+  publish("settingId", () => settingIdentifier);
+  publish("cadenceFR", () => cadenceSentence);
+  publish("nextSearchFR", () => nextSearchTime);
+  publish("stLabel", () => followStatusLabel);
   publish("openCard", () => openRow());
   /* THE INDICATOR'S RESET, which five holds drive between measurements: a
      refresh in flight outlives a change of state, so a rule that did not put it

@@ -29,17 +29,6 @@ import "../styles/harness.css";
 // and the first of them can render before any other import here settles. The
 // stylesheet above it is emitted, not executed, so it takes no turn.
 import "../i18n";
-// The legacy engine, for its side effect too, and the order matters more
-// here than anywhere else in this file. It used to be a classic script
-// inside the fragment, evaluated while the document parsed — everything it
-// declares therefore existed before this module's body ever ran, and the
-// body below depends on exactly that: the arrival it calls draws through
-// the engine. As a module the engine keeps that guarantee for the same
-// reason it had it before: a module's dependencies evaluate before its
-// body, so importing it HERE is what makes it run FIRST. Moving this line
-// below any other statement would not reorder anything — imports hoist —
-// but writing it anywhere else would suggest otherwise.
-import "../engine/legacy.js";
 // The harness module — the named states, their driver, the notes toggle. Installed
 // below behind the mock layer's constant, so no build without the layer has it.
 import { installHarness } from "../harness";
@@ -78,7 +67,6 @@ import { installUpdateDiscipline } from "./worker-registration";
 import { ConnectionMark, ConnectionNotice } from "./connection-notice";
 import { Frame } from "./frame";
 import { installArrival } from "./arrival";
-import { installSeams } from "../engine/seams";
 import { installNavigation } from "../lib/navigate";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createQueryClient, installSharedQueryClient } from "../lib/query-client";
@@ -102,7 +90,7 @@ import { installRedraw } from "./redraw";
 import { installReleasesLookup } from "../features/releases/queries";
 import { installSearchLookup } from "../features/acquisition/search-queries";
 import { installStore } from "../lib/store-access";
-import { bridge, fillIconsDoor, panel, screens } from "../lib/shell-doors";
+import { fillIconsDoor } from "../lib/shell-doors";
 import { icons } from "./icons";
 
 
@@ -159,12 +147,6 @@ installStore(store);
 const queryClient = createQueryClient();
 installSharedQueryClient(queryClient);
 installPanelHost(store, queryClient);
-
-// The engine reads these three by import rather than off `window` — same
-// objects, so the two ways cannot disagree. Filled HERE, after all three
-// exist and before the engine is started below, which is the only window in
-// which they can be both real and unused.
-installSeams({ bridge, screens, panel });
 
 // No address BASE is computed any more, and its disappearance is the
 // subtraction this lot exists for. It answered « what does this engine

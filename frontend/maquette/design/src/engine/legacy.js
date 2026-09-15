@@ -31,22 +31,12 @@
    down rather than inferred; it narrows when the bridge dies, not before,
    because narrowing it means editing the instrument that measures the move.
 */
-
-import "./seams.js";
-import { hideLayers, installPageRestore } from "../app/layers";
-import { icons } from "../app/icons";
 /* THE VOCABULARY THAT LEFT, READ BACK FOR THE RULES. The constants and helpers
    this file declared live with the subject that says them now; the rules still
    reach four of them under the names they always used, so they are published
    below from their homes and die with the publication. */
-import {
-  cadenceSentence,
-  followStatusLabel,
-  nextSearchTime,
-} from "../features/acquisition/follow-vocabulary";
 /* THE STORE, IMPORTED. The shell creates it and installs it before anything
    here is called; the engine reads the same object every module does. */
-import { store } from "../lib/store-access";
 /* THE LADDER, THE PAGE SWITCH AND THE ADDRESSED PANELS, IMPORTED BACK. The
    handler that reads a Back, the verbs that write a navigation and the table
    that reopens an addressed panel are `app/`'s; the click delegation below
@@ -57,19 +47,14 @@ import { store } from "../lib/store-access";
    `app/icons.ts`'s arrangement and its reasoning word for word: one copy, read
    by both worlds, and the day this file goes the feature loses an importer
    rather than a subject. */
-import { settingIdentifier } from "../features/settings/catalog";
-import { SETTINGS_STATE } from "../features/settings/state";
 /* THE DÉCOUVRIR FEED, IMPORTED BACK. The reserve, the pile and the
    gesture that spends them are `features/acquisition/` now — the last feature
    surface this file still DREW. Its containers were already React's; what moved
    is who owns their content, and the technique is unchanged because a replaced
    node cannot animate. `render()` still calls these by name. */
-import { redraw } from "../lib/shell-doors";
-
-  /* TorrentMate — mobile-first redesign prototype
+/* TorrentMate — mobile-first redesign prototype
      Data: real library titles (1,861 items). */
-
-  /* THE VIEWPORT FALLBACK IS GONE (B-230), and it is deleted rather than
+/* THE VIEWPORT FALLBACK IS GONE (B-230), and it is deleted rather than
      corrected. It added a viewport meta carrying a maximum scale and a
      user-scalable refusal to any host that had none — the exact pair L03
      removed for WCAG 1.4.4, restored by a branch nobody reads. Dead on this
@@ -82,62 +67,42 @@ import { redraw } from "../lib/shell-doors";
      host nobody serves is machinery nobody can justify, which is D5's own
      shape, and `scripts/check-viewport-directives.py` now refuses the pair
      anywhere under `design/`. */
-
-
-
-
-  /* The 12 REAL follows, read from acquire.db with their true state: 4
+/* The 12 REAL follows, read from acquire.db with their true state: 4
      films waiting for a torrent, 8 series up to date (fractions cross-
      checked against library.db). The state is calm — it is the real one,
      and it is not dressed up. */
-  /* In the « réel » scenario: nothing to grab, nothing to resolve, nothing
+/* In the « réel » scenario: nothing to grab, nothing to resolve, nothing
      in flight — the four followed films are at the legitimate rest state «
      searched, found nothing ». */
-
-
-
-
-  /* Results of a REAL TMDB search for « star wars », cross-checked against
+/* Results of a REAL TMDB search for « star wars », cross-checked against
      the library: 3 already owned, 3 absent. 257 results found, 6 shown —
      which the interface must state. */
-
-
-
-  /* Only FILLED-IN suggestions are served: a card that opens a hollow sheet
+/* Only FILLED-IN suggestions are served: a card that opens a hollow sheet
      is a dead end, and the reserve honestly states how many it carries out
      of the 503 computed. */
-  /* Only suggestions whose sheet is COMPLETE (synopsis, genres, cast) are
+/* Only suggestions whose sheet is COMPLETE (synopsis, genres, cast) are
      served: a card that opens a hollow sheet is a dead end. The reserve
      honestly states how many it carries. */
-
-
-
-
-  /* Categories are the REAL storage ones (categories.json5 → disk folders),
+/* Categories are the REAL storage ones (categories.json5 → disk folders),
      with their counts read from library.db. « Animation » and «
      Documentaires » merge their film/series variants: storage is by nature,
      not by medium. The total is 1,861 and it adds up — a filter whose parts
      do not sum to the whole is a filter that lies. */
-
-
-
-  /* Two scenarios, and the resting one is the real one
+/* Two scenarios, and the resting one is the real one
      « réel » replays the exact state of the system: the staging area holds
      two folders only, and the 12 follows are at rest. That is what is
      needed to judge the rest states — which an always-busy prototype never
      shows.
      « charge » replays a dense state, to judge density and scrolling.
      The switch lives in the harness, not in the app. */
-
-  /* REAL contents of the staging directory. */
-
-  /* « Ça coince » holds TWO populations, and merging them would be the defect.
+/* REAL contents of the staging directory. */
+/* « Ça coince » holds TWO populations, and merging them would be the defect.
      A folder can be stuck because the scrape could not CHOOSE — that is a
      scrape decision, and its entry reason is a fact worth a chip — or because
      nothing in it can go through the pipeline at all, which no arbitration
      will ever fix. The first here carries a pending decision; the last two
      carry none, and say so by having no reason chip. */
-  /* ── Décisions de scrapage ────────────────────────────────────────────
+/* ── Décisions de scrapage ────────────────────────────────────────────
      A decision is a FOLDER, never a medium — that is the whole reason it
      exists. The scrape could not name what is inside it, so what the operator
      is asked about is the thing on disk: `staging_path`. Everything else on
@@ -150,10 +115,8 @@ import { redraw } from "../lib/shell-doors";
      `manual` « envoyé à la main depuis la préparation ». A chip saying
      « zone grise » described a STATE nobody could act on; these describe the
      REASON it is here, which is actionable. */
-
-  /* Décisions RÉGLÉES — les dix vraies lignes de scrape_decision. */
-
-  /* Décisions EN ATTENTE.
+/* Décisions RÉGLÉES — les dix vraies lignes de scrape_decision. */
+/* Décisions EN ATTENTE.
 
      « Lucky » is a real ambiguity, arbitrated for good on 15 July; the only
      thing replayed here is its status, so the screen can be judged. Its five
@@ -165,10 +128,7 @@ import { redraw } from "../lib/shell-doors";
      two of the ten rows in the base came back with no candidate at all. It
      hangs on the dense scenario's folder, whose stated reason already says
      precisely that. */
-
-
-
-  /* ── LE PIPELINE ──────────────────────────────────────────────────────
+/* ── LE PIPELINE ──────────────────────────────────────────────────────
      Read from `pipeline_run` in `library.db`: the last real run, its trigger,
      its duration, and what each of its NINE steps actually did.
 
@@ -184,23 +144,13 @@ import { redraw } from "../lib/shell-doors";
      `blockedCount` is what makes this page more than a report: the step that BLOCKS
      is the one the operator can act on, and it points at « Ça coince » just
      below rather than at a log. */
-
-
-
-
-
-
-
-
-
-  /* What really left the pipeline in the last 24 hours, read from the
+/* What really left the pipeline in the last 24 hours, read from the
      `dispatch` step of the two runs that fall inside it. « merged » and
      « moved » are two different events for the operator — an episode joining
      a series they already have is not a new title on a disk — so they are not
      flattened into one word. */
-
-  /* State */
-  /* THE SEED, and only the seed. This used to be `let state`, a module-level
+/* State */
+/* THE SEED, and only the seed. This used to be `let state`, a module-level
      binding re-pointed at the store's object on every notification — a cached
      copy, correct only for as long as the subscriber that refreshed it kept
      up. Every read now goes through `currentState()` instead, so there is no
@@ -209,20 +159,15 @@ import { redraw } from "../lib/shell-doors";
      What that removes is a whole class rather than an instance. A rule could
      drive a page by mutating the cached object, and R77 had to hold that
      nobody did; with no cached object there is nothing to mutate. */
-
-  /* Rendering: building blocks */
-
-
-  /* The release candidate's card and the decision's card moved to the shell
+/* Rendering: building blocks */
+/* The release candidate's card and the decision's card moved to the shell
      with the screen that draws them: `ReleaseCard` and `DecisionCard` in
      `src/screens/resolution.tsx`, at identical emission — `.card[data-nonmedia]`,
      no media sheet and no panel, because neither subject is a medium. Their
      rationale moved there with them; nothing here builds either shape any
      more, and a second builder kept alive next to the one being drawn is
      exactly the drift this file names below. */
-
-
-  /* ONE bottom panel, and its shape follows the facts it is given — and it is
+/* ONE bottom panel, and its shape follows the facts it is given — and it is
      built in the shell now: `src/components/panel.tsx` is that single
      constructor, `src/components/sheet.tsx` the layer it draws into, and
      `panel.ouvrir` the verb a producer here calls, on a descriptor.
@@ -238,19 +183,9 @@ import { redraw } from "../lib/shell-doors";
      the click delegation below reads those attributes, exactly as it does for
      a card, and that is what keeps a panel opened by the shell answering to
      the engine's own acts. */
-
-
-
-
-
-  /* Active datasets, resolved by scenario. The rest of the code does not
+/* Active datasets, resolved by scenario. The rest of the code does not
      know which scenario is running — it reads these accessors. */
-
-
-
-
-
-  /* ── MAINTENANCE ──────────────────────────────────────────────────────
+/* ── MAINTENANCE ──────────────────────────────────────────────────────
      Two levels and a panel, the shape the settings already use: the rubrics,
      a rubric's commands, then the command itself in the bottom panel.
 
@@ -262,10 +197,9 @@ import { redraw } from "../lib/shell-doors";
      A real deletion cannot be rehearsed on this machine — staging writes to
      the real disks — so what the interface owes is the look before, not a
      safety net after. */
-
-  /* One command's panel. Derived from what is TRUE about the command — does
+/* One command's panel. Derived from what is TRUE about the command — does
      it delete, can it run blank, is it long — never from a list of screens. */
-  /* ── RÉGLAGES ────────────────────────────────────────────────────────
+/* ── RÉGLAGES ────────────────────────────────────────────────────────
      The configuration, and the one decision that shapes everything else:
      ONE NAVIGATES BY WHAT ONE WANTS TO CHANGE, NEVER BY FILE.
 
@@ -284,30 +218,20 @@ import { redraw } from "../lib/shell-doors";
      The explanation is not written here. It is the comment the operator wrote
      above the key in the file itself, which until now nobody could read
      without opening the file. */
-
-
-  /* THE SETTINGS SCREEN'S WORKING STATE IS NOT THIS FILE'S ANY MORE: it is
+/* THE SETTINGS SCREEN'S WORKING STATE IS NOT THIS FILE'S ANY MORE: it is
      `features/settings/state.ts`'s, and its reset is the harness driver's. The
      rules still read `SETTINGS_STATE` and `settingId` under those names, so
      they are published below from their homes. */
-  const settingId = settingIdentifier;
-
-  /* One setting, in the panel — the same panel as everywhere else, taking the
+/* One setting, in the panel — the same panel as everywhere else, taking the
      same descriptor of facts. What it says: where the value comes from, what
      the file's own comment explains, and what it is now. */
-
-  const select = (selector) => document.querySelector(selector);
-  const port = select("#port");
-
-  /* THE FLOATING ACTION BUTTON IS NOT THIS FILE'S ANY MORE.
+/* THE FLOATING ACTION BUTTON IS NOT THIS FILE'S ANY MORE.
      It was static markup this engine showed and hid, from two flags kept in
      step by hand — a page's own answer and whether a message was on screen.
      Both are store state now and the button reads them itself
      (`app/action-button.tsx`), which is the whole of what « one decision point »
      asked for: written in two places, the second writer erases the first. */
-
-
-  /* Loading
+/* Loading
      Two regimes, and the difference is not ergonomic — it is ethical.
 
      · LIBRARY   → infinite scroll. The source is `library.db`, locally: one
@@ -321,11 +245,10 @@ import { redraw } from "../lib/shell-doors";
 
      In both cases a loading failure SAYS SO and offers a retry: a list that
      stops in silence reads as « there is nothing left », which is a lie. */
-
-  /* Release candidates — INVENTED, and the only invented data in this
+/* Release candidates — INVENTED, and the only invented data in this
      prototype: no tracker is queried here. The vocabulary (source,
      resolution, language, seeders) is the real ranking's. */
-  /* The REAL profile, as defined in acquire/desired.py
+/* The REAL profile, as defined in acquire/desired.py
      `QualityProfile` has only FOUR fields, and that is everything a follow
      can set. Anything else (accepted sources, CAM/TS exclusions) does not
      exist per follow.
@@ -337,9 +260,7 @@ import { redraw } from "../lib/shell-doors";
 
      A distinction never to lose: the profile FILTERS (it eliminates), the
      ranking ORDERS (it separates what remains). */
-
-
-  /* EVERY SORT GOES BOTH WAYS, and each way has its own NAME rather than an
+/* EVERY SORT GOES BOTH WAYS, and each way has its own NAME rather than an
      arrow bolted onto a shared one: « Ajout récent » reversed is « Ajout
      ancien », which is what one would say out loud, and « Les plus incomplets »
      reversed is « Les plus complets », not « incomplets, à l'envers ».
@@ -349,20 +270,16 @@ import { redraw } from "../lib/shell-doors";
      and is invisible: nothing on a phone says that a second tap on the row one
      just chose does something else. A row that reads « A → Z » and answers
      Z → A is the opposite of showing what the machine will do. */
-
-  /* The name of the sort in force, which is what the control on the count line
+/* The name of the sort in force, which is what the control on the count line
      reads. `sortReversed` is a store field like any other and, like `sortKey`, it
      stays OUT of the address: the sort is a preference, not a place (A7). */
-
-  /* THE PAGE'S OWN DERIVATION, and it stays HERE while the drawing leaves.
+/* THE PAGE'S OWN DERIVATION, and it stays HERE while the drawing leaves.
      WHAT LEFT AT L09. `sortLibrary` and `libFiltered` answered « which media,
      in which order » over this fixture; the layer answers it now, and it
      answers it where the paging is — a page of an unsorted set, sorted
      afterwards, is a page of the wrong rows. `libraryLoaded` went with them:
      how many titles the source holds is a field of the listing's own answer. */
-
-
-  /* Deleting from the poster view
+/* Deleting from the poster view
      The problem: offer deletion inside a poster grid without spoiling the
      grid. Two paths, neither costing a pixel at rest:
 
@@ -375,14 +292,11 @@ import { redraw } from "../lib/shell-doors";
 
      A simple tap still opens the sheet: the most frequent path is never
      sacrificed to a rare action. */
-
-
-  /* WHICH PANEL AN ELEMENT ADDRESSES, AND WHAT OPENING IT MEANS, ARE THE
+/* WHICH PANEL AN ELEMENT ADDRESSES, AND WHAT OPENING IT MEANS, ARE THE
      FRAME'S — `app/frame-verbs.ts` answers `data-panel` and fills the door this
      file's press reads. Only the press stays here, and it goes with the
      gesture. */
-
-  /* THE LONG PRESS — arbitrated in `lib/press-arbitration.ts`.
+/* THE LONG PRESS — arbitrated in `lib/press-arbitration.ts`.
 
      The arbitration MOVED to that module: the timer, the 12px tolerance, the
      pointer listeners, the click swallowed by its POINT and the refusal of the
@@ -395,37 +309,30 @@ import { redraw } from "../lib/shell-doors";
      took its place, which is the only shape D5 allows. Its behaviour is
      unchanged and R55 proves that against a real thumb, before the move and
      after it. */
-
-
-  /* User menu.
+/* User menu.
      One entry today — signing out — and the shape that will hold the rest: this
      interface is single-user for now, and a multi-user one with per-user rights
      is what the profile entry will open onto. The entry is drawn disabled and
      says why, rather than being absent: a menu that grows an item later teaches
      its shape twice. */
-  /* Découvrir: one card, one tappable body
+/* Découvrir: one card, one tappable body
      · poster            → the media sheet, never a dead link
      · rest of the card   → bottom panel, same grammar as Suivis
      · swipe left OR right → dismissed, with « Annuler » in the toast
      The verb follows the nature: one FOLLOWS a series, one ADDS a film. */
-
-
-  /* THE DÉCOUVRIR FEED HAS LEFT — the reserve, the three card shapes, the
+/* THE DÉCOUVRIR FEED HAS LEFT — the reserve, the three card shapes, the
      pile and the gesture that spends them are
      `features/acquisition/discover-feed.ts` and `discover-cards.ts` now, and
      this file imports them back. Its own `resize` listener went with
      `mountDeck`: two listeners on one window would measure the deck twice. */
-
-
-  /* A search result is not one of your media yet, so it has a panel of its own
+/* A search result is not one of your media yet, so it has a panel of its own
      rather than a follow's: what it offers is the act that WOULD make it one,
      and the sheet to judge it by. This panel is the ONLY place that carries
      the act — the card wears no inline button, so the row stays the size of
   /* Typing filters as you go (the source is LOCAL, therefore free) — unlike
      the provider search on the add screen, which runs on submit. */
-
-  /* Interactions */
-  /* WHETHER A MESSAGE IS ON SCREEN IS WRITTEN IN ONE PLACE. Six call sites
+/* Interactions */
+/* WHETHER A MESSAGE IS ON SCREEN IS WRITTEN IN ONE PLACE. Six call sites
      flipped the class and the attribute by hand — across two functions and a
      handler bound beside them — which was already two ends kept in step by
      hand. The moment a THIRD end appeared (the action button, which must not
@@ -436,7 +343,7 @@ import { redraw } from "../lib/shell-doors";
      is also dismissed from a capture-phase `pointerdown`, which wrote the class
      alone and left the state saying a message was up. It goes through here now,
      and R86 drives that path. */
-  /* THE MESSAGE IS NOT DRAWN HERE ANY MORE. `setMessageShown` toggled a class
+/* THE MESSAGE IS NOT DRAWN HERE ANY MORE. `setMessageShown` toggled a class
      and an attribute on static markup, and `toast`/`toastUndo` wrote
      `#toastmsg` — one of them with `innerHTML`, to inject an undo control as a
      string. The layer is `ui/toast.tsx` and its verbs are
@@ -447,28 +354,17 @@ import { redraw } from "../lib/shell-doors";
      THE THIRTY-FOUR CALLERS BELOW KEEP SAYING `toast(…)` and `toastUndo(…)`,
      because they are PRODUCERS and a producer moves to its feature at L19.
      These two lines die with them. */
-
-  /* A page restored the way a named state starts: the layers hidden without
+/* A page restored the way a named state starts: the layers hidden without
      touching history, the store written, the port back at the top when the
      patch names a new place, and the page drawn. The ladder's handler restores
      a page through it, and the harness drives its named states through it. */
-  function applyState(patch) {
-    hideLayers();
-    store.write(patch);
-    if (patch.page || patch.libLens || patch.q !== undefined)
-    port.scrollTop = 0;
-    redraw();
-  }
-  installPageRestore(applyState);
-  /* Kept as a VERB the driver can still say: `touch.py`, `drag.py` and
+/* Kept as a VERB the driver can still say: `touch.py`, `drag.py` and
      `machine.py` call `closeSheet()` from inside the page, and moving a layer
      to the shell must not take away the vocabulary that drives it. The layer
      state, the per-layer guard and the unwind all live in
      `panel.fermer` now — this is one line pointing there, not a
      second implementation. */
-
-
-  /* THE ENTRY IS NOT THIS FILE'S ANY MORE — the splash, the sign-in gate and
+/* THE ENTRY IS NOT THIS FILE'S ANY MORE — the splash, the sign-in gate and
      the install proposal are `app/entry.ts`'s (`MODEL.md` § 2 Part 9). It was
      LOGIC over static markup, and it is the logic that had to move: §17
      redraws the gate for Plex SSO and cannot do so while the gate is engine
@@ -482,7 +378,7 @@ import { redraw } from "../lib/shell-doors";
 
      What is left below is the vocabulary the drivers still say, one line each,
      pointing at the seam. They go with the boot handshake at L13. */
-  /* THE DRIVEN FLAG CROSSES AS AN ARGUMENT. `__go` drives a named state
+/* THE DRIVEN FLAG CROSSES AS AN ARGUMENT. `__go` drives a named state
      without touching history (R74 holds it), and `walk.driven` is how the page
      switch knows. It used to be read from INSIDE `showSignIn`, which is a
      private flag read by a function that is no longer here — so it is passed.
@@ -490,10 +386,7 @@ import { redraw } from "../lib/shell-doors";
      and every state measured after it inherited that route: caught by the
      oracle as a divergence in `relay-refused`, eighty states later, which is
      what a leaked address looks like from the outside. */
-
-
-
-  /* THE DRAWER IS NOT DRAWN HERE ANY MORE. It was an empty `<aside>` this
+/* THE DRAWER IS NOT DRAWN HERE ANY MORE. It was an empty `<aside>` this
      engine filled on every open — the brand, the three titled groups from a
      table of its own, the appearance control and the served identity. It is
      `app/drawer.tsx` now, over `ui/drawer.tsx`, reading the ONE navigation
@@ -503,39 +396,30 @@ import { redraw } from "../lib/shell-doors";
      The verbs are verbs, and they are NOT this file's any more: opening the
      drawer and closing it belong to the frame that answers the taps
      (`app/frame-verbs.ts`, `app/layers.ts`). */
-
-  /* THE APPEARANCE IS NOT THIS FILE'S ANY MORE. The three states, the stored
+/* THE APPEARANCE IS NOT THIS FILE'S ANY MORE. The three states, the stored
      choice, the live media listener and the attribute they write are
      `app/appearance.ts`'s — the frame's entry (`MODEL.md` § 2 Part 9), because
      §17 redraws the sign-in gate beside them and cannot do so while the entry
      is engine code. The drawer offers the control and calls that module
      directly; the `data-apparence` branch of the delegation went with it, and
      with it the last French `data-*` name this file wrote. */
-
-
-
-
-  /* The media sheet moved to the shell with the rest of the screens:
+/* The media sheet moved to the shell with the rest of the screens:
      `src/screens/media.tsx` renders it as the route `/mediasheet/$title`. The
      verb a call site says is `screens.mediaSheet(title)`; the template,
      the seasons and the actions live there, at identical markup — the
      click delegation below still reads their data attributes. */
-
-
-
-  /* Journey sheet
+/* Journey sheet
      A journey has no hole. A step not reached is stated « à venir », never
      « pas faite »; a step without a date is stated « inconnue », never
      given an invented date. */
-
-  /* Gestures — pointer events, so one path serves finger, mouse and pen.
+/* Gestures — pointer events, so one path serves finger, mouse and pen.
      Two differences a touch-only implementation never meets:
      · a touch is captured implicitly by the element that received the start; a
        mouse is not, so the END of a drag is listened for on the window — a
        release outside the frame would otherwise never arrive;
      · dragging a picture is a browser default that swallows the pointer stream
        outright, which is why images inside a draggable surface disable it. */
-  /* WHERE A GESTURE LISTENS, and it is not a matter of taste.
+/* WHERE A GESTURE LISTENS, and it is not a matter of taste.
 
      A gesture that belongs to the SCROLLPORT — the pull to refresh — listens
      on the scrollport, because that is the thing it acts on. Every other
@@ -548,8 +432,7 @@ import { redraw } from "../lib/shell-doors";
      The guard is the same in every one of them: `closest(...)` decides whether
      the press concerns this gesture, so listening wider costs nothing and
      stops a surface from silently losing its gesture the day it moves. */
-
-  /* THE THREE CARD GESTURES ARE GONE FROM HERE.
+/* THE THREE CARD GESTURES ARE GONE FROM HERE.
 
      The SWIPE's shape — the axis decision, the two drawers' travel, where a
      released row rests, and the click a drag must not let through — is
@@ -563,8 +446,7 @@ import { redraw } from "../lib/shell-doors";
      element this file listened on, BEFORE the tap registry, because the swipe's
      guard now says `stopImmediatePropagation` and only a listener registered
      first can stop the registry beside it. */
-
-  /* THE PULL IS GONE FROM HERE TOO, both halves of it.
+/* THE PULL IS GONE FROM HERE TOO, both halves of it.
 
      The GESTURE was already `lib/pull-gesture.ts`'s. What stayed was the
      indicator — its height under the finger, its spinner, the message a
@@ -576,13 +458,10 @@ import { redraw } from "../lib/shell-doors";
      classes it added. That one assignment erased every utility the markup
      paints on the indicator, which is why its states had to be read on the
      spinner inside it (ruling 59). */
-
-  /* 4) Sheet: dragging the handle to close moved to the shell with the layer
+/* 4) Sheet: dragging the handle to close moved to the shell with the layer
      itself — `src/components/sheet.tsx` owns the handle, the pointer capture
      and the dismissal threshold. Nothing binds here anymore: `#sheetgrab` does
      not exist when this script runs. */
-
-
 /* ── what the scenario table needs, exported by name ────────────────────────
 
    The harness module (`src/harness/`) holds the named states and their
@@ -591,8 +470,6 @@ import { redraw } from "../lib/shell-doors";
    browser, and a source file that reaches its neighbour through a global says
    nothing about what it actually depends on. The names are listed, so the
    dependency is readable and a deletion breaks the build instead of a run. */
-export { applyState };
-
 /* ── the published surface ───────────────────────────────────────────────────
 
    Two lists, and the split is measured rather than chosen: a binding the
@@ -624,15 +501,5 @@ export { applyState };
    forms that rebind without a bare `=` are compound assignment, `++`/`--`,
    destructuring on either side, and `for (name of …)`; all four were searched
    across all 254 names, and this is the only one. */
-Object.assign(window, {
-  SETTINGS_STATE,
-  icons,
-  settingId,
-  select,
-  // The rules' names for three moved helpers, published from their homes.
-  cadenceFR: cadenceSentence,
-  nextSearchFR: nextSearchTime,
-  stLabel: followStatusLabel,
-});
-
+// The rules' names for three moved helpers, published from their homes.
 // Read live, because the engine reassigns each of these.

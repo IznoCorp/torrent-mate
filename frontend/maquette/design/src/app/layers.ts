@@ -12,7 +12,7 @@
 import i18next from "../i18n";
 import { addressSeam } from "../lib/addresses";
 import { entryPatch, layerRecordOf, type LayerRecord } from "../lib/navigation-entry";
-import { bridge, panel, toast } from "../lib/shell-doors";
+import { bridge, panel, redraw, toast } from "../lib/shell-doors";
 import { store } from "../lib/store-access";
 import { reopenAddressedPanel } from "./addressed-panels";
 import { BACK_WINDOW, recordPath, walk } from "./page-switch";
@@ -65,27 +65,32 @@ export const registeredLayers = {
   names: () => [...layers.keys()],
 };
 
-/* HOW A PAGE IS RESTORED, handed in by the engine, which still draws it: the
-   layers hidden without touching history, the store written, the port back at
-   the top when the patch names a new place, and the page drawn. It forwards a
-   patch it did not compose, so it stays beside the `render` it calls.
-
-   IT DID NOT LEAVE THE ENGINE AT b·7, and the reason is measured rather than
-   chosen: the restore writes a patch composed elsewhere, and
-   `check-state-ownership.py` refuses a store write whose argument it cannot
-   read — « a key it cannot classify is a key that would otherwise leave the
-   count meaning the ones I could read ». The engine is the one module that arm
-   exempts, so the restore leaves when the engine does. */
-let restorePage: (patch: Record<string, unknown>) => void = () => {};
-
 /**
- * Installs how the handler restores the page an entry names.
+ * Restores the page an entry names, without touching history.
+ *
+ * The layers are hidden, the store written with the entry's page and dials, the
+ * port put back at the top when the entry names a new place, and the page drawn.
+ * THE KEYS ARE WRITTEN OUT, one by one: the ownership guard refuses a store write
+ * whose argument it cannot read, and a patch forwarded whole is exactly that.
  *
  * Args:
- *     restore: Writes the patch and draws the page, without touching history.
+ *     patch: The page and the dials the entry carries.
  */
-export function installPageRestore(restore: (patch: Record<string, unknown>) => void): void {
-  restorePage = restore;
+function restorePage(patch: Record<string, unknown>): void {
+  hideLayers();
+  store.write({
+    page: patch.page,
+    acqTab: patch.acqTab,
+    libLens: patch.libLens,
+    libMode: patch.libMode,
+    libCat: patch.libCat,
+    maintTopic: patch.maintTopic,
+  } as Parameters<typeof store.write>[0]);
+  if (patch.page || patch.libLens) {
+    const port = document.querySelector("#port");
+    if (port) port.scrollTop = 0;
+  }
+  redraw();
 }
 
 /* Closing WITHOUT touching history — the harness driver uses it to restart from
