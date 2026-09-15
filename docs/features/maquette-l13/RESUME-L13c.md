@@ -85,3 +85,5 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   a drawn-bar-height hold cannot fall (dropped, said); `ui/variants/controls.ts` sits at the 400-line
   ceiling — run check-frontend-boundaries before committing a comment there. Owed, not this phase's:
   the media cast strip (`features/media/variants.ts`) carries the same defeated idiom.
+- 2026-09-16 c·4-bis (`Agent : l13c 1`, steward's order): the sheet's cast strip; R198 6 holds; red
+  `c04bis-red.log` (thin), green `c04bis-gate.log` on `795649a4c`, mutation `c04bis-mutation.log`.
