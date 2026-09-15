@@ -12,14 +12,15 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   r·1 `12f3e242b`, r·2 `d997e7c59`, r·3 `4168932d6`, r·4 `688dab291`, R114 repair `3ddcd70d5`, r·5 `412b75075`,
   r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7`, r·9 `4fb1b2418` (+ `f6393dcf6`), r·10 `e827267b6`,
   r·11 `e572a0708`, main 60c6d9b1d (L20 #603) merged `9e978aeaa` (+ `2864fb7c3`), r·12 `7238cd33b`, r·13 `9506bf881`
-  (+ `3dcde3533`) — DONE.
-- NEXT: r·14 `plan/phase-r14-the-projection-dies.md` — OPEN IT BY A MEASURE and one STOP D. `engine-shape.ts` has no
-  product caller since r·13. The question the measure answers: `scripts/build-mock-seeds.py` reads the families for
-  `seeded_families`/`projection_for`/`seed_of` (engine fixtures — do any seeded, unconverted families remain?),
-  `file_for` (each converted family's seed FILE name) and `rejoined` (the `join` of converted seeds); `check-mock-seeds.py`
-  imports it (`module.build()`, `rejoined()`, `file_for`, `converted_families`, the lossless arm l.283–308); CI path
-  `ci.yml:103`. Then r·15 the file dies + PR. Sweep method (steward): reads, literals handed to the product, generic
-  families, JS blocks, AND quoted one-letter keys kept in harness lists (`KEPT_PARTIAL` species). Frame-domain lib/ 28, app/ 121.
+  (+ `3dcde3533`), r·14 `2f6a56be3` — DONE.
+- NEXT: r·15 `plan/phase-r15-the-file-dies.md` — OPEN IT BY A MEASURE and one STOP D (its « Measured » is from
+  `1cb0a2dc1` and stale). On `2f6a56be3`: `engine/legacy.js` 638 lines (493 non-blank; its body from l.293, `applyState`
+  l.455, the `Object.assign(window, …)` l.627 — the owed list below), `engine/seams.ts` 191, `app/engine-data.ts` 102,
+  `app/engine-redraw.ts` 45, `lib/engine-drawing.ts` 49; the parser arms `classification` + `correspondence`, the builder
+  `scripts/build-mock-seeds.py`, `scripts/extract-maquette-fixtures.mjs`, `fixture-projections.json` (answers/file/join —
+  `answers` is read by the schema arm, which STAYS: its home is r·15's question), `ci.yml:103–104`, B-497; `ENGINE_SOURCES`,
+  the French debt section, the size-ledger entry, `resync.py`, the harness reads. Sweep: reads, literals, JS blocks,
+  quoted keys in harness lists. Then the full gate + PR. Frame-domain lib/ 28, app/ 121.
 - OWED TO r·15: `legacy.js`'s `Object.assign(window, …)` publishes `SETTINGS_STATE`, `icons`, `settingId`, `select`,
   `cadenceFR`, `nextSearchFR`, `stLabel` — readers `settings.py`, `page_host.py` (SETTINGS_STATE/settingId, re-aimed
   at r·5), `audit.py`, `content.py` (the three vocabulary names) → re-aimed from their homes when the file dies;
@@ -200,3 +201,12 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   `3dcde3533` (priming): oracle no divergence. `r13-hold-counts.json`: 14 at baseline, screen_addresses 51 → 58 =
   L20's seven checks added by the merge (R187's run screen), not r·13. Mutation `r13-mutation-priming.log` (`y` back):
   (f) FAIL by name.
+- 2026-09-15 ruling 110 (+ amended): r·14 measured — `seeded_families()` empty, 48 converted; the families keep `file`
+  and `join` (correspondence) AND `answers` (the schema arm — removed per 110 the guard gave 48 « no `answers` declared »;
+  the opening grep had looked at the builder's readers only).
+- 2026-09-15 r·14 (ruling 110): `engine-shape.ts` and its test deleted; `fixture-projections.json` answers/file/join only,
+  MAINT_TOPICS out; the lossless arm dead (table, order, parser list, docstrings, its test); the builder's projecting
+  functions dead, `build()` refuses a seeded unconverted family; the boundaries guard's engine-shape entries gone, its arms
+  test no longer writes the declaration; `switchover.py`'s comment names `mocks/declared-status.ts`. tsc 0, vitest 53,
+  pytest 103, check-mock-seeds clean. Gate `r14-gate.log` on `2f6a56be3`: 24 rules (1 named, switchover.py, comment only),
+  26 guards, oracle no divergence. No re-aim, no mutation. `build-mock-seeds.py --check` red before and after = B-497.
