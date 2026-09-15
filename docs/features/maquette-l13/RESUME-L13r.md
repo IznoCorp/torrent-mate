@@ -8,20 +8,15 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   `fcaff976f` (#601). main `cdde26731` merged in at `9b81c5f49` (docs only, no conflict).
   Steward: the session named in your launch prompt. Head: `git log -1`; pushed: `git ls-remote`.
 - Phases (ruling 101): r·1 → r·2 → r·3 (BEHAVIOUR) → r·4 (BEHAVIOUR) → [midpoint full suite] → r·5 the reference
-  dies → r·6–r·13 contract names by family group (rulings 105–107) → r·14 the file dies + full gate + PR.
+  dies → r·6–r·13 contract names by family group (rulings 105–108) → r·14 the file dies + full gate + PR.
   r·1 `12f3e242b`, r·2 `d997e7c59`, r·3 `4168932d6`, r·4 `688dab291`, R114 repair `3ddcd70d5`, r·5 `412b75075`,
-  r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7`, r·9 `4fb1b2418` (+ `f6393dcf6`), r·10 `e827267b6`, r·11 `e572a0708` — DONE.
-- NEXT (`Agent : l13r 3`): r·12 `plan/phase-r12-system-families-and-facts.md` — OPEN IT BY A MEASURE and one STOP D.
-  Ruling 107's decision: `Fact`'s keys become full words (label / value / secondaryLine / tone), no hand-written
-  projection survives; only if the measure exceeds 15 with that rename does the conversion live in `lib/` and `ui/`
-  keep its vocabulary, said with the count. Measure: every reader of `Fact` (`lib/engine-drawing.ts` declares it;
-  `features/system/{fault.ts,fault.test.ts,queries.ts}`, `features/maintenance/types.ts`, and `ui/fact-rows.tsx`'s own
-  input type); `features/system/queries.ts`'s `useSystemRead(address, family)` sites — SERVICES (found at r·11's
-  stand-down, in NO ruling's list: say it), SCHEDULERS, DISKS, INDEX, DEPENDENCIES, ERRORS, EXECUTIONS; JOURNAL at
-  `features/maintenance/queries.ts:38`; `fault.test.ts:49`'s `toEngineShape("SCHEDULERS")`; the harness sweep (reads,
-  object literals, generic families). Method per ruling 105 + the steward's lines on `phase-r06/r08/r10`. Then r·13
-  the sheet (`lib/season-rows.ts` + `features/media/queries.ts`, engine-shape.ts dies), r·14 the file dies + PR.
-  Frame-domain after r·11: lib/ 28, app/ 121. MIDPOINT's R114 fall repaired (ledger).
+  r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7`, r·9 `4fb1b2418` (+ `f6393dcf6`), r·10 `e827267b6`,
+  r·11 `e572a0708`, main 60c6d9b1d (L20 #603) merged `9e978aeaa` (+ `2864fb7c3`), r·12 `7238cd33b` — DONE.
+- NEXT: r·13 `plan/phase-r13-the-sheet.md` — OPEN IT BY A MEASURE and one STOP D: `lib/season-rows.ts` and
+  `features/media/queries.ts`'s `toEngineShapeEntry("SHEETS_RAW")` (the last two callers), then per ruling 105/108-amended
+  `engine-shape.ts`, its test, `check-mock-seeds.py --arm lossless` and `fixture-projections.json`'s families (and the
+  `$card`/`$fact` shorthands) die together; `build-mock-seeds.py` reads those entries (`projection_for`) — say what
+  it reads instead. Then r·14 the file dies + PR. Frame-domain after r·12: lib/ 28, app/ 121.
 - legacy.js non-blank: 1 600 at the cut, 1 274 r·1, 888 r·2, 663 r·3, 534 r·4, 493 r·5 (r·6–r·11 did not touch it). `scripts/frontend_size_ledger.py`
   re-recorded DOWNWARD in every phase's commit.
 - OWED TO r·14: `legacy.js`'s `Object.assign(window, …)` publishes `SETTINGS_STATE`, `icons`, `settingId`, `select`,
@@ -178,3 +173,17 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
 - 2026-09-15 stand-down of `Agent : l13r 2` after r·11 (gauge 59 + r·12 ≈ 15 left no margin for r·12's opening STOP; the
   steward's call). SERVICES found projected through `useSystemRead` at the stand-down, in no ruling's list — r·12's
   measure says it.
+- 2026-09-15 ruling 108 (+ amended): r·12 measured ≈ 13 at its opening (32 tsc diagnostics in 7 files on the trial rename;
+  seven `useSystemRead` families + JOURNAL); the merge of main before its code; the projection entries stay to r·13.
+- 2026-09-15 merge of main 60c6d9b1d (L20, #603) at `9e978aeaa`: 5 conflicts; r·7 re-applied to L20's `usePipelineState`,
+  r·10 to `useBoundSetting`, r·5 to `run-screen.tsx`; fr.json and imports by union; `comment-references-baseline.json`
+  re-recorded (no file above either side). Gate `merge-gate.log` FELL by name on `queued_by_hand.py` (R185, L20's, read
+  `follow.t`, r·8's rename) → `2864fb7c3` re-aimed; gate `merge-gate-2.log`: 36 rules (21 named), 26 guards, oracle no
+  divergence. Pushed 46ea8980c.
+- 2026-09-15 r·12 (ruling 108): SERVICES, SCHEDULERS, DISKS, INDEX, DEPENDENCIES, ERRORS, JOURNAL left the projection;
+  `Fact` died in `lib/engine-drawing.ts` (readers: the contract's schema); `FactRow` in full words; 14 literals at
+  line:column (account, arrivals, maintenance, system page, L20's `locks.tsx`); `DeletionJournal` the contract's;
+  `PipelineRun` died (EXECUTIONS reader-less since the merge). `machine.py` one cache read re-aimed (`tone`). Gate
+  `r12-gate.log` on `7238cd33b`: 31 rules (12 named), 26 guards, oracle no divergence. `r12-hold-counts.json`: 11 at
+  their counts, machine.py 92 → 90 = L20's removal of the runs tuple from `DERIVED` (two holds per tuple: the list found,
+  the tone's word), not r·12. Mutation `r12-mutation-machine.log` (the re-aim reverted): five FAIL by name.
