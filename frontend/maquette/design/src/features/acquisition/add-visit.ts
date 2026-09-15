@@ -39,8 +39,13 @@ export function identifying(): boolean {
 }
 
 /**
- * The key a result is remembered by: its provider identity, or, when no sheet
- * identifies it, what the provider answered about it.
+ * The key a result is remembered by: its kind and its provider identity, or,
+ * when no sheet identifies it, what the provider answered about it.
+ *
+ * THE KIND IS PART OF THE IDENTITY. A provider numbers its films and its series
+ * apart, so one number can name a film and a series; and an answer that gives a
+ * film its series' identifiers would otherwise mark the film done the moment the
+ * series is followed.
  *
  * Args:
  *     result: The search result.
@@ -51,10 +56,11 @@ export function identifying(): boolean {
 export function resultIdentity(result: SearchResult): string {
   const ids = result.ids;
   if (ids && Object.keys(ids).length > 0) {
-    return Object.keys(ids)
+    const identifiers = Object.keys(ids)
       .sort()
       .map((provider) => `${provider}:${ids[provider]}`)
       .join("|");
+    return `${result.kind}|${identifiers}`;
   }
   return `${result.title}|${result.kind}|${result.year}`;
 }

@@ -35,6 +35,12 @@ describe("addVerb", () => {
     expect(addVerb(ownedFilm)).toBe("Ajouter…"); // french-ok: the engine's own output, asserted
   });
 
+  it("keeps a film and a series apart when they carry the same identifiers", () => {
+    const seriesOfTheFilm = { ...series, ids: film.ids };
+    markAdded(seriesOfTheFilm);
+    expect(addVerb(film)).toBe("Ajouter"); // french-ok: the engine's own output, asserted
+  });
+
   it("forgets what an earlier visit did", () => {
     markAdded(film);
     beginVisit();
