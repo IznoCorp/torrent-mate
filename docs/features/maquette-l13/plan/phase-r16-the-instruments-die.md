@@ -16,6 +16,8 @@ registers — `markup_verbs.py`, `markup_dressing.py`, `markup_anchors.py`, `che
 `ci.yml`; B-497's fate. Each is read for what it reads of the engine and killed or re-aimed — what loses its subject
 is removed, not new apparatus.
 
+2026-09-15 (ruling 111-precision): this phase's FIRST act is deleting `engine/legacy.js` (unimported and comment-only since r·15), with what reads the file — measured by a probe on eb0a7b848 with the file moved aside: check-frontend-boundaries (typing arm, `allowed = {engine/legacy.js}`), check-no-french (the French debt section), check-mock-seeds (the extractor), check-maquette-unit-tests, check-state-ownership (`ENGINE_SOURCES`) turn red; `harness/said_and_done.py` (`dataset.rescrape` in legacy.js) and `harness/page_host.py` l.952 (the engine's page table, 999/1000 lines) read it.
+
 ## Gate
 
 Per INDEX « Gates »: contracts + oracle + the rules touched, logs postdating the commit; every guard touched exits 0
