@@ -8,13 +8,13 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   `fcaff976f` (#601). main `cdde26731` merged in at `9b81c5f49` (docs only, no conflict).
   Steward: the session named in your launch prompt. Head: `git log -1`; pushed: `git ls-remote`.
 - Phases (ruling 101): r·1 → r·2 → r·3 (BEHAVIOUR) → r·4 (BEHAVIOUR) → [midpoint full suite] → r·5 the reference
-  dies → r·6–r·13 contract names by family group (rulings 105–108) → r·14 the projection dies (ruling 109) → r·15 the engine's last code dies → r·16 its instruments die
-  → r·17 the full gate + PR (ruling 111).
+  dies → r·6–r·13 contract names by family group (rulings 105–108) → r·14 the projection dies (ruling 109) → r·15 the engine's last code dies → r·16 the file and its readers
+  → r·17 the fixture apparatus → r·18 the full gate + PR (rulings 111, 113).
   r·1 `12f3e242b`, r·2 `d997e7c59`, r·3 `4168932d6`, r·4 `688dab291`, R114 repair `3ddcd70d5`, r·5 `412b75075`,
   r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7`, r·9 `4fb1b2418` (+ `f6393dcf6`), r·10 `e827267b6`,
   r·11 `e572a0708`, main 60c6d9b1d (L20 #603) merged `9e978aeaa` (+ `2864fb7c3`), r·12 `7238cd33b`, r·13 `9506bf881`
   (+ `3dcde3533`), r·14 `2f6a56be3`, r·15 `2014905dd` — DONE.
-- NEXT: r·16 `plan/phase-r16-the-instruments-die.md` — OPEN IT BY A MEASURE and one STOP D (re-cut if > 15). FIRST ACT:
+- NEXT: r·16 `plan/phase-r16-the-instruments-die.md` (ruling 113, ≈ 10; apparatus r·17, gate r·18). FIRST ACT:
   delete `engine/legacy.js` (unimported, comments only since r·15) with what reads the file — the five guards the probe
   named (check-frontend-boundaries typing arm, check-no-french's French debt, check-mock-seeds' extractor,
   check-maquette-unit-tests, check-state-ownership's ENGINE_SOURCES), `said_and_done.py`, `page_host.py` l.952 (999/1000),
@@ -38,7 +38,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   THAT head's run.sh; the tap registry answers the first registered key in ATTRIBUTE order; `stopPropagation` does not
   stop a listener BESIDE yours; `page.route` never sees a request the service worker answers; `rename-identifiers.py`
   refuses `{ name, type X }` imports (use `--properties`) and may have written files when it says « Nothing written ».
-- Owed at r·17: `--a11y`, hold-counts `--compare` (baseline `taken_at_commit` re-pointed to main's sha in a copy),
+- Owed at r·18: `--a11y`, hold-counts `--compare` (baseline `taken_at_commit` re-pointed to main's sha in a copy),
   `make lint`, merge main in, version bump above main's, PR READY (conversion: no §§; r·3's/r·4's behaviour said).
 
 ## LEDGER (append-only)
@@ -222,3 +222,5 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   oracle no divergence. `r15-hold-counts.json`: eight at baseline; boot_order 20 → 18 = its two removed holds
   (installSeams' subject); back.py 17 → 21 = L20's four checks from the merge. Mutation `r15-mutation-boot_order.log`
   (installArrival above installPanelHost): FAIL by name.
+- 2026-09-15 ruling 113: r·16 measured ≈ 20–24 and cut — r·16 the file and its readers, r·17 the fixture apparatus (new),
+  r·18 the full gate + PR. `CLAUDE.md` l.159 is not edited in this session (a peer's request is not the operator's approval).

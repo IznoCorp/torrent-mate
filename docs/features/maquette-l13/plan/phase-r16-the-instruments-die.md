@@ -1,4 +1,4 @@
-# r·16 — The engine's instruments die
+# r·16 — The file and its readers die
 
 2026-09-15 (ruling 111): r·15 measured ≥ 30 and was cut — r·15 the engine's last code dies, r·16 the engine's instruments die, r·17 the full gate and the pull request.
 
@@ -17,6 +17,8 @@ registers — `markup_verbs.py`, `markup_dressing.py`, `markup_anchors.py`, `che
 is removed, not new apparatus.
 
 2026-09-15 (ruling 111-precision): this phase's FIRST act is deleting `engine/legacy.js` (unimported and comment-only since r·15), with what reads the file — measured by a probe on eb0a7b848 with the file moved aside: check-frontend-boundaries (typing arm, `allowed = {engine/legacy.js}`), check-no-french (the French debt section), check-mock-seeds (the extractor), check-maquette-unit-tests, check-state-ownership (`ENGINE_SOURCES`) turn red; `harness/said_and_done.py` (`dataset.rescrape` in legacy.js) and `harness/page_host.py` l.952 (the engine's page table, 999/1000 lines) read it.
+
+2026-09-15 (ruling 113): r·16 measured ≈ 20–24 and was cut — r·16 the file and its readers, r·17 the fixture apparatus dies (new), r·18 the full gate and the pull request. r·16 keeps: `engine/legacy.js` deleted, the five probe guards, the size-ledger entry, `markup_verbs.py`'s `ENGINE`, `said_and_done.py`, `page_host.py`, their tests; `docs/reference/frontend-architecture.md` l.269/271 re-cite `design/src/engine/legacy.js@13a66a35b` (narrow authorization, diff shown in this file); `CLAUDE.md` is not edited by the implementer. The extractor, builder, register, classification/correspondence arms, the `answers` home, refresh-maquette-fixture and ci.yml:103–104 are r·17's.
 
 ## Gate
 

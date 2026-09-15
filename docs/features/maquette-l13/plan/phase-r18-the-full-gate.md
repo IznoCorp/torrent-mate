@@ -1,6 +1,8 @@
-# r·17 — The full gate and the pull request
+# r·18 — The full gate and the pull request
 
 2026-09-15 (ruling 111): r·15 measured ≥ 30 and was cut — r·15 the engine's last code dies, r·16 the engine's instruments die, r·17 the full gate and the pull request.
+
+2026-09-15 (ruling 113): r·16 measured ≈ 20–24 and was cut — r·16 the file and its readers, r·17 the fixture apparatus dies (new), r·18 the full gate and the pull request.
 
 **Kind**: GATE. **Cost**: opened by the 80 arithmetic at its boundary.
 
