@@ -14,6 +14,7 @@
 // Descriptor is the legacy `openUserSheet`'s, transplanted rather than
 // translated: same fields, same order, same `data-*` targets, so the delegation
 // keeps working unchanged and the oracle has nothing to report.
+import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { registerProducer, type PanelDescriptor } from "../../ui/panel/contract";
 import { accountQuery, type Account } from "./queries";
@@ -27,7 +28,6 @@ import { accountQuery, type Account } from "./queries";
 // (`lib/engine-drawing.ts`), it is the SAME object either way, and it dies with
 // the engine — at which point `app/icons.ts` is the durable home and this line
 // is the one that changes.
-const icons = () => window.__referentiel.icons;
 
 /**
  * Builds the account menu's descriptor.
@@ -54,7 +54,7 @@ function accountPanel(
   const translate = i18next.t.bind(i18next);
   return {
     title: account.name,
-    subtitle: account.mail,
+    subtitle: account.email,
     avatar: account.avatar,
     blocs: [
       {
@@ -68,12 +68,12 @@ function accountPanel(
             // (§13). Retyping either into a new key would render correctly while
             // the two copies drifted, which is the defect a retyped string IS.
             text: translate("navigation.pages.profile"),
-            icone: icons().user,
+            icone: icons.user,
             target: { go: "profile" },
           },
           {
             text: translate("screens.accountPage.signOut"),
-            icone: icons().logout,
+            icone: icons.logout,
             ton: "danger",
             target: { signout: "1" },
           },

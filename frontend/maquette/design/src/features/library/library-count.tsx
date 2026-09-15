@@ -1,9 +1,9 @@
 // The count line's own sentence, and the sort control's own label.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
 import { sortWays } from "./sorting";
-import { useLibraryReference } from "./reference";
 import { useLibraryCategories, useLibraryListing } from "./queries";
 import { useUiState } from "../../lib/store-access";
 
@@ -32,10 +32,10 @@ export function CountLine(): ReactElement {
   // the list reads, so the two cannot disagree » — while the query answered
   // that very number and the screen printed a constant instead. Change the
   // seed and the screen went on saying 1861.
-  const universe = category && category.of ? category.c : total;
+  const universe = category && category.includes ? category.count : total;
   const suffix =
-    category && category.of
-      ? t("screens.library.countCategory", { category: category.l.toLowerCase() })
+    category && category.includes
+      ? t("screens.library.countCategory", { category: category.label.toLowerCase() })
       : "";
   const query = (state.q as string).trim();
   return (
@@ -68,7 +68,7 @@ export function CountLine(): ReactElement {
 // rather than restated here.
 export function SortLabel(): ReactElement {
   const state = useUiState();
-  const { icons } = useLibraryReference();
+  const { icons } = useEngineDrawing();
   // THE NAMES ARE THE FEATURE'S, one derivation read by the count line
   // and by the sort panel alike (§13).
   const ways = sortWays()[state.sortKey as string];

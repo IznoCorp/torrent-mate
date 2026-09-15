@@ -11,18 +11,19 @@
 //
 // NO ADDRESS, and the reasoning is `panel-suggestion.ts`'s: the panel is keyed
 // on an INDEX into a list the search regenerates.
+import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 
 
-const icons = () => window.__referentiel.icons;
 
 // THE FEATURE'S OWN DECLARATION, not a narrower copy: `addVerb` takes the whole
 // result, so a slice declared here would be a second shape of one record and
 // the compiler would be right to refuse it.
-import type { SearchResult } from "./reference";
+import type { SearchResult } from "./types";
 import { store } from "../../lib/store-access";
 import { searchResults } from "./search-queries";
+import { addVerb } from "./add-label";
 
 /**
  * Builds a search result's descriptor.
@@ -43,8 +44,8 @@ function addPanel(position: string, cache: PanelCache): PanelDescriptor | null {
   const identifying = state.addMode === "identify";
   const done = (state.added as Set<number>).has(Number(position));
   return {
-    title: result.t,
-    meta: translate("panels.add.meta", { year: result.y, kind: result.k }),
+    title: result.title,
+    meta: translate("panels.add.meta", { year: result.year, kind: result.kind }),
     blocs: [
       // DOIT-8's FIRST HALF, and the second is the confirmation the act raises:
       // a film the library already owns is announced as a REPLACEMENT before
@@ -65,19 +66,18 @@ function addPanel(position: string, cache: PanelCache): PanelDescriptor | null {
         type: "actions",
         actions: [
           {
-            // THE VERB IS THE ENGINE'S STILL: the add SCREEN draws the same
-            // word on its own rows, so one derivation answers both (§13) and it
-            // dies with that screen's own drawing.
-            text: window.__referentiel.addVerb(result, Number(position)),
-            icone: icons().plus,
+            // ONE DERIVATION: the add SCREEN draws the same word on its own
+            // rows, so `addVerb` answers both (§13).
+            text: addVerb(result, Number(position)),
+            icone: icons.plus,
             ton: "primary",
             desactive: done,
             target: { add: position },
           },
           {
             text: translate("panels.add.seeSheet"),
-            icone: icons().eye,
-            target: { mediasheet: result.t },
+            icone: icons.eye,
+            target: { mediasheet: result.title },
           },
         ],
       },

@@ -19,6 +19,16 @@ the case NE-DOIT-PAS-6 covers; a confirmation one can only tap THROUGH is a
 delay, not a confirmation. Cancelling must leave the key exactly where it was
 and say nothing about a removal. The sentence itself is dictated, and the hold
 reads its substance rather than its punctuation.
+
+RE-AIMED when the settings and the secrets took the contract's names: a topic's
+settings are read as `settings` (and its title as `title`), a setting's file,
+key and raw value as `file`, `key` and `raw`, a secret's key, label and
+definition as `key`, `label` and `defined`, where they were the engine's short
+keys. The holds and what they compare are unchanged.
+
+THE REMOVAL QUESTION NAMES THE LABEL: the heading reads the key's label from
+the layer, and the raw identifier appears nowhere in it — the product once read
+the secrets cache under the engine's short keys and asked about the variable.
 """
 import asyncio
 import pathlib
@@ -36,7 +46,7 @@ TYPED = "rule-secret-probe"
 # WHAT THE LAYER HOLDS about the secrets, read through the query cache: the
 # same answer the panel was built from, rather than a second opinion about it.
 SECRETS = """()=>(window.__queries?.getQueryData(['/api/config/secrets']) || [])
-  .map((one) => ({k: one.k, def: !!one.def}))"""
+  .map((one) => ({k: one.key, label: one.label, def: !!one.defined}))"""
 
 DIALOG = """()=>{const dialog = document.querySelector('#dlg');
   if (!dialog || !dialog.hasAttribute('data-open')) return null;
@@ -132,6 +142,16 @@ async def main():
                 "household",
                 asked is not None and "foyer" in asked["text"].lower(),
                 (asked or {}).get("text", "")[:160])
+            # THE QUESTION NAMES THE PROVIDER, NOT THE VARIABLE: the heading
+            # carries the key's label as the layer holds it, and the raw
+            # identifier appears nowhere in it.
+            journal.check(
+                "the removal question names the secret's LABEL, never its raw key",
+                asked is not None and bool(posed.get("label"))
+                and posed["label"] in asked["text"]
+                and posed["k"] not in asked["text"],
+                f'{posed.get("label")!r} / {posed["k"]!r} in '
+                f'{(asked or {}).get("text", "")[:160]!r}')
             journal.check("and it offers a way out as well as a way through",
                           asked is not None and len(asked["actions"]) >= 2,
                           str((asked or {}).get("actions")))

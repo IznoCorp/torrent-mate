@@ -41,6 +41,14 @@ the media sheet through a child that covers the whole card — and it belongs to
 the entry that owns it, with its own rule. Mixing the two would leave this rule
 red for a reason that is not this act's, which is the state a rule cannot be
 read in.
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), where they were
+the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
+
+RE-AIMED when the suggestions, the search and the releases took the contract's
+names: a suggestion's title and kind are read as `title` and `kind`, where they
+were the engine's short keys. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -58,9 +66,9 @@ SHEET_STATE = "mediasheet-suggestion-series"
 # THE RESERVE THE DECK IS DRAWN FROM, and the follows the layer holds. Both are
 # read as the surfaces read them, so a hold compares two answers to one question
 # rather than the drawing with itself.
-RESERVE = "()=>(window.__suggestions?.() || []).map((one) => ({t: one.t, k: one.k}))"
+RESERVE = "()=>(window.__suggestions?.() || []).map((one) => ({t: one.title, k: one.kind}))"
 FOLLOWS = """()=>(window.__followActions?.all() || []).map(
-  (one) => ({t: one.t, k: one.k, st: one.st, fresh: !!one.fresh}))"""
+  (one) => ({t: one.title, k: one.kind, st: one.status, fresh: !!one.fresh}))"""
 
 # WHAT THE DECK CONSIDERS SPENT. `sugGone` is a Set of POSITIONS in the reserve,
 # mutated in place, and it is what keeps a card from coming back on the next

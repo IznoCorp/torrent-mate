@@ -10,7 +10,7 @@
 // same tags, same classes, same `data-*`, so the document-level delegation
 // (`.ep[data-ep]`) keeps working unchanged.
 import { useTranslation } from "react-i18next";
-import { useMediaReference, type MediaReference } from "./reference";
+import { today } from "../../lib/clock";
 import { useQueryClient } from "@tanstack/react-query";
 import { heldIdentity, providerAddress } from "../../lib/held-identity";
 import { useServerStateVersion } from "../../lib/query-client";
@@ -19,13 +19,14 @@ import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
 import { queuedMark, seasonGrabSpacing, seasonGrabTaken, episodeCell, episodeSet, legend, legendSwatch, seasonDisclosure, seasonFraction, seasonShortfall, type EpisodeState } from "./variants";
 import { actionButton } from "../../ui/variants";
 import { askForSeason, useAskedInFlight } from "./season-grab";
+import { episodeStateLabel } from "./format";
 import { useQueuedSeasons } from "./queued-seasons";
 
 // The slice of a "follow" record the season blocks read: `ids` for the medium's
-// two served reads — the owned numbers and the episode catalogue — `t` for the
-// cache to be asked when the record carries no `ids`, and `st` as the fallback
+// two served reads — the owned numbers and the episode catalogue — `title` for
+// the cache to be asked when the record carries no `ids`, and `status` as the fallback
 // state when a season has no per-episode ownership data.
-export type Follow = { t: string; st?: string; ids?: Record<string, number | string> | null };
+export type Follow = { title: string; status?: string; ids?: Record<string, number | string> | null };
 
 /** A season of a series: its number, the episodes aired (null when unknown), the episodes owned. */
 export type Season = [number, number | null, number];
@@ -38,10 +39,9 @@ declare module "../../ui/panel/contract" {
   }
 }
 
-// Lifecycle order for the season legend — refonte.html@60530dbd8 kept `EP_ORDER`
-// private (only `EP_LABEL` is published on the référentiel). It is small,
-// static and keyed on the same six states `EP_LABEL` carries, so it is
-// reproduced here verbatim; each state's swatch is `legendSwatch`'s variant.
+// Lifecycle order for the season legend, as the operator reads it — keyed on
+// the same six states `episodeStateLabel` says; each state's swatch is
+// `legendSwatch`'s variant.
 const EP_ORDER = [
   "unverified",
   "announced",
@@ -51,7 +51,7 @@ const EP_ORDER = [
   "in_library",
 ] as const;
 
-type EpisodeCatalog = { n: number; air?: string | null }[];
+type EpisodeCatalog = { number: number; airDate?: string | null }[];
 
 /** What the medium's two served reads answered, as the season blocks read them. */
 type Served = {
@@ -73,14 +73,14 @@ function epState(
   if (held)
     return held.has(number)
       ? "in_library"
-      : follow.st === "pending"
+      : follow.status === "pending"
         ? "pending"
-        : follow.st === "acquiring"
+        : follow.status === "acquiring"
           ? "acquiring"
           : "to_grab";
   if (number <= owned) return "in_library";
-  if (follow.st === "pending") return "pending";
-  if (follow.st === "acquiring") return "acquiring";
+  if (follow.status === "pending") return "pending";
+  if (follow.status === "acquiring") return "acquiring";
   return "to_grab";
 }
 
@@ -91,13 +91,11 @@ function catalogFor(served: Served, number: number): EpisodeCatalog | null {
 function SeasonDetails({
   follow,
   season,
-  reference,
   served,
   owns,
 }: {
   follow: Follow;
   season: Season;
-  reference: MediaReference;
   served: Served;
   /** Whether the library holds the medium. */
   owns: boolean;
@@ -106,7 +104,7 @@ function SeasonDetails({
   const client = useQueryClient();
   // WHICH SEASONS ARE WAITING on the pipeline, read from the cache so the row
   // redraws the moment one is answered « queued ».
-  const waiting = useQueuedSeasons(follow.t);
+  const waiting = useQueuedSeasons(follow.title);
   const askedInFlight = useAskedInFlight();
   const [num, rawAired, owned] = season;
   const aired = rawAired ?? 0;
@@ -119,8 +117,8 @@ function SeasonDetails({
   const total = Math.max(aired, catalog ? catalog.length : 0);
   const cells = Array.from({ length: total }, (_, index) => {
     const number = index + 1;
-    const info = catalog?.find((entry) => entry.n === number) ?? null;
-    const upcoming = Boolean(info?.air && info.air > reference.TODAY);
+    const info = catalog?.find((entry) => entry.number === number) ?? null;
+    const upcoming = Boolean(info?.airDate && info.airDate > today());
     const state = upcoming
       ? "announced"
       : epState(served, follow, num, number, owned);
@@ -131,8 +129,8 @@ function SeasonDetails({
         data-part="episode"
         data-announced={state === "announced" || undefined}
         data-in-library={state === "in_library" || undefined}
-        data-ep={`${follow.t}|${num}|${number}|${state}`}
-        aria-label={`S${String(num).padStart(2, "0")}E${String(number).padStart(2, "0")} — ${reference.EP_LABEL[state]}`}
+        data-ep={`${follow.title}|${num}|${number}|${state}`}
+        aria-label={`S${String(num).padStart(2, "0")}E${String(number).padStart(2, "0")} — ${episodeStateLabel(state)}`}
       >
         {String(number).padStart(2, "0")}
       </button>
@@ -202,17 +200,17 @@ function SeasonDetails({
           `data-grab-season` is what the RULE anchors on (D4) and what says WHICH
           season the finger was on — a rule counting calls alone would take a
           call to the wrong one. The act itself is a React handler and NOT a
-          delegation target: the engine dies by subtraction (D5), and a verb
-          that needed a line in `legacy.js` would be a verb that has not moved. */}
+          delegation target: the engine died by subtraction (D5), and a verb
+          that needed a line in it was a verb that had not moved. */}
       {complete ? null : (
         <button
           type="button"
           className={`${actionButton({ kind: "panelAction" })} ${seasonGrabSpacing()} ${seasonGrabTaken()}`}
           data-part="season/grab"
-          data-grab-season={`${follow.t}|${num}`}
-          aria-busy={askedInFlight.has(`${follow.t}|${num}`) || undefined}
+          data-grab-season={`${follow.title}|${num}`}
+          aria-busy={askedInFlight.has(`${follow.title}|${num}`) || undefined}
           onClick={() => {
-            void askForSeason(client, follow.t, num);
+            void askForSeason(client, follow.title, num);
           }}
         >
           {t("panels.follow.grabSeason", { season: num })}
@@ -230,25 +228,24 @@ function SeasonsBlock({
 }: {
   block: { type: "saisons" } & PanelBlockMap["saisons"];
 }) {
-  const reference = useMediaReference();
   const { follow, seasons } = block;
   // THE MEDIUM'S IDENTITY, from the record or from the cache — re-asked when any
   // read lands, because the list that holds a medium nobody follows can land
   // after the panel opened.
   useServerStateVersion();
-  const address = providerAddress(follow.ids ?? heldIdentity(follow.t)?.ids);
+  const address = providerAddress(follow.ids ?? heldIdentity(follow.title)?.ids);
   const seasonsRead = useMediaSeasons(address?.provider ?? "", address?.id ?? "");
   const sheetRead = useMediaSheet(address?.provider ?? "", address?.id ?? "");
   // WHETHER WE HOLD IT, read where the sheet reads it — the sheet's own
-  // `possede` — so the panel and the sheet state one fact about one season.
-  const owns = (sheetRead.data as { possede?: boolean } | null | undefined)?.possede === true;
+  // `owned` — so the panel and the sheet state one fact about one season.
+  const owns = (sheetRead.data as { owned?: boolean } | null | undefined)?.owned === true;
   const served: Served = {
     owned: seasonsRead.data?.owned,
-    episodes: (sheetRead.data as { eps?: Record<string, EpisodeCatalog> } | null | undefined)?.eps,
+    episodes: (sheetRead.data as { episodes?: Record<string, EpisodeCatalog> } | null | undefined)?.episodes,
   };
   const hasUpcoming = seasons.some((season) =>
     (catalogFor(served, season[0]) ?? []).some(
-      (episode) => episode.air && episode.air > reference.TODAY,
+      (episode) => episode.airDate && episode.airDate > today(),
     ),
   );
   const statesPresent = new Set<string>([
@@ -266,7 +263,7 @@ function SeasonsBlock({
         {EP_ORDER.filter((state) => statesPresent.has(state)).map((state) => (
           <span key={state}>
             <i className={legendSwatch({ state })} />
-            {reference.EP_LABEL[state]}
+            {episodeStateLabel(state)}
           </span>
         ))}
       </div>
@@ -275,7 +272,6 @@ function SeasonsBlock({
           key={season[0]}
           follow={follow}
           season={season}
-          reference={reference}
           served={served}
           owns={owns}
         />

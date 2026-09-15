@@ -157,7 +157,7 @@ and binds the label to the next free number then.
 | b·10 | [The panel's return](phase-b10-panel-return.md) | Back reopens the panel; `panel-down`'s reverse | — | R-L13-c | B-275 |
 | b·11 | [The library's membership read](phase-b11-membership-read.md) (added 2026-09-13 by a·10, ruling 41; rulings 53, 61) | an exact membership read by title (and year) in the contract; `mediaNamedBy`, `knownMedium`, `follow-facts.ts`'s `inLibrary` and `openDeleteDialog` read it; **and, by ruling 53 (2026-09-13), the follow panel's season block reads `readMediaSeasons` by the follow's identity (Silo's fourth season named), with the seasons half of the `window.__mocks` seed accessor**; the harness re-aims at the `window.__mocks` seeds, the nine `window.SEASONS` readers among them (`busy.py`, `followed_sheet_act.py`, `message_over_layers.py`, `queued_ask_mark.py`, `season_family.py`, `season_grab_unfollowed.py`, `season_grab.py`, `seeds_at_rest.py`, `priming.py` — re-taken by grep) | `LIBRARY`, `INCOMPLETE`, `SEASONS`, `knownMedium`, their window exports | first for the membership read, and first for the season block | — |
 | b·12 | [The pipeline's status is the layer's](phase-b12-pipeline-status.md) (added 2026-09-13 by ruling 74) | the `pipe` store key → `usePipeline()` / `/api/pipeline/status`; the `data-pipe` verb asks runPipeline / killPipeline; page.tsx:102/122 and app/arrival.ts:29 re-aimed; arr-idle / arr-running / arr-queued re-aimed | legacy.js's `data-pipe` branch, the `pipe` store key | arrivals.py, page_host.py green before and after; red with the layer call removed | — |
-| b·13 | [`legacy.js` dies](phase-b13-legacy-js-dies.md) — **VOID for L13b (ruling 99, 2026-09-15): its subject is L13r's r·1–r·6** | — | `legacy.js`, `seams.ts`, and (ruling 57, from a·16) `engine-shape.ts` and its test, `engine-data.ts`, `engine-redraw.ts`, `lib/engine-drawing.ts`, `__referentiel` with `reference.d.ts` and the slices, the two exemptions and the reference-slice arm — the interface constants they publish need homes first (phase-a16 § Amendment), the parser arms, the debt section, the ledger entry, `resync.py` — and the ~547 lines of `LIBRARY`, `INCOMPLETE` and `knownMedium`, gone at b·11 first | the four harness reads of the file | — |
+| b·13 | [`legacy.js` dies](phase-b13-legacy-js-dies.md) — **VOID for L13b (ruling 99, 2026-09-15): its subject is L13r's r·1–r·7 (ruling 101)** | — | `legacy.js`, `seams.ts`, and (ruling 57, from a·16) `engine-shape.ts` and its test, `engine-data.ts`, `engine-redraw.ts`, `lib/engine-drawing.ts`, `__referentiel` with `reference.d.ts` and the slices, the two exemptions and the reference-slice arm — the interface constants they publish need homes first (phase-a16 § Amendment), the parser arms, the debt section, the ledger entry, `resync.py` — and the ~547 lines of `LIBRARY`, `INCOMPLETE` and `knownMedium`, gone at b·11 first | the four harness reads of the file | — |
 
 ## L13c — What the engine was blocking (BEHAVIOUR)
 
@@ -245,8 +245,20 @@ Measured on `1cb0a2dc1` after b·13 was measured and not opened (ruling 98). Q5 
 | --- | --- | --- | --- | --- |
 | r·1 | [constants and helpers](phase-r01-constants-and-helpers.md) | conversion | 20 interface constants, 10 helpers | 4 dead names |
 | r·2 | [served fixtures](phase-r02-served-fixtures.md) | conversion | 11 served families + POSTERS_HD + TODAY to their seeds | 13 literals |
-| r·3 | [engine verbs and drawing](phase-r03-engine-verbs-and-drawing.md) | behaviour | settings machine, render/currentState/applyState, search mount, toast/openSheet/closeSheet/showSignIn | — |
-| r·4 | [the reference dies](phase-r04-reference-dies.md) | conversion | — | `__referentiel`, 9 slices, reference.d.ts |
-| r·5 | [contract names](phase-r05-contract-names.md) | conversion, may be lot-sized | 24 families, 41 call sites | engine-shape.ts |
-| r·6 | [the file dies](phase-r06-the-file-dies.md) | deletion + full gate | — | legacy.js, seams.ts, engine-data, engine-redraw, engine-drawing, their instruments |
+| r·3 | [the engine's product verbs](phase-r03-engine-product-verbs.md) — ruling 101 | behaviour | settings machine, addVerb, actionDelete, the press | mountSearch, openSheet, 7 reader-less names |
+| r·4 | [the engine's frame verbs](phase-r04-engine-frame-verbs.md) — ruling 101; the MIDPOINT full suite follows | behaviour | render/currentState/applyState, toast/closeSheet/showSignIn, `__navEchec` | — |
+| r·5 | [the reference dies](phase-r05-reference-dies.md) | conversion | — | `__referentiel`, 9 slices, reference.d.ts |
+| r·6 | [the queue cards](phase-r06-queue-cards.md) — ruling 105 | conversion | 8 `$card` families | their projection |
+| r·7 | [arrivals decisions and pipeline](phase-r07-arrivals-decisions-and-pipeline.md) — ruling 105 | conversion | PENDING_DECISIONS, DECISIONS_REGLEES, PIPELINE | their projections |
+| r·8 | [follows and incompletes](phase-r08-follows-and-incompletes.md) — ruling 105 | conversion | FOLLOWS, INCOMPLETE | their projections |
+| r·9 | [suggestions, search, releases](phase-r09-suggestions-search-releases.md) — ruling 105 | conversion | SUGGESTIONS, SEARCH, RELEASES | their projections |
+| r·10 | [settings and secrets](phase-r10-settings-and-secrets.md) — ruling 107 | conversion | SETTINGS, SECRETS | their projections |
+| r·11 | [library, maintenance actions, account](phase-r11-library-maintenance-account.md) — ruling 107 | conversion | LIBRARY, CATS, MAINT_ACTIONS, ACCOUNT | their projections |
+| r·12 | [the system families and the facts](phase-r12-system-families-and-facts.md) — rulings 106, 107 | conversion | DISKS, INDEX, DEPENDENCIES, ERRORS, EXECUTIONS, SCHEDULERS, JOURNAL; `Fact`'s keys | their projections |
+| r·13 | [the sheet](phase-r13-the-sheet.md) — rulings 105, 109 | conversion | SHEETS_RAW | its projection |
+| r·14 | [the projection dies](phase-r14-the-projection-dies.md) — ruling 109 | deletion | — | engine-shape.ts, its test, the lossless arm, the projection families |
+| r·15 | [the engine's last code dies](phase-r15-the-file-dies.md) — ruling 111 | deletion | applyState, the window publications | legacy.js, seams.ts, engine-data, engine-redraw |
+| r·16 | [the file and its readers](phase-r16-the-instruments-die.md) — rulings 111, 113 | deletion | — | legacy.js, its readers in five guards, two rules and the size ledger |
+| r·17 | [the fixture apparatus dies](phase-r17-the-fixture-apparatus-dies.md) — ruling 113 | deletion | the schema arm's `answers` | the extractor, builder, register, classification and correspondence arms, their tests |
+| r·18 | [the full gate](phase-r18-the-full-gate.md) — rulings 111, 113 | full gate + PR | — | — |
 

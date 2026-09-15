@@ -60,6 +60,10 @@ pill's own box rather than on an absence nobody can read.
 THE SEND IS NOT THIS RULE'S. What follows the tap — the window, the undo, the
 send — is `resolution_window.py`'s (R162). This rule stops at the folder leaving
 the queue, which the pick does at once.
+
+RE-AIMED when the queue's cards took the contract's names: a card's title is
+read as `title` (it was the engine's `t`). The holds and what they compare are
+unchanged.
 """
 import asyncio
 import json
@@ -203,7 +207,7 @@ PILLS = """() => {
 }"""
 
 # WHAT « À TRAITER » HOLDS, read where the surfaces read it.
-BLOCKED = "()=>(window.__queue?.().blocked || []).map((card) => card.t)"
+BLOCKED = "()=>(window.__queue?.().blocked || []).map((card) => card.title)"
 
 
 async def announced_names(context, page, selector):

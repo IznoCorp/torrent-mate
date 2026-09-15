@@ -14,7 +14,7 @@
 import { giveTheEntryBackFirst } from "../../lib/stacked-surface";
 import { registerVerb } from "../../lib/verbs";
 import { store } from "../../lib/store-access";
-import { bridge } from "../../lib/shell-doors";
+import { bridge, redraw } from "../../lib/shell-doors";
 import { addressSeam } from "../../lib/addresses";
 import { navigationState } from "../../lib/navigation-entry";
 
@@ -25,10 +25,9 @@ import { navigationState } from "../../lib/navigation-entry";
  *     rubric: The rubric's id, as the row spells it.
  */
 function openTopic(rubric: string): void {
-  const reference = window.__referentiel;
   if (!rubric) return;
   store.write({ maintTopic: rubric });
-  reference.render();
+  redraw();
   try {
     bridge.record(
       navigationState(),

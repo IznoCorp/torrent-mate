@@ -16,29 +16,16 @@
 // THE DECLARATION RUNS AT MODULE EVALUATION, named once in
 // `app/panel-contributions.ts`, like every other registration the boot names.
 //
-// THE PAGE IS REDRAWN THROUGH `window.__referentiel.render()`, the way every
-// verb that still shares its page with the engine's drawing does
-// (`features/acquisition/verbs.ts` is the precedent). It is not `store.touch()`
-// here even though that is most of what it does: `render()` also settles a page
-// id the navigation table does not carry, and a page write is the one place
-// where that branch has a subject. It becomes a touch when the engine goes.
+// THE PAGE IS REDRAWN THROUGH THE `redraw` DOOR (`app/redraw.ts`). It is not
+// `store.touch()` here even though that is most of what it does: the redraw
+// also settles a page id the navigation table does not carry, and a page write
+// is the one place where that branch has a subject.
 import { sharedQueryClient } from "../lib/query-client";
 import { registerVerb } from "../lib/verbs";
 import { store } from "../lib/store-access";
-import {
-  bridge,
-  fillAddressedPanelDoor,
-  resetLandingDial,
-  panel,
-  toast,
-} from "../lib/shell-doors";
+import { bridge, fillAddressedPanelDoor, resetLandingDial, panel, toast, redraw } from "../lib/shell-doors";
 import { hideLayers, registeredLayers } from "./layers";
 import { switchPage, switchPageFromLayer } from "./page-switch";
-
-/** Redraws the page the engine still draws beside the components. */
-function redraw(): void {
-  window.__referentiel.render();
-}
 
 /** The page showing right now — what a switch is told it is leaving. */
 function currentPage(): string {

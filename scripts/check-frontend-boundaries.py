@@ -188,29 +188,21 @@ def find_cycles(edges: dict[str, list[str]]) -> list[tuple[str, ...]]:
     return sorted(cycles)
 
 
-# WHAT MAY IMPORT FROM OUTSIDE `design/src`, and it is one file.
+# WHAT MAY IMPORT FROM OUTSIDE `design/src`, and it is a short list.
 #
-# `engine/engine-shape.ts` reads `frontend/maquette/fixture-projections.json` —
-# the projection L08 DECLARED, which the seed builder and the correspondence
-# guard read too. It inverts that declaration to hand contract-shaped data to
-# the engine's own markup producers, and it dies with them at L13. Importing the
-# declaration rather than copying it is the point: a copy is a second definition
-# of one thing, and the drift between them would be invisible, each staying
-# internally consistent while describing different data.
+# Each entry reads a declaration that lives beside the design tree rather than
+# copying it: a copy is a second definition of one thing, and the drift between
+# them would be invisible, each staying internally consistent while describing
+# different data.
 #
 # NAMED HERE SO THE NEXT ONE IS A DECISION. The maquette BECOMES the app, so a
 # module reaching outside the tree makes it non-self-contained.
 OUTSIDE_IMPORTS_ALLOWED = {
-    "engine/engine-shape.ts": {"frontend/maquette/fixture-projections.json"},
-    # Its test reads the same declaration, and for the same reason: asking
-    # the declaration what names must not survive is what keeps the
-    # assertion from being a list in the test file that rots.
-    "engine/engine-shape.test.ts": {"frontend/maquette/fixture-projections.json"},
     # The conformance test reads the CONTRACT itself, because that is its
     # subject: it holds what a handler answers against what the contract
     # requires, and the generated types cannot answer for it — a TypeScript type
     # carries no `required` list at runtime. Importing the contract rather than
-    # restating its required fields is the same decision as the two above: a
+    # restating its required fields is the decision above: a
     # copy is a second definition, and the drift between them is invisible.
     #
     # THIS ENTRY IS ALSO B-122's PROOF. That defect made the arm compare an
@@ -277,7 +269,7 @@ def arm_cycles(root: Path) -> int:
 BUCKETS = {
     "app": "boot, providers, the router tree, the page host",
     "routes": "one address, one file — thin: it loads and composes",
-    "features": "one folder per subject: its page, its screens, its slice",
+    "features": "one folder per subject: its page, its screens, its types",
     "ui": "primitives with no domain knowledge",
     "lib": "domain-free helpers that render nothing",
     "styles": "tokens and base (L06/L07)",
@@ -378,41 +370,14 @@ def arm_layering(root: Path) -> int:
     return len(violations)
 
 
-# THE ONE MODULE EVERY WIRED SURFACE IMPORTS, and it is exempt because that is
-# its subject rather than a symptom. `engine/engine-shape.ts` inverts the
-# projection L08 declared, so that data from the mock layer can be handed to the
-# markup producers still living in `legacy.js`. Every surface L09 wires needs it,
-# by construction — and it DIES WITH THOSE PRODUCERS at L13, taking this
-# exemption with it.
-#
-# It is not in `ui/` or `lib/`, which the arm already skips, because lifetime is
-# what decides where it lives: `engine/` is the bucket L13 empties, and a
-# conversion INTO the engine's shape has no meaning after the engine.
-#
-# AND HERE IS THE ARGUMENT AGAINST IT, because an exemption that only records its
-# own defence is half a record. This arm is the one guard that acts BEFORE the
-# defect exists — the plan calls it « the one that would have stopped `data.ts`
-# at four importers instead of seventeen » — and this module sits at 13 against a
-# ceiling of 4. « It dies at L13 » is available to anything, and L13 has three
-# unstarted lots in front of it; it is the argument `data.ts` could have made.
-#
-# What makes it different, and it is the whole of the difference: `data.ts` was a
-# hub of DATA, so every importer was coupled to every other through the values it
-# held. This is one exported pure function over a declaration — no state, no
-# ordering, nothing an importer can observe about another importer. A god module
-# couples; a shared pure conversion does not.
-#
-# That is a judgement, not a measurement, so it is the OPERATOR'S to confirm and
-# it is written here to be found rather than argued once in a commit message. If
-# the answer is no, the split is per family and it is mechanical.
-# AND THE ACQUISITION FEATURE'S QUERIES, over by BUCKETS rather than by features:
+# THE ACQUISITION FEATURE'S QUERIES, over by BUCKETS rather than by features:
 # one feature imports it, and the app's installers, the dying engine's seams, the
 # harness's publications and the media route make five. It is not a hub — one
 # feature's cache verbs, read by the three parties that still need a follow or a
 # suggestion from outside the feature. The ENGINE'S edge dies in L13b, when the
 # verbs leave the engine and `engine/seams.ts` stops importing it; the entry goes
 # with that edge, and the phase that removes it deletes this entry.
-FAN_IN_EXEMPT = frozenset({"engine/engine-shape.ts", "features/acquisition/queries.ts"})
+FAN_IN_EXEMPT = frozenset({"features/acquisition/queries.ts"})
 
 
 def arm_fan_in(root: Path) -> int:
@@ -617,9 +582,8 @@ TYPING_ESCAPES = (
 def arm_typing(root: Path) -> int:
     """Refuse `any` and the type-checker suppressions, from a floor of zero.
 
-    The engine is exempt and it is the only exemption: `legacy.js` is
-    JavaScript that `tsc` does not check at all, so the question does not
-    arise there. It dies with L13.
+    Nothing is exempt: the engine, the one bucket `tsc` never checked, is
+    deleted.
 
     Args:
         root: The directory to read.
@@ -630,8 +594,6 @@ def arm_typing(root: Path) -> int:
     found = []
     for file in source_files(root):
         module = file.relative_to(root).as_posix()
-        if bucket_of(module) == "engine":
-            continue
         for number, line in enumerate(file.read_text(encoding="utf-8").splitlines(), 1):
             for pattern in TYPING_ESCAPES:
                 if pattern.search(line):
@@ -910,9 +872,8 @@ def arm_mocks(root: Path) -> int:
             # this arm refuses. The defect is a COMPONENT reading one: it would
             # render identically while never going through the network seam, so
             # nothing would measure the wiring. A test reading the committed
-            # seed is the oracle OUTSIDE the tool — the artefact is held byte
-            # for byte against `legacy.js` by `check-mock-seeds.py`, and
-            # asserting against anything else would be asserting against the
+            # seed is the oracle OUTSIDE the tool — the artefact is held against
+            # its contract schema by `check-mock-seeds.py`, and asserting against anything else would be asserting against the
             # code under test. A test renders nothing and ships nowhere.
             if is_test(source):
                 continue
@@ -942,74 +903,7 @@ def arm_mocks(root: Path) -> int:
     return len(violations)
 
 
-def arm_reference_slice(root: Path) -> int:
-    """Refuse a slice that declares a member the engine no longer publishes.
-
-    WHY IT EXISTS. Each feature declares the slice of `window.__referentiel` it
-    reads, and the global's own type is their intersection — so a member left in
-    a slice after L09 deleted the fixture behind it is a TYPE THAT LIES. Nothing
-    else catches it: the declaration compiles, the reader is gone, and the next
-    person to add a reader gets `undefined` at run time with the compiler's
-    blessing. Four were left after the conversions — `SEARCH`, `derivedFollows`,
-    `SYNOPSIS`, `RELEASES`.
-
-    WHAT IT DOES NOT READ, said before what it does: only members whose name is
-    written in the engine's own vocabulary — a slice also declares TYPES, and a
-    type's field names are not published on anything. It compares the member
-    names of the `Reference` types alone, which is the level `__referentiel` is
-    an object of.
-
-    Args:
-        root: The directory to read.
-
-    Returns:
-        The number of members nothing publishes.
-    """
-    engine = root / "engine" / "legacy.js"
-    if not engine.is_file():
-        print("  reference-slice: the engine is gone — this arm has no subject", file=sys.stderr)
-        return 1
-    text = engine.read_text(encoding="utf-8")
-    start = text.index("window.__referentiel = {")
-    depth, cursor = 0, start
-    while cursor < len(text):
-        if text[cursor] == "{":
-            depth += 1
-        elif text[cursor] == "}":
-            depth -= 1
-            if depth == 0:
-                break
-        cursor += 1
-    block = text[start:cursor]
-    published = set(re.findall(r"^\s*([A-Za-z_$][\w$]*)[,:]", block, re.MULTILINE))
-    published |= set(re.findall(r"get ([A-Za-z_$][\w$]*)\(\)", block))
-
-    stale: list[str] = []
-    read = 0
-    for path in sorted((root / "features").glob("*/reference.ts")):
-        source = path.read_text(encoding="utf-8")
-        for declaration in re.finditer(
-            r"export type \w*Reference = [^{]*\{(.*?)^\};", source, re.S | re.MULTILINE
-        ):
-            for member in re.findall(r"^  ([A-Za-z_$][\w$]*)\??:", declaration.group(1),
-                                     re.MULTILINE):
-                read += 1
-                if member not in published:
-                    stale.append(
-                        f"{path.relative_to(root).as_posix()}: `{member}` is declared and the "
-                        f"engine publishes nothing by that name — a type that lies")
-    print(f"  reference-slice: {read} declared member(s) read against "
-          f"{len(published)} published, {len(stale)} stale")
-    # A CORPUS OF NOTHING would print « 0 stale » and mean « I read nothing ».
-    if read == 0:
-        stale.append("no slice member was read at all — the arm found no `…Reference` type")
-    for entry in stale:
-        print("    " + entry, file=sys.stderr)
-    return len(stale)
-
-
 ARMS = {
-    "reference-slice": arm_reference_slice,
     "cycles": arm_cycles,
     "mocks": arm_mocks,
     "layering": arm_layering,

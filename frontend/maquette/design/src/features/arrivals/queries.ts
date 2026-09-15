@@ -5,23 +5,18 @@
 // scrape could not make alone. Each goes through the query cache — invariant 4 —
 // and none of them is issued from a `useEffect` — invariant 5.
 //
-// THE ANSWER IS CONVERTED BACK INTO THE ENGINE'S NAMES, and that is a
-// transitional step with a date rather than a design. This surface's MARKUP is
-// still drawn by a producer in `legacy.js` (`cardHTML`), which reads `t`, `s`,
-// `r`, `d`, `c`; the contract answers in
-// full English words. `lib/engine-shape.ts` inverts the projection L08
-// DECLARED, so the two ends cannot drift — and the whole conversion dies with
-// those producers at L13.
+// THE ANSWER IS READ IN THE CONTRACT'S OWN NAMES. The three reads are typed
+// with the contract's schemas and handed to the surfaces as they arrive; no
+// projection stands between the server's words and the page's.
 //
 // THE KEYS ARE THE ADDRESS, deliberately. A cache key that repeated the
 // surface's name would make two surfaces reading one resource miss each other's
 // invalidations; the address is what the resource IS.
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
-import { toEngineShape } from "../../engine/engine-shape";
 import type { QueueCard } from "../../lib/engine-queue";
 import { queueNow } from "../../lib/queue";
-import type { PendingDecision, Pipeline, SettledDecision } from "./reference";
+import type { PendingDecision, Pipeline, SettledDecision } from "./types";
 
 /** What the staging read answers with, once it wears the engine's names. */
 export type Staging = {
@@ -45,7 +40,7 @@ export function usePipeline() {
   return useQuery({
     queryKey: ["/api/pipeline/status"],
     queryFn: async () =>
-      toEngineShape<Pipeline>("PIPELINE", await read("/api/pipeline/status")),
+      read<Pipeline>("/api/pipeline/status"),
   });
 }
 
@@ -65,15 +60,15 @@ export function useStaging(scenario: string) {
     queryKey: ["/api/staging/media", scenario],
     queryFn: async () => {
       const query = new URLSearchParams(scenario ? { scenario } : {});
-      const answer = await read<Record<string, unknown[]>>("/api/staging/media", query);
+      const answer = await read<Record<string, QueueCard[]>>("/api/staging/media", query);
       // EACH LIST CONVERTS UNDER ITS OWN FAMILY, because that is what the
       // declaration says: the three share the `$card` shorthand, and naming
       // them separately is what keeps the day one of them stops sharing it from
       // being silent.
       return {
-        stuck: toEngineShape<QueueCard[]>("STUCK_REAL", answer.stuck),
-        moving: toEngineShape<QueueCard[]>("MOVING", answer.moving),
-        settled: toEngineShape<QueueCard[]>("SETTLED_REAL", answer.settled),
+        stuck: answer.stuck,
+        moving: answer.moving,
+        settled: answer.settled,
       } satisfies Staging;
     },
   });
@@ -88,21 +83,21 @@ export function useDecisions() {
   return useQuery({
     queryKey: ["/api/decisions/"],
     queryFn: async () => {
-      const answer = await read<{ pending: unknown; settled: unknown }>("/api/decisions/");
+      const answer = await read<{ pending: PendingDecision[]; settled: SettledDecision[] }>("/api/decisions/");
       return {
-        pending: toEngineShape<PendingDecision[]>("PENDING_DECISIONS", answer.pending),
-        settled: toEngineShape<SettledDecision[]>("DECISIONS_REGLEES", answer.settled),
+        pending: answer.pending,
+        settled: answer.settled,
       } satisfies Decisions;
     },
   });
 }
 
 /**
- * Publishes the pending decisions for the dying engine to read synchronously.
+ * Publishes the pending decisions for a synchronous reader.
  *
- * WHY A SEAM AND NOT AN IMPORT. `legacy.js` answers « does this folder have a
- * pending decision » from inside a click handler, which cannot await — and it
- * is the same question the resolution screen asks. §13 of the constitution:
+ * WHY A SEAM AND NOT AN IMPORT. The engine (`engine/legacy.js@13a66a35b`) answered « does this folder
+ * have a pending decision » from inside a click handler, which cannot await — and
+ * it was the same question the resolution screen asks. §13 of the constitution:
  * two surfaces answering one question read the SAME code, or they will
  * diverge and the operator will see two truths.
  *

@@ -1,10 +1,10 @@
 // What Compte asks the server for.
 import { useQuery } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
-import { toEngineShape } from "../../engine/engine-shape";
+import type { Schemas } from "../../lib/contract-schemas";
 
 /** Who is signed in, as this feature draws it. `avatar` is served with the rest. */
-export type Account = { name: string; mail: string; avatar?: string };
+export type Account = Schemas["Account"];
 
 /**
  * The signed-in account, as a query DEFINITION.
@@ -19,7 +19,7 @@ export type Account = { name: string; mail: string; avatar?: string };
 export const accountQuery = {
   queryKey: ["/api/auth/me"],
   queryFn: async () =>
-    toEngineShape<Account>("ACCOUNT", await read("/api/auth/me")),
+    read<Account>("/api/auth/me"),
 };
 
 /** Who is signed in. */

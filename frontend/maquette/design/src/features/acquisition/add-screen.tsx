@@ -32,6 +32,7 @@
 // same discipline `go()`'s own doc comment states) so keystrokes never stack
 // history — R76's own rule, exercised here for the first time by a CONTROLLED
 // input rather than a one-shot navigation.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useSearch } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 // Circular with shell.tsx (it imports AddScreen from this file) and safe
@@ -40,7 +41,6 @@ import { useTranslation } from "react-i18next";
 // no top-level side effect that could observe shell.tsx mid-evaluation.
 import { Icon } from "../../ui/icon";
 import { go } from "../../lib/navigate";
-import { useAcquisitionReference } from "../../features/acquisition/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
 import { useProviderSearch } from "./search-queries";
 import { actionButton, backAction, emptyNote, resultCount, screen, screenBar, scrollport, searchField, searchInput, section, surfaceError } from "../../ui/variants";
@@ -57,9 +57,10 @@ import {
   suggestions,
 } from "../../features/acquisition/variants";
 import { Markup } from "../../ui/markup";
-import { bridge } from "../../lib/shell-doors";
+import { bridge, redraw } from "../../lib/shell-doors";
 import { baseTitle } from "../../lib/titles";
-import { mediumCardMarkup, type MediumCard } from "./card-markup";
+import { mediumCardMarkup } from "./card-markup";
+import { addVerb } from "./add-label";
 
 type Mode = "follow" | "identify";
 
@@ -86,11 +87,7 @@ export function AddScreen() {
   const added = state.added as Set<number>;
   const resolveTarget = state.resolveTarget as string | null;
 
-  const {
-    icons,
-    addVerb,
-    render,
-  } = useAcquisitionReference();
+  const { icons } = useEngineDrawing();
   const { t } = useTranslation();
 
   // Always invoked from INSIDE this screen — search() runs only while
@@ -128,7 +125,7 @@ export function AddScreen() {
   // store automatically (see `render`'s own doc comment in data.ts).
   function toFollows(): void {
     writeUiState({ page: "acq", acqTab: "now" });
-    render();
+    redraw();
     // THE IDENTITY IS IN THE PATH AND THE STATE IS IN THE QUERY — D1, and this
     // function was the counter-example (B-051). It navigated to `/` with
     // `search: { page: "acq", tab: "now" }`: the page's identity travelling as
@@ -158,28 +155,28 @@ export function AddScreen() {
     .map((r, i) => ({ r, i }))
     .filter(
       ({ r }) =>
-        addKind === "Tout" || (addKind === "Films") === (r.k === "Film"),
+        addKind === "Tout" || (addKind === "Films") === (r.kind === "Film"),
     );
   const rows = filtered
     .map(({ r, i }) => {
       const done = added.has(i);
       return mediumCardMarkup({
-        t: r.t,
-        k: r.k === "Film" ? "movie" : "show",
-        s: `${r.y} · ${r.k === "Film" ? t("common.film") : t("common.series")} · TMDB`,
-        overview: r.ov,
+        title: r.title,
+        k: r.kind === "Film" ? "movie" : "show",
+        secondaryLine: `${r.year} · ${r.kind === "Film" ? t("common.film") : t("common.series")} · TMDB`,
+        overview: r.overview,
         chip: done
-          ? ["success", addVerb(r, i)]
+          ? { tone: "success", text: addVerb(r, i) }
           : r.owned
-            ? [
-                identify ? "success" : "warning",
-                t("screens.add.alreadyInLibrary"),
-              ]
+            ? {
+                tone: identify ? "success" : "warning",
+                text: t("screens.add.alreadyInLibrary"),
+              }
             : null,
         panel: `add:${i}`,
         poster: r.poster,
         ids: r.ids,
-      } as MediumCard);
+      });
     })
     .join("");
 

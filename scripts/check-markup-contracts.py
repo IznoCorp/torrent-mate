@@ -82,9 +82,9 @@ emits. Two corpora, one question each side answers. The selection side
 is the harness (`frontend/maquette/harness/*.py`, the same set ARM 2
 reads): every `[data-part="value"]`, `[data-tone="danger"]`, … in a
 rule's selector — the three quote styles, a template literal's
-included. The emission side is the three sites that emit the attribute:
-`frontend/maquette/design/index.html` (the shell), `src/engine/legacy.js`
-(the engine) and every `.ts` / `.tsx` component.
+included. The emission side is the sites that emit the attribute:
+`frontend/maquette/design/index.html` (the shell) and every `.ts` / `.tsx`
+component; the engine that was a third site is deleted.
 
 WHICH ATTRIBUTES: `markup_text.NAMING_ATTRIBUTES`, the same list the
 French guard reads, declared once so the two questions cannot end up

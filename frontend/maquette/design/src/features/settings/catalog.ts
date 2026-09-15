@@ -18,7 +18,7 @@
 // it moves with the last delegation verb that writes it, and that is the lot
 // that ends the engine. The functions below take the pending edits as an
 // ARGUMENT rather than reaching for it, so nothing here depends on where it is.
-import type { Setting, SettingsTopic } from "./reference";
+import type { Setting, SettingsTopic } from "./types";
 
 /**
  * How a setting is named, everywhere: by its file and its key.
@@ -31,7 +31,7 @@ import type { Setting, SettingsTopic } from "./reference";
  *     why it is split on the FIRST colon and never the last.
  */
 export function settingIdentifier(setting: Setting): string {
-  return `${setting.f}:${setting.c}`;
+  return `${setting.file}:${setting.key}`;
 }
 
 /**
@@ -45,7 +45,7 @@ export function settingIdentifier(setting: Setting): string {
  */
 export function flattenSettings(topics: readonly SettingsTopic[]): Setting[] {
   return topics.flatMap((topic) =>
-    topic.r.map((setting) => ({ ...setting, topic })),
+    topic.settings.map((setting) => ({ ...setting, topic })),
   );
 }
 
@@ -68,5 +68,5 @@ export function valueShown(
   pending: ReadonlyMap<string, unknown>,
 ): unknown {
   const edit = pending.get(settingIdentifier(setting));
-  return edit === undefined ? setting.v : edit;
+  return edit === undefined ? setting.displayedValue : edit;
 }

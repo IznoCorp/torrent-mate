@@ -19,7 +19,7 @@ What this holds to:
    before it applies a named state. Both are named and bounded; a third would
    fail.
 
-   RE-AIMED, NOT WIDENED: the exemption named `legacy.js`, because the state
+   RE-AIMED, NOT WIDENED: the exemption named `engine/legacy.js@13a66a35b`, because the state
    driver lived in the engine. The driver left the engine for the harness
    module with its one call, and the exemption follows it to that one file —
    still one site, still bounded at one. A source-level count, the same

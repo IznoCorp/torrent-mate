@@ -31,6 +31,10 @@ resources already hold « Re-scraper les métadonnées » twice, and that is ano
 subject entirely: this verb re-runs the tunnel's scrape for one tracked staging
 item. The rule reads the JOURNEY panel's own action, never a match on the word
 somewhere in the tree.
+
+RE-AIMED when the queue's cards took the contract's names: a card's title is
+read as `title` (it was the engine's `t`). The holds and what they compare are
+unchanged.
 """
 import asyncio
 import pathlib
@@ -140,7 +144,7 @@ async def main():
             """()=>{const now = window.__queue?.() || {};
                     const one = (now.inFlight || [])[0] || (now.blocked || [])[0]
                              || (now.takeable || [])[0];
-                    return one ? one.t : "";}""")
+                    return one ? one.title : "";}""")
         journal.check(
             "the queue really carries a medium whose tunnel can be looked at",
             bool(subject), subject or "the queue is empty")

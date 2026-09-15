@@ -2,7 +2,7 @@
 // from the owned numbers or from the catalogue, with the episode matrix
 // underneath when the numbers are known.
 import { useTranslation } from "react-i18next";
-import { useMediaReference } from "./reference";
+import { today } from "../../lib/clock";
 import { SkeletonLine } from "../../ui/state-surfaces";
 import { actionButton, factsPanel } from "../../ui/variants";
 import { queuedMark, seasonGrabSpacing, seasonGrabTaken, upcomingMark, episodeCell, episodeDate, episodeDot, episodeNumber, episodeRow, episodeSet, episodeTitle, missingList, noInfo, seasonDisclosure, seasonFraction, seasonShortfall } from "./variants";
@@ -11,7 +11,7 @@ import { askForSeason, useAskedInFlight } from "./season-grab";
 import { announcedAfter, ownedSeason, type MediaSeasons } from "./queries";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields";
-import { dateLabel, numberRanges } from "./format";
+import { dateLabel, episodeStateLabel, numberRanges } from "./format";
 
 export function SeasonList({
   followed,
@@ -59,7 +59,7 @@ export function SeasonList({
   /**
    * Whether ownership has arrived. Every row's arithmetic is ownership: the
    * fraction, the « n manquants » and whether the row opens all read what the
-   * reader HOLDS, and with `possede` still out they read a medium nobody owns
+   * reader HOLDS, and with `owned` still out they read a medium nobody owns
    * as one owned with nothing in it — « 0/13 · 13 manquants », in an open row,
    * about a suggestion.
    */
@@ -67,10 +67,7 @@ export function SeasonList({
   failed: boolean;
   ownershipKnown: boolean;
 }) {
-  const {
-    EP_LABEL,
-    TODAY,
-  } = useMediaReference();
+  const TODAY = today();
   const { t } = useTranslation();
   // WHICH SEASONS ARE WAITING, read from the cache like every other fact on
   // this sheet, so the row redraws when one arrives.
@@ -80,7 +77,7 @@ export function SeasonList({
   // rather than threaded through props: this component is rendered, so
   // it has a hook to read it from, which the panel's producer does not.
   const client = useQueryClient();
-  const eps = sheet?.eps ?? {};
+  const eps = sheet?.episodes ?? {};
   // WHICH ROWS EXIST is the SEASONS read's answer; how full each one is, is the
   // sheet's. With ownership still out the rows are drawn from what has landed —
   // hiding them would wait for one answer by withholding another the reader
@@ -88,11 +85,11 @@ export function SeasonList({
   const rows: SeasonRow[] = owns || !ownershipKnown
     ? seasons.map(([number, aired, own]) => ({ n: number, aired, own }))
     : catalog.map((season) => ({
-        n: season.n,
+        n: season.number,
         // What AIRED, from the seasons read — never the catalogue's total (B-380).
-        aired: seasons.find(([number]) => number === season.n)?.[1] ?? null,
+        aired: seasons.find(([number]) => number === season.number)?.[1] ?? null,
         own: 0,
-        air: season.air,
+        air: season.airDate,
       }));
   if (!rows.length) return null;
   return (
@@ -122,7 +119,7 @@ export function SeasonList({
         // missing — nothing of it can be held — so it is offered no act; one
         // that has STARTED airing keeps it, because the comparison is on the
         // season's date and not on every episode's.
-        const seasonAirDate = row.air ?? catalog.find((season) => season.n === row.n)?.air;
+        const seasonAirDate = row.air ?? catalog.find((season) => season.number === row.n)?.airDate;
         const seasonUpcoming = seasonAirDate != null && seasonAirDate > TODAY;
         // ANNOUNCED EPISODES ARE INFORMATION, never a shortfall. A season that aired
         // nothing says only the date, and nothing when its row already prints it.
@@ -153,7 +150,7 @@ export function SeasonList({
                  tone. The title stays neutral — it is what one reads
                  first, so it keeps maximum contrast. One colour signal
                  per row, not a Christmas tree. */
-              const upcoming = episode.air && episode.air > TODAY;
+              const upcoming = episode.airDate && episode.airDate > TODAY;
               /* State comes from the LIST of owned numbers. A « number <=
                  owned count » threshold assumes the hole is always at the
                  end of the season: false for 35 series in this library. */
@@ -161,7 +158,7 @@ export function SeasonList({
                 ? "announced"
                 : !owns || !held
                   ? "unverified"
-                  : held.has(episode.n)
+                  : held.has(episode.number)
                     ? "in_library"
                     : "to_grab";
               return (
@@ -173,20 +170,20 @@ export function SeasonList({
                   data-part="episode/row"
                   data-announced={episodeState === "announced" || undefined}
                   data-in-library={episodeState === "in_library" || undefined}
-                  key={episode.n}
+                  key={episode.number}
                 >
                   <span className={episodeDot({ state: episodeState })}></span>{" "}
                   <span className={episodeNumber({ state: episodeState })} data-part="episode/number">
-                    E{String(episode.n).padStart(2, "0")}
+                    E{String(episode.number).padStart(2, "0")}
                   </span>{" "}
-                  <span className={episodeTitle()}>{episode.t}</span>{" "}
+                  <span className={episodeTitle()}>{episode.title}</span>{" "}
                   <span className={episodeDate()}>
-                    {episode.air
-                      ? dateLabel(episode.air)
+                    {episode.airDate
+                      ? dateLabel(episode.airDate)
                       : t("screens.media.dateUnknown")}
                     {episodeState === "in_library"
                       ? ""
-                      : ` · ${EP_LABEL[episodeState].toLowerCase()}`}
+                      : ` · ${episodeStateLabel(episodeState).toLowerCase()}`}
                   </span>
                 </div>
               );
@@ -219,7 +216,7 @@ export function SeasonList({
                       // french-ok: the INTERPOLATION placeholder, named by
                       // `episodeAria` in fr.json — renaming this half alone
                       // leaves « Épisode 3 — {{etat}} » in the aria-label.
-                      etat: EP_LABEL[episodeState],
+                      etat: episodeStateLabel(episodeState),
                     })}
                   >
                     {String(number).padStart(2, "0")}
@@ -269,7 +266,7 @@ export function SeasonList({
               {t("common.season")} {row.n}{" "}
               <span className={seasonFraction()}>
                 {/* THE FRACTION IS OWNERSHIP, and a fraction is an assertion:
-                    « 0/13 » about a medium whose `possede` has not arrived says
+                    « 0/13 » about a medium whose `owned` has not arrived says
                     the reader holds none of it. The season's own total is the
                     seasons read's and is drawn either way. */}
                 {row.aired === 0

@@ -73,8 +73,8 @@ export type Scenario = {
   operations: Record<string, Partial<OperationOutcome>>;
 };
 
-// The engine's frozen clock. It is a COPY of `TODAY` in `legacy.js`, and the
-// copy is deliberate: `mocks/` imports nothing from `engine/` (D-L08-10),
+// The engine's frozen clock. It was a COPY of `TODAY` in `engine/legacy.js@13a66a35b`, and the
+// copy was deliberate: `mocks/` imports nothing from `engine/` (D-L08-10),
 // because the engine dies at L13 and a layer importing it would die with it.
 // What holds the two together is R85, which reads both and refuses a
 // disagreement — a copy nothing compares is exactly the drift this lot exists

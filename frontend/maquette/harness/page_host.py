@@ -249,7 +249,7 @@ async def main():
           if (!row) return null;
           const id = row.dataset.maintact;
           const action = window.__queries.getQueryData(['/api/maintenance/actions']).find((x) => x.id === id);
-          return {id, title: action ? action.l : null};}""")
+          return {id, title: action ? action.label : null};}""")
         refused = (await tap('#view [data-part="flux"] [data-part="flux/row"] [data-part="flux/row-body"][data-maintact]')
                    if wanted else "absent")
         panel = await page.evaluate("""()=>({
@@ -323,11 +323,11 @@ async def main():
         # the legacy's own verb rather than typed, because what is held here is
         # the tap, not the field.
         staged = await page.evaluate("""()=>{
-          const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap((topic) => topic.r)
+          const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap((topic) => topic.settings)
             .find((x) => x.type === 'boolean');
           if (!setting) return null;
-          const id = window.__referentiel.settingId(setting);
-          window.__changeSetting(id, !setting.brut);
+          const id = window.settingId(setting);
+          window.__changeSetting(id, !setting.raw);
           window.__store.touch();
           return id;}""")
         await page.wait_for_timeout(300)
@@ -556,10 +556,10 @@ async def main():
         await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(300)
         await page.evaluate("""()=>{
-          const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap((topic) => topic.r)
+          const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap((topic) => topic.settings)
             .find((x) => x.type === 'boolean');
           window.__changeSetting(
-            window.__referentiel.settingId(setting), !setting.brut);
+            window.settingId(setting), !setting.raw);
           window.__store.touch();}""")
         await page.wait_for_timeout(300)
         raised = await page.evaluate("()=>!!document.querySelector('#savebar')")
@@ -692,8 +692,8 @@ async def main():
 # is the same answer read where the surfaces read it.
             "()=>{const first = (window.__queue?.().takeable ?? [])[0];"
             " if (!first) return null;"
-            " document.querySelector('[data-take=\"' + CSS.escape(first.t) + '\"]').click();"
-            " return first.t;}")
+            " document.querySelector('[data-take=\"' + CSS.escape(first.title) + '\"]')?.click();"
+            " return first.title;}")
         await page.wait_for_timeout(700)
         after_action = await page.evaluate(
             '''()=>[...document.querySelectorAll('#view [data-part="section/head"] [data-part="section/count"]')]'''
@@ -936,77 +936,25 @@ async def main():
         # Read as a pattern rather than as a byte-exact line, because reflowing
         # the line changes nothing about the law; and counted, because the guard
         # says nothing about a SECOND, unguarded write elsewhere.
-        # (d-quater) THERE IS ONE PAGE TABLE, AND IT IS NOT THE ENGINE'S.
-        # Two independent lists used to be kept identical by hand — `PAGES` in
-        # the shell and the `shellOwned` flags in the fragment's `PAGES_OF()`.
-        # One direction crashed loudly; the other drew the page in BOTH worlds
-        # at once, on every render, perfectly consistently, which is invisible
-        # to every hold shaped like « the page looks the same each time ». L15
-        # left ONE declaration, so what is held here is that no second one has
-        # come back: the engine declares no page table, and the one that exists
-        # carries every page the interface renders.
+        # (d-quater) THERE IS ONE PAGE TABLE. Two independent lists used to be
+        # kept identical by hand — `PAGES` in the shell and the `shellOwned`
+        # flags in the fragment's `PAGES_OF()` — and one direction drew the page
+        # in BOTH worlds at once, invisible to every hold shaped like « the page
+        # looks the same each time ». L15 left ONE declaration. RE-AIMED, said
+        # out loud: the halves that read the engine's source — « the engine
+        # declares no page table » and « the fragment writes #view nowhere »,
+        # with its spliced control — left with the engine, which is deleted;
+        # the live half below (d-sexies) still measures the redraw.
         #
-        # READ FROM THE SOURCE, because a re-declaration is exactly the thing a
-        # running page cannot show — two tables that agree look like one.
+        # READ FROM THE SOURCE: the table carries every page the interface renders.
         source = pathlib.Path(__file__).resolve().parent.parent / "design" / "src"
-        engine = (source / "engine" / "legacy.js").read_text(encoding="utf-8")
         table = (source / "app" / "navigation.ts").read_text(encoding="utf-8")
-        redeclared = re.findall(r"\bconst (PAGES_OF|NAVIGATION)\b", engine)
         rows = len(re.findall(r"^    id: ", table, re.M))
         journal.check(
-            "one page table: the engine declares none, and the one that exists "
-            "carries every page the interface renders",
-            not redeclared and rows == len(SHELL_OWNED),
-            f"engine re-declares {redeclared}" if redeclared
-            else f"{rows} row(s) in app/navigation.ts against "
-                 f"{len(SHELL_OWNED)} page(s) drawn")
-
-        # EVERY WAY A SCRIPT PUTS MARKUP IN A CONTAINER, not one spelling of
-        # one of them. The first version read `view\.innerHTML\s*=` and nothing
-        # else, so `document.getElementById("view").innerHTML = …`,
-        # `view.replaceChildren(…)`, `view.append(…)`, `view.insertAdjacentHTML(…)`
-        # and a local alias all passed it. This is `SURVEY.md` § 1.1's own
-        # command, narrowed to the container: the survey learned the same
-        # lesson about the same file, and a count that depends on a spelling is
-        # a count that changes when a formatter runs.
-        WRITE = (r"[^\n]*(?:\bview\b|getElementById\(\s*[\"']view[\"']\s*\)"
-                 r"|querySelector\(\s*[\"']#view[\"']\s*\))\s*"
-                 r"(?:\.\s*(?:innerHTML|outerHTML|textContent)\s*="
-                 r"|\.\s*(?:append|appendChild|prepend|replaceChildren"
-                 r"|insertAdjacentHTML)\()[^\n]*")
-        writes = re.findall(WRITE, engine)
-        # THE LAW, and L15 made it SHORTER by making it STRONGER. It used to
-        # read: `#view` is written in ONE place, on the branch where the shell
-        # does not own the page, and the shell is asked to let go before that
-        # write happens. That branch had already lost its subject — all eight
-        # rows of `PAGES_OF()` carried `shellOwned: true` and none carried a
-        # `render`, so it was unreachable and would have thrown if reached
-        # (B-232) — and it left the file with the table it read. What must be
-        # true now admits no branch to hoist a write out of: **the engine
-        # writes `#view` nowhere at all.**
-        #
-        # A HOLD ASSERTING A COUNT OF ZERO PASSES JUST AS HAPPILY WHEN ITS
-        # DETECTOR IS DEAD, so the same pattern is run over a line that WOULD
-        # count — spelled the way the deleted branch spelled it. Zero from a
-        # reader that cannot read is the shape this repository counts.
-        # THE CONTROL RUNS OVER THE ENGINE'S OWN TEXT, not over a literal
-        # written in this file to match this file's pattern. That is a constant
-        # expression — it proves the regex compiles and matches its own example
-        # — and this very file warns against exactly that shape two hundred
-        # lines above. The line is spliced into a COPY of the engine and the
-        # same search is re-run: what it proves is coverage of the corpus.
-        detector = len(re.findall(
-            WRITE,
-            engine + "\n      view.innerHTML = found.render();\n"
-            + "\n      document.querySelector('#view').replaceChildren(node);\n"))
-        journal.check(
-            "the fragment writes #view nowhere — the page host is that "
-            "container's only owner",
-            not writes and detector == 2,
-            f"{len(writes)} write(s) to #view: {writes}"
-            if writes else
-            f"none, and the same reader finds {detector} when two are spliced "
-            f"into the engine's own text")
+            "one page table, and it carries every page the interface renders",
+            rows == len(SHELL_OWNED),
+            f"{rows} row(s) in app/navigation.ts against "
+            f"{len(SHELL_OWNED)} page(s) drawn")
 
         # (d-sexies) AND THE LIVE BRANCH, measured rather than read. The half
         # above proves the shape of code that does not run; this one proves the

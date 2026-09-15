@@ -3,10 +3,10 @@
 // THE PROBLEM THIS SOLVES, and it appears the moment a NEW verb is added rather
 // than moved. A panel action is `{ text, icone, target }` and `target` is a map
 // of DATA ATTRIBUTES — `ui/panel` draws them and attaches no handler of its own,
-// by contract. Until now every one of those attributes was read by the dying
-// engine's document delegation, so a verb that had never existed there had
-// nobody to answer it, and giving it one meant adding a branch to `legacy.js` —
-// which D5 forbids and which the size ledger refuses outright.
+// by contract. Every one of those attributes was once read by the engine's
+// document delegation (`engine/legacy.js@13a66a35b`), so a verb that had never existed there had
+// nobody to answer it, and giving it one would have meant adding a branch to a
+// file dying by subtraction (D5).
 //
 // So the reader moves to this side BEFORE the engine's does. A feature declares
 // the attribute it owns and what to do about it; one listener, here, dispatches.

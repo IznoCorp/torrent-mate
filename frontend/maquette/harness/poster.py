@@ -51,7 +51,16 @@ async def hold(journal):
     errors = []
     async with async_playwright() as play:
         browser = await play.chromium.launch(channel="chrome")
-        context = await browser.new_context(**PHONE)
+        # THE SERVICE WORKER IS BLOCKED, or the hold-back below holds nothing.
+        # A request the worker answers is fetched from INSIDE the worker, and
+        # `page.route` never sees it: the posters then decode at once, and
+        # « landed once released » reads the same count before and after. The
+        # worker registers on the window's `load`, so this probe used to hold
+        # only by accident — an avatar placed synchronously at boot was itself
+        # withheld, kept `load` from firing, and no worker ever claimed the
+        # page. Once the avatar arrived with the account read instead, `load`
+        # fired, the worker claimed the page, and the probe fell.
+        context = await browser.new_context(**PHONE, service_workers="block")
         page = await context.new_page()
 
         # EVERY POSTER IS HELD BACK. Without this the probe proves nothing: a

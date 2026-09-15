@@ -6,11 +6,11 @@
 // arbitrary value, because a grip zone is not a spacing step and the scale
 // stops at 24px (`styles/theme.css`).
 //
-// WHY THIS IS NOT A D5 VIOLATION, and it is the reason the file exists at all.
-// `index.html` declares `<aside class="drawer …" id="drawer">` EMPTY; the dying
-// engine fills it, opens it and closes it. Writing the gesture into
-// `legacy.js` would be an ADDITION, and D5 allows only subtraction. So this
-// installs from the React side against the node as it stands — the same posture
+// WHY IT INSTALLS FROM THE REACT SIDE, and it is the reason the file exists at
+// all. `index.html` declares `<aside class="drawer …" id="drawer">` EMPTY; the
+// engine that filled, opened and closed it was dying by subtraction (D5), so
+// writing the gesture into it would have been an addition. So this installed
+// against the node as it stands — the same posture
 // `installFocusManager()` takes, which watches `data-open` on `#drawer` and
 // « asks nothing of the engine: it watches the attribute both worlds already
 // emit ». ZERO LINES ARE ADDED TO THE ENGINE.
@@ -29,7 +29,7 @@
 // the `touchmove` events kept arriving for the same finger.
 //
 // The engine had already paid for this and written it down, three thousand
-// lines into `legacy.js`, about its own pull-to-refresh: « the moment it decides
+// lines into `engine/legacy.js@13a66a35b`, about its own pull-to-refresh: « the moment it decides
 // a drag is a scroll it fires `pointercancel` and stops delivering
 // `pointermove` for that pointer — measured: one move delivered, then cancel,
 // while ten `touchmove` arrive for the same finger. A pointer-only

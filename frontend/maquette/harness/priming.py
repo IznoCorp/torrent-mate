@@ -122,8 +122,9 @@ KEPT = ["title", "ids"]
 # With the year known and the kind not, the two answers are separable, and a
 # screen that prints « Série » for a kind it has not got says so out loud. That
 # defect was live until a reader found it by reading; the mutation
-# for it passes over the lean walk and falls here.
-KEPT_PARTIAL = ["title", "ids", "y"]
+# for it passes over the lean walk and falls here. The kept names are the
+# sheet's own, the contract's: the year is `year`.
+KEPT_PARTIAL = ["title", "ids", "year"]
 # Long enough that every reading below is taken with the read still out under
 # the suite's parallel load, and short enough that the rule stays cheap.
 LATENCY_MILLISECONDS = 2000
@@ -417,12 +418,12 @@ async def address_of(browser, title=None):
 
 
 # THE TAP, WRITTEN BY THE RULE. Thinned, the entry carries the `kept` fields of
-# the sheet the read answers — `y` is the engine's name for its year — and
+# the sheet the read answers, by the contract's names, and
 # otherwise exactly what a tap on a list item carries.
 OPEN_CARRYING = """({ provider, identifier, title, kept, thin }) => {
   const sheet = window.__sheetOf(title) || {};
   const carried = thin
-    ? Object.fromEntries(kept.map((key) => [key, key === 'y' ? sheet.year : sheet[key]]))
+    ? Object.fromEntries(kept.map((key) => [key, sheet[key]]))
     : window.__carriedFor(title);
   window.__openCarrying(provider, identifier, carried);
 }"""

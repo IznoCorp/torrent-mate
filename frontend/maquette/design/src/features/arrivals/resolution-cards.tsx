@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 // dictionaries, and for the same reason — an index into a table is not a
 // sentence, and `t()` would only wrap the lookup in a second one.
 import fr from "../../i18n/fr.json";
-import { useArrivalsReference, type PendingDecision, type SettledDecision } from "./reference";
+import { type PendingDecision, type SettledDecision } from "./types";
 import { ruleNote, type ChipTone } from "../../ui/variants";
 import {
   Card,
@@ -23,8 +23,9 @@ import {
 } from "../../ui/card";
 import { Chip } from "../../ui/chip";
 import { PosterArtwork } from "../../ui/poster";
-import { posterArtwork } from "../../lib/engine-drawing";
+import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
 import { candidateCard, candidatePick } from "./variants";
+import { REASON_TONE, decisionState, decisionStateDetail, reasonLabel, viaLabel } from "./decision-vocabulary";
 
 // A RELEASE is not a medium, and its card is deliberately a different object.
 // A release has no media sheet and no panel — it is one candidate among
@@ -58,7 +59,7 @@ export function ReleaseCard({
     overview?: string;
   };
 }) {
-  const reference = useArrivalsReference();
+  const reference = useEngineDrawing();
   const { icons } = reference;
   const { t } = useTranslation();
   // THE CARD IS THE GESTURE: one tap anywhere on it picks the candidate. It is a
@@ -146,23 +147,16 @@ export function ReleaseCard({
 // site ever passed it and the click delegation reads no such attribute, so it
 // would be a button leading nowhere.
 export function DecisionCard({ decision }: { decision: SettledDecision }) {
-  const reference = useArrivalsReference();
-  const {
-    icons,
-    DECISION_STATE,
-    DECISION_STATE_DETAIL,
-    REASON_TONE,
-    REASON_LABEL,
-    VIA_LABEL,
-  } = reference;
+  const reference = useEngineDrawing();
+  const { icons } = reference;
   const settled = decision.state != null;
-  const state = settled ? DECISION_STATE[decision.state] : null;
+  const state = settled ? decisionState(decision.state) : null;
   const artwork =
     settled && decision.choice
-      ? posterArtwork(icons, decision.choice.poster, decision.choice.t, decision.k)
-      : { source: undefined, icon: decision.k === "movie" ? icons.film : icons.tv, label: "?" };
+      ? posterArtwork(icons, decision.choice.poster, decision.choice.title, decision.kind)
+      : { source: undefined, icon: decision.kind === "movie" ? icons.film : icons.tv, label: "?" };
   const identity = decision.choice
-    ? `${decision.choice.t} · ${decision.choice.p.toUpperCase()} ${decision.choice.id} · ${VIA_LABEL[decision.choice.via] ?? decision.choice.via}`
+    ? `${decision.choice.title} · ${decision.choice.provider.toUpperCase()} ${decision.choice.id} · ${viaLabel(decision.choice.via)}`
     : null;
   return (
     <Card data-nonmedia="decision">
@@ -171,8 +165,8 @@ export function DecisionCard({ decision }: { decision: SettledDecision }) {
           <PosterArtwork artwork={artwork} />
         </CardPoster>
         <CardBody as="span">
-          <CardTitle title={decision.d}>
-            <code>{decision.d}</code>
+          <CardTitle title={decision.folder}>
+            <code>{decision.folder}</code>
           </CardTitle>
           <CardSubtitle>{decision.when}</CardSubtitle>
           {/* What was chosen is the most useful line here — it is the answer
@@ -183,13 +177,13 @@ export function DecisionCard({ decision }: { decision: SettledDecision }) {
           <CardMeta>
             <Chip
               tone={(REASON_TONE[decision.reason] ?? "neutral") as ChipTone}
-              label={REASON_LABEL[decision.reason] ?? decision.reason}
+              label={reasonLabel(decision.reason)}
             />
             {state ? (
               <Chip
                 tone={state[0] as ChipTone}
                 label={state[1]}
-                title={DECISION_STATE_DETAIL[decision.state] ?? ""}
+                title={decisionStateDetail(decision.state)}
               />
             ) : (
               ""
@@ -207,8 +201,8 @@ export function DecisionCard({ decision }: { decision: SettledDecision }) {
 // as emptiness, not as a sentence about it. The sentence belongs to the other
 // case (no pending decision at all), and it is the screen's own, below.
 export function Candidates({ decision }: { decision: PendingDecision }) {
-  const best = Math.max(...decision.c.map((candidate) => candidate.s));
-  const tied = decision.c.filter((candidate) => candidate.s === best).length;
+  const best = Math.max(...decision.candidates.map((candidate) => candidate.score));
+  const tied = decision.candidates.filter((candidate) => candidate.score === best).length;
   const words: string[] = fr.screens.resolution.numbers;
   const { t } = useTranslation();
   return (
@@ -220,18 +214,18 @@ export function Candidates({ decision }: { decision: PendingDecision }) {
       ) : (
         ""
       )}
-      {decision.c.map((candidate) => (
+      {decision.candidates.map((candidate) => (
         <ReleaseCard
-          key={`${candidate.p}:${candidate.id}`}
-          title={candidate.t}
-          year={candidate.y ?? null}
-          meta={`${candidate.y ? candidate.y + " · " : ""}${decision.k === "movie" ? t("common.film") : t("common.series")} · ${candidate.p.toUpperCase()} ${candidate.id}`}
+          key={`${candidate.provider}:${candidate.id}`}
+          title={candidate.title}
+          year={candidate.year ?? null}
+          meta={`${candidate.year ? candidate.year + " · " : ""}${decision.kind === "movie" ? t("common.film") : t("common.series")} · ${candidate.provider.toUpperCase()} ${candidate.id}`}
           /* A score that ties with the others says nothing about this
              candidate, so it is not printed on it. */
           confidence={
-            tied > 1 && candidate.s === best
+            tied > 1 && candidate.score === best
               ? null
-              : `${Math.round(candidate.s * 100)} %`
+              : `${Math.round(candidate.score * 100)} %`
           }
           /* Its OWN picture only, and the placeholder when the provider has no
              picture: a candidate wearing a neighbour's poster is the one
@@ -239,10 +233,10 @@ export function Candidates({ decision }: { decision: PendingDecision }) {
              placeholder itself, not by a sentence in a line that truncates. */
           opts={{
             genre: "candidat",
-            k: decision.k,
+            k: decision.kind as "movie" | "show",
             poster: candidate.poster,
-            noPoster: candidate.sans,
-            overview: candidate.resume,
+            noPoster: candidate.withoutPoster,
+            overview: candidate.overview,
           }}
         />
       ))}

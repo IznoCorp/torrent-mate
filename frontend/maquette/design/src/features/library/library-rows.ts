@@ -10,16 +10,17 @@
 // THE SELECTION IS READ WHEN A ROW IS DRAWN, from the store rather than from the
 // render that scheduled it: the windowed list composes its rows after React has
 // painted, and a tick taken in between is already on the row it redraws.
-import { posterArtwork } from "../../lib/engine-drawing";
+import { posterArtwork, type EngineDrawing } from "../../lib/engine-drawing";
+import { escapeHtml, svgIcon } from "../../lib/markup-text";
 import { libraryCardMarkup } from "./card-markup";
 import { store } from "../../lib/store-access";
 import { selectionRowMarkup, swipeRowMarkup } from "../../ui/rows";
 import { tileMarkup } from "../../ui/tile";
-import type { LibraryReference, LibraryRow } from "./reference";
+import type { LibraryRow } from "./types";
 import { swipeAction } from "../../ui/variants";
 
 /** A row of the listing: the title, the line under it and, where the medium has one, its synopsis. */
-type Row = LibraryRow & { overview?: string; k?: string };
+type Row = LibraryRow & { k?: string };
 
 /**
  * One tile of the gallery.
@@ -29,14 +30,14 @@ type Row = LibraryRow & { overview?: string; k?: string };
  * @param index Its rank in the listing on screen.
  * @returns The tile's markup.
  */
-export function libraryTileMarkup(reference: LibraryReference, row: Row, index: number): string {
+export function libraryTileMarkup(reference: EngineDrawing, row: Row, index: number): string {
   const { selMode } = store.read().state;
   const selected = store.read().state.selected as Set<string>;
   return tileMarkup({
-    title: row.t,
-    subtitle: row.f,
-    artwork: posterArtwork(reference.icons, row.poster, row.t, row.k),
-    check: selMode ? reference.svgIcon(reference.icons.check, 3) : undefined,
+    title: row.title,
+    subtitle: row.secondaryLine,
+    artwork: posterArtwork(reference.icons, row.poster, row.title, row.k),
+    check: selMode ? svgIcon(reference.icons.check, 3) : undefined,
     // WHAT A TAP MEANS IS WRITTEN FIRST. The registry answers the first
     // registered key in ATTRIBUTE order, so the key a tap is FOR — the
     // selection while one is being made, the medium's sheet otherwise — comes
@@ -45,9 +46,9 @@ export function libraryTileMarkup(reference: LibraryReference, row: Row, index: 
     attributes: {
       "data-tile": index,
       ...(selMode
-        ? { "aria-pressed": selected.has(row.t), "data-selected-title": row.t }
-        : { "data-mediasheet": row.t }),
-      "data-panel": `media:${row.t}`,
+        ? { "aria-pressed": selected.has(row.title), "data-selected-title": row.title }
+        : { "data-mediasheet": row.title }),
+      "data-panel": `media:${row.title}`,
     },
   });
 }
@@ -62,7 +63,7 @@ export function libraryTileMarkup(reference: LibraryReference, row: Row, index: 
  * @returns The row's markup.
  */
 export function libraryRowMarkup(
-  reference: LibraryReference,
+  reference: EngineDrawing,
   row: Row,
   index: number,
   removeLabel: string,
@@ -71,19 +72,19 @@ export function libraryRowMarkup(
   const selected = store.read().state.selected as Set<string>;
   if (selMode) {
     return selectionRowMarkup({
-      title: row.t,
-      subtitle: row.f,
-      artwork: posterArtwork(reference.icons, row.poster, row.t),
-      check: reference.svgIcon(reference.icons.check, 3),
+      title: row.title,
+      subtitle: row.secondaryLine,
+      artwork: posterArtwork(reference.icons, row.poster, row.title),
+      check: svgIcon(reference.icons.check, 3),
       attributes: {
         "data-tile": index,
-        "data-selected-title": row.t,
-        "aria-pressed": selected.has(row.t),
+        "data-selected-title": row.title,
+        "aria-pressed": selected.has(row.title),
       },
     });
   }
   return swipeRowMarkup(
-    libraryCardMarkup({ t: row.t, s: row.f, overview: row.overview, poster: row.poster, ids: row.ids }),
-    `<button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="del" data-del="${reference.escapeHtml(row.t)}">${reference.svgIcon(reference.icons.trash)}${removeLabel}</button>`,
+    libraryCardMarkup({ title: row.title, secondaryLine: row.secondaryLine, overview: row.overview, poster: row.poster, ids: row.ids }),
+    `<button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="del" data-del="${escapeHtml(row.title)}">${svgIcon(reference.icons.trash)}${removeLabel}</button>`,
   );
 }

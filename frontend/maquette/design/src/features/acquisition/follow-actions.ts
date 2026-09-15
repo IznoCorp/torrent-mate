@@ -7,11 +7,11 @@
 // NO VERB IS ADDED HERE. « Récupérer cette saison », « Remettre en file » and
 // « Re-scraper » from the journey belong to the lot that wires the tunnel's
 // verbs; what this file does is offer exactly what the engine's producer did.
+import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import type { Action } from "../../ui/panel/contract";
 import type { FollowFacts } from "./follow-facts";
 
-const icons = () => window.__referentiel.icons;
 const say = (key: string) => i18next.t(`panels.follow.${key}`);
 
 /**
@@ -34,36 +34,36 @@ export function primaryAction(facts: FollowFacts): Action {
   const { follow } = facts;
   if (facts.toResolve)
     return {
-      text: say("resolve"), icone: icons().play, ton: "primary",
-      target: { resolve: follow.t },
+      text: say("resolve"), icone: icons.play, ton: "primary",
+      target: { resolve: follow.title },
     };
   if (facts.toTake)
     return {
-      text: say("takeNow"), icone: icons().play, ton: "primary",
-      target: { take: follow.t },
+      text: say("takeNow"), icone: icons.play, ton: "primary",
+      target: { take: follow.title },
     };
   if (facts.incomplete)
     return {
-      text: say("complete"), icone: icons().play, ton: "primary",
-      target: { complete: follow.t },
+      text: say("complete"), icone: icons.play, ton: "primary",
+      target: { complete: follow.title },
     };
   if (facts.isFollowed)
     return {
-      text: say(follow.st === "to_grab" ? "takeNow" : "searchNow"),
-      icone: icons().play, ton: "primary",
-      target: { sheetprim: `${follow.t}|${follow.st}` },
+      text: say(follow.status === "to_grab" ? "takeNow" : "searchNow"),
+      icone: icons.play, ton: "primary",
+      target: { sheetprim: `${follow.title}|${follow.status}` },
     };
   if (facts.hasSheet)
     return {
-      text: say("seeSheet"), icone: icons().eye, ton: "primary",
-      target: { mediasheet: follow.t },
+      text: say("seeSheet"), icone: icons.eye, ton: "primary",
+      target: { mediasheet: follow.title },
     };
   // AN UNIDENTIFIED RELEASE HAS NO SHEET. Offering to open one is the same
   // broken promise as a poster that leads nowhere, so the panel leads to the
   // journey instead — which exists for every acquisition.
   return {
-    text: say("seeJourney"), icone: icons().refresh, ton: "primary",
-    target: { journey: follow.t },
+    text: say("seeJourney"), icone: icons.refresh, ton: "primary",
+    target: { journey: follow.title },
   };
 }
 
@@ -86,7 +86,7 @@ export function secondaryActions(facts: FollowFacts): (Action | null)[] {
     // when it is ALREADY the primary action, which happens for a medium that is
     // owned and whole.
     facts.hasSheet && (facts.toResolve || facts.toTake || facts.incomplete || facts.isFollowed)
-      ? { text: say("seeSheet"), icone: icons().eye, target: { mediasheet: follow.t } }
+      ? { text: say("seeSheet"), icone: icons.eye, target: { mediasheet: follow.title } }
       : null,
     // « Voir le parcours » is guarded exactly as « Voir la fiche » is, and for
     // the same reason: it is omitted only when it is ALREADY the primary
@@ -94,18 +94,18 @@ export function secondaryActions(facts: FollowFacts): (Action | null)[] {
     // chasing. Without this condition the panel drew the same words twice and
     // gave the reader two buttons he could not tell apart (B-313).
     facts.hasSheet || facts.toResolve || facts.toTake || facts.incomplete || facts.isFollowed
-      ? { text: say("seeJourney"), icone: icons().refresh, target: { journey: follow.t } }
+      ? { text: say("seeJourney"), icone: icons.refresh, target: { journey: follow.title } }
       : null,
     // Chasing a release only means something for a medium still being acquired.
     // Offered on a complete one it is a button that can only disappoint.
     beingAcquired
-      ? { text: say("otherRelease"), icone: icons().search, target: { releases: follow.t } }
+      ? { text: say("otherRelease"), icone: icons.search, target: { releases: follow.title } }
       : null,
     beingAcquired
-      ? { text: say("qualityProfile"), icone: icons().sort, target: { profile: follow.t } }
+      ? { text: say("qualityProfile"), icone: icons.sort, target: { profile: follow.title } }
       : null,
     facts.inLibrary
-      ? { text: say("rescrape"), icone: icons().refresh, target: { rescrape: follow.t } }
+      ? { text: say("rescrape"), icone: icons.refresh, target: { rescrape: follow.title } }
       : null,
     // Pausing or dropping a follow requires a follow. An incomplete series in
     // the library is not one: nothing is watching it, so there is nothing to
@@ -113,19 +113,19 @@ export function secondaryActions(facts: FollowFacts): (Action | null)[] {
     facts.isFollowed
       ? {
           text: say(isFilm ? "stopSearchingFilm" : "pauseSeries"),
-          icone: icons().x, target: { pause: follow.t },
+          icone: icons.x, target: { pause: follow.title },
         }
       : null,
     facts.isFollowed
       ? {
           text: say(isFilm ? "removeFilm" : "removeSeries"),
-          icone: icons().trash, ton: "danger", target: { remove: follow.t },
+          icone: icons.trash, ton: "danger", target: { remove: follow.title },
         }
       : null,
     facts.inLibrary
       ? {
-          text: say("deleteFromLibrary"), icone: icons().trash, ton: "danger",
-          target: { del: follow.t },
+          text: say("deleteFromLibrary"), icone: icons.trash, ton: "danger",
+          target: { del: follow.title },
         }
       : null,
   ];

@@ -1,4 +1,9 @@
-"""Proves that actions MUTATE the state, not merely the display."""
+"""Proves that actions MUTATE the state, not merely the display.
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), where they were
+the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
+"""
 import asyncio
 
 from playwright.async_api import async_playwright
@@ -18,7 +23,7 @@ async def main():
     await pg.evaluate("()=>window.__measure(true)")
     cnt = """()=>({takeable:(window.__queue?.().takeable||[]).length, inflight:(window.__queue?.().inFlight||[]).length, stuck:(window.__queue?.().stuck||[]).length, blocked:(window.__queue?.().blocked||[]).length,
                    moving:(window.__queue?.().moving||[]).length, follows:(window.__followActions?.all()||[]).length,
-                   paused:(window.__followActions?.all()||[]).filter(f=>f.st==='disabled').length, lib:(window.__queries?.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages?.[0]?.loaded ?? 0),
+                   paused:(window.__followActions?.all()||[]).filter(f=>f.status==='disabled').length, lib:(window.__queries?.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages?.[0]?.loaded ?? 0),
                    acqBadge:(document.querySelector('[data-page=acq] [data-part="shell/tab-badge"]')||{}).textContent||null})"""
 
     await pg.evaluate("()=>window.__go('acq-now-loaded')"); await pg.wait_for_timeout(300)

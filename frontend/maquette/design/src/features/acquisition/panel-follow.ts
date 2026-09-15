@@ -28,6 +28,7 @@ import { registerProducer, type PanelCache, type PanelDescriptor } from "../../u
 import { followFacts, type Follow } from "./follow-facts";
 import { primaryAction, secondaryActions } from "./follow-actions";
 import { followsQuery, incompleteShowsQuery } from "./queries";
+import { STATUS_TONE, followStatusLabel } from "./follow-vocabulary";
 
 /* The one wait for an identity in progress, stopped by the next one. */
 let cancelWaiting: (() => void) | null = null;
@@ -85,7 +86,7 @@ function redrawOnIdentityArrival(title: string): void {
 function pendingSeasons(title: string) {
   if (sharedQueryClient === undefined) return null;
   const followed = sharedQueryClient.getQueryData<Follow[]>(followsQuery.queryKey) ?? [];
-  const ids = followed.find((one) => one.t === title)?.ids ?? heldIdentity(title)?.ids;
+  const ids = followed.find((one) => one.title === title)?.ids ?? heldIdentity(title)?.ids;
   const address = providerAddress(ids);
   if (address === null) return null;
   const query = seasonsQuery(address.provider, address.id);
@@ -128,16 +129,15 @@ function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
   else if (facts.seasonsPending) askForSeasons(title);
   const translate = i18next.t.bind(i18next);
   const { follow, isFilm, seasons, fraction } = facts;
-  const reference = window.__referentiel;
   const kind = translate(isFilm ? "panels.follow.film" : "panels.follow.series");
   return {
     address: "follow:" + title,
-    title: follow.t,
-    poster: { t: follow.t, k: follow.k, source: follow.poster ?? heldIdentity(title)?.poster },
+    title: follow.title,
+    poster: { t: follow.title, k: follow.kind, source: follow.poster ?? heldIdentity(title)?.poster },
     meta:
-      `${follow.y ? String(follow.y) + " · " : ""}${kind}` +
+      `${follow.year ? String(follow.year) + " · " : ""}${kind}` +
       `${fraction ? " · " + fraction + translate("panels.follow.episodesSuffix") : ""}`,
-    puce: [reference.ST_TONE[follow.st as string], reference.stLabel(follow)],
+    puce: [STATUS_TONE[follow.status as string], followStatusLabel(follow)],
     blocs: [
       { type: "actions", actions: [primaryAction(facts)] },
       seasons.length

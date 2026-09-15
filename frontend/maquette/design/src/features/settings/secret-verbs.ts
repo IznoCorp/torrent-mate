@@ -17,7 +17,8 @@ import i18next from "i18next";
 import { HELD, sharedQueryClient } from "../../lib/query-client";
 import { registerVerb } from "../../lib/verbs";
 import { configurationStatusQuery, secretsQuery, writeSecret } from "./queries";
-import { dialog, panel, toast } from "../../lib/shell-doors";
+import type { Secret } from "./types";
+import { dialog, panel, toast, redraw } from "../../lib/shell-doors";
 
 /** What the layer is asked, and what each outcome is called. */
 type Act = "replace" | "remove";
@@ -51,7 +52,7 @@ async function writeTheKey(act: Act, key: string, value: string): Promise<void> 
     await sharedQueryClient?.invalidateQueries({
       queryKey: configurationStatusQuery.queryKey });
     panel?.close();
-    window.__referentiel.render();
+    redraw();
     toast?.show({ message: say("Done") });
   } catch {
     toast?.show({ message: say("Refused") });
@@ -125,9 +126,10 @@ registerVerb("removesecret", (key) => {
   // the question names what is about to stop answering, and reading it off the
   // screen would make the sentence depend on how the panel happens to be drawn
   // at that moment.
-  const held = sharedQueryClient?.getQueryData<{ k: string; l: string }[]>(
+  const held = sharedQueryClient?.getQueryData<Secret[]>(
     secretsQuery.queryKey) ?? [];
-  askToRemove(key, held.find((one) => one.k === key)?.l ?? key);
+  const one = held.find((secret) => secret.key === key);
+  askToRemove(key, one?.label ?? key);
 });
 
 registerVerb("confirm-remove-secret", (key) => {

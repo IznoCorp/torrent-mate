@@ -20,9 +20,8 @@
 // TITLE, so the crossing happens here, through the same reader
 // `history-bridge.ts` already crosses with.
 //
-// THE ENGINE LOSES A BRANCH BY IT (D5). `legacy.js`'s `data-rescrape` branch is
-// deleted, not duplicated: a verb still living there moves onto `lib/verbs.ts`
-// the day it gains a behaviour, and the size ledger is re-recorded downward.
+// THE ENGINE LOST A BRANCH BY IT (D5). The `data-rescrape` branch of
+// `engine/legacy.js@13a66a35b` was deleted, not duplicated.
 import { heldIdentity, providerAddress } from "../../lib/held-identity";
 import i18next from "i18next";
 import type { QueryClient } from "@tanstack/react-query";

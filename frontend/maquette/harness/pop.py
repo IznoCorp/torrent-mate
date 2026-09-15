@@ -15,6 +15,10 @@ driver — and the hold count is unchanged.
 
 RE-AIMED, count unchanged: the popover is closed through `window.__popover.close()`, the
 frame's popover door the harness publishes; the engine's global `closePopEp` went with its branch.
+
+RE-AIMED when the engine's `window.__referentiel` object died: the announced
+date is formatted by `window.__dateLabel`, published by `harness/publish.ts`
+from `features/media/format.ts`. The holds and what they compare are unchanged.
 """
 
 import asyncio
@@ -55,7 +59,7 @@ async def main():
           const one = (sheet?.episodes?.[season] || []).find(
             (e) => String(e.number) === number);
           return one ? {title: one.title || null,
-                        air: one.airDate ? window.__referentiel.dateFR(one.airDate) : null}
+                        air: one.airDate ? window.__dateLabel(one.airDate) : null}
                      : null;}""", tapped)
         await pg.evaluate(js); await pg.wait_for_timeout(320)
         txt = await pg.evaluate("""()=>document.querySelector('[data-part="episode/popover"]')?.innerText.replace(/\\n/g,' | ')""")

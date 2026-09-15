@@ -1,9 +1,10 @@
 // The head of the library page: the three lenses, the search field with its
 // own native handler, the category pills and the list/grid switch.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
-import { useLibraryReference } from "./reference";
+import { redraw } from "../../lib/shell-doors";
 import { useLibraryCategories } from "./queries";
 import { useUiState, writeUiState } from "../../lib/store-access";
 import { filterPill, filterPillCount, filterZone, pillBar, pillScroll, searchClear, searchField, searchInput, segment, segmentCount, segmentTab, viewSwitch, viewSwitchButton, viewSwitchWrap, viewTabs } from "../../ui/variants";
@@ -41,7 +42,7 @@ function dropSelection(): void {
 export function LibraryHead(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { icons, render } = useLibraryReference();
+  const { icons } = useEngineDrawing();
   const { data: CATS = [] } = useLibraryCategories();
   const lenses = [
     { id: "cat", label: t("screens.library.lensMedia") },
@@ -116,7 +117,7 @@ export function LibraryHead(): ReactElement {
                 // different question, which has its own pages and its own
                 // error by construction.
                 writeUiState({ q: element.value });
-                render();
+                redraw();
               };
               element.addEventListener("input", commit);
               return () => element.removeEventListener("input", commit);
@@ -143,8 +144,8 @@ export function LibraryHead(): ReactElement {
                     aria-pressed={state.libCat === category.id}
                     data-cat={category.id}
                   >
-                    {category.l}
-                    <span className={filterPillCount()}>{category.c}</span>
+                    {category.label}
+                    <span className={filterPillCount()}>{category.count}</span>
                   </button>
                 ))
               : null}

@@ -19,6 +19,11 @@ RE-AIMED, said out loud: R13's sample, R29's owned numbers and R30's series and 
 its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
 `__carriedFor` — the seed the served read answers from, published by the harness
 driver — and the hold count is unchanged.
+
+RE-AIMED when the library, the maintenance actions and the account took the
+contract's names: a follow's title is read as `title` (a read the follows'
+phase missed), where they were the engine's short keys. The holds and what they
+compare are unchanged.
 """
 import asyncio
 import json
@@ -507,7 +512,7 @@ async def main():
     dest=await pg.evaluate("""async ()=>{const out=[];
       /* THE FOLLOWS ARE THE LAYER'S SINCE L09 — `(window.__followActions?.all()||[])` was the
          engine's own copy, and it is gone. */
-      const followed=new Set((window.__followActions?.all()||[]).map(x=>x.t));
+      const followed=new Set((window.__followActions?.all()||[]).map(x=>x.title));
       for (const state_ of ['lib-incomplete','lib-list','lib-recent']) {
         for (let i=0; i<6; i++) {
           window.__go(state_); await new Promise(r=>setTimeout(r,300));

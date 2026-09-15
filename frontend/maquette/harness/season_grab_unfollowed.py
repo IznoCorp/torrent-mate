@@ -73,8 +73,10 @@ named by no other rule and no named state:
   seasons data the layer counts from does not hold « Agent Elvis », so the
   answer is zero and a status moved over it would be the proxy R160's hold 3
   was re-aimed away from.
-  « Grimsburg » — its third season airs after the referential's TODAY, read in
-  the page. Once followed its first two seasons are offered the act and the
+  « Grimsburg » — its third season airs after the page's today, read in the
+  page (`window.__today()`, the clock the sheet compares with; it read the
+  engine's `TODAY` through the referential until that left the engine, and was
+  RE-AIMED at the clock then). Once followed its first two seasons are offered the act and the
   third is not.
 
 WHAT IT DOES NOT READ: the QUEUED path of a follow begun by the act — the
@@ -97,6 +99,11 @@ RE-AIMED, said out loud: the seasons still to air and the follow's sheet were re
 its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
 `__carriedFor` — the seed the served read answers from, published by the harness
 driver — and the hold count is unchanged.
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), an incomplete
+show's as `title`, where they were the engine's `t`, `k` and `st`. The holds
+and what they compare are unchanged.
 """
 import asyncio
 import json
@@ -151,13 +158,13 @@ NEWLY_FOLLOWED_KEYS = (
 ANSWERED = "()=>(window.__mocks?.answered?.() || [])"
 
 FOLLOWS = """()=>Object.fromEntries((window.__followActions?.all() || []).map(
-  (one) => [one.t, one.st]))"""
+  (one) => [one.title, one.status]))"""
 
 # WHICH INCOMPLETE SHOWS HAVE A HOLE THE MATRIX DRAWS, and which are followed —
 # from the data, before a finger moves.
 THE_SUBJECTS = """()=>{
-  const followed = new Set((window.__followActions?.all() || []).map((one) => one.t));
-  const incomplete = (window.__queries.getQueryData(["/api/library/incomplete"]) || []).map((show) => show.t);
+  const followed = new Set((window.__followActions?.all() || []).map((one) => one.title));
+  const incomplete = (window.__queries.getQueryData(["/api/library/incomplete"]) || []).map((show) => show.title);
   return {
     incomplete: incomplete.length,
     followedAmongThem: incomplete.filter((title) => followed.has(title)),
@@ -280,11 +287,10 @@ AIM_AT_THE_ROW_OF = """(value)=>{
   return {found: true, x, y, open: row.open,
           reachable: !!hit && (hit === summary || summary.contains(hit))};}"""
 
-# WHICH OF THE SHOW'S SEASONS AIR AFTER TODAY, from the referential the sheet reads.
+# WHICH OF THE SHOW'S SEASONS AIR AFTER TODAY, from the clock the sheet reads.
 NOT_YET_AIRED = """(title)=>{
-  const reference = window.__referentiel;
   const sheet = window.__sheetOf(title);
-  const today = reference && reference.TODAY;
+  const today = window.__today ? window.__today() : null;
   return {today: today || null, resolved: !!sheet,
           later: ((sheet && sheet.seasons) || []).filter(
             (season) => today && season.airDate && season.airDate > today).map((season) => season.number)};}"""
@@ -531,8 +537,8 @@ async def main():
 
         if await follow_from_its_sheet(page, journal, errors, ONE_NOT_AIRED):
             later = await page.evaluate(NOT_YET_AIRED, ONE_NOT_AIRED)
-            journal.check(f"« {ONE_NOT_AIRED} » has a season that airs after the referential's "
-                          "TODAY, read in the page, so the leg below reads a clause",
+            journal.check(f"« {ONE_NOT_AIRED} » has a season that airs after the page's "
+                          "today, read in the page, so the leg below reads a clause",
                           bool(later["later"]), str(later))
             rows = await page.evaluate(ROWS_ON_THE_SHEET)
             unaired = [row for row in rows if row["season"] in later["later"]]

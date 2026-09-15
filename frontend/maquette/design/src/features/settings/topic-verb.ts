@@ -22,9 +22,10 @@
 import { giveTheEntryBackFirst } from "../../lib/stacked-surface";
 import { registerVerb } from "../../lib/verbs";
 import { store } from "../../lib/store-access";
-import { bridge } from "../../lib/shell-doors";
+import { bridge, redraw } from "../../lib/shell-doors";
 import { addressSeam } from "../../lib/addresses";
 import { navigationState } from "../../lib/navigation-entry";
+import { SETTINGS_STATE } from "./state";
 
 /** The key the rubric travels under, on the entry this verb pushes. */
 const CARRIED = "settingsTopic";
@@ -36,13 +37,12 @@ const CARRIED = "settingsTopic";
  *     rubric: The rubric's id, as the row spells it.
  */
 function openTopic(rubric: string): void {
-  const reference = window.__referentiel;
-  reference.SETTINGS_STATE.topic = rubric;
+  SETTINGS_STATE.topic = rubric;
   // The search is cleared with the same gesture the engine's branch cleared it
   // with: a rubric and a search are two answers to one question, and leaving
   // the query behind showed the rubric under a count of matches.
-  reference.SETTINGS_STATE.q = "";
-  reference.render();
+  SETTINGS_STATE.q = "";
+  redraw();
   try {
     bridge.record(
       { ...navigationState(), [CARRIED]: rubric },
@@ -71,14 +71,13 @@ function openTopic(rubric: string): void {
  * R166's own walk, on this verb's first build.
  */
 function leaveTopic(): void {
-  const reference = window.__referentiel;
   const entry = history.state as Record<string, unknown> | null;
   if (entry?.layer !== undefined) return;
   const carried = entry?.[CARRIED];
   const topic = typeof carried === "string" ? carried : null;
-  if (reference.SETTINGS_STATE.topic === topic) return;
-  reference.SETTINGS_STATE.topic = topic;
-  reference.render();
+  if (SETTINGS_STATE.topic === topic) return;
+  SETTINGS_STATE.topic = topic;
+  redraw();
 }
 
 /* DECLARED AT MODULE EVALUATION, as every other verb in this tree is, and
@@ -92,4 +91,4 @@ window.addEventListener("popstate", leaveTopic);
    exactly one entry; with a rubric open that step lands on the rubric's entry
    and the page never changes at all. */
 const entryPosed = giveTheEntryBackFirst(
-  () => window.__referentiel.SETTINGS_STATE.topic !== null);
+  () => SETTINGS_STATE.topic !== null);

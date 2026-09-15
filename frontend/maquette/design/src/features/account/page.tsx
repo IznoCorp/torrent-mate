@@ -6,10 +6,10 @@
 // colleagues would teach a reader to distrust the rest of the interface, and
 // the shape is settled here so the feature does not have to teach its own form
 // twice when it arrives.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useTranslation } from "react-i18next";
 import { useAccount } from "./queries";
 import type { ReactElement } from "react";
-import { useAccountReference } from "../../features/account/reference";
 import { FactRows, type FactRow } from "../../ui/fact-rows";
 import { actionButton, emptyNote, factList, sectionHeading } from "../../ui/variants";
 import { Markup, emptyNoteMarkup } from "../../ui/markup";
@@ -34,36 +34,36 @@ export function AccountPage(): ReactElement | null {
       <h2 className={sectionHeading()} data-part="heading">{t("screens.accountPage.you")}</h2>
       {facts([
         {
-          l: t("screens.accountPage.identifier"),
-          v: ACCOUNT.name,
+          label: t("screens.accountPage.identifier"),
+          value: ACCOUNT.name,
           k: "web.username",
-          s: t("screens.accountPage.identifierSub"),
+          secondaryLine: t("screens.accountPage.identifierSub"),
         },
         {
-          l: t("screens.accountPage.address"),
-          v: ACCOUNT.mail,
-          s: t("screens.accountPage.addressSub"),
+          label: t("screens.accountPage.address"),
+          value: ACCOUNT.email,
+          secondaryLine: t("screens.accountPage.addressSub"),
         },
       ])}
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.accountPage.session")}</h2>
       {facts([
         {
-          l: t("screens.accountPage.duration"),
-          v: t("screens.accountPage.durationValue"),
+          label: t("screens.accountPage.duration"),
+          value: t("screens.accountPage.durationValue"),
           k: "web.session_ttl_hours",
-          s: t("screens.accountPage.durationSub"),
+          secondaryLine: t("screens.accountPage.durationSub"),
         },
         {
-          l: t("screens.accountPage.transport"),
-          v: t("screens.accountPage.transportValue"),
+          label: t("screens.accountPage.transport"),
+          value: t("screens.accountPage.transportValue"),
           k: "web.cookie_secure",
-          s: t("screens.accountPage.transportSub"),
+          secondaryLine: t("screens.accountPage.transportSub"),
         },
         {
-          l: t("screens.accountPage.where"),
-          v: t("screens.accountPage.whereValue"),
-          s: t("screens.accountPage.whereSub"),
+          label: t("screens.accountPage.where"),
+          value: t("screens.accountPage.whereValue"),
+          secondaryLine: t("screens.accountPage.whereSub"),
         },
       ])}
       <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-signout="1">

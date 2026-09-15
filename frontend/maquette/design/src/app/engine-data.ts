@@ -23,7 +23,6 @@
 // It goes with the engine at L13, and it goes in one file.
 import type { QueryClient } from "@tanstack/react-query";
 import { read } from "../lib/query-client";
-import { toEngineShape } from "../engine/engine-shape";
 import { queueKey, stagingKey } from "../lib/queue";
 import { store } from "../lib/store-access";
 import { refillSuggestions } from "../features/acquisition/queries";
@@ -42,7 +41,6 @@ const NEEDED = [
   {
     key: ["/api/acquisition/followed"],
     address: "/api/acquisition/followed",
-    family: "FOLLOWS",
   },
 ] as const;
 
@@ -56,10 +54,10 @@ export let refillEngineData: (() => void) | undefined;
  */
 export function installEngineData(queryClient: QueryClient): void {
   refillEngineData = () => {
-    for (const { key, address, family } of NEEDED) {
+    for (const { key, address } of NEEDED) {
       void queryClient.prefetchQuery({
         queryKey: key,
-        queryFn: async () => toEngineShape<unknown>(family, await read(address)),
+        queryFn: async () => read(address),
       });
     }
     // THE QUEUE, in whichever world is in force. The engine's nav badges and
@@ -73,9 +71,9 @@ export function installEngineData(queryClient: QueryClient): void {
         const answer = await read<Record<string, unknown[]>>(
           "/api/staging/media", parameters);
         return {
-          stuck: toEngineShape("STUCK_REAL", answer.stuck),
-          moving: toEngineShape("MOVING", answer.moving),
-          settled: toEngineShape("SETTLED_REAL", answer.settled),
+          stuck: answer.stuck,
+          moving: answer.moving,
+          settled: answer.settled,
         };
       },
     });
@@ -85,11 +83,11 @@ export function installEngineData(queryClient: QueryClient): void {
         const answer = await read<Record<string, unknown[]>>(
           "/api/acquisition/to-handle", parameters);
         return {
-          takeable: toEngineShape("TAKEABLE", answer.takeable),
-          blocked: toEngineShape("BLOCKED", answer.blocked),
-          inFlight: toEngineShape("INFLIGHT", answer.inFlight),
-          notFound: toEngineShape("NOTFOUND_REAL", answer.notFound),
-          doneToday: toEngineShape("DONE_TODAY", answer.doneToday),
+          takeable: answer.takeable,
+          blocked: answer.blocked,
+          inFlight: answer.inFlight,
+          notFound: answer.notFound,
+          doneToday: answer.doneToday,
         };
       },
     });

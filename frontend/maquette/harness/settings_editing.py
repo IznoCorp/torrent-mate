@@ -33,6 +33,12 @@ from reaching the input (one capturing listener on the document, added by the
 rule and removed after it) so that the only thing left that can file the edit is
 the button. That is also the real case B-341 reports: a keyboard that commits
 without blurring.
+
+RE-AIMED when the settings and the secrets took the contract's names: a topic's
+settings are read as `settings` (and its title as `title`), a setting's file,
+key and raw value as `file`, `key` and `raw`, a secret's key, label and
+definition as `key`, `label` and `defined`, where they were the engine's short
+keys. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -116,9 +122,9 @@ async def main():
                 found = await page.evaluate(
                     """()=>{const topics = window.__queries
                         ?.getQueryData(['/api/config/schema']) || [];
-                      const text = topics.flatMap((t) => t.r)
+                      const text = topics.flatMap((t) => t.settings)
                         .find((s) => s.type === 'path' || s.type === 'text');
-                      return text ? (text.f + ':' + text.c) : null;}""")
+                      return text ? (text.file + ':' + text.key) : null;}""")
                 if found and await page.query_selector(f'[data-setting="{found}"]'):
                     editable = found
                     break
@@ -222,9 +228,9 @@ async def main():
             answered = await page.evaluate(
                 """(id)=>{const topics = window.__queries
                     ?.getQueryData(['/api/config/schema']) || [];
-                  const one = topics.flatMap((t) => t.r)
-                    .find((s) => (s.f + ':' + s.c) === id);
-                  return one ? String(one.brut) : null;}""", editable)
+                  const one = topics.flatMap((t) => t.settings)
+                    .find((s) => (s.file + ':' + s.key) === id);
+                  return one ? String(one.raw) : null;}""", editable)
             journal.check(
                 "and the layer ANSWERS the written value on the next read "
                 "(B-342)",

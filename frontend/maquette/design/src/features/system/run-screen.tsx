@@ -15,7 +15,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { useRun } from "./queries";
 import { durationInWords, whenItRan } from "./run-list";
-import { useSystemReference } from "./reference";
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import {
   runError,
   runLog,
@@ -284,7 +284,7 @@ function RunBody({ run }: { run: RunDetail }): ReactElement {
 export function RunScreen(): ReactElement {
   const { runUid } = useParams({ from: "/run/$runUid" });
   const { t } = useTranslation();
-  const { icons } = useSystemReference();
+  const { icons } = useEngineDrawing();
   const read = useRun(runUid);
   const missing =
     read.isError &&

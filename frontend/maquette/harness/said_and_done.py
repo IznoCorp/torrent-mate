@@ -28,7 +28,9 @@ whole wave under a green gate.
   m3. NOTHING ANSWERS `data-rescrape` TWICE. The engine's branch is deleted and
       the registry's is the only reader left. A name answered on both sides acts
       twice, and it is a defect a rule can read rather than an arbitration
-      (`lib/verbs.ts` says so in its own header).
+      (`lib/verbs.ts` says so in its own header). RE-AIMED, said out loud: the
+      hold that read the engine's source for its branch left with the engine,
+      which is deleted; the registry's hold stays.
   m4. A MAINTENANCE COMMAND RUNS, AND THE STATE MOVES. A finger on « Lancer »
       for a command that is not blank: `runMaintenanceAction` is answered, and
       the layer's pipeline state — `idle` before — is no longer idle after.
@@ -60,7 +62,6 @@ from common import ACTED, PANEL_IN, SETTLED, Journal, open_page
 from playwright.async_api import async_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-ENGINE = ROOT / "design" / "src" / "engine" / "legacy.js"
 
 # THE SHEET OF AN OWNED SERIES, where the re-scrape act is drawn.
 SHEET_STATE = "mediasheet-series"
@@ -247,23 +248,13 @@ async def follow_panel_twin_sends(page, journal):
     )
 
 
-def engine_answers_rescrape():
-    """Whether the dying engine still has a branch for `data-rescrape`."""
-    return "dataset.rescrape" in ENGINE.read_text(encoding="utf-8")
-
-
 async def one_reader_only(page, journal):
-    """m3 — the registry answers `data-rescrape`, and the engine no longer does."""
+    """m3 — the registry answers `data-rescrape`."""
     registered = await page.evaluate("() => window.__verbNames?.() || []")
     journal.check(
         "the verb registry answers `rescrape`",
         "rescrape" in registered,
         f"registered: {sorted(registered)}",
-    )
-    journal.check(
-        "and the dying engine no longer does — a name answered twice acts twice",
-        not engine_answers_rescrape(),
-        f"`dataset.rescrape` in legacy.js: {engine_answers_rescrape()}",
     )
 
 

@@ -97,6 +97,10 @@ TWO QUESTIONS, READ SEPARATELY, because each half can be broken alone:
 
 WHAT IT DOES NOT READ: whether the message covers something it should not on a
 bare screen — R101 holds the message against the tab bar.
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), where they were
+the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -158,9 +162,9 @@ AIM_AT_THE_CLOSE = """()=>{
 THE_FOLLOW_WITH_A_HOLE = """()=>{
   const drawn = [...document.querySelectorAll('[data-panel]')].map((one) => one.dataset.panel);
   for (const follow of (window.__followActions?.all() || [])) {
-    if (!drawn.some((seen) => seen === follow.t || seen.endsWith(':' + follow.t))) continue;
-    if ((window.__mocks.seasons()[follow.t] || []).some(([n, aired, owned]) => (owned || 0) < (aired || 0)))
-      return follow.t;
+    if (!drawn.some((seen) => seen === follow.title || seen.endsWith(':' + follow.title))) continue;
+    if ((window.__mocks.seasons()[follow.title] || []).some(([n, aired, owned]) => (owned || 0) < (aired || 0)))
+      return follow.title;
   }
   return null;}"""
 
@@ -551,7 +555,7 @@ async def main():
         await page.wait_for_timeout(SETTLED)
         await page.evaluate(SHOW, PROBE)
         await page.wait_for_timeout(SETTLED)
-        first = await page.evaluate("()=>(window.__followActions?.all() || [])[0]?.t || ''")
+        first = await page.evaluate("()=>(window.__followActions?.all() || [])[0]?.title || ''")
         await page.evaluate("(t)=>window.__panel.produce('follow', t)", first)
         await page.wait_for_timeout(PANEL_IN)
         before = await page.evaluate(MEETS, SHEET_CONTROLS)
@@ -620,7 +624,7 @@ async def main():
         await page.wait_for_timeout(SETTLED)
         await page.evaluate(SHOW, PROBE)
         await page.wait_for_timeout(SETTLED)
-        first = await page.evaluate("()=>(window.__followActions?.all() || [])[0]?.t || ''")
+        first = await page.evaluate("()=>(window.__followActions?.all() || [])[0]?.title || ''")
         opening = await page.evaluate(
             ACROSS_THE_CHANGE.replace(
                 "/*CHANGE*/", f"window.__panel.produce('follow', {first!r});"),

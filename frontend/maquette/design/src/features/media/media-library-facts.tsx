@@ -1,9 +1,10 @@
 // What the library holds of a medium: not owned, a film owned, or a series
 // with its seasons, aired and owned counts and completeness — and the season
 // list beneath.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import type { MediaSeasons } from "./queries";
 import { useTranslation } from "react-i18next";
-import { useMediaReference, type MediaSheet } from "./reference";
+import { type MediaSheet } from "./types";
 import { SkeletonLine } from "../../ui/state-surfaces";
 import { SeasonList } from "./season-list";
 import type { CatalogSeason, MediaSheetFields } from "./sheet-fields";
@@ -166,7 +167,7 @@ export function MediaLibraryFacts({
                   fontSize: "11px",
                 }}
               >
-                {`${baseTitle(title)}.${sheet?.y ?? "2026"}.MULTi.1080p.mkv`}
+                {`${baseTitle(title)}.${sheet?.year ?? "2026"}.MULTi.1080p.mkv`}
               </span>
             </div>
           </>

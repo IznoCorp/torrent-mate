@@ -28,10 +28,10 @@
 // AND THE SWITCH MADE FROM A LAYER IS THE OTHER HALF, answered by COUNTING
 // rather than by intercepting. A layer's entry sits above the surface's, so
 // there is nothing here a back could take: the rewind that unwinds the layer
-// has to know the surface is there. It asks — `window.__stackedSurfaces()` —
-// and every surface that pushes inside a page answers. Nothing else changes:
-// the engine's rewind was reading a count it ASSUMED, and now it reads one
-// that is told to it.
+// has to know the surface is there. It asks — `stackedSurfaces()` — and every
+// surface that pushes inside a page answers. Nothing else changes: the
+// engine's rewind read a count it ASSUMED, and the rewind reads one that is
+// told to it.
 import { bridge } from "./shell-doors";
 
 // EVERY SURFACE THAT HAS PUSHED INSIDE A PAGE, asked rather than counted here:
@@ -52,8 +52,8 @@ const stacked: (() => boolean)[] = [];
 /**
  * How many surfaces inside the page have an entry of their own right now.
  *
- * Exported for the dying engine's rewind, which asks it through
- * `engine/seams.ts` — and it dies with the engine.
+ * Exported for the page switch's rewind (`app/page-switch.ts`), which asked it
+ * through `engine/seams.ts@13a66a35b` while the engine lived and imports it now.
  */
 export function stackedSurfaces(): number {
   return stacked.filter((isOpen) => isOpen()).length;

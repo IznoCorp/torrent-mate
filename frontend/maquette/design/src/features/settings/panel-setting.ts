@@ -15,10 +15,11 @@ import { registerVerb } from "../../lib/verbs";
 import { flattenSettings, settingIdentifier, valueShown } from "./catalog";
 import { HELD, send, sharedQueryClient } from "../../lib/query-client";
 import { configurationStatusQuery, settingsQuery, writeConfigurationFile } from "./queries";
-import type { Setting, SettingsTopic } from "./reference";
-import { dialog, panel, toast } from "../../lib/shell-doors";
+import type { Setting, SettingsTopic } from "./types";
+import { dialog, panel, toast, redraw, icons } from "../../lib/shell-doors";
 import { settingLabels } from "./labels";
 import { changeSetting } from "./pending-edits";
+import { SETTINGS_STATE, changedFiles, fileName, typedValue } from "./state";
 
 // THE ICONS COME THROUGH THE ENGINE'S DRAWING SLICE, not by importing
 // `app/icons.ts`, and it is invariant 8 that decides. `app/icons.ts` is outside
@@ -29,7 +30,6 @@ import { changeSetting } from "./pending-edits";
 // (`lib/engine-drawing.ts`), it is the SAME object either way, and it dies with
 // the engine — at which point `app/icons.ts` is the durable home and this line
 // is the one that changes.
-const icons = () => window.__referentiel.icons;
 
 // The value kinds the reader TYPES, as `panel-field.tsx` draws them: every kind
 // that is not a switch, a list or an unbuildable structure ends up in the same
@@ -74,13 +74,13 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
   // delegation verb that writes them, and that is the engine's last lot. Read
   // through the same slice the settings page reads, so the panel and the page
   // cannot disagree about what has been edited.
-  const { modifs: pending, readOnly } = window.__referentiel.SETTINGS_STATE;
+  const { modifs: pending, readOnly } = SETTINGS_STATE;
   const shown = valueShown(setting, pending);
   const changed = pending.has(identifier);
   return {
     address: "setting:" + identifier,
     title: settingLabels.label(setting),
-    meta: [{ m: `${setting.f}.json5 · ${setting.c}` }],
+    meta: [{ m: `${setting.file}.json5 · ${setting.key}` }],
     ...(changed ? { puce: ["info", translate("panels.setting.edited")] } : {}),
     blocs: [
       setting.note ? { type: "note", text: setting.note } : null,
@@ -105,7 +105,7 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
           ...(changed
             ? [{
                 c: translate("panels.setting.storedValue"),
-                v: String(setting.v),
+                v: String(setting.displayedValue),
                 terne: true,
               }]
             : []),
@@ -119,7 +119,7 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
           readOnly
             ? {
                 text: translate("panels.setting.readOnly"),
-                icone: icons().x,
+                icone: icons.x,
                 desactive: true,
               }
             : null,
@@ -140,14 +140,14 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
             ? null
             : {
                 text: translate("panels.setting.commit"),
-                icone: icons().check,
+                icone: icons.check,
                 ton: "primary",
                 target: { commitsetting: identifier },
               },
           changed
             ? {
                 text: translate("panels.setting.cancelEdit"),
-                icone: icons().x,
+                icone: icons.x,
                 target: { cancelsetting: identifier },
               }
             : null,
@@ -159,8 +159,8 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
 }
 
 /* « ANNULER LA MODIFICATION » — the verb this panel offers, living beside the
-   panel that offers it. It was `legacy.js`'s `data-cancelsetting` branch, and
-   it moves here because a producer owns the verbs its own surface carries
+   panel that offers it. It was the `data-cancelsetting` branch of
+   `engine/legacy.js@13a66a35b`, and it moved here because a producer owns the verbs its own surface carries
    (`frame-model.md` Part 12). Its rule was written FIRST, against the engine's
    branch, and seen red under a mutation of it — `harness/settings.py`'s
    « cancelling drops that edit », « and leaves every other edit standing »,
@@ -174,9 +174,9 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
    The panel closes, and the page is redrawn and the message said in the same
    tap: the layer's own exit animates while the page under it changes. */
 function cancelEdit(identifier: string): void {
-  window.__referentiel.SETTINGS_STATE.modifs.delete(identifier);
+  SETTINGS_STATE.modifs.delete(identifier);
   panel.close();
-  window.__referentiel.render();
+  redraw();
   toast?.show({
     message: i18next.t("panels.setting.cancelledToast"),
   });
@@ -208,9 +208,8 @@ type SettingsVerbs = {
    longer describes what is stored, and throwing the operator's work away on top
    of that would be the second loss. */
 async function saveEdits(): Promise<void> {
-  const reference = window.__referentiel;
-  const files = reference.changedFiles();
-  const pending = reference.SETTINGS_STATE.modifs;
+  const files = changedFiles();
+  const pending = SETTINGS_STATE.modifs;
   let conflicted = false;
   for (const file of files) {
     const values: Record<string, unknown> = {};
@@ -223,9 +222,9 @@ async function saveEdits(): Promise<void> {
     if (answered !== HELD && answered !== undefined && answered.conflict)
       conflicted = true;
   }
-  reference.SETTINGS_STATE.conflict = conflicted;
+  SETTINGS_STATE.conflict = conflicted;
   if (conflicted) {
-    reference.render();
+    redraw();
     return;
   }
   pending.clear();
@@ -241,10 +240,10 @@ async function saveEdits(): Promise<void> {
   await sharedQueryClient?.invalidateQueries({ queryKey: settingsQuery.queryKey });
   await sharedQueryClient?.invalidateQueries({
     queryKey: configurationStatusQuery.queryKey });
-  reference.render();
+  redraw();
   toast?.show({
     message: i18next.t("panels.setting.savedToast", {
-      files: files.map(reference.fileName).join(", "),
+      files: files.map(fileName).join(", "),
     }),
   });
 }
@@ -260,7 +259,6 @@ async function saveEdits(): Promise<void> {
    value lines and the bottom bar all read the edit, and a file that landed
    without the surface moving is the species this wave exists to end. */
 function commitEdit(identifier: string): void {
-  const reference = window.__referentiel;
   const field = document.querySelector<HTMLInputElement>(
     `#sheetin [data-part="field/input"][data-field="${CSS.escape(identifier)}"]`);
   if (field === null) return;
@@ -268,7 +266,7 @@ function commitEdit(identifier: string): void {
     (sharedQueryClient?.getQueryData<SettingsTopic[]>(settingsQuery.queryKey))
       ?? []).find((one) => settingIdentifier(one) === identifier);
   if (setting === undefined) return;
-  changeSetting(identifier, reference.typedValue(setting, field.value));
+  changeSetting(identifier, typedValue(setting, field.value));
   panel.produce("setting", identifier);
 }
 
@@ -276,11 +274,10 @@ function commitEdit(identifier: string): void {
    stale and there is nothing local worth keeping, so the pending edits go with
    the banner and the settings are asked for again. */
 function reloadSettings(): void {
-  const reference = window.__referentiel;
-  reference.SETTINGS_STATE.modifs.clear();
-  reference.SETTINGS_STATE.conflict = false;
+  SETTINGS_STATE.modifs.clear();
+  SETTINGS_STATE.conflict = false;
   sharedQueryClient?.invalidateQueries({ queryKey: settingsQuery.queryKey });
-  reference.render();
+  redraw();
 }
 
 /* RESTARTING IS ASKED BEFORE IT IS DONE (B-300, §17).
@@ -322,7 +319,6 @@ function askToRestart(): void {
 
 /** Restarts, and only once the operator has said so. */
 async function restart(): Promise<void> {
-  const reference = window.__referentiel;
   dialog?.close();
   // ASKED OF THE LAYER, because that is where the fact lives now (B-343). The
   // flag used to be dropped on `SETTINGS_STATE` and the service was never told
@@ -331,7 +327,7 @@ async function restart(): Promise<void> {
   await send("POST", "/api/config/restart-web");
   await sharedQueryClient?.invalidateQueries({
     queryKey: configurationStatusQuery.queryKey });
-  reference.render();
+  redraw();
   toast?.show({
     message: i18next.t("screens.settings.restartDone"),
   });

@@ -33,6 +33,20 @@ AND IT READS BOTH ENDS. The LAYER's answer says the seed holds the subject; the
 SCREEN says a finger could find it. Either alone is half the question: a seed
 nothing draws is unreachable, and a card drawn from a state nobody seeded is not
 at rest.
+
+RE-AIMED when the queue's cards took the contract's names: a card's title is
+read as `title` (it was the engine's `t`). The holds and what they compare are
+unchanged.
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), where they were
+the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
+
+RE-AIMED when the settings and the secrets took the contract's names: a topic's
+settings are read as `settings` (and its title as `title`), a setting's file,
+key and raw value as `file`, `key` and `raw`, a secret's key, label and
+definition as `key`, `label` and `defined`, where they were the engine's short
+keys. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -46,13 +60,13 @@ from playwright.async_api import async_playwright
 # THE FOLLOWS THE LAYER HOLDS, with the two fields this rule asks about: what
 # the follow is and what state it is in.
 FOLLOWS = """()=>(window.__followActions?.all() || []).map(
-  (one) => ({t: one.t, k: one.k, st: one.st}))"""
+  (one) => ({t: one.title, k: one.kind, st: one.status}))"""
 
 # THE QUEUE THE LAYER HOLDS. `window.__queue` answers the lists the arrivals
 # surfaces are drawn from, so this is the same answer the screen was built from
 # rather than a second opinion about it.
 QUEUE = """()=>{const now = window.__queue?.() || {};
-  const titles = (list) => (now[list] || []).map((one) => one && one.t).filter(Boolean);
+  const titles = (list) => (now[list] || []).map((one) => one && one.title).filter(Boolean);
   return {takeable: titles("takeable"), blocked: titles("blocked"),
           inFlight: titles("inFlight")};}"""
 
@@ -63,9 +77,9 @@ QUEUE = """()=>{const now = window.__queue?.() || {};
 SEASON_HOLES = """()=>{
   const found = [];
   for (const follow of (window.__followActions?.all() || [])) {
-    for (const [number, aired, owned] of (window.__mocks.seasons()[follow.t] || [])) {
+    for (const [number, aired, owned] of (window.__mocks.seasons()[follow.title] || [])) {
       if ((owned || 0) < (aired || 0))
-        found.push({title: follow.t, season: number, aired, owned});
+        found.push({title: follow.title, season: number, aired, owned});
     }
   }
   return found;}"""
@@ -83,9 +97,9 @@ TITLES_ON_SCREEN = """()=>[...document.querySelectorAll(
 MOVED_FILE_SETTING = """()=>{
   const topics = window.__queries?.getQueryData(['/api/config/schema']) || [];
   for (const topic of topics) {
-    for (const setting of topic.r) {
-      if (setting.f !== 'notify') continue;
-      return {topic: topic.id, identity: setting.f + ':' + setting.c};
+    for (const setting of topic.settings) {
+      if (setting.file !== 'notify') continue;
+      return {topic: topic.id, identity: setting.file + ':' + setting.key};
     }
   }
   return null;}"""
@@ -95,9 +109,9 @@ MOVED_FILE_SETTING = """()=>{
 ORDINARY_SETTING = """()=>{
   const topics = window.__queries?.getQueryData(['/api/config/schema']) || [];
   for (const topic of topics) {
-    for (const setting of topic.r) {
-      if (setting.f === 'notify' || setting.type !== 'boolean') continue;
-      return {topic: topic.id, identity: setting.f + ':' + setting.c};
+    for (const setting of topic.settings) {
+      if (setting.file === 'notify' || setting.type !== 'boolean') continue;
+      return {topic: topic.id, identity: setting.file + ':' + setting.key};
     }
   }
   return null;}"""

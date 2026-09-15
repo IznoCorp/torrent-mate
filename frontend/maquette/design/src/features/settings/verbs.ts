@@ -14,7 +14,8 @@ import { settingIdentifier } from "./catalog";
 import { settingsVerbs } from "./panel-setting";
 import { changeSetting, rawValue } from "./pending-edits";
 import { heldSettings } from "./queries";
-import type { Setting } from "./reference";
+import type { Setting } from "./types";
+import { SETTINGS_STATE } from "./state";
 
 /**
  * Finds one setting among those the layer answered.
@@ -94,6 +95,6 @@ registerVerb("confirmrestart", () => {
 // The search filters the rows in place; the store's version bump is what
 // redraws them.
 registerVerb("qsettings", (query) => {
-  window.__referentiel.SETTINGS_STATE.q = query;
+  SETTINGS_STATE.q = query;
   store.touch();
 });

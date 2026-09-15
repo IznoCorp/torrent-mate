@@ -40,12 +40,13 @@
 // candidate) is read by the branch that treats `state.resolveTarget` as the
 // folder and the attribute as the CHOICE — which is why the shell's
 // `window.__screens.resolution()` door writes that target before navigating.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useDecisions } from "./queries";
 import { useAcquisitionQueue, useStaging } from "../../lib/queue";
-import { useArrivalsReference } from "../../features/arrivals/reference";
 import { Candidates, DecisionCard } from "./resolution-cards";
+import { REASON_TONE, reasonDetail, reasonLabel } from "./decision-vocabulary";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useStoreContent, useUiState } from "../../lib/store-access";
 import { actionButton, backAction, body, emptyNote, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, sheetActions, type ChipTone } from "../../ui/variants";
@@ -67,12 +68,7 @@ export function ResolutionScreen() {
   // (« 1 sur 2 ») and « Passer à la suivante » answer the queue as it is now —
   // the legacy screen re-opened itself for the same reason.
   useStoreContent((c) => c.version);
-  const {
-    icons,
-    REASON_DETAIL,
-    REASON_LABEL,
-    REASON_TONE,
-  } = useArrivalsReference();
+  const { icons } = useEngineDrawing();
   const { t } = useTranslation();
   // THE DECISIONS COME FROM THE CACHE (invariant 4). `decisionPending` and
   // `DECISIONS_REGLEES` were the engine's, read straight off the fixture; the
@@ -91,7 +87,7 @@ export function ResolutionScreen() {
   const { data: queue } = useAcquisitionQueue(scenario);
   const settledDecisions = decisions?.settled ?? [];
   const decisionPending = (subject: string | null) =>
-    decisions?.pending.find((entry) => entry.d === subject) ?? null;
+    decisions?.pending.find((entry) => entry.folder === subject) ?? null;
   // A folder either HAS a pending decision or it has none, and the screen must
   // not borrow one. Showing another folder's candidates would be the worst
   // possible lie on the one screen whose job is to name what is on disk.
@@ -102,13 +98,13 @@ export function ResolutionScreen() {
   // counted only one of them would be wrong on the other.
   const pending = (queue?.blocked ?? [])
     .concat(staging?.stuck ?? [])
-    .filter((card: QueueCard) => decisionPending(card.t as string) != null);
+    .filter((card: QueueCard) => decisionPending(card.title) != null);
   const rank = decision
-    ? pending.findIndex((card: QueueCard) => card.t === decision.d) + 1
+    ? pending.findIndex((card: QueueCard) => card.title === decision.folder) + 1
     : 0;
-  // The legacy screen picked its own subject between `decision.d` and
+  // The legacy screen picked its own subject between `decision.folder` and
   // `state.resolveTarget`; here the ROUTE PARAM is the identity, and
-  // `decisionPending` matches on that very `d` — so the two legacy branches
+  // `decisionPending` matches on that very `folder` — so the two legacy branches
   // are one value. A target the door could not resolve at all reaches this
   // screen as the legacy's own last resort, « élément inconnu ».
   return (
@@ -139,14 +135,14 @@ export function ResolutionScreen() {
           </h2>
           <p className={qualityHint()}>
             {decision
-              ? (REASON_DETAIL[decision.reason] ?? "")
+              ? reasonDetail(decision.reason)
               : t("screens.resolution.noMediaIdentified")}
           </p>
           <CardMeta as="div" style={{ marginBottom: "12px" }}>
             {decision ? (
               <Chip
                 tone={(REASON_TONE[decision.reason] ?? "neutral") as ChipTone}
-                label={REASON_LABEL[decision.reason] ?? decision.reason}
+                label={reasonLabel(decision.reason)}
               />
             ) : (
               ""
@@ -202,7 +198,7 @@ export function ResolutionScreen() {
               </h2>
               <p className={qualityHint()}>{t("screens.resolution.settledHint")}</p>
               {settledDecisions.slice(0, 6).map((settled) => (
-                <DecisionCard key={settled.d} decision={settled} />
+                <DecisionCard key={settled.folder} decision={settled} />
               ))}
             </>
           ) : (

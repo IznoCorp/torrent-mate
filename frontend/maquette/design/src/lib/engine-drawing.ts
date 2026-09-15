@@ -1,61 +1,31 @@
 // the engine's DRAWING surface — what emits markup or formats a value
 //
-// The slice of `window.__referentiel` this layer reads, and nothing else.
-//
-// The engine publishes ONE object; what it publishes is not one subject. A
-// single 340-line declaration of all of it made every module that needed two
-// members depend on all hundred and eight, and seventeen of twenty-five
-// modules did. Each slice is declared where its subject lives instead, and the
-// global's own type is their intersection (app/reference.d.ts) — so a
-// reader imports nothing to be typed, and a member nobody's subject claims has
-// nowhere to be written down.
+// What every layer draws with: the icon paths, read through the frame's door
+// (`lib/shell-doors.ts`), and the poster fallback built from them.
 
 import type { Artwork } from "../ui/poster";
+import { icons } from "./shell-doors";
 import { initials } from "./titles";
 
-// Read-only reference data + pure rendering helpers the engine's own script
-// publishes once, at definition time — well before any component's module
-// evaluates (see shell.tsx's boot-order comment). None of it is ever
-// mutated after that publish, so a plain accessor is the right shape here,
-// not a subscription: there is nothing for a component to miss by reading
-// it straight, and useSyncExternalStore would just add a subscription with
-// no writer ever calling it.
-//
-// One row of a fact list, exactly as `ui/fact-rows.tsx` draws one. `ton` is
-// the operator's vocabulary (`success` / `alert` / `warning` / `info`) and the
-// component maps it onto the chip's; `target` becomes the row's `data-*`
-// attributes, which is what turns the row into the control.
-export type Fact = {
-  l: string;
-  v?: string;
-  s?: string;
-  k?: string;
-  ton?: string;
-  state?: string;
-  target?: Record<string, string>;
-};
-
+// The icon paths are filled once, by the boot, before anything is drawn, and
+// never written again — so a plain accessor is the right shape here, not a
+// subscription: there is nothing for a component to miss by reading it
+// straight, and useSyncExternalStore would add a subscription no writer calls.
 export type EngineDrawing = {
-  svgIcon: (paths: string, strokeWidth?: number) => string;
   icons: Record<string, string>;
-  escapeHtml: (text: string) => string;
-  render: () => void;
-  toast: (msg: string) => void;
 };
 
 /**
- * Reads the engine's drawing surface.
+ * Reads the drawing surface: the icon paths the boot filled the door with.
  *
- * For the two readers that need nothing else: a `ui/` primitive, which may not
- * import a feature, and the shell's own not-found page, which belongs to no
- * domain. A feature reads these members through its own slice, which
- * intersects this one — same object, one destructure.
+ * For every component that draws an icon — a `ui/` primitive, which may not
+ * import `app/`, and a feature, which may not either.
  *
  * Returns:
  *     The drawing surface, typed.
  */
 export function useEngineDrawing(): EngineDrawing {
-  return window.__referentiel;
+  return { icons };
 }
 
 /**

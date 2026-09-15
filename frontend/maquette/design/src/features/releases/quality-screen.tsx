@@ -7,16 +7,25 @@
 // (`.screen`, `.screen.open`, `.screen .port`, `.qgroup`, `.opt`, …), so the
 // same stylesheet applies unchanged and the rule harness measures the same
 // geometry.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useReleases } from "./queries";
 import { Icon } from "../../ui/icon";
-import { useReleasesReference, type Release, type Resolution } from "../../features/releases/reference";
+import { type Release, type Resolution } from "../../features/releases/types";
 import { useUiState, writeUiState } from "../../lib/store-access";
 import { actionButton, backAction, body, factsPanel, keyValueRow, option, optionKind, optionLabel, optionList, optionMark, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, settingRow, sheetActions, toggleSwitch } from "../../ui/variants";
 import { qualityGroup } from "../../features/releases/variants";
 import { bridge } from "../../lib/shell-doors";
 import { baseTitle } from "../../lib/titles";
+
+// The resolution floors a follow may set, lowest first.
+const RESOLUTIONS: Resolution[] = ["720p", "1080p", "2160p"];
+
+// The audio tracks a follow may require. Each KEY is a contract value the
+// ranking profile carries; the sentence describing it is the interface's
+// (`screens.profile.audioOptions`).
+const AUDIO_OPTIONS = ["VF", "VOSTFR", "VO"];
 
 // The field names are the legacy state's own — `state.profil` is written and
 // read by the engine under these exact keys.
@@ -35,14 +44,14 @@ function countKept(profile: QualityProfile, releases: Release[]): number {
   return releases.filter((release) => {
     if (
       profile.min_resolution &&
-      order[release.res] < order[profile.min_resolution]
+      order[release.resolution] < order[profile.min_resolution]
     )
       return false;
     if (profile.required_audio.length) {
       const tier =
-        release.lang === "VOSTFR"
+        release.language === "VOSTFR"
           ? "VOSTFR"
-          : release.lang === "VO"
+          : release.language === "VO"
             ? "VO"
             : "VF";
       if (!profile.required_audio.includes(tier)) return false;
@@ -58,11 +67,7 @@ export function QualityScreen() {
   const title = raw.normalize("NFC");
   const state = useUiState();
   const profile = state.profile as QualityProfile;
-  const {
-    RESOLUTIONS,
-    AUDIOS,
-    icons,
-  } = useReleasesReference();
+  const { icons } = useEngineDrawing();
   const { t } = useTranslation();
   // FROM THE CACHE (invariant 4). THE TITLE'S RELEASES, not every release: the
   // profile is opened for one medium, and « kept out of » a list holding every
@@ -193,7 +198,7 @@ export function QualityScreen() {
                 : ""}
             </p>
             <div className={optionList()} data-part="option/list">
-              {AUDIOS.map(([key, label]) => (
+              {AUDIO_OPTIONS.map((key) => (
                 <button
                   key={key}
                   className={`${option()} check`}
@@ -206,7 +211,7 @@ export function QualityScreen() {
                   <span className={optionMark({ kind: "check" })} />
                   <span className={optionLabel()}>
                     {key}
-                    <small>{label}</small>
+                    <small>{t(`screens.profile.audioOptions.${key}`)}</small>
                   </span>
                 </button>
               ))}

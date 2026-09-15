@@ -5,13 +5,12 @@
 // `run` builds the state. The driver resets the interface before every state,
 // so an entry pins only what its state means to show.
 import { applyState, type NamedState } from "../drive";
-import { resetSettings } from "../../engine/legacy.js";
+import { resetSettings } from "../settings-reset";
+import { SETTINGS_STATE } from "../../features/settings/state";
 
 export function settingsStates(): NamedState[] {
-  // The pending state, read through the reference the engine publishes. The
-  // catalogue a field state searches is the seed the served read answers from,
-  // because the driver clears the cache before a state is built.
-  const { SETTINGS_STATE } = window.__referentiel;
+  // The catalogue a field state searches is the seed the served read answers
+  // from, because the driver clears the cache before a state is built.
   return [
     [
       "settings",

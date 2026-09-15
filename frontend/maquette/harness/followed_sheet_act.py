@@ -52,6 +52,14 @@ RE-AIMED, said out loud: the twins' premise read `sheetFor`, and the sheet is op
 its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
 `__carriedFor` — the seed the served read answers from, published by the harness
 driver — and the hold count is unchanged.
+
+RE-AIMED when the engine's `window.__referentiel` object died: the base title
+is read through `window.__baseTitle`, published by `harness/publish.ts` from
+`lib/titles.ts`. The holds and what they compare are unchanged.
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), where they were
+the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
 """
 import asyncio
 import json
@@ -85,15 +93,14 @@ SENTENCES = json.loads(
 ANSWERED = "()=>(window.__mocks?.answered?.() || [])"
 
 FOLLOWS = """()=>Object.fromEntries((window.__followActions?.all() || []).map(
-  (one) => [one.t, one.st]))"""
+  (one) => [one.title, one.status]))"""
 
 # THE PREMISE, on the referential and on the follows: both keys resolve a sheet,
 # the follow is recorded under the bare one and not under the dated one.
 TWINS = """([bare, dated])=>{
-  const reference = window.__referentiel;
-  const titles = (window.__followActions?.all() || []).map((one) => one.t);
+  const titles = (window.__followActions?.all() || []).map((one) => one.title);
   return {bareSheet: !!window.__sheetOf(bare), datedSheet: !!window.__sheetOf(dated),
-          sameBase: reference.baseTitle(bare) === reference.baseTitle(dated),
+          sameBase: window.__baseTitle(bare) === window.__baseTitle(dated),
           followedBare: titles.includes(bare), followedDated: titles.includes(dated)};}"""
 
 # EVERY SEASON ROW ON THE SHEET THAT OFFERS THE ACT, with its value.

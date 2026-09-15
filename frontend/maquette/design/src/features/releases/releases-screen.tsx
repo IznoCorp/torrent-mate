@@ -14,10 +14,10 @@
 // `data-profile` (open the quality profile) carry NO onClick: the
 // document-level click delegation the legacy engine still runs is the seam
 // this screen leans on, exactly as `media.tsx` and `profile.tsx`.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useReleases } from "./queries";
-import { useReleasesReference } from "../../features/releases/reference";
 import { actionButton, backAction, body, chip, emptyNote, qualityHint, resultCount, screen, screenBar, scrollport } from "../../ui/variants";
 import { releaseName, releaseRow, releaseScore, releaseTags } from "../../features/releases/variants";
 import { Icon } from "../../ui/icon";
@@ -31,7 +31,7 @@ export function ReleasesScreen() {
   const title = raw.normalize("NFC");
   const {
     icons,
-  } = useReleasesReference();
+  } = useEngineDrawing();
   const { t } = useTranslation();
   // FROM THE CACHE (invariant 4).
   const { data: RELEASES = [] } = useReleases(baseTitle(title));
@@ -74,33 +74,33 @@ export function ReleasesScreen() {
             <article
               className={releaseRow({ best: index === 0 })}
               data-part="release"
-              key={release.n}
+              key={release.name}
             >
-              <span className={releaseName()}>{release.n}</span>{" "}
+              <span className={releaseName()}>{release.name}</span>{" "}
               <span className={releaseTags()}>
                 <span
                   className={chip({
                     tone:
-                      release.res === "2160p"
+                      release.resolution === "2160p"
                         ? "success"
-                        : release.res === "1080p"
+                        : release.resolution === "1080p"
                           ? "info"
                           : "neutral",
                   })}
                 >
-                  {release.res}
+                  {release.resolution}
                 </span>{" "}
-                <span className={chip()} data-part="chip">{release.src}</span>{" "}
-                <span className={chip()} data-part="chip">{release.lang}</span>{" "}
+                <span className={chip()} data-part="chip">{release.source}</span>{" "}
+                <span className={chip()} data-part="chip">{release.language}</span>{" "}
                 <span className={chip()} data-part="chip">
-                  {release.s} {t("screens.releases.sourcesUnit")}
+                  {release.seeders} {t("screens.releases.sourcesUnit")}
                 </span>{" "}
                 <span className={chip()} data-part="chip">
-                  {String(release.go).replace(".", ",")}{" "}
+                  {String(release.sizeGigabytes).replace(".", ",")}{" "}
                   {t("screens.releases.goUnit")}
                 </span>{" "}
                 <span className={releaseScore()}>
-                  {t("screens.releases.scoreLabel")} {release.sc}
+                  {t("screens.releases.scoreLabel")} {release.score}
                 </span>
               </span>{" "}
               {index === 0 ? (

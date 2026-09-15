@@ -64,7 +64,7 @@ const REOPEN: Readonly<Record<string, Opener | undefined>> = {
        so a `holds` built on that read would say yes to everything. */
     resolves: (subject) =>
       heldMedium(subject) ||
-      (queueLists?.().inFlight ?? []).some((entry) => entry.t === subject),
+      (queueLists?.().inFlight ?? []).some((entry) => entry.title === subject),
   },
   setting: {
     /* The feature produces the panel and answers whether it holds the subject. */

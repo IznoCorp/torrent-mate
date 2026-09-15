@@ -5,8 +5,7 @@
 // under this name », which is a provider's question and not the queue's.
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
-import { toEngineShape } from "../../engine/engine-shape";
-import type { SearchResults } from "./reference";
+import type { SearchResults } from "./types";
 
 /**
  * What a provider answers for one search.
@@ -24,8 +23,7 @@ export function useProviderSearch(query: string) {
     queryKey: ["/api/acquisition/search", query],
     queryFn: async () => {
       const parameters = new URLSearchParams(query ? { query } : {});
-      return toEngineShape<SearchResults>(
-        "SEARCH", await read("/api/acquisition/search", parameters));
+      return read<SearchResults>("/api/acquisition/search", parameters);
     },
   });
 }

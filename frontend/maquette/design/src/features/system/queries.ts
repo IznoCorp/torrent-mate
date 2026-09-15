@@ -5,71 +5,64 @@
 // seven resources answering seven questions, and one « everything about the
 // system » read would make a slow answer hold up the other six.
 //
-// THE SERVICE FAULT VARIANT STAYS IN THE ENGINE, and that is what the register
-// says rather than a choice made here: `SERVICES_PANNE` is declared inside a
-// named function and carries no class, so no seed derives from it and no
-// operation answers it. Its SCHEDULER twin left with the family it mapped over:
-// the healthy schedulers are the layer's answer now, so the overdue list is
-// derived beside the list it alters (`./fault`). The page therefore reads one
-// broken list from the engine and derives the other — a mixture, and a visible
-// one, rather than a fixture quietly surviving its own removal.
+// THE FAULT VARIANTS ARE NOT READS. The simulated fault is the interface's own
+// replay of the healthy services and schedulers, derived beside the lists it
+// alters (`./fault`) — no seed derives from it and no operation answers it.
 import { useQuery } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
-import { toEngineShape } from "../../engine/engine-shape";
-import type { Fact } from "../../lib/engine-drawing";
-import type { CodeErrors, PipelineRun } from "./reference";
+import type { Schemas } from "../../lib/contract-schemas";
+import type { CodeErrors } from "./types";
 import { useTranslation } from "react-i18next";
 import type { components } from "../../contract/types";
 
 type RunHistory = components["schemas"]["RunHistory"];
 type RunDetail = components["schemas"]["RunDetail"];
 
-/**
- * Reads one system resource.
- *
- * @param address The contract address.
- * @param family The fixture family its shape came from.
- * @returns The query, its answer already in the engine's names.
- */
 // THE SETTING THE LEVERS DRAW, by the key its own file owns. Named once here
 // so the row, the demand and the panel's address cannot drift apart.
 const BOUND_KEY = "pipeline.tunnels.max_parallel";
 
-/** The pipeline's status as the engine's markup reads it. */
-type PipelineStatus = { state?: string; watcherEnabled?: boolean };
+/** The pipeline's status, in the contract's names. */
+type PipelineStatus = components["schemas"]["Pipeline"];
 
-/** One rubric of the settings catalogue, in the engine's own field names. */
-type SettingsTopic = { r: { f: string; c: string; brut: unknown }[] };
+/** One rubric of the settings catalogue, in the contract's names. */
+type SettingsTopic = components["schemas"]["SettingsTopic"];
 
-function useSystemRead<Result>(address: string, family: string) {
+/**
+ * Reads one system resource.
+ *
+ * @param address The contract address.
+ * @returns The query, its answer in the contract's names.
+ */
+function useSystemRead<Result>(address: string) {
   return useQuery({
     queryKey: [address],
-    queryFn: async () => toEngineShape<Result>(family, await read(address)),
+    queryFn: async () => read<Result>(address),
   });
 }
 
 /** The services, and what each is doing. */
 export const useServices = () =>
-  useSystemRead<Fact[]>("/api/system/services", "SERVICES");
+  useSystemRead<Schemas["Fact"][]>("/api/system/services");
 
 /** The schedulers, and when each next runs. */
 export const useSchedulers = () =>
-  useSystemRead<Fact[]>("/api/maintenance/schedulers", "SCHEDULERS");
+  useSystemRead<Schemas["Fact"][]>("/api/maintenance/schedulers");
 
 /** The disks, and what is left on each. */
-export const useDisks = () => useSystemRead<Fact[]>("/api/maintenance/disks", "DISKS");
+export const useDisks = () => useSystemRead<Schemas["Fact"][]>("/api/maintenance/disks");
 
 /** The index's own health. */
 export const useIndexHealth = () =>
-  useSystemRead<Fact[]>("/api/maintenance/index-health", "INDEX");
+  useSystemRead<Schemas["Fact"][]>("/api/maintenance/index-health");
 
 /** What the engine depends on, and whether each answers. */
 export const useDependencies = () =>
-  useSystemRead<Fact[]>("/api/system/dependencies", "DEPENDENCIES");
+  useSystemRead<Schemas["Fact"][]>("/api/system/dependencies");
 
 /** What has gone wrong lately. */
 export const useSystemErrors = () =>
-  useSystemRead<CodeErrors>("/api/system/errors", "ERRORS");
+  useSystemRead<CodeErrors>("/api/system/errors");
 
 /**
  * The last runs, a page of them, and whether the list can be trusted.
@@ -115,7 +108,7 @@ export const usePipelineState = () =>
   useQuery({
     queryKey: ["/api/pipeline/status"],
     queryFn: async () =>
-      toEngineShape<PipelineStatus>("PIPELINE", await read("/api/pipeline/status")),
+      read<PipelineStatus>("/api/pipeline/status"),
   });
 
 /**
@@ -133,12 +126,12 @@ export function useBoundSetting(): { identity?: string; said: string } | undefin
   const { data: topics } = useQuery({
     queryKey: ["/api/config/schema"],
     queryFn: async () =>
-      toEngineShape<SettingsTopic[]>("SETTINGS", await read("/api/config/schema")),
+      read<SettingsTopic[]>("/api/config/schema"),
   });
   if (topics === undefined) return undefined;
   const setting = topics
-    .flatMap((topic) => topic.r)
-    .find((one) => one.c === BOUND_KEY);
+    .flatMap((topic) => topic.settings)
+    .find((one) => one.key === BOUND_KEY);
   // THE KEY DOES NOT EXIST YET, and the row says so rather than inventing one.
   // It is a DEMAND (§20-1 makes the bound « une variable de configuration
   // réglable »), so the catalogue answers nothing for it — and a settings seed
@@ -146,9 +139,9 @@ export function useBoundSetting(): { identity?: string; said: string } | undefin
   // refuses, rightly: what this interface lists is the REAL configuration.
   if (setting === undefined) return { identity: undefined, said: t("screens.system.boundOwed") };
   return {
-    identity: `${setting.f}:${setting.c}`,
-    said: setting.brut === null || setting.brut === undefined
+    identity: `${setting.file}:${setting.key}`,
+    said: setting.raw === null || setting.raw === undefined
       ? t("screens.system.boundUnset")
-      : String(setting.brut),
+      : String(setting.raw),
   };
 }

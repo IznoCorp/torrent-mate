@@ -241,6 +241,7 @@ cur
 current
 cursor
 cutoff
+daily
 damping
 danger
 data
@@ -353,6 +354,7 @@ err
 error
 errors
 escape
+escaped
 event
 events
 ever
@@ -425,7 +427,9 @@ fr
 fraction
 frame
 frames
+freeze
 freq
+frequency
 fresh
 from
 frozen
@@ -480,6 +484,7 @@ home
 hooks
 host
 hot
+hour
 hours
 html
 hue
@@ -989,6 +994,7 @@ selector
 selmode
 semibold
 send
+sentence
 sentinel
 separator
 sequence
@@ -1149,6 +1155,7 @@ tight
 tighter
 tile
 tiles
+time
 timer
 title
 titles
@@ -1294,6 +1301,7 @@ wiring
 with
 within
 without
+word
 wording
 wordmark
 words

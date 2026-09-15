@@ -28,6 +28,10 @@ WHAT IT READS, and each fails differently:
 THE UNDO IS PRESSED, not called. Its button is `#toastundo`, an id the message
 host has carried since the inventory command — and pressing it is the only way
 to read that the offer is actually WIRED to the act rather than merely drawn.
+
+RE-AIMED when the suggestions, the search and the releases took the contract's
+names: a suggestion's title and kind are read as `title` and `kind`, where they
+were the engine's short keys. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -45,7 +49,7 @@ DECK_STATE = "acq-discover"
 SPENT = "()=>[...(window.__store?.read().state.sugGone || [])]"
 
 # THE RESERVE, as the deck is drawn from it.
-RESERVE = "()=>(window.__suggestions?.() || []).map((one) => ({t: one.t, k: one.k}))"
+RESERVE = "()=>(window.__suggestions?.() || []).map((one) => ({t: one.title, k: one.kind}))"
 
 # THE ACTIONS THE PANEL OFFERS, by LABEL, read off the panel itself.
 ACTIONS = """()=>[...document.querySelectorAll('#sheetin [data-part="sheet/action"]')]

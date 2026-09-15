@@ -14,42 +14,20 @@
 // every card and `ui/tile.ts` every tile in this application; a copy here would
 // be a second definition of one shape, and the rows they emit carry the `data-*`
 // the delegation reads.
+import { icons } from "../../lib/shell-doors";
+import type { Schemas } from "../../lib/contract-schemas";
 import i18next from "i18next";
 import { posterArtwork } from "../../lib/engine-drawing";
+import { escapeHtml, svgIcon } from "../../lib/markup-text";
 import { mediumCardMarkup } from "./card-markup";
 import { richTextMarkup } from "./rich-text";
 import { posterArtworkMarkup } from "../../ui/poster";
 import { tileMarkup } from "../../ui/tile";
 import { deckCaption, deckCardFrame, deckHint, deckMeta, deckPoster, deckReason, deckTitle, suggestionBack, suggestionWrap } from "./variants";
 
-declare global {
-  interface Window {
-    /**
-     * The high-definition poster map and the rich-text emitter, as the dying
-     * engine publishes them.
-     *
-     * READ HERE AND NOT THROUGH THE REFERENCE, which carries neither: adding
-     * them to it would be adding to the engine, and D5 allows that only to stop
-     * a defect that loses the operator's data. Both die with it.
-     */
-    POSTERS_HD: Record<string, string>;
-    richText: (value: unknown) => string;
-  }
-}
-
 /** One suggestion, as the reserve answers it. */
-export type Suggestion = {
-  t: string;
-  y: string;
-  k: string;
-  note: number | string;
-  why: unknown;
-  poster?: string | null;
-  /** The provider identifiers — null for a title no sheet stands behind. */
-  ids?: Record<string, number | string> | null;
-};
+export type Suggestion = Schemas["Suggestion"];
 
-const drawing = () => window.__referentiel;
 const say = (key: string, values?: Record<string, unknown>) =>
   i18next.t(`discover.${key}`, values ?? {});
 
@@ -65,19 +43,18 @@ const say = (key: string, values?: Record<string, unknown>) =>
  *     The row's markup.
  */
 export function suggestionRow(suggestion: Suggestion, position: number): string {
-  const reference = drawing();
   const dismiss = say("notInterested");
   return `<div class="${suggestionWrap()}" data-part="suggestion/wrap" data-dismissable="${position}">
       <div class="${suggestionBack()}">
-        <span>${reference.svgIcon(reference.icons.x)}${dismiss}</span>
-        <span>${dismiss}${reference.svgIcon(reference.icons.x)}</span>
+        <span>${svgIcon(icons.x)}${dismiss}</span>
+        <span>${dismiss}${svgIcon(icons.x)}</span>
       </div>
       ${mediumCardMarkup({
-        t: suggestion.t,
-        k: suggestion.k === "Film" ? "movie" : "show",
-        s: `${suggestion.y} · ${suggestion.k}`,
-        note: suggestion.note,
-        r: suggestion.why,
+        title: suggestion.title,
+        k: suggestion.kind === "Film" ? "movie" : "show",
+        secondaryLine: `${suggestion.year} · ${suggestion.kind}`,
+        note: suggestion.rating,
+        reason: suggestion.why,
         panel: `sug:${position}`,
         poster: suggestion.poster,
         ids: suggestion.ids,
@@ -97,16 +74,16 @@ export function suggestionRow(suggestion: Suggestion, position: number): string 
  */
 export function suggestionTile(suggestion: Suggestion, position: number): string {
   return tileMarkup({
-    title: suggestion.t,
-    subtitle: `${suggestion.y} · ${suggestion.k}`,
-    artwork: posterArtwork(drawing().icons, suggestion.poster, suggestion.t, suggestion.k === "Film" ? "movie" : "show"),
-    badge: { tone: "overlay", text: String(suggestion.note) },
+    title: suggestion.title,
+    subtitle: `${suggestion.year} · ${suggestion.kind}`,
+    artwork: posterArtwork(icons, suggestion.poster, suggestion.title, suggestion.kind === "Film" ? "movie" : "show"),
+    badge: { tone: "overlay", text: String(suggestion.rating) },
     // The sheet before the panel: the registry answers the first registered
     // key in attribute order, and `data-dismissable` is a gesture's marker
     // rather than a verb, so it answers nothing.
     attributes: {
       "data-dismissable": position,
-      "data-mediasheet": suggestion.t,
+      "data-mediasheet": suggestion.title,
       "data-panel": `sug:${position}`,
     },
   });
@@ -133,11 +110,10 @@ export function deckCard(
   position: number,
   depth: number,
 ): string {
-  const reference = drawing();
-  const escape = reference.escapeHtml;
-  const poster = window.POSTERS_HD[suggestion.t]
-    ? `<img src="${window.POSTERS_HD[suggestion.t]}" alt="" loading="lazy">`
-    : posterArtworkMarkup(posterArtwork(reference.icons, suggestion.poster, suggestion.t, suggestion.k === "Film" ? "movie" : "show"));
+  const escape = escapeHtml;
+  const poster = suggestion.posterHighDefinition
+    ? `<img src="${suggestion.posterHighDefinition}" alt="" loading="lazy">`
+    : posterArtworkMarkup(posterArtwork(icons, suggestion.poster, suggestion.title, suggestion.kind === "Film" ? "movie" : "show"));
   // THE GESTURE LABELS BELONG TO THE TOP CARD ALONE — it is the only one a
   // finger can reach, and `advanceDeck` moves them with the place rather than
   // with the card.
@@ -147,11 +123,11 @@ export function deckCard(
         `<span class="${deckHint({ side: "right" })}">${say("notInterested")}</span>`
       : "";
   return `<article class="${deckCardFrame()}" data-part="deck/card" data-deck="${position}" data-depth="${depth}" data-panel="sug:${position}">
-      <button class="p ${deckPoster()}" data-mediasheet="${escape(suggestion.t)}" aria-label="Fiche de ${escape(suggestion.t)}">
+      <button class="p ${deckPoster()}" data-mediasheet="${escape(suggestion.title)}" aria-label="Fiche de ${escape(suggestion.title)}">
         ${poster}
         <span class="cap ${deckCaption()}">
-          <span class="t ${deckTitle()}" data-part="deck/title">${escape(suggestion.t)}</span>
-          <span class="m ${deckMeta()}">${escape(suggestion.y)} · ${escape(suggestion.k)} · ${escape(String(suggestion.note))}${say("onTmdb")}</span>
+          <span class="t ${deckTitle()}" data-part="deck/title">${escape(suggestion.title)}</span>
+          <span class="m ${deckMeta()}">${escape(suggestion.year)} · ${escape(suggestion.kind)} · ${escape(String(suggestion.rating))}${say("onTmdb")}</span>
           <span class="why ${deckReason()}">${richTextMarkup(suggestion.why)}</span>
         </span>
       </button>

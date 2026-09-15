@@ -23,8 +23,9 @@ import { cx } from "../../ui/cva";
 import { deckCard, deckHints, suggestionRow, suggestionTile, type Suggestion } from "./discover-cards";
 import { isReserveExhausted, suggestions } from "./queries";
 import { store } from "../../lib/store-access";
-import { toast } from "../../lib/shell-doors";
+import { toast, icons } from "../../lib/shell-doors";
 import { deckPile } from "./variants";
+import { svgIcon } from "../../lib/markup-text";
 
 /** How many more the footer asks for at a time. */
 const BATCH = 30;
@@ -57,7 +58,6 @@ let sentinel: IntersectionObserver | null = null;
 let lastList = "";
 let lastFooter = "";
 
-const drawing = () => window.__referentiel;
 const say = (key: string, values?: Record<string, unknown>) =>
   i18next.t(`discover.${key}`, values ?? {});
 const reserve = (): Suggestion[] => (suggestions?.() ?? []) as Suggestion[];
@@ -143,12 +143,11 @@ export function passerSug(position: number): void {
  *     The deck's markup.
  */
 export function nothingLeftHTML(inList = false): string {
-  const reference = drawing();
   const exhausted = isReserveExhausted();
   const restKey = exhausted ? "allSeenRestExhausted" : inList ? "allSeenRestList" : "allSeenRest";
   const offer = exhausted
     ? ""
-    : `<button class="${cx(actionButton({ size: "footer" }), loadFooterAction())}" data-sugmore="1">${reference.svgIcon(reference.icons.refresh)}${say("loadThirtyMore")}</button>`;
+    : `<button class="${cx(actionButton({ size: "footer" }), loadFooterAction())}" data-sugmore="1">${svgIcon(icons.refresh)}${say("loadThirtyMore")}</button>`;
   return `<div class="${emptyNote()}" data-part="empty-state"><b>${say("allSeenLead")}</b>
         <p>${say(restKey, { count: reserve().length })}</p>
         ${offer}</div>`;
@@ -306,7 +305,7 @@ export function dismissSug(position: number): void {
     gone.delete(position);
     store.touch();
   };
-  const message = say("dismissed", { title: reserve()[position].t });
+  const message = say("dismissed", { title: reserve()[position].title });
   if (uiState().sugMode === "deck") {
     // In the deck the whole pile changes, not one row: re-render, and the undo
     // restores both the suggestion and its place in the order. `sugGone` is a

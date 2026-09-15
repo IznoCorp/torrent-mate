@@ -7,7 +7,7 @@
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { queueActions } from "../../lib/queue";
-import { bridge, dialog, panel, toast } from "../../lib/shell-doors";
+import { bridge, dialog, panel, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
 import { baseTitle } from "../../lib/titles";
 import { followVerbs } from "./follow-verbs";
@@ -42,7 +42,7 @@ function identify(index: number, title: string): void {
   panel.close(true);
   bridge.rewind(entries);
   queueActions?.resolve(target, title);
-  window.__referentiel.render();
+  redraw();
   toast?.show({ message: i18next.t("verbs.arrivals.resolved", { choice: title }) });
   toast?.show({
     message: i18next.t("verbs.acquisition.identified", { target: baseTitle(target), title }),
@@ -86,21 +86,21 @@ registerVerb("add", (value) => {
   const result = searchResults?.().results[index];
   if (result === undefined) return;
   if (store.read().state.addMode === "identify") {
-    identify(index, result.t);
+    identify(index, result.title);
     return;
   }
   // The act lives in the result's panel, which must not stay open behind
   // what comes next — the confirmation, or the list redrawn in place.
   panel.close();
   if (result.owned) {
-    askBeforeReplace(index, result.t, result.k === "Film"); // french-ok: a data VALUE — the kind the search serves
+    askBeforeReplace(index, result.title, result.kind === "Film"); // french-ok: a data VALUE — the kind the search serves
     return;
   }
   // The screen stays open and redraws itself from this same store bump,
   // with the result marked added and, once it is the first, the footer.
   added().add(index);
   store.touch();
-  followVerbs.follow(result.t, result.k);
+  followVerbs.follow(result.title, result.kind);
 });
 registerVerb("confirmadd", (value) => {
   added().add(Number(value));

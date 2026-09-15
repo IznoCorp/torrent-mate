@@ -5,6 +5,7 @@
 // opens the panel, and a title no sheet stands behind wears a folder instead.
 // No handler is attached here; the document-level delegation reads the
 // attributes.
+import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { posterArtwork } from "../../lib/engine-drawing";
 import { cardMarkup } from "../../ui/card-markup";
@@ -12,11 +13,11 @@ import { posterArtworkMarkup } from "../../ui/poster";
 
 /** A medium as a library list holds one, in the engine's field names. */
 export type LibraryCard = {
-  t: string;
-  s?: string;
-  overview?: string;
+  title: string;
+  secondaryLine?: string;
+  overview?: string | null;
   f?: string;
-  chip?: [string, string] | null;
+  chip?: { tone: string; text: string } | null;
   poster?: string | null;
   /** The provider identifiers — null for a title no sheet stands behind. */
   ids?: Record<string, number | string> | null;
@@ -29,8 +30,7 @@ export type LibraryCard = {
  * @returns The card's markup.
  */
 export function libraryCardMarkup(medium: LibraryCard): string {
-  const reference = window.__referentiel;
-  const title = medium.t;
+  const title = medium.title;
   const hasSheet = medium.ids != null;
   // french-ok: a panel ADDRESS and the non-medium marker, contract values the delegation and R46 read
   const folderAddress = `dossier:${title}`;
@@ -40,18 +40,18 @@ export function libraryCardMarkup(medium: LibraryCard): string {
     attributes: hasSheet ? {} : { "data-nonmedia": "dossier" },
     side: hasSheet
       ? {
-          poster: posterArtworkMarkup(posterArtwork(reference.icons, medium.poster, title)),
+          poster: posterArtworkMarkup(posterArtwork(icons, medium.poster, title)),
           attributes: { "aria-label": i18next.t("surfaces.card.sheetOf", { title }), "data-mediasheet": title },
         }
       : {
-          folderIcon: reference.icons.folder,
+          folderIcon: icons.folder,
           folderLabel: i18next.t("surfaces.card.folder"),
           attributes: { "aria-label": i18next.t("surfaces.card.folderActions", { title }), "data-panel": folderAddress },
         },
     body: { "data-panel": hasSheet ? `media:${title}` : folderAddress },
-    subtitle: medium.s,
-    overview: medium.overview,
+    subtitle: medium.secondaryLine,
+    overview: medium.overview ?? undefined,
     fraction: medium.f,
-    chip: medium.chip ? { tone: medium.chip[0], label: medium.chip[1] } : null,
+    chip: medium.chip ? { tone: medium.chip.tone, label: medium.chip.text } : null,
   });
 }

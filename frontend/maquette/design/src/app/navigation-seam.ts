@@ -1,28 +1,31 @@
-// The navigation table, as the dying engine reads it.
+// The navigation table, flattened — as the engine read it
+// (`engine/legacy.js@13a66a35b`), and as its three readers still do.
 //
-// The engine still draws the tab bar and the drawer, and it is the LAST thing
-// it will still draw from a page list. It no longer carries one: it asks here,
-// exactly as it asks the address model for a path, and the answer is the one
-// table (`app/navigation.ts`).
+// The engine drew the tab bar and the drawer from it, the last things it drew
+// from a page list; it asked here, exactly as it asked the address model for a
+// path, and the answer was the one table (`app/navigation.ts`). The tab bar and
+// the drawer are components now and read that table directly.
 //
 // THE LABELS CROSS ALREADY TRANSLATED. The table holds keys, `fr.json` holds
-// the words, and the engine holds neither — no French reaches it and no `t()`
-// call has to. That is the same posture `window.__panel` takes with a
+// the words, and the engine held neither — no French reached it and no `t()`
+// call had to. That is the same posture `window.__panel` takes with a
 // descriptor: facts cross, and the words are resolved on the side that owns
 // them.
 //
 // THE BADGE IS EVALUATED AT THE MOMENT OF THE ASK, not stored. The engine
-// rebuilds its bar on every render and its drawer on every open, so a number
+// rebuilt its bar on every render and its drawer on every open, so a number
 // captured earlier would be a number from the previous pass — and the badge is
 // the feature's own derivation over the query cache (§13: one derivation per
 // question), which answers correctly at whatever instant it is called.
 //
-// IT DIES WITH THE ENGINE. Nothing in the product reads this file: the tab bar
-// and the drawer read `app/navigation.ts` directly once they are components.
+// IT OUTLIVED THE ENGINE, and three readers keep it: `app/redraw.ts` refuses a
+// page id the table does not hold (the not-found page), `harness/drive.ts`
+// publishes the page ids as `window.__pages`, and `app/shell.tsx` fills it at
+// boot.
 import i18next from "../i18n";
 import { NAVIGATION, NOT_FOUND_ROW, rowFor } from "./navigation";
 
-/** One row, flattened to what the engine draws with. */
+/** One row, flattened to what the engine drew with. */
 export type NavigationRowForEngine = {
   id: string;
   label: string;
@@ -34,7 +37,7 @@ export type NavigationRowForEngine = {
   badge: number;
 };
 
-/** The navigation table, read by the engine while it still draws from one. Filled at install. */
+/** The navigation table, flattened for its readers. Filled at install. */
 export let navigation:
   | {
       rows: () => NavigationRowForEngine[];
@@ -46,11 +49,11 @@ export let navigation:
   | undefined;
 
 /**
- * Fills the navigation table the engine reads.
+ * Fills the flattened navigation table.
  *
- * Called from the boot BEFORE the engine starts: the engine's own first render
- * asks for the bar, and a seam installed after it would leave the interface
- * opening with an empty bar until something moved.
+ * Called from the boot before the first redraw: a redraw asks the table whether
+ * the page exists, and a seam installed after it would send every page to the
+ * not-found page until something moved.
  */
 export function installNavigationSeam(): void {
   navigation = {

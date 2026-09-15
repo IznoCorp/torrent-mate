@@ -36,6 +36,14 @@ DOIT-4's other half. **It does not exist** — measured, `grep "En file"` finds 
 nowhere in `i18n/fr.json` and nowhere in the tree outside the pipeline pass's own
 sentence — and drawing it is a behaviour change, which a conversion lot does not
 carry. The clause map names its owner, rather than this rule pretending to cover it.
+
+RE-AIMED when the queue's cards took the contract's names: a card's title is
+read as `title` (it was the engine's `t`). The holds and what they compare are
+unchanged.
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), where they were
+the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -65,9 +73,9 @@ FOLLOWS_STATE = "acq-follows-list"
 REFUSALS = ("occupé", "occupee", "occupée", "déjà en cours", "réessayez plus tard")
 
 QUEUE = """()=>({
-  takeable: (window.__queue?.().takeable || []).map((one) => one.t),
-  inFlight: (window.__queue?.().inFlight || []).map((one) => one.t),
-  follows: (window.__followActions?.all() || []).map((one) => one.t)})"""
+  takeable: (window.__queue?.().takeable || []).map((one) => one.title),
+  inFlight: (window.__queue?.().inFlight || []).map((one) => one.title),
+  follows: (window.__followActions?.all() || []).map((one) => one.title)})"""
 
 # THE THREE OPERATIONS THIS WAVE ADDED, by the operationId the contract names.
 # The clause is about ANY legitimate ask arriving while the machine works, and
@@ -141,9 +149,9 @@ THE_MEDIUM_WITH_A_HOLE = """()=>{
   const reachable = (title) => drawn.some(
     (seen) => seen === title || seen.endsWith(":" + title));
   for (const follow of (window.__followActions?.all() || [])) {
-    if (!reachable(follow.t)) continue;
-    for (const [, aired, owned] of (window.__mocks.seasons()[follow.t] || [])) {
-      if ((owned || 0) > 0 && (owned || 0) < (aired || 0)) return {title: follow.t};
+    if (!reachable(follow.title)) continue;
+    for (const [, aired, owned] of (window.__mocks.seasons()[follow.title] || [])) {
+      if ((owned || 0) > 0 && (owned || 0) < (aired || 0)) return {title: follow.title};
     }
   }
   return null;}"""
@@ -312,7 +320,7 @@ async def main():
              if one in drawn or any(seen.endswith(":" + one) for seen in drawn)),
             "")
         was = await page.evaluate(
-            "(t)=>(window.__followActions?.all() || []).find((one) => one.t === t)?.st",
+            "(t)=>(window.__followActions?.all() || []).find((one) => one.title === t)?.status",
             watched)
         follow_aim = (await raise_by_finger(page, watched) if watched
                       else {"tapped": False, "found": False})
@@ -335,7 +343,7 @@ async def main():
         # reads the CHANGE against what the status was before, and never a word
         # this file chose.
         state = await page.evaluate(
-            "(t)=>(window.__followActions?.all() || []).find((one) => one.t === t)?.st",
+            "(t)=>(window.__followActions?.all() || []).find((one) => one.title === t)?.status",
             watched)
         journal.check(
             "and pausing LANDS — the state moved, not the message "

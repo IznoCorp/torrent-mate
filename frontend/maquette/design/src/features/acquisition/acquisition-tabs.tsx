@@ -1,7 +1,7 @@
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
-import { useAcquisitionReference } from "./reference";
 import { useAcquisitionQueue } from "../../lib/queue";
 import { useUiState } from "../../lib/store-access";
 import { moreButton, segment, segmentCount, segmentTab, viewTabs } from "../../ui/variants";
@@ -11,7 +11,7 @@ import { moreButton, segment, segmentCount, segmentTab, viewTabs } from "../../u
 export function AcquisitionTabs(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { icons } = useAcquisitionReference();
+  const { icons } = useEngineDrawing();
   // THE BADGE COUNTS WHAT IS WAITING, from the same read the deck draws — two
   // counts of one queue is the standing way to make the operator see two
   // truths (§13).

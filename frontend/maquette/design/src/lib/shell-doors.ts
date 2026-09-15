@@ -10,14 +10,37 @@
 // outside `ui/` and `lib/` that every feature imported would be the hub
 // invariant 8 refuses.
 //
-// THEY ARE `let`, AND THAT IS THE WHOLE MECHANISM — the one `engine/seams.ts`
-// uses. Each is filled at its host's install, after this module has evaluated;
+// THEY ARE `let`, AND THAT IS THE WHOLE MECHANISM — the one
+// `engine/seams.ts@13a66a35b` used. Each is filled at its host's install, after this module has evaluated;
 // an ES export is a live binding, so a caller reads the filled value at call
 // time, which is the only time it calls.
 //
 // NOTHING HERE READS `window`, and this module imports nothing. A rule reaches
 // the same objects under their seam names, which the harness publishes.
 
+/** What redraws the page after a verb changed what it shows. Undefined until the boot installs it. */
+let redrawVerb: (() => void) | undefined;
+
+/**
+ * Redraws the page: the store's version is bumped, so every component reading
+ * it reads again, and the surfaces a component cannot draw are filled again.
+ * Before the boot has installed the redraw, there is nothing drawn to redraw.
+ */
+export function redraw(): void {
+  redrawVerb?.();
+}
+
+/**
+ * Fills the redraw door, from the boot.
+ *
+ * @param verb What redraws the page.
+ */
+export function fillRedrawDoor(verb: () => void): void {
+  redrawVerb = verb;
+}
+
+/** The icon paths every surface draws with — the frame's own (`app/icons.ts`), empty until the boot fills it. */
+export let icons: Readonly<Record<string, string>> = {};
 /** The message's verbs. Undefined until the message host installs. */
 export let toast: Window["__toast"];
 /** The panel's verbs. */
@@ -36,6 +59,18 @@ export let resetLandingDial: ((page: string) => void) | undefined;
 export let bridge: Window["__bridge"];
 /** The screen openers. */
 export let screens: Window["__screens"];
+
+/**
+ * Fills the icons door, from the boot, before anything is drawn.
+ *
+ * A feature may not import `app/`, and the icon table names the pages, which
+ * `lib/` may not: the table stays the frame's and only the door is here.
+ *
+ * @param paths The icon paths, by name.
+ */
+export function fillIconsDoor(paths: Readonly<Record<string, string>>): void {
+  icons = paths;
+}
 
 /**
  * Fills the message door, from the message host's install.

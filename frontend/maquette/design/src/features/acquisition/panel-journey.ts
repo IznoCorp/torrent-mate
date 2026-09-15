@@ -16,11 +16,11 @@
 //
 // A PER-SUBJECT READ, so its need is a FUNCTION of the subject: a journey is
 // read per medium and a boot cannot know which one will be asked for.
+import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor, type PanelNeed } from "../../ui/panel/contract";
 import { read } from "../../lib/query-client";
 
-const icons = () => window.__referentiel.icons;
 
 /** One stage of a journey, as the contract answers it. */
 type Stage = { label: string; when: string; state: string };
@@ -82,23 +82,22 @@ function journeyPanel(title: string, cache: PanelCache): PanelDescriptor | null 
         actions: [
           // THE TUNNEL'S OWN VERBS (B-302, §20: it « reprend là où il s'est
           // arrêté, par l'opérateur »). Their `data-*` names are answered by
-          // `lib/verbs`, not by the dying engine: a verb that never existed
-          // there has no branch to move, and giving it one would add a line to
-          // `legacy.js`, which D5 forbids.
+          // `lib/verbs`: a verb that never existed in the engine had no branch
+          // to move there.
           {
             text: translate("panels.journey.requeue"),
-            icone: icons().refresh,
+            icone: icons.refresh,
             ton: "primary",
             target: { "journey-requeue": title },
           },
           {
             text: translate("panels.journey.rescrape"),
-            icone: icons().search,
+            icone: icons.search,
             target: { "journey-rescrape": title },
           },
           {
             text: translate("panels.journey.seeSheet"),
-            icone: icons().eye,
+            icone: icons.eye,
             target: { mediasheet: title },
           },
         ],

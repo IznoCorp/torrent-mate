@@ -7,8 +7,7 @@
 // a precedent for anything two surfaces of ONE feature share.
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
-import { toEngineShape } from "../../engine/engine-shape";
-import type { Release } from "./reference";
+import type { Release } from "./types";
 
 /**
  * The releases a search turned up, for one title.
@@ -28,8 +27,7 @@ export function useReleases(title = "") {
   return useQuery({
     queryKey: ["/api/acquisition/releases", title],
     queryFn: async () =>
-      toEngineShape<Release[]>(
-        "RELEASES", await read("/api/acquisition/releases", parameters)),
+      read<Release[]>("/api/acquisition/releases", parameters),
   });
 }
 

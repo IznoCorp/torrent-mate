@@ -129,7 +129,7 @@ async def main():
         # rather than scraped off the screen — the screen is what is being
         # judged against them.
         # READ WHERE THE INTERFACE READS IT. `PIPELINE` was a literal in
-        # `legacy.js`, republished on `window`, and this rule read it there. L09
+        # `engine/legacy.js@13a66a35b`, republished on `window`, and this rule read it there. L09
         # moved the surface onto the mock layer and DELETED the literal, so the
         # figures the screen is judged against now come from the same request
         # the screen makes — which is a closer question than the old one, not a

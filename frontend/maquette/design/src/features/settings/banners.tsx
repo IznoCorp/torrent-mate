@@ -16,7 +16,7 @@
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import { useSettingsReference } from "./reference";
+import { SETTINGS_STATE, changedFiles, fileName } from "./state";
 import { useConfigurationStatus } from "./queries";
 import { loadError, loadErrorAction } from "../../ui/variants";
 import { saveAction, saveBar } from "./variants";
@@ -33,7 +33,6 @@ import { saveAction, saveBar } from "./variants";
 // bar, which is what raises the third of them, exists on every branch. B-299's
 // banner would have been invisible exactly where the operator taps « Enregistrer ».
 export function SettingsBanners(): ReactElement {
-  const { SETTINGS_STATE, changedFiles } = useSettingsReference();
   const { t } = useTranslation();
   // THE RESTART IS THE LAYER'S FACT, and the banner is a reader of it (B-343).
   // It used to be raised on `SETTINGS_STATE` — an engine object nothing
@@ -82,11 +81,6 @@ export function SettingsBanners(): ReactElement {
 }
 
 export function SaveBar(): ReactElement | null {
-  const {
-    SETTINGS_STATE,
-    changedFiles,
-    fileName,
-  } = useSettingsReference();
   const { t } = useTranslation();
   const pending = SETTINGS_STATE.modifs.size;
   if (pending === 0) return null;

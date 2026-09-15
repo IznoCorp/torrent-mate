@@ -36,6 +36,10 @@ listener eats a swallowed first click. The hold reports that it was eaten and
 prints what the press arbitration and the drag were holding at that moment; the
 attribution between the two is the reading the register asks for and it is
 written down when it happens, never guessed at from a green run.
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), where they were
+the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -52,7 +56,7 @@ FOLLOWS_STATE = "acq-follows-list"
 # THE FOLLOWS THE LAYER HOLDS — the state is read here and never on the screen,
 # because a row can be redrawn from anything.
 FOLLOWS = """()=>(window.__followActions?.all() || []).map(
-  (one) => ({t: one.t, k: one.k, st: one.st}))"""
+  (one) => ({t: one.title, k: one.kind, st: one.status}))"""
 
 # THE ACTIONS A PANEL OFFERS, by LABEL — printed as the detail of a hold, so a
 # failure says what the panel was actually carrying.

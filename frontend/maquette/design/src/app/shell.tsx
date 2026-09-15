@@ -1,8 +1,8 @@
 // The strangler shell. One owner for the URL and the history: this router.
-// The legacy engine keeps its navigation LOGIC (what to push, when to
-// unwind) and loses only its primitives — it speaks to the bridge door,
-// implemented on the router's history. `window.__go` keeps driving
-// states without navigation, exactly as before.
+// The legacy engine (`engine/legacy.js@13a66a35b`) kept its navigation LOGIC
+// (what to push, when to unwind) and lost only its primitives; what navigates
+// now speaks to the bridge door, implemented on the router's history.
+// `window.__go` drives states without navigation, as it did then.
 //
 // Every name reached from the legacy fragment — the window seams, their
 // member names, the route paths and the `data-*` vocabulary — is the seam
@@ -29,17 +29,6 @@ import "../styles/harness.css";
 // and the first of them can render before any other import here settles. The
 // stylesheet above it is emitted, not executed, so it takes no turn.
 import "../i18n";
-// The legacy engine, for its side effect too, and the order matters more
-// here than anywhere else in this file. It used to be a classic script
-// inside the fragment, evaluated while the document parsed — everything it
-// declares therefore existed before this module's body ever ran, and the
-// body below depends on exactly that: the arrival it calls draws through
-// the engine. As a module the engine keeps that guarantee for the same
-// reason it had it before: a module's dependencies evaluate before its
-// body, so importing it HERE is what makes it run FIRST. Moving this line
-// below any other statement would not reorder anything — imports hoist —
-// but writing it anywhere else would suggest otherwise.
-import "../engine/legacy.js";
 // The harness module — the named states, their driver, the notes toggle. Installed
 // below behind the mock layer's constant, so no build without the layer has it.
 import { installHarness } from "../harness";
@@ -59,6 +48,9 @@ import "./frame-verbs";
 import { createStore } from "./store";
 import { installFocusManager } from "./focus";
 import { installMockNetwork } from "../mocks";
+import { scenario } from "../mocks/scenario";
+import { freezeClock } from "../lib/clock";
+import { installSignedInAvatar } from "../features/account/avatar";
 import { router } from "./router-tree";
 import {
   history,
@@ -75,7 +67,6 @@ import { installUpdateDiscipline } from "./worker-registration";
 import { ConnectionMark, ConnectionNotice } from "./connection-notice";
 import { Frame } from "./frame";
 import { installArrival } from "./arrival";
-import { installSeams } from "../engine/seams";
 import { installNavigation } from "../lib/navigate";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createQueryClient, installSharedQueryClient } from "../lib/query-client";
@@ -94,10 +85,13 @@ import { installSwipeArbitration } from "../lib/swipe-arbitration";
 import { installPullIndicator } from "./pull-indicator";
 import { installDiscoverSwipe } from "../features/acquisition/card-gestures";
 import { installQueueActions } from "../lib/queue";
+import { installPanelPress } from "../lib/press-arbitration";
+import { installRedraw } from "./redraw";
 import { installReleasesLookup } from "../features/releases/queries";
 import { installSearchLookup } from "../features/acquisition/search-queries";
 import { installStore } from "../lib/store-access";
-import { bridge, panel, screens } from "../lib/shell-doors";
+import { fillIconsDoor } from "../lib/shell-doors";
+import { icons } from "./icons";
 
 
 // THE BOOT ORDER, AND IT IS THE WHOLE OF WHAT THIS FILE DECIDES. Each call
@@ -111,6 +105,12 @@ import { bridge, panel, screens } from "../lib/shell-doors";
 // before any producer can call `open`. That guarantee used to read « assigned
 // at this module's top level »; it is this call now, and it is still before the
 // engine, before the store's first write and before the first render.
+// The icon paths before any of it: every surface drawn below reads them
+// through the door, and filling it listens to nothing.
+fillIconsDoor(icons);
+// THE LONG PRESS FIRST, before anything else registers a listener: it has
+// always been the first, installed while the engine module evaluated.
+installPanelPress();
 installHistoryBridge();
 installScrollRestoration();
 // before anything can navigate: a verb that knows only a path and its
@@ -148,12 +148,6 @@ const queryClient = createQueryClient();
 installSharedQueryClient(queryClient);
 installPanelHost(store, queryClient);
 
-// The engine reads these three by import rather than off `window` — same
-// objects, so the two ways cannot disagree. Filled HERE, after all three
-// exist and before the engine is started below, which is the only window in
-// which they can be both real and unused.
-installSeams({ bridge, screens, panel });
-
 // No address BASE is computed any more, and its disappearance is the
 // subtraction this lot exists for. It answered « what does this engine
 // compose its page addresses against? », a question that only had to be asked
@@ -171,12 +165,18 @@ installSeams({ bridge, screens, panel });
 // Behind a build-time constant, so the switchover removes it by editing one
 // value. `__MOCKS_BUILT_IN__` is replaced at build time, so the branch below is dead
 // code when it is false and the bundler drops the import with it.
-if (__MOCKS_BUILT_IN__) installMockNetwork();
+if (__MOCKS_BUILT_IN__) {
+  installMockNetwork();
+  // The page's today is the layer's frozen instant, so the dates the layer
+  // answers and the day they are compared with are one day (`lib/clock.ts`).
+  freezeClock(scenario().now);
+}
 
 // THE NAVIGATION TABLE, PUBLISHED BEFORE THE ENGINE STARTS. The engine's own
 // first render draws the tab bar from it; a seam installed afterwards would
 // leave the interface opening with an empty bar until something moved.
 installNavigationSeam();
+installRedraw();
 
 installArrival(store);
 if (__MOCKS_BUILT_IN__) installHarness();
@@ -231,6 +231,7 @@ installLibraryDelete(queryClient);
 installQueueActions(queryClient);
 installSuggestionsLookup(queryClient);
 installFollowActions(queryClient);
+installSignedInAvatar(queryClient);
 /* THE GESTURES COME BEFORE THE TAP REGISTRY, and the order is load-bearing
    rather than tidy. The swipe's guard swallows the click that ends a drag, and
    it says so with `stopImmediatePropagation` — which stops the listeners

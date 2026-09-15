@@ -21,6 +21,10 @@ What this holds to:
   · and the sort stays OUT of the address. It is a preference, not a place
     (A7): two people opening the same link see their own sort, and the panel
     says so in its own note.
+
+RE-AIMED when the follows took the contract's names: an incomplete show's title
+is read as `title`, where they were the engine's `t`, `k` and `st`. The holds
+and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -96,7 +100,7 @@ async def main():
           const shown = new Set([...document.querySelectorAll(
             '#libitems [data-part="card/title"], #libitems [data-part="tile"] b')].map((x) => x.textContent.trim()));
           return window.__queries.getQueryData(["/api/library/incomplete"])
-            .filter((show) => shown.has(show.t)).map((show) => show.t);}""")
+            .filter((show) => shown.has(show.title)).map((show) => show.title);}""")
         journal.check(
             "and it holds media the « incomplets » sort can actually rank",
             len(incomplete) > 0,

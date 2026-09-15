@@ -15,15 +15,10 @@
 // `app/panel-contributions.ts`.
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
-import { panel, replaceAddress, toast } from "../../lib/shell-doors";
+import { panel, replaceAddress, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
 import { mediaNamedBy, openDeleteDialog } from "./delete-dialog";
 import { sortWays } from "./sorting";
-
-/** Redraws the page the engine still draws beside the components. */
-function redraw(): void {
-  window.__referentiel.render();
-}
 
 /** Starts the listing again from its top. */
 function backToTheTop(): void {

@@ -52,9 +52,9 @@ from common import PHONE, PROTOTYPE, Journal
 # tapping `#nav button[data-page="lib"]` changes the address from /acquisition to
 # /media and calls `document.startViewTransition` ZERO times — the engine handles
 # it entirely (`store.write({page})`, `render()`, `switchPage(leaving)`), with no
-# seam in between that anything outside the engine owns. Making that one a
-# transition would mean ADDING to `legacy.js`, which D5 forbids, and its handler
-# is an engine-side caller this lot leaves to L19 by name.
+# seam in between that anything outside the engine owned. Making that one a
+# transition would have meant ADDING to `engine/legacy.js@13a66a35b`, which D5
+# forbade, and its handler was an engine-side caller this lot left to L19 by name.
 #
 # What DOES route through `go()` is every screen and sheet arrival — the media
 # sheet, the quality screen, the resolution screen. Those are the transitions

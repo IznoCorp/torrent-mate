@@ -43,6 +43,13 @@ WHAT IT HOLDS:
                       boolean would swallow the next announcement, and a
                       notification that can be permanently silenced by dismissing
                       an earlier one is a different defect wearing this fix.
+  the done word       an added result's card SAYS what was done, in the verb its
+                      kind takes — « ✓ Ajouté » for a film, « ✓ Suivi » for a
+                      series. Written before the verb that composes it left the
+                      engine for its feature, and seen red against the engine's
+                      own branch: the only other reader of that verb is the
+                      identify path's « Associer », which says nothing of a done
+                      add.
 
 WHAT IT DOES NOT READ, said before what it does:
 
@@ -92,6 +99,10 @@ ACTION = f'{FOOTER} button:not({DISMISS})'
 # run instead of quietly halving what this rule covers.
 OWNED_RESULT = 0
 UNOWNED_RESULT = 3
+
+# THE DONE WORD, by the kind the card's subtitle says. The words are the
+# rendered interface's, which is what a hold of the drawing asserts.
+DONE_WORD = {"Film": "✓ Ajouté", "Série": "✓ Suivi"}  # french-ok: the rendered chip this rule asserts
 
 # A touch target, not a spacing step. The scale stops at 24 px, which is why the
 # variant writes `size-[44px]` as an arbitrary value and says so by its shape.
@@ -160,6 +171,45 @@ async def add_one_result(page, position):
         await page.wait_for_timeout(500)
         return "replace"
     return "direct"
+
+
+async def panel_of(page, position):
+    """The panel address of the result card `add_one_result` opens at a position.
+
+    Read BEFORE the add, from the same locator that helper clicks: once a result
+    is added the list is redrawn, and a position read afterwards can name
+    another card.
+
+    Args:
+        page: The Playwright page, on the add screen with results.
+        position: Which result card, zero-based.
+
+    Returns:
+        The card's `data-panel` value (`add:N`).
+    """
+    cards = page.locator('[data-part="result/list"] [data-panel^="add:"]')
+    return await cards.nth(position).get_attribute("data-panel")
+
+
+async def done_chip(page, panel):
+    """Reads what an added result's card says, and the kind it says it of.
+
+    Args:
+        page: The Playwright page, on the add screen with results.
+        panel: The card's panel address, as `panel_of` read it.
+
+    Returns:
+        A dict of the card's chip text (or None) and its kind word (or None),
+        the kind read from the card's own subtitle.
+    """
+    return await page.evaluate("""(panel)=>{
+      const body = document.querySelector(`[data-part="result/list"] [data-part="card/body"][data-panel="${panel}"]`);
+      const chip = body && body.querySelector('[data-part="chip"]');
+      const subtitle = (body && body.querySelector('[data-part="card/subtitle"]')?.textContent) || '';
+      const words = subtitle.split(' · ');
+      const kind = words.includes('Film') ? 'Film' : words.includes('Série') ? 'Série' : null;
+      return {chip: chip ? chip.textContent.trim() : null, kind, subtitle};
+    }""", panel)
 
 
 async def measure(page):
@@ -236,7 +286,13 @@ async def hold(journal):
             "the bar is absent on a search that added nothing — which is why "
             "no named state has ever painted it")
 
+        first_panel = await panel_of(page, OWNED_RESULT)
         first_route = await add_one_result(page, OWNED_RESULT)
+        said = await done_chip(page, first_panel)
+        journal.check(
+            "an added result's card says what was done, in its kind's verb",
+            said["kind"] is not None and said["chip"] == DONE_WORD[said["kind"]],
+            f"the card « {said['subtitle']} » reads {said['chip']!r}")
         after = await measure(page)
         journal.check(
             "adding a medium announces it",
@@ -288,7 +344,13 @@ async def hold(journal):
                 dismissed is None,
                 "the bar is gone after one tap on its dismissal")
 
+            second_panel = await panel_of(page, UNOWNED_RESULT)
             second_route = await add_one_result(page, UNOWNED_RESULT)
+            said_again = await done_chip(page, second_panel)
+            journal.check(
+                "and a second one says it in ITS kind's verb",
+                said_again["kind"] is not None and said_again["chip"] == DONE_WORD[said_again["kind"]],
+                f"the card « {said_again['subtitle']} » reads {said_again['chip']!r}")
             again = await measure(page)
             journal.check(
                 f"a further medium is announced again (« {second_route} » route)",

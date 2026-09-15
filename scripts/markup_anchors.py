@@ -47,8 +47,8 @@ WHAT ARM 2 READS, AND THE THREE REFUSALS.
         helper's argument, a comparison. THE FALSE-POSITIVE RULE, AND
         IT IS A RULE, NOT A LIST: a candidate string is a selector only
         if EVERY class token it carries is EMITTED by at least one of
-        the three design sites — `index.html`, `src/engine/legacy.js`
-        and the sources under `design/src` — as a class= / className=
+        the design sites — `index.html` and the sources under
+        `design/src` — as a class= / className=
         token, OR the string carries selector structure: a combinator,
         an attribute block, a comma list. `.json5` fails both — nothing
         emits a class named json5, and the string has no structure —
@@ -162,13 +162,13 @@ CONTAINS = re.compile(r"classList\.contains\(\s*(['\"])([^'\"]*)\1\s*\)")
 # a DECLARATION shared, never an extraction: the two readers still walk
 # the corpus by their own passes.
 GENRE_SITES = {
-    ("audit.py", 110, "ep"): (
+    ("audit.py", 114, "ep"): (
         "R3 measures the DRAWN size of the episode cell, and the declared "
         "31 x 27 exception is about that geometry: at 13 cells per row a "
         "44px target would demand 572px of width. The subject is the "
         "applied style, so a `data-*` would keep the rule true after the "
         "class is gone and it would measure less than it does today"),
-    ("audit.py", 176, "radio"): (
+    ("audit.py", 180, "radio"): (
         "R7 asks which SHAPE an option is drawn as — a radio or a "
         "checkbox — and the shape is what the class applies. Reading a "
         "`data-*` would answer what the option IS, which is the question "
@@ -177,7 +177,7 @@ GENRE_SITES = {
     # of R12 (B-057) added lines to `audit2.py` and this exemption stopped
     # matching at 124; the guard said so immediately, which is the table
     # working as designed rather than a cost of it.
-    ("audit2.py", 176, "note"): (
+    ("audit2.py", 181, "note"): (
         "the media-sheet inventory skips the blocks drawn as a NOTE, "
         "which is a style genre and not a section of the sheet. A "
         "`data-*` would name the block; the rule needs to know how it is "

@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
-import { mediumCardMarkup, type MediumCard } from "./card-markup";
+import { mediumCardMarkup } from "./card-markup";
 import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useUiState } from "../../lib/store-access";
@@ -81,10 +81,10 @@ export function NowTab(): ReactElement {
         takeable,
         takeable
           .map((card) =>
-            mediumCardMarkup(card as MediumCard, {
+            mediumCardMarkup(card, {
               label: t("screens.acquisition.takeableFoot"),
               solid: true,
-              attributes: { "data-take": String(card.t) },
+              attributes: { "data-take": card.title },
             }),
           )
           .join(""),
@@ -95,9 +95,9 @@ export function NowTab(): ReactElement {
         blocked,
         blocked
           .map((card) =>
-            mediumCardMarkup(card as MediumCard, {
+            mediumCardMarkup(card, {
               label: t("screens.acquisition.blockedFoot"),
-              attributes: { "data-resolution": String(card.t) },
+              attributes: { "data-resolution": card.title },
             }),
           )
           .join(""),
@@ -122,20 +122,20 @@ export function NowTab(): ReactElement {
         "info",
         t("screens.acquisition.inflight"),
         inflight,
-        inflight.map((card) => mediumCardMarkup(card as MediumCard)).join(""),
+        inflight.map((card) => mediumCardMarkup(card)).join(""),
       )}
       {section(
         "waiting",
         t("screens.acquisition.notfound"),
         notfound,
-        notfound.map((card) => mediumCardMarkup(card as MediumCard)).join(""),
+        notfound.map((card) => mediumCardMarkup(card)).join(""),
         `<b>${t("screens.acquisition.notfoundNoteLead")}</b>${t("screens.acquisition.notfoundNoteRest")}`,
       )}
       {section(
         "success",
         t("screens.acquisition.doneToday"),
         doneToday,
-        doneToday.map((card) => mediumCardMarkup(card as MediumCard)).join(""),
+        doneToday.map((card) => mediumCardMarkup(card)).join(""),
       )}
     </div>
   );

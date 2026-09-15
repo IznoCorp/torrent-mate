@@ -21,7 +21,8 @@
     "ACCOUNT": {
       "class": "served",
       "why": "the signed-in account",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the account page and panel read `readAccount`; the topbar avatar is placed by `features/account` through `lib/` (ruling 100 Q4)"
     },
     "APPARENCES": {
       "class": "interface",
@@ -32,7 +33,8 @@
     "AUDIOS": {
       "class": "interface",
       "why": "the three audio options and their French descriptions. The option KEYS are contract values the ranking profile carries; the list and its wording are the interface's",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `AUDIO_OPTIONS` in `features/releases/quality-screen.tsx`, the descriptions `screens.profile.audioOptions` in fr.json"
     },
     "BACK_WINDOW": {
       "class": "interface",
@@ -49,7 +51,8 @@
     "CADENCE_CRON": {
       "class": "served",
       "why": "the grab cadence, read off the live scheduler",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the follows tab reads `readAcquisitionStatus`"
     },
     "CAST": {
       "class": "asset",
@@ -72,22 +75,26 @@
     "DECISION_STATE": {
       "class": "interface",
       "why": "the tone and the French name of each decision state",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `DECISION_STATE_TONE` and `screens.resolution.decisionState`, said by `decisionState` in `features/arrivals/decision-vocabulary.ts`"
     },
     "DECISION_STATE_DETAIL": {
       "class": "interface",
       "why": "the sentence that explains each decision state",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `screens.resolution.decisionStateDetail` in fr.json, said by `decisionStateDetail` in `features/arrivals/decision-vocabulary.ts`"
     },
     "DEPENDENCIES": {
       "class": "served",
       "why": "the external dependencies and whether they answer",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the system page reads `readDependencies`"
     },
     "DISKS": {
       "class": "served",
       "why": "the disks, their free space and their fill",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the system page reads `readDisks`"
     },
     "DONE_TODAY": {
       "class": "served",
@@ -98,27 +105,32 @@
     "EP_LABEL": {
       "class": "interface",
       "why": "the French name of each episode state",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `screens.media.episodeState` in fr.json, said by `episodeStateLabel` in `features/media/format.ts`"
     },
     "EP_ORDER": {
       "class": "interface",
       "why": "the order episode states sort in",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is the legend's own order in `features/media/panel-seasons.tsx`; the engine's copy had no reader"
     },
     "EP_SWATCH": {
       "class": "interface",
       "why": "which swatch each episode state wears",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is nothing — no reader; each state's swatch is `legendSwatch`'s variant"
     },
     "ERRORS": {
       "class": "served",
       "why": "the error tally and the latest one",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the system page reads `readErrors`"
     },
     "EXECUTIONS": {
       "class": "served",
       "why": "the recent pipeline executions",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the system page reads the pipeline history"
     },
     "FOLLOWS": {
       "class": "served",
@@ -129,7 +141,8 @@
     "GROUPS": {
       "class": "interface",
       "why": "how follows are grouped, and what each group is called. The status values it lists are contract vocabulary; the grouping is the interface's",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `followGroups` in `features/acquisition/follow-vocabulary.ts`, its headings `screens.acquisition.groups` in fr.json"
     },
     "HERO_IMAGES": {
       "class": "asset",
@@ -146,7 +159,8 @@
     "INDEX": {
       "class": "served",
       "why": "the indexer's own health figures",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the system page reads `readIndexHealth`"
     },
     "INFLIGHT": {
       "class": "served",
@@ -157,7 +171,8 @@
     "JOURNAL": {
       "class": "served",
       "why": "the maintenance journal",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the maintenance page reads `readDestructiveLog`"
     },
     "LIBRARY": {
       "class": "served",
@@ -168,12 +183,14 @@
     "LIB_PAGE": {
       "class": "interface",
       "why": "how many tiles a library page holds",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is nothing — no reader; the mock layer's page size is its own"
     },
     "LIB_TOTAL": {
       "class": "served",
       "why": "how many titles the library really holds, read from library.db",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the library listing's own `total` answers it; the engine's copy had no reader"
     },
     "MAINT_ACTIONS": {
       "class": "served",
@@ -184,12 +201,14 @@
     "MAINT_TOPICS": {
       "class": "interface",
       "why": "the six maintenance rubrics, their French names and the sentence explaining each. It was classified `served` and it is the same shape as GROUPS and RISQUES, both `interface`: the backend holds the TOKEN a rubric is keyed by and never its wording. Classifying it served invented a whole demand — an operation asking a server for the interface's own rubric names.",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is the rubric ids in `features/maintenance/page.tsx`, their names and sentences `screens.maintenance.topics` in fr.json"
     },
     "MOIS": {
       "class": "interface",
       "why": "the twelve abbreviated month names",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is nothing — `common.monthsShort` in fr.json already said them, read by `dateLabel`"
     },
     "MOVING": {
       "class": "served",
@@ -242,7 +261,8 @@
     "POSTERS_HD": {
       "class": "asset",
       "why": "poster paths at gallery definition",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; a suggestion carries `posterHighDefinition`, joined from this seed (ruling 100 Q3)"
     },
     "PRESS_MS": {
       "class": "interface",
@@ -259,17 +279,20 @@
     "REASON_DETAIL": {
       "class": "interface",
       "why": "the sentence that explains each reason",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `screens.resolution.reasonDetail` in fr.json, said by `reasonDetail` in `features/arrivals/decision-vocabulary.ts`"
     },
     "REASON_LABEL": {
       "class": "interface",
       "why": "the French name of each decision reason",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `screens.resolution.reason` in fr.json, said by `reasonLabel` in `features/arrivals/decision-vocabulary.ts`"
     },
     "REASON_TONE": {
       "class": "interface",
       "why": "which tone each reason wears",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `REASON_TONE` in `features/arrivals/decision-vocabulary.ts`"
     },
     "RECENT": {
       "class": "served",
@@ -286,7 +309,8 @@
     "RESOLUTIONS": {
       "class": "interface",
       "why": "the resolution options the quality profile offers. The VALUES are contract tokens; the list is the interface's, like AUDIOS",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `RESOLUTIONS` in `features/releases/quality-screen.tsx`"
     },
     "RISQUES": {
       "class": "interface",
@@ -315,12 +339,14 @@
     "SECRETS": {
       "class": "served",
       "why": "the secret keys and whether each is defined — never a value",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the settings page reads `/api/config/secrets`"
     },
     "SERVICES": {
       "class": "served",
       "why": "the services and their states",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the system page reads `readServices`; its fault twin is derived in `features/system/fault.ts`"
     },
     "SETTINGS": {
       "class": "served",
@@ -373,17 +399,20 @@
     "ST_LABEL": {
       "class": "interface",
       "why": "the French name of each follow status",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `screens.acquisition.status` in fr.json, said by `followStatusLabel` in `features/acquisition/follow-vocabulary.ts`"
     },
     "ST_LABEL_MOVIE": {
       "class": "interface",
       "why": "the same three statuses said differently for a film",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `screens.acquisition.movieStatus` in fr.json, said by `followStatusLabel` in `features/acquisition/follow-vocabulary.ts`"
     },
     "ST_TONE": {
       "class": "interface",
       "why": "which tone each status wears",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `STATUS_TONE` in `features/acquisition/follow-vocabulary.ts`"
     },
     "SUGGESTIONS": {
       "class": "served",
@@ -418,7 +447,8 @@
     "TODAY": {
       "class": "unserved",
       "why": "THE PROTOTYPE'S FROZEN CLOCK, and it is the determinism device rather than data. A server does not send today's date. It is not seeded — the mock layer declares its own instant (D-L08-8) and R85 holds that the two AGREE, because every date-derived state moves the moment they do not",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; `lib/clock.ts` `today()`, filled at boot with the mock scenario's instant (ruling 100 Q2)"
     },
     "TRIS": {
       "class": "interface",
@@ -429,12 +459,14 @@
     "URGENCY": {
       "class": "interface",
       "why": "the order statuses sort in — an interface decision, not a datum",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `URGENCY` in `features/acquisition/follow-vocabulary.ts`"
     },
     "VIA_LABEL": {
       "class": "interface",
       "why": "how a decision was reached, said in French",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·1 — the engine's copy died; its home is `screens.resolution.via` in fr.json, said by `viaLabel` in `features/arrivals/decision-vocabulary.ts`"
     },
     "icons": {
       "class": "interface",

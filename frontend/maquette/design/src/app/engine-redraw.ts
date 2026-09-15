@@ -28,6 +28,7 @@
 // 4 497. The live page was right and the instrument saw an empty deck; a
 // timestamp is not an identity when something is allowed to stop time.
 import type { QueryClient } from "@tanstack/react-query";
+import { redraw } from "../lib/shell-doors";
 
 /**
  * Asks the engine to redraw whenever a query it reads has new data.
@@ -38,9 +39,7 @@ export function installEngineRedraw(queryClient: QueryClient): void {
   queryClient.getQueryCache().subscribe((event) => {
     if (event.type !== "updated") return;
     if (event.query.state.data === undefined) return;
-    // THE ENGINE'S OWN REDRAW, through the reference it publishes. Optional for
-    // the same reason `__startEngine` is: a document served without the
-    // fragment must fail visibly at the boot, not silently here.
-    window.__referentiel?.render?.();
+    // THE PAGE'S REDRAW, through its door (`app/redraw.ts`).
+    redraw();
   });
 }

@@ -2,6 +2,10 @@
 
 Synthetic PointerEvents would never be cancelled by the browser, so they prove
 nothing about a gesture that has to claim an axis.
+
+RE-AIMED when the suggestions, the search and the releases took the contract's
+names: a suggestion's title is read as `title`, where they were the engine's
+short keys. The holds and what they compare are unchanged.
 """
 import asyncio
 from playwright.async_api import async_playwright
@@ -50,7 +54,7 @@ async def main():
     t0 = await title(); n0 = await pg.evaluate("()=>state.sugGone.size")
     await swipe(-170)
     t1 = await title(); n1 = await pg.evaluate("()=>state.sugGone.size")
-    comes_back = await pg.evaluate("(t)=>window.__discover.order().map(i=>(window.__suggestions?.()||[])[i].t).includes(t)", t0)
+    comes_back = await pg.evaluate("(t)=>window.__discover.order().map(i=>(window.__suggestions?.()||[])[i].title).includes(t)", t0)
     print(f"LEFT   « {t0[:26]} » → « {t1[:26]} »")
     print(f"       dismissed {n0} → {n1} · comes round again: {comes_back}")
 

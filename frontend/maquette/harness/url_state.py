@@ -122,6 +122,14 @@ the first command the served catalogue answers (`readMaintenanceActions`), asked
 the address the page reads, and the hold count is unchanged. The setting it reopens
 is the first the served catalogue answers, for the same reason: the engine's
 settings table is gone.
+
+RE-AIMED when the queue's cards took the contract's names: a card's title is
+read as `title` (it was the engine's `t`). The holds and what they compare are
+unchanged.
+
+RE-AIMED when the follows took the contract's names: a follow's title, kind and
+status are read as `title`, `kind` and `status` (and `owned`), where they were
+the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
 """
 import asyncio
 import json
@@ -175,7 +183,7 @@ PANEL_SUBJECTS = {
     # THE FOLLOWS ARE THE LAYER'S SINCE L09. A blind replacement over the old
     # `world.follows` left a syntax error here — `read().(…)` — which the rule
     # reported as an unexpected token rather than as a moved seam.
-    "follow": "()=>((window.__followActions?.all()||[])[0]||{}).t||''",
+    "follow": "()=>((window.__followActions?.all()||[])[0]||{}).title||''",
     # A JOURNEY ANSWERS FOR TWO KINDS OF SUBJECT, and the engine's own `REOPEN`
     # says so: an acquisition in flight, or any medium the interface holds. The
     # idle world holds no acquisition in flight — the dense one does — and the
@@ -184,8 +192,8 @@ PANEL_SUBJECTS = {
     # removes. So the in-flight list is asked first and a followed medium
     # answers when it is empty; both are subjects a cold load can resolve.
     "journey": ("()=>{const flying=(window.__queue?.().inFlight||[])[0];"
-                " if (flying && flying.t) return flying.t;"
-                " return ((window.__followActions?.all()||[])[0]||{}).t||'';}"),
+                " if (flying && flying.title) return flying.title;"
+                " return ((window.__followActions?.all()||[])[0]||{}).title||'';}"),
     "setting": ("async()=>{const topics=await (await fetch('/api/config/schema')).json();"
                 " const s=((topics[0]||{}).settings||[])[0]; return s?s.file+':'+s.key:'';}"),
     "action": "async()=>((await (await fetch('/api/maintenance/actions')).json())[0]||{}).id||''",

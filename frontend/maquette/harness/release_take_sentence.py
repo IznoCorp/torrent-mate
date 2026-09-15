@@ -49,6 +49,10 @@ WHAT IT READS, and each fails differently:
      tap rather than typed here, so the hold follows the data instead of
      agreeing with a sentence somebody wrote.
   4. AND NO ERROR IS RAISED.
+
+RE-AIMED when the suggestions, the search and the releases took the contract's
+names: a release's resolution is read as `resolution`, where they were the
+engine's short keys. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -144,7 +148,7 @@ THE_OFFER = """()=>{
   const back = bar?.querySelector('[data-part="screen/back"]');
   const whole = (bar?.textContent || '').trim();
   const wayBack = (back?.textContent || '').trim();
-  return {resolution: offered.res,
+  return {resolution: offered.resolution,
           subject: (wayBack ? whole.replace(wayBack, '') : whole).trim()};}"""
 
 TAP = """()=>{
@@ -167,8 +171,8 @@ async def main():
         journal.check(
             "the picker really offers a release to choose, and says which "
             "medium it is choosing for — the rest of this rule reads both",
-            offer is not None and offer["resolution"] != ""
-            and offer["subject"] != "",
+            offer is not None and bool(offer["resolution"])
+            and bool(offer["subject"]),
             str(offer))
         if offer is None or not offer["resolution"] or not offer["subject"]:
             await context.close()

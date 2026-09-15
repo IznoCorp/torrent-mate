@@ -4,7 +4,7 @@ IT DRIVES THE LAYER AND NOT A SURFACE, and that is not a shortcut. L08 wires no
 surface — the wiring is L09's — so there is nothing on screen to read, and a
 rule that pretended otherwise would be measuring the fixtures the engine still
 draws from. What it reads is `window.__mocks`, the layer's own driving surface,
-the same arrangement `__go` and `__referentiel` already use.
+the same arrangement `__go` and `__today` already use.
 
 WHAT THIS RULE HOLDS, and each hold answers one line of the lot's « Done when »:
 
@@ -25,10 +25,12 @@ WHAT THIS RULE HOLDS, and each hold answers one line of the lot's « Done when �
   quiet         the signal the oracle's settle reads is false while a request
                 is in flight and true after it. Without it, a wired surface at
                 L09 would be measured mid-flight.
-  the clock     the layer's frozen instant EQUALS the engine's `TODAY`. They
-                are two copies — `mocks/` imports nothing from `engine/`,
-                because the engine dies at L13 — and every date-derived state
-                moves the moment they disagree.
+  the clock     the layer's frozen instant EQUALS the page's today
+                (`lib/clock.ts`, read as `window.__today()`). The boot freezes
+                the page's clock with the layer's instant, and every
+                date-derived state moves the moment the two disagree. RE-AIMED:
+                this hold compared the layer with the engine's `TODAY` literal,
+                read from its source, until that copy left the engine.
   mutation      a mutation changes what the next read returns, and a reset puts
                 the seeded state back byte for byte. L09's optimistic paths are
                 written against a layer where both are true.
@@ -59,14 +61,12 @@ recorded in D-L08-2 rather than hidden here.
 import asyncio
 import json
 import pathlib
-import re
 import time
 
 from common import Journal, open_page
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CONTRACT = ROOT / "contract" / "openapi.json"
-ENGINE = ROOT / "design" / "src" / "engine" / "legacy.js"
 
 METHODS = ("get", "post", "put", "patch", "delete")
 
@@ -104,17 +104,6 @@ def declared_operations():
             if method in METHODS:
                 found[operation["operationId"]] = (method.upper(), template)
     return found
-
-
-def engine_clock():
-    """Reads the engine's frozen clock out of its source.
-
-    Read from the SOURCE and not from the running page on purpose: the two
-    copies must agree in the tree, so that a change to one is caught by this
-    rule rather than by a state that quietly renders a different day.
-    """
-    found = re.search(r'\bconst TODAY = "([^"]+)"', ENGINE.read_text(encoding="utf-8"))
-    return found.group(1) if found else None
 
 
 async def body_of(page, path, options="{}"):
@@ -166,10 +155,11 @@ async def main():
 
         # ── the clock ───────────────────────────────────────────────────────
         layer_clock = await page.evaluate("() => window.__mocks.scenario().now")
+        page_clock = await page.evaluate("() => window.__today ? window.__today() : null")
         journal.check(
-            "the layer's frozen clock is the engine's",
-            layer_clock == engine_clock(),
-            f"layer {layer_clock!r}, engine {engine_clock()!r}",
+            "the layer's frozen clock is the page's today",
+            layer_clock is not None and layer_clock == page_clock,
+            f"layer {layer_clock!r}, page {page_clock!r}",
         )
 
         # ── determinism ─────────────────────────────────────────────────────

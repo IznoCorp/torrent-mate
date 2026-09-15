@@ -83,21 +83,35 @@ CONTRAST_FLOOR = 4.5
 # same tuples, is what makes the lookup and the verdict share one spelling —
 # and the rung that follows is what makes a list that was not found say so.
 #
-# THE DECLARED SOURCE IS AN EXPRESSION, not a fixture name, and the schedulers
-# are why. Four of these lists are still declared by the dying engine and
-# republished on `window`; the schedulers are the layer's answer, held in the
-# query cache. Comparing the drawn tone against `window.SCHEDULERS` after the
-# family left the engine would not read a stale list — it would raise, which is
-# the honest failure. Naming the CACHE keeps the comparison against what the
-# page was actually given, which is the whole point of a declared source.
-SCHEDULERS_SOURCE = "window.__queries.getQueryData(['/api/maintenance/schedulers'])"
+# THE DECLARED SOURCE IS AN EXPRESSION, not a fixture name: every list is the
+# layer's answer, held in the query cache. The schedulers were the first to read
+# it that way; the other four read `window.SERVICES`, `DISKS`, `INDEX` and
+# `DEPENDENCIES` — the dying engine's literals — until those left it, and they
+# were RE-AIMED at the cache then, on the schedulers' own precedent.
+# Comparing against a family that left the engine would not read a stale list —
+# it would raise, which is the honest failure. Naming the CACHE keeps the
+# comparison against what the page was actually given, which is the whole point
+# of a declared source.
+def cached(address):
+    """The query-cache expression holding one list the page was given.
+
+    Args:
+        address: The contract address the list is read from.
+
+    Returns:
+        The JavaScript expression reading that answer from the cache.
+    """
+    return f"window.__queries.getQueryData(['{address}'])"
+
+
+SCHEDULERS_SOURCE = cached("/api/maintenance/schedulers")
 
 BLOCKS = (
-    ("Services", "services", "service", "SERVICES"),
+    ("Services", "services", "service", cached("/api/system/services")),
     ("Planificateurs", "schedulers", "scheduler", SCHEDULERS_SOURCE),
-    ("Disques", "disks", "disk", "DISKS"),
-    ("Index de la médiathèque", "index", "index row", "INDEX"),
-    ("Dépendances", "dependencies", "dependency", "DEPENDENCIES"),
+    ("Disques", "disks", "disk", cached("/api/maintenance/disks")),
+    ("Index de la médiathèque", "index", "index row", cached("/api/maintenance/index-health")),
+    ("Dépendances", "dependencies", "dependency", cached("/api/system/dependencies")),
 )
 
 # TWO MORE LISTS CARRY A TONE, and no comparison against a declared field can
@@ -117,7 +131,7 @@ DERIVED = (
 
 # WHAT THE WORD-AGREEMENT HALF CANNOT REACH TODAY, named rather than assumed:
 # the runs list is all-success in the embedded data and has no fault twin —
-# `SERVICES_PANNE` and `SCHEDULERS_DOWN` exist, `EXECUTIONS_PANNE` does
+# `SERVICES_DOWN` and `SCHEDULERS_DOWN` exist, a runs twin does
 # not — so forcing every run's tone to `success` renders nothing different and
 # no hold can see it. The hold below still bites the reverse (a succeeded run
 # wearing an alert). Closing it properly is a change to the prototype's own
@@ -269,6 +283,10 @@ async def declared_tones(page, source):
     of the schedulers. A source that never answers is a FAILED hold, with the
     expression named; it is not an exception.
 
+    RE-AIMED: the cached list is the answer as served, in the contract's names,
+    so a row's tone is `tone`; it read the engine's `ton` while the query still
+    projected the answer into the engine's names.
+
     Args:
         page: The page.
         source: The JavaScript expression naming the declared list.
@@ -286,7 +304,7 @@ async def declared_tones(page, source):
     except Exception:  # noqa: BLE001 — a source that never arrives is a verdict
         return None, "never answered"
     try:
-        return await page.evaluate(f"()=>{source}.map((x) => x.ton)"), None
+        return await page.evaluate(f"()=>{source}.map((x) => x.tone)"), None
     except Exception:  # noqa: BLE001 — it answered, and with the wrong thing
         return None, "answered with something that is not a list of facts"
 

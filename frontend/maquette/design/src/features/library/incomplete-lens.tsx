@@ -2,10 +2,10 @@
 // It reads its own resource; the other two lenses draw the listing.
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import { useLibraryReference, type IncompleteShow } from "./reference";
+import { type IncompleteShow } from "./types";
 import { useUiState } from "../../lib/store-access";
 import { body, posterGrid, section } from "../../ui/variants";
-import { posterArtwork } from "../../lib/engine-drawing";
+import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
 import { libraryCardMarkup } from "./card-markup";
 import { tileMarkup } from "../../ui/tile";
 import { Markup } from "../../ui/markup";
@@ -23,7 +23,7 @@ export function IncompleteLens({ rows }: {
 }): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const reference = useLibraryReference();
+  const reference = useEngineDrawing();
   const INCOMPLETE = rows;
   return (
     <div className={body()} data-part="surface/body" data-region="library/body">
@@ -40,16 +40,16 @@ export function IncompleteLens({ rows }: {
           className={posterGrid()} data-part="grid"
           html={INCOMPLETE.map((show: IncompleteShow) =>
               tileMarkup({
-                title: show.t,
+                title: show.title,
                 subtitle: t("screens.library.incompleteEpisodes", {
-                  owned: show.o,
-                  all: show.a,
+                  owned: show.owned,
+                  all: show.aired,
                 }),
-                artwork: posterArtwork(reference.icons, show.poster, show.t),
+                artwork: posterArtwork(reference.icons, show.poster, show.title),
                 // The sheet first: the registry answers the first registered
                 // key in attribute order, and a tap opens the medium while the
                 // long press opens its panel.
-                attributes: { "data-mediasheet": show.t, "data-panel": `media:${show.t}` },
+                attributes: { "data-mediasheet": show.title, "data-panel": `media:${show.title}` },
               }),
             ).join("")}
         />
@@ -58,15 +58,15 @@ export function IncompleteLens({ rows }: {
           className={section()} data-part="section"
           html={INCOMPLETE.map((show: IncompleteShow) =>
               libraryCardMarkup({
-                t: show.t,
-                s: t(
-                  show.a - show.o > 1
+                title: show.title,
+                secondaryLine: t(
+                  show.aired - show.owned > 1
                     ? "screens.library.incompleteSubMany"
                     : "screens.library.incompleteSubOne",
-                  { year: show.y, count: show.a - show.o },
+                  { year: show.year, count: show.aired - show.owned },
                 ),
-                f: `${show.o}/${show.a}`,
-                chip: ["warning", t("screens.library.incompleteChip")],
+                f: `${show.owned}/${show.aired}`,
+                chip: { tone: "warning", text: t("screens.library.incompleteChip") },
                 poster: show.poster,
                 ids: show.ids,
               }),

@@ -1,24 +1,26 @@
 // The fields the media screen and its parts read off a sheet, narrowed.
-// The fields this screen reads off a `SHEETS_RAW` entry. The source stays
-// untyped JS and a movie and a show do not carry the same keys, so every
+// The fields this screen reads off a sheet, in the contract's names. A placeholder
+// carries only what the tap knew and a movie and a show do not carry the same keys, so every
 // field is optional — a narrowed view of `MediaSheet`, never a claim about
 // what a sheet always has.
-export type SheetEpisode = { n: number; t: string; air?: string | null };
-export type CatalogSeason = { n: number; ep: number | null; air?: string };
+import type { Schemas } from "../../lib/contract-schemas";
+
+export type SheetEpisode = { number: number; title: string; airDate?: string | null };
+export type CatalogSeason = Schemas["SeasonSummary"];
 export type MediaSheetFields = {
-  k?: string;
-  y?: string;
-  note?: number;
-  g?: string;
-  duree?: number | null;
-  ov?: string;
-  real?: string | null;
-  crea?: string | null;
-  cast?: { n: string; r?: string }[];
+  kind?: string;
+  year?: string;
+  rating?: number | null;
+  genres?: string | null;
+  runtime?: number | null;
+  overview?: string | null;
+  director?: string | null;
+  creator?: string | null;
+  cast?: { name: string; role?: string }[];
   ids?: Record<string, string | number>;
   status?: string;
   seasons?: CatalogSeason[];
-  eps?: Record<string, SheetEpisode[]>;
+  episodes?: Record<string, SheetEpisode[]>;
   /**
    * When the metadata was last re-read from the providers, or null.
    *
@@ -33,12 +35,12 @@ export type MediaSheetFields = {
    * database is unavailable — and a type that admitted only two made the third
    * indistinguishable from « not owned ».
    */
-  possede?: boolean | null;
+  owned?: boolean | null;
 };
 
 // The slice of the simulated world this screen reads: the follow list, and
 // only its titles.
-export type Follow = { t: string };
+export type Follow = { title: string };
 
 // One row of the season list: an owned-seasons row (`[n, aired, own]` from
 // `seasonsOf`) and a catalogue row (`{ n, ep, air }` from the sheet) are

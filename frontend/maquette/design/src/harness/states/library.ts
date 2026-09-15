@@ -5,7 +5,7 @@
 // `run` builds the state. The driver resets the interface before every state,
 // so an entry pins only what its state means to show.
 import { applyState, type NamedState } from "../drive";
-import { render } from "../../engine/legacy.js";
+import { redraw } from "../../lib/shell-doors";
 import { openDeleteDialog } from "../../features/library/delete-dialog";
 
 export function libraryStates(): NamedState[] {
@@ -75,7 +75,7 @@ export function libraryStates(): NamedState[] {
             "Marjorie Prime",
           ]),
         });
-        render();
+        redraw();
       },
     ],
     [

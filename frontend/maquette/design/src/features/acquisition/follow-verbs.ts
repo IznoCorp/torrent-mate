@@ -29,7 +29,7 @@ import { followActions, suggestions } from "./queries";
 import { baseTitle } from "../../lib/titles";
 
 /** A suggestion as the reserve holds it — the two fields this act reads. */
-type Suggestion = { t: string; k: string };
+type Suggestion = { title: string; kind: string };
 
 /** How long a dismissed row takes to collapse, in milliseconds. */
 const COLLAPSE = 320;
@@ -50,7 +50,7 @@ const COLLAPSE = 320;
  */
 function alreadyFollowed(title: string): boolean {
   return (followActions?.all() ?? []).some(
-    (follow) => baseTitle(follow.t) === baseTitle(title));
+    (follow) => baseTitle(follow.title) === baseTitle(title));
 }
 
 /**
@@ -96,9 +96,9 @@ function follow(title: string, kind: string): void {
   // emits and the reserve carries — the same literal, compared where it arrives
   const film = kind === "Film";
   followActions?.add({
-    t: title,
-    k: film ? "movie" : "show",
-    st: "unverified",
+    title,
+    kind: film ? "movie" : "show",
+    status: "unverified",
     fresh: true,
   });
   toast?.show({
@@ -128,11 +128,11 @@ function follow(title: string, kind: string): void {
  */
 function pause(title: string): void {
   const found = (followActions?.all() ?? []).find(
-    (follow) => follow.t === title);
+    (follow) => follow.title === title);
   if (!found) return;
-  const before = found.st;
+  const before = found.status;
   const after = before === "disabled"
-    ? (found.k === "movie" ? "pending" : "up_to_date")
+    ? (found.kind === "movie" ? "pending" : "up_to_date")
     : "disabled";
   // THE BUMP IS EXPLICIT, and for the same reason it is in `follow`: the
   // status is written into the query cache, which moves what React observes
@@ -150,10 +150,10 @@ function pause(title: string): void {
         ? "verbs.follows.resumed"
         // french-ok: an attribute VALUE frozen with the follows contract — the
         // same literal the layer answers with, compared where it arrives
-        : found.k === "movie"
+        : found.kind === "movie"
           ? "verbs.follows.searchStopped"
           : "verbs.follows.paused",
-      { title: found.t }),
+      { title: found.title }),
     // THE UNDO MOVES WITH THE VERB IT UNDOES. It restores what WAS rather
     // than toggling again: a second toggle is the same act repeated, and it
     // would land on the wrong side of anything that moved in between.
@@ -180,12 +180,12 @@ function pause(title: string): void {
  */
 function removeFollow(title: string): void {
   const removed = (followActions?.all() ?? []).find(
-    (follow) => follow.t === title);
+    (follow) => follow.title === title);
   if (!removed) return;
   followActions?.remove(title);
   store.touch();
   toast?.show({
-    message: i18next.t("verbs.follows.removed", { title: removed.t }),
+    message: i18next.t("verbs.follows.removed", { title: removed.title }),
     undo: () => {
       followActions?.restore(removed);
       store.touch();
@@ -266,7 +266,7 @@ registerVerb("follow", (title, element) => {
   // AN ABSENT KIND IS SPELLED AS ONE, not as the series' own word: the test
   // below asks whether it is a film, so the empty string answers « series »
   // without this file holding a second interface word to keep in step.
-  follow(title, suggestion?.k ?? element.dataset.fkind ?? "");
+  follow(title, suggestion?.kind ?? element.dataset.fkind ?? "");
   // AND THE STORE IS TOUCHED AGAIN, for the sheet's own button: `add` writes
   // the cache in place, so without this the button never learns the follow
   // happened and stays « Suivre » under the finger that pressed it.

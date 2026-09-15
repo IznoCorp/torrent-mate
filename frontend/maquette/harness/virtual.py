@@ -75,7 +75,7 @@ def declared(pattern, *where):
 PAGE_SIZE = declared(r"PAGE_SIZE = (\d+)",
                      "design", "src", "mocks", "handlers", "library.ts")
 ROW_PITCH = declared(r"list: \{[^}]*rowHeight: (\d+)[^}]*gap: (\d+)",
-                     "design", "src", "features", "library", "reference.ts")
+                     "design", "src", "features", "library", "types.ts")
 
 # How far the finger drags the list, in pixels. Several rows' worth, so the
 # window has certainly moved.
@@ -84,7 +84,7 @@ SCROLL_DISTANCE = 900
 # MEASURED FROM THE RENDERED LIST, never re-typed. What makes a shift a DEFECT
 # is that it costs a whole row of safety, so the comparison is against a row's
 # real height — and a row's height is declared in
-# `features/library/reference.ts`, which would make a number typed here a second
+# `features/library/types.ts`, which would make a number typed here a second
 # source of truth that goes stale the day the card is redrawn (B-276).
 
 

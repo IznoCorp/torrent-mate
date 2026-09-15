@@ -54,6 +54,10 @@ WHAT IT DOES NOT READ. The window's length and the send's waiting — R162 holds
 both, with a control at the message's last reachable frame. This rule is about
 what TWO picks do to one another, which is the half a single subject made
 unreachable.
+
+RE-AIMED when the queue's cards took the contract's names: a card's title is
+read as `title` (it was the engine's `t`). The holds and what they compare are
+unchanged.
 """
 import asyncio
 import pathlib
@@ -85,8 +89,8 @@ THIRD_FOLDER = "doc_fr_2026_final"
 
 # THE QUEUE'S TWO LISTS, by title, as the surfaces are drawn from.
 LISTS = """()=>({
-  blocked: (window.__queue?.().blocked || []).map((card) => card.t),
-  stuck: (window.__queue?.().stuck || []).map((card) => card.t)})"""
+  blocked: (window.__queue?.().blocked || []).map((card) => card.title),
+  stuck: (window.__queue?.().stuck || []).map((card) => card.title)})"""
 
 # EVERY RESOLVE THE LAYER ANSWERED, by the folder it names.
 SENDS = """()=>(window.__mocks?.answered() || [])

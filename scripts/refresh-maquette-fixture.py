@@ -36,7 +36,7 @@ import sqlite3
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-# WHERE `FOLLOWS` LIVES SINCE L09. It was an array in `legacy.js`, and the
+# WHERE `FOLLOWS` LIVES SINCE L09. It was an array in the deleted engine, and the
 # Acquisition deck read it from there; the deck reads `/api/acquisition/followed`
 # now and the fixture was deleted (D5 — the engine dies by subtraction). The
 # seed is what the mock layer answers with, so it is what may drift from the

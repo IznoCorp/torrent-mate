@@ -15,16 +15,31 @@
 import i18next from "i18next";
 import { membershipQuery, type Membership } from "../../lib/membership";
 import { sharedQueryClient } from "../../lib/query-client";
-import { dialog, followedTitles, toast } from "../../lib/shell-doors";
-import { libraryIncompleteQuery } from "./queries";
+import { dialog, followedTitles, toast, redraw } from "../../lib/shell-doors";
+import { store } from "../../lib/store-access";
+import { deleteLibraryItems, libraryIncompleteQuery } from "./queries";
 import type { DialogDescriptor } from "../../ui/dialog/contract";
-import type { IncompleteShow } from "./reference";
+import type { IncompleteShow } from "./types";
 
-declare global {
-  interface Window {
-    /** The engine's removal: the layer deletes, the selection ends, the page redraws. */
-    actionDelete: (titles: string[]) => void;
-  }
+/**
+ * Removes titles from the library: the layer deletes, the selection ends, the
+ * page redraws, and the removal is said.
+ *
+ * The confirmation that calls it says what was done in its own words right
+ * after, and that message replaces this one — so this one is what a caller
+ * with nothing more precise to say is left with.
+ *
+ * @param titles The titles removed.
+ */
+function removeTitles(titles: string[]): void {
+  deleteLibraryItems?.(titles);
+  store.write({ selMode: false, selected: new Set() });
+  redraw();
+  toast?.show({
+    message: i18next.t(titles.length > 1 ? "verbs.library.deletedMany" : "verbs.library.deletedOne", {
+      count: titles.length,
+    }),
+  });
 }
 
 /**
@@ -74,13 +89,13 @@ export function mediaNamedBy(title: string): number {
 function incompleteShow(title: string): IncompleteShow | undefined {
   return sharedQueryClient
     ?.getQueryData<IncompleteShow[]>(libraryIncompleteQuery.queryKey)
-    ?.find((show) => show.t === title);
+    ?.find((show) => show.title === title);
 }
 
 /** The video files a title stands for: an incomplete show's owned episodes, otherwise its media. */
 function filesOf(title: string): number {
   const show = incompleteShow(title);
-  return show ? show.o : mediaNamedBy(title);
+  return show ? show.owned : mediaNamedBy(title);
 }
 
 /** The total of one figure over several titles. */
@@ -159,7 +174,7 @@ export async function openDeleteDialog(title: string | null, many?: string[]): P
      there, so a button carrying one never reached its own `onClick` and the
      removal it confirms never ran. */
   const removeSaying = (message: string) => () => {
-    window.actionDelete(titles);
+    removeTitles(titles);
     toast?.show({ message });
   };
   const actions: DialogDescriptor["actions"] = [];

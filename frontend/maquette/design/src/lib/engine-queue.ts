@@ -1,33 +1,8 @@
-// the engine's derived read model over the staging queue
+// the staging queue's card, as the contract answers it
 //
-// The slice of `window.__referentiel` this layer reads, and nothing else.
-//
-// The engine publishes ONE object; what it publishes is not one subject. A
-// single 340-line declaration of all of it made every module that needed two
-// members depend on all hundred and eight, and seventeen of twenty-five
-// modules did. Each slice is declared where its subject lives instead, and the
-// global's own type is their intersection (app/reference.d.ts) — so a
-// reader imports nothing to be typed, and a member nobody's subject claims has
-// nowhere to be written down.
+// One card of every list the queue reads — stuck, moving, settled, takeable,
+// blocked, in flight, not found, done today — in the contract's own names
+// (`title`, `secondaryLine`, `reason`, `chip`, `withoutPoster`).
+import type { components } from "../contract/types";
 
-// A queue card exactly as `BLOCKED` / `STUCK` / `STUCK_REAL` shape one — the
-// source carries more fields (`s`, `chip`, `strip`, `noposter`…) than any one
-// reader needs, so this stays the same loose index shape as `MediaSheet`
-// rather than a speculative closed type: a caller narrows the fields it
-// actually reads, starting with `t` to match against a decision's `d`.
-export type QueueCard = Record<string, unknown>;
-
-export type EngineQueue = {
-  // Thin arrows over `derived.blocked` / `derived.stuck`, published so the
-  // FUNCTION REFERENCE stays stable across renders while the value each call
-  // returns stays live — a component can pass these to a hook that expects a
-  // stable selector without ever seeing a stale snapshot.
-  derivedBlocked: () => QueueCard[];
-  derivedStuck: () => QueueCard[];
-  derivedMoving: () => QueueCard[];
-  derivedSettled: () => QueueCard[];
-  derivedTakeable: () => QueueCard[];
-  derivedInflight: () => QueueCard[];
-  derivedNotfound: () => QueueCard[];
-  derivedDoneToday: () => QueueCard[];
-};
+export type QueueCard = components["schemas"]["QueueCard"];

@@ -4,6 +4,8 @@ Q5 = B (ruling 99, 2026-09-15): this is a phase of L13r — The engine's residue
 
 **Kind**: CONVERSION. **Cost**: Estimate ≤ 15 points (measure 11). The mean of L13b's measured phase costs is 11 (b·9 13, b·10 3, b·11 21, b·12 6.5); a phase above the mean says why.
 
+2026-09-15 (ruling 100): estimate ≈ 13, above the mean because six harness readers are re-aimed at the cache and the `Suggestion` schema gains `posterHighDefinition`; nine of the thirteen families have no product reader left (the pages read their queries), `TODAY` becomes `lib/clock.ts`, the avatar a `lib/` door `features/account` fills.
+
 ## Measured
 
 Figures measured on `1cb0a2dc1` (rebased on main `72712bb51`) by a throwaway measurement script (per-name block sizes and product-file readers; not committed) — block sizes are non-blank lines of `engine/legacy.js` per top-level name; « readers » counts product files (features/, app/, lib/, ui/, mocks/) naming it, an UPPER bound for generic words (`render`, `toast`, `view`, `select`, `follows`).
@@ -32,3 +34,5 @@ The named states that draw each moved name are re-taken by grep at the phase's o
 
 Per INDEX « Gates »: contracts + oracle + the named rules, logs postdating the commit; mutations by name where a rule
 was written or re-aimed.
+
+2026-09-15 demand (ruling 100 Q3): the suggestion list serves the HD poster the sheet already serves.

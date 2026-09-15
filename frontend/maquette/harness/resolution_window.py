@@ -47,6 +47,10 @@ the constant at 3 000: every wait here is `WINDOW_CLOSED`, and a shorter window
 satisfies it exactly as a longer one does. The message would then offer a way
 back for three seconds after the act had left. w1's reading at `LAST_FRAME` is
 the floor that says so.
+
+RE-AIMED when the queue's cards took the contract's names: a card's title is
+read as `title` (it was the engine's `t`). The holds and what they compare are
+unchanged.
 """
 import asyncio
 import pathlib
@@ -82,8 +86,8 @@ SENDS = """()=>(window.__mocks?.answered() || [])
 
 # THE QUEUE'S LISTS, by title.
 LISTS = """()=>({
-  blocked: (window.__queue?.().blocked || []).map((card) => card.t),
-  stuck: (window.__queue?.().stuck || []).map((card) => card.t)})"""
+  blocked: (window.__queue?.().blocked || []).map((card) => card.title),
+  stuck: (window.__queue?.().stuck || []).map((card) => card.title)})"""
 
 # WHEN THE QUEUE WAS LAST ANSWERED, in the dense scenario the tied screen uses.
 QUEUE_ANSWERED_AT = """()=>window.__queries?.getQueryCache()
