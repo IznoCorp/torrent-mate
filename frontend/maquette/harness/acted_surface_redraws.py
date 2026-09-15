@@ -189,8 +189,14 @@ async def hold_the_place(page, journal):
     """
     await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
     await page.wait_for_timeout(SETTLED)
+    # ONLY A FOLLOW WHOSE ASK THE LAYER WILL ANSWER WITH SOMETHING TO GET: the
+    # season family the layer counts from holds a hole for it. A follow nobody
+    # holds offers the act on every season too, as its sheet does, and its ask
+    # absorbs nothing — a panel that rightly does not move. RE-AIMED, said here.
     followed = await page.evaluate(
-        """()=>(window.__followActions?.all?.() || []).map((one) => one.t)""")
+        """()=>{const family = window.__mocks?.seasonFamily?.() || {};
+          return (window.__followActions?.all?.() || []).map((one) => one.t)
+            .filter((title) => (family[title] || []).some(([, aired, owned]) => owned < aired));}""")
     subject = ""
     place = None
     for title in followed:
@@ -307,8 +313,14 @@ async def hold_the_taken_act(page, journal):
     """
     await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
     await page.wait_for_timeout(SETTLED)
+    # ONLY A FOLLOW WHOSE ASK THE LAYER WILL ANSWER WITH SOMETHING TO GET: the
+    # season family the layer counts from holds a hole for it. A follow nobody
+    # holds offers the act on every season too, as its sheet does, and its ask
+    # absorbs nothing — a panel that rightly does not move. RE-AIMED, said here.
     followed = await page.evaluate(
-        """()=>(window.__followActions?.all?.() || []).map((one) => one.t)""")
+        """()=>{const family = window.__mocks?.seasonFamily?.() || {};
+          return (window.__followActions?.all?.() || []).map((one) => one.t)
+            .filter((title) => (family[title] || []).some(([, aired, owned]) => owned < aired));}""")
     asked = ""
     for title in followed:
         await page.evaluate("(t)=>window.__panel.produce('follow', t)", title)
