@@ -1,8 +1,8 @@
 {
-  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 124 of 135 rule(s) report a hold count; the other 11 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
-  "taken_at_commit": "5df76af3363ac4b831d5e0bf37111321775562e8",
+  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 130 of 141 rule(s) report a hold count; the other 11 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
+  "taken_at_commit": "60c6d9b1df21ef9395407b91939e37dd7991c149",
   "taken_on": "2026-09-15",
-  "suite": "135 of 135 rule(s)",
+  "suite": "141 of 141 rule(s)",
   "host": "http://127.0.0.1:8899/",
   "rules": {
     "acted_surface_redraws.py": {
@@ -57,7 +57,7 @@
     },
     "back.py": {
       "exit": 0,
-      "count": 17,
+      "count": 21,
       "source": "common.Journal summary"
     },
     "boot_order.py": {
@@ -92,7 +92,7 @@
     },
     "chrome.py": {
       "exit": 0,
-      "count": 174,
+      "count": 226,
       "source": "own EXECUTED count line"
     },
     "chrome_pixels.py": {
@@ -127,7 +127,7 @@
     },
     "declared_codes.py": {
       "exit": 0,
-      "count": 15,
+      "count": 17,
       "source": "common.Journal summary"
     },
     "departure.py": {
@@ -295,6 +295,11 @@
       "count": 15,
       "source": "common.Journal summary"
     },
+    "levers.py": {
+      "exit": 0,
+      "count": 34,
+      "source": "common.Journal summary"
+    },
     "library_load.py": {
       "exit": 0,
       "count": 8,
@@ -320,6 +325,11 @@
       "count": 8,
       "source": "common.Journal summary"
     },
+    "locks.py": {
+      "exit": 0,
+      "count": 74,
+      "source": "common.Journal summary"
+    },
     "logout.py": {
       "exit": 0,
       "count": 10,
@@ -327,7 +337,7 @@
     },
     "machine.py": {
       "exit": 0,
-      "count": 92,
+      "count": 90,
       "source": "common.Journal summary"
     },
     "message_above_harness.py": {
@@ -372,7 +382,7 @@
     },
     "panel.py": {
       "exit": 0,
-      "count": 59,
+      "count": 60,
       "source": "common.Journal summary"
     },
     "panel_label_once.py": {
@@ -440,6 +450,16 @@
       "count": 7,
       "source": "common.Journal summary"
     },
+    "queued_by_hand.py": {
+      "exit": 0,
+      "count": 23,
+      "source": "common.Journal summary"
+    },
+    "raw_log.py": {
+      "exit": 0,
+      "count": 13,
+      "source": "common.Journal summary"
+    },
     "redraw_entry.py": {
       "exit": 0,
       "count": 4,
@@ -485,6 +505,11 @@
       "count": 18,
       "source": "common.Journal summary"
     },
+    "run_history.py": {
+      "exit": 0,
+      "count": 29,
+      "source": "common.Journal summary"
+    },
     "runtime_tokens.py": {
       "exit": 0,
       "count": 9,
@@ -502,7 +527,7 @@
     },
     "screen_addresses.py": {
       "exit": 0,
-      "count": 51,
+      "count": 58,
       "source": "common.Journal summary"
     },
     "screens.py": {
@@ -617,7 +642,7 @@
     },
     "states.py": {
       "exit": 0,
-      "count": 87,
+      "count": 113,
       "source": "states-conform verdict"
     },
     "suggestions_more.py": {
@@ -672,20 +697,25 @@
     },
     "url_state.py": {
       "exit": 0,
-      "count": 99,
+      "count": 102,
       "source": "common.Journal summary"
     },
     "virtual.py": {
       "exit": 0,
       "count": 36,
       "source": "common.Journal summary"
+    },
+    "watch_run.py": {
+      "exit": 0,
+      "count": 19,
+      "source": "common.Journal summary"
     }
   },
   "totals": {
-    "rules": 135,
-    "parseable": 124,
+    "rules": 141,
+    "parseable": 130,
     "unparseable": 11,
-    "holds": 2846,
+    "holds": 3131,
     "failed": 0
   }
 }
