@@ -11,10 +11,41 @@ import { useTranslation } from "react-i18next";
 import { actionButton } from "../../ui/variants/controls";
 import { guidance } from "../../ui/variants";
 import { useLaunchedWatch, useWatchRun } from "./watch-run";
+import { usePipelineHistory } from "./queries";
+import { whenItRan } from "./run-list";
 import type { ReactElement } from "react";
+import type { TFunction } from "i18next";
 
 /** What a step of a run carries when it counted something. */
 type Counts = { detected?: number; available?: number; grabbed?: number };
+
+/** The command a veille runs, as the history records it. */
+const DETECTION_COMMAND = "follow-detect";
+
+/**
+ * What a veille found, in the words its counts allow.
+ *
+ * ONLY WHAT WAS COUNTED IS SAID. DOIT-6's three figures are drawn when the run
+ * carries all three; a run that recorded only what it detected says that, and
+ * nothing is printed as a zero it never counted (§13).
+ *
+ * @param counts The run's first step's counts.
+ * @param t The translator.
+ * @returns The sentence.
+ */
+function figuresOf(counts: Counts, t: TFunction): string {
+  const { detected, available, grabbed } = counts;
+  if (detected !== undefined && available !== undefined && grabbed !== undefined) {
+    return detected + available + grabbed === 0
+      ? t("screens.system.watchNothing")
+      : t("screens.system.watchFigures", {
+        detected: detected,
+        available: available,
+        grabbed: grabbed,
+      });
+  }
+  return detected ? t("screens.system.detectedCount", { count: detected }) : t("screens.system.watchNothing");
+}
 
 /**
  * The veille's block: its last run, its figures, and its button.
@@ -26,7 +57,12 @@ export function WatchBlock(): ReactElement {
   const launched = useLaunchedWatch();
   const { data: run } = useWatchRun(launched?.runUid);
   const counts = (run?.steps?.[0]?.counts ?? {}) as Counts;
-  const found = (counts.detected ?? 0) + (counts.available ?? 0) + (counts.grabbed ?? 0);
+  // AT REST, THE LAST VEILLE THE HISTORY HOLDS — not a key of this interface's
+  // own, which knew only what was launched from this screen since it opened.
+  const { data: history } = usePipelineHistory();
+  const last = history?.runs.find(
+    (one) => one.command === DETECTION_COMMAND && one.outcome !== "running",
+  );
 
   return (
     <div data-part="levers/watch">
@@ -34,7 +70,12 @@ export function WatchBlock(): ReactElement {
         {launched?.failed ? (
           t("screens.system.watchFailed")
         ) : run === undefined ? (
-          t("screens.system.watchIdle")
+          history === undefined ? null : last === undefined ? (
+            t("screens.system.watchIdle")
+          ) : (
+            `${t("screens.system.watchLast", { when: whenItRan(last) })} ${figuresOf(
+              (last.steps?.[0]?.counts ?? {}) as Counts, t)}`
+          )
         ) : run.outcome === "running" ? (
           <>
             <span data-part="levers/live-dot" />
@@ -42,14 +83,8 @@ export function WatchBlock(): ReactElement {
           </>
         ) : run.outcome === "error" ? (
           t("screens.system.watchFailed")
-        ) : found === 0 ? (
-          t("screens.system.watchNothing")
         ) : (
-          t("screens.system.watchFigures", {
-            detected: counts.detected ?? 0,
-            available: counts.available ?? 0,
-            grabbed: counts.grabbed ?? 0,
-          })
+          figuresOf(counts, t)
         )}
       </div>
       <button className={actionButton({ kind: "cardFoot" })} data-part="levers/watch-now" data-watch-now="">

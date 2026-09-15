@@ -117,6 +117,13 @@ LAUNCHED_OUTCOME = """async ()=>{
   return launched ? launched.outcome : null;
 }"""
 
+# THE LAST VEILLE THE HISTORY HOLDS: its detection command, ended.
+LAST_WATCH = """async ()=>{
+  const runs = (await (await fetch('/api/pipeline/history')).json()).runs;
+  const last = runs.find((one) => one.command === 'follow-detect' && one.outcome !== 'running');
+  return last ? {runUid: last.runUid, counts: (last.steps[0] || {}).counts || {}} : null;
+}"""
+
 # HOW LONG A PERSON MAY WAIT FOR THE FIGURES, polled, in milliseconds.
 FIGURES_WAIT = 20000
 POLL = 500
@@ -164,8 +171,19 @@ async def main():
         browser = await playwright.chromium.launch(channel="chrome")
         context, page = await open_page(browser)
 
-        # 1a — FROM THE LEVERS SECTION.
+        # IDLE — THE LAST VEILLE, FROM THE HISTORY. The block at rest says when
+        # the veille last ran and what it found, from the layer's history, and
+        # « Jamais lancée » only when the history holds none.
         await drive(journal, page, IDLE)
+        last = await page.evaluate(LAST_WATCH)
+        said = await page.evaluate(TEXT, FIGURES_PART) or ""
+        lead = (SENTENCES.get("watchLast") or "").split("{{")[0]
+        journal.check("at rest, the block says when the history's last veille ran, and its figures",
+                      last is not None and bool(lead) and said.startswith(lead)
+                      and str(last["counts"].get("detected")) in said,
+                      f"{said!r}, the history's last veille is {last}")
+
+        # 1a — FROM THE LEVERS SECTION.
         press = await page.evaluate(PRESS, [IN_LEVERS, None])
         journal.check("the levers' veille button is reachable by a finger",
                       press["pressed"], f"{press}")
