@@ -1,7 +1,7 @@
 # L13c — resume brief (STATE BLOCK ≤ 40 lines, rewritten at every boundary; ledger below, append-only)
 
 Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md` (L13c appends from
-110).
+115).
 
 ## STATE
 
@@ -15,7 +15,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   c·6 the seventh scheduler (B-327) → c·7 no follow without a sheet (B-366) → c·8 the library's
   states at rest (B-345's library half) → c·9 the close (register re-read, `REPORT.md`, the lot's
   gesture, the pull request).
-- DONE: c·1 (`a78287834`…`8cf2fa574`, B-312 `to confirm`, B-539 filed), c·2 (`069fb3a8e` + `f67401890`,
+- DONE: c·1 (`a78287834`…`8cf2fa574`, B-312 `to confirm`, B-548 filed), c·2 (`069fb3a8e` + `f67401890`,
   B-340 `to confirm`), merge of L13r's squash `08400a22a` (`0a32a745a`, pushed), c·3 (`9848c02b4`,
   B-339 `to confirm`), c·4 (`30658ccf7`, B-336 `to confirm`). NEXT: c·5, then the MIDPOINT full suite.
 - LOGS: `~/Library/Logs/tm-l13c/`. Mutex `sh scripts/heavy.sh --held`; tests lock
@@ -47,7 +47,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
 ## LEDGER (append-only)
 
 - 2026-09-15 (steward): branch not yet cut. BRIEF-L13c.md and this file written AHEAD (order 39),
-  on the model of BRIEF-L13r.md / RESUME-L13r.md, before L13r's own pull request opens. c·1 open for
+  on the model of `docs/features/maquette-l13/BRIEF-L13r.md@08400a22a` / `docs/features/maquette-l13/RESUME-L13r.md@08400a22a`, before L13r's own pull request opens. c·1 open for
   `Agent : l13c 1` once the steward spawns it, stacked on L13r's head per measure 9.
 - 2026-09-15 c·1 (`Agent : l13c 1`): rulings 115–117. Five writers stopped dropping the selection
   (lens, cat, setsort, clear-search, the search commit). R195 `selection_survives_the_listing.py`,
@@ -57,7 +57,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   lens » holds by name. Trap paid: the driver's `reset()` did not write `libCat` or the sort, so a
   state or a rule moving them leaked into every later `__go` (9 `shell/library-count` divergences
   first read as inherited — they were this state's); `libLens`/`libMode` leak too but the reference
-  records it (probe `c01-probe-dials.log`, B-539). Dialog fold at four kept (ruling 116): a
+  records it (probe `c01-probe-dials.log`, B-548). Dialog fold at four kept (ruling 116): a
   selection of ≥ 5 names hidden titles only inside « et N autres » — for the operator.
 - 2026-09-15 c·1 close: the oracle accepted `lib-selection-filtered` by name (`2092bbb27`, diff = the one
   state + count + baseCommit); re-gate `c01-gate-3.log` « gate: no violation ». Ruling 116 carries the

@@ -202,6 +202,15 @@ class TestLocksRoute:
         assert data["sweep"]["status"] == "pending"
         assert data["sweep"]["orphans"] == []
 
+        # The GET above started a background sweep (asserted pending, on
+        # purpose — that is this test's subject). Left running as a daemon
+        # thread past this test's return, it later writes into the
+        # module-level `_orphan_cache` whatever it finds, which can land
+        # after a later test's own fixture reset and sweep have already run,
+        # clobbering that test's result with this one's. Draining it here
+        # keeps the leak inside this test's own run.
+        self._wait_for_sweep(client)
+
     def test_locks_idle(self, test_config, tmp_path: Path) -> None:
         """200 — no lock file → ``held=False``, sentinels absent, no orphans."""
         test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
@@ -257,6 +266,14 @@ class TestLocksRoute:
         assert lock["pid_alive"] is False
         assert lock["stale"] is True
         assert isinstance(lock["age_s"], (int, float))
+
+        # The GET above started a background sweep of THIS test's config (a
+        # daemon thread, not joined). Left running, it later writes into the
+        # module-level `_orphan_cache` whatever it finds — potentially after
+        # the next test's own fixture has reset that cache and started its
+        # OWN sweep, clobbering it with this test's stale (usually empty)
+        # result. Draining it here keeps the leak inside this test's own run.
+        self._wait_for_sweep(client)
 
     def test_locks_tmp_orphans(self, test_config, tmp_path: Path) -> None:
         """``_tmp_dispatch_*`` dirs in the staging root land in ``sweep.orphans``.

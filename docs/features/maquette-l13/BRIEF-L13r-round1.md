@@ -2,8 +2,10 @@
 
 You repair pull request #605 (`feat/maquette-l13r`, head `22166378e` = the sub-lot's r·18 close with `origin/main`
 `c0a5062ac` merged in) on the reader's round-one findings. The findings are DECIDED: you apply them, you do not
-re-assess them; what you find beyond them is a STOP, never a widening. Read `docs/features/maquette-l13/BRIEF-L13r.md`
-(governs: environment, locks, gate form, communication, envelope — all of it still binds), `RESUME-L13r.md`'s state
+re-assess them; what you find beyond them is a STOP, never a widening. Read
+`docs/features/maquette-l13/BRIEF-L13r.md@08400a22a`
+(governs: environment, locks, gate form, communication, envelope — all of it still binds),
+`docs/features/maquette-l13/RESUME-L13r.md@08400a22a`'s state
 block, `RULINGS.md` 98–114, and the reader's report `/Users/izno/dev/review-archive/l13r/round-1/r1-R.md` § FINDINGS
 and § « For the next round » — its instruments (`r05_mutations.py`, `r07_state_texts.py`, the `.out` readings) are in
 that same directory. Tier deep; the orchestrator's exact address is in your launch prompt; handshake first; every long
@@ -41,7 +43,7 @@ another implementer, L13c, shares the machine). No force-push ever (main is merg
    `theme.css:73`, `types.d.ts:1292` (a generated file: if regenerated, fix its source), `acquisition/queries.ts:78`
    (a comment contrary to the code — make it true). One commit; `git grep -n -E "legacy\.js|engine/seams" --
    frontend/maquette/design/src frontend/maquette/harness` before/after counts in the body, 0 uncited after.
-3. **R3 (minor) — the ledger's phantom log.** `RESUME-L13r.md`'s r·11 line cites `r11-mutation-follows-audit2.log`,
+3. **R3 (minor) — the ledger's phantom log.** `docs/features/maquette-l13/RESUME-L13r.md@08400a22a`'s r·11 line cites `r11-mutation-follows-audit2.log`,
    pruned at a stand-down: replace the citation by the reader's replay (`review-archive/l13r/round-1/r05_M17-r11-actions.out`
    or the one that reproduced audit2's fall — read which) and one sentence saying the log was lost. Docs commit.
 
@@ -56,7 +58,8 @@ files and merges — there is no second reader round (measure 2).
 
 ## Non-goals
 
-- Any file outside `frontend/maquette/design/src`, `frontend/maquette/harness`, the comment baseline, `RESUME-L13r.md`
+- Any file outside `frontend/maquette/design/src`, `frontend/maquette/harness`, the comment baseline,
+  `docs/features/maquette-l13/RESUME-L13r.md@08400a22a`
   and the phase files' dated lines; no `scripts/`, no `docs/reference/`, no `IMPLEMENTATION.md`, no `BUGS.md`, no
   version bump (0.98.96 is done), no rebase, no reference re-record (the oracle reads 0 today and must still).
 - Widening a repair beyond its finding; a full suite (the reader ran it on this head: 141/141).

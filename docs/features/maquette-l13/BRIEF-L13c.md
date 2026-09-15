@@ -15,7 +15,7 @@ library's states at rest (c·8, B-345's library half), and the close (c·9 — t
 the stale reference sentences, the report; DESIGN § 9, § 10).
 
 **Rulings 1–109(+) are in `docs/features/maquette-l13/RULINGS.md`** — one numbered file,
-non-reopenable; L13c appends from **110** (the steward's number, in the launch prompt — L13r holds
+non-reopenable; L13c appends from **115** (the steward's number, in the launch prompt — L13r holds
 100–103 as it opens; the margin is deliberate). The ones that shape L13c: 27/Ruled B (the three-lot
 cut), the D-L13-1 lines (28, and DESIGN § 8) that c·1's selection-bar and c·7's follow contract
 build beside, and 98–99 (why L13r exists between L13b and this sub-lot). DESIGN § 9 and § 10 are

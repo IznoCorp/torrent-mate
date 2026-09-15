@@ -7,7 +7,7 @@ lives in the code**: the French a reader of the interface sees lives in the i18n
 resources. This script is the half of the rule that is enforced rather than
 remembered; it runs in `make check` and in CI.
 
-Fifteen arms, each with its own scope, because "French" means a different thing
+Fourteen arms, each with its own scope, because "French" means a different thing
 in a component than it does in a rule script that ASSERTS the French the app
 renders. `ARMS` is the list `main` walks; arm 13 holds this enumeration against
 it, so an arm added without a heading here fails the gate:
@@ -48,27 +48,23 @@ it, so an arm added without a heading here fails the gate:
    `data-resolve`, `data-follow`, `data-toast`, and anything whose value is a
    route, a title, a folder or a store datum) stay unread, because a page id
    is an address, not a name.
-8. **The engine's declared debt** — the French words the legacy engine still
-   needs, listed below a banner in the vocabulary and refused to every other
-   file, so a vocabulary seeded from the code cannot licence the debt it exists
-   to catch.
-9. **Shell scripts** — every line a `.sh` prints is the tool speaking, and no
+8. **Shell scripts** — every line a `.sh` prints is the tool speaking, and no
    arm read one at all until three all-French scripts turned up. Body in
    `nofrench_shell.py`, whose corpus no other arm reads.
-10. **Dictionary** — a declared name built from a word French knows and English
+9. **Dictionary** — a declared name built from a word French knows and English
    does not. Fail-soft when `aspell` is absent, and it SAYS so: absence must
    never read as cleanliness. Body in `nofrench_dictionary.py` — it is the one
    arm whose oracle comes from outside this repository.
-11. **App interface text** — `frontend/src` is exempt by the operator's ruling,
+10. **App interface text** — `frontend/src` is exempt by the operator's ruling,
    and the exemption is a RATCHET: the French there is counted and refused to
    grow. Body in `nofrench_ratchets.py`.
-12. **Test prose** — the French in `tests/`, counted and held to a baseline.
+11. **Test prose** — the French in `tests/`, counted and held to a baseline.
    The French a harness ASSERTS is the app's rendered output and stays; a
    docstring or a tool message is English. Body in `nofrench_ratchets.py`.
-13. **Custom-property names** — a `--token` name is a name someone chose, and
+12. **Custom-property names** — a `--token` name is a name someone chose, and
    arm 4 stopped at CSS *class* names, so seven French tokens sat under a green
    gate in both trees. Values are not read: those are data.
-14. **Named-state ids** — `window.__go("acq-now-idle")` designates a scenario,
+13. **Named-state ids** — `window.__go("acq-now-idle")` designates a scenario,
    so a state id is a NAME and not a value. Nothing read the state table until
    L10-bis: the French count went 51 → 2 during L01 and then stopped moving,
    with `system-panne` and `acq-follows-groupe` left behind under a green gate
@@ -77,7 +73,7 @@ it, so an arm added without a heading here fails the gate:
    literal never sees — one single-line entry and a family of nine built from
    a template — and an id the oracle drove that this arm cannot parse is
    refused rather than printed.
-15. **The self-description** — the arm that counts the arms. Three files
+14. **The self-description** — the arm that counts the arms. Three files
    carried three different counts and none of them was right; this one reads
    `main`, this docstring and `CLAUDE.md`, and refuses a description that has
    drifted away from the arms that actually run.
@@ -132,12 +128,12 @@ from nofrench_scan import (  # noqa: E402
     TS_DECLARATION, code_only, inside_quotes, pragma_on, python_declarations,
     python_string_literals, script_string_literals,
 )
-# Arms 11 and 12 — the two that COUNT rather than refuse. They stay in `ARMS`;
+# Arms 10 and 11 — the two that COUNT rather than refuse. They stay in `ARMS`;
 # only their bodies live next door, where that module's header says why.
 from nofrench_ratchets import (  # noqa: E402
     check_app_interface_text, check_test_prose, jsx_text,
 )
-# Arm 14 and the stylesheet machinery arm 4 borrows — see that module's header.
+# Arm 12 and the stylesheet machinery arm 4 borrows — see that module's header.
 from nofrench_css import (  # noqa: E402
     CSS_SELECTOR, allowed_class, check_custom_properties, css_allowlist,
     declared_css_classes,
@@ -148,16 +144,16 @@ from nofrench_css import (  # noqa: E402
 from nofrench_values import (  # noqa: E402
     check_data_attributes, check_named_values,
 )
-# Arm 15 — the named-state table, which no arm read until L10-bis. One arm, one
+# Arm 13 — the named-state table, which no arm read until L10-bis. One arm, one
 # file, the seam every other arm here was split on. See its header for why the
 # corpus is cross-checked against the recorded oracle rather than parsed once.
 from nofrench_states import check_state_identifiers  # noqa: E402
-# Arm 10 — the one oracle from outside this repository. See its header.
+# Arm 9 — the one oracle from outside this repository. See its header.
 from nofrench_dictionary import check_dictionary  # noqa: E402
-# Arm 9 — the only arm whose corpus is the shell. See its header.
+# Arm 8 — the only arm whose corpus is the shell. See its header.
 from nofrench_shell import check_shell_scripts  # noqa: E402
 from nofrench_lexicon import (  # noqa: E402
-    DEBT_BANNER, vocabulary, DEBT_FILE, DICTIONARY_EXCEPTIONS, EXTRACTED_CSS,
+    vocabulary, EXTRACTED_CSS,
     FRENCH_TOKENS, FROZEN_IDENTIFIERS, FROZEN_PATH_SEGMENTS, HARNESS, MAQUETTE,
     REGIONS, ROOT, SCRIPTS, SHELL, VOCABULARY, deaccent, french_tokens_in,
     french_tokens_in_flat, has_accent, read, relative, scope_of,
@@ -440,83 +436,6 @@ def check_class_names(violations: list[str]) -> None:
                     "name shared by four worlds")
 
 
-def check_french_debt(violations: list[str]) -> None:
-    """Refuses a debt word anywhere but the one file that owes it.
-
-    The vocabulary was seeded FROM the codebase, so every French name still
-    standing quietly contributed its own word and the arm reading that file
-    certified them. Naming the debt is only half of it — the other half is
-    that it must not grow: a new name built from `apparence` or `tris`
-    outside the dying engine would inherit an exemption nobody granted it.
-
-    Args:
-        violations: The accumulator every arm appends to.
-    """
-    owed = vocabulary(debt_only=True)
-    if not owed:
-        # Deleting the BANNER alone would fold every French word back into the
-        # general vocabulary and silence this arm without removing a thing —
-        # the section and the file it exists for go together, or neither does.
-        if (ROOT / DEBT_FILE).exists() and DEBT_BANNER not in VOCABULARY.read_text(
-                encoding="utf-8"):
-            violations.append(
-                f"{relative(VOCABULARY)}: the debt banner is gone while "
-                f"{DEBT_FILE} is still here — either the words below it moved "
-                "back in unmarked, or the section was removed before the file "
-                "it was written for")
-        return
-    examined["french debt words / vocabulary"] += len(owed)
-    # The app is read too: a debt word borrowed in `frontend/src` would be no
-    # less an exemption nobody granted, and it is not the engine's file.
-    # EVERY scope the guard reads, not two frontend trees. The banner claims
-    # these words are « needed by exactly ONE file » and that this arm « refuses
-    # them anywhere else » — and it read no `.py` at all, so thirteen of the
-    # twenty-four passed silently as Python identifiers, and `panne` was live in
-    # `harness/machine.py` under a green gate. A bound that covers a quarter of
-    # the codebase is not a bound.
-    sources = [p for p in SHELL.rglob("*")
-               if p.is_file() and p.suffix in {".ts", ".tsx", ".js"}
-               and "i18n" not in p.parts and relative(p) != DEBT_FILE]
-    sources += [p for p in (ROOT / "frontend" / "src").rglob("*")
-                if p.is_file() and p.suffix in {".ts", ".tsx"}]
-    sources += maquette_servers()
-    sources += sorted(HARNESS.glob("*.py"))
-    sources += [p for p in sorted(SCRIPTS.rglob("*.py")) if p.name not in SELF]
-    sources += sorted((ROOT / "personalscraper").rglob("*.py"))
-    sources += sorted((ROOT / "tests").rglob("*.py"))
-    for path in sorted(sources):
-        raw = read(path)
-        lines = raw.splitlines()
-        # A JavaScript declaration regex over a `.py` file matches nothing, so
-        # merely ADDING Python to the scope changed nothing: `panne` stayed
-        # green in `harness/machine.py`. Python is read by Python's own reader.
-        if path.suffix == ".py":
-            found = [(name, line_no) for name, line_no in python_declarations(raw)]
-        else:
-            source = code_only(raw)
-            found = [(m.group(1), source.count("\n", 0, m.start()) + 1)
-                     for m in re.finditer(
-                         r"(?:function|const|let|var|class|type|interface)\s+"
-                         r"([A-Za-z_$][\w$]*)", source)]
-        for name, line_no in found:
-            # Same as the vocabulary arm: an empty reason grants nothing.
-            if pragma_on(lines, line_no):
-                continue
-            # A word DECLARED as an English abbreviation is not borrowed
-            # French, wherever it appears. `sel` is a selector, `maint`
-            # maintenance, `repos` git repositories — each already carries
-            # its reason in DICTIONARY_EXCEPTIONS, and one declaration
-            # should answer for both arms rather than each keeping a list.
-            borrowed = [w for w in split_identifier(name)
-                        if w.lower() in owed and w.lower() not in DICTIONARY_EXCEPTIONS]
-            if borrowed:
-                violations.append(
-                    f"{relative(path)}:{line_no}: {name!r} borrows "
-                    f"{', '.join(repr(w) for w in borrowed)} from the French "
-                    f"words {DEBT_FILE} still owes — that exemption is the "
-                    "engine's alone, and it dies with it")
-
-
 def check_vocabulary(violations: list[str]) -> None:
     """Refuses a declared name built from a word this codebase does not use.
 
@@ -764,7 +683,6 @@ ARMS: tuple[tuple[object, str], ...] = (
     (check_unread_javascript, "Unread JavaScript"),
     (check_vocabulary, "Vocabulary"),
     (check_data_attributes, "`data-*` names"),
-    (check_french_debt, "The engine's declared debt"),
     (check_shell_scripts, "Shell scripts"),
     (check_dictionary, "Dictionary"),
     (check_app_interface_text, "App interface text"),

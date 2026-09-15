@@ -181,3 +181,10 @@ reserved for a MAINTENANCE lock, is §1's own single-trigger-discipline point �
 discipline for N tunnels is a design question for the brief, not a licence for a second
 mechanism » — which L20 confirmed rather than found (`DESIGN.md@60c6d9b1d` § 3.2 point 3, ruling
 L20-8).
+
+## 13. `PendingDecision.kind` should be an enum, not a string — L13r r·7
+
+- `features/arrivals/resolution-cards.tsx`'s candidate card casts `decision.kind` to
+  `"movie" | "show"`, because the contract types `PendingDecision.kind` as a plain string. A demand
+  for the backend, not a product change: the two values the product already narrows it to are the
+  whole of the field's range (`docs/features/maquette-l13/RESUME-L13r.md@08400a22a`, r·7).
