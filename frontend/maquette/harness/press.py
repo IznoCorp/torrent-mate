@@ -275,6 +275,75 @@ async def hold_the_swallow_is_by_point(journal, browser):
     await context.close()
 
 
+async def hold_a_drag_swallows_only_its_own_click(journal, browser):
+    """A drag's release fires nothing; a tap on the same row still acts.
+
+    THE TWO HALVES ARE ONE PROPERTY read from both sides, and neither alone is
+    a proof (invariant 14). A swipe ends with the pointer ON the row it just
+    opened, and the browser sends a click there: answered, it opens the panel
+    over the drawer the gesture just revealed. A TAP is the same click with no
+    travel behind it, and it must go through.
+
+    IT IS DRIVEN WITH A MOUSE, and that is not a convenience. After a TOUCH drag
+    the browser suppresses the click itself, so a touch measurement is green
+    whatever the guard does — the engine's own comment recorded that, and this
+    hold was written with touch first and measured: neither mutation moved it.
+    A mouse delivers the click, which is the only way the swallow is observable
+    at all.
+
+    WHAT IT CATCHES. The guard used to stop the click with `stopPropagation`,
+    which reached the delegation it was written against — a listener on another
+    node, in the bubble phase — and stops nothing beside it: the tap registry
+    answers in CAPTURE on the same node, so from the day the verbs moved there
+    the release of every drag fired the verb under the pointer.
+    """
+    context = await browser.new_context(**{**PHONE, "has_touch": False})
+    page = await context.new_page()
+    await page.goto(PROTOTYPE, wait_until="load")
+    await page.evaluate("()=>window.__loadingDone?.()")
+    await page.evaluate("(s)=>window.__go(s)", "acq-follows-list")
+    await page.wait_for_timeout(420)
+    box = await page.evaluate(
+        """()=>{const row=document.querySelector('[data-part="swipe"]');
+                const body=row?.querySelector('[data-part="card/body"]');
+                if(!body) return null;
+                const r=body.getBoundingClientRect();
+                return {x:r.x+r.width/2, y:r.y+r.height/2};}""")
+    if not box:
+        journal.check("a swipe row is drawn to drag", False, "absent")
+        await context.close()
+        return
+
+    await page.mouse.move(box["x"], box["y"])
+    await page.mouse.down()
+    for step in range(1, 9):
+        await page.mouse.move(box["x"] - 90 * step / 8, box["y"])
+        await page.wait_for_timeout(16)
+    await page.mouse.up()
+    await page.wait_for_timeout(300)
+    after_the_drag = await panel_is_open(page)
+    journal.check(
+        "the click that ends a drag opens no panel",
+        not after_the_drag,
+        "the release's click was answered: the panel stands over the drawer the "
+        "swipe just revealed, which is what a guard stopping nothing beside it "
+        "leaves behind")
+
+    await settle(page)
+    await page.evaluate("(s)=>window.__go(s)", "acq-follows-list")
+    await page.wait_for_timeout(420)
+    await page.mouse.click(box["x"], box["y"])
+    await page.wait_for_timeout(300)
+    after_the_click = await panel_is_open(page)
+    journal.check(
+        "and a click that travelled nowhere still opens it",
+        after_the_click,
+        "a plain click on the row was swallowed as a drag's own: the guard arms "
+        "on travel nobody made, and every tap on a row does nothing")
+    await settle(page)
+    await context.close()
+
+
 async def open_mouse_page(browser):
     """Opens the prototype on a context with NO TOUCH AT ALL, at the state.
 
@@ -661,6 +730,7 @@ async def hold(journal):
         await hold_the_tolerance(journal, browser)
         await hold_the_pull_threshold(journal, browser)
         await hold_the_swallow_is_by_point(journal, browser)
+        await hold_a_drag_swallows_only_its_own_click(journal, browser)
         await hold_the_mouse_press(journal, browser)
         await hold_the_mouse_tolerance(journal, browser)
         await hold_a_cancelled_mouse_pull_is_released(journal, browser)

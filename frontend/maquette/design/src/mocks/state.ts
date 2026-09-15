@@ -278,3 +278,13 @@ export function mockState(): MockState {
 export function resetMockState(): void {
   current = seeded();
 }
+
+/**
+ * Sets what the pipeline is doing, as its verbs would have — the harness's door
+ * to a named state that shows a running or queued pipeline without a tap.
+ *
+ * @param state The pipeline's state.
+ */
+export function setPipelineState(state: PipelineState): void {
+  mockState().pipelineState = state;
+}

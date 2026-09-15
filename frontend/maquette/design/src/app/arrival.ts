@@ -26,7 +26,6 @@ const INITIAL_STATE = {
   /* The pipeline's state, as the pilot's bar shows it — idle, running, or a run
      asked for while one is running, which DOIT-4 requires be QUEUED visibly
      rather than refused. */
-  pipe: "idle",
   /* Maintenance: which rubric is open, and whether the blank run is on. A
      command that DELETES ignores the second — it is on until the dry run has
      named what would go. */

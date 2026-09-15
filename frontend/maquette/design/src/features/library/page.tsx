@@ -9,8 +9,8 @@
 //
 // Markup is TRANSPLANTED, not translated. The rows are `library-rows.ts`'s
 // markup over `ui/tile.ts` and `ui/rows.ts`: they carry the `data-*` the
-// document-level delegation reads (`data-tile`, `data-del`, `data-swipeact`,
-// `data-panel`, `data-mediasheet`), attribute for attribute.
+// tap registry and the delegation read (`data-tile`, `data-del`,
+// `data-selected-title`, `data-panel`, `data-mediasheet`), attribute for attribute.
 //
 // THE SELECTION BAR MOVED, and this comment said the opposite for a lot and a
 // half (B-392). React draws it: `features/library/selection-bar.tsx`, with

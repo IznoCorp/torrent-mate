@@ -125,7 +125,7 @@ export function LibraryHead(): ReactElement {
           {state.q ? (
             <button
               className={searchClear()}
-              data-clearq="lib"
+              data-clear-search
               aria-label={t("screens.library.clearLabel")}
             >
               <Icon paths={icons.x} />

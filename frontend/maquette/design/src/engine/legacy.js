@@ -34,7 +34,8 @@
 
 import { screens, panel, bridge, seam } from "./seams.js";
 import { installPressArbitration } from "../lib/press-arbitration";
-import { installPullGesture } from "../lib/pull-gesture";
+import { openAddressedPanel } from "../lib/shell-doors";
+import { hideLayers, installPageRestore } from "../app/layers";
 import { icons } from "../app/icons";
 /* THE STORE, IMPORTED. The shell creates it and installs it before anything
    here is called; the engine reads the same object every module does. */
@@ -43,21 +44,17 @@ import { store } from "../lib/store-access";
    handler that reads a Back, the verbs that write a navigation and the table
    that reopens an addressed panel are `app/`'s; the click delegation below
    still calls them by name. */
-import { hideLayers, installPageRestore } from "../app/layers";
-import { replacePath, switchPage, switchPageFromLayer, walk } from "../app/page-switch";
-import { installKnownMedium } from "../app/addressed-panels";
+import { replacePath, walk } from "../app/page-switch";
 /* THE SETTINGS CATALOGUE, IMPORTED BACK. How a setting is identified,
    listed and read moved to the feature that owns settings when its panels did,
-   and the engine reads the same three answers rather than keeping its own —
+   and the engine reads the same answers rather than keeping its own —
    `app/icons.ts`'s arrangement and its reasoning word for word: one copy, read
    by both worlds, and the day this file goes the feature loses an importer
-   rather than a subject. Its own verbs (`changeSetting`, the field branches)
-   still live here and still ask the same questions. */
+   rather than a subject. */
 import {
   settingIdentifier,
   valueShown,
 } from "../features/settings/catalog";
-import { heldSettings } from "../features/settings/queries";
 /* THE DÉCOUVRIR FEED, IMPORTED BACK. The reserve, the pile and the
    gesture that spends them are `features/acquisition/` now — the last feature
    surface this file still DREW. Its containers were already React's; what moved
@@ -261,74 +258,10 @@ import {
     return null;
   }
 
-  /* REAL seasons (library.db): [season number, aired, owned]. American Dad!
-     exercises the large-catalogue rules (22 seasons, 403 episodes, all
-     complete → all collapsed); Tintin exercises the holed matrix. */
   /* Results of a REAL TMDB search for « star wars », cross-checked against
      the library: 3 already owned, 3 absent. 257 results found, 6 shown —
      which the interface must state. */
 
-  const SEASONS = {
-    "American Dad!": [
-      [1, 7, 7],
-      [2, 16, 16],
-      [3, 19, 19],
-      [4, 16, 16],
-      [5, 20, 20],
-      [6, 18, 18],
-      [7, 19, 19],
-      [8, 18, 18],
-      [9, 19, 19],
-      [10, 20, 20],
-      [11, 3, 3],
-      [12, 15, 15],
-      [13, 22, 22],
-      [14, 22, 22],
-      [15, 22, 22],
-      [16, 20, 20],
-      [17, 24, 24],
-      [18, 22, 22],
-      [19, 22, 22],
-      [20, 22, 22],
-      [21, 22, 22],
-      [22, 11, 11],
-    ],
-    "Les aventures de Tintin": [
-      [1, 13, 7],
-      [2, 13, 7],
-      [3, 13, 7],
-    ],
-    "Dexter: Resurrection": [[1, 10, 10]],
-    Silo: [
-      [1, 10, 10],
-      [2, 10, 10],
-      [3, 7, 6],
-    ],
-    Furious: [[1, 5, 5]],
-    "President Curtis": [[1, 3, 3]],
-    "House of the Dragon": [
-      [1, 10, 10],
-      [2, 8, 8],
-      [3, 8, 8],
-    ],
-    "Star Trek: Strange New Worlds": [
-      [1, 10, 10],
-      [2, 10, 10],
-      [3, 10, 10],
-      [4, 3, 3],
-    ],
-    "Ted Lasso": [
-      [1, 10, 10],
-      [2, 12, 12],
-      [3, 12, 12],
-      [4, 1, 1],
-    ],
-    "Les Animaniacs": [
-      [1, 172, 93],
-      [2, 12, 4],
-      [3, 46, 13],
-    ],
-  };
 
   const EP_LABEL = {
     in_library: "En médiathèque",
@@ -441,538 +374,6 @@ import {
     avatar: "assets/avatar.webp",
   };
 
-  /* The synopsis of every medium the library holds, read from the <plot> of
-     its own NFO on disk. It is NOT in `library.db`: neither a column of
-     `media_item` nor a key of `item_attribute` carries it, so the app cannot
-     render this today — the read-model has to grow a field first. Nine of the
-     345 titles have none, and those show nothing rather than a filler. */
-  const LIBRARY = [
-    { t: "On l'appelait Robin des Bois", f: "2026 · Film", c: "movies" },
-    { t: "Ninja Turtles", f: "2014 · Film", c: "movies" },
-    {
-      t: "Big Chicken Le complot de la malbouffe",
-      f: "2026 · Film",
-      c: "movies_documentary",
-    },
-    { t: "The Bombing of Pan Am 103", f: "2025 · Série", c: "tv_shows" },
-    { t: "Batman Caped Crusader (2024)", f: "2024 · Série", c: "tv_shows" },
-    { t: "Marjorie Prime", f: "2017 · Film", c: "movies" },
-    {
-      t: "Alison Wheeler La Promesse d'un soir",
-      f: "2026 · Film",
-      c: "movies",
-    },
-    { t: "Alexandre Kominek Bâtard sensible", f: "2026 · Film", c: "movies" },
-    { t: "President Curtis (2026)", f: "2026 · Série", c: "tv_shows" },
-    { t: "Supergirl", f: "2026 · Film", c: "movies" },
-    { t: "Margin Call", f: "2011 · Film", c: "movies" },
-    { t: "Furious (2026)", f: "2026 · Série", c: "tv_shows" },
-    { t: "The Hawk", f: "2026 · Série", c: "tv_shows" },
-    { t: "Disclosure Day", f: "2026 · Film", c: "movies" },
-    { t: "The Mandalorian and Grogu", f: "2026 · Film", c: "movies" },
-    { t: "Scary Movie", f: "2026 · Film", c: "movies" },
-    { t: "Rick and Morty (2013)", f: "2013 · Série", c: "tv_shows" },
-    { t: "Le Premier Jour du reste de ta vie", f: "2008 · Film", c: "movies" },
-    {
-      t: "Gone Girls The Long Island Serial Killer",
-      f: "2025 · Série",
-      c: "tv_shows",
-    },
-    {
-      t: "The Alabama Solution dans l’enfer de la prison",
-      f: "2025 · Film",
-      c: "movies_documentary",
-    },
-    { t: "Lucky", f: "2026 · Série", c: "tv_shows" },
-    { t: "Backrooms", f: "2026 · Film", c: "movies" },
-    {
-      t: "Aymeric Lompret & Pierre-Emmanuel Barré Woke me up !",
-      f: "2026 · Film",
-      c: "movies",
-    },
-    { t: "Obsession", f: "2026 · Film", c: "movies" },
-    { t: "Le Réveil de la Momie", f: "2026 · Film", c: "movies" },
-    { t: "Inès Reg On est toujours ensemble", f: "2026 · Film", c: "movies" },
-    {
-      t: "Guillermo Guiz - La formidable ascension sociale temporaire de Guy Verstraeten",
-      f: "2026 · Film",
-      c: "movies",
-    },
-    {
-      t: "Benjamin Tranié - Félicitations et tout et tout",
-      f: "2026 · Film",
-      c: "movies",
-    },
-    { t: "Smiling Friends", f: "2020 · Série", c: "tv_shows" },
-    { t: "Simpsley", f: "2026 · Film", c: "movies_animation" },
-    { t: "Chouette, un jeu d'enfants", f: "2024 · Film", c: "movies" },
-    { t: "La Liste de Schindler", f: "1993 · Film", c: "movies" },
-    { t: "This City Is Ours", f: "2025 · Série", c: "tv_shows" },
-    { t: "Les Groos", f: "2022 · Série", c: "tv_shows" },
-    { t: "I Will Find You", f: "2026 · Série", c: "tv_shows" },
-    { t: "Dead Landes", f: "2016 · Série", c: "tv_shows" },
-    { t: "Les Moutons détectives", f: "2026 · Film", c: "movies" },
-    { t: "The Hack", f: "2025 · Série", c: "tv_shows" },
-    { t: "Star City", f: "2026 · Série", c: "tv_shows" },
-    { t: "PONIES", f: "2026 · Série", c: "tv_shows" },
-    { t: "Michael Jackson The Verdict", f: "2026 · Série", c: "tv_shows" },
-    { t: "Lucky Luke", f: "2026 · Série", c: "tv_shows" },
-    { t: "Due spicci", f: "2026 · Série", c: "tv_shows" },
-    {
-      t: "Dear Killer Nannies Criado por sicarios",
-      f: "2026 · Série",
-      c: "tv_shows",
-    },
-    { t: "Among Us", f: "2026 · Série", c: "tv_shows" },
-    { t: "War Machine", f: "2026 · Film", c: "movies" },
-    { t: "Une famille de bâtards", f: "2026 · Film", c: "movies" },
-    {
-      t: "Super Mario Galaxy, le film",
-      f: "2026 · Film",
-      c: "movies_animation",
-    },
-    { t: "Over Your Dead Body", f: "2026 · Film", c: "movies" },
-    { t: "Mortal Kombat II", f: "2026 · Film", c: "movies" },
-    { t: "Michael", f: "2026 · Film", c: "movies" },
-    { t: "Marty Supreme", f: "2025 · Film", c: "movies" },
-    { t: "Marsupilami", f: "2026 · Film", c: "movies" },
-    { t: "L'éléphant", f: "2025 · Film", c: "movies_animation" },
-    { t: "Jumpers", f: "2026 · Film", c: "movies_animation" },
-    {
-      t: "Jack Ryan de Tom Clancy Guerre Fantôme",
-      f: "2026 · Film",
-      c: "movies",
-    },
-    { t: "Fantômes contre fantômes", f: "1996 · Film", c: "movies" },
-    { t: "La Cité des Anges", f: "1998 · Film", c: "movies" },
-    { t: "Les Griffes de la Nuit", f: "1984 · Film", c: "movies" },
-    { t: "Les Légendaires", f: "2026 · Film", c: "movies_animation" },
-    { t: "Top Chef", f: "2010 · Série", c: "tv_programs" },
-    { t: "The Boys", f: "2019 · Série", c: "tv_shows" },
-    { t: "From", f: "2022 · Série", c: "tv_shows" },
-    { t: "Widow's Bay (2026)", f: "2026 · Série", c: "tv_shows" },
-    { t: "Spider-Noir", f: "2026 · Série", c: "tv_shows" },
-    { t: "Rafa", f: "2026 · Série", c: "tv_shows" },
-    { t: "Prescott", f: "2026 · Série", c: "tv_shows" },
-    { t: "Lord of the Flies", f: "2026 · Série", c: "tv_shows" },
-    { t: "Achtsam Morden", f: "2024 · Série", c: "tv_shows" },
-    { t: "Gourou", f: "2026 · Film", c: "movies" },
-    { t: "Les Griffes de la nuit", f: "2010 · Film", c: "movies" },
-    { t: "RoboCop", f: "2014 · Film", c: "movies" },
-    { t: "Superman", f: "2025 · Film", c: "movies" },
-    {
-      t: "Astérix Le Domaine des dieux",
-      f: "2014 · Film",
-      c: "movies_animation",
-    },
-    {
-      t: "Bob l'éponge - Le film Un héros sort de l'eau",
-      f: "2015 · Film",
-      c: "movies_animation",
-    },
-    {
-      t: "L'Âge de glace 4 La dérive des continents",
-      f: "2012 · Film",
-      c: "movies_animation",
-    },
-    { t: "La Petite Sirène", f: "2023 · Film", c: "movies_animation" },
-    { t: "Le Livre de la jungle", f: "2016 · Film", c: "movies_animation" },
-    { t: "Le Temple du Soleil", f: "1992 · Film", c: "movies_animation" },
-    { t: "Les Schtroumpfs", f: "2025 · Film", c: "movies_animation" },
-    { t: "Lilo & Stitch", f: "2025 · Film", c: "movies_animation" },
-    { t: "Scrubs", f: "2001 · Série", c: "tv_shows" },
-    { t: "Mulan", f: "2020 · Film", c: "movies" },
-    { t: "Le Grinch", f: "2018 · Film", c: "movies_animation" },
-    { t: "Pinocchio", f: "2022 · Film", c: "movies_animation" },
-    { t: "The Staircase", f: "2022 · Série", c: "tv_shows" },
-    { t: "De si remarquables créatures", f: "2026 · Film", c: "movies" },
-    { t: "Projet Dernière Chance", f: "2026 · Film", c: "movies" },
-    {
-      t: "Le Bus Les Bleus en grève",
-      f: "2026 · Film",
-      c: "movies_documentary",
-    },
-    { t: "Qui a poussé Mélodie", f: "2025 · Série", c: "tv_shows" },
-    { t: "The Killing", f: "2010 · Série", c: "tv_shows" },
-    { t: "The Boroughs", f: "2026 · Série", c: "tv_shows" },
-    { t: "Stranger Things Tales from '85", f: "2026 · Série", c: "tv_shows" },
-    { t: "Maximum Pleasure Guaranteed", f: "2026 · Série", c: "tv_shows" },
-    { t: "Imperfect Women", f: "2026 · Série", c: "tv_shows" },
-    { t: "Dexter New Blood", f: "2021 · Série", c: "tv_shows" },
-    { t: "I Origins", f: "2014 · Film", c: "movies" },
-    { t: "Dossier 137", f: "2025 · Film", c: "movies" },
-    { t: "Monk", f: "2002 · Série", c: "tv_shows" },
-    { t: "Squid Game", f: "2021 · Série", c: "tv_shows" },
-    { t: "Andrew The Problem Prince", f: "2023 · Série", c: "tv_shows" },
-    { t: "Good Luck, Have Fun, Don't Die", f: "2026 · Film", c: "movies" },
-    { t: "Une affaire d'honneur", f: "2023 · Film", c: "movies" },
-    { t: "Une vie", f: "2023 · Film", c: "movies" },
-    { t: "Vermines", f: "2023 · Film", c: "movies" },
-    { t: "Chérie, j'ai agrandi le bébé", f: "1992 · Film", c: "movies" },
-    { t: "Chérie, j'ai rétréci les gosses", f: "1989 · Film", c: "movies" },
-    { t: "Comme un prince", f: "2024 · Film", c: "movies" },
-    { t: "Daaaaaalí !", f: "2024 · Film", c: "movies" },
-    { t: "Die Hart Die Harter", f: "2024 · Film", c: "movies" },
-    { t: "Dune Deuxième Partie", f: "2024 · Film", c: "movies" },
-    { t: "Breathe", f: "2024 · Film", c: "movies" },
-    { t: "Mothers' Instinct", f: "2024 · Film", c: "movies" },
-    { t: "Sentinel", f: "2023 · Film", c: "movies" },
-    { t: "Ultraman Rising", f: "2024 · Film", c: "movies_animation" },
-    { t: "22.11.63", f: "2016 · Série", c: "tv_shows" },
-    { t: "3%", f: "2016 · Série", c: "tv_shows" },
-    { t: "Anger Management", f: "2012 · Série", c: "tv_shows" },
-    { t: "Band of Brothers", f: "2001 · Série", c: "tv_shows" },
-    { t: "Battlestar Galactica", f: "2004 · Série", c: "tv_shows" },
-    { t: "Beacon 23", f: "2023 · Série", c: "tv_shows" },
-    { t: "Better Call Saul", f: "2014 · Série", c: "tv_shows" },
-    { t: "Bodkin", f: "2024 · Série", c: "tv_shows" },
-    { t: "Broadchurch", f: "2013 · Série", c: "tv_shows" },
-    { t: "Broute 24.", f: "2024 · Série", c: "tv_shows" },
-    { t: "Fiasco", f: "2024 · Série", c: "tv_shows" },
-    { t: "Furies", f: "2024 · Série", c: "tv_shows" },
-    { t: "Game of Thrones", f: "2011 · Série", c: "tv_shows" },
-    { t: "Go On", f: "2012 · Série", c: "tv_shows" },
-    {
-      t: "Heeramandi Les diamants de la cour",
-      f: "2024 · Série",
-      c: "tv_shows",
-    },
-    { t: "Hero Corp", f: "2008 · Série", c: "tv_shows" },
-    { t: "Joey", f: "2004 · Série", c: "tv_shows" },
-    { t: "Kaboul Kitchen", f: "2012 · Série", c: "tv_shows" },
-    { t: "Kevin Can Wait", f: "2016 · Série", c: "tv_shows" },
-    { t: "La Brea", f: "2021 · Série", c: "tv_shows" },
-    { t: "La cape et l'épée", f: "2000 · Série", c: "tv_shows" },
-    { t: "La quatrième dimension", f: "1959 · Série", c: "tv_shows" },
-    { t: "La Vie de famille", f: "1989 · Série", c: "tv_shows" },
-    { t: "Le Caméléon", f: "1996 · Série", c: "tv_shows" },
-    { t: "Le Régime", f: "2024 · Série", c: "tv_shows" },
-    { t: "Le Visiteur du Futur", f: "2009 · Série", c: "tv_shows" },
-    { t: "Les Papillons noirs", f: "2022 · Série", c: "tv_shows" },
-    { t: "MacGyver", f: "1985 · Série", c: "tv_shows" },
-    { t: "Man With A Plan", f: "2016 · Série", c: "tv_shows" },
-    { t: "Manhunt", f: "2024 · Série", c: "tv_shows" },
-    { t: "Misfits", f: "2009 · Série", c: "tv_shows" },
-    { t: "Mon petit renne", f: "2024 · Série", c: "tv_shows" },
-    { t: "Mr. & Mrs. Smith", f: "2024 · Série", c: "tv_shows" },
-    { t: "Mr. Bean", f: "1990 · Série", c: "tv_shows" },
-    { t: "Only Murders in the Building", f: "2021 · Série", c: "tv_shows" },
-    { t: "Rapa", f: "2022 · Série", c: "tv_shows" },
-    { t: "Reine rouge", f: "2024 · Série", c: "tv_shows" },
-    { t: "Ripley", f: "2024 · Série", c: "tv_shows" },
-    { t: "Shameless", f: "2004 · Série", c: "tv_shows" },
-    { t: "Six Feet Under", f: "2001 · Série", c: "tv_shows" },
-    { t: "Stargate Atlantis", f: "2004 · Série", c: "tv_shows" },
-    { t: "Stargate SG-1", f: "1997 · Série", c: "tv_shows" },
-    { t: "Stargate Universe", f: "2009 · Série", c: "tv_shows" },
-    { t: "Sugar", f: "2024 · Série", c: "tv_shows" },
-    { t: "Terminal", f: "2024 · Série", c: "tv_shows" },
-    { t: "The Acolyte", f: "2024 · Série", c: "tv_shows" },
-    { t: "The Big Cigar", f: "2024 · Série", c: "tv_shows" },
-    { t: "The Drew Carey Show", f: "1995 · Série", c: "tv_shows" },
-    { t: "The King of Queens", f: "1998 · Série", c: "tv_shows" },
-    { t: "The Last Man on Earth", f: "2015 · Série", c: "tv_shows" },
-    { t: "The Lost Room", f: "2006 · Série", c: "tv_shows" },
-    { t: "The Michael J. Fox Show", f: "2013 · Série", c: "tv_shows" },
-    { t: "The OA", f: "2016 · Série", c: "tv_shows" },
-    { t: "The Odd Couple", f: "2015 · Série", c: "tv_shows" },
-    { t: "The Wrong Mans", f: "2013 · Série", c: "tv_shows" },
-    { t: "Time Traveling Bong", f: "2016 · Série", c: "tv_shows" },
-    { t: "Twin Peaks", f: "1990 · Série", c: "tv_shows" },
-    { t: "Un meurtre est-il facile", f: "2023 · Série", c: "tv_shows" },
-    { t: "Unbelievable", f: "2019 · Série", c: "tv_shows" },
-    { t: "United States of Tara", f: "2009 · Série", c: "tv_shows" },
-    { t: "Voilà", f: "1997 · Série", c: "tv_shows" },
-    { t: "X-Files  Aux frontières du réel", f: "1993 · Série", c: "tv_shows" },
-    { t: "Caïn", f: "2012 · Série", c: "tv_shows" },
-    { t: "Chernobyl", f: "2019 · Série", c: "tv_shows" },
-    { t: "Childhood's End", f: "2015 · Série", c: "tv_shows" },
-    { t: "Coupling - Six Sexy", f: "2000 · Série", c: "tv_shows" },
-    { t: "Dark Matter", f: "2024 · Série", c: "tv_shows" },
-    { t: "Des gens bien ordinaires", f: "2022 · Série", c: "tv_shows" },
-    { t: "Doctor Who", f: "2005 · Série", c: "tv_shows" },
-    { t: "Doctor Who", f: "2023 · Série", c: "tv_shows" },
-    { t: "Eric", f: "2024 · Série", c: "tv_shows" },
-    { t: "Eux", f: "2021 · Série", c: "tv_shows" },
-    { t: "Fallout", f: "2024 · Série", c: "tv_shows" },
-    { t: "Family Business", f: "2019 · Série", c: "tv_shows" },
-    { t: "Caméra Café", f: "2001 · Série", c: "tv_shows" },
-    { t: "Farscape", f: "1999 · Série", c: "tv_shows" },
-    { t: "That '70s Show", f: "1998 · Série", c: "tv_shows" },
-    {
-      t: "L'Odyssée interstellaire",
-      f: "2018 · Série",
-      c: "tv_shows_documentary",
-    },
-    { t: "Zero Day", f: "2025 · Série", c: "tv_shows" },
-    { t: "Ça Bienvenue à Derry", f: "2025 · Série", c: "tv_shows" },
-    { t: "The Big Bang Theory", f: "2007 · Série", c: "tv_shows" },
-    { t: "The Big Door Prize", f: "2023 · Série", c: "tv_shows" },
-    { t: "The Bridge", f: "2011 · Série", c: "tv_shows" },
-    { t: "The Crowded Room", f: "2023 · Série", c: "tv_shows" },
-    { t: "The Deal", f: "2025 · Série", c: "tv_shows" },
-    { t: "The Fall", f: "2013 · Série", c: "tv_shows" },
-    { t: "The Flight Attendant", f: "2020 · Série", c: "tv_shows" },
-    { t: "The Inbetweeners", f: "2008 · Série", c: "tv_shows" },
-    { t: "The Island", f: "2025 · Série", c: "tv_shows" },
-    { t: "The Keepers", f: "2017 · Série", c: "tv_shows" },
-    { t: "Derrière la façade", f: "2024 · Série", c: "tv_shows" },
-    { t: "Des gens bien", f: "2022 · Série", c: "tv_shows" },
-    { t: "Des vivants", f: "2025 · Série", c: "tv_shows" },
-    { t: "Dexter", f: "2006 · Série", c: "tv_shows" },
-    { t: "Dexter Les Origines", f: "2024 · Série", c: "tv_shows" },
-    { t: "Dexter Resurrection", f: "2025 · Série", c: "tv_shows" },
-    { t: "Dope Girls", f: "2025 · Série", c: "tv_shows" },
-    { t: "Dope Thief", f: "2025 · Série", c: "tv_shows" },
-    { t: "Douglas Is Cancelled", f: "2024 · Série", c: "tv_shows" },
-    { t: "Down Cemetery Road", f: "2025 · Série", c: "tv_shows" },
-    { t: "Dune Prophecy", f: "2024 · Série", c: "tv_shows" },
-    { t: "Défendre Jacob", f: "2020 · Série", c: "tv_shows" },
-    { t: "Désenchantées", f: "2025 · Série", c: "tv_shows" },
-    { t: "Earl", f: "2005 · Série", c: "tv_shows" },
-    { t: "Empathie", f: "2025 · Série", c: "tv_shows" },
-    { t: "Engrenages", f: "2005 · Série", c: "tv_shows" },
-    { t: "Enterrement de vie de garçon", f: "2024 · Série", c: "tv_shows" },
-    { t: "Espion à l'ancienne", f: "2024 · Série", c: "tv_shows" },
-    { t: "Esterno Notte", f: "2022 · Série", c: "tv_shows" },
-    { t: "Extra-Lucide", f: "2025 · Série", c: "tv_shows" },
-    { t: "Extrapolations", f: "2023 · Série", c: "tv_shows" },
-    { t: "Flashback", f: "2025 · Série", c: "tv_shows" },
-    { t: "Florida Man", f: "2023 · Série", c: "tv_shows" },
-    {
-      t: "Fonction Juré présente Le Séminaire d'Entreprise",
-      f: "2026 · Série",
-      c: "tv_shows",
-    },
-    { t: "For All Mankind", f: "2019 · Série", c: "tv_shows" },
-    { t: "Foundation", f: "2021 · Série", c: "tv_shows" },
-    { t: "La Meilleure Version de moi-même", f: "2021 · Série", c: "tv_shows" },
-    { t: "La mer de la Tranquillité", f: "2021 · Série", c: "tv_shows" },
-    {
-      t: "La nuit où Laurier Gaudreault s’est réveillé",
-      f: "2022 · Série",
-      c: "tv_shows",
-    },
-    { t: "La Réalité en face", f: "2021 · Série", c: "tv_shows" },
-    { t: "La Résidence", f: "2025 · Série", c: "tv_shows" },
-    { t: "La Voisine danoise", f: "2025 · Série", c: "tv_shows" },
-    { t: "Landman", f: "2024 · Série", c: "tv_shows" },
-    { t: "Le Crime à la racine", f: "2025 · Série", c: "tv_shows" },
-    { t: "Le Garçon et l'Univers", f: "2024 · Série", c: "tv_shows" },
-    { t: "Le Livre de Boba Fett", f: "2021 · Série", c: "tv_shows" },
-    { t: "Le Maître du Haut Château", f: "2015 · Série", c: "tv_shows" },
-    { t: "Le Problème à 3 corps", f: "2024 · Série", c: "tv_shows" },
-    { t: "Le Président foudroyé", f: "2025 · Série", c: "tv_shows" },
-    { t: "Blue Lights", f: "2023 · Série", c: "tv_shows" },
-    { t: "Bodies", f: "2023 · Série", c: "tv_shows" },
-    { t: "Boglands, enquête en terre noire", f: "2024 · Série", c: "tv_shows" },
-    { t: "Boots", f: "2025 · Série", c: "tv_shows" },
-    { t: "bref.", f: "2011 · Série", c: "tv_shows" },
-    { t: "Cassandra", f: "2025 · Série", c: "tv_shows" },
-    { t: "Casting(s)", f: "2013 · Série", c: "tv_shows" },
-    { t: "Cent ans de solitude", f: "2024 · Série", c: "tv_shows" },
-    { t: "Chacal", f: "2024 · Série", c: "tv_shows" },
-    { t: "Channel Zero", f: "2016 · Série", c: "tv_shows" },
-    { t: "Chief of War", f: "2025 · Série", c: "tv_shows" },
-    { t: "Chère petite", f: "2023 · Série", c: "tv_shows" },
-    { t: "Citoyens clandestins", f: "2024 · Série", c: "tv_shows" },
-    { t: "City on Fire", f: "2023 · Série", c: "tv_shows" },
-    { t: "Arcane", f: "2021 · Série", c: "tv_shows_animation" },
-    { t: "Archer", f: "2009 · Série", c: "tv_shows_animation" },
-    { t: "Famille Pirate", f: "1999 · Série", c: "anime" },
-    { t: "Hé, oua-oua", f: "2014 · Série", c: "anime" },
-    { t: "Animal Crackers", f: "1997 · Série", c: "anime" },
-    { t: "Batman, la série animée", f: "1992 · Série", c: "anime" },
-    { t: "Bob l'éponge", f: "1999 · Série", c: "anime" },
-    { t: "BoJack Horseman", f: "2014 · Série", c: "anime" },
-    { t: "City Hunter", f: "1985 · Série", c: "anime" },
-    { t: "Death Note", f: "2006 · Série", c: "anime" },
-    {
-      t: "Disney, les courts-métrages d'animation",
-      f: "1921 · Série",
-      c: "anime",
-    },
-    { t: "Les aventures de Tintin", f: "1991 · Série", c: "anime" },
-    { t: "Les castors allumés", f: "1997 · Série", c: "anime" },
-    { t: "Les Contes de la rue Broca", f: "1969 · Série", c: "anime" },
-    { t: "Les Entrechats", f: "1985 · Série", c: "anime" },
-    { t: "Les histoires du Père Castor", f: "1993 · Série", c: "anime" },
-    {
-      t: "Hamas, la fabrique d'un monstre",
-      f: "2024 · Film",
-      c: "movies_documentary",
-    },
-    { t: "La Citadelle assiégée", f: "2006 · Film", c: "movies_documentary" },
-    { t: "La Famille Suricate", f: "2008 · Film", c: "movies_documentary" },
-    { t: "La Marche de l'empereur", f: "2005 · Film", c: "movies_documentary" },
-    { t: "Le Jeu de la mort", f: "2010 · Film", c: "movies_documentary" },
-    {
-      t: "Matthew Perry Not just Friends",
-      f: "2023 · Film",
-      c: "movies_documentary",
-    },
-    { t: "Poulet Frites", f: "2022 · Film", c: "movies_documentary" },
-    {
-      t: "STILL la vie de Michael J. Fox",
-      f: "2023 · Film",
-      c: "movies_documentary",
-    },
-    { t: "Un Jour Au Haram", f: "2017 · Film", c: "movies_documentary" },
-    {
-      t: "Un pays qui se tient sage",
-      f: "2020 · Film",
-      c: "movies_documentary",
-    },
-    {
-      t: "À la recherche de Harry L'art derrière la magie",
-      f: "2026 · Film",
-      c: "movies_documentary",
-    },
-    { t: "Ahmed Sylla - Origami", f: "2025 · Film", c: "standup" },
-    {
-      t: "Arnaud Tsamere 2 mariages & 1 enterrement",
-      f: "2024 · Film",
-      c: "standup",
-    },
-    { t: "Arnaud Tsamère - Chose Promise", f: "2013 · Film", c: "standup" },
-    {
-      t: "Arnaud Tsamère - Confidences sur pas mal de trucs plus ou moins confidentiels",
-      f: "2016 · Film",
-      c: "standup",
-    },
-    { t: "Artus - Saignant à point", f: "2015 · Film", c: "standup" },
-    { t: "Aymeric Lompret Tant Pis", f: "2023 · Film", c: "standup" },
-    {
-      t: "Jérémy Ferrari - Anesthésie Générale",
-      f: "2024 · Film",
-      c: "standup",
-    },
-    {
-      t: "Jérémy Ferrari - Hallelujah Bordel !",
-      f: "2013 · Film",
-      c: "standup",
-    },
-    {
-      t: "Jérémy Ferrari - Vends 2 pièces à Beyrouth",
-      f: "2018 · Film",
-      c: "standup",
-    },
-    {
-      t: "Jérémy Ferrari Emporté par la Fougue",
-      f: "2018 · Film",
-      c: "standup",
-    },
-    {
-      t: "Jérôme Commandeur - Toujours en douceur",
-      f: "2022 · Film",
-      c: "standup",
-    },
-    { t: "Kyan Khojandi Pulsions", f: "2019 · Film", c: "standup" },
-    { t: "Kyan Khojandi Une bonne soirée", f: "2023 · Film", c: "standup" },
-    { t: "L'Exoconference", f: "2014 · Film", c: "standup" },
-    { t: "Le Discours", f: "2025 · Film", c: "theater" },
-    { t: "Les Bonobos", f: "2012 · Film", c: "theater" },
-    { t: "L’effet miroir", f: "2024 · Film", c: "theater" },
-    { t: "Sans filtre", f: "2015 · Film", c: "theater" },
-    {
-      t: "Sexe, magouilles et culture générale",
-      f: "2001 · Film",
-      c: "theater",
-    },
-    { t: "TOC TOC", f: "2005 · Film", c: "theater" },
-    { t: "Un point c'est tout !", f: "2009 · Film", c: "theater" },
-    { t: "Mon voisin nu", f: "2024 · Film", c: "theater" },
-    {
-      t: "Harry Potter, les secrets enfin révélés",
-      f: "2024 · Série",
-      c: "tv_programs",
-    },
-    { t: "Loups-garous", f: "2024 · Série", c: "tv_programs" },
-    { t: "Nus et culottés", f: "2012 · Série", c: "tv_programs" },
-    { t: "Les Minikeums", f: "1993 · Série", c: "tv_programs" },
-    { t: "Aller simple la téléréalité", f: "2025 · Série", c: "tv_programs" },
-    { t: "Au bout c'est la mer", f: "2018 · Série", c: "tv_programs" },
-    { t: "Burger Quiz", f: "2001 · Série", c: "tv_programs" },
-    { t: "Cash Investigation", f: "2012 · Série", c: "tv_programs" },
-    { t: "Cauchemar en cuisine", f: "2011 · Série", c: "tv_programs" },
-    { t: "Club Dorothée", f: "1987 · Série", c: "tv_programs" },
-    { t: "Comedy Class", f: "2024 · Série", c: "tv_programs" },
-    {
-      t: "Des trains pas comme les autres",
-      f: "2011 · Série",
-      c: "tv_programs",
-    },
-    {
-      t: "J'irai dormir chez les Gaulois",
-      f: "2023 · Série",
-      c: "tv_programs",
-    },
-    {
-      t: "Astérix & Obélix Le Combat des chefs",
-      f: "2025 · Série",
-      c: "tv_shows_animation",
-    },
-    { t: "Babar", f: "1968 · Série", c: "tv_shows_animation" },
-    { t: "Bluey", f: "2016 · Série", c: "tv_shows_animation" },
-    { t: "Caillou", f: "1998 · Série", c: "tv_shows_animation" },
-    { t: "Captain Fall", f: "2023 · Série", c: "tv_shows_animation" },
-    { t: "Ce monde ne m'aura pas", f: "2023 · Série", c: "tv_shows_animation" },
-    { t: "Close Enough", f: "2020 · Série", c: "tv_shows_animation" },
-    { t: "Common Side Effects", f: "2025 · Série", c: "tv_shows_animation" },
-    { t: "Couacs en vrac", f: "1996 · Série", c: "tv_shows_animation" },
-    { t: "Cédric", f: "2001 · Série", c: "tv_shows_animation" },
-    { t: "Didou", f: "2006 · Série", c: "tv_shows_animation" },
-    { t: "Dora l'exploratrice", f: "2000 · Série", c: "tv_shows_animation" },
-    {
-      t: "John Lennon Murder Without a Trial",
-      f: "2024 · Série",
-      c: "tv_shows_documentary",
-    },
-    { t: "Parole de tueur", f: "2019 · Série", c: "tv_shows_documentary" },
-    { t: "Antigang", f: "2023 · Série", c: "tv_shows_documentary" },
-    {
-      t: "C'était la guerre d'Algérie",
-      f: "2022 · Série",
-      c: "tv_shows_documentary",
-    },
-    {
-      t: "Cold Case Les meurtres au Tylenol",
-      f: "2025 · Série",
-      c: "tv_shows_documentary",
-    },
-    {
-      t: "De rockstar à tueur Le cas Cantat",
-      f: "2025 · Série",
-      c: "tv_shows_documentary",
-    },
-    {
-      t: "Don't Fk with Cats Un tueur trop viral",
-      f: "2019 · Série",
-      c: "tv_shows_documentary",
-    },
-    {
-      t: "FAKE YOU! Une vraie histoire de faux",
-      f: "2026 · Série",
-      c: "tv_shows_documentary",
-    },
-    { t: "Hantises", f: "2025 · Série", c: "tv_shows_documentary" },
-    { t: "High School Radical", f: "2025 · Série", c: "tv_shows_documentary" },
-    {
-      t: "Jinx la vie et les morts de Robert Durst",
-      f: "2015 · Série",
-      c: "tv_shows_documentary",
-    },
-    {
-      t: "Kerviel Un trader, 50 milliards",
-      f: "2024 · Série",
-      c: "tv_shows_documentary",
-    },
-    {
-      t: "L'affaire du juge Delisle",
-      f: "2025 · Série",
-      c: "tv_shows_documentary",
-    },
-  ];
 
   /* Categories are the REAL storage ones (categories.json5 → disk folders),
      with their counts read from library.db. « Animation » and «
@@ -981,20 +382,6 @@ import {
      do not sum to the whole is a filter that lies. */
 
 
-  const INCOMPLETE = [
-    { t: "SAV des émissions", o: 12, a: 71, y: 2005 },
-    { t: "Les Animaniacs", o: 110, a: 230, y: 1993 },
-    { t: "La cour de récré", o: 54, a: 100, y: 1997 },
-    { t: "Les Zinzins de l'Espace", o: 78, a: 104, y: 1997 },
-    { t: "Les aventures de Tintin", o: 21, a: 39, y: 1991 },
-    { t: "Earl", o: 90, a: 96, y: 2005 },
-    { t: "Stargate SG-1", o: 211, a: 214, y: 1997 },
-    { t: "Parks and Recreation", o: 122, a: 125, y: 2009 },
-    { t: "Regular Show", o: 204, a: 207, y: 2010 },
-    { t: "Friends", o: 234, a: 236, y: 1994 },
-    { t: "Monk", o: 60, a: 61, y: 2002 },
-    { t: "Farscape", o: 89, a: 90, y: 1999 },
-  ];
 
   /* Two scenarios, and the resting one is the real one
      « réel » replays the exact state of the system: the staging area holds
@@ -1496,13 +883,6 @@ import {
   /* THE FOLLOWS, read from the layer. Same reason as `queued()`: these callers
      ask from click handlers that cannot await, and they read the same cache the
      deck draws. */
-  /* WHAT A SEARCH TURNED UP, and WHAT A RELEASE PICKER LISTS, read from the
-     layer. Both were fixtures here and left at L09; both are indexed into from
-     click handlers that cannot await. They go with the delegation at L13. */
-  function searchResults() {
-    return seam.searchResults?.() ?? { total: 0, shown: 0, results: [] };
-  }
-
   function follows() {
     return seam.followActions?.all() ?? [];
   }
@@ -1524,52 +904,6 @@ import {
      Every action really moves the data. What an implementer must reproduce
      is not « a toast appears » but « the card leaves À récupérer, appears
      in En vol at the taken step, and the badge loses 1 ». */
-
-  function actionTake(title) {
-    /* Same as the two above. */
-    seam.queueActions?.take(title);
-    render();
-    toast(`« ${baseTitle(title)} » récupéré — suivez-le dans « En vol ».`);
-  }
-
-  /* Agreeing with the machine. The automatic result stands, nothing is
-     re-scraped — and the folder LEAVES the queue, because the operator has
-     answered. A queue that kept what has been answered would grow forever and
-     stop meaning « what is waiting for me ». */
-  /* A folder awaiting a decision shows up on TWO lists — « À traiter » on the
-     acquisition side and « Ça coince » in Arrivées — and an answer has to
-     reach whichever one it is on. Looking in only one of them is why
-     « Résoudre → » on an acquisition card used to change nothing at all: the
-     button was there, the screen opened, the choice was made, and the item
-     stayed exactly where it was. */
-
-  /* Agreeing with the machine. The automatic result stands, nothing is
-     re-scraped — and the folder LEAVES the queue, because the operator has
-     answered. A queue that kept what has been answered would grow forever and
-     stop meaning « what is waiting for me ». */
-  function actionLeave(title) {
-    /* THE MOVE IS THE LAYER'S SINCE L09, and what stays here is the sentence
-       the operator reads. The folder leaving one queue and joining another is
-       server state; keeping a copy of it in `world` beside the cache the
-       surfaces read would be two truths about one queue. `leaveQueue` went with
-       it — the layer walks the same three lists, in the same order, and it says
-       so in its own words. */
-    if (!seam.queueActions?.leave(title)) return false;
-    render();
-    toast(
-      `« ${title} » laissé tel quel — le résultat automatique est conservé, rien n'a été re-scrapé.`,
-    );
-    return true;
-  }
-
-  function actionResolve(title, choice, picked) {
-    /* Same as `actionLeave`: the move is the layer's, the sentence is this
-       function's. A PICK on the candidate card waits and answers an undo. */
-    const undo = seam.queueActions?.[picked ? "pick" : "resolve"](title, choice);
-    render();
-    const message = `Identifié comme « ${choice ?? title} » — le pipeline reprend jusqu'à la médiathèque.`;
-    if (typeof undo === "function") toastUndo(message, undo); else toast(message);
-  }
 
   function actionDelete(titres) {
     /* THE REMOVAL IS THE LAYER'S SINCE L09. `world.lib` stopped holding the
@@ -1714,56 +1048,6 @@ import {
     return [
       ...new Set([...SETTINGS_STATE.modifs.keys()].map((id) => id.split(":")[0])),
     ];
-  }
-
-  /* THE FIELD A VALUE ASKS FOR.
-
-     The 153 settings the engine really keeps hold ten JSON shapes, and those
-     shapes ask for five fields, one refusal, and one state that crosses them
-     all. Deriving the field from the VALUE rather than from a list of keys is
-     what makes a setting added tomorrow editable without touching this:
-
-       · a boolean (33) is a switch — no keyboard, no validation, no « save »
-         inside the field, because there is nothing to get wrong;
-       · a number (54) is a number field with a numeric keyboard, and it says
-         its unit when the key names one;
-       · a text (44) is a text field;
-       · a path (3) is a text field in the mono face, full width: a path is read
-         character by character, and a proportional font hides a double slash;
-       · a list of texts (12) is a list — each item removable, one line to add.
-         A comma-separated text field would make « , » unusable inside an item;
-       · a DURATION (2) is a text field that states its format rather than
-         inventing a picker for two values;
-       · a STRUCTURE (3) is refused. `tiers` is a list of objects with their own
-         keys; a form for it cannot be validated here, and drawing one would
-         promise an edit that breaks the file. It says so, and names the file.
-
-     A value that is not set (2) keeps the field its type asks for and says it
-     is empty — never a zero, never an empty string standing in for « absent ». */
-  function rawValue(setting) {
-    const id = settingId(setting);
-    return SETTINGS_STATE.modifs.has(id) ? SETTINGS_STATE.modifs.get(id) : setting.brut;
-  }
-
-
-  /* Changing a value. The prototype does not draw a keyboard: what it draws is
-     that the change is PENDING — marked on its row, counted in the bar, and
-     written by nothing until the bar is used. */
-  function sameValue(a, b) {
-    return Array.isArray(a) || Array.isArray(b)
-      ? JSON.stringify(a) === JSON.stringify(b)
-      : a === b;
-  }
-
-  function changeSetting(id, value) {
-    const setting = heldSettings().find((r) => settingId(r) === id);
-    if (!setting) return;
-    // A value equal to the file's is not a pending change: it is no change, and
-    // leaving it in the map would make the save bar name a file it would write
-    // identically.
-    if (sameValue(value, setting.brut)) SETTINGS_STATE.modifs.delete(id);
-    else SETTINGS_STATE.modifs.set(id, value);
-    render();
   }
 
   /* What a field's value BECOMES, read from the field itself. A number field
@@ -1936,16 +1220,6 @@ import {
     /* Published for the MEASUREMENT of the deck's gesture: a rule drives the
        two halves the way the swipe handler drives them, and reads what the
        animation is doing one frame later. */
-    /* The selection bar stays the FRAGMENT's: it lives in `#device`, React
-       never draws it, and the component only asks for it to be repainted after
-       a render — the legacy owns that node from creation to removal, which is
-       what keeps two worlds from writing one element. */
-    paintSelBar,
-    /* How many titles the prototype really carries, which the end mark says
-       out loud rather than letting the end of the list contradict the « of
-       1 861 » counter. A thin arrow, like `derivedStuck`: the value is the
-       WORLD's and stays live. */
-    INCOMPLETE,
     /* A GETTER: `LIB_PAGE` is a `const` declared further down this same script,
        so a plain shorthand would hit the temporal dead zone the instant this
        literal is built — the same trap `TODAY` is published
@@ -1989,14 +1263,7 @@ import {
     },
     svgIcon,
     settingId,
-    // What a field must DRAW: the pending edit if there is one, the file's
-    // value otherwise. The pending-edit overlay itself stays private — a
-    // reader of this returns the value, never the map — but a panel that drew
-    // `.brut` instead would show a list one has just shortened at its old
-    // length, and the removal would look like it did nothing.
-    rawValue,
     typedValue,
-    changeSetting,
     // The arbitration flow's LABELS, which are the interface's own words and
     // were never server state — the register classifies them `interface`, and
     // they stay exactly where they are.
@@ -2006,19 +1273,6 @@ import {
     DECISION_STATE,
     DECISION_STATE_DETAIL,
     VIA_LABEL,
-    // The flow's own lookup. Its DATA left at L09 — the surface reads
-    // `/api/decisions/` and `PENDING_DECISIONS` is deleted — and this answer
-    // stays because the engine's « Passer à la suivante » branch asks it
-    // synchronously from a click handler. It reads the cache through
-    // `seam.pendingDecisions` and goes with that branch at L13.
-    decisionPending,
-    // Thin arrows over `derived.blocked` / `derived.stuck` — `derived` itself
-    // is already initialized above this literal, but the wrapper still earns
-    // its keep: it publishes a STABLE function reference while the value each
-    // call returns stays live against the scenario switch inside `derived`.
-    actionResolve,
-    actionLeave,
-    actionTake,
     toast,
   };
 
@@ -2036,15 +1290,6 @@ import {
   /* The name of the sort in force, which is what the control on the count line
      reads. `sortReversed` is a store field like any other and, like `sortKey`, it
      stays OUT of the address: the sort is a preference, not a place (A7). */
-  function sortLabel() {
-    /* THE NAMES ARE THE FEATURE'S — `features/library/sorting.ts`, read
-       through `engine/seams.ts` rather than a copy kept here, the way a
-       setting's label is read from the settings feature. */
-    const named = seam.sortWays();
-    return named[currentState().sortKey][
-      currentState().sortReversed ? "inverse" : "normal"
-    ];
-  }
   const LIB_PAGE = 24;
 
   /* THE PAGE'S OWN DERIVATION, and it stays HERE while the drawing leaves.
@@ -2069,39 +1314,11 @@ import {
      A simple tap still opens the sheet: the most frequent path is never
      sacrificed to a rare action. */
 
-  /* THE SELECTION BAR IS NOT DRAWN HERE ANY MORE. It was created per open and
-     appended to `#device`; it is `features/library/selection-bar.tsx` now,
-     rendered into the frame's bottom slot and reading the same store fields.
-     This function stayed a VERB the delegation and the drivers still say —
-     `paintSelBar()` after a tile toggles — so that moving the drawing did not
-     take away the vocabulary. It draws nothing: the store bump beside every
-     call site is what the component listens to. It goes with the library's
-     verbs at L19. */
-  function paintSelBar() {}
 
-  /* Reads the panel an element addresses.
-     Split on the FIRST colon only: titles carry their own — « Dexter:
-     Resurrection » would otherwise address a panel for « Dexter ». */
-  function refPanel(element) {
-    // `panelName`, not `panel`: the seam the engine calls to OPEN a panel is
-    // named `panel`, and a local of the same name would shadow it silently
-    // inside this function. The value here is the attribute's text.
-    const panelName = element.dataset.panel;
-    const indexOf = panelName.indexOf(":");
-    return {
-      genre: panelName.slice(0, indexOf),
-      ref: panelName.slice(indexOf + 1),
-    };
-  }
-
-  /* Opens the panel an element addresses. One entry point, so a surface that
-     wants a panel states WHICH one and never how to build it. */
-  function openPanel(element) {
-    const { genre, ref } = refPanel(element);
-    if (genre === "sug") panel.produce("suggestion", ref);
-    else if (genre === "add") panel.produce("add", ref);
-    else panel.produce("follow", ref);
-  }
+  /* WHICH PANEL AN ELEMENT ADDRESSES, AND WHAT OPENING IT MEANS, ARE THE
+     FRAME'S — `app/frame-verbs.ts` answers `data-panel` and fills the door this
+     file's press reads. Only the press stays here, and it goes with the
+     gesture. */
 
   /* THE LONG PRESS — arbitrated in `lib/press-arbitration.ts`.
 
@@ -2142,7 +1359,7 @@ import {
       }
       return element;
     },
-    onPress: openPanel,
+    onPress: (element) => openAddressedPanel?.(element),
   });
 
   /* User menu.
@@ -2296,12 +1513,7 @@ import {
      back out of what it had just written so the layer could name itself. The
      layer is `ui/dialog/index.tsx` and its verbs are `app/dialog-host.ts`'s,
      behind a DESCRIPTOR of facts: a heading, blocks, and actions carrying the
-     `data-*` this file's own delegation still reads.
-
-     `closeDlg` stays a VERB the producers say. */
-  function closeDlg() {
-    seam.dialog?.close();
-  }
+     `data-*` this file's own delegation still reads. */
 
   /* Re-rendering a screen must NEVER send the operator back to the top:
      ticking a box at the bottom of a form jumped to the top, which makes
@@ -2343,7 +1555,6 @@ import {
      what a leaked address looks like from the outside. */
   const showSignIn = (withError, silent) =>
     seam.entry?.showSignIn(withError, silent === true || walk.driven);
-  const signOut = () => seam.entry?.signOut();
 
 
 
@@ -2354,17 +1565,9 @@ import {
      table; and it REGISTERS with the ladder rather than being found by it, so
      the ladder's handler asks a registration instead of testing a class.
 
-     The verbs stay verbs. `openDrawer()` writes the store and pushes the
-     layer's own entry, exactly as it did — a conversion moves the drawing. */
-  function openDrawer() {
-    store.write({ drawerOpen: true });
-    try {
-      bridge.pushLayer("drawer");
-    } catch (error) {}
-  }
-  function closeDrawer(pop) {
-    seam.layers?.close("drawer", pop);
-  }
+     The verbs are verbs, and they are NOT this file's any more: opening the
+     drawer and closing it belong to the frame that answers the taps
+     (`app/frame-verbs.ts`, `app/layers.ts`). */
 
   /* THE APPEARANCE IS NOT THIS FILE'S ANY MORE. The three states, the stored
      choice, the live media listener and the attribute they write are
@@ -2373,785 +1576,6 @@ import {
      is engine code. The drawer offers the control and calls that module
      directly; the `data-apparence` branch of the delegation went with it, and
      with it the last French `data-*` name this file wrote. */
-
-  /* Global delegation */
-  document.addEventListener("click", (event) => {
-    // A navigation link is an <a>, not a <button>: delegation that looked
-    // only at buttons left the drawer inert.
-    const closest = event.target.closest("button, a[data-navgo]");
-    if (!closest) return;
-    if (closest.tagName === "A") event.preventDefault();
-
-    if (closest.dataset.setting) {
-      // THE PRODUCER HAS LEFT. `features/settings/panel-setting.ts` answers.
-      panel.produce("setting", closest.dataset.setting);
-      return;
-    }
-    if (closest.dataset.secret) {
-      // A secret is never shown, so its panel offers the only act that exists:
-      // replacing it. Nothing to read, nothing to copy.
-      //
-      // THE PRODUCER HAS LEFT, and it takes the KEY rather than the record:
-      // the feature reads the layer's answer, so handing it a row found in the
-      // engine's own fixture would be handing it the copy it exists to stop
-      // reading.
-      panel.produce("secret", closest.dataset.secret);
-      return;
-    }
-    if (closest.dataset.field && closest.dataset.to) {
-      const id = closest.dataset.field;
-      const setting = heldSettings().find((r) => settingId(r) === id);
-      if (setting) {
-        changeSetting(id, closest.dataset.to === "oui");
-        panel.produce("setting", id);
-      }
-      return;
-    }
-    if (closest.dataset.deletefield) {
-      const id = closest.dataset.deletefield;
-      const setting = heldSettings().find((r) => settingId(r) === id);
-      if (setting) {
-        const list = [...(rawValue(setting) || [])];
-        list.splice(Number(closest.dataset.index), 1);
-        changeSetting(id, list);
-        panel.produce("setting", id);
-      }
-      return;
-    }
-    if (closest.dataset.addfield) {
-      const id = closest.dataset.addfield;
-      const setting = heldSettings().find((r) => settingId(r) === id);
-      if (setting) {
-        // A prototype cannot show a keyboard; the added item is named after
-        // what the list already holds, so the shape of the row is judgeable.
-        const list = [...(rawValue(setting) || [])];
-        list.push(`valeur ${list.length + 1}`);
-        changeSetting(id, list);
-        panel.produce("setting", id);
-      }
-      return;
-    }
-    if (closest.dataset.cancelsetting) {
-      // THE READER HAS LEFT. The verb is still this delegation's; what it
-      // does is `features/settings/panel-setting.ts`'s, beside the panel that
-      // offers it. The rule that holds it was written against the branch this
-      // replaces and is unchanged in count.
-      seam.settingsVerbs?.cancelEdit(closest.dataset.cancelsetting);
-      return;
-    }
-    if (closest.dataset.save) {
-      // THE SAVE ASKS THE LAYER NOW (B-299). It used to clear the edits,
-      // raise the restart flag and say « Enregistré » without ever writing
-      // anything — so `conflict`, a field the contract has always answered, had
-      // no reader and the copy naming three banners drew two.
-      void seam.settingsVerbs?.save();
-      return;
-    }
-    if (closest.dataset.reloadsettings) {
-      seam.settingsVerbs?.reload();
-      return;
-    }
-    if (closest.dataset.restart) {
-      // IT ASKS FIRST (B-300, §17). A restart cuts the service for every
-      // account of the household; this branch used to do it on the tap.
-      seam.settingsVerbs?.askToRestart();
-      return;
-    }
-    if (closest.dataset.confirmrestart) {
-      seam.settingsVerbs?.restart();
-      return;
-    }
-    if (closest.dataset.qsettings != null) {
-      SETTINGS_STATE.q = closest.dataset.qsettings;
-      render();
-      return;
-    }
-    if (closest.dataset.page) {
-      // Navigating CLOSES whatever is open above: without this, one changed
-      // page while staying stuck on the media sheet.
-      const leaving = currentState().page;
-      hideLayers();
-      store.write({ page: closest.dataset.page });
-      port.scrollTop = 0;
-      render();
-      switchPage(leaving);
-      return;
-    }
-    if (closest.dataset.go) {
-      /* A go control can sit INSIDE a layer — today only the user sheet's
-         « Profil et préférences »: every OTHER producer renders into
-         page-body `#view` content, which sits under every layer and is
-         therefore covered — untappable — the instant one is open (walked
-         control by control, BUGS.md B-024). Landing must LEAVE the layer:
-         every layer closes without touching history, and history is settled
-         HERE, by `switchPageFromLayer`, exactly as a drawer navigation settles
-         itself (see data-navgo). Letting the close unwind and the arrival push
-         would race, the asynchronous pop landing after the push and
-         overwriting it. */
-      const onLayer = history.state && history.state.layer;
-      const leaving = currentState().page;
-      closeDrawer(true);
-      panel.close(true);
-      // The settling below walks the layer's entry plus at most one page
-      // entry, on the assumption that at most one layer (drawer or sheet —
-      // never both at once) precedes a `data-go` tap. B-024 found that
-      // assumption unenforced in code, then walked every producer and found
-      // it latent — unreachable — because the one producer that can sit over
-      // a layer allows at most the sheet itself.
-      store.write({ page: closest.dataset.go });
-      if (closest.dataset.go === "acq")
-        store.write({ acqTab: "now" });
-      port.scrollTop = 0;
-      render();
-      try {
-        if (onLayer) switchPageFromLayer(leaving);
-        else switchPage(leaving);
-      } catch (error) {
-        console.error("data-go : écriture de navigation échouée", error);
-        window.__navEchec = true;
-      }
-      return;
-    }
-    if (closest.dataset.acqtab) {
-      store.write({ acqTab: closest.dataset.acqtab });
-      port.scrollTop = 0;
-      render();
-      replacePath();
-      return;
-    }
-    if (closest.dataset.lens) {
-      // Changing lens changes the list: start again from the first page. And the
-      // SELECTION goes with it — a tick taken in another listing is one the
-      // reader cannot see to untick, and « Supprimer » would still offer it.
-      store.write({
-        libLens: closest.dataset.lens,
-        selected: new Set(),
-        });
-      port.scrollTop = 0;
-      render();
-      replacePath();
-      return;
-    }
-    if (closest.dataset.cat) {
-      store.write({
-        libCat: closest.dataset.cat,
-        selected: new Set(),
-        });
-      port.scrollTop = 0;
-      render();
-      return;
-    }
-    if (closest.dataset.lmode) {
-      store.write({ libMode: closest.dataset.lmode });
-      render();
-      return;
-    }
-    if (closest.dataset.pill) {
-      store.write({ pill: closest.dataset.pill });
-      render();
-      return;
-    }
-    if (closest.dataset.fmode) {
-      store.write({ followMode: closest.dataset.fmode });
-      render();
-      return;
-    }
-    if (closest.dataset.sugmode) {
-      store.write({ sugMode: closest.dataset.sugmode });
-      render();
-      return;
-    }
-    if (closest.dataset.signout) {
-      signOut();
-      return;
-    }
-    if (closest.dataset.toast) {
-      toast(closest.dataset.toast);
-      return;
-    }
-
-    if (closest.dataset.manual != null) {
-      // The way out is not a sentence, it is a pre-filled screen.
-      // Clean the folder name to turn it into a query.
-      const trim = String(closest.dataset.manual)
-        .replace(/\.(mkv|mp4|avi)$/i, "")
-        .replace(/[._]+/g, " ")
-        .replace(
-          /\b(MULTi|VOSTFR|WEB-DL|WEBRip|BluRay|x264|x265|HEVC|1080p|2160p|720p|FRENCH|TRUEFRENCH)\b/gi,
-          "",
-        )
-        .replace(/\s{2,}/g, " ")
-        .trim();
-      // `/resolution` is a router-owned address now: leaving it is
-      // `__bridge.retour()` — the same single pop `.fback` uses — unwinding the
-      // ONE entry `screens.resolution` pushed to get here. The
-      // dispatcher no-ops that pop: the entry carries neither `layer` nor
-      // `tm`, so the legacy popstate checks fall through it and the router has
-      // already re-rendered by the time they run.
-      bridge.back();
-      setTimeout(() => screens.add(trim, "identify"), 260);
-      return;
-    }
-    /* THE FOLDER IS `currentState().resolveTarget`, NEVER THE ATTRIBUTE: what
-       `data-resolve` carries here is the CHOSEN CANDIDATE, and the folder is
-       what the resolution screen was opened on. This branch answers every
-       carrier of the attribute. */
-    if (closest.dataset.resolve) {
-      const target = currentState().resolveTarget;
-      bridge.back();
-      setTimeout(() => actionResolve(target, closest.dataset.resolve, true), 240);
-      return;
-    }
-    /* Agreeing with the machine. It keeps the automatic result and re-scrapes
-       nothing — which is why it says what it did rather than « fait ». */
-    if (closest.dataset.leave) {
-      const target = currentState().resolveTarget;
-      bridge.back();
-      setTimeout(() => actionLeave(target), 240);
-      return;
-    }
-    /* What the desktop deck's ⏎ did, without a keyboard: the next folder
-       waiting, on the same screen. */
-    if (closest.dataset.next) {
-      const suite = queued()
-        .blocked.concat(queued().stuck)
-        .map((blockedCount) => decisionPending(blockedCount.t))
-        .find(
-          (decision) =>
-            decision != null && decision.d !== closest.dataset.next,
-        );
-      if (suite) {
-        // Closing the screen and re-opening it on the next folder was a pop
-        // plus a push — net ONE entry. The address is the screen's identity
-        // now, so the same depth is a REPLACE: one entry in, one entry out,
-        // and a single back still leaves the arbitration rather than walking
-        // the folders one has already answered.
-        setTimeout(() => screens.resolution(suite.d, true), 240);
-      }
-      return;
-    }
-    if (closest.dataset.sheetprim) {
-      const [split, split2] = closest.dataset.sheetprim.split("|");
-      panel.close();
-      setTimeout(() => {
-        if (split2 === "to_grab") actionTake(split);
-        else
-          toast(
-            `Recherche lancée pour « ${baseTitle(split)} » — le résultat s'affichera sur la carte.`,
-          );
-      }, 240);
-      return;
-    }
-    if (closest.dataset.releases) {
-      panel.close();
-      setTimeout(() => screens.releases(closest.dataset.releases), 260);
-      return;
-    }
-    if (
-      closest.dataset.profile !== undefined &&
-      closest.dataset.profile !== null
-    ) {
-      // Route, not screen: the quality-profile surface and the release-choice
-      // screen are both routes, and the remaining producers of `data-profile`
-      // (the Réglages rubric, a sheet action) are sheets or pages. The
-      // RELEASES route still needs the same close-then-open choreography its
-      // own trigger was built against, so the router's own identity is tested.
-      // `__screens.profil` does the navigating either way.
-      const profile = closest.dataset.profile;
-      if (document.querySelector('.screen.open[data-key^="releases:"]')) {
-        bridge.back();
-        setTimeout(() => screens.profile(profile), 260);
-      } else {
-        panel.close();
-        setTimeout(() => screens.profile(profile), 260);
-      }
-      return;
-    }
-    // `data-take` HAS NO BRANCH HERE ANY MORE (B-309). It had two, told apart
-    // by guessing at the value. The release picker says `data-pick-release`
-    // now and the panel's take kept this name, so each has one meaning and one
-    // reader, and both answer on the tap registry.
-    if (closest.dataset.standby) {
-      panel.close();
-      toast(
-        "Veille lancée — 12 suivis balayés, 0 nouvelle release conforme. Prochain passage à 15 h 20.",
-      );
-      return;
-    }
-    if (closest.dataset.ep) {
-      openPopEp(closest);
-      return;
-    }
-    if (closest.dataset.drawer) {
-      openDrawer();
-      return;
-    }
-    if (closest.dataset.maintact) {
-      // THE PRODUCER HAS LEFT. `features/maintenance/panel-action.ts` answers.
-      panel.produce("action", closest.dataset.maintact);
-      return;
-    }
-    if (closest.dataset.pipe) {
-      /* Asked while a run is already going, a run is QUEUED and says so
-         (DOIT-4). « Occupé, réessaie » is the answer this interface does not
-         give: it puts the burden of remembering on the operator. */
-      store.write({
-        pipe:
-          closest.dataset.pipe === "stop"
-            ? "idle"
-            : currentState().pipe === "idle"
-              ? "running"
-              : "queued",
-      });
-      render();
-      toast(
-        currentState().pipe === "running"
-          ? "Pipeline lancé — il se raconte ici, étape par étape."
-          : currentState().pipe === "queued"
-            ? "En file — votre passage partira dès que celui-ci sera fini."
-            : "Pipeline arrêté. Ce qui était déjà rangé le reste.",
-      );
-      return;
-    }
-    if (closest.dataset.navgo) {
-      const id = closest.dataset.navgo;
-      /* The drawer is NOT a route, so its entry does not survive the
-         destination — and neither does the entry of the page one is leaving.
-         A drawer entry is a top-level destination like any other, so § 16
-         rule 2 applies to it whole: `switchPageFromLayer` walks down to the
-         floor and settles the destination there, which is what makes one back
-         from the destination reach the entry page and not the médiathèque one
-         happened to open the drawer from.
-
-         This is also why history is settled here rather than by letting the
-         close unwind and the arrival push: a back is asynchronous, so its
-         pop would land after the push and overwrite it. The close is
-         therefore told not to touch history at all. */
-      const onDrawer = history.state && history.state.layer === "drawer";
-      const leaving = currentState().page;
-      closeDrawer(true);
-      store.write({ page: id });
-      port.scrollTop = 0;
-      render();
-      try {
-        if (onDrawer) switchPageFromLayer(leaving);
-        else switchPage(leaving);
-      } catch (error) {
-        console.error("data-navgo : écriture de navigation échouée", error);
-        window.__navEchec = true;
-      }
-      return;
-    }
-    if (closest.dataset.sort) {
-      // THE PRODUCER HAS LEFT. `features/library/panel-sort.ts` answers.
-      panel.produce("sort");
-      return;
-    }
-    if (closest.dataset.setsort) {
-      store.write({
-        sortKey: closest.dataset.setsort,
-        sortReversed: closest.dataset.reversed === "1",
-        selected: new Set(),
-      });
-      panel.close();
-      render();
-      toast(`Trié par ${sortLabel().toLowerCase()}.`);
-      return;
-    }
-    if (closest.dataset.phase) {
-      store.write({ phase: closest.dataset.phase });
-      render();
-      return;
-    }
-    if (closest.dataset.tmdb) {
-      store.write({ tmdb: true });
-      render();
-      toast(
-        "Compte TMDB connecté — la réserve se remplit, vos notes sont lues.",
-      );
-      return;
-    }
-    if (closest.dataset.clearq) {
-      if (closest.dataset.clearq === "lib")
-        // THE SELECTION GOES WITH THE QUESTION. Clearing the search widens what
-        // is on screen, and the ticks taken under the narrower listing are not
-        // the ones a reader is looking at.
-        store.write({ q: "", selected: new Set() });
-      else store.write({ filter: "" });
-      render();
-      return;
-    }
-    if (closest.dataset.selmode) {
-      store.write({ selMode: closest.dataset.selmode === "1", selectedMedia: 0 });
-      // Set mutated in place; render() right below carries the bump.
-      currentState().selected.clear();
-      render();
-      return;
-    }
-    if (closest.dataset.delsel) {
-      // THE SET HOLDS TITLES, so the dialog names what the reader ticked. It
-      // used to read each entry as an index into the SOURCE array while the
-      // ticks were taken on the LISTING — so under any order but the source's
-      // it named other media and destroyed them: ticking « 3% » and « À la
-      // recherche de Harry » under A → Z deleted « Ninja Turtles » and « Big
-      // Chicken », and the two ticked rows stayed.
-      openDeleteDialog(null, [...state.selected]);
-      return;
-    }
-    if (closest.dataset.tile != null && currentState().selMode) {
-      const title = closest.dataset.selectedTitle;
-      if (title == null) return;
-      if (currentState().selected.has(title)) currentState().selected.delete(title);
-      else currentState().selected.add(title);
-      // paintSelBar() below draws the bar directly, not through render():
-      // the explicit bump is what tells React the selection changed.
-      // THE BAR COUNTS MEDIA, not ticks. One press on a title this library holds
-      // twice lights both rows and the dialog says « 2 médias »; a caption
-      // reading « 1 sélectionné » beside them is the only figure in the flow
-      // still counting something else. Written rather than touched: a write
-      // bumps too, and hold (f) drives `write({})` on nine states to prove a
-      // surface keeps its nodes across one.
-      store.write({
-        selectedMedia: [...currentState().selected].reduce(
-          (accumulator, element) => accumulator + mediaNamedBy(element),
-          0,
-        ),
-      });
-      closest.setAttribute("aria-pressed", String(currentState().selected.has(title)));
-      paintSelBar();
-      return;
-    }
-    if (closest.dataset.del) {
-      panel.close();
-      openDeleteDialog(closest.dataset.del);
-      return;
-    }
-    if (closest.dataset.mediasheet) {
-      // The seam closes the layer inside the navigation's own commit, so an
-      // open sheet no longer needs closing here and no longer needs a delay to
-      // finish leaving: its departure is drawn by the transition.
-      screens.mediaSheet(closest.dataset.mediasheet);
-      return;
-    }
-    if (closest.dataset.act === "resolve") {
-      screens.resolution();
-      return;
-    }
-    if (closest.dataset.sheet === "plus") {
-      // THE PRODUCER HAS LEFT. `features/acquisition/panel-more.ts` answers.
-      panel.produce("more");
-      return;
-    }
-    if (closest.dataset.act?.startsWith("add:")) {
-      // The act carries the list POSITION, not the title: a search can
-      // return the same title twice — « Star Wars : The Clone Wars » is both a
-      // film and a series here — so the title does not identify the result.
-      const index = Number(closest.dataset.act.slice(4));
-      const result = searchResults().results[index];
-      if (currentState().addMode === "identify") {
-        // This ASSOCIATES: the stuck folder becomes this medium and the pipeline
-        // resumes. No follow is created — that was not the request.
-        const target = currentState().resolveTarget;
-        // No render() on this branch until the delayed actionResoudre()
-        // fires — the bump is explicit so React sees the pick immediately.
-        currentState().added.add(index);
-        store.touch();
-        /* ONE settlement for the TWO entries this journey stacked — the
-           result's panel, and `/add` itself, a router-owned address (which
-           is why no screen layer is closed here). The panel is ASKED before it is closed, because the layer's
-           own entry is what decides the count, and it is closed DOM-only
-           (`close(true)`) so it does not unwind on its own: its unwind plus a
-           raw `__bridge.retour()` were two backs racing in the same task, only
-           one of them announced, and the surplus pop was then read as the
-           operator's own back gesture. */
-        const entries = (panel.isOpen() ? 1 : 0) + 1;
-        panel.close(true);
-        bridge.rewind(entries);
-        setTimeout(() => {
-          actionResolve(target, result.t);
-          toast(
-            `« ${baseTitle(target ?? "")} » identifié comme « ${result.t} » — le scrape reprend, aucun suivi créé.`,
-          );
-        }, 260);
-        return;
-      }
-      // The act lives in the result's panel, which must not stay open
-      // behind what comes next — the dialog below, or the re-rendered list.
-      // The identify branch above settles its own layer, with the entry count
-      // its single settlement needs, so this close is the follow branches'.
-      panel.close();
-      if (result.owned) {
-        seam.dialog?.open({
-          heading: `Remplacer « ${result.t} » ?`,
-          body: [
-            {
-              type: "paragraph",
-              runs: [
-                {
-                  text:
-                    "Ce " +
-                    (result.k === "Film" ? "film est déjà" : "média est déjà") +
-                    " en médiathèque. L'acquisition ",
-                },
-                { text: "remplacera", strong: true },
-                { text: " la version en place par celle qui sera récupérée." },
-              ],
-            },
-          ],
-          actions: [
-            {
-              text: "Remplacer",
-              tone: "danger",
-              target: { "data-confirmadd": String(index) },
-            },
-            { text: "Annuler", tone: "ghost", dismiss: true },
-          ],
-        });
-        return;
-      }
-      // The screen stays open, re-rendered in place with the "added" chip
-      // and (once this is the first) the footer: `AddScreen` re-renders
-      // itself from this same store bump, so no redraw call belongs here
-      // any more.
-      currentState().added.add(index);
-      store.touch();
-      seam.followVerbs?.follow(result.t, result.k);
-      return;
-    }
-    if (closest.dataset.confirmadd) {
-      currentState().added.add(Number(closest.dataset.confirmadd));
-      store.touch();
-      closeDlg();
-      toast(
-        "Ajouté — la version en place sera remplacée une fois la nouvelle récupérée.",
-      );
-      return;
-    }
-    if (closest.dataset.journey) {
-      // THE PRODUCER HAS LEFT, and its 260 ms wait went with it: the panel
-      // leaves inside the navigation's own commit, as `data-mediasheet`
-      // already did once B-249's wait left that branch. R103 refuses the gap on
-      // this path now rather than printing it.
-      panel.close();
-      panel.produce("journey", closest.dataset.journey);
-      return;
-    }
-    if (closest.dataset.sheet === "utilisateur") {
-      // THE PRODUCER HAS LEFT. The verb is still this delegation's; what it
-      // asks for is a KIND, and `features/account/panel-account.ts` answers.
-      panel.produce("account");
-      return;
-    }
-    /* A card body opens the panel on a simple tap. The gallery reaches the
-       same panel by a long press, handled where the press is timed. */
-    if (closest.dataset.panel) {
-      openPanel(closest);
-      return;
-    }
-    if (closest.dataset.complete) {
-      store.write({ page: "acq", acqTab: "now" });
-      panel.close();
-      render();
-      toast(
-        `« ${baseTitle(closest.dataset.complete)} » : recherche des épisodes manquants lancée.`,
-      );
-      return;
-    }
-
-    if (closest.classList.contains("cfoot")) {
-      const title =
-        closest.closest(".card")?.querySelector(".ctitle")?.textContent ?? "";
-      const lab = closest.textContent.trim();
-      if (lab.startsWith("Récupérer")) return actionTake(title);
-      if (lab.startsWith("Résoudre")) return screens.resolution(title);
-      toast("Action lancée — le résultat s'affichera ici.");
-      return;
-    }
-    if (closest.classList.contains("act")) {
-      const textContent = closest
-        .closest(".swipe")
-        .querySelector(".ctitle").textContent;
-      // Through the shared close, so what is recorded about the open row — and
-      // about where it rests — cannot drift from what is on screen. Clearing
-      // the transform alone left the next drag resuming from a drawer that was
-      // no longer open, which is the jump seen from the other side.
-      const card = closest.closest(".swipe").querySelector(".card");
-      if (openCard === card) collapseCard();
-      else card.style.transform = "";
-      if (closest.classList.contains("remove"))
-        return currentState().page === "lib"
-          ? openDeleteDialog(textContent)
-          : seam.followVerbs?.removeFollow(textContent);
-      if (closest.classList.contains("pause"))
-        return seam.followVerbs?.pause(textContent);
-      toast(`${closest.textContent.trim()} — ${textContent}`);
-      return;
-    }
-  });
-
-  /* Deletion */
-  /* How many library rows one title names. The delete acts BY TITLE — the only
-     key the contract offers — so a title naming two rows is two media, and every
-     figure the interface prints about a selection has to say so. */
-  function mediaNamedBy(title) {
-    return Math.max(1, LIBRARY.filter((row) => row.t === title).length);
-  }
-
-  function openDeleteDialog(title, many) {
-    const titles = many && many.length > 0 ? many : [title];
-    const multi = titles.length > 1;
-    const inc = (title2) =>
-      INCOMPLETE.find((INCOMPLETE2) => INCOMPLETE2.t === title2);
-    const followed = titles.filter(
-      (title2) =>
-        follows().some((follow) => follow.t === title2) || !!inc(title2),
-    );
-    // HOW MANY MEDIA EACH TITLE NAMES, and it is not always one. The delete
-    // acts BY TITLE — the only key the contract offers — and this library holds
-    // « Doctor Who » twice, 2005 and 2023 — ONE duplicated title in 345 rows,
-    // 344 of them distinct. (The first version of this sentence said five, a
-    // count taken over a window that ran past this array into the next one.)
-    // Confirming one of them removes both, and the count below said one file:
-    // a manifest whose whole purpose is « voici exactement ce qui serait
-    // supprimé » naming half of it. The interface cannot delete one of the two
-    // — that needs an identifier the backend does not serve, and the demand is
-    // recorded — but it can say the truth about what it is about to do.
-    const mediaFor = mediaNamedBy;
-    const files = titles.reduce(
-      (accumulator, element) =>
-        accumulator + (inc(element) ? inc(element).o : mediaFor(element)),
-      0,
-    );
-    const media = titles.reduce(
-      (accumulator, element) => accumulator + mediaFor(element),
-      0,
-    );
-    // What the four rows above the fold account for, so « et N autres » names
-    // media like every other figure in this dialog.
-    const shown = titles.slice(0, 4).reduce(
-      (accumulator, element) => accumulator + mediaFor(element),
-      0,
-    );
-    // AND THE FOLLOWED WARNING TOO. A followed title that names two rows is two
-    // media coming back at the next search. Latent while no duplicated title is
-    // followed, which is exactly how it would ship unnoticed.
-    const followedMedia = followed.reduce(
-      (accumulator, element) => accumulator + mediaFor(element),
-      0,
-    );
-    const size = (files * 0.41).toFixed(1).replace(".", ",") + " Go";
-    /* NOT ESCAPED, and it is the one `escapeHtml` site in this file that must
-       not be: the heading crosses as a DESCRIPTOR field and is rendered as a
-       React text node, which escapes it itself. Escaped here it was escaped
-       twice — « Supprimer « Lilo &amp; Stitch » ? » on every title carrying an
-       ampersand, and the seeds carry five. The other thirty-five sites still
-       feed `innerHTML` and still need it. */
-    const head = multi
-      ? `Supprimer ${media} médias ?`
-      : media > 1
-        ? `Supprimer « ${titles[0]} » — ${media} médias ?`
-        : `Supprimer « ${titles[0]} » ?`;
-    seam.dialog?.open({
-      heading: head,
-      body: [
-        {
-          type: "dryRun",
-          text:
-            "Simulation — rien ne sera supprimé tant que vous n'aurez pas " +
-            "validé que cette liste dit vrai.",
-        },
-        ...(multi
-          ? [
-              {
-                type: "manifest",
-                entries: [
-                  ...titles.slice(0, 4).map((title2) => ({
-                    text: title2,
-                    value: `${inc(title2) ? inc(title2).o : mediaFor(title2)} fichier${(inc(title2) ? inc(title2).o : mediaFor(title2)) > 1 ? "s" : ""}`,
-                  })),
-                  ...(titles.length > 4
-                    ? [
-                        {
-                          text: `et ${media - shown} autre${media - shown > 1 ? "s" : ""}`,
-                          value: "",
-                        },
-                      ]
-                    : []),
-                ],
-              },
-            ]
-          : []),
-        {
-          type: "paragraph",
-          runs: [{ text: "Voici exactement ce qui serait supprimé :" }],
-        },
-        {
-          type: "manifest",
-          entries: [
-            { text: "Fichiers vidéo", value: `${files} · ${size}` },
-            {
-              text: "Métadonnées (NFO, affiches, fanart)",
-              value: `${files * 3} fichiers`,
-            },
-            {
-              text: "Lignes de la médiathèque",
-              // THE MEDIA, not the titles: one title can name two rows, and this
-              // manifest's whole purpose is to say exactly what would go.
-              value: `${media} item${media > 1 ? "s" : ""}`,
-            },
-            { text: "Entrée Plex", value: `${media} · à vérifier` },
-          ],
-        },
-        ...(followed.length > 0
-          ? [
-              {
-                type: "warning",
-                strong:
-                  followed.length === 1
-                    ? `« ${followed[0]} » est suivi.`
-                    : `${followedMedia} de ces médias sont suivis.`,
-                text:
-                  "Sans action de votre part, ces épisodes seront " +
-                  "re-téléchargés à la prochaine recherche.",
-              },
-            ]
-          : []),
-      ],
-      actions: [
-        ...(followed.length > 0
-          ? [
-              {
-                text: "Supprimer et arrêter le suivi",
-                tone: "danger",
-                target: {
-                  "data-toast":
-                    "Simulation terminée — 0 fichier touché. Le suivi aurait été arrêté.",
-                },
-                run: () => actionDelete(titles),
-              },
-              {
-                text: "Supprimer, garder le suivi",
-                target: {
-                  "data-toast":
-                    "Simulation terminée — 0 fichier touché. Le suivi aurait été conservé.",
-                },
-                run: () => actionDelete(titles),
-              },
-            ]
-          : [
-              {
-                text: "Supprimer",
-                tone: "danger",
-                target: {
-                  "data-toast": "Simulation terminée — 0 fichier touché.",
-                },
-                run: () => actionDelete(titles),
-              },
-            ]),
-        { text: "Annuler", tone: "ghost", dismiss: true },
-      ],
-    });
-  }
 
   /* Screens and sheets */
   const MOIS = [
@@ -3182,80 +1606,8 @@ import {
      verb a call site says is `screens.mediaSheet(title)`; the template,
      the seasons and the actions live there, at identical markup — the
      click delegation below still reads their data attributes. */
-  /* The resolution screen moved to the shell the same way:
-     `src/screens/resolution.tsx` renders it as the route
-     `/resolution/$folder`, and the design rationale it carries — what the
-     screen is FOR, why a tied score is not printed, the three ways out —
-     moved there with it. The verb a call site says is
-     `screens.resolution(dossier, remplacer)`: it resolves the same
-     default this file used to (the first stuck folder) and writes
-     `currentState().resolveTarget` before navigating, so the `data-resolve` and
-     `data-leave` branches below still read the folder they always read.
-     `decisionPending` stays here: it is the référentiel's own answer to
-     « does this folder have a pending decision », read by the screen AND by
-     the « Passer à la suivante » branch below. */
-  /* A folder either HAS a pending decision or it has none, and the screen must
-     not borrow one. Showing another folder's candidates would be the worst
-     possible lie on the one screen whose job is to name what is on disk. */
-  /* IT READS THE CACHE NOW, and the fixture it used to read is gone (L09). The
-     shell publishes `seam.pendingDecisions` over the query cache — a
-     SYNCHRONOUS read, because this is called from a click handler that cannot
-     await. Before the query has answered it reports « no decision », which is
-     the same answer this function already gave for a folder that has none, and
-     the surfaces that draw a decision render nothing until the cache has one.
-     It dies with the branch below at L13. */
-  function decisionPending(target) {
-    const pending = seam.pendingDecisions?.() ?? [];
-    return pending.find((decision) => decision.d === target) ?? null;
-  }
 
-  /* Tapping a cell: its air date, in French. The sentence follows the state
-     — « Sortie prévue » for an announced episode, « Diffusé » otherwise —
-     and a missing date is stated, not invented. */
-  /* THE POPOVER'S LAYER IS NOT THIS FILE'S ANY MORE — but its SENTENCE still
-     is. `openPopEp` built the node, placed it against the phone frame, wrote
-     what it says and armed its dismissal, all in one function. Only the first,
-     second and fourth are the frame's: `ui/popover.tsx` over
-     `app/popover-host.ts`, behind `{ anchor, content }`. What is left here is
-     the PRODUCER — the five lines that turn an episode into three facts — and
-     a producer moves to its feature with L19 (Part 12). */
-  function closePopEp() {
-    seam.popover?.close();
-  }
-  function openPopEp(btn) {
-    // THE SENTENCE HAS LEFT. The frame places, the feature says —
-    // `features/media/popover-episode.ts`, reached through the seam it
-    // publishes. What stays here is the tap, which is the delegation's.
-    const saying = seam.episodeSaying?.(btn);
-    if (saying) seam.popover?.open(btn, saying);
-  }
 
-  /* Does this interface HOLD a medium by that title?
-     the follow panel answers for ANYTHING: a title it recognises in
-     none of its sources still gets a panel, synthesised from the title alone.
-     That is right for the in-app door — every medium opens the same panel, and
-     « rien n'est connu de celui-ci » is one of the truths a library title can
-     carry — and wrong for a door anyone can type, where the same fallback
-     turns a stale link into a medium that does not exist. So the question is
-     asked apart from the opening, and only an ADDRESS asks it.
-
-     THE MEMBERSHIP IS EXACT, and it reads the three sources the opener itself
-     matches exactly. A sheet is not a fourth one, deliberately: `sheetFor` is
-     built to be FORGIVING, because the lists it serves truncate their titles.
-     It answers on any prefix of more than six characters, and — being a
-     bracket read on a plain object — it answers for `constructor` and every
-     other name `Object.prototype` carries. Both hand back a title the opener
-     then finds in none of its own sources, so it synthesises exactly the
-     medium the address was meant to be refused for. A title that only has a
-     sheet is not a follow. */
-  function knownMedium(title) {
-    return (
-      follows().some((follow) => follow.t === title) ||
-      INCOMPLETE.some((entry) => entry.t === title) ||
-      LIBRARY.some((entry) => entry.t === title)
-    );
-  }
-  installKnownMedium(knownMedium);
 
   /* Journey sheet
      A journey has no hole. A step not reached is stated « à venir », never
@@ -3297,398 +1649,33 @@ import {
      the press concerns this gesture, so listening wider costs nothing and
      stops a surface from silently losing its gesture the day it moves. */
 
-  /* 1) Card swipe — a drag born on a card belongs to the card.
+  /* THE THREE CARD GESTURES ARE GONE FROM HERE.
 
-     It runs BOTH ways: the drawer on the right holds what one does to a medium
-     — pause it, drop it — and the one on the left holds the single thing the
-     card is FOR, the action its footer already names. A card with no such
-     action has no left drawer, and the gesture simply does not travel that
-     way rather than opening an empty one.
+     The SWIPE's shape — the axis decision, the two drawers' travel, where a
+     released row rests, and the click a drag must not let through — is
+     vocabulary, and vocabulary is not the engine's (invariant 10):
+     `lib/swipe-arbitration.ts`. What a suggestion's swipe and a deck card's
+     swipe MEAN is Découvrir's, so both went to the feature that draws them
+     (`features/acquisition/card-gestures.ts`), where `dismissSug`, `passerSug`
+     and `advanceDeck` already live.
 
-     Only ONE card is open at a time. Two open drawers ask which one an action
-     belongs to, and the answer is never on screen; starting a drag anywhere
-     puts the previous card back first.
+     Nothing took their place here: the boot installs them on the same frame
+     element this file listened on, BEFORE the tap registry, because the swipe's
+     guard now says `stopImmediatePropagation` and only a listener registered
+     first can stop the registry beside it. */
 
-     A drag is not a tap. The card body opens the bottom panel on a tap, so a
-     swipe that also fired it would open a panel over the drawer it just
-     revealed — the click that follows the release is swallowed, identified by
-     the DISTANCE travelled, not by a timer.
+  /* THE PULL IS GONE FROM HERE TOO, both halves of it.
 
-     Listened for on the FRAME, not the scrollport: every layer above it — the
-     sheet, the screen, the drawer — sits outside, and a row drawn in one of
-     them would answer no gesture at all. */
-  let cardDrag = null;
-  let openCard = null;
-  /* Where the open row RESTS, in pixels — negative for the right drawer,
-     positive for the left. A drag beginning on an open row resumes from where
-     the row actually is; deducing that origin from a side instead read every
-     open row as if it were open on the RIGHT, so a row open on the left leapt
-     the width of both drawers on the finger's first move. Measured at 252px
-     of jump for a 15px step. */
-  let openCardDx = 0;
-  let clickAfterDrag = null;
+     The GESTURE was already `lib/pull-gesture.ts`'s. What stayed was the
+     indicator — its height under the finger, its spinner, the message a
+     finished refresh says — and that is the FRAME's affordance, so it went to
+     `app/pull-indicator.ts` with the reset the harness drives through
+     (`window.__reposPTR`, published from there now).
 
-  function collapseCard() {
-    if (!openCard) return;
-    openCard.style.transform = "";
-    openCard = null;
-    openCardDx = 0;
-  }
-
-  function drawerWidth(sw, sens) {
-    const cote = sw.querySelector(sens < 0 ? ".side.right" : ".side.left");
-    return cote ? cote.querySelectorAll(".act").length * 84 : 0;
-  }
-
-  cadre.addEventListener(
-    "pointerdown",
-    (event) => {
-      clickAfterDrag = null;
-      const closest = event.target.closest(".swipe");
-      if (!closest || !event.isPrimary) return;
-      // A new gesture anywhere puts the previously opened row back.
-      if (openCard && openCard !== closest.querySelector(".card"))
-        collapseCard();
-      cardDrag = {
-        sw: closest,
-        card: closest.querySelector(".card"),
-        x: event.clientX,
-        y: event.clientY,
-        depart:
-          openCard === closest.querySelector(".card") ? openCardDx : 0,
-        axis: null,
-        dx: 0,
-      };
-    },
-    { passive: true },
-  );
-  cadre.addEventListener(
-    "pointermove",
-    (event) => {
-      if (!cardDrag) return;
-      const deltaX = event.clientX - cardDrag.x,
-        deltaY = event.clientY - cardDrag.y;
-      if (cardDrag.axis === null) {
-        if (Math.abs(deltaX) < 6 && Math.abs(deltaY) < 6) return;
-        cardDrag.axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.2 ? "x" : "y";
-        if (cardDrag.axis === "x") cardDrag.card.classList.add("dragging");
-      }
-      if (cardDrag.axis !== "x") return;
-      const brut = cardDrag.depart + deltaX;
-      cardDrag.lastX = event.clientX;
-      cardDrag.lastY = event.clientY;
-      /* An open row can only be CLOSED by a drag. Its travel is clamped
-         between where it rests and zero, so a swipe the other way settles it
-         back rather than crossing rest and opening the opposite drawer within
-         the same gesture. Reaching the other side is a second, deliberate
-         swipe — the row has to have come back first. */
-      cardDrag.dx = cardDrag.depart
-        ? Math.min(
-            Math.max(brut, Math.min(cardDrag.depart, 0)),
-            Math.max(cardDrag.depart, 0),
-          )
-        : Math.max(
-            -drawerWidth(cardDrag.sw, -1),
-            Math.min(drawerWidth(cardDrag.sw, 1), brut),
-          );
-      cardDrag.card.style.transform = `translateX(${cardDrag.dx}px)`;
-    },
-    { passive: true },
-  );
-  function endCardDrag() {
-    if (!cardDrag) return;
-    const drag = cardDrag;
-    cardDrag = null;
-    if (drag.axis !== "x") return;
-    drag.card.classList.remove("dragging");
-    // Past a third of a drawer's width the row rests open on that side.
-    const gauche = drawerWidth(drag.sw, 1);
-    const right = drawerWidth(drag.sw, -1);
-    let repos = 0;
-    if (drag.depart) {
-      // Closing an open row takes a third of its own travel, so a thumb
-      // brushing past one does not shut what it came to use.
-      repos =
-        Math.abs(drag.dx) > Math.abs(drag.depart) * (2 / 3) ? drag.depart : 0;
-    } else if (drag.dx < -right / 2.4) repos = -right;
-    else if (drag.dx > gauche / 2.4) repos = gauche;
-    drag.card.style.transform = repos ? `translateX(${repos}px)` : "";
-    openCard = repos ? drag.card : null;
-    openCardDx = repos;
-    // The release is followed by a click, and a drag must not also tap. The
-    // click is identified by its POINT — the same answer the long press
-    // already needed — because a bare flag stays armed until SOME click
-    // happens, and the next one it meets may be elsewhere entirely.
-    /* Armed on what the FINGER travelled, never on what the row moved.
-
-       The guard exists to tell a drag from a tap, and that distinction belongs
-       to the pointer: a row is free to refuse to move — a list with no left
-       drawer does exactly that — and measuring its displacement turns every
-       such drag into a tap. Two ways in, one old and one new: a right drag on
-       a row with no left drawer has always ended at zero, and since an open
-       row can only be closed, dragging one further in the same direction now
-       ends where it started too. Both armed nothing, so the click went
-       through and the bottom panel opened over the row.
-
-       Only a MOUSE ever showed it. After a touch drag the browser suppresses
-       the click by itself, so every finger measurement was green over the
-       hole — which is why the check for this asserts the click was actively
-       SWALLOWED rather than that no panel appeared. A panel that fails to
-       appear can be an accident of where the release landed. */
-    const travelled = Math.hypot(
-      (drag.lastX ?? drag.x) - drag.x,
-      (drag.lastY ?? drag.y) - drag.y,
-    );
-    clickAfterDrag =
-      travelled > 4 ? { x: drag.lastX, y: drag.lastY } : null;
-  }
-  window.addEventListener("pointerup", endCardDrag);
-  window.addEventListener("pointercancel", endCardDrag);
-  document.addEventListener(
-    "click",
-    (event) => {
-      if (!clickAfterDrag) return;
-      const mark = clickAfterDrag;
-      clickAfterDrag = null;
-      if (Math.hypot(event.clientX - mark.x, event.clientY - mark.y) > 24)
-        return;
-      event.preventDefault();
-      event.stopPropagation();
-    },
-    { capture: true },
-  );
-
-  /* 1b) Suggestion card: a swipe either way means dismiss. Same reason as
-     `.swipe`: the row claims the horizontal axis, otherwise the browser
-     takes the gesture and cancels it at the first pixel. */
-  let sugDrag = null;
-  cadre.addEventListener(
-    "pointerdown",
-    (event) => {
-      const closest = event.target.closest(".sugwrap");
-      if (!closest || !event.isPrimary) return;
-      const point = event;
-      sugDrag = {
-        w: closest,
-        card: closest.querySelector(".card"),
-        x: point.clientX,
-        y: point.clientY,
-        axis: null,
-        dx: 0,
-      };
-    },
-    { passive: true },
-  );
-  cadre.addEventListener(
-    "pointermove",
-    (event) => {
-      if (!sugDrag) return;
-      const point = event;
-      const deltaX = point.clientX - sugDrag.x,
-        deltaY = point.clientY - sugDrag.y;
-      if (sugDrag.axis === null) {
-        if (Math.abs(deltaX) < 6 && Math.abs(deltaY) < 6) return;
-        sugDrag.axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.2 ? "x" : "y";
-        if (sugDrag.axis === "x") sugDrag.card.classList.add("dragging");
-      }
-      if (sugDrag.axis !== "x") return;
-      sugDrag.dx = deltaX;
-      sugDrag.card.style.transform = `translateX(${deltaX}px)`;
-      sugDrag.card.style.opacity = String(
-        Math.max(0.35, 1 - Math.abs(deltaX) / 260),
-      );
-    },
-    { passive: true },
-  );
-  function endSugDrag() {
-    if (!sugDrag) return;
-    const drag = sugDrag;
-    sugDrag = null;
-    if (drag.axis !== "x") return;
-    drag.card.classList.remove("dragging");
-    if (Math.abs(drag.dx) > 92) {
-      drag.card.style.transform = `translateX(${drag.dx > 0 ? 420 : -420}px)`;
-      dismissSug(Number(drag.w.dataset.dismissable));
-    } else {
-      drag.card.style.transform = "";
-      drag.card.style.opacity = "";
-    }
-  }
-  window.addEventListener("pointerup", endSugDrag);
-  window.addEventListener("pointercancel", endSugDrag);
-
-  /* Deck gesture. Left « Passer » sends the card to the back of the order —
-     it decides nothing and comes round again. Right « Pas intéressé » removes
-     it, with an undo. Listeners are passive; the card claims the horizontal
-     axis through `touch-action: pan-y` on `.deck`. */
-  let deckDrag = null;
-  cadre.addEventListener(
-    "pointerdown",
-    (event) => {
-      const card = event.target.closest?.('.dcard[data-depth="0"]');
-      if (!card || !event.isPrimary) return;
-      deckDrag = {
-        card,
-        x: event.clientX,
-        y: event.clientY,
-        dx: 0,
-        axis: null,
-      };
-    },
-    { passive: true },
-  );
-  cadre.addEventListener(
-    "pointermove",
-    (event) => {
-      if (!deckDrag) return;
-      const point = event;
-      const deltaX = point.clientX - deckDrag.x,
-        deltaY = point.clientY - deckDrag.y;
-      if (deckDrag.axis === null) {
-        if (Math.abs(deltaX) < 6 && Math.abs(deltaY) < 6) return;
-        deckDrag.axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.2 ? "x" : "y";
-        if (deckDrag.axis === "x") deckDrag.card.classList.add("dragging");
-      }
-      if (deckDrag.axis !== "x") return;
-      deckDrag.dx = deltaX;
-      // The card leans into the movement: the rotation is what makes it read
-      // as a card being pulled off a deck rather than a panel sliding.
-      deckDrag.card.style.transform = `translateX(${deltaX}px) rotate(${deltaX / 26}deg)`;
-      const element = deckDrag.card.querySelector(".dhint.l");
-      const element2 = deckDrag.card.querySelector(".dhint.r");
-      const min = Math.min(1, Math.max(0, (Math.abs(deltaX) - 20) / 70));
-      if (element) element.style.opacity = deltaX < 0 ? String(min) : "0";
-      if (element2) element2.style.opacity = deltaX > 0 ? String(min) : "0";
-    },
-    { passive: true },
-  );
-  function endDeckDrag() {
-    if (!deckDrag) return;
-    const drag = deckDrag;
-    deckDrag = null;
-    drag.card.classList.remove("dragging");
-    if (drag.axis !== "x") return;
-    const index = Number(drag.card.dataset.deck);
-    if (Math.abs(drag.dx) > 88) {
-      // The pile is ANIMATED, not rebuilt: avancerDeck moves the existing
-      // nodes, which is the only way the card underneath can rise rather than
-      // appear. The state is updated alongside, never by re-rendering.
-      if (drag.dx > 0) {
-        // avancerDeck() animates the DOM directly, never through render():
-        // the bump is explicit so React learns the card left the deck.
-        currentState().sugGone.add(index);
-        store.touch();
-        advanceDeck(index, 1);
-        toastUndo(`« ${suggestions()[index].t} » écarté.`, () => {
-          currentState().sugGone.delete(index);
-          store.touch();
-          refreshDeck();
-        });
-      } else {
-        passerSug(index);
-        advanceDeck(index, -1);
-      }
-      return;
-    }
-    drag.card.style.transform = "";
-    drag.card
-      .querySelectorAll(".dhint")
-      .forEach((querySelectorAll) => (querySelectorAll.style.opacity = "0"));
-  }
-  window.addEventListener("pointerup", endDeckDrag);
-  window.addEventListener("pointercancel", endDeckDrag);
-
-  /* 3) Pull-to-refresh — on the rest of the surface. ALL listeners are
-     passive: a single non-passive touchmove takes iOS out of the compositor
-     and makes the sticky chrome shimmer.
-
-     THE FINGER IS READ FROM TOUCH EVENTS, everything else from pointer
-     events, and one implementation serves both.
-
-     The reason is not stylistic. These two gestures live INSIDE the
-     scrollport, and the browser owns vertical panning there. The moment it
-     decides a drag is a scroll it fires `pointercancel` and stops delivering
-     `pointermove` for that pointer — measured: one move delivered, then
-     cancel, while ten `touchmove` arrive for the same finger. A pointer-only
-     implementation therefore works under synthetic events, which are never
-     cancelled, and does nothing at all under a real thumb.
-
-     Claiming the axis in `touch-action` is the usual answer and is not
-     available here: `pan-y` on the scrollport intersects down onto
-     `.pillscroll` and `.cast`, which declare `pan-x pan-y`, and a `pan-x`
-     scroller under a `pan-y` ancestor pans on neither axis. The gestures that
-     CAN claim their axis — a swipeable row, a deck card — keep the pointer
-     path, and their stream is never cancelled. */
-  let refreshing = false,
-    minuteurRefresh = null;
-  const ptr = select("#ptr");
-
-  /* Puts the indicator back to rest, pending refresh included.
-
-     A refresh in flight outlives a change of state, and the indicator's classes
-     are not part of the state object, so without this a measurement inherits
-     the spinner of the one before it — which is exactly how a first pass at
-     this gesture reported it working on half the surfaces and broken on the
-     other half, in alternation. */
-  window.__reposPTR = () => {
-    if (minuteurRefresh !== null) {
-      clearTimeout(minuteurRefresh);
-      minuteurRefresh = null;
-    }
-    refreshing = false;
-    pullGesture.reset();
-    ptr.className = "ptr";
-    ptr.style.height = "0px";
-    ptr.style.transition = "";
-    return true;
-  };
-
-  /* THE PULL — arbitrated in `lib/pull-gesture.ts`.
-
-     The GESTURE moved to that module: the axis decision, the edge dead zone, the
-     damping and the arming distance are vocabulary, and vocabulary is not the
-     engine's (invariant 10). `MODEL.md` Part 8 places it exactly — « a gesture
-     on `#port` that knows nothing of what refreshes ».
-
-     What stays here is what a completed pull MEANS: drawing the indicator and
-     saying « Actualisé ». Nothing was added to the engine to do it — the block
-     left and an import took its place, which is the only shape D5 allows. */
-  const pullGesture = installPullGesture({
-    port,
-    isExcluded: (target) =>
-      !!(
-        target.closest?.(".swipe") ||
-        target.closest?.(".sugwrap") ||
-        // A drag born on a deck card belongs to the card: without this the
-        // page handler also fires and navigates away mid-gesture.
-        target.closest?.(".deck") ||
-        target.closest?.(".pillscroll")
-      ),
-    onPull: (pulled, armed) => {
-      if (refreshing) return;
-      ptr.style.height = pulled + "px";
-      ptr.style.transition = "none";
-      ptr.classList.toggle("armed", armed);
-    },
-    onRelease: (armed) => {
-      ptr.style.transition = "";
-      if (armed && !refreshing) {
-        refreshing = true;
-        ptr.classList.add("loading");
-        ptr.style.height = "44px";
-        minuteurRefresh = window.setTimeout(() => {
-          minuteurRefresh = null;
-          refreshing = false;
-          ptr.classList.remove("loading", "armed");
-          ptr.style.height = "0px";
-          toast("Actualisé.");
-        }, 1100);
-      } else {
-        ptr.style.height = "0px";
-        ptr.classList.remove("armed");
-      }
-    },
-  });
+     The reset no longer writes `className = "ptr"`: it removes the two state
+     classes it added. That one assignment erased every utility the markup
+     paints on the indicator, which is why its states had to be read on the
+     spinner inside it (ruling 59). */
 
   /* 4) Sheet: dragging the handle to close moved to the shell with the layer
      itself — `src/components/sheet.tsx` owns the handle, the pointer capture
@@ -3706,8 +1693,6 @@ import {
    dependency is readable and a deletion breaks the build instead of a run. */
 export {
   applyState,
-  openDeleteDialog,
-  openDrawer,
   resetSettings,
   render,
   toast,
@@ -3752,50 +1737,36 @@ Object.assign(window, {
   DEPENDENCIES, DISKS,
   EP_LABEL, EP_ORDER, EP_SWATCH, ERRORS, DECISION_STATE,
   DECISION_STATE_DETAIL, EXECUTIONS,
-  GROUPS, INCOMPLETE, INDEX, JOURNAL, LIBRARY,
+  GROUPS, INDEX, JOURNAL,
   LIB_PAGE, LIB_TOTAL, MAINT_TOPICS, MOIS, REASON_LABEL,
   REASON_DETAIL, REASON_TONE,
   SETTINGS_STATE, RESOLUTIONS,
-  SEASONS, SECRETS, SERVICES, SERVICES_PANNE,
+  SECRETS, SERVICES, SERVICES_PANNE,
   ST_LABEL,
   ST_LABEL_MOVIE, ST_TONE,
-  URGENCY, VIA_LABEL, actionLeave,
-  actionTake, actionResolve,
+  URGENCY, VIA_LABEL,
   actionDelete, addVerb, showSignIn,
   baseTitle, beforeReset, cadenceFR,
-  closeDlg, closeSheet,
-  dateFR, decisionPending,
-  signOut,
-  endCardDrag, endDeckDrag,
-  endSugDrag, escapeHtml,
-  closePopEp, closeDrawer, changedFiles,
-  gridBadge, icons, initialsOf, drawerWidth,
-  sameValue, changeSetting,
+  closeSheet,
+  dateFR,
+  escapeHtml,
+  changedFiles,
+  gridBadge, icons, initialsOf,
   mountLoaders, mountSearch, fileName,
-  openDeleteDialog,
-  openPanel,
   openSheet,
-  openPopEp,
-  openDrawer, paintSelBar, panelUnderFinger,
+  panelUnderFinger,
   nextSearchFR,
-  ptr, refPanel, collapseCard,
   settingId, resetSettings, render,
-  select, sortLabel,
+  select,
   stFraction, stLabel,
   sugVerb,
   svgIcon, toast, toastUndo,
   displayedValue,
-  rawValue, typedValue, view,
+  typedValue, view,
 });
 
 // Read live, because the engine reassigns each of these.
 Object.defineProperties(window, {
-  cardDrag: { get: () => cardDrag, configurable: true },
-  openCard: { get: () => openCard, configurable: true },
-  openCardDx: { get: () => openCardDx, configurable: true },
-  clickAfterDrag: { get: () => clickAfterDrag, configurable: true },
-  swallowClick: { get: () => pressArbitration.swallowClick, configurable: true },
-  deckDrag: { get: () => deckDrag, configurable: true },
   store: { get: () => store, configurable: true },
   // A LIVE READ, not an alias. There is no cached `state` binding left to
   // publish — the getter goes to the store, exactly as the engine's own
@@ -3810,5 +1781,4 @@ Object.defineProperties(window, {
   // getter that names the property it defines is a loop, and the only
   // reason it is not a syntax error is that the resolution is late.
   state: { get: () => currentState(), configurable: true },
-  sugDrag: { get: () => sugDrag, configurable: true },
 });

@@ -105,7 +105,7 @@ async def main():
       window.__go('acq-add-results'); await new Promise(r=>setTimeout(r,240));
       document.querySelector('[data-part="result/list"] [data-panel^="add:"]')?.click();
       await new Promise(r=>setTimeout(r,400));
-      measure('[data-act^="add:"]','search result (in its panel)');
+      measure('[data-add]','search result (in its panel)');
       window.__closeLayers?.(); await new Promise(r=>setTimeout(r,240));
       window.__go('lib-delete'); await new Promise(r=>setTimeout(r,240));
       measure('[data-part="dialog/button"][data-tone="danger"]','dialog (danger)');

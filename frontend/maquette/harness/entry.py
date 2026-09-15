@@ -17,6 +17,9 @@ What this script holds to:
     screen — the wordmark, the card, the fields, the button;
   · they say the same words;
   · the host takes its palette from the prototype rather than carrying one.
+
+RE-AIMED, count unchanged: signing out is asked of `window.__entry.signOut()`, the entry
+seam the harness publishes; the engine's global `signOut` went with its delegation branch.
 """
 import asyncio
 import pathlib
@@ -96,7 +99,7 @@ async def main():
         await pg2.goto("http://127.0.0.1:8899/", wait_until="load")
         await pg2.evaluate("()=>document.querySelector('#toastx').click()")
         await pg2.wait_for_timeout(250)
-        await pg2.evaluate("()=>signOut()")
+        await pg2.evaluate("()=>window.__entry.signOut()")
         await pg2.wait_for_timeout(700)
         signout = await pg2.evaluate(READ)
         await b.close()

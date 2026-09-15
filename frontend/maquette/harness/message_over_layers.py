@@ -1,5 +1,8 @@
 """R159 — a message said while a layer is open is SEEN, and it takes a finger (B-381).
 
+RE-AIMED: the season rows are `window.__mocks.seasons()` — the served seasons read's
+rows, the ones every season block now draws — since the engine's season table died.
+
 WHAT NOBODY COULD SEE. A verb pressed inside the bottom sheet speaks through the
 message layer, and the frame ranked the message at z-49 under the sheet at z-52
 (`ui/variants/frame.ts`). The sentence was in the document, visible, at full
@@ -156,7 +159,7 @@ THE_FOLLOW_WITH_A_HOLE = """()=>{
   const drawn = [...document.querySelectorAll('[data-panel]')].map((one) => one.dataset.panel);
   for (const follow of (window.__followActions?.all() || [])) {
     if (!drawn.some((seen) => seen === follow.t || seen.endsWith(':' + follow.t))) continue;
-    if ((window.SEASONS[follow.t] || []).some(([n, aired, owned]) => (owned || 0) < (aired || 0)))
+    if ((window.__mocks.seasons()[follow.t] || []).some(([n, aired, owned]) => (owned || 0) < (aired || 0)))
       return follow.t;
   }
   return null;}"""

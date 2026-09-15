@@ -9,9 +9,9 @@
 // belongs — never the page it came from.
 //
 // THE FIRST MIGRATED PAGE THAT CARRIES A CONTROL WHICH MUTATES. The pilot's bar
-// emits `data-pipe="start"` / `"stop"` and nothing else: the writing stays
-// the document-level delegation's, exactly as it was, so this component never
-// touches the world. Its three states include the one DOIT-4 exists for — an
+// emits `data-pipe="start"` / `"stop"`, and the verb (`verbs.ts`) asks the
+// pipeline's own endpoints; the bar draws what the status read answers, so this
+// component never touches the world. Its three states include the one DOIT-4 exists for — an
 // action asked during a run is QUEUED, visibly, never refused with « busy, try
 // again ».
 //
@@ -99,7 +99,7 @@ function PipelineBar(): ReactElement | null {
   const { data: PIPELINE } = usePipeline();
   if (!PIPELINE) return null;
 
-  if (state.pipe === "running" || state.pipe === "queued") {
+  if (PIPELINE.state === "running" || PIPELINE.state === "queued") {
     const step = PIPELINE.steps[3];
     return (
       <section className={pilotBar()} data-part="pipeline" data-region="arrivals/pilot-bar">
@@ -119,7 +119,7 @@ function PipelineBar(): ReactElement | null {
         {/* « Relancer ensuite » stays offered WHILE a run is going, and that is
             the point rather than an oversight: new downloads land during a
             pass, and asking for another one is a legitimate thing to want. */}
-        {state.pipe === "queued" ? (
+        {PIPELINE.state === "queued" ? (
           <>
             <div className={liveStrip()} data-part="live-activity">
               <span className={liveDot()}></span>
@@ -227,7 +227,7 @@ export function ArrivalsPage(): ReactElement | null {
     tone: StatusTone,
     title: string,
     cards: QueueCard[],
-    foot?: { label: string; act: string },
+    foot?: { label: string; attributes: Record<string, string> },
     note?: ReactElement,
   ) =>
     cards.length === 0 ? null : (
@@ -285,7 +285,7 @@ export function ArrivalsPage(): ReactElement | null {
         "danger",
         t("screens.arrivals.stuckTitle"),
         stuck,
-        { label: t("screens.arrivals.stuckFoot"), act: "resolve" },
+        { label: t("screens.arrivals.stuckFoot"), attributes: { "data-resolution": "" } },
         <>
           <b>{t("screens.arrivals.stuckNoteLead")}</b>
           {t("screens.arrivals.stuckNoteRest")}

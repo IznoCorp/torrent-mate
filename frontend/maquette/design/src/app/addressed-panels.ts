@@ -16,26 +16,29 @@
 // addressed `<file>:<key>`, and a title like « Dexter: Resurrection » would
 // otherwise name a medium that does not exist.
 import { addressSeam } from "../lib/addresses";
+import { membershipQuery, type Membership } from "../lib/membership";
+import { sharedQueryClient } from "../lib/query-client";
 import { queueLists } from "../lib/queue";
-import { panel } from "../lib/shell-doors";
+import { followedTitles, panel } from "../lib/shell-doors";
 import { walk } from "./page-switch";
 
-/* WHETHER THIS INTERFACE HOLDS A MEDIUM, handed in by the engine, which still
-   answers it from the follows and from the library and incomplete fixtures it
-   carries. The membership is EXACT: a title that only has a sheet is not a
-   follow. It is asked for here rather than read from the query cache because
-   the library listing in the cache is PAGED, so the cache would answer for the
-   pages a surface happened to load and refuse the rest. */
-let knownMedium: (title: string) => boolean = () => false;
+/* WHETHER THIS INTERFACE HOLDS A MEDIUM: followed, or held. The membership is
+   EXACT and SERVED — asked about this very title, never read off a page of the
+   listing a surface happened to load, which would refuse every title on the
+   pages nobody opened.
 
-/**
- * Installs the answer to « does this interface hold that medium ».
- *
- * Args:
- *     answer: The membership test, by exact title.
- */
-export function installKnownMedium(answer: (title: string) => boolean): void {
-  knownMedium = answer;
+   NOT YET IS NOT NO. The first time a title is asked about, its membership has
+   not landed: the read is started here and the answer is « no » for now, which
+   the arrival's frame-by-frame wait reads as « not yet » and asks again. */
+function heldMedium(title: string): boolean {
+  if (followedTitles?.().includes(title)) return true;
+  const query = membershipQuery(title);
+  const answer = sharedQueryClient?.getQueryData<Membership>(query.queryKey);
+  if (answer === undefined) {
+    void sharedQueryClient?.prefetchQuery(query);
+    return false;
+  }
+  return answer.inLibrary;
 }
 
 type Opener = {
@@ -50,7 +53,7 @@ const REOPEN: Readonly<Record<string, Opener | undefined>> = {
      construction, which is the shape a typed address must be refused by. */
   follow: {
     open: (subject) => panel.produce("follow", subject),
-    resolves: (subject) => knownMedium(subject),
+    resolves: (subject) => heldMedium(subject),
   },
   journey: {
     open: (subject) => panel.produce("journey", subject),
@@ -60,7 +63,7 @@ const REOPEN: Readonly<Record<string, Opener | undefined>> = {
        journey describes. The layer answers the same stages for any info hash,
        so a `holds` built on that read would say yes to everything. */
     resolves: (subject) =>
-      knownMedium(subject) ||
+      heldMedium(subject) ||
       (queueLists?.().inFlight ?? []).some((entry) => entry.t === subject),
   },
   setting: {

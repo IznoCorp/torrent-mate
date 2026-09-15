@@ -53,6 +53,9 @@
 #     frontend/maquette/harness/run.sh --contracts  # the name-contract subset
 #     frontend/maquette/harness/run.sh --oracle     # the recorded oracle alone
 #     frontend/maquette/harness/run.sh --a11y       # the accessibility audit alone
+#     frontend/maquette/harness/run.sh --contracts --oracle  # a phase gate: both, one build
+#     frontend/maquette/harness/run.sh --contracts --oracle settings.py page_host.py
+#                                        # the same, with the phase's re-aimed rules replayed
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -222,19 +225,73 @@ REPOSITORY_ROOT="$(cd "$HERE/../../.." && pwd)"
 # lives behind this script rather than beside it: a stale `wrapped.html`
 # measures the previous build, and an ORACLE measuring the previous build says
 # « no divergence » about a change it never saw.
+#
+# A PHASE GATE IS BOTH, and two invocations built and copied the prototype twice
+# — about two minutes measuring nothing. `--contracts --oracle`, in either order,
+# is the contracts tier followed by the oracle over ONE build; a fallen rule or
+# guard does NOT stop it: the oracle runs anyway, and one verdict block closes
+# the run naming both halves, so a phase holds the served copy ONCE.
+#
+# RULES NAMED AFTER THE TWO FLAGS are the phase's re-aimed rules, replayed in the
+# same pass over the same build; a name with no file beside this script is
+# refused before anything is built.
+TIER="${1:-}"
+WITH_ORACLE=0
+NAMED_RULES=()
+if [ "$#" -ge 2 ] && { [ "$1 $2" = "--contracts --oracle" ] || [ "$1 $2" = "--oracle --contracts" ]; }; then
+  TIER="--contracts"
+  WITH_ORACLE=1
+  shift 2
+  # EACH ARGUMENT IS RESOLVED WHOLE, never by its `basename` alone: several
+  # paths an unsplit shell variable hands over as ONE word end in a rule that
+  # exists, and reading only that last name ran one rule and called the gate
+  # green. A path must name a file IN this directory; a bare name, a file beside
+  # this script.
+  harness_directory="$(cd "$HERE" && pwd -P)"
+  for rule in "$@"; do
+    case "$rule" in
+      */*) rule_directory="$(cd "$(dirname "$rule")" 2>/dev/null && pwd -P || true)" ;;
+      *) rule_directory="$harness_directory" ;;
+    esac
+    if [ "$rule_directory" != "$harness_directory" ] || [ ! -f "$harness_directory/$(basename "$rule")" ]; then
+      echo "run.sh: no rule named $rule beside $HERE/run.sh" >&2
+      exit 2
+    fi
+    NAMED_RULES+=("$(basename "$rule")")
+  done
+else
+  # AN ARGUMENT THIS SCRIPT DOES NOT READ IS REFUSED, never dropped. A rule
+  # named after a single tier was ignored in silence — « 0 named rule(s) », exit
+  # 0 — and a bare rule name ran the full suite: both read as a rule proved
+  # green that never ran.
+  case "$#:$TIER" in
+    0:|1:--contracts|1:--oracle|1:--a11y) ;;
+    *)
+      echo "run.sh: rule names are only read with --contracts --oracle — refused: $*" >&2
+      exit 64
+      ;;
+  esac
+fi
 ORACLE_ONLY=0
 A11Y_ONLY=0
-if [ "${1:-}" = "--oracle" ]; then
+if [ "$TIER" = "--oracle" ]; then
   ORACLE_ONLY=1
   scripts=()
   label="recorded oracle only"
-elif [ "${1:-}" = "--a11y" ]; then
+elif [ "$TIER" = "--a11y" ]; then
   A11Y_ONLY=1
   scripts=()
   label="accessibility audit only"
-elif [ "${1:-}" = "--contracts" ]; then
+elif [ "$TIER" = "--contracts" ]; then
   scripts=("${CONTRACTS[@]}")
-  label="contract subset (${#CONTRACTS[@]} rules)"
+  # `${array[@]+…}`: an EMPTY array is unbound under `set -u` in the bash macOS ships.
+  for rule in ${NAMED_RULES[@]+"${NAMED_RULES[@]}"}; do
+    case " ${scripts[*]} " in
+      *" $rule "*) ;;
+      *) scripts+=("$rule") ;;
+    esac
+  done
+  label="contract subset (${#CONTRACTS[@]} rules) + ${#NAMED_RULES[@]} named rule(s)"
 else
   scripts=()
   for s in "$HERE"/*.py; do
@@ -338,6 +395,13 @@ fi
 # hatch that matters: a rule that measures a settle can read a contended CPU as
 # a slow animation. A rule that needs the machine to itself is a finding to
 # record, not a reason to run all of them alone.
+# EVERY RULE IS BOUNDED, and a rule past its bound is an INSTRUMENT that fell,
+# never a hold that passed: a hung rule once held the served copy for forty-five
+# minutes. `TM_RULE_TIMEOUT_SECONDS` moves the bound (ten minutes; the longest
+# rule takes two or three).
+RULE_TIMEOUT_SECONDS="${TM_RULE_TIMEOUT_SECONDS:-600}"
+BOUND="$(command -v timeout || command -v gtimeout || true)"
+[ -n "$BOUND" ] || echo "run.sh: no timeout command on this machine — rules run unbounded" >&2
 JOBS="${TM_HARNESS_JOBS:-}"
 if [ -z "$JOBS" ]; then
   JOBS="$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)"
@@ -349,6 +413,7 @@ fi
 LOGS="$(mktemp -d)"
 
 failed=0
+timed_out=0
 # The `--oracle` and `--a11y` tiers run no rule script, and an empty array is
 # both an unbound variable under `set -u` with the bash macOS ships AND empty
 # input to `xargs`, which GNU runs once and BSD runs never. They are therefore
@@ -364,13 +429,24 @@ else
   # placeholder `bash -c` consumes — and the two paths through the environment.
   printf '%s\n' "${scripts[@]}" \
     | HARNESS_DIR="$HERE" HARNESS_LOGS="$LOGS" STAMP_TOKEN="$STAMP_TOKEN" \
+      HARNESS_BOUND="$BOUND" HARNESS_RULE_TIMEOUT="$RULE_TIMEOUT_SECONDS" \
       xargs -P "$JOBS" -n 1 bash -c '
         rule="$1"
         # No `else`: the `if` exits 0 whichever way the rule went, so a fallen
         # rule does not abort `xargs` and take the rules after it with it.
         # Absence of the `.ok` marker IS the failure, read back below.
-        if python3 "$HARNESS_DIR/$rule" > "$HARNESS_LOGS/$rule.out" 2>&1; then
+        status=0
+        if [ -n "$HARNESS_BOUND" ]; then
+          "$HARNESS_BOUND" --kill-after=10 "$HARNESS_RULE_TIMEOUT" \
+            python3 "$HARNESS_DIR/$rule" > "$HARNESS_LOGS/$rule.out" 2>&1 || status=$?
+        else
+          python3 "$HARNESS_DIR/$rule" > "$HARNESS_LOGS/$rule.out" 2>&1 || status=$?
+        fi
+        if [ "$status" -eq 0 ]; then
           : > "$HARNESS_LOGS/$rule.ok"
+        elif [ -n "$HARNESS_BOUND" ] && { [ "$status" -eq 124 ] || [ "$status" -eq 137 ]; }; then
+          echo "TIMED OUT after ${HARNESS_RULE_TIMEOUT} s — an INSTRUMENT fall, not a verdict" >> "$HARNESS_LOGS/$rule.out"
+          : > "$HARNESS_LOGS/$rule.timedout"
         fi
         # THE STAMP, AROUND EVERY RULE (B-256). This reading is what covers the
         # twelve rules that import nothing from `common.py` — `audit2.py`, the
@@ -391,7 +467,12 @@ else
 
   for s in "${scripts[@]}"; do
     [ -f "${LOGS}/${s}.ok" ] && continue
-    echo "  FAILED: $s"
+    if [ -f "${LOGS}/${s}.timedout" ]; then
+      echo "  TIMED OUT: $s — an instrument fall, not a verdict"
+      timed_out=$((timed_out + 1))
+    else
+      echo "  FAILED: $s"
+    fi
     # The holds that fell — and if the filter matches nothing, the TAIL, because
     # not every rule speaks the same way. `audit2.py` uses no `common.Journal`:
     # it prints `■ R15 — 2` and `TOTAL, second pass: N violations`, so the
@@ -399,7 +480,10 @@ else
     # audit2.py » and stopped — verbatim the defect this block was added to fix.
     # A filter that can return nothing must have a floor.
     out="$(cat "${LOGS}/${s}.out")"
-    hits="$(echo "$out" | grep -E "FAIL|Error|Traceback|error:|violation|■" | head -12)"
+    # `|| true`: under `pipefail` a grep that matches nothing fails the
+    # assignment, and `set -e` then ended the whole run in silence — the floor
+    # below was never reached for the very rule it was written for.
+    hits="$(echo "$out" | grep -E "FAIL|Error|Traceback|error:|violation|TIMED OUT|■" | head -12 || true)"
     [ -z "$hits" ] && hits="$(echo "$out" | tail -12)"
     echo "$hits" | sed 's/^/      /'
     failed=$((failed + 1))
@@ -426,11 +510,11 @@ if [ "$ORACLE_ONLY" -eq 0 ] && [ "$A11Y_ONLY" -eq 0 ]; then
   done
 fi
 
-if [ "$failed" -gt 0 ]; then
+if [ "$failed" -gt 0 ] && [ "$WITH_ORACLE" -eq 0 ]; then
   echo "harness: $failed check(s) FAILED — run the script or the guard alone to see which hold fell." >&2
   exit 1
 fi
-if [ "$ORACLE_ONLY" -eq 0 ] && [ "$A11Y_ONLY" -eq 0 ]; then
+if [ "$failed" -eq 0 ] && [ "$ORACLE_ONLY" -eq 0 ] && [ "$A11Y_ONLY" -eq 0 ]; then
   echo "harness: ${#scripts[@]} rule(s) and ${#REPOSITORY_GUARDS[@]} repository guard(s), no violation."
 fi
 
@@ -442,7 +526,7 @@ fi
 # not for the same cost. The contracts subset answers « did a NAME move without
 # all of its ends? », and an accessibility violation is not that question. CI
 # runs this tier as its own step, beside the contracts one.
-if [ "${1:-}" != "--contracts" ] && [ "$ORACLE_ONLY" -eq 0 ]; then
+if [ "$TIER" != "--contracts" ] && [ "$ORACLE_ONLY" -eq 0 ]; then
   echo
   echo "Running the accessibility audit (the markup is usable)…"
   python3 "${HERE}/../a11y.py" --check
@@ -460,8 +544,21 @@ fi
 # metrics, not a change to anything. Same reason `arrivals.py` is kept out of the
 # subset: a hold that fails on the runner for a reason foreign to the change
 # under test teaches nobody anything and gets muted.
-if [ "${1:-}" != "--contracts" ] && [ "$A11Y_ONLY" -eq 0 ]; then
+if { [ "$TIER" != "--contracts" ] || [ "$WITH_ORACLE" -eq 1 ]; } && [ "$A11Y_ONLY" -eq 0 ]; then
   echo
   echo "Running the recorded oracle (the rendering did not move)…"
-  python3 "${HERE}/../oracle.py" --check
+  oracle_status=0
+  python3 "${HERE}/../oracle.py" --check || oracle_status=$?
+  if [ "$WITH_ORACLE" -eq 1 ]; then
+    echo
+    echo "── phase gate verdict ──"
+    echo "  rules: ${#scripts[@]} (${#NAMED_RULES[@]} named) and ${#REPOSITORY_GUARDS[@]} guard(s) — ${failed} failed (${timed_out} timed out)"
+    echo "  oracle: exit ${oracle_status}"
+    if [ "$failed" -gt 0 ] || [ "$oracle_status" -ne 0 ]; then
+      echo "gate: FAILED"
+      exit 1
+    fi
+    echo "gate: no violation"
+  fi
+  exit "$oracle_status"
 fi

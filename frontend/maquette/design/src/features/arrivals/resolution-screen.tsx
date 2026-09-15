@@ -183,7 +183,7 @@ export function ResolutionScreen() {
               {t("screens.resolution.leaveAsIs")}
             </button>
             {pending.length > 1 ? (
-              <button className={actionButton({ kind: "panelAction" })} data-part="sheet/action" data-next={folder}>
+              <button className={actionButton({ kind: "panelAction" })} data-part="sheet/action" data-next={folder || undefined}>
                 <Icon paths={icons.right} />
                 {t("screens.resolution.next")}
               </button>

@@ -23,6 +23,7 @@ import "../features/media/panel-seasons";
 import "../features/media/popover-episode";
 import "../features/settings/panels";
 import "../features/account/panel-account";
+import "../features/account/verbs";
 import "../features/maintenance/panel-action";
 import "../features/library/panel-sort";
 import "../features/acquisition/panels";
@@ -35,10 +36,16 @@ import "../features/arrivals/verbs";
 // their values is what B-309 cost; each wears its own name now.
 import "../features/releases/verbs";
 // And acquisition contributes verbs beside its panels: the follows' own act,
-// which two surfaces emit, and the deck's drop. Both declare themselves to the
-// tap registry at module evaluation, so naming them here is the whole wiring.
+// which two surfaces emit, the deck's drop, the page's selectors and panel acts,
+// and the add screen's act. Each declares itself to the tap registry at module
+// evaluation, so naming them here is the whole wiring.
 import "../features/acquisition/follow-verbs";
 import "../features/acquisition/deck-verbs";
+import "../features/acquisition/verbs";
+import "../features/acquisition/add-verbs";
+// And the library's verbs: the lens, the category, the layout, the sort, the
+// search's clear cross, the selection and the removals.
+import "../features/library/verbs";
 // And Configuration contributes verbs beside its panels: the rubric one,
 // moved off the engine's own delegation with the branch that answered it
 // (B-332), and the secrets' three — replacing a key, asking before cutting
@@ -47,4 +54,5 @@ import "../features/acquisition/deck-verbs";
 // rubrics (B-361).
 import "../features/settings/topic-verb";
 import "../features/settings/secret-verbs";
+import "../features/settings/verbs";
 import "../features/maintenance/topic-verb";

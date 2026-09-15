@@ -12,6 +12,9 @@ RE-AIMED, said out loud: the expected episode was read from `sheetFor`; it is re
 its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
 `__carriedFor` — the seed the served read answers from, published by the harness
 driver — and the hold count is unchanged.
+
+RE-AIMED, count unchanged: the popover is closed through `window.__popover.close()`, the
+frame's popover door the harness publishes; the engine's global `closePopEp` went with its branch.
 """
 
 import asyncio
@@ -79,7 +82,7 @@ async def main():
     await shot(pg, "pop-episode")
 
     print("── Silo (including announced episodes) ──")
-    await pg.evaluate("()=>{closePopEp();window.__go('acq-follows-list');}"); await pg.wait_for_timeout(300)
+    await pg.evaluate("()=>{window.__popover.close();window.__go('acq-follows-list');}"); await pg.wait_for_timeout(300)
     await pg.evaluate("()=>window.__panel.produce('follow', 'Silo')"); await pg.wait_for_timeout(450)
     # THE SAME SHAPE as the two above, so `click_` can read the cell's own
     # `data-ep` from it before tapping. It used to be a block statement, which

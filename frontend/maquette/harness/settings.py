@@ -557,25 +557,52 @@ async def main():
 
         await pg.evaluate("()=>window.__go('settings-field-boolean')")
         await pg.wait_for_timeout(320)
+        # The switch as it is SEEN, before and after the tap: the panel is
+        # re-produced by the act, so the element is read afresh each time.
+        drawn_switch = """()=>{const one = document.querySelector('#sheetin [data-part="field/toggle"]');
+          return one ? one.getAttribute('aria-checked') : null;}"""
+        switch_before = await pg.evaluate(drawn_switch)
         await pg.click('#sheetin [data-part="field/toggle"]')
         await pg.wait_for_timeout(320)
         toggled = await pg.evaluate(
             "()=>[...SETTINGS_STATE.modifs.values()].map(v => [v, typeof v])")
         check("a switch files a boolean",
               len(toggled) == 1 and toggled[0][1] == "boolean", str(toggled))
+        switch_after = await pg.evaluate(drawn_switch)
+        check("and the tap FLIPS the value the switch draws",
+              switch_before in ("true", "false") and switch_after
+              == ("false" if switch_before == "true" else "true"),
+              f"aria-checked {switch_before} → {switch_after}")
 
         await pg.evaluate("""()=>{
           const x = window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.r)
             .find(y => y.type === 'list' && (y.brut || []).length > 1);
           SETTINGS_STATE.topic = window.__queries.getQueryData(['/api/config/schema']).find(r => r.r.includes(x)).id;
-          render(); window.__panel.produce("setting", settingId(x));}""")
+          window.__store.touch(); window.__panel.produce("setting", settingId(x));}""")
         await pg.wait_for_timeout(330)
         before = await pg.evaluate("""()=>document.querySelectorAll('#sheetin [data-part="field/list-item"]').length""")
-        await pg.click('#sheetin [data-part="field/list-remove"]')
+        # The items as they are SEEN. The SECOND one is removed, never the
+        # first: a removal that ignored the index and dropped the head of the
+        # list would read the same as a correct one at index 0.
+        list_items = """()=>[...document.querySelectorAll('#sheetin [data-part="field/list-item"] > span')]
+          .map((one) => one.textContent)"""
+        items_before = await pg.evaluate(list_items)
+        await pg.click('#sheetin [data-part="field/list-remove"][data-index="1"]')
         await pg.wait_for_timeout(330)
         after = await pg.evaluate("""()=>document.querySelectorAll('#sheetin [data-part="field/list-item"]').length""")
         check("a list really loses an item", after == before - 1,
               f"{before} → {after}")
+        items_after = await pg.evaluate(list_items)
+        check("and the item it loses is the one at the tapped index",
+              items_after == items_before[:1] + items_before[2:],
+              f"{items_before} → {items_after}")
+        await pg.click('#sheetin [data-part="field/list-add"]')
+        await pg.wait_for_timeout(330)
+        items_added = await pg.evaluate(list_items)
+        check("and « Ajouter » gives the list one more item, named after its place",
+              items_added[:-1] == items_after
+              and items_added[-1:] == [f"valeur {len(items_added)}"],
+              f"{items_after} → {items_added}")
 
         # A field belongs to the setting it edits, and to no other. The panel
         # is ONE layer, reused from one setting to the next — the checks above
@@ -590,7 +617,7 @@ async def main():
           const texts = window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.r).filter(x => x.type === 'text');
           const x = texts[n];
           SETTINGS_STATE.topic = window.__queries.getQueryData(['/api/config/schema']).find(r => r.r.includes(x)).id;
-          render(); window.__panel.produce("setting", settingId(x));
+          window.__store.touch(); window.__panel.produce("setting", settingId(x));
           return {id: settingId(x), own: String(x.brut ?? '')};}"""
         read_field = """() => {const e = document.querySelector('#sheetin [data-part="field/input"]');
           return e ? {value: e.value, field: e.dataset.field} : null;}"""

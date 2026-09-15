@@ -72,7 +72,7 @@ function addPanel(position: string, cache: PanelCache): PanelDescriptor | null {
             icone: icons().plus,
             ton: "primary",
             desactive: done,
-            target: { act: `add:${position}` },
+            target: { add: position },
           },
           {
             text: translate("panels.add.seeSheet"),

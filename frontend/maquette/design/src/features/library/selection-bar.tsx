@@ -11,10 +11,8 @@
 // this node and appended it to `#device` on every selection change; it is a
 // component now, mounted once, and its own condition decides whether it draws.
 //
-// THE VERBS STAY WHERE THEY ARE. `data-selmode` and `data-delsel` are read by
-// the engine's document-level delegation, and this markup emits them
-// unchanged — a conversion moves the DRAWING and nothing else. They come to
-// this feature with the producers, at L19.
+// THE VERBS ARE THE FEATURE'S. `data-selmode` and `data-delsel` are answered by
+// `features/library/verbs.ts` on the tap registry.
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 

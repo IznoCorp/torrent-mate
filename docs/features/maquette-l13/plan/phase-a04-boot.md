@@ -30,7 +30,7 @@ A CONVERSION: what `__startEngine` does is the arrival, not the engine, so it be
   a·1) goes in the same commit.
 - **Deleted from `app/page-host.tsx`**: `__releasePage`, which no caller reads (DESIGN § 3), along
   with its type and its comment. `page_host.py` names it only in a comment.
-- **Unchanged.** `engine/seams.ts` stays until b·11, and so does its « must run first » ordering
+- **Unchanged.** `engine/seams.ts` stays until b·13, and so does its « must run first » ordering
   inside the shell.
 - **The size ledger.** `legacy.js` only subtracts, and `scripts/frontend_size_ledger.py` is
   re-recorded DOWNWARD in the same commit.

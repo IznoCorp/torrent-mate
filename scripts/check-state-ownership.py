@@ -109,6 +109,9 @@ INTERFACE_STATE_KEYS = {
     # the writes at all, so its promise that « a new key cannot arrive
     # unclassified » had already been broken three times over.
     "addKind", "idProv",
+    # THE SELECTION'S MEDIA COUNT, beside `selMode` and `selected`: a figure the
+    # interface derives from what the operator ticked, and nothing a server said.
+    "selectedMedia",
 }
 
 # What the union may be, and it is refused UPWARD. Lowered in the commit that

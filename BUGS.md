@@ -334,7 +334,7 @@ when the defect comes back.
 | B-272 | The compositor guard's floors carried slack while its own note claimed they had none — 3 `touch-action` sites were deletable under a green guard | by L12 | `fixed #540` |
 | B-273 | `scripts/mutate.sh` cannot judge a GUARD, and says « no hold fell » either way — and it exits SILENTLY when a mutation breaks the build | by L12 | `open` |
 | B-274 | `page_host.py`'s state-alias arm read DOCSTRINGS as code — English prose ending « … state. » before an assignment matched it | by L12 | `fixed #540` |
-| B-275 | Back from a media screen opened via « Voir la fiche » does NOT reopen the panel — §16's mirror cannot play | by L12 bench | `open` |
+| B-275 | Back from a media screen opened via « Voir la fiche » does NOT reopen the panel — §16's mirror cannot play | by L12 bench | `fixed #601` |
 | B-276 | A delay set by hand in an INSTRUMENT outlives the drawn duration it was set against — twice in one rule | by L12 | `open` |
 | B-277 | `exits.py`'s frame-count CONTROL flakes under the suite's parallel load — 2 falls in 3 runs, green alone | by L12 | `open` |
 | B-278 | The drawer's dismiss acknowledges itself TWICE — two marks, same millisecond, both with no previous value; unexplained | by L12 review | `open` |
@@ -349,7 +349,7 @@ when the defect comes back.
 | B-287 | 263 maquette/harness comments name a date, a lot or a phase — the rule against it has no arm, so nothing counts them | by L12 review | `fixed #558` |
 | B-288 | The media screen's priming matches a title by PREFIX, so a medium whose title prefixes another opens with the other one's poster and year | by L12 review | `open` |
 | B-289 | `check-frame-domain`'s comment scanner opens a phantom string on a REGEX LITERAL holding a quote, and counts every comment after it as code | by L12 | `fixed #540` |
-| B-290 | A layer closed inside a navigation's commit KEEPS its history entry, so Back crosses two entries where its siblings cross one | by L12 review | `open` |
+| B-290 | A layer closed inside a navigation's commit KEEPS its history entry, so Back crosses two entries where its siblings cross one | by L12 review | `fixed #601` |
 | B-291 | `harness-hold-counts.py --record` writes a reference nobody can tell from a good one: a `taken_at_commit` no guard checks (L12's gesture left it naming a squashed-away commit) and a baseline written over a rule that FAILED | by audit | `open` |
 | B-292 | `IMPLEMENTATION.md` cited a « parked » L06 spec at a directory no commit ever held | by audit | `fixed #539` |
 | B-293 | 38 `Design:` markers name `docs/features/…` paths that left the tree, and the design-gaps pair passes over them | by audit | `open` |
@@ -442,7 +442,7 @@ when the defect comes back.
 | B-394 | The harness's two floating buttons (the design note ⓘ and the states list ≡) are painted OVER a message shown at the top of the frame, so the sentence answering a verb pressed inside a layer is covered by chrome that is in no production build | by the operator, 2026-09-11 | `fixed #585` |
 | B-395 | The library's selection bar stays drawn on every other tab: `app/bottom-slot.tsx` renders it unconditionally and its own condition reads `selMode` alone, so « N sélectionnés · Annuler · Supprimer » sits over Acquisition — and the tab bar, hidden by that same `selMode`, leaves no way back | by the operator, 2026-09-11 | `fixed #585` |
 | B-396 | The mock seed offers exactly ONE folder with candidate cards, so the resolution window's riskiest path — a second pick taken inside the first one's undo window, and a put-back into a list that has moved — is reachable by no finger and is proved through the queue's seam alone | by audit | `fixed #592` |
-| B-397 | A panel RE-PRODUCED after an edit pushes a second history entry, so shutting it takes as many Backs as the edits made in it — the setting's panel is re-opened by `window.__panel.produce` on every commit, by the native blur path and by « Valider » alike | by rule | `open` |
+| B-397 | A panel RE-PRODUCED after an edit pushes a second history entry, so shutting it takes as many Backs as the edits made in it — the setting's panel is re-opened by `window.__panel.produce` on every commit, by the native blur path and by « Valider » alike | by rule | `fixed #601` |
 | B-398 | A page switch made from the DRAWER over an open rubric left TWO entries for the entry page, so the next Back changed nothing: `switchPageFromLayer` rewound a count that assumed at most one page entry above the floor, and a rubric's own entry makes three | by probe | `fixed #588` |
 | B-420 | A wrapped index row IS refused by `unparsed-row`, and refused for the wrong reason: the message says « a status cell without backticks », names no line, and the `corpus` arm prints one row fewer while reporting clean on its own — a reader is told to look for backticks that are all present | by the tooling micro-wave | `fixed #589` |
 | B-421 | An index row written AFTER the first body head is counted and read by the guard, and invisible to a reader: the Markdown table ends at the first non-row line, so the row is in every figure and on no rendered page — and nothing holds the index's order either, which is how a merge's conflict region re-glued a row twice on 2026-09-08 | by the tooling micro-wave | `fixed #589` |
@@ -481,6 +481,8 @@ when the defect comes back.
 | B-509 | `bridge.py:300`'s hold « and the media sheet is gone » never asserts the sheet was open before the Back it reads | the reader round | `open` |
 | B-510 | Ruling 61's restoration is held by `bugs.py`'s crash on the missing button, not by a named hold asserting « Voir la fiche » present | the reader round | `open` |
 | B-511 | Ruling 61's register note says « 0 updates, 0 observers » where the measured candidate reads 1 observer on each empty-key query entry while the panel is open | the reader round | `open` |
+| B-512 | `selection_survives_the_tab.py` (R164) reads « the Médiathèque draws the bar over a real selection » red under the 28-named gate load and green alone — 2 red / 2 green on b·6's head in that shape, green before the move in the 19-rule shape; at the failing instant the bar exists and the point at its centre hits a tile's poster; its detail string is armed to name what hid the bar; owner b·13's full suite | by L13b | `open` |
+| B-513 | The « a markup literal nobody compares » class is UNGUARDED since b·7: `check-markup-contracts.py`'s forwarded-value arm read `store.write({f: …dataset.x})` — the engine's delegation — and checked every emitted `data-*` literal against the readers that compare it, which is what caught `data-phase="prete"` (B-031) and a `data-fmode="gird"` that rendered nothing. The engine forwards nothing now: each name is answered through the tap registry, where a verb receives `node.dataset[key]`, so the same defect is writable and nothing reads for it. Re-aiming the arm at the registry's reads WIDENS its subject (ruling 78, measure 1), so it was deleted rather than re-pointed (ruling 87). Candidate: an arm reading the registry's dataset reads, after L13 — the operator's or the auditor's call | by L13b | `open` |
 | B-530 | The navigation drawer closed by a firm leftward swipe shows itself open again for a fraction of a second as the closing animation ends | by operator | `fixed #598` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
@@ -4832,6 +4834,17 @@ crossed on the way back — the five ladder rules count entries going forward an
 <sub>drive « Voir la fiche » from an open panel, then `page.go_back()`, and read
 `history.state.__TSR_index` before and after: 3 → 1</sub>
 
+> **Closed by L13b (b·9).** A layer left for an arrival is closed with `close(true)` INSIDE the
+> navigation's commit, so it writes no entry of its own. The two route-to-route leaves (profile from
+> the release screen, the manual add) take a REPLACE navigation. The nine close-then-wait timers
+> are gone. Rule R188 `ladder_entries.py` counts the entries on the way out and the pops on the way
+> back for the four arrivals, and holds `take` as an act whose entry unwinds. It was red before the
+> move (9 violations over 16 holds). The mutation `close(true)` → `close()` falls it by name on the
+> media sheet, releases and profile. R103 `exits.py` refuses any wait after a layer close. The
+> status turns to `fixed #601` with this pull request.
+
+<sub>`frontend/maquette/harness/run.sh --contracts --oracle frontend/maquette/harness/ladder_entries.py frontend/maquette/harness/exits.py` → no violation · `grep -rn "close(true)" --include='*.ts' frontend/maquette/design/src`</sub>
+
 **B-287 — the rule that maquette comments carry no date, lot or phase has no arm.**
 `CLAUDE.md` § Language: « Maquette/harness comments carry no reference to a session, a phase or a
 dated decision — they must still read years from now, out of context. » Measured 2026-09-01 over
@@ -5210,6 +5223,17 @@ captured leaving, `::view-transition-old(leaving-panel)` runs `panel-down`, and 
 does not.
 
 <sub>`frontend/maquette/harness/transition.py` — `hold_the_panel_departs` drives the whole flow (long press, « Voir la fiche ») and reads the pseudo-elements; add `page.go_back()` after it and read `location.pathname` and `#sheet[data-open]`. The original proof was a script in `/tmp`, which cannot be replayed from the tree — the same lesson as the report that was never committed.</sub>
+
+> **Closed by L13b (b·9 + b·10).** A sheet's history entry now records `{ layer, kind, subject,
+> openedOn }` (`lib/navigation-entry.ts`). Back onto a recorded sheet entry reopens that panel when
+> the page is the one it was opened on, and steps over it otherwise. The reopening runs inside the
+> navigation's view transition under the name `leaving-panel`, so the return is drawn (`base.css`).
+> R188 `ladder_entries.py` was red on the media sheet (« no opener reopens the panel on the way
+> back »). Removing the same-page reopen falls it by name (Back ×1 on the three screens). R190
+> `panel_return.py` was red (« pseudo-elements seen: [] ») and falls by name when the reverse
+> animation is set to `none`. The status turns to `fixed #601` with this pull request.
+
+<sub>`frontend/maquette/harness/run.sh --contracts --oracle frontend/maquette/harness/ladder_entries.py frontend/maquette/harness/panel_return.py` → no violation · `grep -n openedOn frontend/maquette/design/src/lib/navigation-entry.ts`</sub>
 
 ---
 
@@ -10916,6 +10940,15 @@ pushing one, which is D1b rule 1 read literally (re-drawing an open surface is a
 arrival). Owner: **L13**, with the ladder; a wave that opens `ui/panel`'s opening path earlier takes it.
 
 <sub>the settings micro-wave · `harness/settings_editing.py`'s « BACK UNTIL THE PANEL IS GONE » loop, and the comment above it · `grep -n "__panel.produce" frontend/maquette/design/src/features/settings/panel-field.tsx frontend/maquette/design/src/features/settings/panel-setting.ts`</sub>
+
+> **Closed by L13b (b·9).** A panel produced with the same kind and subject as the entry it is
+> already on writes no entry (`isOnItsOwnEntry`, `app/panel-host.ts`). An edit's redraw is an
+> adjustment, not an arrival, which is D1b rule 1 read literally. Rule R189 `redraw_entry.py` makes
+> three edits through the panel's own commit button and counts the entries. It was red before the
+> move (6/4 → 11/9, five entries pushed). Removing the entry read falls it by name (« 6/4 -> 11/9 »).
+> One Back closes the panel. The status turns to `fixed #601` with this pull request.
+
+<sub>`frontend/maquette/harness/run.sh --contracts --oracle frontend/maquette/harness/redraw_entry.py` → no violation · `grep -n isOnItsOwnEntry frontend/maquette/design/src/app/panel-host.ts`</sub>
 
 **B-398 — a page switch from the drawer, over an open rubric, left a Back that did nothing.**
 Found by the settings micro-wave's own probe (#588) before the pull request was read, and it was

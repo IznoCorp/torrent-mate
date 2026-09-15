@@ -66,9 +66,9 @@ gone ». Measured at the opening of a·16 on `9c083a9b7`:
 
 - `engine/engine-shape.ts`: 40 `toEngineShape` call sites in 13 files, 23 families still projected
   (`grep -rhoE 'toEngineShape(Entry)?<[^>]*>\("[A-Z_]+"' --include='*.ts' --include='*.tsx' frontend/maquette/design/src | sort | uniq -c`).
-  No surface phase switched its components to the contract's names, and `LIBRARY`/`INCOMPLETE` are b·10-bis's.
+  No surface phase switched its components to the contract's names, and `LIBRARY`/`INCOMPLETE` are b·11's.
 - `window.__referentiel`: 40 product files read about 22 members — `render` (b·7), `addVerb` (b·5),
-  `INCOMPLETE`/`stFraction` (b·10-bis), the settings field verbs `SETTINGS_STATE`, `changeSetting`, `settingId`,
+  `INCOMPLETE`/`stFraction` (b·11), the settings field verbs `SETTINGS_STATE`, `changeSetting`, `settingId`,
   `typedValue`, `rawValue`, `changedFiles`, `fileName` (b·1), and interface constants the engine holds. The three
   readers this file named were not the list: `app/history-bridge.ts` reads it zero times.
 - `lib/engine-drawing.ts`: 24 importers. `app/engine-redraw.ts` exists to call `__referentiel.render`;
@@ -76,13 +76,13 @@ gone ». Measured at the opening of a·16 on `9c083a9b7`:
 - The seam re-count: 2 `dangerouslySetInnerHTML` sites (`ui/icon.tsx`, `ui/markup.tsx`); the other four
   grep lines are comments.
 
-**WHERE IT WENT: b·11**, with `legacy.js`, its last publisher — `engine/engine-shape.ts` and its test,
+**WHERE IT WENT: b·13**, with `legacy.js`, its last publisher — `engine/engine-shape.ts` and its test,
 `lib/engine-drawing.ts`, `window.__referentiel` with `app/reference.d.ts` and the `*Reference` slices,
 `app/engine-data.ts`, `app/engine-redraw.ts`, the `FAN_IN_EXEMPT` and `OUTSIDE_IMPORTS_ALLOWED` engine entries,
 and the reference-slice arm of `scripts/check-frontend-boundaries.py`, whose `text.index("window.__referentiel = {")`
 raises the day the object goes.
 
-**PLAN GAP, for the steward's L13b brief**: b·11 needs HOMES for the interface constants the engine holds and
+**PLAN GAP, for the steward's L13b brief**: b·13 needs HOMES for the interface constants the engine holds and
 nothing else holds today — `icons` (27 sites; `app/icons.ts` exists, and no feature imports an `app/` module but
 `dialog-host`), `EP_LABEL`, `TODAY`, `REASON_LABEL`, `REASON_DETAIL`, `REASON_TONE`, `ST_TONE`, `stLabel`,
 `MAINT_TOPICS`, `SERVICES_PANNE`, `AUDIOS`, `RESOLUTIONS`.

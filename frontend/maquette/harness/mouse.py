@@ -33,7 +33,7 @@ async def main():
         await pg.wait_for_timeout(700)
 
     # 1. Slide cards — the case the operator reported.
-    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'deck'}); render();}")
+    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'deck'}); window.__store.touch();}")
     await pg.wait_for_timeout(600)
     t0 = await pg.evaluate("""()=>document.querySelector('[data-part="deck/card"][data-depth="0"] [data-part="deck/title"]').textContent""")
     await drag('[data-part="deck/card"][data-depth="0"]', -180)
@@ -42,7 +42,7 @@ async def main():
     if not (t1 != t0): failures.append("slide cards, mouse left")
     # Reset between gestures: chaining two drags without one measures the
     # second against the state the first left, which is not what is being asked.
-    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'deck'}); render();}")
+    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'deck'}); window.__store.touch();}")
     await pg.wait_for_timeout(600)
     await drag('[data-part="deck/card"][data-depth="0"]', 180)
     n = await pg.evaluate("()=>state.sugGone.size")
@@ -57,7 +57,7 @@ async def main():
     if not (tr != 'none'): failures.append("follow row, mouse swipe")
 
     # 3. Suggestion card swipe in the list format.
-    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'list'}); render();}")
+    await pg.evaluate("()=>{window.__reset(); applyState({page:'acq',acqTab:'discover',phase:'ready'}); window.__store.write({sugMode: 'list'}); window.__store.touch();}")
     await pg.wait_for_timeout(600)
     before = await pg.evaluate("""()=>document.querySelectorAll('[data-part="suggestion/wrap"]').length""")
     await drag('[data-part="suggestion/wrap"]', 200)
@@ -79,9 +79,17 @@ async def main():
     #    row has a drawer on each side, a library row has none on the left — and
     #    a row with no drawer on the side being dragged towards REFUSES to move,
     #    which is exactly the case that armed nothing.
-    await pg.evaluate("""()=>{window.__clicks = [];
-      document.addEventListener('click',
-        (e) => window.__clicks.push({swallowed: e.defaultPrevented}), true);}""")
+    # READ ON `window`, IN CAPTURE, AND AFTER THE DISPATCH. The guard stops the
+    # click with `stopImmediatePropagation` in the document's capture phase, so
+    # a listener beside it on `document` is never called — it read an EMPTY list
+    # and reported « not swallowed » over a click that was. `window` capture runs
+    # first and keeps the event; `defaultPrevented` is read once the dispatch is
+    # over, when the guard has had its say. RE-AIMED, said here.
+    await pg.evaluate("""()=>{window.__clickEvents = [];
+      window.addEventListener('click', (e) => window.__clickEvents.push(e), true);
+      Object.defineProperty(window, '__clicks', {configurable: true,
+        get: () => window.__clickEvents.map((e) => ({swallowed: e.defaultPrevented})),
+        set: (value) => { window.__clickEvents = value; }});}""")
     for state_, list_label in (("acq-follows-list", "a follow row"),
                          ("lib-list", "a library row")):
         for direction, dx in (("right", 150), ("left", -150)):

@@ -1,5 +1,14 @@
 """R138 — an ask that arrives while the machine is busy SAYS SO, and goes on saying it.
 
+RE-AIMED: the pipeline's busy state is read from the layer's status read — the one the
+interface now draws from — since the store key the interface kept of it died.
+
+A HOLE IS IN A SEASON ONE HOLDS (owned > 0): a series nobody holds draws its aired count and no
+shortfall, under the sheet's own convention, so its first season is no subject for this rule.
+
+RE-AIMED: the season rows are `window.__mocks.seasons()` — the served seasons read's
+rows, the ones every season block now draws — since the engine's season table died.
+
 DOIT-4: an ask arriving while the pipeline runs is queued VISIBLY — « En file —
 pipeline en cours » — and never refused. The refusing half was already true: the
 layer answers `queued` and the verb says so in a message. **The word this rule
@@ -75,7 +84,7 @@ RUN_THE_PIPELINE = """async()=>{
 # LAYER decides whether an ask is queued, the SCREEN decides whether the
 # operator can see that it is busy. A hold on one alone passes while the other
 # says the opposite.
-DRAWN_AS_BUSY = """()=>window.__store.read().state.pipe"""
+DRAWN_AS_BUSY = """async ()=>(await (await fetch('/api/pipeline/status')).json()).state"""
 
 # THE MEDIUM WITH A HOLE, among the rows actually drawn — a subject the panel
 # can be raised on AND that has something to ask for.
@@ -86,8 +95,8 @@ THE_MEDIUM_WITH_A_HOLE = """()=>{
     (seen) => seen === title || seen.endsWith(":" + title));
   for (const follow of (window.__followActions?.all() || [])) {
     if (!reachable(follow.t)) continue;
-    for (const [number, aired, owned] of (window.SEASONS[follow.t] || [])) {
-      if ((owned || 0) < (aired || 0))
+    for (const [number, aired, owned] of (window.__mocks.seasons()[follow.t] || [])) {
+      if ((owned || 0) > 0 && (owned || 0) < (aired || 0))
         return {title: follow.t, season: number};
     }
   }
@@ -147,7 +156,7 @@ async def main():
         await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
         await page.wait_for_timeout(SETTLED)
         started = await page.evaluate(RUN_THE_PIPELINE)
-        await page.evaluate("""()=>window.__store.write({pipe: "running"})""")
+        await page.evaluate("""()=>window.__pipeline("running")""")
         await page.wait_for_timeout(SETTLED)
         drawn = await page.evaluate(DRAWN_AS_BUSY)
         journal.check(

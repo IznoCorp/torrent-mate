@@ -19,9 +19,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 59 |
+| operations the interface requires | 60 |
 | operations the backend has | 65 |
-| required and missing | 15 |
+| required and missing | 16 |
 | declared by both, different response shape | 44 |
 | declared by both, path parameter spelled differently | 14 |
 | declared by both, answered with a different status | 12 |
@@ -41,6 +41,7 @@ than a blank page.
 | `GET /api/library/categories` | `readLibraryCategories` | The categories and their counts |
 | `GET /api/library/incomplete` | `readLibraryIncomplete` | The series with holes, and how big each hole is |
 | `GET /api/library/items` | `readLibraryItems` | The library listing, one page of it |
+| `GET /api/library/membership` | `readLibraryMembership` | Whether the library holds one medium, asked by its exact title |
 | `GET /api/library/recent` | `readLibraryRecent` | The most recently added titles |
 | `GET /api/media/{provider}/{providerId}/seasons` | `readMediaSeasons` | The seasons of a show, and what the library holds of each |
 | `GET /api/system/dependencies` | `readDependencies` | The external dependencies, and whether each answers |
@@ -75,7 +76,7 @@ reports a difference for every optional field and drowns the real findings.
 | `GET /api/maintenance/schedulers` (`readSchedulers`) | `label`, `secondaryLine`, `tone`, `value` | `display_name`, `enabled`, `kind`, `last_outcome`, `last_run_at`, `name`, `schedule`, `schedulers` |
 | `GET /api/media/{provider}/{providerId}` (`readMediaSheet`) | `airDate`, `cast`, `castPortraits`, `duration`, `episodes`, `hero`, `ids`, `key`, `language`, `metadataRefreshedAt`, `name`, `number`, `poster`, `posterHighDefinition`, `rating`, `role`, `runtime`, `status`, `tmdbTelevisionId`, `trailer`, `trailerVideo` | `aired_count`, `degraded_reason`, `episode_count`, `owned_count`, `ownership`, `poster_url`, `provider`, `provider_id`, `season_number`, `series_status`, `trailer_url` |
 | `GET /api/pipeline/history` (`readPipelineHistory`) | `cause`, `result`, `succeeded`, `when` | `command`, `degraded`, `dry_run`, `duration_s`, `ended_at`, `kind`, `outcome`, `run_uid`, `runs`, `started_at`, `total`, `trigger` |
-| `GET /api/pipeline/status` (`readPipeline`) | `blockedCount`, `description`, `duration`, `facts`, `label`, `last`, `name`, `outcome`, `result`, `secondaryLine`, `steps`, `trigger`, `triggers`, `uid`, `when` | `paused`, `pid`, `run_uid`, `state`, `step`, `watcher_enabled` |
+| `GET /api/pipeline/status` (`readPipeline`) | `blockedCount`, `description`, `duration`, `facts`, `label`, `last`, `name`, `outcome`, `result`, `secondaryLine`, `steps`, `trigger`, `triggers`, `uid`, `when` | `paused`, `pid`, `run_uid`, `step`, `watcher_enabled` |
 | `GET /api/staging/media` (`readStaging`) | `chip`, `ids`, `moving`, `poster`, `secondaryLine`, `settled`, `strip`, `stuck`, `text`, `tone`, `withoutPoster` | `absent`, `ambiguous`, `awaiting_action`, `blocked_reason`, `category`, `category_id`, `continuation_requested_at`, `counts`, `decision_id`, `decision_trigger`, `disk`, `dispatch_target`, `episode_count`, `folder`, `has_nfo`, `has_poster`, `has_trailer`, `id`, `items`, `key`, `label`, `match`, `matched`, `media_kind`, `mode`, `modified_at`, `overview`, `page`, `page_size`, `position_stage`, `position_state`, `poster_url`, `provider_ids`, `relative_path`, `scraped`, `season`, `seasons`, `size_bytes`, `stages`, `state`, `total`, `video_count`, `with_trailer`, `year` |
 | `GET /api/version` (`readVersion`) | `commit` | `build_commit` |
 | `PATCH /api/acquisition/followed/{followedId}` (`updateFollow`) | `aired`, `fresh`, `ids`, `poster`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `id`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |

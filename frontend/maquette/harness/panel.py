@@ -792,6 +792,98 @@ async def main():
               not await pg4.evaluate("()=>window.__panel.isOpen()"), pg4.url)
         await ctx4.close()
 
+        # ── the acquisition panels' acts that answer on the tap ────────────
+        # Four acts no rule held by name: a followed medium's primary act, an
+        # incomplete series' completion, the watch's run and the discover
+        # surface's TMDB connection. Each is read by what the act LEAVES — the
+        # panel shut, the page it lands on, the sentence it says — after its
+        # delay, never by timing the delay itself.
+        acquisition_context, acquisition_page = await open_page(b)
+        acquisition_page.on("pageerror", lambda e: errors.append(str(e)))
+        said = "()=>(document.querySelector('#toast')||{}).textContent || ''"
+        panel_open = "()=>window.__panel.isOpen()"
+        await acquisition_page.evaluate("()=>window.__go('acq-now-loaded')")
+        await acquisition_page.wait_for_timeout(400)
+        found = await acquisition_page.evaluate("""async ()=>{
+          const found = {primary: null, complete: null};
+          for (const follow of (window.__followActions?.all() || [])) {
+            window.__panel.produce('follow', follow.t);
+            await new Promise((resolve) => setTimeout(resolve, 200));
+            const primary = document.querySelector('#sheet [data-sheetprim]');
+            const complete = document.querySelector('#sheet [data-complete]');
+            if (primary && found.primary === null) found.primary = primary.getAttribute('data-sheetprim');
+            if (complete && found.complete === null) found.complete = complete.getAttribute('data-complete');
+            if (found.primary !== null && found.complete !== null) break;
+          }
+          window.__panel.close();
+          return found;}""")
+        await acquisition_page.wait_for_timeout(400)
+        # An incomplete series is read from the named state that opens one: the
+        # follows list carries no incomplete series in this scenario.
+        await acquisition_page.evaluate("()=>window.__go('followsheet-gaps')")
+        await acquisition_page.wait_for_timeout(500)
+        found["complete"] = await acquisition_page.evaluate(
+            """()=>{const one = document.querySelector('#sheet [data-complete]');
+                    return one ? one.getAttribute('data-complete') : null;}""")
+
+        if check("a followed medium's panel offers its primary act",
+                 found["primary"] is not None, str(found)):
+            title, status = found["primary"].split("|", 1)
+            await acquisition_page.evaluate("(t)=>window.__panel.produce('follow', t)", title)
+            await acquisition_page.wait_for_timeout(400)
+            await acquisition_page.click("#sheet [data-sheetprim]")
+            await acquisition_page.wait_for_timeout(700)
+            closed = not await acquisition_page.evaluate(panel_open)
+            message = await acquisition_page.evaluate(said)
+            expected = "récupéré" if status == "to_grab" else "Recherche lancée"
+            check("and its tap closes the panel and acts — the take recorded or the search said",
+                  closed and expected in message,
+                  f"{found['primary']}: closed={closed} said={message!r}")
+
+        if check("an incomplete series' panel offers its completion",
+                 found["complete"] is not None, str(found)):
+            await acquisition_page.evaluate("()=>window.__go('acq-follows-list')")
+            await acquisition_page.wait_for_timeout(400)
+            await acquisition_page.evaluate("(t)=>window.__panel.produce('follow', t)", found["complete"])
+            await acquisition_page.wait_for_timeout(400)
+            await acquisition_page.click("#sheet [data-complete]")
+            await acquisition_page.wait_for_timeout(600)
+            landed = await acquisition_page.evaluate(
+                "()=>{const state = window.__store.read().state; return [state.page, state.acqTab];}")
+            closed = not await acquisition_page.evaluate(panel_open)
+            message = await acquisition_page.evaluate(said)
+            check("and its tap lands on « Maintenant », closes the panel and says the search",
+                  landed == ["acq", "now"] and closed and "épisodes manquants" in message,
+                  f"{found['complete']}: {landed} closed={closed} said={message!r}")
+
+        await acquisition_page.evaluate("()=>window.__go('acq-now-loaded')")
+        await acquisition_page.wait_for_timeout(400)
+        await acquisition_page.click("[data-more]")
+        await acquisition_page.wait_for_timeout(400)
+        if check("the watch's panel offers its run",
+                 await acquisition_page.query_selector("#sheet [data-standby]") is not None):
+            await acquisition_page.click("#sheet [data-standby]")
+            await acquisition_page.wait_for_timeout(600)
+            closed = not await acquisition_page.evaluate(panel_open)
+            message = await acquisition_page.evaluate(said)
+            check("and its tap closes the panel and says the run",
+                  closed and "Veille lancée" in message, f"closed={closed} said={message!r}")
+
+        await acquisition_page.evaluate("()=>window.__go('acq-discover-degraded')")
+        await acquisition_page.wait_for_timeout(500)
+        if check("the discover surface without TMDB offers the connection",
+                 await acquisition_page.query_selector("[data-tmdb]") is not None):
+            await acquisition_page.click("[data-tmdb]")
+            await acquisition_page.wait_for_timeout(600)
+            after = await acquisition_page.evaluate(
+                """()=>({connected: window.__store.read().state.tmdb,
+                        error: !!document.querySelector('[data-part="surface-error"]')})""")
+            message = await acquisition_page.evaluate(said)
+            check("and its tap connects TMDB and the surface leaves its error",
+                  after["connected"] is True and not after["error"] and "TMDB connecté" in message,
+                  f"{after} said={message!r}")
+        await acquisition_context.close()
+
         check("no JS error", not errors, str(errors))
         await b.close()
 

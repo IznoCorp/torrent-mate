@@ -1,5 +1,14 @@
 """R125 — « Récupérer cette saison » really takes the season (B-301).
 
+RE-AIMED: the pipeline's busy state is read from the layer's status read — the one the
+interface now draws from — since the store key the interface kept of it died.
+
+A HOLE IS IN A SEASON ONE HOLDS (owned > 0): a series nobody holds draws its aired count and no
+shortfall, under the sheet's own convention, so its first season is no subject for this rule.
+
+RE-AIMED: the season rows are `window.__mocks.seasons()` — the served seasons read's
+rows, the ones every season block now draws — since the engine's season table died.
+
 THE SEASON MATRIX PRINTS A HOLE AND OFFERS NOTHING. `panel-seasons.tsx` draws
 one cell per episode and marks a season whose owned count is short of what
 aired — « Saison 3 · 6/7 · 1 manquant ». The interface SHOWS what is wanted and
@@ -13,7 +22,7 @@ fixture contains **no `to_grab` episode cell anywhere**, because
 `epState` colours a missing episode by the FOLLOW's status and the one follow
 with a hole is `pending`. The subject this rule walks is the only one that
 exists — « Silo », season 3, six of seven aired episodes held — and it is chosen
-from `window.SEASONS` (owned < aired) BEFORE a finger moves, so a failure is
+from `window.__mocks.seasons()` (owned < aired) BEFORE a finger moves, so a failure is
 about the interface and never about the walk.
 
 THIS RULE IS WRITTEN BEFORE THE VERB EXISTS and is RED against `main` with no
@@ -83,7 +92,7 @@ FOLLOWS = """()=>(window.__followActions?.all() || []).map(
   (one) => ({t: one.t, st: one.st}))"""
 
 # WHICH MEDIUM HAS A SEASON WITH A HOLE, decided from the DATA before a finger
-# moves. `window.SEASONS` is `[number, aired, owned]` per season; a hole is
+# moves. `window.__mocks.seasons()` is `[number, aired, owned]` per season; a hole is
 # `owned < aired` — an episode that HAS aired and is not held, which is exactly
 # what a season grab is for. An unaired episode is not a hole: it is not out yet.
 # The follow must also be drawn on this page, or no finger could reach it.
@@ -94,8 +103,8 @@ THE_MEDIUM_WITH_A_HOLE = """()=>{
     (seen) => seen === title || seen.endsWith(":" + title));
   for (const follow of (window.__followActions?.all() || [])) {
     if (!reachable(follow.t)) continue;
-    for (const [number, aired, owned] of (window.SEASONS[follow.t] || [])) {
-      if ((owned || 0) < (aired || 0))
+    for (const [number, aired, owned] of (window.__mocks.seasons()[follow.t] || [])) {
+      if ((owned || 0) > 0 && (owned || 0) < (aired || 0))
         return {title: follow.t, season: number, aired, owned};
     }
   }
@@ -218,7 +227,7 @@ async def open_a_season_panel(page, journal, when, put_to_work=False):
     it, so `elementFromPoint` at the next row's centre hit the panel, eleven
     taps never landed, and the rule reported « none printing a season with a
     hole » over twelve media it had never actually looked at. Reading
-    `window.SEASONS` for a season where owned < aired names the subject before
+    `window.__mocks.seasons()` for a season where owned < aired names the subject before
     any gesture, so the walk is one tap and the failure — if it comes — is about
     the interface rather than about the walk.
 
@@ -244,7 +253,7 @@ async def open_a_season_panel(page, journal, when, put_to_work=False):
     await page.wait_for_timeout(SETTLED)
     if put_to_work:
         started = await page.evaluate(RUN_THE_PIPELINE)
-        await page.evaluate("""()=>window.__store.write({pipe: "running"})""")
+        await page.evaluate("""()=>window.__pipeline("running")""")
         await page.wait_for_timeout(SETTLED)
         journal.check(
             "the LAYER really has the pipeline busy at the moment of the act — "
@@ -253,12 +262,12 @@ async def open_a_season_panel(page, journal, when, put_to_work=False):
         journal.check(
             "and the interface is drawing it busy too, so this half measures "
             "the clause and not the verb",
-            await page.evaluate("()=>window.__store.read().state.pipe") == "running")
+            await page.evaluate("async ()=>(await (await fetch('/api/pipeline/status')).json()).state") == "running")
     subject = await page.evaluate(THE_MEDIUM_WITH_A_HOLE)
     journal.check(
         f"the fixture really holds a season with a hole, so this walk has a "
         f"subject — {when}",
-        bool(subject), str(subject) or "no follow has owned < aired in window.SEASONS")
+        bool(subject), str(subject) or "no follow has owned < aired in window.__mocks.seasons()")
     if not subject:
         return "", None
     title = subject["title"]

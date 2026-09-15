@@ -13,6 +13,11 @@
 import MEDIA_SHEETS from "./seeds/media-sheets.json";
 import POSTERS from "./seeds/posters.json";
 import SETTINGS from "./seeds/settings.json";
+import SEASON_FAMILY from "./seeds/seasons.json";
+import { seasonsAnswerFor } from "./handlers/media";
+import FOLLOWS from "./seeds/follows.json";
+import INCOMPLETE_SHOWS from "./seeds/incomplete-shows.json";
+import { seasonsHeld } from "../lib/season-rows";
 
 /** What the layer exposes of its seeds. */
 export type MockSeeds = {
@@ -20,6 +25,13 @@ export type MockSeeds = {
   sheets: () => Record<string, Record<string, unknown>>;
   /** The settings catalogue, rubric by rubric, in the contract's names. */
   settings: () => { id: string; settings: { file: string; key: string; type: string }[] }[];
+  /**
+   * Every medium's season rows — number, aired (null when unknown), held — as
+   * the seasons read answers them and every season row is drawn from them.
+   */
+  seasons: () => Record<string, [number, number | null, number][]>;
+  /** The season family seed, as its rows were written: `[season, aired, owned]` per title. */
+  seasonFamily: () => Record<string, [number, number, number][]>;
 };
 
 /** The seeds the harness reads, composed on each call so no caller holds a copy it could mutate. */
@@ -34,4 +46,31 @@ export const mockSeeds: MockSeeds = {
       ),
     ),
   settings: () => structuredClone(SETTINGS) as ReturnType<MockSeeds["settings"]>,
+  seasons: () => {
+    // EVERY TITLE A RULE CAN ASK ABOUT — a follow, an incomplete show, a sheet,
+    // the family — each answered under its IDENTITY, as the served read is: a
+    // follow named « Silo » holds its episodes under the sheet « Silo (2023) ».
+    const identityByTitle = new Map<string, Record<string, unknown> | undefined>();
+    for (const title of Object.keys(MEDIA_SHEETS))
+      identityByTitle.set(title, (MEDIA_SHEETS as Record<string, { ids?: Record<string, unknown> }>)[title].ids);
+    for (const title of Object.keys(SEASON_FAMILY)) if (!identityByTitle.has(title)) identityByTitle.set(title, undefined);
+    for (const one of [...FOLLOWS, ...INCOMPLETE_SHOWS] as { title: string; ids?: Record<string, unknown> | null }[])
+      identityByTitle.set(one.title, one.ids ?? identityByTitle.get(one.title));
+    return Object.fromEntries(
+      [...identityByTitle].map(([title, ids]) => {
+        const answer = seasonsAnswerFor(title, ids);
+        const catalogue = answer.seasons.map((season) => {
+          const entry = season as { number?: number; season?: number };
+          return { n: Number(entry.number ?? entry.season) };
+        });
+        return [title, seasonsHeld({ seasons: catalogue, owned: answer.owned, aired: answer.aired })];
+      }),
+    );
+  },
+  seasonFamily: () =>
+    Object.fromEntries(
+      Object.entries(SEASON_FAMILY as Record<string, { season: number; aired: number; owned: number }[]>).map(
+        ([title, rows]) => [title, rows.map((row) => [row.season, row.aired, row.owned])],
+      ),
+    ) as Record<string, [number, number, number][]>,
 };

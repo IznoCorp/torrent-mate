@@ -174,7 +174,13 @@ def test_held_names_the_holder_and_says_free_otherwise(tmp_path: Path) -> None:
     """
     lock = tmp_path / "holder"
     env = {**os.environ, "HEAVY_LOCK": str(lock), **PERMISSIVE}
-    free = subprocess.run(["sh", str(SCRIPT), "--held"], capture_output=True, text=True, env=env, timeout=10)
+    free = subprocess.run(
+        ["sh", str(SCRIPT), "--held"],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=10,
+    )
     assert free.returncode == 1 and free.stdout.strip() == "free"
     holder = subprocess.Popen(
         ["sh", str(SCRIPT), "the-holder", "sleep", "4"],
@@ -186,7 +192,13 @@ def test_held_names_the_holder_and_says_free_otherwise(tmp_path: Path) -> None:
         deadline = time.time() + 5
         while not (lock / "who").exists() and time.time() < deadline:
             time.sleep(0.05)
-        held = subprocess.run(["sh", str(SCRIPT), "--held"], capture_output=True, text=True, env=env, timeout=10)
+        held = subprocess.run(
+            ["sh", str(SCRIPT), "--held"],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=10,
+        )
         assert held.returncode == 0 and held.stdout.strip() == "the-holder"
         # And the probe that cannot fail, for the record: it reads nothing either way.
         blind = subprocess.run(["sh", "-c", f'cat "{lock}" 2>/dev/null'], capture_output=True, text=True)
@@ -217,7 +229,9 @@ def test_the_watchdog_signals_the_whole_process_group(tmp_path: Path) -> None:
     assert "set -m" in body, "without job control the child leads no group to signal"
 
 
-def test_a_machine_that_reports_no_memory_runs_rather_than_waits(tmp_path: Path) -> None:
+def test_a_machine_that_reports_no_memory_runs_rather_than_waits(
+    tmp_path: Path,
+) -> None:
     """THE SECOND DEFECT THIS FILE CAUGHT, and it is the first one's shape.
 
     `vm_stat` is Darwin's and the repository's runners are Linux, so the first
@@ -227,7 +241,18 @@ def test_a_machine_that_reports_no_memory_runs_rather_than_waits(tmp_path: Path)
     """
     empty = tmp_path / "bin"
     empty.mkdir()
-    for name in ("vm_stat", "sh", "awk", "uptime", "sleep", "mkdir", "rm", "cat", "dirname", "find"):
+    for name in (
+        "vm_stat",
+        "sh",
+        "awk",
+        "uptime",
+        "sleep",
+        "mkdir",
+        "rm",
+        "cat",
+        "dirname",
+        "find",
+    ):
         pass
     started = time.monotonic()
     result = subprocess.run(
@@ -272,7 +297,9 @@ Pages wired down:                            274432.
 """
 
 
-def test_the_speculative_pages_macos_reclaims_first_are_counted_free(tmp_path: Path) -> None:
+def test_the_speculative_pages_macos_reclaims_first_are_counted_free(
+    tmp_path: Path,
+) -> None:
     """THE SPECULATIVE PAGES ARE FREE MEMORY, and the Darwin reader left them out.
 
     They are the file cache macOS pre-fetches and hands back before anything
@@ -395,3 +422,65 @@ def test_the_class_floors_are_written_down_with_their_arithmetic() -> None:
         )
     assert "1.1 GB" in body, "the browser group's cost is not written beside the numbers"
     assert "HARD_FLOOR_MB=${HEAVY_HARD_FLOOR_MB:-2048}" in body, "the hard floor moved with the class"
+
+
+def test_the_holder_writes_its_pid_beside_its_name(tmp_path: Path) -> None:
+    """The breaker asks the pid, so the holder must leave it — alive for as long as the run."""
+    lock = tmp_path / "holder"
+    env = {**os.environ, "HEAVY_LOCK": str(lock), **PERMISSIVE}
+    holder = subprocess.Popen(
+        ["sh", str(SCRIPT), "the-holder", "sleep", "4"],
+        env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    try:
+        for _ in range(40):
+            if (lock / "pid").exists():
+                break
+            time.sleep(0.1)
+        written = (lock / "pid").read_text().strip() if (lock / "pid").exists() else ""
+        assert written == str(holder.pid), f"pid file reads {written!r}, holder is {holder.pid}"
+    finally:
+        holder.wait(timeout=15)
+
+
+def test_an_old_lock_whose_holder_is_alive_is_held_off_and_never_broken(
+    tmp_path: Path,
+) -> None:
+    """A run alive and silent past 45 minutes is waited on, and said aloud — never broken."""
+    lock = tmp_path / "holder"
+    lock.mkdir()
+    (lock / "who").write_text("a hung but living run\n")
+    (lock / "pid").write_text(f"{os.getpid()}\n")
+    old = time.time() - 60 * 60
+    os.utime(lock, (old, old))
+    env = {**os.environ, "HEAVY_LOCK": str(lock), **PERMISSIVE}
+    waiter = subprocess.Popen(
+        ["sh", str(SCRIPT), "tester", "sh", "-c", "echo ran"],
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    time.sleep(5)
+    waiter.terminate()
+    stdout, stderr = waiter.communicate(timeout=15)
+    assert "ran" not in stdout, stderr
+    assert "alive and silent for" in stderr, stderr
+    assert (lock / "pid").read_text().strip() == str(os.getpid())
+
+
+def test_an_old_lock_whose_holder_is_gone_is_broken(tmp_path: Path) -> None:
+    """THE CONTROL: a pid that no longer exists is a session that died holding the lock."""
+    gone = subprocess.Popen(["true"])
+    gone.wait()
+    lock = tmp_path / "holder"
+    lock.mkdir()
+    (lock / "who").write_text("a session that died\n")
+    (lock / "pid").write_text(f"{gone.pid}\n")
+    old = time.time() - 60 * 60
+    os.utime(lock, (old, old))
+    result = run(lock, "sh", "-c", "echo ran", timeout=30)
+    assert "ran" in result.stdout
+    assert "breaking a stale lock" in result.stderr

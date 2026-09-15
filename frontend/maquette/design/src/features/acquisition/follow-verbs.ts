@@ -23,6 +23,7 @@
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { store } from "../../lib/store-access";
+import { collapseOpenRow, openRow } from "../../lib/swipe-arbitration";
 import { panel, toast } from "../../lib/shell-doors";
 import { followActions, suggestions } from "./queries";
 import { baseTitle } from "../../lib/titles";
@@ -228,6 +229,28 @@ type FollowVerbs = {
 // ONE VERB, TWO EMITTERS, and the element is what tells them apart — which is
 // why the registry hands the element to the act rather than the value alone.
 export const followVerbs: FollowVerbs = { follow, pause, removeFollow };
+
+/**
+ * Puts a swipe row back at rest after one of its actions is tapped.
+ *
+ * Exactly what the delegation did: the open card collapses, any other card
+ * loses its drag offset. A tap from the panel has no row, and nothing moves.
+ *
+ * IT ASKS THE GESTURE DIRECTLY NOW. The row's state was the engine's and this
+ * module reached it through `window.openCard` / `window.collapseCard` — two
+ * reaches the gesture's move takes away (ruling 79-bis's owed): the arbitration
+ * is `lib/`'s, and a feature may read `lib/`.
+ *
+ * @param element The action tapped.
+ */
+export function settleSwipeRow(element: HTMLElement): void {
+  const card = element
+    .closest('[data-part="swipe"]')
+    ?.querySelector<HTMLElement>('[data-part="card"]');
+  if (!card) return;
+  if (openRow() === card) collapseOpenRow();
+  else card.style.transform = "";
+}
 registerVerb("follow", (title, element) => {
   const at = element.dataset.sugidx;
   const suggestion = at === undefined
@@ -258,7 +281,8 @@ registerVerb("follow", (title, element) => {
 // waited here goes with the branch (B-249). The panel leaves inside the
 // navigation's own commit, so the wait bought nothing but a state that had
 // already moved being announced late.
-registerVerb("pause", (title) => {
+registerVerb("pause", (title, element) => {
+  settleSwipeRow(element);
   panel.close();
   pause(title);
 });
@@ -268,7 +292,8 @@ registerVerb("pause", (title) => {
 // `__followVerbs` — and there it is one of TWO destinations, since the same
 // class on a library row opens a confirmation dialog rather than removing a
 // follow. That arbitration is the engine's drawing and stays with it.
-registerVerb("remove", (title) => {
+registerVerb("remove", (title, element) => {
+  settleSwipeRow(element);
   panel.close();
   removeFollow(title);
 });

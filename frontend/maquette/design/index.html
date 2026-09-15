@@ -282,7 +282,7 @@
           class="avatar w-[32px] h-[32px] p-0 rounded-full [border:0] bg-muted text-muted-foreground
                  text-3 font-medium grid place-items-center"
           data-part="avatar"
-          data-sheet="utilisateur"
+          data-account
           aria-label="Menu utilisateur"
         >
           <img class="w-full h-full object-cover rounded-[inherit] block" alt="" />
@@ -318,10 +318,13 @@
                transition-[height] duration-200 ease-standard text-muted-foreground"
         id="ptr"
       >
-        <!-- The pull's two engine-written states are read ON THE SPINNER, not on
-             `#ptr`: the engine resets `#ptr`'s class list to « ptr » whenever it
-             puts the indicator back, and a utility written on `#ptr` would not
-             survive that. -->
+        <!-- The pull's two states are read ON THE SPINNER rather than on
+             `#ptr`, and the reason is now history rather than a constraint: the
+             engine reset `#ptr`'s class list to « ptr » whenever it put the
+             indicator back, so a utility written on `#ptr` did not survive it.
+             The reset removes the two state classes and nothing else since the
+             gesture left the engine, so `#ptr` may carry utilities again — the
+             states stay where they are drawn until a drawing lot moves them. -->
         <div
           class="spin w-[16px] h-[16px] rounded-full border-2 border-border border-t-primary
                  [.ptr.armed_&]:text-primary

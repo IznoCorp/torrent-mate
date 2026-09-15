@@ -135,7 +135,12 @@ export function stagingRoutes(): MockRoute[] {
         return { ok: false };
       },
     ),
-    route("readPipeline", GET, "/api/pipeline/status", () => mockState().pipeline),
+    // WHAT IT IS DOING is projected from the one field its verbs move, so the
+    // status read and the verbs' answers can never say two things.
+    route("readPipeline", GET, "/api/pipeline/status", () => ({
+      ...mockState().pipeline,
+      state: mockState().pipelineState,
+    })),
     // A run asked for during a run is QUEUED and visibly so — never refused,
     // and never demoted back to running by the next tap, which is what a
     // toggle did. Each verb states the transition it makes rather than

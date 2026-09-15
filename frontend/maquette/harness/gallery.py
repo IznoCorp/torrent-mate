@@ -100,7 +100,7 @@ async def main():
     for lens in ("cat", "inc", "rec"):
         shapes = {}
         for mode in ("grid", "list"):
-            await pg.evaluate("([l,m])=>{window.__reset(); applyState({page:'lib',libLens:l,libMode:m,phase:'ready'}); render();}", [lens, mode])
+            await pg.evaluate("([l,m])=>{window.__reset(); applyState({page:'lib',libLens:l,libMode:m,phase:'ready'}); window.__store.touch();}", [lens, mode])
             await pg.wait_for_timeout(420)
             shapes[mode] = await pg.evaluate("""()=>({
                 tiles:document.querySelectorAll('#view [data-part="tile"][data-panel]').length,

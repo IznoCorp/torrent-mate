@@ -114,7 +114,7 @@ async def add_one_result(page, position):
     """Walks one result all the way into `added`, through its panel.
 
     THE ADD ACTION IS NOT ON THE CARD. A result card opens a panel, and the
-    panel carries `data-act="add:N"`. A rule that clicked the card and asserted
+    panel carries `data-add="N"`. A rule that clicked the card and asserted
     the bar would fail for a reason that is not the defect, and a rule that
     wrote into the store directly would prove the bar renders and nothing about
     whether the operator can reach it.
@@ -145,7 +145,7 @@ async def add_one_result(page, position):
     # meets first measures whichever element it meets first.
     panel = await card.get_attribute("data-panel")
     await card.click()
-    act = f'[data-act="{panel}"]'
+    act = f'[data-add="{panel.removeprefix("add:")}"]'
     await page.wait_for_selector(act)
     await page.locator(act).click()
     await page.wait_for_timeout(400)

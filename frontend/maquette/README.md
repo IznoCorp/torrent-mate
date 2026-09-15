@@ -216,7 +216,7 @@ flushes pending writes, announces the traversal to the engine (`window.__annonce
 multi-entry `history.go(-n)` coalesces into ONE popstate at the browser level, so the engine's
 own latch is raised once per announcement, never by `n` (raising it by `n` was tried and falls a
 mutation: it swallows the operator's next real Back in silence). This closed M11 — the Associer
-flow (`data-act="add:N"` from an `/add` result, with `state.addMode === "identifier"`) used to
+flow (`data-add="N"` from an `/add` result, with `state.addMode === "identifier"`) used to
 fire two raw `history.back()` calls in the same task, which the engine's own coalescing latch
 could absorb only one of; the second read as an unannounced operator gesture and happened to
 land correctly only by the accident of which
@@ -380,6 +380,13 @@ holds the three ends.
   each need their own token (`--danger`, `--danger-text`, `--danger-fill`), decided once.
 - **« Secondary » written as `opacity` is not a colour at all** — it blends into whatever sits
   behind it, so what reaches the eye is a tone the palette never declared.
+- **`stopPropagation` does not stop a listener sitting BESIDE yours on the same node** — the tap
+  registry answers in CAPTURE on `document`, so a swallower must call `stopImmediatePropagation`
+  and be registered first, or the click it meant to swallow fires the verb under the finger.
+- **A reference reading that rolls `design/src` back discards uncommitted work** — commit before
+  checking older sources out under the branch's instrument, as `scripts/mutate.sh` requires.
+- **After a TOUCH drag the browser suppresses the click itself** — a hold about the click that
+  ends a drag drives it with a MOUSE, or it measures the browser, not the guard.
 
 Story: `frontend/maquette/README.md@6a47304a4` § Traps this stylesheet paid for.
 

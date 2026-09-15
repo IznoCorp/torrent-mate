@@ -3,8 +3,10 @@
 # This avoids overwriting any existing .git/hooks/ files and lets multiple
 # project hooks coexist (one per file under hooks/).
 #
-# Note: core.hooksPath is per-clone (lives in .git/config). It does NOT
-# affect other clones or other repos.
+# Note: core.hooksPath lives in .git/config, which every WORKTREE of this
+# clone shares. It is written RELATIVE (`hooks`), so each worktree runs its own
+# branch's hooks/ — an absolute path makes them all run one checkout's. It does
+# NOT affect other clones or other repos.
 
 set -euo pipefail
 

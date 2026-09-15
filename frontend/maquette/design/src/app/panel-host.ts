@@ -20,6 +20,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { addressOf, isScreenPath, withPanel } from "../lib/addresses";
 import type { Store } from "./store";
 import { fillPanelDoor, bridge } from "../lib/shell-doors";
+import { layerRecordOf, panelRecord } from "../lib/navigation-entry";
 import { store } from "../lib/store-access";
 import { registerLayer, unwindLayer } from "./layers";
 
@@ -115,6 +116,28 @@ function openPanelOnCurrentEntry(open: () => void): void {
 }
 
 /**
+ * Whether the entry stood on already records this very panel.
+ *
+ * A REDRAW IS AN ADJUSTMENT, NOT AN ARRIVAL: re-producing the panel the entry
+ * already records — after an edit, on a Forward, on a Back that reopens it —
+ * replaces what is drawn and writes no entry. Decided by READING the entry
+ * rather than by a flag raised around the call, so it holds on the deferred
+ * open as surely as on the synchronous one, and for every caller that produces
+ * again without knowing it is standing on its own entry.
+ *
+ * Args:
+ *     produced: The kind and subject being opened, if it was produced.
+ *
+ * Returns:
+ *     True when the current entry is this panel's own.
+ */
+function isOnItsOwnEntry(produced?: { kind: string; subject: string }): boolean {
+  if (!produced) return false;
+  const record = layerRecordOf(window.history.state, "sheet");
+  return record?.kind === produced.kind && record.subject === produced.subject;
+}
+
+/**
  * Installs the panel's verbs into the panel door.
  *
  * Called from the boot once the store exists and after the history bridge is
@@ -132,7 +155,10 @@ export function installPanelHost(store: Store, queryClient: QueryClient): void {
   // stands at 398 of a 400-line hard ceiling and an import plus a call would put
   // it AT it. This is the nearest installer that boots once and owns no surface.
   installArtworkArrival();
-function openPanel(descriptor: PanelDescriptor): void {
+function openPanel(
+  descriptor: PanelDescriptor,
+  produced?: { kind: string; subject: string },
+): void {
   // Same order as the legacy `openSheet`: the layer first, the history entry
   // second. This file is SHELL code — the seam itself — so it writes the store
   // directly rather than through data.ts's `writeUiState` component door.
@@ -153,7 +179,7 @@ function openPanel(descriptor: PanelDescriptor): void {
   flushSync(() =>
     store.write({ panelDescriptor: descriptor, panelOpen: true }),
   );
-  if (onCurrentEntry) return;
+  if (onCurrentEntry || isOnItsOwnEntry(produced)) return;
   try {
     // D1's second tier: a panel whose subject is stable travels in the query,
     // so a reload reopens it. One with no `address` is transient and keeps the
@@ -161,6 +187,7 @@ function openPanel(descriptor: PanelDescriptor): void {
     bridge.pushLayer(
       "sheet",
       descriptor.address ? panelAddress(descriptor.address) : undefined,
+      produced ? panelRecord(produced.kind, produced.subject) : undefined,
     );
   } catch (error) {
     // B-026's own residual: `window.__bridge` is assigned synchronously at this
@@ -215,7 +242,7 @@ function producePanel(kind: string, subject = ""): void {
   if (descriptor !== null) {
     openKind = kind;
     openSubject = subject;
-    openPanel(descriptor);
+    openPanel(descriptor, { kind, subject });
     return;
   }
   /* NOTHING IN THE CACHE YET — so it is asked for, and the panel opens when the
@@ -275,8 +302,8 @@ function producePanel(kind: string, subject = ""): void {
        screen had been opened down this branch and nothing knew what it was. */
     openKind = kind;
     openSubject = subject;
-    if (addressed) openPanelOnCurrentEntry(() => openPanel(landed));
-    else openPanel(landed);
+    if (addressed) openPanelOnCurrentEntry(() => openPanel(landed, { kind, subject }));
+    else openPanel(landed, { kind, subject });
   });
 }
 

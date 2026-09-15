@@ -96,7 +96,24 @@ DRAWN = """(lift) => {
     const box = element.getBoundingClientRect();
     if (box.width === 0 || box.height === 0) return 'no box';
     const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
-    return hit === null ? 'nothing' : element.contains(hit) ? 'itself' : hit.tagName;
+    if (hit === null) return 'nothing';
+    if (element.contains(hit)) return 'itself';
+    // WHAT HID IT, said with the fall: this reading fell under load and passed
+    // alone, so a bare tag name would name nothing the next time it falls.
+    const hidden = [];
+    for (let at = element; at; at = at.parentElement) {
+      const style = getComputedStyle(at);
+      if (style.pointerEvents !== 'auto' || style.visibility !== 'visible'
+          || style.opacity !== '1') {
+        hidden.push(`${at.id || at.getAttribute('data-part') || at.tagName}`
+          + `:pe=${style.pointerEvents}:vis=${style.visibility}:op=${style.opacity}`);
+      }
+    }
+    const own = getComputedStyle(element);
+    const part = hit.closest('[data-part]')?.getAttribute('data-part') ?? null;
+    return `${hit.tagName}|hitPart=${part}|box=${Math.round(box.top)}+${Math.round(box.height)}`
+      + `|pe=${own.pointerEvents}|z=${own.zIndex}|hidden=${JSON.stringify(hidden)}`
+      + `|page=${window.__store?.read().state.page}|inner=${window.innerHeight}`;
   };
   const answer = {
     lift: !!lift,

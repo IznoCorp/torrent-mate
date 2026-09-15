@@ -16,7 +16,7 @@ import { flushSync } from "react-dom";
 import { registerLayer, unwindLayer } from "./layers";
 import type { DialogDescriptor } from "../ui/dialog/contract";
 import { store } from "../lib/store-access";
-import { bridge } from "../lib/shell-doors";
+import { bridge, fillDialogDoor } from "../lib/shell-doors";
 
 declare global {
   interface Window {
@@ -67,6 +67,7 @@ function closeDialog(pop?: boolean): void {
 
 export function installDialogHost(): void {
   dialog = { open: openDialog, close: closeDialog, isOpen };
+  fillDialogDoor(dialog);
   // ON THE LADDER, as a registration. What Back does with that rung is B-229
   // and lands in its own commit; being ASKABLE is this one's.
   registerLayer("dialog", { isOpen, close: (pop) => closeDialog(pop) });

@@ -10,6 +10,12 @@
 #   5. pytest            — full test suite, at three workers unless the
 #                          environment already names PYTEST_XDIST_AUTO_NUM_WORKERS
 #
+# A DOCS-ONLY push (every file changed between the remote's ref and the pushed
+# head is under `docs/` or ends in `.md`) replaces step 5 with the test modules
+# that read documentation and the documentation guards, by name — seconds, not
+# the whole suite. Any other file, a new branch, or a range git cannot read here
+# keeps the full suite.
+#
 # Mirrors the CI pipeline (.github/workflows/ci.yml) stage 1 + tests.
 
 set -euo pipefail
@@ -30,22 +36,84 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-NUM_CHECKS=5
 failures=0
 total=0
 
+# THE OUTPUT IS CAPTURED ONCE, and shown from the capture. The command used to
+# run silently and then run AGAIN to show why it failed: the suite twice, and a
+# flake's evidence replaced by a second run that may well pass.
 run_check() {
   local label="$1"; shift
   total=$((total + 1))
   printf "${YELLOW}[%s/%s]${NC} %s ... " "$total" "$NUM_CHECKS" "$label"
-  if "$@" > /dev/null 2>&1; then
+  local output
+  output="$(mktemp)"
+  if "$@" > "$output" 2>&1; then
     printf "${GREEN}OK${NC}\n"
   else
     printf "${RED}FAILED${NC}\n"
-    "$@" 2>&1 | sed 's/^/    /'
+    sed 's/^/    /' "$output"
     failures=$((failures + 1))
   fi
+  rm -f "$output"
 }
+
+# ── What the push carries ────────────────────────────────────────────────────
+# Git feeds one line per ref on standard input: `<local ref> <local sha>
+# <remote ref> <remote sha>`. A deletion (local sha all zeros) pushes no file.
+# A new branch (remote sha all zeros) or a range this clone cannot diff is not
+# known to be documentation, so it keeps the full suite. Run by hand from a
+# terminal, nothing is read and the full suite runs.
+docs_only=0
+if [[ ! -t 0 ]]; then
+  docs_only=1
+  pushed_any=0
+  while read -r _local_ref local_sha _remote_ref remote_sha; do
+    [[ "$local_sha" =~ ^0+$ ]] && continue
+    pushed_any=1
+    if [[ "$remote_sha" =~ ^0+$ ]] \
+        || ! changed="$(git diff --name-only "$remote_sha" "$local_sha" 2>/dev/null)"; then
+      docs_only=0
+      break
+    fi
+    while IFS= read -r path; do
+      [[ -z "$path" || "$path" == docs/* || "$path" == *.md ]] && continue
+      docs_only=0
+      break
+    done <<< "$changed"
+    [[ "$docs_only" -eq 0 ]] && break
+  done
+  [[ "$pushed_any" -eq 0 ]] && docs_only=0
+fi
+
+# The test modules that read documentation, produced by
+#   rg -l -g '*.py' -e 'BUGS.md' -e 'IMPLEMENTATION.md' -e 'docs/' tests/scripts
+# and re-taken by the same command when a docs-reading test is added.
+DOCS_TEST_MODULES=(
+  tests/scripts/test_audit_cli_coverage.py
+  tests/scripts/test_auto_format_project_hook.py
+  tests/scripts/test_check_bug_register.py
+  tests/scripts/test_check_code_abbreviations.py
+  tests/scripts/test_check_docs_cited_paths.py
+  tests/scripts/test_check_frontend_boundaries.py
+  tests/scripts/test_check_implementation_state.py
+  tests/scripts/test_check_maquette_comments.py
+  tests/scripts/test_ci_filter_covers_the_guards.py
+  tests/scripts/test_oracle.py
+  tests/scripts/test_pre_push_worker_cap.py
+)
+# The guards whose subject is documentation, by name.
+DOCS_GUARDS=(
+  scripts/check-bug-register.py
+  scripts/check-implementation-state.py
+  scripts/check-docs-cited-paths.py
+  scripts/check-intent-map.py
+)
+if [[ "$docs_only" -eq 1 ]]; then
+  NUM_CHECKS=$((5 + ${#DOCS_GUARDS[@]}))
+else
+  NUM_CHECKS=5
+fi
 
 # ── The worker cap ───────────────────────────────────────────────────────────
 # `pytest -n auto` takes every core — eight on this host — beside whatever gate
@@ -75,7 +143,15 @@ run_check "ruff check"               python -m ruff check personalscraper/ tests
 run_check "ruff format --check"      python -m ruff format --check personalscraper/ tests/
 run_check "logging audit"            python scripts/check_logging.py personalscraper/
 run_check "mypy"                     python -m mypy personalscraper/
-run_check "pytest"                   python -m pytest -v -n auto
+if [[ "$docs_only" -eq 1 ]]; then
+  echo "pre-push: docs-only push — the documentation tests and guards replace the full suite"
+  run_check "pytest (docs modules)"  python -m pytest -v -n auto "${DOCS_TEST_MODULES[@]}"
+  for guard in "${DOCS_GUARDS[@]}"; do
+    run_check "$guard"               python "$guard"
+  done
+else
+  run_check "pytest"                 python -m pytest -v -n auto
+fi
 
 echo ""
 if [[ "$failures" -eq 0 ]]; then

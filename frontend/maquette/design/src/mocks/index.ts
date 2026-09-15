@@ -22,7 +22,7 @@ import { resolve, type MockRoute } from "./router";
 import { outcomeFor, resetScenario, scenario, setDefaultLatency, setOperationOutcome } from "./scenario";
 import { mockSeeds, type MockSeeds } from "./mock-seeds";
 import { answeredCalls, clearAnswered, recordAnswered } from "./answered";
-import { mockState, resetMockState } from "./state";
+import { mockState, resetMockState, setPipelineState } from "./state";
 import { installMockStream, resetStream, type StreamDriver } from "./stream";
 import { routes } from "./handlers";
 
@@ -303,6 +303,7 @@ export function installMockNetwork(): void {
     scenario,
     outcomeFor,
     setOperationOutcome,
+    setPipelineState,
     setDefaultLatency,
     reset: () => {
       resetScenario();
@@ -382,6 +383,7 @@ declare global {
       scenario: typeof scenario;
       outcomeFor: typeof outcomeFor;
       setOperationOutcome: typeof setOperationOutcome;
+      setPipelineState: typeof setPipelineState;
       setDefaultLatency: typeof setDefaultLatency;
       /** Whether the network answers at all — P8's dial, not a status. */
       setOffline: (down: boolean) => void;

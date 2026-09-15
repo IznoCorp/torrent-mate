@@ -23,7 +23,10 @@
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { queueNow, queueActions } from "../../lib/queue";
-import { panel, toast } from "../../lib/shell-doors";
+import { bridge, panel, screens, toast } from "../../lib/shell-doors";
+import { store } from "../../lib/store-access";
+import { sharedQueryClient, send } from "../../lib/query-client";
+import { pendingDecisions } from "./queries";
 import { baseTitle } from "../../lib/titles";
 
 /**
@@ -48,5 +51,83 @@ registerVerb("take", (value) => {
     message: i18next.t("verbs.arrivals.taken", {
       title: baseTitle(value),
     }),
+  });
+});
+
+/* THE ARBITRATION'S VERBS. The folder answered is the one the screen was opened
+   on (`state.resolveTarget`), never an attribute's value: what `data-resolve`
+   carries is the CHOSEN CANDIDATE. Each leaves the screen and acts in the same
+   tap. */
+
+/**
+ * Opens the arbitration: a folder's, or the first stuck one when none is named.
+ */
+registerVerb("resolution", (folder) => screens.resolution(folder || undefined));
+
+// A candidate picked: the folder becomes it, and the pick waits out its undo.
+registerVerb("resolve", (choice) => {
+  const target = store.read().state.resolveTarget as string;
+  bridge.back();
+  const undo = queueActions?.pick(target, choice);
+  store.touch();
+  const message = i18next.t("verbs.arrivals.resolved", { choice: choice || target });
+  toast?.show(typeof undo === "function" ? { message, undo } : { message });
+});
+
+// Agreeing with the machine: the automatic result stands and the folder leaves
+// the queue, because the operator has answered.
+registerVerb("leave", () => {
+  const target = store.read().state.resolveTarget as string;
+  bridge.back();
+  if (!queueActions?.leave(target)) return;
+  store.touch();
+  toast?.show({ message: i18next.t("verbs.arrivals.left", { title: target }) });
+});
+
+// The next folder waiting, on the same screen: the address is the screen's
+// identity, so the same depth is a REPLACE.
+registerVerb("next", (current) => {
+  const lists = queueNow();
+  const decisions = pendingDecisions?.() ?? [];
+  const following = lists.blocked
+    .concat(lists.stuck)
+    .map((card) => decisions.find((decision) => decision.d === card.t) ?? null)
+    .find((decision) => decision !== null && decision.d !== current);
+  if (following) screens.resolution(following.d, true);
+});
+
+// No match for the folder: a pre-filled identification search, its query the
+// folder's name without its release tags.
+registerVerb("manual", (folder) => {
+  const query = folder
+    .replace(/\.(mkv|mp4|avi)$/i, "")
+    .replace(/[._]+/g, " ")
+    .replace(/\b(MULTi|VOSTFR|WEB-DL|WEBRip|BluRay|x264|x265|HEVC|1080p|2160p|720p|FRENCH|TRUEFRENCH)\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  // The search takes the arbitration's place: a REPLACE, the ladder a pop and a
+  // push used to leave.
+  screens.add(query, "identify", true);
+});
+
+/* THE PIPELINE'S TWO COMMANDS ASK THE LAYER. « lancer » runs a pass — asked
+   while one is going, the pass is QUEUED and says so (DOIT-4): « busy, try
+   again » is the answer this interface does not give. « arrêter » stops it.
+   The status read is asked again afterwards, so the bar draws what the
+   pipeline is doing rather than what the tap hoped for. */
+registerVerb("pipe", (command) => {
+  const path = command === "stop" ? "/api/pipeline/kill" : "/api/pipeline/run";
+  void send("POST", path, {}).then(async (answered) => {
+    await sharedQueryClient?.refetchQueries({ queryKey: ["/api/pipeline/status"] });
+    const state = (answered as { state?: string } | undefined)?.state;
+    toast?.show({
+      message: i18next.t(
+        state === "running"
+          ? "verbs.arrivals.pipelineStarted"
+          : state === "queued"
+            ? "verbs.arrivals.pipelineQueued"
+            : "verbs.arrivals.pipelineStopped",
+      ),
+    });
   });
 });

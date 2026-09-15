@@ -216,7 +216,7 @@ async def main():
             const answer = await window.fetch("/api/pipeline/run", {method: "POST"});
             const body = await answer.json().catch(() => ({}));
             return body.state || "";}""")
-        await page.evaluate("""()=>window.__store.write({pipe: "running"})""")
+        await page.evaluate("""()=>window.__pipeline("running")""")
         await page.wait_for_timeout(SETTLED)
         journal.check(
             "the LAYER really has the pipeline busy at the moment of the act",

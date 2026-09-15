@@ -203,11 +203,16 @@ from markup_dressing import (  # noqa: E402, F401
 # answerers it accepts.
 from markup_verbs import check_panel_verbs  # noqa: E402
 
-# `store.write({ pipe: closest.dataset.pipe })` — the handler that FORWARDS a
-# markup value into a store field. The two names differ often enough
-# (`data-lmode` → `libMode`) that both are captured.
-FORWARDER = re.compile(
-    r"store\.write\(\{\s*(?P<field>\w+)\s*:\s*\w+\.dataset\.(?P<attr>\w+)\s*,?\s*\}\)")
+# THE FORWARDING HANDLER IS GONE, AND SO IS THE ARM THAT READ IT (b·7, 2026-09-14,
+# ruling 87). It matched `store.write({ pipe: closest.dataset.pipe })` — the
+# engine's delegation taking a markup value straight into a store field — and
+# checked every emitted literal against the readers that compare it, which is
+# what caught `data-phase="prete"` (B-031) and a `data-fmode="gird"` that
+# rendered nothing. The engine forwards NOTHING now: each name is answered by
+# the feature or the frame that owns it, through the tap registry. The shape has
+# no occurrence left to read, and an arm with an empty corpus refuses itself
+# rather than reporting a green zero — so it goes with its subject, and the loss
+# is recorded in B-513 rather than taken in silence.
 
 # `data-name="value"` in emitted markup or JSX. A value carrying `${` is
 # computed, and this rule cannot know what it evaluates to.
@@ -243,86 +248,6 @@ NAMED_MENTION = re.compile(
 # same delimiter. On a line carrying a `data-part` selection, this is the
 # shape the raw-text reader walks straight past.
 ESCAPED_QUOTE = re.compile(r"\\[\"']")
-
-
-def readers_of(field: str, sources: str) -> set[str]:
-    """Returns every literal value some reader compares `field` against.
-
-    Args:
-        field: The store field's name.
-        sources: All maquette source text, concatenated.
-
-    Returns:
-        The set of literal values, including the ones written as defaults.
-    """
-    patterns = [
-        rf"""\b{field}\s*===?\s*["']([^"']+)["']""",
-        rf"""\.{field}\s*===?\s*["']([^"']+)["']""",
-        rf"""\[["']{field}["']\]\s*===?\s*["']([^"']+)["']""",
-        rf"""\b{field}\s*:\s*["']([^"']+)["']""",
-    ]
-    found: set[str] = set()
-    for pattern in patterns:
-        found |= set(re.findall(pattern, sources))
-    return found
-
-
-def check_forwarded_values() -> int:
-    """Arm 1: checks every forwarded `data-*` value against the readers
-    of its field.
-
-    Returns:
-        1 when anything was found, 0 otherwise.
-    """
-    files = [p for p in sorted(SOURCES.rglob("*"))
-             if p.is_file() and p.suffix in {".js", ".ts", ".tsx"}]
-    if not files:
-        print(f"check-markup-contracts: no sources under {SOURCES} — the "
-              "scope is empty, so « no violation » would mean nothing",
-              file=sys.stderr)
-        return 1
-    text = {p: p.read_text(encoding="utf-8") for p in files}
-    # Comments describe what was TRIED; only code says what is understood.
-    joined = COMMENT.sub(" ", "\n".join(text.values()))
-
-    forwarded = {m.group("attr"): m.group("field")
-                 for m in FORWARDER.finditer(joined)}
-    if not forwarded:
-        print("check-markup-contracts: no `store.write({f: …dataset.x})` "
-              "handler found — either the delegation changed shape or this "
-              "rule is reading the wrong tree", file=sys.stderr)
-        return 1
-
-    violations = 0
-    checked = 0
-    for path, source in text.items():
-        for match in EMITTED.finditer(source):
-            attr, value = match.group("attr"), match.group("value").strip()
-            field = forwarded.get(attr)
-            if field is None:
-                continue                      # not forwarded: not this rule's business
-            checked += 1
-            known = readers_of(field, joined)
-            if value not in known:
-                line = source.count("\n", 0, match.start()) + 1
-                rel = path.relative_to(ROOT)
-                print(f"  {rel}:{line}: `data-{attr}=\"{value}\"` is written "
-                      f"verbatim into `{field}`, and no reader compares "
-                      f"`{field}` against {value!r}. The control is dead: it "
-                      f"writes a value nothing renders. Known: "
-                      f"{sorted(known) or '(none)'}", file=sys.stderr)
-                violations += 1
-
-    if violations:
-        print(f"\ncheck-markup-contracts: {violations} dead control(s). A "
-              "`data-*` value, the handler that forwards it and the readers "
-              "that compare it are ONE contract — they move together or the "
-              "button stops working in silence.", file=sys.stderr)
-        return 1
-
-    print(f"check-markup-contracts: {len(forwarded)} forwarded attribute(s), "
-          f"{checked} emitted value(s), every one understood by a reader.")
-    return 0
 
 
 def named_selections(path: Path) -> list[tuple[int, str, str]]:
@@ -867,8 +792,6 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     rc = 0
     if check_harness_parses():
-        rc = 1
-    if check_forwarded_values():
         rc = 1
     if check_anchor_debt():
         rc = 1

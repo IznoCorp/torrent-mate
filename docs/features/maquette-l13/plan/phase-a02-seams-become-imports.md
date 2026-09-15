@@ -82,7 +82,7 @@ by their app host at install (`engine/seams.ts`'s pattern); `store` lives beside
 
 **R2: one `FAN_IN_EXEMPT` entry, `features/acquisition/queries.ts`**, carrying its lifetime in its comment.
 **The L13b phase that deletes the engine's edge to it** — the acquisition verbs leaving (b·5) or
-`engine/seams.ts` dying (b·11), whichever removes the last engine read of `followActions`/`suggestions` —
+`engine/seams.ts` dying (b·13), whichever removes the last engine read of `followActions`/`suggestions` —
 **removes the entry in the same commit.**
 
 **The six `window.__navEchec = true` WRITES stay as they are.** The move this file planned rested on « a·1
