@@ -23,21 +23,6 @@ import { posterArtworkMarkup } from "../../ui/poster";
 import { tileMarkup } from "../../ui/tile";
 import { deckCaption, deckCardFrame, deckHint, deckMeta, deckPoster, deckReason, deckTitle, suggestionBack, suggestionWrap } from "./variants";
 
-declare global {
-  interface Window {
-    /**
-     * The high-definition poster map and the rich-text emitter, as the dying
-     * engine publishes them.
-     *
-     * READ HERE AND NOT THROUGH THE REFERENCE, which carries neither: adding
-     * them to it would be adding to the engine, and D5 allows that only to stop
-     * a defect that loses the operator's data. Both die with it.
-     */
-    POSTERS_HD: Record<string, string>;
-    richText: (value: unknown) => string;
-  }
-}
-
 /** One suggestion, as the reserve answers it. */
 export type Suggestion = {
   t: string;
@@ -46,6 +31,8 @@ export type Suggestion = {
   note: number | string;
   why: unknown;
   poster?: string | null;
+  /** The poster at full-screen definition, for the deck's card — null when none was taken. */
+  posterHighDefinition?: string | null;
   /** The provider identifiers — null for a title no sheet stands behind. */
   ids?: Record<string, number | string> | null;
 };
@@ -136,8 +123,8 @@ export function deckCard(
 ): string {
   const reference = drawing();
   const escape = escapeHtml;
-  const poster = window.POSTERS_HD[suggestion.t]
-    ? `<img src="${window.POSTERS_HD[suggestion.t]}" alt="" loading="lazy">`
+  const poster = suggestion.posterHighDefinition
+    ? `<img src="${suggestion.posterHighDefinition}" alt="" loading="lazy">`
     : posterArtworkMarkup(posterArtwork(reference.icons, suggestion.poster, suggestion.t, suggestion.k === "Film" ? "movie" : "show"));
   // THE GESTURE LABELS BELONG TO THE TOP CARD ALONE — it is the only one a
   // finger can reach, and `advanceDeck` moves them with the place rather than

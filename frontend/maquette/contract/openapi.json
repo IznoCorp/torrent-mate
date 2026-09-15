@@ -4191,12 +4191,20 @@
               "null"
             ],
             "description": "the poster's address, or null when none is known"
+          },
+          "posterHighDefinition": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the poster at full-screen definition, for the card that shows one poster over the whole screen, or null when none was taken"
           }
         },
         "required": [
           "ids",
           "kind",
           "poster",
+          "posterHighDefinition",
           "rating",
           "title",
           "why",

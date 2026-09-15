@@ -165,7 +165,12 @@ async def main():
         # capitalised-words regex reads two adjacent headings as a person and
         # would have failed on « Vous Identifiant », which names nobody.
         addresses = set(re.findall(r"[\w.+-]+@[\w-]+\.[\w.]+", account["text"]))
-        real_one = await pg.evaluate("()=>ACCOUNT.mail")
+        # The REAL address is the one the page was given — the account read in
+        # the query cache. It was the dying engine's `ACCOUNT` literal until that
+        # left it; re-aimed at the answer the page draws from, which is what
+        # « invented » is measured against.
+        real_one = await pg.evaluate(
+            "()=>window.__queries.getQueryData(['/api/auth/me'])?.mail ?? null")
         journal.check("no other account is invented to fill the screen",
                       addresses <= {real_one},
                       f"{len(addresses)} address(es): {', '.join(sorted(addresses)) or 'none'}")

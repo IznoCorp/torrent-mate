@@ -48,6 +48,7 @@ import { bridge, panel, screens, toast } from "../lib/shell-doors";
 import { go } from "../lib/navigate";
 import { CARRIED_KEY } from "../lib/navigation-entry";
 import { store } from "../lib/store-access";
+import { today } from "../lib/clock";
 import { verbNames } from "../lib/verbs";
 
 declare global {
@@ -89,6 +90,8 @@ declare global {
     __closeLayers?: typeof closeLayers;
     /** When the exit guard was armed, or 0 — the address alone says nothing of it. */
     armedExit?: number;
+    /** The page's today — what every « à venir » and « diffusé le » is compared with. */
+    __today?: typeof today;
     /** Opens a medium's screen on an entry carrying exactly what a rule hands it. */
     __openCarrying?: (provider: string, id: string, carried: Record<string, unknown>) => void;
   }
@@ -138,6 +141,7 @@ export function publishSeams(): void {
   publish("__popover", () => popover);
   publish("__layers", () => registeredLayers);
   publish("__closeLayers", () => closeLayers);
+  publish("__today", () => today);
   publish("armedExit", () => walk.armedExit);
   publish("__entry", () => entry);
   publish("__loadingDone", () => loadingDone);

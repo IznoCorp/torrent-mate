@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { useAcquisitionReference, type Follow } from "./reference";
-import { useFollows } from "./queries";
+import { useFollows, useGrabCadence } from "./queries";
 import { useUiState } from "../../lib/store-access";
 import { FollowsFilters } from "./follows-filters";
 import { body, emptyNote, posterGrid, section as sectionClass, sectionCount, sectionHead, sectionTitle, statusDot, swipeAction, type StatusTone } from "../../ui/variants";
@@ -39,7 +39,10 @@ export function FollowsTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
   const reference = useAcquisitionReference();
-  const { icons, CADENCE_CRON } = reference;
+  const { icons } = reference;
+  // The schedule, as the scheduler returns it — undefined until the read lands,
+  // and then neither the cadence line nor the next slot says anything.
+  const { data: cadenceExpression } = useGrabCadence();
 
   // FROM THE CACHE (invariant 4). Following, unfollowing and grabbing are
   // mutations the engine's delegation still calls; their conversion is the
@@ -87,7 +90,7 @@ export function FollowsTab(): ReactElement {
     );
 
   // Read ONCE for the whole list: every card names the same next slot.
-  const next = nextSearchTime(CADENCE_CRON, new Date());
+  const next = cadenceExpression ? nextSearchTime(cadenceExpression, new Date()) : null;
 
   const seriesState = (follow: Follow) =>
     follow.k === "movie"
@@ -271,7 +274,7 @@ export function FollowsTab(): ReactElement {
   return (
     <>
       <FollowsFilters pills={pills} />
-      <p className={cadence()} data-part="cadence">{cadenceSentence(CADENCE_CRON)}</p>
+      <p className={cadence()} data-part="cadence">{cadenceExpression ? cadenceSentence(cadenceExpression) : null}</p>
       <div className={body()} data-part="surface/body" data-region="acquisition/body">
         <div className="note" data-part="note">
           <b>{t("screens.acquisition.followsNoteLead")}</b>

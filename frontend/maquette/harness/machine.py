@@ -83,21 +83,35 @@ CONTRAST_FLOOR = 4.5
 # same tuples, is what makes the lookup and the verdict share one spelling —
 # and the rung that follows is what makes a list that was not found say so.
 #
-# THE DECLARED SOURCE IS AN EXPRESSION, not a fixture name, and the schedulers
-# are why. Four of these lists are still declared by the dying engine and
-# republished on `window`; the schedulers are the layer's answer, held in the
-# query cache. Comparing the drawn tone against `window.SCHEDULERS` after the
-# family left the engine would not read a stale list — it would raise, which is
-# the honest failure. Naming the CACHE keeps the comparison against what the
-# page was actually given, which is the whole point of a declared source.
-SCHEDULERS_SOURCE = "window.__queries.getQueryData(['/api/maintenance/schedulers'])"
+# THE DECLARED SOURCE IS AN EXPRESSION, not a fixture name: every list is the
+# layer's answer, held in the query cache. The schedulers were the first to read
+# it that way; the other four read `window.SERVICES`, `DISKS`, `INDEX` and
+# `DEPENDENCIES` — the dying engine's literals — until those left it, and they
+# were RE-AIMED at the cache then, on the schedulers' own precedent.
+# Comparing against a family that left the engine would not read a stale list —
+# it would raise, which is the honest failure. Naming the CACHE keeps the
+# comparison against what the page was actually given, which is the whole point
+# of a declared source.
+def cached(address):
+    """The query-cache expression holding one list the page was given.
+
+    Args:
+        address: The contract address the list is read from.
+
+    Returns:
+        The JavaScript expression reading that answer from the cache.
+    """
+    return f"window.__queries.getQueryData(['{address}'])"
+
+
+SCHEDULERS_SOURCE = cached("/api/maintenance/schedulers")
 
 BLOCKS = (
-    ("Services", "services", "service", "SERVICES"),
+    ("Services", "services", "service", cached("/api/system/services")),
     ("Planificateurs", "schedulers", "scheduler", SCHEDULERS_SOURCE),
-    ("Disques", "disks", "disk", "DISKS"),
-    ("Index de la médiathèque", "index", "index row", "INDEX"),
-    ("Dépendances", "dependencies", "dependency", "DEPENDENCIES"),
+    ("Disques", "disks", "disk", cached("/api/maintenance/disks")),
+    ("Index de la médiathèque", "index", "index row", cached("/api/maintenance/index-health")),
+    ("Dépendances", "dependencies", "dependency", cached("/api/system/dependencies")),
 )
 
 # TWO MORE LISTS CARRY A TONE, and no comparison against a declared field can

@@ -21,7 +21,8 @@
     "ACCOUNT": {
       "class": "served",
       "why": "the signed-in account",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the account page and panel read `readAccount`; the topbar avatar is placed by `features/account` through `lib/` (ruling 100 Q4)"
     },
     "APPARENCES": {
       "class": "interface",
@@ -50,7 +51,8 @@
     "CADENCE_CRON": {
       "class": "served",
       "why": "the grab cadence, read off the live scheduler",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the follows tab reads `readAcquisitionStatus`"
     },
     "CAST": {
       "class": "asset",
@@ -85,12 +87,14 @@
     "DEPENDENCIES": {
       "class": "served",
       "why": "the external dependencies and whether they answer",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the system page reads `readDependencies`"
     },
     "DISKS": {
       "class": "served",
       "why": "the disks, their free space and their fill",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the system page reads `readDisks`"
     },
     "DONE_TODAY": {
       "class": "served",
@@ -119,12 +123,14 @@
     "ERRORS": {
       "class": "served",
       "why": "the error tally and the latest one",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the system page reads `readErrors`"
     },
     "EXECUTIONS": {
       "class": "served",
       "why": "the recent pipeline executions",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the system page reads the pipeline history"
     },
     "FOLLOWS": {
       "class": "served",
@@ -153,7 +159,8 @@
     "INDEX": {
       "class": "served",
       "why": "the indexer's own health figures",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the system page reads `readIndexHealth`"
     },
     "INFLIGHT": {
       "class": "served",
@@ -164,7 +171,8 @@
     "JOURNAL": {
       "class": "served",
       "why": "the maintenance journal",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the maintenance page reads `readDestructiveLog`"
     },
     "LIBRARY": {
       "class": "served",
@@ -181,7 +189,8 @@
     "LIB_TOTAL": {
       "class": "served",
       "why": "how many titles the library really holds, read from library.db",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the library listing's own `total` answers it; the engine's copy had no reader"
     },
     "MAINT_ACTIONS": {
       "class": "served",
@@ -246,7 +255,8 @@
     "POSTERS_HD": {
       "class": "asset",
       "why": "poster paths at gallery definition",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; a suggestion carries `posterHighDefinition`, joined from this seed (ruling 100 Q3)"
     },
     "PRESS_MS": {
       "class": "interface",
@@ -323,12 +333,14 @@
     "SECRETS": {
       "class": "served",
       "why": "the secret keys and whether each is defined — never a value",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the settings page reads `/api/config/secrets`"
     },
     "SERVICES": {
       "class": "served",
       "why": "the services and their states",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; the system page reads `readServices`; its fault twin is derived in `features/system/fault.ts`"
     },
     "SETTINGS": {
       "class": "served",
@@ -423,7 +435,8 @@
     "TODAY": {
       "class": "unserved",
       "why": "THE PROTOTYPE'S FROZEN CLOCK, and it is the determinism device rather than data. A server does not send today's date. It is not seeded — the mock layer declares its own instant (D-L08-8) and R85 holds that the two AGREE, because every date-derived state moves the moment they do not",
-      "seed": null
+      "seed": null,
+      "converted": "L13r phase r·2 — the engine's literal died; `lib/clock.ts` `today()`, filled at boot with the mock scenario's instant (ruling 100 Q2)"
     },
     "TRIS": {
       "class": "interface",

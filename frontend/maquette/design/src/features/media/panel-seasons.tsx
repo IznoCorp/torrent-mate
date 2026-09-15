@@ -10,7 +10,7 @@
 // same tags, same classes, same `data-*`, so the document-level delegation
 // (`.ep[data-ep]`) keeps working unchanged.
 import { useTranslation } from "react-i18next";
-import { useMediaReference, type MediaReference } from "./reference";
+import { today } from "../../lib/clock";
 import { useQueryClient } from "@tanstack/react-query";
 import { heldIdentity, providerAddress } from "../../lib/held-identity";
 import { useServerStateVersion } from "../../lib/query-client";
@@ -91,13 +91,11 @@ function catalogFor(served: Served, number: number): EpisodeCatalog | null {
 function SeasonDetails({
   follow,
   season,
-  reference,
   served,
   owns,
 }: {
   follow: Follow;
   season: Season;
-  reference: MediaReference;
   served: Served;
   /** Whether the library holds the medium. */
   owns: boolean;
@@ -120,7 +118,7 @@ function SeasonDetails({
   const cells = Array.from({ length: total }, (_, index) => {
     const number = index + 1;
     const info = catalog?.find((entry) => entry.n === number) ?? null;
-    const upcoming = Boolean(info?.air && info.air > reference.TODAY);
+    const upcoming = Boolean(info?.air && info.air > today());
     const state = upcoming
       ? "announced"
       : epState(served, follow, num, number, owned);
@@ -230,7 +228,6 @@ function SeasonsBlock({
 }: {
   block: { type: "saisons" } & PanelBlockMap["saisons"];
 }) {
-  const reference = useMediaReference();
   const { follow, seasons } = block;
   // THE MEDIUM'S IDENTITY, from the record or from the cache — re-asked when any
   // read lands, because the list that holds a medium nobody follows can land
@@ -248,7 +245,7 @@ function SeasonsBlock({
   };
   const hasUpcoming = seasons.some((season) =>
     (catalogFor(served, season[0]) ?? []).some(
-      (episode) => episode.air && episode.air > reference.TODAY,
+      (episode) => episode.air && episode.air > today(),
     ),
   );
   const statesPresent = new Set<string>([
@@ -275,7 +272,6 @@ function SeasonsBlock({
           key={season[0]}
           follow={follow}
           season={season}
-          reference={reference}
           served={served}
           owns={owns}
         />

@@ -70,7 +70,6 @@ export type SettingsTopic = {
 
 export type SettingsReference = EngineDrawing & {
   SETTINGS_STATE: SettingsState;
-  SECRETS: Secret[];
   // Réglages (settings) panel actions — derive
   // a setting's storage id, coerce a raw field input back to its stored
   // type, and apply/open a pending edit. See refonte.html@60530dbd8's `SETTINGS`

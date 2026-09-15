@@ -1119,6 +1119,8 @@ export interface components {
             ids: components["schemas"]["ProviderIds"] | null;
             /** @description the poster's address, or null when none is known */
             poster: string | null;
+            /** @description the poster at full-screen definition, for the card that shows one poster over the whole screen, or null when none was taken */
+            posterHighDefinition: string | null;
         };
         Release: {
             /** @description the release name, as the tracker publishes it */

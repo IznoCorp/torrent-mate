@@ -2,7 +2,7 @@
 // from the owned numbers or from the catalogue, with the episode matrix
 // underneath when the numbers are known.
 import { useTranslation } from "react-i18next";
-import { useMediaReference } from "./reference";
+import { today } from "../../lib/clock";
 import { SkeletonLine } from "../../ui/state-surfaces";
 import { actionButton, factsPanel } from "../../ui/variants";
 import { queuedMark, seasonGrabSpacing, seasonGrabTaken, upcomingMark, episodeCell, episodeDate, episodeDot, episodeNumber, episodeRow, episodeSet, episodeTitle, missingList, noInfo, seasonDisclosure, seasonFraction, seasonShortfall } from "./variants";
@@ -67,7 +67,7 @@ export function SeasonList({
   failed: boolean;
   ownershipKnown: boolean;
 }) {
-  const { TODAY } = useMediaReference();
+  const TODAY = today();
   const { t } = useTranslation();
   // WHICH SEASONS ARE WAITING, read from the cache like every other fact on
   // this sheet, so the row redraws when one arrives.

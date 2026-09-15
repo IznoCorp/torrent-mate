@@ -12,12 +12,7 @@
 
 import type { EngineDrawing } from "../../lib/engine-drawing";
 
-export type AccountReference = EngineDrawing & {
-  // The one account this server has, and the escaper the fragment's emitters
-  // use — a page that hands a string of markup to one of them escapes exactly
-  // what the legacy escaped.
-  ACCOUNT: { name: string; mail: string };
-};
+export type AccountReference = EngineDrawing;
 
 /**
  * Reads this feature's slice of the engine's published reference object.

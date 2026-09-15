@@ -427,6 +427,7 @@ fr
 fraction
 frame
 frames
+freeze
 freq
 frequency
 fresh

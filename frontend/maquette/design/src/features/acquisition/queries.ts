@@ -156,6 +156,20 @@ export const incompleteShowsQuery = {
     toEngineShape<unknown[]>("INCOMPLETE", await read("/api/library/incomplete")),
 };
 
+/**
+ * The schedule the acquisition engine searches on, as the scheduler returns it.
+ *
+ * Returns:
+ *     The query; its data is the cron expression, undefined until it lands.
+ */
+export function useGrabCadence() {
+  return useQuery({
+    queryKey: ["/api/acquisition/status"],
+    queryFn: () => read<{ cadence: string; nextSearch: string | null }>("/api/acquisition/status"),
+    select: (status: { cadence: string }) => status.cadence,
+  });
+}
+
 /** What the operator follows. */
 export function useFollows() {
   return useQuery(followsQuery);

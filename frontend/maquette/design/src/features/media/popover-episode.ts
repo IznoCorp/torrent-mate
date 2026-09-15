@@ -15,6 +15,7 @@ import i18next from "i18next";
 import { heldIdentity, providerAddress } from "../../lib/held-identity";
 import { sharedQueryClient } from "../../lib/query-client";
 import { dateLabel, episodeStateLabel } from "./format";
+import { today } from "../../lib/clock";
 
 /** One episode of a season's catalogue, as the served sheet answers it. */
 type Episode = { n: number; t?: string; air?: string | null };
@@ -62,14 +63,13 @@ export function episodeSaying(
   const written = cell.dataset.ep;
   if (written === undefined) return null;
   const [title, season, number, state] = written.split("|");
-  const reference = window.__referentiel;
   const episode =
     catalogueOf(title)?.[season]?.find((one) => String(one.n) === number) ?? null;
   const airDate = episode?.air ? dateLabel(episode.air) : null;
   // ANNOUNCED IS EITHER OF TWO THINGS, and both are read: a date still ahead of
   // today, or a state the catalogue already calls announced. A rule that read
   // only the first would go green the day the fixture's dates fell behind.
-  const ahead = Boolean(episode?.air && episode.air > reference.TODAY);
+  const ahead = Boolean(episode?.air && episode.air > today());
   const translate = i18next.t.bind(i18next);
   return {
     title:

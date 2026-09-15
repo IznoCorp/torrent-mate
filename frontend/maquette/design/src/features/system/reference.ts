@@ -10,7 +10,7 @@
 // reader imports nothing to be typed, and a member nobody's subject claims has
 // nowhere to be written down.
 
-import type { EngineDrawing, Fact } from "../../lib/engine-drawing";
+import type { EngineDrawing } from "../../lib/engine-drawing";
 
 // The code-error summary the Système page draws as two rows.
 export type CodeErrors = {
@@ -30,14 +30,7 @@ export type PipelineRun = {
   r: string;
 };
 
-export type SystemReference = EngineDrawing & {
-  SERVICES: Fact[];
-  EXECUTIONS: PipelineRun[];
-  DISKS: Fact[];
-  INDEX: Fact[];
-  DEPENDENCIES: Fact[];
-  ERRORS: CodeErrors;
-};
+export type SystemReference = EngineDrawing;
 
 /**
  * Reads this feature's slice of the engine's published reference object.

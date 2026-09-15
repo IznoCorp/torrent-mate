@@ -104,8 +104,6 @@ import {
      anywhere under `design/`. */
 
 
-  /* Real data */
-  const LIB_TOTAL = 1861;
 
 
   /* The 12 REAL follows, read from acquire.db with their true state: 4
@@ -117,15 +115,6 @@ import {
      searched, found nothing ». */
 
 
-  /* 150 REAL suggestions: the output of the engine actually run against
-     library.db (16 seeds → 32 TMDB calls → 640 raw titles → 503 survivors
-     after excluding the 1,832 owned TMDB ids). */
-  /* A cron expression on a phone card is raw jargon. The scheduler returns
-     it that way; the interface TRANSLATES it, and falls back to the raw
-     form only when it cannot — in which case it says so rather than
-     inventing. */
-  /* The schedule the engine really runs, as the scheduler returns it. */
-  const CADENCE_CRON = "20 3,15 * * *";
 
 
   /* Results of a REAL TMDB search for « star wars », cross-checked against
@@ -141,83 +130,7 @@ import {
      served: a card that opens a hollow sheet is a dead end. The reserve
      honestly states how many it carries. */
 
-  /* 260 REAL titles extracted from library.db (read-only) — enough to
-     exercise scrolling on more than a handful of examples. */
-  /* ONE sub-line grammar for the library: « year · type ». Films said «
-     2026 · Film » and series « 6 ép. » — two grammars for the same line, so
-     nothing was comparable from row to row. */
-  /* ONE sub-line grammar (« year · type ») and the REAL storage category,
-     the one used on the disks — not an invented label. */
-  /* STRATIFIED sample: the 260 most recent titles, plus enough that no
-     category is empty — a filter with nothing to show cannot be judged.
-     Single sub-line « year · type », and the REAL storage category. */
-  /* 38 REAL posters at 620 × 930, one per served suggestion, for the slide
-     cards format only. The 154px poster used everywhere else is right at
-     thumbnail size and mush once blown up to fill a phone screen: a format
-     that shows one poster full-screen needs its own source. */
-  const POSTERS_HD = {
-    "Superman : L'Homme de demain": "assets/posters-hd/62e12311.webp",
-    "Alita : Battle Angel": "assets/posters-hd/b39c19c9.webp",
-    "Numéro quatre": "assets/posters-hd/0cb20ccb.webp",
-    "Avengers : Endgame": "assets/posters-hd/46844527.webp",
-    "L'Incroyable Hulk": "assets/posters-hd/97b46743.webp",
-    "Man of Steel": "assets/posters-hd/94def384.webp",
-    "X-Men : Dark Phoenix": "assets/posters-hd/da5a5404.webp",
-    "Premier Contact": "assets/posters-hd/f2c6e872.webp",
-    "Ant-Man et la Guêpe : Quantumania": "assets/posters-hd/55232278.webp",
-    "The Venture Bros": "assets/posters-hd/890d8f76.webp",
-    "Fast Charlie": "assets/posters-hd/01829da1.webp",
-    Grimsburg: "assets/posters-hd/db2a8861.webp",
-    "Solo: A Star Wars Story": "assets/posters-hd/d33616f2.webp",
-    "L'Assassin": "assets/posters-hd/41922de1.webp",
-    "Power Rangers": "assets/posters-hd/6bc13ec8.webp",
-    "Agent Elvis": "assets/posters-hd/26da5927.webp",
-    "Marvel's M.O.D.O.K.": "assets/posters-hd/5a40a4a5.webp",
-    "Un Duplex pour 3": "assets/posters-hd/b4bb05a1.webp",
-    "Les Trois Corniauds": "assets/posters-hd/9b1711ea.webp",
-    "L'Embrouille est dans le sac": "assets/posters-hd/e4bceec0.webp",
-    Impostor: "assets/posters-hd/d62c7202.webp",
-    "Green Lantern : Le Complot": "assets/posters-hd/c30fc907.webp",
-    "Green Lantern : Méfiez-vous de mon pouvoir":
-      "assets/posters-hd/fec17dad.webp",
-    "Monsieur le député": "assets/posters-hd/fe65e1aa.webp",
-    "Touche pas à mon gazon": "assets/posters-hd/10abc7cf.webp",
-    "LOL 2.0": "assets/posters-hd/83dc400c.webp",
-    Thunderstruck: "assets/posters-hd/41c67e3d.webp",
-    "American Dreamer": "assets/posters-hd/74c17774.webp",
-    "Y-a-t'il quelqu'un pour l'ambulance ?": "assets/posters-hd/6db670f4.webp",
-    "Jim Gaffigan: Beyond the Pale": "assets/posters-hd/3c3354da.webp",
-    "Eddie Murphy: Delirious": "assets/posters-hd/9c24447d.webp",
-    "Jim Gaffigan: Mr. Universe": "assets/posters-hd/608656ba.webp",
-    "Spider-Man : Brand New Day": "assets/posters-hd/8c3d11b6.webp",
-    "Esprits criminels": "assets/posters-hd/3f107d28.webp",
-    "Avengers : Infinity War": "assets/posters-hd/e1bc275f.webp",
-    Arrow: "assets/posters-hd/46781e16.webp",
-    "Avatar : De feu et de cendres": "assets/posters-hd/4587e6f0.webp",
-    Manhunt: "assets/posters-hd/05565116.webp",
-  };
 
-  /* The signed-in account. One place, hard-coded for now: this instance has a
-     single user, and the multi-user system with per-user rights is a later
-     mission. When it lands, this object is what a session payload fills.
-
-     The avatar comes from Gravatar. The APP builds the URL at runtime:
-
-         https://www.gravatar.com/avatar/{sha256(lowercased trimmed email)}
-             ?s={size * devicePixelRatio}&d={fallback}
-
-     Use SHA-256, not MD5 — MD5 is the legacy form Gravatar still answers but
-     no longer documents. Always pass `d=`: without a fallback an account with
-     no Gravatar gets the default mystery silhouette, which says less than the
-     initials this interface already draws. The image below is what that URL
-     returns today, embedded because this prototype has no external resource —
-     a page that reaches the network is a page that renders differently
-     depending on where it is opened. */
-  const ACCOUNT = {
-    name: "izno",
-    mail: "iznogoudatall@gmail.com",
-    avatar: "assets/avatar.webp",
-  };
 
 
   /* Categories are the REAL storage ones (categories.json5 → disk folders),
@@ -292,254 +205,13 @@ import {
      is the one the operator can act on, and it points at « Ça coince » just
      below rather than at a log. */
 
-  /* The destructive journal, read from `destructive_op` in `library.db`.
-     Twenty-seven operations, and every one of them was written by the
-     pipeline itself rather than by a hand: `actor` says `dispatch`. That is
-     worth showing as it is — a journal that only ever recorded the operator
-     would be a journal nobody consults. */
-  const JOURNAL = {
-    total: 27,
-    lignes: [
-      {
-        l: "Star Trek Strange New Worlds (2022)",
-        v: "hier à 15 h 25",
-        s: "fusion de série · métadonnées et visuels régénérés, aucun épisode écrasé · par le pipeline",
-      },
-      {
-        l: "Ted Lasso (2020)",
-        v: "le 12 août",
-        s: "fusion de série · métadonnées et visuels régénérés, aucun épisode écrasé · par le pipeline",
-      },
-      {
-        l: "Futurama (1999)",
-        v: "le 12 août",
-        s: "fusion de série · métadonnées et visuels régénérés, aucun épisode écrasé · par le pipeline",
-      },
-      {
-        l: "President Curtis (2026)",
-        v: "le 10 août",
-        s: "fusion de série · métadonnées et visuels régénérés, aucun épisode écrasé · par le pipeline",
-      },
-      {
-        l: "Furious (2026)",
-        v: "le 10 août",
-        s: "fusion de série · métadonnées et visuels régénérés, aucun épisode écrasé · par le pipeline",
-      },
-    ],
-  };
-
-  /* ── LA MACHINE ───────────────────────────────────────────────────────
-     Read from `pm2 jlist`, from `df`, and from `library.db`. Système answers
-     one question — is the machine in trouble — and never « is a medium in
-     trouble », which is Arrivées' business.
-
-     The trap this data carries, and it is the reason these two lists are
-     separate: PM2 reports a SCHEDULED job as `stopped` between two runs. It is
-     the literal truth about the process and a lie about the system, and an
-     interface that repeats it paints six red rows on a machine in perfect
-     health. A service is judged on whether it is UP; a scheduler is judged on
-     whether it RAN. They are not the same object and they do not share a
-     vocabulary. */
-  const SERVICES = [
-    {
-      l: "TorrentMate",
-      ton: "success",
-      v: "en ligne",
-      s: "depuis ce matin 09 h 36",
-    },
-    {
-      l: "TorrentMate (staging)",
-      ton: "success",
-      v: "en ligne",
-      s: "depuis ce matin 08 h 25",
-    },
-    {
-      l: "Veille des téléchargements",
-      ton: "success",
-      v: "en ligne",
-      s: "depuis le 10 août",
-    },
-    {
-      l: "Déploiement automatique",
-      ton: "success",
-      v: "en ligne",
-      s: "depuis le 10 août",
-    },
-    /* PM2's restart counter means THREE different things depending on what it
-       is counting, and none of them is « how unhealthy is this ».
-
-       On a daemon it counts manual restarts: this host sits at 92 because the
-       procedure asks for one after every edit to `serve.py`. Its unstable
-       count — PM2's own word for « died before min_uptime » — is zero. On a
-       scheduled job the same field counts RUNS, which is why the hourly health
-       check reads 263. And on a scheduled job the unstable count is not a
-       crash either: a job that finishes and exits has, by definition, died
-       before min_uptime.
-
-       So the raw number is not printed. What a service owes is « is it up and
-       since when »; a count whose meaning changes with the row is a figure the
-       operator has to decode, which is the opposite of what a line is for. */
-    {
-      l: "Hôte de la maquette",
-      ton: "success",
-      v: "en ligne",
-      s: "depuis ce matin 08 h 28 · redémarré à la main après chaque édition",
-    },
-  ];
 
 
-  /* The disks, read from `df`. The percentage is what fills, so it is what is
-     printed; a disk at 92 % says so before it says how many gigabytes remain,
-     because « 335 Go » sounds like a lot and is four days of this library. */
-  const DISKS = [
-    {
-      l: "Disk1",
-      ton: "success",
-      v: "de la place",
-      s: "1,8 To libres · 15 To · rempli à 88 %",
-    },
-    {
-      l: "Disk2",
-      ton: "warning",
-      v: "bientôt plein",
-      s: "335 Go libres · 4,1 To · rempli à 92 % — quatre jours à ce rythme",
-    },
-    {
-      l: "Disk3",
-      ton: "success",
-      v: "de la place",
-      s: "906 Go libres · 4,1 To · rempli à 78 %",
-    },
-    {
-      l: "Disk4",
-      ton: "success",
-      v: "de la place",
-      s: "730 Go libres · 3,1 To · rempli à 76 %",
-    },
-  ];
 
-  /* The index, read from `library.db`. « Anomalies » are counted by type
-       rather than totalled: 633 alone reads as a system falling apart, and
-       607 of them are junk files, which is a housekeeping errand rather than
-       a fault. What one does about them lives in Maintenance. */
-  const INDEX = [
-    /* A quantity is not a state, so it wears no badge: « 1 863 titres » is
-       neither good nor bad, it is how big the library is. */
-    {
-      l: "Médiathèque",
-      ton: "info",
-      v: "1 863 titres",
-      s: "97 999 fichiers · 25 939 épisodes",
-    },
-    {
-      l: "Dernier balayage",
-      ton: "success",
-      v: "réussi",
-      s: "réparation, à la fin du dernier passage du pipeline",
-    },
-    {
-      l: "Réparations en attente",
-      ton: "success",
-      v: "aucune",
-      s: "la file est vide",
-    },
-    {
-      l: "Écritures en attente",
-      ton: "success",
-      v: "aucune",
-      s: "rien ne reste à propager",
-    },
-    /* Where a quantity hides a state, the STATE is the badge and the quantity
-       moves underneath: « 633 » in red reads as a system falling apart, and
-       607 of them are junk files — a housekeeping errand, not a fault. */
-    {
-      l: "Anomalies relevées",
-      ton: "warning",
-      v: "à nettoyer",
-      s: "633 en tout · 607 fichiers parasites · 18 restes de release · 8 autres",
-    },
-  ];
 
-  const DEPENDENCIES = [
-    {
-      l: "Redis",
-      ton: "success",
-      v: "connecté",
-      s: "le relais d'événements répond",
-    },
-    {
-      l: "TMDB / TVDB",
-      ton: "success",
-      v: "disponibles",
-      s: "aucun disjoncteur ouvert",
-    },
-    {
-      l: "qBittorrent",
-      ton: "success",
-      v: "joignable",
-      s: "derrière le proxy, comme il doit l'être",
-    },
-  ];
 
-  /* Code errors, and only those: a medium the pipeline refused is not an
-     error, it is a decision, and it belongs to Arrivées. What is counted here
-     is a run that RAISED. */
-  const ERRORS = {
-    total: 14,
-    outOf: 425,
-    latest: "le 6 août à 08 h 08",
-    what: "une maintenance : grab --followed-id 26 est sorti en erreur",
-    where: "api/torrent/qbittorrent.py, dans build_client",
-  };
 
-  /* The pipeline's EXECUTIONS, read from `pipeline_run`: did it run, did it
-     succeed, how long did it take. That is a machine's health and it belongs
-     to Système. What each run DID to the media belongs to Arrivées, which
-     tells the last one step by step.
 
-     Note that every run of the last five days blocked exactly one item. That
-     is not a coincidence and it is not noise: the same folder — « Top Chef Le
-     Concours Parallèle » — fails the quality gate at every pass, because no
-     provider has episode data for it. A number that never moves says something
-     the operator can act on, which is why it is printed. */
-  const EXECUTIONS = [
-    {
-      q: "14/08 07 h 08",
-      ok: true,
-      d: "fin d'un téléchargement",
-      r: "1 rangé · 1 bloqué · 1 min 44",
-    },
-    {
-      q: "13/08 15 h 23",
-      ok: true,
-      d: "fin d'un téléchargement",
-      r: "1 rangé · 1 bloqué · 1 min 59",
-    },
-    {
-      q: "12/08 15 h 24",
-      ok: true,
-      d: "fin d'un téléchargement",
-      r: "2 rangés · 1 bloqué · 7 min 19",
-    },
-    {
-      q: "12/08 11 h 16",
-      ok: true,
-      d: "fin d'un téléchargement",
-      r: "1 rangé · 1 bloqué · 1 min 37",
-    },
-    {
-      q: "11/08 15 h 28",
-      ok: true,
-      d: "filet de sécurité",
-      r: "rien de nouveau · 1 bloqué · 2 s",
-    },
-    {
-      q: "10/08 15 h 23",
-      ok: true,
-      d: "fin d'un téléchargement",
-      r: "2 rangés · 1 bloqué · 2 min 31",
-    },
-  ];
 
   /* What really left the pipeline in the last 24 hours, read from the
      `dispatch` step of the two runs that fall inside it. « merged » and
@@ -653,10 +325,6 @@ import {
     );
   }
 
-  /* The shell is static markup, so the avatar is placed once at boot — which is
-     also what the app does, from its session payload. */
-  const beforeReset = document.querySelector(".topbar .avatar img");
-  if (beforeReset) beforeReset.src = ACCOUNT.avatar;
 
 
   /* Active datasets, resolved by scenario. The rest of the code does not
@@ -701,39 +369,6 @@ import {
      above the key in the file itself, which until now nobody could read
      without opening the file. */
 
-  const SECRETS = [
-    { k: "QBIT_USERNAME", l: "Nom d'utilisateur qBittorrent", def: true },
-    { k: "QBIT_PASSWORD", l: "Mot de passe qBittorrent", def: true },
-    { k: "TMDB_API_KEY", l: "Clé API TMDB", def: true },
-    { k: "TVDB_API_KEY", l: "Clé API TVDB", def: true },
-    { k: "TRAKT_CLIENT_ID", l: "Identifiant client Trakt", def: true },
-    { k: "TELEGRAM_BOT_TOKEN", l: "Jeton du bot Telegram", def: true },
-    {
-      k: "TELEGRAM_CHAT_ID",
-      l: "Identifiant de discussion Telegram",
-      def: true,
-    },
-    { k: "HEALTHCHECK_URL", l: "URL du service Healthchecks.io", def: true },
-    { k: "YOUTUBE_API_KEY", l: "Clé API YouTube Data v3", def: true },
-    { k: "YOUTUBE_COOKIES_FILE", l: "Fichier cookies.txt YouTube", def: false },
-    {
-      k: "YOUTUBE_COOKIES_FROM_BROWSER",
-      l: "Navigateur source pour les cookies YouTube",
-      def: false,
-    },
-    { k: "OMDB_API_KEY", l: "Clé API OMDb", def: true },
-    {
-      k: "WEB_PASSWORD_HASH",
-      l: "Empreinte du mot de passe web (scrypt)",
-      def: true,
-    },
-    {
-      k: "WEB_JWT_SECRET",
-      l: "Clé de signature des jetons de session",
-      def: true,
-    },
-    { k: "C411_PASSKEY", l: "Passkey C411", def: true },
-  ];
 
   /* ── La surface des réglages ──────────────────────────────────────────
 
@@ -922,9 +557,6 @@ import {
        SUGGESTION machinery is NOT here: `#sugitems`, `#sugload` and
        `.deckbody` stay the fragment's to fill, because the deck's gesture
        mutates its own DOM and a replaced node cannot animate. */
-    CADENCE_CRON,
-    /* The account the server really has. */
-    ACCOUNT,
     /* The suggestion machinery, called by the page AFTER React has drawn its
        containers. `render()` calls these too, for as long as a legacy page can
        hold them — but it calls them BEFORE the shell has drawn, so a migrated
@@ -933,12 +565,6 @@ import {
     /* Published for the MEASUREMENT of the deck's gesture: a rule drives the
        two halves the way the swipe handler drives them, and reads what the
        animation is doing one frame later. */
-    SERVICES,
-    EXECUTIONS,
-    DISKS,
-    INDEX,
-    DEPENDENCIES,
-    ERRORS,
     /* What the Maintenance page draws. The command PANEL has left — it is
        `features/maintenance/panel-action.ts` now, reached through
        `panel.produce("action", id)` — and the risk vocabulary went with it,
@@ -950,20 +576,11 @@ import {
        ici : `settings-labels.ts` le porte pour la page comme pour le panneau,
        et le fragment le lit par `window.__settingLabels`. */
     SETTINGS_STATE,
-    SECRETS,
     
     displayedValue,
     fileName,
     changedFiles,
-    JOURNAL,
     dateFR: dateLabel,
-    // TODAY is declared with `const` further down this same script, past this
-    // literal's evaluation point — a plain shorthand reference would hit the
-    // temporal dead zone the instant this object is built. A getter defers
-    // the read to first access, by which time the whole script has run.
-    get TODAY() {
-      return TODAY;
-    },
     settingId,
     typedValue,
     toast,
@@ -1269,8 +886,6 @@ import {
      directly; the `data-apparence` branch of the delegation went with it, and
      with it the last French `data-*` name this file wrote. */
 
-  /* Screens and sheets */
-  const TODAY = "2026-08-10";
 
 
 
@@ -1403,16 +1018,8 @@ export {
    destructuring on either side, and `for (name of …)`; all four were searched
    across all 254 names, and this is the only one. */
 Object.assign(window, {
-  POSTERS_HD,
-  TODAY, CADENCE_CRON, ACCOUNT,
-  DEPENDENCIES, DISKS,
-  ERRORS, EXECUTIONS,
-  INDEX, JOURNAL,
-  LIB_TOTAL,
   SETTINGS_STATE,
-  SECRETS, SERVICES,
   actionDelete, addVerb, showSignIn,
-  beforeReset,
   closeSheet,
   changedFiles,
   icons,

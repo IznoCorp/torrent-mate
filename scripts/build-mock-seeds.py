@@ -360,6 +360,9 @@ def joined(name: str, seed: object, join: dict, projected: dict[str, object]) ->
     resolver = SheetResolver(join_source("SHEETS_RAW", projected))
     posters = join_source("POSTERS", projected)
     fields: dict[str, str] = join["fields"]
+    # Read only when a declaration asks for it: most joins never do.
+    posters_high_definition = (join_source("POSTERS_HD", projected)
+                               if "posterHighDefinition" in fields.values() else {})
 
     def decorate(entry: object, key: str | None) -> dict:
         if not isinstance(entry, dict):
@@ -378,6 +381,10 @@ def joined(name: str, seed: object, join: dict, projected: dict[str, object]) ->
                 # A PROPOSITION asks for its own picture only: « Lucky (2006) » is
                 # not « Lucky », and a base title would hand one the other's.
                 result[field] = posters.get(entry.get("title"))
+            elif source == "posterHighDefinition":
+                # The picture a full-screen card shows, under the exact title the
+                # engine's deck looked it up by — null when none was taken.
+                result[field] = posters_high_definition.get(entry.get("title"))
             elif source == "key":
                 result[field] = key
             else:

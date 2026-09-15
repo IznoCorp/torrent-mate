@@ -28,9 +28,7 @@ export type MaintenanceAction = {
   blanc?: boolean;
 };
 
-export type MaintenanceReference = EngineDrawing & {
-  JOURNAL: DeletionJournal;
-};
+export type MaintenanceReference = EngineDrawing;
 
 /**
  * Reads this feature's slice of the engine's published reference object.

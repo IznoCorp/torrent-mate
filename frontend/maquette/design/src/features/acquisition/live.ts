@@ -137,13 +137,15 @@ export const acquisitionLiveExemptions: LiveExemptions = {
     "CrossSeedRejected",
     "TrackerAuthFailed",
   ],
-  keys: ["/api/acquisition/search"],
+  keys: ["/api/acquisition/search", "/api/acquisition/status"],
   /* a search is a QUESTION the reader just asked, not a resource that ages: refreshing it behind them would replace the results they are reading with different ones, which is the one thing a search must not do */
+  /* the status carries the grab SCHEDULE, which is configuration: it changes when the operator edits it, and no backend event announces a schedule change */
   because:
     "the ratio and cross-seed events belong to surfaces that have no page yet, "
     + "and claiming them here would refresh a list that does not show them. "
     + "`TrackerAuthFailed` is neither: it is a FAILURE, and it is claimed by "
     + "the system feature's errors read — named here so that « acquisition does "
     + "not refresh on it » is a decision rather than an omission, and not "
-    + "because the sentence about ratio events describes it",
+    + "because the sentence about ratio events describes it. The acquisition "
+    + "status carries the grab schedule, which is configuration no event announces",
 };

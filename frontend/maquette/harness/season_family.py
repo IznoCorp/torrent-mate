@@ -163,16 +163,19 @@ ROW = """([scope, word, season]) => {
 
 # WHAT THE CATALOGUE SAYS OF ONE SEASON: how many of its episodes aired by
 # today, how many are announced after it, and the first announced date as the
-# interface formats it.
+# interface formats it. Today is the page's clock (`window.__today()`), the one
+# the panel compares with; it was the engine's `TODAY` read through the
+# referential until that left the engine, and was RE-AIMED at the clock then.
 CATALOGUE = """([key, season]) => {
   const reference = window.__referentiel;
+  const today = window.__today();
   const sheet = window.__sheetOf(key);
   const episodes = (sheet && sheet.episodes && sheet.episodes[String(season)]) || [];
   const total = ((sheet && sheet.seasons) || []).find((one) => one.number === season);
-  const ahead = episodes.filter((one) => one.airDate && one.airDate > reference.TODAY)
+  const ahead = episodes.filter((one) => one.airDate && one.airDate > today)
     .map((one) => one.airDate).sort();
   return {total: total ? total.episodes : null,
-          aired: episodes.filter((one) => one.airDate && one.airDate <= reference.TODAY).length,
+          aired: episodes.filter((one) => one.airDate && one.airDate <= today).length,
           ahead: ahead.length,
           firstAhead: ahead.length ? reference.dateFR(ahead[0]) : null};
 }"""

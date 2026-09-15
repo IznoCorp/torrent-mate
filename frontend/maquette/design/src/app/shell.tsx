@@ -59,6 +59,9 @@ import "./frame-verbs";
 import { createStore } from "./store";
 import { installFocusManager } from "./focus";
 import { installMockNetwork } from "../mocks";
+import { scenario } from "../mocks/scenario";
+import { freezeClock } from "../lib/clock";
+import { installSignedInAvatar } from "../features/account/avatar";
 import { router } from "./router-tree";
 import {
   history,
@@ -171,7 +174,12 @@ installSeams({ bridge, screens, panel });
 // Behind a build-time constant, so the switchover removes it by editing one
 // value. `__MOCKS_BUILT_IN__` is replaced at build time, so the branch below is dead
 // code when it is false and the bundler drops the import with it.
-if (__MOCKS_BUILT_IN__) installMockNetwork();
+if (__MOCKS_BUILT_IN__) {
+  installMockNetwork();
+  // The page's today is the layer's frozen instant, so the dates the layer
+  // answers and the day they are compared with are one day (`lib/clock.ts`).
+  freezeClock(scenario().now);
+}
 
 // THE NAVIGATION TABLE, PUBLISHED BEFORE THE ENGINE STARTS. The engine's own
 // first render draws the tab bar from it; a seam installed afterwards would
@@ -231,6 +239,7 @@ installLibraryDelete(queryClient);
 installQueueActions(queryClient);
 installSuggestionsLookup(queryClient);
 installFollowActions(queryClient);
+installSignedInAvatar(queryClient);
 /* THE GESTURES COME BEFORE THE TAP REGISTRY, and the order is load-bearing
    rather than tidy. The swipe's guard swallows the click that ends a drag, and
    it says so with `stopImmediatePropagation` — which stops the listeners

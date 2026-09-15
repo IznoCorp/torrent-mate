@@ -26,9 +26,7 @@ export type Trailer = {
   language: string;
 };
 
-export type MediaReference = EngineDrawing & {
-  TODAY: string;
-};
+export type MediaReference = EngineDrawing;
 
 /**
  * Reads this feature's slice of the engine's published reference object.

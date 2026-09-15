@@ -150,7 +150,8 @@
         "entries": "$item",
         "fields": {
           "ids": "ids",
-          "poster": "poster"
+          "poster": "poster",
+          "posterHighDefinition": "posterHighDefinition"
         }
       }
     },

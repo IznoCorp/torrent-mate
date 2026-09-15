@@ -136,6 +136,13 @@ async def main():
                   str([s["title"] for s in follows
                        if not re.search(r"\b\d+\s+recherche", s["facts"])][:3]))
 
+        # The cron the follows tab was given, read while the tab is still the one
+        # drawn — the acquisition status in the query cache. It was the dying
+        # engine's `CADENCE_CRON` literal until that left it, and was re-aimed at
+        # the answer the tab draws from. The next state resets the cache.
+        cron = await pg.evaluate(
+            "()=>window.__queries.getQueryData(['/api/acquisition/status'])?.cadence ?? null")
+
         # ── the two tabs say the same thing the same way ────────────────────
         # « En cours » already had the sentence; the follow tab had none, and
         # two tabs about the same media must not phrase the same fact twice.
@@ -151,10 +158,10 @@ async def main():
               str([s["reason"] for s in follows][:1]))
 
         # The hour is derived from the cron the cadence line prints, so the two
-        # can never disagree about when the next search happens.
-        hour = await pg.evaluate(
-            "()=>nextSearchFR(CADENCE_CRON, new Date())")
-        cadence = await pg.evaluate("()=>cadenceFR(CADENCE_CRON)")
+        # can never disagree about when the next search happens. The cron is
+        # the one the follows tab was given, read above.
+        hour = await pg.evaluate("(cron)=>nextSearchFR(cron, new Date())", cron)
+        cadence = await pg.evaluate("(cron)=>cadenceFR(cron)", cron)
         check("the hour announced is the cadence's own",
               bool(hour) and hour in cadence, f"{hour} in « {cadence} »")
         check("and the cards announce it",
