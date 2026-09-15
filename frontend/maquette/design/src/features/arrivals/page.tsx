@@ -99,7 +99,32 @@ function PipelineBar(): ReactElement | null {
   const { data: PIPELINE } = usePipeline();
   if (!PIPELINE) return null;
 
-  if (PIPELINE.state === "running" || PIPELINE.state === "queued") {
+  // QUEUED IS A PASS WAITING, NOT ONE RUNNING. A pass waits only behind a
+  // maintenance run, so nothing of a pass is going: no gauge, no step, and the
+  // sentence names what it waits for.
+  if (PIPELINE.state === "queued") {
+    return (
+      <section className={pilotBar()} data-part="pipeline" data-region="arrivals/pilot-bar">
+        <div className={pilotHead()}>
+          <span className={statusDotClass({ tone: "info" })} data-part="status-dot" data-tone="info"></span>
+          <span className={pilotTitle()} data-part="pipeline/title">{t("screens.arrivals.queuedTitle")}</span>
+        </div>
+        <div className={liveStrip()} data-part="live-activity">
+          <span className={liveDot()}></span>
+          <span>
+            {t("screens.arrivals.queuedLead")}
+            <b className={liveEmphasis()}>{t("screens.arrivals.queuedBold")}</b>
+            {t("screens.arrivals.queuedRest")}
+          </span>
+        </div>
+        <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-pipe="stop">
+          {t("screens.arrivals.stopPipeline")}
+        </button>
+      </section>
+    );
+  }
+
+  if (PIPELINE.state === "running") {
     const step = PIPELINE.steps[3];
     return (
       <section className={pilotBar()} data-part="pipeline" data-region="arrivals/pilot-bar">
@@ -120,30 +145,14 @@ function PipelineBar(): ReactElement | null {
             pass is the same action already going and the backend refuses it, so
             an enabled control would be an action that always refuses. It looks
             inactive (§ 12), and a pass waits only behind a maintenance run. */}
-        {PIPELINE.state === "queued" ? (
-          <>
-            <div className={liveStrip()} data-part="live-activity">
-              <span className={liveDot()}></span>
-              <span>
-                {t("screens.arrivals.queuedLead")}
-                <b className={liveEmphasis()}>{t("screens.arrivals.queuedBold")}</b>
-                {t("screens.arrivals.queuedRest")}
-              </span>
-            </div>
-            <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-pipe="stop">
-              {t("screens.arrivals.stopPipeline")}
-            </button>
-          </>
-        ) : (
-          <div className={pilotActions()}>
-            <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-pipe="start" disabled>
-              {t("screens.arrivals.start")}
-            </button>
-            <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-pipe="stop">
-              {t("screens.arrivals.stop")}
-            </button>
-          </div>
-        )}
+        <div className={pilotActions()}>
+          <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-pipe="start" disabled>
+            {t("screens.arrivals.start")}
+          </button>
+          <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-pipe="stop">
+            {t("screens.arrivals.stop")}
+          </button>
+        </div>
       </section>
     );
   }
