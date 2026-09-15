@@ -324,11 +324,13 @@ export const pillBar = cva("pillbar flex items-center gap-0 mt-4");
  *
  * `touch-pan-x touch-pan-y` is COMPOSITOR-FACING and held by
  * `scripts/check-compositor-css.py`: it reserves both axes for scrolling so
- * the train cannot be mistaken for a swipe gesture.
+ * the train cannot be mistaken for a swipe gesture. Its bar is hidden (D11's one
+ * exception: the chips are the affordance), with `!` because the unlayered
+ * `* { scrollbar-width: thin }` beats any layered utility (B-336).
  */
 export const pillScroll = cva(
   "pillscroll flex-auto min-w-0 flex flex-nowrap gap-3 overflow-x-auto " +
-    "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden touch-pan-x touch-pan-y pr-4",
+    "[scrollbar-width:none]! [&::-webkit-scrollbar]:hidden touch-pan-x touch-pan-y pr-4",
 );
 
 /**
