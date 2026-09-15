@@ -18,6 +18,12 @@ panel's own button — and not through `window.__changeSetting`. That seam was
 tried first and this rule passed on it: it files a pending edit without
 re-producing the panel, so it measures the one path that cannot stack an entry.
 A hold must drive what the defect travels through.
+
+RE-AIMED when the settings and the secrets took the contract's names: a topic's
+settings are read as `settings` (and its title as `title`), a setting's file,
+key and raw value as `file`, `key` and `raw`, a secret's key, label and
+definition as `key`, `label` and `defined`, where they were the engine's short
+keys. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -62,9 +68,9 @@ async def main():
             typed = await page.evaluate(
                 """()=>{const topics = window.__queries
                     ?.getQueryData(['/api/config/schema']) || [];
-                  const text = topics.flatMap((one) => one.r)
+                  const text = topics.flatMap((one) => one.settings)
                     .find((one) => one.type === 'path' || one.type === 'text');
-                  return text ? (text.f + ':' + text.c) : null;}""")
+                  return text ? (text.file + ':' + text.key) : null;}""")
             if typed and await page.query_selector(f'[data-setting="{typed}"]'):
                 row = typed
                 break

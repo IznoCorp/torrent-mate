@@ -54,7 +54,7 @@ export function changedFiles(): string[] {
 export function typedValue(setting: Setting, text: string): unknown {
   if (setting.type === "number") {
     const number = Number(text);
-    return text.trim() === "" ? null : Number.isNaN(number) ? setting.brut : number;
+    return text.trim() === "" ? null : Number.isNaN(number) ? setting.raw : number;
   }
   return text === "" ? null : text;
 }

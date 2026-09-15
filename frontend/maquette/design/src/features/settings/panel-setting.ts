@@ -80,7 +80,7 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
   return {
     address: "setting:" + identifier,
     title: settingLabels.label(setting),
-    meta: [{ m: `${setting.f}.json5 · ${setting.c}` }],
+    meta: [{ m: `${setting.file}.json5 · ${setting.key}` }],
     ...(changed ? { puce: ["info", translate("panels.setting.edited")] } : {}),
     blocs: [
       setting.note ? { type: "note", text: setting.note } : null,
@@ -105,7 +105,7 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
           ...(changed
             ? [{
                 c: translate("panels.setting.storedValue"),
-                v: String(setting.v),
+                v: String(setting.displayedValue),
                 terne: true,
               }]
             : []),

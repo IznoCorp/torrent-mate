@@ -31,7 +31,7 @@ import type { Setting, SettingsTopic } from "./types";
  *     why it is split on the FIRST colon and never the last.
  */
 export function settingIdentifier(setting: Setting): string {
-  return `${setting.f}:${setting.c}`;
+  return `${setting.file}:${setting.key}`;
 }
 
 /**
@@ -45,7 +45,7 @@ export function settingIdentifier(setting: Setting): string {
  */
 export function flattenSettings(topics: readonly SettingsTopic[]): Setting[] {
   return topics.flatMap((topic) =>
-    topic.r.map((setting) => ({ ...setting, topic })),
+    topic.settings.map((setting) => ({ ...setting, topic })),
   );
 }
 
@@ -68,5 +68,5 @@ export function valueShown(
   pending: ReadonlyMap<string, unknown>,
 ): unknown {
   const edit = pending.get(settingIdentifier(setting));
-  return edit === undefined ? setting.v : edit;
+  return edit === undefined ? setting.displayedValue : edit;
 }

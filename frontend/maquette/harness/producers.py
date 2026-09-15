@@ -32,6 +32,12 @@ RE-AIMED when the suggestions, the search and the releases took the contract's
 names: a suggestion's and a search result's title are read as `title`, a
 suggestion's kind as `kind`, where they were the engine's short keys. The holds
 and what they compare are unchanged.
+
+RE-AIMED when the settings and the secrets took the contract's names: a topic's
+settings are read as `settings` (and its title as `title`), a setting's file,
+key and raw value as `file`, `key` and `raw`, a secret's key, label and
+definition as `key`, `label` and `defined`, where they were the engine's short
+keys. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -60,11 +66,11 @@ DRIVEN = (
      ".find(a=>a.id==='library-clean').l"),
     ("setting", "thresholds:thresholds.min_free_space_staging_gb",
      "window.__settingLabels.label("
-     "window.__queries.getQueryData(['/api/config/schema']).flatMap(r=>r.r)"
-     ".find(s=>`${s.f}:${s.c}`==='thresholds:thresholds.min_free_space_staging_gb'))"),
+     "window.__queries.getQueryData(['/api/config/schema']).flatMap(r=>r.settings)"
+     ".find(s=>`${s.file}:${s.key}`==='thresholds:thresholds.min_free_space_staging_gb'))"),
     ("secret", "TMDB_API_KEY",
      "window.__queries.getQueryData(['/api/config/secrets'])"
-     ".find(s=>s.k==='TMDB_API_KEY').l"),
+     ".find(s=>s.key==='TMDB_API_KEY').label"),
     ("sort", "", "window.__i18n.t('panels.sort.title')"),
     ("more", "", "window.__i18n.t('panels.standby.title')"),
     ("journey", "Furious", "'Furious'"),

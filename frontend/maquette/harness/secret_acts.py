@@ -19,6 +19,12 @@ the case NE-DOIT-PAS-6 covers; a confirmation one can only tap THROUGH is a
 delay, not a confirmation. Cancelling must leave the key exactly where it was
 and say nothing about a removal. The sentence itself is dictated, and the hold
 reads its substance rather than its punctuation.
+
+RE-AIMED when the settings and the secrets took the contract's names: a topic's
+settings are read as `settings` (and its title as `title`), a setting's file,
+key and raw value as `file`, `key` and `raw`, a secret's key, label and
+definition as `key`, `label` and `defined`, where they were the engine's short
+keys. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -36,7 +42,7 @@ TYPED = "rule-secret-probe"
 # WHAT THE LAYER HOLDS about the secrets, read through the query cache: the
 # same answer the panel was built from, rather than a second opinion about it.
 SECRETS = """()=>(window.__queries?.getQueryData(['/api/config/secrets']) || [])
-  .map((one) => ({k: one.k, def: !!one.def}))"""
+  .map((one) => ({k: one.key, def: !!one.defined}))"""
 
 DIALOG = """()=>{const dialog = document.querySelector('#dlg');
   if (!dialog || !dialog.hasAttribute('data-open')) return null;

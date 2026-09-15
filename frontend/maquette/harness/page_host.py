@@ -323,11 +323,11 @@ async def main():
         # the legacy's own verb rather than typed, because what is held here is
         # the tap, not the field.
         staged = await page.evaluate("""()=>{
-          const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap((topic) => topic.r)
+          const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap((topic) => topic.settings)
             .find((x) => x.type === 'boolean');
           if (!setting) return null;
           const id = window.settingId(setting);
-          window.__changeSetting(id, !setting.brut);
+          window.__changeSetting(id, !setting.raw);
           window.__store.touch();
           return id;}""")
         await page.wait_for_timeout(300)
@@ -556,10 +556,10 @@ async def main():
         await page.evaluate("()=>window.__store.touch()")
         await page.wait_for_timeout(300)
         await page.evaluate("""()=>{
-          const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap((topic) => topic.r)
+          const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap((topic) => topic.settings)
             .find((x) => x.type === 'boolean');
           window.__changeSetting(
-            window.settingId(setting), !setting.brut);
+            window.settingId(setting), !setting.raw);
           window.__store.touch();}""")
         await page.wait_for_timeout(300)
         raised = await page.evaluate("()=>!!document.querySelector('#savebar')")

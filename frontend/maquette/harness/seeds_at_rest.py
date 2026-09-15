@@ -41,6 +41,12 @@ unchanged.
 RE-AIMED when the follows took the contract's names: a follow's title, kind and
 status are read as `title`, `kind` and `status` (and `owned`), where they were
 the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
+
+RE-AIMED when the settings and the secrets took the contract's names: a topic's
+settings are read as `settings` (and its title as `title`), a setting's file,
+key and raw value as `file`, `key` and `raw`, a secret's key, label and
+definition as `key`, `label` and `defined`, where they were the engine's short
+keys. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -91,9 +97,9 @@ TITLES_ON_SCREEN = """()=>[...document.querySelectorAll(
 MOVED_FILE_SETTING = """()=>{
   const topics = window.__queries?.getQueryData(['/api/config/schema']) || [];
   for (const topic of topics) {
-    for (const setting of topic.r) {
-      if (setting.f !== 'notify') continue;
-      return {topic: topic.id, identity: setting.f + ':' + setting.c};
+    for (const setting of topic.settings) {
+      if (setting.file !== 'notify') continue;
+      return {topic: topic.id, identity: setting.file + ':' + setting.key};
     }
   }
   return null;}"""
@@ -103,9 +109,9 @@ MOVED_FILE_SETTING = """()=>{
 ORDINARY_SETTING = """()=>{
   const topics = window.__queries?.getQueryData(['/api/config/schema']) || [];
   for (const topic of topics) {
-    for (const setting of topic.r) {
-      if (setting.f === 'notify' || setting.type !== 'boolean') continue;
-      return {topic: topic.id, identity: setting.f + ':' + setting.c};
+    for (const setting of topic.settings) {
+      if (setting.file === 'notify' || setting.type !== 'boolean') continue;
+      return {topic: topic.id, identity: setting.file + ':' + setting.key};
     }
   }
   return null;}"""

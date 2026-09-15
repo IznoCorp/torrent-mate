@@ -29,6 +29,12 @@ draws from, in the query cache, and the hold count is unchanged.
 RE-AIMED when the engine's `window.__referentiel` object died: the working
 state is read as `window.SETTINGS_STATE`, which the engine publishes beside it.
 The holds and what they compare are unchanged.
+
+RE-AIMED when the settings and the secrets took the contract's names: a topic's
+settings are read as `settings` (and its title as `title`), a setting's file,
+key and raw value as `file`, `key` and `raw`, a secret's key, label and
+definition as `key`, `label` and `defined`, where they were the engine's short
+keys. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -92,8 +98,8 @@ async def main():
 
         # ── every real setting belongs to exactly one rubric ───────────────
         coverage = await pg.evaluate("""()=>{
-          const all = window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.r.map(x => r.f + ':' + x.f + ':' + x.c));
-          const keys = window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.r.map(x => x.f + ':' + x.c));
+          const all = window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.settings.map(x => r.f + ':' + x.file + ':' + x.key));
+          const keys = window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.settings.map(x => x.file + ':' + x.key));
           return {total: keys.length, distinct: new Set(keys).size,
                   files: [...new Set(window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.fileNames))].sort()};}""")
         check("a setting belongs to one topic and no other",
@@ -180,7 +186,7 @@ async def main():
         # The panel of an EDITED setting must show what the operator typed as
         # « Valeur actuelle » and the file's own value as « Valeur écrite ». It
         # is one derivation — `valueShown` — and NOTHING read it: a mutation
-        # making it answer `setting.v` unconditionally fell no hold in this file
+        # making it answer `setting.displayedValue` unconditionally fell no hold in this file
         # and none in R120, and what it produces is a panel telling the operator
         # their edit did not take. The two rows are read TOGETHER, because
         # either alone passes over a panel showing the same value twice.
@@ -428,7 +434,7 @@ async def main():
         # the explanation in the panel, where a sentence has room.
         english = await pg.evaluate("""()=>{
           const words = /\\b(the|of|for|before|when|with|and|from|number|seconds|days|file|path|used|which|that)\\b/i;
-          return window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.r)
+          return window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.settings)
             .map((x) => window.__settingLabels.label(x)).filter(t => words.test(t));}""")
         check("no setting is labelled in English",
               not english, f"{len(english)}: {english[:3]}")
@@ -440,9 +446,9 @@ async def main():
         # not to find it.
         collisions = await pg.evaluate("""()=>window.__queries.getQueryData(['/api/config/schema']).flatMap(r => {
           const by = {};
-          for (const x of r.r) (by[window.__settingLabels.label(x)] ||= []).push(x.c);
+          for (const x of r.settings) (by[window.__settingLabels.label(x)] ||= []).push(x.key);
           return Object.entries(by).filter(([, v]) => v.length > 1)
-                       .map(([l, v]) => `${r.t} : « ${l} » ×${v.length}`);})""")
+                       .map(([l, v]) => `${r.title} : « ${l} » ×${v.length}`);})""")
         check("two settings in one topic never wear the same label",
               not collisions, f"{len(collisions)}: {collisions[:3]}")
 
@@ -469,7 +475,7 @@ async def main():
           const before = [...seam.unnamedSubjects];
           // french-ok: a DATA value shaped like a setting, whose path segment
           // is deliberately one no table can name — the probe itself.
-          seam.label({f: "sonde", c: "segment_que_rien_ne_nomme.x", n: "x"});
+          seam.label({file: "sonde", key: "segment_que_rien_ne_nomme.x", name: "x"});
           const caught = seam.unnamedSubjects.has("segment_que_rien_ne_nomme");
           seam.unnamedSubjects.delete("segment_que_rien_ne_nomme");
           return {caught, before};}""")
@@ -479,7 +485,7 @@ async def main():
               if probe["caught"] else "the detector is dead — the hold below "
               "would pass on nothing")
         unnamed_subjects = await pg.evaluate("""()=>{
-          window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.r).forEach((x) => window.__settingLabels.label(x));
+          window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.settings).forEach((x) => window.__settingLabels.label(x));
           return [...window.__settingLabels.unnamedSubjects];}""")
         check("every setting subject carries a written name", not unnamed_subjects,
               str(unnamed_subjects))
@@ -512,7 +518,7 @@ async def main():
             "schedule": '[data-part="field/input"][type=text]',
         }
         seen = await pg.evaluate(
-            """()=>[...new Set(window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.r).map(x => x.type))].sort()""")
+            """()=>[...new Set(window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.settings).map(x => x.type))].sort()""")
         check("every setting carries the type of its value",
               set(seen) == set(expected), str(sorted(seen)))
 
@@ -550,7 +556,7 @@ async def main():
               filed == [[42, "number"]], str(filed))
 
         original = await pg.evaluate(
-            """()=>String(window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.r).find(x => x.type === 'number').brut)""")
+            """()=>String(window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.settings).find(x => x.type === 'number').raw)""")
         await pg.fill('#sheetin [data-part="field/input"]', original)
         await pg.evaluate("""()=>document.querySelector('#sheetin [data-part="field/input"]')"""
                           ".dispatchEvent(new Event('change'))")
@@ -579,9 +585,9 @@ async def main():
               f"aria-checked {switch_before} → {switch_after}")
 
         await pg.evaluate("""()=>{
-          const x = window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.r)
-            .find(y => y.type === 'list' && (y.brut || []).length > 1);
-          SETTINGS_STATE.topic = window.__queries.getQueryData(['/api/config/schema']).find(r => r.r.includes(x)).id;
+          const x = window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.settings)
+            .find(y => y.type === 'list' && (y.raw || []).length > 1);
+          SETTINGS_STATE.topic = window.__queries.getQueryData(['/api/config/schema']).find(r => r.settings.includes(x)).id;
           window.__store.touch(); window.__panel.produce("setting", settingId(x));}""")
         await pg.wait_for_timeout(330)
         before = await pg.evaluate("""()=>document.querySelectorAll('#sheetin [data-part="field/list-item"]').length""")
@@ -618,11 +624,11 @@ async def main():
         # not the setting's and files it under the setting's id on the next
         # commit — a setting silently overwritten with another's value.
         open_text = """(n) => {
-          const texts = window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.r).filter(x => x.type === 'text');
+          const texts = window.__queries.getQueryData(['/api/config/schema']).flatMap(r => r.settings).filter(x => x.type === 'text');
           const x = texts[n];
-          SETTINGS_STATE.topic = window.__queries.getQueryData(['/api/config/schema']).find(r => r.r.includes(x)).id;
+          SETTINGS_STATE.topic = window.__queries.getQueryData(['/api/config/schema']).find(r => r.settings.includes(x)).id;
           window.__store.touch(); window.__panel.produce("setting", settingId(x));
-          return {id: settingId(x), own: String(x.brut ?? '')};}"""
+          return {id: settingId(x), own: String(x.raw ?? '')};}"""
         read_field = """() => {const e = document.querySelector('#sheetin [data-part="field/input"]');
           return e ? {value: e.value, field: e.dataset.field} : null;}"""
 

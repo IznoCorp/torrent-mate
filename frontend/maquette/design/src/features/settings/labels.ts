@@ -64,10 +64,10 @@ const SUBJECT_NAMES: Record<string, string> = fr.settings.subjects;
 const unnamedSubjects = new Set<string>();
 
 export function settingSubject(setting: Setting): string {
-  const segments = setting.c
+  const segments = setting.key
     .split(".")
     .slice(0, -1)
-    .filter((s) => s !== setting.f && !SETTING_CONTAINERS.has(s));
+    .filter((s) => s !== setting.file && !SETTING_CONTAINERS.has(s));
   return segments
     .map((s) => {
       if (!SUBJECT_NAMES[s]) unnamedSubjects.add(s);
@@ -81,17 +81,17 @@ export function settingLabel(setting: Setting): string {
   // one file and the scrape language in another, and two rows reading
   // « Langue des métadonnées » would name the same thing twice.
   const clean =
-    SETTING_LABELS[setting.c] ??
-    SETTING_LABELS[setting.n] ??
-    (/^\d+$/.test(setting.n)
-      ? `${fr.settings.genre} ${setting.n}`
-      : setting.n.replace(/_/g, " "));
+    SETTING_LABELS[setting.key] ??
+    SETTING_LABELS[setting.name] ??
+    (/^\d+$/.test(setting.name)
+      ? `${fr.settings.genre} ${setting.name}`
+      : setting.name.replace(/_/g, " "));
   const subject = settingSubject(setting);
   return subject ? `${subject} — ${clean}` : clean;
 }
 
 export function unitOf(setting: Setting): string | null {
-  const last = setting.n.split("_").pop();
+  const last = setting.name.split("_").pop();
   return last ? (UNITS[last] ?? null) : null;
 }
 

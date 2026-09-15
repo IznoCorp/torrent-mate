@@ -63,13 +63,13 @@ function SettingRow({
   // typed is what they must see.
   const pending = SETTINGS_STATE.modifs.get(identity);
   const said = pending === undefined
-    ? settingInWords(setting.type, setting.brut, setting.precision)
+    ? settingInWords(setting.type, setting.raw, setting.precision)
     : String(pending);
   // `withFile` is false when a group header already names the file: repeating it
   // there prints the file twice on one line and wraps the origin onto two.
   const origin = withFile
-    ? `${fileName(setting.f)} · ${setting.c}`
-    : setting.c;
+    ? `${fileName(setting.file)} · ${setting.key}`
+    : setting.key;
   return (
     <button
       className={settingsRow({ modified: edited })}
@@ -117,9 +117,9 @@ function SearchField(): ReactElement {
 function TopicView({ topic }: { topic: SettingsTopic }): ReactElement {
   const { t } = useTranslation();
   const byFile = new Map<string, Setting[]>();
-  for (const setting of topic.r) {
-    if (!byFile.has(setting.f)) byFile.set(setting.f, []);
-    byFile.get(setting.f)!.push(setting);
+  for (const setting of topic.settings) {
+    if (!byFile.has(setting.file)) byFile.set(setting.file, []);
+    byFile.get(setting.file)!.push(setting);
   }
   return (
     <>
@@ -136,8 +136,8 @@ function TopicView({ topic }: { topic: SettingsTopic }): ReactElement {
       >
         {t("screens.settings.allTopics")}
       </button>
-      <h2 className={sectionHeading()} data-part="heading">{topic.t}</h2>
-      <p className={qualityHint()}>{topic.s}</p>
+      <h2 className={sectionHeading()} data-part="heading">{topic.title}</h2>
+      <p className={qualityHint()}>{topic.secondaryLine}</p>
       {[...byFile.entries()].map(([file, settings]) => (
         <Fragment key={file}>
           <h2 className={sectionHeading()} data-part="heading" style={{ marginTop: 16 }}>
@@ -145,7 +145,7 @@ function TopicView({ topic }: { topic: SettingsTopic }): ReactElement {
           </h2>
           <div className={factsPanel()} data-part="panel">
             {settings.map((setting) => (
-              <SettingRow key={setting.c} setting={setting} />
+              <SettingRow key={setting.key} setting={setting} />
             ))}
           </div>
         </Fragment>
@@ -185,17 +185,17 @@ export function SettingsPage(): ReactElement | null {
             <button
               className={settingsRow()}
               data-part="setting/row"
-              data-secret={secret.k}
-              key={secret.k}
+              data-secret={secret.key}
+              key={secret.key}
             >
               <span className="rl" data-part="setting/label">
-                {secret.l}{" "}
-                <span className="rf" data-part="setting/origin">{secret.k}</span>
+                {secret.label}{" "}
+                <span className="rf" data-part="setting/origin">{secret.key}</span>
               </span>
               <span className="rv" data-part="setting/value">
                 <Chip
-                  tone={secret.def ? "success" : "warning"}
-                  label={secret.def ? t("screens.settings.secretSet") : t("screens.settings.secretUnset")}
+                  tone={secret.defined ? "success" : "warning"}
+                  label={secret.defined ? t("screens.settings.secretSet") : t("screens.settings.secretUnset")}
                 />
               </span>
             </button>
@@ -238,7 +238,7 @@ export function SettingsPage(): ReactElement | null {
     const found = all.filter(
       (setting) =>
         settingLabel(setting).toLowerCase().includes(query) ||
-        setting.c.toLowerCase().includes(query),
+        setting.key.toLowerCase().includes(query),
     );
     return (
       <>
@@ -265,7 +265,7 @@ export function SettingsPage(): ReactElement | null {
             <div className={factsPanel()} data-part="panel">
               {found.slice(0, 40).map((setting) => (
                 <SettingRow
-                  key={`${setting.f}:${setting.c}`}
+                  key={`${setting.file}:${setting.key}`}
                   setting={setting}
                   withFile
                 />
@@ -285,10 +285,10 @@ export function SettingsPage(): ReactElement | null {
       {SETTINGS.map((topic) => (
         <button className={topicRow()} data-part="topic" data-topic={topic.id} key={topic.id}>
           <span style={{ minWidth: 0, flex: 1 }}>
-            <span className="rt" data-part="topic/title">{topic.t}</span>
-            <span className="rs" data-part="topic/subtitle">{topic.s}</span>
+            <span className="rt" data-part="topic/title">{topic.title}</span>
+            <span className="rs" data-part="topic/subtitle">{topic.secondaryLine}</span>
           </span>
-          <span className="rn" data-part="topic/count">{topic.r.length}</span>
+          <span className="rn" data-part="topic/count">{topic.settings.length}</span>
         </button>
       ))}
       <button className={topicRow()} data-part="topic" data-topic="secrets">

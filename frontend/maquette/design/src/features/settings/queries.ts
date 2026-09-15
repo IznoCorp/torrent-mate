@@ -5,7 +5,6 @@
 // whether each is defined.
 import { useQuery } from "@tanstack/react-query";
 import { HELD, read, send, sharedQueryClient } from "../../lib/query-client";
-import { toEngineShape } from "../../engine/engine-shape";
 import { flattenSettings } from "./catalog";
 import type { Secret, Setting, SettingsTopic } from "./types";
 
@@ -20,7 +19,7 @@ import type { Secret, Setting, SettingsTopic } from "./types";
 export const settingsQuery = {
   queryKey: ["/api/config/schema"],
   queryFn: async () =>
-    toEngineShape<SettingsTopic[]>("SETTINGS", await read("/api/config/schema")),
+    read<SettingsTopic[]>("/api/config/schema"),
 };
 
 /** The settings, by topic. */
@@ -44,7 +43,7 @@ export function heldSettings(): Setting[] {
 export const secretsQuery = {
   queryKey: ["/api/config/secrets"],
   queryFn: async () =>
-    toEngineShape<Secret[]>("SECRETS", await read("/api/config/secrets")),
+    read<Secret[]>("/api/config/secrets"),
 };
 
 /** Which secrets exist, and whether each is defined. */

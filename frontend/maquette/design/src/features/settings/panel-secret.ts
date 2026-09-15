@@ -36,7 +36,7 @@ import { SETTINGS_STATE } from "./state";
  */
 function secretOf(key: string, cache: PanelCache): Secret | null {
   const secrets = cache.held<Secret[]>(secretsQuery.queryKey);
-  return secrets?.find((secret) => secret.k === key) ?? null;
+  return secrets?.find((secret) => secret.key === key) ?? null;
 }
 
 /**
@@ -59,9 +59,9 @@ function secretPanel(key: string, cache: PanelCache): PanelDescriptor | null {
   // so the panel and the page cannot disagree about the instance's rights.
   const readOnly = Boolean(SETTINGS_STATE.readOnly);
   return {
-    title: secret.l,
-    meta: [{ m: secret.k }],
-    puce: secret.def
+    title: secret.label,
+    meta: [{ m: secret.key }],
+    puce: secret.defined
       ? ["success", translate("panels.secret.set")]
       : ["warning", translate("panels.secret.absent")],
     blocs: [
@@ -69,7 +69,7 @@ function secretPanel(key: string, cache: PanelCache): PanelDescriptor | null {
       // WHERE THE NEW KEY IS TYPED. Without it « Remplacer la valeur » had
       // nothing to replace the value WITH, which is half of why it was a
       // sentence and not an act (B-334).
-      readOnly ? null : { type: "secretKey", key: secret.k },
+      readOnly ? null : { type: "secretKey", key: secret.key },
       {
         type: "actions",
         actions: [
@@ -88,9 +88,9 @@ function secretPanel(key: string, cache: PanelCache): PanelDescriptor | null {
                 text: translate("panels.secret.replace"),
                 icone: icons.wrench,
                 ton: "primary",
-                target: { replacesecret: secret.k },
+                target: { replacesecret: secret.key },
               },
-          secret.def
+          secret.defined
             ? {
                 // B-335, and this one is DESTRUCTIVE: a key cut is a provider
                 // that stops answering for every account of the household
@@ -99,7 +99,7 @@ function secretPanel(key: string, cache: PanelCache): PanelDescriptor | null {
                 text: translate("panels.secret.removeKey"),
                 icone: icons.trash,
                 ton: "danger",
-                target: { removesecret: secret.k },
+                target: { removesecret: secret.key },
               }
             : null,
         ],

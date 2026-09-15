@@ -60,7 +60,7 @@ function FieldBlock({
           {t("settings.field.structureBefore")}{" "}
           <b>{t("settings.field.structureWord")}</b>{" "}
           {t("settings.field.structureAfter")}{" "}
-          <code>{fileName(setting.f)}</code>.
+          <code>{fileName(setting.file)}</code>.
         </p>
       </div>
     );

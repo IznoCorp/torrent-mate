@@ -9,7 +9,7 @@ import { SETTINGS_STATE, changedFiles, fileName, typedValue } from "./state";
 import type { Setting } from "./types";
 
 const field = (type: string, brut: unknown): Setting =>
-  ({ f: "thresholds", c: "", type, brut, n: "", v: "", topic: {} }) as Setting;
+  ({ file: "thresholds", key: "", type, raw: brut, name: "", displayedValue: "", topic: {} }) as Setting;
 
 afterEach(() => SETTINGS_STATE.modifs.clear());
 
