@@ -24,7 +24,7 @@ export const runSummary = cva("flex flex-wrap items-baseline gap-3 text-3 text-m
 /** How a passage ended, in its tone — a failure is LOUD. */
 export const runOutcome = cva("text-4 font-semibold", {
   variants: {
-    tone: { success: "text-success", danger: "text-danger", neutral: "text-foreground" },
+    tone: { success: "text-success-text", danger: "text-danger-text", neutral: "text-foreground" },
   },
   defaultVariants: { tone: "neutral" },
 });

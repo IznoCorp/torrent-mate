@@ -223,7 +223,7 @@ export const crossReference = cva(
 export const crossReferenceStrong = cva("text-foreground font-semibold");
 
 /** The cross-reference's link, on its own row. */
-export const crossReferenceLink = cva("block mt-3 text-primary font-semibold whitespace-nowrap");
+export const crossReferenceLink = cva("block mt-3 text-primary-text font-semibold whitespace-nowrap");
 
 /** A panel of facts. */
 export const factsPanel = cva("panel border border-border bg-card rounded-3 py-1 px-5");

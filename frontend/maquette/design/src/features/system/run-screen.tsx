@@ -248,7 +248,9 @@ function RunBody({ run }: { run: RunDetail }): ReactElement {
             <span data-part="run/log-toggle">{t("screens.run.rawLog")}</span>
           }
         >
-          <pre className={runLog()} data-part="run/log">
+          {/* FOCUSABLE, because it scrolls sideways: a keyboard reaches a line
+              wider than the screen only through a region it can focus. */}
+          <pre className={runLog()} data-part="run/log" tabIndex={0}>
             {run.outputTail}
           </pre>
         </Disclosure>

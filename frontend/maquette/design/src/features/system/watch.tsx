@@ -52,7 +52,7 @@ export function WatchBlock(): ReactElement {
           })
         )}
       </div>
-      <button className={actionButton()} data-part="levers/watch-now" data-watch-now="">
+      <button className={actionButton({ kind: "cardFoot" })} data-part="levers/watch-now" data-watch-now="">
         {t("panels.standby.runNow")}
       </button>
     </div>

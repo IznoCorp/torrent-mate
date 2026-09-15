@@ -76,12 +76,12 @@ export function Levers(): ReactElement {
       {/* THE ONE THE STATE ADMITS. Pause while a run is going, resume while it
           is held, and when nothing runs the reason rather than a dead control. */}
       {paused ? (
-        <button className={actionButton()} data-part="levers/resume" data-pipeline-resume="">
+        <button className={actionButton({ kind: "cardFoot" })} data-part="levers/resume" data-pipeline-resume="">
           {t("screens.system.resumeAll")}
         </button>
       ) : null}
       {(running || queued) && !paused ? (
-        <button className={actionButton()} data-part="levers/pause" data-pipeline-pause="">
+        <button className={actionButton({ kind: "cardFoot" })} data-part="levers/pause" data-pipeline-pause="">
           {t("screens.system.pauseAll")}
         </button>
       ) : null}
@@ -99,7 +99,7 @@ export function Levers(): ReactElement {
       ) : null}
 
       <button
-        className={actionButton()}
+        className={actionButton({ kind: "cardFoot" })}
         data-part="levers/watcher"
         data-watcher={pipeline.watcherEnabled ? TURN_OFF : TURN_ON}
       >

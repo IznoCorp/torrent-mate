@@ -111,11 +111,7 @@ export function LocksBlock(): ReactElement {
   return (
     <div data-part="locks" data-region="system/locks">
       <ol className={factList()} data-part="flux">
-        {rows.map((row, index) => (
-          <div key={PARTS[index]} data-part={PARTS[index]}>
-            <FactRows rows={[row]} />
-          </div>
-        ))}
+        <FactRows rows={rows.map((row, index) => ({ ...row, part: PARTS[index] }))} />
       </ol>
 
       <div data-part="locks/sweep">
@@ -135,17 +131,14 @@ export function LocksBlock(): ReactElement {
                 ton: locks.sweep.orphans.length === 0 ? "success" : "warning",
               }]}
             />
-            {locks.sweep.orphans.map((orphan) => (
-              <div key={orphan.path} data-part="locks/orphan">
-                <FactRows
-                  rows={[{
-                    l: orphan.path,
-                    v: ageInWords(orphan.ageS, t),
-                    s: orphan.prefix,
-                  }]}
-                />
-              </div>
-            ))}
+            <FactRows
+              rows={locks.sweep.orphans.map((orphan) => ({
+                l: orphan.path,
+                v: ageInWords(orphan.ageS, t),
+                s: orphan.prefix,
+                part: "locks/orphan",
+              }))}
+            />
           </ol>
         )}
       </div>
