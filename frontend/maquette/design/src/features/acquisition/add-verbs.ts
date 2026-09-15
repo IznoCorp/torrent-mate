@@ -12,11 +12,9 @@ import { store } from "../../lib/store-access";
 import { baseTitle } from "../../lib/titles";
 import { followVerbs } from "./follow-verbs";
 import { searchResults } from "./search-queries";
+import { identifying, markAdded } from "./add-visit";
+import type { SearchResult } from "./types";
 
-/** The positions of the results this screen has already acted on. */
-function added(): Set<number> {
-  return store.read().state.added as Set<number>;
-}
 
 /**
  * Associates the folder the screen was opened for with the result tapped.
@@ -31,12 +29,12 @@ function added(): Set<number> {
  * surplus pop was read as the operator's own back gesture.
  *
  * Args:
- *     index: The result's position in the list.
- *     title: The result's title.
+ *     result: The search result tapped.
  */
-function identify(index: number, title: string): void {
+function identify(result: SearchResult): void {
+  const title = result.title;
   const target = (store.read().state.resolveTarget as string | null) ?? "";
-  added().add(index);
+  markAdded(result);
   store.touch();
   const entries = (panel.isOpen() ? 1 : 0) + 1;
   panel.close(true);
@@ -85,8 +83,8 @@ registerVerb("add", (value) => {
   const index = Number(value);
   const result = searchResults?.().results[index];
   if (result === undefined) return;
-  if (store.read().state.addMode === "identify") {
-    identify(index, result.title);
+  if (identifying()) {
+    identify(result);
     return;
   }
   // The act lives in the result's panel, which must not stay open behind
@@ -98,12 +96,13 @@ registerVerb("add", (value) => {
   }
   // The screen stays open and redraws itself from this same store bump,
   // with the result marked added and, once it is the first, the footer.
-  added().add(index);
+  markAdded(result);
   store.touch();
   followVerbs.follow(result.title, result.kind);
 });
 registerVerb("confirmadd", (value) => {
-  added().add(Number(value));
+  const result = searchResults?.().results[Number(value)];
+  if (result !== undefined) markAdded(result);
   store.touch();
   dialog?.close();
   toast?.show({ message: i18next.t("verbs.acquisition.replacementQueued") });

@@ -64,9 +64,8 @@ type Screens = {
   // folder — a pop plus a push, net one entry, which a replace reproduces
   // exactly.
   resolution: (folder?: string, replace?: boolean) => void;
-  // `q`/`mode` cross the bridge as plain strings, the way a legacy call site
-  // already holds them (`state.addQ`, a literal like `"identify"`) — the
-  // validated union lives in `/add`'s own `validateSearch`, not here.
+  // `q`/`mode` cross the bridge as plain strings (a literal like `"identify"`)
+  // — the validated union lives in `/add`'s own `validateSearch`, not here.
   add: (q?: string, mode?: string, replace?: boolean) => void;
   // One passage, by its identifier — an arrival from the passages' list.
   run: (runUid: string) => void;
@@ -302,23 +301,11 @@ fillScreensDoor({
       leavePanel,
     );
   },
-  // Kept in sync in `window.__store.write` BEFORE navigating: `state.addMode` is
-  // still read by the untouched cross-world "add:N" panel act (it decides
-  // ASSOCIATE vs regular add — see refonte.html@60530dbd8) and by `addVerb`, and
-  // `state.addQ` still seeds the FAB's next open. Neither is written again
-  // after this call — typing on `/add` updates the ROUTER's search params
-  // only, through `go()` directly, not through this bridge — so a value
-  // read off `state.addQ`/`state.addMode` after the operator has typed
-  // reflects the screen's ENTRY query, not its live one. That staleness is
-  // the accepted cost of the ownership flip: the router is the only thing
-  // that stays current for as long as the address reads `/add`.
+  // THE ROUTER CARRIES BOTH: the query and the mode travel in the address, and
+  // nothing is copied into the store — a copy there outlived the screen and
+  // handed « + » the previous visit's query (B-340).
   add: (q?: string, mode?: string, replace?: boolean) => {
     const validMode = mode === "identify" ? "identify" : "follow";
-    // This file is SHELL code, not a component — it is the seam itself, so
-    // it writes the store directly rather than through data.ts's
-    // `writeUiState` write door (components must use that one; see its own
-    // doc comment).
-    store.write({ addQ: q ?? "", addMode: validMode });
     go(
       {
         to: "/add",

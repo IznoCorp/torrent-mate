@@ -76,11 +76,9 @@ export function ActionButton(): ReactElement {
       aria-label={t("navigation.actionButtonLabel")}
       className={addAction()}
       hidden={!wanted || messageShown || heldBack}
-      // The « ＋ » ALWAYS means « follow »: the mode must never stay stuck from
-      // a previous resolution.
-      onClick={() =>
-        screens.add(String(state.addQ ?? ""), "follow")
-      }
+      // The « ＋ » ALWAYS opens a FRESH search: no query handed back from a
+      // previous visit, and « follow », never a mode stuck from a resolution.
+      onClick={() => screens.add("", "follow")}
     >
       <Icon
         paths={icons.plus}

@@ -58,7 +58,6 @@ COMPONENT_BUCKETS = ("app", "features", "lib", "routes", "ui", "mocks")
 SERVER_STATE_KEYS = {
     "sugGone": "which suggestions have been dismissed — server state",
     "phase": "loading / error / ready — query state, for every surface at once",
-    "added": "what the add screen has added — server state",
     "pipe": "what the pipeline is doing — server state",
 }
 
@@ -68,7 +67,7 @@ SERVER_STATE_KEYS = {
 INTERFACE_STATE_KEYS = {
     "page", "filter", "sugOrder", "q", "selMode", "selected", "acqTab",
     "sugMode", "resolveTarget", "panelOpen", "scen", "pill", "tmdb", "profile",
-    "relatedTitle", "addQ", "addMode", "panelDescriptor", "kind", "too",
+    "relatedTitle", "panelDescriptor", "kind", "too",
     "notes", "libLens", "libCat", "libMode", "followMode", "maintTopic",
     "sortKey", "sortReversed",
     # WHETHER THE DRAWER IS UP (L15). Its sibling `panelOpen` has been on this

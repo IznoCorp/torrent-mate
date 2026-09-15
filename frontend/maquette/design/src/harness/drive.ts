@@ -107,7 +107,6 @@ function reset(): boolean {
     selMode: false,
     selected: new Set(),
     sugGone: new Set(),
-    added: new Set(),
     // The deck order is state too: without this a measurement inherits the
     // card order left by the previous one.
     sugOrder: null,

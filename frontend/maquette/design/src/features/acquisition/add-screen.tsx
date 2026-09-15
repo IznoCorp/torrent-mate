@@ -22,12 +22,10 @@
 //     medium is normal — it is the expected case.
 // Sending the second into the first is a mistake of intent: it offers to
 // add a follow where the operator wanted to unblock a folder. The verb
-// follows the MODE the screen was opened with, carried in the URL now
-// rather than in `state.addMode`.
+// follows the MODE the screen was opened with, carried in the URL.
 //
-// The FIRST router-owned search params: `q` and `mode` no longer live in the
-// legacy `state.addQ` / `state.addMode` while this screen is open — the
-// router is the single source of truth for as long as the address reads
+// The FIRST router-owned search params: `q` and `mode` live in the address
+// alone — the router is the single source of truth for as long as it reads
 // `/add`. Typing rewrites the address IN PLACE (`go(..., replace: true)`,
 // same discipline `go()`'s own doc comment states) so keystrokes never stack
 // history — R76's own rule, exercised here for the first time by a CONTROLLED
@@ -41,6 +39,7 @@ import { useTranslation } from "react-i18next";
 // no top-level side effect that could observe shell.tsx mid-evaluation.
 import { Icon } from "../../ui/icon";
 import { go } from "../../lib/navigate";
+import { useState } from "react";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
 import { useProviderSearch } from "./search-queries";
 import { actionButton, backAction, emptyNote, resultCount, screen, screenBar, scrollport, searchField, searchInput, section, surfaceError } from "../../ui/variants";
@@ -61,6 +60,7 @@ import { bridge, redraw } from "../../lib/shell-doors";
 import { baseTitle } from "../../lib/titles";
 import { mediumCardMarkup } from "./card-markup";
 import { addVerb } from "./add-label";
+import { addedCount, beginVisit, isAdded, setVisitMode } from "./add-visit";
 
 type Mode = "follow" | "identify";
 
@@ -71,20 +71,17 @@ export function AddScreen() {
   const query = q ?? "";
   const hasQuery = query !== "";
 
-  // `state.added` is a Set MUTATED IN PLACE by the still-legacy cross-world
-  // "add:N" panel act and the replace-confirm dialog (refonte.html@60530dbd8) — both
-  // bump the store's `version` without producing a new `state` reference,
-  // which `useUiState()` alone would not notice (`useSyncExternalStore`
-  // compares the selected value by reference). Subscribing to `version`
-  // directly forces this component to re-render on that bump too; the read
-  // below then sees the mutated Set fresh, in the SAME render the version
-  // change triggered.
+  // A FRESH VISIT PER OPENING, begun before the first row is drawn (B-340). What
+  // it adds is recorded by the add verbs, which announce it with `store.touch()`
+  // — a version bump this component subscribes to, since no `state` reference
+  // changes with it.
+  useState(beginVisit);
+  setVisitMode(mode);
   useStoreContent((c) => c.version);
   const state = useUiState();
   const addKind = (state.addKind as string) ?? "Tout";
   const idProv = (state.idProv as string) ?? "TMDB";
   const recents = (state.recents as string[]) ?? [];
-  const added = state.added as Set<number>;
   const resolveTarget = state.resolveTarget as string | null;
 
   const { icons } = useEngineDrawing();
@@ -92,17 +89,10 @@ export function AddScreen() {
 
   // Always invoked from INSIDE this screen — search() runs only while
   // AddScreen is mounted, which means the address already reads `/add`.
-  // Routing it through `window.__screens.ajout()` (a PUSH, meant for arriving
+  // Routing it through `window.__screens.add()` (a PUSH, meant for arriving
   // here fresh from elsewhere — the FAB, a resolution's manual search)
-  // stacked a second `/add` entry per search: the legacy engine never
-  // pushed for a same-key re-render, and a screen already open should not
-  // either — one "Retour" from a chip search used to leave the screen still
-  // open, having only popped back onto an earlier `/add` entry. `go()`
-  // direct, with `replace: true`, keeps the sync with the legacy readers
-  // (`state.addQ`/`state.addMode`) `window.__screens.ajout()` also performs,
-  // without the push.
+  // stacked a second `/add` entry per search, so `go()` replaces instead.
   function search(value: string): void {
-    writeUiState({ addQ: value, addMode: mode });
     go({
       to: "/add",
       search: {
@@ -145,11 +135,8 @@ export function AddScreen() {
 
   // FROM THE CACHE (invariant 4). Nothing is drawn before it answers, and the
   // oracle measures at rest — which is where the answer is.
-  // THE ROUTER'S OWN `q`, never `state.addQ`. The store's copy is the ENTRY
-  // query and is stale by construction — the shell's own comment says so:
-  // typing updates the ROUTER's search params through `go()`, and nothing
-  // writes it back. Wiring the read to the store made the search answer for
-  // what the screen was opened with and ignore every keystroke after it.
+  // THE ROUTER'S OWN `q`: typing updates the address through `go()`, so any
+  // other copy would answer for what the screen was opened with.
   const { data: SEARCH } = useProviderSearch(q ?? "");
   const filtered = (SEARCH?.results ?? [])
     .map((r, i) => ({ r, i }))
@@ -159,14 +146,14 @@ export function AddScreen() {
     );
   const rows = filtered
     .map(({ r, i }) => {
-      const done = added.has(i);
+      const done = isAdded(r);
       return mediumCardMarkup({
         title: r.title,
         k: r.kind === "Film" ? "movie" : "show",
         secondaryLine: `${r.year} · ${r.kind === "Film" ? t("common.film") : t("common.series")} · TMDB`,
         overview: r.overview,
         chip: done
-          ? { tone: "success", text: addVerb(r, i) }
+          ? { tone: "success", text: addVerb(r) }
           : r.owned
             ? {
                 tone: identify ? "success" : "warning",
@@ -397,7 +384,7 @@ export function AddScreen() {
             </button>
           </div>
         </details>
-        <AddFooter added={added} icons={icons} toFollows={toFollows} />
+        <AddFooter count={addedCount()} icons={icons} toFollows={toFollows} />
       </div>
     </section>
   );

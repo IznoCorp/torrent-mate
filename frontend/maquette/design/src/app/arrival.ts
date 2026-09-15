@@ -34,7 +34,6 @@ const INITIAL_STATE = {
      and a screen that can only be green cannot be judged. */
   fault: false,
   maintBlanc: true,
-  addMode: "follow",
   relatedTitle: null,
   /* The backend defaults: permissive everywhere EXCEPT exclude_3d. */
   profile: {
@@ -52,8 +51,6 @@ const INITIAL_STATE = {
   tmdb: true,
   q: "",
   filter: "",
-  addQ: "star wars",
-  added: new Set(),
   recent: ["star wars", "silo", "the bear"],
   followMode: "list",
   pill: "tout",

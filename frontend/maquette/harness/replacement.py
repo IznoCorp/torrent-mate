@@ -25,6 +25,11 @@ AND THE OTHER SIDE OF THE SAME CLAUSE: a result the library does NOT own is
 added with no dialog at all. A rule that only read the owned case would pass a
 build that asked « are you sure? » about everything, which is the shape that
 teaches an operator to tap through without reading.
+
+WHAT IS ADDED IS READ THROUGH `window.__addedPositions()`, re-aimed from the
+store's `added` set when the add screen's visit took it out of the store
+(B-340): the same positions in the answer on screen, from the visit that holds
+them. The holds and their count are unchanged.
 """
 import asyncio
 import pathlib
@@ -106,13 +111,13 @@ async def main():
         # 3. CANCELLING LEAVES IT UNADDED — the half that separates a
         #    confirmation from a delay.
         before = await page.evaluate(
-            "()=>[...window.__store.read().state.added]")
+            "()=>window.__addedPositions()")
         await page.evaluate(
             """()=>{const out = [...document.querySelectorAll('#dlg button')]
                  .find((b) => !b.dataset.confirmadd); if (out) out.click();}""")
         await page.wait_for_timeout(PANEL_IN)
         after_cancel = await page.evaluate(
-            "()=>[...window.__store.read().state.added]")
+            "()=>window.__addedPositions()")
         journal.check(
             "cancelling leaves the medium UNADDED (DOIT-8)",
             sorted(after_cancel) == sorted(before)
@@ -133,7 +138,7 @@ async def main():
         await page.wait_for_timeout(ACTED)
         free_dialog = await page.evaluate(DIALOG)
         added_after = await page.evaluate(
-            "()=>[...window.__store.read().state.added]")
+            "()=>window.__addedPositions()")
         journal.check(
             "a medium the library does NOT own is added with no confirmation",
             free_dialog is None and where["free"] in added_after,
