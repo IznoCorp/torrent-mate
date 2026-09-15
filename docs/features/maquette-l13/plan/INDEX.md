@@ -173,6 +173,10 @@ and binds the label to the next free number then.
 | c·8 | [The library's states at rest](phase-c08-library-seeds-at-rest.md) | the seeds a hand needs | B-345 |
 | c·9 | [The close](phase-c09-close.md) | register, README, frame-model, frame-survey, plan § 5 | all |
 
+**Opening measures (2026-09-15, on `6839dd913`; auditor's order 42), each phase file's own head**:
+c·1 ≈ 6, c·2 ≈ 13, c·3 ≈ 4, c·4 ≈ 4, c·5 ≈ 9, c·6 ≈ 4, c·7 ≈ 9, c·8 ≈ 8, c·9 ≈ 5 — **mean ≈ 6.9**,
+none past measure 11's 15-point ceiling, 0 cut.
+
 ---
 
 ## The ordering, and its reason

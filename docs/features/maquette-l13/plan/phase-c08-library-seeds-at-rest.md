@@ -1,5 +1,28 @@
 # Phase c·8 — The library's states at rest
 
+**Opening measure (2026-09-15, on `6839dd913`):**
+
+- **Commands.** `ls harness/seeds_at_rest.py` → exists (R128), 15 `journal.check(` calls today,
+  ALL on the acquisition surface (its own docstring: "the acquisition seeds offer at rest a takeable
+  arrival for a followed medium, a blocked one, a paused follow and a season with a hole" — L21's
+  four states; the library half is untouched territory in the same file). `python3 -c
+  "…json.load(open('design/src/mocks/seeds/library-items.json'))…"` → 345 rows, fields `title`,
+  `secondaryLine`, `category`, `ids`, `poster`; a separate `design/src/mocks/seeds/
+  incomplete-shows.json` exists for the incomplete lens. No tsc probe: seed/rule work, no type
+  change. `grep -n B-345 BUGS.md` → `open`, 1× (the library half; acquisition and settings already
+  closed per the phase's own text).
+- **Points ≈ 8.** The seed files touched (`library-items.json`, `library-categories.json`,
+  `incomplete-shows.json`, projected through `build-mock-seeds.py`, never hand-edited) ≈ 1; extending
+  R128 with one hold per library state (lenses, categories, the incomplete lens, selection+delete,
+  sort, a row with a hole — six clusters named in the phase) and its per-state mutations ≈ 3 at the
+  low end of "new rule", raised toward the high end for the six-way enumeration ≈ 4; the phase's own
+  "measure before filling" enumeration is real, phase-opening work this commit does not substitute
+  for, carried at ≈ 3 for the uncertainty. Figure is a ceiling estimate pending that enumeration.
+- **Found (2026-09-15).** R128 already exists and already reads BOTH ends (layer + screen) with no
+  `window.__go` call, on the acquisition surface only — the library half genuinely adds to the same
+  file rather than starting one, matching the phase's own framing exactly (no contradiction found
+  here).
+
 A BEHAVIOUR change: the seeds the design host serves at rest hold at least one subject in every state
 the library surfaces can draw, so a hand can try each case without a named state. This is the library
 half of B-345 and the fixture clause L13 inherits (DESIGN § 10; B-345).

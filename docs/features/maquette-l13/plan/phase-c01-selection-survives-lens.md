@@ -1,5 +1,31 @@
 # Phase c·1 — The selection survives the lens
 
+**Opening measure (2026-09-15, on `6839dd913`):**
+
+- **Commands.** `git grep -n -w lens -- design/src/features/library/` → 4 real sites (the write in
+  `verbs.ts:38-40`, two reads in `library-head.tsx`, a comment in `library-list.tsx`); the same walk
+  over `verbs.ts` shows FOUR registered verbs writing `selected: new Set()` on a narrowing change —
+  `lens` (39), `cat` (45), `setsort` (56), `clear-search` (65) — the phase names only `lens` and the
+  search clear. `grep -ln 'data-lens\|selection/bar\|selmode\|delsel' harness/*.py` → 15 files touch
+  the surface; `selection.py`, `selection_survives_the_tab.py` (R164, B-395's own rule — a TAB-change
+  sibling, not this ruling's lens-change subject), `virtual.py`, `actions.py`, `page_host.py`,
+  `stacking.py`, `desktop_frame.py` read `selected`/`selmode`/`delsel` directly. No tsc probe: the
+  phase changes no type. `grep -n B-312 BUGS.md` → `open`, 1×.
+- **Points ≈ 6.** 2 in-scope write sites (`verbs.ts`'s `lens` verb, `library-head.tsx`'s search
+  clear) ≈ 1; one new rule (the bar's count + the dialog's titles, both read against a lens change)
+  with its mutation ≈ 3; one new named state (ticking under one lens, switching to another, kept)
+  ≈ 2. Mean stated once in `plan/INDEX.md`'s L13c section.
+- **Found (2026-09-15).** `selection-bar.tsx`'s count (`state.selected.size` / `state.selectedMedia`)
+  and `delete-dialog.ts`'s `openDeleteDialog(null, [...ticked()])` already read the FULL stored set,
+  never the visible rows — the move's own words ("the selection bar counts the selected set itself,
+  not the visible rows") describe a repair the READ side does not need; the whole defect is on the
+  WRITE side (the four verbs above dropping the set). `cat` (category change) and `setsort` (sort
+  change) drop the selection on the same "narrows what's on screen" premise as `lens` but are named
+  nowhere in the move — a filter change by category is the same defect class B-312 rules on. R164
+  (`selection_survives_the_tab.py`) is the closest existing precedent (reads `state.selected` across
+  a page change, same `open_page`/`Journal` harness helpers) but answers a different question (tab
+  survival, not lens survival) and is not itself re-aimed.
+
 A BEHAVIOUR change: the operator's ruling of 2026-09-05, « La sélection doit survivre au changement
 des filtres », lands with its two guard-rails (DESIGN § 10, B-312). It relies on the `lens` verb
 being the library feature's since b·6.

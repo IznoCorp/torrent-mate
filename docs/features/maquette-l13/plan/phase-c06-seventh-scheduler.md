@@ -1,5 +1,28 @@
 # Phase c·6 — The seventh scheduler
 
+**Opening measure (2026-09-15, on `6839dd913`):**
+
+- **Commands.** `python3 -c "…json.load(open('design/src/mocks/seeds/settings.json'))…"`, the
+  `passages` topic → exactly SIX `schedule` rows (health-check, search, grab, follow-detect,
+  index-enrich, backfill-ids) — `personalscraper-index-full` is absent, confirming the phase's "six
+  drawn against seven real". `grep -n SCHEDULERS_AS_SYSTEM_DRAWS -A8 harness/machine.py` → the
+  harness's OWN reference table already carries all SEVEN, `personalscraper-index-full` included with
+  its label "Analyse complète de l'index" — this table is the "Système" cross-check (`journal.check`
+  at `machine.py:555`), a DIFFERENT hold from the `passages`-topic one this phase writes, and it stays
+  green untouched (matches the phase's own claim). No tsc probe: JSON seed + Python hold, no type
+  change. `grep -n B-327 BUGS.md` → `open`, 1×; BUGS.md ll. 2580-2608 already carry the ruling's own
+  measured prose (four refusals, the two-vocabulary gap) that "goes back into `machine.py`
+  VERBATIM" per the phase's proof section.
+- **Points ≈ 4.** 1 seed row + the `settings.labels` addition ≈ 1; one hold, described as a
+  restoration of the register's own kept wording rather than built from nothing, with its mutation
+  ≈ 3 (lower end of the 2-3 range for a re-derived rather than invented rule). No named state found
+  opening the `passages` topic specifically — the rule reads the DOM through the existing settings
+  navigation, not a new `window.__go` entry.
+- **Found (2026-09-15).** The two mechanisms are cleanly separate on this tree already: `machine.py`'s
+  `SCHEDULERS_AS_SYSTEM_DRAWS` (the "Système" page's cross-check) already lists all seven jobs and
+  needs no edit; only the `passages` topic's SEED is short one row, exactly as the phase says — no
+  contradiction found here, unlike c·3/c·4.
+
 A BEHAVIOUR change: « Réglages » draws the seventh scheduler, the hold B-327 kept whole is restored,
 and one job has one name (DESIGN § 10, B-327). It relies on `SETTINGS` being a seed since a·16, so
 the missing row is one seed row.
