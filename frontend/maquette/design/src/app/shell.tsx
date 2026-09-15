@@ -97,6 +97,7 @@ import { installSwipeArbitration } from "../lib/swipe-arbitration";
 import { installPullIndicator } from "./pull-indicator";
 import { installDiscoverSwipe } from "../features/acquisition/card-gestures";
 import { installQueueActions } from "../lib/queue";
+import { installPanelPress } from "../lib/press-arbitration";
 import { installReleasesLookup } from "../features/releases/queries";
 import { installSearchLookup } from "../features/acquisition/search-queries";
 import { installStore } from "../lib/store-access";
@@ -114,6 +115,9 @@ import { bridge, panel, screens } from "../lib/shell-doors";
 // before any producer can call `open`. That guarantee used to read « assigned
 // at this module's top level »; it is this call now, and it is still before the
 // engine, before the store's first write and before the first render.
+// THE LONG PRESS FIRST, before anything else registers a listener: it has
+// always been the first, installed while the engine module evaluated.
+installPanelPress();
 installHistoryBridge();
 installScrollRestoration();
 // before anything can navigate: a verb that knows only a path and its

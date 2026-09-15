@@ -60,6 +60,7 @@ import { Markup } from "../../ui/markup";
 import { bridge } from "../../lib/shell-doors";
 import { baseTitle } from "../../lib/titles";
 import { mediumCardMarkup, type MediumCard } from "./card-markup";
+import { addVerb } from "./add-label";
 
 type Mode = "follow" | "identify";
 
@@ -88,7 +89,6 @@ export function AddScreen() {
 
   const {
     icons,
-    addVerb,
     render,
   } = useAcquisitionReference();
   const { t } = useTranslation();

@@ -31,13 +31,14 @@ import { createPortal } from "react-dom";
 import { Icon } from "../../ui/icon";
 import { Chip } from "../../ui/chip";
 import { useSettingsReference, type Setting, type SettingsTopic } from "../../features/settings/reference";
+import { SETTINGS_STATE, changedFiles, fileName } from "./state";
 import { useStoreContent } from "../../lib/store-access";
 import { settingInWords } from "./format";
 import { useConfigurationStatus, useSecrets, useSettings } from "./queries";
 import { settingLabel } from "../../features/settings/labels";
 import { backAction, emptyNote, factsPanel, loadError, loadErrorAction, qualityHint, searchClear, searchField, searchInput, sectionHeading, topicRow } from "../../ui/variants";
 import { SaveBar, SettingsBanners } from "./banners";
-import { flattenSettings } from "./catalog";
+import { flattenSettings, settingIdentifier } from "./catalog";
 import { settingsRow } from "./variants";
 import { guidance } from "../../ui/variants/layout";
 import { Markup, emptyNoteMarkup } from "../../ui/markup";
@@ -52,8 +53,7 @@ function SettingRow({
   setting: Setting;
   withFile?: boolean;
 }): ReactElement {
-  const { SETTINGS_STATE, settingId, fileName } = useSettingsReference();
-  const identity = settingId(setting);
+  const identity = settingIdentifier(setting);
   const edited = SETTINGS_STATE.modifs.has(identity);
   // B-090. The row said the value the CONTRACT carried — the engine's own
   // French summary, which no control could edit and which had lost the fourth
@@ -86,7 +86,7 @@ function SettingRow({
 }
 
 function SearchField(): ReactElement {
-  const { SETTINGS_STATE, icons } = useSettingsReference();
+  const { icons } = useSettingsReference();
   const { t } = useTranslation();
   return (
     <div className={searchField()} style={{ marginBottom: 12 }}>
@@ -159,10 +159,6 @@ export function SettingsPage(): ReactElement | null {
   // re-read the object it never owns.
   useStoreContent((content) => content.version);
   const { t } = useTranslation();
-  const {
-    SETTINGS_STATE,
-    changedFiles,
-  } = useSettingsReference();
   // FROM THE CACHE (invariant 4). The panel says a value from what the
   // setting HOLDS — B-090 — so the read has to carry it.
   const { data: SETTINGS = [] } = useSettings();

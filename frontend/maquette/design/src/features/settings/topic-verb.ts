@@ -25,6 +25,7 @@ import { store } from "../../lib/store-access";
 import { bridge } from "../../lib/shell-doors";
 import { addressSeam } from "../../lib/addresses";
 import { navigationState } from "../../lib/navigation-entry";
+import { SETTINGS_STATE } from "./state";
 
 /** The key the rubric travels under, on the entry this verb pushes. */
 const CARRIED = "settingsTopic";
@@ -37,11 +38,11 @@ const CARRIED = "settingsTopic";
  */
 function openTopic(rubric: string): void {
   const reference = window.__referentiel;
-  reference.SETTINGS_STATE.topic = rubric;
+  SETTINGS_STATE.topic = rubric;
   // The search is cleared with the same gesture the engine's branch cleared it
   // with: a rubric and a search are two answers to one question, and leaving
   // the query behind showed the rubric under a count of matches.
-  reference.SETTINGS_STATE.q = "";
+  SETTINGS_STATE.q = "";
   reference.render();
   try {
     bridge.record(
@@ -76,8 +77,8 @@ function leaveTopic(): void {
   if (entry?.layer !== undefined) return;
   const carried = entry?.[CARRIED];
   const topic = typeof carried === "string" ? carried : null;
-  if (reference.SETTINGS_STATE.topic === topic) return;
-  reference.SETTINGS_STATE.topic = topic;
+  if (SETTINGS_STATE.topic === topic) return;
+  SETTINGS_STATE.topic = topic;
   reference.render();
 }
 
@@ -92,4 +93,4 @@ window.addEventListener("popstate", leaveTopic);
    exactly one entry; with a rubric open that step lands on the rubric's entry
    and the page never changes at all. */
 const entryPosed = giveTheEntryBackFirst(
-  () => window.__referentiel.SETTINGS_STATE.topic !== null);
+  () => SETTINGS_STATE.topic !== null);

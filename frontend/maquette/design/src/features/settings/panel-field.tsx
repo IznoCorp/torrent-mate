@@ -11,8 +11,10 @@
 // field alike, so a curated label cannot say one thing on a row and another
 // above it.
 import { useTranslation } from "react-i18next";
-import { useSettingsReference, type Setting } from "./reference";
+import type { Setting } from "./reference";
 import { changeSetting, rawValue } from "./pending-edits";
+import { fileName, typedValue } from "./state";
+import { settingIdentifier } from "./catalog";
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { Icon } from "../../ui/icon";
 import { settingLabel, unitOf } from "../../features/settings/labels";
@@ -29,30 +31,20 @@ declare module "../../ui/panel/contract" {
   }
 }
 
-// `fileName` is pure formatting off a `Setting`'s own fields —
-// refonte.html@60530dbd8 keeps it private (not published on `__referentiel`) but it
-// carries no engine state, so it is reproduced verbatim rather than
-// re-derived differently. HOW A SETTING IS NAMED is not reproduced at all:
-// `settings-labels.ts` is the one implementation, read by the page that lists
-// the settings and by this panel alike, so a curated label cannot say one
-// thing on a row and another above it.
-function fileName(f: string): string {
-  return f.includes(".") ? f : `${f}.json5`;
-}
+// HOW A SETTING IS NAMED is not reproduced here: `settings-labels.ts` is the
+// one implementation, read by the page that lists the settings and by this
+// panel alike, so a curated label cannot say one thing on a row and another
+// above it.
 
 function FieldBlock({
   block,
 }: {
   block: { type: "field" } & PanelBlockMap["field"];
 }) {
-  const {
-    settingId,
-    typedValue,
-  } = useSettingsReference();
   const { icons } = useEngineDrawing();
   const { t } = useTranslation();
   const { setting: setting } = block;
-  const id = settingId(setting);
+  const id = settingIdentifier(setting);
   // The field draws what `rawValue` answers — the pending edit if there
   // is one, the file's `brut` otherwise. Reading `.brut` alone would draw a
   // list one has just shortened at its old length, so a removal would look

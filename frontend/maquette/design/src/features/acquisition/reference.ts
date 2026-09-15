@@ -59,10 +59,6 @@ export type SearchResults = {
 };
 
 export type AcquisitionReference = EngineDrawing & EngineQueue & {
-  // The suggestion machinery. It stays the FRAGMENT's — the deck's gesture
-  // mutates its own DOM and a replaced node cannot animate — and a migrated
-  // page asks it to fill the containers React has just drawn.
-  addVerb: (result: SearchResult, index: number) => string;
 };
 
 /**

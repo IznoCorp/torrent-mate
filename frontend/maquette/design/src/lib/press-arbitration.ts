@@ -52,6 +52,8 @@
 //    fire the panel » and break every deliberate tap. It is held separately.
 
 import { feedback } from "./feedback";
+import { openAddressedPanel } from "./shell-doors";
+import { store } from "./store-access";
 
 /**
  * How long to wait before saying anything, so a scroll is never acknowledged.
@@ -349,4 +351,43 @@ export function installPressArbitration(
     cancelPress,
     followPress,
   };
+}
+
+/**
+ * Which panel a press addresses, from wherever the finger landed.
+ *
+ * Pressing a POSTER must reach the panel too, and a poster carries no
+ * `data-panel`: it carries the sheet it opens on a tap. Its card knows the
+ * panel, so the search widens to the card the finger is in — one gesture, one
+ * meaning, on every part of a medium.
+ *
+ * @param target Where the finger landed.
+ * @returns The element carrying the panel's address, or null.
+ */
+function panelUnderFinger(target: Element): Element | null {
+  return target.closest?.("[data-panel]") ?? target.closest?.(".card, .sugwrap")?.querySelector("[data-panel]") ?? null;
+}
+
+/**
+ * Installs the long press that raises the panel an element addresses.
+ *
+ * The arbitration is `installPressArbitration`'s; what this adds is what the
+ * press MEANS here — which element it addresses, and that opening it is the
+ * frame's addressed-panel door. Installed at the very start of the boot, before
+ * the tap registry, which is the order the press has always been registered in.
+ *
+ * @returns The arbitration.
+ */
+export function installPanelPress(): PressArbitration {
+  return installPressArbitration({
+    resolveTarget: (target) => {
+      const element = panelUnderFinger(target);
+      if (store.read().state.selMode || !element) return null;
+      // A card body opens the panel on a simple TAP, so arming a timer on it
+      // would fire the panel twice — once on the press, once on the click.
+      if (element.classList.contains("cbody") && target.closest?.(".cbody")) return null;
+      return element;
+    },
+    onPress: (element) => openAddressedPanel?.(element),
+  });
 }

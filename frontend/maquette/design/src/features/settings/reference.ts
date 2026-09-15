@@ -69,16 +69,10 @@ export type SettingsTopic = {
 };
 
 export type SettingsReference = EngineDrawing & {
+  // Published for the rules, which read the working state and a setting's
+  // identifier by these names; the product imports both from their modules.
   SETTINGS_STATE: SettingsState;
-  // Réglages (settings) panel actions — derive
-  // a setting's storage id, coerce a raw field input back to its stored
-  // type, and apply/open a pending edit. See refonte.html@60530dbd8's `SETTINGS`
-  // neighbourhood for the file/rubric structure `Setting.rubrique` carries.
   settingId: (setting: Setting) => string;
-  typedValue: (setting: Setting, text: string) => unknown;
-  displayedValue: (setting: Setting) => unknown;
-  fileName: (file: string) => string;
-  changedFiles: () => string[];
 };
 
 /**

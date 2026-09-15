@@ -9,6 +9,7 @@ import { store } from "../../lib/store-access";
 import { settingIdentifier } from "./catalog";
 import { heldSettings } from "./queries";
 import type { Setting } from "./reference";
+import { SETTINGS_STATE } from "./state";
 
 /**
  * The value a field must draw.
@@ -25,7 +26,7 @@ import type { Setting } from "./reference";
  *     The value to draw.
  */
 export function rawValue(setting: Setting): unknown {
-  const pending = window.__referentiel.SETTINGS_STATE.modifs;
+  const pending = SETTINGS_STATE.modifs;
   const identifier = settingIdentifier(setting);
   return pending.has(identifier) ? pending.get(identifier) : setting.brut;
 }
@@ -60,7 +61,7 @@ function sameValue(first: unknown, second: unknown): boolean {
 export function changeSetting(identifier: string, value: unknown): void {
   const setting = heldSettings().find((one) => settingIdentifier(one) === identifier);
   if (setting === undefined) return;
-  const pending = window.__referentiel.SETTINGS_STATE.modifs;
+  const pending = SETTINGS_STATE.modifs;
   if (sameValue(value, setting.brut)) pending.delete(identifier);
   else pending.set(identifier, value);
   store.touch();

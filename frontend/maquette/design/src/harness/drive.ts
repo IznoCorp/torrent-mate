@@ -19,7 +19,8 @@ import type { UiState } from "../app/store";
 // `applyState` is the engine's — the ladder's handler restores a page through
 // it — and the states start through the same verb, re-exported here beside their type.
 import { drivenWithoutHistory } from "../app/page-switch";
-import { applyState as applyEngineState, resetSettings } from "../engine/legacy.js";
+import { applyState as applyEngineState } from "../engine/legacy.js";
+import { resetSettings } from "./settings-reset";
 import { resetPullIndicator } from "../app/pull-indicator";
 import { heldIdentity, providerAddress } from "../lib/held-identity";
 import type { CarriedIdentity } from "../lib/navigation-entry";
@@ -103,7 +104,7 @@ function reset(): boolean {
   // height on one element — and a refresh in flight outlives a change of
   // state. Reset here, or a measurement inherits the previous one's spinner.
   resetPullIndicator?.();
-  if (typeof resetSettings === "function") resetSettings();
+  resetSettings();
   // The router is navigation state too: a named state is DRIVEN, not a
   // journey, so it must not inherit whichever screen route a previous one
   // navigated to. `replace`, so driving through many states never grows

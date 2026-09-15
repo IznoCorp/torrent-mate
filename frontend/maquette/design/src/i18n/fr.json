@@ -413,7 +413,15 @@
       "seeFollows": "Voir mes suivis →",
       "alreadyInLibrary": "Déjà en médiathèque",
       "landmark": "Ajout d'un média",
-      "dismissAdded": "Masquer cette notification"
+      "dismissAdded": "Masquer cette notification",
+      "verb": {
+        "add": "Ajouter",
+        "follow": "Suivre",
+        "associate": "Associer",
+        "added": "✓ Ajouté",
+        "followed": "✓ Suivi",
+        "associated": "✓ Associé"
+      }
     },
     "resolution": {
       "back": "Retour",
@@ -1116,7 +1124,9 @@
         "delete": "Supprimer",
         "done": "Simulation terminée — 0 fichier touché.",
         "cancel": "Annuler"
-      }
+      },
+      "deletedOne": "{{count}} média supprimé — simulation, aucun fichier touché.",
+      "deletedMany": "{{count}} médias supprimés — simulation, aucun fichier touché."
     },
     "acquisition": {
       "taken": "« {{title}} » récupéré — suivez-le dans « En vol ».",

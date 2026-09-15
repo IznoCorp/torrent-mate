@@ -33,8 +33,6 @@
 */
 
 import { screens, panel, bridge, seam } from "./seams.js";
-import { installPressArbitration } from "../lib/press-arbitration";
-import { openAddressedPanel } from "../lib/shell-doors";
 import { hideLayers, installPageRestore } from "../app/layers";
 import { icons } from "../app/icons";
 /* THE VOCABULARY THAT LEFT, READ BACK FOR THE RULES. The constants and helpers
@@ -62,16 +60,13 @@ import { replacePath, walk } from "../app/page-switch";
    `app/icons.ts`'s arrangement and its reasoning word for word: one copy, read
    by both worlds, and the day this file goes the feature loses an importer
    rather than a subject. */
-import {
-  settingIdentifier,
-  valueShown,
-} from "../features/settings/catalog";
+import { settingIdentifier } from "../features/settings/catalog";
+import { SETTINGS_STATE } from "../features/settings/state";
 /* THE DÉCOUVRIR FEED, IMPORTED BACK. The reserve, the pile and the
    gesture that spends them are `features/acquisition/` now — the last feature
    surface this file still DREW. Its containers were already React's; what moved
    is who owns their content, and the technique is unchanged because a replaced
-   node cannot animate. `render()`, `mountLoaders()`, the click delegation and
-   the swipe handlers below all still call these by name. */
+   node cannot animate. `render()` still calls these by name. */
 import {
   advanceDeck,
   deckOrder,
@@ -269,61 +264,6 @@ import {
      the engine's own acts. */
 
 
-  /* WORKING STATE — actions really MUTATE
-     The datasets above are the seed; `W` is the live copy. An action does
-     not settle for a toast: it moves the card, decrements the badge,
-     empties the section. That is what makes this prototype a contract of
-     BEHAVIOUR and not only of pixels — an implementer can point at « in the
-     prototype, grabbing moves the card to in-flight », which no screenshot
-     states.
-
-     `window.__reset()` restores the seed; `__go()` calls it systematically,
-     so every measurement starts from the same state. */
-  /* THE DECK'S CARDS, read from the layer. `SUGGESTIONS` was a fixture here and
-     left at L09; the deck still indexes into a list from a click handler that
-     cannot await, so it asks a synchronous accessor. It reports an empty list
-     before the query has answered, which is what the deck already drew for a
-     batch fully seen. It goes with the deck at L13. */
-  /* THE QUEUE, read from the layer. The lists left at L09 and these callers
-     ask from click handlers that cannot await; they read the same cache the
-     surfaces do, never a copy. They go with the drawing at L13. */
-  /* THE FOLLOWS, read from the layer. Same reason as `queued()`: these callers
-     ask from click handlers that cannot await, and they read the same cache the
-     deck draws. */
-  function follows() {
-    return seam.followActions?.all() ?? [];
-  }
-
-  function queued() {
-    return (
-      seam.queue?.() ?? {
-        stuck: [], moving: [], settled: [], takeable: [],
-        blocked: [], inFlight: [], notFound: [], doneToday: [],
-      }
-    );
-  }
-
-  function suggestions() {
-    return seam.suggestions?.() ?? [];
-  }
-
-  /* Simulated behaviours
-     Every action really moves the data. What an implementer must reproduce
-     is not « a toast appears » but « the card leaves À récupérer, appears
-     in En vol at the taken step, and the badge loses 1 ». */
-
-  function actionDelete(titres) {
-    /* THE REMOVAL IS THE LAYER'S SINCE L09. `world.lib` stopped holding the
-       library when the listing converted, so this filtered an empty array and
-       deleted nothing at all — on the one surface whose subject is what is
-       there. The confirmation stays here: it is drawn here (NE-DOIT-PAS-6). */
-    seam.deleteLibraryItems?.(titres);
-    store.write({ selMode: false, selected: new Set() });
-    render();
-    toast(
-      `${titres.length} média${titres.length > 1 ? "s" : ""} supprimé${titres.length > 1 ? "s" : ""} — simulation, aucun fichier touché.`,
-    );
-  }
 
 
 
@@ -370,66 +310,11 @@ import {
      without opening the file. */
 
 
-  /* ── La surface des réglages ──────────────────────────────────────────
-
-     Level 1 lists the rubrics; level 2 a rubric's settings; level 3 is the
-     bottom panel this interface already has. The search sits at level 1 and
-     looks through EVERY setting of every rubric by its French label, because
-     the fastest way to a setting one already knows the name of is to type it —
-     and on a phone that is the difference between two taps and eleven.
-
-     Nothing is written until the save bar is used. A setting changed here is
-     PENDING, marked on its own row and counted in the bar, and the bar names
-     the files it will write. */
-  const SETTINGS_STATE = {
-    modifs: new Map(),
-    topic: null,
-    q: "",
-    readOnly: false,
-    conflict: false,
-  };
-
-  /* Every named state starts from the same place: pending edits, the rubric
-     one is in and the search are all state, and a measurement must not inherit
-     the one before it. */
-  function resetSettings() {
-    SETTINGS_STATE.modifs.clear();
-    SETTINGS_STATE.topic = null;
-    SETTINGS_STATE.q = "";
-    SETTINGS_STATE.readOnly = false;
-    window.__mocks?.setRestartRequired(false);
-    SETTINGS_STATE.conflict = false;
-  }
-
+  /* THE SETTINGS SCREEN'S WORKING STATE IS NOT THIS FILE'S ANY MORE: it is
+     `features/settings/state.ts`'s, and its reset is the harness driver's. The
+     rules still read `SETTINGS_STATE` and `settingId` under those names, so
+     they are published below from their homes. */
   const settingId = settingIdentifier;
-
-  const displayedValue = (setting) => valueShown(setting, SETTINGS_STATE.modifs);
-
-  /* The file a setting really lives in. Nineteen of them are JSON5 overlays
-     named by their concern, and one is not: the schedules belong to PM2 and
-     live in `ecosystem.config.js`. Appending « .json5 » to every name would
-     make the save bar promise a file that does not exist — and the save bar's
-     whole job is to name what it will write. */
-  function fileName(f) {
-    return f.includes(".") ? f : f + ".json5";
-  }
-
-  function changedFiles() {
-    return [
-      ...new Set([...SETTINGS_STATE.modifs.keys()].map((id) => id.split(":")[0])),
-    ];
-  }
-
-  /* What a field's value BECOMES, read from the field itself. A number field
-     returns a string; storing it as one would compare unequal to the file's
-     number for ever, so the type it goes back as is the type it came from. */
-  function typedValue(setting, text) {
-    if (setting.type === "number") {
-      const n = Number(text);
-      return text.trim() === "" ? null : Number.isNaN(n) ? setting.brut : n;
-    }
-    return text === "" ? null : text;
-  }
 
   /* One setting, in the panel — the same panel as everywhere else, taking the
      same descriptor of facts. What it says: where the value comes from, what
@@ -445,18 +330,8 @@ import {
   const navigationRows = () => seam.navigation?.rows() ?? [];
 
   const select = (selector) => document.querySelector(selector);
-  /* The `open` class and the `data-open` attribute name ONE state, so one
-     function writes both. Every layer this engine raises or clears goes
-     through it: rules select and assert the attribute, and an attribute set
-     anywhere the class is not would lie about the layer it describes. */
-  function setOpen(element, on) {
-    element.classList.toggle("open", on);
-    if (on) element.setAttribute("data-open", "");
-    else element.removeAttribute("data-open");
-  }
   const view = select("#view"),
-    port = select("#port"),
-    cadre = select("#device");
+    port = select("#port");
 
   /* THE FLOATING ACTION BUTTON IS NOT THIS FILE'S ANY MORE.
      It was static markup this engine showed and hid, from two flags kept in
@@ -503,8 +378,7 @@ import {
        Everything below still runs: the bar, the nav and the save bar are
        shared furniture, not the page's. */
     mountDeck();
-    mountLoaders();
-    mountSearch();
+    remountSuggestionLoader();
   }
 
   /* Loading
@@ -547,7 +421,6 @@ import {
   window.__referentiel = {
     icons,
     baseTitle,
-    addVerb,
     render,
     /* What the Arrivées page draws. `PIPELINE` is the run's own data, read and never written; the three
        `derived` verbs answer what is stuck, moving and settled, which depends
@@ -576,13 +449,8 @@ import {
        ici : `settings-labels.ts` le porte pour la page comme pour le panneau,
        et le fragment le lit par `window.__settingLabels`. */
     SETTINGS_STATE,
-    
-    displayedValue,
-    fileName,
-    changedFiles,
     dateFR: dateLabel,
     settingId,
-    typedValue,
     toast,
   };
 
@@ -643,33 +511,6 @@ import {
      unchanged and R55 proves that against a real thumb, before the move and
      after it. */
 
-  /* Which panel a press addresses, from wherever the finger landed.
-
-     Pressing a POSTER must reach the panel too, and a poster carries no
-     `data-panel`: it carries the sheet it opens on a tap. Its card knows the
-     panel, so the search widens to the card the finger is in — one gesture,
-     one meaning, on every part of a medium. */
-  function panelUnderFinger(target) {
-    return (
-      target.closest?.("[data-panel]") ??
-      target.closest?.(".card, .sugwrap")?.querySelector("[data-panel]") ??
-      null
-    );
-  }
-
-  const pressArbitration = installPressArbitration({
-    resolveTarget: (target) => {
-      const element = panelUnderFinger(target);
-      if (currentState().selMode || !element) return null;
-      /* A card body opens the panel on a simple TAP, so arming a timer on it
-         would fire the panel twice — once on the press, once on the click. */
-      if (element.classList.contains("cbody") && target.closest?.(".cbody")) {
-        return null;
-      }
-      return element;
-    },
-    onPress: (element) => openAddressedPanel?.(element),
-  });
 
   /* User menu.
      One entry today — signing out — and the shape that will hold the rest: this
@@ -683,9 +524,6 @@ import {
      · swipe left OR right → dismissed, with « Annuler » in the toast
      The verb follows the nature: one FOLLOWS a series, one ADDS a film. */
 
-  function sugVerb(suggestion) {
-    return suggestion.k === "Film" ? "Ajouter" : "Suivre";
-  }
 
   /* THE DÉCOUVRIR FEED HAS LEFT — the reserve, the three card shapes, the
      pile and the gesture that spends them are
@@ -693,30 +531,6 @@ import {
      this file imports them back. Its own `resize` listener went with
      `mountDeck`: two listeners on one window would measure the deck twice. */
 
-  /* The label a search result's action carries, computed ONCE. The panel
-     entry and the done chip on the card must say the same thing, and the
-     only way to be sure of that is for there to be one sentence to say it.
-
-     « Associer » is not a synonym of « Ajouter »: identifying a stuck folder
-     tells the pipeline WHICH medium that folder is, and creates no follow. */
-  function addVerb(result, index) {
-    const identifier = currentState().addMode === "identify";
-    if (currentState().added.has(index)) {
-      return identifier
-        ? "✓ Associé"
-        : result.k === "Film"
-          ? "✓ Ajouté"
-          : "✓ Suivi";
-    }
-    const verbLabel = identifier
-      ? "Associer"
-      : result.k === "Film"
-        ? "Ajouter"
-        : "Suivre";
-    // The ellipsis warns that the act opens a question — it will replace
-    // something already held — rather than happening on the spot.
-    return result.owned && !identifier ? `${verbLabel}…` : verbLabel;
-  }
 
   /* A search result is not one of your media yet, so it has a panel of its own
      rather than a follow's: what it offers is the act that WOULD make it one,
@@ -724,36 +538,6 @@ import {
      the act — the card wears no inline button, so the row stays the size of
   /* Typing filters as you go (the source is LOCAL, therefore free) — unlike
      the provider search on the add screen, which runs on submit. */
-  function mountSearch() {
-    /* `#libq` is NOT bound here anymore either, for the same reason as
-       `.fieldinput` below: the library page owns its own search field now
-       (`src/pages/library.tsx`), and the caret dance this function used to do
-       around it existed only because the legacy rebuilt the node on every
-       draw. React keeps the node, so there is nothing to put back.
-
-       `.fieldinput` is NOT bound here: a settings field only ever appears
-       inside the panel, and the panel's own `field` block owns its
-       commit-on-blur handler now (`src/components/panel.tsx`). Binding it
-       from outside would put two writers on one field. */
-    const element2 = document.querySelector("#follq");
-    if (element2)
-      element2.oninput = () => {
-        store.write({ filter: element2.value });
-        const pos = element2.selectionStart;
-        render();
-        const element3 = document.querySelector("#follq");
-        if (element3) {
-          element3.focus();
-          element3.setSelectionRange(pos, pos);
-        }
-      };
-  }
-
-  /* THE SUGGESTIONS' loader, and only theirs. The library's half left with the
-     page it belonged to: its list, its footer and its sentinel are drawn by the
-     component now, and filling a container React owns from here is what makes
-     two worlds write one element. */
-  const mountLoaders = remountSuggestionLoader;
 
   /* Interactions */
   /* WHETHER A MESSAGE IS ON SCREEN IS WRITTEN IN ONE PLACE. Six call sites
@@ -787,14 +571,6 @@ import {
     seam.toast?.show({ message: msg, undo });
   }
 
-  /* The panel layer belongs to the shell now (`window.__panel`, rendered by
-     `src/components/sheet.tsx`): a producer describes FACTS and the shell
-     builds the panel. This function opens nothing anymore — it is a tripwire,
-     kept so a producer nobody converted fails where it is written instead of
-     quietly doing nothing. Every call site was converted with the layer. */
-  function openSheet() {
-    throw new Error("openSheet est mort — passer par __panel");
-  }
   /* A page restored the way a named state starts: the layers hidden without
      touching history, the store written, the port back at the top when the
      patch names a new place, and the page drawn. The ladder's handler restores
@@ -901,20 +677,6 @@ import {
      A journey has no hole. A step not reached is stated « à venir », never
      « pas faite »; a step without a date is stated « inconnue », never
      given an invented date. */
-  /* Add screen (« + ») — migrated to a real route, `AddScreen`
-     (`design/src/screens/add.tsx`, reached at `/add`). The design
-     rationale (full screen not a sheet, vertical result list, the two
-     modes' verbs) lives there now, next to the code it explains. `SEARCH`
-     and `addVerb` stay defined here and cross the handshake
-     through `window.__referentiel` — the search execution itself is still
-     the engine's, reached through that seam. */
-
-  /* Choose another release — migrated to a real route, `ReleasesScreen`
-     (`design/src/screens/releases.tsx`, reached at `/releases/$title`). Show
-     what is NOT happening and why. Here: why the engine picked this one —
-     and enough to pick another knowingly. The score shown is the ranking's,
-     not an opinion. `RELEASES` stays defined here and crosses the handshake
-     through `window.__referentiel` — same seam as `SEARCH`/`addVerb` above. */
 
   /* Gestures — pointer events, so one path serves finger, mouse and pen.
      Two differences a touch-only implementation never meets:
@@ -981,7 +743,6 @@ import {
    dependency is readable and a deletion breaks the build instead of a run. */
 export {
   applyState,
-  resetSettings,
   render,
   toast,
 };
@@ -1019,19 +780,13 @@ export {
    across all 254 names, and this is the only one. */
 Object.assign(window, {
   SETTINGS_STATE,
-  actionDelete, addVerb, showSignIn,
+  showSignIn,
   closeSheet,
-  changedFiles,
   icons,
-  mountLoaders, mountSearch, fileName,
-  openSheet,
-  panelUnderFinger,
-  settingId, resetSettings, render,
+  settingId, render,
   select,
-  sugVerb,
   toast, toastUndo,
-  displayedValue,
-  typedValue, view,
+  view,
   // The rules' names for three moved helpers, published from their homes.
   cadenceFR: cadenceSentence,
   nextSearchFR: nextSearchTime,

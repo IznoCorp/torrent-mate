@@ -11,6 +11,7 @@ import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import { secretsQuery } from "./queries";
 import type { Secret } from "./reference";
+import { SETTINGS_STATE } from "./state";
 
 // THE ICONS COME THROUGH THE ENGINE'S DRAWING SLICE, not by importing
 // `app/icons.ts`, and it is invariant 8 that decides. `app/icons.ts` is outside
@@ -56,7 +57,7 @@ function secretPanel(key: string, cache: PanelCache): PanelDescriptor | null {
   // feature's yet: it moves with the last delegation verb that writes it, and
   // that is the engine's last lot. Read through the same slice the page reads,
   // so the panel and the page cannot disagree about the instance's rights.
-  const readOnly = Boolean(window.__referentiel.SETTINGS_STATE.readOnly);
+  const readOnly = Boolean(SETTINGS_STATE.readOnly);
   return {
     title: secret.l,
     meta: [{ m: secret.k }],

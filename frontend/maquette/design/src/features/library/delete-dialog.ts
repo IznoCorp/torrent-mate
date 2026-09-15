@@ -16,15 +16,30 @@ import i18next from "i18next";
 import { membershipQuery, type Membership } from "../../lib/membership";
 import { sharedQueryClient } from "../../lib/query-client";
 import { dialog, followedTitles, toast } from "../../lib/shell-doors";
-import { libraryIncompleteQuery } from "./queries";
+import { store } from "../../lib/store-access";
+import { deleteLibraryItems, libraryIncompleteQuery } from "./queries";
 import type { DialogDescriptor } from "../../ui/dialog/contract";
 import type { IncompleteShow } from "./reference";
 
-declare global {
-  interface Window {
-    /** The engine's removal: the layer deletes, the selection ends, the page redraws. */
-    actionDelete: (titles: string[]) => void;
-  }
+/**
+ * Removes titles from the library: the layer deletes, the selection ends, the
+ * page redraws, and the removal is said.
+ *
+ * The confirmation that calls it says what was done in its own words right
+ * after, and that message replaces this one — so this one is what a caller
+ * with nothing more precise to say is left with.
+ *
+ * @param titles The titles removed.
+ */
+function removeTitles(titles: string[]): void {
+  deleteLibraryItems?.(titles);
+  store.write({ selMode: false, selected: new Set() });
+  window.__referentiel.render();
+  toast?.show({
+    message: i18next.t(titles.length > 1 ? "verbs.library.deletedMany" : "verbs.library.deletedOne", {
+      count: titles.length,
+    }),
+  });
 }
 
 /**
@@ -159,7 +174,7 @@ export async function openDeleteDialog(title: string | null, many?: string[]): P
      there, so a button carrying one never reached its own `onClick` and the
      removal it confirms never ran. */
   const removeSaying = (message: string) => () => {
-    window.actionDelete(titles);
+    removeTitles(titles);
     toast?.show({ message });
   };
   const actions: DialogDescriptor["actions"] = [];

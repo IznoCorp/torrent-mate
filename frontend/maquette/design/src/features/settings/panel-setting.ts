@@ -19,6 +19,7 @@ import type { Setting, SettingsTopic } from "./reference";
 import { dialog, panel, toast } from "../../lib/shell-doors";
 import { settingLabels } from "./labels";
 import { changeSetting } from "./pending-edits";
+import { SETTINGS_STATE, changedFiles, fileName, typedValue } from "./state";
 
 // THE ICONS COME THROUGH THE ENGINE'S DRAWING SLICE, not by importing
 // `app/icons.ts`, and it is invariant 8 that decides. `app/icons.ts` is outside
@@ -74,7 +75,7 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
   // delegation verb that writes them, and that is the engine's last lot. Read
   // through the same slice the settings page reads, so the panel and the page
   // cannot disagree about what has been edited.
-  const { modifs: pending, readOnly } = window.__referentiel.SETTINGS_STATE;
+  const { modifs: pending, readOnly } = SETTINGS_STATE;
   const shown = valueShown(setting, pending);
   const changed = pending.has(identifier);
   return {
@@ -174,7 +175,7 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
    The panel closes, and the page is redrawn and the message said in the same
    tap: the layer's own exit animates while the page under it changes. */
 function cancelEdit(identifier: string): void {
-  window.__referentiel.SETTINGS_STATE.modifs.delete(identifier);
+  SETTINGS_STATE.modifs.delete(identifier);
   panel.close();
   window.__referentiel.render();
   toast?.show({
@@ -209,8 +210,8 @@ type SettingsVerbs = {
    of that would be the second loss. */
 async function saveEdits(): Promise<void> {
   const reference = window.__referentiel;
-  const files = reference.changedFiles();
-  const pending = reference.SETTINGS_STATE.modifs;
+  const files = changedFiles();
+  const pending = SETTINGS_STATE.modifs;
   let conflicted = false;
   for (const file of files) {
     const values: Record<string, unknown> = {};
@@ -223,7 +224,7 @@ async function saveEdits(): Promise<void> {
     if (answered !== HELD && answered !== undefined && answered.conflict)
       conflicted = true;
   }
-  reference.SETTINGS_STATE.conflict = conflicted;
+  SETTINGS_STATE.conflict = conflicted;
   if (conflicted) {
     reference.render();
     return;
@@ -244,7 +245,7 @@ async function saveEdits(): Promise<void> {
   reference.render();
   toast?.show({
     message: i18next.t("panels.setting.savedToast", {
-      files: files.map(reference.fileName).join(", "),
+      files: files.map(fileName).join(", "),
     }),
   });
 }
@@ -268,7 +269,7 @@ function commitEdit(identifier: string): void {
     (sharedQueryClient?.getQueryData<SettingsTopic[]>(settingsQuery.queryKey))
       ?? []).find((one) => settingIdentifier(one) === identifier);
   if (setting === undefined) return;
-  changeSetting(identifier, reference.typedValue(setting, field.value));
+  changeSetting(identifier, typedValue(setting, field.value));
   panel.produce("setting", identifier);
 }
 
@@ -277,8 +278,8 @@ function commitEdit(identifier: string): void {
    the banner and the settings are asked for again. */
 function reloadSettings(): void {
   const reference = window.__referentiel;
-  reference.SETTINGS_STATE.modifs.clear();
-  reference.SETTINGS_STATE.conflict = false;
+  SETTINGS_STATE.modifs.clear();
+  SETTINGS_STATE.conflict = false;
   sharedQueryClient?.invalidateQueries({ queryKey: settingsQuery.queryKey });
   reference.render();
 }

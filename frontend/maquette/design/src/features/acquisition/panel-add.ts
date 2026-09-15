@@ -23,6 +23,7 @@ const icons = () => window.__referentiel.icons;
 import type { SearchResult } from "./reference";
 import { store } from "../../lib/store-access";
 import { searchResults } from "./search-queries";
+import { addVerb } from "./add-label";
 
 /**
  * Builds a search result's descriptor.
@@ -65,10 +66,9 @@ function addPanel(position: string, cache: PanelCache): PanelDescriptor | null {
         type: "actions",
         actions: [
           {
-            // THE VERB IS THE ENGINE'S STILL: the add SCREEN draws the same
-            // word on its own rows, so one derivation answers both (§13) and it
-            // dies with that screen's own drawing.
-            text: window.__referentiel.addVerb(result, Number(position)),
+            // ONE DERIVATION: the add SCREEN draws the same word on its own
+            // rows, so `addVerb` answers both (§13).
+            text: addVerb(result, Number(position)),
             icone: icons().plus,
             ton: "primary",
             desactive: done,
