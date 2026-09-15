@@ -188,29 +188,21 @@ def find_cycles(edges: dict[str, list[str]]) -> list[tuple[str, ...]]:
     return sorted(cycles)
 
 
-# WHAT MAY IMPORT FROM OUTSIDE `design/src`, and it is one file.
+# WHAT MAY IMPORT FROM OUTSIDE `design/src`, and it is a short list.
 #
-# `engine/engine-shape.ts` reads `frontend/maquette/fixture-projections.json` —
-# the projection L08 DECLARED, which the seed builder and the correspondence
-# guard read too. It inverts that declaration to hand contract-shaped data to
-# the engine's own markup producers, and it dies with them at L13. Importing the
-# declaration rather than copying it is the point: a copy is a second definition
-# of one thing, and the drift between them would be invisible, each staying
-# internally consistent while describing different data.
+# Each entry reads a declaration that lives beside the design tree rather than
+# copying it: a copy is a second definition of one thing, and the drift between
+# them would be invisible, each staying internally consistent while describing
+# different data.
 #
 # NAMED HERE SO THE NEXT ONE IS A DECISION. The maquette BECOMES the app, so a
 # module reaching outside the tree makes it non-self-contained.
 OUTSIDE_IMPORTS_ALLOWED = {
-    "engine/engine-shape.ts": {"frontend/maquette/fixture-projections.json"},
-    # Its test reads the same declaration, and for the same reason: asking
-    # the declaration what names must not survive is what keeps the
-    # assertion from being a list in the test file that rots.
-    "engine/engine-shape.test.ts": {"frontend/maquette/fixture-projections.json"},
     # The conformance test reads the CONTRACT itself, because that is its
     # subject: it holds what a handler answers against what the contract
     # requires, and the generated types cannot answer for it — a TypeScript type
     # carries no `required` list at runtime. Importing the contract rather than
-    # restating its required fields is the same decision as the two above: a
+    # restating its required fields is the decision above: a
     # copy is a second definition, and the drift between them is invisible.
     #
     # THIS ENTRY IS ALSO B-122's PROOF. That defect made the arm compare an
@@ -378,41 +370,14 @@ def arm_layering(root: Path) -> int:
     return len(violations)
 
 
-# THE ONE MODULE EVERY WIRED SURFACE IMPORTS, and it is exempt because that is
-# its subject rather than a symptom. `engine/engine-shape.ts` inverts the
-# projection L08 declared, so that data from the mock layer can be handed to the
-# markup producers still living in `legacy.js`. Every surface L09 wires needs it,
-# by construction — and it DIES WITH THOSE PRODUCERS at L13, taking this
-# exemption with it.
-#
-# It is not in `ui/` or `lib/`, which the arm already skips, because lifetime is
-# what decides where it lives: `engine/` is the bucket L13 empties, and a
-# conversion INTO the engine's shape has no meaning after the engine.
-#
-# AND HERE IS THE ARGUMENT AGAINST IT, because an exemption that only records its
-# own defence is half a record. This arm is the one guard that acts BEFORE the
-# defect exists — the plan calls it « the one that would have stopped `data.ts`
-# at four importers instead of seventeen » — and this module sits at 13 against a
-# ceiling of 4. « It dies at L13 » is available to anything, and L13 has three
-# unstarted lots in front of it; it is the argument `data.ts` could have made.
-#
-# What makes it different, and it is the whole of the difference: `data.ts` was a
-# hub of DATA, so every importer was coupled to every other through the values it
-# held. This is one exported pure function over a declaration — no state, no
-# ordering, nothing an importer can observe about another importer. A god module
-# couples; a shared pure conversion does not.
-#
-# That is a judgement, not a measurement, so it is the OPERATOR'S to confirm and
-# it is written here to be found rather than argued once in a commit message. If
-# the answer is no, the split is per family and it is mechanical.
-# AND THE ACQUISITION FEATURE'S QUERIES, over by BUCKETS rather than by features:
+# THE ACQUISITION FEATURE'S QUERIES, over by BUCKETS rather than by features:
 # one feature imports it, and the app's installers, the dying engine's seams, the
 # harness's publications and the media route make five. It is not a hub — one
 # feature's cache verbs, read by the three parties that still need a follow or a
 # suggestion from outside the feature. The ENGINE'S edge dies in L13b, when the
 # verbs leave the engine and `engine/seams.ts` stops importing it; the entry goes
 # with that edge, and the phase that removes it deletes this entry.
-FAN_IN_EXEMPT = frozenset({"engine/engine-shape.ts", "features/acquisition/queries.ts"})
+FAN_IN_EXEMPT = frozenset({"features/acquisition/queries.ts"})
 
 
 def arm_fan_in(root: Path) -> int:

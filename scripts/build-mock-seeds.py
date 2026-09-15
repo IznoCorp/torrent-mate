@@ -8,28 +8,20 @@ VACUOUS: comparing a derivation against the thing it was derived from at run
 time proves nothing. A committed copy CAN drift from its source, and holding
 that it does not is a check with something to do.
 
-WHAT A PROJECTION IS, AND WHAT IT IS NOT. A rename of keys and a regroup of
-positional arrays into named fields. Never a re-derivation: no value is
-recomputed, reformatted, parsed or split. Where a fixture holds a pre-formatted
-string the contract carries it verbatim and the demand register asks the backend
-for the underlying fact — because a mock returning exactly what the fixture
-returns is what makes L09 provable at zero divergence, and a decomposition here
-would forfeit that for a contract nobody is building yet.
-
-THE RENAMES ARE SCOPED BY PATH, and that is not fussiness. `n` means `name`
-inside a cast list and `number` inside an episode list, both within one family:
-a flat recursive rename corrupts `SHEETS_RAW` in silence, which is the exact
-shape of failure this repository has paid for twice.
+NOTHING IS PROJECTED ANY MORE. A projection was a rename of keys and a regroup of
+positional arrays into named fields, never a re-derivation; every served family
+has since been converted — its literal left the engine and its committed seed is
+what the mock layer answers — so no family is rebuilt from a fixture, and
+`fixture-projections.json` declares only each seed's file and its join.
 
 THE JOIN IS THE ONE STEP THAT ADDS A VALUE, and it is declared, never implied.
 A list item carries a title; the contract wants the medium's provider identity
 and its poster beside it, and the fixture holds both only in OTHER families,
 keyed by title. A family that declares `join` in `fixture-projections.json`
-gets those fields after its projection: `ids` from the media sheet its title
+gets those fields: `ids` from the media sheet its title
 resolves to, `poster` from the exact poster key, `title` from an entry's own
-key. The lossless comparison reads the projection BEFORE the join, so a join
-cannot hide a lost value, and a joined field is re-derived on every build, so
-it cannot drift. The resolver COPIES the engine's `sheetFor` — the exact title,
+key. A joined field is re-derived on every run, so it cannot drift. The
+resolver COPIES the engine's `sheetFor` — the exact title,
 then the title without its year, then the normalised key, then the prefix of a
 title a list truncated — and it lives here only until the engine's resolver is
 gone; a title it cannot resolve joins `null`, which is what the seed knows.
@@ -114,156 +106,6 @@ def fixture(name: str) -> object:
     return everything[name]
 
 
-def projection_for(name: str, declared: dict, shorthands: dict) -> dict:
-    """Resolves one family's projection, expanding any shorthand it names.
-
-    Sixteen families share one of two shapes. Writing the map out sixteen times
-    is sixteen places for one copy to drift, and the drift would be invisible —
-    each copy would still be internally consistent.
-
-    Args:
-        name: The family's name, for the error message.
-        declared: What `fixture-projections.json` holds for it.
-        shorthands: The `$shorthands` block.
-
-    Returns:
-        The projection, with `rename`, `tuples`, `opaque` and `keyedByData`.
-
-    Raises:
-        SystemExit: When it names a shorthand that does not exist.
-    """
-    resolved = dict(declared)
-    for key in [key for key in declared if key.startswith("$")]:
-        if key not in shorthands:
-            raise SystemExit(
-                f"build-mock-seeds: {name} names the shorthand {key!r}, which "
-                f"{PROJECTIONS.name} does not declare")
-        resolved.pop(key)
-        for field, value in shorthands[key].items():
-            resolved.setdefault(field, value)
-    return {
-        "rename": resolved.get("rename", {}),
-        "tuples": resolved.get("tuples", {}),
-        "opaque": set(resolved.get("opaque", [])),
-        "keyedByData": bool(resolved.get("keyedByData", False)),
-    }
-
-
-def matches(pattern: str, path: str) -> bool:
-    """Answers whether a scoped rename path matches the path being walked.
-
-    `*` stands for exactly one key segment — `/eps/*[]` reaches every season's
-    episode list without naming the twenty-two season numbers, which are data.
-
-    Args:
-        pattern: The path written in the projection.
-        path: The path the walk has reached.
-
-    Returns:
-        True when they describe the same place.
-    """
-    if pattern == path:
-        return True
-    if "*" not in pattern:
-        return False
-    expected = pattern.split("/")
-    actual = path.split("/")
-    if len(expected) != len(actual):
-        return False
-    return all(want in ("*", "*[]") and (want != "*[]" or have.endswith("[]"))
-               or want == have
-               for want, have in zip(expected, actual))
-
-
-def regroup(value: list, fields: list[str], where: str) -> dict:
-    """Turns a positional array into an object with named fields.
-
-    Args:
-        value: The array.
-        fields: The field names, in position order.
-        where: The path, for the error message.
-
-    Returns:
-        The object.
-
-    Raises:
-        SystemExit: When the array is not the length the field list expects —
-            a silent truncation is how a value disappears from a seed.
-    """
-    if not isinstance(value, list) or len(value) != len(fields):
-        raise SystemExit(
-            f"build-mock-seeds: at {where}, a tuple of {len(fields)} field(s) was "
-            f"declared and the fixture holds {value!r}")
-    return dict(zip(fields, value))
-
-
-def project(value: object, plan: dict, path: str = "") -> object:
-    """Applies one family's projection to its value.
-
-    Args:
-        value: The value being walked.
-        plan: The resolved projection.
-        path: Where the walk has reached, in the projection's own notation.
-
-    Returns:
-        The projected value.
-    """
-    if isinstance(value, dict):
-        renames: dict[str, str] = {}
-        for pattern, mapping in plan["rename"].items():
-            if matches(pattern, path):
-                renames.update(mapping)
-        projected = {}
-        for key, inner in value.items():
-            name = renames.get(key, key)
-            if key in plan["opaque"]:
-                # The operator's own configuration lives under here, and its
-                # keys are `name`, `path`, `id`. A renamer walking in would
-                # rewrite the configuration rather than the contract.
-                projected[name] = inner
-                continue
-            if key in plan["tuples"]:
-                projected[name] = regroup(inner, plan["tuples"][key], f"{path}/{key}")
-                continue
-            projected[name] = project(inner, plan, f"{path}/{key}")
-        return projected
-    if isinstance(value, list) and path == "":
-        # The two selectors name the same PLACE — the array at the projection's
-        # root — and are kept apart because they name different SHAPES: a family
-        # whose top-level value is a list of tuples, and a family keyed by data
-        # each of whose entries is one. A single name would leave the reader of
-        # `fixture-projections.json` unable to tell which of the two they are
-        # looking at.
-        selector = "$value[]" if plan["keyedByData"] else "$item"
-        if selector in plan["tuples"]:
-            return [regroup(item, plan["tuples"][selector], selector) for item in value]
-    if isinstance(value, list):
-        return [project(item, plan, path + "[]") for item in value]
-    return value
-
-
-def seed_of(name: str, plan: dict) -> object:
-    """Reads a family and projects it into its contract shape.
-
-    A family whose top-level keys are DATA — a title, a name — has its entries
-    projected and its keys left exactly as they are.
-
-    Args:
-        name: The family.
-        plan: Its resolved projection.
-
-    Returns:
-        The seed.
-    """
-    value = fixture(name)
-    if plan["keyedByData"]:
-        if not isinstance(value, dict):
-            raise SystemExit(
-                f"build-mock-seeds: {name} is declared keyed by data and is not a map")
-        return {key: project(entry, plan) for key, entry in value.items()}
-    return project(value, plan)
-
-
 # The engine's own title arithmetic, spelled once. A year in brackets is not part
 # of a title's identity; accents and punctuation are not part of its key; and a
 # list that truncated a title is still pointing at the medium whose key it
@@ -322,22 +164,19 @@ class SheetResolver:
         return None
 
 
-def join_source(name: str, projected: dict[str, object]) -> object:
-    """The family a join reads from: projected in this run, or its committed seed.
+def join_source(name: str) -> object:
+    """The family a join reads from: its committed seed.
 
     Args:
         name: The family joined from.
-        projected: The families projected in this run.
 
     Returns:
         Its seed, before any join of its own.
     """
-    if name in projected:
-        return projected[name]
     return json.loads(file_for(name).read_text(encoding="utf-8"))
 
 
-def joined(name: str, seed: object, join: dict, projected: dict[str, object]) -> object:
+def joined(name: str, seed: object, join: dict) -> object:
     """Adds the declared fields to every entry of a seed.
 
     A field already present is removed first and joined again, so joining a seed
@@ -348,7 +187,6 @@ def joined(name: str, seed: object, join: dict, projected: dict[str, object]) ->
         name: The family, for the error message.
         seed: Its seed.
         join: Its declaration — `entries` and `fields`.
-        projected: The families projected in this run.
 
     Returns:
         The seed with the joined fields.
@@ -357,11 +195,11 @@ def joined(name: str, seed: object, join: dict, projected: dict[str, object]) ->
         SystemExit: When the declaration names a place or a source this build
             does not know.
     """
-    resolver = SheetResolver(join_source("SHEETS_RAW", projected))
-    posters = join_source("POSTERS", projected)
+    resolver = SheetResolver(join_source("SHEETS_RAW"))
+    posters = join_source("POSTERS")
     fields: dict[str, str] = join["fields"]
     # Read only when a declaration asks for it: most joins never do.
-    posters_high_definition = (join_source("POSTERS_HD", projected)
+    posters_high_definition = (join_source("POSTERS_HD")
                                if "posterHighDefinition" in fields.values() else {})
 
     def decorate(entry: object, key: str | None) -> dict:
@@ -411,35 +249,6 @@ def joined(name: str, seed: object, join: dict, projected: dict[str, object]) ->
         return [{**element, field: decorate(element[field], None)}
                 if element.get(field) is not None else element for element in seed]
     raise SystemExit(f"build-mock-seeds: {name} joins at {entries!r}, which its seed does not have")
-
-
-def leaves(value: object) -> list:
-    """Collects every leaf value, so two structures can be compared by content.
-
-    THIS IS THE LOSSLESS CHECK'S WHOLE MECHANISM, and it is stronger than
-    comparing key lists. A dropped key takes its values with it; an altered
-    value shows up directly; a rename moves no leaf and a regroup moves none
-    either, so both pass — correctly. What it cannot see is two keys of the
-    same type swapped for one another, and that is what the declared rename map
-    is for: it is data a human reads.
-
-    Args:
-        value: The structure.
-
-    Returns:
-        Every scalar in it, in walk order.
-    """
-    found: list = []
-    stack = [value]
-    while stack:
-        current = stack.pop()
-        if isinstance(current, dict):
-            stack.extend(current.values())
-        elif isinstance(current, list):
-            stack.extend(current)
-        else:
-            found.append(current)
-    return found
 
 
 def canonical(value: object) -> str:
@@ -516,61 +325,27 @@ def file_for(name: str) -> Path:
     return SEEDS / (chosen + ".json")
 
 
-_PROJECTED: dict[str, object] | None = None
+def build() -> dict[str, str]:
+    """Builds every seed the engine can still re-derive — and there is none.
 
-
-def projected_seeds() -> dict[str, object]:
-    """Every family a seed can be built for, projected, before any join.
+    NO FAMILY IS RECONSTRUCTIBLE. Every served family has been converted: its
+    literal left the engine and its seed is what the mock layer answers with, so
+    nothing is projected and `fixture-projections.json` declares no projection.
+    A family the register marks seeded and not converted would be a family with
+    no way to build its seed, and that is refused rather than skipped.
 
     Returns:
-        `{family: seed}`.
+        `{}` — the seeds are the converted families' committed files.
 
     Raises:
-        SystemExit: When a projection loses a value.
+        SystemExit: When the register names a seeded family that is not converted.
     """
-    global _PROJECTED
-    if _PROJECTED is not None:
-        return _PROJECTED
-    declared = json.loads(PROJECTIONS.read_text(encoding="utf-8"))
-    shorthands = declared["$shorthands"]
-    plans = declared["families"]
-    projected: dict[str, object] = {}
-    for name in seeded_families():
-        if name not in plans:
-            raise SystemExit(
-                f"build-mock-seeds: {name} is served and {PROJECTIONS.name} declares no "
-                f"projection for it")
-        plan = projection_for(name, plans[name], shorthands)
-        raw = fixture(name)
-        seed = seed_of(name, plan)
-        before, after = sorted(map(repr, leaves(raw))), sorted(map(repr, leaves(seed)))
-        if before != after:
-            lost = [value for value in before if value not in after][:5]
-            gained = [value for value in after if value not in before][:5]
-            raise SystemExit(
-                f"build-mock-seeds: the projection of {name} is not lossless — "
-                f"{len(before)} leaf value(s) in, {len(after)} out; "
-                f"lost {lost}, gained {gained}")
-        projected[name] = seed
-    _PROJECTED = projected
-    return projected
-
-
-def build() -> dict[str, str]:
-    """Builds every seed, and refuses a projection that loses a value.
-
-    Returns:
-        `{path: text}` for every seed.
-    """
-    plans = json.loads(PROJECTIONS.read_text(encoding="utf-8"))["families"]
-    projected = projected_seeds()
-    built: dict[str, str] = {}
-    for name, seed in projected.items():
-        join = plans[name].get("join")
-        if join:
-            seed = joined(name, seed, join, projected)
-        built[str(file_for(name))] = canonical(seed)
-    return built
+    unconverted = seeded_families()
+    if unconverted:
+        raise SystemExit(
+            f"build-mock-seeds: {', '.join(unconverted)} is seeded and not converted, and "
+            f"nothing projects a fixture any more")
+    return {}
 
 
 def rejoined() -> dict[str, str]:
@@ -584,7 +359,6 @@ def rejoined() -> dict[str, str]:
         `{path: text}` for every such seed.
     """
     plans = json.loads(PROJECTIONS.read_text(encoding="utf-8"))["families"]
-    projected = projected_seeds()
     texts: dict[str, str] = {}
     for name in converted_families():
         join = plans.get(name, {}).get("join")
@@ -592,7 +366,7 @@ def rejoined() -> dict[str, str]:
             continue
         path = file_for(name)
         seed = json.loads(path.read_text(encoding="utf-8"))
-        texts[str(path)] = canonical(joined(name, seed, join, projected))
+        texts[str(path)] = canonical(joined(name, seed, join))
     return texts
 
 

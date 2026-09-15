@@ -25,10 +25,9 @@ from common import ROOT, Journal
 
 PORT = 8918
 # The scratch design root is NESTED, because the tree it copies is not
-# self-contained and says so: `engine/engine-shape.ts` imports the mock layer's
-# declaration from `frontend/maquette/`, one level above the design root, and
-# the boundaries guard names that reach as a decision until the engine dies at
-# L13. A flat scratch made the copy unbuildable — every hold here answered 503
+# self-contained and says so: `mocks/declared-status.ts` imports the contract
+# from `frontend/maquette/`, one level above the design root, and the
+# boundaries guard names that reach as a decision. A flat scratch made the copy unbuildable — every hold here answered 503
 # and the rule read a broken host where there was only an incomplete copy.
 SCRATCH_HOME = pathlib.Path("/tmp/tm-refonte/_r73")
 SCRATCH = SCRATCH_HOME / "design"

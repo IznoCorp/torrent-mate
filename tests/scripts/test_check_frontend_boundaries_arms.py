@@ -72,18 +72,16 @@ def arms():
 def copy_tree(tmp_path: Path) -> Path:
     """Copies the real maquette sources so a mutation measures the real corpus.
 
-    THE DEPTH IS MIRRORED, not flattened. Two modules import
-    `../../../fixture-projections.json` and one imports
-    `../../../contract/openapi.json`; copied to `tmp/src` those paths climb out
-    of the scratch tree, `arm_cycles` reports three unresolved imports, and the
+    THE DEPTH IS MIRRORED, not flattened. A module imports
+    `../../../contract/openapi.json`; copied to `tmp/src` that path climbs out
+    of the scratch tree, `arm_cycles` reports an unresolved import, and the
     GREEN case fails — so every mutation below would have been measured against
     a red baseline and proved nothing. Copied to `tmp/design/src` they land in
-    `tmp/`, where the two files are created beside it.
+    `tmp/`, where the file is created beside it.
     """
     root = tmp_path / "design" / "src"
     root.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(DESIGN_SRC, root)
-    (tmp_path / "fixture-projections.json").write_text("{}", encoding="utf-8")
     (tmp_path / "contract").mkdir(exist_ok=True)
     (tmp_path / "contract" / "openapi.json").write_text("{}", encoding="utf-8")
     return root

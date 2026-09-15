@@ -24,14 +24,6 @@ reasons and only one of them is good.
                   also the arm that goes red after `refresh-maquette-fixture.py`
                   rewrites `FOLLOWS` from the live database — which is wanted.
 
-  lossless        Compares the multiset of LEAF VALUES on each side. A dropped
-                  key takes its values with it; an altered value shows directly.
-                  It does NOT see a projection that never ran — an unprojected
-                  family moves no leaf and passes — and it does not see two keys
-                  of the same type swapped. Both were live: two families shipped
-                  unprojected while the builder reported success and lossless.
-                  The arm below is what caught them.
-
   schema          Validates every seed against the contract schema of the
                   operation that names it. This is what sees an unprojected
                   family, a mistyped field and a regroup that did not happen. It
@@ -280,43 +272,12 @@ def arm_correspondence(module) -> int:
     return len(drifted)
 
 
-def arm_lossless(module) -> int:
-    """Refuse a projection that loses or invents a value.
-
-    IT IS NOT INDEPENDENT OF THE BUILDER, and it said it was. It calls the same
-    projection, in the same module — a derivation compared against the thing it
-    was derived from. What it adds is that the comparison is REPORTED with its
-    figures rather than only raising, and that it runs BEFORE the arm whose
-    builder call would exit first. The independent reader of a projection is
-    `schema`, which compares the result against a shape declared elsewhere.
-
-    Returns:
-        The number of families whose leaf values do not match.
-    """
-    declared = json.loads(module.PROJECTIONS.read_text(encoding="utf-8"))
-    shorthands = declared["$shorthands"]
-    broken: list[str] = []
-    values = 0
-    for name in module.seeded_families():
-        plan = module.projection_for(name, declared["families"][name], shorthands)
-        before = sorted(map(repr, module.leaves(module.fixture(name))))
-        after = sorted(map(repr, module.leaves(module.seed_of(name, plan))))
-        values += len(before)
-        if before != after:
-            broken.append(f"{name}: {len(before)} leaf value(s) in, {len(after)} out")
-    print(f"  lossless: {values} leaf value(s) compared across "
-          f"{len(module.seeded_families())} family(ies), {len(broken)} that do not match")
-    for entry in broken:
-        print(f"    {entry}", file=sys.stderr)
-    return len(broken)
-
-
 def arm_schema(module) -> int:
     """Refuse a seed that does not answer the contract schema naming it.
 
-    THIS IS THE ARM THAT SEES AN UNPROJECTED FAMILY. The lossless arm cannot:
-    a family whose keys were never renamed moves no leaf value, so it passes
-    there. Two shipped that way while the builder reported success.
+    THIS IS THE ARM THAT SEES AN UNPROJECTED FAMILY: a family whose keys were
+    never renamed fails its schema. Two shipped that way while the builder
+    reported success.
 
     Returns:
         The number of seeds that do not validate.
@@ -627,7 +588,6 @@ ARMS = {
     "generated": arm_generated,
     "handlers": arm_handlers,
     "correspondence": arm_correspondence,
-    "lossless": arm_lossless,
     "provenance": arm_provenance,
     "schema": arm_schema,
 }
@@ -635,15 +595,15 @@ ARMS = {
 
 # The order the arms run in when all of them do. Cheapest and most fundamental
 # first, so a failure names the smallest thing that is wrong.
-ARM_ORDER = ("classification", "lossless", "correspondence", "schema", "provenance",
-             "generated", "handlers")
+ARM_ORDER = ("classification", "correspondence", "schema", "provenance", "generated",
+             "handlers")
 
 
 EXTRACTOR = ROOT / "scripts" / "extract-maquette-fixtures.mjs"
 
 # THE ARMS THAT READ THE ENGINE THROUGH THE TypeScript PARSER, and only those.
-# `classification` runs the extractor directly; `lossless` and `correspondence`
-# reach it through the builder. The other four read JSON and text — the
+# `classification` runs the extractor directly; `correspondence` reaches it
+# through the builder. The other four read JSON and text — the
 # contract, the seeds, the generated types, the handler modules — and need
 # neither node nor an install.
 #
@@ -654,7 +614,7 @@ EXTRACTOR = ROOT / "scripts" / "extract-maquette-fixtures.mjs"
 # vocabulary arm's and the boundary guard's, both for `contract/types.d.ts` —
 # rest on `generated` running wherever the guards do, and skipping it would
 # have left them resting on a check that read nothing.
-NEEDS_THE_PARSER = ("classification", "lossless", "correspondence")
+NEEDS_THE_PARSER = ("classification", "correspondence")
 
 # The extractor's own exit code for « there is no TypeScript install here ».
 # Distinguished from every other failure ON PURPOSE: a syntax error in the
@@ -705,8 +665,8 @@ def main() -> int:
                         help="print the inventory this guard holds, and refuse nothing")
     arguments = parser.parse_args()
 
-    # A CLONE WITH NO npm INSTALL CANNOT RUN THE THREE ARMS THAT PARSE THE
-    # ENGINE, and it must say which three rather than fall over. With no install
+    # A CLONE WITH NO npm INSTALL CANNOT RUN THE TWO ARMS THAT PARSE THE
+    # ENGINE, and it must say which two rather than fall over. With no install
     # this guard used to answer a ten-line node traceback and a non-zero exit —
     # inside `make check`, two lines above
     # `openapi-drift: skipped (frontend/node_modules absent)` and
@@ -739,14 +699,10 @@ def main() -> int:
 
     # The builder module is loaded EITHER WAY: importing it runs no node, and
     # the four arms below read their inputs through its constants. Only the
-    # three arms that CALL the extractor are skipped.
+    # two arms that CALL the extractor are skipped.
     module = builder()
 
     print(f"check-mock-seeds: {SEEDS.relative_to(ROOT)}")
-    # A DELIBERATE ORDER, not the alphabet. `correspondence` builds every seed,
-    # and the builder REFUSES a lossy projection by exiting — so run
-    # alphabetically, a lossy projection killed the process before `lossless`
-    # could say a word, and that arm could only ever report under `--arm`.
     selected = [arguments.arm] if arguments.arm else ARM_ORDER
     if without_the_parser:
         skipped = [name for name in selected if name in NEEDS_THE_PARSER]

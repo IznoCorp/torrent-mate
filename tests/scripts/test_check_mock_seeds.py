@@ -1,6 +1,6 @@
 """Tests for the mock-seed guard's decision about whether it can run at all.
 
-WHAT IS HELD HERE, and why it is not the arms. The seven arms are exercised by
+WHAT IS HELD HERE, and why it is not the arms. The six arms are exercised by
 `frontend/maquette/harness/run.sh` on a tree that has the fixtures; what has no
 cover anywhere is the branch this guard takes when the TypeScript parser it
 needs is ABSENT — and that branch decides whether a missing install is reported
@@ -75,15 +75,15 @@ def test_a_broken_extractor_fails_loudly_rather_than_skipping(tmp_path: Path) ->
 
 
 def test_the_skip_names_only_the_arms_that_need_the_parser() -> None:
-    """The message names three arms, not seven, and says the others ran.
+    """The message names two arms, not six, and says the others ran.
 
     Read from the guard's source rather than by removing the machine's node
     install: four arms read JSON and text only, and two written exemptions
     elsewhere in the repository rest on one of them running wherever the guards
-    do. A skip covering all seven would leave those resting on nothing.
+    do. A skip covering all six would leave those resting on nothing.
     """
     source = GUARD.read_text(encoding="utf-8")
-    assert 'NEEDS_THE_PARSER = ("classification", "lossless", "correspondence")' in source
+    assert 'NEEDS_THE_PARSER = ("classification", "correspondence")' in source
     # The four that must keep running are the ones no arm may skip.
     for arm in ("schema", "provenance", "generated", "handlers"):
         assert f'"{arm}"' in source
