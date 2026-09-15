@@ -4,8 +4,8 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 
 ## STATE
 
-- Branch `feat/maquette-l13b`, worktree `/Users/izno/dev/worktrees/wave-l13b`, REBASED on main `a0253f34f` (L13a
-  squashed #596, then #599, #600). Steward: the session named in your launch prompt (`Orch : TM frontend`, its reference changes).
+- Branch `feat/maquette-l13b`, worktree `/Users/izno/dev/worktrees/wave-l13b`, on main `a0253f34f` (L13a
+  squashed #596; #599 rebased in, #600 merged in). Steward: the session named in your launch prompt (`Orch : TM frontend`, its reference changes).
 - Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13b` (push at every boundary under the tests lock).
 - b·1–b·12 DONE, every gate green, every mutation named (commits and readings in the ledger). legacy.js 1 600
   non-blank; the engine's click listener dead; B-290 / B-397 / B-275 closed by b·9–b·10's rules.
@@ -14,9 +14,9 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   violation », --a11y 0, hold-counts --compare no failure (movements in the ledger), make lint 0.
 - Q5 = B (RULING 99): L13b CLOSES at b·12. b·13 VOID for L13b; the residue is L13r — The engine's residue, phases
   r·1–r·6 (`plan/phase-r01…r06-*.md`, INDEX « L13r — The engine's residue »), nothing of it executed on this branch.
-- CLOSURE (l13b 5, rebased on main `a0253f34f`, steward [31ca3c]): (1) bump 0.98.94 + renames — commit, push
-  --force-with-lease; (2) PR READY; (3) BUGS.md B-290/B-397/B-275 → `fixed #<PR>`, pushed; (4) report, stand down.
-  Progress: read `git log` and `gh pr list --head feat/maquette-l13b`. The reader round and the merge are not ours.
+- CLOSURE DONE (l13b 5, steward [31ca3c]): bump 0.98.94 + renames `69b39608d`; main `a0253f34f` MERGED in
+  `a7640e97b` (plain push — a force-push is refused by the permission classifier); PR #601 READY; B-290/B-397/B-275
+  `fixed #601`. NEXT, not an implementer's: the reader round on #601's head, the merge, the gesture, the docs PR.
 - ZSH TRAP, three times this session: a multi-word variable is ONE argument in zsh, and macOS bash has no
   `mapfile` — build rule lists and file lists in Python or spell them out.
 - LOGS: `~/Library/Logs/tm-l13b/` (ruling 76). Mutex and tests lock stay under `/private/tmp`.
