@@ -15,7 +15,7 @@ import { useTranslation } from "react-i18next";
 // The stage labels are a LOOKUP TABLE indexed by position, read the way the
 // resolution screen reads its number words.
 import fr from "../../i18n/fr.json";
-import { posterArtwork } from "../../lib/engine-drawing";
+import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
 import { initials } from "../../lib/titles";
 import type { QueueCard } from "../../lib/engine-queue";
 import {
@@ -35,7 +35,6 @@ import {
 import { Chip } from "../../ui/chip";
 import { PosterArtwork } from "../../ui/poster";
 import { actionButton, posterFallback, type ChipTone } from "../../ui/variants";
-import { useArrivalsReference } from "./reference";
 
 /** A staging card in the engine's names, narrowed to what this card reads. */
 type StagingCard = {
@@ -77,7 +76,7 @@ export function ArrivalCard({
   card: QueueCard;
   foot?: { label: string; attributes: Record<string, string> };
 }): ReactElement {
-  const reference = useArrivalsReference();
+  const reference = useEngineDrawing();
   const { t } = useTranslation();
   const card = queued as StagingCard;
   const title = card.t;

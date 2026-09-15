@@ -9,6 +9,7 @@
 // NO HANDLER IS ATTACHED HERE. The document-level delegation answers
 // `data-mediasheet` and `data-panel` on the button tapped, which is
 // why every attribute below is one the delegation reads.
+import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { initials } from "../../lib/titles";
 import { cardMarkup } from "../../ui/card-markup";
@@ -68,14 +69,13 @@ function stageState(value: number | string): StripState {
  * @returns The card's markup.
  */
 export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot): string {
-  const reference = window.__referentiel;
   const title = medium.t;
   const hasSheet = medium.ids != null;
   // french-ok: a panel ADDRESS and the non-medium marker, contract values the delegation and R46 read
   const folderAddress = `dossier:${title}`;
   const artworkMarkup = medium.noposter
     ? `<span class="${posterFallback()}" data-part="card/poster-fallback"><b>${escapeMarkup(initials(title))}</b></span>`
-    : posterArtworkMarkup(posterArtwork(reference.icons, medium.poster, title, medium.k));
+    : posterArtworkMarkup(posterArtwork(icons, medium.poster, title, medium.k));
   const stages = i18next.t("surfaces.card.stages", { returnObjects: true }) as string[];
   return cardMarkup({
     title,
@@ -87,7 +87,7 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot): str
           attributes: { "aria-label": i18next.t("surfaces.card.sheetOf", { title }), "data-mediasheet": title },
         }
       : {
-          folderIcon: reference.icons.folder,
+          folderIcon: icons.folder,
           folderLabel: i18next.t("surfaces.card.folder"),
           attributes: {
             "aria-label": i18next.t("surfaces.card.folderActions", { title }),

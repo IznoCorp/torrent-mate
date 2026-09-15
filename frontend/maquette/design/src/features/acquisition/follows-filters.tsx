@@ -1,9 +1,9 @@
 // The filters of « Suivis »: the search field with its own native handler,
 // the four pills, and the three display modes.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
-import { useAcquisitionReference } from "./reference";
 import { redraw } from "../../lib/shell-doors";
 import { useUiState, writeUiState } from "../../lib/store-access";
 import { filterPill, filterPillCount, filterZone, pillBar, pillScroll, searchClear, searchField, searchInput, viewSwitch, viewSwitchButton, viewSwitchWrap } from "../../ui/variants";
@@ -14,7 +14,7 @@ export type FollowPill = { id: string; label: string; count: number };
 export function FollowsFilters({ pills }: { pills: FollowPill[] }): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { icons } = useAcquisitionReference();
+  const { icons } = useEngineDrawing();
   return (
     <div className={filterZone()} data-region="acquisition/filters">
       <div className={searchField()}>

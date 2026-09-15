@@ -1,0 +1,21 @@
+// Maintenance — the commands run against the library
+//
+// The shapes this feature's reads answer, declared where the subject lives.
+
+import type { Fact } from "../../lib/engine-drawing";
+
+// The deletion journal: how many destructive operations the library has been
+// through, and the rows describing them.
+export type DeletionJournal = { total: number; lignes: Fact[] };
+
+// One maintenance COMMAND. `g` is its rubric, `r` its risk (a key of `RISQUES`),
+// `long` whether it can take a while, `blanc` whether it can run dry.
+export type MaintenanceAction = {
+  id: string;
+  l: string;
+  d: string;
+  g: string;
+  r: string;
+  long?: boolean;
+  blanc?: boolean;
+};

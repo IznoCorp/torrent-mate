@@ -18,7 +18,7 @@ import {
   gridBadge,
   nextSearchTime,
 } from "./follow-vocabulary";
-import type { Follow } from "./reference";
+import type { Follow } from "./types";
 
 const series = (status: string, extra: Partial<Follow> = {}): Follow => ({
   t: "Silo",

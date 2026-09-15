@@ -15,8 +15,8 @@ import { registerVerb } from "../../lib/verbs";
 import { flattenSettings, settingIdentifier, valueShown } from "./catalog";
 import { HELD, send, sharedQueryClient } from "../../lib/query-client";
 import { configurationStatusQuery, settingsQuery, writeConfigurationFile } from "./queries";
-import type { Setting, SettingsTopic } from "./reference";
-import { dialog, panel, toast, redraw } from "../../lib/shell-doors";
+import type { Setting, SettingsTopic } from "./types";
+import { dialog, panel, toast, redraw, icons } from "../../lib/shell-doors";
 import { settingLabels } from "./labels";
 import { changeSetting } from "./pending-edits";
 import { SETTINGS_STATE, changedFiles, fileName, typedValue } from "./state";
@@ -30,7 +30,6 @@ import { SETTINGS_STATE, changedFiles, fileName, typedValue } from "./state";
 // (`lib/engine-drawing.ts`), it is the SAME object either way, and it dies with
 // the engine — at which point `app/icons.ts` is the durable home and this line
 // is the one that changes.
-const icons = () => window.__referentiel.icons;
 
 // The value kinds the reader TYPES, as `panel-field.tsx` draws them: every kind
 // that is not a switch, a list or an unbuildable structure ends up in the same
@@ -120,7 +119,7 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
           readOnly
             ? {
                 text: translate("panels.setting.readOnly"),
-                icone: icons().x,
+                icone: icons.x,
                 desactive: true,
               }
             : null,
@@ -141,14 +140,14 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
             ? null
             : {
                 text: translate("panels.setting.commit"),
-                icone: icons().check,
+                icone: icons.check,
                 ton: "primary",
                 target: { commitsetting: identifier },
               },
           changed
             ? {
                 text: translate("panels.setting.cancelEdit"),
-                icone: icons().x,
+                icone: icons.x,
                 target: { cancelsetting: identifier },
               }
             : null,

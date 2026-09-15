@@ -39,8 +39,6 @@ import { icons } from "../app/icons";
    this file declared live with the subject that says them now; the rules still
    reach four of them under the names they always used, so they are published
    below from their homes and die with the publication. */
-import { baseTitle } from "../lib/titles";
-import { dateLabel } from "../features/media/format";
 import {
   cadenceSentence,
   followStatusLabel,
@@ -340,45 +338,6 @@ import { redraw } from "../lib/shell-doors";
      A distinction never to lose: the profile FILTERS (it eliminates), the
      ranking ORDERS (it separates what remains). */
 
-  /* Read-only reference data + pure rendering helpers a migrated route
-     component reuses VERBATIM rather than re-declaring — a re-declaration
-     would drift the day one of these changes here. None of it is engine
-     STATE (never mutated by an action), so exposing it does not bypass the
-     store's reactivity contract; it is exposed once, at definition time,
-     well before the deferred module script (shell.tsx) runs. */
-  window.__referentiel = {
-    icons,
-    baseTitle,
-    /* What the Arrivées page draws. `PIPELINE` is the run's own data, read and never written; the three
-       `derived` verbs answer what is stuck, moving and settled, which depends
-       on the scenario and so cannot be a frozen value. */
-    /* What the Acquisition page draws: the schedule its cadence line reads. The
-       follow vocabulary is `features/acquisition/follow-vocabulary.ts`'s. The
-       SUGGESTION machinery is NOT here: `#sugitems`, `#sugload` and
-       `.deckbody` stay the fragment's to fill, because the deck's gesture
-       mutates its own DOM and a replaced node cannot animate. */
-    /* The suggestion machinery, called by the page AFTER React has drawn its
-       containers. `render()` calls these too, for as long as a legacy page can
-       hold them — but it calls them BEFORE the shell has drawn, so a migrated
-       page asks again from an effect, exactly as it asks for the selection bar
-       to be repainted. */
-    /* Published for the MEASUREMENT of the deck's gesture: a rule drives the
-       two halves the way the swipe handler drives them, and reads what the
-       animation is doing one frame later. */
-    /* What the Maintenance page draws. The command PANEL has left — it is
-       `features/maintenance/panel-action.ts` now, reached through
-       `panel.produce("action", id)` — and the risk vocabulary went with it,
-       which is why `RISQUES` is no longer published from here at all. */
-    /* What the Réglages page draws. REG_ETAT est l'objet
-       MUTABLE que la délégation écrit : il reste la source, et le composant le
-       relit à chaque bump de version du magasin (`render()` appelle
-       `store?.toucher()` en premier). Le NOM d'un réglage, lui, n'est plus
-       ici : `settings-labels.ts` le porte pour la page comme pour le panneau,
-       et le fragment le lit par `window.__settingLabels`. */
-    SETTINGS_STATE,
-    dateFR: dateLabel,
-    settingId,
-  };
 
   /* EVERY SORT GOES BOTH WAYS, and each way has its own NAME rather than an
      arrow bolted onto a shared one: « Ajout récent » reversed is « Ajout

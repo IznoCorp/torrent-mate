@@ -16,7 +16,7 @@ import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import { maintenanceActionsQuery } from "./queries";
 import { riskLabel, riskPip } from "./risks";
-import type { MaintenanceAction } from "./reference";
+import type { MaintenanceAction } from "./types";
 import { store } from "../../lib/store-access";
 
 /**

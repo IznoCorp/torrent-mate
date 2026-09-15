@@ -21,7 +21,7 @@
 import { useTranslation } from "react-i18next";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
-import { type PipelineFact } from "../../features/arrivals/reference";
+import { type PipelineFact } from "../../features/arrivals/types";
 import { ArrivalCard } from "./arrival-card";
 import { usePipeline } from "./queries";
 import { useStaging } from "../../lib/queue";
@@ -92,7 +92,7 @@ function lastRunRows(
 function PipelineBar(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
-  // FROM THE CACHE (invariant 4), not from `window.__referentiel`. Nothing is
+  // FROM THE CACHE (invariant 4). Nothing is
   // drawn until it has answered: the oracle measures at rest, so what it reads
   // is the settled bar — the same bar, from the same bytes, since the seed is
   // held against the fixture it replaced.

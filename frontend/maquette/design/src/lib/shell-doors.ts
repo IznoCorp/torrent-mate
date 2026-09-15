@@ -39,6 +39,8 @@ export function fillRedrawDoor(verb: () => void): void {
   redrawVerb = verb;
 }
 
+/** The icon paths every surface draws with — the frame's own (`app/icons.ts`), empty until the boot fills it. */
+export let icons: Readonly<Record<string, string>> = {};
 /** The message's verbs. Undefined until the message host installs. */
 export let toast: Window["__toast"];
 /** The panel's verbs. */
@@ -57,6 +59,18 @@ export let resetLandingDial: ((page: string) => void) | undefined;
 export let bridge: Window["__bridge"];
 /** The screen openers. */
 export let screens: Window["__screens"];
+
+/**
+ * Fills the icons door, from the boot, before anything is drawn.
+ *
+ * A feature may not import `app/`, and the icon table names the pages, which
+ * `lib/` may not: the table stays the frame's and only the door is here.
+ *
+ * @param paths The icon paths, by name.
+ */
+export function fillIconsDoor(paths: Readonly<Record<string, string>>): void {
+  icons = paths;
+}
 
 /**
  * Fills the message door, from the message host's install.

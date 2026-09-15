@@ -1,10 +1,11 @@
 // The hero of a media sheet — the banner, the title, the metadata line, the
 // rating — and the trailer row beneath it, or the sentence that says there is
 // none. The element carrying `data-part="hero"` is this one and no other.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useTranslation } from "react-i18next";
 import { Icon } from "../../ui/icon";
 import { SkeletonLine } from "../../ui/state-surfaces";
-import { useMediaReference, type MediaSheet, type Trailer } from "./reference";
+import { type MediaSheet, type Trailer } from "./types";
 import type { MediaSheetFields } from "./sheet-fields";
 import { heroImage, heroMeta, heroNote, heroText, heroTitle, heroWrap, trailerPlay, trailerRow, trailerSource, noInfo } from "./variants";
 
@@ -28,7 +29,7 @@ export function MediaHero({
   /** Whether the sheet's read FAILED — an absence is then unread, not answered. */
   failed: boolean;
 }) {
-  const { icons } = useMediaReference();
+  const { icons } = useEngineDrawing();
   const { t } = useTranslation();
   return (
     <>

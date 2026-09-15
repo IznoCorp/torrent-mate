@@ -21,7 +21,7 @@ import { read } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
 import type { QueueCard } from "../../lib/engine-queue";
 import { queueNow } from "../../lib/queue";
-import type { PendingDecision, Pipeline, SettledDecision } from "./reference";
+import type { PendingDecision, Pipeline, SettledDecision } from "./types";
 
 /** What the staging read answers with, once it wears the engine's names. */
 export type Staging = {

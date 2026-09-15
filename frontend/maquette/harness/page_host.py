@@ -326,7 +326,7 @@ async def main():
           const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap((topic) => topic.r)
             .find((x) => x.type === 'boolean');
           if (!setting) return null;
-          const id = window.__referentiel.settingId(setting);
+          const id = window.settingId(setting);
           window.__changeSetting(id, !setting.brut);
           window.__store.touch();
           return id;}""")
@@ -559,7 +559,7 @@ async def main():
           const setting = window.__queries.getQueryData(['/api/config/schema']).flatMap((topic) => topic.r)
             .find((x) => x.type === 'boolean');
           window.__changeSetting(
-            window.__referentiel.settingId(setting), !setting.brut);
+            window.settingId(setting), !setting.brut);
           window.__store.touch();}""")
         await page.wait_for_timeout(300)
         raised = await page.evaluate("()=>!!document.querySelector('#savebar')")

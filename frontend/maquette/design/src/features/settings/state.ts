@@ -5,7 +5,7 @@
 // search says, the edits not yet saved, and the two banners the screen raises
 // itself. The page and the panels READ it and the verbs WRITE it in place; the
 // store's version bump is what makes a component read it again.
-import type { Setting, SettingsState } from "./reference";
+import type { Setting, SettingsState } from "./types";
 
 /** The one settings working state. Mutated in place; never replaced. */
 export const SETTINGS_STATE: SettingsState = {

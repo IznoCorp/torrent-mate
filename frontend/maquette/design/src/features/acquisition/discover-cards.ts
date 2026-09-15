@@ -14,6 +14,7 @@
 // every card and `ui/tile.ts` every tile in this application; a copy here would
 // be a second definition of one shape, and the rows they emit carry the `data-*`
 // the delegation reads.
+import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { posterArtwork } from "../../lib/engine-drawing";
 import { escapeHtml, svgIcon } from "../../lib/markup-text";
@@ -37,7 +38,6 @@ export type Suggestion = {
   ids?: Record<string, number | string> | null;
 };
 
-const drawing = () => window.__referentiel;
 const say = (key: string, values?: Record<string, unknown>) =>
   i18next.t(`discover.${key}`, values ?? {});
 
@@ -53,12 +53,11 @@ const say = (key: string, values?: Record<string, unknown>) =>
  *     The row's markup.
  */
 export function suggestionRow(suggestion: Suggestion, position: number): string {
-  const reference = drawing();
   const dismiss = say("notInterested");
   return `<div class="${suggestionWrap()}" data-part="suggestion/wrap" data-dismissable="${position}">
       <div class="${suggestionBack()}">
-        <span>${svgIcon(reference.icons.x)}${dismiss}</span>
-        <span>${dismiss}${svgIcon(reference.icons.x)}</span>
+        <span>${svgIcon(icons.x)}${dismiss}</span>
+        <span>${dismiss}${svgIcon(icons.x)}</span>
       </div>
       ${mediumCardMarkup({
         t: suggestion.t,
@@ -87,7 +86,7 @@ export function suggestionTile(suggestion: Suggestion, position: number): string
   return tileMarkup({
     title: suggestion.t,
     subtitle: `${suggestion.y} · ${suggestion.k}`,
-    artwork: posterArtwork(drawing().icons, suggestion.poster, suggestion.t, suggestion.k === "Film" ? "movie" : "show"),
+    artwork: posterArtwork(icons, suggestion.poster, suggestion.t, suggestion.k === "Film" ? "movie" : "show"),
     badge: { tone: "overlay", text: String(suggestion.note) },
     // The sheet before the panel: the registry answers the first registered
     // key in attribute order, and `data-dismissable` is a gesture's marker
@@ -121,11 +120,10 @@ export function deckCard(
   position: number,
   depth: number,
 ): string {
-  const reference = drawing();
   const escape = escapeHtml;
   const poster = suggestion.posterHighDefinition
     ? `<img src="${suggestion.posterHighDefinition}" alt="" loading="lazy">`
-    : posterArtworkMarkup(posterArtwork(reference.icons, suggestion.poster, suggestion.t, suggestion.k === "Film" ? "movie" : "show"));
+    : posterArtworkMarkup(posterArtwork(icons, suggestion.poster, suggestion.t, suggestion.k === "Film" ? "movie" : "show"));
   // THE GESTURE LABELS BELONG TO THE TOP CARD ALONE — it is the only one a
   // finger can reach, and `advanceDeck` moves them with the place rather than
   // with the card.

@@ -48,6 +48,11 @@ RE-AIMED, said out loud: the address and the catalogue were read from `addressId
 its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
 `__carriedFor` — the seed the served read answers from, published by the harness
 driver — and the hold count is unchanged.
+
+RE-AIMED when the engine's `window.__referentiel` object died: the first
+announced date is formatted by `window.__dateLabel`, published by
+`harness/publish.ts` from `features/media/format.ts`. The holds and what they
+compare are unchanged.
 """
 import asyncio
 import json
@@ -120,7 +125,6 @@ FAMILIES = """async ([followsPath, incompletePath, seasonsPath, sheetPath]) => {
     const answer = await fetch(path);
     return answer.ok ? answer.json() : null;
   };
-  const reference = window.__referentiel;
   const shows = [];
   for (const title of Object.keys(window.__mocks.seasonFamily())) {
     const address = window.__addressOf(title);
@@ -167,7 +171,6 @@ ROW = """([scope, word, season]) => {
 # the panel compares with; it was the engine's `TODAY` read through the
 # referential until that left the engine, and was RE-AIMED at the clock then.
 CATALOGUE = """([key, season]) => {
-  const reference = window.__referentiel;
   const today = window.__today();
   const sheet = window.__sheetOf(key);
   const episodes = (sheet && sheet.episodes && sheet.episodes[String(season)]) || [];
@@ -177,7 +180,7 @@ CATALOGUE = """([key, season]) => {
   return {total: total ? total.episodes : null,
           aired: episodes.filter((one) => one.airDate && one.airDate <= today).length,
           ahead: ahead.length,
-          firstAhead: ahead.length ? reference.dateFR(ahead[0]) : null};
+          firstAhead: ahead.length ? window.__dateLabel(ahead[0]) : null};
 }"""
 
 

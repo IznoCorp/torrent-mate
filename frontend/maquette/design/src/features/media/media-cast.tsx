@@ -2,7 +2,7 @@
 // strip — or the sentence that says the cast is unknown.
 import { useTranslation } from "react-i18next";
 import { SkeletonLine } from "../../ui/state-surfaces";
-import type { MediaSheet } from "./reference";
+import type { MediaSheet } from "./types";
 import type { MediaSheetFields } from "./sheet-fields";
 import { factsPanel, keyValueRow, sectionHeading } from "../../ui/variants";
 import { castCaption, castFigure, castList, castPortrait, noInfo } from "./variants";

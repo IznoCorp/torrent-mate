@@ -11,16 +11,16 @@
 //
 // NO ADDRESS, and the reasoning is `panel-suggestion.ts`'s: the panel is keyed
 // on an INDEX into a list the search regenerates.
+import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 
 
-const icons = () => window.__referentiel.icons;
 
 // THE FEATURE'S OWN DECLARATION, not a narrower copy: `addVerb` takes the whole
 // result, so a slice declared here would be a second shape of one record and
 // the compiler would be right to refuse it.
-import type { SearchResult } from "./reference";
+import type { SearchResult } from "./types";
 import { store } from "../../lib/store-access";
 import { searchResults } from "./search-queries";
 import { addVerb } from "./add-label";
@@ -69,14 +69,14 @@ function addPanel(position: string, cache: PanelCache): PanelDescriptor | null {
             // ONE DERIVATION: the add SCREEN draws the same word on its own
             // rows, so `addVerb` answers both (§13).
             text: addVerb(result, Number(position)),
-            icone: icons().plus,
+            icone: icons.plus,
             ton: "primary",
             desactive: done,
             target: { add: position },
           },
           {
             text: translate("panels.add.seeSheet"),
-            icone: icons().eye,
+            icone: icons.eye,
             target: { mediasheet: result.t },
           },
         ],

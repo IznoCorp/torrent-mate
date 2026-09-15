@@ -19,7 +19,7 @@ import { dialog, followedTitles, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
 import { deleteLibraryItems, libraryIncompleteQuery } from "./queries";
 import type { DialogDescriptor } from "../../ui/dialog/contract";
-import type { IncompleteShow } from "./reference";
+import type { IncompleteShow } from "./types";
 
 /**
  * Removes titles from the library: the layer deletes, the selection ends, the

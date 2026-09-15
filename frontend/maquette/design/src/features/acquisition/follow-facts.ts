@@ -26,7 +26,7 @@ import { followsQuery, incompleteShowsQuery } from "./queries";
 // `followStatusLabel`, `STATUS_TONE`, the seasons block — is typed against the real one. The
 // fallback below therefore fills every required field rather than leaving them
 // undefined, which is what the engine's object literal did in practice.
-import type { Follow } from "./reference";
+import type { Follow } from "./types";
 import { followFraction } from "./follow-vocabulary";
 export type { Follow };
 

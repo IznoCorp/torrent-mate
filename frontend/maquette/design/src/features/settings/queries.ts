@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { HELD, read, send, sharedQueryClient } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
 import { flattenSettings } from "./catalog";
-import type { Secret, Setting, SettingsTopic } from "./reference";
+import type { Secret, Setting, SettingsTopic } from "./types";
 
 /**
  * The settings, by topic, as a query DEFINITION.

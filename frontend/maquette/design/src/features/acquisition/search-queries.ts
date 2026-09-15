@@ -6,7 +6,7 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
-import type { SearchResults } from "./reference";
+import type { SearchResults } from "./types";
 
 /**
  * What a provider answers for one search.

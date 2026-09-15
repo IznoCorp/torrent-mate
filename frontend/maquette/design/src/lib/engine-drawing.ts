@@ -1,25 +1,16 @@
 // the engine's DRAWING surface — what emits markup or formats a value
 //
-// The slice of `window.__referentiel` this layer reads, and nothing else.
-//
-// The engine publishes ONE object; what it publishes is not one subject. A
-// single 340-line declaration of all of it made every module that needed two
-// members depend on all hundred and eight, and seventeen of twenty-five
-// modules did. Each slice is declared where its subject lives instead, and the
-// global's own type is their intersection (app/reference.d.ts) — so a
-// reader imports nothing to be typed, and a member nobody's subject claims has
-// nowhere to be written down.
+// What every layer draws with: the icon paths, read through the frame's door
+// (`lib/shell-doors.ts`), and the poster fallback built from them.
 
 import type { Artwork } from "../ui/poster";
+import { icons } from "./shell-doors";
 import { initials } from "./titles";
 
-// Read-only reference data + pure rendering helpers the engine's own script
-// publishes once, at definition time — well before any component's module
-// evaluates (see shell.tsx's boot-order comment). None of it is ever
-// mutated after that publish, so a plain accessor is the right shape here,
-// not a subscription: there is nothing for a component to miss by reading
-// it straight, and useSyncExternalStore would just add a subscription with
-// no writer ever calling it.
+// The icon paths are filled once, by the boot, before anything is drawn, and
+// never written again — so a plain accessor is the right shape here, not a
+// subscription: there is nothing for a component to miss by reading it
+// straight, and useSyncExternalStore would add a subscription no writer calls.
 //
 // One row of a fact list, exactly as `ui/fact-rows.tsx` draws one. `ton` is
 // the operator's vocabulary (`success` / `alert` / `warning` / `info`) and the
@@ -40,18 +31,16 @@ export type EngineDrawing = {
 };
 
 /**
- * Reads the engine's drawing surface.
+ * Reads the drawing surface: the icon paths the boot filled the door with.
  *
- * For the readers that need nothing else: a `ui/` primitive, which may not
- * import a feature, and a feature reading nothing but the icons. A feature
- * reading more reads these members through its own slice, which intersects
- * this one — same object, one destructure.
+ * For every component that draws an icon — a `ui/` primitive, which may not
+ * import `app/`, and a feature, which may not either.
  *
  * Returns:
  *     The drawing surface, typed.
  */
 export function useEngineDrawing(): EngineDrawing {
-  return window.__referentiel;
+  return { icons };
 }
 
 /**

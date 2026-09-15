@@ -1,9 +1,9 @@
 // The count line's own sentence, and the sort control's own label.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
 import { sortWays } from "./sorting";
-import { useLibraryReference } from "./reference";
 import { useLibraryCategories, useLibraryListing } from "./queries";
 import { useUiState } from "../../lib/store-access";
 
@@ -68,7 +68,7 @@ export function CountLine(): ReactElement {
 // rather than restated here.
 export function SortLabel(): ReactElement {
   const state = useUiState();
-  const { icons } = useLibraryReference();
+  const { icons } = useEngineDrawing();
   // THE NAMES ARE THE FEATURE'S, one derivation read by the count line
   // and by the sort panel alike (§13).
   const ways = sortWays()[state.sortKey as string];

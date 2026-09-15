@@ -18,7 +18,7 @@
 // it moves with the last delegation verb that writes it, and that is the lot
 // that ends the engine. The functions below take the pending edits as an
 // ARGUMENT rather than reaching for it, so nothing here depends on where it is.
-import type { Setting, SettingsTopic } from "./reference";
+import type { Setting, SettingsTopic } from "./types";
 
 /**
  * How a setting is named, everywhere: by its file and its key.

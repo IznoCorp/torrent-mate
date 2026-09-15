@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 // dictionaries, and for the same reason — an index into a table is not a
 // sentence, and `t()` would only wrap the lookup in a second one.
 import fr from "../../i18n/fr.json";
-import { useArrivalsReference, type PendingDecision, type SettledDecision } from "./reference";
+import { type PendingDecision, type SettledDecision } from "./types";
 import { ruleNote, type ChipTone } from "../../ui/variants";
 import {
   Card,
@@ -23,7 +23,7 @@ import {
 } from "../../ui/card";
 import { Chip } from "../../ui/chip";
 import { PosterArtwork } from "../../ui/poster";
-import { posterArtwork } from "../../lib/engine-drawing";
+import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
 import { candidateCard, candidatePick } from "./variants";
 import { REASON_TONE, decisionState, decisionStateDetail, reasonLabel, viaLabel } from "./decision-vocabulary";
 
@@ -59,7 +59,7 @@ export function ReleaseCard({
     overview?: string;
   };
 }) {
-  const reference = useArrivalsReference();
+  const reference = useEngineDrawing();
   const { icons } = reference;
   const { t } = useTranslation();
   // THE CARD IS THE GESTURE: one tap anywhere on it picks the candidate. It is a
@@ -147,7 +147,7 @@ export function ReleaseCard({
 // site ever passed it and the click delegation reads no such attribute, so it
 // would be a button leading nowhere.
 export function DecisionCard({ decision }: { decision: SettledDecision }) {
-  const reference = useArrivalsReference();
+  const reference = useEngineDrawing();
   const { icons } = reference;
   const settled = decision.state != null;
   const state = settled ? decisionState(decision.state) : null;

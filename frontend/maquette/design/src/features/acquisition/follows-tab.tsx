@@ -1,13 +1,13 @@
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
-import { useAcquisitionReference, type Follow } from "./reference";
+import { type Follow } from "./types";
 import { useFollows, useGrabCadence } from "./queries";
 import { useUiState } from "../../lib/store-access";
 import { FollowsFilters } from "./follows-filters";
 import { body, emptyNote, posterGrid, section as sectionClass, sectionCount, sectionHead, sectionTitle, statusDot, swipeAction, type StatusTone } from "../../ui/variants";
 import { Markup, emptyNoteMarkup } from "../../ui/markup";
-import { posterArtwork } from "../../lib/engine-drawing";
+import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
 import { mediumCardMarkup } from "./card-markup";
 import { swipeRowMarkup } from "../../ui/rows";
 import { tileMarkup } from "../../ui/tile";
@@ -38,7 +38,7 @@ const SEARCH_AGAIN = "chercher"; // french-ok: a data-attribute value, a contrac
 export function FollowsTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const reference = useAcquisitionReference();
+  const reference = useEngineDrawing();
   const { icons } = reference;
   // The schedule, as the scheduler returns it — undefined until the read lands,
   // and then neither the cadence line nor the next slot says anything.

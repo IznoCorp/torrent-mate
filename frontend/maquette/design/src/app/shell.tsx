@@ -102,7 +102,8 @@ import { installRedraw } from "./redraw";
 import { installReleasesLookup } from "../features/releases/queries";
 import { installSearchLookup } from "../features/acquisition/search-queries";
 import { installStore } from "../lib/store-access";
-import { bridge, panel, screens } from "../lib/shell-doors";
+import { bridge, fillIconsDoor, panel, screens } from "../lib/shell-doors";
+import { icons } from "./icons";
 
 
 // THE BOOT ORDER, AND IT IS THE WHOLE OF WHAT THIS FILE DECIDES. Each call
@@ -116,6 +117,9 @@ import { bridge, panel, screens } from "../lib/shell-doors";
 // before any producer can call `open`. That guarantee used to read « assigned
 // at this module's top level »; it is this call now, and it is still before the
 // engine, before the store's first write and before the first render.
+// The icon paths before any of it: every surface drawn below reads them
+// through the door, and filling it listens to nothing.
+fillIconsDoor(icons);
 // THE LONG PRESS FIRST, before anything else registers a listener: it has
 // always been the first, installed while the engine module evaluated.
 installPanelPress();

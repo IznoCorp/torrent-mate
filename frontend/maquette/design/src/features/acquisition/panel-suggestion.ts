@@ -10,11 +10,11 @@
 // and refused — the same title can appear in the suggestions and in the add
 // results, so which panel opens becomes a behaviour decision. Preserved rather
 // than revisited.
+import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import { suggestionsQuery } from "./queries";
 
-const icons = () => window.__referentiel.icons;
 
 /** One suggestion, as the deck draws it. */
 type Suggestion = { t: string; y: string; k: string; note: string; why: string };
@@ -55,13 +55,13 @@ function suggestionPanel(position: string, cache: PanelCache): PanelDescriptor |
             text: translate(isFilm
               ? "panels.suggestion.addFilm"
               : "panels.suggestion.followSeries"),
-            icone: icons().plus,
+            icone: icons.plus,
             ton: "primary",
             target: { follow: suggestion.t, sugidx: position },
           },
           {
             text: translate("panels.suggestion.seeSheet"),
-            icone: icons().eye,
+            icone: icons.eye,
             target: { mediasheet: suggestion.t },
           },
         ],
@@ -72,7 +72,7 @@ function suggestionPanel(position: string, cache: PanelCache): PanelDescriptor |
         actions: [
           {
             text: translate("panels.suggestion.notInterested"),
-            icone: icons().x,
+            icone: icons.x,
             ton: "danger",
             target: { dropsug: position },
           },

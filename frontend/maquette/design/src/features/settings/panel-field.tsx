@@ -11,7 +11,7 @@
 // field alike, so a curated label cannot say one thing on a row and another
 // above it.
 import { useTranslation } from "react-i18next";
-import type { Setting } from "./reference";
+import type { Setting } from "./types";
 import { changeSetting, rawValue } from "./pending-edits";
 import { fileName, typedValue } from "./state";
 import { settingIdentifier } from "./catalog";

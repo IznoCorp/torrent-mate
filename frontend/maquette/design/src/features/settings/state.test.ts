@@ -6,7 +6,7 @@
 // fails; `typedValue` on a number field's four answers and a text field's two.
 import { afterEach, describe, expect, it } from "vitest";
 import { SETTINGS_STATE, changedFiles, fileName, typedValue } from "./state";
-import type { Setting } from "./reference";
+import type { Setting } from "./types";
 
 const field = (type: string, brut: unknown): Setting =>
   ({ f: "thresholds", c: "", type, brut, n: "", v: "", topic: {} }) as Setting;

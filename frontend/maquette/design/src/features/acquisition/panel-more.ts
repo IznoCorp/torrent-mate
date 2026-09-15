@@ -14,10 +14,10 @@
 //
 // « Lancer la veille maintenant » is the trigger DOIT-6 names, and it is
 // unchanged: a producer here offers exactly what it offered.
+import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { registerProducer, type PanelDescriptor } from "../../ui/panel/contract";
 
-const icons = () => window.__referentiel.icons;
 
 // WHAT THE LAYER WILL ANSWER, and does not yet. Each value carries the
 // operation that replaces it, so that lot has a list rather than a search.
@@ -67,7 +67,7 @@ function standbyPanel(): PanelDescriptor {
         actions: [
           {
             text: translate("panels.standby.runNow"),
-            icone: icons().refresh,
+            icone: icons.refresh,
             ton: "primary",
             target: { standby: "1" },
           },

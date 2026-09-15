@@ -7,11 +7,12 @@
 // (`.screen`, `.screen.open`, `.screen .port`, `.qgroup`, `.opt`, …), so the
 // same stylesheet applies unchanged and the rule harness measures the same
 // geometry.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useReleases } from "./queries";
 import { Icon } from "../../ui/icon";
-import { useReleasesReference, type Release, type Resolution } from "../../features/releases/reference";
+import { type Release, type Resolution } from "../../features/releases/types";
 import { useUiState, writeUiState } from "../../lib/store-access";
 import { actionButton, backAction, body, factsPanel, keyValueRow, option, optionKind, optionLabel, optionList, optionMark, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, settingRow, sheetActions, toggleSwitch } from "../../ui/variants";
 import { qualityGroup } from "../../features/releases/variants";
@@ -66,7 +67,7 @@ export function QualityScreen() {
   const title = raw.normalize("NFC");
   const state = useUiState();
   const profile = state.profile as QualityProfile;
-  const { icons } = useReleasesReference();
+  const { icons } = useEngineDrawing();
   const { t } = useTranslation();
   // FROM THE CACHE (invariant 4). THE TITLE'S RELEASES, not every release: the
   // profile is opened for one medium, and « kept out of » a list holding every

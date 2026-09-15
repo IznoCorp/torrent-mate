@@ -6,7 +6,7 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { HELD, read, send } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
-import type { Follow } from "./reference";
+import type { Follow } from "./types";
 import { queueNow } from "../../lib/queue";
 import { fillFollowedTitlesDoor } from "../../lib/shell-doors";
 

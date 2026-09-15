@@ -40,11 +40,11 @@
 // candidate) is read by the branch that treats `state.resolveTarget` as the
 // folder and the attribute as the CHOICE — which is why the shell's
 // `window.__screens.resolution()` door writes that target before navigating.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useDecisions } from "./queries";
 import { useAcquisitionQueue, useStaging } from "../../lib/queue";
-import { useArrivalsReference } from "../../features/arrivals/reference";
 import { Candidates, DecisionCard } from "./resolution-cards";
 import { REASON_TONE, reasonDetail, reasonLabel } from "./decision-vocabulary";
 import { type QueueCard } from "../../lib/engine-queue";
@@ -68,7 +68,7 @@ export function ResolutionScreen() {
   // (« 1 sur 2 ») and « Passer à la suivante » answer the queue as it is now —
   // the legacy screen re-opened itself for the same reason.
   useStoreContent((c) => c.version);
-  const { icons } = useArrivalsReference();
+  const { icons } = useEngineDrawing();
   const { t } = useTranslation();
   // THE DECISIONS COME FROM THE CACHE (invariant 4). `decisionPending` and
   // `DECISIONS_REGLEES` were the engine's, read straight off the fixture; the

@@ -2,10 +2,10 @@
 // It reads its own resource; the other two lenses draw the listing.
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
-import { useLibraryReference, type IncompleteShow } from "./reference";
+import { type IncompleteShow } from "./types";
 import { useUiState } from "../../lib/store-access";
 import { body, posterGrid, section } from "../../ui/variants";
-import { posterArtwork } from "../../lib/engine-drawing";
+import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
 import { libraryCardMarkup } from "./card-markup";
 import { tileMarkup } from "../../ui/tile";
 import { Markup } from "../../ui/markup";
@@ -23,7 +23,7 @@ export function IncompleteLens({ rows }: {
 }): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const reference = useLibraryReference();
+  const reference = useEngineDrawing();
   const INCOMPLETE = rows;
   return (
     <div className={body()} data-part="surface/body" data-region="library/body">

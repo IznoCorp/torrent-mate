@@ -10,13 +10,13 @@
 // THE SELECTION IS READ WHEN A ROW IS DRAWN, from the store rather than from the
 // render that scheduled it: the windowed list composes its rows after React has
 // painted, and a tick taken in between is already on the row it redraws.
-import { posterArtwork } from "../../lib/engine-drawing";
+import { posterArtwork, type EngineDrawing } from "../../lib/engine-drawing";
 import { escapeHtml, svgIcon } from "../../lib/markup-text";
 import { libraryCardMarkup } from "./card-markup";
 import { store } from "../../lib/store-access";
 import { selectionRowMarkup, swipeRowMarkup } from "../../ui/rows";
 import { tileMarkup } from "../../ui/tile";
-import type { LibraryReference, LibraryRow } from "./reference";
+import type { LibraryRow } from "./types";
 import { swipeAction } from "../../ui/variants";
 
 /** A row of the listing: the title, the line under it and, where the medium has one, its synopsis. */
@@ -30,7 +30,7 @@ type Row = LibraryRow & { overview?: string; k?: string };
  * @param index Its rank in the listing on screen.
  * @returns The tile's markup.
  */
-export function libraryTileMarkup(reference: LibraryReference, row: Row, index: number): string {
+export function libraryTileMarkup(reference: EngineDrawing, row: Row, index: number): string {
   const { selMode } = store.read().state;
   const selected = store.read().state.selected as Set<string>;
   return tileMarkup({
@@ -63,7 +63,7 @@ export function libraryTileMarkup(reference: LibraryReference, row: Row, index: 
  * @returns The row's markup.
  */
 export function libraryRowMarkup(
-  reference: LibraryReference,
+  reference: EngineDrawing,
   row: Row,
   index: number,
   removeLabel: string,

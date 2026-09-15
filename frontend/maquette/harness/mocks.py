@@ -4,7 +4,7 @@ IT DRIVES THE LAYER AND NOT A SURFACE, and that is not a shortcut. L08 wires no
 surface — the wiring is L09's — so there is nothing on screen to read, and a
 rule that pretended otherwise would be measuring the fixtures the engine still
 draws from. What it reads is `window.__mocks`, the layer's own driving surface,
-the same arrangement `__go` and `__referentiel` already use.
+the same arrangement `__go` and `__today` already use.
 
 WHAT THIS RULE HOLDS, and each hold answers one line of the lot's « Done when »:
 

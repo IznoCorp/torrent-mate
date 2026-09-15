@@ -25,6 +25,10 @@ What this script holds to:
 RE-AIMED, said out loud: the catalogue these holds walk was the engine's own
 settings table, which is gone. They read the served catalogue the page itself
 draws from, in the query cache, and the hold count is unchanged.
+
+RE-AIMED when the engine's `window.__referentiel` object died: the working
+state is read as `window.SETTINGS_STATE`, which the engine publishes beside it.
+The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -189,7 +193,7 @@ async def main():
         shown = await pg.evaluate(r"""()=>{
           const rows = [...document.querySelectorAll('#sheetin [data-part="key-value"]')]
             .map(r => r.textContent.replace(/\s+/g, ' ').trim());
-          return {rows, pending: [...(window.__referentiel.SETTINGS_STATE.modifs || new Map())
+          return {rows, pending: [...(window.SETTINGS_STATE.modifs || new Map())
             .values()].map(String)};}""")
         # RE-AIMED BY THE SETTINGS MICRO-WAVE (B-341), and said out loud because
         # a test quietly re-pointed is a guard quietly lost. The PROPERTY is
@@ -228,7 +232,7 @@ async def main():
         await pg.evaluate("()=>window.__go('settings-edited')")
         await pg.wait_for_timeout(350)
         before_cancel = await pg.evaluate(
-            "()=>[...window.__referentiel.SETTINGS_STATE.modifs.keys()]")
+            "()=>[...window.SETTINGS_STATE.modifs.keys()]")
         check("the walk really starts with more than one pending edit, so "
               "« only that one » is a question",
               len(before_cancel) > 1, str(before_cancel))
@@ -245,7 +249,7 @@ async def main():
         await pg.click("#sheetin [data-cancelsetting]")
         await pg.wait_for_timeout(500)
         after_cancel = await pg.evaluate(
-            "()=>[...window.__referentiel.SETTINGS_STATE.modifs.keys()]")
+            "()=>[...window.SETTINGS_STATE.modifs.keys()]")
         check("cancelling drops that edit",
               before_cancel[0] not in after_cancel,
               f"{before_cancel} → {after_cancel}")
@@ -286,7 +290,7 @@ async def main():
             .map((one) => ({text: one.textContent.replace(/\s+/g,' ').trim(),
                             actions: [...one.querySelectorAll('button')]
                               .map((b) => b.textContent.trim())}));
-          return {banners, flag: !!window.__referentiel.SETTINGS_STATE.conflict};}""")
+          return {banners, flag: !!window.SETTINGS_STATE.conflict};}""")
         conflict_banner = next(
             (one for one in conflicted["banners"] if "conflit" in one["text"].lower()),
             None)

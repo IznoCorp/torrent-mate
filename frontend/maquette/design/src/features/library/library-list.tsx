@@ -2,12 +2,13 @@
 // sentinel that asks for the next page, and the footer that says whether
 // there is more. The rows are `library-rows.ts`'s markup: they carry the
 // `data-*` the document-level delegation reads, attribute for attribute.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { VirtualRows } from "../../ui/virtual-rows";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
-import { LIBRARY_WINDOW, useLibraryReference } from "./reference";
+import { LIBRARY_WINDOW } from "./types";
 import { registerListingPaging, useLibraryListing } from "./queries";
 import { useStoreContent, useUiState } from "../../lib/store-access";
 import { EmptyLibrary } from "./library-empty";
@@ -25,7 +26,7 @@ export function LibraryList(): ReactElement {
   // mutation made in place re-renders this list; NOT read into the draw's key.
   useStoreContent((content) => content.version);
   const { t } = useTranslation();
-  const reference = useLibraryReference();
+  const reference = useEngineDrawing();
   const footRef = useRef<HTMLDivElement | null>(null);
   const grid = state.libMode === "grid";
   // FROM THE CACHE, PAGE BY PAGE (invariant 4). Four keys leave the interface's

@@ -32,6 +32,7 @@
 // same discipline `go()`'s own doc comment states) so keystrokes never stack
 // history — R76's own rule, exercised here for the first time by a CONTROLLED
 // input rather than a one-shot navigation.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useSearch } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 // Circular with shell.tsx (it imports AddScreen from this file) and safe
@@ -40,7 +41,6 @@ import { useTranslation } from "react-i18next";
 // no top-level side effect that could observe shell.tsx mid-evaluation.
 import { Icon } from "../../ui/icon";
 import { go } from "../../lib/navigate";
-import { useAcquisitionReference } from "../../features/acquisition/reference";
 import { useStoreContent, useUiState, writeUiState } from "../../lib/store-access";
 import { useProviderSearch } from "./search-queries";
 import { actionButton, backAction, emptyNote, resultCount, screen, screenBar, scrollport, searchField, searchInput, section, surfaceError } from "../../ui/variants";
@@ -87,7 +87,7 @@ export function AddScreen() {
   const added = state.added as Set<number>;
   const resolveTarget = state.resolveTarget as string | null;
 
-  const { icons } = useAcquisitionReference();
+  const { icons } = useEngineDrawing();
   const { t } = useTranslation();
 
   // Always invoked from INSIDE this screen — search() runs only while

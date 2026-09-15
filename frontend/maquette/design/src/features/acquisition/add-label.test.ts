@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import "../../lib/unit-words";
 import { installStore } from "../../lib/store-access";
 import { addVerb } from "./add-label";
-import type { SearchResult } from "./reference";
+import type { SearchResult } from "./types";
 
 let state: Record<string, unknown> = {};
 const store = {

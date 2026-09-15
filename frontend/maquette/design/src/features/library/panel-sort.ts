@@ -12,6 +12,7 @@
 // A PRODUCER IS NOT A HOOK: it is called from the click delegation, and it
 // reads the sort in force from the store, which is where invariant 4 puts
 // ephemeral interface state.
+import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { registerProducer, type PanelDescriptor } from "../../ui/panel/contract";
 import { SORT_DIRECTIONS, SORT_KEYS, sortWays } from "./sorting";
@@ -22,7 +23,6 @@ import { store } from "../../lib/store-access";
 // fan-in ceiling of four features applies to it, and a producer per feature
 // importing it directly walks it past four. Same object, and it dies with the
 // engine.
-const icons = () => window.__referentiel.icons;
 
 /**
  * Builds the sort sheet's descriptor.
@@ -44,7 +44,7 @@ function sortPanel(): PanelDescriptor {
         actions: SORT_KEYS.flatMap((key) =>
           SORT_DIRECTIONS.map((direction) => ({
             text: named[key][direction],
-            icone: icons().sort,
+            icone: icons.sort,
             // THE SORT IN FORCE IS THE PRIMARY ONE, and it is the pair that
             // decides: a key alone marks both of its directions, which is a
             // panel saying the library is sorted two opposite ways at once.

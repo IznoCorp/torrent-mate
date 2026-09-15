@@ -8,7 +8,7 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
-import type { Release } from "./reference";
+import type { Release } from "./types";
 
 /**
  * The releases a search turned up, for one title.

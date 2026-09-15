@@ -8,7 +8,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
-import type { DeletionJournal, MaintenanceAction } from "./reference";
+import type { DeletionJournal, MaintenanceAction } from "./types";
 
 /**
  * The actions maintenance offers, as a query DEFINITION.

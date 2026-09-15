@@ -7,10 +7,11 @@
 //
 // A PRODUCER IS NOT A HOOK: it is called from the click delegation, so it reads
 // the query cache synchronously (invariant 10).
+import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import { secretsQuery } from "./queries";
-import type { Secret } from "./reference";
+import type { Secret } from "./types";
 import { SETTINGS_STATE } from "./state";
 
 // THE ICONS COME THROUGH THE ENGINE'S DRAWING SLICE, not by importing
@@ -22,7 +23,6 @@ import { SETTINGS_STATE } from "./state";
 // (`lib/engine-drawing.ts`), it is the SAME object either way, and it dies with
 // the engine — at which point `app/icons.ts` is the durable home and this line
 // is the one that changes.
-const icons = () => window.__referentiel.icons;
 
 /**
  * Finds one secret among those the layer answered.
@@ -76,7 +76,7 @@ function secretPanel(key: string, cache: PanelCache): PanelDescriptor | null {
           readOnly
             ? {
                 text: translate("panels.secret.readOnly"),
-                icone: icons().x,
+                icone: icons.x,
                 desactive: true,
               }
             : {
@@ -86,7 +86,7 @@ function secretPanel(key: string, cache: PanelCache): PanelDescriptor | null {
                 // message landed it would have said « remplacée » over a
                 // replacement nobody made (NE-DOIT-PAS-1).
                 text: translate("panels.secret.replace"),
-                icone: icons().wrench,
+                icone: icons.wrench,
                 ton: "primary",
                 target: { replacesecret: secret.k },
               },
@@ -97,7 +97,7 @@ function secretPanel(key: string, cache: PanelCache): PanelDescriptor | null {
                 // (§17), which is NE-DOIT-PAS-6's case. It asks first, and the
                 // question names what stops answering.
                 text: translate("panels.secret.removeKey"),
-                icone: icons().trash,
+                icone: icons.trash,
                 ton: "danger",
                 target: { removesecret: secret.k },
               }

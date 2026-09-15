@@ -12,7 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
 import type { Fact } from "../../lib/engine-drawing";
-import type { CodeErrors, PipelineRun } from "./reference";
+import type { CodeErrors, PipelineRun } from "./types";
 
 /**
  * Reads one system resource.

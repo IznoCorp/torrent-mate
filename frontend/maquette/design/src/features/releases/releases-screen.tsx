@@ -14,10 +14,10 @@
 // `data-profile` (open the quality profile) carry NO onClick: the
 // document-level click delegation the legacy engine still runs is the seam
 // this screen leans on, exactly as `media.tsx` and `profile.tsx`.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useReleases } from "./queries";
-import { useReleasesReference } from "../../features/releases/reference";
 import { actionButton, backAction, body, chip, emptyNote, qualityHint, resultCount, screen, screenBar, scrollport } from "../../ui/variants";
 import { releaseName, releaseRow, releaseScore, releaseTags } from "../../features/releases/variants";
 import { Icon } from "../../ui/icon";
@@ -31,7 +31,7 @@ export function ReleasesScreen() {
   const title = raw.normalize("NFC");
   const {
     icons,
-  } = useReleasesReference();
+  } = useEngineDrawing();
   const { t } = useTranslation();
   // FROM THE CACHE (invariant 4).
   const { data: RELEASES = [] } = useReleases(baseTitle(title));

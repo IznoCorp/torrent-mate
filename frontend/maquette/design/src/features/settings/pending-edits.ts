@@ -8,7 +8,7 @@
 import { store } from "../../lib/store-access";
 import { settingIdentifier } from "./catalog";
 import { heldSettings } from "./queries";
-import type { Setting } from "./reference";
+import type { Setting } from "./types";
 import { SETTINGS_STATE } from "./state";
 
 /**

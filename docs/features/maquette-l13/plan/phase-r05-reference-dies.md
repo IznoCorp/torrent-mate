@@ -4,6 +4,8 @@ Q5 = B (ruling 99, 2026-09-15): this is a phase of L13r — The engine's residue
 
 2026-09-15 (ruling 101): renumbered — r·3 was cut into r·3 (the engine's product verbs) and r·4 (the engine's frame verbs), and every later phase moved up one.
 
+2026-09-15 (ruling 104): measured ≈ 14 > 11 — 35 mechanical reader files plus five re-aims each mutated by name; `lib/engine-queue.ts` keeps `QueueCard` (six readers) and only its dead `EngineQueue` type dies; `page_host.py` takes no docstring line (ruling 46, precedent 86-e), its re-aim said in the body.
+
 **Kind**: CONVERSION. **Cost**: Estimate ≤ 15 points (measure 11). The mean of L13b's measured phase costs is 11 (b·9 13, b·10 3, b·11 21, b·12 6.5); a phase above the mean says why.
 
 ## Measured

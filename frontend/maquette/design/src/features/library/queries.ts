@@ -14,7 +14,7 @@
 import { useInfiniteQuery, useQuery, type QueryClient } from "@tanstack/react-query";
 import { HELD, read, send } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";
-import type { IncompleteShow, LibraryCategory, LibraryRow } from "./reference";
+import type { IncompleteShow, LibraryCategory, LibraryRow } from "./types";
 
 /** One page of the listing: the rows, and how many there are in all. */
 export type LibraryPage = {

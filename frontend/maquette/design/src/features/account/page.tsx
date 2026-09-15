@@ -6,10 +6,10 @@
 // colleagues would teach a reader to distrust the rest of the interface, and
 // the shape is settled here so the feature does not have to teach its own form
 // twice when it arrives.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useTranslation } from "react-i18next";
 import { useAccount } from "./queries";
 import type { ReactElement } from "react";
-import { useAccountReference } from "../../features/account/reference";
 import { FactRows, type FactRow } from "../../ui/fact-rows";
 import { actionButton, emptyNote, factList, sectionHeading } from "../../ui/variants";
 import { Markup, emptyNoteMarkup } from "../../ui/markup";

@@ -1,9 +1,9 @@
 // The head of the library page: the three lenses, the search field with its
 // own native handler, the category pills and the list/grid switch.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
-import { useLibraryReference } from "./reference";
 import { redraw } from "../../lib/shell-doors";
 import { useLibraryCategories } from "./queries";
 import { useUiState, writeUiState } from "../../lib/store-access";
@@ -42,7 +42,7 @@ function dropSelection(): void {
 export function LibraryHead(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { icons } = useLibraryReference();
+  const { icons } = useEngineDrawing();
   const { data: CATS = [] } = useLibraryCategories();
   const lenses = [
     { id: "cat", label: t("screens.library.lensMedia") },

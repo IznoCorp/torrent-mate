@@ -7,7 +7,7 @@
 // `i18n/fr.json` under `screens.acquisition`; this file decides only which one.
 import i18next from "i18next";
 import { escapeHtml } from "../../lib/markup-text";
-import type { Follow } from "./reference";
+import type { Follow } from "./types";
 
 /** The tone of a status chip, by status token. */
 export const STATUS_TONE: Record<string, string> = {

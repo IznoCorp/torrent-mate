@@ -10,12 +10,12 @@
 // React's and their CONTENT is the fragment's: React manages zero children
 // there, so neither world removes the other's nodes — the arrangement
 // `paintSelBar` already has, one level down.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { Icon } from "../../ui/icon";
-import { useAcquisitionReference } from "./reference";
 import { useUiState } from "../../lib/store-access";
 import { body, filterZone, liveDot, liveEmphasis, liveStrip, loadFooter, pillBar, pillScroll, section as sectionClass, surfaceError, viewSwitch, viewSwitchButton, viewSwitchWrap } from "../../ui/variants";
 import { Markup } from "../../ui/markup";
@@ -36,7 +36,7 @@ import { deckBody } from "./variants";
 export function DiscoverTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { icons } = useAcquisitionReference();
+  const { icons } = useEngineDrawing();
 
   // THE FRAGMENT FILLS WHAT THIS DRAWS, and it has to be asked AFTER the
   // drawing: `render()` calls the same verbs, but it calls them before React

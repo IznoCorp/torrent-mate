@@ -7,7 +7,7 @@
 // medium the folder is, and creates no follow. The words are `screens.add.verb`.
 import i18next from "i18next";
 import { store } from "../../lib/store-access";
-import type { SearchResult } from "./reference";
+import type { SearchResult } from "./types";
 
 /**
  * The label of a search result's act, before and after it is done.

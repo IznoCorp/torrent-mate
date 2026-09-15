@@ -1,9 +1,9 @@
 // The identifiers of a medium and the actions a sheet offers: rescrape and
 // delete for what is owned, follow or add for what is not.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useTranslation } from "react-i18next";
 import { Icon } from "../../ui/icon";
 import { SkeletonLine } from "../../ui/state-surfaces";
-import { useMediaReference } from "./reference";
 import type { Follow } from "./sheet-fields";
 import { actionButton, factsPanel, keyValueRow, sectionHeading, sheetActions } from "../../ui/variants";
 import { dateLabel } from "./format";
@@ -38,7 +38,7 @@ export function MediaDetails({
    */
   metadataRefreshedAt: string | null;
 }) {
-  const { icons } = useMediaReference();
+  const { icons } = useEngineDrawing();
   const { t } = useTranslation();
   return (
     <>

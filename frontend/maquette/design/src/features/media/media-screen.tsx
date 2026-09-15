@@ -17,13 +17,10 @@
 // legacy engine still runs is the seam this screen leans on, exactly as the
 // panel does. The trailer is a plain `<a>` WITHOUT `data-navgo` — that same
 // delegation must not preventDefault an external link.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import {
-  useMediaReference,
-  type MediaSheet,
-  type Trailer,
-} from "../../features/media/reference";
+import { type MediaSheet, type Trailer } from "../../features/media/types";
 import { useStoreContent } from "../../lib/store-access";
 import { isRequestFailure } from "../../lib/query-client";
 import { carriedSheet, seasonsHeld, useMediaSeasons, useMediaSheet } from "./queries";
@@ -59,7 +56,7 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
   // reporting « not followed » for everything, which the oracle cannot see
   // because no named state opens a sheet for a title the operator follows.
   const follows = readFollows() as Follow[];
-  const reference = useMediaReference();
+  const reference = useEngineDrawing();
   const { t } = useTranslation();
   const { icons } = reference;
 

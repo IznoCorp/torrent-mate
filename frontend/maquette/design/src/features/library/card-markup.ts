@@ -5,6 +5,7 @@
 // opens the panel, and a title no sheet stands behind wears a folder instead.
 // No handler is attached here; the document-level delegation reads the
 // attributes.
+import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { posterArtwork } from "../../lib/engine-drawing";
 import { cardMarkup } from "../../ui/card-markup";
@@ -29,7 +30,6 @@ export type LibraryCard = {
  * @returns The card's markup.
  */
 export function libraryCardMarkup(medium: LibraryCard): string {
-  const reference = window.__referentiel;
   const title = medium.t;
   const hasSheet = medium.ids != null;
   // french-ok: a panel ADDRESS and the non-medium marker, contract values the delegation and R46 read
@@ -40,11 +40,11 @@ export function libraryCardMarkup(medium: LibraryCard): string {
     attributes: hasSheet ? {} : { "data-nonmedia": "dossier" },
     side: hasSheet
       ? {
-          poster: posterArtworkMarkup(posterArtwork(reference.icons, medium.poster, title)),
+          poster: posterArtworkMarkup(posterArtwork(icons, medium.poster, title)),
           attributes: { "aria-label": i18next.t("surfaces.card.sheetOf", { title }), "data-mediasheet": title },
         }
       : {
-          folderIcon: reference.icons.folder,
+          folderIcon: icons.folder,
           folderLabel: i18next.t("surfaces.card.folder"),
           attributes: { "aria-label": i18next.t("surfaces.card.folderActions", { title }), "data-panel": folderAddress },
         },

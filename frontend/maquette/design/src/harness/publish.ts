@@ -49,6 +49,8 @@ import { go } from "../lib/navigate";
 import { CARRIED_KEY } from "../lib/navigation-entry";
 import { store } from "../lib/store-access";
 import { today } from "../lib/clock";
+import { baseTitle } from "../lib/titles";
+import { dateLabel } from "../features/media/format";
 import { verbNames } from "../lib/verbs";
 
 declare global {
@@ -105,6 +107,10 @@ declare global {
     showSignIn?: (withError: boolean, silent?: boolean) => void;
     /** The page's today — what every « à venir » and « diffusé le » is compared with. */
     __today?: typeof today;
+    /** A title without its year — how a rule tells two keys of one work apart. */
+    __baseTitle?: typeof baseTitle;
+    /** A date as the interface writes it — what a rule compares a drawn date with. */
+    __dateLabel?: typeof dateLabel;
     /** Opens a medium's screen on an entry carrying exactly what a rule hands it. */
     __openCarrying?: (provider: string, id: string, carried: Record<string, unknown>) => void;
   }
@@ -155,6 +161,8 @@ export function publishSeams(): void {
   publish("__layers", () => registeredLayers);
   publish("__closeLayers", () => closeLayers);
   publish("__today", () => today);
+  publish("__baseTitle", () => baseTitle);
+  publish("__dateLabel", () => dateLabel);
   // THE BARE NAMES THE RULES HAVE ALWAYS READ, published under those names from
   // the modules that own them now. `state` is a LIVE read — the getter goes to
   // the store each time — so a rule reading `state.page` reads what is on screen.

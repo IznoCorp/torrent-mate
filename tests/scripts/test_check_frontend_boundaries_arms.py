@@ -35,19 +35,17 @@ SCRIPT = ROOT / "scripts" / "check-frontend-boundaries.py"
 DESIGN_SRC = ROOT / "frontend" / "maquette" / "design" / "src"
 TESTS = Path(__file__).resolve().parent
 
-# HOW MANY ARMS MAY GO UNEXERCISED. A CEILING, lowered by this wave from 8 to 3
+# HOW MANY ARMS MAY GO UNEXERCISED. A CEILING, lowered from 8 to 3, then to 2
+# when the reference-slice arm died with the object it read,
 # and never raised: an arm added without a test pushes the count up and is
 # refused. It is not a floor set at the current value — that shape is
 # pre-satisfied and can never fall (B-075) — it is the burn-down's remaining
-# balance, and the three names are written out so nobody has to guess which.
-UNEXERCISED_CEILING = 3
+# balance, and the two names are written out so nobody has to guess which.
+UNEXERCISED_CEILING = 2
 KNOWN_UNEXERCISED = {
     # Needs five features importing one module to trip; building that tree is a
     # fixture in itself and belongs with whoever next touches the arm.
     "arm_fan_in",
-    # Its subject is `lib/addresses.ts`'s declared members against what routes
-    # use, and the addressing tests already rewrite that file for other reasons.
-    "arm_reference_slice",
     # One address per route file; the addressing suite rewrites route files
     # constantly and a mutation here would collide with those fixtures.
     "arm_one_address",

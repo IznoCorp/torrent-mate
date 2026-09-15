@@ -14,7 +14,7 @@ import { settingIdentifier } from "./catalog";
 import { settingsVerbs } from "./panel-setting";
 import { changeSetting, rawValue } from "./pending-edits";
 import { heldSettings } from "./queries";
-import type { Setting } from "./reference";
+import type { Setting } from "./types";
 import { SETTINGS_STATE } from "./state";
 
 /**

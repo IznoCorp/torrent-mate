@@ -24,13 +24,14 @@
 // on a row and another way above it. The detector that records a path segment
 // nobody named moved there with the naming: it is part of naming a subject,
 // not a diagnostic beside it.
+import { useEngineDrawing } from "../../lib/engine-drawing";
 import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../../ui/icon";
 import { Chip } from "../../ui/chip";
-import { useSettingsReference, type Setting, type SettingsTopic } from "../../features/settings/reference";
+import { type Setting, type SettingsTopic } from "../../features/settings/types";
 import { SETTINGS_STATE, changedFiles, fileName } from "./state";
 import { useStoreContent } from "../../lib/store-access";
 import { settingInWords } from "./format";
@@ -86,7 +87,7 @@ function SettingRow({
 }
 
 function SearchField(): ReactElement {
-  const { icons } = useSettingsReference();
+  const { icons } = useEngineDrawing();
   const { t } = useTranslation();
   return (
     <div className={searchField()} style={{ marginBottom: 12 }}>
