@@ -1,6 +1,6 @@
-# Residue 3 — the settings machine, the redraw, the search mount and the message leave the engine
+# r·3 — the settings machine, the redraw, the search mount and the message leave the engine
 
-Pending Q5 (ruling 98): renamed b·13… inside L13b or the new sub-lot's letter when the operator decides.
+Q5 = B (ruling 99, 2026-09-15): this is a phase of L13r — The engine's residue; renamed from `phase-residue-N`.
 
 **Kind**: BEHAVIOUR (b·1–b·12's shape). **Cost**: Estimate ≤ 15 points (measure 11). The mean of L13b's measured phase costs is 11 (b·9 13, b·10 3, b·11 21, b·12 6.5); a phase above the mean says why.
 

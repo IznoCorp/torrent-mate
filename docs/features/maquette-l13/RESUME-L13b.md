@@ -4,39 +4,19 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 
 ## STATE
 
-- Branch `feat/maquette-l13b`, worktree `/Users/izno/dev/worktrees/wave-l13b`, REBASED on main `304346145` (L13a
-  squashed, #596). Steward: the session named in your launch prompt (`Orch : TM frontend`, its reference changes).
+- Branch `feat/maquette-l13b`, worktree `/Users/izno/dev/worktrees/wave-l13b`, REBASED on main `a0253f34f` (L13a
+  squashed #596, then #599, #600). Steward: the session named in your launch prompt (`Orch : TM frontend`, its reference changes).
 - Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13b` (push at every boundary under the tests lock).
-- b·1–b·8 DONE (ledger: b·6 `c74362af1`, midpoint fix `4210f72d5`, b·7 `cee7319df`, b·8 `639e6e266`), every gate
-  green with no divergence and every mutation named. legacy.js non-blank 2284. `FAN_IN_EXEMPT` keeps
-  `features/acquisition/queries.ts` (the engine still reads `follows()` and `suggestions()`).
-- b·9 DONE: rules `38edae9e4` (R103 source hold, R188 re-aimed — ruling 91), move `57cef9fb1`, journey.py
-  re-aim `0bceb9578`; gate on the move 35 named, one fall (journey, D-L13-1's consequence), re-gate 22 (4 named)
-  + 26 guards, 0 failed, NO divergence. Five mutations, all named. Tooling `b64ae8f76` (ruling 92: run.sh resolves
-  each named rule whole). Phases renumbered by order 38 (ruling 93): b·10 panel's return, b·11 membership read,
-  b·12 pipe + phase, b·13 legacy.js dies.
-- b·10 DONE: R190 `panel_return.py` `d027a8d0b` (red: drawing only), move `b1c3c602d` (reopening inside
-  startViewTransition + `new(leaving-panel)` panel-down reverse); gate 34 (16 named) + 26 guards, 0 failed, no
-  divergence; both mutations named. B-275 closes at b·13's closure commit beside B-290/B-397.
-- b·11 DONE: rules `397758dc4` (R191–R193, red), move `09bd737de`, gate fixes `751d532bd` + `937cee0f0`; last gates
-  32 (16 named) and 26 (8 named) + 26 guards, 0 failed, no divergence; four mutations named. legacy.js 1643.
-- b·12 DONE: rule `86ccb19fa` (arrivals.py reads the layer's state, red), move `0fd43802b` (the engine's click
-  listener dies whole; legacy.js 1600), re-aims `7d12186c2`, retry hold `50c42e7e0`; gates green, oracle zero;
-  mutations named.
-- b·13 NOT OPENED — STOP D (ruling 98), routed to the auditor. MEASURED on 289cfd2e1, the six figures:
-  (1) legacy.js 1 600 non-blank lines of live subject (constants, 13 unconverted fixtures, helpers, the settings
-  machine, render/currentState/applyState, the search mount, toast/openSheet/closeSheet/showSignIn, actionDelete);
-  (2) `window.__referentiel` read by 43–45 product files; (3) nine features/*/reference.ts slices, 37
-  useXReference() calls; (4) engine-shape.ts 41 call sites / 14 files / 23 families; (5) 20 files import engine/;
-  (6) check-mock-seeds counts 32 engine families. Proposed cut: (a) constants+helpers home, (b) fixtures convert or
-  seed, (c) settings machine + render/applyState + search mount + toast leave, (d) __referentiel + slices die,
-  (e) engine-shape families → contract names, (f) the file and its instruments die.
-- REBASED on main `72712bb51` (#599) and pushed with --force-with-lease (head `2096e5047`). On the rebased code
-  (`6a3302eed`): --contracts 18 + 26 guards green, FULL SUITE 135 rules + 26 guards « no violation », --a11y 0
-  (light 149/149), hold-counts --compare: no failure, eleven rises + seven new rules (movements below), make lint 0.
-- The residue is PLANNED (pending Q5): six phase files `plan/phase-residue-1…6-*.md` and INDEX « Residue (pending
-  Q5) », with every figure measured on `1cb0a2dc1`. The two re-aims' mutations fell by name on this head.
-- NEXT: Q5 = B (RULING 99): L13b CLOSES at b·12; l13b 5 does the closure ONLY — bump, residue renames to L13r (r·1–r·6), push, PR READY, then the `fixed #<PR>` rows on the docs-only path; nothing of the residue is executed on this branch.
+- b·1–b·12 DONE, every gate green, every mutation named (commits and readings in the ledger). legacy.js 1 600
+  non-blank; the engine's click listener dead; B-290 / B-397 / B-275 closed by b·9–b·10's rules.
+- b·13 measured, NOT opened — STOP D (ruling 98, its six figures there).
+- Pre-PR gate on the rebased code `6a3302eed`: --contracts 18 + 26 guards, FULL SUITE 135 rules + 26 guards « no
+  violation », --a11y 0, hold-counts --compare no failure (movements in the ledger), make lint 0.
+- Q5 = B (RULING 99): L13b CLOSES at b·12. b·13 VOID for L13b; the residue is L13r — The engine's residue, phases
+  r·1–r·6 (`plan/phase-r01…r06-*.md`, INDEX « L13r — The engine's residue »), nothing of it executed on this branch.
+- CLOSURE (l13b 5, rebased on main `a0253f34f`, steward [31ca3c]): (1) bump 0.98.94 + renames — commit, push
+  --force-with-lease; (2) PR READY; (3) BUGS.md B-290/B-397/B-275 → `fixed #<PR>`, pushed; (4) report, stand down.
+  Progress: read `git log` and `gh pr list --head feat/maquette-l13b`. The reader round and the merge are not ours.
 - ZSH TRAP, three times this session: a multi-word variable is ONE argument in zsh, and macOS bash has no
   `mapfile` — build rule lists and file lists in Python or spell them out.
 - LOGS: `~/Library/Logs/tm-l13b/` (ruling 76). Mutex and tests lock stay under `/private/tmp`.
@@ -52,9 +32,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 - Push: the pre-push hook is the branch's own since order 35 (relative hooksPath); read its verdict, not its print.
 - Register rows: L13b owns B-512–B-529 (a reserved block, counted up from B-512; B-512 is R164);
   L20 writes from B-530.
-- Owed: b·13 full suite with `--a11y`, `--compare`, `make lint`; no local `make check`
-  (ruling 68); b·8: the swipe verbs' reaches through `window.openCard`/`window.collapseCard`. Machine restarts
-  Monday 05:00: pushed by 04:30, line to the steward at 04:45.
+- Owed: nothing of the phases. Machine restarts Monday 05:00: pushed by 04:30, line to the steward at 04:45.
 
 ## LEDGER (append-only)
 

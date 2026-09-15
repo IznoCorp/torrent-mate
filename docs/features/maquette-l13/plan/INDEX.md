@@ -157,7 +157,7 @@ and binds the label to the next free number then.
 | b·10 | [The panel's return](phase-b10-panel-return.md) | Back reopens the panel; `panel-down`'s reverse | — | R-L13-c | B-275 |
 | b·11 | [The library's membership read](phase-b11-membership-read.md) (added 2026-09-13 by a·10, ruling 41; rulings 53, 61) | an exact membership read by title (and year) in the contract; `mediaNamedBy`, `knownMedium`, `follow-facts.ts`'s `inLibrary` and `openDeleteDialog` read it; **and, by ruling 53 (2026-09-13), the follow panel's season block reads `readMediaSeasons` by the follow's identity (Silo's fourth season named), with the seasons half of the `window.__mocks` seed accessor**; the harness re-aims at the `window.__mocks` seeds, the nine `window.SEASONS` readers among them (`busy.py`, `followed_sheet_act.py`, `message_over_layers.py`, `queued_ask_mark.py`, `season_family.py`, `season_grab_unfollowed.py`, `season_grab.py`, `seeds_at_rest.py`, `priming.py` — re-taken by grep) | `LIBRARY`, `INCOMPLETE`, `SEASONS`, `knownMedium`, their window exports | first for the membership read, and first for the season block | — |
 | b·12 | [The pipeline's status is the layer's](phase-b12-pipeline-status.md) (added 2026-09-13 by ruling 74) | the `pipe` store key → `usePipeline()` / `/api/pipeline/status`; the `data-pipe` verb asks runPipeline / killPipeline; page.tsx:102/122 and app/arrival.ts:29 re-aimed; arr-idle / arr-running / arr-queued re-aimed | legacy.js's `data-pipe` branch, the `pipe` store key | arrivals.py, page_host.py green before and after; red with the layer call removed | — |
-| b·13 | [`legacy.js` dies](phase-b13-legacy-js-dies.md) | — | `legacy.js`, `seams.ts`, and (ruling 57, from a·16) `engine-shape.ts` and its test, `engine-data.ts`, `engine-redraw.ts`, `lib/engine-drawing.ts`, `__referentiel` with `reference.d.ts` and the slices, the two exemptions and the reference-slice arm — the interface constants they publish need homes first (phase-a16 § Amendment), the parser arms, the debt section, the ledger entry, `resync.py` — and the ~547 lines of `LIBRARY`, `INCOMPLETE` and `knownMedium`, gone at b·11 first | the four harness reads of the file | — |
+| b·13 | [`legacy.js` dies](phase-b13-legacy-js-dies.md) — **VOID for L13b (ruling 99, 2026-09-15): its subject is L13r's r·1–r·6** | — | `legacy.js`, `seams.ts`, and (ruling 57, from a·16) `engine-shape.ts` and its test, `engine-data.ts`, `engine-redraw.ts`, `lib/engine-drawing.ts`, `__referentiel` with `reference.d.ts` and the slices, the two exemptions and the reference-slice arm — the interface constants they publish need homes first (phase-a16 § Amendment), the parser arms, the debt section, the ledger entry, `resync.py` — and the ~547 lines of `LIBRARY`, `INCOMPLETE` and `knownMedium`, gone at b·11 first | the four harness reads of the file | — |
 
 ## L13c — What the engine was blocking (BEHAVIOUR)
 
@@ -237,16 +237,16 @@ harness is re-run alone before it is read, and the re-run's loss of load is said
    components without a variant. It is eleven phases of L13a, not one.
 3. **The phase count** — the brief's example cut named four sub-lots; the design recommends three (§ 1).
 
-## Residue (pending Q5)
+## L13r — The engine's residue
 
-Measured on `1cb0a2dc1` after b·13 was measured and not opened (ruling 98). Names are neutral until the operator's Q5.
+Measured on `1cb0a2dc1` after b·13 was measured and not opened (ruling 98). Q5 = B (ruling 99): L13b closes at b·12 and this residue is a sub-lot of its own, run between L13b and L13c (L13a → L13b → L13r → L13c).
 
 | Phase | File | Kind | Moves | Dies |
 | --- | --- | --- | --- | --- |
-| residue 1 | [constants and helpers](phase-residue-1-constants-and-helpers.md) | conversion | 20 interface constants, 10 helpers | 4 dead names |
-| residue 2 | [served fixtures](phase-residue-2-served-fixtures.md) | conversion | 11 served families + POSTERS_HD + TODAY to their seeds | 13 literals |
-| residue 3 | [engine verbs and drawing](phase-residue-3-engine-verbs-and-drawing.md) | behaviour | settings machine, render/currentState/applyState, search mount, toast/openSheet/closeSheet/showSignIn | — |
-| residue 4 | [the reference dies](phase-residue-4-reference-dies.md) | conversion | — | `__referentiel`, 9 slices, reference.d.ts |
-| residue 5 | [contract names](phase-residue-5-contract-names.md) | conversion, may be lot-sized | 24 families, 41 call sites | engine-shape.ts |
-| residue 6 | [the file dies](phase-residue-6-the-file-dies.md) | deletion + full gate | — | legacy.js, seams.ts, engine-data, engine-redraw, engine-drawing, their instruments |
+| r·1 | [constants and helpers](phase-r01-constants-and-helpers.md) | conversion | 20 interface constants, 10 helpers | 4 dead names |
+| r·2 | [served fixtures](phase-r02-served-fixtures.md) | conversion | 11 served families + POSTERS_HD + TODAY to their seeds | 13 literals |
+| r·3 | [engine verbs and drawing](phase-r03-engine-verbs-and-drawing.md) | behaviour | settings machine, render/currentState/applyState, search mount, toast/openSheet/closeSheet/showSignIn | — |
+| r·4 | [the reference dies](phase-r04-reference-dies.md) | conversion | — | `__referentiel`, 9 slices, reference.d.ts |
+| r·5 | [contract names](phase-r05-contract-names.md) | conversion, may be lot-sized | 24 families, 41 call sites | engine-shape.ts |
+| r·6 | [the file dies](phase-r06-the-file-dies.md) | deletion + full gate | — | legacy.js, seams.ts, engine-data, engine-redraw, engine-drawing, their instruments |
 
