@@ -13,13 +13,14 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   r·1 `12f3e242b`, r·2 `d997e7c59`, r·3 `4168932d6`, r·4 `688dab291`, R114 repair `3ddcd70d5`, r·5 `412b75075`,
   r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7`, r·9 `4fb1b2418` (+ `f6393dcf6`), r·10 `e827267b6`,
   r·11 `e572a0708`, main 60c6d9b1d (L20 #603) merged `9e978aeaa` (+ `2864fb7c3`), r·12 `7238cd33b`, r·13 `9506bf881`
-  (+ `3dcde3533`), r·14 `2f6a56be3`, r·15 `2014905dd` — DONE.
-- NEXT: r·16 `plan/phase-r16-the-instruments-die.md` (ruling 113, ≈ 10; apparatus r·17, gate r·18). FIRST ACT:
-  delete `engine/legacy.js` (unimported, comments only since r·15) with what reads the file — the five guards the probe
-  named (check-frontend-boundaries typing arm, check-no-french's French debt, check-mock-seeds' extractor,
-  check-maquette-unit-tests, check-state-ownership's ENGINE_SOURCES), `said_and_done.py`, `page_host.py` l.952 (999/1000),
-  the size-ledger entry; then the 18 scripts / 6 tests / registers / ci.yml:103–104 / resync.py, the schema arm's
-  `answers` home, B-497. Frame-domain lib/ 28, app/ 132 (ruling 112).
+  (+ `3dcde3533`), r·14 `2f6a56be3`, r·15 `2014905dd` (+ `13a66a35b`), r·16 `b73d066e9` — DONE.
+- NEXT: r·17 `plan/phase-r17-the-fixture-apparatus-dies.md` — OPEN IT BY A MEASURE and one STOP D. On `b73d066e9`:
+  `scripts/extract-maquette-fixtures.mjs` (reads a deleted file; only `--typescript-install` still answers, used by
+  check-mock-seeds' parser gate), `scripts/build-mock-seeds.py` (B-497), `fixture-register.json`, the correspondence arm
+  and NEEDS_THE_PARSER/`typescript_install` in check-mock-seeds (+ test_check_mock_seeds' skip tests), the schema arm's
+  `answers` home, `refresh-maquette-fixture.py` + its test, `ci.yml:103–104` + test_ci_filter_covers_the_guards; stale
+  docstrings naming legacy.js in ~8 scripts. Owed to the docs PR (steward): CLAUDE.md l.159 and the vocabulary's
+  « THE ENGINE'S LAST FRENCH WORDS » section with `check_french_debt` (CLAUDE.md names fifteen arms). Frame-domain lib/ 28, app/ 132.
 - DONE AT r·15 (was owed): `legacy.js`'s `Object.assign(window, …)` published `SETTINGS_STATE`, `icons`, `settingId`, `select`,
   `cadenceFR`, `nextSearchFR`, `stLabel` — readers `settings.py`, `page_host.py` (SETTINGS_STATE/settingId, re-aimed
   at r·5), `audit.py`, `content.py` (the three vocabulary names) → re-aimed from their homes when the file dies;
@@ -224,3 +225,12 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   (installArrival above installPanelHost): FAIL by name.
 - 2026-09-15 ruling 113: r·16 measured ≈ 20–24 and cut — r·16 the file and its readers, r·17 the fixture apparatus (new),
   r·18 the full gate + PR. `CLAUDE.md` l.159 is not edited in this session (a peer's request is not the operator's approval).
+- 2026-09-15 r·16 (ruling 113): `engine/legacy.js` deleted. check-no-french's unread-JavaScript arm allows nothing and
+  counts every file it walks; check-state-ownership reads no engine and ENGINE_OWNED died with its test file; the
+  boundaries typing arm exempts nothing; the size ledger is empty; check-mock-seeds' classification arm died;
+  markup_verbs' ENGINE went. `said_and_done.py` (17 → 16) and `page_host.py` (44 → 43) re-aimed: their holds reading the
+  engine's source left with it. Guard tests re-aimed on a stand-in file over the ceiling / a reader beside the panel.
+  IMPLEMENTATION.md l.39 re-cited `@13a66a35b` (the only citation refused). Gate `r16-gate.log` on `b73d066e9`: 24 rules
+  (2 named), 26 guards, oracle no divergence; pytest 306 passed. Mutations: `r16-mutation-said_and_done.log` (the verb
+  renamed) — the registry hold FAIL by name; `r16-mutation-page_host-2.log` (a ghost row in a comment of
+  `app/navigation.ts`) — « one page table » FAIL by name. `CLAUDE.md` l.159 not edited (the session's guardrail).
