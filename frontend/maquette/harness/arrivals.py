@@ -49,6 +49,8 @@ READ = """() => {
     status: (document.querySelector('[data-part="pipeline"] [data-part="pipeline/title"]') || {}).textContent || '',
     buttons: [...document.querySelectorAll('[data-part="pipeline"] [data-pipe]')]
                .map((b) => b.dataset.pipe),
+    inactive: [...document.querySelectorAll('[data-part="pipeline"] [data-pipe]:disabled')]
+               .map((b) => b.dataset.pipe),
     queued: !!document.querySelector('[data-part="pipeline"] [data-part="live-activity"]'),
     uid: (window.PIPELINE_UID_POUR_LA_SONDE || null),
     steps: [...document.querySelectorAll('[data-part="flux"] [data-part="flux/row"]')].map((x) => ({
@@ -162,9 +164,11 @@ async def main():
         layer = await pg.evaluate(LAYER_STATE)
         journal.check("and the layer's status read answers « running »", layer == "running",
                       f"the status read answers {layer!r}")
-        journal.check("while running, another pass can still be ASKED for",
-                      "start" in running["buttons"] and "stop" in running["buttons"],
-                      str(running["buttons"]))
+        # RE-AIMED: « another pass can still be asked for » was a control the
+        # backend refuses every time; « lancer » is drawn INACTIVE beside « arrêter ».
+        journal.check("while running, « lancer » is drawn inactive and « arrêter » acts",
+                      "stop" in running["buttons"] and running["inactive"] == ["start"],
+                      f"{running['buttons']} inactive={running['inactive']}")
         journal.check("while running, nothing claims a pass is already queued",
                       not running["queued"])
 

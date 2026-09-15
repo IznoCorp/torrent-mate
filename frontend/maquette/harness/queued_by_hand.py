@@ -34,11 +34,14 @@ A SECOND PASS IS REFUSED, AND THE QUEUE IS THE MAINTENANCE LOCK'S — the backen
 own answer (DESIGN § 3.2): a second PIPELINE pass is the strict duplicate §6
 permits refusing, and a pass waits only behind a MAINTENANCE run.
 
-  9. PRESSED AGAIN WHILE ITS PASS RUNS, the run operation answers 409 and the
-     pipeline goes on running — it is not demoted to a queue.
- 10. AND THE REFUSAL IS SAID IN ITS OWN SENTENCE — never « arrêté », which is what a
-     verb reading every answer other than running or queued as a stop said.
- 11. WITH A MAINTENANCE RUN IN FLIGHT, « Lancer le pipeline » is answered and the
+  9. WHILE ITS PASS RUNS, « Lancer » IS DRAWN INACTIVE — disabled, and saying
+     « Lancer » rather than offering a pass that would be refused (§ 12: an
+     inactive action looks inactive).
+ 10. AND A FINGER PRESSING IT ASKS NOTHING — the run operation was answered once,
+     by the walk's own start.
+ 11. AND A SECOND PASS ASKED OF THE LAYER IS ANSWERED 409, the pipeline going on
+     running — not demoted to a queue.
+ 12. WITH A MAINTENANCE RUN IN FLIGHT, « Lancer le pipeline » is answered and the
      pass is QUEUED, and the queued sentence says so.
 """
 import asyncio
@@ -141,10 +144,20 @@ LAUNCH_MAINTENANCE = """async ()=>(await fetch('/api/acquisition/detect', {metho
 
 SAID = """()=>window.__toast?.read()?.message?.message || ''"""
 
-# THE SENTENCES THE VERB MAY SAY, read from the interface's own resources.
-VERB_SENTENCES = json.loads(
+# THE SENTENCES THE INTERFACE SAYS, read from its own resources.
+RESOURCES = json.loads(
     (pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "i18n" / "fr.json")
-    .read_text(encoding="utf-8"))["verbs"]["arrivals"]
+    .read_text(encoding="utf-8"))
+VERB_SENTENCES = RESOURCES["verbs"]["arrivals"]
+SCREEN_SENTENCES = RESOURCES["screens"]["arrivals"]
+
+# THE BAR'S START CONTROL, as drawn.
+START_CONTROL = """()=>{
+  const control = document.querySelector('[data-part="pipeline"] [data-pipe="start"]');
+  return control ? {disabled: control.disabled, text: control.textContent.trim()} : null;}"""
+
+# A SECOND PASS ASKED OF THE LAYER, its operation called directly.
+ASK_AGAIN = """async ()=>(await fetch('/api/pipeline/run', {method: 'POST'})).status"""
 
 
 async def press(journal, page, selector, claim):
@@ -225,7 +238,11 @@ async def walk(journal, page):
 
 
 async def refused_while_running(journal, page):
-    """Presses « Lancer » again while the pass the walk started runs.
+    """Reads « Lancer » while the pass the walk started runs, and asks again.
+
+    RE-AIMED: the control used to be « Relancer ensuite », pressed to read a 409
+    and the refusal's sentence. A drawn action that always refuses is the
+    defect; the control is inactive now, and the 409 is read at the layer.
 
     Args:
         journal: The rule's journal.
@@ -242,23 +259,24 @@ async def refused_while_running(journal, page):
                        "Arrivées is reached again by a finger, once Back closed the panel"):
         return
     await page.wait_for_timeout(SETTLED)
-    if not await press(journal, page, START,
-                       "and its « Lancer » is pressed again while the pass runs"):
-        return
+    drawn = await page.evaluate(START_CONTROL)
+    journal.check(
+        "while the pass runs, « Lancer » is drawn INACTIVE — disabled, and saying « Lancer »",
+        drawn is not None and drawn["disabled"] and drawn["text"] == SCREEN_SENTENCES["start"],
+        f"{drawn}, the label is {SCREEN_SENTENCES.get('start')!r}")
+    await page.evaluate(PRESS, START)
     await page.wait_for_timeout(ACTED)
     statuses = await page.evaluate(RUN_STATUSES)
+    journal.check(
+        "and a finger pressing it asks nothing — the run was answered once, by the walk",
+        statuses == [200], f"runPipeline answered {statuses}")
+    again = await page.evaluate(ASK_AGAIN)
     state = await page.evaluate(PIPELINE_STATE)
     journal.check(
-        "a second PIPELINE pass is answered 409, and the pipeline goes on RUNNING "
-        "— not demoted to a queue",
-        statuses[-1:] == [409] and state == "running",
-        f"runPipeline answered {statuses}, status read says {state!r}")
-    said = await page.evaluate(SAID)
-    refusal = VERB_SENTENCES.get("pipelineAlreadyRunning")
-    journal.check(
-        "and the refusal is said in its own sentence, never « arrêté »",
-        refusal is not None and said == refusal and said != VERB_SENTENCES["pipelineStopped"],
-        f"said « {said} », the refusal sentence is {refusal!r}")
+        "and a second PIPELINE pass asked of the layer is answered 409, the pipeline "
+        "going on RUNNING — not demoted to a queue",
+        again == 409 and state == "running",
+        f"a second run answered {again}, status read says {state!r}")
 
 
 async def queued_behind_maintenance(journal, page):

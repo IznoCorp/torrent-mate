@@ -52,6 +52,8 @@ describe("the button system's sizes", () => {
         "flex", "items-center", "justify-center", "gap-4", "w-full",
         "min-h-[44px]", "py-5", "px-6", "rounded-3", "text-4",
         "font-semibold", "text-center",
+        // An inactive action looks inactive, and every button draws it the same way.
+        "disabled:opacity-50",
       ].sort(),
     );
   });

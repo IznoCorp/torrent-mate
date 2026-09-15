@@ -116,9 +116,10 @@ function PipelineBar(): ReactElement | null {
         <div className={pilotGauge()}>
           <i className="block h-full bg-info rounded-[inherit]" style={{ width: "44%" }}></i>
         </div>
-        {/* « Relancer ensuite » stays offered WHILE a run is going, and that is
-            the point rather than an oversight: new downloads land during a
-            pass, and asking for another one is a legitimate thing to want. */}
+        {/* « Lancer » stays DRAWN while a pass runs and is INACTIVE: a second
+            pass is the same action already going and the backend refuses it, so
+            an enabled control would be an action that always refuses. It looks
+            inactive (§ 12), and a pass waits only behind a maintenance run. */}
         {PIPELINE.state === "queued" ? (
           <>
             <div className={liveStrip()} data-part="live-activity">
@@ -135,8 +136,8 @@ function PipelineBar(): ReactElement | null {
           </>
         ) : (
           <div className={pilotActions()}>
-            <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-pipe="start">
-              {t("screens.arrivals.runAfterwards")}
+            <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-pipe="start" disabled>
+              {t("screens.arrivals.start")}
             </button>
             <button className={actionButton({ kind: "cardFoot" })} data-part="card/foot" data-pipe="stop">
               {t("screens.arrivals.stop")}
