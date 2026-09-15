@@ -1,6 +1,8 @@
-# r·5 — engine-shape's families take the contract's names
+# r·6 — engine-shape's families take the contract's names
 
 Q5 = B (ruling 99, 2026-09-15): this is a phase of L13r — The engine's residue; renamed from `phase-residue-N`.
+
+2026-09-15 (ruling 101): renumbered — r·3 was cut into r·3 (the engine's product verbs) and r·4 (the engine's frame verbs), and every later phase moved up one.
 
 **Kind**: CONVERSION (may be lot-sized). **Cost**: Estimate ≤ 15 points (measure 11). The mean of L13b's measured phase costs is 11 (b·9 13, b·10 3, b·11 21, b·12 6.5); a phase above the mean says why.
 

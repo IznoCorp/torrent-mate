@@ -8,16 +8,18 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   `fcaff976f` (#601). L13b squashed onto main as `5df76af33`, merged in at `e76d619aa` (tree unchanged).
   Steward: the session named in your launch prompt (`Orch : TM frontend`, its reference changes).
 - Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13r`.
-- Phases: r·1 constants and helpers → r·2 served fixtures → r·3 engine verbs and drawing (BEHAVIOUR) →
-  [midpoint full suite] → r·4 the reference dies → r·5 contract names (STOP D with a cut at its opening; never one
-  phase) → r·6 the file dies + the full gate + the PR. r·1 DONE (`12f3e242b`), r·2 DONE (`d997e7c59`).
-- NEXT: r·3 (`plan/phase-r03-engine-verbs-and-drawing.md`, BEHAVIOUR: rule first, red, green, mutation), then the
-  MIDPOINT full suite before r·4. Frame-domain read BEFORE the move (lib/ 28, app/ 139 after r·2).
+- Phases (ruling 101): r·1 constants and helpers → r·2 served fixtures → r·3 the engine's product verbs (BEHAVIOUR)
+  → r·4 the engine's frame verbs (BEHAVIOUR) → [midpoint full suite] → r·5 the reference dies → r·6 contract names
+  (STOP D with a cut at its opening; never one phase) → r·7 the file dies + the full gate + the PR.
+  r·1 DONE (`12f3e242b`), r·2 DONE (`d997e7c59`, pushed `c29a5c5c7`).
+- NEXT: r·3 (`plan/phase-r03-engine-product-verbs.md`: rule first where none taps, red, green, mutation), then r·4
+  and the MIDPOINT suite in this session, then stand down; `Agent : l13r 2` takes r·5 on. Frame-domain after r·2:
+  lib/ 28, app/ 139.
 - legacy.js non-blank: 1 600 at the cut, 1 274 after r·1, 888 after r·2. `scripts/frontend_size_ledger.py`
   re-recorded DOWNWARD in every phase's commit.
 - OWED (r·1's republications): `legacy.js` publishes `stLabel`, `cadenceFR`, `nextSearchFR` on `window` (readers
-  `audit.py`, `content.py` → re-aimed at r·6) and `__referentiel.baseTitle`/`dateFR` (readers `followed_sheet_act.py`,
-  `pop.py`, `season_family.py` → re-aimed at r·4) from their new homes.
+  `audit.py`, `content.py` → re-aimed at r·7) and `__referentiel.baseTitle`/`dateFR` (readers `followed_sheet_act.py`,
+  `pop.py`, `season_family.py` → re-aimed at r·5) from their new homes; r·3 adds `SETTINGS_STATE`/`settingId` (owed r·5).
 - LOGS: `~/Library/Logs/tm-l13r/`. Mutex `sh scripts/heavy.sh --held`; tests lock `/private/tmp/tm-heavy-tests/holder`;
   own lock `/private/tmp/tm-heavy-l13r/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13r frontend/maquette/harness/run.sh --contracts
@@ -56,3 +58,5 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   on `content.py` alone (the cache is reset by the next named state: the cron is now read while the follows tab is
   drawn). `r02-hold-counts.json`: 0 movement on the 24. Six re-aims, each seen to fall by name
   (`r02-mutation-<rule>.log`): machine, address, content, season_family, season_grab_unfollowed, mocks (R85).
+- 2026-09-15 ruling 101: r·3 measured ~25 points and was cut, numbered — r·3 product verbs, r·4 frame verbs; the
+  former r·4/r·5/r·6 are r·5/r·6/r·7 (files moved). The r·1 ledger's « owed to r·4 and r·6 » now reads r·5 and r·7.

@@ -5,11 +5,12 @@ You implement **L13r**, the third sub-lot of **L13 — The engine's residue** (`
 `engine/legacy.js` still holds — 1 601 live non-blank lines, measured at ruling 98 — is a CONVERSION the size
 of a sub-lot, not a deletion. The lot's design is `docs/features/maquette-l13/DESIGN.md` and its plan
 `docs/features/maquette-l13/plan/INDEX.md` § « L13r — The engine's residue », one file per phase
-(`plan/phase-r01-…md` to `plan/phase-r06-…md`) — **they are the specification and this brief restates none of
-it**. L13r is the six phases r·1 to r·6, in that order: the interface constants and helpers find homes (r·1),
+(`plan/phase-r01-…md` to `plan/phase-r07-…md`) — **they are the specification and this brief restates none of
+it**. L13r is the seven phases r·1 to r·7 (ruling 101 cut r·3 in two), in that order: the interface constants and helpers find homes (r·1),
 the served fixtures go to their seeds (r·2), the settings machine, `render()`/`applyState` and the search mount
-leave the engine (r·3, the one BEHAVIOUR phase), `__referentiel` and the nine slices die (r·4), `engine-shape`'s
-family labels become the contract's names (r·5), the file and its instruments die under the full gate (r·6).
+leave the engine (r·3 the product verbs and r·4 the frame verbs, the BEHAVIOUR phases), `__referentiel` and the nine
+slices die (r·5), `engine-shape`'s family labels become the contract's names (r·6), the file and its instruments die
+under the full gate (r·7).
 
 **Rulings 1–99 are in `docs/features/maquette-l13/RULINGS.md`** — one numbered file, non-reopenable; L13r appends
 from 100. The ones that shape L13r: 57 (the constants' homes), 86-bis and 98 (what the engine still holds and why),
@@ -44,7 +45,7 @@ from 100. The ones that shape L13r: 57 (the constants' homes), 86-bis and 98 (wh
 1. This brief; `docs/features/maquette-l13/RESUME-L13r.md`'s STATE BLOCK (its first 40 lines); `RULINGS.md` 57, 85,
    86-bis, 96–99; and `plan/phase-r01-constants-and-helpers.md`. That is the whole required reading before your handshake.
 2. After the handshake, as each phase opens: its phase file (re-read at that moment), DESIGN § 9 (homes) and
-   § 6 for r·3, `frontend/maquette/README.md` § named states and § traps (one-line rules since #599, stories cited),
+   § 6 for r·3 and r·4, `frontend/maquette/README.md` § named states and § traps (one-line rules since #599, stories cited),
    `CLAUDE.md` § Critical Rules (search safety, language, naming, `scripts/rename-identifiers.py` — never a rename by
    hand), and `scripts/check-mock-seeds.py`'s docstring for r·2 (the register's classes: a family is served, interface
    or converted, and the count must FALL by the families moved).
@@ -54,12 +55,12 @@ from 100. The ones that shape L13r: 57 (the constants' homes), 86-bis and 98 (wh
 - **A conversion phase proves by « nothing observable changed »**: the contracts tier + the named rules that draw each
   moved name (grep `window.__go` ids under `harness/states/` at the phase's opening) stay green with their hold counts
   unchanged; the oracle at ZERO divergence — any divergence is STOP B, never accepted under a conversion's name. A moved
-  pure function gets a vitest where none exists. **r·3 is BEHAVIOUR**: its rule is written FIRST and seen RED, green
+  pure function gets a vitest where none exists. **r·3 and r·4 are BEHAVIOUR**: its rule is written FIRST and seen RED, green
   after, its mutation SEEN to fall through `scripts/mutate.sh` (commit before every mutation); where no hold taps a
   moved function, a rule is written for it before it moves.
-- **Sizes**: every phase ≤ 15 points against the stated mean (11); **r·5 is flagged « may be lot-sized » (24 family
-  labels, 41 call sites)** — at r·5's opening you MEASURE it (families, call sites per family, readers) and send the
-  steward ONE STOP D with a cut into sub-phases ≤ 15 each, one family group per commit; you never open r·5 as one phase.
+- **Sizes**: every phase ≤ 15 points against the stated mean (11); **r·6 is flagged « may be lot-sized » (24 family
+  labels, 41 call sites)** — at r·6's opening you MEASURE it (families, call sites per family, readers) and send the
+  steward ONE STOP D with a cut into sub-phases ≤ 15 each, one family group per commit; you never open r·6 as one phase.
 - **Locks by CLASS.** Anything touching the ONE served copy or the 8899 host — `run.sh` in any tier, the oracle,
   `harness-hold-counts.py`, `mutate.sh`, a single rule replayed — runs under the shared mutex, in the ONE form that
   reads rule names: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13r frontend/maquette/harness/run.sh
@@ -75,17 +76,17 @@ from 100. The ones that shape L13r: 57 (the constants' homes), 86-bis and 98 (wh
   POSTDATING the commit they measure (`ls -lT` against `git log -1 --format=%ci`); `tests/scripts/test_check_maquette_comments.py`
   alone under the tests lock before any push, `check-maquette-comments.py --record` INSIDE the commit when a maquette
   file moved (only `read` moves — read the diff). **The FULL SUITE runs TWICE in L13r (measure 20)**: at the midpoint,
-  after r·3 and before r·4, its falls repaired by you before r·4; and at r·6 before the pull request, with `--a11y`,
+  after r·4 and before r·5, its falls repaired by you before r·5; and at r·7 before the pull request, with `--a11y`,
   `scripts/harness-hold-counts.py --compare frontend/maquette/hold-counts-baseline.json` (its `taken_at_commit` may
   not be an ancestor of your head — compare against a `.review`-style copy re-pointed at main's sha, the repo file
   untouched, and say so) and `make lint`; no local `make check` (measure 19).
 - **The three arms**: `python3 scripts/check-frame-domain.py` on the head BEFORE each phase's move (send its ceiling
-  line; ruling 96's figures are the ceiling); `check-frontend-boundaries.py --arm fan-in` and `--arm cycles` after r·3
-  and r·4; `check-no-french.py` after every vocabulary addition and `--counts` at r·6; `check-mock-seeds.py` after r·2.
+  line; ruling 96's figures are the ceiling); `check-frontend-boundaries.py --arm fan-in` and `--arm cycles` after r·4
+  and r·5; `check-no-french.py` after every vocabulary addition and `--counts` at r·7; `check-mock-seeds.py` after r·2.
   Exit codes are the verdict, never the prose.
 - The engine only shrinks; `scripts/frontend_size_ledger.py` re-recorded DOWNWARD in the same commit (the entry dies
-  at r·6); guards and baselines die in the phase that kills what they read (the reference-slice arm at r·4, the parser
-  arms and `resync.py` at r·6); re-aims said out loud in the docstring and the body; never `cd` into `design/src` (B-384).
+  at r·7); guards and baselines die in the phase that kills what they read (the reference-slice arm at r·5, the parser
+  arms and `resync.py` at r·7); re-aims said out loud in the docstring and the body; never `cd` into `design/src` (B-384).
 - **The RESUME**: `docs/features/maquette-l13/RESUME-L13r.md` = a STATE BLOCK of at most 40 lines (rewritten at every
   boundary) + an APPEND-ONLY ledger below it. Rulings go to `RULINGS.md`, appended from 100. No register row for an
   unshipped defect (ruling 85): a ledger line on the phase instead; the steward numbers rows at the close.
@@ -110,9 +111,9 @@ from 100. The ones that shape L13r: 57 (the constants' homes), 86-bis and 98 (wh
 
 One commit per phase (plus the commit-before-mutation where a phase says so), conventional, scoped `maquette-l13r`, no
 attribution of any kind (`CLAUDE.md` § Commit Convention; `hooks/commit-msg` refuses it). Push at every stand-down and at
-r·6 under the tests lock. At r·6: merge `origin/main` in, bump the version above whatever `main` reads then (patch), the
+r·7 under the tests lock. At r·7: merge `origin/main` in, bump the version above whatever `main` reads then (patch), the
 full gate, pull request READY titled `refactor(maquette-l13r): the engine's residue — legacy.js dies`; a CONVERSION pull
-request cites no constitution §§ (order 32, the rule) — r·3's behaviour half is SAID in the body with its rule and §§.
+request cites no constitution §§ (order 32, the rule) — r·3's and r·4's behaviour half is SAID in the body with its rule and §§.
 Body: the six phases and what each moved and deleted (by command, measured ONCE on the final head), every rule written
 or re-aimed with its red run and its mutation, the hold-count movements with their cause, the midpoint suite's falls
 and repairs, the ledger's final count (0), the surfaces whose look or behaviour a first-time reader would notice (for
@@ -146,6 +147,6 @@ name and a value, every time: `TM_HARNESS_JOBS=3`, `PYTEST_XDIST_AUTO_NUM_WORKER
 you build (`design/dist`, bench copies, screenshots), prove it with
 `ps -eo pid,etime,command | grep -E "chrom|playwright|vite|node |pytest|heavy.sh" | grep -v grep` before every report;
 the 8899 host (`server.py --serve 8899`, parent 1) is `run.sh`'s and is left alone. Search safety (`CLAUDE.md`): every
-`rg`/`grep -r` carries a type filter. Tier **deep** (the map: deep = opus), chosen because r·3 writes rules whose red
-reading nobody else takes before the reader round and r·5's cut is a judgment nobody re-reads. Your session was spawned
+`rg`/`grep -r` carries a type filter. Tier **deep** (the map: deep = opus), chosen because r·3 and r·4 write rules whose red
+reading nobody else takes before the reader round and r·6's cut is a judgment nobody re-reads. Your session was spawned
 with NO MCP server; the harness needs none.
