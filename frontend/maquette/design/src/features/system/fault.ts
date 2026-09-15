@@ -30,7 +30,9 @@
 // on one side only therefore falls loudly, where a positional fallback would
 // have drawn a plausible lie.
 import { useTranslation } from "react-i18next";
-import type { Fact } from "../../lib/engine-drawing";
+import type { Schemas } from "../../lib/contract-schemas";
+
+type Fact = Schemas["Fact"];
 
 /** The name of the row drawn down, and the three words it wears while down.
  * All four come from the interface's own resources. */
@@ -58,12 +60,12 @@ export function withOneRowDown(
   overdue: OverdueWords,
 ): Fact[] {
   return schedulers.map((scheduler) =>
-    scheduler.l === overdue.label
+    scheduler.label === overdue.label
       ? {
           ...scheduler,
-          ton: "alert",
-          v: overdue.value,
-          s: overdue.secondaryLine,
+          tone: "alert",
+          value: overdue.value,
+          secondaryLine: overdue.secondaryLine,
         }
       : scheduler,
   );

@@ -7,7 +7,6 @@
 // would have the interface asking a server for its own copy.
 import { useQuery } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
-import { toEngineShape } from "../../engine/engine-shape";
 import type { DeletionJournal, MaintenanceAction } from "./types";
 
 /**
@@ -35,6 +34,6 @@ export function useDeletionJournal() {
   return useQuery({
     queryKey: ["/api/maintenance/destructive-log"],
     queryFn: async () =>
-      toEngineShape<DeletionJournal>("JOURNAL", await read("/api/maintenance/destructive-log")),
+      read<DeletionJournal>("/api/maintenance/destructive-log"),
   });
 }

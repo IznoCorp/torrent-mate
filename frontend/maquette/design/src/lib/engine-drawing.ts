@@ -11,21 +11,6 @@ import { initials } from "./titles";
 // never written again — so a plain accessor is the right shape here, not a
 // subscription: there is nothing for a component to miss by reading it
 // straight, and useSyncExternalStore would add a subscription no writer calls.
-//
-// One row of a fact list, exactly as `ui/fact-rows.tsx` draws one. `ton` is
-// the operator's vocabulary (`success` / `alert` / `warning` / `info`) and the
-// component maps it onto the chip's; `target` becomes the row's `data-*`
-// attributes, which is what turns the row into the control.
-export type Fact = {
-  l: string;
-  v?: string;
-  s?: string;
-  k?: string;
-  ton?: string;
-  state?: string;
-  target?: Record<string, string>;
-};
-
 export type EngineDrawing = {
   icons: Record<string, string>;
 };

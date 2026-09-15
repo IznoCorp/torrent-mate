@@ -26,17 +26,17 @@ import {
 /**
  * One row of a fact list.
  *
- * `ton` is the operator's word for the value's state; `target` becomes the
+ * `tone` is the operator's word for the value's state; `target` becomes the
  * row's `data-*` attributes, which is what turns the row into the control;
  * `part` names the row itself when a rule reads one fact by its own name, so
  * the row needs no wrapper between it and its list.
  */
 export type FactRow = {
-  l: string;
-  v?: string;
-  s?: string;
+  label: string;
+  value?: string;
+  secondaryLine?: string;
   k?: string;
-  ton?: string;
+  tone?: string;
   state?: string;
   target?: Record<string, string>;
   part?: string;
@@ -58,7 +58,7 @@ const CHIP_TONE: Record<string, ChipTone> = {
  * The rows of one fact list.
  *
  * A row whose value is a STATE wears it as a chip carrying the word, and its
- * tone is DERIVED from `ton`, never passed as a colour, so a row cannot show a
+ * tone is DERIVED from `tone`, never passed as a colour, so a row cannot show a
  * green chip saying offline. A row whose value is a QUANTITY does not:
  * badging every line teaches the eye to stop seeing badges. No value is what
  * greys a row — a sub-line explaining why there is nothing to report does not
@@ -72,14 +72,14 @@ export function FactRows({ rows }: { rows: FactRow[] }): ReactElement {
   return (
     <>
       {rows.map((row, index) => {
-        const empty = !row.v;
+        const empty = !row.value;
         const blocked = row.state === "danger";
         const withTarget = Boolean(row.target);
         const attributes = Object.fromEntries(
           Object.entries(row.target ?? {}).map(([name, value]) => [`data-${name}`, String(value)]),
         ) as Record<`data-${string}`, string>;
         const Body = withTarget ? "button" : "span";
-        const value = row.v || "—";
+        const value = row.value || "—";
         return (
           <li
             key={index}
@@ -90,14 +90,14 @@ export function FactRows({ rows }: { rows: FactRow[] }): ReactElement {
             data-blocked={blocked ? "" : undefined}
           >
             <Body className={factRowBody({ withTarget })} data-part="flux/row-body" {...attributes}>
-              <span className={factName({ empty })} data-part="flux/name">{row.l}</span>
+              <span className={factName({ empty })} data-part="flux/name">{row.label}</span>
               <span className={factValue({ blocked })} data-part="flux/value">
-                {row.ton ? <Chip tone={CHIP_TONE[row.ton]} label={value} /> : value}
+                {row.tone ? <Chip tone={CHIP_TONE[row.tone]} label={value} /> : value}
               </span>
               <span className={factDetail()} data-part="flux/detail">
                 {row.k ? <span className={factKey()} data-part="flux/key">{row.k}</span> : null}
-                {row.k && row.s ? " · " : null}
-                {row.s || null}
+                {row.k && row.secondaryLine ? " · " : null}
+                {row.secondaryLine || null}
               </span>
             </Body>
           </li>

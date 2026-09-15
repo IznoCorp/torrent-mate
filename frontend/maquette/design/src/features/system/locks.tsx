@@ -80,26 +80,26 @@ export function LocksBlock(): ReactElement {
 
   const rows: FactRow[] = [
     {
-      l: t("screens.system.pipelineLock"),
-      v: lockValue,
-      ton: lock.stale ? "alert" : lock.held ? "info" : "success",
-      s: lock.stale ? t("screens.system.lockStaleLine") : undefined,
+      label: t("screens.system.pipelineLock"),
+      value: lockValue,
+      tone: lock.stale ? "alert" : lock.held ? "info" : "success",
+      secondaryLine: lock.stale ? t("screens.system.lockStaleLine") : undefined,
     },
     {
-      l: t("screens.system.pauseSentinel"),
-      v: sentinels.pause
+      label: t("screens.system.pauseSentinel"),
+      value: sentinels.pause
         ? t("screens.system.sentinelOn", { age: ageInWords(sentinels.pauseAgeS, t) })
         : t("screens.system.sentinelOff"),
-      ton: sentinels.pause ? "warning" : "success",
+      tone: sentinels.pause ? "warning" : "success",
     },
     {
-      l: t("screens.system.watcherSentinel"),
-      v: sentinels.watcherPaused
+      label: t("screens.system.watcherSentinel"),
+      value: sentinels.watcherPaused
         ? t("screens.system.watcherOff", {
             age: ageInWords(sentinels.watcherPausedAgeS, t),
           })
         : t("screens.system.watcherOn"),
-      ton: sentinels.watcherPaused ? "warning" : "success",
+      tone: sentinels.watcherPaused ? "warning" : "success",
     },
   ];
 
@@ -124,18 +124,18 @@ export function LocksBlock(): ReactElement {
           <ol className={factList()} data-part="flux">
             <FactRows
               rows={[{
-                l: t("screens.system.tmpOrphans"),
-                v: locks.sweep.orphans.length === 0
+                label: t("screens.system.tmpOrphans"),
+                value: locks.sweep.orphans.length === 0
                   ? t("screens.system.orphansNone")
                   : t("screens.system.orphansFound", { count: locks.sweep.orphans.length }),
-                ton: locks.sweep.orphans.length === 0 ? "success" : "warning",
+                tone: locks.sweep.orphans.length === 0 ? "success" : "warning",
               }]}
             />
             <FactRows
               rows={locks.sweep.orphans.map((orphan) => ({
-                l: orphan.path,
-                v: ageInWords(orphan.ageS, t),
-                s: orphan.prefix,
+                label: orphan.path,
+                value: ageInWords(orphan.ageS, t),
+                secondaryLine: orphan.prefix,
                 part: "locks/orphan",
               }))}
             />

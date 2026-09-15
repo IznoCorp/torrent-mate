@@ -283,6 +283,10 @@ async def declared_tones(page, source):
     of the schedulers. A source that never answers is a FAILED hold, with the
     expression named; it is not an exception.
 
+    RE-AIMED: the cached list is the answer as served, in the contract's names,
+    so a row's tone is `tone`; it read the engine's `ton` while the query still
+    projected the answer into the engine's names.
+
     Args:
         page: The page.
         source: The JavaScript expression naming the declared list.
@@ -300,7 +304,7 @@ async def declared_tones(page, source):
     except Exception:  # noqa: BLE001 — a source that never arrives is a verdict
         return None, "never answered"
     try:
-        return await page.evaluate(f"()=>{source}.map((x) => x.ton)"), None
+        return await page.evaluate(f"()=>{source}.map((x) => x.tone)"), None
     except Exception:  # noqa: BLE001 — it answered, and with the wrong thing
         return None, "answered with something that is not a list of facts"
 

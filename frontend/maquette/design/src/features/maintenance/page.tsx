@@ -42,7 +42,7 @@ export function MaintenancePage(): ReactElement | null {
   const { t } = useTranslation();
   // FROM THE CACHE (invariant 4).
   const { data: MAINT_ACTIONS = [] } = useMaintenanceActions();
-  const { data: JOURNAL = { total: 0, lignes: [] } } = useDeletionJournal();
+  const { data: JOURNAL = { total: 0, rows: [] } } = useDeletionJournal();
 
   if (state.phase !== "ready") {
     return state.phase === "error" ? (
@@ -80,10 +80,10 @@ export function MaintenancePage(): ReactElement | null {
         <div className={guidance()} data-part="guidance">{t(`screens.maintenance.topics.${topic}.explanation`)}</div>
         {facts(
           actions.map((action) => ({
-            l: action.label,
+            label: action.label,
             k: action.id,
-            v: riskLabel(action.risk),
-            s:
+            value: riskLabel(action.risk),
+            secondaryLine:
               action.description +
               (action.long ? t("screens.maintenance.mayBeLong") : ""),
             state: action.risk === "destructive" ? "danger" : "",
@@ -135,7 +135,7 @@ export function MaintenancePage(): ReactElement | null {
       <div className="note" data-part="note">
         {t("screens.maintenance.journalNote", { total: JOURNAL.total })}
       </div>
-      {facts(JOURNAL.lignes)}
+      {facts(JOURNAL.rows)}
     </>
   );
 }

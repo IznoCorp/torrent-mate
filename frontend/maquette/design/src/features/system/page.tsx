@@ -115,17 +115,17 @@ export function SystemPage(): ReactElement | null {
       <h2 className={sectionHeading()} data-part="heading">{t("screens.system.codeErrors")}</h2>
       {facts([
         {
-          l: t("screens.system.errorsRaised"),
-          ton: "alert",
-          v: t("screens.system.errorsValue"),
-          s: t("screens.system.errorsDetail", {
+          label: t("screens.system.errorsRaised"),
+          tone: "alert",
+          value: t("screens.system.errorsValue"),
+          secondaryLine: t("screens.system.errorsDetail", {
             total: ERRORS.total,
             over: ERRORS.outOf,
             last: ERRORS.latest,
             what: ERRORS.what,
           }),
         },
-        { l: t("screens.system.errorsWhere"), v: "", s: ERRORS.where },
+        { label: t("screens.system.errorsWhere"), value: "", secondaryLine: ERRORS.where },
       ])}
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.system.settings")}</h2>

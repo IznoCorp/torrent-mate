@@ -10,12 +10,3 @@ export type CodeErrors = {
   what: string;
   where: string;
 };
-
-// One pipeline run, as `EXECUTIONS` shapes it: the question it answered, its
-// verdict, its date and its result line.
-export type PipelineRun = {
-  q: string;
-  ok: boolean;
-  d: string;
-  r: string;
-};

@@ -71,12 +71,12 @@ function lastRunRows(
     const fact: PipelineFact = byName[step.name] || { name: step.name };
     const nothing = !fact.result && !fact.secondaryLine && !fact.blockedCount;
     return {
-      l: step.label,
+      label: step.label,
       k: step.name,
-      v: fact.blockedCount
+      value: fact.blockedCount
         ? `${fact.result ? fact.result + " · " : ""}${t("screens.arrivals.blockedCount", { count: fact.blockedCount })}`
         : fact.result || "",
-      s: fact.blockedCount
+      secondaryLine: fact.blockedCount
         ? `${fact.secondaryLine ? fact.secondaryLine + " · " : ""}${t("screens.arrivals.blockedBelow")}`
         : nothing
           ? t("screens.arrivals.nothingToDo")
