@@ -355,8 +355,8 @@ when the defect comes back.
 | B-293 | 38 `Design:` markers name `docs/features/…` paths that left the tree, and the design-gaps pair passes over them | by audit | `open` |
 | B-294 | `.gitignore` cited two `docs/features/…` files that no longer exist | by audit | `fixed #539` |
 | B-295 | React 19 assigns `innerHTML` on the prop OBJECT's identity, string unchanged or not — so every re-render of a page subscribed to the store's version recreates its engine-drawn children | by L14   | `fixed #547` |
-| B-296 | The raw log of an execution has no surface; the passage's narrative is per media and the log lines are folded in the run's detail | by survey | `open` |
-| B-297 | The locks — pipeline lock, pause sentinel, watcher pause, tmp-orphan sweep — have no surface, and three of them are the state of L20's levers | by survey | `open` |
+| B-296 | The raw log of an execution has no surface; the passage's narrative is per media and the log lines are folded in the run's detail | by survey | `fixed #603` |
+| B-297 | The locks — pipeline lock, pause sentinel, watcher pause, tmp-orphan sweep — have no surface, and three of them are the state of L20's levers | by survey | `fixed #603` |
 | B-298 | The ranking editor is a promise: a settings rubric that leads nowhere and a toast saying it will exist | by survey | `open` |
 | B-299 | `SettingsState.conflict` is declared, set to `false` at boot, and never raised, drawn or copied — the conflict the contract answers has no surface | by survey | `to confirm` |
 | B-300 | « Redémarrer maintenant » restarts on the tap, with no confirmation, while a restart cuts the service for the whole household | by survey | `to confirm` |
@@ -420,7 +420,7 @@ when the defect comes back.
 | B-368 | The Découvrir feed is drawn BELOW the « charger plus » action: a pile spent before the mode leaves the deck outlives that mode, because the sweep that clears the deck's imperative markup knows the pile and not the SPENT pile, and React appends its own children after the node it never rendered | 1× | `fixed #572` |
 | B-369 | A fixture rename made a named state's own premise false: a paused follow was renamed to « The Venture Bros » to give it a media sheet, and that title is the subject of the state « Fiche — suggestion NON possédée (série) » — so the sheet drew the disabled « already followed » button, and the rule reading that state's offer fell on an emitter with no data | 1× | `fixed #572` |
 | B-370 | `harness-hold-counts.py --compare` with no FILE exits 2 on an argparse usage error, which a gate reading exit codes cannot tell from a comparison that found drift — one pass of L21's gate compared nothing while looking like it ran | 1× | `open` |
-| B-371 | DOIT-4's « En file » pastille is reachable by NO path a finger can take: it reads the layer's `pipelineState`, which only the pipeline operations write and which no surface calls, while Arrivées' « Lancer le pipeline » writes the engine's interface store and touches no network — two pipeline notions, and the hand can move only the one the pastille does not read | 1× | `open` |
+| B-371 | DOIT-4's « En file » pastille is reachable by NO path a finger can take: it reads the layer's `pipelineState`, which only the pipeline operations write and which no surface calls, while Arrivées' « Lancer le pipeline » writes the engine's interface store and touches no network — two pipeline notions, and the hand can move only the one the pastille does not read | 1× | `fixed #603` |
 | B-376 | Every push to a DRAFT pull request ran the whole pipeline, and no trigger answered the pull request leaving draft: a wave that opens its pull request early — which is this repository's own method — paid full CI on each of its intermediate pushes, and `ready_for_review` was in no workflow at all | by operator | `fixed #578` |
 | B-377 | `check-implementation-state`'s in-flight arm infers « that wave has landed » from a VERSION COMPARISON — `main >= the row's version` — which holds only while every merge to `main` comes from the in-flight wave itself; a micro-wave merging past it makes the arm refuse a row that is perfectly true, and it was refusing L21's row on `main` | by gate | `fixed #579` |
 | B-378 | `grabSeasonForFollow`'s mock moves a follow's status only when one is FOUND, so for a medium that is NOT followed it answers a success (200 today — the layer ignores the declared code, B-379) with a real `absorbedCount` and changes nothing at all — success reported over an unchanged world, on a path the « Incomplets » lens reaches with a single tap | by L21 | `fixed #572` |
@@ -2208,6 +2208,15 @@ translatable by construction (`frontend-backend-demands-stream.md` § 7). Owner 
 
 <sub>`grep -c "log" frontend/maquette/design/src/features/system/page.tsx` → 0 · `grep -n "RunLogFeed\|InterpretedRunFeed" frontend/src/pages/Pipeline.tsx`</sub>
 
+> **Closed by L20 (phase 7).** A passage has its own screen, `/run/$runUid`: its steps in words, and
+> its raw output FOLDED in a native disclosure, closed at rest; a passage recorded without output says
+> so rather than drawing an empty box. Rule R183 `harness/raw_log.py` read red first (13 holds, 11
+> violations); the fold opened at rest falls it by name (« at rest its lines are NOT rendered »), and
+> so does the empty box (« a passage whose output was not kept says so »). The status turns to
+> `fixed #603` with this pull request.
+
+<sub>`frontend/maquette/harness/run.sh --contracts --oracle frontend/maquette/harness/raw_log.py` → no violation · `grep -n "run/log" frontend/maquette/design/src/features/system/run-screen.tsx`</sub>
+
 **B-297 — the locks have no surface, and three of the four are the state of L20's levers.** `GET
 /api/maintenance/locks` answers `pipeline.lock`, the `pipeline.pause` sentinel, `watcher.paused`,
 and a bounded sweep of stale `_tmp_dispatch_*` / `.ingest_tmp_*` entries
@@ -2218,6 +2227,16 @@ sweep is a machine fact — a block of Système, its repair a Maintenance comman
 Who holds the lock behind « En file » stays L19's (NE-DOIT-PAS-2). Owner **L20**.
 
 <sub>`grep -rn "maintenance/locks" -g '*.ts' -g '*.tsx' frontend/maquette/design/src` → none · `sed -n '/GET \/locks/,/return/p' personalscraper/web/routes/maintenance.py`</sub>
+
+> **Closed by L20 (phases 3 and 4).** Système draws `GET /api/maintenance/locks`: the pipeline lock with
+> its age and whether it is stale, the pause and watcher sentinels, and the tmp-orphan sweep, which
+> waits on its own while the three facts above it have answered. The levers read the same fields and
+> agree with them. Rule R184 `harness/locks.py` read red first (21 holds, 20 violations; the
+> agreement half 23 / 2); a skeleton over the whole block, the age dropped from a held lock and a
+> lever disagreeing with its sentinel each fall it by name. The status turns to `fixed #603` with
+> this pull request.
+
+<sub>`frontend/maquette/harness/run.sh --contracts --oracle frontend/maquette/harness/locks.py` → no violation · `grep -n "maintenance/locks" frontend/maquette/design/src/features/system/locks-queries.ts`</sub>
 
 **B-298 — the ranking editor is a promise.** The settings rubric « Classement des releases » says «
 c'est un écran à part » and its row leads nowhere; the quality screen's « Poids du classement
@@ -4396,6 +4415,16 @@ No engine line is added for it here, and DOIT-4 drops from `served` to `partly` 
 for exactly this reason: the drawing is served and the path is not.
 
 <sub>`grep -rn "runPipeline\|/api/pipeline/run" frontend/maquette/design/src` → `types.d.ts`, `mocks/handlers/staging.ts:143`, and comments · `grep -rn "pipelineState = " …` → `mocks/handlers/staging.ts` and `mocks/handlers/maintenance.ts` only · `legacy.js:9207` `if (closest.dataset.pipe) { store.write({pipe: …`</sub>
+
+> **Closed by L20 (phase 8), on L13b's b·12.** Arrivées' « Lancer le pipeline » asks the layer's run
+> operation (b·12 moved the verb), and a second pass is refused 409 while a pass waits only behind a
+> maintenance run (ruling 8). Rule R185 `harness/queued_by_hand.py` walks from a fresh page — tab bar,
+> « Lancer le pipeline », the follows, a season with a hole — to the « En file » pastille, with
+> `__go` and `__pipeline` counted at zero. Red against `main` does not exist, since `main` has the
+> path: the verb's send made a no-op falls it by name (« the RUN OPERATION is answered … [] » and
+> « the pastille is PRESENT … 0 mark(s) »). The status turns to `fixed #603` with this pull request.
+
+<sub>`frontend/maquette/harness/run.sh --contracts --oracle frontend/maquette/harness/queued_by_hand.py` → no violation · `grep -n "registerVerb(\"pipe\"" frontend/maquette/design/src/features/arrivals/verbs.ts`</sub>
 
 
 **B-370 — a gate that exits on a usage error looks exactly like a gate that ran.**
