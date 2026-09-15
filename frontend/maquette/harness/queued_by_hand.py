@@ -107,17 +107,18 @@ PRESS_PROBE = """(selector)=>{
                                         box.top + box.height / 2);
   return {reachable: Boolean(hit) && (hit === control || control.contains(hit))};}"""
 
-# THE MEDIUM WITH A HOLE, among the rows actually drawn.
+# THE MEDIUM WITH A HOLE, among the rows actually drawn. A follow is read in the
+# contract's names: its title is `title`.
 THE_MEDIUM_WITH_A_HOLE = """()=>{
   const drawn = [...document.querySelectorAll('[data-panel]')].map(
     (one) => one.dataset.panel);
   const reachable = (title) => drawn.some(
     (seen) => seen === title || seen.endsWith(":" + title));
   for (const follow of (window.__followActions?.all() || [])) {
-    if (!reachable(follow.t)) continue;
-    for (const [number, aired, owned] of (window.__mocks.seasons()[follow.t] || [])) {
+    if (!reachable(follow.title)) continue;
+    for (const [number, aired, owned] of (window.__mocks.seasons()[follow.title] || [])) {
       if ((owned || 0) > 0 && (owned || 0) < (aired || 0))
-        return {title: follow.t, season: number};
+        return {title: follow.title, season: number};
     }
   }
   return null;}"""
