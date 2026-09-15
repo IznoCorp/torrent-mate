@@ -27,7 +27,9 @@ import {
  * One row of a fact list.
  *
  * `ton` is the operator's word for the value's state; `target` becomes the
- * row's `data-*` attributes, which is what turns the row into the control.
+ * row's `data-*` attributes, which is what turns the row into the control;
+ * `part` names the row itself when a rule reads one fact by its own name, so
+ * the row needs no wrapper between it and its list.
  */
 export type FactRow = {
   l: string;
@@ -37,6 +39,7 @@ export type FactRow = {
   ton?: string;
   state?: string;
   target?: Record<string, string>;
+  part?: string;
 };
 
 // Four tones, and each answers a different question: success — it works;
@@ -82,6 +85,7 @@ export function FactRows({ rows }: { rows: FactRow[] }): ReactElement {
             key={index}
             className={factRow({ empty, blocked, withTarget })}
             data-part="flux/row"
+            {...(row.part === undefined ? {} : { "data-part": row.part })}
             data-empty={empty ? "" : undefined}
             data-blocked={blocked ? "" : undefined}
           >

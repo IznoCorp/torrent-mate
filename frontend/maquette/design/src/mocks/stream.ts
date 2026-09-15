@@ -222,7 +222,7 @@ class MockSocket extends EventTarget {
  * @param data Its payload.
  * @returns The entry, with the cursor it was given.
  */
-function emit(type: string, data: Record<string, unknown> = {}): StreamEntry {
+export function emit(type: string, data: Record<string, unknown> = {}): StreamEntry {
   const entry: StreamEntry = { id: nextIdentifier(), type, data };
   log.entries.push(entry);
   deliver(() => {

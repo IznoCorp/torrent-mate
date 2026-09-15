@@ -51,6 +51,7 @@ import { store } from "../lib/store-access";
 import { today } from "../lib/clock";
 import { baseTitle } from "../lib/titles";
 import { dateLabel } from "../features/media/format";
+import { watchNow } from "../features/system/watch-run";
 import { verbNames } from "../lib/verbs";
 
 declare global {
@@ -192,6 +193,7 @@ export function publishSeams(): void {
   publish("__queue", () => queueLists);
   publish("__queueActions", () => queueActions);
   publish("__verbNames", () => verbNames);
+  publish("__watchNow", () => watchNow);
   // WHAT A TAP KNEW, WRITTEN BY THE RULE. The screen primes from what its entry
   // carries, and the product's writer copies three fields of a list item; a rule
   // measuring how the screen draws a THINNER or a RICHER knowledge — a title

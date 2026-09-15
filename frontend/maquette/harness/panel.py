@@ -49,11 +49,17 @@ status are read as `title`, `kind` and `status` (and `owned`), where they were
 the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
 """
 import asyncio
+import json
 import pathlib
 import re
 
 from common import PHONE, PROTOTYPE, Journal, design_source, open_page
 from playwright.async_api import async_playwright
+
+# WHAT THE VEILLE'S VERB SAYS WHEN IT IS ACCEPTED, read from the resources.
+WATCH_LAUNCHED = json.loads(
+    (pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "i18n" / "fr.json")
+    .read_text(encoding="utf-8"))["verbs"].get("system", {}).get("watchLaunched")
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -864,14 +870,25 @@ async def main():
         await acquisition_page.wait_for_timeout(400)
         await acquisition_page.click("[data-more]")
         await acquisition_page.wait_for_timeout(400)
+        # RE-AIMED: the panel's button said a sentence and asked for nothing
+        # (« Veille lancée — 12 suivis balayés… », figures nobody measured); it
+        # emits `data-watch-now` now, the levers' own verb, so what is held is
+        # that the tap ASKS the server for a veille.
         if check("the watch's panel offers its run",
-                 await acquisition_page.query_selector("#sheet [data-standby]") is not None):
-            await acquisition_page.click("#sheet [data-standby]")
+                 await acquisition_page.query_selector("#sheet [data-watch-now]") is not None):
+            await acquisition_page.click("#sheet [data-watch-now]")
             await acquisition_page.wait_for_timeout(600)
-            closed = not await acquisition_page.evaluate(panel_open)
+            asked = await acquisition_page.evaluate(
+                """()=>(window.__mocks?.answered?.() || [])
+                  .filter((call) => call.operationId === "runDetection").map((call) => call.status)""")
+            check("and its tap asks the server for a veille, and is answered",
+                  asked == [202], f"runDetection answered {asked}")
+            # DOIT-4: the answer is visible where the tap landed — the sheet
+            # draws no run, so the verb's own message is what a person sees.
             message = await acquisition_page.evaluate(said)
-            check("and its tap closes the panel and says the run",
-                  closed and "Veille lancée" in message, f"closed={closed} said={message!r}")
+            check("and the veille's answer is SAID on the sheet's surface",
+                  bool(WATCH_LAUNCHED) and WATCH_LAUNCHED in message,
+                  f"said {message!r}, expected {WATCH_LAUNCHED!r}")
 
         await acquisition_page.evaluate("()=>window.__go('acq-discover-degraded')")
         await acquisition_page.wait_for_timeout(500)

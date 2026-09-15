@@ -77,10 +77,6 @@ registerVerb("complete", (title) => {
     message: i18next.t("verbs.acquisition.completionStarted", { title: baseTitle(title) }),
   });
 });
-registerVerb("standby", () => {
-  panel.close();
-  toast?.show({ message: i18next.t("verbs.acquisition.watchStarted") });
-});
 // The journey is a panel of its own, opened OVER the one it was asked from:
 // that panel keeps its entry, so a Back from the journey puts it back.
 registerVerb("journey", (title) => panel.produce("journey", title));

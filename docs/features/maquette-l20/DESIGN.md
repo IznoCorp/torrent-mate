@@ -433,8 +433,20 @@ its oracle divergence named.
 
 ## 5. The named states
 
-**Measured before naming them**: 87 states exist
-(`python3 -c "import re;print(len(re.findall(r'^\s*\[\s*\"([^\"]+)\"\s*,\s*\"', open('frontend/maquette/design/src/engine/states.js').read(), re.M)))"`).
+> **Re-targeted by the steward on 2026-09-14, after L13a merged (`304346145`)**: `engine/states.js`
+> is gone — L13a's phase a·1 moved the whole table into eleven files under
+> `design/src/harness/states/`, composed by `harness/index.ts`. The measurement below is now a
+> citation of what stood before that move; the live command sums the eleven files instead and reads
+> the same figure, because the move changed WHERE the 87 live, not HOW MANY.
+
+**Measured before naming them**: 87 states existed
+(`frontend/maquette/design/src/engine/states.js@60530dbd8`,
+`git show 60530dbd8:frontend/maquette/design/src/engine/states.js | python3 -c "import re,sys;print(len(re.findall(r'^\s*\[\s*\"([^\"]+)\"\s*,\s*\"', sys.stdin.read(), re.M)))"`
+— re-pointed at the blob on 2026-09-14, since the file no longer exists in the tree). Read live, on this branch, the same total holds, summed across the eleven
+files the table moved to:
+
+    python3 -c "import re,glob;print(sum(len(re.findall(r'^\s*\[\s*\"([^\"]+)\"\s*,\s*\"', open(f).read(), re.M)) for f in glob.glob('frontend/maquette/design/src/harness/states/*.ts')))"
+
 ⚠ `frontend/maquette/README.md` says 54 twice and the constitution says 82; **both are stale, and
 this document does not correct them — the wave's report does, with this command.**
 
@@ -449,6 +461,12 @@ L20 adds **26**, and every one is reachable by `window.__go("<id>")` with an Eng
 | 5 | `levers-trigger-off` | Leviers — déclenchement automatique coupé |
 | 6 | `levers-loading` | Leviers — chargement |
 | 7 | `levers-error` | Leviers — erreur |
+> **Corrected on 2026-09-14 by the implementer**: the five ids below were written in FRENCH
+> (`veille-*`). A named state id is a NAME someone chose, and a name is English — `check-no-french`'s
+> named-state arm refuses it, as it did here. They are `watch-idle`, `watch-running`,
+> `watch-figures`, `watch-nothing`, `watch-error`; their LABELS stay French, because a label is what
+> the panel says.
+
 | 8 | `veille-idle` | Veille — au repos |
 | 9 | `veille-running` | Veille — en cours |
 | 10 | `veille-figures` | Veille — le résultat chiffré |
@@ -478,10 +496,13 @@ surface — a bound printed as `0` while its read is in flight is a lie, and the
 name that hold. `run-detail-not-found` is reached by an ADDRESS (`/run/nobody`) rather than a state,
 like `not-found` itself, and R-L20-j walks it.
 
-**Where they LIVE is not where the 87 live**, and that is § 8.4's finding: `engine/states.js` is
-grandfathered at 786 non-blank lines and the size arm refuses the count going up, so this lot's 26
-are declared in `design/src/harness/states/system.ts` with Système's own four moved beside them. The engine's
-table imports and spreads them, shrinks, and its record is re-recorded downward.
+**Where they live is exactly where the 87 now live**, and that is § 8.4's finding, superseded by
+L13a: `engine/states.js@60530dbd8` was grandfathered at 786 non-blank lines and the size arm refused
+the count going up, which is why this design once planned for this lot's 26 to force the Système
+slice out of the engine on its own. L13a moved the WHOLE table first, for all eleven surfaces
+(`304346145`) — so this lot's 26 land in `design/src/harness/states/system.ts` beside Système's own
+four, which are already there, and nothing is imported, spread, shrunk or re-recorded in any engine
+file, because no such file exists to do any of that to.
 
 **`harness/states.py` is seeded with all 26** — it asserts each renders content, has no horizontal
 overflow at 390 px and raises no JS error. That is DOIT-9's half of this lot's « Done when », and it
@@ -602,28 +623,41 @@ settings read so Système can DRAW it and its panel can edit it; the demand says
 key. **The topic assignment is the settings feature's catalogue to confirm**, and it is named here
 so nobody invents a seventh topic for one key.
 
-### 8.4 The named-state table cannot hold this lot's states
+### 8.4 The named-state table could not hold this lot's states — history, closed by L13a
 
-    grep -cve '^[[:space:]]*$' frontend/maquette/design/src/engine/states.js
+> **Re-targeted by the steward on 2026-09-14, after L13a merged (`304346145`)**: this whole section
+> describes a finding this design made BEFORE L13a existed on this plan's timeline. L13a's phase a·1
+> moved the entire named-state table out of the engine, for all eleven surfaces, not only Système's —
+> so the mechanism this section says the wave BUILDS was built by a different lot, and the block it
+> describes no longer exists for anyone. Kept as the record of why phase 2 was cut in the first place
+> (§ 9 below is the debts a plan still owes; this is not one of those — it is a debt already paid).
+
+The commands below ran against `frontend/maquette/design/src/engine/states.js@60530dbd8`, before
+L13a deleted it (the first re-pointed at that blob on 2026-09-14, since the file is gone from the tree):
+
+    git show 60530dbd8:frontend/maquette/design/src/engine/states.js | grep -cve '^[[:space:]]*$'
     sed -n '94,98p' scripts/frontend_size_ledger.py
 
-`engine/states.js` reads **786** non-blank lines and the ledger records it at **786**, grandfathered
+`engine/states.js@60530dbd8` read **786** non-blank lines and the ledger then recorded it at **786**, grandfathered
 to « L13 — the scenario table goes with the engine it drives ».
-`scripts/check-frontend-boundaries.py` **refuses the count going UP** — B-306, discharged by L19 in
+`scripts/check-frontend-boundaries.py` **refused the count going UP** — B-306, discharged by L19 in
 #558 exactly because a grandfathered file grew 77 lines under a decision titled « dies by
-subtraction » while the arm printed clean. This lot declares 26 states; Système's four take twenty
-lines for four (`sed -n '580,599p' frontend/maquette/design/src/engine/states.js`), so twenty-six is
-on the order of a hundred and thirty. **Even two would be refused.**
+subtraction » while the arm printed clean. This lot declares 26 states; Système's four took twenty
+lines for four in that shape (`sed -n '580,599p'` of the same blob), so twenty-six was on the order
+of a hundred and thirty. **Even two would have been refused.**
 
-**No lot owed this**, and nothing in L20's contract mentions it. The design takes it because L20 is
-the first lot that cannot proceed without it: the state table's Système slice moves to
-`design/src/harness/states/system.ts`, the engine's table SHRINKS by eighteen net lines and its record is
-re-recorded downward — the direction the arm accepts. Plan phase 2, which also writes down the
-alternative it refused (making `window.__recordStates` accumulate — a behaviour change to the
-harness's driving seam, to save a two-line import).
+**No lot owed this, and nothing in L20's contract mentioned it.** This design took it, planning for
+L20 to be the first lot that could not proceed without it: the state table's Système slice moving to
+`design/src/harness/states/system.ts`, the engine's table shrinking and its record re-recorded
+downward — the direction the arm accepts. Plan phase 2 carried that move and the alternative it
+would have refused (making `window.__recordStates` accumulate — a behaviour change to the harness's
+driving seam, to save a two-line import).
 
-**This is a mechanism the wave BUILDS, and it advances L13** rather than working around it, which is
-why it is § 8's finding and not § 9's debt.
+**L13a built the mechanism first, for every surface, and closed B-352 doing it** (`fixed #596`) — so
+this is no longer a mechanism L20 builds, and phase 2 is re-cut to a single dated comment
+(`docs/features/maquette-l20/plan/phase-02-named-states.md`). It stays § 8's finding rather than
+moving to § 9's debts, because it names a block that WAS real and IS gone, not a debt this lot still
+owes.
 
 ---
 

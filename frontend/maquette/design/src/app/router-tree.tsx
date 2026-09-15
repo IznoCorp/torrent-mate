@@ -18,6 +18,7 @@ import { maintenanceRoute } from "../routes/maintenance";
 import { settingsRoute } from "../routes/settings";
 import { systemRoute } from "../routes/system";
 import { mediaRoute } from "../routes/media-sheet";
+import { runRoute } from "../routes/run";
 import { qualityRoute } from "../routes/quality";
 import { releasesRoute } from "../routes/releases";
 import { resolutionRoute } from "../routes/resolution";
@@ -72,6 +73,7 @@ export const router = createRouter({
     accountRoute,
     // The screens, which do render.
     qualityRoute,
+    runRoute,
     addRoute,
     mediaRoute,
     releasesRoute,

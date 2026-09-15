@@ -63,6 +63,13 @@ the arrivals under a resolution, the acquisition page under the release picker
 a link opened from outside, and a rule expecting one page under all three would
 pass over every parent being wrong but one.
 
+EXTENDED (R187) to `RunScreen` — one passage at `/run/$runUid`, whose parent is
+Système. (q) a cold address to a run the layer holds opens that run's screen with
+Système beneath it, and a Retour lands on Système's own address; (r) a run
+nobody holds is SAID — « Ce passage n'existe pas » — with a door back to the
+passages (DOIT-7), and the address stays exactly as typed. The uid is read from
+the layer's own history, never written here.
+
 RE-AIMED, said out loud: the two sheet addresses were read from `addressIdsFor`. The engine's sheet table and
 its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
 `__carriedFor` — the seed the served read answers from, published by the harness
@@ -212,6 +219,23 @@ RESOLUTION_STATE = """() => {
     pathname: location.pathname,
   };
 }"""
+
+RUN_STATE = """() => {
+  const screen = document.querySelector('[data-part="screen"][data-open][data-key^="run:"]');
+  const missing = screen?.querySelector('[data-part="run/not-found"]');
+  return {
+    open: !!screen,
+    key: screen?.dataset.key ?? null,
+    page: state.page,
+    missing: missing ? (missing.textContent || '').replace(/\\s+/g, ' ').trim() : null,
+    doorBack: !!missing?.querySelector('[data-go="sys"]'),
+    steps: screen ? screen.querySelectorAll('[data-part="run/step"]').length : 0,
+    pathname: location.pathname,
+  };
+}"""
+
+# A run nobody holds — a stale link's exact shape.
+UNKNOWN_RUN = "nobody"
 
 # `RELEASES` (the ranked candidates) is a FIXED référentiel, not looked up
 # per title — unlike `sheetFor` for a mediaSheet, there is nothing here for an
@@ -666,6 +690,48 @@ async def main():
             journal.check("no JS error on an unknown releases title",
                              not errors, str(errors))
             await ctx.close()
+
+            # ─── Holds (q)-(r), R187: one passage's address. ───────────────
+            run_context, run_page, errors = await open_at(browser, f"{base}/")
+            run_uid = await run_page.evaluate(
+                "async ()=>((await (await fetch('/api/pipeline/history')).json()).runs[0] || {}).runUid")
+            await run_context.close()
+            journal.check("(q0) the layer's history names a run to open", bool(run_uid),
+                          f"{run_uid!r}")
+            run_context, run_page, errors = await open_at(browser, f"{base}/run/{run_uid}")
+            await run_page.wait_for_timeout(700)
+            run_cold = await run_page.evaluate(RUN_STATE)
+            journal.check(
+                "(q) a deep /run/<uid> address opens that run's screen, cold, with "
+                "Système beneath it",
+                run_cold["open"] and run_cold["key"] == f"run:{run_uid}"
+                and run_cold["steps"] > 0 and run_cold["page"] == SCREEN_PARENTS["/run/$runUid"],
+                f"key={run_cold['key']} steps={run_cold['steps']} page={run_cold['page']}")
+            journal.check("no JS error on deep /run entry", not errors, str(errors))
+            await run_page.evaluate("""()=>document.querySelector('[data-part="screen"][data-open] [data-part="screen/back"]')?.click()""")
+            await run_page.wait_for_timeout(300)
+            run_returned = await run_page.evaluate(RUN_STATE)
+            journal.check(
+                "(q2) a Retour from the run lands on Système, screen gone, at its own address",
+                not run_returned["open"]
+                and run_returned["pathname"] == parent_path("/run/$runUid"),
+                f"{run_returned['pathname']} · wanted {parent_path('/run/$runUid')}")
+            await run_context.close()
+
+            wrong_run_address = f"{base}/run/{UNKNOWN_RUN}"
+            run_context, run_page, errors = await open_at(browser, wrong_run_address)
+            await run_page.wait_for_timeout(700)
+            run_lost = await run_page.evaluate(RUN_STATE)
+            journal.check(
+                "(r) a run nobody holds is SAID, with a door back to the passages",
+                run_lost["open"] and "n'existe pas" in (run_lost["missing"] or "")
+                and run_lost["doorBack"] and run_lost["steps"] == 0,
+                f"missing={run_lost['missing']!r} door={run_lost['doorBack']} "
+                f"steps={run_lost['steps']}")
+            journal.check("the address stays exactly as typed",
+                          run_page.url == wrong_run_address, run_page.url)
+            journal.check("no JS error on an unknown run", not errors, str(errors))
+            await run_context.close()
 
         await browser.close()
 

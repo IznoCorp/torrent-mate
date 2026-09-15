@@ -133,6 +133,7 @@ the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
 """
 import asyncio
 import json
+import pathlib
 import urllib.parse
 
 from common import (
@@ -207,6 +208,9 @@ SHEET_TITLE = "Silo (2023)"
 QUALITY_PROFILE = "Test Profile"
 RESOLUTION_FOLDER = "Backrooms.2026.MULTi.2160p.WEB-DL"
 RELEASES_TITLE = "Silo"
+# A passage the history holds, taken from the snapshot the layer answers.
+FIRST_RUN = json.loads((pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "mocks"
+                        / "seeds" / "pipeline-runs.json").read_text(encoding="utf-8"))[0]["runUid"]
 
 # What the not-found surface says. Asserted, never authored: this is the
 # interface's own rendered output, and translating it here would stop the hold
@@ -451,6 +455,7 @@ async def main():
             "/quality/$name": {"$name": QUALITY_PROFILE},
             "/resolution/$folder": {"$folder": RESOLUTION_FOLDER},
             "/releases/$title": {"$title": RELEASES_TITLE},
+            "/run/$runUid": {"$runUid": FIRST_RUN},
         }
         if sheet_resolved:
             examples["/media/$provider/$id"] = {

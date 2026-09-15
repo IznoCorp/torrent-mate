@@ -5,8 +5,10 @@
 // targets, and the two `.crossref` buttons keep the `data-go` / `data-page`
 // attributes the document-level delegation reads.
 //
-// Système answers ONE question: is the machine well? It is a pure renderer —
-// it writes nothing, ever. Its only inputs are `state.phase` (the skeleton and
+// Système answers ONE question: is the machine well? It READS to answer it —
+// the services, the schedulers, what holds the pipeline, the passages — and the
+// « Le pipeline » section is where what governs ALL media at once is read and,
+// as its levers land, set. Its own inputs stay `state.phase` (the skeleton and
 // error surfaces) and `state.panne` (the simulated-fault state, which no UI
 // control toggles: only the harness drives it, and only through `__go`).
 //
@@ -16,13 +18,14 @@
 import { useTranslation } from "react-i18next";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
+import { PipelinePanel } from "./pipeline-panel";
+import { RunList } from "./run-list";
 import { useSchedulersDown, useServicesDown } from "./fault";
 import { useUiState } from "../../lib/store-access";
 import {
   useDependencies,
   useDisks,
   useIndexHealth,
-  usePipelineHistory,
   useSchedulers,
   useServices,
   useSystemErrors,
@@ -42,7 +45,6 @@ export function SystemPage(): ReactElement | null {
   const SERVICES_DOWN = useServicesDown(SERVICES);
   const { data: SCHEDULERS = [] } = useSchedulers();
   const SCHEDULERS_DOWN = useSchedulersDown(SCHEDULERS);
-  const { data: EXECUTIONS = [] } = usePipelineHistory();
   const { data: DISKS = [] } = useDisks();
   const { data: INDEX = [] } = useIndexHealth();
   const { data: DEPENDENCIES = [] } = useDependencies();
@@ -93,21 +95,9 @@ export function SystemPage(): ReactElement | null {
       </div>
       {facts(state.fault ? SCHEDULERS_DOWN : SCHEDULERS)}
 
-      <h2 className={sectionHeading()} data-part="heading">{t("screens.system.runs")}</h2>
-      {facts(
-        EXECUTIONS.map((execution) => ({
-          l: execution.q,
-          ton: execution.ok ? "success" : "alert",
-          v: execution.ok
-            ? t("screens.system.runSucceeded")
-            : t("screens.system.runFailed"),
-          s: execution.d + " · " + execution.r,
-        })),
-      )}
-      <button className={crossReference()} data-part="cross-reference" data-go="arr">
-        {t("screens.system.toArrivals")}
-        <span className={crossReferenceLink()}>{t("screens.system.toArrivalsLink")}</span>
-      </button>
+      <PipelinePanel />
+
+      <RunList />
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.system.disks")}</h2>
       {facts(DISKS)}

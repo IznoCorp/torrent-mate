@@ -34,6 +34,10 @@ import sqlite3
 from common import Journal, open_page
 from playwright.async_api import async_playwright
 
+# THE BAR'S OWN WORDS, from the interface's resources.
+SCREEN = json.loads((pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "i18n"
+                     / "fr.json").read_text(encoding="utf-8"))["screens"]["arrivals"]
+
 LIBRARY = pathlib.Path(os.path.expanduser("~/dev/PersonalScraper/.data/library.db"))
 
 # The engine's steps, in `DEFAULT_STEPS` execution order (docs/production/
@@ -49,7 +53,12 @@ READ = """() => {
     status: (document.querySelector('[data-part="pipeline"] [data-part="pipeline/title"]') || {}).textContent || '',
     buttons: [...document.querySelectorAll('[data-part="pipeline"] [data-pipe]')]
                .map((b) => b.dataset.pipe),
+    inactive: [...document.querySelectorAll('[data-part="pipeline"] [data-pipe]:disabled')]
+               .map((b) => b.dataset.pipe),
     queued: !!document.querySelector('[data-part="pipeline"] [data-part="live-activity"]'),
+    bar: ((document.querySelector('[data-part="pipeline"]') || {}).textContent || '').replace(/\\s+/g, ' ').trim(),
+    live: ((document.querySelector('[data-part="pipeline"] [data-part="live-activity"]') || {}).textContent || '').replace(/\\s+/g, ' ').trim(),
+    gauge: !!document.querySelector('[data-part="pipeline"] [style*="width"]'),
     uid: (window.PIPELINE_UID_POUR_LA_SONDE || null),
     steps: [...document.querySelectorAll('[data-part="flux"] [data-part="flux/row"]')].map((x) => ({
       name: x.querySelector('[data-part="flux/name"]').textContent.trim(),
@@ -162,23 +171,44 @@ async def main():
         layer = await pg.evaluate(LAYER_STATE)
         journal.check("and the layer's status read answers « running »", layer == "running",
                       f"the status read answers {layer!r}")
-        journal.check("while running, another pass can still be ASKED for",
-                      "start" in running["buttons"] and "stop" in running["buttons"],
-                      str(running["buttons"]))
+        # RE-AIMED: « another pass can still be asked for » was a control the
+        # backend refuses every time; « lancer » is drawn INACTIVE beside « arrêter ».
+        journal.check("while running, « lancer » is drawn inactive and « arrêter » acts",
+                      "stop" in running["buttons"] and running["inactive"] == ["start"],
+                      f"{running['buttons']} inactive={running['inactive']}")
         journal.check("while running, nothing claims a pass is already queued",
                       not running["queued"])
 
+        # RE-AIMED: a second pass asked DURING a run is the duplicate the backend
+        # refuses 409 (R185 holds it); a pass WAITS behind a MAINTENANCE run.
+        # So the running pass is stopped, the veille's own operation is put in
+        # flight, and « lancer » is tapped again — the drawing read is the same.
+        await pg.tap('[data-part="pipeline"] [data-pipe="stop"]')
+        await pg.wait_for_timeout(350)
+        await pg.evaluate("()=>fetch('/api/acquisition/detect', {method: 'POST'})")
         await pg.tap('[data-part="pipeline"] [data-pipe="start"]')
         await pg.wait_for_timeout(350)
         queued = await pg.evaluate(READ)
-        journal.check("a pass asked for DURING another is queued, and says so",
+        journal.check("a pass asked for while a maintenance run holds the lock is queued, and says so",
                       queued["queued"], f"queued={queued['queued']} buttons={queued['buttons']}")
         layer = await pg.evaluate(LAYER_STATE)
         journal.check("and the layer's status read answers « queued » (DOIT-4)", layer == "queued",
                       f"the status read answers {layer!r}")
-        journal.check("and it is not refused: the running pass carries on",
-                      queued["status"] == "En cours" and "stop" in queued["buttons"],
-                      f"{queued['status']} · {queued['buttons']}")
+        # RE-AIMED, said out loud: this hold read « the bar goes on drawing the
+        # pass » as the title « En cours » over a gauge and a step. After the
+        # second pass became a refusal, `queued` means a pass WAITING behind a
+        # maintenance run with no pass running — so a gauge, a step and « En
+        # cours » draw a pass that does not run. The bar now says « En file »,
+        # draws no gauge and no step, and its sentence names the maintenance.
+        waiting = SCREEN["queuedLead"] + SCREEN["queuedBold"] + SCREEN["queuedRest"]
+        journal.check("and it is not refused: the bar draws the pass WAITING — « En file », no "
+                      "gauge, no step, the sentence naming the maintenance, and « arrêter »",
+                      queued["status"] == SCREEN.get("queuedTitle") and not queued["gauge"]
+                      and SCREEN["runningTitle"] not in queued["bar"]
+                      and SCREEN["stepOf"].split("{{")[0] not in queued["bar"] and queued["live"] == waiting.strip()
+                      and "maintenance" in waiting and "stop" in queued["buttons"],
+                      f"title {queued['status']!r} gauge={queued['gauge']} bar {queued['bar']!r} "
+                      f"live {queued['live']!r}")
 
         await pg.tap('[data-part="pipeline"] [data-pipe="stop"]')
         await pg.wait_for_timeout(350)

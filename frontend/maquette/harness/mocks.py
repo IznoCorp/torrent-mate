@@ -197,11 +197,14 @@ async def main():
         # `deleteFollow` alone, and reading one of sixteen is how three routes
         # that changed nothing at all went unnoticed.
         for operation, mutate, read, changed in (
+            # RE-AIMED: the read after a run was a SECOND run, whose changed
+            # state was the queue; a second pass is now refused 409, so the
+            # read is the pipeline's own status, which must say what the run did.
             (
                 "runPipeline",
                 ("/api/pipeline/run", "POST", None),
-                ("/api/pipeline/run", "POST", None),
-                lambda first, second: first["state"] != second["state"],
+                ("/api/pipeline/status", "GET", None),
+                lambda first, second: second["state"] == first["state"] != "idle",
             ),
             (
                 "updateConfigurationFile",

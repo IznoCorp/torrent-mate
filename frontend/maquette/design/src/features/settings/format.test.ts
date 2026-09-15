@@ -34,8 +34,14 @@ type Setting = {
   precision?: number;
 };
 
+// THE FIELDS THE ENGINE RENDERED, which is what this file compares against.
+// A setting the maquette DEMANDS of the backend carries no `displayedValue`:
+// nothing rendered it, because it does not exist in any configuration file yet.
+// Filtering on that is what keeps the comparison honest — asserting a rendering
+// for a field nobody has ever rendered would be asserting this test's own guess.
 const FIELDS: Setting[] = (SETTINGS as { settings: Setting[] }[])
-  .flatMap((topic) => topic.settings);
+  .flatMap((topic) => topic.settings)
+  .filter((setting) => setting.displayedValue !== undefined);
 
 // The seven fields whose rendering carries a decimal the value does not. JSON
 // holds one number for `4` and `4.0`, so the contract carries a `precision` and

@@ -43,6 +43,20 @@ export function recordAnswered(call: AnsweredCall): void {
 }
 
 /**
+ * Corrects the status of the call recorded last, to the one really answered.
+ *
+ * A HANDLER CAN REFUSE AFTER THE CALL IS RECORDED — it is recorded before the
+ * handler runs, so that a latency or an armed failure is on the record too.
+ *
+ * Args:
+ *     status: The status the handler chose.
+ */
+export function setLastStatus(status: number): void {
+  const last = answered[answered.length - 1];
+  if (last !== undefined) last.status = status;
+}
+
+/**
  * Every call the layer has answered, in order.
  *
  * COPIES ARE HANDED OUT, so a reader cannot edit the record it is reading —
