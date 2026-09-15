@@ -336,7 +336,12 @@ def test_the_committed_reference_carries_a_platform():
     # states — whole, still going, failed, its raw output opened, a run with no output kept,
     # a maintenance command — are the only ones that moved: every other state gained a null
     # `run/body` and nothing else, Système's included. Verified by name.
-    assert reference["counts"] == {"states": 113, "regions": 38}
+    #
+    # 114 STATES, 38 REGIONS. `lib-selection-filtered` is a library selection kept under
+    # « Films », a documentary ticked and no longer drawn. It is the only entry added and no
+    # existing state moved — once the driver's reset stopped letting the category it pins
+    # leak into the states after it. Verified by name.
+    assert reference["counts"] == {"states": 114, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:
