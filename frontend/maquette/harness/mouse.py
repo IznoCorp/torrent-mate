@@ -79,9 +79,17 @@ async def main():
     #    row has a drawer on each side, a library row has none on the left — and
     #    a row with no drawer on the side being dragged towards REFUSES to move,
     #    which is exactly the case that armed nothing.
-    await pg.evaluate("""()=>{window.__clicks = [];
-      document.addEventListener('click',
-        (e) => window.__clicks.push({swallowed: e.defaultPrevented}), true);}""")
+    # READ ON `window`, IN CAPTURE, AND AFTER THE DISPATCH. The guard stops the
+    # click with `stopImmediatePropagation` in the document's capture phase, so
+    # a listener beside it on `document` is never called — it read an EMPTY list
+    # and reported « not swallowed » over a click that was. `window` capture runs
+    # first and keeps the event; `defaultPrevented` is read once the dispatch is
+    # over, when the guard has had its say. RE-AIMED, said here.
+    await pg.evaluate("""()=>{window.__clickEvents = [];
+      window.addEventListener('click', (e) => window.__clickEvents.push(e), true);
+      Object.defineProperty(window, '__clicks', {configurable: true,
+        get: () => window.__clickEvents.map((e) => ({swallowed: e.defaultPrevented})),
+        set: (value) => { window.__clickEvents = value; }});}""")
     for state_, list_label in (("acq-follows-list", "a follow row"),
                          ("lib-list", "a library row")):
         for direction, dx in (("right", 150), ("left", -150)):
