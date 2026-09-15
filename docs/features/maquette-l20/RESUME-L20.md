@@ -2,28 +2,28 @@
 
 ## STATE BLOCK (rewritten at every boundary — at most 40 lines)
 
-- **Updated**: 2026-09-15, `Agent : l20 3` at the phase-8 boundary; phase 9 next (rulings 8 and 9).
+- **Updated**: 2026-09-15, `Agent : l20 3` — ALL NINE PHASES DONE; pull request **#603** opened READY.
 - **Branch / worktree**: `feat/maquette-l20`, `/Users/izno/dev/worktrees/wave-l20`; L13b merged in at
-  9025348e6 (a merge, never a rebase). HEAD = pushed head; `git ls-remote` proves it.
-- **Phases done**: 1–7 as before; 8 (R185 + ruling 8's 409, the suite's three falls repaired).
-- **Next**: phase 9 (`plan/phase-09-close.md`) WITH ruling 9 inside it (« Lancer ensuite » → « Lancer »
-  disabled while a pass runs: one hold red first, one mutation). Owed to phase 9 § 1: `--a11y` fails on this
-  lot's locks/levers markup (see the ledger). § 4: the hold-counts baseline must be RE-RECORDED — `--compare`
-  refuses a baseline naming L13b's pre-squash head.
-- **Rule numbers**: ruling 1 — R178–R185, R187 (R186 unused). R185 = `harness/queued_by_hand.py`.
-- **Register rows**: ruling 4 — L20's `BUGS.md` rows start at B-530.
-- **Data**: ruling 3 `seeds/pipeline-runs.json`, ruling 5 `seeds/tmp-orphans.json`.
-- **Owed**: the composed row line loses « 1 bloqué » (a demand); three raw `<details>` sites (DESIGN § 9);
-  hold counts moved and not re-recorded — screen_addresses.py 51→58, back.py 17→21, run_history.py 23,
-  raw_log.py 13, queued_by_hand.py 19, machine.py 92→90, url_state.py 99→102. `mocks/state.ts` 398/400,
-  `harness/page_host.py` 999/1000. mocks.py's R85 is re-aimed here AND on feat/maquette-l13r (r·2): keep both.
-- **Tooling (L13b's, now on this branch)**: `run.sh --contracts --oracle <rule paths>` is the only form that
-  reads names; `TM_HARNESS_JOBS=3` for that tier, 2 for the full suite. Long runs are WAITED FOR inside the
-  tool call (order 36): ≤ 595 s, or a bounded poll of the log for `heavy: l20 done`.
-- **Locks**: shared mutex `TM_HARNESS_JOBS=… sh scripts/heavy.sh --class browser l20 …` (announce
-  before/after); tests lock `HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder` for pytest and every push; own
-  lock `/private/tmp/tm-heavy-l20/holder` for npm/tsc.
-- **Logs**: `~/Library/Logs/tm-l20/<phase>-<step>.log`.
+  9025348e6. HEAD = pushed head; `git ls-remote` proves it. Version 0.98.95 (main read 0.98.94).
+- **Phases done**: 1–9, rulings 1–9 applied. Register: B-296, B-297, B-371 `fixed #603`; B-383 was already
+  `fixed #592` in full on main.
+- **Next**: CI on #603's head; the reader round in a FRESH session with a resume brief (not this one);
+  the merge and the post-merge gesture are the steward's (baseline and oracle recorded there).
+- **Final gate** (on 6ab6a3f48, code-final): `make lint` 0; `run.sh` full, JOBS=2 — 141 rules, 26 guards,
+  no violation; `--a11y` dark 0, light 147 under 149 (ceiling NOT lowered on this branch); oracle 0; hold
+  counts `--compare` against a scratch copy re-pointed at 5df76af33 — failed 0, movements in #603's body.
+- **Owed / for the steward's docs PR**: the clause-map proposal (`REPORT.md` § 8); the register row numbers
+  of ruling 4 collide (main used B-530) — next free B-531; a row for the three raw `<details>` sites
+  (no lot claims them); ruling 9's register row; `IMPLEMENTATION.md`'s « In flight » row.
+- **Rule numbers**: R178–R185, R187 (R186 unused). **Data**: rulings 3 and 5's seeds.
+- **Traps of this session**: `timeout N` around `heavy.sh` kills `run.sh` mid-oracle (exit 124) — wait by a
+  bounded poll of the log instead; a poll loop on a log that already holds `exit=` from an older run reads
+  the old verdict (compare mtimes); `harness-hold-counts.py` acquires the served copy ITSELF (a wrapper that
+  acquires first is refused) and needs only the 8899 host; `check-markup-contracts` reads only a LITERAL
+  `data-part="…"` (a computed one is invisible, so a literal plus a spread override).
+- **Locks**: shared mutex `sh scripts/heavy.sh --class browser l20 …`; tests lock
+  `HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder` for every push; own lock for npm/tsc.
+- **Logs**: `~/Library/Logs/tm-l20/<phase>-<step>.log` (cited by `REPORT.md`; keep until the merge).
 
 ---
 
@@ -248,3 +248,10 @@
   season_grab.py 16, journey_verbs.py 16 unchanged; machine.py 92 → 90 and url_state.py 99 → 102 are this
   lot's; arrivals.py 24 → 27 and panel.py 51 → 58/59 were already so on the merged tree before any edit
   (L13b's moves over its own baseline); queued_by_hand.py new, 19.
+- 2026-09-15 — phase 9: ruling 9 read red (« disabled: False, text 'Relancer ensuite' », « [200, 409] »),
+  then the move (210e4df61), mutation D fell. The accessibility tier: dark 157 → 0 and light 269 → 147 over
+  three causes (levers' `actionButton()` with no kind, `div`-wrapped `<li>` in the locks, a focusable
+  `pre`) plus two light tones (`-text` for a passage's outcome, and the SHARED `crossReferenceLink`).
+  Oracle 130 geometric divergences on exactly the 26 Système states × five regions, accepted and verified
+  by name (ec7caa15f). `REPORT.md` written; the README's « 54 » corrected without a number; the guards
+  table's L20 row (7). Final full suite green; hold counts compared; #603 opened; closures a884a9ba8.
