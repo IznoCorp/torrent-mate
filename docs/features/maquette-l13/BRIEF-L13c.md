@@ -15,7 +15,7 @@ library's states at rest (c·8, B-345's library half), and the close (c·9 — t
 the stale reference sentences, the report; DESIGN § 9, § 10).
 
 **Rulings 1–109(+) are in `docs/features/maquette-l13/RULINGS.md`** — one numbered file,
-non-reopenable; L13c appends from **110** (the steward's number, in the launch prompt — L13r holds
+non-reopenable; L13c appends from **115** (the steward's number, in the launch prompt — L13r holds
 100–103 as it opens; the margin is deliberate). The ones that shape L13c: 27/Ruled B (the three-lot
 cut), the D-L13-1 lines (28, and DESIGN § 8) that c·1's selection-bar and c·7's follow contract
 build beside, and 98–99 (why L13r exists between L13b and this sub-lot). DESIGN § 9 and § 10 are
@@ -24,7 +24,7 @@ this brief's real reading, not restated here.
 ## Environment
 
 - Worktree `/Users/izno/dev/worktrees/wave-l13c`, branch `feat/maquette-l13c`, cut from L13r's FINAL
-  head `<L13r head>` (its pull request's head) — STACKED (measure 9): L13r's reader round and merge
+  head `08400a22a` (its squash on `main`) — STACKED (measure 9): L13r's reader round and merge
   are never awaited. **When the steward tells you L13r is squashed onto `main`, you MERGE
   `origin/main` in at your next unit boundary** (`git merge --no-edit <sha the steward names>`;
   never a rebase — the auto-mode classifier refuses a force-push on a shared branch, and a plain
@@ -114,7 +114,7 @@ this brief's real reading, not restated here.
   `docs/reference/*` (`docs/features/maquette-l13/DESIGN.md`'s own § 9 amendment excepted — the
   wave amends only the file under its own folder), `CLAUDE.md`, the office**; a full-path citation
   of a file your phase deletes, refused by `check-docs-cited-paths.py`, is re-cited
-  `path@<L13r head>` and nothing else in that file, said in the body.
+  `path@08400a22a` and nothing else in that file, said in the body.
 - **CONTEXT BUDGET ≤ 15 points per phase**: gate logs read by their verdict line only; commit bodies
   ≤ 12 lines, no baseline figure in a body (order 31: file + direction in one line); a phase-file
   amendment is ONE dated line. Gauge at every phase boundary, before and after; **under 45 % you
