@@ -11,11 +11,11 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
 - Phases (ruling 101): r·1 constants and helpers → r·2 served fixtures → r·3 the engine's product verbs (BEHAVIOUR)
   → r·4 the engine's frame verbs (BEHAVIOUR) → [midpoint full suite] → r·5 the reference dies → r·6 contract names
   (STOP D with a cut at its opening; never one phase) → r·7 the file dies + the full gate + the PR.
-  r·1 DONE (`12f3e242b`), r·2 DONE (`d997e7c59`, pushed `c29a5c5c7`).
-- NEXT: r·3 (`plan/phase-r03-engine-product-verbs.md`: rule first where none taps, red, green, mutation), then r·4
-  and the MIDPOINT suite in this session, then stand down; `Agent : l13r 2` takes r·5 on. Frame-domain after r·2:
+  r·1 DONE (`12f3e242b`), r·2 DONE (`d997e7c59`, pushed `c29a5c5c7`), r·3 DONE (`4168932d6`).
+- NEXT: r·4 (`plan/phase-r04-engine-frame-verbs.md`: rule first where none taps, red, green, mutation), then the
+  MIDPOINT suite in this session, then stand down; `Agent : l13r 2` takes r·5 on. Frame-domain after r·3:
   lib/ 28, app/ 139.
-- legacy.js non-blank: 1 600 at the cut, 1 274 after r·1, 888 after r·2. `scripts/frontend_size_ledger.py`
+- legacy.js non-blank: 1 600 at the cut, 1 274 after r·1, 888 after r·2, 663 after r·3. `scripts/frontend_size_ledger.py`
   re-recorded DOWNWARD in every phase's commit.
 - OWED (r·1's republications): `legacy.js` publishes `stLabel`, `cadenceFR`, `nextSearchFR` on `window` (readers
   `audit.py`, `content.py` → re-aimed at r·7) and `__referentiel.baseTitle`/`dateFR` (readers `followed_sheet_act.py`,
@@ -60,3 +60,10 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   (`r02-mutation-<rule>.log`): machine, address, content, season_family, season_grab_unfollowed, mocks (R85).
 - 2026-09-15 ruling 101: r·3 measured ~25 points and was cut, numbered — r·3 product verbs, r·4 frame verbs; the
   former r·4/r·5/r·6 are r·5/r·6/r·7 (files moved). The r·1 ledger's « owed to r·4 and r·6 » now reads r·5 and r·7.
+- 2026-09-15 r·3 (ruling 101): the settings working state → `features/settings/state.ts` (reset →
+  `harness/settings-reset.ts`), `addVerb` → `features/acquisition/add-label.ts`, the removal → `delete-dialog.ts`, the
+  press → `lib/press-arbitration.ts` `installPanelPress()` (first at boot); `mountSearch`, `openSheet` and seven
+  reader-less names died (888 → 663). Rule first: R96 (`add_footer.py`) +2 holds on the done verb, green on the engine,
+  red with its branch mutated, red again on `add-label.ts` (`r03-mutation-add_footer.log`). Gate `r03-gate.log`: 35
+  rules (19 named), 26 guards, oracle no divergence; holds: add_footer 11 → 13 (the two written), 18 others unchanged.
+  The reference-slice arm refuses an empty corpus: `SettingsReference` declares the two names still published.
