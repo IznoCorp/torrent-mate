@@ -41,8 +41,12 @@ permits refusing, and a pass waits only behind a MAINTENANCE run.
      by the walk's own start.
  11. AND A SECOND PASS ASKED OF THE LAYER IS ANSWERED 409, the pipeline going on
      running — not demoted to a queue.
- 12. WITH A MAINTENANCE RUN IN FLIGHT, « Lancer le pipeline » is answered and the
-     pass is QUEUED, and the queued sentence says so.
+ 12. WITH A MAINTENANCE RUN IN FLIGHT — put there by a finger on Système's
+     « Lancer la veille maintenant », and drawn as a held lock there — Arrivées'
+     « Lancer le pipeline » is answered and the pass is QUEUED, the queued
+     sentence says so, and the bar draws the pass in file. The maintenance run
+     LASTS while the hand walks: a run that ended on its second read would have
+     turned this walk into a plain start.
 """
 import asyncio
 import json
@@ -138,9 +142,18 @@ START = '[data-part="pipeline"] [data-pipe="start"]'
 RUN_STATUSES = """()=>(window.__mocks?.answered?.() || [])
   .filter((call) => call.operationId === "runPipeline").map((call) => call.status)"""
 
-# A MAINTENANCE RUN PUT IN FLIGHT the way the veille's lever does — its own
-# operation, not a state door.
-LAUNCH_MAINTENANCE = """async ()=>(await fetch('/api/acquisition/detect', {method: 'POST'})).status"""
+# WHAT THE LAYER SAYS OF THE PIPELINE'S LOCK.
+LOCK_HELD = """async ()=>(await (await fetch('/api/maintenance/locks')).json()).pipelineLock.held"""
+
+# WHAT « Verrou du pipeline » SAYS on Système.
+LOCK_ROW = """(part)=>{
+  const node = document.querySelector(`[data-part="${part}"] [data-part="flux/value"]`);
+  return node ? node.textContent.replace(/\\s+/g, ' ').trim() : null;}"""
+
+# WHAT THE BAR SAYS, whole.
+BAR = """()=>{
+  const node = document.querySelector('[data-part="pipeline"]');
+  return node ? node.textContent.replace(/\\s+/g, ' ').trim() : '';}"""
 
 SAID = """()=>window.__toast?.read()?.message?.message || ''"""
 
@@ -286,7 +299,22 @@ async def queued_behind_maintenance(journal, page):
         journal: The rule's journal.
         page: A freshly opened page, its pipeline idle.
     """
-    launched = await page.evaluate(LAUNCH_MAINTENANCE)
+    if not await press(journal, page, '#nav button[data-page="sys"]',
+                       "Système is reached by a finger, from the tab bar"):
+        return
+    await page.wait_for_timeout(SETTLED)
+    if not await press(journal, page, '[data-part="levers/watch-now"]',
+                       "« Lancer la veille maintenant » is pressed by a finger"):
+        return
+    await page.wait_for_timeout(ACTED)
+    launched = await page.evaluate(ANSWERED, "runDetection")
+    row = await page.evaluate(LOCK_ROW, "locks/pipeline")
+    held = await page.evaluate(LOCK_HELD)
+    journal.check(
+        "the maintenance run the finger launched HOLDS the pipeline's lock, on the layer "
+        "and on « Verrou du pipeline »",
+        launched == [202] and held is True and bool(row) and row.startswith("Pris"),
+        f"runDetection answered {launched}, locks read held={held}, the row says {row!r}")
     if not await press(journal, page, '[data-page="arr"]',
                        "with a maintenance run in flight, Arrivées is reached by a finger"):
         return
@@ -297,13 +325,16 @@ async def queued_behind_maintenance(journal, page):
     statuses = await page.evaluate(RUN_STATUSES)
     state = await page.evaluate(PIPELINE_STATE)
     said = await page.evaluate(SAID)
+    bar = await page.evaluate(BAR)
+    mark = SCREEN_SENTENCES["queuedLead"] + SCREEN_SENTENCES["queuedBold"]
     journal.check(
         "a pass asked while a MAINTENANCE run holds the lock is answered and QUEUED, "
         "and the queued sentence says so",
-        launched == 202 and statuses == [200] and state == "queued"
+        statuses == [200] and state == "queued"
         and said == VERB_SENTENCES["pipelineQueued"],
-        f"maintenance launch {launched}, runPipeline answered {statuses}, "
-        f"status {state!r}, said « {said} »")
+        f"runPipeline answered {statuses}, status {state!r}, said « {said} »")
+    journal.check("and the bar draws the pass in file", mark in bar,
+                  f"{mark!r} in {bar!r}")
 
 
 async def fresh_page(browser):

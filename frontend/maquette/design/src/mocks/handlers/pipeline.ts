@@ -15,7 +15,9 @@ import EXECUTIONS from "../seeds/pipeline-executions.json";
 import PIPELINE_RUNS from "../seeds/pipeline-runs.json";
 import { GET, POST, field, route } from "./shared";
 import { mockState } from "../state";
-import { scenario } from "../scenario";
+import { DETECTION_MILLISECONDS, scenario } from "../scenario";
+import { emit } from "../stream";
+import { log } from "../stream-server";
 import { refused, type MockRequest, type MockRoute } from "../router";
 import type { components } from "../../contract/types";
 
@@ -53,12 +55,11 @@ const DETECTION_KIND = "maintenance";
 const DETECTION_COMMAND = "follow-detect";
 const DETECTION_RUN_PREFIX = "detection-";
 
-// HOW LONG A DETECTION RUNS, on the layer's own clock: the run is read once
-// while it is still going, and ends on the next read. The clock is a count of
-// reads rather than of milliseconds because the layer is never jittered — the
-// same state driven twice has to see the same thing — and a run that ended
-// before anyone could read it would make « en cours » a state nobody reaches.
-const READS_WHILE_DETECTING = 1;
+// WHAT ENDS A DETECTION RUN: the event the backend sends when a run ends. The
+// layer sends it itself once the run has lasted its time, and a named state
+// that wants the figures at once sends it sooner. A read never ends a run —
+// reading a run is not a reason for it to be over.
+const RUN_ENDED = "PipelineEnded";
 
 const MILLISECONDS_PER_SECOND = 1000;
 
@@ -111,19 +112,34 @@ function summaryOf(run: RunDetail): RunSummary {
 }
 
 /**
- * Ends a detection run once it has been read while running.
+ * Ends every detection run in flight once a run-ending event nobody answered has been sent.
+ *
+ * COUNTED, NOT POSITIONED. A named state asks for a veille and sends the event
+ * in the same breath, and the launch may reach the layer after the event does;
+ * an event is therefore answered by whatever runs are in flight when it is
+ * first noticed, and never twice.
+ *
+ * @param state The layer's state.
+ */
+function advanceEveryDetection(state: ReturnType<typeof mockState>): void {
+  const endedCount = log.entries.filter((entry) => entry.type === RUN_ENDED).length;
+  if (endedCount <= state.runEndingsSeen) return;
+  state.runEndingsSeen = endedCount;
+  state.pipelineRuns
+    .filter((run) => run.outcome === STILL_RUNNING && run.runUid.startsWith(DETECTION_RUN_PREFIX))
+    .forEach((run) => endDetection(state, run));
+}
+
+/**
+ * Ends one detection run.
  *
  * The figures are the acquisition queue's, which is where the three numbers
  * DOIT-6 requires have always been derived from in this layer.
  *
  * @param state The layer's state.
- * @param run The run being read.
+ * @param run The run to end.
  */
-function advanceDetection(state: ReturnType<typeof mockState>, run: RunDetail): void {
-  if (run.outcome !== STILL_RUNNING || !run.runUid.startsWith(DETECTION_RUN_PREFIX)) return;
-  const reads = state.runReads[run.runUid] ?? 0;
-  state.runReads[run.runUid] = reads + 1;
-  if (reads < READS_WHILE_DETECTING) return;
+function endDetection(state: ReturnType<typeof mockState>, run: RunDetail): void {
   run.outcome = SUCCEEDED;
   run.endedAt = run.startedAt;
   run.durationS = ageSince(run.startedAt);
@@ -139,12 +155,30 @@ function advanceDetection(state: ReturnType<typeof mockState>, run: RunDetail): 
 }
 
 /**
+ * The maintenance run holding the pipeline's lock, when one is in flight.
+ *
+ * @param state The layer's state.
+ * @returns The run, or undefined.
+ */
+function maintenanceInFlight(state: ReturnType<typeof mockState>): RunDetail | undefined {
+  advanceEveryDetection(state);
+  return state.pipelineRuns.find(
+    (run) => run.kind === DETECTION_KIND && run.outcome === STILL_RUNNING,
+  );
+}
+
+/**
  * Launches the veille: appends a detection run to the history, still running.
+ *
+ * The run lasts its time on a real clock and then the layer sends the event
+ * that ends it — unless the layer was reset meanwhile, in which case the timer
+ * belongs to a state nobody is looking at any more and does nothing.
  *
  * @returns The run's identifier, which is what the 202 names.
  */
 export function launchDetection(): { runUid: string } {
   const state = mockState();
+  advanceEveryDetection(state);
   const runUid = DETECTION_RUN_PREFIX + String(state.pipelineRuns.length);
   state.pipelineRuns = [
     {
@@ -164,6 +198,9 @@ export function launchDetection(): { runUid: string } {
     },
     ...state.pipelineRuns,
   ];
+  setTimeout(() => {
+    if (mockState() === state) emit(RUN_ENDED, {});
+  }, DETECTION_MILLISECONDS);
   return { runUid };
 }
 
@@ -186,10 +223,7 @@ export function pipelineRoutes(): MockRoute[] {
     route("runPipeline", POST, "/api/pipeline/run", () => {
       const state = mockState();
       if (state.pipelineState !== IDLE) return refused(409, RUN_ALREADY_GOING);
-      const maintenanceHolds = state.pipelineRuns.some(
-        (run) => run.kind === DETECTION_KIND && run.outcome === STILL_RUNNING,
-      );
-      state.pipelineState = maintenanceHolds ? QUEUED : RUNNING;
+      state.pipelineState = maintenanceInFlight(state) === undefined ? RUNNING : QUEUED;
       state.pipelineSince = scenario().now;
       return { state: state.pipelineState, uid: null };
     }),
@@ -230,7 +264,7 @@ export function pipelineRoutes(): MockRoute[] {
       const kind = request.query.get("kind") ?? EVERY_KIND;
       const limit = Number(request.query.get("limit") ?? DEFAULT_PAGE_SIZE);
       const offset = Number(request.query.get("offset") ?? 0);
-      state.pipelineRuns.forEach((run) => advanceDetection(state, run));
+      advanceEveryDetection(state);
       const matching = state.pipelineRuns.filter(
         (run) => kind === EVERY_KIND || run.kind === kind,
       );
@@ -251,7 +285,7 @@ export function pipelineRoutes(): MockRoute[] {
       const state = mockState();
       const run = state.pipelineRuns.find((one) => one.runUid === request.parameters.runUid);
       if (run === undefined) return refused(404, UNKNOWN_RUN);
-      advanceDetection(state, run);
+      advanceEveryDetection(state);
       return run;
     }),
     route("readLocks", GET, "/api/maintenance/locks", () => {
@@ -259,11 +293,14 @@ export function pipelineRoutes(): MockRoute[] {
       // A STALE LOCK IS STILL A HELD ONE. The file is there; what is gone is
       // the process that wrote it, which is the whole difference between « the
       // pipeline is working » and « nothing is running and nothing can start ».
-      const held = state.pipelineState !== IDLE || state.lockStale;
+      // A MAINTENANCE RUN HOLDS IT TOO: the lock is the pipeline's, and a
+      // maintenance command takes it for its whole run.
+      const maintenance = maintenanceInFlight(state);
+      const held = state.pipelineState !== IDLE || state.lockStale || maintenance !== undefined;
       return {
         pipelineLock: {
           held,
-          ageS: held ? ageSince(state.pipelineSince) : null,
+          ageS: held ? ageSince(state.pipelineSince ?? maintenance?.startedAt ?? null) : null,
           stale: state.lockStale,
           pid: null,
         },

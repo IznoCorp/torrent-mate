@@ -21,6 +21,8 @@ type RunDetail = components["schemas"]["RunDetail"];
 /** The history, and the run the veille last launched inside it. */
 const HISTORY = "/api/pipeline/history";
 const LAUNCHED = ["veille/launched"];
+/** What holds the pipeline, which a veille takes while it runs. */
+const LOCKS = ["/api/maintenance/locks"];
 
 /** What the interface holds about the run it asked for. */
 type Launched = { runUid?: string; failed?: boolean };
@@ -45,6 +47,10 @@ async function launchTheWatch(): Promise<void> {
   // the detail as well: one invalidation, and the list and the run cannot show
   // two different truths about the same passage.
   await sharedQueryClient?.invalidateQueries({ queryKey: [HISTORY] });
+  // AND THE LOCKS: a veille is a maintenance run, and it takes the pipeline's
+  // lock for its whole run — the block saying « Libre » over it would be the
+  // same disagreement a pass started from Arrivées once caused.
+  await sharedQueryClient?.invalidateQueries({ queryKey: LOCKS });
 }
 
 registerVerb("watch-now", () => {

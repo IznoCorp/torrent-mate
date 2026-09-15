@@ -171,8 +171,8 @@ export type MockState = {
   pausedSince: string | null;
   /** When the automatic trigger was turned off, or null while it is on. */
   watcherPausedSince: string | null;
-  /** How many times each running veille was read: its clock. */
-  runReads: Record<string, number>;
+  /** How many run-ending events the running veilles have already answered. */
+  runEndingsSeen: number;
   /**
    * Whether the lock file outlived the process that took it.
    *
@@ -299,7 +299,7 @@ const seeded = (): MockState => ({
   pipelineSince: null,
   pausedSince: null,
   watcherPausedSince: null,
-  runReads: {},
+  runEndingsSeen: 0,
   lockStale: false,
   sweepFinished: true,
   historyDegraded: false,
