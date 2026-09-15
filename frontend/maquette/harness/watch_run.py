@@ -8,6 +8,10 @@ never by what it says.
 
 WHAT IS READ, and the four holds are four different claims:
 
+  0. THE SEQUENCE IS SEEN BY A PERSON: pressed by a finger, the veille is
+     ANSWERED (lancé), is drawn « En cours… » AT REST while the layer's run is
+     still going (en cours), and then ends on its own and draws its figures
+     (chiffré). A run that ended on its second read skipped the middle state.
   1. THE ACT LANDS FROM BOTH EMITTERS. The « ⋮ » sheet's panel and the levers
      section emit ONE verb, registered once, and each is pressed by a finger and
      read on the NETWORK. A verb that works from one surface and not the other
@@ -23,6 +27,7 @@ WHAT IS READ, and the four holds are four different claims:
      surface for a success word rather than only the block.
 """
 import asyncio
+import json
 import pathlib
 import sys
 
@@ -95,6 +100,22 @@ COUNTS = """async ()=>{
   return step ? (step.counts || null) : null;
 }"""
 
+# THE INTERFACE'S OWN SENTENCES.
+SENTENCES = json.loads(
+    (pathlib.Path(__file__).resolve().parent.parent / "design" / "src" / "i18n" / "fr.json")
+    .read_text(encoding="utf-8"))["screens"]["system"]
+
+# WHAT THE LAYER SAYS OF THE RUN THE VEILLE LAUNCHED: still going, or how it ended.
+LAUNCHED_OUTCOME = """async ()=>{
+  const runs = await (await fetch('/api/pipeline/history')).json();
+  const launched = runs.runs.find((one) => one.runUid.startsWith('detection-'));
+  return launched ? launched.outcome : null;
+}"""
+
+# HOW LONG A PERSON MAY WAIT FOR THE FIGURES, polled, in milliseconds.
+FIGURES_WAIT = 20000
+POLL = 500
+
 # WHAT A PART SAYS.
 TEXT = """(part)=>{
   const node = document.querySelector(`[data-part="${part}"]`);
@@ -146,6 +167,25 @@ async def main():
         await page.wait_for_timeout(ACTED)
         called = await page.evaluate(ANSWERED, "runDetection")
         journal.check("pressing it CALLS runDetection", bool(called), f"{called}")
+
+        # 0 — EN COURS, AT REST, then CHIFFRÉ on its own.
+        for moment in ("right after the press", "and still, a moment later"):
+            said = await page.evaluate(TEXT, FIGURES_PART)
+            outcome = await page.evaluate(LAUNCHED_OUTCOME)
+            journal.check(f"{moment}: the veille is drawn RUNNING, and the layer's run is still going",
+                          said == SENTENCES["watchRunning"] and outcome == "running",
+                          f"{said!r}, the layer's run is {outcome!r}")
+            await page.wait_for_timeout(SETTLED * 2)
+        said = ""
+        for _ in range(FIGURES_WAIT // POLL):
+            said = await page.evaluate(TEXT, FIGURES_PART) or ""
+            if said != SENTENCES["watchRunning"]:
+                break
+            await page.wait_for_timeout(POLL)
+        outcome = await page.evaluate(LAUNCHED_OUTCOME)
+        journal.check("and it ENDS on its own, drawing its figures, with no state driven",
+                      outcome == "success" and "détectés" in said,
+                      f"{said!r}, the layer's run is {outcome!r}")
 
         # 1b — AND FROM THE « ⋮ » SHEET, the emitter that sent nothing.
         await drive(journal, page, SHEET)
