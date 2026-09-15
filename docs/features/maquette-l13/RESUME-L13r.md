@@ -11,14 +11,15 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   dies → r·6–r·13 contract names by family group (rulings 105–108) → r·14 the projection dies (ruling 109) → r·15 the file dies + full gate + PR.
   r·1 `12f3e242b`, r·2 `d997e7c59`, r·3 `4168932d6`, r·4 `688dab291`, R114 repair `3ddcd70d5`, r·5 `412b75075`,
   r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7`, r·9 `4fb1b2418` (+ `f6393dcf6`), r·10 `e827267b6`,
-  r·11 `e572a0708`, main 60c6d9b1d (L20 #603) merged `9e978aeaa` (+ `2864fb7c3`), r·12 `7238cd33b` — DONE.
-- NEXT: r·13 `plan/phase-r13-the-sheet.md` (MEASURED, ruling 109: conversion only ≈ 12) — `MediaSheet` = the contract's
-  schema FIRST, `MediaSheetFields` optional in contract names, SheetEpisode/CatalogSeason the contract's where identical;
-  the ~20 untyped readers (media-hero, media-screen, panel-seasons, media-cast, library-facts, season-list, popover)
-  then tsc's 22; the two `toEngineShapeEntry("SHEETS_RAW")` go; fixture entries stay. Then r·14 the projection dies
-  (opened by its measure: what build-mock-seeds.py reads instead), r·15 the file dies + PR. Frame-domain after r·12: lib/ 28, app/ 121.
-- legacy.js non-blank: 1 600 at the cut, 1 274 r·1, 888 r·2, 663 r·3, 534 r·4, 493 r·5 (r·6–r·11 did not touch it). `scripts/frontend_size_ledger.py`
-  re-recorded DOWNWARD in every phase's commit.
+  r·11 `e572a0708`, main 60c6d9b1d (L20 #603) merged `9e978aeaa` (+ `2864fb7c3`), r·12 `7238cd33b`, r·13 `9506bf881`
+  (+ `3dcde3533`) — DONE.
+- NEXT: r·14 `plan/phase-r14-the-projection-dies.md` — OPEN IT BY A MEASURE and one STOP D. `engine-shape.ts` has no
+  product caller since r·13. The question the measure answers: `scripts/build-mock-seeds.py` reads the families for
+  `seeded_families`/`projection_for`/`seed_of` (engine fixtures — do any seeded, unconverted families remain?),
+  `file_for` (each converted family's seed FILE name) and `rejoined` (the `join` of converted seeds); `check-mock-seeds.py`
+  imports it (`module.build()`, `rejoined()`, `file_for`, `converted_families`, the lossless arm l.283–308); CI path
+  `ci.yml:103`. Then r·15 the file dies + PR. Sweep method (steward): reads, literals handed to the product, generic
+  families, JS blocks, AND quoted one-letter keys kept in harness lists (`KEPT_PARTIAL` species). Frame-domain lib/ 28, app/ 121.
 - OWED TO r·15: `legacy.js`'s `Object.assign(window, …)` publishes `SETTINGS_STATE`, `icons`, `settingId`, `select`,
   `cadenceFR`, `nextSearchFR`, `stLabel` — readers `settings.py`, `page_host.py` (SETTINGS_STATE/settingId, re-aimed
   at r·5), `audit.py`, `content.py` (the three vocabulary names) → re-aimed from their homes when the file dies;
@@ -190,3 +191,12 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
 - 2026-09-15 ruling 109: r·13 measured ≈ 18–19 (tsc 22 on the trial typing + ~20 untyped sheet readers + the projection's
   apparatus) and cut — r·13 the sheet, r·14 the projection dies (new), r·15 the file dies (file moved, INDEX, BRIEF, state
   block re-pointed; dated and ledger lines keep their numbers).
+- 2026-09-15 r·13 (ruling 109): SHEETS_RAW left the projection; `MediaSheet` the contract's schema typed first (the
+  `Record` had hidden its readers), `MediaSheetFields` optional in contract names, `CatalogSeason` = `SeasonSummary`,
+  the local episode shapes in number/title/airDate; 57 sites at tsc's line:column in three passes, two casts and
+  mock-seeds' seasons by exact replacement. First gate `r13-gate.log` FELL by name on `priming.py` (f): its
+  `KEPT_PARTIAL` kept the engine key `y` as a STRING (invisible to a read sweep) → `3dcde3533` (`year`, and the dead
+  `key === 'y'` branch of `OPEN_CARRYING` removed). Gates `r13-gate-2.log` (36 rules, 15 named) and `r13-gate-3.log` on
+  `3dcde3533` (priming): oracle no divergence. `r13-hold-counts.json`: 14 at baseline, screen_addresses 51 → 58 =
+  L20's seven checks added by the merge (R187's run screen), not r·13. Mutation `r13-mutation-priming.log` (`y` back):
+  (f) FAIL by name.
