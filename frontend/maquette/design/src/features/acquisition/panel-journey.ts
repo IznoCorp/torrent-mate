@@ -82,9 +82,8 @@ function journeyPanel(title: string, cache: PanelCache): PanelDescriptor | null 
         actions: [
           // THE TUNNEL'S OWN VERBS (B-302, §20: it « reprend là où il s'est
           // arrêté, par l'opérateur »). Their `data-*` names are answered by
-          // `lib/verbs`, not by the dying engine: a verb that never existed
-          // there has no branch to move, and giving it one would add a line to
-          // `legacy.js`, which D5 forbids.
+          // `lib/verbs`: a verb that never existed in the engine had no branch
+          // to move there.
           {
             text: translate("panels.journey.requeue"),
             icone: icons.refresh,

@@ -200,8 +200,8 @@ function SeasonDetails({
           `data-grab-season` is what the RULE anchors on (D4) and what says WHICH
           season the finger was on — a rule counting calls alone would take a
           call to the wrong one. The act itself is a React handler and NOT a
-          delegation target: the engine dies by subtraction (D5), and a verb
-          that needed a line in `legacy.js` would be a verb that has not moved. */}
+          delegation target: the engine died by subtraction (D5), and a verb
+          that needed a line in it was a verb that had not moved. */}
       {complete ? null : (
         <button
           type="button"

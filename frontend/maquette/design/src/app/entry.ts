@@ -1,9 +1,9 @@
 // THE ENTRY — the splash, the sign-in gate and the install proposal.
 //
 // `MODEL.md` § 2 Part 9. All three were engine LOGIC over static markup
-// (`legacy.js:9678–9915`), and it is the LOGIC that had to move: §17 redraws
-// the gate for Plex SSO and cannot do so while the gate is engine code, because
-// D5 allows no addition there.
+// (`engine/legacy.js@13a66a35b`, lines 9678–9915), and it was the LOGIC that had to move: §17 redraws
+// the gate for Plex SSO and could not while the gate was engine code, because
+// D5 allowed no addition there.
 //
 // THE MARKUP STAYS IN `index.html`, AND THAT IS A DECISION WITH TWO REASONS,
 // one per surface.

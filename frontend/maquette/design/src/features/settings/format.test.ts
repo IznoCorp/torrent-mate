@@ -1,10 +1,9 @@
 // The settings' own words, held against the 159 the engine rendered.
 //
 // WHAT MAKES THIS NON-VACUOUS. The expected values are the `displayedValue`
-// strings COMMITTED IN THE SEED — extracted from `legacy.js` by a declared
-// projection and held byte for byte against it by
-// `scripts/check-mock-seeds.py --arm correspondence`. So this asserts against
-// the engine's own rendering, one artefact removed, rather than against
+// strings COMMITTED IN THE SEED — extracted from `engine/legacy.js@13a66a35b` by a declared
+// projection and held byte for byte against it while that file lived. So this
+// asserts against the engine's own rendering, one artefact removed, rather than against
 // something this file decided.
 //
 // AND IT COUNTS WHAT IT COMPARED. « Every field matches » is what a test over an

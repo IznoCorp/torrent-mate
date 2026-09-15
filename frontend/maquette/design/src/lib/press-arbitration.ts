@@ -5,7 +5,7 @@
 // — which element a press addresses and what opening it means — and that is the
 // whole of what the two callbacks below carry.
 //
-// IT WAS MOVED HERE FROM `engine/legacy.js`, NOT REWRITTEN AND NOT REPLACED BY A
+// IT WAS MOVED HERE FROM `engine/legacy.js@13a66a35b`, NOT REWRITTEN AND NOT REPLACED BY A
 // LIBRARY. The behaviour is the engine's, proved by R55 against a real thumb
 // before the move and after it; what changed is where it lives. D5's rule is
 // that the engine dies by SUBTRACTION, so nothing was added to it — the block

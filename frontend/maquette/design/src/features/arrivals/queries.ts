@@ -93,11 +93,11 @@ export function useDecisions() {
 }
 
 /**
- * Publishes the pending decisions for the dying engine to read synchronously.
+ * Publishes the pending decisions for a synchronous reader.
  *
- * WHY A SEAM AND NOT AN IMPORT. `legacy.js` answers « does this folder have a
- * pending decision » from inside a click handler, which cannot await — and it
- * is the same question the resolution screen asks. §13 of the constitution:
+ * WHY A SEAM AND NOT AN IMPORT. The engine (`engine/legacy.js@13a66a35b`) answered « does this folder
+ * have a pending decision » from inside a click handler, which cannot await — and
+ * it was the same question the resolution screen asks. §13 of the constitution:
  * two surfaces answering one question read the SAME code, or they will
  * diverge and the operator will see two truths.
  *
