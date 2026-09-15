@@ -161,6 +161,11 @@ reaches him.
    not new apparatus.
 2. **One reader round per lot, zero per micro-wave**; a micro-wave merges on its green gate and the steward's verification
    on the files, under the merge delegation he gives; instrument minors are filed, never repaired inside the wave.
+20. **ONE full suite at the sub-lot's midpoint** — a full `run.sh` (no flag) pass under the mutex,
+    ~25 min, run once after the round's b·6 and before b·7 opens, on the phase head, its falls repaired
+    by the agent holding that phase, in addition to b·11's. Reason measured: 4 L13a regressions went
+    unseen under 19 green phase gates alone. Ratified 2026-09-14: 1 fall under 6 green gates, 17 min, on
+    L13b; and on 2026-09-15 the pre-PR full suite read two RULE defects under six more green gates.
 3. **The post-merge gesture is the steward's own hand** — references re-recorded, the row, the folder cited by commit, the
    recount — no agent session for it, a script when one exists.
 4. **One steward docs PR per lot, at the lot's end** — never one per incident. **One consequence, measured on 2026-09-13
@@ -168,7 +173,8 @@ reaches him.
    holds, so between a micro-wave's merge and the docs PR that traces it, `main` is red on that guard and every pull request
    rebased on it reads red in CI's contracts job. So a wave's LAST commit before its merge sets « In flight » back to
    « None » (the plain row, no pull request number anywhere in the cell — the arm reads the first `#NNN`); the trace in
-   « Between … » stays the steward's, in the docs PR.
+   « Between … » stays the steward's, in the docs PR. Ratified 2026-09-14: the docs-only push path
+   completes in seconds, live since order 35.
 5. **One repair train per day** — one brief, one worktree, one agent, one gate for the day's repairs — never one micro-wave
    per bug.
 6. **Two agents in parallel at most** on this 16 GB machine.
@@ -180,9 +186,11 @@ reaches him.
    the round before it (a reader round, a gate) is still running, so the machine's two-agent ceiling is
    never idle waiting on a verdict.
 10. **Cold-start diet** — an agent's launch prompt carries state at ≤ 40 lines plus pointers (the ledger,
-    `RULINGS.md`, the four required readings), never a rebuilt history.
+    `RULINGS.md`, the four required readings), never a rebuilt history. Ratified 2026-09-14: one agent
+    ran six phases on this diet, stood down at 60 % context.
 11. **Phases stay ≤ 15 points, with a stated mean** — a phase sized past that is cut before it is
-    dispatched.
+    dispatched. First fate: b·13 was measured BEFORE dispatch on 2026-09-15 (STOP D, 1 601 live lines)
+    and cut into six phases instead of being opened.
 12. **Instruments that read true, kept as they are**: `heavy.sh`'s accounting of the speculative pages
     macOS reclaims first, `mutate.sh`'s exit-code read (B-499), `run.sh`'s one build per phase gate.
 
@@ -195,7 +203,8 @@ reaches him.
 14. **Writing diet** — a running-log memory entry ≤ 1 line per event; a line to the auditor ≤ 6 lines
     unless it carries a decision (two readings and its cost); agents' reports the same; a fact is written
     ONCE (the succession brief is durable, a memory-log line is a pointer to it). Figure: ~50 context
-    points spent over 4 h of prose no gate ever read.
+    points spent over 4 h of prose no gate ever read. Ratified 2026-09-14: the same one agent, six
+    phases, stood down at 60 % context.
 15. **The Sonnet ban is lifted** (operator, 2026-09-13 ~21:1x: « Sonnet autorisé, on retire ça… l'orchestrateur
     choisit »): the tier map follows the routing table — deep on `opus`, standard and light on `sonnet` —
     and the steward routes by the CLASS of work, names the tier in every spawn line, and reverts a drop
@@ -207,7 +216,8 @@ reaches him.
     pointers; agents' reports the same. Ratified after twenty held lines.
 17. **ONE phase-gate invocation in `run.sh`** — build once, then contracts, then the oracle, then the
     phase's re-aimed rules replayed on the SAME served copy, one verdict block; a phase holds the mutex
-    once. Fate: a b-phase gate ≤ 4 min (today 7–9 min).
+    once. Fate: a b-phase gate ≤ 4 min (today 7–9 min). Ratified 2026-09-14: a b-phase gate now runs
+    267–271 s, against 7–9 min before.
 18. **The contracts tier's fan-out is `TM_HARNESS_JOBS=3`**, measured once with `vm_stat` and
     `vm.swapusage` before and after (a rule costs ≈ 400 MB); back to 2 if swap moves.
 19. **No local `make check` before a maquette wave's pull request** — CI's `test` job (8 min,
@@ -225,7 +235,8 @@ he is dictating to that day. **Checklist line, paid at 20:09 on 2026-09-13**: `n
 `frontend/` and `frontend/maquette/design/` before a fresh worktree's first push — the pre-push hook's
 test suite needs both. **The cited-logs rule** (reader's inventory finding, 2026-09-13 ~20:5x): a log a
 RESUME, a phase amendment or a commit body CITES is kept under the wave's log directory until the merge;
-only UNCITED working logs are pruned at stand-down.
+only UNCITED working logs are pruned at stand-down. Ratified 2026-09-14: 112 logs held under
+`~/Library/Logs/<wave>/`, the cited ones kept to the merge.
 
 ## The office
 
