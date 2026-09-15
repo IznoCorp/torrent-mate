@@ -43,8 +43,6 @@ def maquette_servers():
     """
     return sorted(MAQUETTE.glob("*.py"))
 VOCABULARY = ROOT / "scripts" / "code-vocabulary.txt"
-DEBT_BANNER = "# ── THE ENGINE'S LAST FRENCH WORDS"
-DEBT_FILE = "frontend/maquette/design/src/engine/legacy.js"
 SHELL = MAQUETTE / "design" / "src"
 HARNESS = MAQUETTE / "harness"
 REGIONS = MAQUETTE / "regions.json"
@@ -522,27 +520,22 @@ def offending_string(body: str, quoting_allowed: bool = False) -> str:
     return ""
 
 
-def vocabulary(debt_only: bool = False) -> set[str]:
+def vocabulary() -> set[str]:
     """Returns the words this codebase's names are built from.
 
-    Args:
-        debt_only: When true, returns only the words below the debt banner —
-            French on purpose, and owed by one file.
+    Until L13r (`@13a66a35b`) this also carried a `debt_only` reading, the
+    words below a banner naming them French on purpose and owed by the
+    engine alone — `check_french_debt`'s arm. The engine and the banner are
+    both gone; the whole vocabulary is now everyone's to borrow.
 
     Returns:
         The set of words, lower-cased.
     """
-    words, below = set(), False
+    words = set()
     for line in VOCABULARY.read_text(encoding="utf-8").splitlines():
-        if line.startswith(DEBT_BANNER):
-            below = True
         if not line.strip() or line.startswith("#"):
             continue
-        # Without the flag this is the WHOLE vocabulary, debt included: the
-        # engine's names must still pass the arm that reads them. What the
-        # flag isolates is who may BORROW those words, which is one file.
-        if not debt_only or below:
-            words.add(line.strip().lower())
+        words.add(line.strip().lower())
     return words
 
 
