@@ -692,7 +692,7 @@ async def main():
 # is the same answer read where the surfaces read it.
             "()=>{const first = (window.__queue?.().takeable ?? [])[0];"
             " if (!first) return null;"
-            " document.querySelector('[data-take=\"' + CSS.escape(first.title) + '\"]').click();"
+            " document.querySelector('[data-take=\"' + CSS.escape(first.title) + '\"]')?.click();"
             " return first.title;}")
         await page.wait_for_timeout(700)
         after_action = await page.evaluate(
