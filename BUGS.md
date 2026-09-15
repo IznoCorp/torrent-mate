@@ -390,7 +390,7 @@ when the defect comes back.
 | B-328 | `features/system/page.tsx` heads itself with a path that does not exist and describes a state field (`state.panne`) the code does not have | by the next wave that opens `features/system/page.tsx` | `open` |
 | B-329 | The backend's GENERATED contract does not declare the `409` its own route raises, so no diff between the two contracts can read it — the demand register is structurally blind to a refusal NE-DOIT-PAS-3 forbids the interface to show | by the backend brief | `open` |
 | B-330 | `scripts/mutate.sh` answers « no hold fell » when the RULE PATH it was given does not exist — a typo and a rule that does not bite are the same sentence, and the second is a finding while the first is a mistake | by the instruments' debts block | `open` |
-| B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
+| B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `to confirm` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `fixed #588` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
 | B-334 | The secret panel's « Remplacer la valeur » does nothing: the action's whole effect is a `data-toast` the engine's dead message element answers, and no store, seed or cache moves | 1× | `fixed #588` |
@@ -3716,6 +3716,21 @@ indicator is the frame's (`lib/pull-gesture.ts` is the gesture; the block that o
 indicator is still the engine's). The reading to take first is written above so it is not re-derived.
 
 <sub>operator's screenshots, 2026-09-06 09:57 · `grep -n "ptr.classList" frontend/maquette/design/src/engine/legacy.js` → the `loading` / `armed` toggles and the 1 100 ms timer · `#ptr` read on the device over CDP at rest: `[177, 69, 16]` for the spinner's x, y, width · `grep -o "place-items-center{[^}]*}" …/dist/vite/*.css` → present</sub>
+
+**REPAIRED IN L13c c·5 — the outliving half; the centring half is NOT REPRODUCED on this machine.**
+`app/pull-indicator.ts`: an armed release now asks every query the page is showing again
+(`refetchQueries({ type: "active" })`), the indicator stays open for exactly as long as that takes, and
+« Actualisé. » is said after its closing transition; a reset or a newer pull makes an older answer
+arrive for nobody. **R199** `pull_follows_the_refresh.py` samples the spinner at rest, armed, loading
+and closing at 390 px on « Réglages » — **centred at every moment here, offset 0** — then holds the
+closing after each of two mock answer times (400 and 1 600 ms) and the message after the closing. Red
+on the tree: closed at about 1 300 ms whatever the answer time, and the message said while the
+indicator was still open, at both. The mutation restoring a fixed delay fells both closing holds by
+name; the mutation removing `place-items-center` from `#ptr` fells the centring hold and **draws the
+operator's screenshot exactly** — the spinner at x = 0, 187 px left of centre. Two readers were
+re-aimed and said: R55 (`touch.py`) and `press.py` give the mock layer an answer time after the state
+is driven, since an instant refresh leaves no moment at which the indicator is up. The centring half
+stays the operator's device reading.
 
 **B-332 — a Réglages topic cannot be left.**
 Reported by the operator on 2026-09-06, verbatim: « Réglage je rentre dans une section et je peux jamais

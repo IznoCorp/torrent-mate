@@ -29,6 +29,12 @@
   `harness/press.py` (≥7 holds) and `harness/touch.py` (R55) already drive real pulls against `#ptr`
   and are not named among the phase's readers, though neither is proven broken without running them
   (forbidden in this session).
+- **Landed (2026-09-16).** The sampling reads the spinner CENTRED at rest, armed, loading and closing
+  on this machine (offset 0): the centring half is unreproduced here and stays the operator's device
+  reading, its mechanism proved by the mutation that removes `place-items-center` (x = 0, the
+  screenshot). The move is the closing: `refetchQueries({ type: "active" })` in `app/pull-indicator.ts`
+  (not `lib/pull-gesture.ts`), no per-surface door needed. R199, 5 holds; `press.py` and R55 re-aimed
+  with a scenario answer time, set AFTER the driven state (the driver's reset puts the scenario back).
 
 A BEHAVIOUR change: « Réglages »' pull-to-refresh indicator is centred, and it is gone when the
 refresh is, not after a fixed 1 100 ms (DESIGN § 10, B-331). It relies on the pull block having

@@ -17,7 +17,9 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   gesture, the pull request).
 - DONE: c·1 (`a78287834`…`8cf2fa574`, B-312 `to confirm`, B-548 filed), c·2 (`069fb3a8e` + `f67401890`,
   B-340 `to confirm`), merge of L13r's squash `08400a22a` (`0a32a745a`, pushed), c·3 (`9848c02b4`,
-  B-339 `to confirm`), c·4 (`30658ccf7`, B-336 `to confirm`). NEXT: c·5, then the MIDPOINT full suite.
+  B-339 `to confirm`), c·4 (`30658ccf7`, B-336 `to confirm`), c·4-bis (`795649a4c`), the merge of
+  `e57ac110f` (`93a24bdc1`, pushed), c·5 (`e122c8478` + `d69bafaa1`, B-331 `to confirm`, its centring
+  half unreproduced here). NEXT: the MIDPOINT full suite, then c·6.
 - LOGS: `~/Library/Logs/tm-l13c/`. Mutex `sh scripts/heavy.sh --held`; tests lock
   `/private/tmp/tm-heavy-tests/holder`; own lock `/private/tmp/tm-heavy-l13c/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13c
@@ -87,3 +89,12 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   the media cast strip (`features/media/variants.ts`) carries the same defeated idiom.
 - 2026-09-16 c·4-bis (`Agent : l13c 1`, steward's order): the sheet's cast strip; R198 6 holds; red
   `c04bis-red.log` (thin), green `c04bis-gate.log` on `795649a4c`, mutation `c04bis-mutation.log`.
+- 2026-09-16 c·5 (`Agent : l13c 1`): R199 `pull_follows_the_refresh.py`, 5 holds; sampling
+  `c05-red.log` (spinner centred at every moment here, offset 0 — the centring half unreproduced on
+  this machine), red on both closing holds and both message holds at two answer times; green
+  `c05-gate-2.log` on `d69bafaa1` (26 rules, 3 named, oracle no divergence); mutations
+  `c05-mutations.log` (fixed delay → both closings; `place-items-center` removed → the centring hold,
+  drawing the operator's screenshot at x = 0). Trap paid, twice over: `__go` RESETS the mock scenario,
+  so a latency set before a driven state is no latency at all; and a rule that reads « the indicator
+  is up » cannot read anything once the refresh it stands for answers instantly — R55 and `press.py`
+  re-aimed with an answer time, said in both files.
