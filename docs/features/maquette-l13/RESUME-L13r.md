@@ -11,10 +11,10 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
 - Phases (ruling 101): r·1 → r·2 → r·3 (BEHAVIOUR) → r·4 (BEHAVIOUR) → [midpoint full suite] → r·5 the reference
   dies → r·6–r·12 contract names by family group (rulings 105, 106) → r·13 the file dies + full gate + PR.
   r·1 `12f3e242b`, r·2 `d997e7c59`, r·3 `4168932d6`, r·4 `688dab291`, R114 repair `3ddcd70d5`, r·5 `412b75075`,
-  r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7` — DONE.
+  r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7`, r·9 `4fb1b2418` (+ `f6393dcf6`) — DONE.
 - MIDPOINT's one fall (`poster.py`, R114) REPAIRED (ledger): the rule held by accident until r·2.
-- NEXT: r·9 suggestions + search + releases (`plan/phase-r09-…`), then r·10, r·11 (system families), r·12 (the sheet), each file's « Method » (ruling 105)
-  PLUS the multi-line harness sweep on the phase's dated line (r·6's amendment). Frame-domain after r·8: lib/ 28, app/ 121. Before each gate: the harness JS sweep AND the list of
+- NEXT: r·10 library + settings + maintenance + account (`plan/phase-r10-…`), then r·11 (system families), r·12 (the sheet), each file's « Method » (ruling 105)
+  PLUS the multi-line harness sweep on the phase's dated line (r·6's amendment). Frame-domain after r·9: lib/ 28, app/ 121. Before each gate: the harness JS sweep AND the list of
   `toEngineShape` calls with a string/generic family and the keys they write (steward's method lines, ruling 105).
   Steward: `Orch : TM frontend [ba1693]` since the succession during r·6.
 - legacy.js non-blank: 1 600 at the cut, 1 274 r·1, 888 r·2, 663 r·3, 534 r·4, 493 r·5. `scripts/frontend_size_ledger.py`
@@ -141,3 +141,13 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   live); accepted with audit.py's vacuity as url_state's, filed as an instrument minor by the steward.
 - 2026-09-15 ruling 106 (amended by order 38): the system families are a new r·11; the sheet is r·12, « the file
   dies » r·13 (files moved, INDEX, BRIEF, state block re-pointed). Ledger lines above keep the numbers they had.
+- 2026-09-15 r·9 (ruling 105): SUGGESTIONS (both reads and the paging `after`), SEARCH, RELEASES left the projection;
+  the contract's schemas through `lib/contract-schemas.ts`; `window.__suggestions` typed; 62 typed sites at
+  line:column; the follow verb's slice takes `title`/`kind`; `emphasis` in the card markup, the panel converts to its
+  own `e`. 8 harness lines in 5 rules re-aimed. Gate `r09-gate.log`: 24 rules (8 named), 26 guards, oracle no
+  divergence; `r09-hold-counts.json`: the eight at baseline (add_footer 13 = r·3's +2). Mutations:
+  `r09-mutation-suggestions.log` — follow_verb and producers FAIL by name, deck FELL by its exit verdict,
+  deck_verbs did not fall (its reserve read is used for positions only, the re-aimed fields feed no hold);
+  `r09-mutation-releases.log` — release_take_sentence did not fall: its premise compared the resolution with ""
+  and passed on None, then left with no verdict → `f6393dcf6` (truthiness, same lines), gate `r09-gate-2.log` green,
+  `r09-mutation-releases-2.log` FAIL by name.

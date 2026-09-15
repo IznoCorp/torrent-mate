@@ -2,6 +2,8 @@
 
 2026-09-15 (ruling 105): r·6 « contract names » was cut into six numbered sub-phases, one family group each — r·6 queue cards, r·7 arrivals decisions and pipeline, r·8 follows and incompletes, r·9 suggestions, search and releases, r·10 library, settings, maintenance, account and SCHEDULERS, r·11 the sheet — and « the file dies » became r·12.
 
+2026-09-15 (r·9 done): harness sweep — 8 lines in 5 rules (deck_verbs, deck, follow_verb, producers, release_take_sentence); `take.py:15` is docstring prose quoting old code, left. Calls with a string or generic family: `features/system/queries.ts` (r·11), `lib/season-rows.ts` (r·12); none writes the suggestions, search or releases keys. A reason's `emphasis` is read by the card markup; the suggestion panel converts to the panel rich text's own `e` (ui/ vocabulary, not the projection).
+
 **Kind**: CONVERSION. **Cost**: Estimate ≈ 12 points (measure 11, ≤ 15).
 
 ## Measured
