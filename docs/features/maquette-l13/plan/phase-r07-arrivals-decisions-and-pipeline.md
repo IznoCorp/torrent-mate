@@ -2,6 +2,8 @@
 
 2026-09-15 (ruling 105): r·6 « contract names » was cut into six numbered sub-phases, one family group each — r·6 queue cards, r·7 arrivals decisions and pipeline, r·8 follows and incompletes, r·9 suggestions, search and releases, r·10 library, settings, maintenance, account and SCHEDULERS, r·11 the sheet — and « the file dies » became r·12.
 
+2026-09-15 (r·7 done): harness sweep of multi-line JS blocks for d/c/k/y/p/s/sans/resume/declencheurs/declencheur/duree/issue/n/l/r on decisions, candidates, choices, steps, facts and runs — ZERO readers (the one-letter reads found belong to follows, maintenance and settings); no rule re-aimed, so no mutation.
+
 **Kind**: CONVERSION. **Cost**: Estimate ≈ 13 points (measure 11, ≤ 15).
 
 ## Measured

@@ -11,10 +11,10 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
 - Phases (ruling 101): r·1 → r·2 → r·3 (BEHAVIOUR) → r·4 (BEHAVIOUR) → [midpoint full suite] → r·5 the reference
   dies → r·6–r·11 contract names by family group (ruling 105) → r·12 the file dies + full gate + PR.
   r·1 `12f3e242b`, r·2 `d997e7c59`, r·3 `4168932d6`, r·4 `688dab291`, R114 repair `3ddcd70d5`, r·5 `412b75075`,
-  r·6 `86468f8b8` (+ `b9ee587a9`) — DONE.
+  r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2` — DONE.
 - MIDPOINT's one fall (`poster.py`, R114) REPAIRED (ledger): the rule held by accident until r·2.
-- NEXT: r·7 arrivals decisions + pipeline (`plan/phase-r07-…`), then r·8 … r·11, each file's « Method » (ruling 105)
-  PLUS the multi-line harness sweep on the phase's dated line (r·6's amendment). Frame-domain after r·6: lib/ 28, app/ 121.
+- NEXT: r·8 follows + incompletes (`plan/phase-r08-…`), then r·9 … r·11, each file's « Method » (ruling 105)
+  PLUS the multi-line harness sweep on the phase's dated line (r·6's amendment). Frame-domain after r·7: lib/ 28, app/ 121.
   Steward: `Orch : TM frontend [ba1693]` since the succession during r·6.
 - legacy.js non-blank: 1 600 at the cut, 1 274 r·1, 888 r·2, 663 r·3, 534 r·4, 493 r·5. `scripts/frontend_size_ledger.py`
   re-recorded DOWNWARD in every phase's commit.
@@ -111,3 +111,8 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   journey subject falls back to the first follow BY DESIGN, so no queue mutation can fell it (the re-aim is proved by
   the typecheck only); `page_host.py` crashed (no verdict) → `b9ee587a9` optional-chains its click (zero net line),
   gate `r06-gate-3.log` green, mutation `r06-mutation-page_host.log` FAIL by name.
+- 2026-09-15 r·7 (ruling 105): PENDING_DECISIONS, DECISIONS_REGLEES, PIPELINE left the projection; the arrivals' types
+  are the contract's schemas; 47 typed sites replaced at line:column by the RECEIVING type's name (a type-aware
+  version of the line:column script); `lastRunRows` takes the contract's steps. Harness sweep: zero readers. Gate
+  `r07-gate.log`: 24 rules (6 named), 26 guards, oracle no divergence; `r07-hold-counts.json`: the six named at
+  baseline. No re-aim, no mutation.
