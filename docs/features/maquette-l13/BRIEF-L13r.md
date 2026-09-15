@@ -5,12 +5,12 @@ You implement **L13r**, the third sub-lot of **L13 — The engine's residue** (`
 `engine/legacy.js` still holds — 1 601 live non-blank lines, measured at ruling 98 — is a CONVERSION the size
 of a sub-lot, not a deletion. The lot's design is `docs/features/maquette-l13/DESIGN.md` and its plan
 `docs/features/maquette-l13/plan/INDEX.md` § « L13r — The engine's residue », one file per phase
-(`plan/phase-r01-…md` to `plan/phase-r13-…md`) — **they are the specification and this brief restates none of
-it**. L13r is the thirteen phases r·1 to r·13 (ruling 101 cut r·3 in two, ruling 105 cut r·6 in six, ruling 106 added the system families), in that order: the interface constants and helpers find homes (r·1),
+(`plan/phase-r01-…md` to `plan/phase-r14-…md`) — **they are the specification and this brief restates none of
+it**. L13r is the fourteen phases r·1 to r·14 (ruling 101 cut r·3 in two, ruling 105 cut r·6 in six, ruling 106 added the system families, ruling 107 cut r·10 in two), in that order: the interface constants and helpers find homes (r·1),
 the served fixtures go to their seeds (r·2), the settings machine, `render()`/`applyState` and the search mount
 leave the engine (r·3 the product verbs and r·4 the frame verbs, the BEHAVIOUR phases), `__referentiel` and the nine
-slices die (r·5), `engine-shape`'s family labels become the contract's names, one family group per phase (r·6 to r·12), the file
-and its instruments die under the full gate (r·13).
+slices die (r·5), `engine-shape`'s family labels become the contract's names, one family group per phase (r·6 to r·13), the file
+and its instruments die under the full gate (r·14).
 
 **Rulings 1–99 are in `docs/features/maquette-l13/RULINGS.md`** — one numbered file, non-reopenable; L13r appends
 from 100. The ones that shape L13r: 57 (the constants' homes), 86-bis and 98 (what the engine still holds and why),
@@ -33,7 +33,7 @@ from 100. The ones that shape L13r: 57 (the constants' homes), 86-bis and 98 (wh
 
       git remote update origin >/dev/null && git log --oneline origin/main -3
       pwd && git branch --show-current && git status --short && git log --oneline -1
-      ls docs/features/maquette-l13/plan/ | grep -c "phase-r"        # 13
+      ls docs/features/maquette-l13/plan/ | grep -c "phase-r"        # 14
       grep -cve '^[[:space:]]*$' frontend/maquette/design/src/engine/legacy.js   # 1 600
       python3 scripts/check-frontend-boundaries.py --arm size; echo "exit $?"
       python3 scripts/check-frame-domain.py; echo "exit $?"
@@ -59,7 +59,7 @@ from 100. The ones that shape L13r: 57 (the constants' homes), 86-bis and 98 (wh
   after, its mutation SEEN to fall through `scripts/mutate.sh` (commit before every mutation); where no hold taps a
   moved function, a rule is written for it before it moves.
 - **Sizes**: every phase ≤ 15 points against the stated mean (11); the former « contract names » phase was measured
-  and cut into r·6–r·12 by rulings 105 and 106, whose method (the contract type first, `tsc`'s diagnostics as the reader list)
+  and cut into r·6–r·13 by rulings 105, 106 and 107, whose method (the contract type first, `tsc`'s diagnostics as the reader list)
   each of those phase files carries.
 - **Locks by CLASS.** Anything touching the ONE served copy or the 8899 host — `run.sh` in any tier, the oracle,
   `harness-hold-counts.py`, `mutate.sh`, a single rule replayed — runs under the shared mutex, in the ONE form that
@@ -76,17 +76,17 @@ from 100. The ones that shape L13r: 57 (the constants' homes), 86-bis and 98 (wh
   POSTDATING the commit they measure (`ls -lT` against `git log -1 --format=%ci`); `tests/scripts/test_check_maquette_comments.py`
   alone under the tests lock before any push, `check-maquette-comments.py --record` INSIDE the commit when a maquette
   file moved (only `read` moves — read the diff). **The FULL SUITE runs TWICE in L13r (measure 20)**: at the midpoint,
-  after r·4 and before r·5, its falls repaired by you before r·5; and at r·13 before the pull request, with `--a11y`,
+  after r·4 and before r·5, its falls repaired by you before r·5; and at r·14 before the pull request, with `--a11y`,
   `scripts/harness-hold-counts.py --compare frontend/maquette/hold-counts-baseline.json` (its `taken_at_commit` may
   not be an ancestor of your head — compare against a `.review`-style copy re-pointed at main's sha, the repo file
   untouched, and say so) and `make lint`; no local `make check` (measure 19).
 - **The three arms**: `python3 scripts/check-frame-domain.py` on the head BEFORE each phase's move (send its ceiling
   line; ruling 96's figures are the ceiling); `check-frontend-boundaries.py --arm fan-in` and `--arm cycles` after r·4
-  and r·5; `check-no-french.py` after every vocabulary addition and `--counts` at r·13; `check-mock-seeds.py` after r·2.
+  and r·5; `check-no-french.py` after every vocabulary addition and `--counts` at r·14; `check-mock-seeds.py` after r·2.
   Exit codes are the verdict, never the prose.
 - The engine only shrinks; `scripts/frontend_size_ledger.py` re-recorded DOWNWARD in the same commit (the entry dies
   at r·7); guards and baselines die in the phase that kills what they read (the reference-slice arm at r·5, the parser
-  arms and `resync.py` at r·13); re-aims said out loud in the docstring and the body; never `cd` into `design/src` (B-384).
+  arms and `resync.py` at r·14); re-aims said out loud in the docstring and the body; never `cd` into `design/src` (B-384).
 - **The RESUME**: `docs/features/maquette-l13/RESUME-L13r.md` = a STATE BLOCK of at most 40 lines (rewritten at every
   boundary) + an APPEND-ONLY ledger below it. Rulings go to `RULINGS.md`, appended from 100. No register row for an
   unshipped defect (ruling 85): a ledger line on the phase instead; the steward numbers rows at the close.
@@ -111,7 +111,7 @@ from 100. The ones that shape L13r: 57 (the constants' homes), 86-bis and 98 (wh
 
 One commit per phase (plus the commit-before-mutation where a phase says so), conventional, scoped `maquette-l13r`, no
 attribution of any kind (`CLAUDE.md` § Commit Convention; `hooks/commit-msg` refuses it). Push at every stand-down and at
-r·13 under the tests lock. At r·13: merge `origin/main` in, bump the version above whatever `main` reads then (patch), the
+r·14 under the tests lock. At r·14: merge `origin/main` in, bump the version above whatever `main` reads then (patch), the
 full gate, pull request READY titled `refactor(maquette-l13r): the engine's residue — legacy.js dies`; a CONVERSION pull
 request cites no constitution §§ (order 32, the rule) — r·3's and r·4's behaviour half is SAID in the body with its rule and §§.
 Body: the six phases and what each moved and deleted (by command, measured ONCE on the final head), every rule written

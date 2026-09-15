@@ -1,16 +1,21 @@
-# r·11 — The system families take the contract's names
+# r·12 — The system families, JOURNAL and SCHEDULERS take the contract's names
 
 2026-09-15 (ruling 106, amended by order 38): the system families projected through `features/system/queries.ts`'s generic `family` parameter are a new phase r·11; the sheet became r·12 and « the file dies » r·13.
+
+2026-09-15 (ruling 107): r·10 as ruling 105 cut it measured ≈ 18 and was cut — r·10 settings and secrets, r·11 library, maintenance actions and account, r·12 the system families with JOURNAL and SCHEDULERS (every family whose rows are `Fact`, one decision on `Fact`), r·13 the sheet, r·14 « the file dies ».
 
 **Kind**: CONVERSION. **Cost**: Estimate ≈ 12 points (measure 11, ≤ 15; the mean of L13b's measured phases is 11).
 
 ## Measured
 
-On `42e333d1b` (ruling 106): `features/system/queries.ts`'s `useSystemRead(address, family)` projects DISKS, INDEX,
-DEPENDENCIES (the `$fact` shorthand: `l`→label, `ton`→tone, `v`→value, `s`→secondaryLine), ERRORS, EXECUTIONS
-(`q`/`ok`/`d`/`r` renames) and SCHEDULERS (also `$fact`, and r·10's by ruling 105 — whichever phase comes first takes
-it, said on its dated line); each read's key is its address. Readers: the system page, the maintenance page's
-schedulers, `features/system/fault.ts` and its test, `lib/engine-drawing.ts`'s `Fact`.
+On `42e333d1b` (ruling 106) and `ee8455d98` (ruling 107): `features/system/queries.ts`'s `useSystemRead(address, family)`
+projects DISKS, INDEX, DEPENDENCIES and SCHEDULERS (the `$fact` shorthand: `l`→label, `ton`→tone, `v`→value,
+`s`→secondaryLine), ERRORS and EXECUTIONS (`q`/`ok`/`d`/`r` renames); `features/maintenance/queries.ts` projects JOURNAL
+(`lignes`→rows, `l`/`v`/`s`). Every one of these rows is `lib/engine-drawing.ts`'s `Fact`, the input of
+`ui/fact-rows.tsx`. THE DECISION ON `Fact` (ruling 107): its keys become full words — label, value, secondaryLine,
+tone — under the code-naming rule, and no hand-written projection survives; only if this phase's measure at opening
+exceeds 15 with that rename does the conversion live in `lib/` while `ui/` keeps its vocabulary, said with the count.
+Each read's key is its address.
 
 ## The proof first
 

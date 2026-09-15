@@ -9,17 +9,18 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   Steward: the session named in your launch prompt (`Orch : TM frontend`, its reference changes).
 - Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13r`.
 - Phases (ruling 101): r·1 → r·2 → r·3 (BEHAVIOUR) → r·4 (BEHAVIOUR) → [midpoint full suite] → r·5 the reference
-  dies → r·6–r·12 contract names by family group (rulings 105, 106) → r·13 the file dies + full gate + PR.
+  dies → r·6–r·13 contract names by family group (rulings 105–107) → r·14 the file dies + full gate + PR.
   r·1 `12f3e242b`, r·2 `d997e7c59`, r·3 `4168932d6`, r·4 `688dab291`, R114 repair `3ddcd70d5`, r·5 `412b75075`,
   r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7`, r·9 `4fb1b2418` (+ `f6393dcf6`) — DONE.
 - MIDPOINT's one fall (`poster.py`, R114) REPAIRED (ledger): the rule held by accident until r·2.
-- NEXT: r·10 library + settings + maintenance + account (`plan/phase-r10-…`), then r·11 (system families), r·12 (the sheet), each file's « Method » (ruling 105)
+- NEXT: r·10 settings + secrets (`plan/phase-r10-…`), then r·11 (library, maintenance actions, account), r·12 (system
+  families + JOURNAL + SCHEDULERS, `Fact`'s keys), r·13 (the sheet), each file's « Method » (ruling 105)
   PLUS the multi-line harness sweep on the phase's dated line (r·6's amendment). Frame-domain after r·9: lib/ 28, app/ 121. Before each gate: the harness JS sweep AND the list of
   `toEngineShape` calls with a string/generic family and the keys they write (steward's method lines, ruling 105).
   Steward: `Orch : TM frontend [ba1693]` since the succession during r·6.
 - legacy.js non-blank: 1 600 at the cut, 1 274 r·1, 888 r·2, 663 r·3, 534 r·4, 493 r·5. `scripts/frontend_size_ledger.py`
   re-recorded DOWNWARD in every phase's commit.
-- OWED TO r·13: `legacy.js`'s `Object.assign(window, …)` publishes `SETTINGS_STATE`, `icons`, `settingId`, `select`,
+- OWED TO r·14: `legacy.js`'s `Object.assign(window, …)` publishes `SETTINGS_STATE`, `icons`, `settingId`, `select`,
   `cadenceFR`, `nextSearchFR`, `stLabel` — readers `settings.py`, `page_host.py` (SETTINGS_STATE/settingId, re-aimed
   at r·5), `audit.py`, `content.py` (the three vocabulary names) → re-aimed from their homes when the file dies;
   `applyState` (literal-key restore in `app/layers.ts`, ruling 102), `select`, `icons` (the engine's import).
@@ -39,7 +40,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   stop a listener BESIDE yours; a touch drag suppresses the click itself; `page.route` never sees a request the service
   worker answers; `rename-identifiers.py` refuses a `{ name, type X }` import as a shorthand property (use
   `--properties`) and may already have written other files when it says « Nothing written ».
-- Owed at r·13: `--a11y`, hold-counts `--compare` (baseline `taken_at_commit` re-pointed to main's sha in a copy),
+- Owed at r·14: `--a11y`, hold-counts `--compare` (baseline `taken_at_commit` re-pointed to main's sha in a copy),
   `make lint`, merge main in, version bump above main's, PR READY (conversion: no §§; r·3's/r·4's behaviour said).
 
 ## LEDGER (append-only)
@@ -151,3 +152,6 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   `r09-mutation-releases.log` — release_take_sentence did not fall: its premise compared the resolution with ""
   and passed on None, then left with no verdict → `f6393dcf6` (truthiness, same lines), gate `r09-gate-2.log` green,
   `r09-mutation-releases-2.log` FAIL by name.
+- 2026-09-15 ruling 107: r·10 measured ≈ 18 and cut — r·10 settings + secrets, r·11 library + maintenance actions +
+  account, r·12 every `Fact` family (system, JOURNAL, SCHEDULERS) with `Fact`'s keys in full words, r·13 the sheet, r·14
+  the file dies (files moved, INDEX, BRIEF, state block re-pointed; dated and ledger lines keep their numbers).

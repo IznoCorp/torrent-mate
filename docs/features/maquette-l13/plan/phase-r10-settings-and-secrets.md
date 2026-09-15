@@ -1,14 +1,17 @@
-# r·8 — The follows and the incomplete shows take the contract's names
+# r·10 — The settings and the secrets take the contract's names
 
 2026-09-15 (ruling 105): r·6 « contract names » was cut into six numbered sub-phases, one family group each — r·6 queue cards, r·7 arrivals decisions and pipeline, r·8 follows and incompletes, r·9 suggestions, search and releases, r·10 library, settings, maintenance, account and SCHEDULERS, r·11 the sheet — and « the file dies » became r·12.
 
-2026-09-15 (r·8 done): harness sweep — 44 lines in 18 rules read a follow's or an incomplete show's `t`/`k`/`st`/`own` (acted_surface_redraws, actions, audit, busy, follow_has_sheet, follow_verb, paused_tile, pause_verb, queued_ask_mark, panel, followed_sheet_act, library_sort, message_over_layers, remove_verb, season_grab_unfollowed, season_grab, seeds_at_rest, url_state); `incomplete_served.py` and `outbox.py` already read `title ?? t`, left. Calls with a string or generic family (steward's method line): `app/engine-data.ts` NEEDED (FOLLOWS on `/api/acquisition/followed` — the untyped writer that emptied the follows tab at the first gate, removed here); `features/system/queries.ts` `useSystemRead(address, family)` on SCHEDULERS, DISKS, INDEX, DEPENDENCIES, ERRORS, EXECUTIONS (keys = their addresses — five families in NO phase of ruling 105's cut, raised to the steward; r·12 by rulings 106 and 107); `lib/season-rows.ts` `toEngineShapeEntry("SHEETS_RAW", …)` on `["/api/media", provider, id, "seasons"]` (r·13).
+2026-09-15 (ruling 107): r·10 as ruling 105 cut it measured ≈ 18 and was cut — r·10 settings and secrets, r·11 library, maintenance actions and account, r·12 the system families with JOURNAL and SCHEDULERS (every family whose rows are `Fact`, one decision on `Fact`), r·13 the sheet, r·14 « the file dies ».
 
-**Kind**: CONVERSION. **Cost**: Estimate ≈ 14 points (measure 11, ≤ 15).
+**Kind**: CONVERSION. **Cost**: Estimate ≈ 10 points (measure 11, ≤ 15).
 
 ## Measured
 
-On `533c160e5` (STOP D answered by ruling 105): FOLLOWS (6 renames), INCOMPLETE (4, two queries: acquisition and library). `Follow` read by 14 files, `IncompleteShow` by 5.
+On `ee8455d98` (ruling 107): SETTINGS (`t`→title, `s`→secondaryLine, `r`→settings; per setting `f`→file, `c`→key,
+`brut`→raw, `n`→name, `v`→displayedValue, `brut` and `v` opaque) and SECRETS (`k`→key, `l`→label, `def`→defined).
+`Setting` read by 14 files, `SettingsTopic` by 6, `Secret` by 4; a setting's identifier `file:key` keys
+`SETTINGS_STATE.modifs` and the rules. Estimate ≈ 10 points (measure 11, below the mean).
 
 ## The proof first
 

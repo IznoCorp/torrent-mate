@@ -1,12 +1,14 @@
-# r·10 — The library, settings, maintenance and account families take the contract's names
+# r·11 — The library, the maintenance actions and the account take the contract's names
 
-2026-09-15 (ruling 105): r·6 « contract names » was cut into six numbered sub-phases, one family group each — r·6 queue cards, r·7 arrivals decisions and pipeline, r·8 follows and incompletes, r·9 suggestions, search and releases, r·10 library, settings, maintenance, account and SCHEDULERS, r·11 the sheet — and « the file dies » became r·12.
+2026-09-15 (ruling 107): r·10 as ruling 105 cut it measured ≈ 18 and was cut — r·10 settings and secrets, r·11 library, maintenance actions and account, r·12 the system families with JOURNAL and SCHEDULERS (every family whose rows are `Fact`, one decision on `Fact`), r·13 the sheet, r·14 « the file dies ».
 
-**Kind**: CONVERSION. **Cost**: Estimate ≈ 14 points (measure 11, ≤ 15).
+**Kind**: CONVERSION. **Cost**: Estimate ≈ 10 points (measure 11, ≤ 15; the mean of L13b's measured phases is 11).
 
 ## Measured
 
-On `533c160e5` (STOP D answered by ruling 105): LIBRARY (3 renames), CATS (3), SETTINGS (8), SECRETS (3), MAINT_ACTIONS (5), JOURNAL (4), ACCOUNT (1), SCHEDULERS (0, `features/system/fault.test.ts` only). `Setting` read by 13 files.
+On `ee8455d98` (ruling 107): LIBRARY (`t`→title, `f`→secondaryLine, `c`→category; `LibraryRow` read by 3 files), CATS
+(`l`→label, `c`→count, `of`→includes; `LibraryCategory` by 2), MAINT_ACTIONS (`l`→label, `d`→description, `g`→group,
+`r`→risk, `blanc`→dryRun; `MaintenanceAction` by 4), ACCOUNT (`mail`→email; `Account` by 2).
 
 ## The proof first
 
