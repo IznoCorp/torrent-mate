@@ -31,8 +31,11 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   (6) check-mock-seeds counts 32 engine families. Proposed cut: (a) constants+helpers home, (b) fixtures convert or
   seed, (c) settings machine + render/applyState + search mount + toast leave, (d) __referentiel + slices die,
   (e) engine-shape families → contract names, (f) the file and its instruments die.
-- NEXT: the steward's word on the re-cut; meanwhile the FULL suite + --a11y + --compare on 289cfd2e1 (ruling 98).
-  Read RULINGS 64–98 first; the steward is `Orch : TM frontend [31ca3c]` (its reference may change again).
+- REBASED on main `72712bb51` (#599) and pushed with --force-with-lease (head `2096e5047`). On the rebased code
+  (`6a3302eed`): --contracts 18 + 26 guards green, FULL SUITE 135 rules + 26 guards « no violation », --a11y 0
+  (light 149/149), hold-counts --compare: no failure, eleven rises + seven new rules (movements below), make lint 0.
+- NEXT: the operator's word on Q5 (b·13's re-cut, ruling 98): A → this head is b·13's base; B → it is the PR's head.
+  No closure commit, no PR until then. Read RULINGS 64–98 first; steward `Orch : TM frontend [31ca3c]`.
 - ZSH TRAP, three times this session: a multi-word variable is ONE argument in zsh, and macOS bash has no
   `mapfile` — build rule lists and file lists in Python or spell them out.
 - LOGS: `~/Library/Logs/tm-l13b/` (ruling 76). Mutex and tests lock stay under `/private/tmp`.
@@ -369,4 +372,22 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   command, heredoc text included, and blocks the whole command — write such an edit to a scratchpad .py file.
 - 2026-09-15 TRAP (order 36, steward [31ca3c]): a turn was ended on a background gate; a long run is waited for INSIDE
   the tool call (a bounded loop polling the log for « heavy: l13b done »), never a turn ended on it.
+- 2026-09-15 l13b 4 full suite on 033f7b301: two deterministic falls, attributed and repaired — mouse.py (b·8: the guard's
+  `stopImmediatePropagation` in document capture blinded the rule's own document listener; re-aimed to window capture,
+  defaultPrevented read after the dispatch, `5bea5ffe1`) and R157 acted_surface_redraws.py (b·11: served season rows
+  make a follow nobody holds offer the season act; the subject scans now take a follow whose season family seed holds
+  a hole, `7db042da1` + `6a3302eed`); pwa.py fell under the compare's load only and passed alone. The baseline's two
+  drops (shell 4→3, message_above_harness 3→2) were L13a's (a·17-bis removed one check each) and vanished once main's
+  re-recorded baseline came in with the rebase.
+- 2026-09-15 l13b 4 REBASE onto 72712bb51: conflicts only in BUGS.md (row blocks — main's B-498–B-511/B-530 kept, L13b's
+  B-512/B-513 inserted in order), frontend/maquette/README.md (main's directive trap block kept, L13b's three traps added
+  as one-line rules) and docs/features/maquette-l13/BRIEF-L13a-bis.md (deleted on main, kept deleted). Code diff against
+  the pre-rebase tip = main's own files only. The pre-push pytest then refused the comment floor (read 437 → 438 from
+  main's release_candidates.py) — `2096e5047`.
+- 2026-09-15 hold-counts on the rebased code (`l13b4-rebased-hold-counts.log`): arrivals 24→27, decision 24→26, exits
+  18→19, gestures 14→18 (main's), logout 8→10, panel 51→59, pause_verb 9→11, press 15→17, settings 65→68,
+  state_surfaces 31→32, take 9→11; NEW follow_seasons 12, incomplete_served 5, ladder_entries 15, library_membership 8,
+  panel_return 6, redraw_entry 4, release_candidates 4 (main's). No fall.
+- 2026-09-15 TRAP: `--compare` is not a run.sh flag; it is `scripts/harness-hold-counts.py --compare
+  frontend/maquette/hold-counts-baseline.json`, and it needs the 8899 host up (start and stop it inside the wrapper).
 
