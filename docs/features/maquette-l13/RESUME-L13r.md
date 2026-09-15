@@ -10,10 +10,12 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
 - Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l13r`.
 - Phases (ruling 101): r·1 → r·2 → r·3 (BEHAVIOUR) → r·4 (BEHAVIOUR) → [midpoint full suite] → r·5 the reference
   dies → r·6–r·11 contract names by family group (ruling 105) → r·12 the file dies + full gate + PR.
-  r·1 `12f3e242b`, r·2 `d997e7c59`, r·3 `4168932d6`, r·4 `688dab291`, R114 repair `3ddcd70d5`, r·5 `412b75075` — DONE.
+  r·1 `12f3e242b`, r·2 `d997e7c59`, r·3 `4168932d6`, r·4 `688dab291`, R114 repair `3ddcd70d5`, r·5 `412b75075`,
+  r·6 `86468f8b8` (+ `b9ee587a9`) — DONE.
 - MIDPOINT's one fall (`poster.py`, R114) REPAIRED (ledger): the rule held by accident until r·2.
-- NEXT: r·6 the queue cards (`plan/phase-r06-queue-cards.md`), then r·7 … r·11 in order, each file's « Method »
-  (ruling 105). Frame-domain after r·5: lib/ 28, app/ 121.
+- NEXT: r·7 arrivals decisions + pipeline (`plan/phase-r07-…`), then r·8 … r·11, each file's « Method » (ruling 105)
+  PLUS the multi-line harness sweep on the phase's dated line (r·6's amendment). Frame-domain after r·6: lib/ 28, app/ 121.
+  Steward: `Orch : TM frontend [ba1693]` since the succession during r·6.
 - legacy.js non-blank: 1 600 at the cut, 1 274 r·1, 888 r·2, 663 r·3, 534 r·4, 493 r·5. `scripts/frontend_size_ledger.py`
   re-recorded DOWNWARD in every phase's commit.
 - OWED TO r·12: `legacy.js`'s `Object.assign(window, …)` publishes `SETTINGS_STATE`, `icons`, `settingId`, `select`,
@@ -99,3 +101,13 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   and typechecked. For the steward (the tool is main's).
 - 2026-09-15 ruling 105: r·6 measured (25 families, 37 call sites, 28 cache-reading rules) and cut into r·6–r·11, one
   family group each; « the file dies » is r·12 (file moved). Earlier ledger lines' « r·7 » now read r·12.
+- 2026-09-15 r·6 (ruling 105): the eight `$card` families left the projection; `QueueCard` = the contract's schema;
+  13 typed sites from tsc's diagnostics replaced at line:column; `MediumCard` and the arrivals card take title,
+  secondaryLine, reason, chip { tone, text }, withoutPoster (follows, suggestions and search build that shape);
+  `window.__queue` typed. First gate `r06-gate.log` fell on `page_host.py` (crash: a multi-line JS block read
+  `first.t` that the line grep missed) — re-aimed, amended; gate `r06-gate-2.log` on `86468f8b8`: 28 rules (12 named),
+  26 guards, oracle no divergence. `r06-hold-counts.json`: the ten re-aimed rules at their baseline counts. Grouped
+  mutation `r06-mutation-queue.log` (queueNow's lists back to `t`): eight fell by name; `url_state.py` did not — its
+  journey subject falls back to the first follow BY DESIGN, so no queue mutation can fell it (the re-aim is proved by
+  the typecheck only); `page_host.py` crashed (no verdict) → `b9ee587a9` optional-chains its click (zero net line),
+  gate `r06-gate-3.log` green, mutation `r06-mutation-page_host.log` FAIL by name.
