@@ -236,3 +236,17 @@ harness is re-run alone before it is read, and the re-run's loss of load is said
 2. **`legacy.css` is a conversion, not a deletion** — design § 2.6 and § 9.5: 92 classes style React
    components without a variant. It is eleven phases of L13a, not one.
 3. **The phase count** — the brief's example cut named four sub-lots; the design recommends three (§ 1).
+
+## Residue (pending Q5)
+
+Measured on `1cb0a2dc1` after b·13 was measured and not opened (ruling 98). Names are neutral until the operator's Q5.
+
+| Phase | File | Kind | Moves | Dies |
+| --- | --- | --- | --- | --- |
+| residue 1 | [constants and helpers](phase-residue-1-constants-and-helpers.md) | conversion | 20 interface constants, 10 helpers | 4 dead names |
+| residue 2 | [served fixtures](phase-residue-2-served-fixtures.md) | conversion | 11 served families + POSTERS_HD + TODAY to their seeds | 13 literals |
+| residue 3 | [engine verbs and drawing](phase-residue-3-engine-verbs-and-drawing.md) | behaviour | settings machine, render/currentState/applyState, search mount, toast/openSheet/closeSheet/showSignIn | — |
+| residue 4 | [the reference dies](phase-residue-4-reference-dies.md) | conversion | — | `__referentiel`, 9 slices, reference.d.ts |
+| residue 5 | [contract names](phase-residue-5-contract-names.md) | conversion, may be lot-sized | 24 families, 41 call sites | engine-shape.ts |
+| residue 6 | [the file dies](phase-residue-6-the-file-dies.md) | deletion + full gate | — | legacy.js, seams.ts, engine-data, engine-redraw, engine-drawing, their instruments |
+

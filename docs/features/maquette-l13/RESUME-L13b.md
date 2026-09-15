@@ -34,8 +34,11 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
 - REBASED on main `72712bb51` (#599) and pushed with --force-with-lease (head `2096e5047`). On the rebased code
   (`6a3302eed`): --contracts 18 + 26 guards green, FULL SUITE 135 rules + 26 guards « no violation », --a11y 0
   (light 149/149), hold-counts --compare: no failure, eleven rises + seven new rules (movements below), make lint 0.
-- NEXT: the operator's word on Q5 (b·13's re-cut, ruling 98): A → this head is b·13's base; B → it is the PR's head.
-  No closure commit, no PR until then. Read RULINGS 64–98 first; steward `Orch : TM frontend [31ca3c]`.
+- The residue is PLANNED (pending Q5): six phase files `plan/phase-residue-1…6-*.md` and INDEX « Residue (pending
+  Q5) », with every figure measured on `1cb0a2dc1`. The two re-aims' mutations fell by name on this head.
+- NEXT: the operator's word on Q5 → l13b 5 renames the residue phases (b·13… or the sub-lot's letter) and executes
+  them; or the PR opens from this head. No closure commit, no PR until then. Read RULINGS 64–98 first; steward
+  `Orch : TM frontend [31ca3c]`.
 - ZSH TRAP, three times this session: a multi-word variable is ONE argument in zsh, and macOS bash has no
   `mapfile` — build rule lists and file lists in Python or spell them out.
 - LOGS: `~/Library/Logs/tm-l13b/` (ruling 76). Mutex and tests lock stay under `/private/tmp`.
@@ -390,4 +393,11 @@ Read after `docs/features/maquette-l13/BRIEF-L13b.md` (governs) and `RULINGS.md`
   panel_return 6, redraw_entry 4, release_candidates 4 (main's). No fall.
 - 2026-09-15 TRAP: `--compare` is not a run.sh flag; it is `scripts/harness-hold-counts.py --compare
   frontend/maquette/hold-counts-baseline.json`, and it needs the 8899 host up (start and stop it inside the wrapper).
+- 2026-09-15 l13b 4, the auditor's reading: the two re-aims of the full suite are INSTRUMENT minors — the rules read
+  wrongly, no product defect. b·8 (mouse.py): its own document-capture listener sat beside the guard that stops the
+  click immediately, so it read an empty list; b·11 (R157): its subject scans took a follow nobody holds, whose season
+  ask rightly absorbs nothing. Mutations on `1cb0a2dc1` (`l13b4-reaim-mutations.log`): the guard's preventDefault +
+  stopImmediatePropagation removed → mouse.py « a library row, drag right : click swallowed False », « drag left : click
+  swallowed False » (the rule exits 1); the season ask absorbing nothing → R157 « the panel the grab was pressed ON has
+  moved … — 0 → 0 mark(s) » and « the panel was redrawn by the act … — texts AGREE ».
 
