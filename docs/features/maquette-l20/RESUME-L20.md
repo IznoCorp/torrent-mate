@@ -2,28 +2,19 @@
 
 ## STATE BLOCK (rewritten at every boundary — at most 40 lines)
 
-- **Updated**: 2026-09-15, `Agent : l20 3` — ALL NINE PHASES DONE; pull request **#603** opened READY.
-- **Branch / worktree**: `feat/maquette-l20`, `/Users/izno/dev/worktrees/wave-l20`; L13b merged in at
-  9025348e6. HEAD = pushed head; `git ls-remote` proves it. Version 0.98.95 (main read 0.98.94).
-- **Phases done**: 1–9, rulings 1–9 applied. Register: B-296, B-297, B-371 `fixed #603`; B-383 was already
-  `fixed #592` in full on main.
-- **Next**: CI on #603's head; the reader round in a FRESH session with a resume brief (not this one);
-  the merge and the post-merge gesture are the steward's (baseline and oracle recorded there).
-- **Final gate** (on 6ab6a3f48, code-final): `make lint` 0; `run.sh` full, JOBS=2 — 141 rules, 26 guards,
-  no violation; `--a11y` dark 0, light 147 under 149 (ceiling NOT lowered on this branch); oracle 0; hold
-  counts `--compare` against a scratch copy re-pointed at 5df76af33 — failed 0, movements in #603's body.
-- **Owed / for the steward's docs PR**: the clause-map proposal (`REPORT.md` § 8); the register row numbers
-  of ruling 4 collide (main used B-530) — next free B-531; a row for the three raw `<details>` sites
-  (no lot claims them); ruling 9's register row; `IMPLEMENTATION.md`'s « In flight » row.
-- **Rule numbers**: R178–R185, R187 (R186 unused). **Data**: rulings 3 and 5's seeds.
-- **Traps of this session**: `timeout N` around `heavy.sh` kills `run.sh` mid-oracle (exit 124) — wait by a
-  bounded poll of the log instead; a poll loop on a log that already holds `exit=` from an older run reads
-  the old verdict (compare mtimes); `harness-hold-counts.py` acquires the served copy ITSELF (a wrapper that
-  acquires first is refused) and needs only the 8899 host; `check-markup-contracts` reads only a LITERAL
-  `data-part="…"` (a computed one is invisible, so a literal plus a spread override).
-- **Locks**: shared mutex `sh scripts/heavy.sh --class browser l20 …`; tests lock
-  `HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder` for every push; own lock for npm/tsc.
-- **Logs**: `~/Library/Logs/tm-l20/<phase>-<step>.log` (cited by `REPORT.md`; keep until the merge).
+- **Updated**: 2026-09-15, `Agent : l20 4` — ROUND ONE DONE (C1–C8, BRIEF-L20-round1.md); pushed.
+- **Branch / worktree**: `feat/maquette-l20`, `/Users/izno/dev/worktrees/wave-l20`; #603. Code-final head
+  `69cc558b5` (the gate's head); this RESUME commit sits on top. `git ls-remote` proves the push.
+- **Round one commits**: C1 11dd33b8b · C2 f5f8daef1 · C3 a6ce99a83 · C4 a27f31428 · C5 d3e99bdb4 ·
+  C6 adec7185c · C8 22b7416f6 + oracle 8fd361432 · C7 9db6f995f + oracle 69cc558b5. Rulings 1–10 applied.
+- **Final gate on 69cc558b5**: `make lint` 0; full suite JOBS=2 — 141 rules, 26 guards, no violation;
+  `--a11y` dark 0, light 147 ≤ 149; hold counts `--compare` vs a scratch copy at 5df76af33 — no violation,
+  movements in #603's « Round one »; all 14 round mutations fell by name on the head; the reader's
+  `c10_walk.py` replayed on the head build (stamp checked).
+- **Next**: the orchestrator verifies on the files and merges (no second reader round, measure 2).
+  C9–C13 and the running row's second line (elapsed time) are the steward's filed minors, not this branch's.
+- **Rule numbers**: R178–R185, R187 (R186 unused). **Logs**: `~/Library/Logs/tm-l20/r1-*` (cited by #603).
+- **Locks**: shared mutex `sh scripts/heavy.sh --class browser l20 …`; tests lock for every push.
 
 ---
 
@@ -255,3 +246,18 @@
   Oracle 130 geometric divergences on exactly the 26 Système states × five regions, accepted and verified
   by name (ec7caa15f). `REPORT.md` written; the README's « 54 » corrected without a number; the guards
   table's L20 row (7). Final full suite green; hold counts compared; #603 opened; closures a884a9ba8.
+- 2026-09-15 — `Agent : l20 4` took round one (head 4e436b630). Orchestrator succeeded itself mid-round
+  ([31ca3c] → [ba1693]).
+- 2026-09-15 — TRAP: `heavy.sh` waiting for another wave does not protect a SERVED COPY built in an
+  earlier invocation — a walk served from `/tmp/tm-refonte` after waiting read l13r's build (stamp !=
+  tree). Build and publish INSIDE the same heavy invocation (`run.sh --oracle` first), and print the
+  stamp beside the tree's before reading anything.
+- 2026-09-15 — TRAP: `run.sh`'s 8899 host is still up inside its heavy invocation (heavy.sh stops it);
+  an accept script run in that invocation uses it rather than starting a second one.
+- 2026-09-15 — TRAP: a launch cursor cannot tell whether an event ends a run when a named state launches
+  and emits in the same breath (the launch reaches the layer after the event) — count the endings.
+- 2026-09-15 — the guards met on the way: `check-markup-contracts` (a literal `data-part` selector),
+  `check-i18n-placeholders` (object shorthand unread), `check-no-french` vocabulary (`detected`,
+  `endings`, `Detections`, `VEILLE_`) — each answered by the code's shape, `scripts/` untouched.
+- 2026-09-15 — STOP A on C8 (page height following system/runs on two states) → ruling (A), accepted by
+  name. The declared watch-idle / watch-running divergences did not occur (geometry unchanged).
