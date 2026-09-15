@@ -34,3 +34,5 @@ The named states that draw each moved name are re-taken by grep at the phase's o
 
 Per INDEX « Gates »: contracts + oracle + the named rules, logs postdating the commit; mutations by name where a rule
 was written or re-aimed.
+
+2026-09-15 demand (ruling 100 Q3): the suggestion list serves the HD poster the sheet already serves.
