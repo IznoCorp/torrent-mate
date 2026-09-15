@@ -11,11 +11,11 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
 - Phases (ruling 101): r·1 → r·2 → r·3 (BEHAVIOUR) → r·4 (BEHAVIOUR) → [midpoint full suite] → r·5 the reference
   dies → r·6–r·13 contract names by family group (rulings 105–107) → r·14 the file dies + full gate + PR.
   r·1 `12f3e242b`, r·2 `d997e7c59`, r·3 `4168932d6`, r·4 `688dab291`, R114 repair `3ddcd70d5`, r·5 `412b75075`,
-  r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7`, r·9 `4fb1b2418` (+ `f6393dcf6`), r·10 `e827267b6` — DONE.
+  r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7`, r·9 `4fb1b2418` (+ `f6393dcf6`), r·10 `e827267b6`, r·11 `e572a0708` — DONE.
 - MIDPOINT's one fall (`poster.py`, R114) REPAIRED (ledger): the rule held by accident until r·2.
-- NEXT: r·11 library + maintenance actions + account (`plan/phase-r11-…`), then r·12 (system
+- NEXT: r·12 (`plan/phase-r12-…`: the system
   families + JOURNAL + SCHEDULERS, `Fact`'s keys), r·13 (the sheet), each file's « Method » (ruling 105)
-  PLUS the multi-line harness sweep on the phase's dated line (r·6's amendment). Frame-domain after r·10: lib/ 28, app/ 121. Before each gate: the harness JS sweep (reads AND object literals handed
+  PLUS the multi-line harness sweep on the phase's dated line (r·6's amendment). Frame-domain after r·11: lib/ 28, app/ 121. Before each gate: the harness JS sweep (reads AND object literals handed
   to the product) AND the `toEngineShape` calls with a string/generic family and their keys (steward's method lines).
   Steward: `Orch : TM frontend [ba1693]` since the succession during r·6.
 - legacy.js non-blank: 1 600 at the cut, 1 274 r·1, 888 r·2, 663 r·3, 534 r·4, 493 r·5. `scripts/frontend_size_ledger.py`
@@ -164,3 +164,12 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   settings_editing, page_host, redraw_entry FAIL by name; producers, secret_acts and seeds_at_rest crashed (the
   mutation empties the settings page the product draws from contract names; seeds_at_rest's crash is ON its re-aimed
   read `topic.settings`) — no verdict, ruling 77.
+- 2026-09-15 r·11 (ruling 107): LIBRARY, CATS, MAINT_ACTIONS, ACCOUNT left the projection; `LibraryRow` (LibraryItem),
+  `LibraryCategory`, `MaintenanceAction`, `Account` are the contract's schemas; 43 typed sites + the account's two
+  `mail`; the library card markup's input in contract names. 9 harness lines in 6 rules re-aimed, audit2.py's `x.t`
+  a follow read r·8 missed. Gate `r11-gate.log` on `e572a0708`: 23 rules (7 named), 26 guards, oracle no divergence;
+  `r11-hold-counts.json`: the eight at baseline. Mutations: `r11-mutation-library.log` — content FAIL by name,
+  filters RULE CRASHED (assert-style prose rule); `r11-mutation-actions.log` — producers FAIL by name, page_host did
+  not fall (its action title is printed, compared by no hold); `r11-mutation-account.log` — address did not fall
+  (with no address drawn, « every address drawn is the account's » holds over an empty set); `r11-mutation-follows-
+  audit2.log` — audit2 FELL by its exit verdict.

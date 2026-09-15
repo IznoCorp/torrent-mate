@@ -2,6 +2,8 @@
 
 2026-09-15 (ruling 107): r·10 as ruling 105 cut it measured ≈ 18 and was cut — r·10 settings and secrets, r·11 library, maintenance actions and account, r·12 the system families with JOURNAL and SCHEDULERS (every family whose rows are `Fact`, one decision on `Fact`), r·13 the sheet, r·14 « the file dies ».
 
+2026-09-15 (r·11 done): harness sweep — reads: 9 lines in 6 rules (filters, content, page_host, producers, address, and audit2's follow read `x.t` that r·8's sweep missed because its filter excluded a variable named `x`); object literals handed to the product with these keys: none; calls with a string or generic family on these keys: none. The library card markup's input takes title, secondaryLine and chip { tone, text }.
+
 **Kind**: CONVERSION. **Cost**: Estimate ≈ 10 points (measure 11, ≤ 15; the mean of L13b's measured phases is 11).
 
 ## Measured
