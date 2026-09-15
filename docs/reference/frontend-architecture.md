@@ -788,6 +788,10 @@ is in the demands register; the events are claimed by a rule (R91's fan-out); th
 the tracker's (NE-DOIT-PAS-1, held by the mock's own value, never a local computation); the
 ranking editor draws with its live preview and the quality screen's toast is gone (B-298).
 
+**Design and plan written 2026-09-15, PR #<n>.** `docs/features/maquette-l16/DESIGN.md` and
+`plan/INDEX.md` (8 phases, mean 10.25); the operator reads the drawing there before the lot opens,
+after L13c.
+
 #### L17 — §19, cross-seed · *depends on L16*
 
 **Objective.** DOIT-14: an injection is seen, a refusal is explained, a title says where it seeds,
