@@ -67,7 +67,7 @@ export const mockSeeds: MockSeeds = {
         const answer = seasonsAnswerFor(title, ids);
         const catalogue = answer.seasons.map((season) => {
           const entry = season as { number?: number; season?: number };
-          return { n: Number(entry.number ?? entry.season) };
+          return { number: Number(entry.number ?? entry.season) };
         });
         return [title, seasonsHeld({ seasons: catalogue, owned: answer.owned, aired: answer.aired })];
       }),

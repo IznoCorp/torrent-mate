@@ -12,7 +12,6 @@
 // place rather than once per surface (§13).
 import { useQuery } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
-import { toEngineShapeEntry } from "../../engine/engine-shape";
 import { currentEntryState } from "../../lib/navigate";
 import { carriedBy } from "../../lib/navigation-entry";
 import { seasonsHeld, seasonsQuery, type SeasonsAnswer } from "../../lib/season-rows";
@@ -73,11 +72,7 @@ export function useMediaSheet(provider: string, identifier: string) {
     queryFn: async () => {
       const answered = await read<MediaSheetPayload | null>(
         `/api/media/${encodeURIComponent(provider)}/${encodeURIComponent(identifier)}`);
-      // ONE ENTRY of a family the projection keys by title. The markup that
-      // draws a sheet is still the engine's, and it reads `ov`, `k`, `g`, `y`.
-      return answered === null
-        ? null
-        : toEngineShapeEntry<MediaSheetPayload>("SHEETS_RAW", answered);
+      return answered;
     },
     enabled: provider !== "" && identifier !== "",
   });
@@ -128,11 +123,11 @@ export function ownedSeason(
  * @returns The announced dates, sorted.
  */
 export function announcedAfter(
-  episodes: { air?: string | null }[] | null,
+  episodes: { airDate?: string | null }[] | null,
   today: string,
 ): string[] {
   return (episodes ?? [])
-    .map((episode) => episode.air)
+    .map((episode) => episode.airDate)
     .filter((air): air is string => Boolean(air) && String(air) > today)
     .sort();
 }

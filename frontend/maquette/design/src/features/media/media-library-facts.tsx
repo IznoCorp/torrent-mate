@@ -167,7 +167,7 @@ export function MediaLibraryFacts({
                   fontSize: "11px",
                 }}
               >
-                {`${baseTitle(title)}.${sheet?.y ?? "2026"}.MULTi.1080p.mkv`}
+                {`${baseTitle(title)}.${sheet?.year ?? "2026"}.MULTi.1080p.mkv`}
               </span>
             </div>
           </>

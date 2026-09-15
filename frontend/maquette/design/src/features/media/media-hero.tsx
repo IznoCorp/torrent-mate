@@ -66,7 +66,7 @@ export function MediaHero({
                 line learned its fields. */}
             {sheet ? (
               <>
-                {sheet?.y || (inFlight
+                {sheet?.year || (inFlight
                   ? <SkeletonLine width="short" />
                   // A FAILURE IS NOT AN ANSWER, here as under the trailer. « année
                   // inconnue » says the year is not known of this medium; after a
@@ -87,17 +87,17 @@ export function MediaHero({
                 ) : (
                   t("common.series")
                 )}
-                {sheet?.duree ? ` · ${sheet.duree} ${t("screens.media.minutesShort")}` : ""}
+                {sheet?.runtime ? ` · ${sheet.runtime} ${t("screens.media.minutesShort")}` : ""}
               </>
             ) : inFlight ? (
               <SkeletonLine width="half" />
             ) : (
               t("screens.media.metadataUnknown")
             )}{" "}
-            {sheet?.g ? (
+            {sheet?.genres ? (
               <>
                 <br />
-                {sheet.g}
+                {sheet.genres}
               </>
             ) : (
               <>
@@ -121,10 +121,10 @@ export function MediaHero({
               ""
             )}
           </p>
-          {sheet?.note ? (
+          {sheet?.rating ? (
             <span className={heroNote()}>
               <Icon paths={icons.star} />
-              {String(sheet.note).replace(".", ",")}
+              {String(sheet.rating).replace(".", ",")}
               <span
                 style={{
                   color: "var(--color-muted-foreground)",

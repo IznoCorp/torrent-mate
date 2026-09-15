@@ -51,7 +51,7 @@ const EP_ORDER = [
   "in_library",
 ] as const;
 
-type EpisodeCatalog = { n: number; air?: string | null }[];
+type EpisodeCatalog = { number: number; airDate?: string | null }[];
 
 /** What the medium's two served reads answered, as the season blocks read them. */
 type Served = {
@@ -117,8 +117,8 @@ function SeasonDetails({
   const total = Math.max(aired, catalog ? catalog.length : 0);
   const cells = Array.from({ length: total }, (_, index) => {
     const number = index + 1;
-    const info = catalog?.find((entry) => entry.n === number) ?? null;
-    const upcoming = Boolean(info?.air && info.air > today());
+    const info = catalog?.find((entry) => entry.number === number) ?? null;
+    const upcoming = Boolean(info?.airDate && info.airDate > today());
     const state = upcoming
       ? "announced"
       : epState(served, follow, num, number, owned);
@@ -237,15 +237,15 @@ function SeasonsBlock({
   const seasonsRead = useMediaSeasons(address?.provider ?? "", address?.id ?? "");
   const sheetRead = useMediaSheet(address?.provider ?? "", address?.id ?? "");
   // WHETHER WE HOLD IT, read where the sheet reads it — the sheet's own
-  // `possede` — so the panel and the sheet state one fact about one season.
-  const owns = (sheetRead.data as { possede?: boolean } | null | undefined)?.possede === true;
+  // `owned` — so the panel and the sheet state one fact about one season.
+  const owns = (sheetRead.data as { owned?: boolean } | null | undefined)?.owned === true;
   const served: Served = {
     owned: seasonsRead.data?.owned,
-    episodes: (sheetRead.data as { eps?: Record<string, EpisodeCatalog> } | null | undefined)?.eps,
+    episodes: (sheetRead.data as { episodes?: Record<string, EpisodeCatalog> } | null | undefined)?.episodes,
   };
   const hasUpcoming = seasons.some((season) =>
     (catalogFor(served, season[0]) ?? []).some(
-      (episode) => episode.air && episode.air > today(),
+      (episode) => episode.airDate && episode.airDate > today(),
     ),
   );
   const statesPresent = new Set<string>([

@@ -62,7 +62,7 @@ export function MediaCast({
             )}
           </span>
           <span>
-            {(isFilm === false ? sheet?.crea : isFilm ? sheet?.real : (sheet?.real ?? sheet?.crea)) ??
+            {(isFilm === false ? sheet?.creator : isFilm ? sheet?.director : (sheet?.director ?? sheet?.creator)) ??
               (inFlight
               ? <SkeletonLine width="short" />
               : t(failed ? "screens.media.unread" : "screens.media.unknown"))}
@@ -88,17 +88,17 @@ export function MediaCast({
           }
         >
           {sheet.cast.map((cast) => (
-            <figure key={cast.n} className={castFigure()}>
+            <figure key={cast.name} className={castFigure()}>
               <span className={castPortrait()} data-part="cast/avatar">
-                {portraits[cast.n] ? (
-                  <img src={portraits[cast.n]} alt="" loading="lazy" />
+                {portraits[cast.name] ? (
+                  <img src={portraits[cast.name]} alt="" loading="lazy" />
                 ) : (
-                  initials(cast.n)
+                  initials(cast.name)
                 )}
               </span>
               <figcaption className={castCaption()}>
-                <b>{cast.n}</b>
-                <span>{cast.r || t("screens.media.roleUnknown")}</span>
+                <b>{cast.name}</b>
+                <span>{cast.role || t("screens.media.roleUnknown")}</span>
               </figcaption>
             </figure>
           ))}

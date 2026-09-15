@@ -89,12 +89,12 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
   const inFlight =
     sheetRead.isPending || (sheetRead.isPlaceholderData && sheetRead.isFetching);
   // THE KIND IS THREE-VALUED, and a boolean could not carry the third. Read as
-  // `sheet.k === "movie"` it is FALSE for a placeholder with no `k` — and false
+  // `sheet.kind === "movie"` it is FALSE for a placeholder with no `kind` — and false
   // is « series », which the screen then prints as a heading (« Création et
   // distribution »), as a row label (« Créateur ») and as the SHAPE of the
   // library block. An assertion is an assertion whichever way it points; `null`
   // is the answer nobody has yet.
-  const isFilm = sheet?.k === undefined ? null : sheet.k === "movie";
+  const isFilm = sheet?.kind === undefined ? null : sheet.kind === "movie";
   /* Seasons are DERIVED from the provider catalogue crossed with the numbers
      actually owned. A hand-written table gave seasons to 10 series only, and
      none of them to the INCOMPLETE ones — the very media the question is
@@ -128,7 +128,7 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
   // OWNERSHIP IS KNOWN when the sheet we hold carries it, or when the read has
   // landed carrying nothing — the fixture's own convention for « owned ». A
   // placeholder thinned to what a list row knows carries neither, and `owns`
-  // read as `possede !== false` is TRUE there: it chose the owned-series block,
+  // read as `owned !== false` is TRUE there: it chose the owned-series block,
   // « Possédés 0 », « Complétude 0 % » with a warning pip and « 13 manquants »
   // per season about a medium the reader may not own — then flipped to « non »
   // when the answer arrived.
@@ -145,21 +145,21 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
   // AND « KNOWN » IS A BOOLEAN, not « the key is there ». The contract makes
   // this field NULLABLE and says what null means — the library database is
   // unavailable — which is the definition of unknown; read as `!== undefined`
-  // it was classed known, and then `possede === true` made it « non ». Measured
+  // it was classed known, and then `owned === true` made it « non ». Measured
   // on an owned complete series served with a null ownership: « Dans votre
   // médiathèque non », every owned number gone, the season rows switched to a
   // catalogue with air dates, and « Suivre » offered for a medium in the
   // library. A landed sheet with no field at all is unknown for the same
   // reason: nobody answered.
-  const ownershipKnown = sheet !== null && typeof sheet.possede === "boolean";
-  // AN ANSWER THAT IS NOT « YES » IS NOT « YES ». `possede !== false` reads an
+  const ownershipKnown = sheet !== null && typeof sheet.owned === "boolean";
+  // AN ANSWER THAT IS NOT « YES » IS NOT « YES ». `owned !== false` reads an
   // ABSENT ownership as owned, and the contract makes the field nullable
   // (`MediaSheetResponse.ownership` is required and may be null) — so a sheet
   // that landed saying nothing about ownership offered « Supprimer de la
   // médiathèque », a destructive action, over an answer nobody gave. Every
   // fixture sheet carries the field, which is exactly why nothing here ever
   // showed it.
-  const owns = sheet?.possede === true;
+  const owns = sheet?.owned === true;
   // « Supprimer » offered for a medium nobody has identified is that same
   // assertion wearing a destructive button, so the actions read the same flag.
   const identified = ownershipKnown;
@@ -180,11 +180,11 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
   const followTitle = follow?.title ?? title;
   const catalog = (sheet?.seasons ?? [])
     .slice()
-    .sort((slice, index) => index.n - slice.n);
+    .sort((slice, index) => index.number - slice.number);
   // `?? 0` where the legacy addition simply let `null` coerce to zero: same
   // total, spelled so the type says what the arithmetic already did.
   const catalogEp = catalog.reduce(
-    (accumulator, element) => accumulator + (element.ep ?? 0),
+    (accumulator, element) => accumulator + (element.episodes ?? 0),
     0,
   );
   const prov = sheet?.ids ?? {};
@@ -280,8 +280,8 @@ export function MediaScreen({ readFollows }: MediaScreenProperties) {
                 color: "var(--color-muted-foreground)",
               }}
             >
-              {sheet?.ov
-                ? sheet.ov
+              {sheet?.overview
+                ? sheet.overview
                 : inFlight
                   ? <SkeletonLine width="full" />
                   : // « LE PROVIDER N'EN FOURNIT PAS » IS AN ANSWER, and a read

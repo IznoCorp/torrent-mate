@@ -5,11 +5,10 @@
 // the key, the projection and the arithmetic are the same object on both
 // surfaces rather than two copies that part company on the first change (§13).
 import { read } from "./query-client";
-import { toEngineShapeEntry } from "../engine/engine-shape";
 
 /** What the seasons read answers: the catalogue, and what we hold of it. */
 export type SeasonsAnswer = {
-  seasons: { n: number; ep?: number | null }[];
+  seasons: { number: number; episodes?: number | null }[];
   owned: Record<string, number[]>;
   /**
    * How many episodes of each season have AIRED, keyed by season number: the
@@ -33,12 +32,10 @@ export function seasonsQuery(provider: string, identifier: string) {
     queryFn: async (): Promise<SeasonsAnswer> => {
       const answered = await read<Record<string, unknown>>(
         `/api/media/${encodeURIComponent(provider)}/${encodeURIComponent(identifier)}/seasons`);
-      // The catalogue is the sheet's own, so it wears the sheet's names: one
-      // entry of `SHEETS_RAW` carrying nothing but its seasons.
-      const shaped = toEngineShapeEntry<Record<string, unknown>>(
-        "SHEETS_RAW", { seasons: answered.seasons });
+      // The catalogue is the sheet's own, so it wears the sheet's names — the
+      // contract's.
       return {
-        seasons: (shaped.seasons ?? []) as SeasonsAnswer["seasons"],
+        seasons: (answered.seasons ?? []) as SeasonsAnswer["seasons"],
         owned: (answered.owned ?? {}) as SeasonsAnswer["owned"],
         aired: (answered.aired ?? {}) as SeasonsAnswer["aired"],
       };
@@ -71,10 +68,10 @@ export function seasonsHeld(held: SeasonsAnswer | undefined): [number, number | 
   if (held.seasons.length) {
     return held.seasons.map((season) => {
       // A SET: an episode held twice is one episode held.
-      const numbers = [...new Set(owned[String(season.n)] ?? [])];
-      const aired = held.aired[String(season.n)] ?? null;
+      const numbers = [...new Set(owned[String(season.number)] ?? [])];
+      const aired = held.aired[String(season.number)] ?? null;
       const own = aired ? numbers.filter((one) => one <= aired).length : numbers.length;
-      return [season.n, aired, own];
+      return [season.number, aired, own];
     });
   }
   // No catalogue: the owned seasons are known, the totals are not.
