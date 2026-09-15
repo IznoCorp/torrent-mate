@@ -11,10 +11,11 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
 - Phases (ruling 101): r·1 → r·2 → r·3 (BEHAVIOUR) → r·4 (BEHAVIOUR) → [midpoint full suite] → r·5 the reference
   dies → r·6–r·11 contract names by family group (ruling 105) → r·12 the file dies + full gate + PR.
   r·1 `12f3e242b`, r·2 `d997e7c59`, r·3 `4168932d6`, r·4 `688dab291`, R114 repair `3ddcd70d5`, r·5 `412b75075`,
-  r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2` — DONE.
+  r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7` — DONE.
 - MIDPOINT's one fall (`poster.py`, R114) REPAIRED (ledger): the rule held by accident until r·2.
-- NEXT: r·8 follows + incompletes (`plan/phase-r08-…`), then r·9 … r·11, each file's « Method » (ruling 105)
-  PLUS the multi-line harness sweep on the phase's dated line (r·6's amendment). Frame-domain after r·7: lib/ 28, app/ 121.
+- NEXT: r·9 suggestions + search + releases (`plan/phase-r09-…`), then r·10, r·11, each file's « Method » (ruling 105)
+  PLUS the multi-line harness sweep on the phase's dated line (r·6's amendment). Frame-domain after r·8: lib/ 28, app/ 121. Before each gate: the harness JS sweep AND the list of
+  `toEngineShape` calls with a string/generic family and the keys they write (steward's method lines, ruling 105).
   Steward: `Orch : TM frontend [ba1693]` since the succession during r·6.
 - legacy.js non-blank: 1 600 at the cut, 1 274 r·1, 888 r·2, 663 r·3, 534 r·4, 493 r·5. `scripts/frontend_size_ledger.py`
   re-recorded DOWNWARD in every phase's commit.
@@ -116,3 +117,22 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   version of the line:column script); `lastRunRows` takes the contract's steps. Harness sweep: zero readers. Gate
   `r07-gate.log`: 24 rules (6 named), 26 guards, oracle no divergence; `r07-hold-counts.json`: the six named at
   baseline. No re-aim, no mutation.
+- 2026-09-15 r·7 backend demand (steward): `features/arrivals/resolution-cards.tsx`'s candidate card casts
+  `decision.kind` to "movie" | "show" — the contract types `PendingDecision.kind` as a string; the backend owes an
+  enum. A demand for the docs PR, not a product change.
+- 2026-09-15 r·8 (ruling 105): FOLLOWS and INCOMPLETE left the projection; `Follow`/`IncompleteShow` are the contract's
+  schemas through `lib/contract-schemas.ts` (fan-in: five features importing `contract/types.d.ts` directly — r·1's
+  door precedent); 121 typed sites at line:column; `FollowSubject` for a panel's composed subject; 44 harness lines in
+  18 rules re-aimed; `markup_anchors.py`'s two audit.py exemption lines follow the docstring. First gate `r08-gate.log`
+  FELL (25 rules, oracle 70 divergences, the follows tab empty): `app/engine-data.ts` prefetched the follows under the
+  same key through `toEngineShape<unknown>("FOLLOWS")`, invisible to tsc (probe `r08-probe-errors.log`); removed,
+  amended. Gate `r08-gate-2.log` on `b187e68f7`: 37 rules (20 named), 26 guards, oracle no divergence;
+  `r08-hold-counts.json`: 20 named at baseline. Mutations: `r08-mutation-follows.log` (`all()` back to t/k/st/own) —
+  13 fell by name; `actions.py` fell by its bare `assert` on the paused count (line 70, the re-aimed read; an
+  assert-style rule prints no FAIL line); `busy.py` and `follow_has_sheet.py` crashed ON the re-aimed reads
+  (no verdict, ruling 77); `audit.py` did not fall — its vocabulary check only reports a movie wearing series words,
+  so a follow with no kind reports nothing (vacuous under this mutation by design); `r08-mutation-incomplete.log`:
+  `library_sort.py` fell by name.
+- 2026-09-15 r·8 finding: `features/system/queries.ts` projects DISKS, INDEX, DEPENDENCIES, ERRORS, EXECUTIONS (and
+  SCHEDULERS) through a generic `family` parameter — the ruling-105 measurement counted literal family strings only,
+  so five families sit in no phase. For the steward.

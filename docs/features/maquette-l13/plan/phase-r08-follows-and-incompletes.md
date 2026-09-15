@@ -2,6 +2,8 @@
 
 2026-09-15 (ruling 105): r·6 « contract names » was cut into six numbered sub-phases, one family group each — r·6 queue cards, r·7 arrivals decisions and pipeline, r·8 follows and incompletes, r·9 suggestions, search and releases, r·10 library, settings, maintenance, account and SCHEDULERS, r·11 the sheet — and « the file dies » became r·12.
 
+2026-09-15 (r·8 done): harness sweep — 44 lines in 18 rules read a follow's or an incomplete show's `t`/`k`/`st`/`own` (acted_surface_redraws, actions, audit, busy, follow_has_sheet, follow_verb, paused_tile, pause_verb, queued_ask_mark, panel, followed_sheet_act, library_sort, message_over_layers, remove_verb, season_grab_unfollowed, season_grab, seeds_at_rest, url_state); `incomplete_served.py` and `outbox.py` already read `title ?? t`, left. Calls with a string or generic family (steward's method line): `app/engine-data.ts` NEEDED (FOLLOWS on `/api/acquisition/followed` — the untyped writer that emptied the follows tab at the first gate, removed here); `features/system/queries.ts` `useSystemRead(address, family)` on SCHEDULERS, DISKS, INDEX, DEPENDENCIES, ERRORS, EXECUTIONS (keys = their addresses — five families in NO phase of ruling 105's cut, raised to the steward); `lib/season-rows.ts` `toEngineShapeEntry("SHEETS_RAW", …)` on `["/api/media", provider, id, "seasons"]` (r·11).
+
 **Kind**: CONVERSION. **Cost**: Estimate ≈ 14 points (measure 11, ≤ 15).
 
 ## Measured
