@@ -14,13 +14,12 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   r·6 `86468f8b8` (+ `b9ee587a9`), r·7 `4fc8c0fe2`, r·8 `b187e68f7`, r·9 `4fb1b2418` (+ `f6393dcf6`), r·10 `e827267b6`,
   r·11 `e572a0708`, main 60c6d9b1d (L20 #603) merged `9e978aeaa` (+ `2864fb7c3`), r·12 `7238cd33b`, r·13 `9506bf881`
   (+ `3dcde3533`), r·14 `2f6a56be3`, r·15 `2014905dd` (+ `13a66a35b`), r·16 `b73d066e9` (+ `76952efbb`), r·17 `5424d27a6`,
-  order 43 `f6050c052` — DONE.
-- NEXT: r·18 `plan/phase-r18-the-full-gate.md` — merge `origin/main` in, bump the version above main's (patch), the full
-  harness suite, `--a11y`, `harness-hold-counts.py --compare` (baseline re-pointed to main's sha in a COPY), `make lint`,
-  `check-no-french.py --counts`, then the PR READY `refactor(maquette-l13r): the engine's residue — legacy.js dies`
-  (conversion, no §§; r·3/r·4's behaviour said). Owed to the docs PR (steward): CLAUDE.md l.159 + the vocabulary's debt
-  section and `check_french_debt` (fifteen arms); the joined ids/poster drift guard lost with correspondence (B-513's
-  shape); B-497's closure; the `decision.kind` enum demand (r·7); the instrument minors. Frame-domain lib/ 28, app/ 132.
+  order 43 `f6050c052`, main c0a5062ac merged `5ef03e7cc`, bump 0.98.96 `a312baefc`, r·18 `326ff6c4d` — DONE.
+  PULL REQUEST #605 READY (2026-09-15 19:13).
+- NEXT: the reader round on #605 (measure 2) — a FRESH session with this file; this one stood down. Owed to the docs
+  PR (steward): CLAUDE.md l.159 + the vocabulary's debt section / `check_french_debt` (fifteen arms); the joined ids/poster
+  drift guard lost with correspondence (B-513's shape); B-497's closure; the `decision.kind` enum demand (r·7); the
+  instrument minors; virtual.py's silent crash from r·5 to r·18 (no phase gate named it). Frame-domain lib/ 28, app/ 132.
 - DONE AT r·15 (was owed): `legacy.js`'s `Object.assign(window, …)` published `SETTINGS_STATE`, `icons`, `settingId`, `select`,
   `cadenceFR`, `nextSearchFR`, `stLabel` — readers `settings.py`, `page_host.py` (SETTINGS_STATE/settingId, re-aimed
   at r·5), `audit.py`, `content.py` (the three vocabulary names) → re-aimed from their homes when the file dies;
@@ -243,3 +242,9 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   `legacy.js` mentions 18 lines → 15, 0 uncited (all `engine/legacy.js@13a66a35b`, past tense), the contract description
   re-cited and types regenerated. Gate `r17-gate.log` on `f6050c052`: 24 rules (1 named, content.py), 26 guards, oracle
   no divergence; pytest touched 265 passed. No rule re-aimed, no mutation.
+- 2026-09-15 r·18: main c0a5062ac merged (no conflict), version 0.98.96. Full suite `r18-full-suite.log`: 141 rules, ONE
+  fell — virtual.py crashed (FileNotFoundError on `features/library/reference.ts`, renamed at r·5; no phase gate named it)
+  → `326ff6c4d` re-aimed at `types.ts`, gate `r18-virtual-gate.log` green. `r18-hold-compare.log` (the suite re-run,
+  baseline copy re-pointed at c0a5062a): « 141 rule(s), no violation », four movements — add_footer +2, boot_order −2,
+  page_host −1, said_and_done −1 — each explained. `r18-a11y.log`: 113 states 0 violations, light 147/147. `make lint`
+  exit 0; `check-no-french.py --counts` exit 0. Pushed 326ff6c4d; PR #605 READY 19:13. Stood down.
