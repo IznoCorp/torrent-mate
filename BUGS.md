@@ -371,7 +371,7 @@ when the defect comes back.
 | B-309 | « Récupérer maintenant » on a medium's own panel THROWS and takes nothing: the release screen's `data-take` branch is checked first, has no guard, and swallows every `data-take` in the document | by L19 | `to confirm` |
 | B-310 | Opening a media screen from a bottom panel paints the PANEL again for one frame, open and opaque, after the crossing — the departing snapshot's `animation:` shorthand resets its fill mode, so `panel-down` ends and the snapshot snaps back to the captured (open) state until the transition is torn down one frame later; proven on the operator's phone and reversed there by one line | 2× | `fixed #573` |
 | B-311 | Coming back to a list after a medium's sheet does not restore the scroll position the list was left at | 1× | `open` |
-| B-312 | Changing the library's lens during a selection DROPS it — L14's own decision, RULED against by the operator on 2026-09-05 | 2× | `open` |
+| B-312 | Changing the library's lens during a selection DROPS it — L14's own decision, RULED against by the operator on 2026-09-05 | 2× | `to confirm` |
 | B-313 | The follow sheet offers « Voir le parcours » TWICE — once as the primary act, once in the secondary row — whenever the primary falls through to it | 1× | `fixed #572` |
 | B-314 | The add screen's search shows no example result to try the flow with | 1× | `open` |
 | B-315 | Découvrir's « charger plus »: the button is too big, one press should show more, and the feed must say when the reserve is spent | 1× | `fixed #572` |
@@ -496,6 +496,7 @@ when the defect comes back.
 | B-536 | Durations rounded to whole minutes: 104 s reads « 2 min » in the row and in the detail head, the fixture line the oracle used to carry said « 1 min 44 »; « 7 min » stands for 439 s; owner `features/system/run-list.tsx` `durationInWords` | the reader round | `open` |
 | B-537 | `check-markup-contracts.py` is green over the four lock part names: a literal `data-part="flux/row"` is overridden at runtime by the FactRow spread (`{...row, part: PARTS[index]}`) into `locks/pipeline`, `locks/pause-sentinel`, `locks/watcher-sentinel`, `locks/orphan`, and the rules select those four by computed selector, which the guard skips — nothing fails, the guard does not read them (instrument reading); owner `scripts/check-markup-contracts.py` (read spread part names) or literal parts in `locks.tsx` — apparatus frozen, measure 1 | the reader round | `open` |
 | B-538 | A RUNNING history row has nothing to report on its second line — duration is null while running, so the row reads one text line shorter than the same row once ended (−14.8 px on `system/runs`, the page following), C8's consequence: a drawing choice for the operator's walk is that a running row's second line could say the elapsed time instead. Six oracle divergences accepted by name as this cause (`run-detail-running`, `watch-running` × `system/runs`, `system/body`, `shell/page`), STOP A ruled by the steward 2026-09-15 ~13:xx = option A. Owner: none yet — a behaviour wave on Système | the reader round | `open` |
+| B-539 | Named states inherit a library dial by their ORDER: the driver's `reset()` (`harness/drive.ts`) does not write `libLens` or `libMode`, so `lib-incomplete`, `lib-recent`, `lib-search-empty` and the four `mediasheet-*` states are recorded in `oracle-reference.json` in the list layout inherited from `lib-list` before them; a probe resetting both moved 38 measurements on those seven states (`shell/library-list` display flex → grid, gap 8 → 10 px, heights). `libCat` and the sort were the same defect, invisible until a state or a rule moved them, and are reset since L13c c·1. Owner: none — an instrument defect; the fix is the reset plus the reference re-recorded, declared by a later wave | L13c c·1's probe | `open` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
 
@@ -2912,6 +2913,17 @@ re-dropping the set, and the hold must fall on it.
 
 **Owner**: the wave that owns the library's selection surface, or a behaviour wave beside B-313.
 **Not L19** — its contract is « no surface changes » and it does not touch this.
+
+**REPAIRED IN L13c c·1, rulings 115 and 116.** Five writers dropped the set, not two: `lens`, `cat`,
+`setsort` and `clear-search` in `features/library/verbs.ts`, and the search commit in
+`library-head.tsx`; none drops it now, and clearing the search no longer clears. The bar and the
+delete dialog already read the whole stored set. **R195** `selection_survives_the_listing.py`, seen
+red on the tree before the move — for each writer « the store still holds the same titles » and
+« the bar's caption counts all of them » fell, and the dialog named no title under « Films » — then
+green with its 14 holds; the mutation putting the `lens` write back fells exactly the two « the
+lens » holds by name. The dialog's fold at four titles stays the drawn dialog (ruling 116): a
+selection of five or more names its hidden titles only inside « et N autres ». Waiting for the
+operator's hand.
 
 <sub>`grep -n "selected: new Set()" frontend/maquette/design/src/engine/legacy.js` · `git show 9ce9b0508:docs/features/maquette-l14/REPORT.md` § the selection keyed by title</sub>
 

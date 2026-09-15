@@ -15,7 +15,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   c·6 the seventh scheduler (B-327) → c·7 no follow without a sheet (B-366) → c·8 the library's
   states at rest (B-345's library half) → c·9 the close (register re-read, `REPORT.md`, the lot's
   gesture, the pull request).
-- None DONE yet. NEXT (`Agent : l13c 1`): c·1, after the handshake.
+- DONE: c·1 (`a78287834` + `6150f81d0`, B-312 `to confirm`, B-539 filed). NEXT (`Agent : l13c 1`): c·2.
 - LOGS: `~/Library/Logs/tm-l13c/`. Mutex `sh scripts/heavy.sh --held`; tests lock
   `/private/tmp/tm-heavy-tests/holder`; own lock `/private/tmp/tm-heavy-l13c/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13c
@@ -47,3 +47,13 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
 - 2026-09-15 (steward): branch not yet cut. BRIEF-L13c.md and this file written AHEAD (order 39),
   on the model of BRIEF-L13r.md / RESUME-L13r.md, before L13r's own pull request opens. c·1 open for
   `Agent : l13c 1` once the steward spawns it, stacked on L13r's head per measure 9.
+- 2026-09-15 c·1 (`Agent : l13c 1`): rulings 115–117. Five writers stopped dropping the selection
+  (lens, cat, setsort, clear-search, the search commit). R195 `selection_survives_the_listing.py`,
+  14 holds: red `c01-red.log` (11 FAIL on the tree before the move), green `c01-gate-2.log` on
+  `6150f81d0` (24 rules, 26 guards, 0 failed; oracle 18 divergences, all `lib-selection-filtered`
+  absent from the reference, accepted B-312); mutation `c01-mutation-lens.log` fells the two « the
+  lens » holds by name. Trap paid: the driver's `reset()` did not write `libCat` or the sort, so a
+  state or a rule moving them leaked into every later `__go` (9 `shell/library-count` divergences
+  first read as inherited — they were this state's); `libLens`/`libMode` leak too but the reference
+  records it (probe `c01-probe-dials.log`, B-539). Dialog fold at four kept (ruling 116): a
+  selection of ≥ 5 names hidden titles only inside « et N autres » — for the operator.
