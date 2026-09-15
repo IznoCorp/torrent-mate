@@ -15,7 +15,8 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   c·6 the seventh scheduler (B-327) → c·7 no follow without a sheet (B-366) → c·8 the library's
   states at rest (B-345's library half) → c·9 the close (register re-read, `REPORT.md`, the lot's
   gesture, the pull request).
-- DONE: c·1 (`a78287834` + `6150f81d0`, B-312 `to confirm`, B-539 filed). NEXT (`Agent : l13c 1`): c·2.
+- DONE: c·1 (`a78287834`…`8cf2fa574`, B-312 `to confirm`, B-539 filed), c·2 (`069fb3a8e` + `f67401890`,
+  B-340 `to confirm`). L13r squashed on main as `08400a22a`: merged in before c·3. NEXT: c·3.
 - LOGS: `~/Library/Logs/tm-l13c/`. Mutex `sh scripts/heavy.sh --held`; tests lock
   `/private/tmp/tm-heavy-tests/holder`; own lock `/private/tmp/tm-heavy-l13c/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13c
@@ -60,3 +61,11 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
 - 2026-09-15 c·1 close: the oracle accepted `lib-selection-filtered` by name (`2092bbb27`, diff = the one
   state + count + baseCommit); re-gate `c01-gate-3.log` « gate: no violation ». Ruling 116 carries the
   operator's A.
+- 2026-09-15 c·2 (`Agent : l13c 1`): R196 `add_screen_opens_fresh.py`, 7 holds, red `c02-red-2.log`
+  (4 FAIL), green `c02-gate-3.log` on `f67401890` (27 rules, 5 named, 26 guards, 0 failed, oracle no
+  divergence); mutations `c02-mutations.log` (stored query → f1+f2; visit not begun → f4+f5). Re-aimed:
+  R121 `replacement.py` and `bugs.py` read `window.__addedPositions()`. Traps paid: « + » lives on
+  Acquisition only (a walk must take the tab); `add_footer.py` fell on its second add because the
+  search seed gives the film « Star Wars : The Clone Wars » the series' identifiers (tmdb 4194) — the
+  key now carries the kind; the seed itself is the fixture-identity class, left as it is. A new name
+  word must be in `scripts/code-vocabulary.txt` — run check-no-french before every commit.

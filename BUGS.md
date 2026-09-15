@@ -399,7 +399,7 @@ when the defect comes back.
 | B-337 | A follow card swiped open: the first tap on a revealed action does nothing, the second acts — systematic on the phone | 1× | `open` |
 | B-338 | After a panel's departure the invisible scrim stays hit-testable over the media screen for ~380 ms — `opacity 0`, `visibility` still `visible` until its delayed flip — so a tap on the fresh screen lands on nothing | by the steward | `fixed #573` |
 | B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens » | 1× | `open` |
-| B-340 | The « + » button reopens the add screen with the LAST query and mode still in place — after identifying an arrival, a new search starts on « Marvels Spider-Man 2 v1 526 0 -Mephis… », 0 results, and the « 2 médias ajoutés » strip of the previous visit | 1× | `open` |
+| B-340 | The « + » button reopens the add screen with the LAST query and mode still in place — after identifying an arrival, a new search starts on « Marvels Spider-Man 2 v1 526 0 -Mephis… », 0 results, and the « 2 médias ajoutés » strip of the previous visit | 1× | `to confirm` |
 | B-341 | A settings field commits its edit only when the finger LEAVES it — no validation affordance in the panel — which the operator reads as counter-intuitive; the pending edit then says « Valeur actuelle » for the value not yet written | 1× | `fixed #588` |
 | B-342 | « Enregistrer » says « Enregistré — torrent.json5 » and the row shows the ORIGINAL value again: the mock's write records the file name and never the value, so the next read contradicts the toast | 1× | `fixed #588` |
 | B-343 | After a real save the restart banner does not appear: the flag is raised on the engine's `SETTINGS_STATE` object and nothing re-renders the page, so « Redémarrer maintenant » is reachable from a named state and not from a save | 1× | `fixed #588` |
@@ -4016,6 +4016,18 @@ as it does. Owner: PROPOSED **L13** with the add screen's engine-owned state (`a
 another lot.
 
 <sub>operator's screenshot, 2026-09-06 10:13 · `sed -n 41,42p frontend/maquette/design/src/app/action-button.tsx` · `grep -n "added: new Set\|added.add" frontend/maquette/design/src/engine/legacy.js` → 5214, 5632 (resets: initial shape and named states only), 9526, 9586, 9592 (adds) · `grep -n "screens.add(trim" …/legacy.js` → the identify seed</sub>
+
+**REPAIRED IN L13c c·2.** « + » opens `screens.add("", "follow")`; `addQ`, `addMode` and `added` left
+the store. `features/acquisition/add-visit.ts` holds ONE visit — begun at the add screen's first
+render, its mode mirrored from the router for the verbs and the panel, what was added keyed by the
+result's kind and provider identifiers, never its position; the identify path seeds the folder's name
+through the address, unchanged. **R196** `add_screen_opens_fresh.py` walks the screenshot's journey by
+finger and was seen red before the move — the field kept « Backrooms 2026 » at both openings, the
+strip of an earlier visit, one row of five checked — then green with its 7 holds; the mutation
+handing the stored `resolveTarget` back to « + » fells the two empty-field holds by name, and the one
+not beginning the visit fells the strip and the checked-row holds. B-339's « ✓ » on a result never
+added, from a stale position, is gone with it: a fresh visit checks no row (R196's last hold); the
+drawing of a disabled act is c·3's. Waiting for the operator's hand.
 
 **B-341 — a settings field commits on blur, and says « Valeur actuelle » of a value not yet written.**
 Reported by the operator on 2026-09-06 while trying to confirm B-300, verbatim: « Pas de bouton de

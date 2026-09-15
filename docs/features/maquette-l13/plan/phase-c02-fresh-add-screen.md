@@ -22,6 +22,8 @@
   writes `store.write({ addQ, addMode })` "kept in sync… before navigating" for `addVerb` and the
   cross-world `add:N` panel act (per its own comment) — those two readers, not named in the move
   either, are what actually still needs the legacy fields once `add-screen.tsx` stops reading them.
+- **Landed (2026-09-15).** R196, 7 holds; `add-visit.ts`; the identity key carries the kind (the
+  search seed gives a film its series' identifiers); R121 and bugs.py re-aimed; B-340 `to confirm`.
 
 A BEHAVIOUR change: « + » opens the add screen empty (query empty, mode `follow`, nothing added),
 while the identify path keeps seeding the folder's name. `addQ`, `addMode` and `added` leave the

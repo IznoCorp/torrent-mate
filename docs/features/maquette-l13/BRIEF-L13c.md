@@ -114,8 +114,8 @@ this brief's real reading, not restated here.
   `docs/reference/*` (`docs/features/maquette-l13/DESIGN.md`'s own § 9 amendment excepted — the
   wave amends only the file under its own folder), `CLAUDE.md`, the office**; a full-path citation
   of a file your phase deletes, refused by `check-docs-cited-paths.py`, is re-cited
-  `path@<L13r's squash sha on main>` (never the PR head, whose commits leave the remote with the
-  branch; the steward sends the sha at the merge) and nothing else in that file, said in the body.
+  `path@08400a22a` (L13r's squash on main — never the PR head, whose commits leave the remote with
+  the branch) and nothing else in that file, said in the body.
 - **CONTEXT BUDGET ≤ 15 points per phase**: gate logs read by their verdict line only; commit bodies
   ≤ 12 lines, no baseline figure in a body (order 31: file + direction in one line); a phase-file
   amendment is ONE dated line. Gauge at every phase boundary, before and after; **under 45 % you
