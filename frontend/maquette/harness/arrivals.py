@@ -168,15 +168,22 @@ async def main():
         journal.check("while running, nothing claims a pass is already queued",
                       not running["queued"])
 
+        # RE-AIMED: a second pass asked DURING a run is the duplicate the backend
+        # refuses 409 (R185 holds it); a pass WAITS behind a MAINTENANCE run.
+        # So the running pass is stopped, the veille's own operation is put in
+        # flight, and « lancer » is tapped again — the drawing read is the same.
+        await pg.tap('[data-part="pipeline"] [data-pipe="stop"]')
+        await pg.wait_for_timeout(350)
+        await pg.evaluate("()=>fetch('/api/acquisition/detect', {method: 'POST'})")
         await pg.tap('[data-part="pipeline"] [data-pipe="start"]')
         await pg.wait_for_timeout(350)
         queued = await pg.evaluate(READ)
-        journal.check("a pass asked for DURING another is queued, and says so",
+        journal.check("a pass asked for while a maintenance run holds the lock is queued, and says so",
                       queued["queued"], f"queued={queued['queued']} buttons={queued['buttons']}")
         layer = await pg.evaluate(LAYER_STATE)
         journal.check("and the layer's status read answers « queued » (DOIT-4)", layer == "queued",
                       f"the status read answers {layer!r}")
-        journal.check("and it is not refused: the running pass carries on",
+        journal.check("and it is not refused: the bar goes on drawing the pass",
                       queued["status"] == "En cours" and "stop" in queued["buttons"],
                       f"{queued['status']} · {queued['buttons']}")
 

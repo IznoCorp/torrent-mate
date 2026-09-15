@@ -1170,7 +1170,8 @@
       "taken": "« {{title}} » récupéré — suivez-le dans « En vol ».",
       "left": "« {{title}} » laissé tel quel — le résultat automatique est conservé, rien n'a été re-scrapé.",
       "pipelineStarted": "Pipeline lancé — il se raconte ici, étape par étape.",
-      "pipelineQueued": "En file — votre passage partira dès que celui-ci sera fini.",
+      "pipelineQueued": "En file — votre passage partira dès que la maintenance en cours sera finie.",
+      "pipelineAlreadyRunning": "Un passage est déjà en cours — celui-ci n'a pas été relancé.",
       "pipelineStopped": "Pipeline arrêté. Ce qui était déjà rangé le reste.",
       "resolved": "Identifié comme « {{choice}} » — le pipeline reprend jusqu'à la médiathèque."
     },

@@ -32,7 +32,7 @@ export function arrivalsStates(): NamedState[] {
     ],
     [
       "arr-queued",
-      "Arrivées — un passage demandé pendant un autre",
+      "Arrivées — un passage demandé pendant une maintenance",
       () =>
         applyState({ page: "arr", scen: "real", phase: "ready", pipe: "queued" }),
     ],

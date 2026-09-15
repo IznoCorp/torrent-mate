@@ -65,6 +65,9 @@ const MILLISECONDS_PER_SECOND = 1000;
 // Why a run nobody holds is refused, in the problem body's own words.
 const UNKNOWN_RUN = "no run carries that identifier";
 
+// Why a second pass is refused, in the problem body's own words.
+const RUN_ALREADY_GOING = "a pipeline pass is already going";
+
 // WHICH RUN EACH FIXTURE LINE BELONGS TO. The snapshot's first rows are the six
 // runs `EXECUTIONS` was read from, in its order — matched on their dates and
 // durations when the snapshot was taken — so a history row can carry the line
@@ -175,14 +178,19 @@ export function pipelineRoutes(): MockRoute[] {
         watcherEnabled: state.watcherEnabled,
       };
     }),
-    // A run asked for during a run is QUEUED and visibly so — never refused,
-    // and never demoted back to running by the next tap, which is what a
-    // toggle did. Each verb states the transition it makes rather than
-    // flipping between two values.
+    // THE BACKEND'S OWN ANSWER. A second pipeline pass asked while one is
+    // going is the same action on the same target already under way — the
+    // strict duplicate the interface may refuse — so it is answered 409. A pass
+    // WAITS only behind a maintenance run holding the lock, and says so. Each
+    // verb states the transition it makes rather than flipping between values.
     route("runPipeline", POST, "/api/pipeline/run", () => {
       const state = mockState();
-      if (state.pipelineState === IDLE) state.pipelineSince = scenario().now;
-      state.pipelineState = state.pipelineState === IDLE ? RUNNING : QUEUED;
+      if (state.pipelineState !== IDLE) return refused(409, RUN_ALREADY_GOING);
+      const maintenanceHolds = state.pipelineRuns.some(
+        (run) => run.kind === DETECTION_KIND && run.outcome === STILL_RUNNING,
+      );
+      state.pipelineState = maintenanceHolds ? QUEUED : RUNNING;
+      state.pipelineSince = scenario().now;
       return { state: state.pipelineState, uid: null };
     }),
     route("pausePipeline", POST, "/api/pipeline/pause", () => {
