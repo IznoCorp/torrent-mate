@@ -32,7 +32,7 @@
    because narrowing it means editing the instrument that measures the move.
 */
 
-import { screens, panel, bridge, seam } from "./seams.js";
+import "./seams.js";
 import { hideLayers, installPageRestore } from "../app/layers";
 import { icons } from "../app/icons";
 /* THE VOCABULARY THAT LEFT, READ BACK FOR THE RULES. The constants and helpers
@@ -53,7 +53,6 @@ import { store } from "../lib/store-access";
    handler that reads a Back, the verbs that write a navigation and the table
    that reopens an addressed panel are `app/`'s; the click delegation below
    still calls them by name. */
-import { replacePath, walk } from "../app/page-switch";
 /* THE SETTINGS CATALOGUE, IMPORTED BACK. How a setting is identified,
    listed and read moved to the feature that owns settings when its panels did,
    and the engine reads the same answers rather than keeping its own —
@@ -67,19 +66,7 @@ import { SETTINGS_STATE } from "../features/settings/state";
    surface this file still DREW. Its containers were already React's; what moved
    is who owns their content, and the technique is unchanged because a replaced
    node cannot animate. `render()` still calls these by name. */
-import {
-  advanceDeck,
-  deckOrder,
-  dismissSug,
-  fillSug,
-  loadMoreSug,
-  mountDeck,
-  passerSug,
-  refreshDeck,
-  deckHTML,
-  remountSuggestionLoader,
-  sugFoot,
-} from "../features/acquisition/discover-feed";
+import { redraw } from "../lib/shell-doors";
 
   /* TorrentMate — mobile-first redesign prototype
      Data: real library titles (1,861 items). */
@@ -224,15 +211,6 @@ import {
      What that removes is a whole class rather than an instance. A rule could
      drive a page by mutating the cached object, and R77 had to hold that
      nobody did; with no cached object there is nothing to mutate. */
-  /* THE ONE READ PATH. Every `state.x` in this engine is now
-     `currentState().x`, and this is what it calls: the store, each time. No
-     copy is kept anywhere, so none can be stale.
-
-     It is a function rather than a getter on some object because the call site
-     reads `currentState().page` — the parentheses are the point, visible at
-     every site, saying « this is a read, now » instead of looking like a
-     module-level variable that someone must remember to refresh. */
-  const currentState = () => store.read().state;
 
   /* Rendering: building blocks */
 
@@ -319,19 +297,9 @@ import {
   /* One setting, in the panel — the same panel as everywhere else, taking the
      same descriptor of facts. What it says: where the value comes from, what
      the file's own comment explains, and what it is now. */
-  /* Navigation — THE PAGE TABLE IS NOT HERE ANY MORE.
-     `PAGES_OF()` declared eight pages beside three other copies of the same
-     fact (the drawer's own `NAVIGATION`, `PAGES` in the shell's page
-     host, `PAGE_PATHS` in the address model), and a fact that exists four
-     times is stale in three of them. There is one table, `app/navigation.ts`,
-     and this engine reads it through `seam.navigation`, exactly as it
-     reads `seam.address` for a path. The rows arrive already translated:
-     no French reaches this file and none has to. */
-  const navigationRows = () => seam.navigation?.rows() ?? [];
 
   const select = (selector) => document.querySelector(selector);
-  const view = select("#view"),
-    port = select("#port");
+  const port = select("#port");
 
   /* THE FLOATING ACTION BUTTON IS NOT THIS FILE'S ANY MORE.
      It was static markup this engine showed and hid, from two flags kept in
@@ -340,46 +308,6 @@ import {
      (`app/action-button.tsx`), which is the whole of what « one decision point »
      asked for: written in two places, the second writer erases the first. */
 
-  function render() {
-    // Every action ends in render(): one bump here reaches React for every
-    // simulated mutation, including the ones made in place on `world`
-    // (splice, unshift…) that never pass through `write`.
-    store?.touch();
-    /* An id no page carries is not a crash: it is the `*` route. Looking one
-       up and calling `.render()` on nothing stopped the whole interface on a
-       TypeError, which is the worst possible answer to a stale bookmark.
-       The row itself is not read here any more — nothing below consumes it —
-       so only the redirection is made.
-
-       AND IT IS REFUSED RATHER THAN MADE WITH `undefined` where the table
-       cannot answer. That only happens with the seam absent, and the seam is
-       installed before this engine starts; written the other way it would blank
-       the interface with nothing in the console, which is a worse answer than
-       the TypeError this branch was written against. */
-    const notFound = seam.navigation?.notFoundPage;
-    if (!navigationRows().some((element) => element.id === currentState().page)) {
-      if (notFound === undefined)
-        // ENGLISH, and not in `fr.json`: a console message is a tool message.
-        console.error("render: the navigation table answered nothing");
-      else store.write({ notFound: "/" + currentState().page, page: notFound });
-    }
-    /* EVERY PAGE IS DRAWN BY THE SHELL, and this file writes `#view` nowhere.
-       It used to branch: a page the shell owned was portalled into this very
-       container, and a page the ENGINE owned had its markup written here from
-       the table's own `render()`. That second half had already lost its
-       subject before this lot opened — all eight rows of `PAGES_OF()` carried
-       `shellOwned: true` and none carried a `render`, so the branch was
-       unreachable and would have thrown if reached (B-232, and `SURVEY.md`
-       § 1.3 measured it). Its subject left the file with the table: a row of
-       `app/navigation.ts` carries a component and nothing else could draw it.
-       So the branch is subtracted, with `shellOwnsView` and `legacyNodes`,
-       which existed only to tell the two halves apart.
-
-       Everything below still runs: the bar, the nav and the save bar are
-       shared furniture, not the page's. */
-    mountDeck();
-    remountSuggestionLoader();
-  }
 
   /* Loading
      Two regimes, and the difference is not ergonomic — it is ethical.
@@ -421,7 +349,6 @@ import {
   window.__referentiel = {
     icons,
     baseTitle,
-    render,
     /* What the Arrivées page draws. `PIPELINE` is the run's own data, read and never written; the three
        `derived` verbs answer what is stuck, moving and settled, which depends
        on the scenario and so cannot be a frozen value. */
@@ -451,7 +378,6 @@ import {
     SETTINGS_STATE,
     dateFR: dateLabel,
     settingId,
-    toast,
   };
 
   /* EVERY SORT GOES BOTH WAYS, and each way has its own NAME rather than an
@@ -562,14 +488,6 @@ import {
      THE THIRTY-FOUR CALLERS BELOW KEEP SAYING `toast(…)` and `toastUndo(…)`,
      because they are PRODUCERS and a producer moves to its feature at L19.
      These two lines die with them. */
-  function toast(msg) {
-    seam.toast?.show({ message: msg });
-  }
-  /* An action triggered by a GESTURE must be undoable: a sliding thumb is
-     wrong more often than a pressing finger. */
-  function toastUndo(msg, undo) {
-    seam.toast?.show({ message: msg, undo });
-  }
 
   /* A page restored the way a named state starts: the layers hidden without
      touching history, the store written, the port back at the top when the
@@ -580,7 +498,7 @@ import {
     store.write(patch);
     if (patch.page || patch.libLens || patch.q !== undefined)
     port.scrollTop = 0;
-    render();
+    redraw();
   }
   installPageRestore(applyState);
   /* Kept as a VERB the driver can still say: `touch.py`, `drag.py` and
@@ -589,31 +507,6 @@ import {
      state, the per-layer guard and the unwind all live in
      `panel.fermer` now — this is one line pointing there, not a
      second implementation. */
-  function closeSheet(pop) {
-    panel.close(pop);
-  }
-  /* THE CONFIRMATION IS NOT DRAWN HERE ANY MORE. `openDlg(html)` took an HTML
-     STRING — several hundred characters of template with the escaping done by
-     hand at every interpolation — wrote it into `#dlg`, then read the heading
-     back out of what it had just written so the layer could name itself. The
-     layer is `ui/dialog/index.tsx` and its verbs are `app/dialog-host.ts`'s,
-     behind a DESCRIPTOR of facts: a heading, blocks, and actions carrying the
-     `data-*` this file's own delegation still reads. */
-
-  /* Re-rendering a screen must NEVER send the operator back to the top:
-     ticking a box at the bottom of a form jumped to the top, which makes
-     the form unusable. Re-rendering the SAME screen (same key) preserves
-     scroll position, field values and caret; a DIFFERENT screen starts at
-     zero, which is correct.
-     The guard lives here, once, rather than in every control — otherwise
-     the next control added reintroduces the defect. */
-  /* B-026: a navigation write that fails must not fail silently — the URL
-     and the interface would then disagree with nothing on record. Published
-     so the harness can read it, the same way the shell publishes the set of
-     path segments no table names rather than hiding them: it catches a write
-     that DID fail, never a wrong one. Reset only at load — a measurement that ran before
-     leaves no residue, because nothing here ever clears it back to false. */
-  window.__navEchec = false;
 
 
   /* THE ENTRY IS NOT THIS FILE'S ANY MORE — the splash, the sign-in gate and
@@ -638,8 +531,6 @@ import {
      and every state measured after it inherited that route: caught by the
      oracle as a divergence in `relay-refused`, eighty states later, which is
      what a leaked address looks like from the outside. */
-  const showSignIn = (withError, silent) =>
-    seam.entry?.showSignIn(withError, silent === true || walk.driven);
 
 
 
@@ -741,11 +632,7 @@ import {
    browser, and a source file that reaches its neighbour through a global says
    nothing about what it actually depends on. The names are listed, so the
    dependency is readable and a deletion breaks the build instead of a run. */
-export {
-  applyState,
-  render,
-  toast,
-};
+export { applyState };
 
 /* ── the published surface ───────────────────────────────────────────────────
 
@@ -780,13 +667,9 @@ export {
    across all 254 names, and this is the only one. */
 Object.assign(window, {
   SETTINGS_STATE,
-  showSignIn,
-  closeSheet,
   icons,
-  settingId, render,
+  settingId,
   select,
-  toast, toastUndo,
-  view,
   // The rules' names for three moved helpers, published from their homes.
   cadenceFR: cadenceSentence,
   nextSearchFR: nextSearchTime,
@@ -794,19 +677,3 @@ Object.assign(window, {
 });
 
 // Read live, because the engine reassigns each of these.
-Object.defineProperties(window, {
-  store: { get: () => store, configurable: true },
-  // A LIVE READ, not an alias. There is no cached `state` binding left to
-  // publish — the getter goes to the store, exactly as the engine's own
-  // reads do, so a rule reading `state.page` reads what is on screen. And it
-  // is the PRODUCT's, not only the harness's: this file reads the bare name
-  // itself — the boot writes `Object.assign(state, …)` — so it is published
-  // here, at evaluation, before anything starts.
-  //
-  // Written `() => state` for one build, after the binding was removed:
-  // the name then resolved to `window.state`, i.e. to THIS getter, and
-  // the page died at load with « Maximum call stack size exceeded ». A
-  // getter that names the property it defines is a loop, and the only
-  // reason it is not a syntax error is that the resolution is late.
-  state: { get: () => currentState(), configurable: true },
-});

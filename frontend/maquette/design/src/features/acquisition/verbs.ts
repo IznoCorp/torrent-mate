@@ -10,21 +10,16 @@
 // `app/panel-contributions.ts`, like its neighbours `follow-verbs.ts` and
 // `deck-verbs.ts`.
 //
-// THE PAGE IS REDRAWN THROUGH `window.__referentiel.render()`, the way every
+// THE PAGE IS REDRAWN THROUGH `redraw()`, the way every
 // verb that still shares its page with the engine's drawing redraws it
 // (`features/arrivals/verbs.ts` is the precedent).
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { queueActions } from "../../lib/queue";
-import { fillLandingDoor, panel, replaceAddress, toast } from "../../lib/shell-doors";
+import { fillLandingDoor, panel, replaceAddress, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
 import { baseTitle } from "../../lib/titles";
 import { settleSwipeRow } from "./follow-verbs";
-
-/** Redraws the page the engine still draws beside the components. */
-function redraw(): void {
-  window.__referentiel.render();
-}
 
 /* THE PAGE'S SELECTORS. A TAB IS A SETTING OF THE PAGE, so its address
    REPLACES the entry it is on and the list starts again from the top; a pill or

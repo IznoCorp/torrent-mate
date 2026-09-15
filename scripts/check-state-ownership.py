@@ -71,12 +71,9 @@ ENGINE_SOURCES = ("engine/legacy.js",)
 # in the interface's own bag — invariant 4's violation, one per name. They leave
 # as their surface is wired, and the ceiling below follows them down.
 SERVER_STATE_KEYS = {
-    "sugCount": "how many suggestions have been asked for — a page cursor",
     "sugGone": "which suggestions have been dismissed — server state",
-    "sugLoading": "whether the suggestion read is in flight — query state",
     "phase": "loading / error / ready — query state, for every surface at once",
     "added": "what the add screen has added — server state",
-    "notFound": "whether a lookup found nothing — the answer to a read",
     "pipe": "what the pipeline is doing — server state",
 }
 
@@ -112,6 +109,17 @@ INTERFACE_STATE_KEYS = {
     # THE SELECTION'S MEDIA COUNT, beside `selMode` and `selected`: a figure the
     # interface derives from what the operator ticked, and nothing a server said.
     "selectedMedia",
+    # THREE KEYS RECLASSIFIED WHEN THE ENGINE'S REDRAW LEFT IT, and each is said.
+    # `notFound` was filed as « whether a lookup found nothing — the answer to a
+    # read », which describes the SERVED queue list of the same name and not
+    # this key: the store's `notFound` is the unknown address the not-found page
+    # names, composed by `lib/addresses.ts` and by the redraw — what the operator
+    # typed. `sugCount` and `sugLoading` are the deck's paging state, written by
+    # the feature that pages it: how far the operator has asked the reserve to
+    # go, and whether that ask is out. They were counted as the ENGINE's under
+    # an exemption whose subject — « the engine imports the feed » — died with
+    # the redraw, so they are named here for what they are instead.
+    "notFound", "sugCount", "sugLoading",
 }
 
 # What the union may be, and it is refused UPWARD. Lowered in the commit that
@@ -119,8 +127,9 @@ INTERFACE_STATE_KEYS = {
 # L09 phase 6 took the Médiathèque's four — `libCount`, `libErr`, `libLoading`,
 # `libFailedOnce`, all of them the query's — and the four names left this list
 # with the keys, because a list that kept them would go on describing a store
-# that no longer holds them.
-SERVER_STATE_CEILING = 7
+# that no longer holds them. It reads 0 since the engine's redraw left it: the
+# three keys still counted were reclassified (see INTERFACE_STATE_KEYS).
+SERVER_STATE_CEILING = 0
 
 # And the COMPONENT share separately, because the union alone cannot see a
 # component newly copying a key the engine already writes: the union stays 11
@@ -150,14 +159,7 @@ COMPONENT_SHARE_CEILING = 0
 # has to reach for the file — and the day the engine goes, every entry here
 # stops being honoured on the same day, loudly, because the import goes with it.
 # An entry naming a file the tree does not hold is refused outright.
-ENGINE_OWNED = {
-    "features/acquisition/discover-feed.ts": (
-        "the discovery feed — the reserve, the pile and the gesture that spends "  # french-ok: none, and the page's own name is not written here for that reason
-        "them. Its paging is by INDEX into a list it holds, and rewriting that "
-        "is rewriting the deck (features/acquisition/queries.ts says so in its "
-        "own words); it dies with the engine at L13."
-    ),
-}
+ENGINE_OWNED: dict[str, str] = {}
 
 # How many `useEffect` call sites the second arm must find before it may report
 # anything at all. Raised as the tree grows; a corpus below it means the reader

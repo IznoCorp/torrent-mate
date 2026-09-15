@@ -3,9 +3,11 @@
 // The design-notes button is wired here, and so is the welcome hint that points
 // at the notes. They speak the operator's language because the operator reads
 // them by hand; no rule taps them.
-import { toast } from "../engine/legacy.js";
 
 const currentState = () => window.__store.read().state;
+
+/** Says a message through the frame's message door. */
+const toast = (message: string) => window.__toast?.show({ message });
 
 /**
  * Wires the harness bar's notes toggle and the welcome hint.

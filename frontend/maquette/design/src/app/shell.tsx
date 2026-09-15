@@ -98,6 +98,7 @@ import { installPullIndicator } from "./pull-indicator";
 import { installDiscoverSwipe } from "../features/acquisition/card-gestures";
 import { installQueueActions } from "../lib/queue";
 import { installPanelPress } from "../lib/press-arbitration";
+import { installRedraw } from "./redraw";
 import { installReleasesLookup } from "../features/releases/queries";
 import { installSearchLookup } from "../features/acquisition/search-queries";
 import { installStore } from "../lib/store-access";
@@ -189,6 +190,7 @@ if (__MOCKS_BUILT_IN__) {
 // first render draws the tab bar from it; a seam installed afterwards would
 // leave the interface opening with an empty bar until something moved.
 installNavigationSeam();
+installRedraw();
 
 installArrival(store);
 if (__MOCKS_BUILT_IN__) installHarness();

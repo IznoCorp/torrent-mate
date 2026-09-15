@@ -57,7 +57,7 @@ import {
   suggestions,
 } from "../../features/acquisition/variants";
 import { Markup } from "../../ui/markup";
-import { bridge } from "../../lib/shell-doors";
+import { bridge, redraw } from "../../lib/shell-doors";
 import { baseTitle } from "../../lib/titles";
 import { mediumCardMarkup, type MediumCard } from "./card-markup";
 import { addVerb } from "./add-label";
@@ -87,10 +87,7 @@ export function AddScreen() {
   const added = state.added as Set<number>;
   const resolveTarget = state.resolveTarget as string | null;
 
-  const {
-    icons,
-    render,
-  } = useAcquisitionReference();
+  const { icons } = useAcquisitionReference();
   const { t } = useTranslation();
 
   // Always invoked from INSIDE this screen — search() runs only while
@@ -128,7 +125,7 @@ export function AddScreen() {
   // store automatically (see `render`'s own doc comment in data.ts).
   function toFollows(): void {
     writeUiState({ page: "acq", acqTab: "now" });
-    render();
+    redraw();
     // THE IDENTITY IS IN THE PATH AND THE STATE IS IN THE QUERY — D1, and this
     // function was the counter-example (B-051). It navigated to `/` with
     // `search: { page: "acq", tab: "now" }`: the page's identity travelling as

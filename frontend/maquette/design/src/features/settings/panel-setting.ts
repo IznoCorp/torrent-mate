@@ -16,7 +16,7 @@ import { flattenSettings, settingIdentifier, valueShown } from "./catalog";
 import { HELD, send, sharedQueryClient } from "../../lib/query-client";
 import { configurationStatusQuery, settingsQuery, writeConfigurationFile } from "./queries";
 import type { Setting, SettingsTopic } from "./reference";
-import { dialog, panel, toast } from "../../lib/shell-doors";
+import { dialog, panel, toast, redraw } from "../../lib/shell-doors";
 import { settingLabels } from "./labels";
 import { changeSetting } from "./pending-edits";
 import { SETTINGS_STATE, changedFiles, fileName, typedValue } from "./state";
@@ -177,7 +177,7 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
 function cancelEdit(identifier: string): void {
   SETTINGS_STATE.modifs.delete(identifier);
   panel.close();
-  window.__referentiel.render();
+  redraw();
   toast?.show({
     message: i18next.t("panels.setting.cancelledToast"),
   });
@@ -209,7 +209,6 @@ type SettingsVerbs = {
    longer describes what is stored, and throwing the operator's work away on top
    of that would be the second loss. */
 async function saveEdits(): Promise<void> {
-  const reference = window.__referentiel;
   const files = changedFiles();
   const pending = SETTINGS_STATE.modifs;
   let conflicted = false;
@@ -226,7 +225,7 @@ async function saveEdits(): Promise<void> {
   }
   SETTINGS_STATE.conflict = conflicted;
   if (conflicted) {
-    reference.render();
+    redraw();
     return;
   }
   pending.clear();
@@ -242,7 +241,7 @@ async function saveEdits(): Promise<void> {
   await sharedQueryClient?.invalidateQueries({ queryKey: settingsQuery.queryKey });
   await sharedQueryClient?.invalidateQueries({
     queryKey: configurationStatusQuery.queryKey });
-  reference.render();
+  redraw();
   toast?.show({
     message: i18next.t("panels.setting.savedToast", {
       files: files.map(fileName).join(", "),
@@ -261,7 +260,6 @@ async function saveEdits(): Promise<void> {
    value lines and the bottom bar all read the edit, and a file that landed
    without the surface moving is the species this wave exists to end. */
 function commitEdit(identifier: string): void {
-  const reference = window.__referentiel;
   const field = document.querySelector<HTMLInputElement>(
     `#sheetin [data-part="field/input"][data-field="${CSS.escape(identifier)}"]`);
   if (field === null) return;
@@ -277,11 +275,10 @@ function commitEdit(identifier: string): void {
    stale and there is nothing local worth keeping, so the pending edits go with
    the banner and the settings are asked for again. */
 function reloadSettings(): void {
-  const reference = window.__referentiel;
   SETTINGS_STATE.modifs.clear();
   SETTINGS_STATE.conflict = false;
   sharedQueryClient?.invalidateQueries({ queryKey: settingsQuery.queryKey });
-  reference.render();
+  redraw();
 }
 
 /* RESTARTING IS ASKED BEFORE IT IS DONE (B-300, §17).
@@ -323,7 +320,6 @@ function askToRestart(): void {
 
 /** Restarts, and only once the operator has said so. */
 async function restart(): Promise<void> {
-  const reference = window.__referentiel;
   dialog?.close();
   // ASKED OF THE LAYER, because that is where the fact lives now (B-343). The
   // flag used to be dropped on `SETTINGS_STATE` and the service was never told
@@ -332,7 +328,7 @@ async function restart(): Promise<void> {
   await send("POST", "/api/config/restart-web");
   await sharedQueryClient?.invalidateQueries({
     queryKey: configurationStatusQuery.queryKey });
-  reference.render();
+  redraw();
   toast?.show({
     message: i18next.t("screens.settings.restartDone"),
   });

@@ -18,6 +18,27 @@
 // NOTHING HERE READS `window`, and this module imports nothing. A rule reaches
 // the same objects under their seam names, which the harness publishes.
 
+/** What redraws the page after a verb changed what it shows. Undefined until the boot installs it. */
+let redrawVerb: (() => void) | undefined;
+
+/**
+ * Redraws the page: the store's version is bumped, so every component reading
+ * it reads again, and the surfaces a component cannot draw are filled again.
+ * Before the boot has installed the redraw, there is nothing drawn to redraw.
+ */
+export function redraw(): void {
+  redrawVerb?.();
+}
+
+/**
+ * Fills the redraw door, from the boot.
+ *
+ * @param verb What redraws the page.
+ */
+export function fillRedrawDoor(verb: () => void): void {
+  redrawVerb = verb;
+}
+
 /** The message's verbs. Undefined until the message host installs. */
 export let toast: Window["__toast"];
 /** The panel's verbs. */

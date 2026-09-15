@@ -44,7 +44,7 @@ import { queueActions, queueLists } from "../lib/queue";
 import { readLimits, reconnectNow, resetRelay, setLimits } from "../lib/relay";
 import { forceCondition, readCondition } from "../lib/relay-condition";
 import { readCursor, subscribeToEvents } from "../lib/relay-events";
-import { bridge, panel, screens, toast } from "../lib/shell-doors";
+import { bridge, panel, redraw, screens, toast } from "../lib/shell-doors";
 import { go } from "../lib/navigate";
 import { CARRIED_KEY } from "../lib/navigation-entry";
 import { store } from "../lib/store-access";
@@ -90,6 +90,19 @@ declare global {
     __closeLayers?: typeof closeLayers;
     /** When the exit guard was armed, or 0 — the address alone says nothing of it. */
     armedExit?: number;
+    /** The store, and the state it holds now — the two names every rule reads bare. */
+    store?: Store;
+    state?: Record<string, unknown>;
+    /** The page's scrollport content, as the rules have always named it. */
+    view?: Element | null;
+    /** Redraws the page, as a rule asks for it. */
+    render?: () => void;
+    /** Says a message. */
+    toast?: (message: string) => void;
+    /** Closes the panel, popping its entry or not. */
+    closeSheet?: (pop?: boolean) => void;
+    /** Shows the sign-in gate; a driven state never touches history. */
+    showSignIn?: (withError: boolean, silent?: boolean) => void;
     /** The page's today — what every « à venir » and « diffusé le » is compared with. */
     __today?: typeof today;
     /** Opens a medium's screen on an entry carrying exactly what a rule hands it. */
@@ -142,6 +155,17 @@ export function publishSeams(): void {
   publish("__layers", () => registeredLayers);
   publish("__closeLayers", () => closeLayers);
   publish("__today", () => today);
+  // THE BARE NAMES THE RULES HAVE ALWAYS READ, published under those names from
+  // the modules that own them now. `state` is a LIVE read — the getter goes to
+  // the store each time — so a rule reading `state.page` reads what is on screen.
+  publish("store", () => store);
+  publish("state", () => store.read().state);
+  publish("view", () => document.querySelector("#view"));
+  publish("render", () => redraw);
+  publish("toast", () => (message: string) => toast?.show({ message }));
+  publish("closeSheet", () => (pop?: boolean) => panel.close(pop));
+  publish("showSignIn", () => (withError: boolean, silent?: boolean) =>
+    entry?.showSignIn(withError, silent === true || walk.driven));
   publish("armedExit", () => walk.armedExit);
   publish("__entry", () => entry);
   publish("__loadingDone", () => loadingDone);

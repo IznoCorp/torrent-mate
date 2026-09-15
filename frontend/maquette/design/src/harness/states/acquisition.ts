@@ -5,7 +5,7 @@
 // `run` builds the state. The driver resets the interface before every state,
 // so an entry pins only what its state means to show.
 import { applyState, type NamedState } from "../drive";
-import { render } from "../../engine/legacy.js";
+import { redraw } from "../../lib/shell-doors";
 
 export function acquisitionStates(): NamedState[] {
   // The store the shell creates and publishes, read when the table is built.
@@ -131,7 +131,7 @@ export function acquisitionStates(): NamedState[] {
       () => {
         applyState({ page: "acq", acqTab: "discover", phase: "ready" });
         store.write({ sugMode: "poster" });
-        render();
+        redraw();
       },
     ],
     [
@@ -140,7 +140,7 @@ export function acquisitionStates(): NamedState[] {
       () => {
         applyState({ page: "acq", acqTab: "discover", phase: "ready" });
         store.write({ sugMode: "deck" });
-        render();
+        redraw();
       },
     ],
     [

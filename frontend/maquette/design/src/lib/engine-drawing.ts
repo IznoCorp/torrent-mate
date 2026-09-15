@@ -37,8 +37,6 @@ export type Fact = {
 
 export type EngineDrawing = {
   icons: Record<string, string>;
-  render: () => void;
-  toast: (msg: string) => void;
 };
 
 /**

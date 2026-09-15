@@ -23,7 +23,7 @@
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { queueNow, queueActions } from "../../lib/queue";
-import { bridge, panel, screens, toast } from "../../lib/shell-doors";
+import { bridge, panel, screens, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
 import { sharedQueryClient, send } from "../../lib/query-client";
 import { pendingDecisions } from "./queries";
@@ -43,10 +43,9 @@ import { baseTitle } from "../../lib/titles";
  */
 registerVerb("take", (value) => {
   if (!queueNow().takeable.some((one) => one.t === value)) return;
-  const reference = window.__referentiel;
   panel.close();
   queueActions?.take(value);
-  reference.render();
+  redraw();
   toast?.show({
     message: i18next.t("verbs.arrivals.taken", {
       title: baseTitle(value),

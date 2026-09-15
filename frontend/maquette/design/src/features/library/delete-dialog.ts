@@ -15,7 +15,7 @@
 import i18next from "i18next";
 import { membershipQuery, type Membership } from "../../lib/membership";
 import { sharedQueryClient } from "../../lib/query-client";
-import { dialog, followedTitles, toast } from "../../lib/shell-doors";
+import { dialog, followedTitles, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
 import { deleteLibraryItems, libraryIncompleteQuery } from "./queries";
 import type { DialogDescriptor } from "../../ui/dialog/contract";
@@ -34,7 +34,7 @@ import type { IncompleteShow } from "./reference";
 function removeTitles(titles: string[]): void {
   deleteLibraryItems?.(titles);
   store.write({ selMode: false, selected: new Set() });
-  window.__referentiel.render();
+  redraw();
   toast?.show({
     message: i18next.t(titles.length > 1 ? "verbs.library.deletedMany" : "verbs.library.deletedOne", {
       count: titles.length,

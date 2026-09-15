@@ -106,6 +106,12 @@ export function drivenWithoutHistory(run: () => void): void {
 
 const currentState = () => store.read().state;
 
+/* B-026: a navigation write that fails must not fail silently — the URL and the
+   interface would then disagree with nothing on record. Every writer here raises
+   `__navEchec`; it is cleared only at load, so a measurement that ran before
+   leaves no residue. It catches a write that DID fail, never a wrong one. */
+window.__navEchec = false;
+
 /**
  * Records where the operator has ARRIVED.
  *

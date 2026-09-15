@@ -9,7 +9,7 @@
 import type { Store } from "./store";
 import { addressSeam } from "../lib/addresses";
 import { navigationState } from "../lib/navigation-entry";
-import { bridge } from "../lib/shell-doors";
+import { bridge, redraw } from "../lib/shell-doors";
 import { reopenAddressedPanel } from "./addressed-panels";
 import { entry, loadingDone } from "./entry";
 import { onEngineBack } from "./layers";
@@ -141,7 +141,7 @@ export function installArrival(store: Store): void {
       location.pathname + arrivalSearch,
     );
   }
-  window.__referentiel.render();
+  redraw();
   /* A cold `/login` raises the gate over a frame that is already drawn, which is
      the whole reason its address resolves to a page underneath rather than to
      nothing. Driven, so the raise does not rewrite the address it was just read

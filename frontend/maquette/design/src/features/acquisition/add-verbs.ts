@@ -7,7 +7,7 @@
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { queueActions } from "../../lib/queue";
-import { bridge, dialog, panel, toast } from "../../lib/shell-doors";
+import { bridge, dialog, panel, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
 import { baseTitle } from "../../lib/titles";
 import { followVerbs } from "./follow-verbs";
@@ -42,7 +42,7 @@ function identify(index: number, title: string): void {
   panel.close(true);
   bridge.rewind(entries);
   queueActions?.resolve(target, title);
-  window.__referentiel.render();
+  redraw();
   toast?.show({ message: i18next.t("verbs.arrivals.resolved", { choice: title }) });
   toast?.show({
     message: i18next.t("verbs.acquisition.identified", { target: baseTitle(target), title }),

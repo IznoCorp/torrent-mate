@@ -184,10 +184,15 @@ class TestItReadsTheRealTree:
     """A reader that stops reading reports clean, which is the failure to end."""
 
     def test_it_reads_the_maquette_and_finds_the_debt(self, arm) -> None:
-        """The corpus is real, and the arm's own baseline is not zero."""
+        """The corpus is real, and the arm's own baseline is not zero.
+
+        The debt floor follows the tree down: the engine's comments leave with its
+        code, so the count falls as it dies (200 → 190 on 2026-09-15, when L13r's
+        fourth phase measured 199).
+        """
         counts, detail = arm.measure()
         assert sum(1 for _ in arm.sources()) > 250
-        assert sum(counts.values()) > 200
+        assert sum(counts.values()) > 190
         assert set(counts) == set(detail)
 
     def test_the_generated_file_is_exempt_and_named(self, arm) -> None:

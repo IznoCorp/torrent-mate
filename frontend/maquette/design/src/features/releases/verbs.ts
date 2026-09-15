@@ -26,7 +26,7 @@
 // halves at once: WHICH candidate was retained, and WHERE the medium went.
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
-import { bridge, panel, screens, toast } from "../../lib/shell-doors";
+import { bridge, panel, screens, toast, redraw } from "../../lib/shell-doors";
 import { queueActions } from "../../lib/queue";
 import { releases } from "./queries";
 import { baseTitle } from "../../lib/titles";
@@ -73,10 +73,9 @@ registerVerb("pick-release", (value) => {
   if (title === null) return;
   const chosen = (releases?.() ?? [])[value as unknown as number];
   if (chosen === undefined) return;
-  const reference = window.__referentiel;
   bridge.back();
   queueActions?.take(title);
-  reference.render();
+  redraw();
   toast?.show({
     message: i18next.t("verbs.releases.taken", {
       quality: `${chosen.res} ${chosen.src} ${chosen.lang}`,

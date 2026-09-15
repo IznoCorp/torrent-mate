@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Icon } from "../../ui/icon";
 import { useAcquisitionReference } from "./reference";
+import { redraw } from "../../lib/shell-doors";
 import { useUiState, writeUiState } from "../../lib/store-access";
 import { filterPill, filterPillCount, filterZone, pillBar, pillScroll, searchClear, searchField, searchInput, viewSwitch, viewSwitchButton, viewSwitchWrap } from "../../ui/variants";
 
@@ -13,7 +14,7 @@ export type FollowPill = { id: string; label: string; count: number };
 export function FollowsFilters({ pills }: { pills: FollowPill[] }): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
-  const { icons, render } = useAcquisitionReference();
+  const { icons } = useAcquisitionReference();
   return (
     <div className={filterZone()} data-region="acquisition/filters">
       <div className={searchField()}>
@@ -42,7 +43,7 @@ export function FollowsFilters({ pills }: { pills: FollowPill[] }): ReactElement
               element.setAttribute("value", filter);
             const commit = () => {
               writeUiState({ filter: element.value });
-              render();
+              redraw();
             };
             element.addEventListener("input", commit);
             return () => element.removeEventListener("input", commit);
