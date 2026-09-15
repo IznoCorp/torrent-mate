@@ -46,6 +46,7 @@ import { useDecisions } from "./queries";
 import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { useArrivalsReference } from "../../features/arrivals/reference";
 import { Candidates, DecisionCard } from "./resolution-cards";
+import { REASON_TONE, reasonDetail, reasonLabel } from "./decision-vocabulary";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useStoreContent, useUiState } from "../../lib/store-access";
 import { actionButton, backAction, body, emptyNote, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, sheetActions, type ChipTone } from "../../ui/variants";
@@ -67,12 +68,7 @@ export function ResolutionScreen() {
   // (« 1 sur 2 ») and « Passer à la suivante » answer the queue as it is now —
   // the legacy screen re-opened itself for the same reason.
   useStoreContent((c) => c.version);
-  const {
-    icons,
-    REASON_DETAIL,
-    REASON_LABEL,
-    REASON_TONE,
-  } = useArrivalsReference();
+  const { icons } = useArrivalsReference();
   const { t } = useTranslation();
   // THE DECISIONS COME FROM THE CACHE (invariant 4). `decisionPending` and
   // `DECISIONS_REGLEES` were the engine's, read straight off the fixture; the
@@ -139,14 +135,14 @@ export function ResolutionScreen() {
           </h2>
           <p className={qualityHint()}>
             {decision
-              ? (REASON_DETAIL[decision.reason] ?? "")
+              ? reasonDetail(decision.reason)
               : t("screens.resolution.noMediaIdentified")}
           </p>
           <CardMeta as="div" style={{ marginBottom: "12px" }}>
             {decision ? (
               <Chip
                 tone={(REASON_TONE[decision.reason] ?? "neutral") as ChipTone}
-                label={REASON_LABEL[decision.reason] ?? decision.reason}
+                label={reasonLabel(decision.reason)}
               />
             ) : (
               ""

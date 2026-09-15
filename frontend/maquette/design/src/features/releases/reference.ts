@@ -24,10 +24,7 @@ export type Release = {
 
 export type Resolution = "720p" | "1080p" | "2160p";
 
-export type ReleasesReference = EngineDrawing & {
-  RESOLUTIONS: Resolution[];
-  AUDIOS: [string, string][];
-};
+export type ReleasesReference = EngineDrawing;
 
 /**
  * Reads this feature's slice of the engine's published reference object.

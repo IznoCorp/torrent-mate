@@ -100,17 +100,7 @@ export type SettledDecision = DecisionCommon & {
   choice?: DecisionChoice;
 };
 
-export type ArrivalsReference = EngineDrawing & EngineQueue & {
-  REASON_LABEL: Record<string, string>;
-  REASON_TONE: Record<string, string>;
-  REASON_DETAIL: Record<string, string>;
-  // Unlike the other label maps here, each value is a [tone, label] pair —
-  // the same shape a chip carries — not a bare string: `DECISION_STATE`
-  // supplies both the chip's tone and its text in one lookup.
-  DECISION_STATE: Record<string, [string, string]>;
-  DECISION_STATE_DETAIL: Record<string, string>;
-  VIA_LABEL: Record<string, string>;
-};
+export type ArrivalsReference = EngineDrawing & EngineQueue;
 
 /**
  * Reads this feature's slice of the engine's published reference object.

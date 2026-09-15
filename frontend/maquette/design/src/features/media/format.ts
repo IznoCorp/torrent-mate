@@ -19,6 +19,17 @@ export function dateLabel(iso: string | null | undefined): string | null {
 }
 
 /**
+ * An episode's state, said as the sheet, the season legend and the popover say it.
+ *
+ * @param state The episode state token (`in_library`, `announced`, …).
+ * @returns The words, or an empty string for a state the interface has none for.
+ */
+export function episodeStateLabel(state: string): string {
+  const key = `screens.media.episodeState.${state}`;
+  return i18next.exists(key) ? i18next.t(key) : "";
+}
+
+/**
  * Episode numbers with their runs folded: « 3, 7, 12, 13, 14 » reads badly,
  * « 3, 7, 12–14 » reads.
  *

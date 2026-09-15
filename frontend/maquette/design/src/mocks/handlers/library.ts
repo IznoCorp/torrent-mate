@@ -13,9 +13,9 @@ import { DELETE, GET, field, route } from "./shared";
 import { mockState } from "../state";
 import type { MockRequest, MockRoute } from "../router";
 
-// How many rows one page carries. The engine's own page size is `LIB_PAGE`,
-// classified `interface` in the register — it belongs to the interface, not to
-// a server — so the layer states its own rather than seeding one.
+// How many rows one page carries. A page size belongs to the interface, not to
+// a server — the register classifies it `interface` — so the layer states its
+// own rather than seeding one.
 const PAGE_SIZE = 24;
 
 // The three orders, as the contract's `sort` parameter names them, and the

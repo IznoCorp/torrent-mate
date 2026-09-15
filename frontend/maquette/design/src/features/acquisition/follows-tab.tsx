@@ -13,6 +13,17 @@ import { swipeRowMarkup } from "../../ui/rows";
 import { tileMarkup } from "../../ui/tile";
 import { tileBadgeOf } from "./tile-badge";
 import { cadence } from "./variants";
+import { escapeHtml, svgIcon } from "../../lib/markup-text";
+import {
+  STATUS_TONE,
+  URGENCY,
+  cadenceSentence,
+  followFraction,
+  followGroups,
+  followStatusLabel,
+  gridBadge,
+  nextSearchTime,
+} from "./follow-vocabulary";
 
 // The swipe action a follow that can be searched again reveals. It is a
 // data-ATTRIBUTE VALUE the document-level delegation dispatches on — a contract
@@ -28,20 +39,7 @@ export function FollowsTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
   const reference = useAcquisitionReference();
-  const {
-    icons,
-    svgIcon,
-    stFraction,
-    stLabel,
-    gridBadge,
-    cadenceFR,
-    nextSearchFR,
-    escapeHtml,
-    ST_TONE,
-    URGENCY,
-    GROUPS,
-    CADENCE_CRON,
-  } = reference;
+  const { icons, CADENCE_CRON } = reference;
 
   // FROM THE CACHE (invariant 4). Following, unfollowing and grabbing are
   // mutations the engine's delegation still calls; their conversion is the
@@ -89,7 +87,7 @@ export function FollowsTab(): ReactElement {
     );
 
   // Read ONCE for the whole list: every card names the same next slot.
-  const next = nextSearchFR(CADENCE_CRON, new Date());
+  const next = nextSearchTime(CADENCE_CRON, new Date());
 
   const seriesState = (follow: Follow) =>
     follow.k === "movie"
@@ -125,9 +123,9 @@ export function FollowsTab(): ReactElement {
             .filter(Boolean)
             .join(" ")
         : undefined,
-    f: stFraction(follow) ?? undefined,
+    f: followFraction(follow) ?? undefined,
     chip: showStatus
-      ? ([ST_TONE[follow.st], stLabel(follow)] as [string, string])
+      ? ([STATUS_TONE[follow.st], followStatusLabel(follow)] as [string, string])
       : undefined,
     caption:
       [
@@ -161,8 +159,8 @@ export function FollowsTab(): ReactElement {
     );
 
   // THE PAUSE IS SAID, AND IT USED TO BE SAID ONLY BY HALF THE TILES (B-350,
-  // operator-reported). The subtitle was `stFraction(follow) ?? (disabled ? …)`,
-  // and `stFraction` answers null for a FILM and only for a film: every series
+  // operator-reported). The subtitle was `followFraction(follow) ?? (disabled ? …)`,
+  // and `followFraction` answers null for a FILM and only for a film: every series
   // has a fraction, so the `??` never reached its second branch for one. A
   // paused film therefore read « en pause » and a paused series read « 6/7 » —
   // the same state, one of them announced and the other left to the dimming
@@ -175,7 +173,7 @@ export function FollowsTab(): ReactElement {
   const tileOf = (follow: Follow) => {
     const paused = follow.st === "disabled";
     const said = [
-      stFraction(follow),
+      followFraction(follow),
       paused ? t("screens.acquisition.paused") : null,
     ].filter(Boolean);
     return tileMarkup({
@@ -240,20 +238,20 @@ export function FollowsTab(): ReactElement {
   } else if (state.followMode === "group") {
     content = (
       <>
-        {GROUPS.map((group) => {
+        {followGroups().map((group) => {
           const items = visible.filter((follow) =>
-            group.of.includes(follow.st),
+            group.statuses.includes(follow.st),
           );
           if (items.length === 0) return null;
           // A heterogeneous group KEEPS the chip on its cards: its header
           // cannot say which of its three values each card carries.
-          const showStatus = group.of.length > 1;
+          const showStatus = group.statuses.length > 1;
           return (
             <Markup tag="section"
-              key={group.l}
+              key={group.label}
               className={sectionClass()} data-part="section"
               html={`
-            <div class="${sectionHead()}" data-part="section/head"><span class="${statusDot({ tone: group.pip as StatusTone })}" data-part="status-dot"></span><span class="${sectionTitle()}" data-part="section/title">${group.l}</span><span class="${sectionCount()}" data-part="section/count">${items.length}</span></div>
+            <div class="${sectionHead()}" data-part="section/head"><span class="${statusDot({ tone: group.tone as StatusTone })}" data-part="status-dot"></span><span class="${sectionTitle()}" data-part="section/title">${group.label}</span><span class="${sectionCount()}" data-part="section/count">${items.length}</span></div>
             ${items.map((item) => rowOf(item, showStatus)).join("")}
           `}
             />
@@ -273,7 +271,7 @@ export function FollowsTab(): ReactElement {
   return (
     <>
       <FollowsFilters pills={pills} />
-      <p className={cadence()} data-part="cadence">{cadenceFR(CADENCE_CRON)}</p>
+      <p className={cadence()} data-part="cadence">{cadenceSentence(CADENCE_CRON)}</p>
       <div className={body()} data-part="surface/body" data-region="acquisition/body">
         <div className="note" data-part="note">
           <b>{t("screens.acquisition.followsNoteLead")}</b>

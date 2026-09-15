@@ -23,10 +23,11 @@ import { followsQuery, incompleteShowsQuery } from "./queries";
 
 // THE FEATURE'S OWN RECORD, not a looser copy of it. A slice declared here
 // would be a second shape of one thing, and the vocabulary the panel hands on —
-// `stLabel`, `ST_TONE`, the seasons block — is typed against the real one. The
+// `followStatusLabel`, `STATUS_TONE`, the seasons block — is typed against the real one. The
 // fallback below therefore fills every required field rather than leaving them
 // undefined, which is what the engine's object literal did in practice.
 import type { Follow } from "./reference";
+import { followFraction } from "./follow-vocabulary";
 export type { Follow };
 
 /** What is true about the medium a follow panel is about. */
@@ -78,7 +79,6 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
     incompleteShowsQuery.queryKey);
   if (followed === undefined || membership === undefined || incompleteAnswer === undefined)
     return null;
-  const reference = window.__referentiel;
   // THE SERVED ANSWERS, every one of them: the incomplete shows, the
   // membership and the seasons are read from the cache the layer fills, never
   // from a copy the layer does not write.
@@ -126,6 +126,6 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
       ? null
       : seasons.length
         ? `${held}/${aired}`
-        : (reference.stFraction(follow) ?? "—"),
+        : (followFraction(follow) ?? "—"),
   };
 }

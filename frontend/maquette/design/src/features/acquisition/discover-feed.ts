@@ -25,6 +25,7 @@ import { isReserveExhausted, suggestions } from "./queries";
 import { store } from "../../lib/store-access";
 import { toast } from "../../lib/shell-doors";
 import { deckPile } from "./variants";
+import { svgIcon } from "../../lib/markup-text";
 
 /** How many more the footer asks for at a time. */
 const BATCH = 30;
@@ -148,7 +149,7 @@ export function nothingLeftHTML(inList = false): string {
   const restKey = exhausted ? "allSeenRestExhausted" : inList ? "allSeenRestList" : "allSeenRest";
   const offer = exhausted
     ? ""
-    : `<button class="${cx(actionButton({ size: "footer" }), loadFooterAction())}" data-sugmore="1">${reference.svgIcon(reference.icons.refresh)}${say("loadThirtyMore")}</button>`;
+    : `<button class="${cx(actionButton({ size: "footer" }), loadFooterAction())}" data-sugmore="1">${svgIcon(reference.icons.refresh)}${say("loadThirtyMore")}</button>`;
   return `<div class="${emptyNote()}" data-part="empty-state"><b>${say("allSeenLead")}</b>
         <p>${say(restKey, { count: reserve().length })}</p>
         ${offer}</div>`;

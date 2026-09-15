@@ -19,13 +19,18 @@
 import { useTranslation } from "react-i18next";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
-import { useMaintenanceReference } from "../../features/maintenance/reference";
 import { useUiState } from "../../lib/store-access";
 import { useDeletionJournal, useMaintenanceActions } from "./queries";
 import { backAction, factList, section, sectionHeading, topicRow } from "../../ui/variants";
 import { guidance } from "../../ui/variants/layout";
 import { Markup } from "../../ui/markup";
 import { FactRows, type FactRow } from "../../ui/fact-rows";
+
+// The six RUBRICS, in the order they are listed. One navigates by what one wants
+// to DO — never a flat list of commands whose order means nothing — and a
+// rubric's command group is its id. Each rubric's name and the sentence under
+// it are the interface's words (`screens.maintenance.topics`).
+const MAINTENANCE_TOPICS = ["query", "scan", "repair", "clean", "fix", "analyze"];
 // The risk vocabulary is the FEATURE's, since its panel lives here: the
 // page and the panel read one derivation of « what does this command risk »
 // rather than a copy each (§13).
@@ -35,9 +40,6 @@ import { bridge } from "../../lib/shell-doors";
 export function MaintenancePage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
-  const {
-    MAINT_TOPICS,
-  } = useMaintenanceReference();
   // FROM THE CACHE (invariant 4).
   const { data: MAINT_ACTIONS = [] } = useMaintenanceActions();
   const { data: JOURNAL = { total: 0, lignes: [] } } = useDeletionJournal();
@@ -57,9 +59,9 @@ export function MaintenancePage(): ReactElement | null {
   );
 
   // One rubric open: its commands, and the way back to all of them.
-  const topic = MAINT_TOPICS.find((entry) => entry.id === state.maintTopic);
+  const topic = MAINTENANCE_TOPICS.find((entry) => entry === state.maintTopic);
   if (topic) {
-    const actions = MAINT_ACTIONS.filter((action) => action.g === topic.id);
+    const actions = MAINT_ACTIONS.filter((action) => action.g === topic);
     return (
       <>
         {/* A RUBRIC IS A SCREEN ONE ENTERS, so it wears the way out every
@@ -74,8 +76,8 @@ export function MaintenancePage(): ReactElement | null {
         >
           {t("screens.maintenance.allCommands")}
         </button>
-        <h2 className={sectionHeading()} data-part="heading">{topic.t}</h2>
-        <div className={guidance()} data-part="guidance">{topic.s}</div>
+        <h2 className={sectionHeading()} data-part="heading">{t(`screens.maintenance.topics.${topic}.title`)}</h2>
+        <div className={guidance()} data-part="guidance">{t(`screens.maintenance.topics.${topic}.explanation`)}</div>
         {facts(
           actions.map((action) => ({
             l: action.l,
@@ -102,19 +104,19 @@ export function MaintenancePage(): ReactElement | null {
         <b>{t("screens.maintenance.introLead")}</b>
         {t("screens.maintenance.introRest")}
       </div>
-      {MAINT_TOPICS.map((entry) => {
-        const inside = MAINT_ACTIONS.filter((action) => action.g === entry.id);
+      {MAINTENANCE_TOPICS.map((entry) => {
+        const inside = MAINT_ACTIONS.filter((action) => action.g === entry);
         const destructive = inside.filter(
           (action) => action.r === "destructive",
         ).length;
         return (
-          <button className={topicRow()} data-part="topic" data-maintopic={entry.id} key={entry.id}>
+          <button className={topicRow()} data-part="topic" data-maintopic={entry} key={entry}>
             <span style={{ minWidth: 0, flex: 1 }}>
-              <span className="rt" data-part="topic/title">{entry.t}</span>
-              <span className="rs" data-part="topic/subtitle">{entry.s}</span>
+              <span className="rt" data-part="topic/title">{t(`screens.maintenance.topics.${entry}.title`)}</span>
+              <span className="rs" data-part="topic/subtitle">{t(`screens.maintenance.topics.${entry}.explanation`)}</span>
             </span>
             <span className="rn" data-part="topic/count">
-              {countIn(entry.id)}
+              {countIn(entry)}
               {destructive
                 ? t(
                     destructive > 1

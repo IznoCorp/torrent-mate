@@ -11,6 +11,7 @@
 // render that scheduled it: the windowed list composes its rows after React has
 // painted, and a tick taken in between is already on the row it redraws.
 import { posterArtwork } from "../../lib/engine-drawing";
+import { escapeHtml, svgIcon } from "../../lib/markup-text";
 import { libraryCardMarkup } from "./card-markup";
 import { store } from "../../lib/store-access";
 import { selectionRowMarkup, swipeRowMarkup } from "../../ui/rows";
@@ -36,7 +37,7 @@ export function libraryTileMarkup(reference: LibraryReference, row: Row, index: 
     title: row.t,
     subtitle: row.f,
     artwork: posterArtwork(reference.icons, row.poster, row.t, row.k),
-    check: selMode ? reference.svgIcon(reference.icons.check, 3) : undefined,
+    check: selMode ? svgIcon(reference.icons.check, 3) : undefined,
     // WHAT A TAP MEANS IS WRITTEN FIRST. The registry answers the first
     // registered key in ATTRIBUTE order, so the key a tap is FOR — the
     // selection while one is being made, the medium's sheet otherwise — comes
@@ -74,7 +75,7 @@ export function libraryRowMarkup(
       title: row.t,
       subtitle: row.f,
       artwork: posterArtwork(reference.icons, row.poster, row.t),
-      check: reference.svgIcon(reference.icons.check, 3),
+      check: svgIcon(reference.icons.check, 3),
       attributes: {
         "data-tile": index,
         "data-selected-title": row.t,
@@ -84,6 +85,6 @@ export function libraryRowMarkup(
   }
   return swipeRowMarkup(
     libraryCardMarkup({ t: row.t, s: row.f, overview: row.overview, poster: row.poster, ids: row.ids }),
-    `<button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="del" data-del="${reference.escapeHtml(row.t)}">${reference.svgIcon(reference.icons.trash)}${removeLabel}</button>`,
+    `<button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="del" data-del="${escapeHtml(row.t)}">${svgIcon(reference.icons.trash)}${removeLabel}</button>`,
   );
 }

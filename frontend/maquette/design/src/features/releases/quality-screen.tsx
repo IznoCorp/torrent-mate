@@ -18,6 +18,14 @@ import { qualityGroup } from "../../features/releases/variants";
 import { bridge } from "../../lib/shell-doors";
 import { baseTitle } from "../../lib/titles";
 
+// The resolution floors a follow may set, lowest first.
+const RESOLUTIONS: Resolution[] = ["720p", "1080p", "2160p"];
+
+// The audio tracks a follow may require. Each KEY is a contract value the
+// ranking profile carries; the sentence describing it is the interface's
+// (`screens.profile.audioOptions`).
+const AUDIO_OPTIONS = ["VF", "VOSTFR", "VO"];
+
 // The field names are the legacy state's own — `state.profil` is written and
 // read by the engine under these exact keys.
 type QualityProfile = {
@@ -58,11 +66,7 @@ export function QualityScreen() {
   const title = raw.normalize("NFC");
   const state = useUiState();
   const profile = state.profile as QualityProfile;
-  const {
-    RESOLUTIONS,
-    AUDIOS,
-    icons,
-  } = useReleasesReference();
+  const { icons } = useReleasesReference();
   const { t } = useTranslation();
   // FROM THE CACHE (invariant 4). THE TITLE'S RELEASES, not every release: the
   // profile is opened for one medium, and « kept out of » a list holding every
@@ -193,7 +197,7 @@ export function QualityScreen() {
                 : ""}
             </p>
             <div className={optionList()} data-part="option/list">
-              {AUDIOS.map(([key, label]) => (
+              {AUDIO_OPTIONS.map((key) => (
                 <button
                   key={key}
                   className={`${option()} check`}
@@ -206,7 +210,7 @@ export function QualityScreen() {
                   <span className={optionMark({ kind: "check" })} />
                   <span className={optionLabel()}>
                     {key}
-                    <small>{label}</small>
+                    <small>{t(`screens.profile.audioOptions.${key}`)}</small>
                   </span>
                 </button>
               ))}

@@ -1,7 +1,7 @@
 // What Maintenance asks the server for.
 //
 // TWO READS. The actions it offers, and the journal of what deleting has
-// already done. `MAINT_TOPICS` and `RISQUES` stay where they are: the register
+// already done. The rubrics (`page.tsx`) and `RISQUES` are not read here: the register
 // classifies them `interface` — a rubric's name and the sentence warning what a
 // rubric DELETES are the interface's own words, and routing them through a mock
 // would have the interface asking a server for its own copy.

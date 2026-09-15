@@ -28,12 +28,11 @@ export type Follow = {
   poster?: string | null;
   /** The provider identifiers. A follow always has them (B-366). */
   ids?: Record<string, number | string> | null;
+  /** A series' episodes aired, when its catalogue is known. */
+  aired?: number | null;
+  /** A series' episodes held. */
+  own?: number;
 };
-
-// One GROUP of the grouped mode: its heading, its pip, and the statuses it
-// gathers. A group holding several statuses keeps the chip on its cards,
-// because its header cannot say which one each card carries.
-export type FollowGroup = { l: string; pip: string; of: string[] };
 
 // A search hit, exactly as the mock `SEARCH` constant shapes one. `k` is the
 // French kind label used throughout the legacy templates ("Film" / "Série"),
@@ -60,19 +59,8 @@ export type SearchResults = {
 };
 
 export type AcquisitionReference = EngineDrawing & EngineQueue & {
-  // What the Acquisition page draws. The follow VOCABULARY — a fraction, a
-  // status word, a grid badge — and the two functions that turn a cron
-  // expression into a sentence. `GROUPS` is the grouped mode's own order, and
-  // `URGENCY` the order a list sorts by; `ST_TONE` maps a status to its chip
-  // tone. All of it is the page's language, not the engine's state.
-  stFraction: (follow: Follow) => string | null;
-  stLabel: (follow: Follow) => string;
-  gridBadge: (follow: Follow) => { tone: string; text?: string } | null;
-  cadenceFR: (cron: string) => string;
-  nextSearchFR: (cron: string, now: Date) => string | null;
-  ST_TONE: Record<string, string>;
-  URGENCY: Record<string, number>;
-  GROUPS: FollowGroup[];
+  // The schedule the engine really runs, as the scheduler returns it. The follow
+  // VOCABULARY that reads it is the feature's own (`./follow-vocabulary`).
   CADENCE_CRON: string;
   // The suggestion machinery. It stays the FRAGMENT's — the deck's gesture
   // mutates its own DOM and a replaced node cannot animate — and a migrated

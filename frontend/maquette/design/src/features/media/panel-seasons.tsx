@@ -19,6 +19,7 @@ import { registerBlock, type PanelBlockMap } from "../../ui/panel/contract";
 import { queuedMark, seasonGrabSpacing, seasonGrabTaken, episodeCell, episodeSet, legend, legendSwatch, seasonDisclosure, seasonFraction, seasonShortfall, type EpisodeState } from "./variants";
 import { actionButton } from "../../ui/variants";
 import { askForSeason, useAskedInFlight } from "./season-grab";
+import { episodeStateLabel } from "./format";
 import { useQueuedSeasons } from "./queued-seasons";
 
 // The slice of a "follow" record the season blocks read: `ids` for the medium's
@@ -38,10 +39,9 @@ declare module "../../ui/panel/contract" {
   }
 }
 
-// Lifecycle order for the season legend — refonte.html@60530dbd8 kept `EP_ORDER`
-// private (only `EP_LABEL` is published on the référentiel). It is small,
-// static and keyed on the same six states `EP_LABEL` carries, so it is
-// reproduced here verbatim; each state's swatch is `legendSwatch`'s variant.
+// Lifecycle order for the season legend, as the operator reads it — keyed on
+// the same six states `episodeStateLabel` says; each state's swatch is
+// `legendSwatch`'s variant.
 const EP_ORDER = [
   "unverified",
   "announced",
@@ -132,7 +132,7 @@ function SeasonDetails({
         data-announced={state === "announced" || undefined}
         data-in-library={state === "in_library" || undefined}
         data-ep={`${follow.t}|${num}|${number}|${state}`}
-        aria-label={`S${String(num).padStart(2, "0")}E${String(number).padStart(2, "0")} — ${reference.EP_LABEL[state]}`}
+        aria-label={`S${String(num).padStart(2, "0")}E${String(number).padStart(2, "0")} — ${episodeStateLabel(state)}`}
       >
         {String(number).padStart(2, "0")}
       </button>
@@ -266,7 +266,7 @@ function SeasonsBlock({
         {EP_ORDER.filter((state) => statesPresent.has(state)).map((state) => (
           <span key={state}>
             <i className={legendSwatch({ state })} />
-            {reference.EP_LABEL[state]}
+            {episodeStateLabel(state)}
           </span>
         ))}
       </div>

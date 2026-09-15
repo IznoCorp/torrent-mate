@@ -115,7 +115,7 @@ DERIVED = (
 
 # WHAT THE WORD-AGREEMENT HALF CANNOT REACH TODAY, named rather than assumed:
 # the runs list is all-success in the embedded data and has no fault twin —
-# `SERVICES_PANNE` and `SCHEDULERS_DOWN` exist, `EXECUTIONS_PANNE` does
+# `SERVICES_DOWN` and `SCHEDULERS_DOWN` exist, a runs twin does
 # not — so forcing every run's tone to `success` renders nothing different and
 # no hold can see it. The hold below still bites the reverse (a succeeded run
 # wearing an alert). Closing it properly is a change to the prototype's own

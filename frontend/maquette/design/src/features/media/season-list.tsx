@@ -11,7 +11,7 @@ import { askForSeason, useAskedInFlight } from "./season-grab";
 import { announcedAfter, ownedSeason, type MediaSeasons } from "./queries";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CatalogSeason, MediaSheetFields, SeasonRow } from "./sheet-fields";
-import { dateLabel, numberRanges } from "./format";
+import { dateLabel, episodeStateLabel, numberRanges } from "./format";
 
 export function SeasonList({
   followed,
@@ -67,10 +67,7 @@ export function SeasonList({
   failed: boolean;
   ownershipKnown: boolean;
 }) {
-  const {
-    EP_LABEL,
-    TODAY,
-  } = useMediaReference();
+  const { TODAY } = useMediaReference();
   const { t } = useTranslation();
   // WHICH SEASONS ARE WAITING, read from the cache like every other fact on
   // this sheet, so the row redraws when one arrives.
@@ -186,7 +183,7 @@ export function SeasonList({
                       : t("screens.media.dateUnknown")}
                     {episodeState === "in_library"
                       ? ""
-                      : ` · ${EP_LABEL[episodeState].toLowerCase()}`}
+                      : ` · ${episodeStateLabel(episodeState).toLowerCase()}`}
                   </span>
                 </div>
               );
@@ -219,7 +216,7 @@ export function SeasonList({
                       // french-ok: the INTERPOLATION placeholder, named by
                       // `episodeAria` in fr.json — renaming this half alone
                       // leaves « Épisode 3 — {{etat}} » in the aria-label.
-                      etat: EP_LABEL[episodeState],
+                      etat: episodeStateLabel(episodeState),
                     })}
                   >
                     {String(number).padStart(2, "0")}

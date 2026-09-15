@@ -32,7 +32,6 @@ export type PipelineRun = {
 
 export type SystemReference = EngineDrawing & {
   SERVICES: Fact[];
-  SERVICES_PANNE: Fact[];
   EXECUTIONS: PipelineRun[];
   DISKS: Fact[];
   INDEX: Fact[];

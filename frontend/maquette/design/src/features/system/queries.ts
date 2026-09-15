@@ -5,14 +5,9 @@
 // seven resources answering seven questions, and one « everything about the
 // system » read would make a slow answer hold up the other six.
 //
-// THE SERVICE FAULT VARIANT STAYS IN THE ENGINE, and that is what the register
-// says rather than a choice made here: `SERVICES_PANNE` is declared inside a
-// named function and carries no class, so no seed derives from it and no
-// operation answers it. Its SCHEDULER twin left with the family it mapped over:
-// the healthy schedulers are the layer's answer now, so the overdue list is
-// derived beside the list it alters (`./fault`). The page therefore reads one
-// broken list from the engine and derives the other — a mixture, and a visible
-// one, rather than a fixture quietly surviving its own removal.
+// THE FAULT VARIANTS ARE NOT READS. The simulated fault is the interface's own
+// replay of the healthy services and schedulers, derived beside the lists it
+// alters (`./fault`) — no seed derives from it and no operation answers it.
 import { useQuery } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
 import { toEngineShape } from "../../engine/engine-shape";

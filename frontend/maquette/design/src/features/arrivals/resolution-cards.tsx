@@ -25,6 +25,7 @@ import { Chip } from "../../ui/chip";
 import { PosterArtwork } from "../../ui/poster";
 import { posterArtwork } from "../../lib/engine-drawing";
 import { candidateCard, candidatePick } from "./variants";
+import { REASON_TONE, decisionState, decisionStateDetail, reasonLabel, viaLabel } from "./decision-vocabulary";
 
 // A RELEASE is not a medium, and its card is deliberately a different object.
 // A release has no media sheet and no panel — it is one candidate among
@@ -147,22 +148,15 @@ export function ReleaseCard({
 // would be a button leading nowhere.
 export function DecisionCard({ decision }: { decision: SettledDecision }) {
   const reference = useArrivalsReference();
-  const {
-    icons,
-    DECISION_STATE,
-    DECISION_STATE_DETAIL,
-    REASON_TONE,
-    REASON_LABEL,
-    VIA_LABEL,
-  } = reference;
+  const { icons } = reference;
   const settled = decision.state != null;
-  const state = settled ? DECISION_STATE[decision.state] : null;
+  const state = settled ? decisionState(decision.state) : null;
   const artwork =
     settled && decision.choice
       ? posterArtwork(icons, decision.choice.poster, decision.choice.t, decision.k)
       : { source: undefined, icon: decision.k === "movie" ? icons.film : icons.tv, label: "?" };
   const identity = decision.choice
-    ? `${decision.choice.t} · ${decision.choice.p.toUpperCase()} ${decision.choice.id} · ${VIA_LABEL[decision.choice.via] ?? decision.choice.via}`
+    ? `${decision.choice.t} · ${decision.choice.p.toUpperCase()} ${decision.choice.id} · ${viaLabel(decision.choice.via)}`
     : null;
   return (
     <Card data-nonmedia="decision">
@@ -183,13 +177,13 @@ export function DecisionCard({ decision }: { decision: SettledDecision }) {
           <CardMeta>
             <Chip
               tone={(REASON_TONE[decision.reason] ?? "neutral") as ChipTone}
-              label={REASON_LABEL[decision.reason] ?? decision.reason}
+              label={reasonLabel(decision.reason)}
             />
             {state ? (
               <Chip
                 tone={state[0] as ChipTone}
                 label={state[1]}
-                title={DECISION_STATE_DETAIL[decision.state] ?? ""}
+                title={decisionStateDetail(decision.state)}
               />
             ) : (
               ""

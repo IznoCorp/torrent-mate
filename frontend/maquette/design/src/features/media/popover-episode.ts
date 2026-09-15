@@ -14,7 +14,7 @@
 import i18next from "i18next";
 import { heldIdentity, providerAddress } from "../../lib/held-identity";
 import { sharedQueryClient } from "../../lib/query-client";
-import { dateLabel } from "./format";
+import { dateLabel, episodeStateLabel } from "./format";
 
 /** One episode of a season's catalogue, as the served sheet answers it. */
 type Episode = { n: number; t?: string; air?: string | null };
@@ -82,6 +82,6 @@ export function episodeSaying(
         : ahead || state === "announced"
           ? translate("popover.airsOn", { date: airDate })
           : translate("popover.airedOn", { date: airDate }),
-    note: reference.EP_LABEL[state] ?? "",
+    note: episodeStateLabel(state),
   };
 }

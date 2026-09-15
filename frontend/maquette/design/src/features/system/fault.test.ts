@@ -18,7 +18,7 @@ import i18next from "i18next";
 import FRENCH from "../../i18n/fr.json";
 import SCHEDULERS from "../../mocks/seeds/schedulers.json";
 import { toEngineShape } from "../../engine/engine-shape";
-import { schedulersDown, type OverdueWords } from "./fault";
+import { withOneRowDown, type OverdueWords } from "./fault";
 import type { Fact } from "../../lib/engine-drawing";
 
 // The resources without the browser bootstrap: `src/i18n/index.ts` publishes
@@ -66,7 +66,7 @@ describe("the corpus these claims are made about", () => {
 describe("the fault falls on the named row, in any order", () => {
   for (const [order, list] of [["as answered", healthy], ["reversed", reversed]] as const) {
     it(`draws exactly one row late — ${order}`, () => {
-      const late = schedulersDown(list, words).filter((row) => row.ton === "alert");
+      const late = withOneRowDown(list, words).filter((row) => row.ton === "alert");
       expect(late).toHaveLength(1);
       expect(late[0].l).toBe(words.label);
     });
@@ -79,7 +79,7 @@ describe("the fault falls on the named row, in any order", () => {
     // GREEN under the mutation it was written to catch. Reading the altered
     // row's own healthy cadence is what sees a cadence transplanted.
     it(`gives the late row ITS OWN cadence, not another job's — ${order}`, () => {
-      const drawn = schedulersDown(list, words);
+      const drawn = withOneRowDown(list, words);
       const late = drawn.find((row) => row.ton === "alert") as Fact;
       const healthyRow = list.find((row) => row.l === late.l) as Fact;
       expect(cadence(late)).toBe(cadence(healthyRow));
@@ -87,7 +87,7 @@ describe("the fault falls on the named row, in any order", () => {
     });
 
     it(`leaves every other row exactly as it arrived — ${order}`, () => {
-      const drawn = schedulersDown(list, words);
+      const drawn = withOneRowDown(list, words);
       expect(drawn.filter((row) => row.l !== words.label))
         .toEqual(list.filter((row) => row.l !== words.label));
       expect(drawn.map((row) => row.l)).toEqual(list.map((row) => row.l));
@@ -97,7 +97,7 @@ describe("the fault falls on the named row, in any order", () => {
 
 describe("a name matching no row alters nothing", () => {
   it("returns the healthy list rather than drawing a plausible lie", () => {
-    const drawn = schedulersDown(healthy, { ...words, label: "no such scheduler" });
+    const drawn = withOneRowDown(healthy, { ...words, label: "no such scheduler" });
     expect(drawn).toEqual(healthy);
     expect(drawn.filter((row) => row.ton === "alert")).toHaveLength(0);
   });

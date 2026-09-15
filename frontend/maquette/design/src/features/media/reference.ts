@@ -27,7 +27,6 @@ export type Trailer = {
 };
 
 export type MediaReference = EngineDrawing & {
-  EP_LABEL: Record<string, string>;
   TODAY: string;
 };
 

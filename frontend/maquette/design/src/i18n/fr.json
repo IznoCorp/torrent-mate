@@ -318,7 +318,15 @@
       "creditUnread": "Crédit non lu",
       "unread": "non lu",
       "unreadFeminine": "non lue",
-      "seasonWaitingOnPipeline": "En file — pipeline en cours"
+      "seasonWaitingOnPipeline": "En file — pipeline en cours",
+      "episodeState": {
+        "in_library": "En médiathèque",
+        "to_grab": "À récupérer",
+        "acquiring": "En cours d'acquisition",
+        "pending": "En attente de torrent",
+        "announced": "Annoncé",
+        "unverified": "Non vérifié"
+      }
     },
     "profile": {
       "back": "Retour",
@@ -360,7 +368,12 @@
       "rankingWeights": "Poids du classement (global) →",
       "rulenote": "Un profil qui n'accepte plus rien se dit : la carte affichera « cherché, rien trouvé » avec la raison, jamais un silence (§8).",
       "saveToast": "Profil enregistré — la prochaine recherche l'appliquera.",
-      "save": "Enregistrer"
+      "save": "Enregistrer",
+      "audioOptions": {
+        "VF": "Piste française (VF, VFF, VFQ, TRUEFRENCH)",
+        "VOSTFR": "Sous-titres français",
+        "VO": "Version originale"
+      }
     },
     "add": {
       "back": "Retour",
@@ -433,7 +446,33 @@
       "note2Title": "Laisser tel quel n'est pas ignorer.",
       "note2Body": "Le résultat automatique était peut-être le bon : cette voie l'entérine et ne re-scrape rien. Elle existait dans le moteur et nulle part dans l'interface, donc on ne pouvait qu'être en désaccord avec la machine, jamais d'accord.",
       "settledHeading": "Réglées récemment",
-      "settledHint": "Ce qui a déjà été tranché, pour ne pas répondre deux fois — et pour retrouver ce qu'on avait choisi."
+      "settledHint": "Ce qui a déjà été tranché, pour ne pas répondre deux fois — et pour retrouver ce qu'on avait choisi.",
+      "reason": {
+        "below_threshold": "Confiance faible",
+        "mid_band": "Confiance moyenne",
+        "ambiguous": "Candidats ambigus",
+        "manual": "Envoi manuel"
+      },
+      "reasonDetail": {
+        "below_threshold": "Aucun candidat n'atteignait le seuil de confiance automatique.",
+        "mid_band": "Le meilleur candidat était en confiance moyenne — une validation humaine est demandée.",
+        "ambiguous": "Plusieurs candidats étaient trop proches pour trancher automatiquement.",
+        "manual": "Dossier envoyé à la main depuis la zone de préparation."
+      },
+      "decisionState": {
+        "resolved": "Réglée",
+        "dismissed": "Laissée telle quelle",
+        "superseded": "Remplacée depuis"
+      },
+      "decisionStateDetail": {
+        "resolved": "Un candidat a été choisi, et un re-scrapage ciblé a été lancé.",
+        "dismissed": "Le dossier a été laissé tel quel : le résultat automatique est conservé, rien n'a été re-scrapé.",
+        "superseded": "Une version plus récente du dossier a été re-scrapée depuis. Cette décision ne veut plus rien dire."
+      },
+      "via": {
+        "pick": "choisi dans la liste",
+        "search_override": "trouvé par une recherche manuelle"
+      }
     },
     "system": {
       "errorSubject": "l'état de la machine",
@@ -465,7 +504,10 @@
       "errorsWhere": "Où",
       "settings": "Réglages",
       "settingsSubtitle": "Ce que le pipeline fait, et comment — l'heure des passages programmés comprise. Rangés par ce qu'on veut changer, pas par fichier.",
-      "arrow": "→"
+      "arrow": "→",
+      "serviceDownLabel": "Veille des téléchargements",
+      "serviceDownValue": "hors ligne",
+      "serviceDownLine": "arrêté depuis 14 h 02 · sortie en erreur"
     },
     "arrivals": {
       "introLead": "Arrivées porte la santé du PIPELINE",
@@ -665,7 +707,38 @@
       "emptyFilter": "Aucun suivi ne contient « {{term}} ».",
       "callsNoteBefore": " Une passe de fond — comme la veille — pagine TMDB à un rythme civil, filtre contre votre médiathèque, vos notes, vos suivis et vos écartés, puis range les survivants dans une réserve locale. Mesuré sur vos vraies données : ",
       "callsNoteInner": "32 appels → 503 suggestions",
-      "callsNoteAfter": ". L'écran lit la réserve, donc défiler ne coûte plus rien — c'est ce qui rend les lots de 30 possibles sans jamais faire de rafale (NE-DOIT-PAS-8)."
+      "callsNoteAfter": ". L'écran lit la réserve, donc défiler ne coûte plus rien — c'est ce qui rend les lots de 30 possibles sans jamais faire de rafale (NE-DOIT-PAS-8).",
+      "status": {
+        "disabled": "En pause",
+        "verifying": "Vérification en cours",
+        "to_grab": "À récupérer",
+        "acquiring": "En cours d'acquisition",
+        "pending": "En attente de torrent",
+        "unverified": "Non vérifié",
+        "up_to_date": "À jour",
+        "ended": "Terminé"
+      },
+      "movieStatus": {
+        "up_to_date": "Acquis",
+        "ended": "Acquis",
+        "disabled": "Recherche arrêtée"
+      },
+      "groups": {
+        "asking": "Demandent quelque chose",
+        "moving": "En cours",
+        "upToDate": "À jour",
+        "ended": "Terminées",
+        "paused": "En pause"
+      },
+      "cadence": {
+        "sentence": "Recherche automatique : {{frequency}}, {{when}}",
+        "unread": "Recherche automatique : {{expression}} (cadence non interprétée)",
+        "onceADay": "une fois par jour",
+        "timesADay": "{{times}} fois par jour",
+        "atOne": "à {{hour}}",
+        "atMany": "à {{hours}} et {{last}}",
+        "hour": "{{hour}} h {{minute}}"
+      }
     },
     "accountPage": {
       "noteLead": "Un seul compte existe sur ce serveur.",
@@ -709,7 +782,33 @@
       "deletesMany": " · {{count}} qui suppriment",
       "arrow": " →",
       "journal": "Journal des suppressions",
-      "journalNote": "Les {{total}} opérations destructrices que la médiathèque a subies. Toutes ont été écrites par le pipeline lui-même, aucune par une main : un journal qui ne consignerait que l'opérateur serait un journal que personne n'ouvre."
+      "journalNote": "Les {{total}} opérations destructrices que la médiathèque a subies. Toutes ont été écrites par le pipeline lui-même, aucune par une main : un journal qui ne consignerait que l'opérateur serait un journal que personne n'ouvre.",
+      "topics": {
+        "query": {
+          "title": "Regarder",
+          "explanation": "Lire l'état de la médiathèque. Rien n'est modifié."
+        },
+        "scan": {
+          "title": "Indexer",
+          "explanation": "Parcourir les disques et remettre l'index en accord avec eux."
+        },
+        "repair": {
+          "title": "Vérifier et réparer",
+          "explanation": "Contrôler les fichiers, et vider la file de réparation."
+        },
+        "clean": {
+          "title": "Nettoyer les disques",
+          "explanation": "Retirer ce qui n'a rien à y faire. Ces commandes suppriment."
+        },
+        "fix": {
+          "title": "Corriger",
+          "explanation": "Redresser une donnée fausse : un lien, un compte, un identifiant."
+        },
+        "analyze": {
+          "title": "Analyser",
+          "explanation": "Comprendre ce que la médiathèque contient, et ce qui lui manque."
+        }
+      }
     },
     "settings": {
       "searchPlaceholder": "Chercher un réglage",

@@ -16,6 +16,7 @@
 // the delegation reads.
 import i18next from "i18next";
 import { posterArtwork } from "../../lib/engine-drawing";
+import { escapeHtml, svgIcon } from "../../lib/markup-text";
 import { mediumCardMarkup } from "./card-markup";
 import { richTextMarkup } from "./rich-text";
 import { posterArtworkMarkup } from "../../ui/poster";
@@ -69,8 +70,8 @@ export function suggestionRow(suggestion: Suggestion, position: number): string 
   const dismiss = say("notInterested");
   return `<div class="${suggestionWrap()}" data-part="suggestion/wrap" data-dismissable="${position}">
       <div class="${suggestionBack()}">
-        <span>${reference.svgIcon(reference.icons.x)}${dismiss}</span>
-        <span>${dismiss}${reference.svgIcon(reference.icons.x)}</span>
+        <span>${svgIcon(reference.icons.x)}${dismiss}</span>
+        <span>${dismiss}${svgIcon(reference.icons.x)}</span>
       </div>
       ${mediumCardMarkup({
         t: suggestion.t,
@@ -134,7 +135,7 @@ export function deckCard(
   depth: number,
 ): string {
   const reference = drawing();
-  const escape = reference.escapeHtml;
+  const escape = escapeHtml;
   const poster = window.POSTERS_HD[suggestion.t]
     ? `<img src="${window.POSTERS_HD[suggestion.t]}" alt="" loading="lazy">`
     : posterArtworkMarkup(posterArtwork(reference.icons, suggestion.poster, suggestion.t, suggestion.k === "Film" ? "movie" : "show"));

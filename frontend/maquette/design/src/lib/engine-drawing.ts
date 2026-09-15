@@ -36,9 +36,7 @@ export type Fact = {
 };
 
 export type EngineDrawing = {
-  svgIcon: (paths: string, strokeWidth?: number) => string;
   icons: Record<string, string>;
-  escapeHtml: (text: string) => string;
   render: () => void;
   toast: (msg: string) => void;
 };
@@ -46,10 +44,10 @@ export type EngineDrawing = {
 /**
  * Reads the engine's drawing surface.
  *
- * For the two readers that need nothing else: a `ui/` primitive, which may not
- * import a feature, and the shell's own not-found page, which belongs to no
- * domain. A feature reads these members through its own slice, which
- * intersects this one — same object, one destructure.
+ * For the readers that need nothing else: a `ui/` primitive, which may not
+ * import a feature, and a feature reading nothing but the icons. A feature
+ * reading more reads these members through its own slice, which intersects
+ * this one — same object, one destructure.
  *
  * Returns:
  *     The drawing surface, typed.

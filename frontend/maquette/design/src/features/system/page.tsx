@@ -16,8 +16,7 @@
 import { useTranslation } from "react-i18next";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import type { ReactElement } from "react";
-import { useSystemReference } from "../../features/system/reference";
-import { useSchedulersDown } from "./fault";
+import { useSchedulersDown, useServicesDown } from "./fault";
 import { useUiState } from "../../lib/store-access";
 import {
   useDependencies,
@@ -36,13 +35,11 @@ import { FactRows, type FactRow } from "../../ui/fact-rows";
 export function SystemPage(): ReactElement | null {
   const state = useUiState();
   const { t } = useTranslation();
-  const { SERVICES_PANNE } = useSystemReference();
-  // FROM THE CACHE (invariant 4). The SERVICE fault variant stays the
-  // engine's: it carries no class in the register, so no seed derives from it
-  // and no operation answers it. Its scheduler twin no longer can — the
-  // healthy schedulers are the layer's answer now, so the overdue list is
-  // derived here from what the layer sent (`./fault`).
+  // FROM THE CACHE (invariant 4). Both fault variants are derived here from
+  // what the layer sent (`./fault`): the healthy lists are its answer, and the
+  // simulated fault is the interface's own replay of them.
   const { data: SERVICES = [] } = useServices();
+  const SERVICES_DOWN = useServicesDown(SERVICES);
   const { data: SCHEDULERS = [] } = useSchedulers();
   const SCHEDULERS_DOWN = useSchedulersDown(SCHEDULERS);
   const { data: EXECUTIONS = [] } = usePipelineHistory();
@@ -87,7 +84,7 @@ export function SystemPage(): ReactElement | null {
         </div>
       ) : null}
       <h2 className={sectionHeading()} data-part="heading">{t("screens.system.services")}</h2>
-      {facts(state.fault ? SERVICES_PANNE : SERVICES)}
+      {facts(state.fault ? SERVICES_DOWN : SERVICES)}
 
       <h2 className={sectionHeading()} data-part="heading">{t("screens.system.schedulers")}</h2>
       <div className={guidance()} data-part="guidance">

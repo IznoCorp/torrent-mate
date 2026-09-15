@@ -37,6 +37,17 @@ import { installPressArbitration } from "../lib/press-arbitration";
 import { openAddressedPanel } from "../lib/shell-doors";
 import { hideLayers, installPageRestore } from "../app/layers";
 import { icons } from "../app/icons";
+/* THE VOCABULARY THAT LEFT, READ BACK FOR THE RULES. The constants and helpers
+   this file declared live with the subject that says them now; the rules still
+   reach four of them under the names they always used, so they are published
+   below from their homes and die with the publication. */
+import { baseTitle } from "../lib/titles";
+import { dateLabel } from "../features/media/format";
+import {
+  cadenceSentence,
+  followStatusLabel,
+  nextSearchTime,
+} from "../features/acquisition/follow-vocabulary";
 /* THE STORE, IMPORTED. The shell creates it and installs it before anything
    here is called; the engine reads the same object every module does. */
 import { store } from "../lib/store-access";
@@ -92,27 +103,6 @@ import {
      shape, and `scripts/check-viewport-directives.py` now refuses the pair
      anywhere under `design/`. */
 
-  const svgIcon = (paths, strokeWidth) =>
-    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth || 2}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
-  const escapeHtml = (value) =>
-    String(value).replace(
-      /[&<>"]/g,
-      (character) =>
-        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character],
-    );
-  /* Some library.db titles carry a year suffix — sometimes DOUBLED (« Silo
-     (2023) (2023) »). It is not a word of the title: neither the initials
-     nor the poster lookup should see it. */
-  function baseTitle(title) {
-    return String(title)
-      .replace(/\s*\((?:19|20)\d{2}\)\s*/g, " ")
-      .trim();
-  }
-  const initialsOf = (title) =>
-    title
-      .replace(/^(Le |La |Les |The |L'|Un |Une )/i, "")
-      .trim()[0]
-      .toUpperCase();
 
   /* Real data */
   const LIB_TOTAL = 1861;
@@ -130,60 +120,6 @@ import {
   /* 150 REAL suggestions: the output of the engine actually run against
      library.db (16 seeds → 32 TMDB calls → 640 raw titles → 503 survivors
      after excluding the 1,832 owned TMDB ids). */
-  /* Taken VERBATIM from components/acquisition/meta.ts and FollowsPanel.tsx:
-     same labels, same tones, same urgency order, same groups. */
-  const ST_LABEL = {
-    disabled: "En pause",
-    verifying: "Vérification en cours",
-    to_grab: "À récupérer",
-    acquiring: "En cours d'acquisition",
-    pending: "En attente de torrent",
-    unverified: "Non vérifié",
-    up_to_date: "À jour",
-    ended: "Terminé",
-  };
-  const ST_LABEL_MOVIE = {
-    up_to_date: "Acquis",
-    ended: "Acquis",
-    disabled: "Recherche arrêtée",
-  };
-  const ST_TONE = {
-    disabled: "neutral",
-    verifying: "info",
-    to_grab: "warning",
-    acquiring: "info",
-    pending: "waiting",
-    unverified: "muted",
-    up_to_date: "success",
-    ended: "neutral",
-  };
-  const URGENCY = {
-    to_grab: 0,
-    acquiring: 1,
-    verifying: 2,
-    pending: 3,
-    unverified: 4,
-    up_to_date: 5,
-    ended: 6,
-    disabled: 7,
-  };
-  const GROUPS = [
-    {
-      key: "demandent",
-      l: "Demandent quelque chose",
-      pip: "warning",
-      of: ["to_grab", "pending", "unverified"],
-    },
-    {
-      key: "en-cours",
-      l: "En cours",
-      pip: "info",
-      of: ["acquiring", "verifying"],
-    },
-    { key: "a-jour", l: "À jour", pip: "success", of: ["up_to_date"] },
-    { key: "terminees", l: "Terminées", pip: "neutral", of: ["ended"] },
-    { key: "en-pause", l: "En pause", pip: "neutral", of: ["disabled"] },
-  ];
   /* A cron expression on a phone card is raw jargon. The scheduler returns
      it that way; the interface TRANSLATES it, and falls back to the raw
      form only when it cannot — in which case it says so rather than
@@ -191,103 +127,12 @@ import {
   /* The schedule the engine really runs, as the scheduler returns it. */
   const CADENCE_CRON = "20 3,15 * * *";
 
-  function cadenceFR(cron) {
-    const exec = /^(\d+)\s+([\d,]+)\s+\*\s+\*\s+\*$/.exec(String(cron).trim());
-    if (!exec)
-      return `Recherche automatique : ${escapeHtml(cron)} (cadence non interprétée)`;
-    const min = exec[1].padStart(2, "0");
-    const hours = exec[2].split(",").map((split) => `${split} h ${min}`);
-    const when =
-      hours.length === 1
-        ? `à ${hours[0]}`
-        : `à ${hours.slice(0, -1).join(", ")} et ${hours[hours.length - 1]}`;
-    const freq =
-      hours.length === 1
-        ? "une fois par jour"
-        : `${hours.length} fois par jour`;
-    return `Recherche automatique : ${freq}, ${when}`;
-  }
-
-  /* The next slot that cron will fire, phrased as the cadence line phrases the
-     others. Returns null when the expression cannot be read — a card then says
-     nothing about the next search rather than inventing one. */
-  function nextSearchFR(cron, now) {
-    const exec = /^(\d+)\s+([\d,]+)\s+\*\s+\*\s+\*$/.exec(String(cron).trim());
-    if (!exec) return null;
-    const min = Number(exec[1]);
-    const hours = exec[2]
-      .split(",")
-      .map(Number)
-      .sort((a2, b) => a2 - b);
-    const h = now.getHours(),
-      m = now.getMinutes();
-    const next =
-      hours.find((x) => x > h || (x === h && min > m)) ?? hours[0];
-    return `${next} h ${String(min).padStart(2, "0")}`;
-  }
-
-  function stLabel(follow) {
-    return follow.k === "movie"
-      ? (ST_LABEL_MOVIE[follow.st] ?? ST_LABEL[follow.st])
-      : ST_LABEL[follow.st];
-  }
-  /* followFraction: a film has no fraction; an unknown catalogue yields « —
-     ». */
-  function stFraction(follow) {
-    if (follow.k === "movie") return null;
-    if (follow.aired == null) return "—";
-    return `${follow.own ?? 0}/${follow.aired}`;
-  }
-  /* gridBadge: a NUMBER for what is actionable, « • » for a film, « ? »
-     with no verdict, NOTHING when there is nothing to do — absence IS the
-     signal. */
-  function gridBadge(follow) {
-    if (
-      follow.st === "to_grab" ||
-      follow.st === "acquiring" ||
-      follow.st === "pending"
-    ) {
-      if (follow.k === "movie") return { txt: "•", tone: follow.st };
-      return {
-        txt: String(Math.max(1, (follow.aired ?? 0) - (follow.own ?? 0))),
-        tone: follow.st,
-      };
-    }
-    if (follow.st === "unverified" || follow.st === "verifying")
-      return { txt: "?", tone: "muted" };
-    return null;
-  }
 
   /* Results of a REAL TMDB search for « star wars », cross-checked against
      the library: 3 already owned, 3 absent. 257 results found, 6 shown —
      which the interface must state. */
 
 
-  const EP_LABEL = {
-    in_library: "En médiathèque",
-    to_grab: "À récupérer",
-    acquiring: "En cours d'acquisition",
-    pending: "En attente de torrent",
-    announced: "Annoncé",
-    unverified: "Non vérifié",
-  };
-  /* Lifecycle order, as the operator reads it. */
-  const EP_ORDER = [
-    "unverified",
-    "announced",
-    "pending",
-    "to_grab",
-    "acquiring",
-    "in_library",
-  ];
-  const EP_SWATCH = {
-    unverified: "sw-muted",
-    announced: "sw-upcoming",
-    pending: "sw-waiting",
-    to_grab: "sw-warning",
-    acquiring: "sw-info",
-    in_library: "sw-success",
-  };
 
   /* Only FILLED-IN suggestions are served: a card that opens a hollow sheet
      is a dead end, and the reserve honestly states how many it carries out
@@ -412,45 +257,6 @@ import {
      `manual` « envoyé à la main depuis la préparation ». A chip saying
      « zone grise » described a STATE nobody could act on; these describe the
      REASON it is here, which is actionable. */
-  const REASON_LABEL = {
-    below_threshold: "Confiance faible",
-    mid_band: "Confiance moyenne",
-    ambiguous: "Candidats ambigus",
-    manual: "Envoi manuel",
-  };
-  const REASON_TONE = {
-    below_threshold: "danger",
-    mid_band: "warning",
-    ambiguous: "info",
-    manual: "neutral",
-  };
-  const REASON_DETAIL = {
-    below_threshold:
-      "Aucun candidat n'atteignait le seuil de confiance automatique.",
-    mid_band:
-      "Le meilleur candidat était en confiance moyenne — une validation humaine est demandée.",
-    ambiguous:
-      "Plusieurs candidats étaient trop proches pour trancher automatiquement.",
-    manual: "Dossier envoyé à la main depuis la zone de préparation.",
-  };
-  /* `dismissed` and `superseded` are spelled out: the raw words say what the
-     code did, not what happened to the folder. */
-  const DECISION_STATE = {
-    resolved: ["success", "Réglée"],
-    dismissed: ["neutral", "Laissée telle quelle"],
-    superseded: ["info", "Remplacée depuis"],
-  };
-  const DECISION_STATE_DETAIL = {
-    resolved: "Un candidat a été choisi, et un re-scrapage ciblé a été lancé.",
-    dismissed:
-      "Le dossier a été laissé tel quel : le résultat automatique est conservé, rien n'a été re-scrapé.",
-    superseded:
-      "Une version plus récente du dossier a été re-scrapée depuis. Cette décision ne veut plus rien dire.",
-  };
-  const VIA_LABEL = {
-    pick: "choisi dans la liste",
-    search_override: "trouvé par une recherche manuelle",
-  };
 
   /* Décisions RÉGLÉES — les dix vraies lignes de scrape_decision. */
 
@@ -485,54 +291,6 @@ import {
      `blockedCount` is what makes this page more than a report: the step that BLOCKS
      is the one the operator can act on, and it points at « Ça coince » just
      below rather than at a log. */
-
-  /* ── MAINTENANCE ──────────────────────────────────────────────────────
-     The 26 `library-*` commands the engine really registers, read from
-     `web/maintenance/registry.py`: their French title, their category, and —
-     the field that decides how each is drawn — their RISK.
-
-     One navigates by what one wants to DO, the same decision the settings
-     already carry: six rubrics, never a flat list of twenty-six lines whose
-     order means nothing. The engine's command name sits under each label in
-     the mono face, because that is what one needs when reading a log.
-
-     Risk is not decoration. Eight of these read and change nothing, twelve
-     write and can be undone, and six DELETE. A list that draws them alike
-     asks the operator to remember which is which, and the one they will
-     forget is the one that matters. */
-  const MAINT_TOPICS = [
-    {
-      id: "query",
-      t: "Regarder",
-      s: "Lire l'état de la médiathèque. Rien n'est modifié.",
-    },
-    {
-      id: "scan",
-      t: "Indexer",
-      s: "Parcourir les disques et remettre l'index en accord avec eux.",
-    },
-    {
-      id: "repair",
-      t: "Vérifier et réparer",
-      s: "Contrôler les fichiers, et vider la file de réparation.",
-    },
-    {
-      id: "clean",
-      t: "Nettoyer les disques",
-      s: "Retirer ce qui n'a rien à y faire. Ces commandes suppriment.",
-    },
-    {
-      id: "fix",
-      t: "Corriger",
-      s: "Redresser une donnée fausse : un lien, un compte, un identifiant.",
-    },
-    {
-      id: "analyze",
-      t: "Analyser",
-      s: "Comprendre ce que la médiathèque contient, et ce qui lui manque.",
-    },
-  ];
-
 
   /* The destructive journal, read from `destructive_op` in `library.db`.
      Twenty-seven operations, and every one of them was written by the
@@ -629,29 +387,6 @@ import {
     },
   ];
 
-  /* WHAT A FAULT LOOKS LIKE — and it is SIMULATED, which the screen says.
-
-     Everything on this machine is green, and a screen that can only be green
-     cannot be judged: the operator has no way of knowing what they would see
-     the day something stops. So a named state replays a fault, in the same
-     spirit as the dense « charge » scenario — declared, never passed off as
-     read from the system.
-
-     A stopped SERVICE and an overdue SCHEDULER are two different sentences,
-     and only the service half is still here. A service is late by nothing: it
-     is up or it is not. The scheduler twin is derived beside the list it
-     alters, in `features/system/fault.ts`, because the healthy list it maps
-     over comes from the mock layer and no longer from this file. */
-  const SERVICES_PANNE = SERVICES.map((service, rang) =>
-    rang === 2
-      ? {
-          ...service,
-          ton: "alert",
-          v: "hors ligne",
-          s: "arrêté depuis 14 h 02 · sortie en erreur",
-        }
-      : service,
-  );
 
   /* The disks, read from `df`. The percentage is what fills, so it is what is
      printed; a disk at 92 % says so before it says how many gigabytes remain,
@@ -1167,12 +902,6 @@ import {
 
      A distinction never to lose: the profile FILTERS (it eliminates), the
      ranking ORDERS (it separates what remains). */
-  const RESOLUTIONS = ["720p", "1080p", "2160p"];
-  const AUDIOS = [
-    ["VF", "Piste française (VF, VFF, VFQ, TRUEFRENCH)"],
-    ["VOSTFR", "Sous-titres français"],
-    ["VO", "Version originale"],
-  ];
 
   /* Read-only reference data + pure rendering helpers a migrated route
      component reuses VERBATIM rather than re-declaring — a re-declaration
@@ -1181,8 +910,6 @@ import {
      store's reactivity contract; it is exposed once, at definition time,
      well before the deferred module script (shell.tsx) runs. */
   window.__referentiel = {
-    RESOLUTIONS,
-    AUDIOS,
     icons,
     baseTitle,
     addVerb,
@@ -1190,28 +917,14 @@ import {
     /* What the Arrivées page draws. `PIPELINE` is the run's own data, read and never written; the three
        `derived` verbs answer what is stuck, moving and settled, which depends
        on the scenario and so cannot be a frozen value. */
-    /* What the Acquisition page draws. The follow DESCRIPTORS and their
-       vocabulary (`stFraction`, `stLabel`, `gridBadge`, `ST_TONE`, `URGENCY`,
-       `GROUPS`) are the page's own language; `cadenceFR` and
-       `nextSearchFR` turn a cron expression into a sentence — and the
-       page says out loud that the raw expression is a defect it inherited. The
+    /* What the Acquisition page draws: the schedule its cadence line reads. The
+       follow vocabulary is `features/acquisition/follow-vocabulary.ts`'s. The
        SUGGESTION machinery is NOT here: `#sugitems`, `#sugload` and
        `.deckbody` stay the fragment's to fill, because the deck's gesture
        mutates its own DOM and a replaced node cannot animate. */
-    stFraction,
-    stLabel,
-    gridBadge,
-    cadenceFR,
-    nextSearchFR,
-    ST_TONE,
-    URGENCY,
-    GROUPS,
     CADENCE_CRON,
-    /* The account the server really has, and the escaper the fragment's own
-       emitters use — a migrated page that builds a fragment of markup has to
-       escape exactly what the legacy escaped. */
+    /* The account the server really has. */
     ACCOUNT,
-    escapeHtml,
     /* The suggestion machinery, called by the page AFTER React has drawn its
        containers. `render()` calls these too, for as long as a legacy page can
        hold them — but it calls them BEFORE the shell has drawn, so a migrated
@@ -1220,15 +933,7 @@ import {
     /* Published for the MEASUREMENT of the deck's gesture: a rule drives the
        two halves the way the swipe handler drives them, and reads what the
        animation is doing one frame later. */
-    /* A GETTER: `LIB_PAGE` is a `const` declared further down this same script,
-       so a plain shorthand would hit the temporal dead zone the instant this
-       literal is built — the same trap `TODAY` is published
-       around. */
-    get LIB_PAGE() {
-      return LIB_PAGE;
-    },
     SERVICES,
-    SERVICES_PANNE,
     EXECUTIONS,
     DISKS,
     INDEX,
@@ -1238,7 +943,6 @@ import {
        `features/maintenance/panel-action.ts` now, reached through
        `panel.produce("action", id)` — and the risk vocabulary went with it,
        which is why `RISQUES` is no longer published from here at all. */
-    MAINT_TOPICS,
     /* What the Réglages page draws. REG_ETAT est l'objet
        MUTABLE que la délégation écrit : il reste la source, et le composant le
        relit à chaque bump de version du magasin (`render()` appelle
@@ -1252,8 +956,7 @@ import {
     fileName,
     changedFiles,
     JOURNAL,
-    EP_LABEL,
-    dateFR,
+    dateFR: dateLabel,
     // TODAY is declared with `const` further down this same script, past this
     // literal's evaluation point — a plain shorthand reference would hit the
     // temporal dead zone the instant this object is built. A getter defers
@@ -1261,18 +964,8 @@ import {
     get TODAY() {
       return TODAY;
     },
-    svgIcon,
     settingId,
     typedValue,
-    // The arbitration flow's LABELS, which are the interface's own words and
-    // were never server state — the register classifies them `interface`, and
-    // they stay exactly where they are.
-    REASON_LABEL,
-    REASON_TONE,
-    REASON_DETAIL,
-    DECISION_STATE,
-    DECISION_STATE_DETAIL,
-    VIA_LABEL,
     toast,
   };
 
@@ -1290,7 +983,6 @@ import {
   /* The name of the sort in force, which is what the control on the count line
      reads. `sortReversed` is a store field like any other and, like `sortKey`, it
      stays OUT of the address: the sort is a preference, not a place (A7). */
-  const LIB_PAGE = 24;
 
   /* THE PAGE'S OWN DERIVATION, and it stays HERE while the drawing leaves.
      WHAT LEFT AT L09. `sortLibrary` and `libFiltered` answered « which media,
@@ -1578,25 +1270,6 @@ import {
      with it the last French `data-*` name this file wrote. */
 
   /* Screens and sheets */
-  const MOIS = [
-    "janv.",
-    "févr.",
-    "mars",
-    "avr.",
-    "mai",
-    "juin",
-    "juil.",
-    "août",
-    "sept.",
-    "oct.",
-    "nov.",
-    "déc.",
-  ];
-  function dateFR(iso) {
-    if (!iso) return null;
-    const [map, map2, map3] = iso.split("-").map(Number);
-    return `${map3} ${MOIS[map2 - 1]} ${map}`;
-  }
   const TODAY = "2026-08-10";
 
 
@@ -1696,8 +1369,6 @@ export {
   resetSettings,
   render,
   toast,
-  svgIcon,
-  escapeHtml,
 };
 
 /* ── the published surface ───────────────────────────────────────────────────
@@ -1732,37 +1403,32 @@ export {
    destructuring on either side, and `for (name of …)`; all four were searched
    across all 254 names, and this is the only one. */
 Object.assign(window, {
-  POSTERS_HD, AUDIOS,
+  POSTERS_HD,
   TODAY, CADENCE_CRON, ACCOUNT,
   DEPENDENCIES, DISKS,
-  EP_LABEL, EP_ORDER, EP_SWATCH, ERRORS, DECISION_STATE,
-  DECISION_STATE_DETAIL, EXECUTIONS,
-  GROUPS, INDEX, JOURNAL,
-  LIB_PAGE, LIB_TOTAL, MAINT_TOPICS, MOIS, REASON_LABEL,
-  REASON_DETAIL, REASON_TONE,
-  SETTINGS_STATE, RESOLUTIONS,
-  SECRETS, SERVICES, SERVICES_PANNE,
-  ST_LABEL,
-  ST_LABEL_MOVIE, ST_TONE,
-  URGENCY, VIA_LABEL,
+  ERRORS, EXECUTIONS,
+  INDEX, JOURNAL,
+  LIB_TOTAL,
+  SETTINGS_STATE,
+  SECRETS, SERVICES,
   actionDelete, addVerb, showSignIn,
-  baseTitle, beforeReset, cadenceFR,
+  beforeReset,
   closeSheet,
-  dateFR,
-  escapeHtml,
   changedFiles,
-  gridBadge, icons, initialsOf,
+  icons,
   mountLoaders, mountSearch, fileName,
   openSheet,
   panelUnderFinger,
-  nextSearchFR,
   settingId, resetSettings, render,
   select,
-  stFraction, stLabel,
   sugVerb,
-  svgIcon, toast, toastUndo,
+  toast, toastUndo,
   displayedValue,
   typedValue, view,
+  // The rules' names for three moved helpers, published from their homes.
+  cadenceFR: cadenceSentence,
+  nextSearchFR: nextSearchTime,
+  stLabel: followStatusLabel,
 });
 
 // Read live, because the engine reassigns each of these.

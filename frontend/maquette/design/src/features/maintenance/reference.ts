@@ -28,16 +28,7 @@ export type MaintenanceAction = {
   blanc?: boolean;
 };
 
-// One maintenance RUBRIC — a heading and the sentence under it. The commands
-// are grouped by what one wants to DO, never by the file they live in.
-export type MaintenanceTopic = {
-  id: string;
-  t: string;
-  s: string;
-};
-
 export type MaintenanceReference = EngineDrawing & {
-  MAINT_TOPICS: MaintenanceTopic[];
   JOURNAL: DeletionJournal;
 };
 
