@@ -67,6 +67,7 @@ const KNOWN_VALUE: Record<string, string> = {
   key: "paths.torrent_complete_dir",
   name: "personalscraper-search",
   id: "1",
+  runUid: "2b598104071b470fb27ea0dd2c357a0f",
 };
 
 describe("every answer carries what the contract requires of it", () => {

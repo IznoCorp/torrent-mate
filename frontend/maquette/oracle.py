@@ -58,6 +58,9 @@ import sys
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT / "harness"))
+import served_copy  # noqa: E402 — the path above is what makes it importable
+
 RECIPE_FILE = ROOT / "regions.json"
 SOURCE_DIR = ROOT / "design" / "src"
 REFERENCE_FILE = ROOT / "oracle-reference.json"
@@ -769,6 +772,46 @@ async def read_everything(recipe: dict, regions: dict) -> tuple:
     return measurements, states, time.monotonic() - started
 
 
+def served_copy_is_this_tree() -> tuple[bool, str]:
+    """Whether the copy now being served was built from THIS tree.
+
+    THE MACHINE HAS ONE SERVED COPY, and more than one wave builds into it. A
+    write path that measures whatever happens to be served will happily rewrite
+    the reference with ANOTHER branch's states, at a total that looks entirely
+    plausible — met for real, and only caught by reading the diff state by
+    state. `run.sh` and `mutate.sh` acquire the copy before they touch it; these
+    two paths ask this before they write.
+
+    Returns:
+        Whether the copy is this tree's, and — when it is not — what was
+        measured against what, so the refusal names the two builds.
+    """
+    stamp = served_copy.read_stamp()
+    if stamp is None:
+        return False, ("the served copy carries no stamp, so nothing says which build it "
+                       "holds. Run `frontend/maquette/harness/run.sh` once: it builds, "
+                       "publishes and stamps it")
+    served = stamp.get("source_stamp")
+    mine = served_copy.source_stamp()
+    if served != mine:
+        return False, (f"the served copy was built at source stamp {served} and this tree "
+                       f"is at {mine} — another build is being served. Rebuild through "
+                       f"`run.sh` and accept inside the SAME invocation")
+    return True, ""
+
+
+def refuse_a_foreign_build() -> str | None:
+    """The message a write path must print instead of writing, or None.
+
+    Returns:
+        The refusal, or None when the served copy is this tree's.
+    """
+    agreed, why = served_copy_is_this_tree()
+    if agreed:
+        return None
+    return f"oracle: refusing to write the reference — {why}."
+
+
 async def record(to_stdout: bool = False) -> int:
     """Writes the reference.
 
@@ -785,6 +828,10 @@ async def record(to_stdout: bool = False) -> int:
     if to_stdout:
         sys.stdout.write(text)
         return 0
+    refusal = refuse_a_foreign_build()
+    if refusal is not None:
+        print(refusal, file=sys.stderr)
+        return 1
     REFERENCE_FILE.write_text(text, encoding="utf-8")
     print(f"recorded {len(states)} states x {len(regions)} regions at "
           f"{base_commit()[:8]} in {seconds:.1f}s -> {REFERENCE_FILE.name}")
@@ -824,6 +871,10 @@ async def check(accept: bool = False) -> int:
     measurements, states, seconds = await read_everything(recipe, regions)
 
     if accept:
+        refusal = refuse_a_foreign_build()
+        if refusal is not None:
+            print(refusal, file=sys.stderr)
+            return 1
         REFERENCE_FILE.write_text(
             render_reference(measurements, regions, states), encoding="utf-8")
         print(f"accepted: reference rewritten at {base_commit()[:8]}. "

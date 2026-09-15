@@ -49,8 +49,12 @@ agreement reads none.
 - `regions.json` gains `system/locks`, anchored on `data-region` — never on a class, the floor is a
   hard zero.
 
-Named states added to `engine/states.js`: `locks-free`, `locks-held`, `locks-stale`,
-`locks-sweep-pending`, `locks-orphans` (DESIGN § 5), each reachable by `window.__go`.
+> **Re-targeted by the steward on 2026-09-14, after L13a merged (`304346145`)**: `engine/states.js` is
+> gone (phase 2's note); the target was already `harness/states/system.ts` in substance, since that is
+> where Système's states have lived since L13a's phase a·1.
+
+Named states added to `design/src/harness/states/system.ts`: `locks-free`, `locks-held`,
+`locks-stale`, `locks-sweep-pending`, `locks-orphans` (DESIGN § 5), each reachable by `window.__go`.
 
 ## Gate
 

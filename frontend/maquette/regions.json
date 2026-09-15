@@ -230,6 +230,22 @@
     "screen-resolution/body": {
       "selector": "[data-region=\"screen-resolution/body\"]",
       "note": "resolving a stuck folder"
+    },
+    "system/locks": {
+      "selector": "[data-region=\"system/locks\"]",
+      "note": "the pipeline's lock, the two sentinels and the sweep"
+    },
+    "system/levers": {
+      "selector": "[data-region=\"system/levers\"]",
+      "note": "the bound, pause or resume, and the automatic trigger"
+    },
+    "system/runs": {
+      "selector": "[data-region=\"system/runs\"]",
+      "note": "the passages, each row a path to its own run"
+    },
+    "run/body": {
+      "selector": "[data-region=\"run/body\"]",
+      "note": "one passage: its steps, its reasons, its raw output folded away"
     }
   },
   "$reportedDefects": {

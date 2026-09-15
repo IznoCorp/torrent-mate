@@ -24,6 +24,8 @@ import TAKEABLE from "./seeds/takeable.json";
 import PENDING_DECISIONS from "./seeds/pending-decisions.json";
 import SETTLED_DECISIONS from "./seeds/settled-decisions.json";
 import PIPELINE from "./seeds/pipeline.json";
+import PIPELINE_RUNS from "./seeds/pipeline-runs.json";
+import TMP_ORPHANS from "./seeds/tmp-orphans.json";
 import LIBRARY_ITEMS from "./seeds/library-items.json";
 import STUCK from "./seeds/stuck.json";
 import MOVING from "./seeds/moving.json";
@@ -39,6 +41,7 @@ import SECRETS from "./seeds/secrets.json";
  * « le fichier a bougé » would make the ordinary case the surprising one.
  */
 const CHANGED_ON_DISK = "notify";
+import { scenario } from "./scenario";
 import type { components } from "../contract/types";
 
 /** The contract's own vocabulary for what the pipeline is doing. */
@@ -47,6 +50,12 @@ export type PipelineState = components["schemas"]["PipelineState"];
 // The state a pipeline is in when nothing is running. It is a token of the
 // contract's enum, and the type above is what refuses a misspelling of it.
 const IDLE: PipelineState = "idle";
+
+// How many steps the run caught in flight had finished.
+const STEPS_FINISHED = 5;
+
+// The state a paused pipeline is in, for the dial that puts it there.
+const PAUSED: PipelineState = "paused";
 
 type Schemas = components["schemas"];
 
@@ -144,6 +153,44 @@ export type MockState = {
    * `x-unseeded` saying so.
    */
   pipelineState: PipelineState;
+  /**
+   * EVERY RUN THE HISTORY HOLDS, in full — the list and a run's detail read
+   * this one array, so they cannot disagree. Seeded from a snapshot of real
+   * `pipeline_run` rows; a launched veille appends to it.
+   */
+  pipelineRuns: Schemas["RunDetail"][];
+  /**
+   * Whether the automatic trigger opens runs on its own. ONE field: the
+   * pipeline's status projects it and the locks project it inverted (§13).
+   * Store state, not a fixture, as `pipelineState` is.
+   */
+  watcherEnabled: boolean;
+  /** When the pipeline took its lock, or null while it is idle. */
+  pipelineSince: string | null;
+  /** When the pipeline was paused, or null while it is not. */
+  pausedSince: string | null;
+  /** When the automatic trigger was turned off, or null while it is on. */
+  watcherPausedSince: string | null;
+  /** How many run-ending events the running veilles have already answered. */
+  runEndingsSeen: number;
+  /**
+   * Whether the lock file outlived the process that took it.
+   *
+   * A PROPERTY OF THE FILE, not of the request, so it is a dial and never a
+   * scenario: no verb of this layer produces a stale lock, and the state that
+   * stands for « the machine crashed holding it » has to be able to say so.
+   */
+  lockStale: boolean;
+  /** Whether the bounded sweep for temporary entries has finished. */
+  sweepFinished: boolean;
+  /**
+   * Whether the history read came back SHORT. The backend says so when its own
+   * read failed: the list may be missing rows, and drawing it as complete is
+   * the clause NE-DOIT-PAS-5 names.
+   */
+  historyDegraded: boolean;
+  /** The temporary entries a crash left behind, as the sweep found them. */
+  tmpOrphans: Schemas["TmpOrphan"][];
   /**
    * The stages of each journey the operator has opened, PER MEDIUM.
    *
@@ -247,6 +294,16 @@ const seeded = (): MockState => ({
   settings: copyOf<Schemas["SettingsTopic"][]>(SETTINGS),
   secrets: copyOf<Schemas["Secret"][]>(SECRETS),
   pipelineState: IDLE,
+  pipelineRuns: copyOf<Schemas["RunDetail"][]>(PIPELINE_RUNS),
+  watcherEnabled: true,
+  pipelineSince: null,
+  pausedSince: null,
+  watcherPausedSince: null,
+  runEndingsSeen: 0,
+  lockStale: false,
+  sweepFinished: true,
+  historyDegraded: false,
+  tmpOrphans: copyOf<Schemas["TmpOrphan"][]>(TMP_ORPHANS),
   journeyStages: {},
   metadataRefreshedAt: {},
   restartRequired: false,
@@ -280,11 +337,77 @@ export function resetMockState(): void {
 }
 
 /**
- * Sets what the pipeline is doing, as its verbs would have — the harness's door
- * to a named state that shows a running or queued pipeline without a tap.
+ * The dials a named state turns to reach a state no verb of this layer produces.
  *
- * @param state The pipeline's state.
+ * A DIAL, NEVER A SCENARIO. A scenario says how an operation ANSWERS — its
+ * status, its latency; these say what the machine IS: its lock outlived a dead
+ * process, its sweep has not finished, a crash left entries behind. A named
+ * state runs synchronously, so it cannot ask the layer through the network and
+ * wait; it turns these instead.
  */
-export function setPipelineState(state: PipelineState): void {
-  mockState().pipelineState = state;
-}
+export type MockDials = {
+  setPipelineState: (state: PipelineState) => void;
+  setLockStale: (stale: boolean) => void;
+  setWatcherEnabled: (enabled: boolean) => void;
+  setAcquisitionQueueEmpty: (empty: boolean) => void;
+  setHistoryEmpty: (empty: boolean) => void;
+  setHistoryDegraded: (degraded: boolean) => void;
+  setSweepFinished: (finished: boolean) => void;
+  setTmpOrphans: (present: boolean) => void;
+  setRunInProgress: (going: boolean) => void;
+};
+
+/** Those dials, over the layer's own state. */
+export const mockDials: MockDials = {
+  setPipelineState: (state: PipelineState) => {
+    const held = mockState();
+    held.pipelineState = state;
+    held.pipelineSince = state === IDLE ? null : scenario().now;
+    held.pausedSince = state === PAUSED ? scenario().now : null;
+  },
+  setLockStale: (stale: boolean) => {
+    const held = mockState();
+    held.lockStale = stale;
+    if (stale) held.pipelineSince = scenario().now;
+  },
+  setWatcherEnabled: (enabled: boolean) => {
+    const held = mockState();
+    held.watcherEnabled = enabled;
+    held.watcherPausedSince = enabled ? null : scenario().now;
+  },
+  setAcquisitionQueueEmpty: (empty: boolean) => {
+    // WHAT A VEILLE THAT FINDS NOTHING LOOKS LIKE. The three figures are
+    // derived from the acquisition queue, so an empty queue is the zero case —
+    // and the zero case is a real answer, not an absent one.
+    const held = mockState();
+    held.takeable = empty ? [] : copyOf<Schemas["QueueCard"][]>(TAKEABLE);
+    held.inFlight = empty ? [] : copyOf<Schemas["QueueCard"][]>(IN_FLIGHT);
+  },
+  setHistoryEmpty: (empty: boolean) => {
+    // A FRESH INSTALL, which is a real state and not an error: nothing has run
+    // yet, and the list says so rather than drawing a heading over nothing.
+    mockState().pipelineRuns = empty ? [] : copyOf<Schemas["RunDetail"][]>(PIPELINE_RUNS);
+  },
+  setHistoryDegraded: (degraded: boolean) => {
+    mockState().historyDegraded = degraded;
+  },
+  setSweepFinished: (finished: boolean) => {
+    mockState().sweepFinished = finished;
+  },
+  setTmpOrphans: (present: boolean) => {
+    mockState().tmpOrphans = present ? copyOf<Schemas["TmpOrphan"][]>(TMP_ORPHANS) : [];
+  },
+  setRunInProgress: (going: boolean) => {
+    // THE SNAPSHOT HOLDS NO RUN STILL GOING: this is its first real pipeline
+    // row caught after its fifth step — those five verbatim, the sixth live and
+    // knowing nothing yet, the rest not in the answer, as a run in flight is.
+    const runs = copyOf<Schemas["RunDetail"][]>(PIPELINE_RUNS);
+    const run = runs.find((one) => one.kind === "pipeline");
+    if (going && run) {
+      const live = run.steps[STEPS_FINISHED];
+      run.steps = [...run.steps.slice(0, STEPS_FINISHED), { name: live.name, status: "running" }];
+      Object.assign(run, { outcome: "running", endedAt: null, durationS: null, outputTail: null });
+    }
+    mockState().pipelineRuns = runs;
+  },
+};

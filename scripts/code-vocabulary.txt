@@ -1222,6 +1222,47 @@ virtual
 # TWO SPELLINGS ON PURPOSE, and neither is a slip: `virtualised` is ours and
 # `virtualizer` is `@tanstack/react-virtual`'s own export (`useVirtualizer`),
 # which cannot be renamed. A reader tidying one of them away breaks a build.
+age
+command
+consequence
+counts
+day
+detecting
+detection
+did
+dispatched
+enabled
+figures
+free
+hour
+instant
+it
+launch
+launched
+levers
+locks
+month
+off
+oldest
+orphan
+orphans
+parts
+per
+prefix
+ran
+reads
+runs
+second
+sentinels
+still
+succeeded
+summary
+swept
+timing
+trigger
+turn
+verified
+verify
 virtualised
 virtualizer
 visible
@@ -1242,6 +1283,7 @@ weekday
 weight
 what
 when
+while
 white
 why
 wide

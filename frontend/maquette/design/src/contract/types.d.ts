@@ -598,7 +598,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The recent runs */
+        /** The recent runs, a page at a time, and whether the list can be trusted */
         get: operations["readPipelineHistory"];
         put?: never;
         post?: never;
@@ -969,6 +969,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pipeline/history/{runUid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One passage: what triggered it, how it ended, its steps with their counts and their reasons, and its raw output */
+        get: operations["readRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pipeline/watcher": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Turn the automatic trigger on or off, and say which it now is */
+        post: operations["setWatcher"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/maintenance/locks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What holds the pipeline, whether it is paused, whether the automatic trigger is paused, and what temporary entries a crash left behind
+         * @description The lock, the two sentinels and their ages are DERIVED — from the pipeline's own state and the one field the automatic trigger is held in (§13, one derivation per question). Only the sweep's entries are seeded. THE DEMAND: the `_tmp_dispatch_` folder of run ccc29054 as its captured output names it; the run succeeded, so the folder is a transient read as an orphan for the drawing — the backend's locks read will list real orphans with their age.
+         */
+        get: operations["readLocks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1166,6 +1220,8 @@ export interface components {
                 [key: string]: string;
             };
             last: components["schemas"]["PipelineRunSummary"];
+            /** @description whether the automatic trigger opens runs on its own. The layer PROJECTS it from the one field `setWatcher` writes, which the locks read also projects as `sentinels.watcherPaused` — one fact, two readers (§13). Not in the seed: it is store state, not a fixture */
+            watcherEnabled?: boolean;
             /** @description what the pipeline is doing RIGHT NOW. The layer projects it from the one field its verbs move; the backend answers it on the same read (`StatusResponse.state`). Not in the seed — store state, as `watcherEnabled` is */
             state?: components["schemas"]["PipelineState"];
         };
@@ -1413,6 +1469,146 @@ export interface components {
          * @enum {string}
          */
         DecisionRoute: "pick" | "search_override";
+        /**
+         * @description How a run ended, or that it has not. `running` is a real answer: a run the history lists while it is still going.
+         * @enum {string}
+         */
+        RunOutcome: "success" | "error" | "killed" | "running" | "paused";
+        /** @description One step of a run, as a LIST row needs it: its name, its status and its counts. */
+        StepCounts: {
+            name: string;
+            status: string;
+            successCount?: number | null;
+            skipCount?: number | null;
+            errorCount?: number | null;
+            unmatchedCount?: number | null;
+            /** @description a step's own tally, keyed by what it counted. The veille's run carries the three figures DOIT-6 requires under these names; the backend's detection step counts `detected`, `enqueued` and the skips instead, and no `available` or `grabbed` — a demand */
+            counts?: ({
+                detected?: number;
+                available?: number;
+                grabbed?: number;
+            } & {
+                [key: string]: number;
+            }) | null;
+        };
+        /** @description One step of a run, in full: its counts, when it ran, and the reason for each item it did or did not do (§8 — « chaque rien a sa raison »). */
+        StepTiming: {
+            name: string;
+            status: string;
+            startedAt?: string | null;
+            endedAt?: string | null;
+            elapsedS?: number | null;
+            successCount?: number | null;
+            skipCount?: number | null;
+            errorCount?: number | null;
+            unmatchedCount?: number | null;
+            /** @description a step's own tally, keyed by what it counted. The veille's run carries the three figures DOIT-6 requires under these names; the backend's detection step counts `detected`, `enqueued` and the skips instead, and no `available` or `grabbed` — a demand */
+            counts?: ({
+                detected?: number;
+                available?: number;
+                grabbed?: number;
+            } & {
+                [key: string]: number;
+            }) | null;
+            reasons?: string[] | null;
+        };
+        /** @description One passage, as the history lists it. */
+        RunSummary: {
+            runUid: string;
+            /** @description what started it, as a TOKEN — `completion`, `safety_net`, `cli`, `web`, `cron`… The interface says it in words; a legend is a standing refusal */
+            trigger: string;
+            dryRun: boolean;
+            /** @description ISO 8601, UTC */
+            startedAt: string;
+            /** @description ISO 8601, UTC; null while the run is still going */
+            endedAt?: string | null;
+            outcome?: components["schemas"]["RunOutcome"] | null;
+            durationS?: number | null;
+            /** @enum {string} */
+            kind: "pipeline" | "maintenance";
+            /** @description the maintenance command a maintenance run ran; null for a pipeline run */
+            command?: string | null;
+            /** @description THE COUNTS ON THE SUMMARY. The row's line is composed by the interface from these (frontend-backend-demands-stream.md § 7); the backend carries them only on the detail, which would cost one read per row to draw one list — a demand */
+            steps: components["schemas"]["StepCounts"][];
+            /** @description when it ran — the fixture's line, as `PipelineExecution.when` carries it, until the list composes the row from the facts */
+            when?: string;
+            /** @description whether it succeeded, as the fixture said it. Carried beside `outcome` until the list composes its row from the facts */
+            succeeded?: boolean;
+            /** @description what started it — the fixture's line, as `PipelineExecution.cause` carries it */
+            cause?: string;
+            /** @description what it did — the fixture's line, as `PipelineExecution.result` carries it */
+            result?: string;
+        };
+        /** @description One passage in full: what triggered it, how it ended, its steps with their counts and their reasons, and its raw output. */
+        RunDetail: {
+            runUid: string;
+            /** @description what started it, as a TOKEN — `completion`, `safety_net`, `cli`, `web`, `cron`… The interface says it in words; a legend is a standing refusal */
+            trigger: string;
+            dryRun: boolean;
+            /** @description ISO 8601, UTC */
+            startedAt: string;
+            /** @description ISO 8601, UTC; null while the run is still going */
+            endedAt?: string | null;
+            outcome?: components["schemas"]["RunOutcome"] | null;
+            durationS?: number | null;
+            /** @enum {string} */
+            kind: "pipeline" | "maintenance";
+            /** @description the maintenance command a maintenance run ran; null for a pipeline run */
+            command?: string | null;
+            /** @description the steps as far as the run got. A run that fails records none, so which step failed is not answered and the interface marks none — a failed run's steps with the failing one named is a demand */
+            steps: components["schemas"]["StepTiming"][];
+            /** @description the error as the run recorded it, verbatim */
+            error?: string | null;
+            /** @description a maintenance run's options, as the run recorded them */
+            optionsJson?: string | null;
+            /** @description the tail of the run's raw output — data displayed verbatim and folded, not copy. Null for a run recorded before output capture existed */
+            outputTail?: string | null;
+        };
+        /** @description A page of the history. */
+        RunHistory: {
+            runs: components["schemas"]["RunSummary"][];
+            /** @description how many runs match, before paging */
+            total: number;
+            /** @description the read FAILED and the list may be silently short. Printing a short list as a complete one is NE-DOIT-PAS-5 */
+            degraded: boolean;
+        };
+        /** @description The pipeline's lock. */
+        LockState: {
+            held: boolean;
+            /** @description how long it has been held; null when it is free */
+            ageS: number | null;
+            /** @description the lock exists and the process that took it is gone */
+            stale: boolean;
+            /** @description the process holding it. Answered and drawn nowhere — NE-DOIT-PAS-4 */
+            pid?: number | null;
+        };
+        /** @description The two pauses, each with its age. */
+        Sentinels: {
+            pause: boolean;
+            pauseAgeS: number | null;
+            /** @description the automatic trigger is off. The SAME fact `Pipeline.watcherEnabled` answers, inverted — one field, two readers (§13) */
+            watcherPaused: boolean;
+            watcherPausedAgeS: number | null;
+        };
+        /** @description A temporary entry a crash left behind. THE DEMAND: the `_tmp_dispatch_` folder of run ccc29054 as its captured output names it; the run succeeded, so the folder is a transient read as an orphan for the drawing — the backend's locks read will list real orphans with their age. */
+        TmpOrphan: {
+            path: string;
+            prefix: string;
+            ageS: number;
+        };
+        /** @description The bounded background sweep for temporary entries. `pending` until it has finished: the entries are not an answer before then (§13). */
+        TmpOrphanSweep: {
+            /** @enum {string} */
+            status: "pending" | "ready";
+            ageS?: number | null;
+            orphans: components["schemas"]["TmpOrphan"][];
+        };
+        /** @description What holds the pipeline, whether it is paused, whether the automatic trigger is paused, and what temporary entries a crash left behind. */
+        Locks: {
+            pipelineLock: components["schemas"]["LockState"];
+            sentinels: components["schemas"]["Sentinels"];
+            sweep: components["schemas"]["TmpOrphanSweep"];
+        };
     };
     responses: {
         /** @description the request failed, and the reason is the real one (NE-DOIT-PAS-4, NE-DOIT-PAS-5) */
@@ -2197,16 +2393,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description the figures DOIT-6 requires */
-            200: {
+            /** @description the run was launched; its figures are read from `readRun` */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        detected: number;
-                        available: number;
-                        grabbed: number;
+                        runUid: string;
                     };
                 };
             };
@@ -2632,20 +2826,29 @@ export interface operations {
     };
     readPipelineHistory: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description how many runs, at most */
+                limit?: number;
+                /** @description how many to skip */
+                offset?: number;
+                /** @description oldest or newest first; newest by default */
+                sort?: "started_at" | "-started_at";
+                /** @description which runs; all by default */
+                kind?: "all" | "pipeline" | "maintenance";
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description the runs */
+            /** @description a page of the runs */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PipelineExecution"][];
+                    "application/json": components["schemas"]["RunHistory"];
                 };
             };
             400: components["responses"]["Problem"];
@@ -3298,6 +3501,96 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    readRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the run */
+                runUid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the run */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunDetail"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    setWatcher: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    enabled: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description which it now is */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        watcherEnabled: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    readLocks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the locks */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Locks"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
         };
     };
 }

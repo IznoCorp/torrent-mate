@@ -125,7 +125,7 @@ SAID = """()=>{
 
 # PUTS THE LAYER TO WORK, through the operation the application itself calls.
 # `runPipeline` moves the mock's own pipeline state to running (or to queued
-# when one is already going), and that is the state the three verbs read to
+# behind a maintenance run), and that is the state the three verbs read to
 # decide whether an ask waits. It answers what the state became, so a walk
 # cannot believe it succeeded.
 RUN_THE_PIPELINE = """async()=>{

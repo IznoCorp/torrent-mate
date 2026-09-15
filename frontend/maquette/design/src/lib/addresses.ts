@@ -72,6 +72,7 @@ export const SCREEN_PARENTS: Readonly<Record<string, string>> = {
   "/media/$provider/$id": "lib",
   "/releases/$title": "acq",
   "/resolution/$folder": "arr",
+  "/run/$runUid": "sys",
 };
 
 /** The screen paths alone, for the readers that need the list rather than the

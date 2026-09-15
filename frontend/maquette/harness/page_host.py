@@ -732,14 +732,14 @@ async def main():
             and "stop" in started["controls"],
             str(started) if not refused else f"data-pipe='start' {refused}")
 
-        # DOIT-4, the one the bar exists for: asked DURING a run, another pass
-        # is QUEUED — visibly — never refused with « busy, try again ».
+        # DOIT-4, RE-AIMED: a pass queues behind a MAINTENANCE run (a second ask is refused 409, R185).
+        await page.evaluate("""()=>{document.querySelector("#view [data-pipe='stop']").click(); return fetch('/api/acquisition/detect', {method: 'POST'});}""")
         refused = await tap("""#view [data-part="pipeline"] [data-pipe='start']""")
         queued = await page.evaluate(
             "()=>({pipe: window.__queries.getQueryData(['/api/pipeline/status'])?.state,"
             """ live: !!document.querySelector('#view [data-part="pipeline"] [data-part="live-activity"]')})""")
         journal.check(
-            "and asked again DURING a run, the next pass is queued, not refused",
+            "and asked while a maintenance run holds the lock, the pass is queued, not refused",
             not refused and queued["pipe"] == "queued" and queued["live"],
             str(queued) if not refused else f"data-pipe='start' {refused}")
 

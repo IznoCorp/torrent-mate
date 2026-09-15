@@ -25,7 +25,7 @@ import { cva } from "../cva";
  * STRUCTURE, so nobody has to remember to add a label.
  */
 export const actionButton = cva(
-  "flex items-center justify-center gap-4 w-full rounded-3 font-semibold text-center",
+  "flex items-center justify-center gap-4 w-full rounded-3 font-semibold text-center disabled:opacity-50",
   {
     variants: {
       /**

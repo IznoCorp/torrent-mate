@@ -387,13 +387,16 @@ holds the three ends.
   checking older sources out under the branch's instrument, as `scripts/mutate.sh` requires.
 - **After a TOUCH drag the browser suppresses the click itself** — a hold about the click that
   ends a drag drives it with a MOUSE, or it measures the browser, not the guard.
+- **`offsetParent` cannot see a closed `<details>`** — Chrome hides its content with
+  `content-visibility: hidden` and the boxes stay laid out, so a hold reading only `offsetParent` is
+  green over a shut fold; ask `checkVisibility()` too.
 
 Story: `frontend/maquette/README.md@6a47304a4` § Traps this stylesheet paid for.
 
 ## Every state has a name, and knows how to reach itself
 
 `window.__go("<id>")` drives the prototype into a state **without clicking**.
-`window.__states()` returns the 54 ids.
+`window.__states()` returns every declared id — count them there, never here: this line said 54 while the table held 113.
 
 This is what makes a rule deterministic. Without it, measuring "the blocked card" requires
 knowing how to make one appear — and that knowledge is exactly what evaporates over time. With
@@ -408,7 +411,7 @@ Three orthogonal dials of the prototype's store:
 | Surface phase | `ready` · `loading` · `error` | every surface goes through all three |
 | TMDB account  | connected · not               | Découvrir's full vs degraded mode    |
 
-The 54 states cover: the startup screen, the entry screen and its refusal, the five urgency
+The states cover, among others: the startup screen, the entry screen and its refusal, the five urgency
 sections in both scenarios, Suivis in its three modes plus its two empty cases, Découvrir full /
 degraded / exhausted / loading, the add screen idle and with real results, the follow sheet on a
 22-season complete catalogue and on a holed one, the journey sheet, the "⋮" sheet, the library in
@@ -416,7 +419,7 @@ grid and list, its empty search, its three lenses, selection mode, single and bu
 dialogs, loading and error on every surface, the resolution screen, the media sheet in its
 variants, the navigation drawer, the two install proposals, the arbitration screen in both of its shapes, and Système.
 
-`harness/states.py` drives all 54 and asserts each one renders content, has no horizontal
+`harness/states.py` drives every one of them and asserts each one renders content, has no horizontal
 overflow and raises no JS error. **A state that renders nothing fails the pass.**
 
 ## `regions.json` — the project's memory

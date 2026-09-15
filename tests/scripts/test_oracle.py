@@ -304,4 +304,96 @@ def test_the_committed_reference_carries_a_platform():
     # invisible to it. The reference GREW again — 87 entries added (one per state), 0 removed,
     # and not one of the 2 871 measurements that existed at 33 regions changed, verified by
     # reading the diff rather than the tool's own success line. 87 x 34 = 2 958 today.
-    assert reference["counts"] == {"states": 87, "regions": 34}
+    #
+    # 92 STATES AND 35 REGIONS, and this pin moves for a reason the two before it did not have.
+    # `system/locks` is the pipeline's locks block on Système, and its five named states —
+    # `locks-free`, `locks-held`, `locks-stale`, `locks-sweep-pending`, `locks-orphans` — are
+    # the surface that block draws. THE DIFFERENCE WITH EVERY EARLIER MOVE OF THIS PIN: the
+    # reference did not only GROW. Two existing measurements changed — `system` and
+    # `system-outage`, `shell/page` and `system/body`, 2 540.5 px tall to 2 899.4 — because the
+    # page itself is longer now that it carries the section. That was read state by state in
+    # the diff, not taken from the tool's success line, and no other state moved. 92 x 35 today.
+    #
+    # 99 STATES AND 36 REGIONS. `system/levers` is the pipeline's levers on Système and its
+    # seven named states are the surface they draw. The existing measurements that moved are
+    # the twelve states that draw that page — the five locks states among them, because the
+    # levers land ABOVE them — plus `system` and `system-outage`. Read state by state in the
+    # diff, and verified BY NAME rather than by the count: a reference accepted over another
+    # wave's build came back with the right-looking total and none of this lot's states in it.
+    #
+    # 104 STATES, 36 REGIONS — five states and no new region: the veille's block lands INSIDE
+    # `system/levers`, which the previous lot already declared. The states that moved with it
+    # are the twelve that draw Système, and `sheet-more` did NOT: its button gained an
+    # attribute and not a pixel, which is what a verb moving onto the registry should look
+    # like. Read state by state, and the reference verified by NAME.
+    #
+    # 107 STATES, 37 REGIONS. `system/runs` is « Les passages », which left the page file for
+    # its own: its rows are paths now, and three states say what the list can be — whole,
+    # empty, or short for a bad reason. The states that moved with it are the ones that draw
+    # Système; `sheet-more` stayed still again. Read state by state, verified by name.
+    #
+    # 113 STATES, 38 REGIONS. `run/body` is one passage at its own address, and its six
+    # states — whole, still going, failed, its raw output opened, a run with no output kept,
+    # a maintenance command — are the only ones that moved: every other state gained a null
+    # `run/body` and nothing else, Système's included. Verified by name.
+    assert reference["counts"] == {"states": 113, "regions": 38}
+
+
+class TestItRefusesToWriteOverAForeignBuild:
+    """The reference is only ever written from the copy THIS tree built.
+
+    B-256's species, met for real: `--accept` run as its own invocation
+    measured another wave's build — the machine has ONE served copy — and
+    rewrote the reference with that wave's states, at a total that looked
+    entirely plausible. `run.sh` and `mutate.sh` acquire the copy before they
+    touch it; the two paths that WRITE the reference did not.
+    """
+
+    def test_a_copy_built_from_another_tree_is_refused(self, monkeypatch) -> None:
+        """A stamp that is not this tree's is a refusal, never a rewrite."""
+        oracle = load()
+        monkeypatch.setattr(
+            oracle.served_copy, "read_stamp", lambda: {"source_stamp": 111, "commit": "abc", "token": "t"}
+        )
+        monkeypatch.setattr(oracle.served_copy, "source_stamp", lambda: 222)
+        agreed, why = oracle.served_copy_is_this_tree()
+        assert agreed is False
+        assert "111" in why and "222" in why
+
+    def test_the_copy_this_tree_built_is_accepted(self, monkeypatch) -> None:
+        """And the ordinary case still writes."""
+        oracle = load()
+        monkeypatch.setattr(
+            oracle.served_copy, "read_stamp", lambda: {"source_stamp": 333, "commit": "abc", "token": "t"}
+        )
+        monkeypatch.setattr(oracle.served_copy, "source_stamp", lambda: 333)
+        agreed, why = oracle.served_copy_is_this_tree()
+        assert agreed is True
+        assert why == ""
+
+    def test_an_unstamped_copy_is_refused(self, monkeypatch) -> None:
+        """A copy carrying no stamp says nothing about what it holds."""
+        oracle = load()
+        monkeypatch.setattr(oracle.served_copy, "read_stamp", lambda: None)
+        agreed, why = oracle.served_copy_is_this_tree()
+        assert agreed is False
+        assert "stamp" in why
+
+    def test_both_write_paths_consult_it(self) -> None:
+        """Neither `--record` nor `--accept` may write without asking.
+
+        THE WHOLE CHAIN, not one name of it: the two paths ask the refusal, and
+        the refusal asks the stamp. Written first against the stamp's own name,
+        which held only half the chain — a path could call it and ignore what it
+        answered.
+        """
+        source = SCRIPT.read_text(encoding="utf-8")
+        record = source[source.index("async def record(") : source.index("async def check(")]
+        check = source[source.index("async def check(") :]
+        refusal = source[source.index("def refuse_a_foreign_build(") : source.index("async def record(")]
+        for half, name in ((record, "record"), (check, "check")):
+            assert "refuse_a_foreign_build()" in half, (
+                f"{name} writes the reference without asking whether the served copy is this tree's build"
+            )
+            assert "return 1" in half, f"{name} asks, and must REFUSE on the answer rather than write anyway"
+        assert "served_copy_is_this_tree()" in refusal, "the refusal answers without reading the served copy's stamp"

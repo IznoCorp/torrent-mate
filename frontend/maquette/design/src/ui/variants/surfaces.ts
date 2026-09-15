@@ -223,7 +223,7 @@ export const crossReference = cva(
 export const crossReferenceStrong = cva("text-foreground font-semibold");
 
 /** The cross-reference's link, on its own row. */
-export const crossReferenceLink = cva("block mt-3 text-primary font-semibold whitespace-nowrap");
+export const crossReferenceLink = cva("block mt-3 text-primary-text font-semibold whitespace-nowrap");
 
 /** A panel of facts. */
 export const factsPanel = cva("panel border border-border bg-card rounded-3 py-1 px-5");
@@ -393,3 +393,19 @@ export const topicRow = cva(
  * screen's candidates. Two features never import each other (invariant 7).
  */
 export const resultCount = cva("rescount pt-6 px-7 pb-0 text-2 text-muted-foreground");
+
+/**
+ * A disclosure: a summary a finger opens, and what it folds away.
+ *
+ * NATIVE, and that is the point: `<details>` is closed until asked, and its
+ * folded content is not rendered at all — not merely hidden by a style that
+ * could be overridden. The marker is replaced by a drawn chevron so the
+ * affordance reads the same on every platform.
+ */
+export const disclosure = cva(
+  "block [&>summary]:flex [&>summary]:items-center [&>summary]:gap-2 [&>summary]:py-3 " +
+    "[&>summary]:cursor-pointer [&>summary]:text-3 [&>summary]:font-semibold " +
+    "[&>summary]:text-primary-text [&>summary]:list-none " +
+    "[&>summary::-webkit-details-marker]:hidden " +
+    "[&>summary::before]:content-['▸'] open:[&>summary::before]:content-['▾']",
+);

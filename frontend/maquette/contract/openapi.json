@@ -1561,27 +1561,19 @@
           "acquisition"
         ],
         "responses": {
-          "200": {
-            "description": "the figures DOIT-6 requires",
+          "202": {
+            "description": "the run was launched; its figures are read from `readRun`",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "detected": {
-                      "type": "integer"
-                    },
-                    "available": {
-                      "type": "integer"
-                    },
-                    "grabbed": {
-                      "type": "integer"
+                    "runUid": {
+                      "type": "string"
                     }
                   },
                   "required": [
-                    "available",
-                    "detected",
-                    "grabbed"
+                    "runUid"
                   ]
                 }
               }
@@ -1606,7 +1598,7 @@
             "$ref": "#/components/responses/Problem"
           }
         },
-        "x-unseeded": "the three figures DOIT-6 requires. Derived from the seeded acquisition queue, never from a fixture of its own."
+        "x-unseeded": "an acknowledgement naming the run it launched. The run is appended to the history `running` and ends, on the layer's own clock, with the three figures DOIT-6 requires — derived from the seeded acquisition queue, never from a fixture of its own."
       }
     },
     "/api/acquisition/to-handle": {
@@ -2449,20 +2441,64 @@
     "/api/pipeline/history": {
       "get": {
         "operationId": "readPipelineHistory",
-        "summary": "The recent runs",
+        "summary": "The recent runs, a page at a time, and whether the list can be trusted",
         "tags": [
           "pipeline"
         ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "how many runs, at most"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "how many to skip"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "started_at",
+                "-started_at"
+              ]
+            },
+            "description": "oldest or newest first; newest by default"
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "pipeline",
+                "maintenance"
+              ]
+            },
+            "description": "which runs; all by default"
+          }
+        ],
         "responses": {
           "200": {
-            "description": "the runs",
+            "description": "a page of the runs",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/PipelineExecution"
-                  }
+                  "$ref": "#/components/schemas/RunHistory"
                 }
               }
             }
@@ -2487,7 +2523,8 @@
           }
         },
         "x-seeded-from": [
-          "EXECUTIONS"
+          "EXECUTIONS",
+          "PIPELINE_RUNS"
         ]
       }
     },
@@ -3673,6 +3710,171 @@
         },
         "x-unseeded": "whether a card of that name was waiting is decided by the layer's own state at the moment of the call, not by a fixture — there is nothing to seed it from"
       }
+    },
+    "/api/pipeline/history/{runUid}": {
+      "get": {
+        "operationId": "readRun",
+        "summary": "One passage: what triggered it, how it ended, its steps with their counts and their reasons, and its raw output",
+        "tags": [
+          "pipeline"
+        ],
+        "parameters": [
+          {
+            "name": "runUid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the run"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the run",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "PIPELINE_RUNS"
+        ]
+      }
+    },
+    "/api/pipeline/watcher": {
+      "post": {
+        "operationId": "setWatcher",
+        "summary": "Turn the automatic trigger on or off, and say which it now is",
+        "tags": [
+          "pipeline"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "enabled"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "which it now is",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "watcherEnabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "watcherEnabled"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "the trigger's state is STORE state, not a fixture family: the layer holds one field and answers what the request left it at."
+      }
+    },
+    "/api/maintenance/locks": {
+      "get": {
+        "operationId": "readLocks",
+        "summary": "What holds the pipeline, whether it is paused, whether the automatic trigger is paused, and what temporary entries a crash left behind",
+        "tags": [
+          "maintenance"
+        ],
+        "responses": {
+          "200": {
+            "description": "the locks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Locks"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "description": "The lock, the two sentinels and their ages are DERIVED — from the pipeline's own state and the one field the automatic trigger is held in (§13, one derivation per question). Only the sweep's entries are seeded. THE DEMAND: the `_tmp_dispatch_` folder of run ccc29054 as its captured output names it; the run succeeded, so the folder is a transient read as an orphan for the drawing — the backend's locks read will list real orphans with their age.",
+        "x-seeded-from": [
+          "TMP_ORPHANS"
+        ]
+      }
     }
   },
   "components": {
@@ -4340,6 +4542,10 @@
           },
           "last": {
             "$ref": "#/components/schemas/PipelineRunSummary"
+          },
+          "watcherEnabled": {
+            "type": "boolean",
+            "description": "whether the automatic trigger opens runs on its own. The layer PROJECTS it from the one field `setWatcher` writes, which the locks read also projects as `sentinels.watcherPaused` — one fact, two readers (§13). Not in the seed: it is store state, not a fixture"
           },
           "state": {
             "$ref": "#/components/schemas/PipelineState",
@@ -5144,6 +5350,504 @@
           "search_override"
         ],
         "description": "how a candidate was reached: picked from the list the decision offered, or found by a manual search that bypassed it. The engine keys its French wording by these tokens (`VIA_LABEL`, classified `interface`)."
+      },
+      "RunOutcome": {
+        "type": "string",
+        "enum": [
+          "success",
+          "error",
+          "killed",
+          "running",
+          "paused"
+        ],
+        "description": "How a run ended, or that it has not. `running` is a real answer: a run the history lists while it is still going."
+      },
+      "StepCounts": {
+        "type": "object",
+        "description": "One step of a run, as a LIST row needs it: its name, its status and its counts.",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "successCount": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "skipCount": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "errorCount": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "unmatchedCount": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "counts": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "properties": {
+              "detected": {
+                "type": "integer"
+              },
+              "available": {
+                "type": "integer"
+              },
+              "grabbed": {
+                "type": "integer"
+              }
+            },
+            "description": "a step's own tally, keyed by what it counted. The veille's run carries the three figures DOIT-6 requires under these names; the backend's detection step counts `detected`, `enqueued` and the skips instead, and no `available` or `grabbed` — a demand"
+          }
+        },
+        "required": [
+          "name",
+          "status"
+        ]
+      },
+      "StepTiming": {
+        "type": "object",
+        "description": "One step of a run, in full: its counts, when it ran, and the reason for each item it did or did not do (§8 — « chaque rien a sa raison »).",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "endedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "elapsedS": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "successCount": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "skipCount": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "errorCount": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "unmatchedCount": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "counts": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "properties": {
+              "detected": {
+                "type": "integer"
+              },
+              "available": {
+                "type": "integer"
+              },
+              "grabbed": {
+                "type": "integer"
+              }
+            },
+            "description": "a step's own tally, keyed by what it counted. The veille's run carries the three figures DOIT-6 requires under these names; the backend's detection step counts `detected`, `enqueued` and the skips instead, and no `available` or `grabbed` — a demand"
+          },
+          "reasons": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "status"
+        ]
+      },
+      "RunSummary": {
+        "type": "object",
+        "description": "One passage, as the history lists it.",
+        "properties": {
+          "runUid": {
+            "type": "string"
+          },
+          "trigger": {
+            "type": "string",
+            "description": "what started it, as a TOKEN — `completion`, `safety_net`, `cli`, `web`, `cron`… The interface says it in words; a legend is a standing refusal"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "startedAt": {
+            "type": "string",
+            "description": "ISO 8601, UTC"
+          },
+          "endedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO 8601, UTC; null while the run is still going"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "durationS": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "pipeline",
+              "maintenance"
+            ]
+          },
+          "command": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the maintenance command a maintenance run ran; null for a pipeline run"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StepCounts"
+            },
+            "description": "THE COUNTS ON THE SUMMARY. The row's line is composed by the interface from these (frontend-backend-demands-stream.md § 7); the backend carries them only on the detail, which would cost one read per row to draw one list — a demand"
+          },
+          "when": {
+            "type": "string",
+            "description": "when it ran — the fixture's line, as `PipelineExecution.when` carries it, until the list composes the row from the facts"
+          },
+          "succeeded": {
+            "type": "boolean",
+            "description": "whether it succeeded, as the fixture said it. Carried beside `outcome` until the list composes its row from the facts"
+          },
+          "cause": {
+            "type": "string",
+            "description": "what started it — the fixture's line, as `PipelineExecution.cause` carries it"
+          },
+          "result": {
+            "type": "string",
+            "description": "what it did — the fixture's line, as `PipelineExecution.result` carries it"
+          }
+        },
+        "required": [
+          "dryRun",
+          "kind",
+          "runUid",
+          "startedAt",
+          "steps",
+          "trigger"
+        ]
+      },
+      "RunDetail": {
+        "type": "object",
+        "description": "One passage in full: what triggered it, how it ended, its steps with their counts and their reasons, and its raw output.",
+        "properties": {
+          "runUid": {
+            "type": "string"
+          },
+          "trigger": {
+            "type": "string",
+            "description": "what started it, as a TOKEN — `completion`, `safety_net`, `cli`, `web`, `cron`… The interface says it in words; a legend is a standing refusal"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "startedAt": {
+            "type": "string",
+            "description": "ISO 8601, UTC"
+          },
+          "endedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO 8601, UTC; null while the run is still going"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "durationS": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "pipeline",
+              "maintenance"
+            ]
+          },
+          "command": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the maintenance command a maintenance run ran; null for a pipeline run"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StepTiming"
+            },
+            "description": "the steps as far as the run got. A run that fails records none, so which step failed is not answered and the interface marks none — a failed run's steps with the failing one named is a demand"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the error as the run recorded it, verbatim"
+          },
+          "optionsJson": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "a maintenance run's options, as the run recorded them"
+          },
+          "outputTail": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "the tail of the run's raw output — data displayed verbatim and folded, not copy. Null for a run recorded before output capture existed"
+          }
+        },
+        "required": [
+          "dryRun",
+          "kind",
+          "runUid",
+          "startedAt",
+          "steps",
+          "trigger"
+        ]
+      },
+      "RunHistory": {
+        "type": "object",
+        "description": "A page of the history.",
+        "properties": {
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunSummary"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "how many runs match, before paging"
+          },
+          "degraded": {
+            "type": "boolean",
+            "description": "the read FAILED and the list may be silently short. Printing a short list as a complete one is NE-DOIT-PAS-5"
+          }
+        },
+        "required": [
+          "degraded",
+          "runs",
+          "total"
+        ]
+      },
+      "LockState": {
+        "type": "object",
+        "description": "The pipeline's lock.",
+        "properties": {
+          "held": {
+            "type": "boolean"
+          },
+          "ageS": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "how long it has been held; null when it is free"
+          },
+          "stale": {
+            "type": "boolean",
+            "description": "the lock exists and the process that took it is gone"
+          },
+          "pid": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "the process holding it. Answered and drawn nowhere — NE-DOIT-PAS-4"
+          }
+        },
+        "required": [
+          "ageS",
+          "held",
+          "stale"
+        ]
+      },
+      "Sentinels": {
+        "type": "object",
+        "description": "The two pauses, each with its age.",
+        "properties": {
+          "pause": {
+            "type": "boolean"
+          },
+          "pauseAgeS": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "watcherPaused": {
+            "type": "boolean",
+            "description": "the automatic trigger is off. The SAME fact `Pipeline.watcherEnabled` answers, inverted — one field, two readers (§13)"
+          },
+          "watcherPausedAgeS": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "pause",
+          "pauseAgeS",
+          "watcherPaused",
+          "watcherPausedAgeS"
+        ]
+      },
+      "TmpOrphan": {
+        "type": "object",
+        "description": "A temporary entry a crash left behind. THE DEMAND: the `_tmp_dispatch_` folder of run ccc29054 as its captured output names it; the run succeeded, so the folder is a transient read as an orphan for the drawing — the backend's locks read will list real orphans with their age.",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "ageS": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "ageS",
+          "path",
+          "prefix"
+        ]
+      },
+      "TmpOrphanSweep": {
+        "type": "object",
+        "description": "The bounded background sweep for temporary entries. `pending` until it has finished: the entries are not an answer before then (§13).",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "ready"
+            ]
+          },
+          "ageS": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "orphans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TmpOrphan"
+            }
+          }
+        },
+        "required": [
+          "orphans",
+          "status"
+        ]
+      },
+      "Locks": {
+        "type": "object",
+        "description": "What holds the pipeline, whether it is paused, whether the automatic trigger is paused, and what temporary entries a crash left behind.",
+        "properties": {
+          "pipelineLock": {
+            "$ref": "#/components/schemas/LockState"
+          },
+          "sentinels": {
+            "$ref": "#/components/schemas/Sentinels"
+          },
+          "sweep": {
+            "$ref": "#/components/schemas/TmpOrphanSweep"
+          }
+        },
+        "required": [
+          "pipelineLock",
+          "sentinels",
+          "sweep"
+        ]
       }
     },
     "responses": {

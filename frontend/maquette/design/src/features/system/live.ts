@@ -20,6 +20,8 @@ const SERVICES_KEY = ["/api/system/services"];
 const ERRORS_KEY = ["/api/system/errors"];
 /** The runs, and how each ended. */
 const HISTORY_KEY = ["/api/pipeline/history"];
+/** What holds the pipeline, and what a crash left behind. */
+const LOCKS_KEY = ["/api/maintenance/locks"];
 
 /** What a server event refreshes on the system page. */
 export const systemLiveRules: readonly LiveRule[] = [
@@ -33,11 +35,12 @@ export const systemLiveRules: readonly LiveRule[] = [
   {
     types: ["WatcherRunTriggered", "PipelineStarted", "PipelineEnded",
             "BackfillStarted"],
-    keys: [SCHEDULERS_KEY, HISTORY_KEY],
+    keys: [SCHEDULERS_KEY, HISTORY_KEY, LOCKS_KEY],
     because:
       "a run beginning or ending moves the next scheduled time AND appends to "
       + "the history — the two reads that are about runs rather than about "
-      + "state",
+      + "state — AND takes or frees the pipeline's lock, which is the one fact "
+      + "a screen showing « libre » over a running pipeline would get wrong",
   },
   {
     types: ["StepErrored", "TrackerAuthFailed", "LockedCapabilityUnresolved"],

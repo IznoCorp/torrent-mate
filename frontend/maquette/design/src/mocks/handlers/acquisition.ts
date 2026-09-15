@@ -4,6 +4,7 @@ import RELEASES from "../seeds/releases.json";
 import SEARCH_RESULTS from "../seeds/search-results.json";
 import SUGGESTIONS from "../seeds/suggestions.json";
 import { DELETE, GET, PATCH, POST, field, route, text } from "./shared";
+import { launchDetection } from "./pipeline";
 import { stagesOf } from "./acquisition-verbs";
 import { mockState } from "../state";
 import type { MockRequest, MockRoute } from "../router";
@@ -246,11 +247,10 @@ export function acquisitionRoutes(): MockRoute[] {
       cadence: GRAB_CADENCE,
       nextSearch: null,
     })),
-    route("runDetection", POST, "/api/acquisition/detect", () => ({
-      detected: mockState().takeable.length + mockState().inFlight.length,
-      available: mockState().takeable.length,
-      grabbed: mockState().inFlight.length,
-    })),
+    // THE VEILLE IS A RUN, and the 202 names it. Its figures are read from the
+    // run once it has ended — an answer carrying them at once would be a lie
+    // about a run that takes minutes, with no « en cours » left to draw.
+    route("runDetection", POST, "/api/acquisition/detect", launchDetection),
     route("readAcquisitionQueue", GET, "/api/acquisition/to-handle", (request) => {
       const state = mockState();
       // THE SCENARIO PICKS THE WORLD, exactly as the engine's `derived` does.

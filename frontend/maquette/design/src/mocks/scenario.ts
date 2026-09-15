@@ -86,6 +86,18 @@ const FROZEN_CLOCK = "2026-08-10";
 // prove nothing about a surface nobody asked to be slow.
 const NO_LATENCY = 0;
 
+/**
+ * How long a detection run launched through the layer lasts, on a real clock.
+ *
+ * LONG ENOUGH FOR A PERSON TO WALK, and fixed. A run the layer ended on its
+ * second read was over before the finger that launched it could reach another
+ * page, so « en cours » was a state no person saw and a pass queued behind it
+ * could not be asked for by hand. Never jittered: the same state driven twice
+ * waits the same time, and a named state that wants the figures sooner says so
+ * with the event that ends a run.
+ */
+export const DETECTION_MILLISECONDS = 8000;
+
 const initial = (): Scenario => ({
   now: FROZEN_CLOCK,
   defaultLatencyMilliseconds: NO_LATENCY,

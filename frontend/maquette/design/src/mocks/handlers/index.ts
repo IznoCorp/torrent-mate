@@ -13,6 +13,7 @@ import { libraryRoutes } from "./library";
 import { maintenanceRoutes } from "./maintenance";
 import { membershipRoutes } from "./membership";
 import { mediaRoutes } from "./media";
+import { pipelineRoutes } from "./pipeline";
 import { stagingRoutes } from "./staging";
 import { systemRoutes } from "./system";
 import type { MockRoute } from "../router";
@@ -27,6 +28,7 @@ export function routes(): MockRoute[] {
     ...acquisitionRoutes(),
     ...acquisitionVerbRoutes(),
     ...stagingRoutes(),
+    ...pipelineRoutes(),
     ...decisionRoutes(),
     ...systemRoutes(),
     ...maintenanceRoutes(),
