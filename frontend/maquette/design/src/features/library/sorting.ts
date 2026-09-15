@@ -9,9 +9,10 @@
 // keys are code — they are what the store holds and what `data-setsort`
 // carries — and the six names are interface text, in `fr.json`.
 //
-// PUBLISHED FOR THE ENGINE AND FOR THE RULE, which is `settings-labels.ts`'s
-// arrangement exactly: the feature owns the answer, the fragment reads it
-// through `engine/seams.ts`, and `harness/library_sort.py` reads the NAMES
+// PUBLISHED FOR THE RULE, which is `settings-labels.ts`'s arrangement exactly:
+// the feature owns the answer, its panel and verbs import it (the engine's
+// fragment read it through `engine/seams.ts@13a66a35b`), `harness/publish.ts`
+// publishes it, and `harness/library_sort.py` reads the NAMES
 // from the prototype rather than restating them — a rule carrying its own copy
 // of six labels goes green the day the interface renames one.
 import i18next from "i18next";

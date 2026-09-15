@@ -75,9 +75,10 @@ export async function loadMoreSuggestions(): Promise<number> {
   const held =
     suggestionsCache.getQueryData<unknown[]>(suggestionsQuery.queryKey) ?? [];
   const parameters = new URLSearchParams();
-  // THE ENGINE'S OWN FIELD NAME, because what is held has already been
-  // converted; the value is the same title either way, and asking for `title`
-  // here would page from the beginning for ever.
+  // THE CONTRACT'S OWN FIELD NAME, because what is held is the suggestion list
+  // as the layer served it: the last card's `title` is where the next page
+  // starts, and a name the cache does not hold would page from the beginning
+  // for ever.
   const last = held[held.length - 1] as { title?: string } | undefined;
   if (last?.title !== undefined) parameters.set("after", last.title);
   const batch = await read<Schemas["Suggestion"][]>("/api/acquisition/suggestions", parameters);

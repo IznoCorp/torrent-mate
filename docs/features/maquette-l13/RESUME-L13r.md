@@ -15,8 +15,9 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   r·11 `e572a0708`, main 60c6d9b1d (L20 #603) merged `9e978aeaa` (+ `2864fb7c3`), r·12 `7238cd33b`, r·13 `9506bf881`
   (+ `3dcde3533`), r·14 `2f6a56be3`, r·15 `2014905dd` (+ `13a66a35b`), r·16 `b73d066e9` (+ `76952efbb`), r·17 `5424d27a6`,
   order 43 `f6050c052`, main c0a5062ac merged `5ef03e7cc`, bump 0.98.96 `a312baefc`, r·18 `326ff6c4d` — DONE.
-  PULL REQUEST #605 READY (2026-09-15 19:13).
-- NEXT: the reader round on #605 (measure 2) — a FRESH session with this file; this one stood down. Owed to the docs
+  PULL REQUEST #605 READY (2026-09-15 19:13). Reader round one done; its decided findings repaired by `Agent : l13r 4`
+  (BRIEF-L13r-round1.md): R1 `d8e8faeb8`, R2 `220b61992`, R3 `87d4b8da6` — ledger's last line.
+- NEXT: the orchestrator verifies on the files and merges #605 (no second reader round, measure 2). Owed to the docs
   PR (steward): CLAUDE.md l.159 + the vocabulary's debt section / `check_french_debt` (fifteen arms); the joined ids/poster
   drift guard lost with correspondence (B-513's shape); B-497's closure; the `decision.kind` enum demand (r·7); the
   instrument minors; virtual.py's silent crash from r·5 to r·18 (no phase gate named it). Frame-domain lib/ 28, app/ 132.
@@ -169,8 +170,10 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   `r11-hold-counts.json`: the eight at baseline. Mutations: `r11-mutation-library.log` — content FAIL by name,
   filters RULE CRASHED (assert-style prose rule); `r11-mutation-actions.log` — producers FAIL by name, page_host did
   not fall (its action title is printed, compared by no hold); `r11-mutation-account.log` — address did not fall
-  (with no address drawn, « every address drawn is the account's » holds over an empty set); `r11-mutation-follows-
-  audit2.log` — audit2 FELL by its exit verdict.
+  (with no address drawn, « every address drawn is the account's » holds over an empty set); audit2 FELL by its exit
+  verdict under the follows mutation — its log was pruned at a stand-down and is lost; the reader's replay on the final
+  head reproduces the fall (`/Users/izno/dev/review-archive/l13r/round-1/r05_M11-r08-follows.out`, « removing a follow:
+  no undo »).
 - 2026-09-15 stand-down of `Agent : l13r 2` after r·11 (gauge 59 + r·12 ≈ 15 left no margin for r·12's opening STOP; the
   steward's call). SERVICES found projected through `useSystemRead` at the stand-down, in no ruling's list — r·12's
   measure says it.
@@ -248,3 +251,12 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   baseline copy re-pointed at c0a5062a): « 141 rule(s), no violation », four movements — add_footer +2, boot_order −2,
   page_host −1, said_and_done −1 — each explained. `r18-a11y.log`: 113 states 0 violations, light 147/147. `make lint`
   exit 0; `check-no-french.py --counts` exit 0. Pushed 326ff6c4d; PR #605 READY 19:13. Stood down.
+- 2026-09-15 round one (BRIEF-L13r-round1.md, the reader's R1–R3 decided; R4 filed by the steward): R1 `d8e8faeb8` —
+  `secret-verbs.ts` read the secrets cache as `{ k; l }[]` since r·10, the removal question named `QBIT_USERNAME`; now
+  the contract's `Secret`; species grep 1 → 0; `secret_acts.py` (R167) « the removal question names the secret's LABEL,
+  never its raw key » red `r1-R1-red.log`, green `r1-R1-green.log`, mutation FAIL by name `r1-R1-mut.log` and on the
+  final head `r1-R1-mut-final.log`. R2 `220b61992` — engine mentions 23 lines / 8 uncited → 26 / 0; navigation-seam.ts
+  whole and shell.tsx l.2–5 (orchestrator's A); `types.d.ts` from openapi.json's one description; comment baseline
+  re-recorded, no movement; a `src/.claude/logs` litter deleted. R3 `87d4b8da6`. Gate `r1-final-gate.log` on
+  `87d4b8da6`: 24 rules (1 named), 26 guards, oracle no divergence; make lint, check-no-french, check-docs-cited-paths
+  exit 0; test_check_maquette_comments 36 passed.
