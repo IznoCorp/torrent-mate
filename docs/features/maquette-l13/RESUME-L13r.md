@@ -169,8 +169,10 @@ Read after `docs/features/maquette-l13/BRIEF-L13r.md` (governs) and `RULINGS.md`
   `r11-hold-counts.json`: the eight at baseline. Mutations: `r11-mutation-library.log` — content FAIL by name,
   filters RULE CRASHED (assert-style prose rule); `r11-mutation-actions.log` — producers FAIL by name, page_host did
   not fall (its action title is printed, compared by no hold); `r11-mutation-account.log` — address did not fall
-  (with no address drawn, « every address drawn is the account's » holds over an empty set); `r11-mutation-follows-
-  audit2.log` — audit2 FELL by its exit verdict.
+  (with no address drawn, « every address drawn is the account's » holds over an empty set); audit2 FELL by its exit
+  verdict under the follows mutation — its log was pruned at a stand-down and is lost; the reader's replay on the final
+  head reproduces the fall (`/Users/izno/dev/review-archive/l13r/round-1/r05_M11-r08-follows.out`, « removing a follow:
+  no undo »).
 - 2026-09-15 stand-down of `Agent : l13r 2` after r·11 (gauge 59 + r·12 ≈ 15 left no margin for r·12's opening STOP; the
   steward's call). SERVICES found projected through `useSystemRead` at the stand-down, in no ruling's list — r·12's
   measure says it.
