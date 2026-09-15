@@ -23,6 +23,8 @@
   for the phase's own opening reading, not a rewrite here.
 - **Landed (2026-09-16, ruling 119).** Red on the variant's COMPUTED value (`thin`, the unlayered
   global rule wins); `[scrollbar-width:none]!`; R198, 4 holds; B-336 `to confirm`.
+- **c·4-bis (2026-09-16, steward).** The sheet's cast strip (`features/media/variants.ts`) wore the
+  same defeated idiom: `[scrollbar-width:none]!` there too, R198 gains its two holds (6).
 
 A BEHAVIOUR change: the library's kind chips' strip, converted in a·10, takes `pillscroll`'s two
 declarations so that it scrolls without showing a bar (DESIGN § 10, B-336).

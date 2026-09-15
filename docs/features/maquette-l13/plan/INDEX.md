@@ -167,6 +167,7 @@ and binds the label to the next free number then.
 | c·2 | [A fresh add screen](phase-c02-fresh-add-screen.md) | « + » opens empty; identify still seeds | B-340 |
 | c·3 | [A disabled action looks disabled](phase-c03-disabled-action.md) | the action variant's `disabled:` half | B-339 |
 | c·4 | [The kind chips hide their bar](phase-c04-kind-chips-scrollbar.md) | `pillscroll`'s two declarations | B-336 |
+| c·4-bis | (a correction of c·4, in its file) | the sheet's cast strip takes the same `!` | B-336 |
 | c·5 | [The pull indicator](phase-c05-pull-indicator.md) | centred, and gone when the refresh is | B-331 |
 | c·6 | [The seventh scheduler](phase-c06-seventh-scheduler.md) | one seed row, the held-back hold restored | B-327 |
 | c·7 | [No follow without a sheet](phase-c07-follow-without-sheet.md) | unrepresentable; the tile's guard goes | B-366 |

@@ -14,6 +14,10 @@ WHAT IT READS, at the phone width and at the operator's own 369 px:
       stylesheet's global `* { scrollbar-width: thin }` is unlayered and beats
       any layered utility, whatever its specificity.
 
+AND THE SHEET'S CAST STRIP, the one other strip that wears the same idiom and
+was defeated by the same unlayered rule: at the phone width it overflows and
+scrolls, and its computed `scrollbar-width` is `none` too.
+
 NO HOLD READS A DRAWN BAR'S HEIGHT, and that is measured, not skipped. The
 strip's `offsetHeight - clientHeight` read 0 over the defect at both widths and
 on a desktop pointer too: the headless browser this harness runs paints overlay
@@ -37,6 +41,8 @@ READINGS = (
     ("at 369 px", {"viewport": {"width": 369, "height": PHONE["viewport"]["height"]}}),
 )
 STRIP = '[data-part="pill/list"]'
+SHEET_STATE = "mediasheet-movie"
+CAST = '[data-part="cast"]'
 
 READ = """(selector)=>{
   const strip = document.querySelector(selector);
@@ -77,6 +83,26 @@ async def main():
                           before is not None and before["scrollbarWidth"] == "none",
                           f"scrollbar-width {(before or {}).get('scrollbarWidth')}")
             await context.close()
+        context, page = await open_page(browser)
+        await page.evaluate("(id)=>window.__go(id)", SHEET_STATE)
+        await page.wait_for_timeout(SETTLED)
+        await page.evaluate("(selector)=>document.querySelector(selector)?.scrollIntoView({block: 'center'})", CAST)
+        await page.wait_for_timeout(SETTLED)
+        cast = await page.evaluate(READ, CAST)
+        moved = None
+        if cast is not None:
+            await page.mouse.move(cast["x"], cast["y"])
+            await page.mouse.wheel(120, 0)
+            await page.wait_for_timeout(SETTLED)
+            moved = await page.evaluate(READ, CAST)
+        journal.check("the sheet's cast strip overflows and a horizontal wheel moves it",
+                      cast is not None and cast["scrollWidth"] > cast["clientWidth"]
+                      and moved is not None and moved["scrollLeft"] > cast["scrollLeft"],
+                      f"before {cast}, after {moved}")
+        journal.check("the sheet's cast strip computes scrollbar-width none",
+                      cast is not None and cast["scrollbarWidth"] == "none",
+                      f"scrollbar-width {(cast or {}).get('scrollbarWidth')}")
+        await context.close()
         await browser.close()
     journal.summary()
 
