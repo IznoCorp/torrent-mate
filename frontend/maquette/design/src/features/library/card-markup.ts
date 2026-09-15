@@ -13,11 +13,11 @@ import { posterArtworkMarkup } from "../../ui/poster";
 
 /** A medium as a library list holds one, in the engine's field names. */
 export type LibraryCard = {
-  t: string;
-  s?: string;
-  overview?: string;
+  title: string;
+  secondaryLine?: string;
+  overview?: string | null;
   f?: string;
-  chip?: [string, string] | null;
+  chip?: { tone: string; text: string } | null;
   poster?: string | null;
   /** The provider identifiers — null for a title no sheet stands behind. */
   ids?: Record<string, number | string> | null;
@@ -30,7 +30,7 @@ export type LibraryCard = {
  * @returns The card's markup.
  */
 export function libraryCardMarkup(medium: LibraryCard): string {
-  const title = medium.t;
+  const title = medium.title;
   const hasSheet = medium.ids != null;
   // french-ok: a panel ADDRESS and the non-medium marker, contract values the delegation and R46 read
   const folderAddress = `dossier:${title}`;
@@ -49,9 +49,9 @@ export function libraryCardMarkup(medium: LibraryCard): string {
           attributes: { "aria-label": i18next.t("surfaces.card.folderActions", { title }), "data-panel": folderAddress },
         },
     body: { "data-panel": hasSheet ? `media:${title}` : folderAddress },
-    subtitle: medium.s,
-    overview: medium.overview,
+    subtitle: medium.secondaryLine,
+    overview: medium.overview ?? undefined,
     fraction: medium.f,
-    chip: medium.chip ? { tone: medium.chip[0], label: medium.chip[1] } : null,
+    chip: medium.chip ? { tone: medium.chip.tone, label: medium.chip.text } : null,
   });
 }

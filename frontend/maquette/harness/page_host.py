@@ -249,7 +249,7 @@ async def main():
           if (!row) return null;
           const id = row.dataset.maintact;
           const action = window.__queries.getQueryData(['/api/maintenance/actions']).find((x) => x.id === id);
-          return {id, title: action ? action.l : null};}""")
+          return {id, title: action ? action.label : null};}""")
         refused = (await tap('#view [data-part="flux"] [data-part="flux/row"] [data-part="flux/row-body"][data-maintact]')
                    if wanted else "absent")
         panel = await page.evaluate("""()=>({

@@ -54,7 +54,7 @@ function accountPanel(
   const translate = i18next.t.bind(i18next);
   return {
     title: account.name,
-    subtitle: account.mail,
+    subtitle: account.email,
     avatar: account.avatar,
     blocs: [
       {

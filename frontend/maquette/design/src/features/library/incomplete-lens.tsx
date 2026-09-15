@@ -58,15 +58,15 @@ export function IncompleteLens({ rows }: {
           className={section()} data-part="section"
           html={INCOMPLETE.map((show: IncompleteShow) =>
               libraryCardMarkup({
-                t: show.title,
-                s: t(
+                title: show.title,
+                secondaryLine: t(
                   show.aired - show.owned > 1
                     ? "screens.library.incompleteSubMany"
                     : "screens.library.incompleteSubOne",
                   { year: show.year, count: show.aired - show.owned },
                 ),
                 f: `${show.owned}/${show.aired}`,
-                chip: ["warning", t("screens.library.incompleteChip")],
+                chip: { tone: "warning", text: t("screens.library.incompleteChip") },
                 poster: show.poster,
                 ids: show.ids,
               }),

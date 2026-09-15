@@ -41,7 +41,7 @@ export function AccountPage(): ReactElement | null {
         },
         {
           l: t("screens.accountPage.address"),
-          v: ACCOUNT.mail,
+          v: ACCOUNT.email,
           s: t("screens.accountPage.addressSub"),
         },
       ])}

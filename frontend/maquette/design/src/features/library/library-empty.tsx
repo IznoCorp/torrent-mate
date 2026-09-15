@@ -12,7 +12,7 @@ export function EmptyLibrary(): ReactElement {
   const { t } = useTranslation();
   const { data: CATS = [] } = useLibraryCategories();
   const category = CATS.find((entry) => entry.id === state.libCat);
-  const filter = category && category.of ? category.l.toLowerCase() : null;
+  const filter = category && category.includes ? category.label.toLowerCase() : null;
   if ((state.q as string).trim() !== "") {
     return (
       <div className={emptyNote()} data-part="empty-state">
@@ -46,7 +46,7 @@ export function EmptyLibrary(): ReactElement {
         })}
       </b>
       {t("screens.library.emptyCategoryMiddle")}
-      <b>{category?.c ?? 0}</b>
+      <b>{category?.count ?? 0}</b>
       {t("screens.library.emptyCategoryEnd")}
     </div>
   );

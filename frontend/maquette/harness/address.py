@@ -29,6 +29,10 @@ oracle said so; only the text reading had to follow.
 RE-AIMED, count unchanged: the avatar opens the account panel through `data-account`,
 the account's own name; the engine's value-dispatched `data-sheet="utilisateur"` was split
 by owner, and acquisition's `plus` became a valueless `data-more`.
+
+RE-AIMED when the library, the maintenance actions and the account took the
+contract's names: the account's address is read as `email`, where they were the
+engine's short keys. The holds and what they compare are unchanged.
 """
 import asyncio
 import os
@@ -170,7 +174,7 @@ async def main():
         # left it; re-aimed at the answer the page draws from, which is what
         # « invented » is measured against.
         real_one = await pg.evaluate(
-            "()=>window.__queries.getQueryData(['/api/auth/me'])?.mail ?? null")
+            "()=>window.__queries.getQueryData(['/api/auth/me'])?.email ?? null")
         journal.check("no other account is invented to fill the screen",
                       addresses <= {real_one},
                       f"{len(addresses)} address(es): {', '.join(sorted(addresses)) or 'none'}")

@@ -32,10 +32,10 @@ export function CountLine(): ReactElement {
   // the list reads, so the two cannot disagree » — while the query answered
   // that very number and the screen printed a constant instead. Change the
   // seed and the screen went on saying 1861.
-  const universe = category && category.of ? category.c : total;
+  const universe = category && category.includes ? category.count : total;
   const suffix =
-    category && category.of
-      ? t("screens.library.countCategory", { category: category.l.toLowerCase() })
+    category && category.includes
+      ? t("screens.library.countCategory", { category: category.label.toLowerCase() })
       : "";
   const query = (state.q as string).trim();
   return (

@@ -21,6 +21,10 @@ What this holds to:
     whose NFO has no plot shows NOTHING rather than a filler;
   · the lenses read Médias, Récents, Incomplets — everything, then what just
     arrived, then the repair list.
+
+RE-AIMED when the library, the maintenance actions and the account took the
+contract's names: a library row's title is read as `title`, where they were the
+engine's short keys. The holds and what they compare are unchanged.
 """
 import asyncio
 import os
@@ -190,7 +194,7 @@ async def main():
                   /* THE SYNOPSIS IS A FIELD OF A ROW SINCE L09 — `SYNOPSIS` was a global
                      map keyed by title, and the library row carries its own `overview`. */
                   const title=(c.querySelector('[data-part="card/title"]')||{}).textContent;
-                  return e && !((window.__queries.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages||[]).flatMap(p=>p.items).find(r=>r.t===title)||{}).overview;
+                  return e && !((window.__queries.getQueryCache().getAll().filter(q=>q.queryKey[0]==='/api/library/items').sort((l,r)=>r.state.dataUpdatedAt-l.state.dataUpdatedAt)[0]?.state.data?.pages||[]).flatMap(p=>p.items).find(r=>r.title===title)||{}).overview;
                 }).map(c => (c.querySelector('[data-part="card/title"]')||{}).textContent)};}""")
             check(f"{name}: the rows carry the synopsis",
                   seen["n"] > 4 and seen["withPlot"] == seen["n"], f"{seen['withPlot']}/{seen['n']}")

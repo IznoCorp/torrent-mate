@@ -61,7 +61,7 @@ export function MaintenancePage(): ReactElement | null {
   // One rubric open: its commands, and the way back to all of them.
   const topic = MAINTENANCE_TOPICS.find((entry) => entry === state.maintTopic);
   if (topic) {
-    const actions = MAINT_ACTIONS.filter((action) => action.g === topic);
+    const actions = MAINT_ACTIONS.filter((action) => action.group === topic);
     return (
       <>
         {/* A RUBRIC IS A SCREEN ONE ENTERS, so it wears the way out every
@@ -80,13 +80,13 @@ export function MaintenancePage(): ReactElement | null {
         <div className={guidance()} data-part="guidance">{t(`screens.maintenance.topics.${topic}.explanation`)}</div>
         {facts(
           actions.map((action) => ({
-            l: action.l,
+            l: action.label,
             k: action.id,
-            v: riskLabel(action.r),
+            v: riskLabel(action.risk),
             s:
-              action.d +
+              action.description +
               (action.long ? t("screens.maintenance.mayBeLong") : ""),
-            state: action.r === "destructive" ? "danger" : "",
+            state: action.risk === "destructive" ? "danger" : "",
             // The row IS the control — see the note at the top of this file.
             target: { maintact: action.id },
           })),
@@ -96,7 +96,7 @@ export function MaintenancePage(): ReactElement | null {
   }
 
   const countIn = (id: string) =>
-    MAINT_ACTIONS.filter((action) => action.g === id).length;
+    MAINT_ACTIONS.filter((action) => action.group === id).length;
 
   return (
     <>
@@ -105,9 +105,9 @@ export function MaintenancePage(): ReactElement | null {
         {t("screens.maintenance.introRest")}
       </div>
       {MAINTENANCE_TOPICS.map((entry) => {
-        const inside = MAINT_ACTIONS.filter((action) => action.g === entry);
+        const inside = MAINT_ACTIONS.filter((action) => action.group === entry);
         const destructive = inside.filter(
-          (action) => action.r === "destructive",
+          (action) => action.risk === "destructive",
         ).length;
         return (
           <button className={topicRow()} data-part="topic" data-maintopic={entry} key={entry}>

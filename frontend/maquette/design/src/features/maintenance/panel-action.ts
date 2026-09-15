@@ -52,7 +52,7 @@ function maintenancePanel(
   const action = actionOf(identifier, cache);
   if (action === null) return null;
   const translate = i18next.t.bind(i18next);
-  const deletes = action.r === "destructive";
+  const deletes = action.risk === "destructive";
   // A DESTRUCTIVE COMMAND IS ALWAYS DRY at this point, whatever the page's
   // switch says: the note below is the whole reason, and the engine read it
   // the same way. The switch is ephemeral interface state and is read from the
@@ -60,18 +60,18 @@ function maintenancePanel(
   const dry = deletes ? true : Boolean(store.read().state.maintBlanc);
   return {
     address: "action:" + identifier,
-    title: action.l,
+    title: action.label,
     subtitle: action.id,
-    meta: action.d,
-    puce: [riskPip(action.r), riskLabel(action.r)],
+    meta: action.description,
+    puce: [riskPip(action.risk), riskLabel(action.risk)],
     blocs: [
       {
         type: "faits",
         lignes: [
           {
             c: translate("panels.maintenance.whatItDoes"),
-            v: riskLabel(action.r),
-            pipValue: riskPip(action.r),
+            v: riskLabel(action.risk),
+            pipValue: riskPip(action.risk),
           },
           {
             c: translate("panels.maintenance.duration"),
@@ -81,7 +81,7 @@ function maintenancePanel(
           },
           {
             c: translate("panels.maintenance.dryRun"),
-            v: translate(action.blanc
+            v: translate(action.dryRun
               ? (dry ? "panels.maintenance.dryRunOn" : "panels.maintenance.dryRunOff")
               : "panels.maintenance.dryRunImpossible"),
           },
@@ -94,7 +94,7 @@ function maintenancePanel(
         type: "actions",
         actions: [
           {
-            text: translate(action.blanc
+            text: translate(action.dryRun
               ? "panels.maintenance.runDry"
               : "panels.maintenance.run"),
             ton: "solid",
@@ -118,7 +118,7 @@ function maintenancePanel(
               // switch's value there would have asked the backend for a blank
               // run of a command that has none — the button says « Lancer »
               // and the ask would have said the opposite.
-              "dry-run": String(action.blanc && dry),
+              "dry-run": String(action.dryRun && dry),
             },
           },
           deletes

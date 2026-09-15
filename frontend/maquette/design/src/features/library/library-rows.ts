@@ -20,7 +20,7 @@ import type { LibraryRow } from "./types";
 import { swipeAction } from "../../ui/variants";
 
 /** A row of the listing: the title, the line under it and, where the medium has one, its synopsis. */
-type Row = LibraryRow & { overview?: string; k?: string };
+type Row = LibraryRow & { k?: string };
 
 /**
  * One tile of the gallery.
@@ -34,9 +34,9 @@ export function libraryTileMarkup(reference: EngineDrawing, row: Row, index: num
   const { selMode } = store.read().state;
   const selected = store.read().state.selected as Set<string>;
   return tileMarkup({
-    title: row.t,
-    subtitle: row.f,
-    artwork: posterArtwork(reference.icons, row.poster, row.t, row.k),
+    title: row.title,
+    subtitle: row.secondaryLine,
+    artwork: posterArtwork(reference.icons, row.poster, row.title, row.k),
     check: selMode ? svgIcon(reference.icons.check, 3) : undefined,
     // WHAT A TAP MEANS IS WRITTEN FIRST. The registry answers the first
     // registered key in ATTRIBUTE order, so the key a tap is FOR — the
@@ -46,9 +46,9 @@ export function libraryTileMarkup(reference: EngineDrawing, row: Row, index: num
     attributes: {
       "data-tile": index,
       ...(selMode
-        ? { "aria-pressed": selected.has(row.t), "data-selected-title": row.t }
-        : { "data-mediasheet": row.t }),
-      "data-panel": `media:${row.t}`,
+        ? { "aria-pressed": selected.has(row.title), "data-selected-title": row.title }
+        : { "data-mediasheet": row.title }),
+      "data-panel": `media:${row.title}`,
     },
   });
 }
@@ -72,19 +72,19 @@ export function libraryRowMarkup(
   const selected = store.read().state.selected as Set<string>;
   if (selMode) {
     return selectionRowMarkup({
-      title: row.t,
-      subtitle: row.f,
-      artwork: posterArtwork(reference.icons, row.poster, row.t),
+      title: row.title,
+      subtitle: row.secondaryLine,
+      artwork: posterArtwork(reference.icons, row.poster, row.title),
       check: svgIcon(reference.icons.check, 3),
       attributes: {
         "data-tile": index,
-        "data-selected-title": row.t,
-        "aria-pressed": selected.has(row.t),
+        "data-selected-title": row.title,
+        "aria-pressed": selected.has(row.title),
       },
     });
   }
   return swipeRowMarkup(
-    libraryCardMarkup({ t: row.t, s: row.f, overview: row.overview, poster: row.poster, ids: row.ids }),
-    `<button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="del" data-del="${escapeHtml(row.t)}">${svgIcon(reference.icons.trash)}${removeLabel}</button>`,
+    libraryCardMarkup({ title: row.title, secondaryLine: row.secondaryLine, overview: row.overview, poster: row.poster, ids: row.ids }),
+    `<button class="${swipeAction({ tone: "remove" })}" data-part="swipe/action" data-action="remove" data-swipeact="del" data-del="${escapeHtml(row.title)}">${svgIcon(reference.icons.trash)}${removeLabel}</button>`,
   );
 }

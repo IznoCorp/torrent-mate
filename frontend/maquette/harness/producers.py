@@ -38,6 +38,10 @@ settings are read as `settings` (and its title as `title`), a setting's file,
 key and raw value as `file`, `key` and `raw`, a secret's key, label and
 definition as `key`, `label` and `defined`, where they were the engine's short
 keys. The holds and what they compare are unchanged.
+
+RE-AIMED when the library, the maintenance actions and the account took the
+contract's names: a maintenance action's label is read as `label`, where they
+were the engine's short keys. The holds and what they compare are unchanged.
 """
 import asyncio
 import pathlib
@@ -63,7 +67,7 @@ DRIVEN = (
     ("account", "", "window.__queries.getQueryData(['/api/auth/me']).name"),
     ("action", "library-clean",
      "window.__queries.getQueryData(['/api/maintenance/actions'])"
-     ".find(a=>a.id==='library-clean').l"),
+     ".find(a=>a.id==='library-clean').label"),
     ("setting", "thresholds:thresholds.min_free_space_staging_gb",
      "window.__settingLabels.label("
      "window.__queries.getQueryData(['/api/config/schema']).flatMap(r=>r.settings)"

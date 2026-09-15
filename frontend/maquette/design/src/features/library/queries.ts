@@ -13,7 +13,6 @@
 // the interface's own store; the cache owns every one of them now.
 import { useInfiniteQuery, useQuery, type QueryClient } from "@tanstack/react-query";
 import { HELD, read, send } from "../../lib/query-client";
-import { toEngineShape } from "../../engine/engine-shape";
 import type { IncompleteShow, LibraryCategory, LibraryRow } from "./types";
 
 /** One page of the listing: the rows, and how many there are in all. */
@@ -56,13 +55,13 @@ export function useLibraryListing(
       if (sort) parameters.set("sort", sort);
       if (reversed) parameters.set("reversed", "1");
       const answer = await read<{
-        total: number; matching: number; loaded: number; items: unknown;
+        total: number; matching: number; loaded: number; items: LibraryRow[];
       }>("/api/library/items", parameters);
       return {
         total: answer.total,
         matching: answer.matching,
         loaded: answer.loaded,
-        items: toEngineShape<LibraryRow[]>("LIBRARY", answer.items),
+        items: answer.items,
       } satisfies LibraryPage;
     },
     // THE NEXT PAGE EXISTS WHEN THE ROWS SO FAR ARE FEWER THAN WHAT THE
@@ -84,7 +83,7 @@ export function useLibraryCategories() {
   return useQuery({
     queryKey: ["/api/library/categories"],
     queryFn: async () =>
-      toEngineShape<LibraryCategory[]>("CATS", await read("/api/library/categories")),
+      read<LibraryCategory[]>("/api/library/categories"),
   });
 }
 
@@ -197,7 +196,7 @@ export function installLibraryDelete(queryClient: QueryClient): void {
         ...held,
         pages: held.pages.map((page) => ({
           ...page,
-          items: page.items.filter((row) => !gone.has(String(row.t))),
+          items: page.items.filter((row) => !gone.has(String(row.title))),
         })),
       });
     }

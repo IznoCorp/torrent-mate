@@ -144,8 +144,8 @@ export function LibraryHead(): ReactElement {
                     aria-pressed={state.libCat === category.id}
                     data-cat={category.id}
                   >
-                    {category.l}
-                    <span className={filterPillCount()}>{category.c}</span>
+                    {category.label}
+                    <span className={filterPillCount()}>{category.count}</span>
                   </button>
                 ))
               : null}

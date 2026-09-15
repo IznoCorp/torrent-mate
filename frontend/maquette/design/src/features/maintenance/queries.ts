@@ -22,7 +22,7 @@ import type { DeletionJournal, MaintenanceAction } from "./types";
 export const maintenanceActionsQuery = {
   queryKey: ["/api/maintenance/actions"],
   queryFn: async () =>
-    toEngineShape<MaintenanceAction[]>("MAINT_ACTIONS", await read("/api/maintenance/actions")),
+    read<MaintenanceAction[]>("/api/maintenance/actions"),
 };
 
 /** The actions maintenance offers. */
