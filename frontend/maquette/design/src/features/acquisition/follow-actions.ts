@@ -58,9 +58,11 @@ export function primaryAction(facts: FollowFacts): Action {
       text: say("seeSheet"), icone: icons.eye, ton: "primary",
       target: { mediasheet: follow.title },
     };
-  // AN UNIDENTIFIED RELEASE HAS NO SHEET. Offering to open one is the same
-  // broken promise as a poster that leads nowhere, so the panel leads to the
-  // journey instead — which exists for every acquisition.
+  // AN UNIDENTIFIED RELEASE HAS NO SHEET, and this is the branch it keeps: a
+  // FOLLOW without one is refused at its creation now (B-366), but a queued
+  // folder nothing has identified yet is drawn through these same facts, and
+  // offering it a sheet would be the broken promise B-313 is about. It leads to
+  // the journey, which every acquisition has.
   return {
     text: say("seeJourney"), icone: icons.refresh, ton: "primary",
     target: { journey: follow.title },

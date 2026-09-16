@@ -24,14 +24,14 @@ this brief's real reading, not restated here.
 ## Environment
 
 - Worktree `/Users/izno/dev/worktrees/wave-l13c`, branch `feat/maquette-l13c`, cut from L13r's FINAL
-  head `08400a22a` (its squash on `main`) — STACKED (measure 9): L13r's reader round and merge
+  head `22166378e` (its pull request's head) — STACKED (measure 9): L13r's reader round and merge
   are never awaited. **When the steward tells you L13r is squashed onto `main`, you MERGE
   `origin/main` in at your next unit boundary** (`git merge --no-edit <sha the steward names>`;
   never a rebase — the auto-mode classifier refuses a force-push on a shared branch, and a plain
   push after a merge is the shape #601 took); a conflict you cannot resolve by re-applying your own
   phase is a STOP, never a hand-merge. You are the only writer there. The main checkout
-  `/Users/izno/dev/PersonalScraper`, `/Users/izno/dev/worktrees/wave-l13r`,
-  `/Users/izno/dev/worktrees/wave-l20` and any reader's worktree are not yours: never write, build
+  `/Users/izno/dev/PersonalScraper`, `/Users/izno/dev/worktrees/wave-l13r` (L13r's, under its reader
+  round) and any reader's worktree (`reader-l13r`, `control-l13r`) are not yours: never write, build
   or run there.
 - Both `node_modules` are installed. Your log directory is `~/Library/Logs/tm-l13c/` (order 34):
   `<phase>-<step>.log`; gate logs kept until the merge, working logs pruned at every stand-down and
@@ -106,7 +106,7 @@ this brief's real reading, not restated here.
   never `cd` into `design/src` (B-384).
 - **The RESUME**: `docs/features/maquette-l13/RESUME-L13c.md` = a STATE BLOCK of at most 40 lines
   (rewritten at every boundary) + an APPEND-ONLY ledger below it. Rulings go to `RULINGS.md`,
-  appended from 110. No register row for an unshipped defect (ruling 85's precedent): a ledger line
+  appended from 115 (L13r closed at 114). No register row for an unshipped defect (ruling 85's precedent): a ledger line
   on the phase instead; each phase's OWN register row (B-312, B-340, B-339, B-336, B-331, B-327,
   B-366, B-345) closes in the phase that lands it, with the rule's red reading and its mutation, in
   the register itself.
@@ -114,7 +114,8 @@ this brief's real reading, not restated here.
   `docs/reference/*` (`docs/features/maquette-l13/DESIGN.md`'s own § 9 amendment excepted — the
   wave amends only the file under its own folder), `CLAUDE.md`, the office**; a full-path citation
   of a file your phase deletes, refused by `check-docs-cited-paths.py`, is re-cited
-  `path@08400a22a` and nothing else in that file, said in the body.
+  `path@08400a22a` (L13r's squash on main — never the PR head, whose commits leave the remote with
+  the branch) and nothing else in that file, said in the body.
 - **CONTEXT BUDGET ≤ 15 points per phase**: gate logs read by their verdict line only; commit bodies
   ≤ 12 lines, no baseline figure in a body (order 31: file + direction in one line); a phase-file
   amendment is ONE dated line. Gauge at every phase boundary, before and after; **under 45 % you

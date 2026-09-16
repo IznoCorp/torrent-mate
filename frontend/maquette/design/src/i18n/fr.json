@@ -1323,6 +1323,7 @@
       "resumed": "« {{title}} » réactivé.",
       "searchStopped": "« {{title}} » ne sera plus cherché.",
       "paused": "« {{title}} » mis en pause.",
+      "refused": "« {{title}} » n'a pas pu être enregistré : le serveur a refusé la demande.",
       "removed": "« {{title}} » retiré de vos suivis."
     },
     "deck": {

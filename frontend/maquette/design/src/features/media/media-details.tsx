@@ -165,6 +165,16 @@ export function MediaDetails({
             data-follow={title}
             // french-ok: a data-* VALUE, frozen with the DOM contract
             data-fkind={isFilm ? "Film" : "Série"}
+            // THE IDENTITY TRAVELS WITH THE ACT, beside the kind and spelled
+            // the same way. The layer refuses a create it can identify from
+            // nothing (B-366) and otherwise joins the title against what it
+            // serves — a fallback, not an identity: a medium whose title no
+            // list carries would have been refused, and this sheet is the one
+            // surface that reaches such a medium. The identifiers are the
+            // sheet's own read, which is what the rows above print.
+            data-follow-ids={
+              Object.keys(prov).length > 0 ? JSON.stringify(prov) : undefined
+            }
           >
             <Icon paths={icons.plus} />
             {isFilm ? t("screens.media.add") : t("screens.media.followVerb")}

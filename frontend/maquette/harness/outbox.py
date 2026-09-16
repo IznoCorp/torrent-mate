@@ -37,7 +37,11 @@ from playwright.async_api import async_playwright
 # The mutation driven throughout: it is idempotent in the domain sense (a title
 # is followed or it is not), so a defect in the deduplicator shows up as a
 # COUNT and not as a crash.
-TITLE = "Une série que personne ne suit"  # french-ok: a fixture title the layer stores
+# A TITLE THE LAYER CAN IDENTIFY, and it must be: a create it can identify from
+# nothing is refused since B-366, and this rule is about the QUEUE — an envelope
+# held offline, departing exactly once — not about identity. french-ok: a media
+# title the seeded suggestions carry, which is data.
+TITLE = "Superman : L'Homme de demain"
 
 
 async def follows(page):
@@ -189,7 +193,11 @@ async def main():
                    method: "POST",
                    headers: {"idempotency-key": key,
                              "content-type": "application/json"},
-                   body: JSON.stringify({title: title + " (bis)", kind: "tv"})});
+                   // THE REQUEST NAMES ITS OWN IDENTITY, and it must: a create
+                   // the layer can identify from nothing is refused since
+                   // B-366, and this hold is about a key arriving twice.
+                   body: JSON.stringify({title: title + " (bis)", kind: "tv",
+                                         provider: "tmdb", providerId: 107107})});
                  await call(); await call();
                  return window.__mocks.arrivalsByKey()[key] ?? 0;}""",
             TITLE)

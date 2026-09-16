@@ -151,7 +151,8 @@ async def main():
     # shared legacy `data-go` delegation should also fire on — `add/foot` is
     # the stable hook the harness has instead.
     foot = await pg.evaluate("""()=>!!document.querySelector('[data-part="add/foot"] button')""")
-    detail = await pg.evaluate("""()=>({added:state.added.size,
+    # What was added is the add-screen visit's, read through its published door (B-340).
+    detail = await pg.evaluate("""()=>({added:window.__addedPositions().length,
       dlg:document.querySelector('#dlg').hasAttribute('data-open'),
       screen:!!document.querySelector('[data-part="screen"][data-open]')})""")
     chk("10. a real add brings the screen's footer into being", added and foot, f"added={added} foot={foot} {detail}")

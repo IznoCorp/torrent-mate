@@ -1,5 +1,41 @@
 # Phase c·5 — The pull indicator
 
+**Opening measure (2026-09-15, on `6839dd913`):**
+
+- **Commands.** `git grep -n '1100\|1_100' -- '*.ts'` → `design/src/app/pull-indicator.ts:18`
+  (`const REFRESH_MILLISECONDS = 1100`), NOT `lib/pull-gesture.ts` as the phase text names it —
+  `pull-indicator.ts`'s own header comment splits the two files itself ("the GESTURE is
+  `lib/pull-gesture.ts`'s… What is here is the other half"). `git grep -n installPullIndicator` →
+  wired ONCE at boot in `app/shell.tsx:250` (`installPullIndicator(port, document.getElementById("ptr"))`),
+  both `#port` and `#ptr` declared once in the static `design/index.html` shell — the indicator is a
+  single frame-level singleton over the app's one scrollport, not a per-page or Settings-specific
+  binding. `grep -ln 'ptr\b' harness/*.py` → 8 files; `harness/press.py` alone carries ≥7 existing
+  holds driving a REAL pull and reading `#ptr`'s `getBoundingClientRect().height` timing
+  (`drive_pull`, `hold_the_pull_threshold`, `hold_a_cancelled_mouse_pull_is_released`); `harness/
+  touch.py`'s R55 drives the pull on seven surfaces. Neither file is named in the phase. No named
+  state opens the pull at rest. `grep -n B-331 BUGS.md` → `open`, 1×.
+- **Points ≈ 9.** Sites (the indicator's own file, a new "current refetch" door the settings surface
+  fills, the settings binding) ≈ 8 site-lines → 2; the new rule with its two mutations (fixed timeout
+  restored, centring removed) ≈ 3; `harness/press.py` and `harness/touch.py`'s R55, both real readers
+  of `#ptr`'s timing that the switch from a fixed delay to a refetch-settlement close can move, are
+  counted as 2 found re-aims worth watching, not yet confirmed broken ≈ 2 (provisional pending the
+  refetch mechanism's actual shape).
+- **Found (2026-09-15).** The move's file citation is wrong: the fixed timer and the centring both
+  live in `app/pull-indicator.ts` (the frame's own affordance), not `lib/pull-gesture.ts` (the
+  gesture's vocabulary only — axis, damping, arming distance). The indicator is wired globally at
+  boot on the app's single `#port`/`#ptr`, not per-surface, so "the settings surface's binding" names
+  a wiring that does not exist yet — REFERENCING it as if hooked up already understates the work: a
+  door letting the CURRENT page hand over its own refetch promise has to be built, not merely wired.
+  `harness/press.py` (≥7 holds) and `harness/touch.py` (R55) already drive real pulls against `#ptr`
+  and are not named among the phase's readers, though neither is proven broken without running them
+  (forbidden in this session).
+- **Landed (2026-09-16).** The sampling reads the spinner CENTRED at rest, armed, loading and closing
+  on this machine (offset 0): the centring half is unreproduced here and stays the operator's device
+  reading, its mechanism proved by the mutation that removes `place-items-center` (x = 0, the
+  screenshot). The move is the closing: `refetchQueries({ type: "active" })` in `app/pull-indicator.ts`
+  (not `lib/pull-gesture.ts`), no per-surface door needed. R199, 5 holds; `press.py` and R55 re-aimed
+  with a scenario answer time, set AFTER the driven state (the driver's reset puts the scenario back).
+
 A BEHAVIOUR change: « Réglages »' pull-to-refresh indicator is centred, and it is gone when the
 refresh is, not after a fixed 1 100 ms (DESIGN § 10, B-331). It relies on the pull block having
 moved out of the engine in b·8.

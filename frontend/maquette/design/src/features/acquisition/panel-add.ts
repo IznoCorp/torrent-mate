@@ -21,7 +21,7 @@ import { registerProducer, type PanelCache, type PanelDescriptor } from "../../u
 // result, so a slice declared here would be a second shape of one record and
 // the compiler would be right to refuse it.
 import type { SearchResult } from "./types";
-import { store } from "../../lib/store-access";
+import { identifying, isAdded } from "./add-visit";
 import { searchResults } from "./search-queries";
 import { addVerb } from "./add-label";
 
@@ -40,9 +40,8 @@ function addPanel(position: string, cache: PanelCache): PanelDescriptor | null {
   const result = answered?.results?.[Number(position)] as SearchResult | undefined;
   if (result === undefined) return null;
   const translate = i18next.t.bind(i18next);
-  const state = store.read().state;
-  const identifying = state.addMode === "identify";
-  const done = (state.added as Set<number>).has(Number(position));
+  const identifyingFolder = identifying();
+  const done = isAdded(result);
   return {
     title: result.title,
     meta: translate("panels.add.meta", { year: result.year, kind: result.kind }),
@@ -52,7 +51,7 @@ function addPanel(position: string, cache: PanelCache): PanelDescriptor | null {
       // anything is asked for. In « identify » mode there is nothing to
       // replace — the result is being ATTACHED to a folder already in hand —
       // so the sentence would be false rather than merely redundant.
-      result.owned && !identifying
+      result.owned && !identifyingFolder
         ? {
             type: "note",
             text: [
@@ -68,8 +67,12 @@ function addPanel(position: string, cache: PanelCache): PanelDescriptor | null {
           {
             // ONE DERIVATION: the add SCREEN draws the same word on its own
             // rows, so `addVerb` answers both (§13).
-            text: addVerb(result, Number(position)),
-            icone: icons.plus,
+            text: addVerb(result),
+            // A SPENT ACT WEARS NO « + »: its label already says what was
+            // done, and a plus beside the check offers the act again (B-339).
+            // The variant draws it disabled; only this producer knows it is
+            // spent.
+            icone: done ? undefined : icons.plus,
             ton: "primary",
             desactive: done,
             target: { add: position },

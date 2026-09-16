@@ -32,17 +32,18 @@ function ticked(): Set<string> {
 }
 
 /* A LENS OR A CATEGORY CHANGES THE LIST: it starts again from the first page,
-   and the SELECTION goes with it — a tick taken in another listing is one the
-   reader cannot see to untick, and « Supprimer » would still offer it. A lens
-   is a setting of the page, so its address replaces the entry it is on. */
+   and the SELECTION STAYS. It is keyed by title, so a tick cannot land on
+   another medium, and a tick the listing now hides is still counted by the bar
+   and named by the delete dialog. A lens is a setting of the page, so its
+   address replaces the entry it is on. */
 registerVerb("lens", (lens) => {
-  store.write({ libLens: lens, selected: new Set() });
+  store.write({ libLens: lens });
   backToTheTop();
   redraw();
   replaceAddress?.();
 });
 registerVerb("cat", (category) => {
-  store.write({ libCat: category, selected: new Set() });
+  store.write({ libCat: category });
   backToTheTop();
   redraw();
 });
@@ -54,18 +55,17 @@ registerVerb("lmode", (mode) => {
 registerVerb("sort", () => panel.produce("sort"));
 registerVerb("setsort", (key, element) => {
   const reversed = element.dataset.reversed === "1";
-  store.write({ sortKey: key, sortReversed: reversed, selected: new Set() });
+  store.write({ sortKey: key, sortReversed: reversed });
   panel.close();
   redraw();
   const way = sortWays()[key][reversed ? "inverse" : "normal"];
   toast?.show({ message: i18next.t("verbs.library.sorted", { way: way.toLowerCase() }) });
 });
 
-// THE SELECTION GOES WITH THE QUESTION. Clearing the search widens what is on
-// screen, and the ticks taken under the narrower listing are not the ones a
-// reader is looking at.
+// THE SELECTION OUTLIVES THE QUESTION. Clearing the search widens what is on
+// screen, and every tick taken under the narrower listing is drawn again.
 registerVerb("clear-search", () => {
-  store.write({ q: "", selected: new Set() });
+  store.write({ q: "" });
   redraw();
 });
 

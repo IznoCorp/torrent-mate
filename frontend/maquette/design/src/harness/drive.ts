@@ -98,11 +98,15 @@ function reset(): boolean {
     pill: "tout",
     filter: "",
     q: "",
+    // The library's category and sort are dials a state or a rule can move; one
+    // that does must not leave the next state's listing read under them.
+    libCat: "all",
+    sortKey: "recent",
+    sortReversed: false,
     sugCount: 30,
     selMode: false,
     selected: new Set(),
     sugGone: new Set(),
-    added: new Set(),
     // The deck order is state too: without this a measurement inherits the
     // card order left by the previous one.
     sugOrder: null,

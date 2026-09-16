@@ -247,7 +247,10 @@ if (device) {
    where the scrolling happens, and the indicator it draws sits above it. A
    document without the fragment has neither, and the pull is simply absent. */
 const port = document.getElementById("port");
-if (port) installPullIndicator(port, document.getElementById("ptr"));
+if (port)
+  installPullIndicator(port, document.getElementById("ptr"), () =>
+    queryClient.refetchQueries({ type: "active" }),
+  );
 // The tap registry, and the verbs registering into it — both before a panel
 // can be raised, which is why they sit here and not inside a component.
 installVerbs();

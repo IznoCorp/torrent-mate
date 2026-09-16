@@ -579,6 +579,7 @@ async def hold_the_selection_state_draws_its_ticks(journal, browser):
           const name = (node) => (node.querySelector(
             '[data-part="tile/title"], [data-part="card/title"]') || node).textContent.trim();
           return { pressed: pressed.map(name),
+                   listed: [...document.querySelectorAll('#libitems [aria-pressed]')].map(name),
                    selected: [...(window.__store.read().state.selected || [])] };
         }""")
 
@@ -608,23 +609,37 @@ async def hold_the_selection_state_draws_its_ticks(journal, browser):
         f"{len(alone['pressed'])} when driven alone; the set holds "
         f"{len(after_another['selected'])}")
 
-    # AND THE READER CHANGING THE QUESTION DOES DROP THEM, which is the other
-    # half of the same rule and the reason the watcher existed at all: a search
-    # narrows what is on screen, and ticks taken before it are ticks nobody can
-    # see to untick while « Supprimer » still offers them.
+    # AND THE READER CHANGING THE QUESTION KEEPS THEM. RE-AIMED: this hold read
+    # the opposite — a search dropped the set — which was the interface's own
+    # decision until the operator overruled it (B-312). The selection is keyed
+    # by title, so a tick that outlives a narrowing cannot land on another
+    # medium; the bar counts it and the delete dialog names it. What the listing
+    # draws pressed is only what it still lists, which is what this rule, the
+    # virtual window's, is placed to see.
+    #
+    # AND THE QUERY NARROWS WITHOUT EMPTYING, said out loud because the first
+    # re-aim typed `zzz`: nothing was listed, so the second clause ranged over
+    # an EMPTY sequence and was true whatever the build drew. The query below
+    # keeps one ticked title among several unticked ones, so the hold below has
+    # both a member to check and a neighbour to be wrong about.
+    # french-ok: a query typed into the field, which is data
     await page.evaluate("""() => {
       const field = document.querySelector('#libq');
-      field.value = 'zzz';
+      field.value = 'mar';
       field.dispatchEvent(new Event('input', { bubbles: true }));
     }""")
     await page.wait_for_timeout(800)
     after_search = await ticks()
+    still_listed = set(after_search["selected"]) & set(after_search["listed"])
     journal.check(
-        "and a search — the reader changing the question — drops them: a tick "
-        "nobody can see is a tick nobody can untick",
-        after_search["selected"] == [],
-        f"the set holds {len(after_search['selected'])} title(s) after a search "
-        f"that narrows the listing")
+        "and a search — the reader changing the question — keeps them, drawing "
+        "pressed exactly the ticked titles it still lists and no other",
+        sorted(after_search["selected"]) == sorted(alone["selected"])
+        and len(after_search["pressed"]) > 0
+        and set(after_search["pressed"]) == still_listed,
+        f"the set holds {after_search['selected']} after a search that narrows "
+        f"the listing to {len(after_search['listed'])} row(s); "
+        f"{after_search['pressed']} drawn pressed, {sorted(still_listed)} still listed")
     await context.close()
 
 

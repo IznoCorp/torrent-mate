@@ -532,6 +532,11 @@ async def hold_the_pull_threshold(journal, browser):
     """A pull short of the arming distance must refresh NOTHING."""
     context, page = await open_page(browser)
     await page.evaluate("(s)=>window.__go(s)", "lib-grid")
+    # THE LAYER IS GIVEN AN ANSWER TIME, after the state is driven (which resets
+    # the scenario): the indicator stands for the refresh itself rather than for
+    # a fixed delay (B-331), so with the layer answering instantly there is no
+    # moment at which the indicator is up to be read.
+    await page.evaluate("()=>window.__mocks.setDefaultLatency(800)")
     await page.wait_for_timeout(420)
     port = await page.evaluate(
         "()=>{const e=document.querySelector('#port');"

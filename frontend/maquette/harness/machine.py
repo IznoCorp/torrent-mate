@@ -852,6 +852,37 @@ async def main():
                 # described two — and the arm fires for schedulers the table
                 # deliberately does NOT name as « Système » does, so its reading
                 # contradicted the hold it was printed under.
+                # AND « RÉGLAGES » DRAWS THE LIST ITSELF, not only names it.
+                # THIS HOLD IS B-327's OWN, kept whole in the register when the
+                # wave that found the defect could not repair it, and restored
+                # here word for word but for its reads: the topic is reached
+                # through the published settings state, and a drawn origin
+                # carries its file before the key, so the key is what is taken
+                # from it. Read as a SET: a name that is WRONG and a name that
+                # is MISSING are different defects a count cannot tell apart.
+                await pg.evaluate("()=>window.__go('settings')")
+                await pg.wait_for_timeout(250)
+                # THE RUBRIC IS OPENED BY ITS OWN ROW, the way a finger opens
+                # it: driving a state puts the settings back, topic included,
+                # so a topic written before the state is a topic written for
+                # nobody. (B-327's kept snippet wrote the state directly, when
+                # the engine drew this page.)
+                await pg.evaluate("""()=>document.querySelector('[data-topic="passages"]')?.click()""")
+                await pg.wait_for_timeout(420)
+                passages = await pg.evaluate("""
+                    ()=>[...document.querySelectorAll('[data-part="setting/row"]')].map((row) => {
+                      const origin = (row.querySelector('[data-part="setting/origin"]') || {})
+                        .textContent || '';
+                      return origin.includes(' · ') ? origin.split(' · ').pop().trim()
+                                                    : origin.trim();
+                    })""")
+                drawn_keys = sorted({key for key in passages if key.startswith('personalscraper-')})
+                journal.check(
+                    "every scheduler the machine runs has a row on Réglages, "
+                    "and no row names one it does not",
+                    drawn_keys == sorted(real_schedulers),
+                    f"drawn: {drawn_keys} vs real: {sorted(real_schedulers)}")
+
                 journal.check(
                     "the mapping this rule joins by still describes what « Système » draws",
                     not unread,

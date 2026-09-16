@@ -115,8 +115,9 @@ export const heroNote = cva("hn inline-flex items-center gap-2 mt-3 text-3 font-
  * the sheet, which is exasperating. Let the browser decide from the gesture's
  * direction. COMPOSITOR-FACING, and held by `check-compositor-css.py`.
  */
+// `!`: the unlayered `* { scrollbar-width: thin }` beats any layered utility (B-336).
 export const castList = cva(
-  "cast flex gap-4 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden " +
+  "cast flex gap-4 overflow-x-auto [scrollbar-width:none]! [&::-webkit-scrollbar]:hidden " +
     "touch-pan-x touch-pan-y pb-1",
 );
 

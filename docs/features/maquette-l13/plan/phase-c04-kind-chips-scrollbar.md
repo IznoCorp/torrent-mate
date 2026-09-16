@@ -1,5 +1,31 @@
 # Phase c·4 — The kind chips hide their bar
 
+**Opening measure (2026-09-15, on `6839dd913`):**
+
+- **Commands.** `grep -n pillScroll design/src/ui/variants/controls.ts` → the `pillScroll` cva
+  already carries `"… overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden touch-pan-x
+  touch-pan-y pr-4"`; `grep -n pillScroll design/src/features/library/library-head.tsx` →
+  `<div className={pillScroll()} data-part="pill/list">{state.libLens === "cat" ? CATS.map(…}` — the
+  category-chip strip (« Tout · Films · Séries », `B-336`'s own subject per its BUGS.md entry) ALREADY
+  wears the variant that carries the two declarations. `grep -n webkit-scrollbar
+  design/src/styles/base.css` → a global, lower-specificity `::-webkit-scrollbar` rule (`thin`,
+  visible) that a per-element `[&::-webkit-scrollbar]:hidden` utility outranks. No tsc probe: no type
+  change. `grep -ln pillscroll harness/*.py` → 0 rule files read the idiom by name today. `grep -n
+  B-336 BUGS.md` → `open`, 1×.
+- **Points ≈ 4.** 1 site if the amendment's named home (a domain-free `ui/` variant, frame-domain
+  ceiling 0) still needs a distinct declaration from `pillScroll` itself, else 0; one new rule (the
+  three readings: still scrolls, `scrollbar-width: none`, no WebKit bar) with its mutation ≈ 3.
+- **Found (2026-09-15).** The strip B-336 named already draws through `pillScroll()`, which already
+  carries `[scrollbar-width:none] [&::-webkit-scrollbar]:hidden` — the same two declarations the
+  phase's move says to add. This measure cannot see a rendered scrollbar (no browser, per this
+  session's Forbidden list) so it does not close B-336 itself; it flags that the
+  phase's "Red today on readings 2 and 3" premise may already be false on this tree, which is a STOP
+  for the phase's own opening reading, not a rewrite here.
+- **Landed (2026-09-16, ruling 119).** Red on the variant's COMPUTED value (`thin`, the unlayered
+  global rule wins); `[scrollbar-width:none]!`; R198, 4 holds; B-336 `to confirm`.
+- **c·4-bis (2026-09-16, steward).** The sheet's cast strip (`features/media/variants.ts`) wore the
+  same defeated idiom: `[scrollbar-width:none]!` there too, R198 gains its two holds (6).
+
 A BEHAVIOUR change: the library's kind chips' strip, converted in a·10, takes `pillscroll`'s two
 declarations so that it scrolls without showing a bar (DESIGN § 10, B-336).
 

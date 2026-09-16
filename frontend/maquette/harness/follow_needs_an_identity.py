@@ -1,0 +1,190 @@
+"""R200 — a follow cannot be built without a provider identity (B-366).
+
+WHAT WAS RULED. « Le suivi sans fiche n'est pas un état possible. » A follow
+whose medium nothing identifies has no sheet to open, no artwork to draw and no
+catalogue to count against — so it is not a follow to be drawn carefully, it is
+a follow that must not exist.
+
+WHERE THE REFUSAL HAS TO LIVE, measured rather than assumed: making `Follow.ids`
+optional in the contract produces ZERO diagnostics, because every reader already
+guards the field; and the interface's own create sends a title and a kind and no
+identity at all, so the identity comes from the entry the title was followed
+from. The refusal therefore belongs on that path — the layer, asked to create a
+follow it can identify from nothing, answers the contract's 400 and records
+nothing.
+
+  f1. A CREATE NOTHING IDENTIFIES IS REFUSED, and the refusal is the contract's
+      own status, not a silent success.
+  f2. AND NO FOLLOW IS RECORDED BY IT: the list holds what it held.
+  f3. A CREATE THE LAYER CAN IDENTIFY STILL LANDS, and carries the identity —
+      the control, without which the two holds above would pass over a layer
+      that refused everything.
+  f4. A FOLLOW WITH NO EPISODE DATA IS NOT A FOLLOW WITHOUT A SHEET: identified,
+      followed on purpose, it is created like any other. « No sheet » and « no
+      episodes » are two different absences.
+  f5. AND A CREATE FROM A SOURCE THAT CARRIES THREE IDENTIFIERS IS RECORDED WITH
+      ALL THREE. The contract's create carries ONE provider pair, and the layer
+      holds the joined entry's whole identity: the two are merged, never chosen
+      between, or the interface ends up holding three identifiers and the layer
+      one — two ends disagreeing about one medium.
+
+RE-AIMED, SAID OUT LOUD. f3 and f4 read the SAME subject — the first suggestion
+carrying identifiers, which the seeds make a FILM — and f4's own assertion
+(`ids is not None`) was implied by f3's (`ids` truthy), so f4 could not fail
+while f3 passed and read nothing of the absence it names. f3 now takes a SERIES
+and f4 a FILM, which is the subject with no episode data the phase file asked
+for; and both send the kind the INTERFACE sends — `show` and `movie`, the
+contract's own words — where the rule used to send the seed's display word.
+"""
+import asyncio
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from common import SETTLED, Journal, open_page
+
+from playwright.async_api import async_playwright
+
+STATE = "acq-follows-list"
+# The kinds the INTERFACE sends, which is what the layer records.
+SERIES = "show"
+FILM = "movie"
+# french-ok: the kind word the seeds carry, a data value compared where it arrives
+FILM_WORD = "Film"
+# A title no seeded search result and no suggestion carries, so the layer has
+# nothing to identify it with. french-ok: a media title, which is data.
+NAMELESS = "Un dossier que rien n'identifie"
+
+CREATE = """async(body)=>{
+  const answer = await fetch("/api/acquisition/followed", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body)});
+  let payload = null;
+  try { payload = await answer.json(); } catch (nothing) { payload = null; }
+  return {status: answer.status, payload};
+}"""
+
+FOLLOWS = """async()=>{
+  const answer = await fetch("/api/acquisition/followed");
+  const body = await answer.json();
+  const rows = Array.isArray(body) ? body : (body.items ?? body.follows ?? []);
+  return rows.map((row) => ({title: row.title, ids: row.ids}));
+}"""
+
+# A title the layer itself can identify, taken from the suggestions it serves —
+# the join the create falls back on when the request names no identity. ASKED
+# FOR ONE KIND AT A TIME: f3's subject is a series and f4's a film, and a rule
+# whose two holds share a subject holds one thing twice.
+# french-ok: the kind word the seeds carry, a data value compared where it arrives
+IDENTIFIABLE = """async(wanted)=>{
+  const answer = await fetch("/api/acquisition/suggestions");
+  const body = await answer.json();
+  const rows = Array.isArray(body) ? body : (body.items ?? body.suggestions ?? []);
+  const isFilm = (row) => row.kind === "Film";
+  const named = rows.find((row) => row.ids && Object.keys(row.ids).length > 0
+                                   && isFilm(row) === (wanted === "movie"));
+  return named ? {title: named.title, kind: wanted} : null;
+}"""
+
+
+# THE RICHEST SOURCE THE SEARCH SERVES — a result carrying more than one
+# identifier, which is what makes the merge visible: the contract's create
+# carries a single provider pair, so a layer that PREFERRED the request would
+# record one identifier where its own entry holds three.
+RICHEST_RESULT = """async()=>{
+  const answer = await fetch("/api/acquisition/search");
+  const body = await answer.json();
+  const rows = (body.results ?? []).filter(
+    (row) => row.ids && Object.keys(row.ids).length > 1);
+  rows.sort((first, second) =>
+    Object.keys(second.ids).length - Object.keys(first.ids).length);
+  return rows[0] ?? null;
+}"""
+
+
+async def main():
+    """Asks the layer for a follow it cannot identify, and for one it can."""
+    journal = Journal("R200 — a follow cannot be built without a provider identity")
+    async with async_playwright() as playwright:
+        browser = await playwright.chromium.launch(channel="chrome")
+        context, page = await open_page(browser)
+        errors: list[str] = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+
+        await page.evaluate("(id)=>window.__go(id)", STATE)
+        await page.wait_for_timeout(SETTLED)
+
+        before = await page.evaluate(FOLLOWS)
+        refused = await page.evaluate(CREATE, {"title": NAMELESS, "kind": "tv"})
+        after = await page.evaluate(FOLLOWS)
+        journal.check("a create the layer cannot identify is refused",
+                      refused["status"] == 400,
+                      f"answered {refused['status']} — {refused['payload']}")
+        journal.check("and no follow is recorded by it",
+                      [row["title"] for row in after] == [row["title"] for row in before],
+                      f"{len(before)} follow(s) before, {len(after)} after; "
+                      f"{[row['title'] for row in after if row['title'] == NAMELESS]}")
+
+        named = await page.evaluate(IDENTIFIABLE, SERIES)
+        landed = await page.evaluate(
+            CREATE, {"title": (named or {}).get("title"), "kind": SERIES})
+        held = await page.evaluate(FOLLOWS)
+        recorded = next((row for row in held if row["title"] == (named or {}).get("title")), None)
+        journal.check("a create the layer CAN identify still lands, carrying the identity",
+                      named is not None and landed["status"] == 200
+                      and recorded is not None and recorded["ids"],
+                      f"asked for {named}, answered {landed['status']}, recorded {recorded}")
+
+        # F4'S OWN SUBJECT: a FILM, which is a medium the providers hold no
+        # episode catalogue for. « No sheet » and « no episodes » are two
+        # absences, and only the first is a reason to refuse a create.
+        film = await page.evaluate(IDENTIFIABLE, FILM)
+        film_landed = await page.evaluate(
+            CREATE, {"title": (film or {}).get("title"), "kind": FILM})
+        after_film = await page.evaluate(FOLLOWS)
+        film_recorded = next(
+            (row for row in after_film if row["title"] == (film or {}).get("title")), None)
+        journal.check("and it is a follow with a sheet even where no episode data is held",
+                      film is not None and film_landed["status"] == 200
+                      and film_recorded is not None and bool(film_recorded["ids"]),
+                      f"asked for {film}, answered {film_landed['status']}, "
+                      f"recorded {film_recorded}")
+
+        # F5: THE WHOLE IDENTITY, not the half the contract's body can carry.
+        source = await page.evaluate(RICHEST_RESULT)
+        carried = (source or {}).get("ids") or {}
+        # WHAT THE INTERFACE SENDS, spelled here as `queries.ts` spells it: the
+        # first pair whose value is a NUMBER, because a title-shaped identifier
+        # (imdb) is not one the contract carries.
+        pair = next(((key, value) for key, value in carried.items()
+                     if isinstance(value, (int, float)) and not isinstance(value, bool)),
+                    None)
+        journal.check(
+            "the search serves a result carrying more than one identifier, and "
+            "one of them is a number — the premise f5 needs",
+            source is not None and len(carried) > 1 and pair is not None,
+            f"source {source and source.get('title')!r}, ids {carried}")
+        if source is not None and pair is not None:
+            merged_landed = await page.evaluate(
+                CREATE, {"title": source["title"],
+                         "kind": FILM if source.get("kind") == FILM_WORD else SERIES,
+                         "provider": pair[0], "providerId": pair[1]})
+            after_merge = await page.evaluate(FOLLOWS)
+            merged = next(
+                (row for row in after_merge if row["title"] == source["title"]), None)
+            kept = (merged or {}).get("ids") or {}
+            journal.check(
+                "and a create from a source carrying three identifiers is "
+                "recorded with ALL of them, never with the one the body carried",
+                merged_landed["status"] == 200
+                and all(str(kept.get(key)) == str(value) for key, value in carried.items()),
+                f"the source holds {carried}, the body carried {pair}, "
+                f"the layer recorded {kept}")
+
+        await context.close()
+        await browser.close()
+    journal.summary(errors)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

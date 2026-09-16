@@ -1530,6 +1530,15 @@
       },
       {
         "file": "ecosystem.config.js",
+        "key": "personalscraper-index-full",
+        "type": "schedule",
+        "raw": "0 1 * * 1",
+        "name": "cron_restart",
+        "displayedValue": "le lundi à 01 h 00",
+        "note": "Mondays 01:00 local — the whole index walked again."
+      },
+      {
+        "file": "ecosystem.config.js",
         "key": "personalscraper-backfill-ids",
         "type": "schedule",
         "raw": "0 5 * * 0",

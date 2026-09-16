@@ -22,11 +22,11 @@ import {
 } from "./variants";
 
 export function AddFooter({
-  added,
+  count,
   icons,
   toFollows,
 }: {
-  added: Set<number>;
+  count: number;
   icons: Record<string, string>;
   toFollows: () => void;
 }): ReactElement | null {
@@ -41,16 +41,16 @@ export function AddFooter({
   // here, which is what invariant 4 refuses.
   const [dismissedAtCount, setDismissedAtCount] = useState<number | null>(null);
 
-  if (added.size === 0 || added.size === dismissedAtCount) return null;
+  if (count === 0 || count === dismissedAtCount) return null;
 
   return (
     <div className={addFooter()} data-part="add/foot">
       <span>
-        <b>{added.size}</b>{" "}
-        {added.size > 1
+        <b>{count}</b>{" "}
+        {count > 1
           ? t("screens.add.mediaPlural")
           : t("screens.add.media")}{" "}
-        {added.size > 1
+        {count > 1
           ? t("screens.add.addedPlural")
           : t("screens.add.added")}
       </span>
@@ -61,7 +61,7 @@ export function AddFooter({
         className={addFooterDismiss()}
         data-part="add/foot-dismiss"
         aria-label={t("screens.add.dismissAdded")}
-        onClick={() => setDismissedAtCount(added.size)}
+        onClick={() => setDismissedAtCount(count)}
       >
         <Icon paths={icons.x} />
       </button>

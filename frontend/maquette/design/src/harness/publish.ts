@@ -30,6 +30,7 @@ import type { Store } from "../app/store";
 import { discover } from "../features/acquisition/discover-feed";
 import { followActions, suggestions } from "../features/acquisition/queries";
 import { searchResults } from "../features/acquisition/search-queries";
+import { isAdded } from "../features/acquisition/add-visit";
 import { deleteLibraryItems, libraryNextPage } from "../features/library/queries";
 import { sortWays } from "../features/library/sorting";
 import { releases } from "../features/releases/queries";
@@ -65,6 +66,8 @@ declare global {
     __popover: typeof popover;
     /** Files a setting's pending edit — how a rule stages a change it does not type. */
     __changeSetting: typeof changeSetting;
+    /** The positions, in the answer on screen, of the results this add-screen visit acted on. */
+    __addedPositions: () => number[];
     // The query cache. It is the one place server state lives (invariant 4), so
     // a rule asking « what does this surface hold, and did a mutation put it
     // back? » asks it here.
@@ -198,6 +201,8 @@ export function publishSeams(): void {
   publish("__followActions", () => followActions);
   publish("__suggestions", () => suggestions);
   publish("__searchResults", () => searchResults);
+  publish("__addedPositions", () => () =>
+    (searchResults?.().results ?? []).flatMap((result, position) => (isAdded(result) ? [position] : [])));
   publish("__libraryNextPage", () => libraryNextPage);
   publish("__deleteLibraryItems", () => deleteLibraryItems);
   publish("__sortWays", () => sortWays);

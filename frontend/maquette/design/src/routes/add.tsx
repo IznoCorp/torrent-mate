@@ -17,10 +17,9 @@ import { AddScreen } from "../features/acquisition/add-screen";
 // router-owned rather than merely read: `q` (the typed query) and `mode`
 // ("follow" — follow a new title — or "identify" — associate a stuck
 // folder, reached from the resolution screen's manual search) live here for
-// as long as the address reads `/add`, replacing `state.addQ`/
-// `state.addMode` as the SOURCE of truth on this path (see `add.tsx`'s own
-// doc comment for the transitional contract with the one legacy reader that
-// remains). Absent means "follow" / no query, the same "absent is unchanged"
+// as long as the address reads `/add`, the SOURCE of truth on this path; the
+// verbs and the panel read the mode through `features/acquisition/add-visit.ts`.
+// Absent means "follow" / no query, the same "absent is unchanged"
 // convention `catchAllRoute`'s `validateSearch` already uses above.
 type AddSearchParams = { q?: string; mode?: "follow" | "identify" };
 export const addRoute = createRoute({

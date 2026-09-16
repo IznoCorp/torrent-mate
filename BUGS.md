@@ -371,7 +371,7 @@ when the defect comes back.
 | B-309 | « Récupérer maintenant » on a medium's own panel THROWS and takes nothing: the release screen's `data-take` branch is checked first, has no guard, and swallows every `data-take` in the document | by L19 | `to confirm` |
 | B-310 | Opening a media screen from a bottom panel paints the PANEL again for one frame, open and opaque, after the crossing — the departing snapshot's `animation:` shorthand resets its fill mode, so `panel-down` ends and the snapshot snaps back to the captured (open) state until the transition is torn down one frame later; proven on the operator's phone and reversed there by one line | 2× | `fixed #573` |
 | B-311 | Coming back to a list after a medium's sheet does not restore the scroll position the list was left at | 1× | `open` |
-| B-312 | Changing the library's lens during a selection DROPS it — L14's own decision, RULED against by the operator on 2026-09-05 | 2× | `open` |
+| B-312 | Changing the library's lens during a selection DROPS it — L14's own decision, RULED against by the operator on 2026-09-05 | 2× | `to confirm` |
 | B-313 | The follow sheet offers « Voir le parcours » TWICE — once as the primary act, once in the secondary row — whenever the primary falls through to it | 1× | `fixed #572` |
 | B-314 | The add screen's search shows no example result to try the flow with | 1× | `open` |
 | B-315 | Découvrir's « charger plus »: the button is too big, one press should show more, and the feed must say when the reserve is spent | 1× | `fixed #572` |
@@ -386,25 +386,25 @@ when the defect comes back.
 | B-324 | The BACKEND's own mirror of the PM2 crons names three of the seven the machine runs, and nothing reads it against `pm2 jlist` — B-308's finding on the end that has no guard at all | by the backend brief | `open` |
 | B-325 | No harness rule can be pointed at a build: `common.PROTOTYPE` is hard-coded to 8899 with no override, every rule self-runs on import, and a rule rebound elsewhere is still certified by the B-256 stamp of the copy it did NOT read | by the instruments' debts block | `fixed #589` |
 | B-326 | `heavy.sh` offers no way to ask who holds its lock, so the natural probe — `cat` on what is a DIRECTORY — reads « free » whether the lock is held or not, and two sessions reached for it independently on the same night | by the steward's office | `open` |
-| B-327 | « Réglages » draws SIX scheduled jobs while the machine runs seven, and the same six are named twice in two French vocabularies that disagree on five of them — the row cannot be added until `SETTINGS` leaves the engine | by L13 | `open` |
+| B-327 | « Réglages » draws SIX scheduled jobs while the machine runs seven, and the same six are named twice in two French vocabularies that disagree on five of them — the row cannot be added until `SETTINGS` leaves the engine | by L13 | `to confirm` |
 | B-328 | `features/system/page.tsx` heads itself with a path that does not exist and describes a state field (`state.panne`) the code does not have | by the next wave that opens `features/system/page.tsx` | `open` |
 | B-329 | The backend's GENERATED contract does not declare the `409` its own route raises, so no diff between the two contracts can read it — the demand register is structurally blind to a refusal NE-DOIT-PAS-3 forbids the interface to show | by the backend brief | `open` |
 | B-330 | `scripts/mutate.sh` answers « no hold fell » when the RULE PATH it was given does not exist — a typo and a rule that does not bite are the same sentence, and the second is a finding while the first is a mistake | by the instruments' debts block | `open` |
-| B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `open` |
+| B-331 | Réglages' pull-to-refresh indicator is drawn off-centre, at the left edge, and is still on screen after « Actualisé. » | 1× | `to confirm` |
 | B-332 | A Réglages topic cannot be left: entering one REPLACES the address instead of pushing an arrival, and the topic view draws no back affordance, so Back leaves the page and the reader never returns to the list | 1× | `fixed #588` |
 | B-333 | « Many pages have no back button, and the Back gesture does not work either » — the operator's reading of the frame's Back contract on the phone; one instance measured (B-332), the inventory of the others is owed | 1× | `open` |
 | B-334 | The secret panel's « Remplacer la valeur » does nothing: the action's whole effect is a `data-toast` the engine's dead message element answers, and no store, seed or cache moves | 1× | `fixed #588` |
 | B-335 | The secret panel's « Retirer la clé » does nothing and asks nothing: the same `data-toast` shape as B-334, on a destructive act that owes a confirmation (B-300's form) | 1× | `fixed #588` |
-| B-336 | The library's kind chips (« Tout · Films · Séries », with counts) scroll horizontally with a VISIBLE scrollbar on the phone; the strip should hide it as `pillscroll` does | 1× | `open` |
+| B-336 | The library's kind chips (« Tout · Films · Séries », with counts) scroll horizontally with a VISIBLE scrollbar on the phone; the strip should hide it as `pillscroll` does | 1× | `to confirm` |
 | B-337 | A follow card swiped open: the first tap on a revealed action does nothing, the second acts — systematic on the phone | 1× | `open` |
 | B-338 | After a panel's departure the invisible scrim stays hit-testable over the media screen for ~380 ms — `opacity 0`, `visibility` still `visible` until its delayed flip — so a tap on the fresh screen lands on nothing | by the steward | `fixed #573` |
-| B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens » | 1× | `open` |
-| B-340 | The « + » button reopens the add screen with the LAST query and mode still in place — after identifying an arrival, a new search starts on « Marvels Spider-Man 2 v1 526 0 -Mephis… », 0 results, and the « 2 médias ajoutés » strip of the previous visit | 1× | `open` |
+| B-339 | A DISABLED panel action is drawn exactly like an enabled one — « ✓ Ajouté » on the add screen's panel is `disabled` in the markup and full primary yellow on the screen, so the reader taps a spent act and « nothing happens » | 1× | `to confirm` |
+| B-340 | The « + » button reopens the add screen with the LAST query and mode still in place — after identifying an arrival, a new search starts on « Marvels Spider-Man 2 v1 526 0 -Mephis… », 0 results, and the « 2 médias ajoutés » strip of the previous visit | 1× | `to confirm` |
 | B-341 | A settings field commits its edit only when the finger LEAVES it — no validation affordance in the panel — which the operator reads as counter-intuitive; the pending edit then says « Valeur actuelle » for the value not yet written | 1× | `fixed #588` |
 | B-342 | « Enregistrer » says « Enregistré — torrent.json5 » and the row shows the ORIGINAL value again: the mock's write records the file name and never the value, so the next read contradicts the toast | 1× | `fixed #588` |
 | B-343 | After a real save the restart banner does not appear: the flag is raised on the engine's `SETTINGS_STATE` object and nothing re-renders the page, so « Redémarrer maintenant » is reachable from a named state and not from a save | 1× | `fixed #588` |
 | B-344 | On a desktop browser the design host shows the prototype inside the phone frame only — the operator cannot test the interface's desktop layout there; he asks for a desktop-only switch out of the frame and back | 1× | `fixed #576` |
-| B-345 | The seeded data does not show every state a surface can take — the operator could not find a single medium « à prendre » to try « Récupérer maintenant » on; his ruling: the test data must always hold enough simulated states to exercise every case by hand | 1× | `open` |
+| B-345 | The seeded data does not show every state a surface can take — the operator could not find a single medium « à prendre » to try « Récupérer maintenant » on; his ruling: the test data must always hold enough simulated states to exercise every case by hand | 1× | `to confirm` |
 | B-346 | A paragraph that OPENS with another entry's identifier is read as that entry's body head, so it truncates the entry it lives in and — being the first such head in the file — makes the real entry's body the discarded one; `check-bug-register`'s closure arm was blind to B-310 and B-249 at once, and 25 second-or-later heads sit in the register today | by the micro-wave | `fixed #589` |
 | B-350 | A PAUSED SERIES is dimmed in the follows grid with no word saying why: the tile's caption is `stFraction(follow) ?? paused`, so a fraction always outranks the word — a paused FILM says « en pause » only because it has no fraction | by L13 | `fixed #572` |
 | B-351 | `check-maquette-comments.py` reads five suffixes and `.mjs` is not one of them, so every `.mjs` under `frontend/maquette/` is invisible to the comment rule AND to the corpus count the floor is derived from — one real occupant measured, `vite.config.mjs:143`'s « (L08) » | by L21 | `open` |
@@ -415,7 +415,7 @@ when the defect comes back.
 | B-363 | `residue.py` reads a typed variant's base through its string LITERALS, so a factory built from a shared constant reads EMPTY and is reported unreadable — a token scale cannot be written once and shared between two variants while that is true, and the repair that suggests itself (concatenating a literal with the constant) silences the report and leaves the reader comparing one token | 1× | `open` |
 | B-364 | Two hit-test helpers in `busy.py` press `hit.click()` on whatever `elementFromPoint` returns, and an SVG element has no `click` — so a rule that hit-tests an ICON-ONLY action throws `hit.click is not a function` instead of pressing it, and the same helpers print `hit.className` as the coverer, which on an SVG is an `SVGAnimatedString` and reads `[object SVGAnimatedString]` | 1× | `open` |
 | B-365 | R124's « no mutation was answered 409 » hold reads Playwright's response events, and the mock layer replaces `globalThis.fetch` and answers IN THE PAGE — so no response event can ever carry a 409 from it and the hold is green over nothing, permanently. Proven by a mutation that really did answer 409: the sibling hold fell, this one did not | 1× | `fixed #572` |
-| B-366 | A follow with NO MEDIA SHEET is drawn at all — a grid tile emits `data-mediasheet` for it, a poster that leads nowhere. RE-RULED by the operator: a follow without a sheet is not a state the product may represent, so the repair is to make it unrepresentable rather than to guard the tile | by audit | `open` |
+| B-366 | A follow with NO MEDIA SHEET is drawn at all — a grid tile emits `data-mediasheet` for it, a poster that leads nowhere. RE-RULED by the operator: a follow without a sheet is not a state the product may represent, so the repair is to make it unrepresentable rather than to guard the tile | by audit | `to confirm` |
 | B-367 | The drawer's appearance control applies the theme and does not move its selection: pressing one of the three writes the choice and repaints the document, and `aria-pressed` stays on whatever was drawn when the drawer opened — so the operator reads « Clair » selected over a dark interface. Closing and reopening the drawer draws it correctly | 1× | `open` |
 | B-368 | The Découvrir feed is drawn BELOW the « charger plus » action: a pile spent before the mode leaves the deck outlives that mode, because the sweep that clears the deck's imperative markup knows the pile and not the SPENT pile, and React appends its own children after the node it never rendered | 1× | `fixed #572` |
 | B-369 | A fixture rename made a named state's own premise false: a paused follow was renamed to « The Venture Bros » to give it a media sheet, and that title is the subject of the state « Fiche — suggestion NON possédée (série) » — so the sheet drew the disabled « already followed » button, and the rule reading that state's offer fell on an emitter with no data | 1× | `fixed #572` |
@@ -505,6 +505,7 @@ when the defect comes back.
 | B-545 | `scripts/check-no-french.py`'s unread-JavaScript arm counts untracked files as well as tracked ones: PR #605's body said it walked 372 files, the head's tracked count (`git ls-files`) is 370 — the figure is not a property of the commit (R4, round one's reader). Owner none — apparatus frozen | the reader round | `open` |
 | B-546 | Two unnamed falls under load in one evening, neither reproducible: CI's `harness-contracts` fell once on `audit2.py` (run `35012800269` on `d1526a0f1`, no hold line in the log) between two green runs on identical source (`35000037648`, `35017658636`); and `outbox.py` exited 1 during the steward's 141-rule hold-counts record at the sub-lot's gesture (22:26), green alone minutes later (`gesture-l13r-2256.log`). Neither is called « flaky » — the mechanism is not named; owner none | L13r | `open` |
 | B-547 | `test_maintenance_panels.py::TestLocksRoute::test_locks_tmp_orphans` read `len(data["sweep"]["orphans"]) == 0` instead of 3, deterministically on worker gw2, twice, on the L13r docs pull request's pre-push run (2026-09-16). NOT a load race — alone, on the branch and on `main`, it passes in 1.1 s. **Mechanism: a test-order dependency, exposed by this branch's own test deletions (the debt arm's) moving the xdist distribution.** `_orphan_cache` is a MODULE-LEVEL cache (`personalscraper/web/routes/maintenance.py`); `get_locks` starts an un-joined daemon thread to fill it when stale, and two sibling tests — `test_locks_stale` (runs immediately before this one) and `test_locks_returns_pending_sweep_on_cold_read` — each trigger that thread and return without draining it, so it can still be running when the next test's `_reset_orphan_cache` fixture clears the cache and starts its OWN sweep: the leftover thread's later write (its own, usually-empty, result) can land after the current test's real one and overwrite it. **Repaired in this same pull request** (test-only commit, measure 5): both leaking tests now call `_wait_for_sweep` before returning, so no background thread survives past its own test. Same species as B-033's `test_locks_tmp_orphans` flake under xdist — B-033 stays open (this repairs a DIFFERENT reachable path to the same symptom, not xdist load in general). Owner none | the docs pull request's pre-push run | `open` |
+| B-548 | Named states inherit a library dial by their ORDER: the driver's `reset()` (`harness/drive.ts`) does not write `libLens` or `libMode`, so `lib-incomplete`, `lib-recent`, `lib-search-empty` and the four `mediasheet-*` states are recorded in `oracle-reference.json` in the list layout inherited from `lib-list` before them; a probe resetting both moved 38 measurements on those seven states (`shell/library-list` display flex → grid, gap 8 → 10 px, heights). `libCat` and the sort were the same defect, invisible until a state or a rule moved them, and are reset since L13c c·1. Owner: none — an instrument defect; the fix is the reset plus the reference re-recorded, declared by a later wave | L13c c·1's probe | `open` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
 
@@ -2933,6 +2934,17 @@ re-dropping the set, and the hold must fall on it.
 **Owner**: the wave that owns the library's selection surface, or a behaviour wave beside B-313.
 **Not L19** — its contract is « no surface changes » and it does not touch this.
 
+**REPAIRED IN L13c c·1, rulings 115 and 116.** Five writers dropped the set, not two: `lens`, `cat`,
+`setsort` and `clear-search` in `features/library/verbs.ts`, and the search commit in
+`library-head.tsx`; none drops it now, and clearing the search no longer clears. The bar and the
+delete dialog already read the whole stored set. **R195** `selection_survives_the_listing.py`, seen
+red on the tree before the move — for each writer « the store still holds the same titles » and
+« the bar's caption counts all of them » fell, and the dialog named no title under « Films » — then
+green with its 14 holds; the mutation putting the `lens` write back fells exactly the two « the
+lens » holds by name. The dialog's fold at four titles stays the drawn dialog (ruling 116): a
+selection of five or more names its hidden titles only inside « et N autres ». Waiting for the
+operator's hand.
+
 <sub>`grep -n "selected: new Set()" frontend/maquette/design/src/engine/legacy.js` · `git show 9ce9b0508:docs/features/maquette-l14/REPORT.md` § the selection keyed by title</sub>
 
 **B-313 — the follow sheet offers « Voir le parcours » twice.**
@@ -3624,6 +3636,20 @@ later reader can open, and a sentence nobody can corroborate does not belong in 
 else inherits. What became of that half IS checkable: #567 kept it in `machine.py` as the two holds
 named above, both green, both mutation-proven. — on `0ab9c9f29` · `git diff be460fb79..HEAD -- frontend/maquette/design/src/mocks/seeds/settings.json` → empty · `python3 scripts/check-frontend-boundaries.py --arm size` with the row added → « 31 600, 9 more » · `grep -c "SETTINGS" frontend/maquette/harness/settings.py` → the eleven reads · reported by the independent reader of #567, round two, 2026-09-06</sub>
 
+**REPAIRED IN L13c c·6.** The `passages` topic's seed gains `personalscraper-index-full` (Mondays
+01:00), and the four refusals recorded above are all spent: `SETTINGS` is a converted family since
+a·16, so no correspondence arm re-derives the seed, and the row is one row. **The hold this entry
+kept whole is restored in `machine.py`, word for word but for its two reads** — the rubric is opened
+by its own row, because driving a named state puts the settings back, topic included; and a drawn
+origin carries its file before the key, so the key is taken from it. Seen red first, printing exactly
+what this entry recorded: six drawn against seven real. The mutation removing the seed row fells it by
+name. **One job, one name**: the seventh is labelled by `settings.labels` in « Système »'s own words
+(« Analyse complète de l'index », added by #567), so it joins the schedulers named ALIKE and the two
+vocabularies gain no third; the five that already disagree stay accepted BY NAME, which is the state
+this lot leaves them in. `format.test.ts`'s two pinned counts moved with the seed (159 → 160 fields,
+6 → 7 schedules), and the oracle accepted one state by name — `settings-field-schedule`, 55.4 px
+taller for one more row. Waiting for the operator's hand.
+
 **B-328 — `features/system/page.tsx` names a path and a field that do not exist.**
 Its first line heads the file « design/src/pages/system.tsx », a path no commit holds, and its
 tenth describes the surface's inputs as « `state.phase` … and `state.panne` » while the component
@@ -3704,6 +3730,21 @@ indicator is the frame's (`lib/pull-gesture.ts` is the gesture; the block that o
 indicator is still the engine's). The reading to take first is written above so it is not re-derived.
 
 <sub>operator's screenshots, 2026-09-06 09:57 · `grep -n "ptr.classList" frontend/maquette/design/src/engine/legacy.js` → the `loading` / `armed` toggles and the 1 100 ms timer · `#ptr` read on the device over CDP at rest: `[177, 69, 16]` for the spinner's x, y, width · `grep -o "place-items-center{[^}]*}" …/dist/vite/*.css` → present</sub>
+
+**REPAIRED IN L13c c·5 — the outliving half; the centring half is NOT REPRODUCED on this machine.**
+`app/pull-indicator.ts`: an armed release now asks every query the page is showing again
+(`refetchQueries({ type: "active" })`), the indicator stays open for exactly as long as that takes, and
+« Actualisé. » is said after its closing transition; a reset or a newer pull makes an older answer
+arrive for nobody. **R199** `pull_follows_the_refresh.py` samples the spinner at rest, armed, loading
+and closing at 390 px on « Réglages » — **centred at every moment here, offset 0** — then holds the
+closing after each of two mock answer times (400 and 1 600 ms) and the message after the closing. Red
+on the tree: closed at about 1 300 ms whatever the answer time, and the message said while the
+indicator was still open, at both. The mutation restoring a fixed delay fells both closing holds by
+name; the mutation removing `place-items-center` from `#ptr` fells the centring hold and **draws the
+operator's screenshot exactly** — the spinner at x = 0, 187 px left of centre. Two readers were
+re-aimed and said: R55 (`touch.py`) and `press.py` give the mock layer an answer time after the state
+is driven, since an instant refresh leaves no moment at which the indicator is up. The centring half
+stays the operator's device reading.
 
 **B-332 — a Réglages topic cannot be left.**
 Reported by the operator on 2026-09-06, verbatim: « Réglage je rentre dans une section et je peux jamais
@@ -3890,6 +3931,15 @@ it takes the two declarations with it.
 
 <sub>operator, 2026-09-06 · `grep -rn "kindAll" frontend/maquette/design/src` → the ADD screen only (`add-screen.tsx:283`), not the library · `grep -n "pillscroll" frontend/maquette/design/src/ui/variants/controls.ts` → the idiom</sub>
 
+**REPAIRED IN L13c c·4, ruling 119.** The strip was already drawn by `library-head.tsx` through
+`pillScroll`, whose `[scrollbar-width:none]` was written and never computed: `styles/base.css`'s
+`* { scrollbar-width: thin }` is unlayered and beats every layered utility. The declaration takes
+Tailwind's important mark in that variant alone. **R198** `kind_chips_scrollbar.py` reads the strip at
+390 and 369 px — it overflows and a horizontal wheel moves it, and its computed `scrollbar-width` is
+`none` — red on the tree (`thin` at both widths), green after; the mutation removing the two
+declarations fells both `scrollbar-width` holds by name. The media cast strip wears the same defeated
+idiom and was not touched. Waiting for the operator's hand.
+
 **B-337 — a swiped-open follow card ignores the first tap on its revealed action.**
 Reported by the operator on 2026-09-06, verbatim: « Lorsqu'on glisse une carte de suivi à droite ou à
 gauche pour afficher les actions, il faut 2 clics sur le bouton pour que ça soit pris en compte, le
@@ -3995,6 +4045,16 @@ residue dies there).
 
 <sub>operator's screenshot, 2026-09-06 10:10 · `grep -n "desactive" frontend/maquette/design/src/features/acquisition/panel-add.ts frontend/maquette/design/src/ui/panel/index.tsx` · `grep -n "\.sact" frontend/maquette/design/src/styles/legacy.css` → 1674, 1688, 1694, 1697, 1703, none with `:disabled` · `grep -n ":disabled" …/legacy.css` → `.btnprimary:disabled` only</sub>
 
+**REPAIRED, in two halves (ruling 118).** The opacity half landed with L20 (`60c6d9b1d`, #603):
+`disabled:opacity-50` on the action variant's base, after this entry was filed. L13c c·3 closes the
+rest: a spent act wears no « + » (`features/acquisition/panel-add.ts` — the producer knows it is spent,
+the variant stays neutral). **R197** `disabled_action.py` reads two real add panels of one answer, one
+result added by a finger: the spent act is disabled and a re-tap adds nothing, its drawing differs
+from the available act on `opacity` in the dark theme, the light theme and with reduced motion, and it
+wears no « + ». Written before any move, it read green on the first three holds — said in its
+docstring — and red on the icon; the mutation removing `disabled:opacity-50` fells the three drawing
+holds by name, the one handing `icons.plus` back fells the icon hold. Waiting for the operator's hand.
+
 **B-340 — the « + » button reopens the add screen where the last visit left it.**
 Reported by the operator on 2026-09-06 with a screenshot, verbatim: « Une fois que j'ai cliqué sur la
 répartition d'une arrivée, la recherche pour l'ajout aux suivis reste avec une recherche active, elle
@@ -4024,6 +4084,18 @@ as it does. Owner: PROPOSED **L13** with the add screen's engine-owned state (`a
 another lot.
 
 <sub>operator's screenshot, 2026-09-06 10:13 · `sed -n 41,42p frontend/maquette/design/src/app/action-button.tsx` · `grep -n "added: new Set\|added.add" frontend/maquette/design/src/engine/legacy.js` → 5214, 5632 (resets: initial shape and named states only), 9526, 9586, 9592 (adds) · `grep -n "screens.add(trim" …/legacy.js` → the identify seed</sub>
+
+**REPAIRED IN L13c c·2.** « + » opens `screens.add("", "follow")`; `addQ`, `addMode` and `added` left
+the store. `features/acquisition/add-visit.ts` holds ONE visit — begun at the add screen's first
+render, its mode mirrored from the router for the verbs and the panel, what was added keyed by the
+result's kind and provider identifiers, never its position; the identify path seeds the folder's name
+through the address, unchanged. **R196** `add_screen_opens_fresh.py` walks the screenshot's journey by
+finger and was seen red before the move — the field kept « Backrooms 2026 » at both openings, the
+strip of an earlier visit, one row of five checked — then green with its 7 holds; the mutation
+handing the stored `resolveTarget` back to « + » fells the two empty-field holds by name, and the one
+not beginning the visit fells the strip and the checked-row holds. B-339's « ✓ » on a result never
+added, from a stale position, is gone with it: a fresh visit checks no row (R196's last hold); the
+drawing of a disabled act is c·3's. Waiting for the operator's hand.
 
 **B-341 — a settings field commits on blur, and says « Valeur actuelle » of a value not yet written.**
 Reported by the operator on 2026-09-06 while trying to confirm B-300, verbatim: « Pas de bouton de
@@ -4240,6 +4312,19 @@ bougé » would make the ordinary case the surprising one.
     the run             `python3 frontend/maquette/harness/seeds_at_rest.py` → 15 holds, no
                         violation
 
+**THE LIBRARY HALF IS HELD, AND THE SEEDS ALREADY HELD IT — L13c c·8.** The states the library's
+surfaces draw were listed from the drawing's own branches and measured against what the layer serves
+at rest: the three lenses, every category chip, a title the library holds TWICE and one that is also
+FOLLOWED (the delete dialog's two figures), a title with a HOLE, a listing longer than one screen (the
+sort and the paging), and a row with no poster. **Every one has a subject at rest**, so nothing was
+filled: **R128** gains eight holds that were green the day they were written, said in its docstring.
+Two mutations fell them by name — a category emptied of its media, and the one title held twice made
+single. **The first reading of these holds was RED on five of them and the instrument was at fault**:
+it judged the seeds by ONE page of a paged listing and by the layer's `total`, which answers the
+library's own 1 861 — a figure the seeds never had. Read to `loaded`, what the layer holds, there are
+345 rows and every state among them. The other surfaces' share of this entry (L21 did acquisition,
+#588 settings) is not measured here and is reported to the steward. Waiting for the operator's hand.
+
 **B-360 — the pre-push gate refuses a push over a green suite, and shows the reason to nobody.**
 Measured on 2026-09-06, three refusals in one morning on two branches. `hooks/pre-push` runs every check
 SILENTLY first (`"$@" > /dev/null 2>&1`, its `run_check`) and, on a non-zero exit, reruns it VISIBLY
@@ -4427,6 +4512,22 @@ DESCRIBABLE. Making it unrepresentable is the ruling, and it is still owed.
 
 <sub>`audit.py` → `■ R1 hollow sheet behind a poster — 2` on `acq-follows-grid` · `legacy.js:7732` (the tile), `:5314` and `:5322` (the card, which guards it) · `const SHEETS_RAW = {` at `legacy.js:9897`</sub>
 
+
+**REPAIRED IN L13c c·7 — and the enforcement is NOT the type.** Measured first: making `Follow.ids`
+optional in the contract produces ZERO tsc diagnostics, because every reader already guards the
+field; and the interface's own create sent a title and a kind and no identity at all, so the only
+source of one was the layer's join against what it serves. **The refusal therefore lives on that
+path**: the mock answers the contract's 400 and records nothing when it can identify a create from
+neither the request nor the entry the title was followed from. The act now CARRIES the identity when
+its caller holds one — a search result, a suggestion — and `queries.ts` sends it as
+`provider`/`providerId` (a provider identifier the contract can carry is a number, so a title-shaped
+one is not the one sent). The two branches drawing a follow without a sheet are gone: the panel's
+« Voir le parcours » fallback and its wait for an identity to arrive. The CARD's own branch stays —
+an unidentified RELEASE is not a follow. **R200** `follow_needs_an_identity.py`: red on the two
+refusal holds (the layer answered 200 and recorded the follow), with a create it CAN identify as the
+control, and a hold saying that a follow with no episode data is created like any other — « no
+sheet » and « no episodes » are two different absences. The mutation removing the refusal fells both
+by name. Waiting for the operator's hand.
 
 **B-371 — the queued pastille is reachable by no hand.**
 DOIT-4's « En file — pipeline en cours » is drawn, and its rules pass, and no path a person can

@@ -21,6 +21,7 @@
 // dismissed suggestion leaves the deck only if it is told again. A `write`
 // would have given both for free; a Set mutated in place does not.
 import i18next from "i18next";
+import type { Follow, FollowOutcome } from "./types";
 import { registerVerb } from "../../lib/verbs";
 import { store } from "../../lib/store-access";
 import { collapseOpenRow, openRow } from "../../lib/swipe-arbitration";
@@ -29,7 +30,33 @@ import { followActions, suggestions } from "./queries";
 import { baseTitle } from "../../lib/titles";
 
 /** A suggestion as the reserve holds it — the two fields this act reads. */
-type Suggestion = { title: string; kind: string };
+type Suggestion = { title: string; kind: string; ids?: Follow["ids"] | null };
+
+/**
+ * The identity an emitter wrote onto the element the act was taken on.
+ *
+ * THE THIRD EMITTER CARRIES ITS OWN. A suggestion is found by POSITION in the
+ * reserve and a search result by the visit that holds it, but a medium's sheet
+ * is reached from anywhere and has no list behind it — so it writes what it
+ * knows on the element, exactly as it writes the kind.
+ *
+ * Args:
+ *     element: The element the tap was answered on.
+ *
+ * Returns:
+ *     What it carries, or null when it carries nothing readable — an absent
+ *     attribute and an unreadable one are the same answer here, because both
+ *     mean the act has no identity to send.
+ */
+function identityOn(element: HTMLElement): Follow["ids"] | null {
+  const written = element.dataset.followIds;
+  if (written === undefined || written === "") return null;
+  try {
+    return JSON.parse(written) as Follow["ids"];
+  } catch (unreadable) {
+    return null;
+  }
+}
 
 /** How long a dismissed row takes to collapse, in milliseconds. */
 const COLLAPSE = 320;
@@ -90,21 +117,49 @@ function takeSuggestionOutOfTheDeck(position: number): void {
  *         indefinitely and a film is not, so a kind nobody supplied errs
  *         towards the state that keeps looking.
  */
-function follow(title: string, kind: string): void {
-  if (alreadyFollowed(title)) return;
+async function follow(title: string, kind: string,
+                      ids?: Follow["ids"] | null): Promise<boolean> {
+  // ALREADY FOLLOWED IS NOT A REFUSAL: the act has already happened, so what
+  // the caller drew for it stands, and nothing is said about an event that did
+  // not occur.
+  if (alreadyFollowed(title)) return true;
   // french-ok: an attribute VALUE, frozen with the DOM contract `media-details.tsx`
   // emits and the reserve carries — the same literal, compared where it arrives
   const film = kind === "Film";
-  followActions?.add({
+  // THE MESSAGE FOLLOWS THE LAYER'S ANSWER, and this is the whole of the
+  // repair. It was shown here, before the request left, so a create the layer
+  // REFUSED was announced as a success — the exact sentence of the thing that
+  // did not happen — while the list rolled back underneath it with nothing
+  // said (§2, §13; §7, §8). The panel still leaves in the tap's own commit
+  // (B-249, below): only the message waits, and only for as long as the
+  // answer takes.
+  //
+  // A HELD ACT KEEPS TODAY'S MESSAGE. Offline, the outbox holds the create and
+  // the optimistic write stands: the operator's act has not failed, it has not
+  // departed, and announcing a refusal over it would be the lie in the other
+  // direction (R107).
+  const outcome: FollowOutcome | undefined = await followActions?.add({
     title,
     kind: film ? "movie" : "show",
     status: "unverified",
     fresh: true,
+    // THE IDENTITY TRAVELS WITH THE ACT when its caller holds one: a follow
+    // with none has no sheet, and the layer refuses to record one (B-366).
+    ...(ids ? { ids } : {}),
   });
+  if (outcome === "refused") {
+    toast?.show({ message: i18next.t("verbs.follows.refused", { title }) });
+    // AND WHAT THE ACT WROTE IN PLACE IS PUT BACK by whoever wrote it: the
+    // cache is `queries.ts`'s and it has already rolled back; the visit's mark
+    // is the add screen's, and this answer is how it learns.
+    store.touch();
+    return false;
+  }
   toast?.show({
     message: i18next.t(film ? "verbs.follows.added" : "verbs.follows.followed",
                        { title }),
   });
+  return true;
 }
 
 /**
@@ -214,7 +269,9 @@ function removeFollow(title: string): void {
  * how two truths about one follow start.
  */
 type FollowVerbs = {
-  follow: (title: string, kind: string) => void;
+  /** Follows a medium, and answers whether the act STOOD — false on a refusal. */
+  follow: (title: string, kind: string,
+           ids?: Follow["ids"] | null) => Promise<boolean>;
   pause: (title: string) => void;
   removeFollow: (title: string) => void;
 };
@@ -266,7 +323,8 @@ registerVerb("follow", (title, element) => {
   // AN ABSENT KIND IS SPELLED AS ONE, not as the series' own word: the test
   // below asks whether it is a film, so the empty string answers « series »
   // without this file holding a second interface word to keep in step.
-  follow(title, suggestion?.kind ?? element.dataset.fkind ?? "");
+  void follow(title, suggestion?.kind ?? element.dataset.fkind ?? "",
+              suggestion?.ids ?? identityOn(element));
   // AND THE STORE IS TOUCHED AGAIN, for the sheet's own button: `add` writes
   // the cache in place, so without this the button never learns the follow
   // happened and stays « Suivre » under the finger that pressed it.

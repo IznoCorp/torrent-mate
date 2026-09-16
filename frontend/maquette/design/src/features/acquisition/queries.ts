@@ -6,7 +6,7 @@
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { HELD, read, send } from "../../lib/query-client";
 import type { Schemas } from "../../lib/contract-schemas";
-import type { Follow } from "./types";
+import type { Follow, FollowOutcome } from "./types";
 import { queueNow } from "../../lib/queue";
 import { fillFollowedTitlesDoor } from "../../lib/shell-doors";
 
@@ -248,19 +248,40 @@ export function installFollowActions(queryClient: QueryClient): void {
         .then((outcome) => { if (outcome !== HELD) refresh(); },
               () => { refresh(); });
     },
+    // AND THIS ONE ANSWERS ITS CALLER, alone among the four. Every act here
+    // writes the cache first and asks the layer after, and a refusal put back
+    // what was there and said NOTHING — so a create the layer refused was
+    // announced as « ajouté », the row kept its done word, and the list snapped
+    // back three seconds later with no reason given. Saying why is the
+    // surface's half, and the surface cannot say what it is never told: the
+    // outcome travels back, and `follow-verbs.ts` draws it.
+    //
+    // THREE ANSWERS AND NOT TWO. A HELD act (offline, the outbox) has not
+    // failed — it has not departed — so it keeps the message it has always had
+    // and its optimistic write stands; only a layer that ANSWERED a refusal is
+    // a refusal.
     add: (follow) => {
       const before = held();
       write([follow as Follow, ...before]);
-      void send("POST", "/api/acquisition/followed", {
+      // THE IDENTITY IS SENT when the act carried one: the layer joins the
+      // title against what it serves otherwise, and refuses a create it can
+      // identify from neither (B-366). A provider identifier the contract can
+      // carry is a NUMBER, so a title-shaped one (imdb) is not the one sent.
+      const identity = Object.entries(follow.ids ?? {})
+        .find(([, value]) => typeof value === "number");
+      return send("POST", "/api/acquisition/followed", {
         title: follow.title, kind: follow.kind,
+        ...(identity ? { provider: identity[0], providerId: identity[1] } : {}),
       })
-        .catch((refusal) => { write(before); throw refusal; })
-        .then((outcome) => { if (outcome !== HELD) refresh(); },
+        .then((outcome) => {
+          if (outcome !== HELD) refresh();
+          return outcome === HELD ? "held" as const : "added" as const;
+        },
               // AND ON A REFUSAL. The `.finally` this replaced ran on both paths;
               // only the HELD skip was intended, and the refused one was dropped by
               // accident — leaving a row restored from a local snapshot and never
               // re-synced against the server that refused it.
-              () => { refresh(); });
+              () => { write(before); refresh(); return "refused" as const; });
     },
     all: () => held(),
   };
@@ -281,7 +302,8 @@ declare global {
        * the three fields an addition needs would restore a different follow —
        * one with no year and no « suivi depuis ».
        */
-      add: (follow: Partial<Follow> & Pick<Follow, "title" | "kind" | "status">) => void;
+      add: (follow: Partial<Follow> & Pick<Follow, "title" | "kind" | "status">)
+        => Promise<FollowOutcome>;
       /** Puts a removed follow back as it was — never a create (B-353). */
       restore: (follow: Follow) => void;
       all: () => Follow[];

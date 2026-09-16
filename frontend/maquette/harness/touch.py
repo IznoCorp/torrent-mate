@@ -116,6 +116,12 @@ async def main():
         without_loading = []
         for state_ in surfaces:
             await pg.evaluate("(s)=>window.__go(s)", state_)
+            # THE LAYER IS GIVEN AN ANSWER TIME, and AFTER the state is driven,
+            # which resets the scenario. The indicator stands for the refresh
+            # itself rather than for a fixed delay (B-331), so with the layer
+            # answering instantly there is no moment at which a spinner could
+            # be seen — and this hold reads the spinner.
+            await pg.evaluate("()=>window.__mocks.setDefaultLatency(600)")
             await pg.wait_for_timeout(250)
             await pg.evaluate("""()=>{window.__h=0;window.__t=setInterval(()=>{
                 const p=document.querySelector('#ptr');

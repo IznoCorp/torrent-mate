@@ -1,5 +1,29 @@
 # Phase c·9 — The close
 
+**Opening measure (2026-09-15, on `6839dd913`):**
+
+- **Commands.** DESIGN § 2.1's own counting command
+  (`python3 -c "import re;print(len(re.findall(r'^\s*\[\s*\n?\s*[\"\x27]([a-zA-Z0-9_-]+)[\"\x27]\s*,',
+  open(FILE).read(), re.M)))"`) run per file over `design/src/harness/states/*.ts`: account 1,
+  acquisition 26, arrivals 8, entry 5, frame 2, library 11, maintenance 4, media 6, relay 3,
+  settings 17, system 30 — **total 113**. `python3 scripts/check-no-french.py`'s own "Named-state ids"
+  arm independently reports "113 state identifiers / engine" (the bucket's label is itself residue —
+  it still says `/ engine` though the source is `harness/states/`, since L13r). `grep -n
+  "Every state has a name" frontend/maquette/README.md` → still says « 54 ». `grep -c
+  "| B-" BUGS.md` scoped to the c·9 row list (B-232, B-352, B-465, B-290, B-397, B-275, B-312, B-340,
+  B-339, B-336, B-331, B-327, B-366, B-345, B-337, B-071, B-220, B-236) confirms all eighteen rows
+  exist in BUGS.md today. `grep -n "In flight" IMPLEMENTATION.md` and `frame-model.md`/
+  `frame-survey.md`'s cited line numbers are unread by this commit (c·9's own job, at its own
+  opening, on its own head — this measure does not pre-empt it beyond the count above).
+- **Points ≈ 5.** No code sites; the register re-read (18 rows), the `README.md` count correction, and
+  `REPORT.md`'s authorship are documentation effort comparable to a small phase, not a "new rule"
+  phase — no rule/mutation/named-state buckets apply here.
+- **Found (2026-09-15).** The true count on THIS head, by the design's own command, is **113**, not
+  the "87 unless a later phase added one" the phase file assumes as its unless-clause, and obviously
+  not the README's stale "54". Both an independent regex count and `check-no-french.py`'s own
+  instrumentation agree at 113, so the figure c·9 writes into `README.md` should read 113 unless a
+  phase between c·1 and c·9 adds or removes a named state.
+
 A documentation phase: the register rows, the stale reference sentences and the plan's debts are re-read
 against what L13 left, and the wave writes its report. This is the LAST phase of L13c (DESIGN § 9, § 10).
 

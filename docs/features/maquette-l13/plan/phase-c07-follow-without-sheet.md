@@ -1,5 +1,42 @@
 # Phase c·7 — No follow without a sheet
 
+**Opening measure (2026-09-15, on `6839dd913`):**
+
+- **Commands (tsc probe).** Baseline `design/node_modules/.bin/tsc --noEmit` from
+  `frontend/maquette/design/` → exit 0, 0 diagnostics. `Follow.ids` in `design/src/contract/
+  types.d.ts:1134` changed from `ids: components["schemas"]["ProviderIds"];` to `ids?: …` (the exact
+  mutation the phase's proof names) → `tsc --noEmit` again → **exit 0, 0 diagnostics** — restored with
+  `git checkout -- frontend/maquette/design/src/contract/types.d.ts`, `git status --porcelain` empty
+  after. Every current reader of `follow.ids` already guards it (`follow.ids ?? heldIdentity(title)?.ids`
+  in `follow-facts.ts:94,122`; `medium.ids != null` in `card-markup.ts:73`), so relaxing the field to
+  optional changes nothing tsc can see. `git grep -n createFollow -- 'design/src/mocks/handlers/
+  *.ts'` → `acquisition.ts:99-127`: the handler already carries the comment "A create naming neither
+  records a follow the contract refuses (B-366); the layer does not invent an identity for it, and
+  the cast says so" over `ids: (… ? {…} : source?.ids ?? null) as (typeof state.follows)[number]["ids"]`
+  — an `as` cast forcing `null` past the required type, confirming the runtime gap is real and
+  already flagged in place. `grep -n 'acquisition/followed"' design/src/features/acquisition/
+  queries.ts` → the frontend's own `add()` call sends `{ title: follow.title, kind: follow.kind }`
+  ONLY — no `provider`/`providerId` — so the handler's identity branch is reached only through the
+  title-match fallback (`followedFrom`), never through a request the client actually sends. `grep -ln
+  follow_has_sheet harness/*.py` → 1 file (the named gate, kept as-is per the phase). `grep -n B-366
+  BUGS.md` → `open`, by audit.
+- **Points ≈ 9.** ~7-9 site-lines across builders and the tile/sentence guards (`add-verbs.ts`,
+  `acquisition.ts`'s handler, `follow-actions.ts`, `queries.ts`'s `add()`) ≈ 2; the runtime hold + its
+  mutation (given) ≈ 3; the type mutation's proof needing re-shaping once the type-alone finding below
+  is read ≈ 2-3 (provisional).
+- **Found (2026-09-15).** The phase's stated proof — "The frontend gate (`tsc -b`) must fail on the
+  original… the phase shows it failing with a source stripped of `ids`" — does NOT hold on this tree:
+  making `Follow.ids` optional produces zero tsc diagnostics, because every reader already treats it
+  defensively. The type alone cannot be the enforcement; the runtime mock refusal (already sketched by
+  `acquisition.ts`'s own comment and cast) is what actually has to do the work, and it has to close a
+  path the phase doesn't mention: the frontend's real `add()` call never sends `provider`/`providerId`
+  at all, so the handler's only source of identity today is the title-match fallback — the refusal
+  belongs on THAT path, not on a request shape nothing sends.
+- **Landed (2026-09-16).** The type mutation is NOT the proof (0 diagnostics, as this measure read):
+  the mock's 400 on the join path is, with the act carrying the identity when it holds one. R200,
+  4 holds; the « Voir le parcours » fallback and the identity-arrival wait removed; the card's branch
+  kept (an unidentified release is not a follow). B-366 `to confirm`.
+
 A BEHAVIOUR change: under the operator's ruling (« le suivi sans fiche n'est pas un état
 possible »), a sheetless follow becomes UNREPRESENTABLE, and the tile's guard branch goes (DESIGN
 § 5.2, § 10; B-366). It relies on `Follow.ids` being required since a·6.
