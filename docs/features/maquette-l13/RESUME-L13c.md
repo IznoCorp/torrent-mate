@@ -21,7 +21,8 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   `e57ac110f` (`93a24bdc1`, pushed), c·5 (`e122c8478` + `d69bafaa1`, B-331 `to confirm`, its centring
   half unreproduced here), the MIDPOINT full suite (green at the second pass, `514635320`), c·6
   (`5bcbfb354`, B-327 `to confirm`), c·7 (`818ea85eb`, B-366 `to confirm`), c·8 (`d725ebda2`,
-  B-345's library half `to confirm`). NEXT: c·9, the close.
+  B-345's library half `to confirm`), c·9 the close (`16abdbcdc` + `a53bba207`, version 0.98.98,
+  REPORT.md written). NEXT: the pull request, then the reader round.
 - LOGS: `~/Library/Logs/tm-l13c/`. Mutex `sh scripts/heavy.sh --held`; tests lock
   `/private/tmp/tm-heavy-tests/holder`; own lock `/private/tmp/tm-heavy-l13c/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13c
@@ -125,3 +126,16 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   name. Trap paid, and it was MINE: the first reading was red on five holds because it judged a PAGED
   listing by one page and read `total` (the library's own 1 861) where `loaded` (345) is what the
   layer holds. Owed to the steward: the other surfaces' share of B-345 is not measured here.
+- 2026-09-16 c·9 (`Agent : l13c 1`): register re-read (the nine `to confirm`, B-337 the operator's,
+  B-071/B-220/B-236 already closed — DESIGN § 9.10 was stale about them), counts read from the
+  prototype (114 named states, 63 mock routes; the README's « 54 routes » corrected, its dated
+  history line left), three traps lines in the README, `REPORT.md` written, version 0.98.98.
+  The FULL suite found two more falls no phase gate could see — `panel_label_once.py` (R139) and
+  `outbox.py` (R107), both because c·7's removal reached a branch that serves an unidentified
+  RELEASE — repaired in `a53bba207`. Second pass `c09-full-suite-2.log`: 147 rules + 26 guards no
+  violation, a11y 0 dark / 147 light at the ceiling, oracle no divergence. `make lint` 0.
+  `c09-hold-compare-2.log`, `failed` read FIRST: 1 — `outbox.py` under the compare's own load, GREEN
+  replayed alone (`c09-outbox-replay.log`). Movements, each explained: chrome.py +2 (it measures two
+  widths × every named state, and there is one more state), machine.py +1 (B-327's restored hold),
+  seeds_at_rest.py +8 (the library's states), states.py +1 (the new state); 6 rules NEW — R195 to
+  R200, this wave's.
