@@ -939,6 +939,38 @@ negative lock age; the detection's own duration stays 0 s, as before.
                         '74bd260c44d14630848d8a59658b8506', started 'detection-10' (`w3-mutations.log`)
     green               a comment-only edit: no hold fell in R182, `watch_run.py` or `locks.py`
 
+**B-534 — the pipeline section's copy.**
+
+**FIXED by the repair train of 2026-09-16.** Three sentences. The levers printed `leversGuidance`, the same
+line as the host's `pipelineGuidance` right above it: the levers' copy and its key are removed, the
+host's stays. The watcher control read its state (« Déclenchement automatique — actif »): the state is
+now a row beside the control, the way the bound's row says its value (`levers/watcher-state`,
+« Déclenchement automatique » · « actif » / « coupé »), and the control names the act
+(`turnTriggerOff` « Désactiver le déclenchement automatique », `turnTriggerOn` « Activer … »);
+`triggerIsOn`/`triggerIsOff` lost their subject and are removed. `boundOwed` reads « pas encore
+réglable ici » — no server in the sentence (NE-DOIT-PAS-4).
+
+    the rule            R178, `harness/levers.py`, three new hold families: 4 the guidance said
+                        exactly once in `pipeline-panel` (`levers-idle`); 5 the trigger's accessible
+                        name begins with « Activer » or « Désactiver » (`levers-idle`,
+                        `levers-trigger-off`); 6 no text of `pipeline-panel` contains « serveur » in
+                        any of five states. RE-AIMED, said out loud: the two press holds read the
+                        state on `levers/watcher-state` and the control's label as the act, where they
+                        read the state at the end of the control's label
+    seen RED first      the holds committed alone over the unrepaired source: 8 FAIL — guidance
+                        « 2 time(s) », the control named 'Déclenchement automatique — actif' / '— coupé',
+                        « serveur » on all five states (`w4-red.log`)
+    the mutations       a second guidance line in the ready levers →
+                        FAIL the pipeline section says its guidance exactly once — 2 time(s)
+                        (`w4-mutation-guidance.log`; the first attempt landed in the loading branch and
+                        no hold fell — kept in `w4-mutations.log`) ·
+                        the control's label back to `automaticTrigger` → FAIL on levers-idle, the
+                        trigger's control is named by the act a press performs — 'Déclenchement
+                        automatique' (and both press holds) ·
+                        `boundOwed` back to the server sentence → FAIL on levers-idle, no text of the
+                        pipeline section says « serveur » (×5 states)
+    green               a comment-only edit: no hold fell in R178, `locks.py` or `hiding.py`
+
 **B-536 — durations rounded to whole minutes.**
 
 **FIXED by the repair train of 2026-09-16.** `durationInWords` rounded every duration of a minute or more
