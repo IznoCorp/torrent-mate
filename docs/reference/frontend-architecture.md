@@ -168,6 +168,37 @@ never a destination. **Deliberately not done**: per-page stacks — leaving the 
 open and returning lands on the library's root, added only if real use asks. Story:
 `docs/reference/frontend-architecture.md@6a47304a4` § D1b.
 
+### D-L13-1 — A layer left for an arrival keeps its entry; Back onto it reopens it
+
+**Decision, ratified by the operator on 2026-09-13 (Q3 = A). Delivered by L13b phases 9–10 and
+L13c** (`docs/features/maquette-l13/DESIGN.md@763f15cf9` § 8 carries the arbitration in full —
+B-290's two shapes, B-397, the rejected reading).
+
+1. **Opening a panel is an arrival** (D1b rule 1): the entry it pushes is kept, not popped, when
+   the operator leaves it for an arrival screen — « Voir la fiche », `releases`, `profile`,
+   `take` alike, one shape for all of them. The entry records what reopens it —
+   `{ layer, kind, subject }`, written by `app/panel-host.ts` — so a transient panel reopens as
+   surely as an addressed one.
+2. **Back onto that entry REOPENS the layer**, drawn under `::view-transition-new(leaving-panel)`
+   running `panel-down` in reverse (no animation under `reduce`).
+3. **Re-producing on an entry that already records the panel REPLACES** (D1b rule 1 — a redraw is
+   an adjustment), not pushes — B-397's shape.
+
+**Replaces** the two-shape reading where « Voir la fiche » kept its entry and its siblings
+popped-then-pushed 240/260 ms later — the mechanism the operator rejected (below).
+
+**The rejected reading, so it is not re-proposed**: every sibling pops first (the entry removed,
+Back returns to the list). It keeps « one entry per gesture » true and makes B-275 unanswerable —
+the panel is gone from the stack, so Back cannot return to it.
+
+**What it makes void.** The close-then-wait pattern and its ten timers (no subject once Back
+reopens directly); `openOnCurrentEntry`'s special case in `producePanel`'s deferred path became
+the general path.
+
+**Held by** R188 `ladder_entries.py` (the pops are counted), R189 `redraw_entry.py` (a redraw does
+not stack), and R103 `exits.py`'s reversal (the return is drawn) — DESIGN's own R-L13-a/b/c, bound
+to these numbers when the phase ran.
+
 ### D2 — Tailwind v4 provides the implementation; CVA components provide the API
 
 **Decision.** Styling goes through Tailwind utilities. The design vocabulary is expressed as

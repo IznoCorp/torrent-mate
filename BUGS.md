@@ -888,8 +888,7 @@ Reader round finding A9: the note reads « … `pending`, `fetchStatus` `idle`, 
 measured on the candidate with the follow panel open on `/acquisition`, each empty-key entry
 (`["/api/media","",""]` and `["/api/media","","","seasons"]`) carries **1 observer**, 0 once closed.
 Corrected here in B-503's own row. **Closes when**: the note in
-`docs/features/maquette-l13/plan/phase-a14-media-identity.md` (on `feat/maquette-l13b`) reads the
-measured count.
+`docs/features/maquette-l13/plan/phase-a14-media-identity.md@763f15cf9` reads the measured count.
 
 **B-530 — the drawer closed by a swipe shows itself open again as the close ends.**
 

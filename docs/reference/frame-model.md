@@ -108,8 +108,9 @@ does not close it, against D1's own third tier) and walks a dead one (`#screen`)
 `app/layers.ts` holding the ranked registrations, the back handler, `closeLayers` and
 `hideLayers`, with the engine calling it through the seam it already has. **The ranking is
 frame; the move is behaviour** — so the drawer and dialog REGISTER in **L15** (a rung added,
-held by a rule), and the handler itself moves out of the engine in **L13**, where the rest of the
-navigation logic goes.
+held by a rule), and the handler **landed** in `app/layers.ts` at L13 — ranked registrations, the
+back handler, `closeLayers` and `hideLayers`, out of the engine, carrying D-L13-1's shape
+(`docs/reference/frontend-architecture.md` § 2).
 
 ### Part 5 — The page host and the page table
 
