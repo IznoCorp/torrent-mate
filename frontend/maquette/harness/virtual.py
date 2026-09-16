@@ -608,10 +608,13 @@ async def hold_the_selection_state_draws_its_ticks(journal, browser):
         f"{len(alone['pressed'])} when driven alone; the set holds "
         f"{len(after_another['selected'])}")
 
-    # AND THE READER CHANGING THE QUESTION DOES DROP THEM, which is the other
-    # half of the same rule and the reason the watcher existed at all: a search
-    # narrows what is on screen, and ticks taken before it are ticks nobody can
-    # see to untick while « Supprimer » still offers them.
+    # AND THE READER CHANGING THE QUESTION KEEPS THEM. RE-AIMED: this hold read
+    # the opposite — a search dropped the set — which was the interface's own
+    # decision until the operator overruled it (B-312). The selection is keyed
+    # by title, so a tick that outlives a narrowing cannot land on another
+    # medium; the bar counts it and the delete dialog names it. What the listing
+    # draws pressed is only what it still lists, which is what this rule, the
+    # virtual window's, is placed to see.
     await page.evaluate("""() => {
       const field = document.querySelector('#libq');
       field.value = 'zzz';
@@ -620,11 +623,12 @@ async def hold_the_selection_state_draws_its_ticks(journal, browser):
     await page.wait_for_timeout(800)
     after_search = await ticks()
     journal.check(
-        "and a search — the reader changing the question — drops them: a tick "
-        "nobody can see is a tick nobody can untick",
-        after_search["selected"] == [],
-        f"the set holds {len(after_search['selected'])} title(s) after a search "
-        f"that narrows the listing")
+        "and a search — the reader changing the question — keeps them, drawing "
+        "pressed only what it still lists",
+        sorted(after_search["selected"]) == sorted(alone["selected"])
+        and all(title in alone["pressed"] for title in after_search["pressed"]),
+        f"the set holds {after_search['selected']} after a search that narrows "
+        f"the listing, {after_search['pressed']} row(s) drawn pressed")
     await context.close()
 
 

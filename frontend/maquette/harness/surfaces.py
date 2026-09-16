@@ -26,7 +26,11 @@ async def main():
     await pg.evaluate("()=>document.querySelector('#toastx').click()")
 
     print("── add screen ──")
+    # THE « + » OPENS AN EMPTY SCREEN (B-340), so the query is TYPED here, the
+    # way a finger asks for one: it used to arrive from the store's own entry
+    # query, which the add screen no longer keeps between visits.
     await pg.click("#fab"); await pg.wait_for_timeout(500)
+    await pg.fill("#addq", "star wars"); await pg.wait_for_timeout(700)
     # The add screen left `#screen` for a real route (`/add`, rendered inside
     # `#coquille`), and is read by the identity it carries — `data-key="add:…"`
     # (the mode it was opened in) — never by a bare `[data-part="screen"][data-open]`, which two

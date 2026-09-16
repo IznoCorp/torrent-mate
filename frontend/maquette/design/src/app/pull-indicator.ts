@@ -14,7 +14,6 @@
 import i18next from "i18next";
 import { installPullGesture } from "../lib/pull-gesture";
 import { toast } from "../lib/shell-doors";
-import { sharedQueryClient } from "../lib/query-client";
 
 /** How tall the indicator stands while the refresh is in flight. */
 const LOADING_HEIGHT_PIXELS = 44;
@@ -66,8 +65,15 @@ export let resetPullIndicator: (() => boolean) | undefined;
  *
  * @param port The scrolling element the gesture is read on.
  * @param indicator The indicator drawn above it.
+ * @param refresh What an armed pull asks again; the indicator stays open until
+ *     it settles. Handed in rather than imported: the query client imports the
+ *     outbox, and a module cycle through this file moved the queue's own boot.
  */
-export function installPullIndicator(port: HTMLElement, indicator: HTMLElement | null): void {
+export function installPullIndicator(
+  port: HTMLElement,
+  indicator: HTMLElement | null,
+  refresh: () => Promise<unknown>,
+): void {
   const gesture = installPullGesture({
     port,
     /* THE SURFACES THAT OWN THEIR OWN HORIZONTAL GESTURE are excluded, or the
@@ -95,7 +101,7 @@ export function installPullIndicator(port: HTMLElement, indicator: HTMLElement |
         indicator.classList.add(LOADING_MARK);
         indicator.style.height = `${LOADING_HEIGHT_PIXELS}px`;
         const currentPull = ++generation;
-        void Promise.resolve(sharedQueryClient?.refetchQueries({ type: "active" }))
+        void Promise.resolve(refresh())
           .catch(() => undefined)
           .then(() => {
             if (currentPull !== generation) return;
