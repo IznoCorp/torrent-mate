@@ -1,6 +1,6 @@
 {
   "$comment": "The recorded oracle's reference — `frontend/maquette/oracle.py`. One entry per (named state x region): a bounding rectangle rounded to one decimal, and the computed properties of `regions.json`'s `probe.computedStyleSubset`. `null` means the region's selector matched nothing in that state, which is data rather than an omission. Regenerate with `--record`; ratify a REVIEWED change with `--accept`, never from a gate.",
-  "baseCommit": "763f15cf9974c7b36f56fbba53e2f689b0a7de3b",
+  "baseCommit": "8799b812ed0280e187e8af556222ce0d1ff286c3",
   "platform": "Darwin/arm64",
   "counts": {
     "states": 114,
@@ -13460,7 +13460,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -13642,7 +13642,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -13672,7 +13672,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -13700,7 +13700,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 299.2
         },
@@ -13730,7 +13730,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1625.4,
+          "y": 1618.9,
           "width": 362,
           "height": 595.2
         },
@@ -14410,7 +14410,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3340
+          "height": 3333.5
         },
         "style": {
           "position": "static",
@@ -14592,7 +14592,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3340
+          "height": 3333.5
         },
         "style": {
           "position": "static",
@@ -14622,7 +14622,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 284.8
+          "height": 278.3
         },
         "style": {
           "position": "static",
@@ -14650,7 +14650,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1323.7,
+          "y": 1317.2,
           "width": 362,
           "height": 299.2
         },
@@ -14680,7 +14680,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1636.9,
+          "y": 1630.4,
           "width": 362,
           "height": 595.2
         },
@@ -14885,7 +14885,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3389
+          "height": 3382.5
         },
         "style": {
           "position": "static",
@@ -15067,7 +15067,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3389
+          "height": 3382.5
         },
         "style": {
           "position": "static",
@@ -15097,7 +15097,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 333.8
+          "height": 327.3
         },
         "style": {
           "position": "static",
@@ -15125,7 +15125,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1372.7,
+          "y": 1366.2,
           "width": 362,
           "height": 299.2
         },
@@ -15155,7 +15155,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1685.9,
+          "y": 1679.4,
           "width": 362,
           "height": 595.2
         },
@@ -15360,7 +15360,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3340
+          "height": 3333.5
         },
         "style": {
           "position": "static",
@@ -15542,7 +15542,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3340
+          "height": 3333.5
         },
         "style": {
           "position": "static",
@@ -15572,7 +15572,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 284.8
+          "height": 278.3
         },
         "style": {
           "position": "static",
@@ -15600,7 +15600,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1323.7,
+          "y": 1317.2,
           "width": 362,
           "height": 299.2
         },
@@ -15630,7 +15630,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1636.9,
+          "y": 1630.4,
           "width": 362,
           "height": 595.2
         },
@@ -15835,7 +15835,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3377.5
+          "height": 3371
         },
         "style": {
           "position": "static",
@@ -16017,7 +16017,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3377.5
+          "height": 3371
         },
         "style": {
           "position": "static",
@@ -16047,7 +16047,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 322.3
+          "height": 315.8
         },
         "style": {
           "position": "static",
@@ -16075,7 +16075,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1361.2,
+          "y": 1354.7,
           "width": 362,
           "height": 299.2
         },
@@ -16105,7 +16105,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1674.4,
+          "y": 1667.9,
           "width": 362,
           "height": 595.2
         },
@@ -22967,7 +22967,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3246
+          "height": 3239.5
         },
         "style": {
           "position": "static",
@@ -23149,7 +23149,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3246
+          "height": 3239.5
         },
         "style": {
           "position": "static",
@@ -23179,7 +23179,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -23207,7 +23207,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 216.8
         },
@@ -23237,7 +23237,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1543,
+          "y": 1536.5,
           "width": 362,
           "height": 595.2
         },
@@ -23442,7 +23442,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3257.5
+          "height": 3251
         },
         "style": {
           "position": "static",
@@ -23624,7 +23624,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3257.5
+          "height": 3251
         },
         "style": {
           "position": "static",
@@ -23654,7 +23654,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 284.8
+          "height": 278.3
         },
         "style": {
           "position": "static",
@@ -23682,7 +23682,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1323.7,
+          "y": 1317.2,
           "width": 362,
           "height": 216.8
         },
@@ -23712,7 +23712,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1554.5,
+          "y": 1548,
           "width": 362,
           "height": 595.2
         },
@@ -23917,7 +23917,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -24099,7 +24099,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -24129,7 +24129,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -24157,7 +24157,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 299.2
         },
@@ -24187,7 +24187,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1625.4,
+          "y": 1618.9,
           "width": 362,
           "height": 595.2
         },
@@ -24392,7 +24392,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3275.7
+          "height": 3269.2
         },
         "style": {
           "position": "static",
@@ -24574,7 +24574,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3275.7
+          "height": 3269.2
         },
         "style": {
           "position": "static",
@@ -24604,7 +24604,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -24632,7 +24632,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 246.5
         },
@@ -24662,7 +24662,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1572.7,
+          "y": 1566.2,
           "width": 362,
           "height": 595.2
         },
@@ -24867,7 +24867,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3269
+          "height": 3262.5
         },
         "style": {
           "position": "static",
@@ -25049,7 +25049,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3269
+          "height": 3262.5
         },
         "style": {
           "position": "static",
@@ -25079,7 +25079,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -25107,7 +25107,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 239.8
         },
@@ -25137,7 +25137,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1566,
+          "y": 1559.5,
           "width": 362,
           "height": 595.2
         },
@@ -32850,9 +32850,9 @@
         "matches": 1,
         "rect": {
           "x": 0,
-          "y": 45.5,
+          "y": 64,
           "width": 390,
-          "height": 1260.7
+          "height": 1276.5
         },
         "style": {
           "position": "static",
@@ -33040,7 +33040,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -33222,7 +33222,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -33252,7 +33252,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -33280,7 +33280,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 299.2
         },
@@ -33310,7 +33310,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1625.4,
+          "y": 1618.9,
           "width": 362,
           "height": 595.2
         },
@@ -33354,9 +33354,9 @@
         "matches": 1,
         "rect": {
           "x": 0,
-          "y": 45.5,
+          "y": 64,
           "width": 390,
-          "height": 387.3
+          "height": 403.1
         },
         "style": {
           "position": "static",
@@ -33544,7 +33544,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -33726,7 +33726,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -33756,7 +33756,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -33784,7 +33784,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 299.2
         },
@@ -33814,7 +33814,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1625.4,
+          "y": 1618.9,
           "width": 362,
           "height": 595.2
         },
@@ -33858,9 +33858,9 @@
         "matches": 1,
         "rect": {
           "x": 0,
-          "y": 45.5,
+          "y": 64,
           "width": 390,
-          "height": 1783.1
+          "height": 1798.9
         },
         "style": {
           "position": "static",
@@ -34048,7 +34048,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -34230,7 +34230,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -34260,7 +34260,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -34288,7 +34288,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 299.2
         },
@@ -34318,7 +34318,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1625.4,
+          "y": 1618.9,
           "width": 362,
           "height": 595.2
         },
@@ -34362,9 +34362,9 @@
         "matches": 1,
         "rect": {
           "x": 0,
-          "y": 45.5,
+          "y": 64,
           "width": 390,
-          "height": 562.1
+          "height": 577.9
         },
         "style": {
           "position": "static",
@@ -34552,7 +34552,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -34734,7 +34734,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -34764,7 +34764,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -34792,7 +34792,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 299.2
         },
@@ -34822,7 +34822,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1625.4,
+          "y": 1618.9,
           "width": 362,
           "height": 595.2
         },
@@ -34866,7 +34866,7 @@
         "matches": 1,
         "rect": {
           "x": 0,
-          "y": 45.5,
+          "y": 64,
           "width": 390,
           "height": 690.3
         },
@@ -35056,7 +35056,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -35238,7 +35238,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -35268,7 +35268,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -35296,7 +35296,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 299.2
         },
@@ -35326,7 +35326,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1625.4,
+          "y": 1618.9,
           "width": 362,
           "height": 595.2
         },
@@ -35370,7 +35370,7 @@
         "matches": 1,
         "rect": {
           "x": 0,
-          "y": 45.5,
+          "y": 64,
           "width": 390,
           "height": 965.1
         },
@@ -35560,7 +35560,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3313.6
+          "height": 3307.1
         },
         "style": {
           "position": "static",
@@ -35742,7 +35742,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3313.6
+          "height": 3307.1
         },
         "style": {
           "position": "static",
@@ -35772,7 +35772,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -35800,7 +35800,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 299.2
         },
@@ -35830,7 +35830,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1625.4,
+          "y": 1618.9,
           "width": 362,
           "height": 580.4
         },
@@ -36035,7 +36035,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3377.5
+          "height": 3371
         },
         "style": {
           "position": "static",
@@ -36217,7 +36217,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3377.5
+          "height": 3371
         },
         "style": {
           "position": "static",
@@ -36247,7 +36247,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -36275,7 +36275,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 299.2
         },
@@ -36305,7 +36305,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1625.4,
+          "y": 1618.9,
           "width": 362,
           "height": 644.2
         },
@@ -36510,7 +36510,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2864.1
+          "height": 2857.6
         },
         "style": {
           "position": "static",
@@ -36692,7 +36692,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 2864.1
+          "height": 2857.6
         },
         "style": {
           "position": "static",
@@ -36722,7 +36722,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -36750,7 +36750,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 299.2
         },
@@ -36780,7 +36780,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1625.4,
+          "y": 1618.9,
           "width": 362,
           "height": 130.9
         },
@@ -36985,7 +36985,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -37167,7 +37167,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -37197,7 +37197,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -37225,7 +37225,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 299.2
         },
@@ -37255,7 +37255,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1625.4,
+          "y": 1618.9,
           "width": 362,
           "height": 595.2
         },
@@ -47624,7 +47624,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -47806,7 +47806,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -47836,7 +47836,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -47864,7 +47864,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 299.2
         },
@@ -47894,7 +47894,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1625.4,
+          "y": 1618.9,
           "width": 362,
           "height": 595.2
         },
@@ -48875,7 +48875,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -49057,7 +49057,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -49087,7 +49087,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -49115,7 +49115,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 299.2
         },
@@ -49145,7 +49145,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1625.4,
+          "y": 1618.9,
           "width": 362,
           "height": 595.2
         },
@@ -49350,7 +49350,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -49532,7 +49532,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -49562,7 +49562,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -49590,7 +49590,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 299.2
         },
@@ -49620,7 +49620,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1625.4,
+          "y": 1618.9,
           "width": 362,
           "height": 595.2
         },
@@ -49825,7 +49825,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3378.1
+          "height": 3371.6
         },
         "style": {
           "position": "static",
@@ -50007,7 +50007,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3378.1
+          "height": 3371.6
         },
         "style": {
           "position": "static",
@@ -50037,7 +50037,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -50065,7 +50065,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 299.2
         },
@@ -50095,7 +50095,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1625.4,
+          "y": 1618.9,
           "width": 362,
           "height": 644.9
         },
@@ -50300,7 +50300,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -50482,7 +50482,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3328.5
+          "height": 3322
         },
         "style": {
           "position": "static",
@@ -50512,7 +50512,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -50540,7 +50540,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 299.2
         },
@@ -50570,7 +50570,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1625.4,
+          "y": 1618.9,
           "width": 362,
           "height": 595.2
         },
@@ -50775,7 +50775,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3378.1
+          "height": 3371.6
         },
         "style": {
           "position": "static",
@@ -50957,7 +50957,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3378.1
+          "height": 3371.6
         },
         "style": {
           "position": "static",
@@ -50987,7 +50987,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -51015,7 +51015,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 299.2
         },
@@ -51045,7 +51045,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1625.4,
+          "y": 1618.9,
           "width": 362,
           "height": 644.9
         },
@@ -51250,7 +51250,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3363.3
+          "height": 3356.8
         },
         "style": {
           "position": "static",
@@ -51432,7 +51432,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 3363.3
+          "height": 3356.8
         },
         "style": {
           "position": "static",
@@ -51462,7 +51462,7 @@
           "x": 14,
           "y": 1038.9,
           "width": 362,
-          "height": 273.3
+          "height": 266.8
         },
         "style": {
           "position": "static",
@@ -51490,7 +51490,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1312.2,
+          "y": 1305.7,
           "width": 362,
           "height": 299.2
         },
@@ -51520,7 +51520,7 @@
         "matches": 1,
         "rect": {
           "x": 14,
-          "y": 1625.4,
+          "y": 1618.9,
           "width": 362,
           "height": 630.1
         },
