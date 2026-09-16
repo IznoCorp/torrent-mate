@@ -1,8 +1,8 @@
 {
-  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 130 of 141 rule(s) report a hold count; the other 11 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
-  "taken_at_commit": "08400a22a32da7077dc49b26aa2de6fce97aff74",
-  "taken_on": "2026-09-15",
-  "suite": "141 of 141 rule(s)",
+  "what": "Per-rule hold counts of the maquette harness suite — the figure each rule prints as the number of holds it executed. ACC-08 compares against this file: a wave is green only at unchanged per-rule hold counts. 137 of 148 rule(s) report a hold count; the other 11 print a prose verdict and are compared on their exit status alone. A count of null is a named unparseable, never a zero. A count from the per-hold PASS/FAIL tally counts verdict-prefixed hold lines only — a hold whose verdict prints mid-line or conditionally is not visible to it.",
+  "taken_at_commit": "763f15cf9974c7b36f56fbba53e2f689b0a7de3b",
+  "taken_on": "2026-09-16",
+  "suite": "148 of 148 rule(s)",
   "host": "http://127.0.0.1:8899/",
   "rules": {
     "acted_surface_redraws.py": {
@@ -18,6 +18,11 @@
     "add_footer.py": {
       "exit": 0,
       "count": 13,
+      "source": "common.Journal summary"
+    },
+    "add_screen_opens_fresh.py": {
+      "exit": 0,
+      "count": 7,
       "source": "common.Journal summary"
     },
     "address.py": {
@@ -92,7 +97,7 @@
     },
     "chrome.py": {
       "exit": 0,
-      "count": 226,
+      "count": 228,
       "source": "own EXECUTED count line"
     },
     "chrome_pixels.py": {
@@ -150,6 +155,11 @@
       "count": null,
       "reason": "no recognized executed-count line in its output"
     },
+    "disabled_action.py": {
+      "exit": 0,
+      "count": 5,
+      "source": "common.Journal summary"
+    },
     "discover_gestures.py": {
       "exit": 0,
       "count": 9,
@@ -198,6 +208,16 @@
     "follow_has_sheet.py": {
       "exit": 0,
       "count": 3,
+      "source": "common.Journal summary"
+    },
+    "follow_needs_an_identity.py": {
+      "exit": 0,
+      "count": 6,
+      "source": "common.Journal summary"
+    },
+    "follow_refusal_is_drawn.py": {
+      "exit": 0,
+      "count": 9,
       "source": "common.Journal summary"
     },
     "follow_seasons.py": {
@@ -290,6 +310,11 @@
       "count": 16,
       "source": "common.Journal summary"
     },
+    "kind_chips_scrollbar.py": {
+      "exit": 0,
+      "count": 6,
+      "source": "common.Journal summary"
+    },
     "ladder_entries.py": {
       "exit": 0,
       "count": 15,
@@ -337,7 +362,7 @@
     },
     "machine.py": {
       "exit": 0,
-      "count": 90,
+      "count": 91,
       "source": "common.Journal summary"
     },
     "message_above_harness.py": {
@@ -438,6 +463,11 @@
     "producers.py": {
       "exit": 0,
       "count": 48,
+      "source": "common.Journal summary"
+    },
+    "pull_follows_the_refresh.py": {
+      "exit": 0,
+      "count": 5,
       "source": "common.Journal summary"
     },
     "pwa.py": {
@@ -577,13 +607,18 @@
     },
     "seeds_at_rest.py": {
       "exit": 0,
-      "count": 15,
+      "count": 23,
       "source": "common.Journal summary"
     },
     "selection.py": {
       "exit": 0,
       "count": null,
       "reason": "no recognized executed-count line in its output"
+    },
+    "selection_survives_the_listing.py": {
+      "exit": 0,
+      "count": 14,
+      "source": "common.Journal summary"
     },
     "selection_survives_the_tab.py": {
       "exit": 0,
@@ -642,7 +677,7 @@
     },
     "states.py": {
       "exit": 0,
-      "count": 113,
+      "count": 114,
       "source": "states-conform verdict"
     },
     "suggestions_more.py": {
@@ -712,10 +747,10 @@
     }
   },
   "totals": {
-    "rules": 141,
-    "parseable": 130,
+    "rules": 148,
+    "parseable": 137,
     "unparseable": 11,
-    "holds": 3130,
+    "holds": 3194,
     "failed": 0
   }
 }
