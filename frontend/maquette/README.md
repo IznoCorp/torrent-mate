@@ -488,8 +488,9 @@ into a code change it happens to precede.
 contract, in process, from data taken out of the engine's fixtures. The wiring belongs to the
 switchover.
 
-**What it is.** `design/src/mocks/` — one module replaces `fetch` with a table of 54 routes, one
-per operation `frontend/maquette/contract/openapi.json` declares. No service worker: the oracle
+**What it is.** `design/src/mocks/` — one module replaces `fetch` with a table of routes, one
+per operation `frontend/maquette/contract/openapi.json` declares — 63 of them today, counted by
+`window.__mocks.routes().length` and never from this line. No service worker: the oracle
 measures at first paint and a worker's registration is asynchronous. It is installed
 synchronously in the boot, before the engine starts, behind the build-time constant
 `__MOCKS_BUILT_IN__`.
@@ -535,6 +536,13 @@ in `make check`.
 
 ## Two rules the prototype itself re-taught, the hard way
 
+- **A named state RESETS the mock scenario.** `window.__go` puts the layer back, latency included,
+  so a scenario asked for BEFORE a state is a scenario asked for nobody: set it after.
+- **A pinned COUNT in a unit test moves with a seed row.** Adding one row to a seed moves the
+  figures `design/src/**/*.test.ts` pins, and `check-maquette-unit-tests` is what says so.
+- **The library's listing is PAGED, and `total` is not what the layer holds.** `total` answers the
+  library's own 1 861; `loaded` is what the seeds carry. A reading that judges the seeds by one
+  page, or by `total`, invents holes that are not there.
 - **R7 — `minmax(0, 1fr)`, never `1fr`.** An `auto` grid track's floor is the item's intrinsic
   size, which can blow a fixed-width frame out past its bound.
 - **R8 — an author `display` rule beats `[hidden]`.** Any class declaring a `display` must
