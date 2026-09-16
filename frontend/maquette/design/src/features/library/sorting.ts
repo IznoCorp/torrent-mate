@@ -11,7 +11,7 @@
 //
 // PUBLISHED FOR THE RULE, which is `settings-labels.ts`'s arrangement exactly:
 // the feature owns the answer, its panel and verbs import it (the engine's
-// fragment read it through `engine/seams.ts@13a66a35b`), `harness/publish.ts`
+// fragment read it through `engine/seams.ts@c0a5062ac`), `harness/publish.ts`
 // publishes it, and `harness/library_sort.py` reads the NAMES
 // from the prototype rather than restating them — a rule carrying its own copy
 // of six labels goes green the day the interface renames one.

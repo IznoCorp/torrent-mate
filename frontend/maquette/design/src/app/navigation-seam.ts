@@ -1,5 +1,5 @@
 // The navigation table, flattened — as the engine read it
-// (`engine/legacy.js@13a66a35b`), and as its three readers still do.
+// (`engine/legacy.js@c0a5062ac`), and as its three readers still do.
 //
 // The engine drew the tab bar and the drawer from it, the last things it drew
 // from a page list; it asked here, exactly as it asked the address model for a

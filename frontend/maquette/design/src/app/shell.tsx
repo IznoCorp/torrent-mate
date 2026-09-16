@@ -1,5 +1,5 @@
 // The strangler shell. One owner for the URL and the history: this router.
-// The legacy engine (`engine/legacy.js@13a66a35b`) kept its navigation LOGIC
+// The legacy engine (`engine/legacy.js@c0a5062ac`) kept its navigation LOGIC
 // (what to push, when to unwind) and lost only its primitives; what navigates
 // now speaks to the bridge door, implemented on the router's history.
 // `window.__go` drives states without navigation, as it did then.

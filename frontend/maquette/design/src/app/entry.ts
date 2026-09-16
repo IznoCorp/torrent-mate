@@ -1,7 +1,7 @@
 // THE ENTRY — the splash, the sign-in gate and the install proposal.
 //
 // `MODEL.md` § 2 Part 9. All three were engine LOGIC over static markup
-// (`engine/legacy.js@13a66a35b`, lines 9678–9915), and it was the LOGIC that had to move: §17 redraws
+// (`engine/legacy.js@c0a5062ac`, lines 9678–9915), and it was the LOGIC that had to move: §17 redraws
 // the gate for Plex SSO and could not while the gate was engine code, because
 // D5 allowed no addition there.
 //

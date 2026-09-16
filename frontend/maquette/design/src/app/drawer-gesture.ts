@@ -29,7 +29,7 @@
 // the `touchmove` events kept arriving for the same finger.
 //
 // The engine had already paid for this and written it down, three thousand
-// lines into `engine/legacy.js@13a66a35b`, about its own pull-to-refresh: « the moment it decides
+// lines into `engine/legacy.js@c0a5062ac`, about its own pull-to-refresh: « the moment it decides
 // a drag is a scroll it fires `pointercancel` and stops delivering
 // `pointermove` for that pointer — measured: one move delivered, then cancel,
 // while ten `touchmove` arrive for the same finger. A pointer-only

@@ -15,7 +15,7 @@
 // THE SELECTION BAR MOVED, and this comment said the opposite for a lot and a
 // half (B-392). React draws it: `features/library/selection-bar.tsx`, with
 // `data-part="selection/bar"`, its own region role and its own translated
-// label. `paintSelBar()` in `engine/legacy.js@13a66a35b` was an EMPTY function, left as a seam
+// label. `paintSelBar()` in `engine/legacy.js@c0a5062ac` was an EMPTY function, left as a seam
 // until the engine was deleted. And since the wave that made the candidate card the gesture, the bar
 // decides on its own whether it is drawn at all: `content.state.page === "lib"`,
 // inside that component, which is the very ownership the old sentence denied

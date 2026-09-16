@@ -53,7 +53,7 @@ from common import PHONE, PROTOTYPE, Journal
 # /media and calls `document.startViewTransition` ZERO times — the engine handles
 # it entirely (`store.write({page})`, `render()`, `switchPage(leaving)`), with no
 # seam in between that anything outside the engine owned. Making that one a
-# transition would have meant ADDING to `engine/legacy.js@13a66a35b`, which D5
+# transition would have meant ADDING to `engine/legacy.js@c0a5062ac`, which D5
 # forbade, and its handler was an engine-side caller this lot left to L19 by name.
 #
 # What DOES route through `go()` is every screen and sheet arrival — the media

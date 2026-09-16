@@ -508,7 +508,7 @@ when the defect comes back.
 | B-548 | Named states inherit a library dial by their ORDER: the driver's `reset()` (`harness/drive.ts`) does not write `libLens` or `libMode`, so `lib-incomplete`, `lib-recent`, `lib-search-empty` and the four `mediasheet-*` states are recorded in `oracle-reference.json` in the list layout inherited from `lib-list` before them; a probe resetting both moved 38 measurements on those seven states (`shell/library-list` display flex → grid, gap 8 → 10 px, heights). `libCat` and the sort were the same defect, invisible until a state or a rule moved them, and are reset since L13c c·1. **Amended by reader C13's C9** (round one, `review-archive/l13c/round-1/r1-C13.md`): driving all 114 named states twice, 103 inherit `libLens` from the state before them, and of those only NINE draw differently by the order — `pwa-android`, `signin`, `signin-error`, `lib-delete`, `lib-delete-multiple`, `mediasheet-series`, `mediasheet-movie`, `mediasheet-no-trailer`, `mediasheet-no-poster` — each drawing the library page underneath a sheet or a dialogue without pinning the lens; R198's cast half reads `mediasheet-movie` INSIDE the sheet, so no verdict of L13c moves. Ruling 117 deliberately declined resetting `libLens`/`libMode`. Owner: none — an instrument decision, not yet made; the fix is either the nine states pinning their own lens, or `reset()` writing both, plus the reference re-recorded | L13c c·1's probe; amended reader C13 | `open` |
 | B-549 | The mock seed gives the FILM « Star Wars : The Clone Wars » the SERIES' provider identifiers (`imdb:tt0458290`, `tmdb:4194`, `tvdb:83268`) — a fixture-identity defect, same class as B-088: two rows of different KINDS sharing one identifier set. `add_footer.py` fell on a second add until c·2 keyed a visit's identity by `kind` + sorted `provider:id` pairs (`f67401890`), which separates the pair; the seed row itself is untouched. Owner: none | L13c c·2 | `open` |
 | B-550 | The library's selection bar actions sit under the touch floor at 390 px: « Annuler » 71×34, « Supprimer » 86×34, against the 44 px a thumb needs — on BOTH builds, so the defect is old, not L13c's. Found by reader C13's affordance lens (round one, C8). Owner: a later lot — the bar's action variant in `ui/variants/` | reader C13 round one | `open` |
-| B-551 | Citations of a SQUASHED branch's commit are dead on a fresh clone: order 43 (2026-09-15) had the engine's mentions cited `@13a66a35b`, the L13r head where `legacy.js` died — a commit no longer reachable from `main` once #605 squashed and its branch was deleted, so CI's checkout of a branch cut from `main` (#608, run 35076327531) refused the citation in `IMPLEMENTATION.md` while #607's, whose branch descended from it, had passed. The two directive-file citations now read `@c0a5062ac` (the last `main` commit holding the file); 26 comment sites under `frontend/maquette/design/src` and `frontend/maquette/harness` still cite `@13a66a35b` and no guard reads them (`check-docs-cited-paths.py` resolves only repository paths, and `CLAUDE.md`'s short-path form escaped it). Rule from now on: a dead file is cited at the last `main` commit that holds it, never at a feature-branch head. Owner: the next repair train (measure 5) for the 26 comment sites | CI 35076327531 | `open` |
+| B-551 | Citations of a SQUASHED branch's commit are dead on a fresh clone: order 43 (2026-09-15) had the engine's mentions cited `@13a66a35b`, the L13r head where `legacy.js` died — a commit no longer reachable from `main` once #605 squashed and its branch was deleted, so CI's checkout of a branch cut from `main` (#608, run 35076327531) refused the citation in `IMPLEMENTATION.md` while #607's, whose branch descended from it, had passed. The two directive-file citations now read `@c0a5062ac` (the last `main` commit holding the file); 26 comment sites under `frontend/maquette/design/src` and `frontend/maquette/harness` still cite `@13a66a35b` and no guard reads them (`check-docs-cited-paths.py` resolves only repository paths, and `CLAUDE.md`'s short-path form escaped it). Rule from now on: a dead file is cited at the last `main` commit that holds it, never at a feature-branch head. Owner: the next repair train (measure 5) for the 26 comment sites | CI 35076327531 | `fixed #609` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
 
@@ -918,6 +918,28 @@ property, which composes with `transform`.
                         `CLOSE_THRESHOLD` out of reach → five fall, « no close was recorded » ·
                         a click reopening the menu 400 ms after the close → « still closed » and the
                         paint holds fall (288 px)
+
+**B-551 — citations of a squashed branch's commit are dead on a fresh clone.**
+
+**FIXED #609.** Every comment under `frontend/maquette` citing `@13a66a35b` now cites `@c0a5062ac`,
+the last `main` commit holding both files cited that way (`engine/legacy.js`, 24 sites, and
+`engine/seams.ts`, 3 sites): `git merge-base --is-ancestor c0a5062ac origin/main` exits 0 and
+`git cat-file -e c0a5062ac:<path>` exits 0 for both. 27 lines in 27 files: the 26 comment sites
+(21 under `design/src`, 5 under `harness`) plus their source in the hand-written contract —
+`contract/types.d.ts` is generated, so `contract/openapi.json` was rewritten and
+`npm run generate-contract-types` re-run, the regenerated file differing from the tree by that one
+sha alone.
+
+    the instrument      `git grep -c 13a66a35b -- frontend/maquette`: 27 files before, 0 after;
+                        `scripts/check-maquette-comments.py` clean, 185 references in 90 of 480
+                        files, 0 grown; `tests/scripts/test_check_maquette_comments.py` 36 passed,
+                        its baseline unmoved
+    not an arm          no guard resolves a `path@sha` citation inside a comment; this is the
+                        narrow exception of rule 3 — `check-docs-cited-paths.py` reads repository
+                        paths only, and the arm that would resolve the sha is an instrument row
+                        (measure 1, the apparatus frozen)
+    left                `scripts/nofrench_lexicon.py` and `scripts/nofrench_states.py` still cite
+                        `@13a66a35b` (2 sites): `scripts/` is outside this train
 
 **B-477 — followed as held, sheet says not in the library.**
 Found by R173 (the mock-layer micro-wave). House of the Dragon (26/26), Ted Lasso (35/35) and Star

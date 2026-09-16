@@ -13,7 +13,7 @@
 //
 // EVERY RULE HERE IS READ OFF THE DATA, not invented. The tests assert against
 // the 159 `displayedValue` strings still committed in the seed — extracted from
-// `engine/legacy.js@13a66a35b` and held byte for byte against it while it lived — so this is the engine's own
+// `engine/legacy.js@c0a5062ac` and held byte for byte against it while it lived — so this is the engine's own
 // rendering reproduced, and it is checkable.
 //
 // WHAT IS NOT DERIVED, and it is named rather than guessed: seven number fields

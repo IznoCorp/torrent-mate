@@ -71,7 +71,7 @@
    `design/`, and no `@source` climbs past it.
 
    `src/engine/` WAS DELIBERATELY ABSENT, and the directory is gone with the
-   engine (`engine/legacy.js@13a66a35b`). The legacy engine kept hand-written
+   engine (`engine/legacy.js@c0a5062ac`). The legacy engine kept hand-written
    CSS until L13 (D-L07-5), so it had no utility to receive — and scanning its
    34 000 lines of code and prose fed the generator words that are not class
    names at all: it produced `transition`, `filter`, `blur`, `outline` and a

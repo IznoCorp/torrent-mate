@@ -4,7 +4,7 @@
 // than moved. A panel action is `{ text, icone, target }` and `target` is a map
 // of DATA ATTRIBUTES — `ui/panel` draws them and attaches no handler of its own,
 // by contract. Every one of those attributes was once read by the engine's
-// document delegation (`engine/legacy.js@13a66a35b`), so a verb that had never existed there had
+// document delegation (`engine/legacy.js@c0a5062ac`), so a verb that had never existed there had
 // nobody to answer it, and giving it one would have meant adding a branch to a
 // file dying by subtraction (D5).
 //

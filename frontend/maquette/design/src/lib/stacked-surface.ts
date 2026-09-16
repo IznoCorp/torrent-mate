@@ -53,7 +53,7 @@ const stacked: (() => boolean)[] = [];
  * How many surfaces inside the page have an entry of their own right now.
  *
  * Exported for the page switch's rewind (`app/page-switch.ts`), which asked it
- * through `engine/seams.ts@13a66a35b` while the engine lived and imports it now.
+ * through `engine/seams.ts@c0a5062ac` while the engine lived and imports it now.
  */
 export function stackedSurfaces(): number {
   return stacked.filter((isOpen) => isOpen()).length;

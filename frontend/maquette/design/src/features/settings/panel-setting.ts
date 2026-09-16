@@ -160,7 +160,7 @@ function settingPanel(identifier: string, cache: PanelCache): PanelDescriptor | 
 
 /* « ANNULER LA MODIFICATION » — the verb this panel offers, living beside the
    panel that offers it. It was the `data-cancelsetting` branch of
-   `engine/legacy.js@13a66a35b`, and it moved here because a producer owns the verbs its own surface carries
+   `engine/legacy.js@c0a5062ac`, and it moved here because a producer owns the verbs its own surface carries
    (`frame-model.md` Part 12). Its rule was written FIRST, against the engine's
    branch, and seen red under a mutation of it — `harness/settings.py`'s
    « cancelling drops that edit », « and leaves every other edit standing »,
