@@ -38,6 +38,19 @@ RE-AIMED when the queue's cards took the contract's names: a card's title is
 read as `title` (it was the engine's `t`). The holds and what they compare are
 unchanged.
 
+AND THE LIBRARY'S SHARE (B-345's library half) IS HELD HERE TOO, one hold per
+state its surfaces draw: the three lenses, every category chip, a title the
+library holds TWICE and one that is also FOLLOWED (the delete dialog's two
+figures), a title with a HOLE, a listing longer than one screen (the sort and
+the paging), and a row with no poster. MEASURED BEFORE THEY WERE WRITTEN, and
+the seeds hold every one of them already — so these holds are a guard over a
+property that is true, not a repair, and they were green the day they were
+written. What is NOT read here is the layer's `total`: it answers the library's
+own 1 861, a number the seeds never had. `loaded` is what the layer HOLDS, and
+reading the pages to it is what made the first draft's five « empty categories »
+and « no title held twice » disappear — they were one page's reading, not the
+seeds'.
+
 RE-AIMED when the follows took the contract's names: a follow's title, kind and
 status are read as `title`, `kind` and `status` (and `owned`), where they were
 the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
@@ -117,6 +130,52 @@ ORDINARY_SETTING = """()=>{
   return null;}"""
 
 # The banners the page is drawing, whichever branch of it is on screen.
+# WHAT THE LIBRARY SERVES AT REST, read from the layer's own seeds rather than
+# from the page: a state the seeds do not hold cannot be drawn by any walk.
+LIBRARY_AT_REST = """async()=>{
+  const read = async (path) => {
+    const answer = await fetch(path);
+    const body = await answer.json();
+    return Array.isArray(body) ? body : (body.items ?? body.rows ?? []);
+  };
+  // EVERY PAGE, because the listing is paged and a state is no less at rest for
+  // living on the page a thumb scrolls to: judging the seeds by one page read
+  // five empty categories and no title held twice, and the seeds hold both.
+  // THE END IS `loaded`, which is what the layer says it HOLDS — `total` is the
+  // library's own 1 861, a number the prototype's seeds never had.
+  const items = [];
+  let held = null;
+  for (let page = 0; page < 200; page += 1) {
+    const answer = await fetch(`/api/library/items?page=${page}`);
+    const body = await answer.json();
+    const rows = body.items ?? [];
+    held = body.loaded ?? null;
+    items.push(...rows);
+    if (rows.length === 0 || (held !== null && items.length >= held)) break;
+  }
+  const categories = await read("/api/library/categories");
+  const incomplete = await read("/api/library/incomplete");
+  const follows = await read("/api/acquisition/followed");
+  const counted = new Map();
+  for (const row of items) counted.set(row.title, (counted.get(row.title) ?? 0) + 1);
+  const titles = new Set(counted.keys());
+  const members = (category) => category.includes ?? [category.id];
+  const rows = (category) => items.filter((row) => members(category).includes(row.category));
+  return {
+    items: items.length,
+    held,
+    recent: (await read("/api/library/recent")).length,
+    incomplete: incomplete.length,
+    categories: categories.length,
+    emptyCategories: categories.filter((one) => one.id !== "all" && rows(one).length === 0)
+      .map((one) => one.id),
+    heldTwice: [...counted].filter(([, held]) => held > 1).map(([title]) => title),
+    followedToo: follows.map((one) => one.title).filter((title) => titles.has(title)),
+    incompleteListed: incomplete.map((one) => one.title).filter((title) => titles.has(title)),
+    withoutPoster: items.filter((row) => !row.poster).length,
+  };
+}"""
+
 BANNERS = """()=>[...document.querySelectorAll('[data-part="load-error"]')]
   .map((one) => one.textContent.replace(/\\s+/g, ' ').trim())"""
 
@@ -310,6 +369,62 @@ async def main():
                     "B-345)",
                     any("redémarr" in one.lower() for one in banners),
                     str(banners))
+
+        # ── THE LIBRARY'S OWN SHARE (B-345's library half) ─────────────────
+        #
+        # THE STATES THE LIBRARY SURFACES DRAW, listed from the drawing's own
+        # branches and held against what the seeds serve at rest: the three
+        # LENSES (media, recent, incomplete), every CATEGORY chip, the
+        # INCOMPLETE lens' rows, SELECTION and its delete dialog — whose two
+        # figures come from a title the library holds twice and from a title
+        # that is also followed — the SORT, which needs a listing longer than a
+        # screen to be worth a name, and a row with a HOLE.
+        #
+        # ONE TAP, THE TAB, and no named state: this is the walk a thumb makes.
+        await page.click('[data-page="lib"]')
+        await page.wait_for_timeout(SETTLED)
+        library = await page.evaluate(LIBRARY_AT_REST)
+        drawn_rows = await page.evaluate(
+            """()=>[...document.querySelectorAll('#libitems [data-tile], #libitems [data-part="card"]')]
+                 .map((row) => (row.querySelector('[data-part="tile/title"], [data-part="card/title"]')
+                                || row).textContent.trim())""")
+        journal.check(
+            "the library draws at rest, from the boot and one tap on its tab, and "
+            "every row the layer HOLDS was read",
+            bool(drawn_rows) and library["items"] > 0
+            and library["items"] == library["held"],
+            f"{len(drawn_rows)} row(s) drawn, {library['items']} read of "
+            f"{library['held']} held")
+        journal.check(
+            "every lens has a subject at rest — media, recent and incomplete",
+            library["items"] > 0 and library["recent"] > 0 and library["incomplete"] > 0,
+            f"items={library['items']} recent={library['recent']} "
+            f"incomplete={library['incomplete']}")
+        journal.check(
+            "every category chip has at least one medium behind it",
+            bool(library["categories"]) and not library["emptyCategories"],
+            f"empty: {library['emptyCategories']} of {library['categories']} chip(s)")
+        journal.check(
+            "a title the library holds TWICE is at rest — the selection bar counts "
+            "MEDIA, and the delete dialog says how many",
+            bool(library["heldTwice"]), str(library["heldTwice"]))
+        journal.check(
+            "a title in the library is also FOLLOWED — the delete dialog's warning "
+            "has a subject",
+            bool(library["followedToo"]), str(library["followedToo"]))
+        journal.check(
+            "a title with a HOLE is in the library too, so an incomplete row can be "
+            "opened from the listing a hand walks",
+            bool(library["incompleteListed"]), str(library["incompleteListed"]))
+        journal.check(
+            "the listing is longer than one screen, so the sort and the paging "
+            "have a subject",
+            library["items"] > len(drawn_rows) or len(drawn_rows) > 20,
+            f"{library['items']} served against {len(drawn_rows)} drawn")
+        journal.check(
+            "a row with no poster is at rest — the initials fallback is drawable "
+            "by hand",
+            library["withoutPoster"] > 0, f"{library['withoutPoster']} row(s)")
 
         journal.check("and the whole walk raises no error", not errors, str(errors))
 
