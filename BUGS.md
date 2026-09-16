@@ -503,7 +503,7 @@ when the defect comes back.
 | B-543 | `app/engine-data.ts` (the follows/staging prefetch, the driver's refill) and `app/engine-redraw.ts` (deck redraw on a query's arrival) are LIVE frame behaviour, inherited from the engine they left at L13r r·15 — their names still say « engine ». A rename is a later conversion; owner none | L13r | `open` |
 | B-544 | `virtual.py` read `features/library/reference.ts` by a path L13r r·5 renamed, and no phase gate between r·5 and r·18 named the stale reference — thirteen phases of full-suite gates passed over a `FileNotFoundError` this rule would raise the moment it ran, until r·18's own gate caught it. Re-aimed at `types.ts` in the same commit (`326ff6c4d`), gate green after; owner none — the instrument gap that let it stand | L13r | `open` |
 | B-545 | `scripts/check-no-french.py`'s unread-JavaScript arm counts untracked files as well as tracked ones: PR #605's body said it walked 372 files, the head's tracked count (`git ls-files`) is 370 — the figure is not a property of the commit (R4, round one's reader). Owner none — apparatus frozen | the reader round | `open` |
-| B-546 | Two unnamed falls under load in one evening, neither reproducible: CI's `harness-contracts` fell once on `audit2.py` (run `35012800269` on `d1526a0f1`, no hold line in the log) between two green runs on identical source (`35000037648`, `35017658636`); and `outbox.py` exited 1 during the steward's 141-rule hold-counts record at the sub-lot's gesture (22:26), green alone minutes later (`gesture-l13r-2256.log`). Neither is called « flaky » — the mechanism is not named; owner none | L13r | `open` |
+| B-546 | Two unnamed falls under load in one evening, neither reproducible: CI's `harness-contracts` fell once on `audit2.py` (run `35012800269` on `d1526a0f1`, no hold line in the log) between two green runs on identical source (`35000037648`, `35017658636`); and `outbox.py` exited 1 during the steward's 141-rule hold-counts record at the sub-lot's gesture (22:26), green alone minutes later (`gesture-l13r-2256.log`). Neither is called « flaky » — the mechanism is not named. Two more `audit2.py` R11 falls on #608 (runs 35076327531, 35077284519); three loaded readings by the repair train of 2026-09-16 caught nothing — the CI runner is the only place it falls; owner none | L13r | `open` |
 | B-547 | `test_maintenance_panels.py::TestLocksRoute::test_locks_tmp_orphans` read `len(data["sweep"]["orphans"]) == 0` instead of 3, deterministically on worker gw2, twice, on the L13r docs pull request's pre-push run (2026-09-16). NOT a load race — alone, on the branch and on `main`, it passes in 1.1 s. **Mechanism: a test-order dependency, exposed by this branch's own test deletions (the debt arm's) moving the xdist distribution.** `_orphan_cache` is a MODULE-LEVEL cache (`personalscraper/web/routes/maintenance.py`); `get_locks` starts an un-joined daemon thread to fill it when stale, and two sibling tests — `test_locks_stale` (runs immediately before this one) and `test_locks_returns_pending_sweep_on_cold_read` — each trigger that thread and return without draining it, so it can still be running when the next test's `_reset_orphan_cache` fixture clears the cache and starts its OWN sweep: the leftover thread's later write (its own, usually-empty, result) can land after the current test's real one and overwrite it. **Repaired in this same pull request** (test-only commit, measure 5): both leaking tests now call `_wait_for_sweep` before returning, so no background thread survives past its own test. Same species as B-033's `test_locks_tmp_orphans` flake under xdist — B-033 stays open (this repairs a DIFFERENT reachable path to the same symptom, not xdist load in general). Owner none | the docs pull request's pre-push run | `open` |
 | B-548 | Named states inherit a library dial by their ORDER: the driver's `reset()` (`harness/drive.ts`) does not write `libLens` or `libMode`, so `lib-incomplete`, `lib-recent`, `lib-search-empty` and the four `mediasheet-*` states are recorded in `oracle-reference.json` in the list layout inherited from `lib-list` before them; a probe resetting both moved 38 measurements on those seven states (`shell/library-list` display flex → grid, gap 8 → 10 px, heights). `libCat` and the sort were the same defect, invisible until a state or a rule moved them, and are reset since L13c c·1. **Amended by reader C13's C9** (round one, `review-archive/l13c/round-1/r1-C13.md`): driving all 114 named states twice, 103 inherit `libLens` from the state before them, and of those only NINE draw differently by the order — `pwa-android`, `signin`, `signin-error`, `lib-delete`, `lib-delete-multiple`, `mediasheet-series`, `mediasheet-movie`, `mediasheet-no-trailer`, `mediasheet-no-poster` — each drawing the library page underneath a sheet or a dialogue without pinning the lens; R198's cast half reads `mediasheet-movie` INSIDE the sheet, so no verdict of L13c moves. Ruling 117 deliberately declined resetting `libLens`/`libMode`. Owner: none — an instrument decision, not yet made; the fix is either the nine states pinning their own lens, or `reset()` writing both, plus the reference re-recorded | L13c c·1's probe; amended reader C13 | `open` |
 | B-549 | The mock seed gives the FILM « Star Wars : The Clone Wars » the SERIES' provider identifiers (`imdb:tt0458290`, `tmdb:4194`, `tvdb:83268`) — a fixture-identity defect, same class as B-088: two rows of different KINDS sharing one identifier set. `add_footer.py` fell on a second add until c·2 keyed a visit's identity by `kind` + sorted `provider:id` pairs (`f67401890`), which separates the pair; the seed row itself is untouched. Owner: none | L13c c·2 | `open` |
@@ -1015,6 +1015,33 @@ function.
     the mutation        `t.replace("\"{{count}} min {{seconds}}\"", "\"{{count}} min\"")` on `fr.json` →
                         FAIL the 104 s passage's row says « 1 min 44 », to the second — '… 1 rangé · 1 min'
     green               a comment-only edit through the same tool: no hold fell
+
+**B-546 — unnamed falls under load: `audit2.py` and `outbox.py`.**
+
+**Two more occurrences, read from the docs pull request #608:** CI's `harness-contracts` fell on
+`audit2.py` R11 (« visible jargon or technical value — 1 ») twice in a row, runs 35076327531 and
+35077284519, over a source byte-identical to #607's, which passed the same job twice; the rule was green
+alone on the same served copy on this machine. The CI log carries the rule's summary line only — `run.sh`
+prints `■ R11 … — 1`, never the `note()` line naming the state and the token — so what R11 saw there is
+unknown. Mechanism CANDIDATE, not named: R11 reads `innerText` a fixed 240 ms after `__go`, and under the
+runner's parallel browsers a state may be read before it settles.
+
+**The repair train of 2026-09-16 tried to catch it, and caught nothing — no repair.** Three loaded
+readings on this machine (8 cores), each under the harness mutex: the contracts tier at
+`TM_HARNESS_JOBS=4` with `audit2.py` named, as the load, and `python3 frontend/maquette/harness/audit2.py`
+run beside it for its whole length so its `note()` lines land in a log of its own:
+
+    reading 1   11:56–12:01   contracts 23 rules, 0 failed; audit2 beside them 0 violations, 13/13
+                              (`w6-load-1-contracts.log`, `w6-load-1-audit2.log`)
+    reading 2   12:02–12:07   contracts 0 failed; audit2 beside them 0 violations, 13/13
+                              (`w6-load-2-contracts.log`, `w6-load-2-audit2.log`)
+    reading 3   12:07–12:12   contracts 0 failed; audit2 beside them 0 violations, 13/13
+                              (`w6-load-3-contracts.log`, `w6-load-3-audit2.log`)
+
+The logs are under `~/Library/Logs/tm-repair-0916/` (the oracle's own divergences in the contracts logs
+are the train's declared movements, not this entry). The fall reproduces nowhere but the CI runner, so the
+entry stays `open` with that runner as the only place it falls; naming it needs the `note()` line there,
+which is the instrument gap above (measure 1, the apparatus frozen).
 
 **B-551 — citations of a squashed branch's commit are dead on a fresh clone.**
 
