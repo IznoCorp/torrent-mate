@@ -12,7 +12,7 @@
 // WHY THE ERROR SURFACE IS A COMPONENT AT ALL, and it is not tidiness. The
 // library drew it by asking the ENGINE for a string and handing it to
 // `dangerouslySetInnerHTML`: the markup, the French and the retry all lived in
-// `surfErrInner`, in `engine/legacy.js@13a66a35b`. That is the engine reaching into a converted
+// `surfErrInner`, in `engine/legacy.js@c0a5062ac`. That is the engine reaching into a converted
 // surface, and D5 says its share dies with the surface that stops needing it.
 // Nothing draws it from a string any more.
 //

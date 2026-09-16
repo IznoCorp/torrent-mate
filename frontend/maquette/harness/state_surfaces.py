@@ -19,7 +19,7 @@ by their own text and their own control, and it does not depend on a rectangle.
 WHAT IT DOES NOT READ, said before what it does:
 
   - It does not read whether the copy is RIGHT. That is the i18n resource's, and
-    the string was extracted from `engine/legacy.js@13a66a35b` rather than retyped precisely so
+    the string was extracted from `engine/legacy.js@c0a5062ac` rather than retyped precisely so
     that no reader has to judge it.
   - It does not read the LOADING surfaces. Their placeholders carry no text and
     no control; the oracle measures them, and now it measures them non-blank.

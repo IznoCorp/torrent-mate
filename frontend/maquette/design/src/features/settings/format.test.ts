@@ -2,7 +2,7 @@
 // engine rendered them, and the seventh scheduler since (B-327).
 //
 // WHAT MAKES THIS NON-VACUOUS. The expected values are the `displayedValue`
-// strings COMMITTED IN THE SEED — extracted from `engine/legacy.js@13a66a35b` by a declared
+// strings COMMITTED IN THE SEED — extracted from `engine/legacy.js@c0a5062ac` by a declared
 // projection and held byte for byte against it while that file lived. So this
 // asserts against the engine's own rendering, one artefact removed, rather than against
 // something this file decided.

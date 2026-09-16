@@ -59,10 +59,6 @@ export function Levers(): ReactElement {
 
   return (
     <div data-part="levers" data-region="system/levers">
-      <div className={guidance()} data-part="guidance">
-        {t("screens.system.leversGuidance")}
-      </div>
-
       {/* A PATH ONLY WHERE THERE IS SOMEWHERE TO GO. While the key is a demand
           the catalogue does not hold, the row says what it is worth — « pas
           encore réglable » — and offers no door onto a panel that would not
@@ -98,13 +94,18 @@ export function Levers(): ReactElement {
         </div>
       ) : null}
 
+      {/* THE CONTROL NAMES THE ACT, THE ROW SAYS THE STATE. A label reading
+          « actif » does not say whether a press turns it on or off. */}
+      <div className={topicRow()} data-part="levers/watcher-state">
+        <span>{t("screens.system.automaticTrigger")}</span>
+        <span>{pipeline.watcherEnabled ? t("screens.system.triggerOn") : t("screens.system.triggerOff")}</span>
+      </div>
       <button
         className={actionButton({ kind: "cardFoot" })}
         data-part="levers/watcher"
         data-watcher={pipeline.watcherEnabled ? TURN_OFF : TURN_ON}
       >
-        {t("screens.system.automaticTrigger")}
-        {pipeline.watcherEnabled ? t("screens.system.triggerIsOn") : t("screens.system.triggerIsOff")}
+        {pipeline.watcherEnabled ? t("screens.system.turnTriggerOff") : t("screens.system.turnTriggerOn")}
       </button>
       {pipeline.watcherEnabled ? null : (
         <div className={guidance()} data-part="levers/trigger-consequence">

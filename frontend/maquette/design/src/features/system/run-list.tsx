@@ -26,6 +26,8 @@ type RunSummary = components["schemas"]["RunSummary"];
 
 /** Seconds in a minute, for the duration a row says. */
 const MINUTE = 60;
+/** Seconds in an hour: from there on, a duration is said in minutes alone. */
+const HOUR = 60 * MINUTE;
 
 /** The step whose success count is what a passage RANGED. */
 const DISPATCH = "dispatch";
@@ -78,10 +80,18 @@ export function whenItRan(run: Pick<RunSummary, "startedAt" | "when">): string {
  * @returns The duration in words, or an empty string.
  */
 export function durationInWords(seconds: number | null | undefined,
-                         say: (key: string, options?: { count: number }) => string): string {
+                         say: (key: string, options?: { count: number; seconds?: string }) => string): string {
   if (seconds === null || seconds === undefined) return "";
-  if (seconds < MINUTE) return say("screens.system.runSeconds", { count: Math.round(seconds) });
-  return say("screens.system.runMinutes", { count: Math.round(seconds / MINUTE) });
+  const total = Math.round(seconds);
+  if (total < MINUTE) return say("screens.system.runSeconds", { count: total });
+  if (total >= HOUR) return say("screens.system.runMinutes", { count: Math.round(seconds / MINUTE) });
+  // UNDER AN HOUR THE SECONDS ARE SAID. Rounded to the minute, 104 s read
+  // « 2 min » and 439 s « 7 min »: a passage's length is what the row reports,
+  // and a figure a minute off is not that length.
+  const minute = Math.floor(total / MINUTE);
+  const rest = total % MINUTE;
+  if (rest === 0) return say("screens.system.runMinutes", { count: minute });
+  return say("screens.system.runMinutesSeconds", { count: minute, seconds: String(rest).padStart(2, "0") });
 }
 
 /**

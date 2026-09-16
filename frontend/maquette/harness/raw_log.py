@@ -14,20 +14,27 @@ WHAT IS READ, and each hold is a different claim:
      B-296 makes, and the two part company the moment anything styles the
      element.
   2. A TAP OPENS IT, by a finger, and what appears is the layer's own
-     `outputTail` — verbatim, because it is data displayed and not copy.
+     `outputTail` — verbatim, because it is data displayed and not copy. The
+     finger is a real touch at the SUMMARY's centre — the element a reader
+     aims at — never a `.click()` on the label inside it, which measures no
+     target at all.
   3. `outputTail: null` DRAWS THE SENTENCE, never an empty box. A run recorded
      before output capture existed has no log, and an empty frame reads as
      « nothing happened » — §14 asks the interface to say « inconnue » instead.
   4. THE BLOCK SCROLLS SIDEWAYS AND THE PAGE DOES NOT. A raw line is wider than
      390 px; DOIT-9 allows exactly one thing to scroll horizontally — a code
      block in its own container — and refuses the page doing it.
+  5. EVERY DOOR ON THE PASSAGE'S PATH IS A FINGER'S SIZE (B-535). The fold's
+     summary, the screen's « Retour », and the not-found screen's door back
+     to the passages each measure at least 44 px tall at 390 px, read by
+     `getBoundingClientRect`.
 """
 import asyncio
 import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from common import ACTED, Journal, SETTLED, open_page
+from common import ACTED, PROTOTYPE, Journal, SETTLED, open_page
 
 from playwright.async_api import async_playwright
 
@@ -58,20 +65,39 @@ TEXT = """(part)=>{
   return node ? (node.textContent || '').replace(/\\s+/g, ' ').trim() : null;
 }"""
 
-# PRESSED BY A FINGER, at its own centre, after scrolling to it.
-PRESS = """(part)=>{
-  const control = document.querySelector(`[data-part="${part}"]`);
-  if (!control) return {found: false, pressed: false, covered: ''};
-  control.scrollIntoView({block: 'center'});
-  const box = control.getBoundingClientRect();
-  const hit = document.elementFromPoint(box.left + box.width / 2,
-                                        box.top + box.height / 2);
-  const mine = Boolean(hit) && (hit === control || control.contains(hit)
-                               || hit.contains(control));
-  if (mine) control.click();
-  return {found: true, pressed: mine,
-          covered: mine ? '' : ((hit && (hit.dataset.part || hit.tagName)) || 'nothing')};
+# THE SUMMARY THAT CARRIES A PART, scrolled to, and where its centre is — so a
+# real touch lands where a reader aims, and what the finger would hit is named.
+AIM_SUMMARY = """(part)=>{
+  const label = document.querySelector(`[data-part="${part}"]`);
+  const summary = label && label.closest('summary');
+  if (!summary) return {found: false};
+  summary.scrollIntoView({block: 'center'});
+  const box = summary.getBoundingClientRect();
+  const x = box.left + box.width / 2, y = box.top + box.height / 2;
+  const hit = document.elementFromPoint(x, y);
+  return {found: true, x, y, reachable: Boolean(hit) && (hit === summary || summary.contains(hit)),
+          covered: hit ? (hit.dataset.part || hit.tagName) : 'nothing'};
 }"""
+
+# HOW TALL A TARGET IS, found by a selector — the box a finger has to land in.
+TARGET_HEIGHT = """(selector)=>{
+  const node = document.querySelector(selector);
+  if (!node) return null;
+  const box = node.getBoundingClientRect();
+  return {height: Math.round(box.height * 10) / 10, width: Math.round(box.width * 10) / 10,
+          text: (node.textContent || '').replace(/\\s+/g, ' ').trim()};
+}"""
+
+# THE FLOOR A FINGER NEEDS, in CSS pixels.
+TOUCH_FLOOR = 44
+
+# THE TARGETS ON A PASSAGE'S PATH, each by the selector that finds it.
+FOLD_SUMMARY = 'summary:has([data-part="run/log-toggle"])'
+RUN_BACK = '[data-part="screen"][data-key^="run:"] [data-part="screen/back"]'
+NOT_FOUND_DOOR = '[data-part="run/not-found"] [data-go="sys"]'
+
+# A RUN NOBODY HOLDS — a stale link's shape.
+UNKNOWN_RUN = "nobody"
 
 # WHAT THE LAYER ANSWERED FOR THE RUN ON SCREEN: its own output, to compare
 # against what the fold reveals.
@@ -135,9 +161,19 @@ async def main():
                       await page.evaluate(RENDERED, LOG) in (False, None),
                       f"{await page.evaluate(RENDERED, LOG)}")
 
+        # 5 — THE FOLD'S SUMMARY AND THE SCREEN'S « RETOUR » ARE A FINGER'S SIZE.
+        for claim, selector in (("the fold's summary", FOLD_SUMMARY), ("the run screen's back door", RUN_BACK)):
+            box = await page.evaluate(TARGET_HEIGHT, selector)
+            journal.check(f"{claim} is at least {TOUCH_FLOOR} px tall",
+                          box is not None and box["height"] >= TOUCH_FLOOR, f"{box}")
+
         # 2 — A TAP OPENS IT, and what appears is the layer's own output.
-        press = await page.evaluate(PRESS, TOGGLE)
-        journal.check("the fold is reachable by a finger", press["pressed"], f"{press}")
+        aim = await page.evaluate(AIM_SUMMARY, TOGGLE)
+        await page.wait_for_timeout(SETTLED)
+        aim = await page.evaluate(AIM_SUMMARY, TOGGLE)
+        journal.check("the fold is reachable by a finger", bool(aim.get("reachable")), f"{aim}")
+        if aim.get("reachable"):
+            await page.touchscreen.tap(aim["x"], aim["y"])
         await page.wait_for_timeout(ACTED)
         journal.check("and a tap renders the lines",
                       await page.evaluate(RENDERED, LOG) is True,
@@ -169,6 +205,14 @@ async def main():
                       bool(said) and "non conservée" in said.lower(), f"{said!r}")
         journal.check("and offers no fold onto an empty box", toggle in (False, None),
                       f"{toggle}")
+
+        # 5 — THE NOT-FOUND DOOR, reached as a stale link reaches it: cold.
+        await page.goto(PROTOTYPE.rstrip("/") + "/run/" + UNKNOWN_RUN, wait_until="load")
+        await page.evaluate("()=>window.__loadingDone?.()")
+        await page.wait_for_timeout(SETTLED)
+        box = await page.evaluate(TARGET_HEIGHT, NOT_FOUND_DOOR)
+        journal.check(f"the not-found screen's door back to the passages is at least {TOUCH_FLOOR} px tall",
+                      box is not None and box["height"] >= TOUCH_FLOOR, f"{box}")
 
         # AND THE STATE THAT STANDS FOR THE FOLD OPEN renders its lines.
         await drive(journal, page, OPENED)

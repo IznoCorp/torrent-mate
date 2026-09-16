@@ -11,7 +11,7 @@
 // invariant 8 refuses.
 //
 // THEY ARE `let`, AND THAT IS THE WHOLE MECHANISM — the one
-// `engine/seams.ts@13a66a35b` used. Each is filled at its host's install, after this module has evaluated;
+// `engine/seams.ts@c0a5062ac` used. Each is filled at its host's install, after this module has evaluated;
 // an ES export is a live binding, so a caller reads the filled value at call
 // time, which is the only time it calls.
 //

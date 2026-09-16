@@ -85,7 +85,31 @@ const CARRIED_LINES = new Map(
  */
 function ageSince(since: string | null): number | null {
   if (since === null) return null;
-  return (Date.parse(scenario().now) - Date.parse(since)) / MILLISECONDS_PER_SECOND;
+  // A RUN STARTED BY HAND IS DATED AFTER THE HISTORY (see `afterTheLastRun`),
+  // which is after the frozen clock: on a clock that does not move it has just
+  // begun, never a negative age.
+  return Math.max(0, (Date.parse(scenario().now) - Date.parse(since)) / MILLISECONDS_PER_SECOND);
+}
+
+/**
+ * The instant a run started by hand is dated: when the last run ended.
+ *
+ * The layer's clock is frozen before the seeded history, so a run dated by it
+ * would be drawn before, and sorted under, passages it followed. The seed
+ * carries no period, but every run carries its own end: the new run begins
+ * where the last one stopped — its `endedAt`, or its start plus a detection's
+ * length while it is still going — and so lands at the top of the list.
+ *
+ * @param state The layer's state.
+ * @returns The instant, as the history writes one.
+ */
+function afterTheLastRun(state: ReturnType<typeof mockState>): string {
+  const finished = state.pipelineRuns.map((run) =>
+    run.endedAt !== null && run.endedAt !== undefined
+      ? Date.parse(run.endedAt)
+      : Date.parse(run.startedAt) + DETECTION_MILLISECONDS);
+  if (finished.length === 0) return scenario().now;
+  return new Date(Math.max(...finished)).toISOString();
 }
 
 /**
@@ -185,7 +209,7 @@ export function launchDetection(): { runUid: string } {
       runUid,
       trigger: DETECTION_TRIGGER,
       dryRun: false,
-      startedAt: scenario().now,
+      startedAt: afterTheLastRun(state),
       endedAt: null,
       outcome: STILL_RUNNING,
       durationS: null,

@@ -155,7 +155,7 @@ export function LibraryList(): ReactElement {
     );
   } else if (state.phase === "error") {
     // THE ENGINE'S LAST COMPONENT READER, and it is gone. This branch used to
-    // ask the engine (`engine/legacy.js@13a66a35b`) for a string and hand it to
+    // ask the engine (`engine/legacy.js@c0a5062ac`) for a string and hand it to
     // `dangerouslySetInnerHTML`, so the markup, the French and the retry all lived
     // in the dying half. The engine kept `surfErr` for the surfaces IT still drew (D5 — its share
     // dies with the surface that stops needing it), and the retry is real:

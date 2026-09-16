@@ -22,6 +22,17 @@ lever is accepted and its queueing is SAID; nothing answers 409 and nothing says
 AND THE SCENARIO IS CHECKED REALLY BUSY first: a walk against an idle pipeline
 proves the levers work, which nobody doubts, and nothing about the clause.
 
+R178 ALSO HOLDS THE SECTION'S WORDS (B-534), because a lever whose words are
+wrong acts on a reader who cannot tell what it does:
+
+  4. THE GUIDANCE IS SAID ONCE. The host and the levers printed the same
+     sentence one above the other; the screen carries it exactly once.
+  5. THE TRIGGER'S CONTROL NAMES THE ACT. Its accessible name begins with the
+     verb a press performs; the state it leaves is read BESIDE it, never as the
+     control's label.
+  6. NOTHING ON THE SECTION SPEAKS BACKEND (NE-DOIT-PAS-4). No text of the
+     pipeline section, in any of its states, contains « serveur ».
+
 R181 — §13, NO ANSWER THAT IS NOT HELD. Under the `loading` phase the bound, the
 lock and the trigger carry no printed value: not a zero, not a default, not
 « Libre » before the read answered. A bound printed as `0` while its read is in
@@ -50,6 +61,7 @@ LOADING = "levers-loading"
 PAUSE = "levers/pause"
 RESUME = "levers/resume"
 WATCHER = "levers/watcher"
+WATCHER_STATE = "levers/watcher-state"
 BOUND = "levers/bound"
 BOUND_VALUE = "levers/bound-value"
 LEVERS = "levers"
@@ -122,6 +134,26 @@ TEXT = """(part)=>{
   const node = document.querySelector(`[data-part="${part}"]`);
   return node ? (node.textContent || '').replace(/\\s+/g, ' ').trim() : null;
 }"""
+
+# WHAT THE WHOLE PIPELINE SECTION SAYS, host and levers together.
+PANEL_TEXT = """()=>{
+  const node = document.querySelector('[data-part="pipeline-panel"]');
+  return node ? (node.textContent || '').replace(/\\s+/g, ' ').trim() : null;
+}"""
+
+# A CONTROL'S ACCESSIBLE NAME, as assistive technology computes it for a button
+# with no label of its own: its `aria-label`, else its text.
+ACCESSIBLE_NAME = """(part)=>{
+  const node = document.querySelector(`[data-part="${part}"]`);
+  if (!node) return null;
+  return (node.getAttribute('aria-label') || node.textContent || '').replace(/\\s+/g, ' ').trim();
+}"""
+
+# THE VERBS A TRIGGER'S PRESS PERFORMS, the first word of its accessible name.
+ACT_VERBS = ("Activer", "Désactiver")
+
+# THE WORD A BACKEND SENTENCE WEARS (NE-DOIT-PAS-4).
+BACKEND_WORD = "serveur"
 
 # WHAT THE PIPELINE IS DOING, asked of the layer rather than read off the
 # screen: « the state moved » is a claim about the machine, and the screen is
@@ -222,18 +254,46 @@ async def main():
         journal.check("pressing it CALLS setWatcher", bool(called), f"{called}")
         enabled = await page.evaluate(WATCHER_ENABLED)
         label = await page.evaluate(TEXT, WATCHER)
-        journal.check("and the trigger is OFF afterwards, on the layer and on the control",
-                      enabled is False and label is not None
-                      and label.endswith(SENTENCES["triggerIsOff"].strip()),
-                      f"watcherEnabled={enabled}, control says {label!r}")
+        said = await page.evaluate(TEXT, WATCHER_STATE)
+        journal.check("and the trigger is OFF afterwards, on the layer, on its state and on the control",
+                      enabled is False and said is not None
+                      and said.endswith(SENTENCES["triggerOff"])
+                      and label == SENTENCES["turnTriggerOn"],
+                      f"watcherEnabled={enabled}, state says {said!r}, control says {label!r}")
         await page.evaluate(PRESS, WATCHER)
         await page.wait_for_timeout(ACTED)
         enabled = await page.evaluate(WATCHER_ENABLED)
         label = await page.evaluate(TEXT, WATCHER)
-        journal.check("and a second press turns it back ON, on the layer and on the control",
-                      enabled is True and label is not None
-                      and label.endswith(SENTENCES["triggerIsOn"].strip()),
-                      f"watcherEnabled={enabled}, control says {label!r}")
+        said = await page.evaluate(TEXT, WATCHER_STATE)
+        journal.check("and a second press turns it back ON, on the layer, on its state and on the control",
+                      enabled is True and said is not None
+                      and said.endswith(SENTENCES["triggerOn"])
+                      and label == SENTENCES["turnTriggerOff"],
+                      f"watcherEnabled={enabled}, state says {said!r}, control says {label!r}")
+
+        # R178 4 — THE GUIDANCE IS SAID ONCE.
+        await drive(journal, page, IDLE)
+        panel = await page.evaluate(PANEL_TEXT) or ""
+        guidance_line = SENTENCES["pipelineGuidance"]
+        journal.check("the pipeline section says its guidance exactly once",
+                      panel.count(guidance_line) == 1,
+                      f"{panel.count(guidance_line)} time(s) « {guidance_line} »")
+
+        # R178 5 — THE TRIGGER'S CONTROL NAMES THE ACT, in both of its states.
+        for state in (IDLE, TRIGGER_OFF):
+            await drive(journal, page, state)
+            name = await page.evaluate(ACCESSIBLE_NAME, WATCHER)
+            journal.check(f"on {state}, the trigger's control is named by the act a press performs",
+                          bool(name) and name.split(" ")[0] in ACT_VERBS, f"{name!r}")
+
+        # R178 6 — NOTHING ON THE SECTION SPEAKS BACKEND.
+        for state in (IDLE, RUNNING, PAUSED, QUEUED, TRIGGER_OFF):
+            await drive(journal, page, state)
+            panel = await page.evaluate(PANEL_TEXT) or ""
+            journal.check(f"on {state}, no text of the pipeline section says « {BACKEND_WORD} »",
+                          bool(panel) and BACKEND_WORD not in panel.lower(),
+                          f"…{panel[max(0, panel.lower().find(BACKEND_WORD) - 60):][:120]!r}"
+                          if BACKEND_WORD in panel.lower() else f"{len(panel)} characters read")
 
         # R181 — WHEN READY, THE BOUND SAYS WHAT THE SEED HOLDS, and nothing else.
         await drive(journal, page, IDLE)

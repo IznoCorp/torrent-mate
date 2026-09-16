@@ -490,10 +490,10 @@ when the defect comes back.
 | B-530 | The navigation drawer closed by a firm leftward swipe shows itself open again for a fraction of a second as the closing animation ends | by operator | `fixed #598` |
 | B-531 | Arrivées drew « Lancer ensuite » ENABLED while a pipeline pass ran, so a second press reached the queue behind a maintenance lock with no state door opened (R185, B-371); ruling L20-9 (auditor, § 10, and § 12 — an inactive action looks inactive) makes it read « Lancer » DISABLED under `running`, re-enabled at idle, the queue offered only behind a maintenance lock. Closed in phase 9's own commit `210e4df61`: `queued_by_hand.py` (R185) held red first (`disabled: False`), then green; mutation D (`disabled` removed) fell — « Lancer » drawn INACTIVE … `{'disabled': False}` — replayed on the final gate `69cc558b5` (full suite 141 rules, no violation) | ruling L20-9 | `fixed #603` |
 | B-532 | Three sites still write `<details>` raw after `ui/disclosure.tsx` exists — `features/acquisition/add-screen.tsx:353`, `features/media/season-list.tsx:256`, `features/media/panel-seasons.tsx:142` (`docs/features/maquette-l20/DESIGN.md@60c6d9b1d` § 9). Converting them is a three-surface conversion, which « one kind of change per wave » forbids a behaviour lot from carrying; it belongs to whichever lot next opens those files. Owner: none yet | by L20 | `open` |
-| B-533 | A time no row carries: the mock veille's runs are dated `scenario().now` = 2026-08-10 (UTC midnight), drawn « 10/08 02 h 00 » in the machine's zone and sorted under the real 08-12…09-08 rows; owner `mocks/handlers/pipeline.ts` (the appended run's instant) | the reader round | `open` |
-| B-534 | Pipeline section copy: the guidance line is printed twice (`pipelineGuidance` in the host, `leversGuidance` in the levers, the same sentence); the watcher control's label is its state (« Déclenchement automatique — actif ») with no act word; « le serveur ne porte pas encore ce réglage » speaks backend (NE-DOIT-PAS-4); owner `fr.json` `screens.system.*Guidance`, `features/system/pipeline-panel.tsx`/`levers.tsx` | the reader round | `open` |
-| B-535 | Small hit areas on the lot's new paths (phone width, measured): « Journal brut » summary 362×28, « Retour » 66×26, the 404 door « Revenir aux passages » 132×22, the ⋮ sheet opener 40×40 (pre-existing); the levers' buttons are 44 tall and R183 opens the fold with `.click()` on the inner `span`, so no rule measures the target; owner `ui/variants/surfaces.ts` (disclosure summary), `run-screen.tsx` (not-found door), `harness/raw_log.py` (open by a real touch) | the reader round | `open` |
-| B-536 | Durations rounded to whole minutes: 104 s reads « 2 min » in the row and in the detail head, the fixture line the oracle used to carry said « 1 min 44 »; « 7 min » stands for 439 s; owner `features/system/run-list.tsx` `durationInWords` | the reader round | `open` |
+| B-533 | A time no row carries: the mock veille's runs are dated `scenario().now` = 2026-08-10 (UTC midnight), drawn « 10/08 02 h 00 » in the machine's zone and sorted under the real 08-12…09-08 rows; owner `mocks/handlers/pipeline.ts` (the appended run's instant) | the reader round | `fixed #609` |
+| B-534 | Pipeline section copy: the guidance line is printed twice (`pipelineGuidance` in the host, `leversGuidance` in the levers, the same sentence); the watcher control's label is its state (« Déclenchement automatique — actif ») with no act word; « le serveur ne porte pas encore ce réglage » speaks backend (NE-DOIT-PAS-4); owner `fr.json` `screens.system.*Guidance`, `features/system/pipeline-panel.tsx`/`levers.tsx` | the reader round | `fixed #609` |
+| B-535 | Small hit areas on the lot's new paths (phone width, measured): « Journal brut » summary 362×28, « Retour » 66×26, the 404 door « Revenir aux passages » 132×22, the ⋮ sheet opener 40×40 (pre-existing); the levers' buttons are 44 tall and R183 opens the fold with `.click()` on the inner `span`, so no rule measures the target; owner `ui/variants/surfaces.ts` (disclosure summary), `run-screen.tsx` (not-found door), `harness/raw_log.py` (open by a real touch) | the reader round | `fixed #609` |
+| B-536 | Durations rounded to whole minutes: 104 s reads « 2 min » in the row and in the detail head, the fixture line the oracle used to carry said « 1 min 44 »; « 7 min » stands for 439 s; owner `features/system/run-list.tsx` `durationInWords` | the reader round | `fixed #609` |
 | B-537 | `check-markup-contracts.py` is green over the four lock part names: a literal `data-part="flux/row"` is overridden at runtime by the FactRow spread (`{...row, part: PARTS[index]}`) into `locks/pipeline`, `locks/pause-sentinel`, `locks/watcher-sentinel`, `locks/orphan`, and the rules select those four by computed selector, which the guard skips — nothing fails, the guard does not read them (instrument reading); owner `scripts/check-markup-contracts.py` (read spread part names) or literal parts in `locks.tsx` — apparatus frozen, measure 1 | the reader round | `open` |
 | B-538 | A RUNNING history row has nothing to report on its second line — duration is null while running, so the row reads one text line shorter than the same row once ended (−14.8 px on `system/runs`, the page following), C8's consequence: a drawing choice for the operator's walk is that a running row's second line could say the elapsed time instead. Six oracle divergences accepted by name as this cause (`run-detail-running`, `watch-running` × `system/runs`, `system/body`, `shell/page`), STOP A ruled by the steward 2026-09-15 ~13:xx = option A. Owner: none yet — a behaviour wave on Système | the reader round | `open` |
 | B-539 | The joined-fields guard's loss (L13r r·17, ruling 114): `check-mock-seeds.py`'s correspondence arm joined a seed's `ids`/`poster` against the engine's own tables to catch drift between them — the builder that read both sides died with `engine-shape.ts`, and the seeds' ids/poster columns are now held by the `answers` schema arm alone, which checks each seed against its contract schema and never against the other seed. No cross-seed join check exists; owner none (B-513's shape) | L13r | `open` |
@@ -503,12 +503,12 @@ when the defect comes back.
 | B-543 | `app/engine-data.ts` (the follows/staging prefetch, the driver's refill) and `app/engine-redraw.ts` (deck redraw on a query's arrival) are LIVE frame behaviour, inherited from the engine they left at L13r r·15 — their names still say « engine ». A rename is a later conversion; owner none | L13r | `open` |
 | B-544 | `virtual.py` read `features/library/reference.ts` by a path L13r r·5 renamed, and no phase gate between r·5 and r·18 named the stale reference — thirteen phases of full-suite gates passed over a `FileNotFoundError` this rule would raise the moment it ran, until r·18's own gate caught it. Re-aimed at `types.ts` in the same commit (`326ff6c4d`), gate green after; owner none — the instrument gap that let it stand | L13r | `open` |
 | B-545 | `scripts/check-no-french.py`'s unread-JavaScript arm counts untracked files as well as tracked ones: PR #605's body said it walked 372 files, the head's tracked count (`git ls-files`) is 370 — the figure is not a property of the commit (R4, round one's reader). Owner none — apparatus frozen | the reader round | `open` |
-| B-546 | Two unnamed falls under load in one evening, neither reproducible: CI's `harness-contracts` fell once on `audit2.py` (run `35012800269` on `d1526a0f1`, no hold line in the log) between two green runs on identical source (`35000037648`, `35017658636`); and `outbox.py` exited 1 during the steward's 141-rule hold-counts record at the sub-lot's gesture (22:26), green alone minutes later (`gesture-l13r-2256.log`). Neither is called « flaky » — the mechanism is not named; owner none | L13r | `open` |
+| B-546 | Two unnamed falls under load in one evening, neither reproducible: CI's `harness-contracts` fell once on `audit2.py` (run `35012800269` on `d1526a0f1`, no hold line in the log) between two green runs on identical source (`35000037648`, `35017658636`); and `outbox.py` exited 1 during the steward's 141-rule hold-counts record at the sub-lot's gesture (22:26), green alone minutes later (`gesture-l13r-2256.log`). Neither is called « flaky » — the mechanism is not named. Two more `audit2.py` R11 falls on #608 (runs 35076327531, 35077284519); three loaded readings by the repair train of 2026-09-16 caught nothing — the CI runner is the only place it falls; owner none | L13r | `open` |
 | B-547 | `test_maintenance_panels.py::TestLocksRoute::test_locks_tmp_orphans` read `len(data["sweep"]["orphans"]) == 0` instead of 3, deterministically on worker gw2, twice, on the L13r docs pull request's pre-push run (2026-09-16). NOT a load race — alone, on the branch and on `main`, it passes in 1.1 s. **Mechanism: a test-order dependency, exposed by this branch's own test deletions (the debt arm's) moving the xdist distribution.** `_orphan_cache` is a MODULE-LEVEL cache (`personalscraper/web/routes/maintenance.py`); `get_locks` starts an un-joined daemon thread to fill it when stale, and two sibling tests — `test_locks_stale` (runs immediately before this one) and `test_locks_returns_pending_sweep_on_cold_read` — each trigger that thread and return without draining it, so it can still be running when the next test's `_reset_orphan_cache` fixture clears the cache and starts its OWN sweep: the leftover thread's later write (its own, usually-empty, result) can land after the current test's real one and overwrite it. **Repaired in this same pull request** (test-only commit, measure 5): both leaking tests now call `_wait_for_sweep` before returning, so no background thread survives past its own test. Same species as B-033's `test_locks_tmp_orphans` flake under xdist — B-033 stays open (this repairs a DIFFERENT reachable path to the same symptom, not xdist load in general). Owner none | the docs pull request's pre-push run | `open` |
 | B-548 | Named states inherit a library dial by their ORDER: the driver's `reset()` (`harness/drive.ts`) does not write `libLens` or `libMode`, so `lib-incomplete`, `lib-recent`, `lib-search-empty` and the four `mediasheet-*` states are recorded in `oracle-reference.json` in the list layout inherited from `lib-list` before them; a probe resetting both moved 38 measurements on those seven states (`shell/library-list` display flex → grid, gap 8 → 10 px, heights). `libCat` and the sort were the same defect, invisible until a state or a rule moved them, and are reset since L13c c·1. **Amended by reader C13's C9** (round one, `review-archive/l13c/round-1/r1-C13.md`): driving all 114 named states twice, 103 inherit `libLens` from the state before them, and of those only NINE draw differently by the order — `pwa-android`, `signin`, `signin-error`, `lib-delete`, `lib-delete-multiple`, `mediasheet-series`, `mediasheet-movie`, `mediasheet-no-trailer`, `mediasheet-no-poster` — each drawing the library page underneath a sheet or a dialogue without pinning the lens; R198's cast half reads `mediasheet-movie` INSIDE the sheet, so no verdict of L13c moves. Ruling 117 deliberately declined resetting `libLens`/`libMode`. Owner: none — an instrument decision, not yet made; the fix is either the nine states pinning their own lens, or `reset()` writing both, plus the reference re-recorded | L13c c·1's probe; amended reader C13 | `open` |
 | B-549 | The mock seed gives the FILM « Star Wars : The Clone Wars » the SERIES' provider identifiers (`imdb:tt0458290`, `tmdb:4194`, `tvdb:83268`) — a fixture-identity defect, same class as B-088: two rows of different KINDS sharing one identifier set. `add_footer.py` fell on a second add until c·2 keyed a visit's identity by `kind` + sorted `provider:id` pairs (`f67401890`), which separates the pair; the seed row itself is untouched. Owner: none | L13c c·2 | `open` |
 | B-550 | The library's selection bar actions sit under the touch floor at 390 px: « Annuler » 71×34, « Supprimer » 86×34, against the 44 px a thumb needs — on BOTH builds, so the defect is old, not L13c's. Found by reader C13's affordance lens (round one, C8). Owner: a later lot — the bar's action variant in `ui/variants/` | reader C13 round one | `open` |
-| B-551 | Citations of a SQUASHED branch's commit are dead on a fresh clone: order 43 (2026-09-15) had the engine's mentions cited `@13a66a35b`, the L13r head where `legacy.js` died — a commit no longer reachable from `main` once #605 squashed and its branch was deleted, so CI's checkout of a branch cut from `main` (#608, run 35076327531) refused the citation in `IMPLEMENTATION.md` while #607's, whose branch descended from it, had passed. The two directive-file citations now read `@c0a5062ac` (the last `main` commit holding the file); 26 comment sites under `frontend/maquette/design/src` and `frontend/maquette/harness` still cite `@13a66a35b` and no guard reads them (`check-docs-cited-paths.py` resolves only repository paths, and `CLAUDE.md`'s short-path form escaped it). Rule from now on: a dead file is cited at the last `main` commit that holds it, never at a feature-branch head. Owner: the next repair train (measure 5) for the 26 comment sites | CI 35076327531 | `open` |
+| B-551 | Citations of a SQUASHED branch's commit are dead on a fresh clone: order 43 (2026-09-15) had the engine's mentions cited `@13a66a35b`, the L13r head where `legacy.js` died — a commit no longer reachable from `main` once #605 squashed and its branch was deleted, so CI's checkout of a branch cut from `main` (#608, run 35076327531) refused the citation in `IMPLEMENTATION.md` while #607's, whose branch descended from it, had passed. The two directive-file citations now read `@c0a5062ac` (the last `main` commit holding the file); 26 comment sites under `frontend/maquette/design/src` and `frontend/maquette/harness` still cite `@13a66a35b` and no guard reads them (`check-docs-cited-paths.py` resolves only repository paths, and `CLAUDE.md`'s short-path form escaped it). Rule from now on: a dead file is cited at the last `main` commit that holds it, never at a feature-branch head. Owner: the next repair train (measure 5) for the 26 comment sites | CI 35076327531 | `fixed #609` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
 
@@ -918,6 +918,152 @@ property, which composes with `transform`.
                         `CLOSE_THRESHOLD` out of reach → five fall, « no close was recorded » ·
                         a click reopening the menu 400 ms after the close → « still closed » and the
                         paint holds fall (288 px)
+
+**B-533 — the veille's runs dated by the scenario clock.**
+
+**FIXED #609 — the repair train of 2026-09-16.** `launchDetection` dated the appended run `scenario().now`
+(2026-08-10, UTC midnight), before every seeded passage. Read what the seed carries: no period, no
+interval — but every run carries its end. The appended run now starts where the last run ended
+(`afterTheLastRun`: the latest `endedAt` in the layer's history, or a still-going run's start plus
+`DETECTION_MILLISECONDS`), which on the seed is the `prime` maintenance run's end, 2026-09-08
+07:32:40 UTC — so it is drawn first, after every seeded row, and a second start lands after the first.
+`ageSince` is floored at zero, since a run dated after the frozen clock would otherwise report a
+negative lock age; the detection's own duration stays 0 s, as before.
+
+    the rule            R182, `harness/run_history.py`, hold 5b on `watch-running`: the running
+                        detection is the first row drawn, and its answered instant is later than the
+                        second row's (compared by `Date.parse`, not as strings)
+    seen RED first      and the mutation, one expression, through `scripts/mutate.sh`:
+                        `t.replace("startedAt: afterTheLastRun(state),", "startedAt: scenario().now,")`
+                        → FAIL the run started by hand is the first row drawn — first
+                        '74bd260c44d14630848d8a59658b8506', started 'detection-10' (`w3-mutations.log`)
+    green               a comment-only edit: no hold fell in R182, `watch_run.py` or `locks.py`
+
+**B-534 — the pipeline section's copy.**
+
+**FIXED #609 — the repair train of 2026-09-16.** Three sentences. The levers printed `leversGuidance`, the same
+line as the host's `pipelineGuidance` right above it: the levers' copy and its key are removed, the
+host's stays. The watcher control read its state (« Déclenchement automatique — actif »): the state is
+now a row beside the control, the way the bound's row says its value (`levers/watcher-state`,
+« Déclenchement automatique » · « actif » / « coupé »), and the control names the act
+(`turnTriggerOff` « Désactiver le déclenchement automatique », `turnTriggerOn` « Activer … »);
+`triggerIsOn`/`triggerIsOff` lost their subject and are removed. `boundOwed` reads « pas encore
+réglable ici » — no server in the sentence (NE-DOIT-PAS-4).
+
+    the rule            R178, `harness/levers.py`, three new hold families: 4 the guidance said
+                        exactly once in `pipeline-panel` (`levers-idle`); 5 the trigger's accessible
+                        name begins with « Activer » or « Désactiver » (`levers-idle`,
+                        `levers-trigger-off`); 6 no text of `pipeline-panel` contains « serveur » in
+                        any of five states. RE-AIMED, said out loud: the two press holds read the
+                        state on `levers/watcher-state` and the control's label as the act, where they
+                        read the state at the end of the control's label
+    seen RED first      the holds committed alone over the unrepaired source: 8 FAIL — guidance
+                        « 2 time(s) », the control named 'Déclenchement automatique — actif' / '— coupé',
+                        « serveur » on all five states (`w4-red.log`)
+    the mutations       a second guidance line in the ready levers →
+                        FAIL the pipeline section says its guidance exactly once — 2 time(s)
+                        (`w4-mutation-guidance.log`; the first attempt landed in the loading branch and
+                        no hold fell — kept in `w4-mutations.log`) ·
+                        the control's label back to `automaticTrigger` → FAIL on levers-idle, the
+                        trigger's control is named by the act a press performs — 'Déclenchement
+                        automatique' (and both press holds) ·
+                        `boundOwed` back to the server sentence → FAIL on levers-idle, no text of the
+                        pipeline section says « serveur » (×5 states)
+    green               a comment-only edit: no hold fell in R178, `locks.py` or `hiding.py`
+
+**B-535 — hit areas under the touch floor on the run paths.**
+
+**FIXED #609 — the repair train of 2026-09-16, for the passage's three doors; the other back doors are the
+residue.** The disclosure's summary trades `py-3` for `min-h-[44px]` (28.2 → 44 px); `backAction` gains a
+`floor` variant (`min-h-[44px]`) that the run screen's « Retour » wears, and the not-found door « Revenir
+aux passages » leaves `crossReferenceLink` for the same variant (22.5 → 44 px). The ⋮ sheet opener (40×40,
+pre-existing) is not this entry.
+
+    the rule            R183, `harness/raw_log.py`, hold 5: the fold's summary and the run screen's
+                        back door (`run-detail`), and the not-found door reached cold at `/run/nobody`,
+                        each ≥ 44 px tall by `getBoundingClientRect` at 390 px; hold 2 re-driven — the
+                        fold is opened by `page.touchscreen.tap` at the SUMMARY's centre, where it was a
+                        `.click()` on the inner span (said out loud: that hold passed before and after)
+    seen RED first      the holds committed alone: summary 28.2, Retour 25.5, the not-found door 22.5
+                        (`w5-red.log`)
+    the mutations       `t.replace("[&>summary]:min-h-[44px] ", "[&>summary]:py-3 ")` → FAIL the fold's
+                        summary is at least 44 px tall — 28.2 · the `floor` variant emptied → FAIL the run
+                        screen's back door … 25.5, FAIL the not-found screen's door … 27.5
+                        (`w5-mutations.log`)
+    green               a comment-only edit: no hold fell in R183, `screen_addresses.py`, `run_history.py`
+
+**The residue, and why.** Every other back door wears the same `backAction` at 25.5 px — add screen,
+resolution, media sheet, quality profile, releases, maintenance topic, settings topic and secrets. Growing
+the variant itself was tried first with the height given back as a negative margin, so no neighbour moves:
+the control's natural height is 25.546875 px (13 px × 1.35 + 8 px of padding), which no margin in 1/64-px
+layout units offsets exactly, and the oracle read ±0.1 px on those screens at both −9.25 px
+(`w5-oracle.log`) and −9.21875 px (`w5-oracle-2.log`). The shared default therefore stays; those doors take
+`floor` with the oracle movement declared, in a lot that may move their bars.
+
+**B-536 — durations rounded to whole minutes.**
+
+**FIXED #609 — the repair train of 2026-09-16.** `durationInWords` rounded every duration of a minute or more
+to the minute. Under an hour it now says minutes AND seconds when the seconds are not zero
+(`screens.system.runMinutesSeconds`, « {{count}} min {{seconds}} », the seconds on two digits); under a
+minute, seconds alone; an hour and more, minutes as before. The row and the passage's head share the
+function.
+
+    the rule            R182, `harness/run_history.py`, hold 2b: the passages the layer answers at 104 s
+                        and 439 s, found by their length, say « 1 min 44 » and « 7 min 19 » in their rows
+    seen RED first      the function as it stood, through `scripts/mutate.sh`: « … 1 rangé · 2 min » and
+                        « … 2 rangés · 7 min » (`w2-mutations.log`)
+    the mutation        `t.replace("\"{{count}} min {{seconds}}\"", "\"{{count}} min\"")` on `fr.json` →
+                        FAIL the 104 s passage's row says « 1 min 44 », to the second — '… 1 rangé · 1 min'
+    green               a comment-only edit through the same tool: no hold fell
+
+**B-546 — unnamed falls under load: `audit2.py` and `outbox.py`.**
+
+**Two more occurrences, read from the docs pull request #608:** CI's `harness-contracts` fell on
+`audit2.py` R11 (« visible jargon or technical value — 1 ») twice in a row, runs 35076327531 and
+35077284519, over a source byte-identical to #607's, which passed the same job twice; the rule was green
+alone on the same served copy on this machine. The CI log carries the rule's summary line only — `run.sh`
+prints `■ R11 … — 1`, never the `note()` line naming the state and the token — so what R11 saw there is
+unknown. Mechanism CANDIDATE, not named: R11 reads `innerText` a fixed 240 ms after `__go`, and under the
+runner's parallel browsers a state may be read before it settles.
+
+**The repair train of 2026-09-16 tried to catch it, and caught nothing — no repair.** Three loaded
+readings on this machine (8 cores), each under the harness mutex: the contracts tier at
+`TM_HARNESS_JOBS=4` with `audit2.py` named, as the load, and `python3 frontend/maquette/harness/audit2.py`
+run beside it for its whole length so its `note()` lines land in a log of its own:
+
+    reading 1   11:56–12:01   contracts 23 rules, 0 failed; audit2 beside them 0 violations, 13/13
+                              (`w6-load-1-contracts.log`, `w6-load-1-audit2.log`)
+    reading 2   12:02–12:07   contracts 0 failed; audit2 beside them 0 violations, 13/13
+                              (`w6-load-2-contracts.log`, `w6-load-2-audit2.log`)
+    reading 3   12:07–12:12   contracts 0 failed; audit2 beside them 0 violations, 13/13
+                              (`w6-load-3-contracts.log`, `w6-load-3-audit2.log`)
+
+The logs are under `~/Library/Logs/tm-repair-0916/` (the oracle's own divergences in the contracts logs
+are the train's declared movements, not this entry). The fall reproduces nowhere but the CI runner, so the
+entry stays `open` with that runner as the only place it falls; naming it needs the `note()` line there,
+which is the instrument gap above (measure 1, the apparatus frozen).
+
+**B-551 — citations of a squashed branch's commit are dead on a fresh clone.**
+
+**FIXED #609.** Every comment under `frontend/maquette` citing `@13a66a35b` now cites `@c0a5062ac`,
+the last `main` commit holding both files cited that way (`engine/legacy.js`, 24 sites, and
+`engine/seams.ts`, 3 sites): `git merge-base --is-ancestor c0a5062ac origin/main` exits 0 and
+`git cat-file -e c0a5062ac:<path>` exits 0 for both. 27 lines in 27 files: the 26 comment sites
+(21 under `design/src`, 5 under `harness`) plus their source in the hand-written contract —
+`contract/types.d.ts` is generated, so `contract/openapi.json` was rewritten and
+`npm run generate-contract-types` re-run, the regenerated file differing from the tree by that one
+sha alone.
+
+    the instrument      `git grep -c 13a66a35b -- frontend/maquette`: 27 files before, 0 after;
+                        `scripts/check-maquette-comments.py` clean, 185 references in 90 of 480
+                        files, 0 grown; `tests/scripts/test_check_maquette_comments.py` 36 passed,
+                        its baseline unmoved
+    not an arm          no guard resolves a `path@sha` citation inside a comment; this is the
+                        narrow exception of rule 3 — `check-docs-cited-paths.py` reads repository
+                        paths only, and the arm that would resolve the sha is an instrument row
+                        (measure 1, the apparatus frozen)
+    left                `scripts/nofrench_lexicon.py` and `scripts/nofrench_states.py` still cite
+                        `@13a66a35b` (2 sites): `scripts/` is outside this train
 
 **B-477 — followed as held, sheet says not in the library.**
 Found by R173 (the mock-layer micro-wave). House of the Dragon (26/26), Ted Lasso (35/35) and Star

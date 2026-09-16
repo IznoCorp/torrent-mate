@@ -7,7 +7,7 @@
 // module decides only whether the finger is pulling, how far, and whether it
 // travelled far enough.
 //
-// MOVED FROM `engine/legacy.js@13a66a35b`, NOT REWRITTEN. Its behaviour is the engine's
+// MOVED FROM `engine/legacy.js@c0a5062ac`, NOT REWRITTEN. Its behaviour is the engine's
 // and R55 proves it against a real touch stream on seven surfaces, before the
 // move and after it. D5: the engine dies by SUBTRACTION, so nothing was added
 // to it — the block left and an import took its place.

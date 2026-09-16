@@ -21,7 +21,7 @@
 // `history-bridge.ts` already crosses with.
 //
 // THE ENGINE LOST A BRANCH BY IT (D5). The `data-rescrape` branch of
-// `engine/legacy.js@13a66a35b` was deleted, not duplicated.
+// `engine/legacy.js@c0a5062ac` was deleted, not duplicated.
 import { heldIdentity, providerAddress } from "../../lib/held-identity";
 import i18next from "i18next";
 import type { QueryClient } from "@tanstack/react-query";
