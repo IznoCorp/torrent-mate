@@ -32,6 +32,10 @@
   path the phase doesn't mention: the frontend's real `add()` call never sends `provider`/`providerId`
   at all, so the handler's only source of identity today is the title-match fallback — the refusal
   belongs on THAT path, not on a request shape nothing sends.
+- **Landed (2026-09-16).** The type mutation is NOT the proof (0 diagnostics, as this measure read):
+  the mock's 400 on the join path is, with the act carrying the identity when it holds one. R200,
+  4 holds; the « Voir le parcours » fallback and the identity-arrival wait removed; the card's branch
+  kept (an unidentified release is not a follow). B-366 `to confirm`.
 
 A BEHAVIOUR change: under the operator's ruling (« le suivi sans fiche n'est pas un état
 possible »), a sheetless follow becomes UNREPRESENTABLE, and the tile's guard branch goes (DESIGN

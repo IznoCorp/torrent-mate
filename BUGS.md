@@ -415,7 +415,7 @@ when the defect comes back.
 | B-363 | `residue.py` reads a typed variant's base through its string LITERALS, so a factory built from a shared constant reads EMPTY and is reported unreadable — a token scale cannot be written once and shared between two variants while that is true, and the repair that suggests itself (concatenating a literal with the constant) silences the report and leaves the reader comparing one token | 1× | `open` |
 | B-364 | Two hit-test helpers in `busy.py` press `hit.click()` on whatever `elementFromPoint` returns, and an SVG element has no `click` — so a rule that hit-tests an ICON-ONLY action throws `hit.click is not a function` instead of pressing it, and the same helpers print `hit.className` as the coverer, which on an SVG is an `SVGAnimatedString` and reads `[object SVGAnimatedString]` | 1× | `open` |
 | B-365 | R124's « no mutation was answered 409 » hold reads Playwright's response events, and the mock layer replaces `globalThis.fetch` and answers IN THE PAGE — so no response event can ever carry a 409 from it and the hold is green over nothing, permanently. Proven by a mutation that really did answer 409: the sibling hold fell, this one did not | 1× | `fixed #572` |
-| B-366 | A follow with NO MEDIA SHEET is drawn at all — a grid tile emits `data-mediasheet` for it, a poster that leads nowhere. RE-RULED by the operator: a follow without a sheet is not a state the product may represent, so the repair is to make it unrepresentable rather than to guard the tile | by audit | `open` |
+| B-366 | A follow with NO MEDIA SHEET is drawn at all — a grid tile emits `data-mediasheet` for it, a poster that leads nowhere. RE-RULED by the operator: a follow without a sheet is not a state the product may represent, so the repair is to make it unrepresentable rather than to guard the tile | by audit | `to confirm` |
 | B-367 | The drawer's appearance control applies the theme and does not move its selection: pressing one of the three writes the choice and repaints the document, and `aria-pressed` stays on whatever was drawn when the drawer opened — so the operator reads « Clair » selected over a dark interface. Closing and reopening the drawer draws it correctly | 1× | `open` |
 | B-368 | The Découvrir feed is drawn BELOW the « charger plus » action: a pile spent before the mode leaves the deck outlives that mode, because the sweep that clears the deck's imperative markup knows the pile and not the SPENT pile, and React appends its own children after the node it never rendered | 1× | `fixed #572` |
 | B-369 | A fixture rename made a named state's own premise false: a paused follow was renamed to « The Venture Bros » to give it a media sheet, and that title is the subject of the state « Fiche — suggestion NON possédée (série) » — so the sheet drew the disabled « already followed » button, and the rule reading that state's offer fell on an emitter with no data | 1× | `fixed #572` |
@@ -4499,6 +4499,22 @@ DESCRIBABLE. Making it unrepresentable is the ruling, and it is still owed.
 
 <sub>`audit.py` → `■ R1 hollow sheet behind a poster — 2` on `acq-follows-grid` · `legacy.js:7732` (the tile), `:5314` and `:5322` (the card, which guards it) · `const SHEETS_RAW = {` at `legacy.js:9897`</sub>
 
+
+**REPAIRED IN L13c c·7 — and the enforcement is NOT the type.** Measured first: making `Follow.ids`
+optional in the contract produces ZERO tsc diagnostics, because every reader already guards the
+field; and the interface's own create sent a title and a kind and no identity at all, so the only
+source of one was the layer's join against what it serves. **The refusal therefore lives on that
+path**: the mock answers the contract's 400 and records nothing when it can identify a create from
+neither the request nor the entry the title was followed from. The act now CARRIES the identity when
+its caller holds one — a search result, a suggestion — and `queries.ts` sends it as
+`provider`/`providerId` (a provider identifier the contract can carry is a number, so a title-shaped
+one is not the one sent). The two branches drawing a follow without a sheet are gone: the panel's
+« Voir le parcours » fallback and its wait for an identity to arrive. The CARD's own branch stays —
+an unidentified RELEASE is not a follow. **R200** `follow_needs_an_identity.py`: red on the two
+refusal holds (the layer answered 200 and recorded the follow), with a create it CAN identify as the
+control, and a hold saying that a follow with no episode data is created like any other — « no
+sheet » and « no episodes » are two different absences. The mutation removing the refusal fells both
+by name. Waiting for the operator's hand.
 
 **B-371 — the queued pastille is reachable by no hand.**
 DOIT-4's « En file — pipeline en cours » is drawn, and its rules pass, and no path a person can

@@ -20,7 +20,7 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   B-339 `to confirm`), c·4 (`30658ccf7`, B-336 `to confirm`), c·4-bis (`795649a4c`), the merge of
   `e57ac110f` (`93a24bdc1`, pushed), c·5 (`e122c8478` + `d69bafaa1`, B-331 `to confirm`, its centring
   half unreproduced here), the MIDPOINT full suite (green at the second pass, `514635320`), c·6
-  (`5bcbfb354`, B-327 `to confirm`). NEXT: c·7.
+  (`5bcbfb354`, B-327 `to confirm`), c·7 (`818ea85eb`, B-366 `to confirm`). NEXT: c·8, then c·9.
 - LOGS: `~/Library/Logs/tm-l13c/`. Mutex `sh scripts/heavy.sh --held`; tests lock
   `/private/tmp/tm-heavy-tests/holder`; own lock `/private/tmp/tm-heavy-l13c/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13c
@@ -111,3 +111,9 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   mutation `c06-mutation.log`, oracle accepted `settings-field-schedule` by name (`c06-accept.log`,
   diff verified by script). Trap paid: a pinned COUNT in a unit test moves with a seed row
   (`format.test.ts`, 159 → 160 and 6 → 7) — `check-maquette-unit-tests` is the guard that says so.
+- 2026-09-16 c·7 (`Agent : l13c 1`): R200 `follow_needs_an_identity.py`, 4 holds; red `c07-red-2.log`
+  (the layer answered 200 and recorded a follow nothing identifies), green `c07-gate.log` and
+  `c07-gate-2.log` on `818ea85eb` (28 rules, 5 named, twice over — the follow panel's other readers
+  too), mutation `c07-mutation.log`. The phase's own « tsc must fail » proof does not hold on this
+  tree and the measure had said so: the refusal is the layer's, on the JOIN path. Trap paid: a mock
+  refusal's words are tool text and stay English; the French belongs to the interface.
