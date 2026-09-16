@@ -251,8 +251,15 @@ export function installFollowActions(queryClient: QueryClient): void {
     add: (follow) => {
       const before = held();
       write([follow as Follow, ...before]);
+      // THE IDENTITY IS SENT when the act carried one: the layer joins the
+      // title against what it serves otherwise, and refuses a create it can
+      // identify from neither (B-366). A provider identifier the contract can
+      // carry is a NUMBER, so a title-shaped one (imdb) is not the one sent.
+      const identity = Object.entries(follow.ids ?? {})
+        .find(([, value]) => typeof value === "number");
       void send("POST", "/api/acquisition/followed", {
         title: follow.title, kind: follow.kind,
+        ...(identity ? { provider: identity[0], providerId: identity[1] } : {}),
       })
         .catch((refusal) => { write(before); throw refusal; })
         .then((outcome) => { if (outcome !== HELD) refresh(); },

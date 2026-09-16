@@ -7,7 +7,7 @@ import { DELETE, GET, PATCH, POST, field, route, text } from "./shared";
 import { launchDetection } from "./pipeline";
 import { stagesOf } from "./acquisition-verbs";
 import { mockState } from "../state";
-import type { MockRequest, MockRoute } from "../router";
+import { refused, type MockRequest, type MockRoute } from "../router";
 
 // How many suggestions one batch of the deck carries. The engine's own batch
 // size is `SUG_BATCH`, classified `interface` — the interface owns it.
@@ -92,6 +92,9 @@ function followedFrom(title: string) {
     ?? SUGGESTIONS.find((suggestion) => suggestion.title === title);
 }
 
+// Why a follow nothing identifies is refused, in the problem body's own words.
+const NO_IDENTITY = "a follow with no provider identity has no sheet";
+
 /** Every route this subject answers. */
 export function acquisitionRoutes(): MockRoute[] {
   return [
@@ -108,6 +111,17 @@ export function acquisitionRoutes(): MockRoute[] {
       const provider = field(request.body, "provider");
       const providerId = field(request.body, "providerId");
       const source = followedFrom(title);
+      // THE MEDIUM'S IDENTITY: the request's own when it names one, and
+      // otherwise the joined identity of the entry it was followed from. A
+      // create naming neither is REFUSED (B-366): a follow with no identity has
+      // no sheet to open, and a follow without a sheet is not a state this
+      // interface has. The layer invents none and records none.
+      // The cast reaches the seed's own optional fields, never a null: the line
+      // below is what refuses that.
+      const identity = (typeof provider === "string" && typeof providerId === "number"
+        ? { [provider]: providerId }
+        : source?.ids ?? null) as (typeof state.follows)[number]["ids"] | null;
+      if (identity === null) return refused(400, NO_IDENTITY);
       const added = {
         title,
         kind: text(request.body, "kind"),
@@ -117,13 +131,7 @@ export function acquisitionRoutes(): MockRoute[] {
         since: NEWLY_ADDED_SINCE,
         searches: 0,
         fresh: true,
-        // THE MEDIUM'S IDENTITY: the request's own when it names one, and
-        // otherwise the joined identity of the entry it was followed from. A
-        // create naming neither records a follow the contract refuses (B-366);
-        // the layer does not invent an identity for it, and the cast says so.
-        ids: (typeof provider === "string" && typeof providerId === "number"
-          ? { [provider]: providerId }
-          : source?.ids ?? null) as (typeof state.follows)[number]["ids"],
+        ids: identity,
         poster: source?.poster ?? null,
       };
       state.follows = [added, ...state.follows];

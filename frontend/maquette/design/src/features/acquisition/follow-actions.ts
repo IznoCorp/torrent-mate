@@ -53,17 +53,14 @@ export function primaryAction(facts: FollowFacts): Action {
       icone: icons.play, ton: "primary",
       target: { sheetprim: `${follow.title}|${follow.status}` },
     };
-  if (facts.hasSheet)
-    return {
-      text: say("seeSheet"), icone: icons.eye, ton: "primary",
-      target: { mediasheet: follow.title },
-    };
-  // AN UNIDENTIFIED RELEASE HAS NO SHEET. Offering to open one is the same
-  // broken promise as a poster that leads nowhere, so the panel leads to the
-  // journey instead — which exists for every acquisition.
+  // EVERY FOLLOW HAS A SHEET, so this is the last act rather than one of two:
+  // a follow the layer could not identify is refused at its creation (B-366),
+  // and the branch that led to the journey instead was handling a state the
+  // interface no longer has. An unidentified RELEASE is not a follow and keeps
+  // its own drawing elsewhere.
   return {
-    text: say("seeJourney"), icone: icons.refresh, ton: "primary",
-    target: { journey: follow.title },
+    text: say("seeSheet"), icone: icons.eye, ton: "primary",
+    target: { mediasheet: follow.title },
   };
 }
 

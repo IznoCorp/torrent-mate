@@ -98,7 +98,7 @@ registerVerb("add", (value) => {
   // with the result marked added and, once it is the first, the footer.
   markAdded(result);
   store.touch();
-  followVerbs.follow(result.title, result.kind);
+  followVerbs.follow(result.title, result.kind, result.ids);
 });
 registerVerb("confirmadd", (value) => {
   const result = searchResults?.().results[Number(value)];

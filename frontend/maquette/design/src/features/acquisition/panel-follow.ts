@@ -125,8 +125,7 @@ function askForSeasons(title: string): void {
 function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
   const facts = followFacts(title, cache);
   if (facts === null) return null;
-  if (!facts.hasSheet) redrawOnIdentityArrival(title);
-  else if (facts.seasonsPending) askForSeasons(title);
+  if (facts.seasonsPending) askForSeasons(title);
   const translate = i18next.t.bind(i18next);
   const { follow, isFilm, seasons, fraction } = facts;
   const kind = translate(isFilm ? "panels.follow.film" : "panels.follow.series");
