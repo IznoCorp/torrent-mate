@@ -22,6 +22,11 @@ nothing.
   f4. A FOLLOW WITH NO EPISODE DATA IS NOT A FOLLOW WITHOUT A SHEET: identified,
       followed on purpose, it is created like any other. « No sheet » and « no
       episodes » are two different absences.
+  f5. AND A CREATE FROM A SOURCE THAT CARRIES THREE IDENTIFIERS IS RECORDED WITH
+      ALL THREE. The contract's create carries ONE provider pair, and the layer
+      holds the joined entry's whole identity: the two are merged, never chosen
+      between, or the interface ends up holding three identifiers and the layer
+      one — two ends disagreeing about one medium.
 
 RE-AIMED, SAID OUT LOUD. f3 and f4 read the SAME subject — the first suggestion
 carrying identifiers, which the seeds make a FILM — and f4's own assertion
@@ -44,6 +49,8 @@ STATE = "acq-follows-list"
 # The kinds the INTERFACE sends, which is what the layer records.
 SERIES = "show"
 FILM = "movie"
+# french-ok: the kind word the seeds carry, a data value compared where it arrives
+FILM_WORD = "Film"
 # A title no seeded search result and no suggestion carries, so the layer has
 # nothing to identify it with. french-ok: a media title, which is data.
 NAMELESS = "Un dossier que rien n'identifie"
@@ -77,6 +84,21 @@ IDENTIFIABLE = """async(wanted)=>{
   const named = rows.find((row) => row.ids && Object.keys(row.ids).length > 0
                                    && isFilm(row) === (wanted === "movie"));
   return named ? {title: named.title, kind: wanted} : null;
+}"""
+
+
+# THE RICHEST SOURCE THE SEARCH SERVES — a result carrying more than one
+# identifier, which is what makes the merge visible: the contract's create
+# carries a single provider pair, so a layer that PREFERRED the request would
+# record one identifier where its own entry holds three.
+RICHEST_RESULT = """async()=>{
+  const answer = await fetch("/api/acquisition/search");
+  const body = await answer.json();
+  const rows = (body.results ?? []).filter(
+    (row) => row.ids && Object.keys(row.ids).length > 1);
+  rows.sort((first, second) =>
+    Object.keys(second.ids).length - Object.keys(first.ids).length);
+  return rows[0] ?? null;
 }"""
 
 
@@ -127,6 +149,37 @@ async def main():
                       and film_recorded is not None and bool(film_recorded["ids"]),
                       f"asked for {film}, answered {film_landed['status']}, "
                       f"recorded {film_recorded}")
+
+        # F5: THE WHOLE IDENTITY, not the half the contract's body can carry.
+        source = await page.evaluate(RICHEST_RESULT)
+        carried = (source or {}).get("ids") or {}
+        # WHAT THE INTERFACE SENDS, spelled here as `queries.ts` spells it: the
+        # first pair whose value is a NUMBER, because a title-shaped identifier
+        # (imdb) is not one the contract carries.
+        pair = next(((key, value) for key, value in carried.items()
+                     if isinstance(value, (int, float)) and not isinstance(value, bool)),
+                    None)
+        journal.check(
+            "the search serves a result carrying more than one identifier, and "
+            "one of them is a number — the premise f5 needs",
+            source is not None and len(carried) > 1 and pair is not None,
+            f"source {source and source.get('title')!r}, ids {carried}")
+        if source is not None and pair is not None:
+            merged_landed = await page.evaluate(
+                CREATE, {"title": source["title"],
+                         "kind": FILM if source.get("kind") == FILM_WORD else SERIES,
+                         "provider": pair[0], "providerId": pair[1]})
+            after_merge = await page.evaluate(FOLLOWS)
+            merged = next(
+                (row for row in after_merge if row["title"] == source["title"]), None)
+            kept = (merged or {}).get("ids") or {}
+            journal.check(
+                "and a create from a source carrying three identifiers is "
+                "recorded with ALL of them, never with the one the body carried",
+                merged_landed["status"] == 200
+                and all(str(kept.get(key)) == str(value) for key, value in carried.items()),
+                f"the source holds {carried}, the body carried {pair}, "
+                f"the layer recorded {kept}")
 
         await context.close()
         await browser.close()
