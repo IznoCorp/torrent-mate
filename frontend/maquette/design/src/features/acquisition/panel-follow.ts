@@ -125,7 +125,10 @@ function askForSeasons(title: string): void {
 function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
   const facts = followFacts(title, cache);
   if (facts === null) return null;
-  if (facts.seasonsPending) askForSeasons(title);
+  // AND A MEDIUM STILL BEING IDENTIFIED — a queued folder, never a follow since
+  // B-366 — waits for its identity to arrive and redraws when it does.
+  if (!facts.hasSheet) redrawOnIdentityArrival(title);
+  else if (facts.seasonsPending) askForSeasons(title);
   const translate = i18next.t.bind(i18next);
   const { follow, isFilm, seasons, fraction } = facts;
   const kind = translate(isFilm ? "panels.follow.film" : "panels.follow.series");

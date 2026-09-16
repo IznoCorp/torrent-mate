@@ -53,14 +53,19 @@ export function primaryAction(facts: FollowFacts): Action {
       icone: icons.play, ton: "primary",
       target: { sheetprim: `${follow.title}|${follow.status}` },
     };
-  // EVERY FOLLOW HAS A SHEET, so this is the last act rather than one of two:
-  // a follow the layer could not identify is refused at its creation (B-366),
-  // and the branch that led to the journey instead was handling a state the
-  // interface no longer has. An unidentified RELEASE is not a follow and keeps
-  // its own drawing elsewhere.
+  if (facts.hasSheet)
+    return {
+      text: say("seeSheet"), icone: icons.eye, ton: "primary",
+      target: { mediasheet: follow.title },
+    };
+  // AN UNIDENTIFIED RELEASE HAS NO SHEET, and this is the branch it keeps: a
+  // FOLLOW without one is refused at its creation now (B-366), but a queued
+  // folder nothing has identified yet is drawn through these same facts, and
+  // offering it a sheet would be the broken promise B-313 is about. It leads to
+  // the journey, which every acquisition has.
   return {
-    text: say("seeSheet"), icone: icons.eye, ton: "primary",
-    target: { mediasheet: follow.title },
+    text: say("seeJourney"), icone: icons.refresh, ton: "primary",
+    target: { journey: follow.title },
   };
 }
 
