@@ -1324,7 +1324,7 @@
       "searchStopped": "« {{title}} » ne sera plus cherché.",
       "paused": "« {{title}} » mis en pause.",
       "refused": "« {{title}} » n'a pas pu être enregistré : le serveur a refusé la demande.",
-    "removed": "« {{title}} » retiré de vos suivis."
+      "removed": "« {{title}} » retiré de vos suivis."
     },
     "deck": {
       "loaded": "{{count}} suggestions de plus — la réserve en compte {{total}}.",
