@@ -29,6 +29,9 @@
   `clear-search` and `library-head.tsx`'s search commit — one hold per writer.
 - **Landed (2026-09-15, rulings 116, 117).** R195, 14 holds; new state `lib-selection-filtered`; the
   driver's reset gains `libCat` and the sort; B-312 `to confirm`, B-548 filed.
+- **Learned at the MIDPOINT (2026-09-16).** `virtual.py`'s last hold read the OPPOSITE of the
+  ruling (« a search drops them ») and this measure did not list it: the opening grep read the
+  writers, not the rules ASSERTING the old behaviour. It was re-aimed at the midpoint.
 
 A BEHAVIOUR change: the operator's ruling of 2026-09-05, « La sélection doit survivre au changement
 des filtres », lands with its two guard-rails (DESIGN § 10, B-312). It relies on the `lens` verb

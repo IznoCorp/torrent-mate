@@ -22,6 +22,10 @@
   `SCHEDULERS_AS_SYSTEM_DRAWS` (the "Système" page's cross-check) already lists all seven jobs and
   needs no edit; only the `passages` topic's SEED is short one row, exactly as the phase says — no
   contradiction found here, unlike c·3/c·4.
+- **Landed (2026-09-16).** The seed row; B-327's kept hold restored in `machine.py` with two re-aimed
+  reads (the rubric opened by its row, the key taken out of the origin); `format.test.ts`'s two pins
+  moved; the oracle accepted `settings-field-schedule` by name; the five disagreeing names stay
+  accepted by name and the seventh is named alike. B-327 `to confirm`.
 
 A BEHAVIOUR change: « Réglages » draws the seventh scheduler, the hold B-327 kept whole is restored,
 and one job has one name (DESIGN § 10, B-327). It relies on `SETTINGS` being a seed since a·16, so

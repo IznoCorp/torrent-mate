@@ -19,7 +19,8 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   B-340 `to confirm`), merge of L13r's squash `08400a22a` (`0a32a745a`, pushed), c·3 (`9848c02b4`,
   B-339 `to confirm`), c·4 (`30658ccf7`, B-336 `to confirm`), c·4-bis (`795649a4c`), the merge of
   `e57ac110f` (`93a24bdc1`, pushed), c·5 (`e122c8478` + `d69bafaa1`, B-331 `to confirm`, its centring
-  half unreproduced here). NEXT: the MIDPOINT full suite, then c·6.
+  half unreproduced here), the MIDPOINT full suite (green at the second pass, `514635320`), c·6
+  (`5bcbfb354`, B-327 `to confirm`). NEXT: c·7.
 - LOGS: `~/Library/Logs/tm-l13c/`. Mutex `sh scripts/heavy.sh --held`; tests lock
   `/private/tmp/tm-heavy-tests/holder`; own lock `/private/tmp/tm-heavy-l13c/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13c
@@ -98,3 +99,15 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   so a latency set before a driven state is no latency at all; and a rule that reads « the indicator
   is up » cannot read anything once the refresh it stands for answers instantly — R55 and `press.py`
   re-aimed with an answer time, said in both files.
+- 2026-09-16 MIDPOINT (`Agent : l13c 1`): pass 1 `midpoint-full-suite.log` — three falls, each
+  replayed alone and all real (the inverse probe on the pre-c·1 sources passed): `outbox.py` fell to a
+  MODULE CYCLE (`app/pull-indicator.ts` importing `lib/query-client`, which imports `app/outbox`,
+  moved the queue's boot) — the refresh is handed in by `app/shell.tsx` instead; `surfaces.py` and
+  `virtual.py` re-aimed and said (an empty add screen; a search that keeps the selection). Pass 2
+  `midpoint-full-suite-2.log`: 146 rules + 26 guards no violation, a11y 0 dark / 147 light at the
+  ceiling, oracle no divergence.
+- 2026-09-16 c·6 (`Agent : l13c 1`): the seed's seventh scheduler; B-327's kept hold restored in
+  `machine.py`; red `c06-red-2.log` (six drawn against seven), green `c06-gate-2.log` on `5bcbfb354`,
+  mutation `c06-mutation.log`, oracle accepted `settings-field-schedule` by name (`c06-accept.log`,
+  diff verified by script). Trap paid: a pinned COUNT in a unit test moves with a seed row
+  (`format.test.ts`, 159 → 160 and 6 → 7) — `check-maquette-unit-tests` is the guard that says so.

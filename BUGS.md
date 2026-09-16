@@ -386,7 +386,7 @@ when the defect comes back.
 | B-324 | The BACKEND's own mirror of the PM2 crons names three of the seven the machine runs, and nothing reads it against `pm2 jlist` — B-308's finding on the end that has no guard at all | by the backend brief | `open` |
 | B-325 | No harness rule can be pointed at a build: `common.PROTOTYPE` is hard-coded to 8899 with no override, every rule self-runs on import, and a rule rebound elsewhere is still certified by the B-256 stamp of the copy it did NOT read | by the instruments' debts block | `fixed #589` |
 | B-326 | `heavy.sh` offers no way to ask who holds its lock, so the natural probe — `cat` on what is a DIRECTORY — reads « free » whether the lock is held or not, and two sessions reached for it independently on the same night | by the steward's office | `open` |
-| B-327 | « Réglages » draws SIX scheduled jobs while the machine runs seven, and the same six are named twice in two French vocabularies that disagree on five of them — the row cannot be added until `SETTINGS` leaves the engine | by L13 | `open` |
+| B-327 | « Réglages » draws SIX scheduled jobs while the machine runs seven, and the same six are named twice in two French vocabularies that disagree on five of them — the row cannot be added until `SETTINGS` leaves the engine | by L13 | `to confirm` |
 | B-328 | `features/system/page.tsx` heads itself with a path that does not exist and describes a state field (`state.panne`) the code does not have | by the next wave that opens `features/system/page.tsx` | `open` |
 | B-329 | The backend's GENERATED contract does not declare the `409` its own route raises, so no diff between the two contracts can read it — the demand register is structurally blind to a refusal NE-DOIT-PAS-3 forbids the interface to show | by the backend brief | `open` |
 | B-330 | `scripts/mutate.sh` answers « no hold fell » when the RULE PATH it was given does not exist — a typo and a rule that does not bite are the same sentence, and the second is a finding while the first is a mistake | by the instruments' debts block | `open` |
@@ -3635,6 +3635,20 @@ artefact carries it**: it was in the wave's own session and in no report, probe 
 later reader can open, and a sentence nobody can corroborate does not belong in an entry someone
 else inherits. What became of that half IS checkable: #567 kept it in `machine.py` as the two holds
 named above, both green, both mutation-proven. — on `0ab9c9f29` · `git diff be460fb79..HEAD -- frontend/maquette/design/src/mocks/seeds/settings.json` → empty · `python3 scripts/check-frontend-boundaries.py --arm size` with the row added → « 31 600, 9 more » · `grep -c "SETTINGS" frontend/maquette/harness/settings.py` → the eleven reads · reported by the independent reader of #567, round two, 2026-09-06</sub>
+
+**REPAIRED IN L13c c·6.** The `passages` topic's seed gains `personalscraper-index-full` (Mondays
+01:00), and the four refusals recorded above are all spent: `SETTINGS` is a converted family since
+a·16, so no correspondence arm re-derives the seed, and the row is one row. **The hold this entry
+kept whole is restored in `machine.py`, word for word but for its two reads** — the rubric is opened
+by its own row, because driving a named state puts the settings back, topic included; and a drawn
+origin carries its file before the key, so the key is taken from it. Seen red first, printing exactly
+what this entry recorded: six drawn against seven real. The mutation removing the seed row fells it by
+name. **One job, one name**: the seventh is labelled by `settings.labels` in « Système »'s own words
+(« Analyse complète de l'index », added by #567), so it joins the schedulers named ALIKE and the two
+vocabularies gain no third; the five that already disagree stay accepted BY NAME, which is the state
+this lot leaves them in. `format.test.ts`'s two pinned counts moved with the seed (159 → 160 fields,
+6 → 7 schedules), and the oracle accepted one state by name — `settings-field-schedule`, 55.4 px
+taller for one more row. Waiting for the operator's hand.
 
 **B-328 — `features/system/page.tsx` names a path and a field that do not exist.**
 Its first line heads the file « design/src/pages/system.tsx », a path no commit holds, and its
