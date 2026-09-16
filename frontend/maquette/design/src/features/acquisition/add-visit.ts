@@ -88,6 +88,21 @@ export function markAdded(result: SearchResult): void {
   added.add(resultIdentity(result));
 }
 
+/**
+ * Takes back the record of an act the layer refused.
+ *
+ * THE MARK IS OPTIMISTIC, like the list it stands beside: the row says « ✓ »
+ * in the same task as the tap, before anything is known. A refusal makes that
+ * mark a claim about an act that did not happen, so it is taken back by the
+ * answer rather than left standing (§2, §13).
+ *
+ * Args:
+ *     result: The search result.
+ */
+export function forgetAdded(result: SearchResult): void {
+  added.delete(resultIdentity(result));
+}
+
 /** How many results this visit has acted on. */
 export function addedCount(): number {
   return added.size;

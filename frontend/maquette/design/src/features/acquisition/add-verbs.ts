@@ -12,7 +12,7 @@ import { store } from "../../lib/store-access";
 import { baseTitle } from "../../lib/titles";
 import { followVerbs } from "./follow-verbs";
 import { searchResults } from "./search-queries";
-import { identifying, markAdded } from "./add-visit";
+import { identifying, markAdded, forgetAdded } from "./add-visit";
 import type { SearchResult } from "./types";
 
 
@@ -96,9 +96,20 @@ registerVerb("add", (value) => {
   }
   // The screen stays open and redraws itself from this same store bump,
   // with the result marked added and, once it is the first, the footer.
+  //
+  // AND THE MARK IS TAKEN BACK IF THE LAYER REFUSES. It is written here, before
+  // anything is known, which is what the optimistic list beside it does; what
+  // was missing is the other half — a row left wearing « ✓ Suivi » over a
+  // create the layer rejected, which is a claim the interface has no right to
+  // make. The act answers whether it stood, and the visit learns from it.
   markAdded(result);
   store.touch();
-  followVerbs.follow(result.title, result.kind, result.ids);
+  void followVerbs.follow(result.title, result.kind, result.ids)
+    .then((stood) => {
+      if (stood) return;
+      forgetAdded(result);
+      store.touch();
+    });
 });
 registerVerb("confirmadd", (value) => {
   const result = searchResults?.().results[Number(value)];

@@ -23,3 +23,11 @@ export type FollowSubject = Pick<Follow, "title" | "kind" | "year" | "status"> &
 export type SearchResult = Schemas["SearchResult"];
 
 export type SearchResults = Schemas["SearchResults"];
+
+// WHAT BECAME OF A CREATE, in the three answers a caller can draw differently.
+// `added` — the layer took it. `held` — nothing answered, the outbox keeps it
+// and the optimistic write stands, which is NOT a failure. `refused` — the
+// layer answered a refusal, so the local write is undone and the operator is
+// told. A boolean would fold the first two together or the last two, and both
+// foldings are a sentence about the machine that is not true.
+export type FollowOutcome = "added" | "held" | "refused";

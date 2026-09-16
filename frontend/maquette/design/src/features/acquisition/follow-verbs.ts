@@ -21,7 +21,7 @@
 // dismissed suggestion leaves the deck only if it is told again. A `write`
 // would have given both for free; a Set mutated in place does not.
 import i18next from "i18next";
-import type { Follow } from "./types";
+import type { Follow, FollowOutcome } from "./types";
 import { registerVerb } from "../../lib/verbs";
 import { store } from "../../lib/store-access";
 import { collapseOpenRow, openRow } from "../../lib/swipe-arbitration";
@@ -117,12 +117,28 @@ function takeSuggestionOutOfTheDeck(position: number): void {
  *         indefinitely and a film is not, so a kind nobody supplied errs
  *         towards the state that keeps looking.
  */
-function follow(title: string, kind: string, ids?: Follow["ids"] | null): void {
-  if (alreadyFollowed(title)) return;
+async function follow(title: string, kind: string,
+                      ids?: Follow["ids"] | null): Promise<boolean> {
+  // ALREADY FOLLOWED IS NOT A REFUSAL: the act has already happened, so what
+  // the caller drew for it stands, and nothing is said about an event that did
+  // not occur.
+  if (alreadyFollowed(title)) return true;
   // french-ok: an attribute VALUE, frozen with the DOM contract `media-details.tsx`
   // emits and the reserve carries — the same literal, compared where it arrives
   const film = kind === "Film";
-  followActions?.add({
+  // THE MESSAGE FOLLOWS THE LAYER'S ANSWER, and this is the whole of the
+  // repair. It was shown here, before the request left, so a create the layer
+  // REFUSED was announced as a success — the exact sentence of the thing that
+  // did not happen — while the list rolled back underneath it with nothing
+  // said (§2, §13; §7, §8). The panel still leaves in the tap's own commit
+  // (B-249, below): only the message waits, and only for as long as the
+  // answer takes.
+  //
+  // A HELD ACT KEEPS TODAY'S MESSAGE. Offline, the outbox holds the create and
+  // the optimistic write stands: the operator's act has not failed, it has not
+  // departed, and announcing a refusal over it would be the lie in the other
+  // direction (R107).
+  const outcome: FollowOutcome | undefined = await followActions?.add({
     title,
     kind: film ? "movie" : "show",
     status: "unverified",
@@ -131,10 +147,19 @@ function follow(title: string, kind: string, ids?: Follow["ids"] | null): void {
     // with none has no sheet, and the layer refuses to record one (B-366).
     ...(ids ? { ids } : {}),
   });
+  if (outcome === "refused") {
+    toast?.show({ message: i18next.t("verbs.follows.refused", { title }) });
+    // AND WHAT THE ACT WROTE IN PLACE IS PUT BACK by whoever wrote it: the
+    // cache is `queries.ts`'s and it has already rolled back; the visit's mark
+    // is the add screen's, and this answer is how it learns.
+    store.touch();
+    return false;
+  }
   toast?.show({
     message: i18next.t(film ? "verbs.follows.added" : "verbs.follows.followed",
                        { title }),
   });
+  return true;
 }
 
 /**
@@ -244,7 +269,9 @@ function removeFollow(title: string): void {
  * how two truths about one follow start.
  */
 type FollowVerbs = {
-  follow: (title: string, kind: string, ids?: Follow["ids"] | null) => void;
+  /** Follows a medium, and answers whether the act STOOD — false on a refusal. */
+  follow: (title: string, kind: string,
+           ids?: Follow["ids"] | null) => Promise<boolean>;
   pause: (title: string) => void;
   removeFollow: (title: string) => void;
 };
@@ -296,8 +323,8 @@ registerVerb("follow", (title, element) => {
   // AN ABSENT KIND IS SPELLED AS ONE, not as the series' own word: the test
   // below asks whether it is a film, so the empty string answers « series »
   // without this file holding a second interface word to keep in step.
-  follow(title, suggestion?.kind ?? element.dataset.fkind ?? "",
-         suggestion?.ids ?? identityOn(element));
+  void follow(title, suggestion?.kind ?? element.dataset.fkind ?? "",
+              suggestion?.ids ?? identityOn(element));
   // AND THE STORE IS TOUCHED AGAIN, for the sheet's own button: `add` writes
   // the cache in place, so without this the button never learns the follow
   // happened and stays « Suivre » under the finger that pressed it.
