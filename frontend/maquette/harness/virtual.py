@@ -579,6 +579,7 @@ async def hold_the_selection_state_draws_its_ticks(journal, browser):
           const name = (node) => (node.querySelector(
             '[data-part="tile/title"], [data-part="card/title"]') || node).textContent.trim();
           return { pressed: pressed.map(name),
+                   listed: [...document.querySelectorAll('#libitems [aria-pressed]')].map(name),
                    selected: [...(window.__store.read().state.selected || [])] };
         }""")
 
@@ -615,20 +616,30 @@ async def hold_the_selection_state_draws_its_ticks(journal, browser):
     # medium; the bar counts it and the delete dialog names it. What the listing
     # draws pressed is only what it still lists, which is what this rule, the
     # virtual window's, is placed to see.
+    #
+    # AND THE QUERY NARROWS WITHOUT EMPTYING, said out loud because the first
+    # re-aim typed `zzz`: nothing was listed, so the second clause ranged over
+    # an EMPTY sequence and was true whatever the build drew. The query below
+    # keeps one ticked title among several unticked ones, so the hold below has
+    # both a member to check and a neighbour to be wrong about.
+    # french-ok: a query typed into the field, which is data
     await page.evaluate("""() => {
       const field = document.querySelector('#libq');
-      field.value = 'zzz';
+      field.value = 'mar';
       field.dispatchEvent(new Event('input', { bubbles: true }));
     }""")
     await page.wait_for_timeout(800)
     after_search = await ticks()
+    still_listed = set(after_search["selected"]) & set(after_search["listed"])
     journal.check(
         "and a search — the reader changing the question — keeps them, drawing "
-        "pressed only what it still lists",
+        "pressed exactly the ticked titles it still lists and no other",
         sorted(after_search["selected"]) == sorted(alone["selected"])
-        and all(title in alone["pressed"] for title in after_search["pressed"]),
+        and len(after_search["pressed"]) > 0
+        and set(after_search["pressed"]) == still_listed,
         f"the set holds {after_search['selected']} after a search that narrows "
-        f"the listing, {after_search['pressed']} row(s) drawn pressed")
+        f"the listing to {len(after_search['listed'])} row(s); "
+        f"{after_search['pressed']} drawn pressed, {sorted(still_listed)} still listed")
     await context.close()
 
 
