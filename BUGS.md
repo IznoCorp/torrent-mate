@@ -490,10 +490,10 @@ when the defect comes back.
 | B-530 | The navigation drawer closed by a firm leftward swipe shows itself open again for a fraction of a second as the closing animation ends | by operator | `fixed #598` |
 | B-531 | Arrivées drew « Lancer ensuite » ENABLED while a pipeline pass ran, so a second press reached the queue behind a maintenance lock with no state door opened (R185, B-371); ruling L20-9 (auditor, § 10, and § 12 — an inactive action looks inactive) makes it read « Lancer » DISABLED under `running`, re-enabled at idle, the queue offered only behind a maintenance lock. Closed in phase 9's own commit `210e4df61`: `queued_by_hand.py` (R185) held red first (`disabled: False`), then green; mutation D (`disabled` removed) fell — « Lancer » drawn INACTIVE … `{'disabled': False}` — replayed on the final gate `69cc558b5` (full suite 141 rules, no violation) | ruling L20-9 | `fixed #603` |
 | B-532 | Three sites still write `<details>` raw after `ui/disclosure.tsx` exists — `features/acquisition/add-screen.tsx:353`, `features/media/season-list.tsx:256`, `features/media/panel-seasons.tsx:142` (`docs/features/maquette-l20/DESIGN.md@60c6d9b1d` § 9). Converting them is a three-surface conversion, which « one kind of change per wave » forbids a behaviour lot from carrying; it belongs to whichever lot next opens those files. Owner: none yet | by L20 | `open` |
-| B-533 | A time no row carries: the mock veille's runs are dated `scenario().now` = 2026-08-10 (UTC midnight), drawn « 10/08 02 h 00 » in the machine's zone and sorted under the real 08-12…09-08 rows; owner `mocks/handlers/pipeline.ts` (the appended run's instant) | the reader round | `open` |
-| B-534 | Pipeline section copy: the guidance line is printed twice (`pipelineGuidance` in the host, `leversGuidance` in the levers, the same sentence); the watcher control's label is its state (« Déclenchement automatique — actif ») with no act word; « le serveur ne porte pas encore ce réglage » speaks backend (NE-DOIT-PAS-4); owner `fr.json` `screens.system.*Guidance`, `features/system/pipeline-panel.tsx`/`levers.tsx` | the reader round | `open` |
-| B-535 | Small hit areas on the lot's new paths (phone width, measured): « Journal brut » summary 362×28, « Retour » 66×26, the 404 door « Revenir aux passages » 132×22, the ⋮ sheet opener 40×40 (pre-existing); the levers' buttons are 44 tall and R183 opens the fold with `.click()` on the inner `span`, so no rule measures the target; owner `ui/variants/surfaces.ts` (disclosure summary), `run-screen.tsx` (not-found door), `harness/raw_log.py` (open by a real touch) | the reader round | `open` |
-| B-536 | Durations rounded to whole minutes: 104 s reads « 2 min » in the row and in the detail head, the fixture line the oracle used to carry said « 1 min 44 »; « 7 min » stands for 439 s; owner `features/system/run-list.tsx` `durationInWords` | the reader round | `open` |
+| B-533 | A time no row carries: the mock veille's runs are dated `scenario().now` = 2026-08-10 (UTC midnight), drawn « 10/08 02 h 00 » in the machine's zone and sorted under the real 08-12…09-08 rows; owner `mocks/handlers/pipeline.ts` (the appended run's instant) | the reader round | `fixed #609` |
+| B-534 | Pipeline section copy: the guidance line is printed twice (`pipelineGuidance` in the host, `leversGuidance` in the levers, the same sentence); the watcher control's label is its state (« Déclenchement automatique — actif ») with no act word; « le serveur ne porte pas encore ce réglage » speaks backend (NE-DOIT-PAS-4); owner `fr.json` `screens.system.*Guidance`, `features/system/pipeline-panel.tsx`/`levers.tsx` | the reader round | `fixed #609` |
+| B-535 | Small hit areas on the lot's new paths (phone width, measured): « Journal brut » summary 362×28, « Retour » 66×26, the 404 door « Revenir aux passages » 132×22, the ⋮ sheet opener 40×40 (pre-existing); the levers' buttons are 44 tall and R183 opens the fold with `.click()` on the inner `span`, so no rule measures the target; owner `ui/variants/surfaces.ts` (disclosure summary), `run-screen.tsx` (not-found door), `harness/raw_log.py` (open by a real touch) | the reader round | `fixed #609` |
+| B-536 | Durations rounded to whole minutes: 104 s reads « 2 min » in the row and in the detail head, the fixture line the oracle used to carry said « 1 min 44 »; « 7 min » stands for 439 s; owner `features/system/run-list.tsx` `durationInWords` | the reader round | `fixed #609` |
 | B-537 | `check-markup-contracts.py` is green over the four lock part names: a literal `data-part="flux/row"` is overridden at runtime by the FactRow spread (`{...row, part: PARTS[index]}`) into `locks/pipeline`, `locks/pause-sentinel`, `locks/watcher-sentinel`, `locks/orphan`, and the rules select those four by computed selector, which the guard skips — nothing fails, the guard does not read them (instrument reading); owner `scripts/check-markup-contracts.py` (read spread part names) or literal parts in `locks.tsx` — apparatus frozen, measure 1 | the reader round | `open` |
 | B-538 | A RUNNING history row has nothing to report on its second line — duration is null while running, so the row reads one text line shorter than the same row once ended (−14.8 px on `system/runs`, the page following), C8's consequence: a drawing choice for the operator's walk is that a running row's second line could say the elapsed time instead. Six oracle divergences accepted by name as this cause (`run-detail-running`, `watch-running` × `system/runs`, `system/body`, `shell/page`), STOP A ruled by the steward 2026-09-15 ~13:xx = option A. Owner: none yet — a behaviour wave on Système | the reader round | `open` |
 | B-539 | The joined-fields guard's loss (L13r r·17, ruling 114): `check-mock-seeds.py`'s correspondence arm joined a seed's `ids`/`poster` against the engine's own tables to catch drift between them — the builder that read both sides died with `engine-shape.ts`, and the seeds' ids/poster columns are now held by the `answers` schema arm alone, which checks each seed against its contract schema and never against the other seed. No cross-seed join check exists; owner none (B-513's shape) | L13r | `open` |
@@ -921,7 +921,7 @@ property, which composes with `transform`.
 
 **B-533 — the veille's runs dated by the scenario clock.**
 
-**FIXED by the repair train of 2026-09-16.** `launchDetection` dated the appended run `scenario().now`
+**FIXED #609 — the repair train of 2026-09-16.** `launchDetection` dated the appended run `scenario().now`
 (2026-08-10, UTC midnight), before every seeded passage. Read what the seed carries: no period, no
 interval — but every run carries its end. The appended run now starts where the last run ended
 (`afterTheLastRun`: the latest `endedAt` in the layer's history, or a still-going run's start plus
@@ -941,7 +941,7 @@ negative lock age; the detection's own duration stays 0 s, as before.
 
 **B-534 — the pipeline section's copy.**
 
-**FIXED by the repair train of 2026-09-16.** Three sentences. The levers printed `leversGuidance`, the same
+**FIXED #609 — the repair train of 2026-09-16.** Three sentences. The levers printed `leversGuidance`, the same
 line as the host's `pipelineGuidance` right above it: the levers' copy and its key are removed, the
 host's stays. The watcher control read its state (« Déclenchement automatique — actif »): the state is
 now a row beside the control, the way the bound's row says its value (`levers/watcher-state`,
@@ -973,7 +973,7 @@ réglable ici » — no server in the sentence (NE-DOIT-PAS-4).
 
 **B-535 — hit areas under the touch floor on the run paths.**
 
-**FIXED by the repair train of 2026-09-16, for the passage's three doors; the other back doors are the
+**FIXED #609 — the repair train of 2026-09-16, for the passage's three doors; the other back doors are the
 residue.** The disclosure's summary trades `py-3` for `min-h-[44px]` (28.2 → 44 px); `backAction` gains a
 `floor` variant (`min-h-[44px]`) that the run screen's « Retour » wears, and the not-found door « Revenir
 aux passages » leaves `crossReferenceLink` for the same variant (22.5 → 44 px). The ⋮ sheet opener (40×40,
@@ -1002,7 +1002,7 @@ layout units offsets exactly, and the oracle read ±0.1 px on those screens at b
 
 **B-536 — durations rounded to whole minutes.**
 
-**FIXED by the repair train of 2026-09-16.** `durationInWords` rounded every duration of a minute or more
+**FIXED #609 — the repair train of 2026-09-16.** `durationInWords` rounded every duration of a minute or more
 to the minute. Under an hour it now says minutes AND seconds when the seconds are not zero
 (`screens.system.runMinutesSeconds`, « {{count}} min {{seconds}} », the seconds on two digits); under a
 minute, seconds alone; an hour and more, minutes as before. The row and the passage's head share the
