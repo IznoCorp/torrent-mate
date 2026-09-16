@@ -22,6 +22,10 @@
   `window.__go` call, on the acquisition surface only — the library half genuinely adds to the same
   file rather than starting one, matching the phase's own framing exactly (no contradiction found
   here).
+- **Landed (2026-09-16).** The enumeration is in R128's docstring and the eight holds are green from
+  the start: the seeds hold every state the library draws, so the « fill the holes » half is empty.
+  Two mutations fell holds by name. The instrument's own trap is written down: a paged listing judged
+  by one page, and `total` (1 861) where `loaded` (345) is what the layer holds. B-345 `to confirm`.
 
 A BEHAVIOUR change: the seeds the design host serves at rest hold at least one subject in every state
 the library surfaces can draw, so a hand can try each case without a named state. This is the library

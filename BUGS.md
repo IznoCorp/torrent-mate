@@ -404,7 +404,7 @@ when the defect comes back.
 | B-342 | « Enregistrer » says « Enregistré — torrent.json5 » and the row shows the ORIGINAL value again: the mock's write records the file name and never the value, so the next read contradicts the toast | 1× | `fixed #588` |
 | B-343 | After a real save the restart banner does not appear: the flag is raised on the engine's `SETTINGS_STATE` object and nothing re-renders the page, so « Redémarrer maintenant » is reachable from a named state and not from a save | 1× | `fixed #588` |
 | B-344 | On a desktop browser the design host shows the prototype inside the phone frame only — the operator cannot test the interface's desktop layout there; he asks for a desktop-only switch out of the frame and back | 1× | `fixed #576` |
-| B-345 | The seeded data does not show every state a surface can take — the operator could not find a single medium « à prendre » to try « Récupérer maintenant » on; his ruling: the test data must always hold enough simulated states to exercise every case by hand | 1× | `open` |
+| B-345 | The seeded data does not show every state a surface can take — the operator could not find a single medium « à prendre » to try « Récupérer maintenant » on; his ruling: the test data must always hold enough simulated states to exercise every case by hand | 1× | `to confirm` |
 | B-346 | A paragraph that OPENS with another entry's identifier is read as that entry's body head, so it truncates the entry it lives in and — being the first such head in the file — makes the real entry's body the discarded one; `check-bug-register`'s closure arm was blind to B-310 and B-249 at once, and 25 second-or-later heads sit in the register today | by the micro-wave | `fixed #589` |
 | B-350 | A PAUSED SERIES is dimmed in the follows grid with no word saying why: the tile's caption is `stFraction(follow) ?? paused`, so a fraction always outranks the word — a paused FILM says « en pause » only because it has no fraction | by L13 | `fixed #572` |
 | B-351 | `check-maquette-comments.py` reads five suffixes and `.mjs` is not one of them, so every `.mjs` under `frontend/maquette/` is invisible to the comment rule AND to the corpus count the floor is derived from — one real occupant measured, `vite.config.mjs:143`'s « (L08) » | by L21 | `open` |
@@ -4311,6 +4311,19 @@ bougé » would make the ordinary case the surprising one.
                         boot and taps a thumb makes, so what it measures is what a hand reaches
     the run             `python3 frontend/maquette/harness/seeds_at_rest.py` → 15 holds, no
                         violation
+
+**THE LIBRARY HALF IS HELD, AND THE SEEDS ALREADY HELD IT — L13c c·8.** The states the library's
+surfaces draw were listed from the drawing's own branches and measured against what the layer serves
+at rest: the three lenses, every category chip, a title the library holds TWICE and one that is also
+FOLLOWED (the delete dialog's two figures), a title with a HOLE, a listing longer than one screen (the
+sort and the paging), and a row with no poster. **Every one has a subject at rest**, so nothing was
+filled: **R128** gains eight holds that were green the day they were written, said in its docstring.
+Two mutations fell them by name — a category emptied of its media, and the one title held twice made
+single. **The first reading of these holds was RED on five of them and the instrument was at fault**:
+it judged the seeds by ONE page of a paged listing and by the layer's `total`, which answers the
+library's own 1 861 — a figure the seeds never had. Read to `loaded`, what the layer holds, there are
+345 rows and every state among them. The other surfaces' share of this entry (L21 did acquisition,
+#588 settings) is not measured here and is reported to the steward. Waiting for the operator's hand.
 
 **B-360 — the pre-push gate refuses a push over a green suite, and shows the reason to nobody.**
 Measured on 2026-09-06, three refusals in one morning on two branches. `hooks/pre-push` runs every check

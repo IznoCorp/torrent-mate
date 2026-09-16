@@ -20,7 +20,8 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   B-339 `to confirm`), c·4 (`30658ccf7`, B-336 `to confirm`), c·4-bis (`795649a4c`), the merge of
   `e57ac110f` (`93a24bdc1`, pushed), c·5 (`e122c8478` + `d69bafaa1`, B-331 `to confirm`, its centring
   half unreproduced here), the MIDPOINT full suite (green at the second pass, `514635320`), c·6
-  (`5bcbfb354`, B-327 `to confirm`), c·7 (`818ea85eb`, B-366 `to confirm`). NEXT: c·8, then c·9.
+  (`5bcbfb354`, B-327 `to confirm`), c·7 (`818ea85eb`, B-366 `to confirm`), c·8 (`d725ebda2`,
+  B-345's library half `to confirm`). NEXT: c·9, the close.
 - LOGS: `~/Library/Logs/tm-l13c/`. Mutex `sh scripts/heavy.sh --held`; tests lock
   `/private/tmp/tm-heavy-tests/holder`; own lock `/private/tmp/tm-heavy-l13c/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13c
@@ -117,3 +118,10 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   too), mutation `c07-mutation.log`. The phase's own « tsc must fail » proof does not hold on this
   tree and the measure had said so: the refusal is the layer's, on the JOIN path. Trap paid: a mock
   refusal's words are tool text and stay English; the French belongs to the interface.
+- 2026-09-16 c·8 (`Agent : l13c 1`): R128 gains eight library holds, GREEN from the start — the seeds
+  already hold every state the library draws (345 rows, a title twice, a followed title, five with a
+  hole, 20 without a poster). Green `c08-gate.log` on `d725ebda2` (27 rules, 4 named, oracle no
+  divergence); mutations `c08-mutations.log` (a category emptied; the duplicate made single) fall by
+  name. Trap paid, and it was MINE: the first reading was red on five holds because it judged a PAGED
+  listing by one page and read `total` (the library's own 1 861) where `loaded` (345) is what the
+  layer holds. Owed to the steward: the other surfaces' share of B-345 is not measured here.
