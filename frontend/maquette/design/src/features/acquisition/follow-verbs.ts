@@ -32,6 +32,32 @@ import { baseTitle } from "../../lib/titles";
 /** A suggestion as the reserve holds it — the two fields this act reads. */
 type Suggestion = { title: string; kind: string; ids?: Follow["ids"] | null };
 
+/**
+ * The identity an emitter wrote onto the element the act was taken on.
+ *
+ * THE THIRD EMITTER CARRIES ITS OWN. A suggestion is found by POSITION in the
+ * reserve and a search result by the visit that holds it, but a medium's sheet
+ * is reached from anywhere and has no list behind it — so it writes what it
+ * knows on the element, exactly as it writes the kind.
+ *
+ * Args:
+ *     element: The element the tap was answered on.
+ *
+ * Returns:
+ *     What it carries, or null when it carries nothing readable — an absent
+ *     attribute and an unreadable one are the same answer here, because both
+ *     mean the act has no identity to send.
+ */
+function identityOn(element: HTMLElement): Follow["ids"] | null {
+  const written = element.dataset.followIds;
+  if (written === undefined || written === "") return null;
+  try {
+    return JSON.parse(written) as Follow["ids"];
+  } catch (unreadable) {
+    return null;
+  }
+}
+
 /** How long a dismissed row takes to collapse, in milliseconds. */
 const COLLAPSE = 320;
 
@@ -270,7 +296,8 @@ registerVerb("follow", (title, element) => {
   // AN ABSENT KIND IS SPELLED AS ONE, not as the series' own word: the test
   // below asks whether it is a film, so the empty string answers « series »
   // without this file holding a second interface word to keep in step.
-  follow(title, suggestion?.kind ?? element.dataset.fkind ?? "", suggestion?.ids);
+  follow(title, suggestion?.kind ?? element.dataset.fkind ?? "",
+         suggestion?.ids ?? identityOn(element));
   // AND THE STORE IS TOUCHED AGAIN, for the sheet's own button: `add` writes
   // the cache in place, so without this the button never learns the follow
   // happened and stays « Suivre » under the finger that pressed it.
