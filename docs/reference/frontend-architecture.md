@@ -918,6 +918,9 @@ nothing depends on waiting — provided it carries both, and folds neither into 
 **Done, at L13a** (`e2f510a8b`, `56da59aee`): the file is deleted, R72 keeps its two surviving
 holds mutation-tested, and `residue.py`'s reader half moved to `harness/factories.py` (ruling 59).
 
+**L13 is LANDED, COMPLETE** — its four squashes: L13a (PR #596, version 0.98.92), L13b (PR #601,
+version 0.98.94), L13r (squash `08400a22a`, PR #605, version 0.98.96), L13c (squash `763f15cf9`,
+PR #607, version 0.98.98, merged 2026-09-16).
 
 ---
 
