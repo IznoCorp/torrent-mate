@@ -403,7 +403,7 @@ export const resultCount = cva("rescount pt-6 px-7 pb-0 text-2 text-muted-foregr
  * affordance reads the same on every platform.
  */
 export const disclosure = cva(
-  "block [&>summary]:flex [&>summary]:items-center [&>summary]:gap-2 [&>summary]:py-3 " +
+  "block [&>summary]:flex [&>summary]:items-center [&>summary]:gap-2 [&>summary]:min-h-[44px] " +
     "[&>summary]:cursor-pointer [&>summary]:text-3 [&>summary]:font-semibold " +
     "[&>summary]:text-primary-text [&>summary]:list-none " +
     "[&>summary::-webkit-details-marker]:hidden " +

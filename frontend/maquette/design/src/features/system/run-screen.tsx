@@ -301,7 +301,7 @@ export function RunScreen(): ReactElement {
     >
       <div className={screenBar()} data-part="screen/bar">
         <button
-          className={backAction()}
+          className={backAction({ floor: true })}
           data-part="screen/back"
           onClick={() => bridge.back()}
         >
@@ -318,7 +318,7 @@ export function RunScreen(): ReactElement {
             // and the passages it came from are one tap away.
             <div className={guidance()} data-part="run/not-found">
               {t("screens.run.notFound")}{" "}
-              <button className={crossReferenceLink()} data-go="sys">
+              <button className={backAction({ floor: true })} data-go="sys">
                 {t("screens.run.notFoundBack")}
               </button>
             </div>

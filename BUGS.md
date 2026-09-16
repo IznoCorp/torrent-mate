@@ -971,6 +971,35 @@ réglable ici » — no server in the sentence (NE-DOIT-PAS-4).
                         pipeline section says « serveur » (×5 states)
     green               a comment-only edit: no hold fell in R178, `locks.py` or `hiding.py`
 
+**B-535 — hit areas under the touch floor on the run paths.**
+
+**FIXED by the repair train of 2026-09-16, for the passage's three doors; the other back doors are the
+residue.** The disclosure's summary trades `py-3` for `min-h-[44px]` (28.2 → 44 px); `backAction` gains a
+`floor` variant (`min-h-[44px]`) that the run screen's « Retour » wears, and the not-found door « Revenir
+aux passages » leaves `crossReferenceLink` for the same variant (22.5 → 44 px). The ⋮ sheet opener (40×40,
+pre-existing) is not this entry.
+
+    the rule            R183, `harness/raw_log.py`, hold 5: the fold's summary and the run screen's
+                        back door (`run-detail`), and the not-found door reached cold at `/run/nobody`,
+                        each ≥ 44 px tall by `getBoundingClientRect` at 390 px; hold 2 re-driven — the
+                        fold is opened by `page.touchscreen.tap` at the SUMMARY's centre, where it was a
+                        `.click()` on the inner span (said out loud: that hold passed before and after)
+    seen RED first      the holds committed alone: summary 28.2, Retour 25.5, the not-found door 22.5
+                        (`w5-red.log`)
+    the mutations       `t.replace("[&>summary]:min-h-[44px] ", "[&>summary]:py-3 ")` → FAIL the fold's
+                        summary is at least 44 px tall — 28.2 · the `floor` variant emptied → FAIL the run
+                        screen's back door … 25.5, FAIL the not-found screen's door … 27.5
+                        (`w5-mutations.log`)
+    green               a comment-only edit: no hold fell in R183, `screen_addresses.py`, `run_history.py`
+
+**The residue, and why.** Every other back door wears the same `backAction` at 25.5 px — add screen,
+resolution, media sheet, quality profile, releases, maintenance topic, settings topic and secrets. Growing
+the variant itself was tried first with the height given back as a negative margin, so no neighbour moves:
+the control's natural height is 25.546875 px (13 px × 1.35 + 8 px of padding), which no margin in 1/64-px
+layout units offsets exactly, and the oracle read ±0.1 px on those screens at both −9.25 px
+(`w5-oracle.log`) and −9.21875 px (`w5-oracle-2.log`). The shared default therefore stays; those doors take
+`floor` with the oracle movement declared, in a lot that may move their bars.
+
 **B-536 — durations rounded to whole minutes.**
 
 **FIXED by the repair train of 2026-09-16.** `durationInWords` rounded every duration of a minute or more
