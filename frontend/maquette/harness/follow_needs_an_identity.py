@@ -22,6 +22,14 @@ nothing.
   f4. A FOLLOW WITH NO EPISODE DATA IS NOT A FOLLOW WITHOUT A SHEET: identified,
       followed on purpose, it is created like any other. « No sheet » and « no
       episodes » are two different absences.
+
+RE-AIMED, SAID OUT LOUD. f3 and f4 read the SAME subject — the first suggestion
+carrying identifiers, which the seeds make a FILM — and f4's own assertion
+(`ids is not None`) was implied by f3's (`ids` truthy), so f4 could not fail
+while f3 passed and read nothing of the absence it names. f3 now takes a SERIES
+and f4 a FILM, which is the subject with no episode data the phase file asked
+for; and both send the kind the INTERFACE sends — `show` and `movie`, the
+contract's own words — where the rule used to send the seed's display word.
 """
 import asyncio
 import pathlib
@@ -33,6 +41,9 @@ from common import SETTLED, Journal, open_page
 from playwright.async_api import async_playwright
 
 STATE = "acq-follows-list"
+# The kinds the INTERFACE sends, which is what the layer records.
+SERIES = "show"
+FILM = "movie"
 # A title no seeded search result and no suggestion carries, so the layer has
 # nothing to identify it with. french-ok: a media title, which is data.
 NAMELESS = "Un dossier que rien n'identifie"
@@ -54,13 +65,18 @@ FOLLOWS = """async()=>{
 }"""
 
 # A title the layer itself can identify, taken from the suggestions it serves —
-# the join the create falls back on when the request names no identity.
-IDENTIFIABLE = """async()=>{
+# the join the create falls back on when the request names no identity. ASKED
+# FOR ONE KIND AT A TIME: f3's subject is a series and f4's a film, and a rule
+# whose two holds share a subject holds one thing twice.
+# french-ok: the kind word the seeds carry, a data value compared where it arrives
+IDENTIFIABLE = """async(wanted)=>{
   const answer = await fetch("/api/acquisition/suggestions");
   const body = await answer.json();
   const rows = Array.isArray(body) ? body : (body.items ?? body.suggestions ?? []);
-  const named = rows.find((row) => row.ids && Object.keys(row.ids).length > 0);
-  return named ? {title: named.title, kind: named.kind ?? "tv"} : null;
+  const isFilm = (row) => row.kind === "Film";
+  const named = rows.find((row) => row.ids && Object.keys(row.ids).length > 0
+                                   && isFilm(row) === (wanted === "movie"));
+  return named ? {title: named.title, kind: wanted} : null;
 }"""
 
 
@@ -87,18 +103,30 @@ async def main():
                       f"{len(before)} follow(s) before, {len(after)} after; "
                       f"{[row['title'] for row in after if row['title'] == NAMELESS]}")
 
-        named = await page.evaluate(IDENTIFIABLE)
+        named = await page.evaluate(IDENTIFIABLE, SERIES)
         landed = await page.evaluate(
-            CREATE, {"title": (named or {}).get("title"), "kind": (named or {}).get("kind", "tv")})
+            CREATE, {"title": (named or {}).get("title"), "kind": SERIES})
         held = await page.evaluate(FOLLOWS)
         recorded = next((row for row in held if row["title"] == (named or {}).get("title")), None)
         journal.check("a create the layer CAN identify still lands, carrying the identity",
                       named is not None and landed["status"] == 200
                       and recorded is not None and recorded["ids"],
                       f"asked for {named}, answered {landed['status']}, recorded {recorded}")
+
+        # F4'S OWN SUBJECT: a FILM, which is a medium the providers hold no
+        # episode catalogue for. « No sheet » and « no episodes » are two
+        # absences, and only the first is a reason to refuse a create.
+        film = await page.evaluate(IDENTIFIABLE, FILM)
+        film_landed = await page.evaluate(
+            CREATE, {"title": (film or {}).get("title"), "kind": FILM})
+        after_film = await page.evaluate(FOLLOWS)
+        film_recorded = next(
+            (row for row in after_film if row["title"] == (film or {}).get("title")), None)
         journal.check("and it is a follow with a sheet even where no episode data is held",
-                      recorded is not None and recorded["ids"] is not None,
-                      f"{recorded}")
+                      film is not None and film_landed["status"] == 200
+                      and film_recorded is not None and bool(film_recorded["ids"]),
+                      f"asked for {film}, answered {film_landed['status']}, "
+                      f"recorded {film_recorded}")
 
         await context.close()
         await browser.close()
