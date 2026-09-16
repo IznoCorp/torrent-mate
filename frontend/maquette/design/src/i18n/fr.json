@@ -576,6 +576,8 @@
       "runSeconds_other": "{{count}} s",
       "runMinutes_one": "{{count}} min",
       "runMinutes_other": "{{count}} min",
+      "runMinutesSeconds_one": "{{count}} min {{seconds}}",
+      "runMinutesSeconds_other": "{{count}} min {{seconds}}",
       "runCommand": "commande {{command}}",
       "trigger": {
         "completion": "un téléchargement terminé",

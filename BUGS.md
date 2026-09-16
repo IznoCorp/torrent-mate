@@ -919,6 +919,22 @@ property, which composes with `transform`.
                         a click reopening the menu 400 ms after the close → « still closed » and the
                         paint holds fall (288 px)
 
+**B-536 — durations rounded to whole minutes.**
+
+**FIXED by the repair train of 2026-09-16.** `durationInWords` rounded every duration of a minute or more
+to the minute. Under an hour it now says minutes AND seconds when the seconds are not zero
+(`screens.system.runMinutesSeconds`, « {{count}} min {{seconds}} », the seconds on two digits); under a
+minute, seconds alone; an hour and more, minutes as before. The row and the passage's head share the
+function.
+
+    the rule            R182, `harness/run_history.py`, hold 2b: the passages the layer answers at 104 s
+                        and 439 s, found by their length, say « 1 min 44 » and « 7 min 19 » in their rows
+    seen RED first      the function as it stood, through `scripts/mutate.sh`: « … 1 rangé · 2 min » and
+                        « … 2 rangés · 7 min » (`w2-mutations.log`)
+    the mutation        `t.replace("\"{{count}} min {{seconds}}\"", "\"{{count}} min\"")` on `fr.json` →
+                        FAIL the 104 s passage's row says « 1 min 44 », to the second — '… 1 rangé · 1 min'
+    green               a comment-only edit through the same tool: no hold fell
+
 **B-551 — citations of a squashed branch's commit are dead on a fresh clone.**
 
 **FIXED #609.** Every comment under `frontend/maquette` citing `@13a66a35b` now cites `@c0a5062ac`,

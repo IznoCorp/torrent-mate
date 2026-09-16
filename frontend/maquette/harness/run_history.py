@@ -14,6 +14,8 @@ WHAT THE LIST IS HELD TO:
      narrative is the interface's, built from codes and figures; French off the
      wire is what the demand register exists to stop. So the hold reads the
      layer's own counts and refuses a line they do not produce.
+  2b. A DURATION UNDER AN HOUR IS SAID TO THE SECOND. « 1 min 44 », never the
+     « 2 min » a rounding to the minute made of 104 s.
   3. `degraded` IS SAID, above the rows it qualifies. A list that may be short
      drawn as a complete one is NE-DOIT-PAS-5 exactly.
   4. THE EMPTY LIST IS SAID. « Aucun passage enregistré. » — a heading over
@@ -239,6 +241,18 @@ async def main():
         journal.check("and the row's line is made of THOSE figures",
                       bool(line) and dispatched is not None and composed in line,
                       f"{line!r} must carry {composed!r} (dispatch={dispatched})")
+
+        # 2b — A DURATION UNDER AN HOUR SAYS ITS SECONDS. Rounded to the minute,
+        # the seed's 104 s passage read « 2 min » and its 439 s one « 7 min »:
+        # each is found by the length the layer answered, and its row must say
+        # that length to the second — « 1 min 44 », « 7 min 19 ».
+        for length, said in ((104, "1 min 44"), (439, "7 min 19")):
+            timed = next((run for run in runs
+                          if run["durationS"] is not None and round(run["durationS"]) == length), None)
+            row_line = None if timed is None else await page.evaluate(ROW_TEXT, timed["runUid"])
+            journal.check(f"the {length} s passage's row says « {said} », to the second",
+                          bool(row_line) and said in row_line,
+                          f"{row_line!r} for {timed and timed['runUid']!r}")
 
         # 5 — THE TRIGGER IS IN WORDS.
         journal.check("the trigger is said in words, never as a code",
