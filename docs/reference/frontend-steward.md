@@ -161,11 +161,20 @@ reaches him.
    not new apparatus.
 2. **One reader round per lot, zero per micro-wave**; a micro-wave merges on its green gate and the steward's verification
    on the files, under the merge delegation he gives; instrument minors are filed, never repaired inside the wave.
+   **Fate (L13c, 2026-09-16)**: ONE round (reader C13) found nine findings — one MAJOR the layer's own rules could not
+   see (c·7's new refusal answered by the interface with the opposite of the truth, R200 reads the layer alone and no
+   interface at all), eight minors — closed in one repair round of ~1 h 10 (five decided findings, six commits + one
+   style fixup). Against L13r's round: ~20 min for three repairs (one blocker, two minors decided of four findings) —
+   L13c's round cost more clock because it decided more (five against three) and carried the MAJOR the sub-lot's own
+   rules never saw.
 20. **ONE full suite at the sub-lot's midpoint** — a full `run.sh` (no flag) pass under the mutex,
     ~25 min, run once after the round's b·6 and before b·7 opens, on the phase head, its falls repaired
     by the agent holding that phase, in addition to b·11's. Reason measured: 4 L13a regressions went
     unseen under 19 green phase gates alone. Ratified 2026-09-14: 1 fall under 6 green gates, 17 min, on
     L13b; and on 2026-09-15 the pre-PR full suite read two RULE defects under six more green gates.
+    **Third fate (L13c, 2026-09-16)**: the sub-lot's own midpoint full suite read THREE REAL FALLS
+    under six green phase gates (c·1–c·5) — `outbox.py`, `surfaces.py`, `virtual.py` — each replayed
+    alone and confirmed real, none a flake.
 3. **The post-merge gesture is the steward's own hand** — references re-recorded, the row, the folder cited by commit, the
    recount — no agent session for it, a script when one exists.
 4. **One steward docs PR per lot, at the lot's end** — never one per incident. **One consequence, measured on 2026-09-13
@@ -184,7 +193,9 @@ reaches him.
    pushed to a phase gate.
 9. **A sub-lot starts STACKED, during the previous round** — its branch cut and its agent spawned while
    the round before it (a reader round, a gate) is still running, so the machine's two-agent ceiling is
-   never idle waiting on a verdict.
+   never idle waiting on a verdict. **Fate (L13c, 2026-09-15)**: `feat/maquette-l13c` was cut and
+   `Agent : l13c 1` spawned stacked on L13r's PR head `22166378e` while L13r's own reader round was
+   still running — the ceiling held at two agents through the hand-off, no idle wait.
 10. **Cold-start diet** — an agent's launch prompt carries state at ≤ 40 lines plus pointers (the ledger,
     `RULINGS.md`, the four required readings), never a rebuilt history. Ratified 2026-09-14: one agent
     ran six phases on this diet, stood down at 60 % context.
@@ -227,6 +238,14 @@ reaches him.
     `--compare` + the pre-push pytest. Measured: 11 259 tests ran three times before #596 for 0 defects
     outside the harness. This crosses `CLAUDE.md` § Phase Gate Checklist item 3 (« `make check` ») as
     written for the `implement:phase` flow — amended there for maquette waves, dated the same word.
+
+**Order 42's own fate (auditor, on L13c, 2026-09-15/16).** Nine opening measures written ahead of the
+first phase's spawn, one per phase (c·1 ≈ 6 … c·9 ≈ 5, mean ≈ 6.9, none past measure 11's 15-point
+ceiling). Of the nine: SIX carried no STOP D at their opening at all, TWO were pre-empted by a ruling
+issued before the phase even opened (c·1's ruling 115, c·4's ruling 119), and ONE (c·3) had an actual
+STOP D at its opening (ruling 118). **Amended 2026-09-16 03:2x**: the opening measure also lists the
+READERS of the behaviour a phase reverses, not only its writers, after the midpoint's full suite caught
+`virtual.py` — a reader of the behaviour c·1 reversed that its own opening measure had missed.
 
 **Plugin, audit and the method file, as they stand at this lot's close.** The orchestrator plugin is
 `0.29.2`. **An audit runs only on the operator's word** — never spontaneously, and never as a standing
@@ -419,10 +438,14 @@ room.
 **Three locks, by what the run READS** (2026-09-12, five agents on one machine; amended
 2026-09-13). The mutex above is for the ONE served copy and the ONE 8899 host — `run.sh` in any
 tier, the oracle, `harness-hold-counts.py`, `mutate.sh`, a single rule replay — announced to the
-steward before and after. **Every pytest run, `make check` and `git push` (pre-push runs the
-suite) of EVERY wave runs under ONE tests lock**, `HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder`,
+steward before and after. **Every pytest run and `make check` of EVERY wave runs under ONE tests lock**,
+`HEAVY_LOCK=/private/tmp/tm-heavy-tests/holder`,
 so test suites serialise across waves — concurrency was the killer on 2026-09-12, not memory (4–5
-GB free at every steward reading). What is heavy and reads neither copy nor suite (`npm ci`, a
+GB free at every steward reading). **Amended 2026-09-15 20:5x (steward, extending the auditor's
+16:2x decision to every wave): every `git push` (pre-push runs the suite) runs under the
+machine-wide HARNESS MUTEX instead** — `sh scripts/heavy.sh --class test <who> git push …`, no
+`HEAVY_LOCK=` override — the tests lock stays for a pytest run or `make check` that touches no
+harness. What is heavy and reads neither copy nor suite (`npm ci`, a
 build into a worktree's own `dist/`) keeps a per-wave lock. On a host whose own load runs 9–15 a
 classed run may wait without bound and the wrapper does not measure that wait — the steward says
 which form a wave uses and reads the machine before accusing a run. Never a parallel test run
