@@ -23,6 +23,9 @@ WHAT THE LIST IS HELD TO:
   5. THE TRIGGER IS IN WORDS. `watcher` reads « la veille », `web` reads « depuis
      l'interface ». A legend that teaches the reader a vocabulary is a standing
      refusal: the row says the thing itself.
+  5b. A RUN STARTED BY HAND IS THE NEWEST ROW: the first drawn, dated after the
+     row beneath it — never dated by the layer's frozen clock, under the
+     passages it followed.
 
 WHAT THE DETAIL IS HELD TO:
 
@@ -126,6 +129,17 @@ OUTCOME_WORDS = {"success": "runSucceeded", "error": "runFailed", "running": "ru
 ROW_TEXT = """(runUid)=>{
   const row = document.querySelector(`[data-run="${runUid}"]`);
   return row ? (row.textContent || '').replace(/\\s+/g, ' ').trim() : null;
+}"""
+
+# THE ROWS IN THE ORDER THEY ARE DRAWN, each with the instant the layer answered
+# for it — the order a reader sees, never the order the answer came in.
+DRAWN_ORDER = """async ()=>{
+  const answer = await (await fetch('/api/pipeline/history')).json();
+  const started = new Map((answer.runs || []).map((run) => [run.runUid, run.startedAt]));
+  return [...document.querySelectorAll('[data-part="runs/row"]')].map((row) => ({
+    runUid: row.dataset.run || '',
+    at: started.has(row.dataset.run) ? Date.parse(started.get(row.dataset.run)) : null,
+    text: (row.textContent || '').replace(/\\s+/g, ' ').trim()}));
 }"""
 
 # HOW MANY ROWS ARE DRAWN.
@@ -268,6 +282,18 @@ async def main():
         going = [row for row in rows if row["outcome"] == "running"]
         journal.check("a run still going is listed, so the non-terminal word has a subject",
                       bool(going), f"{[row['outcome'] for row in rows]}")
+        # 5b — A RUN STARTED BY HAND IS THE NEWEST ROW. Dated by the layer's frozen
+        # clock, it was drawn « 10/08 02 h 00 » and sorted under passages it
+        # followed; it must be the FIRST row, dated after the second.
+        order = await page.evaluate(DRAWN_ORDER)
+        head = order[0] if order else None
+        journal.check("the run started by hand is the first row drawn",
+                      bool(going) and head is not None and head["runUid"] == going[0]["runUid"],
+                      f"first {head and head['runUid']!r}, started {going and going[0]['runUid']!r}")
+        journal.check("and it is dated after the row beneath it",
+                      len(order) > 1 and order[0]["at"] is not None and order[1]["at"] is not None
+                      and order[0]["at"] > order[1]["at"],
+                      f"{[(row['runUid'][:12], row['text'][:14]) for row in order[:2]]}")
         for row in going + [row for row in rows if row["outcome"] != "running"][:1]:
             expected = SENTENCES.get(OUTCOME_WORDS[row["outcome"]])
             journal.check(f"the {row['outcome']} row {row['runUid'][:8]} says its own outcome word",

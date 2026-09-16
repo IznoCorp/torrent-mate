@@ -919,6 +919,26 @@ property, which composes with `transform`.
                         a click reopening the menu 400 ms after the close → « still closed » and the
                         paint holds fall (288 px)
 
+**B-533 — the veille's runs dated by the scenario clock.**
+
+**FIXED by the repair train of 2026-09-16.** `launchDetection` dated the appended run `scenario().now`
+(2026-08-10, UTC midnight), before every seeded passage. Read what the seed carries: no period, no
+interval — but every run carries its end. The appended run now starts where the last run ended
+(`afterTheLastRun`: the latest `endedAt` in the layer's history, or a still-going run's start plus
+`DETECTION_MILLISECONDS`), which on the seed is the `prime` maintenance run's end, 2026-09-08
+07:32:40 UTC — so it is drawn first, after every seeded row, and a second start lands after the first.
+`ageSince` is floored at zero, since a run dated after the frozen clock would otherwise report a
+negative lock age; the detection's own duration stays 0 s, as before.
+
+    the rule            R182, `harness/run_history.py`, hold 5b on `watch-running`: the running
+                        detection is the first row drawn, and its answered instant is later than the
+                        second row's (compared by `Date.parse`, not as strings)
+    seen RED first      and the mutation, one expression, through `scripts/mutate.sh`:
+                        `t.replace("startedAt: afterTheLastRun(state),", "startedAt: scenario().now,")`
+                        → FAIL the run started by hand is the first row drawn — first
+                        '74bd260c44d14630848d8a59658b8506', started 'detection-10' (`w3-mutations.log`)
+    green               a comment-only edit: no hold fell in R182, `watch_run.py` or `locks.py`
+
 **B-536 — durations rounded to whole minutes.**
 
 **FIXED by the repair train of 2026-09-16.** `durationInWords` rounded every duration of a minute or more
