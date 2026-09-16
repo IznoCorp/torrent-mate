@@ -390,6 +390,12 @@ holds the three ends.
 - **`offsetParent` cannot see a closed `<details>`** — Chrome hides its content with
   `content-visibility: hidden` and the boxes stay laid out, so a hold reading only `offsetParent` is
   green over a shut fold; ask `checkVisibility()` too.
+- **The mock layer intercepts `fetch` INSIDE the page** — so a Playwright response listener sees
+  nothing at all on the API routes, and a rule built on one measures an empty list rather than a
+  silent interface. A claim about « the request that left » is read in the layer's own register
+  (`GET` the address back, or `window.__mocks.answered()`), never in a network trace. And a
+  mutation log keeps the mutation's EXPRESSION beside the file and the `FAIL` line: a reader who
+  has only the file cannot tell which of its behaviours the rule was proved against.
 
 Story: `frontend/maquette/README.md@6a47304a4` § Traps this stylesheet paid for.
 

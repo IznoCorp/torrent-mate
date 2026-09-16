@@ -22,7 +22,9 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   half unreproduced here), the MIDPOINT full suite (green at the second pass, `514635320`), c·6
   (`5bcbfb354`, B-327 `to confirm`), c·7 (`818ea85eb`, B-366 `to confirm`), c·8 (`d725ebda2`,
   B-345's library half `to confirm`), c·9 the close (`16abdbcdc` + `a53bba207`, version 0.98.98,
-  REPORT.md written). NEXT: the pull request, then the reader round.
+  REPORT.md written), the pull request #607, the reader round (C13, one round — measure 2), and its
+  five decided findings repaired (`62dbcf708`…, see the ledger's round-one line). NEXT: the
+  orchestrator verifies on the files and merges; there is no second reader round.
 - LOGS: `~/Library/Logs/tm-l13c/`. Mutex `sh scripts/heavy.sh --held`; tests lock
   `/private/tmp/tm-heavy-tests/holder`; own lock `/private/tmp/tm-heavy-l13c/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l13c
@@ -139,3 +141,19 @@ Read after `docs/features/maquette-l13/BRIEF-L13c.md` (governs) and `RULINGS.md`
   widths × every named state, and there is one more state), machine.py +1 (B-327's restored hold),
   seeds_at_rest.py +8 (the library's states), states.py +1 (the new state); 6 rules NEW — R195 to
   R200, this wave's.
+- 2026-09-16 round one (`Agent : l13c round 1`): the reader's five decided findings repaired on
+  `0f31aaa6f`, one commit each — C1+C7 `62dbcf708` (the media sheet's act writes the medium's
+  identity beside the kind, `data-follow-ids`, read by the verb) and `863ffbb0c` (`add` answers
+  `added` / `held` / `refused`, the message follows the answer, a refusal draws its own sentence
+  — the new `verbs.follows.refused` — and the visit's « ✓ » is taken back; a HELD act keeps
+  today's message, R107 untouched); C2 `f4cacfb10` (R200's f3 takes a series and f4 a film, both
+  sending the contract's kinds); C3 `e58731711` (the layer MERGES the request's identity into the
+  joined one, the request winning on a shared key; R200 gains f5 over the recorded identity's
+  SHAPE); C5 `fae47234e` (the search hold types a query that narrows to 9 rows without emptying
+  and reads the exact set). ONE red run, `r1-red.log` on `0f31aaa6f`: R201 four falls, R200's f5
+  one. Verification gate `r1-gate.log` on `fae47234e`: 40 rules (18 named), 26 guards, 0 failed,
+  oracle no divergence. C5's own green reading, which no wrapped run prints: `r1-C5-green.log`.
+  New rule R201 `follow_refusal_is_drawn.py`, five holds, the FIRST of this lot to read the
+  INTERFACE after a create the layer refuses. Trap paid: a selector composing a dotted call inside
+  its own f-string reads to `check-markup-contracts.py` as a class token — the position is read out
+  first. C4, C6, C8 and C9 are the steward's.
