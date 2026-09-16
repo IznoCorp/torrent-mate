@@ -1,6 +1,6 @@
 {
   "$comment": "The recorded oracle's reference — `frontend/maquette/oracle.py`. One entry per (named state x region): a bounding rectangle rounded to one decimal, and the computed properties of `regions.json`'s `probe.computedStyleSubset`. `null` means the region's selector matched nothing in that state, which is data rather than an omission. Regenerate with `--record`; ratify a REVIEWED change with `--accept`, never from a gate.",
-  "baseCommit": "02916096b56f724db38d10b9c3ff7167c77cc49a",
+  "baseCommit": "5bcbfb35490fbf38f8198dbfc8b9d04beac70a2d",
   "platform": "Darwin/arm64",
   "counts": {
     "states": 114,
@@ -41390,7 +41390,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 583.1
+          "height": 638.5
         },
         "style": {
           "position": "static",
@@ -41572,7 +41572,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 583.1
+          "height": 638.5
         },
         "style": {
           "position": "static",
