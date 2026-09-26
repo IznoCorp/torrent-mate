@@ -820,7 +820,7 @@ precedent: a feature ADDS a block kind), and a feed if the operator chooses one.
 maquette's contract and in the demands; the two events are claimed; a refusal is readable from
 the surface with its reason (NE-DOIT-PAS-5 applied to a success).
 
-**Design and plan written 2026-09-27, PR #<n>** — `docs/features/maquette-l17/DESIGN.md`, `plan/INDEX.md` (19 phases, mean ≈ 10.9); eight open questions.
+**Design and plan written 2026-09-27, PR #617** — `docs/features/maquette-l17/DESIGN.md`, `plan/INDEX.md` (19 phases, mean ≈ 10.9); eight open questions.
 
 #### L18 — §17, accounts, rights and Plex identity · *depends on L15, L19*
 
