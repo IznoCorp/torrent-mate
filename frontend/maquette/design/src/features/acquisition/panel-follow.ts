@@ -27,8 +27,8 @@ import { store } from "../../lib/store-access";
 import { registerProducer, type PanelCache, type PanelDescriptor } from "../../ui/panel/contract";
 import { followFacts, type Follow } from "./follow-facts";
 import { primaryAction, secondaryActions } from "./follow-actions";
-import { followsQuery, incompleteShowsQuery } from "./queries";
-import { STATUS_TONE, followStatusLabel } from "./follow-vocabulary";
+import { acquisitionStatusQuery, followsQuery, incompleteShowsQuery, type AcquisitionStatus } from "./queries";
+import { STATUS_TONE, followStatusLabel, nextSearchTime } from "./follow-vocabulary";
 
 /* The one wait for an identity in progress, stopped by the next one. */
 let cancelWaiting: (() => void) | null = null;
@@ -132,6 +132,14 @@ function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
   const translate = i18next.t.bind(i18next);
   const { follow, isFilm, seasons, fraction } = facts;
   const kind = translate(isFilm ? "panels.follow.film" : "panels.follow.series");
+  // A RELEASE FOUND AND NOT TAKEN is taken at the scheduler's next pass anyway;
+  // the sheet says when, beside the act that does it now. The hour is the
+  // cadence's next slot, derived as the follows' cards derive it.
+  const cadence = cache.held<AcquisitionStatus>(acquisitionStatusQuery.queryKey)?.cadence;
+  const nextSearch = facts.toTake && cadence ? nextSearchTime(cadence, new Date()) : null;
+  const taken = facts.toTake
+    ? translate(nextSearch ? "panels.follow.foundNextPassAt" : "panels.follow.foundNextPass", { at: nextSearch })
+    : null;
   return {
     address: "follow:" + title,
     title: follow.title,
@@ -142,6 +150,7 @@ function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
     puce: [STATUS_TONE[follow.status as string], followStatusLabel(follow)],
     blocs: [
       { type: "actions", actions: [primaryAction(facts)] },
+      taken ? { type: "note", text: taken } : null,
       seasons.length
         ? { type: "saisons", follow, seasons }
         : {
@@ -168,5 +177,7 @@ registerProducer("follow", {
   // exact and per subject, so the kind's needs are a function of it — which
   // takes the follow panel out of the boot's prefill by construction, and its
   // first open about any title goes down the deferred path.
-  needs: (subject) => [followsQuery, incompleteShowsQuery, membershipQuery(subject)],
+  // AND THE SCHEDULER'S CADENCE, which names the hour a found release is taken
+  // at anyway.
+  needs: (subject) => [followsQuery, incompleteShowsQuery, membershipQuery(subject), acquisitionStatusQuery],
 });

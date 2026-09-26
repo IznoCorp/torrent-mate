@@ -3,6 +3,9 @@
 RE-AIMED when the follows took the contract's names: a follow's title, kind and
 status are read as `title`, `kind` and `status` (and `owned`), where they were
 the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
+
+RE-AIMED OUT LOUD: the grab is taken from the follow's sheet, where « Récupérer
+maintenant » lives; « En cours » no longer carries it.
 """
 import asyncio
 
@@ -28,7 +31,12 @@ async def main():
 
     await pg.evaluate("()=>window.__go('acq-now-loaded')"); await pg.wait_for_timeout(300)
     a=await pg.evaluate(cnt); print("before grabbing      :", a)
-    await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/foot"]')].find(x=>x.textContent.includes('Récupérer')).click()""")
+    # RE-AIMED OUT LOUD: « À récupérer » leaves « En cours », so the grab is the
+    # follow's sheet's « Récupérer maintenant », raised on the first release the
+    # queue holds to be taken.
+    await pg.evaluate("""()=>window.__panel.produce('follow', window.__queue().takeable[0].title)""")
+    await pg.wait_for_timeout(600)
+    await pg.evaluate("""()=>[...document.querySelectorAll('#sheetin [data-part="sheet/action"]')].find(x=>'take' in x.dataset).click()""")
     await pg.wait_for_timeout(400)
     b1=await pg.evaluate(cnt); print("after grabbing       :", b1)
     assert b1["takeable"]==a["takeable"]-1 and b1["inflight"]==a["inflight"]+1, "the card did not move"

@@ -60,12 +60,12 @@ from playwright.async_api import async_playwright
 # ASKED WHILE THE MACHINE IS BUSY, so the walk needs both at once: the state
 # that has something to act on, with the pipeline put to work on top of it.
 # Driving `arr-running` alone would have measured a page with no subject.
-BUSY_STATE = "acq-now-loaded"
-
-# WHERE A FOLLOW IS DRAWN. The acquisitions page lists what is in FLIGHT, so a
-# followed medium that is not currently being acquired has no row there at all —
-# which is why the pause half of this walk moves here rather than raising a
-# panel nobody on that page could reach.
+#
+# WHERE A FOLLOW IS DRAWN. « En cours » lists what is in FLIGHT, so a followed
+# medium that is not currently being acquired has no row there at all — which
+# is why both halves of this walk stand on the follows list. RE-AIMED OUT LOUD:
+# the take half stood on « En cours » while « À récupérer » was drawn there; it
+# left, and « Récupérer maintenant » lives on the follow's sheet.
 FOLLOWS_STATE = "acq-follows-list"
 
 # THE WORDS A REFUSAL WEARS. « occupé » is the clause's own; the others are what
@@ -246,7 +246,7 @@ async def main():
         # records every call it answered, keyed by the operationId the contract
         # names — which is the thing the clause is about.
 
-        await page.evaluate("(id)=>window.__go(id)", BUSY_STATE)
+        await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
         await page.wait_for_timeout(SETTLED)
         await page.evaluate("""()=>window.__pipeline("running")""")
         await page.wait_for_timeout(SETTLED)
@@ -258,12 +258,12 @@ async def main():
 
         before = await page.evaluate(QUEUE)
         journal.check(
-            "and it really has something to act on",
-            len(before["takeable"]) > 0 and len(before["follows"]) > 0,
-            f"{len(before['takeable'])} takeable, {len(before['follows'])} followed")
+            "and it really has a followed medium to take",
+            any(one in before["follows"] for one in before["takeable"]),
+            f"takeable {before['takeable']}, followed {before['follows']}")
 
         # ── TAKING A MEDIUM, from its own panel, while the pipeline runs ────
-        title = before["takeable"][0]
+        title = next((one for one in before["takeable"] if one in before["follows"]), "")
         # RAISED BY A FINGER, NEVER THROUGH THE SEAM. `window.__panel.produce`
         # opens the panel without walking the path that raises it, so a row
         # that has lost its `data-panel` on a busy page would be invisible here

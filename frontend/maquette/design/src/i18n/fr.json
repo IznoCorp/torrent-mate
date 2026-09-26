@@ -1261,6 +1261,8 @@
       "removeFilm": "Retirer de la liste",
       "removeSeries": "Retirer le suivi",
       "deleteFromLibrary": "Supprimer de la médiathèque",
+      "foundNextPassAt": "Trouvé, récupéré à la prochaine passe, à {{at}}.",
+      "foundNextPass": "Trouvé, récupéré à la prochaine passe.",
       "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
       "grabSeason": "Récupérer la saison {{season}}"
     }

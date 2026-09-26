@@ -157,6 +157,15 @@ export const incompleteShowsQuery = {
     read<Schemas["IncompleteShow"][]>("/api/library/incomplete"),
 };
 
+/** What the scheduler answers about the acquisition engine: its cadence. */
+export type AcquisitionStatus = { cadence: string; nextSearch: string | null };
+
+/** The scheduler's answer, one key for the cadence line and the follow's sheet. */
+export const acquisitionStatusQuery = {
+  queryKey: ["/api/acquisition/status"],
+  queryFn: () => read<AcquisitionStatus>("/api/acquisition/status"),
+};
+
 /**
  * The schedule the acquisition engine searches on, as the scheduler returns it.
  *
@@ -165,9 +174,8 @@ export const incompleteShowsQuery = {
  */
 export function useGrabCadence() {
   return useQuery({
-    queryKey: ["/api/acquisition/status"],
-    queryFn: () => read<{ cadence: string; nextSearch: string | null }>("/api/acquisition/status"),
-    select: (status: { cadence: string }) => status.cadence,
+    ...acquisitionStatusQuery,
+    select: (status: AcquisitionStatus) => status.cadence,
   });
 }
 
