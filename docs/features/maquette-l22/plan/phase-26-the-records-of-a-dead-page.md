@@ -1,4 +1,4 @@
-# Phase 24 — The records of a dead page
+# Phase 26 — The records of a dead page
 
 **Opening measure (2026-09-26, on `94a369879`):**
 

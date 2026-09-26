@@ -1,4 +1,4 @@
-# Phase 20 — Readers re-aimed: the page's states
+# Phase 22 — Readers re-aimed: the page's states
 
 **Opening measure (2026-09-26, on `94a369879`):**
 
@@ -9,7 +9,7 @@
   (R90 — `arr-error`, `arr-loading`, and their sentence « ce qui arrive »), `touch.py:115`, `panel_label_once.py:56`
   (`arr-queued`, « the subject — a medium »); and — second touch, first done in phase 3 — `actions.py:40`, `cards.py:50-52`,
   `decision.py:204-208`. `harness/states/acquisition.ts:211` is a CODE site: `applyState({ page: "arr", … })` in a state
-  that is not an Arrivées state. **These readers are the reason the rules of phases 6 to 11 exist**: each `arr-*` state
+  that is not an Arrivées state. **These readers are the reason the rules of phases 6 to 13 exist**: each `arr-*` state
   they drive has an Acquisition successor by then (`acq-now-*`, `acq-todo-*`, `acq-card-*`).
 - **Points ≈ 14.** Ten files re-aimed at 1 each (the walk begins somewhere else, so the re-aim is not a rename) 10; three
   second touches 3; the one code site 1.

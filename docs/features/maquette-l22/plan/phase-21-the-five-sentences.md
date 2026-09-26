@@ -1,4 +1,4 @@
-# Phase 19 — The sentences that sent the reader to Arrivées
+# Phase 21 — The sentences that sent the reader to Arrivées
 
 **Opening measure (2026-09-26, on `94a369879`):**
 
@@ -9,7 +9,7 @@
   `crossrefLink`), `verbs.maintenance.started` (« Commande lancée — suivez-la dans « Arrivées ». », read by
   `features/maintenance/action-verbs.ts:85`, whose comment also names Arrivées). Harness readers of the sentences:
   `git grep -n -E 'toArrivals|introRest|leftBehindLink|maintenance.started|suivez-la|crossref' -- 'frontend/maquette/harness/*.py'`
-  → 3 lines, all in `page_host.py` (a « crossref » hold on the Arrivées page itself, which phase 21 re-homes).
+  → 3 lines, all in `page_host.py` (a « crossref » hold on the Arrivées page itself, which phase 23 re-homes).
 - **Points ≈ 13.** Four sentences rewritten 4; `now-tab.tsx`'s cross-reference deleted (lines 104–121) 4 and its 8 keys 1; two
   emitters re-targeted 1; R-L22-p with its mutation 3.
 

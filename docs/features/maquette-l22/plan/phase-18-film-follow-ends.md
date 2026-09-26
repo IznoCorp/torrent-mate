@@ -1,4 +1,4 @@
-# Phase 16 — A film's follow ends alone
+# Phase 18 — A film's follow ends alone
 
 **Opening measure (2026-09-26, on `94a369879`):**
 
@@ -7,8 +7,9 @@
   `mocks/handlers/acquisition.ts` (`/api/acquisition/followed`, the list « Suivis » draws); the live rule that keeps it fresh:
   `features/acquisition/live.ts` (`FOLLOWED_KEY`). `features/acquisition/follows-tab.tsx` is 282 lines (ceiling 400).
   `git grep -l 'acq-follows' -- 'frontend/maquette/harness/*.py' | wc -l` → **37 files** name the follows states.
-  **The ladder's last rung has no source in the maquette today** (`git grep -ci plex` over the contract and the mocks → no
-  match) until phase 1's demand B and phase 5's ladder; this phase is the first to READ it.
+  **The ladder's last rung has no source in the maquette today** (`git grep -w -i -c plex` over the contract and the mocks →
+  no match; `-w`, because the bare substring also matches « Duplex » and « décomplexé » in the media seeds) until phase 1's
+  demand B and phase 5's ladder; this phase is the first to READ it.
 - **Points ≈ 10.** The mock ends a followed film's follow when its ladder reaches « vérifié dans Plex » (a move in the
   follows handler ≈ 15 lines edited 3); the live rule re-reads the follows on that event 1; the five film rows checked
   against the seed 1; R-L22-m with its mutations 3; one state (`acq-follows-film-confirming`) 1; the follows readers
@@ -16,7 +17,7 @@
 
 Ruling 3: a film's follow ends by itself when the film is CONFIRMED in the library (Plex match validated, §4) and leaves
 « Suivis » without a trace there; a series' follow never ends by itself. **Drawn here, in its own phase; the media
-sheet's half (« acquis le … », release, requester) is NOT drawn** — DESIGN § 3.5 gives the reason and phase 25 names the
+sheet's half (« acquis le … », release, requester) is NOT drawn** — DESIGN § 3.5 gives the reason and phase 27 names the
 debt.
 
 ## Red today

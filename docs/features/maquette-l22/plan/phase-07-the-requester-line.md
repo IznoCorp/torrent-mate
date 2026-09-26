@@ -9,10 +9,15 @@
   card's own sentences.
 - **Points ≈ 7.** The requester line in the card markup ≈ 8 lines 2; the seed's requester variation for the rule 1; the
   new rule with its mutation 3; one state (`acq-card-requester`) 1.
+- **Re-measured (2026-09-26, on `ba6a36cc9`, after the eleven rulings).** The commands above re-run: no `requester` match
+  before phase 1, `account.json` `{name: "izno", email, avatar}`, `card-markup.ts` 109 lines by `wc -l` (105 non-blank; the first
+  drawing wrote « non-blank » for the `wc -l` figure) — identical. **Points 7 → 7; OPEN 11 (ruled B) confirms the phase's own
+  boundary and adds nothing**: L22 draws the « ajouté par … » line only, and the reassign gesture is born with L18's rights
+  model (DESIGN § 7.1).
 
 Ruling 9: a card born of a direct add in qBittorrent reads « ajouté par Izno, dans qBittorrent »; a card born of a
 request reads its requester's name. **The line is composed from the answer's requester and origin, never a constant**
-(§13). **The gesture that REASSIGNS a request is OPEN 11 and is not drawn here.**
+(§13). **The gesture that REASSIGNS a request is L18's (OPEN 11, ruled B) and is not drawn here.**
 
 ## Red today
 

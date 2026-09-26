@@ -10,7 +10,7 @@
   `decision-vocabulary.test.ts` 51 = **584 lines**. Splits: `verbs.ts` (141) — `take`, `resolution`, `resolve`, `leave`,
   `manual` and `next` move (`pipe` stays with the page), `queries.ts` (123) — `useDecisions`,
   `installDecisionLookup`, `pendingDecisions` move, `types.ts` (31) — the four decision types move, `live.ts` (108) —
-  the decisions and staging rules move (the pipeline-status rule stays until phase 22). `lib/addresses.ts:74`
+  the decisions and staging rules move (the pipeline-status rule stays until phase 24). `lib/addresses.ts:74`
   `"/resolution/$folder": "arr"` and `lib/addresses.test.ts:52` (`toBe("arr")`). Harness files that read the parent:
   `common.py`, `screen_addresses.py`, `url_state.py` (`git grep -l SCREEN_PARENTS -- 'frontend/maquette/harness/*.py'`) —
   read from the source, so re-read and not re-aimed. `features/acquisition/queries.ts` stands at 326 lines and
@@ -18,7 +18,7 @@
   `decision-queries.ts`), never as a growth of those.
 - **Points ≈ 13.** Four files moved 4; four splits (verbs, queries, types, live) 4; six import lines and the
   registrations they feed ≈ 1; the address parent and its test ≈ 1; the new rule with one mutation 3.
-- **Found (2026-09-26).** `next` moves too although it dies in phase 12: it reads `pendingDecisions`, which moves, and
+- **Found (2026-09-26).** `next` moves too although it dies in phase 14: it reads `pendingDecisions`, which moves, and
   a feature cannot import a feature (invariant 7), so leaving it behind would have made Arrivées import Acquisition.
   Its own arrivals-side hold (`arrivals.py`) does not read it.
 
@@ -42,7 +42,7 @@ existing holds:
 1. Move `resolution-screen.tsx`, `resolution-cards.tsx`, `decision-vocabulary.ts` (+ its test) into
    `features/acquisition/`; split the verbs, queries, types and live rules as measured above; re-point the six import
    lines. The verbs keep their `data-*` names and their i18n keys (`verbs.arrivals.taken/resolved/left` are read from
-   their new home — their keys are renamed only in phase 23, with the group).
+   their new home — their keys are renamed only in phase 25, with the group).
 2. `lib/addresses.ts`: `"/resolution/$folder": "acq"`; `addresses.test.ts` follows.
 3. `routes/resolution.tsx` composes the screen from its new home.
 
@@ -52,7 +52,7 @@ With the commit made first, `scripts/mutate.sh` puts the parent back to `arr`. R
 
 ## Register
 
-— (B-515 and B-531 die with the page in phase 23; this phase touches none).
+— (B-515 and B-531 die with the page in phase 25; this phase touches none).
 
 ## Oracle: states that diverge, declared by name
 

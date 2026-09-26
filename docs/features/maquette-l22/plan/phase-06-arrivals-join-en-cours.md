@@ -13,11 +13,17 @@
 - **Points ≈ 14.** `now-tab.tsx` re-slotting ≈ 20 lines 4; the queue types and the read 2; a new file for the
   arrival-card flavour (a card without identity, the `waiting` rung's reason) ≈ 25 lines 3; the new rule with its
   mutation 3; two states 2.
+- **Re-measured (2026-09-26, on `ba6a36cc9`, after the eleven rulings).** The commands above re-run: 13 `mediumCardMarkup`
+  call sites in 5 files (`now-tab.tsx` 6, `follows-tab.tsx` 2, `add-screen.tsx` 2, `discover-cards.ts` 2, `card-markup.ts` 1),
+  `now-tab.tsx` 137 non-blank lines, `queries.ts` 326 lines, 19 arrival rows — identical. **Points 14 → 14; OPEN 3 (ruled A)
+  moved what this phase says, not what it costs**: the arrival family is drawn by « En cours » and « À traiter » ONLY, never by
+  « Suivis ». `follows-tab.tsx` reads `useFollows` alone (line 50), so no arrival card can reach it by construction, and R-L22-l
+  (phase 17) holds the absence against a later change. The cards read « n sur 8 » on phase 5's ladder (OPEN 4).
 
 Ruling 2: an arrival is an acquisition card. The cards of phase 1's new family now DRAW: `moving` → « En vol » while it
 moves, `settled` → « Rangé aujourd'hui » (Arrivées called it « Arrivé dans les 24 h »), `stuck` → the `blocked`
 section, which still bears the name « À traiter » inside « En cours » until phase 9 gives it a tab of its own.
-**Arrivées still exists and still draws the same rows from `readStaging`**: one source, two readers, until phase 23.
+**Arrivées still exists and still draws the same rows from `readStaging`**: one source, two readers, until phase 25.
 
 ## Red today
 

@@ -23,6 +23,12 @@
   by hand and `check-mock-seeds.py` (its `schema` and `provenance` arms) is the guard. And **nothing in the contract or
   the mocks names Plex** (`git grep -ci plex -- frontend/maquette/contract/openapi.json frontend/maquette/design/src/mocks/handlers`
   → no match): the ladder's last rung has no source until demand B lands.
+- **Re-measured (2026-09-26, on `ba6a36cc9`, after the eleven rulings).** Every command above re-run: 63 operations, required
+  and missing 16, `compare-contracts.py --check` exit 0, `check-mock-seeds.py` clean (15 payload modules, 395 literals, 0
+  uncovered), `requester` and `reclassif` no match, `PipelineStrip` 5, 5 seed stages, 9 pipeline steps — identical, the tree did
+  not move. **Points 12 → 12: no ruling moved this phase, and one was kept OUT of it.** OPEN 9's operation (demand E,
+  `resolvePlexMatch`) would add a declared operation (2) and a mock route (2) — 16, over measure 19's ceiling — so phase 10 files
+  it as its first act, where its card is drawn. OPEN 11 (the requester line only) adds no reassign operation here.
 
 Every surface of this lot calls an operation the maquette's contract does not declare as the lot needs it. This phase
 settles all of it, and it is FIRST because `scripts/compare-contracts.py --check` refuses the three artefacts apart and
@@ -32,7 +38,7 @@ because the demands are what make the design's proposals decisions rather than d
 
     git remote update origin >/dev/null && grep -rhoE '^"""R[0-9]+ ' frontend/maquette/harness/*.py | sort -V | tail -1
 
-Re-take it against this branch's base at the moment this phase runs, then bind `R-L22-a` … `R-L22-r` (DESIGN § 5) to
+Re-take it against this branch's base at the moment this phase runs, then bind `R-L22-a` … `R-L22-u` (DESIGN § 5) to
 consecutive free numbers and write the mapping into the report. **A number taken from the design without re-measuring is
 a collision.**
 
@@ -40,7 +46,7 @@ a collision.**
 
 **No rule in this phase, and that is stated rather than skipped.** A contract is not a behaviour: what holds it is
 `scripts/compare-contracts.py --check`, the generated `contract/types.d.ts` and `scripts/check-mock-seeds.py`. The rules
-that read these operations are written in phases 2 to 23, each beside the surface that calls it.
+that read these operations are written in phases 2 to 25, each beside the surface that calls it.
 
 ## Move
 

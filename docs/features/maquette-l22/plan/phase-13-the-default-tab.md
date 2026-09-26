@@ -1,4 +1,4 @@
-# Phase 11 — The default tab
+# Phase 13 — The default tab
 
 **Opening measure (2026-09-26, on `94a369879`):**
 
@@ -18,6 +18,14 @@
   states (`acq-entry-todo`, `acq-entry-clear`, `acq-todo-loading`, `acq-todo-error`) 4; the rules that fall, re-aimed at
   ½ each — **budgeted for six** (R128 and five of the 16) 3. **The pre-cut clause applies** (INDEX): if more than six
   fall, the phase reports it as STOP D with the list and the steward cuts the re-aims into a phase of their own.
+- **Re-measured (2026-09-26, on `ba6a36cc9`, after the eleven rulings).** The commands above re-run: the four `acqTab: "now"`
+  write sites (`app/arrival.ts:21`, `verbs.ts:109-111`, `verbs.ts:73`, `add-screen.tsx:117`) and the **16 files** that arrive at
+  Acquisition without naming a tab — identical. **Points 13 → 13; OPEN 1 (ruled) leaves the rule whole and moves one sentence.**
+  The row now reads « Suivis · En cours · À traiter · Découvrir », so the tab this rule may open by default is the THIRD, and
+  `fillLandingDoor`'s comment (`verbs.ts:103`, « ARRIVING AT THIS PAGE OPENS ITS FIRST TAB ») stops being true of the value it
+  writes (`"now"`, the second tab): it is rewritten in the same commit as the code it describes, because a comment that outlives
+  its decision is read as current. The one harness site that reads the DOM order (`journey.py:117-118`, « the first tab whose
+  value is not `now` ») answers `follows` whatever the default is, and is run by name with the 16.
 
 Ruling 10: the tab opened by default is « À traiter » when it is not empty, otherwise « En cours ». **B-515 is read
 here**: `acq-todo-error` carries the same retry trait as `arr-error` (no pending or busy sign) — whether the new tab

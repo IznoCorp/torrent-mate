@@ -1,4 +1,4 @@
-# Phase 14 — « Ce n'est pas un média »
+# Phase 16 — « Ce n'est pas un média »
 
 **Opening measure (2026-09-26, on `94a369879`):**
 

@@ -1,4 +1,4 @@
-# Phase 10 — The badge and the count
+# Phase 12 — The badge and the count
 
 **Opening measure (2026-09-26, on `94a369879`):**
 

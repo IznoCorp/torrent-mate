@@ -1,4 +1,4 @@
-# Phase 13 — « Laisser tel quel » means later
+# Phase 15 — « Laisser tel quel » means later
 
 **Opening measure (2026-09-26, on `94a369879`):**
 
@@ -18,7 +18,7 @@
 
 Ruling 6: « Laisser tel quel » means LATER. The card stays in acquisition, `aside`, « identifié » pending, reason
 « mis de côté par vous, le … », out of « À traiter » and visible in « En cours »; the file stays in transit. It
-disappears only by his own reclassification (phase 14). **The operation does not change (`dismissDecision`); what the
+disappears only by his own reclassification (phase 16). **The operation does not change (`dismissDecision`); what the
 interface does with the answer does.**
 
 ## Red today
