@@ -39,3 +39,15 @@ phase 8 already declares on `acquisition/tabs`; the library's segment does not m
 nothing; C (the shared primitive) crosses the phase's declaration. One register row files the library segment at
 34 px (B-552, owner none). Carried out as two floors in Acquisition's own catalogue (`fingerTab`, `fingerMore`,
 worn beside the primitives) because `ui/variants/controls.ts` stands at 397 of its 400 lines.
+
+## 4 — the light theme's contrast ratchet does not rise (auditor, 2026-09-26 20:0x; phase 8 gate)
+
+**The STOP.** Phase 8's `--a11y` read the light-theme ratchet at 234 against its ceiling of 147: phases 5 to 7 had
+drawn more cards and not run the tier (a cadence fault, said in the RESUME), adding 93 findings — 61 `waiting`-tone
+rung chips, 32 plain card feet — every one an instance of a pair already in the ledger.
+
+**Ruled.** A: a `waiting` rung's chip takes `neutral`. B (raising the ceiling) REFUSED: this ratchet may fall and may not
+rise. The feet are repaired at the card-foot variant with an existing token that passes on light (`text-primary-text`),
+which lowers the feet already counted too; the ledger is re-taken at the value read (98). A repair only a
+`theme.css` token could make would have been a STOP to the steward. From here to the pull request, `--a11y` runs on
+every phase gate that draws.

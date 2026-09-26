@@ -49,3 +49,6 @@ Read after `docs/features/maquette-l22/BRIEF-L22a.md` (governs) and `RULINGS.md`
   entry.py, « Page.goto: Timeout 30000ms exceeded », no hold read, load 7.6 (5/15 min) while the steward's pre-push
   pytest ran outside the mutex. Re-read ALONE at 19:31 (mutex free, no pytest/chrome in ps, load 2.83):
   green (`midpoint-entry-alone.log`). Verdict: LOAD, not the code.
+- 2026-09-26 phase 8 — CADENCE FAULT: phases 5–7 drew cards without running `--a11y`; the light ratchet stood at 234
+  against 147 at phase 8's gate. RULINGS 4: repaired at the variants (8-bis, 340cbb917), ledger re-taken at 98. From
+  now to the PR, `--a11y` on every phase gate that draws.

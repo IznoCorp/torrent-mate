@@ -1,17 +1,22 @@
 {
   "$comment": "The accessibility findings under `data-theme=\"light\"`, which this tier drove for nobody until L10-bis: it measured the DEFAULT theme only, so 154 findings counted by hand during L06 were invisible to it (B-055). THIS FILE IS READ BY `--check` AND THAT IS DELIBERATE — it is a RATCHET, a ceiling that may fall and may not rise, not the tolerance `a11y-debt.json` refuses to be. The dark floor stays a hard zero; remediating this list is a campaign with its own design, and what is held here meanwhile is that nothing is ADDED to it.",
-  "takenAtCommit": "a6b220fb6ae3fc38ac892a9afe00ca1df1b78d3f",
+  "takenAtCommit": "340cbb91709eb81ea7e8afdba9478e4b672d4e91",
   "platform": "Darwin/arm64",
   "counts": {
-    "states": 114,
+    "states": 120,
     "byRule": {
-      "color-contrast": 147
+      "color-contrast": 98
     },
-    "total": 147
+    "total": 98
   },
   "states": {
     "acq-add-empty": [],
     "acq-add-results": [],
+    "acq-card-blocked": [],
+    "acq-card-no-identity": [],
+    "acq-card-requester": [],
+    "acq-card-rungs": [],
+    "acq-card-waiting": [],
     "acq-discover": [
       {
         "rule": "color-contrast",
@@ -94,93 +99,18 @@
       }
     ],
     "acq-now-error": [],
-    "acq-now-idle": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".card.grid-cols-\\[auto_1fr\\].items-stretch:nth-child(5) > .ccol.p-4.flex-1 > .ctop.gap-5[data-part=\"card/top\"] > .cbody.\\[background\\:transparent\\][data-part=\"card/body\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          ".cbody.\\[background\\:transparent\\][data-panel=\"media:Wicker\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-resolution=\"Lucky\"]"
-        ]
-      }
-    ],
-    "acq-now-loaded": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          "button[data-panel=\"media:Dead Landes\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:I Will Find You\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-resolution=\"Lucky\"]"
-        ]
-      }
-    ],
+    "acq-now-idle": [],
+    "acq-now-loaded": [],
     "acq-now-loading": [],
+    "acq-resolution-none": [],
     "acq-resolution-tie": [],
+    "acq-todo-empty": [],
     "arr-error": [],
-    "arr-idle": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".card.grid-cols-\\[auto_1fr\\][data-nonmedia=\"dossier\"]:nth-child(3) > .ccol.p-4.flex-1 > .cfoot.border-primary[data-resolution=\"\"]",
-          ".card.grid-cols-\\[auto_1fr\\][data-nonmedia=\"dossier\"]:nth-child(4) > .ccol.p-4.flex-1 > .cfoot.border-primary[data-resolution=\"\"]"
-        ]
-      }
-    ],
-    "arr-loaded": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".card.grid-cols-\\[auto_1fr\\][data-nonmedia=\"dossier\"]:nth-child(3) > .ccol.p-4.flex-1 > .cfoot.border-primary[data-resolution=\"\"]",
-          ".card.grid-cols-\\[auto_1fr\\][data-nonmedia=\"dossier\"]:nth-child(4) > .ccol.p-4.flex-1 > .cfoot.border-primary[data-resolution=\"\"]",
-          ".card.grid-cols-\\[auto_1fr\\][data-nonmedia=\"dossier\"]:nth-child(5) > .ccol.p-4.flex-1 > .cfoot.border-primary[data-resolution=\"\"]"
-        ]
-      }
-    ],
+    "arr-idle": [],
+    "arr-loaded": [],
     "arr-loading": [],
-    "arr-queued": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".card.grid-cols-\\[auto_1fr\\][data-nonmedia=\"dossier\"]:nth-child(3) > .ccol.p-4.flex-1 > .cfoot.border-primary[data-resolution=\"\"]",
-          ".card.grid-cols-\\[auto_1fr\\][data-nonmedia=\"dossier\"]:nth-child(4) > .ccol.p-4.flex-1 > .cfoot.border-primary[data-resolution=\"\"]",
-          "button[data-pipe=\"stop\"]"
-        ]
-      }
-    ],
-    "acq-resolution-none": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          "button[data-manual=\"élément inconnu\"]"
-        ]
-      }
-    ],
-    "arr-running": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".card.grid-cols-\\[auto_1fr\\][data-nonmedia=\"dossier\"]:nth-child(3) > .ccol.p-4.flex-1 > .cfoot.border-primary[data-resolution=\"\"]",
-          ".card.grid-cols-\\[auto_1fr\\][data-nonmedia=\"dossier\"]:nth-child(4) > .ccol.p-4.flex-1 > .cfoot.border-primary[data-resolution=\"\"]",
-          "button[data-pipe=\"stop\"]"
-        ]
-      }
-    ],
+    "arr-queued": [],
+    "arr-running": [],
     "drawer-navigation": [
       {
         "rule": "color-contrast",
@@ -355,86 +285,12 @@
       }
     ],
     "not-found": [],
-    "profile": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".cfoot"
-        ]
-      }
-    ],
-    "pwa-android": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".card.grid-cols-\\[auto_1fr\\].items-stretch:nth-child(5) > .ccol.p-4.flex-1 > .ctop.gap-5[data-part=\"card/top\"] > .cbody.\\[background\\:transparent\\][data-part=\"card/body\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          ".cbody.\\[background\\:transparent\\][data-panel=\"media:Wicker\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-resolution=\"Lucky\"]"
-        ]
-      }
-    ],
-    "pwa-ios": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".card.grid-cols-\\[auto_1fr\\].items-stretch:nth-child(5) > .ccol.p-4.flex-1 > .ctop.gap-5[data-part=\"card/top\"] > .cbody.\\[background\\:transparent\\][data-part=\"card/body\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          ".cbody.\\[background\\:transparent\\][data-panel=\"media:Wicker\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-resolution=\"Lucky\"]"
-        ]
-      }
-    ],
-    "relay-lost": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".card.grid-cols-\\[auto_1fr\\].items-stretch:nth-child(5) > .ccol.p-4.flex-1 > .ctop.gap-5[data-part=\"card/top\"] > .cbody.\\[background\\:transparent\\][data-part=\"card/body\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          ".cbody.\\[background\\:transparent\\][data-panel=\"media:Wicker\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-resolution=\"Lucky\"]"
-        ]
-      }
-    ],
-    "relay-reconnecting": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".card.grid-cols-\\[auto_1fr\\].items-stretch:nth-child(5) > .ccol.p-4.flex-1 > .ctop.gap-5[data-part=\"card/top\"] > .cbody.\\[background\\:transparent\\][data-part=\"card/body\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          ".cbody.\\[background\\:transparent\\][data-panel=\"media:Wicker\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-resolution=\"Lucky\"]"
-        ]
-      }
-    ],
-    "relay-refused": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "help": "Elements must meet minimum color contrast ratio thresholds",
-        "targets": [
-          ".card.grid-cols-\\[auto_1fr\\].items-stretch:nth-child(5) > .ccol.p-4.flex-1 > .ctop.gap-5[data-part=\"card/top\"] > .cbody.\\[background\\:transparent\\][data-part=\"card/body\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          ".cbody.\\[background\\:transparent\\][data-panel=\"media:Wicker\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:Kyma, l'onde mystérieuse\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-panel=\"media:L'Odyssée\"] > .cmeta.flex-wrap[data-part=\"card/meta\"] > .\\[--chip-background\\:color-mix\\(in_oklab\\,var\\(--color-waiting\\)_20\\%\\,transparent\\)\\].\\[--chip-foreground\\:var\\(--color-waiting\\)\\][data-tone=\"waiting\"]",
-          "button[data-resolution=\"Lucky\"]"
-        ]
-      }
-    ],
+    "profile": [],
+    "pwa-android": [],
+    "pwa-ios": [],
+    "relay-lost": [],
+    "relay-reconnecting": [],
+    "relay-refused": [],
     "run-detail": [],
     "run-detail-failed": [],
     "run-detail-log": [],
@@ -454,10 +310,7 @@
           ".best > .rt.flex-wrap.gap-2 > .sc.text-primary.ml-auto",
           "article:nth-child(4) > .rt.flex-wrap.gap-2 > .sc.text-primary.ml-auto",
           "article:nth-child(5) > .rt.flex-wrap.gap-2 > .sc.text-primary.ml-auto",
-          "article:nth-child(6) > .rt.flex-wrap.gap-2 > .sc.text-primary.ml-auto",
-          "button[data-pick-release=\"1\"]",
-          "button[data-pick-release=\"2\"]",
-          "button[data-pick-release=\"3\"]"
+          "article:nth-child(6) > .rt.flex-wrap.gap-2 > .sc.text-primary.ml-auto"
         ]
       }
     ],
