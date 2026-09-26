@@ -67,6 +67,10 @@ const settled = (card: QueueCard) => (card.plexMatch === undefined ? SETTLED_AT 
 // a card moving through it then gives — both the contract's own tokens.
 const MAINTENANCE_HOLDS = "queued";
 
+// The staging area's quarantine, the backend's own directory name.
+const QUARANTINE_FOLDER = "_quarantine";
+const PATH_SEPARATOR = "/";
+
 // Why a reclassification is refused, in the problem body's own words.
 const UNKNOWN_DESTINATION = "not a destination the sort files a non-media folder into";
 
@@ -247,12 +251,16 @@ export function stagingRoutes(): MockRoute[] {
         // the scenario in force, never about the operation being asked for.
         const state = mockState();
         const asked = request.parameters.mediaId;
+        // QUARANTINED, NOT DELETED: the answer says where the folder went, the
+        // way the backend composes it — the staging area's quarantine, then the
+        // folder's own name — and that the move was journaled.
+        const quarantinePath = [QUARANTINE_FOLDER, asked].join(PATH_SEPARATOR);
         for (const list of [FROM_REAL, FROM_DENSE, FROM_BLOCKED] as const) {
           const before = state[list].length;
           state[list] = state[list].filter((card) => card.title !== asked);
-          if (state[list].length !== before) return { ok: true };
+          if (state[list].length !== before) return { ok: true, journaled: true, quarantine_path: quarantinePath };
         }
-        return { ok: false };
+        return { ok: false, journaled: false, quarantine_path: quarantinePath };
       },
     ),
     route("readStagingDestinations", GET, "/api/staging/destinations", () => DESTINATIONS),

@@ -86,10 +86,10 @@ export function TodoTab(): ReactElement {
         t("screens.acquisition.todoTunnelError"),
         tunnelErrors,
         tunnelErrors
-          .map((card) => mediumCardMarkup(card, {
-            label: t("screens.acquisition.todoRequeueFoot"),
-            attributes: { "data-journey-requeue": card.title },
-          }))
+          .map((card) => mediumCardMarkup(card, [
+            { label: t("screens.acquisition.todoRequeueFoot"), attributes: { "data-journey-requeue": card.title } },
+            { label: t("screens.acquisition.abandonFoot"), attributes: { "data-journey-abandon": card.title } },
+          ]))
           .join(""),
       )}
     </div>

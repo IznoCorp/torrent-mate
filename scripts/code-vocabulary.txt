@@ -34,6 +34,7 @@
 # `radius` identifier is good English anywhere in this repository — but it is
 # written down here so the next reader knows it was a decision.
 
+abandon
 above
 accent
 accepted
@@ -838,6 +839,7 @@ qres
 qsettings
 qualifier
 quality
+quarantine
 query
 question
 queue

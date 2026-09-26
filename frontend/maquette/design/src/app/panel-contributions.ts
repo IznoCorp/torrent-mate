@@ -33,6 +33,8 @@ import "../features/arrivals/verbs";
 // Acquisition contributes the verb `data-take` reads (B-309) and the candidates
 // screen's verbs.
 import "../features/acquisition/resolution-verbs";
+// And « Abandonner », which opens its confirmation before anything is sent.
+import "../features/acquisition/abandon-verb";
 // And the release picker contributes its own — `data-pick-release`, declared
 // to the tap registry. It is named beside the take verb because the two
 // used to be ONE attribute read by two branches, and telling them apart by

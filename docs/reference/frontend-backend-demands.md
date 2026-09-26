@@ -106,7 +106,7 @@ reports a difference for every optional field and drowns the real findings.
 | `POST /api/pipeline/run` (`runPipeline`) | `state`, `uid` | `queued`, `run_uid` |
 | `POST /api/pipeline/watcher` (`setWatcher`) | `watcherEnabled` | `watcher_enabled` |
 | `POST /api/staging/media/{mediaId}/continue` (`continueStagedMedia`) | — | `deferred`, `detail`, `media_id`, `run_uid` |
-| `POST /api/staging/media/{mediaId}/discard` (`discardStagedMedia`) | — | `detail`, `journaled`, `media_id`, `quarantine_path` |
+| `POST /api/staging/media/{mediaId}/discard` (`discardStagedMedia`) | — | `detail`, `media_id` |
 | `PUT /api/config/files/{name}` (`updateConfigurationFile`) | `conflict`, `restartRequired` | `restart_required`, `warnings` |
 | `PUT /api/config/secrets` (`updateSecrets`) | `restartRequired` | `restart_required`, `warnings` |
 

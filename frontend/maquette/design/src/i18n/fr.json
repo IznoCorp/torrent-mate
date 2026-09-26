@@ -895,7 +895,8 @@
       "todoRequeueFoot": "Relancer",
       "todoPlexMatch": "Match Plex à confirmer",
       "plexConfirmFoot": "Confirmer",
-      "plexCorrectFoot": "Corriger"
+      "plexCorrectFoot": "Corriger",
+      "abandonFoot": "Abandonner"
     },
     "accountPage": {
       "noteLead": "Un seul compte existe sur ce serveur.",
@@ -1319,7 +1320,15 @@
       "replaceCancel": "Annuler",
       "replacementQueued": "Ajouté — la version en place sera remplacée une fois la nouvelle récupérée.",
       "searchAgain": "{{label}} — {{title}}",
-      "plexConfirmed": "Match Plex confirmé : {{title}}"
+      "plexConfirmed": "Match Plex confirmé : {{title}}",
+      "abandon": {
+        "heading": "Abandonner « {{title}} » ?",
+        "bodyBefore": "Le dossier ",
+        "bodyAfter": " sera mis en quarantaine dans le staging et le déplacement journalisé. Rien n'est supprimé.",
+        "confirm": "Mettre en quarantaine",
+        "cancel": "Annuler",
+        "done": "« {{title}} » mis en quarantaine : {{path}}"
+      }
     },
     "arrivals": {
       "taken": "« {{title}} » récupéré — suivez-le dans « En vol ».",

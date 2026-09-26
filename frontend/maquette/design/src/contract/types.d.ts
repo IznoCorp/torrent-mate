@@ -501,7 +501,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Leave a staged item where it is */
+        /**
+         * Quarantine a staged folder
+         * @description « Abandonner » on a tunnel error (OPEN 10, ruled B): the folder is moved into the staging area's quarantine and the move journaled — after a confirmation that names the medium (NE-DOIT-PAS-6).
+         */
         post: operations["discardStagedMedia"];
         delete?: never;
         options?: never;
@@ -2782,7 +2785,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description it is left alone */
+            /** @description it is in quarantine */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2790,6 +2793,10 @@ export interface operations {
                 content: {
                     "application/json": {
                         ok: boolean;
+                        /** @description whether the move was written to the deletion journal */
+                        journaled: boolean;
+                        /** @description where the folder was put */
+                        quarantine_path: string;
                     };
                 };
             };

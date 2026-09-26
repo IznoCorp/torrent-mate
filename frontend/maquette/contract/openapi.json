@@ -2109,13 +2109,13 @@
     "/api/staging/media/{mediaId}/discard": {
       "post": {
         "operationId": "discardStagedMedia",
-        "summary": "Leave a staged item where it is",
+        "summary": "Quarantine a staged folder",
         "tags": [
           "staging"
         ],
         "responses": {
           "200": {
-            "description": "it is left alone",
+            "description": "it is in quarantine",
             "content": {
               "application/json": {
                 "schema": {
@@ -2123,10 +2123,20 @@
                   "properties": {
                     "ok": {
                       "type": "boolean"
+                    },
+                    "journaled": {
+                      "type": "boolean",
+                      "description": "whether the move was written to the deletion journal"
+                    },
+                    "quarantine_path": {
+                      "type": "string",
+                      "description": "where the folder was put"
                     }
                   },
                   "required": [
-                    "ok"
+                    "journaled",
+                    "ok",
+                    "quarantine_path"
                   ]
                 }
               }
@@ -2162,7 +2172,8 @@
             "description": "the staged item"
           }
         ],
-        "x-unseeded": "an acknowledgement."
+        "x-unseeded": "an acknowledgement, and the quarantine place composed from the request's folder the way the backend composes it.",
+        "description": "« Abandonner » on a tunnel error (OPEN 10, ruled B): the folder is moved into the staging area's quarantine and the move journaled — after a confirmation that names the medium (NE-DOIT-PAS-6)."
       }
     },
     "/api/pipeline/status": {

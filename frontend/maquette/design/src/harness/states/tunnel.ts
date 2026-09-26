@@ -6,6 +6,7 @@
 // `run` builds the state. The driver resets the interface before every state,
 // so an entry pins only what its state means to show.
 import { applyState, type NamedState } from "../drive";
+import { openAbandonConfirm } from "../../features/acquisition/abandon-verb";
 
 export function tunnelStates(): NamedState[] {
   return [
@@ -76,6 +77,14 @@ export function tunnelStates(): NamedState[] {
       "À traiter — chargé",
       () =>
         applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" }),
+    ],
+    [
+      "acq-abandon-confirm",
+      "À traiter — confirmation avant d'abandonner",
+      () => {
+        applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" });
+        openAbandonConfirm("Top Chef Le Concours Parallèle (2026)");
+      },
     ],
   ];
 }
