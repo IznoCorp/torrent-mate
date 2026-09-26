@@ -743,6 +743,9 @@ candidates screen; Arrivées itself dies as this lot lands.
 **Done when.** The Acquisition page draws the card, its one ladder and the candidates screen as
 the operator's nine rulings dictate, and Arrivées no longer exists as a destination of its own.
 
+**Design and plan written 2026-09-26, PR #<n>** — `docs/features/maquette-l22/DESIGN.md`, its plan
+`docs/features/maquette-l22/plan/INDEX.md`; the rulings number fifteen, not nine (the six of 2026-09-26 are in it).
+
 #### L16 — §18, the ratio · *depends on L15, L19, L10*
 
 **Objective.** DOIT-13: the ratio is read PER TRACKER, obligations are a « rien » with their
