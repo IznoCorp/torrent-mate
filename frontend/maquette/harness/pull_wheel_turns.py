@@ -8,9 +8,9 @@ milliseconds, so a wheel that turns may still never be SEEN turning.
 
 THE MEASUREMENT FIRST. Every page below is pulled by a real touch at the phone
 width; from the release, every frame records the wheel's angle (read from its
-computed transform) and whether the indicator is still `loading`. The readings
-are printed with the holds, so the report can say how long `loading` lasts on
-each page and how far the wheel turned.
+computed transform) and whether the wheel is spinning, and an observer times
+the spinning's two edges. The readings are printed in the holds' details, so
+the report can say how long the wheel spins on each page and how far it turned.
 
 WHAT IT HOLDS:
 
@@ -20,9 +20,9 @@ WHAT IT HOLDS:
   w2. WHEN THE REFRESH TAKES ITS TIME, THE WHEEL TURNS on every page — the
       animation runs, with motion allowed and with motion reduced alike (the
       phone's « remove animations » is `prefers-reduced-motion: reduce`).
-  w3. AT THE MOCK LAYER'S OWN ANSWER TIME, THE WHEEL IS SEEN TURNING: the
-      indicator stays `loading` for at least one loop of the wheel, and the
-      angle read over that time changes.
+  w3. AT THE MOCK LAYER'S OWN ANSWER TIME, THE WHEEL IS SEEN TURNING: it
+      spins for at least one loop of the wheel, and the angle read over that
+      time changes.
 """
 import asyncio
 import math
@@ -57,48 +57,62 @@ KEYFRAMES = """()=>{
   return found;
 }"""
 
-# Records, frame by frame from the release, the wheel's angle and the indicator's state.
+# Records, from the release, the wheel's angle every frame and when its animation
+# starts and stops. The spinning state is read on the WHEEL — the animation the
+# drawing applies to it — and its edges are timed by an observer on the
+# indicator's attribute changes, so a state lasting less than a frame is still
+# timed rather than read as absent.
 WATCH = """()=>{
   const indicator = document.querySelector('#ptr');
   const wheel = indicator.firstElementChild;
-  const record = {released: performance.now(), samples: [], animation: null, loop: null};
+  const record = {released: performance.now(), samples: [], animation: null, loop: null,
+                  started: null, stopped: null};
   window.__wheel = record;
+  const since = () => Math.round((performance.now() - record.released) * 10) / 10;
+  const spinning = () => getComputedStyle(wheel).animationName !== 'none';
   const angle = () => {
     const matrix = getComputedStyle(wheel).transform;
     if (!matrix || matrix === 'none') return 0;
     const values = matrix.slice(matrix.indexOf('(') + 1, -1).split(',').map(Number);
     return Math.atan2(values[1], values[0]) * 180 / Math.PI;
   };
+  const edge = () => {
+    const now = spinning();
+    if (now && record.started === null) {
+      record.started = since();
+      record.animation = getComputedStyle(wheel).animationName;
+    }
+    if (!now && record.started !== null && record.stopped === null) record.stopped = since();
+  };
+  const observer = new MutationObserver(edge);
+  observer.observe(indicator, {attributes: true});
   record.loop = getComputedStyle(document.documentElement).getPropertyValue('--duration-loop-1').trim();
   const tick = () => {
-    const now = performance.now() - record.released;
-    const loading = indicator.classList.contains('loading');
-    if (loading && record.animation === null) record.animation = getComputedStyle(wheel).animationName;
-    record.samples.push([Math.round(now), loading, Math.round(angle())]);
-    if (now < 3000 && (loading || now < 100)) requestAnimationFrame(tick);
-    else record.done = true;
+    edge();
+    const now = since();
+    record.samples.push([Math.round(now), spinning(), Math.round(angle())]);
+    if (now < 3000 && (record.stopped === null || now < 100)) requestAnimationFrame(tick);
+    else { observer.disconnect(); record.done = true; }
   };
   requestAnimationFrame(tick);
 }"""
 
 
 def turned(samples):
-    """Sums how far the wheel turned while the indicator was loading.
+    """Sums how far the wheel turned while it was spinning.
 
     Args:
-        samples: The frames recorded, as `[milliseconds, loading, degrees]`.
+        samples: The frames recorded, as `[milliseconds, spinning, degrees]`.
 
     Returns:
-        The degrees travelled, each step unwrapped across the ±180° seam, and
-        the milliseconds the indicator stayed loading.
+        The degrees travelled, each step unwrapped across the ±180° seam.
     """
     loading = [sample for sample in samples if sample[1]]
     travelled = 0.0
     for previous, current in zip(loading, loading[1:]):
         step = (current[2] - previous[2]) % 360
         travelled += step if step <= 180 else 360 - step
-    duration = loading[-1][0] - loading[0][0] if loading else 0
-    return travelled, duration
+    return travelled
 
 
 async def pull(page):
@@ -108,8 +122,9 @@ async def pull(page):
         page: The Playwright page, on the page to pull.
 
     Returns:
-        The record written from the release: the samples, the animation name
-        read while loading, and the loop's declared duration.
+        The record written from the release: the samples, the spinning's two
+        edges, the animation name read while spinning, and the loop's declared
+        duration.
     """
     port = await page.evaluate("()=>{const r=document.querySelector('#port').getBoundingClientRect();"
                                "return {x:r.x, y:r.y, width:r.width};}")
@@ -172,29 +187,34 @@ async def main():
             own[page_id], _ = await measure(browser, page_id, None, "no-preference")
         await browser.close()
 
-    for page_id in PAGES:
-        for label, record in (("slow", slow[page_id]), ("reduced", reduced[page_id]), ("own", own[page_id])):
-            degrees, duration = turned(record["samples"])
-            print(f"  reading {page_id:18} {label:8} loading {duration:5} ms, turned {degrees:6.0f}°, "
-                  f"animation {record['animation']}, loop {record['loop']}")
+    def reading(record):
+        """One pull's reading: how long the wheel spun, and how far it turned."""
+        spun = None
+        if record["started"] is not None and record["stopped"] is not None:
+            spun = round(record["stopped"] - record["started"], 1)
+        return spun, turned(record["samples"])
+
+    def readings(records):
+        """Every page's reading under one condition, printed in a hold's detail."""
+        return " · ".join(f"{page_id} {reading(records[page_id])[0]} ms {reading(records[page_id])[1]:.0f}°"
+                          for page_id in PAGES)
 
     journal.check("the served stylesheet defines `spin` as a rotation",
                   any("rotate(360deg)" in text for text in keyframes), f"keyframes {keyframes}")
     unnamed = [page_id for page_id in PAGES if slow[page_id]["animation"] != "spin"]
     journal.check("the wheel carries `spin` while loading, on every page", not unnamed, f"without it: {unnamed}")
     for label, records in (("with motion allowed", slow), ("with motion reduced", reduced)):
-        still = [f"{page_id} ({turned(records[page_id]['samples'])[0]:.0f}°)" for page_id in PAGES
-                 if turned(records[page_id]["samples"])[0] < TURNING_DEGREES]
+        still = [page_id for page_id in PAGES if reading(records[page_id])[1] < TURNING_DEGREES]
         journal.check(f"with a {SLOW_LATENCY_MILLISECONDS} ms answer the wheel turns {label}, on every page",
-                      not still, f"still: {still}")
+                      not still, f"still: {still}; spun: {readings(records)}")
     unseen = []
     for page_id in PAGES:
-        degrees, duration = turned(own[page_id]["samples"])
+        spun, degrees = reading(own[page_id])
         loop = float(own[page_id]["loop"].rstrip("s") or "nan") * 1000
-        if math.isnan(loop) or duration < loop or degrees < TURNING_DEGREES:
-            unseen.append(f"{page_id} (loading {duration} ms, {degrees:.0f}°, loop {loop:.0f} ms)")
+        if math.isnan(loop) or spun is None or spun < loop or degrees < TURNING_DEGREES:
+            unseen.append(page_id)
     journal.check("at the mock layer's own answer time the wheel is seen turning for a loop, on every page",
-                  not unseen, f"unseen: {unseen}")
+                  not unseen, f"unseen: {unseen}; loop {own[PAGES[0]]['loop']}; spun: {readings(own)}")
     journal.summary()
 
 
