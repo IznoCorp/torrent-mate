@@ -555,6 +555,8 @@ known
 lab
 label
 labels
+ladder
+laid
 landed
 landing
 lanes
@@ -796,6 +798,7 @@ portraits
 pos
 posed
 position
+positioned
 positions
 post
 poster
@@ -943,6 +946,8 @@ rows
 rule
 rules
 run
+rung
+rungs
 running
 safari
 said

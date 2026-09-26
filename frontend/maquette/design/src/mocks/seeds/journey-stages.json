@@ -1,27 +1,59 @@
 [
   {
-    "label": "Pris chez le tracker",
+    "rung": "requested",
+    "when": "",
+    "state": "done"
+  },
+  {
+    "rung": "searched",
+    "when": "",
+    "state": "done"
+  },
+  {
+    "rung": "grabbed",
     "when": "10 août, 03 h 21",
     "state": "done"
   },
   {
-    "label": "Téléchargé",
+    "rung": "downloading",
     "when": "10 août, 03 h 48",
     "state": "done"
   },
   {
-    "label": "Ingéré dans le staging",
+    "rung": "arrived",
     "when": "10 août, 04 h 02",
     "state": "done"
   },
   {
-    "label": "Scrapé",
+    "rung": "identified",
     "when": "en cours depuis 4 min",
     "state": "now"
   },
   {
-    "label": "Rangé en médiathèque",
+    "rung": "shelved",
     "when": "à venir",
-    "state": "todo"
+    "state": "pending",
+    "steps": [
+      {
+        "rung": "sorted",
+        "when": "à venir",
+        "state": "pending"
+      },
+      {
+        "rung": "enriched",
+        "when": "à venir",
+        "state": "pending"
+      },
+      {
+        "rung": "shelved",
+        "when": "à venir",
+        "state": "pending"
+      }
+    ]
+  },
+  {
+    "rung": "verified",
+    "when": "à venir",
+    "state": "pending"
   }
 ]

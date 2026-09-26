@@ -113,10 +113,10 @@ export function cardMarkup(content: CardMarkupContent): string {
     (content.caption ? `<span class="${cardCaption()}" data-part="card/caption">${escapeMarkup(content.caption)}</span>` : "") +
     (content.fresh ? `<span class="${cardFreshTag()}" data-part="card/fresh-tag">${escapeMarkup(content.fresh)}</span>` : "");
   const strip = content.strip
-    ? `<div class="${cardStrip({ cells: stripColumns(content.strip) })}">${content.strip
+    ? `<div class="${cardStrip({ cells: stripColumns(content.strip) })}" data-part="card/strip">${content.strip
         .map(
           (step) =>
-            `<div class="${stripStep({ state: step.state })}"><span class="d ${stripDot({ state: step.state })}"></span>${step.label === undefined ? "" : `<span class="l ${stripLabel()}">${escapeMarkup(step.label)}</span>`}</div>`,
+            `<div class="${stripStep({ state: step.state })}" data-part="card/step" data-state="${step.state}"><span class="d ${stripDot({ state: step.state })}"></span>${step.label === undefined ? "" : `<span class="l ${stripLabel()}">${escapeMarkup(step.label)}</span>`}</div>`,
         )
         .join("")}</div>`
     : "";

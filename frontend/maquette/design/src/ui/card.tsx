@@ -170,9 +170,9 @@ export function CardFolder({
  */
 export function CardStrip({ steps }: { steps: StripCell[] }): ReactElement {
   return (
-    <div className={cardStrip({ cells: stripColumns(steps) })}>
+    <div className={cardStrip({ cells: stripColumns(steps) })} data-part="card/strip">
       {steps.map((step, index) => (
-        <div key={index} className={stripStep({ state: step.state })}>
+        <div key={index} className={stripStep({ state: step.state })} data-part="card/step" data-state={step.state}>
           <span className={`d ${stripDot({ state: step.state })}`}></span>
           {step.label === undefined ? null : <span className={`l ${stripLabel()}`}>{step.label}</span>}
         </div>

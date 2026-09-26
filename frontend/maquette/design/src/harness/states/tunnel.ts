@@ -30,5 +30,17 @@ export function tunnelStates(): NamedState[] {
         window.__screens.resolution("Lucky");
       },
     ],
+    [
+      "acq-card-rungs",
+      "Carte — l'échelle de chaque famille (six crans atteints par des lignes réelles)",
+      () =>
+        applyState({ page: "acq", acqTab: "now", scen: "loaded", phase: "ready" }),
+    ],
+    [
+      "acq-card-blocked",
+      "Carte — arrêtée sur « identifié », sa raison en entier",
+      () =>
+        applyState({ page: "acq", acqTab: "now", scen: "real", phase: "ready" }),
+    ],
   ];
 }

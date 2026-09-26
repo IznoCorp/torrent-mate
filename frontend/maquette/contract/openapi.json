@@ -1720,13 +1720,13 @@
     "/api/acquisition/journeys/{infoHash}": {
       "get": {
         "operationId": "readJourney",
-        "summary": "One torrent's journey, stage by stage",
+        "summary": "One medium's ladder, rung by rung",
         "tags": [
           "acquisition"
         ],
         "responses": {
           "200": {
-            "description": "the stages",
+            "description": "the eight rungs",
             "content": {
               "application/json": {
                 "schema": {
@@ -4159,6 +4159,13 @@
           "requester": {
             "$ref": "#/components/schemas/Requester",
             "description": "who asked for it and where — carried by a card born of an arrival"
+          },
+          "ladder": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JourneyStage"
+            },
+            "description": "the card's ladder — the SAME list `readJourney` answers for its medium, so the card and the journey sheet cannot disagree"
           }
         },
         "required": [
@@ -5446,29 +5453,54 @@
       },
       "JourneyStage": {
         "type": "object",
+        "description": "ONE RUNG OF A MEDIUM'S LADDER, from the wish to Plex (ruling 4; eight rungs, OPEN 4 ruled B). The card's strip and the journey sheet read the same list; « rangé » carries the three pipeline steps it merges as `steps`.",
         "properties": {
-          "label": {
-            "type": "string"
+          "rung": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "searched",
+              "grabbed",
+              "downloading",
+              "arrived",
+              "identified",
+              "shelved",
+              "verified",
+              "sorted",
+              "enriched"
+            ],
+            "description": "which rung, as a token — its name is the interface's"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "done",
+              "now",
+              "waiting",
+              "blocked",
+              "aside",
+              "pending"
+            ],
+            "description": "passed, in motion, queued behind something else, waiting for the operator's hand, set aside by him, or not reached"
           },
           "when": {
             "type": "string",
             "description": "CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so."
           },
-          "state": {
-            "type": "string",
-            "description": "done, now, or todo"
-          },
-          "rung": {
-            "type": "string",
-            "description": "the rung of the card's ladder this stage belongs to, as a token — the ladder and the sheet read one list"
-          },
           "reason": {
             "type": "string",
-            "description": "why the stage is blocked or waiting, as a token, when it is"
+            "description": "why the rung is blocked or waiting, as a token, when it is"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JourneyStage"
+            },
+            "description": "the pipeline steps this rung merges, in order — carried by « rangé » alone"
           }
         },
         "required": [
-          "label",
+          "rung",
           "state",
           "when"
         ]

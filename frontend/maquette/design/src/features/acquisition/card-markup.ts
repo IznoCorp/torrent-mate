@@ -13,7 +13,7 @@ import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { initials } from "../../lib/titles";
 import { cardMarkup } from "../../ui/card-markup";
-import type { StripState } from "../../ui/card";
+import type { StripCell, StripState } from "../../ui/card";
 import { escapeMarkup } from "../../ui/markup";
 import { posterArtworkMarkup } from "../../ui/poster";
 import { posterFallback } from "../../ui/variants";
@@ -32,6 +32,8 @@ export type MediumCard = {
   caption?: string;
   fresh?: boolean;
   strip?: (number | string)[];
+  /** The medium's ladder — the same list its journey sheet reads. */
+  ladder?: { rung: string; state: StripState }[];
   withoutPoster?: boolean;
   overview?: string;
   panel?: string;
@@ -56,6 +58,38 @@ function stageState(value: number | string): StripState {
   return "pending";
 }
 
+/** The tone a rung's name is drawn in, by the rung's state. */
+const RUNG_TONE: Record<StripState, string> = {
+  done: "success",
+  now: "info",
+  waiting: "waiting",
+  blocked: "danger",
+  aside: "neutral",
+  pending: "neutral",
+};
+
+/**
+ * Where a card stands on its ladder: the strip's cells, unlabelled, and the
+ * current rung — the first not passed, or the last when every one is — named in
+ * words after its figure, on the line where it has the full width (§12).
+ *
+ * @param ladder The medium's rungs.
+ * @returns The strip, the figure and the current rung's chip.
+ */
+function ladderMarkup(ladder: { rung: string; state: StripState }[]) {
+  const standing = ladder.findIndex((rung) => rung.state !== "done");
+  const current = standing === -1 ? ladder.length - 1 : standing;
+  const strip: StripCell[] = ladder.map((rung) => ({ state: rung.state }));
+  return {
+    strip,
+    fraction: i18next.t("surfaces.ladder.figure", { position: current + 1, count: ladder.length }),
+    chip: {
+      tone: RUNG_TONE[ladder[current].state],
+      label: i18next.t(`surfaces.ladder.rungs.${ladder[current].rung}`),
+    },
+  };
+}
+
 /**
  * One medium's card.
  *
@@ -77,6 +111,7 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot): str
     ? `<span class="${posterFallback()}" data-part="card/poster-fallback"><b>${escapeMarkup(initials(title))}</b></span>`
     : posterArtworkMarkup(posterArtwork(icons, medium.poster, title, medium.k));
   const stages = i18next.t("surfaces.card.stages", { returnObjects: true }) as string[];
+  const onLadder = medium.ladder ? ladderMarkup(medium.ladder) : null;
   return cardMarkup({
     title,
     // french-ok: the non-medium marker R46 reads, a contract value
@@ -98,12 +133,12 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot): str
     subtitle: medium.secondaryLine,
     reason: medium.reason ? richTextMarkup(medium.reason) : undefined,
     overview: medium.overview,
-    fraction: medium.f,
-    chip: medium.chip ? { tone: medium.chip.tone, label: medium.chip.text } : null,
+    fraction: onLadder ? onLadder.fraction : medium.f,
+    chip: onLadder ? onLadder.chip : medium.chip ? { tone: medium.chip.tone, label: medium.chip.text } : null,
     rating: medium.note != null ? String(medium.note) : undefined,
     caption: medium.caption,
     fresh: medium.fresh ? i18next.t("surfaces.card.freshTag") : undefined,
-    strip: medium.strip?.map((value, index) => ({ state: stageState(value), label: stages[index] })),
+    strip: onLadder ? onLadder.strip : medium.strip?.map((value, index) => ({ state: stageState(value), label: stages[index] })),
     foot: foot ? { label: foot.label, solid: foot.solid, attributes: foot.attributes ?? {} } : undefined,
   });
 }

@@ -6,6 +6,8 @@ import SUGGESTIONS from "../seeds/suggestions.json";
 import { DELETE, GET, PATCH, POST, field, route, text } from "./shared";
 import { launchDetection } from "./pipeline";
 import { arrivalsOf } from "./staging";
+import { forgetLadder, ladderOf, rungIndex, stripPosition, type Position } from "./ladder";
+import type { components } from "../../contract/types";
 import { stagesOf } from "./acquisition-verbs";
 import { mockState } from "../state";
 import { refused, type MockRequest, type MockRoute } from "../router";
@@ -23,6 +25,33 @@ const RUNNING_NOW = "now";
 const INFORMATIVE = "info";
 
 const BATCH_SIZE = 30;
+
+// WHERE EACH FAMILY STANDS ON THE LADDER when its cards carry no strip: a
+// release found and waiting to be taken, a search that found nothing and will
+// look again, a medium in the library whose Plex check has not come.
+const WAITING = "waiting";
+const PENDING = "pending";
+const TAKEABLE_AT: Position = { current: rungIndex("grabbed"), state: WAITING };
+const NOT_FOUND_AT: Position = { current: rungIndex("searched"), state: WAITING };
+const DONE_TODAY_AT: Position = { current: rungIndex("verified"), state: PENDING };
+
+/**
+ * A family's cards, each on its ladder.
+ *
+ * THE LADDER REPLACES THE STRIP on an acquisition card: the card answers the
+ * same list `readJourney` answers for its medium, and the five positions it was
+ * seeded with say only where that ladder stands.
+ *
+ * @param cards The family's cards.
+ * @param at Where the family stands, for cards that carry no strip.
+ * @returns The cards, each with its ladder and without its strip.
+ */
+function onTheLadder(cards: components["schemas"]["QueueCard"][], at?: Position) {
+  return cards.map(({ strip, ...card }) => {
+    const position = stripPosition(strip) ?? at;
+    return position === undefined ? card : { ...card, ladder: ladderOf(card.title, position) };
+  });
+}
 
 // The dense body of data, asked for by name.
 const LOADED = "loaded";
@@ -298,20 +327,20 @@ export function acquisitionRoutes(): MockRoute[] {
       // disk, and filling them would claim movements that never happened.
       if (request.query.get("scenario") === LOADED) {
         return {
-          takeable: state.takeable,
-          blocked: state.blocked,
-          inFlight: state.inFlight,
-          notFound: state.notFound,
-          doneToday: state.doneToday,
+          takeable: onTheLadder(state.takeable, TAKEABLE_AT),
+          blocked: onTheLadder(state.blocked),
+          inFlight: onTheLadder(state.inFlight),
+          notFound: onTheLadder(state.notFound, NOT_FOUND_AT),
+          doneToday: onTheLadder(state.doneToday, DONE_TODAY_AT),
           arrivals: arrivalsOf(true),
         };
       }
       return {
-        takeable: state.takeable,
-        blocked: state.blocked,
-        inFlight: state.inFlightReel,
-        notFound: state.notFoundReal,
-        doneToday: state.doneReel,
+        takeable: onTheLadder(state.takeable, TAKEABLE_AT),
+        blocked: onTheLadder(state.blocked),
+        inFlight: onTheLadder(state.inFlightReel),
+        notFound: onTheLadder(state.notFoundReal, NOT_FOUND_AT),
+        doneToday: onTheLadder(state.doneReel, DONE_TODAY_AT),
         arrivals: arrivalsOf(false),
       };
     }),
@@ -328,6 +357,8 @@ export function acquisitionRoutes(): MockRoute[] {
         const found = state.takeable.find((card) => card.title === asked);
         if (found === undefined) return { ok: false };
         state.takeable = state.takeable.filter((card) => card !== found);
+        // Its ladder is laid again from where it now stands.
+        forgetLadder(asked);
         state.inFlight = [
           {
             ...found,

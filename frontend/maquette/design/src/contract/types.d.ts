@@ -394,7 +394,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** One torrent's journey, stage by stage */
+        /** One medium's ladder, rung by rung */
         get: operations["readJourney"];
         put?: never;
         post?: never;
@@ -1092,6 +1092,8 @@ export interface components {
             poster: string | null;
             /** @description who asked for it and where — carried by a card born of an arrival */
             requester?: components["schemas"]["Requester"];
+            /** @description the card's ladder — the SAME list `readJourney` answers for its medium, so the card and the journey sheet cannot disagree */
+            ladder?: components["schemas"]["JourneyStage"][];
         };
         Fact: {
             /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
@@ -1472,16 +1474,24 @@ export interface components {
             /** @description how many episodes the provider catalogue lists, or null when it does not say. The interface then shows a question mark rather than an invented total */
             aired: number | null;
         };
+        /** @description ONE RUNG OF A MEDIUM'S LADDER, from the wish to Plex (ruling 4; eight rungs, OPEN 4 ruled B). The card's strip and the journey sheet read the same list; « rangé » carries the three pipeline steps it merges as `steps`. */
         JourneyStage: {
-            label: string;
+            /**
+             * @description which rung, as a token — its name is the interface's
+             * @enum {string}
+             */
+            rung: "requested" | "searched" | "grabbed" | "downloading" | "arrived" | "identified" | "shelved" | "verified" | "sorted" | "enriched";
+            /**
+             * @description passed, in motion, queued behind something else, waiting for the operator's hand, set aside by him, or not reached
+             * @enum {string}
+             */
+            state: "done" | "now" | "waiting" | "blocked" | "aside" | "pending";
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             when: string;
-            /** @description done, now, or todo */
-            state: string;
-            /** @description the rung of the card's ladder this stage belongs to, as a token — the ladder and the sheet read one list */
-            rung?: string;
-            /** @description why the stage is blocked or waiting, as a token, when it is */
+            /** @description why the rung is blocked or waiting, as a token, when it is */
             reason?: string;
+            /** @description the pipeline steps this rung merges, in order — carried by « rangé » alone */
+            steps?: components["schemas"]["JourneyStage"][];
         };
         Problem: {
             status: number;
@@ -2529,7 +2539,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description the stages */
+            /** @description the eight rungs */
             200: {
                 headers: {
                     [name: string]: unknown;
