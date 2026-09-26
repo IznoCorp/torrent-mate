@@ -25,9 +25,9 @@
 // invites the operator to trust it. When the leaders tie, the screen says so —
 // and that sentence is the reason a human is being asked at all.
 //
-// The desktop deck's keyboard shortcuts (← → ⏎) have no phone. What they were
-// for — going through several in a row — is kept as a plain progression:
-// « 1 sur 2 », and « Suivante » once this one is answered.
+// NO « SUIVANT », AND NO « n SUR m EN ATTENTE ». Every exit returns to
+// « À traiter », whose tab count carries the number; a count that leads nowhere
+// is noise on a phone.
 //
 // Three ways out, and the third is the one that was missing: pick a candidate,
 // search by hand, or LEAVE IT AS IT IS. The last exists in the engine
@@ -44,14 +44,11 @@ import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useDecisions } from "./decision-queries";
-import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { Candidates, DecisionCard } from "./resolution-cards";
 import { REASON_TONE, reasonDetail, reasonLabel } from "./decision-vocabulary";
-import { type QueueCard } from "../../lib/engine-queue";
-import { useStoreContent, useUiState } from "../../lib/store-access";
 import { actionButton, backAction, body, emptyNote, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, sheetActions, type ChipTone } from "../../ui/variants";
 import { Chip } from "../../ui/chip";
-import { CardCaption, CardMeta } from "../../ui/card";
+import { CardMeta } from "../../ui/card";
 import { guidance } from "../../ui/variants/layout";
 import { Icon } from "../../ui/icon";
 import { bridge } from "../../lib/shell-doors";
@@ -61,30 +58,12 @@ export function ResolutionScreen() {
   // Defensive: `__screens.resolution` already normalises on write, but an entry
   // reached by a typed/bookmarked URL did not necessarily go through it.
   const folder = raw.normalize("NFC");
-  // The queue lists (`world.blocked` / `world.stuck` / `world.stuckReel`) are
-  // MUTATED IN PLACE by `actionResolve` / `actionLeave` (splice, unshift),
-  // which bump the store's `version` through `render()` without producing a new
-  // `state` reference. Subscribing to `version` is what makes the progression
-  // (« 1 sur 2 ») and « Passer à la suivante » answer the queue as it is now —
-  // the legacy screen re-opened itself for the same reason.
-  useStoreContent((c) => c.version);
   const { icons } = useEngineDrawing();
   const { t } = useTranslation();
   // THE DECISIONS COME FROM THE CACHE (invariant 4). `decisionPending` and
   // `DECISIONS_REGLEES` were the engine's, read straight off the fixture; the
   // same two answers are derived here from `/api/decisions/`.
-  //
-  // THE QUEUE IS STILL THE ENGINE'S, and that is a measured decision rather
-  // than an oversight. `derivedStuck` has FOUR readers — this screen, Arrivées,
-  // Acquisition and the shell's own screen opener — and `leaveQueue` spans
-  // `stuck`, `stuckReel` AND `blocked`, which is Acquisition's list. It is a
-  // shared resource rather than a surface, its actions are driven by the
-  // engine's document-level delegation, and it converts when its last reader
-  // does. Splitting it here would leave two truths about one queue.
   const { data: decisions } = useDecisions();
-  const scenario = String(useUiState().scen) === "loaded" ? "loaded" : "";
-  const { data: staging } = useStaging(scenario);
-  const { data: queue } = useAcquisitionQueue(scenario);
   const settledDecisions = decisions?.settled ?? [];
   const decisionPending = (subject: string | null) =>
     decisions?.pending.find((entry) => entry.folder === subject) ?? null;
@@ -92,16 +71,6 @@ export function ResolutionScreen() {
   // not borrow one. Showing another folder's candidates would be the worst
   // possible lie on the one screen whose job is to name what is on disk.
   const decision = decisionPending(folder);
-  // The queue spans BOTH surfaces a decision shows up on: « À traiter » on the
-  // acquisition side and « Ça coince » in Arrivées. They are two views of one
-  // thing — a folder the scrape could not name — and a progression that
-  // counted only one of them would be wrong on the other.
-  const pending = (queue?.blocked ?? [])
-    .concat(staging?.stuck ?? [])
-    .filter((card: QueueCard) => decisionPending(card.title) != null);
-  const rank = decision
-    ? pending.findIndex((card: QueueCard) => card.title === decision.folder) + 1
-    : 0;
   // The legacy screen picked its own subject between `decision.folder` and
   // `state.resolveTarget`; here the ROUTE PARAM is the identity, and
   // `decisionPending` matches on that very `folder` — so the two legacy branches
@@ -147,14 +116,6 @@ export function ResolutionScreen() {
             ) : (
               ""
             )}
-            {pending.length > 1 ? (
-              <CardCaption>
-                {rank} {t("screens.resolution.outOf")} {pending.length}{" "}
-                {t("screens.resolution.waiting")}
-              </CardCaption>
-            ) : (
-              ""
-            )}
           </CardMeta>
           {decision ? (
             <Candidates decision={decision} />
@@ -178,14 +139,6 @@ export function ResolutionScreen() {
               <Icon paths={icons.check} />
               {t("screens.resolution.leaveAsIs")}
             </button>
-            {pending.length > 1 ? (
-              <button className={actionButton({ kind: "panelAction" })} data-part="sheet/action" data-next={folder || undefined}>
-                <Icon paths={icons.right} />
-                {t("screens.resolution.next")}
-              </button>
-            ) : (
-              ""
-            )}
           </div>
           <div className={guidance()} data-part="guidance">
             <b>{t("screens.resolution.note2Title")}</b>{" "}

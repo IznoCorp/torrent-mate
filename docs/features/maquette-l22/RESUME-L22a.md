@@ -14,11 +14,10 @@ Read after `docs/features/maquette-l22/BRIEF-L22a.md` (governs) and `RULINGS.md`
   9a578c7a8, 038aeaa64, R206) · 9 (2eda1b035+fb2621788, R209) · 10 (92f3c3370+02a38bd02, R221) · 11 (92386365f+
   4cf87444e, R222) · 12 (822a4c1f4, R203 = R16 re-aimed) · 13 PART (the phase commit: the operator's rule « Suivis par
   défaut, puis le dernier onglet ouvert (mémoire locale) » — R202 red 4 FAIL, green, three mutations fell by name,
-  `13-mutation-exprs.txt`; journey.py re-aimed green).
-  NEXT (the successor): R175 per RULINGS 8 — `scroll_keeps_place.py` onto `?tab=follows`, loaded, return from a
-  follow's screen; today it points at `?tab=todo`, « fresh arrival » holds pass, « return » holds FALL. Then phase 13's
-  full gate (the 17 walk files in `~/Library/Logs/tm-l22a/13-walks.txt` + --a11y), its oracle acceptance by name (none
-  expected), then phase 14, then 14-bis (the steward's, PR #615), then the close. Push: see the ledger.
+  `13-mutation-exprs.txt`; journey.py re-aimed green) · 13 CLOSED by « l22a 2 »: origin/main merged (9bfc83f2c),
+  R175 onto « Suivis » (3a5164f39), gate 39 rules + 26 guards 0 failed, oracle exit 0 (none accepted), --a11y light 98.
+  14 IN PROGRESS: R205 `return_to_todo.py` red 3 FAIL (`14-red.log`), the move committed; then gate, mutations,
+  oracle acceptance of `acq-resolution-tie`. NEXT: 14-bis, 14-ter, the close (full suite ONCE after 14-ter).
 - B-553/R223 are the repair train's (next row B-555, next rule R224); `--a11y` on every drawing gate, light at 98.
 - Oracle: `oracle.py --accept` takes NO state names and rewrites the whole reference; each acceptance is its own
   commit naming the states and the mechanism. The « En cours » body (now-tab.tsx) is drawn beneath pwa-*, relay-*,
@@ -60,3 +59,5 @@ Read after `docs/features/maquette-l22/BRIEF-L22a.md` (governs) and `RULINGS.md`
 - 2026-09-26 phase 13 — R175 (scroll_keeps_place.py) was left reading Lucky on « En cours » by phase 9, which moved
   every blocked card to « À traiter »; phase 9's gate did not run it. Re-aimed onto `?tab=todo`, its « fresh arrival »
   holds pass and its « return from the resolution » holds fall: « À traiter » is too short to leave posters loading.
+- 2026-09-27 phase 13 — successor « l22a 2 »: the warm exits from « À traiter » already popped to `?tab=todo`; only the
+  cold link fell (the floor opened the remembered tab), repaired in phase 14 by `landingTab()`.

@@ -25,7 +25,6 @@ import { registerVerb } from "../../lib/verbs";
 import { queueNow, queueActions } from "../../lib/queue";
 import { bridge, panel, screens, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
-import { pendingDecisions } from "./decision-queries";
 import { baseTitle } from "../../lib/titles";
 
 /**
@@ -80,18 +79,6 @@ registerVerb("leave", () => {
   if (!queueActions?.leave(target)) return;
   store.touch();
   toast?.show({ message: i18next.t("verbs.arrivals.left", { title: target }) });
-});
-
-// The next folder waiting, on the same screen: the address is the screen's
-// identity, so the same depth is a REPLACE.
-registerVerb("next", (current) => {
-  const lists = queueNow();
-  const decisions = pendingDecisions?.() ?? [];
-  const following = lists.blocked
-    .concat(lists.stuck)
-    .map((card) => decisions.find((decision) => decision.folder === card.title) ?? null)
-    .find((decision) => decision !== null && decision.folder !== current);
-  if (following) screens.resolution(following.folder, true);
 });
 
 // No match for the folder: a pre-filled identification search, its query the

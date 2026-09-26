@@ -63,3 +63,5 @@ Per INDEX « Gates »; `decision.py` re-run by name.
 ## Commit
 
 `feat(maquette-l22): the candidates screen returns to « À traiter » and loses « Suivant » and its progression`
+
+**Amended 2026-09-27 (l22a):** the cold floor's « À traiter » stopped holding by construction when the default became « Suivis » then the last tab (phase 13); `landingTab()` lays Acquisition on « À traiter » beneath `/resolution/…`, R205 = `return_to_todo.py`, R57's « Suivant » hold inverted.

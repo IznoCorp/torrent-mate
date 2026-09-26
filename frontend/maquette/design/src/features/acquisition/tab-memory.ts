@@ -26,6 +26,25 @@ export function rememberedTab(): string {
   }
 }
 
+/** The candidates screen's address, whose every exit returns to « À traiter ». */
+const CANDIDATES_SCREEN = "/resolution/";
+
+/**
+ * The tab Acquisition lands on.
+ *
+ * THE CANDIDATES SCREEN BELONGS TO « À TRAITER »: every exit from it returns
+ * there, whichever way the screen was reached. Opened from the list, the exit
+ * pops the list's own entry, which carries its tab. Opened cold from a link,
+ * Acquisition is laid beneath the screen by the boot, and it is laid on
+ * « À traiter » rather than on the tab the device remembers — or the exit would
+ * land on a list the screen does not answer.
+ *
+ * @returns « À traiter » beneath the candidates screen, the remembered tab otherwise.
+ */
+export function landingTab(): string {
+  return location.pathname.startsWith(CANDIDATES_SCREEN) ? "todo" : rememberedTab();
+}
+
 /**
  * Remembers the tab just opened, for the next entry.
  *

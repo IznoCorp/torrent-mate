@@ -27,6 +27,9 @@ candidate » reads `data-resolve` on each card instead of counting the sentence
 « C'est celui-ci » on a pill that no longer exists. The queue hold's `.click()`
 on the first `[data-resolve]` stays true of the card; a finger's proof of the
 tap is R161's (`resolution_card.py`).
+
+RE-AIMED OUT LOUD: « Suivant » is gone, so the hold that read it opening the
+next folder in place now reads its ABSENCE on a folder among several.
 """
 import asyncio
 
@@ -175,28 +178,21 @@ async def main():
               any("manuellement" in x for x in without["exits"])
               and any("Laisser tel quel" in x for x in without["exits"]))
 
-        # ── « Suivant » opens the NEXT folder's arbitration, in place ──────
-        # The address is the screen's identity, so the next folder REPLACES the
-        # entry: one entry in, one out, and a single Back still leaves the
-        # arbitration rather than walking the folders already answered. Read
-        # after the screen has had time to change, never by timing the change.
+        # ── a folder among several offers NO « Suivant » ──────────────────
+        # INVERTED, SAID OUT LOUD: this hold read that « Suivant » opened the
+        # next folder in place. « Suivant » is gone — every exit returns to
+        # « À traiter », whose count carries the number (R205 holds the return)
+        # — so the hold whose subject died reads its absence, never deleted.
         await pg.evaluate("()=>window.__go('acq-resolution-tie')")
         await pg.wait_for_timeout(420)
         await pg.evaluate("()=>window.__screens.resolution()")
         await pg.wait_for_timeout(420)
         standing = """()=>{const screen = document.querySelector('[data-part="screen"][data-open][data-key^="resolution:"]');
           return {key: screen ? screen.dataset.key : null,
-                  path: decodeURIComponent(location.pathname + location.search),
-                  depth: history.length, next: !!document.querySelector('[data-next]')};}"""
+                  next: !!document.querySelector('[data-next]')};}"""
         first = await pg.evaluate(standing)
-        if check("a folder among several offers « Suivant »", first["next"], str(first)):
-            await pg.click("[data-next]")
-            await pg.wait_for_timeout(660)
-            moved = await pg.evaluate(standing)
-            check("and « Suivant » opens the NEXT folder's arbitration, replacing its entry",
-                  moved["key"] is not None and moved["key"] != first["key"]
-                  and moved["path"] != first["path"] and moved["depth"] == first["depth"],
-                  f"{first} → {moved}")
+        check("a folder among several offers no « Suivant »",
+              first["key"] is not None and not first["next"], str(first))
 
         # ── answering empties the queue, on BOTH lists ────────────────────
         for state_, list_, exit_ in (
