@@ -115,7 +115,7 @@ export const actionButton = cva(
         tone: "primary",
         class: "border-primary bg-primary text-primary-foreground [&_svg]:text-primary-foreground",
       },
-      { kind: "cardFoot", tone: "plain", class: "border-primary bg-transparent text-primary" },
+      { kind: "cardFoot", tone: "plain", class: "border-primary bg-transparent text-primary-text" },
       { kind: "cardFoot", tone: "solid", class: "border-primary bg-primary text-primary-foreground" },
       // The action is still offered, but it will REPLACE something already
       // owned — the tone says so before the dialog does.

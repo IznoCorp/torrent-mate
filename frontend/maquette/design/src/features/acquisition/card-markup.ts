@@ -60,11 +60,15 @@ function stageState(value: number | string): StripState {
   return "pending";
 }
 
-/** The tone a rung's name is drawn in, by the rung's state. */
+/**
+ * The tone a rung's name is drawn in, by the rung's state. A rung that WAITS
+ * reads neutral: the waiting tone as a chip's words does not hold its contrast
+ * on the light theme, and the rung's name says the wait itself.
+ */
 const RUNG_TONE: Record<StripState, string> = {
   done: "success",
   now: "info",
-  waiting: "waiting",
+  waiting: "neutral",
   blocked: "danger",
   aside: "neutral",
   pending: "neutral",
