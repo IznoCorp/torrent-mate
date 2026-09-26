@@ -788,7 +788,7 @@ is in the demands register; the events are claimed by a rule (R91's fan-out); th
 the tracker's (NE-DOIT-PAS-1, held by the mock's own value, never a local computation); the
 ranking editor draws with its live preview and the quality screen's toast is gone (B-298).
 
-**Design and plan written 2026-09-15, re-read against the organisation rulings 2026-09-26, PR #<n>.**
+**Design and plan written 2026-09-15, re-read against the organisation rulings 2026-09-26, PR #614.**
 `docs/features/maquette-l16/DESIGN.md` and `plan/INDEX.md` (15 phases, mean 12.0); the operator reads
 the drawing there before the lot opens, after L22b.
 
