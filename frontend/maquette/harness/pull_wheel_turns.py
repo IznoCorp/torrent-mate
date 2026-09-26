@@ -1,31 +1,34 @@
-"""R223 — the pull indicator's wheel is SEEN turning while the refresh is answered (B-553).
+"""R223 — the pull indicator's wheel is SEEN turning, from the arming to the reload's end (B-553).
 
 WHAT THE OPERATOR SAW. On his phone: « Le loader quand on glisse vers le bas pour
-recharger ne tourne pas. » The rotation is declared — the spinner carries
-`animation: spin` while the indicator is `loading` — and since B-331 the
-indicator closes when the re-read settles. Against the mock layer that is a few
-milliseconds, so a wheel that turns may still never be SEEN turning.
+recharger ne tourne pas. » The rotation was declared only while the indicator
+was `loading`, and since B-331 the indicator closes when the re-read settles —
+against the mock layer, 7 to 19 ms after the release, measured on every page
+below: a wheel that turns and is never seen turning.
 
-THE MEASUREMENT FIRST. Every page below is pulled by a real touch at the phone
-width; from the release, every frame records the wheel's angle (read from its
-computed transform) and whether the wheel is spinning, and an observer times
-the spinning's two edges. The readings are printed in the holds' details, so
-the report can say how long the wheel spins on each page and how far it turned.
+WHAT HE RULED: « La roue tourne dès que le geste est armé, un tour
+minimal visible, disparaît quand le rechargement est fini. »
+
+HOW IT IS READ. Every page below is pulled by a real touch at the phone width.
+From the finger's first contact, every frame records the wheel's angle (read
+from its computed transform), whether it is spinning (its computed animation),
+and whether the finger is still down; an observer times the spinning's edges.
+The readings are printed in the holds' details.
 
 WHAT IT HOLDS:
 
   w1. THE SERVED STYLESHEET DEFINES `spin` AS A ROTATION, and the wheel carries
-      it while loading — a keyframe dropped by the build would leave a name
-      that animates nothing.
-  w2. WHEN THE REFRESH TAKES ITS TIME, THE WHEEL TURNS on every page — the
-      animation runs, with motion allowed and with motion reduced alike (the
-      phone's « remove animations » is `prefers-reduced-motion: reduce`).
-  w3. AT THE MOCK LAYER'S OWN ANSWER TIME, THE WHEEL IS SEEN TURNING: it
-      spins for at least one loop of the wheel, and the angle read over that
-      time changes.
+      it — a keyframe dropped by the build would leave a name that animates
+      nothing.
+  w2. THE WHEEL TURNS WHILE THE PULL IS ARMED, the finger still down.
+  w3. AT THE MOCK LAYER'S OWN ANSWER TIME, THE WHEEL MAKES AT LEAST ONE TURN
+      AFTER THE RELEASE: it spins for one loop of the wheel, and turns.
+  w4. A SLOW RELOAD KEEPS IT TURNING UNTIL THE RELOAD IS DONE, and it stops
+      then — not before the answer, not long after it — with motion allowed
+      and with motion reduced alike (the phone's « remove animations » is
+      `prefers-reduced-motion: reduce`).
 """
 import asyncio
-import math
 import pathlib
 import sys
 
@@ -38,10 +41,17 @@ from playwright.async_api import async_playwright
 # where B-331 was seen.
 PAGES = ("acq-now-idle", "acq-follows-list", "acq-discover", "lib-grid", "lib-list",
          "arr-idle", "system", "settings")
-# An answer time long enough for several loops of the wheel.
+# An answer time longer than one loop of the wheel, by far.
 SLOW_LATENCY_MILLISECONDS = 1600
-# Below this many degrees across the samples, a wheel is not turning.
+# How long the finger stays down once the pull is armed.
+HELD_MILLISECONDS = 500
+# Below this many degrees, a wheel is not turning.
 TURNING_DEGREES = 30
+# What a frame costs a timer on a busy machine, below one loop.
+FRAME_TOLERANCE_MILLISECONDS = 20
+# How long after a slow reload's answer the wheel may still spin: the re-read
+# itself, and what a busy machine adds to it.
+SETTLING_ALLOWANCE_MILLISECONDS = 700
 
 KEYFRAMES = """()=>{
   const found = [];
@@ -57,18 +67,17 @@ KEYFRAMES = """()=>{
   return found;
 }"""
 
-# Records, from the release, the wheel's angle every frame and when its animation
-# starts and stops. The spinning state is read on the WHEEL — the animation the
-# drawing applies to it — and its edges are timed by an observer on the
-# indicator's attribute changes, so a state lasting less than a frame is still
-# timed rather than read as absent.
+# Records, from the finger's first contact, the wheel's angle every frame, and
+# times the spinning's edges by an observer on the indicator's attribute changes,
+# so a spinning shorter than a frame is timed rather than read as absent. The
+# spinning state is read on the WHEEL — the animation the drawing applies to it.
 WATCH = """()=>{
   const indicator = document.querySelector('#ptr');
   const wheel = indicator.firstElementChild;
-  const record = {released: performance.now(), samples: [], animation: null, loop: null,
-                  started: null, stopped: null};
+  const record = {start: performance.now(), released: null, samples: [], animation: null,
+                  loop: null, stopped: null};
   window.__wheel = record;
-  const since = () => Math.round((performance.now() - record.released) * 10) / 10;
+  const since = () => Math.round((performance.now() - record.start) * 10) / 10;
   const spinning = () => getComputedStyle(wheel).animationName !== 'none';
   const angle = () => {
     const matrix = getComputedStyle(wheel).transform;
@@ -78,20 +87,19 @@ WATCH = """()=>{
   };
   const edge = () => {
     const now = spinning();
-    if (now && record.started === null) {
-      record.started = since();
-      record.animation = getComputedStyle(wheel).animationName;
-    }
-    if (!now && record.started !== null && record.stopped === null) record.stopped = since();
+    if (now && record.animation === null) record.animation = getComputedStyle(wheel).animationName;
+    if (!now && record.released !== null && record.stopped === null) record.stopped = since();
   };
+  window.__wheelRelease = () => { record.released = since(); };
   const observer = new MutationObserver(edge);
   observer.observe(indicator, {attributes: true});
   record.loop = getComputedStyle(document.documentElement).getPropertyValue('--duration-loop-1').trim();
   const tick = () => {
     edge();
     const now = since();
-    record.samples.push([Math.round(now), spinning(), Math.round(angle())]);
-    if (now < 3000 && (record.stopped === null || now < 100)) requestAnimationFrame(tick);
+    record.samples.push([now, spinning(), Math.round(angle()), record.released === null]);
+    const after = record.released === null ? 0 : now - record.released;
+    if (now < 6000 && (record.stopped === null || after < 100)) requestAnimationFrame(tick);
     else { observer.disconnect(); record.done = true; }
   };
   requestAnimationFrame(tick);
@@ -99,32 +107,32 @@ WATCH = """()=>{
 
 
 def turned(samples):
-    """Sums how far the wheel turned while it was spinning.
+    """Sums how far the wheel turned across frames where it was spinning.
 
     Args:
-        samples: The frames recorded, as `[milliseconds, spinning, degrees]`.
+        samples: The frames, as `[milliseconds, spinning, degrees, held]`.
 
     Returns:
         The degrees travelled, each step unwrapped across the ±180° seam.
     """
-    loading = [sample for sample in samples if sample[1]]
+    spinning = [sample for sample in samples if sample[1]]
     travelled = 0.0
-    for previous, current in zip(loading, loading[1:]):
+    for previous, current in zip(spinning, spinning[1:]):
         step = (current[2] - previous[2]) % 360
         travelled += step if step <= 180 else 360 - step
     return travelled
 
 
 async def pull(page):
-    """Drives a real touch pull past the arming distance and releases it, watching the wheel.
+    """Drives a real touch pull past the arming distance, holds it, and releases it.
 
     Args:
         page: The Playwright page, on the page to pull.
 
     Returns:
-        The record written from the release: the samples, the spinning's two
-        edges, the animation name read while spinning, and the loop's declared
-        duration.
+        The record written from the first contact: the samples, the release and
+        the spinning's end in milliseconds, the animation name read while
+        spinning, and the loop's declared duration.
     """
     port = await page.evaluate("()=>{const r=document.querySelector('#port').getBoundingClientRect();"
                                "return {x:r.x, y:r.y, width:r.width};}")
@@ -133,15 +141,17 @@ async def pull(page):
     session = await page.context.new_cdp_session(page)
     x = port["x"] + port["width"] / 2
     y = port["y"] + 60
+    await page.evaluate(WATCH)
     await session.send("Input.dispatchTouchEvent", {
         "type": "touchStart", "touchPoints": [{"x": x, "y": y, "id": 1}]})
     for step in range(1, 13):
         await session.send("Input.dispatchTouchEvent", {
             "type": "touchMove", "touchPoints": [{"x": x, "y": y + distance * step / 12, "id": 1}]})
         await page.wait_for_timeout(16)
-    await page.evaluate(WATCH)
+    await page.wait_for_timeout(HELD_MILLISECONDS)
+    await page.evaluate("()=>window.__wheelRelease()")
     await session.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
-    for _ in range(40):
+    for _ in range(80):
         if await page.evaluate("()=>!!window.__wheel.done"):
             break
         await page.wait_for_timeout(100)
@@ -172,8 +182,26 @@ async def measure(browser, page_id, latency, motion):
     return record, keyframes
 
 
+def armed_turn(record):
+    """Degrees the wheel turned while the finger was still down."""
+    return turned([sample for sample in record["samples"] if sample[3]])
+
+
+def after_release(record):
+    """How long the wheel spun after the release, and how far it turned then."""
+    spun = None if record["stopped"] is None else round(record["stopped"] - record["released"], 1)
+    return spun, turned([sample for sample in record["samples"] if not sample[3]])
+
+
+def readings(records):
+    """Every page's reading under one condition, for a hold's detail."""
+    return " · ".join(
+        f"{page_id} armed {armed_turn(records[page_id]):.0f}° / after {after_release(records[page_id])[0]} ms "
+        f"{after_release(records[page_id])[1]:.0f}°" for page_id in PAGES)
+
+
 async def main():
-    """Pulls every page carrying the indicator and reads whether its wheel is seen turning."""
+    """Pulls every page carrying the indicator and reads when its wheel turns."""
     journal = Journal("R223 — the pull indicator's wheel is seen turning")
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel="chrome")
@@ -182,39 +210,38 @@ async def main():
         own = {}
         keyframes = []
         for page_id in PAGES:
-            slow[page_id], keyframes = await measure(browser, page_id, SLOW_LATENCY_MILLISECONDS, "no-preference")
+            own[page_id], keyframes = await measure(browser, page_id, None, "no-preference")
+            slow[page_id], _ = await measure(browser, page_id, SLOW_LATENCY_MILLISECONDS, "no-preference")
             reduced[page_id], _ = await measure(browser, page_id, SLOW_LATENCY_MILLISECONDS, "reduce")
-            own[page_id], _ = await measure(browser, page_id, None, "no-preference")
         await browser.close()
-
-    def reading(record):
-        """One pull's reading: how long the wheel spun, and how far it turned."""
-        spun = None
-        if record["started"] is not None and record["stopped"] is not None:
-            spun = round(record["stopped"] - record["started"], 1)
-        return spun, turned(record["samples"])
-
-    def readings(records):
-        """Every page's reading under one condition, printed in a hold's detail."""
-        return " · ".join(f"{page_id} {reading(records[page_id])[0]} ms {reading(records[page_id])[1]:.0f}°"
-                          for page_id in PAGES)
 
     journal.check("the served stylesheet defines `spin` as a rotation",
                   any("rotate(360deg)" in text for text in keyframes), f"keyframes {keyframes}")
     unnamed = [page_id for page_id in PAGES if slow[page_id]["animation"] != "spin"]
-    journal.check("the wheel carries `spin` while loading, on every page", not unnamed, f"without it: {unnamed}")
-    for label, records in (("with motion allowed", slow), ("with motion reduced", reduced)):
-        still = [page_id for page_id in PAGES if reading(records[page_id])[1] < TURNING_DEGREES]
-        journal.check(f"with a {SLOW_LATENCY_MILLISECONDS} ms answer the wheel turns {label}, on every page",
-                      not still, f"still: {still}; spun: {readings(records)}")
-    unseen = []
+    journal.check("the wheel carries `spin`, on every page", not unnamed, f"without it: {unnamed}")
+
+    still = [page_id for page_id in PAGES if armed_turn(own[page_id]) < TURNING_DEGREES]
+    journal.check("the wheel turns while the pull is armed, the finger still down, on every page",
+                  not still, f"still: {still}; {readings(own)}")
+
+    loop = float(own[PAGES[0]]["loop"].rstrip("s") or "0") * 1000
+    short = []
     for page_id in PAGES:
-        spun, degrees = reading(own[page_id])
-        loop = float(own[page_id]["loop"].rstrip("s") or "nan") * 1000
-        if math.isnan(loop) or spun is None or spun < loop or degrees < TURNING_DEGREES:
-            unseen.append(page_id)
-    journal.check("at the mock layer's own answer time the wheel is seen turning for a loop, on every page",
-                  not unseen, f"unseen: {unseen}; loop {own[PAGES[0]]['loop']}; spun: {readings(own)}")
+        spun, degrees = after_release(own[page_id])
+        if spun is None or spun < loop - FRAME_TOLERANCE_MILLISECONDS or degrees < TURNING_DEGREES:
+            short.append(page_id)
+    journal.check("at the mock layer's own answer time the wheel makes one turn after the release, on every page",
+                  loop > 0 and not short, f"short: {short}; loop {loop:.0f} ms; {readings(own)}")
+
+    for label, records in (("with motion allowed", slow), ("with motion reduced", reduced)):
+        off = []
+        for page_id in PAGES:
+            spun, degrees = after_release(records[page_id])
+            if (spun is None or not SLOW_LATENCY_MILLISECONDS <= spun
+                    <= SLOW_LATENCY_MILLISECONDS + SETTLING_ALLOWANCE_MILLISECONDS or degrees < TURNING_DEGREES):
+                off.append(page_id)
+        journal.check(f"with a {SLOW_LATENCY_MILLISECONDS} ms reload the wheel turns until it is done and stops "
+                      f"then, {label}, on every page", not off, f"off: {off}; {readings(records)}")
     journal.summary()
 
 
