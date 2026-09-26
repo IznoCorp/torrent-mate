@@ -84,3 +84,15 @@ last dialog opened before them in the run order (they had inherited the library'
 **Ruled (proposal A).** The 63 are accepted by name on `shell/dialog` only, after a script checked that each differs on
 that region and on no other; B-554 files the artifact, owner none. Reordering the states would hide it; repairing the
 driver's reset would be new apparatus.
+
+## 8 — R175 reads « Suivis » (steward, 2026-09-26; phase 13, STOP)
+
+**The STOP.** R175 (`scroll_keeps_place.py`, B-490) read Lucky's blocked card on « En cours »; phase 9 moved every
+blocked card to « À traiter », and phase 9's gate did not run R175. Re-aimed onto « À traiter », its « return from the
+resolution » holds fall: four cards leave no poster loading on the return.
+
+**Ruled C.** Neither « En cours » (phase 14-bis reduces it to « En vol » alone, PR #615) nor a tuned « À traiter »: R175
+reads « Suivis », the page's long list after L22 and the default tab — `?tab=follows`, loaded scenario, its return path
+opening a follow's screen from a card (the one « Suivis » cards open) then Back. B-490's words stay in the docstring and
+the re-aim is said out loud: its subject was moved by phases 9 and 14-bis, and B-490's own list no longer exists in its
+first form.

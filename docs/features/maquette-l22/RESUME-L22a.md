@@ -9,16 +9,17 @@ Read after `docs/features/maquette-l22/BRIEF-L22a.md` (governs) and `RULINGS.md`
   reference changes with its process).
 - Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l22a`.
 - Phases: `plan/INDEX.md` 1–14 (L22a); 15–27 are L22b's.
-- DONE: 1 (572108fb8) · 2 (e2ebfd06a, R215) · 3 (1bb06de4f, RULINGS 1) · 4 (bd5e1904b) · 5 (41ec588c6+930458687,
-  R207, RULINGS 2) · 6 (87ba2da4d+ec8b6f561, R208) · 7 (1076e2679+0498f72cb, R212) · midpoint suite (load only) ·
-  8 (ccb83058c, 8-bis 340cbb917, 9a578c7a8, 038aeaa64; R206; RULINGS 3, 4) · 9 (2eda1b035+fb2621788, R209, RULINGS 5) ·
-  10 (92f3c3370+02a38bd02, R221, RULINGS 6) · 11 (92386365f+4cf87444e, R222, RULINGS 7) · 12 (822a4c1f4, R203 = R16
-  re-aimed; no oracle divergence).
-  NEXT: HELD by the steward (2026-09-26 21:1x) — phases 13 and 14 wait for the operator's word on ruling 10 and on
-  « À récupérer » / « Rangé aujourd'hui » / « Cherché, rien trouvé » (nothing new is built on those three sections).
-  Then the close: merge origin/main, bump, full suite + --a11y + --compare, pre-push pytest, PR READY.
-- Numbering: B-553 and R223 are the repair train's; this lot's next register row is B-555, its next extra rule R224.
-- `--a11y` runs on every phase gate that draws (RULINGS 4); the light ledger stands at 98.
+- DONE: 1 (572108fb8) · 2 (e2ebfd06a, R215) · 3 (1bb06de4f) · 4 (bd5e1904b) · 5 (41ec588c6+930458687, R207) ·
+  6 (87ba2da4d+ec8b6f561, R208) · 7 (1076e2679+0498f72cb, R212) · midpoint (load) · 8 (ccb83058c, 8-bis 340cbb917,
+  9a578c7a8, 038aeaa64, R206) · 9 (2eda1b035+fb2621788, R209) · 10 (92f3c3370+02a38bd02, R221) · 11 (92386365f+
+  4cf87444e, R222) · 12 (822a4c1f4, R203 = R16 re-aimed) · 13 PART (the phase commit: the operator's rule « Suivis par
+  défaut, puis le dernier onglet ouvert (mémoire locale) » — R202 red 4 FAIL, green, three mutations fell by name,
+  `13-mutation-exprs.txt`; journey.py re-aimed green).
+  NEXT (the successor): R175 per RULINGS 8 — `scroll_keeps_place.py` onto `?tab=follows`, loaded, return from a
+  follow's screen; today it points at `?tab=todo`, « fresh arrival » holds pass, « return » holds FALL. Then phase 13's
+  full gate (the 17 walk files in `~/Library/Logs/tm-l22a/13-walks.txt` + --a11y), its oracle acceptance by name (none
+  expected), then phase 14, then 14-bis (the steward's, PR #615), then the close. Push: see the ledger.
+- B-553/R223 are the repair train's (next row B-555, next rule R224); `--a11y` on every drawing gate, light at 98.
 - Oracle: `oracle.py --accept` takes NO state names and rewrites the whole reference; each acceptance is its own
   commit naming the states and the mechanism. The « En cours » body (now-tab.tsx) is drawn beneath pwa-*, relay-*,
   signin*, startup and the acq-card-* states, so every change to it moves them together.
