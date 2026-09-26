@@ -233,7 +233,7 @@ n from 2 to 4, and never an empty slot. The rule is L22's (its R-L22-s, written 
 reads it at three and adds nothing to the frame. The fourth place stays free until a daily page
 deserves it (§ 17 point 4). **The bar is composed by rights** — Trackers is shown to the accounts that
 hold the right, Acquisition and Médiathèque to all — and the model that composes it is L18's, not this
-lot's (§ 5, OPEN 2: what this lot draws before that model exists).
+lot's (§ 5, OPEN 2, ruled A: this lot declares no right, the tab is drawn for the mock's single account).
 
 **What is on the screen.** Per tracker: its name, its ratio (`screens.trackers.ratio`), the trend
 (`screens.trackers.trend` — up / stable / down, in words, never a bare arrow with no label,
@@ -326,7 +326,8 @@ machine's faults are Système's own badge on the menu button (L22's OPEN 8), a d
 **What is on the screen.** When a tracker's ratio falls under its threshold: « Ratio sous le seuil
 — <tracker> » (`screens.trackers.alertBelowThreshold`), the ratio itself, and the threshold it
 crossed. On the bar, the Trackers tab carries the count (`tabBarBadge`, the badge's one visual language,
-« this has something to say »); **what the count counts is OPEN** (§ 5, OPEN 3). The function reads the
+« this has something to say »); **it counts the trackers under their alert threshold AND the obligations in
+breach** (§ 5, OPEN 3, ruled B). The function reads the
 tracker summary read (§ 2.3 item 1), which the stream's `RatioMeasured` events refresh through this lot's
 `live.ts` — so the tab's badge moves without a refetch, like the row. Today those events are EXEMPTED
 from every live rule, by name: `acquisitionLiveExemptions` (`features/acquisition/live.ts`) lists
@@ -420,7 +421,7 @@ there. The report records the red reading per rule, as every prior lot's has.
 - **Cross-seed** — §19, L17's, which depends on L16 and follows it. The Trackers tab's badge gains its
   term there (ruling 12: « the ratio and the cross-seed on Trackers »); L16 does not pre-write it.
 - **The bar's composition by rights, and the accounts** — L18's (ruling 11's « by rights », ruling 14's
-  « Comptes »). L16 adds no role and no flag to `app/navigation.ts` unless OPEN 2 below is ruled B.
+  « Comptes »). L16 adds no role and no flag to `app/navigation.ts` (OPEN 2 below, ruled A).
 - **A notifications box, or an alert line on Système** — none, by ruling 12.
 - **A tracker's account settings** (API key, passkey, enable/disable) — those already live in
   `tracker.json5`'s `providers.<name>.enabled` / credentials, unrelated to the ratio, and stay
@@ -453,10 +454,10 @@ other way — the ratio and the cross-seed are what one looks at every day, they
 (ruling 12), and § 17 point 4 names Trackers in the bar for the accounts that hold the right, while
 Système, which one consults on a doubt, is the one that goes to the drawer.
 
-### OPEN design questions — for the operator, two readings each, no choice made here
+### OPEN design questions — RULED by the operator on 2026-09-26
 
-What this re-read cannot decide from the rulings is listed here and only here. Each waits for his word,
-and the plan's phases say which of them they read (`plan/INDEX.md`).
+What this re-read could not decide from the rulings was listed here, two readings each, with no choice made;
+the operator ruled all three on 2026-09-26 (21:1x–21:3x). Each keeps its readings, then its ruling.
 
 **OPEN 1 — whether the Trackers page ships with the ratio alone at L16, its bar row with it.** Ruling 11
 gives the place to a page of « ratio, cross-seed, the tracker », and the cross-seed is L17's, after L16.
@@ -467,6 +468,8 @@ row in the drawer (`inBar: false`, group « supervision »; its badge, by the fr
 the bar does not hold, on the menu button), and L17 moves it into the bar once both subjects exist — the
 tab is drawn once, whole, and the bar stays at two between the lots; the cost is one row edited in two lots,
 and the ratio's badge speaking on the menu button, not on a tab, for that interval.
+**Ruled 2026-09-26 (operator): A** — Trackers enters the bar at L16 with the ratio alone, the bar at three
+buttons; L17 adds the cross-seed and a second term to the badge.
 
 **OPEN 2 — which account right opens Trackers before L18's model exists.** The bar is composed by rights,
 and the rights model is L18's; the mock has one account, the Operator. *Reading A*: the row carries no
@@ -477,6 +480,9 @@ hidden half is not yet provable. *Reading B*: the row names the right that opens
 Operator's, read by the bar to draw or hide the tab — so a rule can prove the tab shown and hidden against a
 second mock identity; the cost is a right field in the navigation table before L18's model, the small rights
 model L22's OPEN 11 refused for the same reason.
+**Ruled 2026-09-26 (operator): A** — no right is declared at L16; Trackers shows for the mock's single
+account, and the proof « hidden from other accounts » comes with L18; L16's rules say it is not provable
+until then.
 
 **OPEN 3 — what the Trackers tab's badge counts.** Ruling 12 says the ratio speaks on its tab and does not
 say by what number. *Reading A*: the trackers under their alert threshold — one per tracker whose ratio has
@@ -484,6 +490,9 @@ crossed it, S5's own fact, read four times from one field; the cross-seed's refu
 *Reading B*: also the obligations in breach — those with `breached_at` set and neither satisfied nor
 released (`ObligationItem`, § 2.1) — what a tracker will hold against the operator; B says more, and A keeps
 the badge to what the alert dictates.
+**Ruled 2026-09-26 (operator): B** — the badge counts the trackers under their alert threshold AND the
+obligations in breach (`breached_at` set, neither satisfied nor released); the refused cross-seeds join it
+at L17.
 
 ---
 

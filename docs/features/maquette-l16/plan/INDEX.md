@@ -34,8 +34,8 @@ continuing? » If the answer is yes and the next phase exists, and none of the S
 - **STOP C** — an OPEN question of DESIGN § 5 that the phase reads and the operator has not ruled. The phase does
   not choose: it asks the steward, with the question's two readings and what each costs the phase (its file says).
   Two phases read them — **phase 2** (OPEN 1, the bar row's home, and OPEN 2, the right that opens it) and
-  **phase 10** (OPEN 1 again, and OPEN 3, what the tab's badge counts). Both open long after this plan is
-  written; the operator's word will very likely have landed, and then it is read, not asked.
+  **phase 10** (OPEN 1 again, and OPEN 3, what the tab's badge counts). **All three were ruled on 2026-09-26**
+  (OPEN 1 = A, OPEN 2 = A, OPEN 3 = B, DESIGN § 5): they are read, not asked.
 - **STOP D** — a measurement that contradicts a home the design decided. The phase re-takes its own figures
   before it moves anything; a figure that no longer supports the home is reported to the steward with the
   command, and the phase does not improvise a new home. **Two are already known**: phase 6 (the policy panel's
@@ -134,15 +134,16 @@ and each says what to cut.
 | 7 | [The obligation's release verb](phase-07-release.md) | the release operation, the confirmation naming what is lost | b | 15 |
 | 8 | [An external removal is handled](phase-08-external-removal.md) | « Libérée — retrait externe », on a seeded obligation no call released | c | 8 |
 | 9 | [The alert on the page](phase-09-alert-on-page.md) | one derivation read at the row, the block and the panel | e | 11 |
-| 10 | [The alert on the bar](phase-10-alert-on-bar.md) | the Trackers tab's badge, the stream's ratio events claimed by this feature | e (re-aimed) | 10 |
+| 10 | [The alert on the bar](phase-10-alert-on-bar.md) | the Trackers tab's badge, the stream's ratio events claimed by this feature | e (re-aimed) | 11 |
 | 11 | [A card deferred for ratio names its tracker](phase-11-card-ratio-reason.md) | `stalled-grabs` declared and mocked; « Voir le tracker » on the acquisition card; **STOP D** on its seed | g | 12 |
 | 12 | [The ranking's contract](phase-12-ranking-contract.md) | the preview operation declared and mocked, the ratio-derived criterion field filed | — | 9 |
 | 13 | [The ranking editor lists its criteria](phase-13-ranking-editor.md) | `/settings/ranking`; the rubric's dead end and the quality screen's toast close | — | 15 |
 | 14 | [The live preview](phase-14-ranking-preview.md) | the preview panel, excluded rows sunk and still visible; B-298's promise kept | f | 9 |
 | 15 | [The close](phase-15-close.md) | the map, the register, the states counted, the report | — | 7 |
 
-**Opening measures (2026-09-26, on `dafe29ec1`), each phase file's own head**: 14, 15, 13, 13, 14, 15, 15, 8, 11, 10,
-12, 9, 15, 9, 7 — **sum 180 over 15 phases, mean 12.0, max 15** (phases 2, 6, 7 and 13), none above measure 19's
+**Opening measures (2026-09-26, on `dafe29ec1`), each phase file's own head**: 14, 15, 13, 13, 14, 15, 15, 8, 11, 11,
+12, 9, 15, 9, 7 — **sum 181 over 15 phases, mean ≈ 12.1, max 15** (phase 10 re-read at 11 on the operator's
+OPEN 3 = B, 2026-09-26) (phases 2, 6, 7 and 13), none above measure 19's
 15-point ceiling. The first drawing, on `08400a22a`, read 10, 9, 11, 9, 13, 12, 13, 5 — sum 82 over 8 phases, mean 10.25,
 max 13. **Every one of its eight rows changed**, for two reasons said apart: **the scale** (the first drawing's phases
 1, 2, 3, 5, 6, 7 were scored on a scale it did not state, and the declared one puts each over 15 or near it — the cause of most

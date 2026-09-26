@@ -3,7 +3,7 @@
 The alert's fourth reader: **a badge on the Trackers tab** of the bottom bar (organisation ruling 12 — every thing speaks where it lives, and the tab
 that carries it takes a badge). And, because the badge must move without a refetch, the stream's ratio events are claimed by this feature.
 
-**Reads OPEN 1 and OPEN 3 (DESIGN § 5).** The phase is written for the readings ruled when it opens; if neither is ruled it is **STOP C**. What each
+**Reads OPEN 1 and OPEN 3 (DESIGN § 5) — ruled on 2026-09-26: OPEN 1 = A, OPEN 3 = B, so the phase is 11** (the obligations read too). The readings stay below for the record. What each
 reading costs THIS phase:
 
 - **OPEN 1 — A** (the row is in the bar from phase 2): as drawn, **10**. **OPEN 1 — B** (the row is in the drawer until L17): the badge is drawn by

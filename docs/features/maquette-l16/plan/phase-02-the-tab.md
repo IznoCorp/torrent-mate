@@ -4,8 +4,7 @@ A new page and **a button of the bottom bar** (DESIGN § 4.1, § 5 « Ruled »):
 page's shell, the empty roster — and the bar reading three buttons in equal shares. The roster's rows are phase 3's; this phase
 proves the tab, the route and the bar on their own, before anything is drawn in the page.
 
-**Reads OPEN 1 and OPEN 2 (DESIGN § 5).** The plan is written for the reading that is ruled when the phase opens; if neither is
-ruled it is **STOP C**. What each reading costs THIS phase:
+**Reads OPEN 1 and OPEN 2 (DESIGN § 5) — both RULED A on 2026-09-26: the phase is as drawn, 15.** The readings stay below for the record. What each reading costs THIS phase:
 
 - **OPEN 1 — A** (the row in the bar from this phase): as drawn below, **15**. **OPEN 1 — B** (the row in the drawer, `inBar:
   false`, `group: "supervision"`; its badge later on the menu button): the row's value is the only change, R-L22-s is not re-run
