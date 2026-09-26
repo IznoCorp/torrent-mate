@@ -453,7 +453,7 @@ ailleurs qu'à sa racine surprend autant qu'il rend service.
 
 Un lien ouvert depuis l'extérieur — un message, un signet, un onglet restauré — n'a pas de pile
 à dépiler. Ce qui se trouve alors sous l'écran est **la page dont il relève** : la médiathèque
-sous une fiche média, les Arrivées sous une résolution. **Jamais l'accueil par défaut.**
+sous une fiche média, Acquisition sous une résolution. **Jamais l'accueil par défaut.**
 
 **Et ce parent est rendu, pas seulement enregistré.** Fermer l'écran révèle une page déjà en
 place ; c'est ce qui fait la fluidité. Un écran qui se ferme sur du vide a rompu le chemin même
@@ -519,6 +519,13 @@ mot de passe pour consulter la médiathèque : il se connecte avec son compte Pl
    (`require_not_staging`). Le modèle de droits qui arrive doit l'ABSORBER — un seul chemin
    d'autorisation, jamais deux —, faute de quoi c'est **NE-DOIT-PAS-7**, un second mécanisme
    parallèle.
+4. **La barre du bas se compose par droits** (dicté le 2026-09-26). Elle tient ce que CE compte
+   regarde chaque jour : Acquisition et Médiathèque pour tous ; Trackers (ratio, cross-seed, le
+   tracker) pour les comptes qui en ont le droit. Système n'y est pas : il se consulte sur un doute,
+   pas chaque jour ; il s'atteint depuis le menu, au droit qui l'ouvre, et le bouton du menu porte
+   son badge quand il a quelque chose à dire. Une place vide dans la barre n'est pas un défaut :
+   elle attend une page quotidienne. Une page absente de la barre relève du point 1 (l'offre
+   disparaît), pas du point 2 : rien n'y trompe sur l'état du système.
 
 ### Ce que cela tranche (dicté le 2026-08-30)
 
@@ -689,8 +696,12 @@ traite une arrivée à la fois** : une exécution s'accroche à **un** média et
    **reprend là où il s'est arrêté** une fois débloqué, par l'opérateur ou par un traitement
    automatique selon la raison du blocage.
 3. **Le suivi du pipeline se fait par média, à travers le tunnel d'acquisition.** La carte d'une
-   acquisition dit où est ce média dans son parcours ; les Arrivées disent ce qui est bloqué et
-   pourquoi. Il n'y a plus **un** pipeline à regarder : la vision globale est celle des **leviers** —
+   acquisition dit où est ce média dans son parcours ; l'onglet « À traiter » d'Acquisition dit ce
+   qui attend la main de l'opérateur, et pourquoi — un média sans identité, un match Plex à
+   confirmer, une erreur qui attend relancer ou abandonner (dicté le 2026-09-15 et le 2026-09-26 :
+   une arrivée est une carte d'acquisition, la page Arrivées et sa barre de lancement n'existent
+   plus ; ce qui stagne pour une autre raison se lit sur sa carte dans « En cours »). Il n'y a plus
+   **un** pipeline à regarder : la vision globale est celle des **leviers** —
    la borne de parallélisme, pause et reprise de l'ensemble, relancer la veille — et de
    l'**historique** des passages.
 4. **Le tunnel appartient au média, et le média a un demandeur** (§17) : piloter « ses »
