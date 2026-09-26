@@ -14,8 +14,10 @@ Read after `docs/features/maquette-l22/BRIEF-L22a.md` (governs) and `RULINGS.md`
   cards (STOP D announced: seeds) → 10 the Plex match confirmed or corrected → 11 « Abandonner » quarantines → 12 the
   badge and the count → 13 the default tab (STOP D announced: unnamed walks) → 14 « Suivant » dies → the close of
   L22a (merge of `origin/main`, version bump, full gate, pull request READY). Phases 15–27 are L22b's.
-- DONE: nothing yet. NEXT: the handshake, then phase 1.
-- Rule labels R-L22-x → numbers: bound at phase 1 against `origin/main`, written here.
+- DONE: handshake (GO 2026-09-26). NEXT: phase 1 gate, then phase 2.
+- Rule labels → numbers (bound at phase 1 on `origin/main` 1c0dbea64, highest R201): a R202 · b R203 · c R204 ·
+  d R205 · e R206 · f R207 · g R208 · h R209 · i R210 · j R211 · k R212 · l R213 · m R214 · n R215 · o R216 ·
+  p R217 · q R218 · r R219 · s R220 · t R221 · u R222.
 - LOGS: `~/Library/Logs/tm-l22a/`. Mutex `sh scripts/heavy.sh --held`; own npm lock
   `/private/tmp/tm-heavy-l22a/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l22a frontend/maquette/harness/run.sh

@@ -5,6 +5,7 @@ import SEARCH_RESULTS from "../seeds/search-results.json";
 import SUGGESTIONS from "../seeds/suggestions.json";
 import { DELETE, GET, PATCH, POST, field, route, text } from "./shared";
 import { launchDetection } from "./pipeline";
+import { arrivalsOf } from "./staging";
 import { stagesOf } from "./acquisition-verbs";
 import { mockState } from "../state";
 import { refused, type MockRequest, type MockRoute } from "../router";
@@ -302,6 +303,7 @@ export function acquisitionRoutes(): MockRoute[] {
           inFlight: state.inFlight,
           notFound: state.notFound,
           doneToday: state.doneToday,
+          arrivals: arrivalsOf(true),
         };
       }
       return {
@@ -310,6 +312,7 @@ export function acquisitionRoutes(): MockRoute[] {
         inFlight: state.inFlightReel,
         notFound: state.notFoundReal,
         doneToday: state.doneReel,
+        arrivals: arrivalsOf(false),
       };
     }),
     route(

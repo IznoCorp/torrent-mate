@@ -1023,6 +1023,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staging/media/{mediaId}/reclassify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * File a folder that is not a medium where the sort files its kind
+         * @description « Ce n'est pas un média » (ruling 5): the folder leaves the staging area for the non-media directory named, and its card leaves the acquisitions. Undone by the DELETE on the same address.
+         */
+        post: operations["reclassifyStagedMedia"];
+        /**
+         * Put a reclassified folder back in the staging area
+         * @description Undoes a reclassification: the folder returns to where it stood, and its card with it. Every resolve has its inverse (`backend-demands-architecture.md` § 9).
+         */
+        delete: operations["restoreReclassifiedMedia"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staging/destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Where the sort files what is not a medium */
+        get: operations["readStagingDestinations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1049,6 +1090,8 @@ export interface components {
             ids: components["schemas"]["ProviderIds"] | null;
             /** @description the poster's address, or null when none is known */
             poster: string | null;
+            /** @description who asked for it and where — carried by a card born of an arrival */
+            requester?: components["schemas"]["Requester"];
         };
         Fact: {
             /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
@@ -1435,6 +1478,10 @@ export interface components {
             when: string;
             /** @description done, now, or todo */
             state: string;
+            /** @description the rung of the card's ladder this stage belongs to, as a token — the ladder and the sheet read one list */
+            rung?: string;
+            /** @description why the stage is blocked or waiting, as a token, when it is */
+            reason?: string;
         };
         Problem: {
             status: number;
@@ -1610,6 +1657,25 @@ export interface components {
             pipelineLock: components["schemas"]["LockState"];
             sentinels: components["schemas"]["Sentinels"];
             sweep: components["schemas"]["TmpOrphanSweep"];
+        };
+        /** @description WHO ASKED for a medium and WHERE the asking happened. An arrival nobody requested through the application is attributed to the account that owns the Plex server, and says it was added directly in the download client (§17). A fact, never a sentence: the interface composes « ajouté par … » itself. */
+        Requester: {
+            /** @description the account's name */
+            name: string;
+            /**
+             * @description `follow` when a follow of that account asked for it, `qbittorrent` when it was added directly in the download client
+             * @enum {string}
+             */
+            via: "follow" | "qbittorrent";
+        };
+        /** @description a staging directory the sort files a NON-MEDIA folder into, as the configuration declares it */
+        StagingDestination: {
+            /** @description the directory's numeric prefix */
+            id: number;
+            /** @description the directory's label */
+            name: string;
+            /** @description the kind of file the sort files there */
+            fileType: string;
         };
     };
     responses: {
@@ -2426,7 +2492,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description the five buckets */
+            /** @description the six buckets */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2438,6 +2504,8 @@ export interface operations {
                         inFlight: components["schemas"]["QueueCard"][];
                         notFound: components["schemas"]["QueueCard"][];
                         doneToday: components["schemas"]["QueueCard"][];
+                        /** @description WHAT ARRIVED THROUGH THE PIPELINE, each an acquisition card: a finished torrent the sort took in, requested by a follow or added directly in the download client. An arrival is a card (ruling 2), at its rung, with its requester. */
+                        arrivals: components["schemas"]["QueueCard"][];
                     };
                 };
             };
@@ -3585,6 +3653,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Locks"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    reclassifyStagedMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the staged item */
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description the name of a destination `readStagingDestinations` lists */
+                    destination: string;
+                };
+            };
+        };
+        responses: {
+            /** @description it is filed there */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                        /** @description where it was filed */
+                        destination: string;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    restoreReclassifiedMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the staged item */
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description it is back */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    readStagingDestinations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the non-media destinations */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StagingDestination"][];
                 };
             };
             400: components["responses"]["Problem"];

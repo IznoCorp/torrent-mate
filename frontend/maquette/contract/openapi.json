@@ -1610,7 +1610,7 @@
         ],
         "responses": {
           "200": {
-            "description": "the five buckets",
+            "description": "the six buckets",
             "content": {
               "application/json": {
                 "schema": {
@@ -1645,9 +1645,17 @@
                       "items": {
                         "$ref": "#/components/schemas/QueueCard"
                       }
+                    },
+                    "arrivals": {
+                      "type": "array",
+                      "description": "WHAT ARRIVED THROUGH THE PIPELINE, each an acquisition card: a finished torrent the sort took in, requested by a follow or added directly in the download client. An arrival is a card (ruling 2), at its rung, with its requester.",
+                      "items": {
+                        "$ref": "#/components/schemas/QueueCard"
+                      }
                     }
                   },
                   "required": [
+                    "arrivals",
                     "blocked",
                     "doneToday",
                     "inFlight",
@@ -1683,7 +1691,14 @@
           "INFLIGHT",
           "NOTFOUND",
           "NOTFOUND_REAL",
-          "DONE_TODAY"
+          "DONE_TODAY",
+          "STUCK",
+          "STUCK_REAL",
+          "MOVING",
+          "SETTLED",
+          "SETTLED_REAL",
+          "ACCOUNT",
+          "FOLLOWS"
         ],
         "parameters": [
           {
@@ -3875,6 +3890,193 @@
           "TMP_ORPHANS"
         ]
       }
+    },
+    "/api/staging/media/{mediaId}/reclassify": {
+      "post": {
+        "operationId": "reclassifyStagedMedia",
+        "summary": "File a folder that is not a medium where the sort files its kind",
+        "description": "« Ce n'est pas un média » (ruling 5): the folder leaves the staging area for the non-media directory named, and its card leaves the acquisitions. Undone by the DELETE on the same address.",
+        "tags": [
+          "staging"
+        ],
+        "parameters": [
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the staged item"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "destination": {
+                    "type": "string",
+                    "description": "the name of a destination `readStagingDestinations` lists"
+                  }
+                },
+                "required": [
+                  "destination"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "it is filed there",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "destination": {
+                      "type": "string",
+                      "description": "where it was filed"
+                    }
+                  },
+                  "required": [
+                    "destination",
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "an acknowledgement naming the destination the request asked for."
+      },
+      "delete": {
+        "operationId": "restoreReclassifiedMedia",
+        "summary": "Put a reclassified folder back in the staging area",
+        "description": "Undoes a reclassification: the folder returns to where it stood, and its card with it. Every resolve has its inverse (`backend-demands-architecture.md` § 9).",
+        "tags": [
+          "staging"
+        ],
+        "parameters": [
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the staged item"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "it is back",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "an acknowledgement."
+      }
+    },
+    "/api/staging/destinations": {
+      "get": {
+        "operationId": "readStagingDestinations",
+        "summary": "Where the sort files what is not a medium",
+        "tags": [
+          "staging"
+        ],
+        "responses": {
+          "200": {
+            "description": "the non-media destinations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StagingDestination"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-seeded-from": [
+          "NON_MEDIA_DESTINATIONS"
+        ]
+      }
     }
   },
   "components": {
@@ -3953,6 +4155,10 @@
               "null"
             ],
             "description": "the poster's address, or null when none is known"
+          },
+          "requester": {
+            "$ref": "#/components/schemas/Requester",
+            "description": "who asked for it and where — carried by a card born of an arrival"
           }
         },
         "required": [
@@ -5251,6 +5457,14 @@
           "state": {
             "type": "string",
             "description": "done, now, or todo"
+          },
+          "rung": {
+            "type": "string",
+            "description": "the rung of the card's ladder this stage belongs to, as a token — the ladder and the sheet read one list"
+          },
+          "reason": {
+            "type": "string",
+            "description": "why the stage is blocked or waiting, as a token, when it is"
           }
         },
         "required": [
@@ -5855,6 +6069,51 @@
           "pipelineLock",
           "sentinels",
           "sweep"
+        ]
+      },
+      "Requester": {
+        "type": "object",
+        "description": "WHO ASKED for a medium and WHERE the asking happened. An arrival nobody requested through the application is attributed to the account that owns the Plex server, and says it was added directly in the download client (§17). A fact, never a sentence: the interface composes « ajouté par … » itself.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "the account's name"
+          },
+          "via": {
+            "type": "string",
+            "enum": [
+              "follow",
+              "qbittorrent"
+            ],
+            "description": "`follow` when a follow of that account asked for it, `qbittorrent` when it was added directly in the download client"
+          }
+        },
+        "required": [
+          "name",
+          "via"
+        ]
+      },
+      "StagingDestination": {
+        "type": "object",
+        "description": "a staging directory the sort files a NON-MEDIA folder into, as the configuration declares it",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "the directory's numeric prefix"
+          },
+          "name": {
+            "type": "string",
+            "description": "the directory's label"
+          },
+          "fileType": {
+            "type": "string",
+            "description": "the kind of file the sort files there"
+          }
+        },
+        "required": [
+          "fileType",
+          "id",
+          "name"
         ]
       }
     },
