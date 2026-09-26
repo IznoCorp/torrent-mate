@@ -900,6 +900,7 @@ remembered
 remount
 remove
 removed
+rename
 renamed
 renames
 render
@@ -911,6 +912,7 @@ replaced
 replay
 report
 request
+requester
 required
 requeue
 reserve

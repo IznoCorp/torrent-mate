@@ -32,6 +32,8 @@ export type MediumCard = {
   caption?: string;
   fresh?: boolean;
   strip?: (number | string)[];
+  /** Who asked for it, and where: a follow of theirs, or a direct add. */
+  requester?: { name: string; via: string };
   /** The medium's ladder — the same list its journey sheet reads. */
   ladder?: { rung: string; state: StripState; reason?: string }[];
   withoutPoster?: boolean;
@@ -143,6 +145,11 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot): str
     rating: medium.note != null ? String(medium.note) : undefined,
     caption: medium.caption,
     fresh: medium.fresh ? i18next.t("surfaces.card.freshTag") : undefined,
+    // THE LINE IS COMPOSED FROM THE ANSWER — its name and where the asking
+    // happened — never from a constant (§13).
+    requester: medium.requester
+      ? i18next.t(`surfaces.card.requester.${medium.requester.via}`, { name: medium.requester.name })
+      : undefined,
     strip: onLadder ? onLadder.strip : medium.strip?.map((value, index) => ({ state: stageState(value), label: stages[index] })),
     foot: foot ? { label: foot.label, solid: foot.solid, attributes: foot.attributes ?? {} } : undefined,
   });

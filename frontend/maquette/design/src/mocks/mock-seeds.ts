@@ -21,6 +21,7 @@ import { seasonsAnswerFor } from "./handlers/media";
 import FOLLOWS from "./seeds/follows.json";
 import INCOMPLETE_SHOWS from "./seeds/incomplete-shows.json";
 import { seasonsHeld } from "../lib/season-rows";
+import { renameAccount } from "./account";
 
 /** What the layer exposes of its seeds. */
 export type MockSeeds = {
@@ -37,6 +38,8 @@ export type MockSeeds = {
   seasons: () => Record<string, [number, number | null, number][]>;
   /** The season family seed, as its rows were written: `[season, aired, owned]` per title. */
   seasonFamily: () => Record<string, [number, number, number][]>;
+  /** Renames the seeded account until the layer is next reset — the seed changed, every reader must follow. */
+  renameAccount: (name: string) => void;
 };
 
 /** The seeds the harness reads, composed on each call so no caller holds a copy it could mutate. */
@@ -79,4 +82,5 @@ export const mockSeeds: MockSeeds = {
         ([title, rows]) => [title, rows.map((row) => [row.season, row.aired, row.owned])],
       ),
     ) as Record<string, [number, number, number][]>,
+  renameAccount,
 };

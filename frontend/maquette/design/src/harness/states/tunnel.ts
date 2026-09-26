@@ -54,5 +54,11 @@ export function tunnelStates(): NamedState[] {
       () =>
         applyState({ page: "acq", acqTab: "now", scen: "loaded", phase: "ready", pipe: "queued" }),
     ],
+    [
+      "acq-card-requester",
+      "Carte — ajouté par Izno, dans qBittorrent",
+      () =>
+        applyState({ page: "acq", acqTab: "now", scen: "real", phase: "ready" }),
+    ],
   ];
 }

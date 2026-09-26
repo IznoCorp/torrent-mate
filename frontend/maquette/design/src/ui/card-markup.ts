@@ -63,6 +63,8 @@ export type CardMarkupContent = {
   caption?: string;
   /** The word a card that has just arrived wears, or nothing. */
   fresh?: string;
+  /** Who asked for it — the card's last text line (§12). */
+  requester?: string;
   strip?: StripCell[];
   foot?: { label: string; solid?: boolean; attributes: MarkupAttributes };
 };
@@ -134,6 +136,7 @@ export function cardMarkup(content: CardMarkupContent): string {
         ${content.overview ? `<span class="${cardOverview()}" data-part="card/overview">${escapeMarkup(content.overview)}</span>` : ""}
         ${state ? `<span class="${cardMeta()}" data-part="card/meta">${state}</span>` : ""}
         ${annotations ? `<span class="${cardAnnotations()}">${annotations}</span>` : ""}
+        ${content.requester ? `<span class="${cardCaption()}" data-part="card/requester">${escapeMarkup(content.requester)}</span>` : ""}
       </button>
     </div>
     ${strip}

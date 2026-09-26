@@ -1,11 +1,11 @@
 // What has arrived and not yet settled. The pipeline that moves it is its own
 // subject, in `./pipeline`.
-import ACCOUNT from "../seeds/account.json";
 import DESTINATIONS from "../seeds/staging-destinations.json";
 import { DELETE, GET, POST, route, text } from "./shared";
 import { mockState } from "../state";
 import { refused, type MockRequest, type MockRoute } from "../router";
 import { ladderOf, rungIndex, stripPosition, type Position } from "./ladder";
+import { accountName } from "../account";
 import type { components } from "../../contract/types";
 
 type QueueCard = components["schemas"]["QueueCard"];
@@ -151,7 +151,7 @@ export function arrivalsOf(dense: boolean): QueueCard[] {
   return inStaging.map((card) => ({
     ...card,
     requester: {
-      name: ACCOUNT.name,
+      name: accountName(),
       via: state.follows.some((follow) => sameMedium(card, follow.ids))
         ? ASKED_BY_FOLLOW : DIRECT_ADD,
     },

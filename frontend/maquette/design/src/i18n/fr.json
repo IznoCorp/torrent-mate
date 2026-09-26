@@ -1012,7 +1012,11 @@
         "ingéré",
         "scrapé",
         "rangé"
-      ]
+      ],
+      "requester": {
+        "qbittorrent": "ajouté par {{name}}, dans qBittorrent",
+        "follow": "demandé par {{name}}"
+      }
     },
     "error": {
       "lead": "Impossible de charger {{subject}}.",
