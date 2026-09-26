@@ -51,3 +51,15 @@ rise. The feet are repaired at the card-foot variant with an existing token that
 which lowers the feet already counted too; the ledger is re-taken at the value read (98). A repair only a
 `theme.css` token could make would have been a STOP to the steward. From here to the pull request, `--a11y` runs on
 every phase gate that draws.
+
+## 5 — the tunnel-error card is a derivation from Top Chef's real row (steward, 2026-09-26; phase 9, STOP D)
+
+**The STOP.** The « tunnel error » section of « À traiter » has no real row: the ten real runs hold no errored step
+(`pipeline-runs.json`, `errorCount` summed → 0).
+
+**Ruled (proposal a).** « Top Chef Le Concours Parallèle (2026) » is the tunnel-error card — a DERIVATION from its real
+stuck row, shown as one: its reason is a step that cannot finish (no episode data, the files cannot be named), and no
+pending decision names it. The seed carries the step it stopped at; the layer files a stuck row that carries one and that
+no pending decision names under the tunnel error; its reason is drawn in full as the seed words it; its feet are
+« Relancer » and, from phase 11, « Abandonner ». Guard: it never reads as resolvable by an identity pick — no « Résoudre »
+foot. (b), a section drawn on nothing, refused (§ 13).

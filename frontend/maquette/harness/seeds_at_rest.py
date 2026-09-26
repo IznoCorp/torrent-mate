@@ -1,5 +1,8 @@
 """R128 — what the seeds offer to a HAND, with no named state (B-345).
 
+RE-AIMED: a blocked arrival is read in « À traiter », the tab it lives in, and no
+longer on « En cours »'s.
+
 RE-AIMED: the season rows are `window.__mocks.seasons()` — the served seasons read's
 rows, the ones every season block now draws — since the engine's season table died.
 
@@ -234,10 +237,16 @@ async def main():
             "a BLOCKED arrival is offered at rest — the decision surfaces have "
             "a subject without one being seeded for them",
             bool(queue["blocked"]), str(queue["blocked"]))
+        # RE-AIMED OUT LOUD: a blocked arrival is « À traiter »'s, a tab of its
+        # own (ruling 10), no longer « En cours »'s — so it is read there, a tap
+        # away, and still with no named state asked for.
+        await page.click('[data-acqtab="todo"]')
+        await page.wait_for_timeout(SETTLED)
+        drawn_todo = await page.evaluate(TITLES_ON_SCREEN)
         journal.check(
-            "and it is drawn on the same tab",
-            any(one in drawn_now for one in queue["blocked"]),
-            f"{queue['blocked']} against {drawn_now}")
+            "and it is drawn in « À traiter », a tap away",
+            any(one in drawn_todo for one in queue["blocked"]),
+            f"{queue['blocked']} against {drawn_todo}")
 
         # ── 3. A PAUSED FOLLOW, OF EACH KIND ───────────────────────────────
         #

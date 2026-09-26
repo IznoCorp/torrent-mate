@@ -31,6 +31,10 @@ entry as it was; and one back from there leaves the screen, not the fold.
 THE `screen` FIELD READS `[data-part="screen"][data-open]`. It read the legacy
 `#screen` node, which nothing ever opened, so it was false whatever was on
 screen; it now says whether a screen is open. The hold count is unchanged.
+
+EXTENDED (R215) to the candidates screen, which is Acquisition's: opening it from
+a blocked card of « À traiter » is an ARRIVAL, so it stacks exactly one entry,
+read on `history.length` and not on the address alone.
 """
 import asyncio
 
@@ -283,7 +287,8 @@ async def main():
         card_page.on("pageerror", lambda e: card_errors.append(str(e)))
         await card_page.goto("http://127.0.0.1:8899/", wait_until="load")
         await card_page.evaluate("()=>window.__loadingDone?.()")
-        await card_page.evaluate("()=>window.__go('acq-now-loaded')")
+        # RE-AIMED OUT LOUD: the blocked cards left « En cours » for « À traiter ».
+        await card_page.evaluate("()=>window.__go('acq-todo-loaded')")
         await card_page.wait_for_timeout(500)
         floor = await card_page.evaluate("()=>history.length")
         folder = await card_page.evaluate(

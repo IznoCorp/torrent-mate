@@ -1667,7 +1667,8 @@
             },
             "description": "which body of data to answer with. `real` is the operator's system as it stands — calm, and what makes a REST state judgeable at all; `loaded` is a dense one, for judging density and scrolling. The prototype has always carried both, and an interface that could only ever be busy would never show its rest states."
           }
-        ]
+        ],
+        "description": "A stuck arrival whose reason is a step that cannot finish carries `failedStep` — seeded on Top Chef Le Concours Parallèle's real row, a DERIVATION of its reason (no episode data: the files cannot be named), and dropped whenever a pending decision names the folder."
       }
     },
     "/api/acquisition/journeys/{infoHash}": {
@@ -4119,6 +4120,21 @@
               "$ref": "#/components/schemas/JourneyStage"
             },
             "description": "the card's ladder — the SAME list `readJourney` answers for its medium, so the card and the journey sheet cannot disagree"
+          },
+          "failedStep": {
+            "type": "string",
+            "enum": [
+              "ingest",
+              "sort",
+              "clean",
+              "scrape",
+              "cleanup",
+              "enforce",
+              "verify",
+              "trailers",
+              "dispatch"
+            ],
+            "description": "the pipeline step a stopped card cannot get past — a TUNNEL ERROR, which only a relaunch or an abandon unblocks, never an identity pick. Carried only by a card no pending decision names"
           }
         },
         "required": [

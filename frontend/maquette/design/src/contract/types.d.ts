@@ -377,7 +377,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** What the acquisition side is holding, by bucket */
+        /**
+         * What the acquisition side is holding, by bucket
+         * @description A stuck arrival whose reason is a step that cannot finish carries `failedStep` — seeded on Top Chef Le Concours Parallèle's real row, a DERIVATION of its reason (no episode data: the files cannot be named), and dropped whenever a pending decision names the folder.
+         */
         get: operations["readAcquisitionQueue"];
         put?: never;
         post?: never;
@@ -1094,6 +1097,11 @@ export interface components {
             requester?: components["schemas"]["Requester"];
             /** @description the card's ladder — the SAME list `readJourney` answers for its medium, so the card and the journey sheet cannot disagree */
             ladder?: components["schemas"]["JourneyStage"][];
+            /**
+             * @description the pipeline step a stopped card cannot get past — a TUNNEL ERROR, which only a relaunch or an abandon unblocks, never an identity pick. Carried only by a card no pending decision names
+             * @enum {string}
+             */
+            failedStep?: "ingest" | "sort" | "clean" | "scrape" | "cleanup" | "enforce" | "verify" | "trailers" | "dispatch";
         };
         Fact: {
             /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */

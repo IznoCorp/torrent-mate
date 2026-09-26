@@ -52,3 +52,7 @@ Read after `docs/features/maquette-l22/BRIEF-L22a.md` (governs) and `RULINGS.md`
 - 2026-09-26 phase 8 — CADENCE FAULT: phases 5–7 drew cards without running `--a11y`; the light ratchet stood at 234
   against 147 at phase 8's gate. RULINGS 4: repaired at the variants (8-bis, 340cbb917), ledger re-taken at 98. From
   now to the PR, `--a11y` on every phase gate that draws.
+- 2026-09-26 phase 9 — back.py's R215 docstring paragraph, written in phase 2 by a `str.replace` whose anchor did not
+  match, never landed (silent no-op); added in phase 9. Every scripted edit is asserted from here on.
+- 2026-09-26 phase 9 — re-aimed out loud: R128 reads the blocked arrival in « À traiter »; R215 opens the screen from
+  « À traiter »; acq-card-blocked and acq-card-no-identity stand on the « À traiter » tab.

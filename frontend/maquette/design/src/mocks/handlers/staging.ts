@@ -144,7 +144,11 @@ export function arrivalsOf(dense: boolean): QueueCard[] {
   const lists: [QueueCard[], (card: QueueCard) => Position | undefined][] = dense
     ? [[state.stuckLoaded, () => STUCK_AT], [state.moving, moving], [state.settledLoaded, () => SETTLED_AT]]
     : [[state.stuck, () => STUCK_AT], [state.movingReel, moving], [state.settled, () => SETTLED_AT]];
-  const inStaging = lists.flatMap(([cards, at]) => cards.map(({ strip, ...card }) => {
+  // A TUNNEL ERROR IS A STEP NO PICK UNBLOCKS: a row a pending decision names
+  // is resolved by that decision, whatever step it stopped at.
+  const namedByDecision = new Set(state.pendingDecisions.map((decision) => decision.folder));
+  const inStaging = lists.flatMap(([cards, at]) => cards.map(({ strip, failedStep, ...stopped }) => {
+    const card = failedStep === undefined || namedByDecision.has(stopped.title) ? stopped : { ...stopped, failedStep };
     const position = at({ ...card, strip });
     return position === undefined ? card : { ...card, ladder: ladderOf(card.title, position) };
   }));

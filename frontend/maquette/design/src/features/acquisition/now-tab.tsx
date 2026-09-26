@@ -36,6 +36,8 @@ export function NowTab(): ReactElement {
   // THE ARRIVALS ARE CARDS HERE (ruling 2), each in the section its ladder says.
   const arrived = slotArrivals(queue?.arrivals ?? []);
   const takeable = queue?.takeable ?? [];
+  // WHAT IS BLOCKED IS « À TRAITER »'S, a tab of its own (ruling 10); what
+  // stays here is what moves, waits, or was looked for.
   const blocked = [...(queue?.blocked ?? []), ...arrived.blocked];
   const inflight = [...(queue?.inFlight ?? []), ...arrived.inFlight];
   const notfound = queue?.notFound ?? [];
@@ -88,19 +90,6 @@ export function NowTab(): ReactElement {
               label: t("screens.acquisition.takeableFoot"),
               solid: true,
               attributes: { "data-take": card.title },
-            }),
-          )
-          .join(""),
-      )}
-      {section(
-        "danger",
-        t("screens.acquisition.blocked"),
-        blocked,
-        blocked
-          .map((card) =>
-            mediumCardMarkup(card, {
-              label: t("screens.acquisition.blockedFoot"),
-              attributes: { "data-resolution": card.title },
             }),
           )
           .join(""),

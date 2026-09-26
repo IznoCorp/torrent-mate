@@ -40,13 +40,13 @@ export function tunnelStates(): NamedState[] {
       "acq-card-blocked",
       "Carte — arrêtée sur « identifié », sa raison en entier",
       () =>
-        applyState({ page: "acq", acqTab: "now", scen: "real", phase: "ready" }),
+        applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" }),
     ],
     [
       "acq-card-no-identity",
       "Carte — un dossier sans identité",
       () =>
-        applyState({ page: "acq", acqTab: "now", scen: "real", phase: "ready" }),
+        applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" }),
     ],
     [
       "acq-card-waiting",
@@ -63,6 +63,17 @@ export function tunnelStates(): NamedState[] {
     [
       "acq-todo-empty",
       "À traiter — rien n'attend votre main",
+      () => {
+        window.__mocks?.clearBlocked();
+        // THE RESET ALREADY ASKED FOR THE QUEUE, before the layer was emptied:
+        // the answer it holds is dropped, so the page asks again.
+        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
+        applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" });
+      },
+    ],
+    [
+      "acq-todo-loaded",
+      "À traiter — chargé",
       () =>
         applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" }),
     ],

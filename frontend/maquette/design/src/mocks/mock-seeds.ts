@@ -22,6 +22,7 @@ import FOLLOWS from "./seeds/follows.json";
 import INCOMPLETE_SHOWS from "./seeds/incomplete-shows.json";
 import { seasonsHeld } from "../lib/season-rows";
 import { renameAccount } from "./account";
+import { mockState } from "./state";
 
 /** What the layer exposes of its seeds. */
 export type MockSeeds = {
@@ -40,6 +41,8 @@ export type MockSeeds = {
   seasonFamily: () => Record<string, [number, number, number][]>;
   /** Renames the seeded account until the layer is next reset — the seed changed, every reader must follow. */
   renameAccount: (name: string) => void;
+  /** Empties what is blocked — the queue's and the staging area's — until the layer is next reset. */
+  clearBlocked: () => void;
 };
 
 /** The seeds the harness reads, composed on each call so no caller holds a copy it could mutate. */
@@ -83,4 +86,9 @@ export const mockSeeds: MockSeeds = {
       ),
     ) as Record<string, [number, number, number][]>,
   renameAccount,
+  // « À TRAITER » WITH NOTHING WAITING: no blocked card, no stuck folder — the
+  // other lists are left as they are, so the rest of the page still draws.
+  clearBlocked: () => {
+    Object.assign(mockState(), { blocked: [], stuck: [], stuckLoaded: [] });
+  },
 };

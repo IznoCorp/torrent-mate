@@ -889,7 +889,10 @@
         "hour": "{{hour}} h {{minute}}"
       },
       "todoEmptyTitle": "Rien n'attend votre main.",
-      "todoEmptyBody": "Ce qui avance sans vous est dans « En cours »."
+      "todoEmptyBody": "Ce qui avance sans vous est dans « En cours ».",
+      "todoResolve": "À résoudre",
+      "todoTunnelError": "Une étape ne passe pas",
+      "todoRequeueFoot": "Relancer"
     },
     "accountPage": {
       "noteLead": "Un seul compte existe sur ce serveur.",
