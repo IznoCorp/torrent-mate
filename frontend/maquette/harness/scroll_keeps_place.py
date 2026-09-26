@@ -1,4 +1,4 @@
-"""R175 — the in-flight list keeps the reader's place, and one gesture moves one container.
+"""R175 — Acquisition's long list keeps the reader's place, and one gesture moves one container.
 
 B-490, reported by the operator: « double scroll systématique sur
 Acquisition › En cours ; dès que le scroll arrive au niveau de Lucky on remonte
@@ -19,12 +19,21 @@ clipping, and the closed sheet — translated below the bottom edge with its dra
 band — gives the DOCUMENT 89 px of scrollable overflow beside `#port`. A wheel
 over the header then moves the document; a wheel over the list moves the port.
 
+RE-AIMED OUT LOUD — the list it reads is « Suivis ». B-490's list, « En cours »
+with Lucky's blocked card in it, no longer exists in that form: every blocked
+card lives in « À traiter », « En cours » holds « En vol » alone, and « À
+traiter » is too short to leave a poster loading on a return.
+The mechanism B-490 named is the page's, not the tab's, so the rule reads it on
+the page's long list and default tab: « Suivis », opened at its own address,
+and its detour is the one a « Suivis » card offers — the follow's screen, then
+Back. The card it starts from is the first follow the seed carries.
+
 WHAT IT HOLDS, by finger and by wheel, at the phone width, at a desktop width in
 the frame (both paths) and out of it (the fresh arrival and the header):
 
-  the walk      a downward gesture repeated from the top of « En cours » to the
-                end of the list, past Lucky's card, on a FRESH arrival and on a
-                RETURN from the resolution. The port never goes back up under a
+  the walk      a downward gesture repeated from the top of « Suivis » to the
+                end of the list, past the follow's card, on a FRESH arrival and
+                on a RETURN from the follow's screen. The port never goes back up under a
                 downward gesture, not even after the last poster has loaded.
   one container every gesture moves at most one scroll container, and it is
                 `#port`.
@@ -59,11 +68,12 @@ LABEL = '[data-part="harness/desktop-switch-label"]'
 
 PORT = "#port"
 HEADER = '[data-part="shell/header"]'
-# The blocked card — Lucky in the operator's report — found by the title its own
-# seed carries, read here rather than typed, so the rule follows the fixture.
-BLOCKED_SEED = pathlib.Path(__file__).resolve().parents[1] / "design/src/mocks/seeds/blocked.json"
-FOOT = '[data-part="card/foot"]'
-BLOCKED_TITLE = json.loads(BLOCKED_SEED.read_text(encoding="utf-8"))[0]["title"]
+# The follow the detour starts from, found by the title its own seed carries,
+# read here rather than typed, so the rule follows the fixture.
+FOLLOWS_SEED = pathlib.Path(__file__).resolve().parents[1] / "design/src/mocks/seeds/follows.json"
+SHEET_OPENER = "[data-mediasheet]"
+FOLLOW_TITLE = json.loads(FOLLOWS_SEED.read_text(encoding="utf-8"))[0]["title"]
+FOLLOW_SCREEN = "/media/"
 
 # One gesture's length. The operator's report is a scroll, not a fling; forty
 # pixels is short enough that the jump lands between two readings, never inside
@@ -109,12 +119,12 @@ CENTRE_OF = """(selector) => {
            y: Math.round(box.y + Math.min(box.height / 2, 400)) };
 }"""
 
-BLOCKED_CARD = """(title) => [...document.querySelectorAll('#port [data-part="card"]')]
+FOLLOW_CARD = """(title) => [...document.querySelectorAll('#port [data-part="card"]')]
   .find((card) => card.querySelector('[data-part="card/title"]')?.textContent.trim() === title)"""
 
 CARD_BOTTOM = """(title) => {
   const port = document.querySelector("#port");
-  const card = (""" + BLOCKED_CARD + """)(title);
+  const card = (""" + FOLLOW_CARD + """)(title);
   if (!card) return null;
   return Math.round(card.getBoundingClientRect().bottom
     - port.getBoundingClientRect().top + port.scrollTop);
@@ -156,7 +166,7 @@ def moved_containers(before, after):
 
 
 async def arrive(browser, options, out_of_frame):
-    """Opens « En cours » at its own address, in or out of the frame.
+    """Opens « Suivis » at its own address, in or out of the frame.
 
     Args:
         browser: The launched browser.
@@ -170,9 +180,9 @@ async def arrive(browser, options, out_of_frame):
     if out_of_frame:
         await page.click(LABEL)
         await page.wait_for_timeout(SETTLED)
-    # RE-AIMED OUT LOUD: Lucky's card is blocked, so it lives in « À traiter »,
-    # and a plain arrival opens « Suivis »; the walk names the tab it reads.
-    await page.goto(PROTOTYPE.rstrip("/") + PAGE_PATHS["acq"] + "?tab=todo", wait_until="load")
+    # The walk names the tab it reads rather than trusting the default to stay
+    # the one it is today.
+    await page.goto(PROTOTYPE.rstrip("/") + PAGE_PATHS["acq"] + "?tab=follows", wait_until="load")
     await page.evaluate("()=>window.__loadingDone?.()")
     await page.evaluate("()=>document.querySelector('#toastx')?.click()")
     await page.evaluate("()=>window.__mocks?.quiet?.()")
@@ -181,15 +191,15 @@ async def arrive(browser, options, out_of_frame):
 
 
 async def detour(page):
-    """Opens the resolution from the blocked card and comes back.
+    """Opens the follow's screen from its card and comes back.
 
     Returns:
         Where the detour went, where it came back to, and how many posters of
         the list were still to load when it came back.
     """
     await page.evaluate(
-        "({ title, foot }) => (" + BLOCKED_CARD + ")(title).querySelector(foot).click()",
-        {"title": BLOCKED_TITLE, "foot": FOOT})
+        "({ title, opener }) => (" + FOLLOW_CARD + ")(title).querySelector(opener).click()",
+        {"title": FOLLOW_TITLE, "opener": SHEET_OPENER})
     await page.evaluate("()=>window.__mocks?.quiet?.()")
     await page.wait_for_timeout(ACTED)
     went = await page.evaluate("()=>location.pathname")
@@ -252,14 +262,14 @@ async def header_gesture(page, session, kind):
 
 
 async def hold(journal):
-    """Walks « En cours » at both widths, by finger and by wheel, fresh and after a detour."""
+    """Walks « Suivis » at both widths, by finger and by wheel, fresh and after a detour."""
     # THE JUMP IS READ WHERE IT CAN HAPPEN. Out of the frame at 1440 x 900 the
     # browser loads every lazy poster of this list at once — nothing is still
     # loading on the return, so the path there cannot fall and holding it would
     # be a green nobody earned. The phone and the desktop IN the frame, the
     # operator's default, keep posters below the fold; out of the frame is where
     # the double scroll lives, and it is walked fresh and over the header.
-    both = ("fresh arrival", "return from the resolution")
+    both = ("fresh arrival", "return from the follow's screen")
     frames = (
         ("phone", {"finger": PHONE, "wheel": PHONE}, False, both),
         ("desktop in the frame",
@@ -281,17 +291,17 @@ async def hold(journal):
                         went = await detour(page)
                         journal.check(
                             f"{label}: the return went through the restoration with posters still to load",
-                            went["went"].startswith("/resolution")
+                            went["went"].startswith(FOLLOW_SCREEN)
                             and went["back"] == PAGE_PATHS["acq"]
                             and went["pending"] > 0,
                             f"went to {went['went']!r}, came back to {went['back']!r} "
                             f"with {went['pending']} poster(s) still loading — with "
                             "none, the late re-application has nothing to fire on "
                             "and the walk below cannot fall")
-                    bottom = await page.evaluate(CARD_BOTTOM, BLOCKED_TITLE)
+                    bottom = await page.evaluate(CARD_BOTTOM, FOLLOW_TITLE)
                     walked = await walk(page, session, kind)
                     journal.check(
-                        f"{label}: the walk passed {BLOCKED_TITLE}'s card and reached the end of the list",
+                        f"{label}: the walk passed {FOLLOW_TITLE}'s card and reached the end of the list",
                         bottom is not None and walked["atEnd"]
                         and walked["reached"] > 0,
                         f"card bottom at {bottom}, reached {walked['reached']} of "
@@ -322,7 +332,7 @@ async def hold(journal):
 
 def main():
     """Runs the rule."""
-    journal = Journal("R175 — the in-flight list keeps the reader's place, one gesture moves one container")
+    journal = Journal("R175 — Acquisition's long list keeps the reader's place, one gesture moves one container")
     asyncio.run(hold(journal))
 
 
