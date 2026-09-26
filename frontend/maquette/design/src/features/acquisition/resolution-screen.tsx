@@ -44,6 +44,8 @@ import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useDecisions } from "./decision-queries";
+import { useAcquisitionQueue, useStaging } from "../../lib/queue";
+import { useUiState } from "../../lib/store-access";
 import { Candidates, DecisionCard } from "./resolution-cards";
 import { REASON_TONE, reasonDetail, reasonLabel } from "./decision-vocabulary";
 import { actionButton, backAction, body, emptyNote, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, sheetActions, type ChipTone } from "../../ui/variants";
@@ -64,6 +66,14 @@ export function ResolutionScreen() {
   // `DECISIONS_REGLEES` were the engine's, read straight off the fixture; the
   // same two answers are derived here from `/api/decisions/`.
   const { data: decisions } = useDecisions();
+  // THE SCREEN HOLDS THE QUEUE IN THE CACHE, and draws nothing from it. Its
+  // exits act on the queue — a pick and « Laisser tel quel » take the folder out
+  // of BOTH lists it appears on, read from the cache — and a screen opened on
+  // its own, from a cold link, is the one reader that would otherwise leave the
+  // cache empty: the exit would then take nothing out.
+  const scenario = String(useUiState().scen) === "loaded" ? "loaded" : "";
+  useStaging(scenario);
+  useAcquisitionQueue(scenario);
   const settledDecisions = decisions?.settled ?? [];
   const decisionPending = (subject: string | null) =>
     decisions?.pending.find((entry) => entry.folder === subject) ?? null;
