@@ -523,9 +523,10 @@ mot de passe pour consulter la médiathèque : il se connecte avec son compte Pl
    regarde chaque jour : Acquisition et Médiathèque pour tous ; Trackers (ratio, cross-seed, le
    tracker) pour les comptes qui en ont le droit. Système n'y est pas : il se consulte sur un doute,
    pas chaque jour ; il s'atteint depuis le menu, au droit qui l'ouvre, et le bouton du menu porte
-   son badge quand il a quelque chose à dire. Une place vide dans la barre n'est pas un défaut :
-   elle attend une page quotidienne. Une page absente de la barre relève du point 1 (l'offre
-   disparaît), pas du point 2 : rien n'y trompe sur l'état du système.
+   son badge quand il a quelque chose à dire. Une place que la barre n'a pas n'est pas un défaut :
+   elle attend une page quotidienne. La barre ne dessine que ses boutons, à parts égales, de deux à
+   quatre. Une page absente de la barre relève du point 1 (l'offre disparaît), pas du point 2 : rien
+   n'y trompe sur l'état du système.
 
 ### Ce que cela tranche (dicté le 2026-08-30)
 
