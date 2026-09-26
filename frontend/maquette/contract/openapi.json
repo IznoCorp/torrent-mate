@@ -1668,7 +1668,7 @@
             "description": "which body of data to answer with. `real` is the operator's system as it stands — calm, and what makes a REST state judgeable at all; `loaded` is a dense one, for judging density and scrolling. The prototype has always carried both, and an interface that could only ever be busy would never show its rest states."
           }
         ],
-        "description": "A stuck arrival whose reason is a step that cannot finish carries `failedStep` — seeded on Top Chef Le Concours Parallèle's real row, a DERIVATION of its reason (no episode data: the files cannot be named), and dropped whenever a pending decision names the folder."
+        "description": "A stuck arrival whose reason is a step that cannot finish carries `failedStep` — seeded on Top Chef Le Concours Parallèle's real row, a DERIVATION of its reason (no episode data: the files cannot be named), and dropped whenever a pending decision names the folder. A settled arrival whose Plex match waits for his confirmation carries `plexMatch` — seeded on Star Trek: Strange New Worlds (2022)'s real settled row, a DERIVATION naming the identity the pipeline holds (a confirmation to give, not an invented wrong match)."
       }
     },
     "/api/acquisition/journeys/{infoHash}": {
@@ -4031,6 +4031,97 @@
           "NON_MEDIA_DESTINATIONS"
         ]
       }
+    },
+    "/api/acquisition/journeys/{infoHash}/plex-match": {
+      "post": {
+        "operationId": "resolvePlexMatch",
+        "summary": "Confirm or correct the match Plex made for a medium",
+        "tags": [
+          "acquisition"
+        ],
+        "description": "Demand E (OPEN 9, ruled B): « Confirmer » says the match is the medium, « Corriger » says it is not. Either answer takes the card off « À traiter »; a correction then goes through the candidates screen.",
+        "parameters": [
+          {
+            "name": "infoHash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the medium"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "outcome": {
+                    "type": "string",
+                    "enum": [
+                      "confirm",
+                      "correct"
+                    ],
+                    "description": "whether the match is the medium"
+                  }
+                },
+                "required": [
+                  "outcome"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "the match is answered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "outcome": {
+                      "type": "string",
+                      "enum": [
+                        "confirm",
+                        "correct"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "outcome"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "an acknowledgement naming the outcome the request asked for."
+      }
     }
   },
   "components": {
@@ -4135,6 +4226,10 @@
               "dispatch"
             ],
             "description": "the pipeline step a stopped card cannot get past — a TUNNEL ERROR, which only a relaunch or an abandon unblocks, never an identity pick. Carried only by a card no pending decision names"
+          },
+          "plexMatch": {
+            "$ref": "#/components/schemas/PlexMatch",
+            "description": "the match Plex made, when it waits for the operator's confirmation — the card sits in « À traiter » until he gives it"
           }
         },
         "required": [
@@ -6167,6 +6262,28 @@
           "takeable"
         ],
         "description": "What the acquisition side is holding, by bucket — and every arrival, as a card."
+      },
+      "PlexMatch": {
+        "type": "object",
+        "description": "the medium Plex matched a shelved folder to — what « Confirmer » and « Corriger » act on",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "ids": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ProviderIds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "title"
+        ]
       }
     },
     "responses": {

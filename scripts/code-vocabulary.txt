@@ -228,6 +228,7 @@ convert
 converted
 copy
 corps
+correct
 cote
 count
 counted
@@ -788,6 +789,7 @@ place
 plain
 platform
 play
+plex
 point
 pong
 pop

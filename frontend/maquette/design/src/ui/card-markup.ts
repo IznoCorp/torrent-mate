@@ -47,6 +47,9 @@ export type CardSide =
   | { poster: string; attributes: MarkupAttributes }
   | { folderIcon: string; folderLabel: string; attributes: MarkupAttributes };
 
+/** One option at a card's foot. */
+export type CardFoot = { label: string; solid?: boolean; attributes: MarkupAttributes };
+
 /** Everything one card shows, each line already in the caller's words. */
 export type CardMarkupContent = {
   title: string;
@@ -66,7 +69,8 @@ export type CardMarkupContent = {
   /** Who asked for it — the card's last text line (§12). */
   requester?: string;
   strip?: StripCell[];
-  foot?: { label: string; solid?: boolean; attributes: MarkupAttributes };
+  /** The option a section offers at the card's foot — or several, in order. */
+  foot?: CardFoot | CardFoot[];
 };
 
 /**
@@ -122,9 +126,10 @@ export function cardMarkup(content: CardMarkupContent): string {
         )
         .join("")}</div>`
     : "";
-  const foot = content.foot
-    ? `<button class="${actionButton({ kind: "cardFoot", tone: content.foot.solid ? "solid" : "plain" })}" data-part="card/foot"${content.foot.solid ? ' data-solid=""' : ""}${attributesMarkup(content.foot.attributes)}>${escapeMarkup(content.foot.label)}</button>`
-    : "";
+  const options = content.foot === undefined ? [] : Array.isArray(content.foot) ? content.foot : [content.foot];
+  const foot = options
+    .map((one) => `<button class="${actionButton({ kind: "cardFoot", tone: one.solid ? "solid" : "plain" })}" data-part="card/foot"${one.solid ? ' data-solid=""' : ""}${attributesMarkup(one.attributes)}>${escapeMarkup(one.label)}</button>`)
+    .join("");
   return `<div class="${card()}${content.fresh ? " fresh" : ""}" data-part="card"${attributesMarkup(content.attributes ?? {})}>
     ${sideMarkup(content.side)}
     <div class="${cardContent()}">

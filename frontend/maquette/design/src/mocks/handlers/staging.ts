@@ -4,7 +4,7 @@ import DESTINATIONS from "../seeds/staging-destinations.json";
 import { DELETE, GET, POST, route, text } from "./shared";
 import { mockState } from "../state";
 import { refused, type MockRequest, type MockRoute } from "../router";
-import { ladderOf, rungIndex, stripPosition, type Position } from "./ladder";
+import { forgetLadder, ladderOf, rungIndex, stripPosition, type Position } from "./ladder";
 import { accountName } from "../account";
 import type { components } from "../../contract/types";
 
@@ -60,6 +60,9 @@ const RUNNING = "now";
 const WAITING = "waiting";
 const STUCK_AT: Position = { current: rungIndex("identified"), state: BLOCKED };
 const SETTLED_AT: Position = { current: rungIndex("verified"), state: PENDING };
+// A settled folder whose Plex match waits for the operator: blocked there.
+const MATCH_TO_CONFIRM: Position = { current: rungIndex("verified"), state: BLOCKED };
+const settled = (card: QueueCard) => (card.plexMatch === undefined ? SETTLED_AT : MATCH_TO_CONFIRM);
 // The pipeline's state while a maintenance run holds the lock, and the reason
 // a card moving through it then gives — both the contract's own tokens.
 const MAINTENANCE_HOLDS = "queued";
@@ -70,6 +73,11 @@ const UNKNOWN_DESTINATION = "not a destination the sort files a non-media folder
 // The lists a folder can be reclassified out of, which are the lists its two
 // siblings walk.
 const SOURCE_LISTS = [FROM_REAL, FROM_DENSE, FROM_BLOCKED] as const;
+
+// The two lists a settled folder can be in, one per world.
+const SETTLED_REAL = "settled";
+const SETTLED_DENSE = "settledLoaded";
+const SETTLED_LISTS = [SETTLED_REAL, SETTLED_DENSE] as const;
 
 type TakenOut = { card: QueueCard; list: (typeof SOURCE_LISTS)[number] };
 
@@ -142,8 +150,8 @@ function moving(card: QueueCard): Position | undefined {
 export function arrivalsOf(dense: boolean): QueueCard[] {
   const state = mockState();
   const lists: [QueueCard[], (card: QueueCard) => Position | undefined][] = dense
-    ? [[state.stuckLoaded, () => STUCK_AT], [state.moving, moving], [state.settledLoaded, () => SETTLED_AT]]
-    : [[state.stuck, () => STUCK_AT], [state.movingReel, moving], [state.settled, () => SETTLED_AT]];
+    ? [[state.stuckLoaded, () => STUCK_AT], [state.moving, moving], [state.settledLoaded, settled]]
+    : [[state.stuck, () => STUCK_AT], [state.movingReel, moving], [state.settled, settled]];
   // A TUNNEL ERROR IS A STEP NO PICK UNBLOCKS: a row a pending decision names
   // is resolved by that decision, whatever step it stopped at.
   const namedByDecision = new Set(state.pendingDecisions.map((decision) => decision.folder));
@@ -248,6 +256,28 @@ export function stagingRoutes(): MockRoute[] {
       },
     ),
     route("readStagingDestinations", GET, "/api/staging/destinations", () => DESTINATIONS),
+    route(
+      "resolvePlexMatch",
+      POST,
+      "/api/acquisition/journeys/{infoHash}/plex-match",
+      (request) => {
+        // THE ANSWER MOVES THE CARD: confirmed or corrected, the match no
+        // longer waits for the operator, so the card leaves « À traiter » and
+        // its ladder is laid again from where it now stands.
+        const state = mockState();
+        const asked = request.parameters.infoHash;
+        const outcome = text(request.body, "outcome");
+        for (const list of SETTLED_LISTS) {
+          const found = state[list].find((card) => card.title === asked && card.plexMatch !== undefined);
+          if (found === undefined) continue;
+          const { plexMatch, ...answered } = found;
+          state[list] = state[list].map((card) => (card === found ? answered : card));
+          forgetLadder(asked);
+          return { ok: plexMatch !== undefined, outcome };
+        }
+        return { ok: false, outcome };
+      },
+    ),
     route(
       "reclassifyStagedMedia",
       POST,

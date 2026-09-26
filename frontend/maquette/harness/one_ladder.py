@@ -155,7 +155,12 @@ async def main():
         # THE REASON, in full, under a blocked rung.
         await go(page, journal, "acq-card-blocked")
         await page.wait_for_timeout(SETTLED)
-        blocked = [card for card in await page.evaluate(CARDS) if "blocked" in card["states"]]
+        # RE-AIMED OUT LOUD: « À traiter » also holds a card blocked on its LAST
+        # rung (a Plex match to confirm); this hold reads the cards stopped on
+        # « identifié ».
+        blocked = [card for card in await page.evaluate(CARDS)
+                   if len(card["states"]) == len(RUNGS)
+                   and card["states"][RUNGS.index("identified")] == "blocked"]
         journal.check(
             "a card stopped on « identifié » is blocked there, with its reason in full",
             bool(blocked) and all(

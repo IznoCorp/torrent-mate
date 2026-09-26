@@ -41,7 +41,7 @@ export type MockSeeds = {
   seasonFamily: () => Record<string, [number, number, number][]>;
   /** Renames the seeded account until the layer is next reset — the seed changed, every reader must follow. */
   renameAccount: (name: string) => void;
-  /** Empties what is blocked — the queue's and the staging area's — until the layer is next reset. */
+  /** Empties what is blocked — the queue's, the staging area's, a match to confirm — until the layer is next reset. */
   clearBlocked: () => void;
 };
 
@@ -89,6 +89,14 @@ export const mockSeeds: MockSeeds = {
   // « À TRAITER » WITH NOTHING WAITING: no blocked card, no stuck folder — the
   // other lists are left as they are, so the rest of the page still draws.
   clearBlocked: () => {
-    Object.assign(mockState(), { blocked: [], stuck: [], stuckLoaded: [] });
+    const state = mockState();
+    // A settled folder whose Plex match waits is blocked too: the match is dropped.
+    const answered = (cards: typeof state.settled) => cards.map(({ plexMatch, ...card }) => card);
+    Object.assign(state, {
+      blocked: [], stuck: [], stuckLoaded: [],
+      settled: answered(state.settled), settledLoaded: answered(state.settledLoaded),
+      // and every ladder already laid is laid again, from where the cards now stand.
+      journeyStages: {},
+    });
   },
 };

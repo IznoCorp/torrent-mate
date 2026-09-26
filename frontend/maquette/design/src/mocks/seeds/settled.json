@@ -13,6 +13,14 @@
       "imdb": "tt12327578",
       "tvdb": 382389
     },
-    "poster": "assets/posters/25415753.webp"
+    "poster": "assets/posters/25415753.webp",
+    "plexMatch": {
+      "title": "Star Trek: Strange New Worlds",
+      "ids": {
+        "tmdb": 103516,
+        "imdb": "tt12327578",
+        "tvdb": 382389
+      }
+    }
   }
 ]

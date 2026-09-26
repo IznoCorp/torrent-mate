@@ -892,7 +892,10 @@
       "todoEmptyBody": "Ce qui avance sans vous est dans « En cours ».",
       "todoResolve": "À résoudre",
       "todoTunnelError": "Une étape ne passe pas",
-      "todoRequeueFoot": "Relancer"
+      "todoRequeueFoot": "Relancer",
+      "todoPlexMatch": "Match Plex à confirmer",
+      "plexConfirmFoot": "Confirmer",
+      "plexCorrectFoot": "Corriger"
     },
     "accountPage": {
       "noteLead": "Un seul compte existe sur ce serveur.",
@@ -1022,7 +1025,8 @@
       "requester": {
         "qbittorrent": "ajouté par {{name}}, dans qBittorrent",
         "follow": "demandé par {{name}}"
-      }
+      },
+      "plexMatch": "Plex l'a reconnu comme « {{title}} » — est-ce bien lui ?"
     },
     "error": {
       "lead": "Impossible de charger {{subject}}.",
@@ -1314,7 +1318,8 @@
       "replace": "Remplacer",
       "replaceCancel": "Annuler",
       "replacementQueued": "Ajouté — la version en place sera remplacée une fois la nouvelle récupérée.",
-      "searchAgain": "{{label}} — {{title}}"
+      "searchAgain": "{{label}} — {{title}}",
+      "plexConfirmed": "Match Plex confirmé : {{title}}"
     },
     "arrivals": {
       "taken": "« {{title}} » récupéré — suivez-le dans « En vol ».",

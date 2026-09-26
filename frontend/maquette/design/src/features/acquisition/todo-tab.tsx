@@ -41,7 +41,9 @@ export function TodoTab(): ReactElement {
   // A STEP THAT CANNOT FINISH is unblocked by a relaunch, never by an identity
   // pick: such a card offers « Relancer » and no « Résoudre ».
   const tunnelErrors = blocked.filter((card) => card.failedStep !== undefined);
-  const toResolve = blocked.filter((card) => card.failedStep === undefined);
+  // A MATCH TO CONFIRM is answered on the match itself, never by an identity pick.
+  const plexMatches = blocked.filter((card) => card.plexMatch !== undefined);
+  const toResolve = blocked.filter((card) => card.failedStep === undefined && card.plexMatch === undefined);
   const section = (pip: string, title: string, cards: QueueCard[], inner: string) =>
     cards.length === 0 ? null : (
       <Markup tag="section"
@@ -66,6 +68,17 @@ export function TodoTab(): ReactElement {
             label: t("screens.acquisition.blockedFoot"),
             attributes: { "data-resolution": card.title },
           }))
+          .join(""),
+      )}
+      {section(
+        "warning",
+        t("screens.acquisition.todoPlexMatch"),
+        plexMatches,
+        plexMatches
+          .map((card) => mediumCardMarkup(card, [
+            { label: t("screens.acquisition.plexConfirmFoot"), solid: true, attributes: { "data-plex-confirm": card.title } },
+            { label: t("screens.acquisition.plexCorrectFoot"), attributes: { "data-plex-correct": card.title } },
+          ]))
           .join(""),
       )}
       {section(

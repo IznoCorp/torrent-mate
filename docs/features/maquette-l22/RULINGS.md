@@ -63,3 +63,14 @@ pending decision names it. The seed carries the step it stopped at; the layer fi
 no pending decision names under the tunnel error; its reason is drawn in full as the seed words it; its feet are
 « Relancer » and, from phase 11, « Abandonner ». Guard: it never reads as resolvable by an identity pick — no « Résoudre »
 foot. (b), a section drawn on nothing, refused (§ 13).
+
+## 6 — the Plex-match card is a derivation from Star Trek's real settled row (steward, 2026-09-26; phase 10, STOP D)
+
+**The STOP.** No seed names a Plex match (`git grep -w -i -c plex` over the contract and the mocks → no match).
+
+**Ruled (proposal a), the shape of ruling 5.** « Star Trek: Strange New Worlds (2022) » becomes the « match Plex à
+confirmer » card — a DERIVATION from its real settled row, shown as one (`x-seeded-from`): the Plex side names the
+identity the pipeline holds, a confirmation to give and not an invented wrong match. « Confirmer » answers demand E and
+the card leaves « À traiter »; « Corriger » answers demand E with `outcome: correct` and opens the candidates screen.
+(b) draws on nothing (§ 13); (c) would re-create a lived incident as fixture data, which the memory of it does not
+license.

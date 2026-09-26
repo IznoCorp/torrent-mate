@@ -1,7 +1,7 @@
 """R209 — « À traiter » holds only what the operator's hand unblocks.
 
 Ruling 7: the tab holds what only his hand unblocks — a medium to resolve, a
-tunnel error awaiting relaunch or abandon (the Plex match joins them later) —
+tunnel error awaiting relaunch or abandon, a Plex match to confirm —
 and nothing else. What waits behind a maintenance run, or was set aside by him,
 reads on its own card in « En cours », with its reason. The section a card sits
 in is a function of its state, never of its origin.
@@ -35,6 +35,7 @@ CARDS = """() => [...document.querySelectorAll('#view [data-part="card"]')].map(
     states: [...card.querySelectorAll('[data-part="card/step"]')].map(cell => cell.dataset.state),
     resolve: foot ? foot.getAttribute('data-resolution') !== null : false,
     requeue: foot ? foot.getAttribute('data-journey-requeue') : null,
+    plex: foot ? foot.getAttribute('data-plex-confirm') !== null : false,
     reason: (card.querySelector('[data-part="card/reason"]') || {}).textContent || null,
   };
 })"""
@@ -68,7 +69,13 @@ async def main():
         journal.check("« À traiter » draws cards, every one blocked on its ladder",
                       bool(todo) and all("blocked" in card["states"] for card in todo),
                       str([(card["title"], card["states"]) for card in todo]))
-        to_resolve = [card for card in todo if card["title"] != TUNNEL_ERROR["title"]]
+        # RE-READ WITH THE THIRD KIND: a Plex match to confirm is blocked in the tab
+        # too, answered on the match and never by « Résoudre ».
+        to_resolve = [card for card in todo if card["title"] != TUNNEL_ERROR["title"] and not card["plex"]]
+        matches = [card for card in todo if card["plex"]]
+        journal.check("a Plex match to confirm is in the tab, and never offers « Résoudre »",
+                      bool(matches) and not any(card["resolve"] for card in matches),
+                      str([(card["title"], card["resolve"]) for card in matches]))
         journal.check("a card to resolve offers « Résoudre → »",
                       bool(to_resolve) and all(card["resolve"] for card in to_resolve),
                       str([(card["title"], card["resolve"]) for card in to_resolve]))

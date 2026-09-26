@@ -379,7 +379,7 @@ export interface paths {
         };
         /**
          * What the acquisition side is holding, by bucket
-         * @description A stuck arrival whose reason is a step that cannot finish carries `failedStep` — seeded on Top Chef Le Concours Parallèle's real row, a DERIVATION of its reason (no episode data: the files cannot be named), and dropped whenever a pending decision names the folder.
+         * @description A stuck arrival whose reason is a step that cannot finish carries `failedStep` — seeded on Top Chef Le Concours Parallèle's real row, a DERIVATION of its reason (no episode data: the files cannot be named), and dropped whenever a pending decision names the folder. A settled arrival whose Plex match waits for his confirmation carries `plexMatch` — seeded on Star Trek: Strange New Worlds (2022)'s real settled row, a DERIVATION naming the identity the pipeline holds (a confirmation to give, not an invented wrong match).
          */
         get: operations["readAcquisitionQueue"];
         put?: never;
@@ -1067,6 +1067,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/acquisition/journeys/{infoHash}/plex-match": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm or correct the match Plex made for a medium
+         * @description Demand E (OPEN 9, ruled B): « Confirmer » says the match is the medium, « Corriger » says it is not. Either answer takes the card off « À traiter »; a correction then goes through the candidates screen.
+         */
+        post: operations["resolvePlexMatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1102,6 +1122,8 @@ export interface components {
              * @enum {string}
              */
             failedStep?: "ingest" | "sort" | "clean" | "scrape" | "cleanup" | "enforce" | "verify" | "trailers" | "dispatch";
+            /** @description the match Plex made, when it waits for the operator's confirmation — the card sits in « À traiter » until he gives it */
+            plexMatch?: components["schemas"]["PlexMatch"];
         };
         Fact: {
             /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
@@ -1704,6 +1726,11 @@ export interface components {
             doneToday: components["schemas"]["QueueCard"][];
             /** @description WHAT ARRIVED THROUGH THE PIPELINE, each an acquisition card: a finished torrent the sort took in, requested by a follow or added directly in the download client. An arrival is a card (ruling 2), at its rung, with its requester. */
             arrivals: components["schemas"]["QueueCard"][];
+        };
+        /** @description the medium Plex matched a shelved folder to — what « Confirmer » and « Corriger » act on */
+        PlexMatch: {
+            title: string;
+            ids?: components["schemas"]["ProviderIds"] | null;
         };
     };
     responses: {
@@ -3770,6 +3797,49 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StagingDestination"][];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    resolvePlexMatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the medium */
+                infoHash: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description whether the match is the medium
+                     * @enum {string}
+                     */
+                    outcome: "confirm" | "correct";
+                };
+            };
+        };
+        responses: {
+            /** @description the match is answered */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                        /** @enum {string} */
+                        outcome: "confirm" | "correct";
+                    };
                 };
             };
             400: components["responses"]["Problem"];

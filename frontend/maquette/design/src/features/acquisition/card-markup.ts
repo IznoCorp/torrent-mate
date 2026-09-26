@@ -32,6 +32,8 @@ export type MediumCard = {
   caption?: string;
   fresh?: boolean;
   strip?: (number | string)[];
+  /** The match Plex made, when it waits for the operator's confirmation. */
+  plexMatch?: { title: string };
   /** Who asked for it, and where: a follow of theirs, or a direct add. */
   requester?: { name: string; via: string };
   /** The medium's ladder — the same list its journey sheet reads. */
@@ -111,7 +113,7 @@ function ladderMarkup(ladder: { rung: string; state: StripState; reason?: string
  * @param foot The section's action, if it offers one.
  * @returns The card's markup.
  */
-export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot): string {
+export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | MediumCardFoot[]): string {
   const title = medium.title;
   const hasSheet = medium.ids != null;
   // french-ok: a panel ADDRESS and the non-medium marker, contract values the delegation and R46 read
@@ -140,7 +142,9 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot): str
         },
     body: { "data-panel": medium.panel || (hasSheet ? `media:${title}` : folderAddress) },
     subtitle: medium.secondaryLine,
-    reason: medium.reason
+    reason: medium.plexMatch
+      ? escapeMarkup(i18next.t("surfaces.card.plexMatch", { title: medium.plexMatch.title }))
+      : medium.reason
       ? richTextMarkup(medium.reason)
       : onLadder?.reason ? escapeMarkup(onLadder.reason) : undefined,
     overview: medium.overview,
@@ -155,6 +159,8 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot): str
       ? i18next.t(`surfaces.card.requester.${medium.requester.via}`, { name: medium.requester.name })
       : undefined,
     strip: onLadder ? onLadder.strip : medium.strip?.map((value, index) => ({ state: stageState(value), label: stages[index] })),
-    foot: foot ? { label: foot.label, solid: foot.solid, attributes: foot.attributes ?? {} } : undefined,
+    foot: foot === undefined
+      ? undefined
+      : (Array.isArray(foot) ? foot : [foot]).map((one) => ({ label: one.label, solid: one.solid, attributes: one.attributes ?? {} })),
   });
 }
