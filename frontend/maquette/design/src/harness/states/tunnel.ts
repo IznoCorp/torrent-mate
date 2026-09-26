@@ -42,5 +42,17 @@ export function tunnelStates(): NamedState[] {
       () =>
         applyState({ page: "acq", acqTab: "now", scen: "real", phase: "ready" }),
     ],
+    [
+      "acq-card-no-identity",
+      "Carte — un dossier sans identité",
+      () =>
+        applyState({ page: "acq", acqTab: "now", scen: "real", phase: "ready" }),
+    ],
+    [
+      "acq-card-waiting",
+      "Carte — en file derrière une maintenance",
+      () =>
+        applyState({ page: "acq", acqTab: "now", scen: "loaded", phase: "ready", pipe: "queued" }),
+    ],
   ];
 }

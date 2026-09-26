@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { mediumCardMarkup } from "./card-markup";
+import { slotArrivals } from "./arrival-slots";
 import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useUiState } from "../../lib/store-access";
@@ -32,11 +33,13 @@ export function NowTab(): ReactElement {
   const scenario = state.scen === "loaded" ? "loaded" : "";
   const { data: queue } = useAcquisitionQueue(scenario);
   const { data: staging } = useStaging(scenario);
+  // THE ARRIVALS ARE CARDS HERE (ruling 2), each in the section its ladder says.
+  const arrived = slotArrivals(queue?.arrivals ?? []);
   const takeable = queue?.takeable ?? [];
-  const blocked = queue?.blocked ?? [];
-  const inflight = queue?.inFlight ?? [];
+  const blocked = [...(queue?.blocked ?? []), ...arrived.blocked];
+  const inflight = [...(queue?.inFlight ?? []), ...arrived.inFlight];
   const notfound = queue?.notFound ?? [];
-  const doneToday = queue?.doneToday ?? [];
+  const doneToday = [...(queue?.doneToday ?? []), ...arrived.doneToday];
   const stuck = staging?.stuck ?? [];
   const nothing =
     takeable.length +

@@ -1687,6 +1687,16 @@ export interface components {
             /** @description the kind of file the sort files there */
             fileType: string;
         };
+        /** @description What the acquisition side is holding, by bucket — and every arrival, as a card. */
+        AcquisitionQueue: {
+            takeable: components["schemas"]["QueueCard"][];
+            blocked: components["schemas"]["QueueCard"][];
+            inFlight: components["schemas"]["QueueCard"][];
+            notFound: components["schemas"]["QueueCard"][];
+            doneToday: components["schemas"]["QueueCard"][];
+            /** @description WHAT ARRIVED THROUGH THE PIPELINE, each an acquisition card: a finished torrent the sort took in, requested by a follow or added directly in the download client. An arrival is a card (ruling 2), at its rung, with its requester. */
+            arrivals: components["schemas"]["QueueCard"][];
+        };
     };
     responses: {
         /** @description the request failed, and the reason is the real one (NE-DOIT-PAS-4, NE-DOIT-PAS-5) */
@@ -2508,15 +2518,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        takeable: components["schemas"]["QueueCard"][];
-                        blocked: components["schemas"]["QueueCard"][];
-                        inFlight: components["schemas"]["QueueCard"][];
-                        notFound: components["schemas"]["QueueCard"][];
-                        doneToday: components["schemas"]["QueueCard"][];
-                        /** @description WHAT ARRIVED THROUGH THE PIPELINE, each an acquisition card: a finished torrent the sort took in, requested by a follow or added directly in the download client. An arrival is a card (ruling 2), at its rung, with its requester. */
-                        arrivals: components["schemas"]["QueueCard"][];
-                    };
+                    "application/json": components["schemas"]["AcquisitionQueue"];
                 };
             };
             400: components["responses"]["Problem"];

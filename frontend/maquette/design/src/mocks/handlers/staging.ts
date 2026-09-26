@@ -5,6 +5,7 @@ import DESTINATIONS from "../seeds/staging-destinations.json";
 import { DELETE, GET, POST, route, text } from "./shared";
 import { mockState } from "../state";
 import { refused, type MockRequest, type MockRoute } from "../router";
+import { ladderOf, rungIndex, stripPosition, type Position } from "./ladder";
 import type { components } from "../../contract/types";
 
 type QueueCard = components["schemas"]["QueueCard"];
@@ -49,6 +50,19 @@ const SCRAPING_LABEL = "Scraping";          // french-ok: a carried fixture valu
 // in the download client. The contract's own `Requester.via` tokens.
 const ASKED_BY_FOLLOW = "follow";
 const DIRECT_ADD = "qbittorrent";
+
+// WHERE EACH STAGING LIST STANDS ON THE LADDER. A folder the sort could not
+// name rests on « identifié », blocked; a settled one is in the library and
+// waits for its Plex check; a moving one says where it is on its strip.
+const BLOCKED = "blocked";
+const PENDING = "pending";
+const RUNNING = "now";
+const WAITING = "waiting";
+const STUCK_AT: Position = { current: rungIndex("identified"), state: BLOCKED };
+const SETTLED_AT: Position = { current: rungIndex("verified"), state: PENDING };
+// The pipeline's state while a maintenance run holds the lock, and the reason
+// a card moving through it then gives — both the contract's own tokens.
+const MAINTENANCE_HOLDS = "queued";
 
 // Why a reclassification is refused, in the problem body's own words.
 const UNKNOWN_DESTINATION = "not a destination the sort files a non-media folder into";
@@ -98,6 +112,21 @@ function sameMedium(card: QueueCard, ids: Record<string, unknown> | null | undef
 }
 
 /**
+ * Where a moving folder stands: on its strip — and, while a maintenance run
+ * holds the lock, WAITING there rather than in motion (DOIT-4: « en file »,
+ * never « occupé »).
+ *
+ * @param card The folder's card, its strip included.
+ * @returns Its position.
+ */
+function moving(card: QueueCard): Position | undefined {
+  const position = stripPosition(card.strip);
+  if (position === undefined || position.state !== RUNNING) return position;
+  if (mockState().pipelineState !== MAINTENANCE_HOLDS) return position;
+  return { ...position, state: WAITING, reason: MAINTENANCE_HOLDS };
+}
+
+/**
  * EVERY ARRIVAL, AS AN ACQUISITION CARD (ruling 2): what the staging area holds
  * in the scenario's world, each carrying who asked for it. The account is the
  * mock's single one, which owns the Plex server by construction (§17); an
@@ -112,9 +141,13 @@ function sameMedium(card: QueueCard, ids: Record<string, unknown> | null | undef
  */
 export function arrivalsOf(dense: boolean): QueueCard[] {
   const state = mockState();
-  const inStaging = dense
-    ? [...state.stuckLoaded, ...state.moving, ...state.settledLoaded]
-    : [...state.stuck, ...state.movingReel, ...state.settled];
+  const lists: [QueueCard[], (card: QueueCard) => Position | undefined][] = dense
+    ? [[state.stuckLoaded, () => STUCK_AT], [state.moving, moving], [state.settledLoaded, () => SETTLED_AT]]
+    : [[state.stuck, () => STUCK_AT], [state.movingReel, moving], [state.settled, () => SETTLED_AT]];
+  const inStaging = lists.flatMap(([cards, at]) => cards.map(({ strip, ...card }) => {
+    const position = at({ ...card, strip });
+    return position === undefined ? card : { ...card, ladder: ladderOf(card.title, position) };
+  }));
   return inStaging.map((card) => ({
     ...card,
     requester: {

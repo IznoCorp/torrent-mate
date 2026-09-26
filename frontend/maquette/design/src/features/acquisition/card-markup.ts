@@ -33,7 +33,7 @@ export type MediumCard = {
   fresh?: boolean;
   strip?: (number | string)[];
   /** The medium's ladder — the same list its journey sheet reads. */
-  ladder?: { rung: string; state: StripState }[];
+  ladder?: { rung: string; state: StripState; reason?: string }[];
   withoutPoster?: boolean;
   overview?: string;
   panel?: string;
@@ -76,12 +76,15 @@ const RUNG_TONE: Record<StripState, string> = {
  * @param ladder The medium's rungs.
  * @returns The strip, the figure and the current rung's chip.
  */
-function ladderMarkup(ladder: { rung: string; state: StripState }[]) {
+function ladderMarkup(ladder: { rung: string; state: StripState; reason?: string }[]) {
   const standing = ladder.findIndex((rung) => rung.state !== "done");
   const current = standing === -1 ? ladder.length - 1 : standing;
   const strip: StripCell[] = ladder.map((rung) => ({ state: rung.state }));
+  const reason = ladder[current].reason;
   return {
     strip,
+    // THE REASON THE LADDER KNOWS, said in words, for a card whose row carries none.
+    reason: reason === undefined ? undefined : i18next.t(`surfaces.ladder.reasons.${reason}`),
     fraction: i18next.t("surfaces.ladder.figure", { position: current + 1, count: ladder.length }),
     chip: {
       tone: RUNG_TONE[ladder[current].state],
@@ -131,7 +134,9 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot): str
         },
     body: { "data-panel": medium.panel || (hasSheet ? `media:${title}` : folderAddress) },
     subtitle: medium.secondaryLine,
-    reason: medium.reason ? richTextMarkup(medium.reason) : undefined,
+    reason: medium.reason
+      ? richTextMarkup(medium.reason)
+      : onLadder?.reason ? escapeMarkup(onLadder.reason) : undefined,
     overview: medium.overview,
     fraction: onLadder ? onLadder.fraction : medium.f,
     chip: onLadder ? onLadder.chip : medium.chip ? { tone: medium.chip.tone, label: medium.chip.text } : null,

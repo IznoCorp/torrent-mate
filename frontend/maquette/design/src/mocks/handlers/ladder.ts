@@ -13,8 +13,11 @@ import type { components } from "../../contract/types";
 type Rung = components["schemas"]["JourneyStage"];
 type RungState = Rung["state"];
 
-/** Where a medium stands: the index of its current rung, and that rung's state. */
-export type Position = { current: number; state: RungState };
+/**
+ * Where a medium stands: the index of its current rung, that rung's state, and
+ * — when it waits or is blocked for a reason the layer knows — the reason.
+ */
+export type Position = { current: number; state: RungState; reason?: string };
 
 // The seed is ONE journey, followed from the wish to Plex; every ladder is laid
 // on its rungs and takes its times from it.
@@ -74,8 +77,11 @@ function laid(seeded: Rung, state: RungState): Rung {
  * @returns The eight rungs.
  */
 function positioned(position: Position): Rung[] {
-  return TEMPLATE.map((seeded, index) =>
-    laid(seeded, index < position.current ? DONE : index === position.current ? position.state : PENDING));
+  return TEMPLATE.map((seeded, index) => {
+    const rung = laid(seeded, index < position.current ? DONE : index === position.current ? position.state : PENDING);
+    if (index === position.current && position.reason !== undefined) rung.reason = position.reason;
+    return rung;
+  });
 }
 
 /**

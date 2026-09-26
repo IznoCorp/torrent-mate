@@ -1036,7 +1036,10 @@
         "enriched": "enrichi",
         "shelved": "rangé"
       },
-      "step": "· {{name}}"
+      "step": "· {{name}}",
+      "reasons": {
+        "queued": "En file — ce passage attend que la maintenance en cours se termine."
+      }
     }
   },
   "settingValue": {
