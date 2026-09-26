@@ -74,3 +74,13 @@ identity the pipeline holds, a confirmation to give and not an invented wrong ma
 the card leaves « À traiter »; « Corriger » answers demand E with `outcome: correct` and opens the candidates screen.
 (b) draws on nothing (§ 13); (c) would re-create a lived incident as fixture data, which the memory of it does not
 license.
+
+## 7 — a closed dialog's box is inherited by later states (steward, 2026-09-26; phase 11, STOP A)
+
+**The STOP.** Phase 11's gate diverged on 63 states it did not name, all on `shell/dialog` alone and all to one box: the
+region measures the CLOSED `#dlg`, which keeps the last descriptor's box, and the new `acq-abandon-confirm` became the
+last dialog opened before them in the run order (they had inherited the library's `lib-delete-multiple`).
+
+**Ruled (proposal A).** The 63 are accepted by name on `shell/dialog` only, after a script checked that each differs on
+that region and on no other; B-554 files the artifact, owner none. Reordering the states would hide it; repairing the
+driver's reset would be new apparatus.
