@@ -788,6 +788,12 @@ is in the demands register; the events are claimed by a rule (R91's fan-out); th
 the tracker's (NE-DOIT-PAS-1, held by the mock's own value, never a local computation); the
 ranking editor draws with its live preview and the quality screen's toast is gone (B-298).
 
+**Design and plan written 2026-09-15, re-read against the organisation rulings 2026-09-26, PR #614.**
+`docs/features/maquette-l16/DESIGN.md` and `plan/INDEX.md` (15 phases, mean ≈ 12.1); its three open
+questions ruled by the operator on 2026-09-26 (Trackers in the bar at L16 with the ratio alone; no right
+declared before L18; the badge counts the trackers under threshold and the obligations in breach). The lot
+opens after L22b.
+
 #### L17 — §19, cross-seed · *depends on L16*
 
 **Objective.** DOIT-14: an injection is seen, a refusal is explained, a title says where it seeds,
