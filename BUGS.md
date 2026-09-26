@@ -1781,7 +1781,7 @@ candidate the system believes, `confiance 90 %`, was in the control's name and i
 
 **RULED by the operator, 2026-09-12**: the accessible name **announces the confidence and the
 provider** — « Titre Année · 90 % · TMDB ». It is built by the next wave that opens
-`frontend/maquette/design/src/features/arrivals/resolution-cards.tsx`, with a hold that reads the
+`frontend/maquette/design/src/features/arrivals/resolution-cards.tsx@1c0dbea64`, with a hold that reads the
 **accessibility tree** rather than the markup. **Closes when** that name is emitted and that hold
 holds it. Owner: the next wave that opens the file.
 

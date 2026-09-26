@@ -70,3 +70,5 @@ the screen depended on where it lived.
 ## Commit
 
 `refactor(maquette-l22): the candidates screen and what it is built from move to Acquisition`
+
+**Amended 2026-09-26 (L22a, at the phase):** the design tree has no eslint configuration (`npx eslint` there finds none, and neither `Makefile` nor CI runs one), so the gate is `tsc -b` + `vitest`; the move also carried `candidateCard`/`candidatePick` out of `arrivals/variants.ts`, read the number words through `t()` (a direct `fr.json` import put the dictionary at five importing features, over the fan-in ceiling of four), and struck a « 13 » out of a `check-live-relay.py` comment that the new `decision-queries.ts` made its stale-figure arm collide with.

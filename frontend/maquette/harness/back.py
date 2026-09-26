@@ -275,6 +275,32 @@ async def main():
         check("no JS error around a passage", not run_errors, str(run_errors))
         await third.close()
 
+        # ── R215: THE CANDIDATES SCREEN, OPENED FROM A CARD, IS AN ARRIVAL ──
+        fourth = await b.new_context(viewport={"width": 390, "height": 844},
+                                     is_mobile=True, has_touch=True)
+        card_page = await fourth.new_page()
+        card_errors = []
+        card_page.on("pageerror", lambda e: card_errors.append(str(e)))
+        await card_page.goto("http://127.0.0.1:8899/", wait_until="load")
+        await card_page.evaluate("()=>window.__loadingDone?.()")
+        await card_page.evaluate("()=>window.__go('acq-now-loaded')")
+        await card_page.wait_for_timeout(500)
+        floor = await card_page.evaluate("()=>history.length")
+        folder = await card_page.evaluate(
+            """()=>{const foot=document.querySelector('[data-resolution]:not([data-resolution=""])');
+                    if(!foot) return null; foot.scrollIntoView({block:'center'}); foot.click();
+                    return foot.dataset.resolution;}""")
+        await card_page.wait_for_timeout(700)
+        opened = await card_page.evaluate(
+            """()=>({length: history.length, path: decodeURIComponent(location.pathname),
+                     screen: !!document.querySelector('[data-part="screen"][data-open][data-key^="resolution:"]')})""")
+        check("opening the candidates screen from a card stacks exactly one entry (R215)",
+              bool(folder) and opened["screen"] and opened["length"] == floor + 1
+              and opened["path"] == f"/resolution/{folder}",
+              f"{floor} → {opened['length']}, {opened['path']}, screen={opened['screen']}")
+        check("no JS error around the candidates screen", not card_errors, str(card_errors))
+        await fourth.close()
+
         check("no JS error", not errors, str(errors))
         await b.close()
 

@@ -43,7 +43,7 @@
 import { useEngineDrawing } from "../../lib/engine-drawing";
 import { useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useDecisions } from "./queries";
+import { useDecisions } from "./decision-queries";
 import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { Candidates, DecisionCard } from "./resolution-cards";
 import { REASON_TONE, reasonDetail, reasonLabel } from "./decision-vocabulary";

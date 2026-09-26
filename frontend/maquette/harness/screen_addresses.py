@@ -74,6 +74,13 @@ RE-AIMED, said out loud: the two sheet addresses were read from `addressIdsFor`.
 its resolvers are gone; the reads below ask `window.__addressOf` / `__sheetOf` /
 `__carriedFor` — the seed the served read answers from, published by the harness
 driver — and the hold count is unchanged.
+
+EXTENDED (R215, R-L22-n) when the candidates screen changed hands: it belongs
+to Acquisition now. The DECLARED parent of `/resolution/$folder` is read and
+must be `acq` — a hold reading `parent_path` alone follows whatever the table
+says and could never see the parent being wrong — and a cold address renders
+that page beneath the screen: the bar's current place and the acquisition
+tabs are drawn, not merely recorded in `state.page`.
 """
 import asyncio
 import json
@@ -219,6 +226,15 @@ RESOLUTION_STATE = """() => {
     pathname: location.pathname,
   };
 }"""
+
+# WHAT IS DRAWN UNDER AN OPEN SCREEN: the page the state names, the place the
+# bar marks as current, and whether Acquisition's own tabs are in the document.
+PARENT_STATE = """() => ({
+  screen: !!document.querySelector('[data-part="screen"][data-open]'),
+  page: state.page,
+  current: document.querySelector('nav button[aria-current="page"]')?.dataset.page ?? null,
+  acquisitionTabs: !!document.querySelector('[data-region="acquisition/tabs"]'),
+})"""
 
 RUN_STATE = """() => {
   const screen = document.querySelector('[data-part="screen"][data-open][data-key^="run:"]');
@@ -599,6 +615,22 @@ async def main():
             journal.check("no JS error during the back from the resolution",
                              not errors, str(errors))
             await ctx.close()
+
+            # ─── R215 (R-L22-n): the candidates screen is Acquisition's ──────
+            journal.check(
+                "R215 the candidates screen's declared parent is Acquisition",
+                SCREEN_PARENTS.get("/resolution/$folder") == "acq",
+                f"declared {SCREEN_PARENTS.get('/resolution/$folder')!r}")
+            context, page, errors = await open_at(browser, resolution_address)
+            beneath = await page.evaluate(PARENT_STATE)
+            journal.check(
+                "R215 a cold /resolution renders Acquisition beneath the screen — "
+                "the bar's current place and the acquisition tabs, drawn",
+                beneath["screen"] and beneath["page"] == "acq"
+                and beneath["current"] == "acq" and beneath["acquisitionTabs"],
+                str(beneath))
+            journal.check("no JS error under a cold /resolution", not errors, str(errors))
+            await context.close()
 
             # ─── Holds (m)-(n): the release picker's deep entry — its bar
             # carries the title, not a lookup: RELEASES is a fixed

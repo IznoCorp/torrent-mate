@@ -12,7 +12,7 @@
 //
 // THE PAGE IS REDRAWN THROUGH `redraw()`, the way every
 // verb that still shares its page with the engine's drawing redraws it
-// (`features/arrivals/verbs.ts` is the precedent).
+// (`features/acquisition/resolution-verbs.ts` is the precedent).
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { queueActions } from "../../lib/queue";
