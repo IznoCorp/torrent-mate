@@ -116,6 +116,8 @@ opening, into phases 9, 10 and 11, and every number after it shifted by two. Thr
 | 12 | [The badge and the count](phase-12-the-badge-and-the-count.md) | the bar's badge counts « À traiter » alone; R16 re-aimed | b | 6 |
 | 13 | [The default tab](phase-13-the-default-tab.md) | the tab opened by default — which may be the third of the row; the walks that land unnamed re-run | a | 13 |
 | 14 | [« Suivant » dies](phase-14-suivant-dies.md) | the button, its verb and its progression « n sur m en attente » go; one returns to « À traiter »; R57's hold inverted (OPEN 7; was 11) | d | 13 |
+| 14-bis | [« En cours » holds « En vol » alone](phase-14b-en-cours-holds-en-vol.md) | added 2026-09-26 (DESIGN § 7.3): the three sections leave « En cours », « rien en cours », `acq-card-rungs` re-anchored — a REMOVAL | v | 14 |
+| 14-ter | [« Récupérer maintenant » lives on the follow's sheet](phase-14c-recuperer-on-the-follow.md) | added 2026-09-26 (DESIGN § 7.3): « trouvé, récupéré à la prochaine passe, à <heure> » and the act on the sheet | w | 9 |
 | 15 | [« Laisser tel quel » means later](phase-15-laisser-tel-quel-is-later.md) | the card is kept, set aside, in « Mis de côté »; R57's leave half re-aimed | i | 14 |
 | 16 | [« Ce n'est pas un média »](phase-16-not-a-media.md) | the new exit, its choice, its reclassification | j | 13 |
 | 17 | [« Suivre », proposed](phase-17-suivre-proposed.md) | the offer on an arrived series, never done unasked; no arrival card in « Suivis » (OPEN 3) | l | 8 |
@@ -238,3 +240,21 @@ amends the plan and the operator amends the constitution and the map.
    thirty-three** (DESIGN § 1.5).
 6. **The six clause-map rows and the README's cut table** name `features/arrivals` and « A medium in trouble → Arrivées »
    (DESIGN § 6.3): the operator amends the map; the close rewrites the README.
+
+---
+
+## Amended 2026-09-26 (evening) — the operator's rounds 6 and 7 (DESIGN § 7.3)
+
+- **Phase 13** reads the REPLACED default-tab rule: « Suivis » on the first opening, then the last tab opened from
+  local storage (try/catch, « Suivis » on an empty or unreadable storage). Its file is amended on L22a's branch by its
+  implementer (one dated line); R-L22-a is mutated on both cases.
+- **Two phases are ADDED to L22a after phase 14** (the auditor's method decision, 23:2x): **14-bis** « En cours » holds
+  « En vol » alone (≈ 14, a removal) and **14-ter** « Récupérer maintenant » lives on the follow's sheet (≈ 9) — both
+  measured by the steward against L22a's branch and RE-TAKEN at their opening; rule labels v, w take the next free
+  numbers (R224 and up — R223 is the repair train's).
+- **Phase 15 (L22b)** reads ruling 16: « Mis de côté » is a FOLDED section at the END of « À traiter », outside its
+  count and the bar's badge, where the operator sees, deletes (with a confirmation like the Médiathèque's), deletes
+  from disk, or handles each item — re-measured at its opening.
+- **L22a is now phases 1–14 plus 14-bis and 14-ter**: 153 + 23 = **176 points over 16 phases**; L22b is unchanged
+  at 151 over 13 until phase 15's re-measure. The whole lot: **327 points over 29 phases, mean ≈ 11.3, max 15**.
+

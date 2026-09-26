@@ -747,7 +747,8 @@ the operator's rulings dictate, and Arrivées no longer exists as a destination 
 **Design and plan written 2026-09-26, PR #612** — `docs/features/maquette-l22/DESIGN.md`, its plan
 `docs/features/maquette-l22/plan/INDEX.md`; the rulings number fifteen, not nine (the six of 2026-09-26 are in it).
 **Cut into two sub-lots** (auditor's method decision, 2026-09-26 — L13's precedent): **L22a** = phases 1–14
-(153 points, through « Suivant » dies), **L22b** = phases 15–27 (151 points), stacked on L22a's head at its
+plus 14-bis and 14-ter (176 points; the two added on the operator's rulings of 2026-09-26 evening, « En cours »
+holding « En vol » alone — DESIGN § 7.3), **L22b** = phases 15–27 (151 points), stacked on L22a's head at its
 pull request's READY; one reader round each; the folder dies at L22b's gesture.
 
 #### L16 — §18, the ratio · *depends on L15, L19, L10*
@@ -787,6 +788,12 @@ operations are called and mocked (seeded from the running backend's shapes, D7);
 is in the demands register; the events are claimed by a rule (R91's fan-out); the ratio shown is
 the tracker's (NE-DOIT-PAS-1, held by the mock's own value, never a local computation); the
 ranking editor draws with its live preview and the quality screen's toast is gone (B-298).
+
+**Design and plan written 2026-09-15, re-read against the organisation rulings 2026-09-26, PR #614.**
+`docs/features/maquette-l16/DESIGN.md` and `plan/INDEX.md` (15 phases, mean ≈ 12.1); its three open
+questions ruled by the operator on 2026-09-26 (Trackers in the bar at L16 with the ratio alone; no right
+declared before L18; the badge counts the trackers under threshold and the obligations in breach). The lot
+opens after L22b.
 
 #### L17 — §19, cross-seed · *depends on L16*
 

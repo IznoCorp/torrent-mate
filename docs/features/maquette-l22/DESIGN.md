@@ -357,6 +357,11 @@ only what sits beneath it has. Renaming it would be a conversion of a working ad
 
 ### 3.1 S1 — Acquisition's four tabs, and the default-tab rule (ruling 10)
 
+> **Amended 2026-09-26 (operator, round 7 — § 7.3):** the default-tab rule below is REPLACED: « Suivis » on the
+> first opening, then the last tab opened, kept in local storage on the device (read and write under try/catch,
+> « Suivis » when the storage is empty or unreadable). The rest of ruling 10 holds (the fourth tab, its count, the
+> bar's badge = « À traiter » alone).
+
 **What is on the screen.** The segmented control of `features/acquisition/acquisition-tabs.tsx` gains a
 fourth tab, and the four read in this order: « Suivis » (`tabFollows`), « En cours » (`tabNow`), « À traiter »
 (`screens.acquisition.blocked` already reads exactly this word — as the title of a SECTION of « En cours »
@@ -536,6 +541,11 @@ invented here » and « nobody looked » being different things.
 **Not in « À traiter »** (ruling 7): what he set aside (ruling 6 — `aside`), a card queued behind a
 maintenance run (`waiting`), a release nobody has (« Cherché, rien trouvé »), a stalled download. Each reads
 on its own card in « En cours » with its reason, and at Système for the levers.
+
+> **Amended 2026-09-26 (operator, round 7 — § 7.3):** « En cours » keeps « En vol » ALONE, queue included, and
+> says « rien en cours » when nothing moves; « À récupérer », « Rangé aujourd'hui » and « Cherché, rien trouvé »
+> leave it; « Mis de côté » is a FOLDED section at the end of « À traiter », outside its count and badge (ruling
+> 16). The paragraph below is the first drawing, kept for the record.
 
 **« En cours » keeps its five sections and gains one.** Today: « À récupérer », « À traiter » (the
 `blocked` family — **the section this tab REPLACES**), « En vol », « Cherché, rien trouvé », « Rangé
@@ -838,7 +848,7 @@ mutation comes after the move.
 
 | Rule | Phase | What it READS | The mutation that fells it |
 | --- | ---: | --- | --- |
-| **R-L22-a** — the default tab | 13 | a cold entry on `/acquisition` with no `tab`: « À traiter » is open when its count is not zero and « En cours » when it is zero (both states `acq-entry-todo` / `acq-entry-clear`); an explicit `?tab=follows` wins over a non-zero count; **while the count is unread no tab is selected and none is printed** (§13) | derive the default from a constant → falls; invert the comparison → falls; choose before the count lands → the « nothing selected while unread » hold falls |
+| **R-L22-a** — the default tab (**amended 2026-09-26, § 7.3**: « Suivis » first, then the last tab opened from local storage, « Suivis » on an empty or throwing storage — the cells below are the first drawing) | 13 | a cold entry on `/acquisition` with no `tab`: « À traiter » is open when its count is not zero and « En cours » when it is zero (both states `acq-entry-todo` / `acq-entry-clear`); an explicit `?tab=follows` wins over a non-zero count; **while the count is unread no tab is selected and none is printed** (§13) | derive the default from a constant → falls; invert the comparison → falls; choose before the count lands → the « nothing selected while unread » hold falls |
 | **R-L22-b** — the count in the badge (**R16's successor**: `audit2.py` asserts `takeable + blocked` on the bar's badge AND on « En cours »'s tab today, and is re-aimed, not left green over a reversed behaviour) | 12 | the bar's Acquisition badge equals the number drawn on the « À traiter » tab equals the number of cards in it, on `acq-todo-loaded` and `acq-todo-empty` (badge absent, not `0`) | make the badge count `takeable` too (the old derivation) → falls |
 | **R-L22-c** — the menu button's badge | 20 | the button carries a badge exactly when the rows out of the bar have something to say, its number equal to the drawer entry's own count; absent, not `0`, otherwise; **Système's number moves under a seeded maintenance fact AND under a seeded service or dependency fault** (OPEN 8, ruled B) | drop the wiring → falls; print a constant → falls under a seeded change; count the maintenance facts alone (the refused reading) → the fault hold falls |
 | **R-L22-d** — the return to the list | 14 | after each exit (pick, « Laisser tel quel », and later « Ce n'est pas un média »): the address is `/acquisition` with « À traiter » open; `history.length` did not grow (a pop, not a push); **no « Suivant » and no progression (« n sur m en attente »)** anywhere on the screen (OPEN 7, ruled); and the same on a COLD `/resolution/<folder>` | restore the `next` verb → the absence hold falls; restore the progression → it falls; make an exit push → the length hold falls |
@@ -1084,3 +1094,34 @@ is the small rights model the non-goals forbid.
 **Ruled 2026-09-26 (operator): reading B — L22 draws the « ajouté par … » requester line only, and the reassign gesture is born with L18; reading A refused (§ 3.2, § 7.1).**
 
 ---
+
+### 7.3 The operator's rulings of 2026-09-26, evening (rounds 6 and 7) — they SUPERSEDE the sentences they name
+
+Relayed by the auditor, written in `docs/reference/operator-method.md`; each is carried at the site it changes by a
+dated line, and the plan by phase 13's amendment, the new phase 14-bis and phase 15's amendment.
+
+1. **The default tab** (replaces ruling 10's opening rule), verbatim: « Suivis par défaut, puis le dernier onglet
+   ouvert (mémoire locale) ». First opening → « Suivis »; afterwards → the last tab opened, kept in local storage on
+   the device, read and written under try/catch, « Suivis » when it is empty or unreadable. The fourth tab, its count
+   and the bar's badge = « À traiter » alone hold. → phase 13 (R-L22-a re-written: empty storage → « Suivis »,
+   storage « À traiter » → « À traiter », a throwing storage → « Suivis »).
+2. **« À récupérer » leaves « En cours »** (A). « Récupérer maintenant » stays on the follow's sheet, which says
+   « trouvé, récupéré à la prochaine passe, à <heure> ». → phase 14-bis.
+3. **« Rangé aujourd'hui » and « Cherché, rien trouvé » leave « En cours »** (A), which keeps « En vol » ALONE, its
+   queue included, and says « rien en cours » when nothing moves. What arrived reads in the Médiathèque's
+   « Récents »; what was not found reads on the follow (out, not grabbed), and a live search confirms it with
+   « aucun torrent trouvé ». The contract's `notFound` and `doneToday` families lose their consumer: noted, not
+   removed (the engine's side is not this lot's). → phase 14-bis.
+4. **Ruling 16 — « Mis de côté »** (revises ruling 6's place), verbatim: « comme pour les suivis stoppés c'est une
+   section repliée en fin de À traiter avec les mis de côté, oui ça ne disparaît pas car de vrais fichiers sont sur
+   la machine et doivent être traités. Mais via cette section pliée en fin de À traiter je peux : 1) les voir pour
+   pas les oublier. 2) les supprimer via cette section avec un message de confirmation un peu comme quand on
+   supprime de la médiathèque (même précaution), 3) les supprimer directement du disque et ils disparaissent de
+   "mis de côté", 4) les traiter. » A folded section at the END of « À traiter », outside its count and the bar's
+   badge. → phase 15 (L22b).
+5. **Consequence for what L22a already built** (read on its branch, 2026-09-26): phase 5's `acq-card-rungs` reached
+   six rungs through the takeable, not-found and done-today rows (ruling 2 of `RULINGS.md` is re-read at 14-bis);
+   phase 6 files arrivals into « Rangé aujourd'hui »; phase 7's requester lines sit on those cards; phase 10 moved
+   one row out of « Rangé aujourd'hui »; phase 12's « En cours » count reads `takeable`. Phase 14-bis REMOVES; a
+   phase that removes is cheaper than one that adds.
+
