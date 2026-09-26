@@ -8,15 +8,17 @@ Read after `docs/features/maquette-l22/BRIEF-L22a.md` (governs) and `RULINGS.md`
   (the squash of #612: DESIGN and plan). Steward: the session named in your launch prompt (`Orch : TM frontend`, its
   reference changes with its process).
 - Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l22a`.
-- Phases (`plan/INDEX.md`): 1 the contract → 2 the candidates screen changes hands → 3 the two surviving states take
-  their names → 4 the strip counts its cells → 5 one ladder, eight rungs → 6 arrivals join « En cours » → 7 the
-  requester line → [MIDPOINT full suite, measure 20] → 8 the fourth tab exists and fits → 9 « À traiter » holds its
-  cards (STOP D announced: seeds) → 10 the Plex match confirmed or corrected → 11 « Abandonner » quarantines → 12 the
-  badge and the count → 13 the default tab (STOP D announced: unnamed walks) → 14 « Suivant » dies → the close of
-  L22a (merge of `origin/main`, version bump, full gate, pull request READY). Phases 15–27 are L22b's.
-- DONE: 1 (572108fb8) · 2 (e2ebfd06a, R215) · 3 (1bb06de4f, RULINGS 1) · 4 (bd5e1904b, unit test) · 5 (41ec588c6 +
-  oracle 930458687, R207, RULINGS 2) · 6 (87ba2da4d + ec8b6f561, R208) · 7 (1076e2679 + 0498f72cb, R212).
-  Midpoint suite read (0498f72cb): 150/151 + 26 guards green, 1 fall set aside as load (ledger). NEXT: phase 8.
+- Phases: `plan/INDEX.md` 1–14 (L22a); 15–27 are L22b's.
+- DONE: 1 (572108fb8) · 2 (e2ebfd06a, R215) · 3 (1bb06de4f, RULINGS 1) · 4 (bd5e1904b) · 5 (41ec588c6+930458687,
+  R207, RULINGS 2) · 6 (87ba2da4d+ec8b6f561, R208) · 7 (1076e2679+0498f72cb, R212) · midpoint suite (load only) ·
+  8 (ccb83058c, 8-bis 340cbb917, 9a578c7a8, 038aeaa64; R206; RULINGS 3, 4) · 9 (2eda1b035+fb2621788, R209, RULINGS 5) ·
+  10 (92f3c3370+02a38bd02, R221, RULINGS 6) · 11 (92386365f+4cf87444e, R222, RULINGS 7) · 12 (822a4c1f4, R203 = R16
+  re-aimed; no oracle divergence).
+  NEXT: HELD by the steward (2026-09-26 21:1x) — phases 13 and 14 wait for the operator's word on ruling 10 and on
+  « À récupérer » / « Rangé aujourd'hui » / « Cherché, rien trouvé » (nothing new is built on those three sections).
+  Then the close: merge origin/main, bump, full suite + --a11y + --compare, pre-push pytest, PR READY.
+- Numbering: B-553 and R223 are the repair train's; this lot's next register row is B-555, its next extra rule R224.
+- `--a11y` runs on every phase gate that draws (RULINGS 4); the light ledger stands at 98.
 - Oracle: `oracle.py --accept` takes NO state names and rewrites the whole reference; each acceptance is its own
   commit naming the states and the mechanism. The « En cours » body (now-tab.tsx) is drawn beneath pwa-*, relay-*,
   signin*, startup and the acq-card-* states, so every change to it moves them together.
@@ -32,10 +34,8 @@ Read after `docs/features/maquette-l22/BRIEF-L22a.md` (governs) and `RULINGS.md`
 - PUSH: `sh scripts/heavy.sh --class test l22a git push -u origin feat/maquette-l22a`, its own command from the
   worktree root, no `cd … &&`, no `HEAVY_LOCK=`; a refusal = STOP with its exact text.
   `tests/scripts/test_check_maquette_comments.py` alone before any push.
-- Traps inherited: the pre-push pytest fails 13 tests of `test_check_markup_contracts.py` on a tree without
-  `node_modules` (« no TypeScript installation under frontend/ ») — both are installed here; `git grep plex` without
-  `-w` catches « Duplex » in the seeds; `git grep data-pipe` also catches the levers' `data-pipeline-*`; `journey.py`
-  reads `/arrivals` through a constant (`ARRIVALS`), not the literal.
+- Traps: `git grep plex` needs `-w` (« Duplex »); `git grep data-pipe` also finds `data-pipeline-*`; `journey.py`
+  reads `/arrivals` through `ARRIVALS`; a scripted `str.replace` that matches nothing is a silent no-op — assert it.
 
 ## LEDGER (append-only)
 - 2026-09-26 phase 1 — gate's first run: R75 `screen_addresses.py` « walking to the profile WRITES the address » fell
