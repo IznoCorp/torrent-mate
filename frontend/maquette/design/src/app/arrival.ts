@@ -9,7 +9,7 @@
 import type { Store } from "./store";
 import { addressSeam } from "../lib/addresses";
 import { navigationState } from "../lib/navigation-entry";
-import { bridge, redraw } from "../lib/shell-doors";
+import { bridge, redraw, resetLandingDial } from "../lib/shell-doors";
 import { reopenAddressedPanel } from "./addressed-panels";
 import { entry, loadingDone } from "./entry";
 import { onEngineBack } from "./layers";
@@ -72,6 +72,10 @@ const INITIAL_STATE = {
  */
 export function installArrival(store: Store): void {
   store.adoptState(INITIAL_STATE);
+  // THE BOOT IS AN ARRIVAL TOO: the opening page resets its dials the way a
+  // landing from elsewhere does — the feature decides what they open on — and
+  // an address that names them overrides it below.
+  resetLandingDial?.(INITIAL_STATE.page);
 
   /* The bridge announces a back the way `popstate` did. Registered HERE: the
      real bridge exists from the shell's boot on, and nothing upstream queues

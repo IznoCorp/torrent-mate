@@ -132,7 +132,7 @@ export function isScreenPath(pathname: string): boolean {
 // from existing: a library address carrying an acquisition dial describes a
 // state no screen is in.
 const DIALS = [
-  { parameter: "tab", field: "acqTab", default: "now", of: "acq" },
+  { parameter: "tab", field: "acqTab", default: "follows", of: "acq" },
   { parameter: "lens", field: "libLens", default: "cat", of: "lib" },
   { parameter: "mode", field: "libMode", default: "grid", of: "lib" },
   { parameter: "cat", field: "libCat", default: "all", of: "lib" },

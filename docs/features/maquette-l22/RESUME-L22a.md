@@ -56,3 +56,6 @@ Read after `docs/features/maquette-l22/BRIEF-L22a.md` (governs) and `RULINGS.md`
   match, never landed (silent no-op); added in phase 9. Every scripted edit is asserted from here on.
 - 2026-09-26 phase 9 — re-aimed out loud: R128 reads the blocked arrival in « À traiter »; R215 opens the screen from
   « À traiter »; acq-card-blocked and acq-card-no-identity stand on the « À traiter » tab.
+- 2026-09-26 phase 13 — R175 (scroll_keeps_place.py) was left reading Lucky on « En cours » by phase 9, which moved
+  every blocked card to « À traiter »; phase 9's gate did not run it. Re-aimed onto `?tab=todo`, its « fresh arrival »
+  holds pass and its « return from the resolution » holds fall: « À traiter » is too short to leave posters loading.

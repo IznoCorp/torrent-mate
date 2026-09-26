@@ -170,7 +170,9 @@ async def arrive(browser, options, out_of_frame):
     if out_of_frame:
         await page.click(LABEL)
         await page.wait_for_timeout(SETTLED)
-    await page.goto(PROTOTYPE.rstrip("/") + PAGE_PATHS["acq"], wait_until="load")
+    # RE-AIMED OUT LOUD: Lucky's card is blocked, so it lives in « À traiter »,
+    # and a plain arrival opens « Suivis »; the walk names the tab it reads.
+    await page.goto(PROTOTYPE.rstrip("/") + PAGE_PATHS["acq"] + "?tab=todo", wait_until="load")
     await page.evaluate("()=>window.__loadingDone?.()")
     await page.evaluate("()=>document.querySelector('#toastx')?.click()")
     await page.evaluate("()=>window.__mocks?.quiet?.()")
