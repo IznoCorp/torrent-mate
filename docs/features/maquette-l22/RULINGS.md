@@ -96,3 +96,19 @@ reads « Suivis », the page's long list after L22 and the default tab — `?tab
 opening a follow's screen from a card (the one « Suivis » cards open) then Back. B-490's words stay in the docstring and
 the re-aim is said out loud: its subject was moved by phases 9 and 14-bis, and B-490's own list no longer exists in its
 first form.
+
+## 9 — 14-bis over the ceiling: re-ordered so every gate is green (steward, 2026-09-27; phase 14-bis, STOP D)
+
+**The STOP.** The removal of « À récupérer », « Rangé aujourd'hui » and « Cherché, rien trouvé » felled twelve rules
+(the section readers, the card states anchored on those rows, and the take path clicking `[data-take]` on « En cours »):
+≈ 20 points against a ceiling of 15.
+
+**Ruled — neither A (a red gate between sub-phases is not admitted) nor B (above the ceiling).** The cut the plan
+already uses for Arrivées — readers re-aimed BEFORE the death: (1) **14-ter first**, « Récupérer maintenant » and its
+sentence on the follow's sheet (R225), the take path (busy.py, actions.py, page_host.py) re-aimed onto the sheet while
+« À récupérer » is still drawn; (2) **14-bis-a**, the readers that do not need the removal re-anchored first
+(one_ladder.py / `acq-card-rungs` per ruling 2 re-read, requester_line.py, release_candidates.py, R47's cropped Star
+Trek poster understood); (3) **14-bis-b**, the move + R224 + the section readers (cards R41, content, todo_holds,
+audit2 R16/R12, seeds_at_rest R128), measured at its opening — above 15 is a STOP again. The move is kept as a patch
+file meanwhile, never a stash. Accepted: `acq-now-idle` has nothing in flight in the real world, so it reads « rien en
+cours »; `acq-card-waiting` diverges by name with the same « En cours » body.

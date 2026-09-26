@@ -257,4 +257,5 @@ amends the plan and the operator amends the constitution and the map.
   from disk, or handles each item — re-measured at its opening.
 - **L22a is now phases 1–14 plus 14-bis and 14-ter**: 153 + 23 = **176 points over 16 phases**; L22b is unchanged
   at 151 over 13 until phase 15's re-measure. The whole lot: **327 points over 29 phases, mean ≈ 11.3, max 15**.
+- **Amended 2026-09-27 (RULINGS 9, l22a):** the order after phase 14 is **14-ter** (with the take path re-aimed onto the sheet: busy.py, actions.py, page_host.py), then **14-bis-a** (the readers re-anchored before the removal: one_ladder.py / `acq-card-rungs`, requester_line.py, release_candidates.py, R47 understood), then **14-bis-b** (the move, R224, the section readers) — every gate green.
 
