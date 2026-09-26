@@ -39,8 +39,28 @@ type Attributes = ButtonHTMLAttributes<HTMLElement> & {
   children?: ReactNode;
 };
 
-/** Where the journey stands at one step of the strip. */
-export type StripState = "done" | "now" | "blocked" | "pending";
+/**
+ * Where the journey stands at one step of the strip: passed, current, stopped,
+ * not reached — or held behind something else (`waiting`), or put aside by the
+ * operator (`aside`).
+ */
+export type StripState = "done" | "now" | "blocked" | "pending" | "waiting" | "aside";
+
+/** One cell of the strip. A cell with no label draws none. */
+export type StripCell = { state: StripState; label?: string };
+
+/** The column counts the strip is drawn at. */
+type StripCells = NonNullable<NonNullable<Parameters<typeof cardStrip>[0]>["cells"]>;
+
+/**
+ * The strip's column count for a list of cells.
+ *
+ * @param cells The cells.
+ * @returns Their count, as the strip's variant names it.
+ */
+export function stripColumns(cells: readonly StripCell[]): StripCells {
+  return cells.length as StripCells;
+}
 
 /**
  * Draws one part: the element, its classes, its name, and the rest as given.
@@ -145,16 +165,16 @@ export function CardFolder({
 /**
  * The progress strip: one step per stage, each saying where the journey stands.
  *
- * @param properties The steps, in order, each a state and a label.
+ * @param properties The steps, in order, each a state and, where it has one, a label.
  * @returns The strip.
  */
-export function CardStrip({ steps }: { steps: { state: StripState; label: string }[] }): ReactElement {
+export function CardStrip({ steps }: { steps: StripCell[] }): ReactElement {
   return (
-    <div className={cardStrip()}>
+    <div className={cardStrip({ cells: stripColumns(steps) })}>
       {steps.map((step, index) => (
         <div key={index} className={stripStep({ state: step.state })}>
           <span className={`d ${stripDot({ state: step.state })}`}></span>
-          <span className={`l ${stripLabel()}`}>{step.label}</span>
+          {step.label === undefined ? null : <span className={`l ${stripLabel()}`}>{step.label}</span>}
         </div>
       ))}
     </div>

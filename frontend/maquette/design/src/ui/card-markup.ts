@@ -12,7 +12,7 @@
 //
 // THE PARTS' OWN FACTORIES, class for class, so the two spellings of one card
 // cannot drift apart: what `ui/card.tsx` draws as an element this draws as text.
-import type { StripState } from "./card";
+import { stripColumns, type StripCell } from "./card";
 import { escapeMarkup } from "./markup";
 import { attributesMarkup, type MarkupAttributes } from "./tile";
 import {
@@ -63,7 +63,7 @@ export type CardMarkupContent = {
   caption?: string;
   /** The word a card that has just arrived wears, or nothing. */
   fresh?: string;
-  strip?: { state: StripState; label: string }[];
+  strip?: StripCell[];
   foot?: { label: string; solid?: boolean; attributes: MarkupAttributes };
 };
 
@@ -113,10 +113,10 @@ export function cardMarkup(content: CardMarkupContent): string {
     (content.caption ? `<span class="${cardCaption()}" data-part="card/caption">${escapeMarkup(content.caption)}</span>` : "") +
     (content.fresh ? `<span class="${cardFreshTag()}" data-part="card/fresh-tag">${escapeMarkup(content.fresh)}</span>` : "");
   const strip = content.strip
-    ? `<div class="${cardStrip()}">${content.strip
+    ? `<div class="${cardStrip({ cells: stripColumns(content.strip) })}">${content.strip
         .map(
           (step) =>
-            `<div class="${stripStep({ state: step.state })}"><span class="d ${stripDot({ state: step.state })}"></span><span class="l ${stripLabel()}">${escapeMarkup(step.label)}</span></div>`,
+            `<div class="${stripStep({ state: step.state })}"><span class="d ${stripDot({ state: step.state })}"></span>${step.label === undefined ? "" : `<span class="l ${stripLabel()}">${escapeMarkup(step.label)}</span>`}</div>`,
         )
         .join("")}</div>`
     : "";

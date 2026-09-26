@@ -94,9 +94,31 @@ export const cardFolder = cva(
 /** The word under a folder's icon. */
 export const cardFolderLabel = cva("dlabel text-1 font-semibold tracking-[0.02em] uppercase");
 
-/** The progress strip: its own full-width line under the top (R2). */
+/**
+ * The progress strip: its own full-width line under the top (R2).
+ *
+ * ONE COLUMN PER CELL, and the count is the caller's: each count is written
+ * out whole so the stylesheet carries it. Five is the default and draws what a
+ * strip always drew.
+ */
 export const cardStrip = cva(
-  "strip mt-4 pt-4 border-t border-border grid grid-cols-[repeat(5,minmax(0,1fr))] gap-0",
+  "strip mt-4 pt-4 border-t border-border grid gap-0",
+  {
+    variants: {
+      cells: {
+        2: "grid-cols-[repeat(2,minmax(0,1fr))]",
+        3: "grid-cols-[repeat(3,minmax(0,1fr))]",
+        4: "grid-cols-[repeat(4,minmax(0,1fr))]",
+        5: "grid-cols-[repeat(5,minmax(0,1fr))]",
+        6: "grid-cols-[repeat(6,minmax(0,1fr))]",
+        7: "grid-cols-[repeat(7,minmax(0,1fr))]",
+        8: "grid-cols-[repeat(8,minmax(0,1fr))]",
+        9: "grid-cols-[repeat(9,minmax(0,1fr))]",
+        10: "grid-cols-[repeat(10,minmax(0,1fr))]",
+      },
+    },
+    defaultVariants: { cells: 5 },
+  },
 );
 
 /**
@@ -113,6 +135,8 @@ export const stripStep = cva(
         now: "now before:bg-success",
         blocked: "blocked before:bg-border",
         pending: "before:bg-border",
+        waiting: "waiting before:bg-border",
+        aside: "aside before:bg-border",
       },
     },
     defaultVariants: { state: "pending" },
@@ -133,6 +157,8 @@ export const stripDot = cva("w-[9px] h-[9px] rounded-full z-1", {
       now: "bg-primary [box-shadow:0_0_0_3px_color-mix(in_oklab,var(--color-primary)_25%,transparent)]",
       blocked: "bg-danger",
       pending: "bg-border",
+      waiting: "bg-waiting",
+      aside: "bg-neutral-signal",
     },
   },
   defaultVariants: { state: "pending" },
