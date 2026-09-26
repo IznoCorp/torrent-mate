@@ -222,3 +222,13 @@ export const candidatePick = cva(
   "inline-flex items-center justify-center self-center flex-none min-h-[44px] px-6 mr-5 "
     + "rounded-full bg-primary text-primary-foreground text-3 font-semibold whitespace-nowrap",
 );
+
+/**
+ * Acquisition's tabs at a finger's size: worn BESIDE `segmentTab()`, it lifts
+ * each of the four to 44 px — a floor, so the segment's own padding still sets
+ * the label's place. The library's segment keeps its own size.
+ */
+export const fingerTab = cva("min-h-[44px]");
+
+/** The « ⋮ » beside those tabs, at the same floor, worn beside `moreButton()`. */
+export const fingerMore = cva("min-w-[44px] min-h-[44px]");

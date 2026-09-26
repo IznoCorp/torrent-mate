@@ -60,5 +60,11 @@ export function tunnelStates(): NamedState[] {
       () =>
         applyState({ page: "acq", acqTab: "now", scen: "real", phase: "ready" }),
     ],
+    [
+      "acq-todo-empty",
+      "À traiter — rien n'attend votre main",
+      () =>
+        applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" }),
+    ],
   ];
 }

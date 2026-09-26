@@ -27,3 +27,15 @@ blocked « identifié », doneToday « vérifié dans Plex » — and no row sta
 real rows, said in the state's label and in R207's docstring. The eight rungs are held whole on `sheet-journey` (« rangé »
 opened into its three steps), where R207's order, agreement and one-source holds read them. No derived row: a row nobody
 lived is not seeded to fill a picture (§ 13).
+
+## 3 — Acquisition's tabs at a finger's size (steward, 2026-09-26; phase 8, STOP D)
+
+**The STOP.** R206's « every target meets the touch minimum » hold fell on `main` for a reason the design did not
+measure: the existing tabs are 99×34 px and the « ⋮ » 40×40 px, and `segmentTab` is shared with the library's lens
+segment. No written directive names a touch floor; the harness holds 44 px locally (`add_footer.py`).
+
+**Ruled (proposal A).** Acquisition's bar alone is lifted — its four tabs and its « ⋮ » at 44 px — inside the states
+phase 8 already declares on `acquisition/tabs`; the library's segment does not move. B (hold at 34 px) would prove
+nothing; C (the shared primitive) crosses the phase's declaration. One register row files the library segment at
+34 px (B-552, owner none). Carried out as two floors in Acquisition's own catalogue (`fingerTab`, `fingerMore`,
+worn beside the primitives) because `ui/variants/controls.ts` stands at 397 of its 400 lines.

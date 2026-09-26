@@ -13,6 +13,7 @@ import { AcquisitionTabs } from "./acquisition-tabs";
 import { DiscoverTab } from "./discover-tab";
 import { FollowsTab } from "./follows-tab";
 import { NowTab } from "./now-tab";
+import { TodoTab } from "./todo-tab";
 
 export function AcquisitionPage(): ReactElement | null {
   const state = useUiState();
@@ -29,6 +30,14 @@ export function AcquisitionPage(): ReactElement | null {
       <>
         <AcquisitionTabs />
         <NowTab />
+      </>
+    );
+  }
+  if (state.acqTab === "todo") {
+    return (
+      <>
+        <AcquisitionTabs />
+        <TodoTab />
       </>
     );
   }

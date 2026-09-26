@@ -787,6 +787,7 @@
       "crossrefLink": "Arrivées →",
       "tabNow": "En cours",
       "tabFollows": "Suivis",
+      "tabTodo": "À traiter",
       "tabDiscover": "Découvrir",
       "moreLabel": "Plus — veille et obligations",
       "errorNow": "ce qui vous attend",
@@ -886,7 +887,9 @@
         "atOne": "à {{hour}}",
         "atMany": "à {{hours}} et {{last}}",
         "hour": "{{hour}} h {{minute}}"
-      }
+      },
+      "todoEmptyTitle": "Rien n'attend votre main.",
+      "todoEmptyBody": "Ce qui avance sans vous est dans « En cours »."
     },
     "accountPage": {
       "noteLead": "Un seul compte existe sur ce serveur.",
