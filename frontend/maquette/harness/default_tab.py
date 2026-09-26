@@ -20,10 +20,10 @@ prepared before the document loads, so what is read is what the boot reads:
 import asyncio
 import json
 
-from common import ACTED, PHONE, SETTLED, Journal
+from common import ACTED, PAGE_PATHS, PHONE, PROTOTYPE, SETTLED, Journal
 from playwright.async_api import async_playwright
 
-ENTRY = "http://127.0.0.1:8899/acquisition"
+ENTRY = PROTOTYPE.rstrip("/") + PAGE_PATHS["acq"]
 # The storage key the tab is remembered under.
 KEY = "acquisition-tab"
 FIRST = "follows"
