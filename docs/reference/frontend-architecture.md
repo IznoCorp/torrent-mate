@@ -734,14 +734,21 @@ surfaces as new.
 **Objective.** A BEHAVIOUR lot on existing surfaces — the Acquisition page, the card and its one
 ladder, the candidates screen — and the death of Arrivées as a destination of its own. Inserted by
 the auditor's lot-order delegation (2026-09-15) before L16, after L13; startable stacked on L13c's
-head at its PR READY. Its design is nine tenths dictated by the operator's nine organisation
-rulings of 2026-09-15, in `docs/reference/operator-method.md`.
+head at its PR READY. Its design is dictated by the operator's fifteen organisation rulings of
+2026-09-15 and 2026-09-26, in `docs/reference/operator-method.md`, and by his eleven rulings of
+2026-09-26 on the design's open questions (DESIGN § 7.2).
 
 **Where it lives (invariant 10).** The Acquisition page — the card, its one ladder, and the
 candidates screen; Arrivées itself dies as this lot lands.
 
 **Done when.** The Acquisition page draws the card, its one ladder and the candidates screen as
-the operator's nine rulings dictate, and Arrivées no longer exists as a destination of its own.
+the operator's rulings dictate, and Arrivées no longer exists as a destination of its own.
+
+**Design and plan written 2026-09-26, PR #612** — `docs/features/maquette-l22/DESIGN.md`, its plan
+`docs/features/maquette-l22/plan/INDEX.md`; the rulings number fifteen, not nine (the six of 2026-09-26 are in it).
+**Cut into two sub-lots** (auditor's method decision, 2026-09-26 — L13's precedent): **L22a** = phases 1–14
+(153 points, through « Suivant » dies), **L22b** = phases 15–27 (151 points), stacked on L22a's head at its
+pull request's READY; one reader round each; the folder dies at L22b's gesture.
 
 #### L16 — §18, the ratio · *depends on L15, L19, L10*
 
