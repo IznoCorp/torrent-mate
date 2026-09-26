@@ -187,3 +187,35 @@ def test_a_failing_check_runs_once_and_shows_its_own_output(tmp_path: Path) -> N
     assert result.returncode == 1, result.stdout
     assert len(_pytest_calls(journal)) == 1, journal
     assert "EVIDENCE-1" in result.stdout, result.stdout
+
+
+def test_a_deletion_only_push_runs_no_check(tmp_path: Path) -> None:
+    """A push that only deletes a remote branch pushes no file, so nothing is run.
+
+    `git push origin --delete <branch>` feeds a local sha of zeros; the hook
+    used to read « nothing pushed » as « not docs-only » and ran the whole suite.
+    """
+    base, _, _ = _repository(tmp_path)
+    result, journal = _run_hook(tmp_path, f"(delete) {ZEROS} refs/heads/topic {base}\n")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert journal == [], journal
+
+
+def test_a_deletion_beside_a_code_push_keeps_the_full_suite(tmp_path: Path) -> None:
+    """THE CONTROL: a deletion in the same push does not excuse the code it carries."""
+    base, _, code = _repository(tmp_path)
+    ref_lines = f"(delete) {ZEROS} refs/heads/gone {base}\nrefs/heads/topic {code} refs/heads/topic {base}\n"
+    result, journal = _run_hook(tmp_path, ref_lines)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert _pytest_calls(journal) == [FULL_SUITE], journal
+    assert any(line.startswith("-m ruff check") for line in journal), journal
+
+
+def test_an_empty_standard_input_keeps_the_full_suite(tmp_path: Path) -> None:
+    """THE CONTROL: no ref line read is not a deletion, so the whole suite still runs."""
+    _repository(tmp_path)
+    _, journal = _run_hook(tmp_path, "")
+
+    assert _pytest_calls(journal) == [FULL_SUITE], journal
