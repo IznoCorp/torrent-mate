@@ -49,7 +49,7 @@ CARD_STATES = [
     "lib-recent",
     "arr-idle",
     "arr-loaded",
-    "arr-resolution",
+    "acq-resolution-none",
     "screen-releases",
     "acq-identify",
     "acq-discover",

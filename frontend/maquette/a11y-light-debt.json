@@ -121,7 +121,7 @@
       }
     ],
     "acq-now-loading": [],
-    "arr-decision": [],
+    "acq-resolution-tie": [],
     "arr-error": [],
     "arr-idle": [
       {
@@ -159,7 +159,7 @@
         ]
       }
     ],
-    "arr-resolution": [
+    "acq-resolution-none": [
       {
         "rule": "color-contrast",
         "impact": "serious",

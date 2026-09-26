@@ -49,7 +49,7 @@ async def main():
     print("  → out of « Ça coince » with nothing re-scraped")
 
     # And a folder that DOES have candidates is settled by picking one.
-    await pg.evaluate("()=>window.__go('arr-decision')"); await pg.wait_for_timeout(450)
+    await pg.evaluate("()=>window.__go('acq-resolution-tie')"); await pg.wait_for_timeout(450)
     a=await pg.evaluate(cnt); print("\nbefore pick          :", {k:a[k] for k in ('stuck','moving')})
     nb=await pg.evaluate("()=>document.querySelectorAll('[data-nonmedia=candidat]').length")
     assert nb==5, f"expected the five real candidates, got {nb}"

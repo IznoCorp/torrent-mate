@@ -90,7 +90,7 @@ async def main():
     chk("7. result → media sheet", has and bool(title), f"→ « {title} »")
 
     # 8 — the resolution screen's way out exists
-    await pg.evaluate("()=>window.__go('arr-resolution')"); await pg.wait_for_timeout(450)
+    await pg.evaluate("()=>window.__go('acq-resolution-none')"); await pg.wait_for_timeout(450)
     has = await pg.evaluate("()=>!!document.querySelector('[data-manual]')")
     await pg.evaluate("()=>document.querySelector('[data-manual]').click()"); await pg.wait_for_timeout(700)
     q = await pg.evaluate("()=>document.querySelector('#addq')?.value")

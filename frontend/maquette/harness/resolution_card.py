@@ -76,7 +76,7 @@ from common import ACTED, SETTLED, Journal, open_page
 from playwright.async_api import async_playwright
 
 # THE SCREEN WITH TIED CANDIDATES: « Lucky », four of five at the same score.
-TIED_STATE = "arr-decision"
+TIED_STATE = "acq-resolution-tie"
 
 # THE WORD THE PILL SAYS, read from the resource the interface reads it from.
 CHOOSE = json.loads((pathlib.Path(__file__).resolve().parents[1] / "design" / "src"

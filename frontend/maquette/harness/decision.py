@@ -97,7 +97,7 @@ async def main():
         await pg.evaluate("()=>window.__measure(true)")
 
         # ── with candidates: the tie, and what it forbids ──────────────────
-        await pg.evaluate("()=>window.__go('arr-decision')")
+        await pg.evaluate("()=>window.__go('acq-resolution-tie')")
         await pg.wait_for_timeout(420)
         with_ = await pg.evaluate(SCREEN)
 
@@ -164,7 +164,7 @@ async def main():
         check("no engine token on screen", not leaks, ", ".join(leaks))
 
         # ── without candidates: nothing is borrowed ───────────────────────
-        await pg.evaluate("()=>window.__go('arr-resolution')")
+        await pg.evaluate("()=>window.__go('acq-resolution-none')")
         await pg.wait_for_timeout(420)
         without = await pg.evaluate(SCREEN)
         check("a folder with no decision borrows no candidate",
@@ -180,7 +180,7 @@ async def main():
         # entry: one entry in, one out, and a single Back still leaves the
         # arbitration rather than walking the folders already answered. Read
         # after the screen has had time to change, never by timing the change.
-        await pg.evaluate("()=>window.__go('arr-decision')")
+        await pg.evaluate("()=>window.__go('acq-resolution-tie')")
         await pg.wait_for_timeout(420)
         await pg.evaluate("()=>window.__screens.resolution()")
         await pg.wait_for_timeout(420)
@@ -200,7 +200,7 @@ async def main():
 
         # ── answering empties the queue, on BOTH lists ────────────────────
         for state_, list_, exit_ in (
-            ("arr-decision", "blocked", "[data-resolve]"),
+            ("acq-resolution-tie", "blocked", "[data-resolve]"),
             ("arr-idle", "stuck", "[data-leave]"),
         ):
             await pg.evaluate("(s)=>window.__go(s)", state_)

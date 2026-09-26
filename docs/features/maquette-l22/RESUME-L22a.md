@@ -14,7 +14,7 @@ Read after `docs/features/maquette-l22/BRIEF-L22a.md` (governs) and `RULINGS.md`
   cards (STOP D announced: seeds) → 10 the Plex match confirmed or corrected → 11 « Abandonner » quarantines → 12 the
   badge and the count → 13 the default tab (STOP D announced: unnamed walks) → 14 « Suivant » dies → the close of
   L22a (merge of `origin/main`, version bump, full gate, pull request READY). Phases 15–27 are L22b's.
-- DONE: handshake (GO 2026-09-26). NEXT: phase 1 gate, then phase 2.
+- DONE: phase 1 (572108fb8), phase 2 (e2ebfd06a, R215). Phase 3 under RULINGS 1. NEXT: phase 4.
 - Rule labels → numbers (bound at phase 1 on `origin/main` 1c0dbea64, highest R201): a R202 · b R203 · c R204 ·
   d R205 · e R206 · f R207 · g R208 · h R209 · i R210 · j R211 · k R212 · l R213 · m R214 · n R215 · o R216 ·
   p R217 · q R218 · r R219 · s R220 · t R221 · u R222.
@@ -33,3 +33,7 @@ Read after `docs/features/maquette-l22/BRIEF-L22a.md` (governs) and `RULINGS.md`
   reads `/arrivals` through a constant (`ARRIVALS`), not the literal.
 
 ## LEDGER (append-only)
+- 2026-09-26 phase 1 — gate's first run: R75 `screen_addresses.py` « walking to the profile WRITES the address » fell
+  (null `.click()` after a 300 ms wait) and passed on the re-run: a flake under load, not the phase's.
+- 2026-09-26 phase 2 — the design tree has no eslint configuration: the gate is `tsc -b` + `vitest`.
+- 2026-09-26 phase 3 — STOP on the rename tool; RULINGS 1 (auditor): exact quoted substitution in five rules.

@@ -18,6 +18,7 @@ import { mediaStates } from "./states/media";
 import { relayStates } from "./states/relay";
 import { settingsStates } from "./states/settings";
 import { systemStates } from "./states/system";
+import { tunnelStates } from "./states/tunnel";
 
 /**
  * Every named state, in the order `__states()` has always listed them.
@@ -35,6 +36,7 @@ function namedStates(): NamedState[] {
     ...acquisitionStates(),
     ...libraryStates(),
     ...arrivalsStates(),
+    ...tunnelStates(),
     ...mediaStates(),
     ...drawerStates(),
     ...systemStates(),
