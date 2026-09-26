@@ -241,20 +241,25 @@ async def main():
     if len(set(n.values()))>1: note("R15 inconsistent Suivis modes", json.dumps(n))
 
     ran('R16')
-    # R16 — the badge is the sum it claims to be
+    # R16 — the badge is the sum it claims to be. RE-AIMED OUT LOUD as R203
+    # (R-L22-b): the bar's badge counts « À traiter » alone (ruling 10) — it
+    # equals the number on that tab and the cards drawn in it, and is ABSENT,
+    # not 0, when nothing waits; « En cours »'s own count is what is left of the
+    # old sum, the media waiting to be taken. It asserted `takeable + blocked`
+    # on both, which is the behaviour ruling 10 reverses.
     bad=await pg.evaluate("""async ()=>{const out=[];
-      for (const s of ['real','loaded']) { window.__store.write({scen: s}); window.__go('acq-now-'+(s==='real'?'idle':'loaded'));
-        await new Promise(r=>setTimeout(r,240));
-        const badge=document.querySelector('[data-page=acq] [data-part="shell/tab-badge"]');
-        /* THE QUEUE IS THE LAYER'S SINCE L09 — `derived` was the engine's own
-           table over its own world, and both are gone. */
-        const q=window.__queue?.()||{takeable:[],blocked:[]};
-        const expected=q.takeable.length+q.blocked.length;
-        const read=badge?Number(badge.textContent):0;
-        if (read!==expected) out.push(`${s}: badge ${read} != to-grab+to-resolve ${expected}`);
-        const tab=document.querySelector('[data-part="segment"] [data-part="segment/count"]');
-        const read2=tab?Number(tab.textContent):0;
-        if (read2!==expected) out.push(`${s}: tab badge ${read2} != ${expected}`);
+      const wait=()=>new Promise(r=>setTimeout(r,400));
+      const number=(element)=>element?Number(element.textContent):null;
+      for (const s of ['acq-todo-loaded','acq-todo-empty']) { window.__go(s); await wait();
+        const badge=number(document.querySelector('[data-page=acq] [data-part="shell/tab-badge"]'));
+        const tab=number(document.querySelector('[data-acqtab="todo"] [data-part="segment/count"]'));
+        const cards=document.querySelectorAll('#view [data-part="card"]').length;
+        if (s==='acq-todo-empty') {
+          if (badge!==null || tab!==null || cards!==0) out.push(`${s}: badge ${badge}, tab ${tab}, cards ${cards} — absent, absent, 0 wanted`);
+        } else if (!cards || badge!==cards || tab!==cards) out.push(`${s}: badge ${badge}, tab ${tab}, cards drawn ${cards}`);
+        const q=window.__queue?.()||{takeable:[]};
+        const now=number(document.querySelector('[data-acqtab="now"] [data-part="segment/count"]'));
+        if ((now??0)!==q.takeable.length) out.push(`${s}: « En cours » count ${now} != to take ${q.takeable.length}`);
       } return out;}""")
     for x in bad: note("R16 badge not derived", x)
 

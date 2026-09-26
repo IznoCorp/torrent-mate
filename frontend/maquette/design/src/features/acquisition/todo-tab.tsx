@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { mediumCardMarkup } from "./card-markup";
-import { slotArrivals } from "./arrival-slots";
+import { todoCards } from "./arrival-slots";
 import { useAcquisitionQueue } from "../../lib/queue";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useUiState } from "../../lib/store-access";
@@ -37,7 +37,7 @@ export function TodoTab(): ReactElement {
   }
   const scenario = state.scen === "loaded" ? "loaded" : "";
   const { data: queue } = useAcquisitionQueue(scenario);
-  const blocked = [...(queue?.blocked ?? []), ...slotArrivals(queue?.arrivals ?? []).blocked];
+  const blocked = queue ? todoCards(queue) : [];
   // A STEP THAT CANNOT FINISH is unblocked by a relaunch, never by an identity
   // pick: such a card offers « Relancer » and no « Résoudre ».
   const tunnelErrors = blocked.filter((card) => card.failedStep !== undefined);

@@ -28,3 +28,15 @@ export function slotArrivals(arrivals: QueueCard[]): ArrivalSection {
   }
   return section;
 }
+
+/**
+ * Every card « À traiter » holds: what the queue has stopped, and the arrivals
+ * stopped on their ladder. ONE derivation, read by the tab, its count and the
+ * bar's badge (§13).
+ *
+ * @param queue The queue's answer.
+ * @returns The cards, in the order the tab draws them.
+ */
+export function todoCards(queue: { blocked: QueueCard[]; arrivals: QueueCard[] }): QueueCard[] {
+  return [...queue.blocked, ...slotArrivals(queue.arrivals).blocked];
+}

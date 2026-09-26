@@ -54,7 +54,7 @@
     "harness/add_footer.py": 3,
     "harness/arrivals.py": 1,
     "harness/audit.py": 1,
-    "harness/audit2.py": 2,
+    "harness/audit2.py": 1,
     "harness/boot_order.py": 2,
     "harness/bridge.py": 3,
     "harness/common.py": 2,

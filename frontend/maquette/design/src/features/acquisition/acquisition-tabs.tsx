@@ -6,6 +6,7 @@ import { useAcquisitionQueue } from "../../lib/queue";
 import { useUiState } from "../../lib/store-access";
 import { moreButton, segment, segmentCount, segmentTab, viewTabs } from "../../ui/variants";
 import { fingerMore, fingerTab } from "./variants";
+import { todoCards } from "./arrival-slots";
 
 // The tab bar, and the « more » control that opens the watch-and-obligations
 // sheet. Shared by the four surfaces below.
@@ -22,12 +23,11 @@ export function AcquisitionTabs(): ReactElement {
   // The tab opened by default is derived, wherever it stands in the row.
   const tabs = [
     { id: "follows", label: t("screens.acquisition.tabFollows") },
-    {
-      id: "now",
-      label: t("screens.acquisition.tabNow"),
-      count: (queue?.takeable ?? []).length + (queue?.blocked ?? []).length,
-    },
-    { id: "todo", label: t("screens.acquisition.tabTodo") },
+    // « EN COURS » COUNTS WHAT IS LEFT of the old sum once « À traiter »
+    // took what is blocked: the media waiting to be taken.
+    { id: "now", label: t("screens.acquisition.tabNow"), count: (queue?.takeable ?? []).length },
+    // « À TRAITER » COUNTS ITS CARDS, the number the bar's badge says too.
+    { id: "todo", label: t("screens.acquisition.tabTodo"), count: queue ? todoCards(queue).length : 0 },
     { id: "discover", label: t("screens.acquisition.tabDiscover") },
   ];
   return (
