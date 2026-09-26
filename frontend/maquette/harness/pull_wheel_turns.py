@@ -75,7 +75,7 @@ WATCH = """()=>{
   const indicator = document.querySelector('#ptr');
   const wheel = indicator.firstElementChild;
   const record = {start: performance.now(), released: null, samples: [], animation: null,
-                  loop: null, stopped: null};
+                  loop: null, stopped: null, spunAfterRelease: false};
   window.__wheel = record;
   const since = () => Math.round((performance.now() - record.start) * 10) / 10;
   const spinning = () => getComputedStyle(wheel).animationName !== 'none';
@@ -88,7 +88,10 @@ WATCH = """()=>{
   const edge = () => {
     const now = spinning();
     if (now && record.animation === null) record.animation = getComputedStyle(wheel).animationName;
-    if (!now && record.released !== null && record.stopped === null) record.stopped = since();
+    // The end is the first stop AFTER the wheel has spun past the release: a
+    // wheel still at rest when the finger lifts has not stopped, it has not started.
+    if (now && record.released !== null) record.spunAfterRelease = true;
+    if (!now && record.spunAfterRelease && record.stopped === null) record.stopped = since();
   };
   window.__wheelRelease = () => { record.released = since(); };
   const observer = new MutationObserver(edge);
