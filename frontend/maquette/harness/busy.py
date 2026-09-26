@@ -271,6 +271,12 @@ async def main():
         # already paid for once, in a rule that drove the seam and could not
         # see the wait it existed to refuse. The tap's own answer is held, so a
         # missing path FAILS rather than opening nothing quietly.
+        # The follows list is long, and the row may stand below the fold: it is
+        # scrolled to first, as a thumb would, and only then aimed at.
+        await page.evaluate("""(title)=>[...document.querySelectorAll('[data-panel]')]
+          .find((one) => one.dataset.panel.endsWith(":" + title))
+          ?.scrollIntoView({ block: "center" })""", title)
+        await page.wait_for_timeout(SETTLED)
         aim = await raise_by_finger(page, title)
         await page.wait_for_timeout(PANEL_IN)
         journal.check(
