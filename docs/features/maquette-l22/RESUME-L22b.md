@@ -17,7 +17,10 @@ L22b appends from 13).
   COPIES a seeding torrent and MOVES any other, `ingest.py:549-561`; a new operation + demand; two states; Q2 both;
   F40; R227) → 18-bis paused follows fold (R233) → F3 (a new phase) → 20 HELD (F1+C2 at its opening) → [MIDPOINT] →
   F5 → F6+F42 → 21 (F7, F54) → 22 (F41) … 27. Each re-measured at its opening; > 15 → cut, one message.
-  Orchestrator now `Orch : TM frontend [ac1af8]`.
+  Orchestrator now `Orch : TM frontend [ac1af8]`. FIRST ACT of the successor: #619 is merged at 5e5ecd052 —
+  `git merge --no-edit origin/main`. Steward's decisions (2026-09-27): product-intent-map.md:49 and F50's
+  frontend-architecture line are the steward's docs PR; a pull on Découvrir returning to the first batch is ACCEPTED —
+  write it as a dated ruling (RULINGS 21).
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (15b) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (18-bis)
   R233 · R234 discover_page · next free R235. RULINGS: L22b writes 13–29 (13–20 used); L22a's repair round from 30.
@@ -110,3 +113,4 @@ L22b appends from 13).
   a « discover » tab put back → R206 FAIL « the three tabs read … »; « discover » kept in TABS → R202 FAIL « « Découvrir »
   remembered … opens « Suivis » »; `acq-discover-degraded` put back in panel.py → RULE CRASHED naming it (« état inconnu :
   acq-discover-degraded ») — RULINGS 1's reading.
+- 2026-09-27 stood down at 69 % after 19-bis-b (the triage's docs commit is the next unit, for a fresh session).
