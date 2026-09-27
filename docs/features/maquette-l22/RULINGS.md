@@ -125,3 +125,16 @@ side on one line — the Plex-match card (« Confirmer » / « Corriger ») and 
 « Abandonner ») — one variant of the foot in Acquisition's catalogue, each foot keeping its 44 px floor. Phase 10's
 repair, landed in its own `fix` commit; (b) rewrites a ruled sentence, (c) re-opens R47's own defect. `cards.py`
 joins every gate that touches a card from now on.
+
+## 11 — 14-bis-b re-cut: the readers first, then the removal (steward, 2026-09-27; phase 14-bis-b, STOP D)
+
+**The STOP.** 14-bis-b measured ≈ 19 at its opening (the move 12, « rien en cours » 1, R224 3, six readers at ½).
+
+**Ruled (the implementer's proposal).** **14-bis-b1** re-aims the readers that do not need the removal, each green
+BEFORE and AFTER it (measured with the removal's patch applied, then removed, as for R207): `cards.py` R41,
+`todo_holds.py`, `seeds_at_rest.py` R128, `paths_to_sheets.py`, and `content.py` where its hold can move first.
+**14-bis-b2** is the move, R224 and audit2's R16 and R12, the diverging states accepted by name. `paths_to_sheets.py`
+was green on the wrong subject — it read the « En cours » cards under the add screen: its repair is a FINDING, not a
+re-aim, said so in its commit, proved by a mutation emptying the add screen's result rows, and filed as B-555, owner
+this lot, fixed in the same commit. R12 « context measured by nothing » is understood before b2's move; not caused by
+the removal, it is a STOP with the reading.
