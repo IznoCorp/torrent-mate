@@ -34,24 +34,60 @@ brief can read the reason and not only the requirement.
   identity (`frontend-backend-demands-stream.md` § 1 already asks for it), a tunnel's block and
   resume as events, and the global levers' state.
 
-## 2. The requester, and rights — §17
+## 2. The requester(s), and rights — §17
 
-- **Every acquisition has a requester.** A new request carries the connected user; existing
-  requests, which have none, are attributed to the Plex server's owner account (Izno). An Operator
-  may reassign a request to another user and manages every requester's requests.
-- **A rights model with three roles and two per-account options** (Operator — bypasses ACLs;
-  Household member; Plex guest; options: see others' acquisitions, set the quality profile of
-  one's own). `GET /api/auth/me` must carry the role and the options; every mutating operation is
-  authorised against the requester where the clause says « ses propres acquisitions ».
-- **Plex SSO is added, not substituted.** Only Operator accounts may hold a password without SSO.
-  A locally created account carries a mandatory e-mail; an e-mail matching a Plex account LINKS
-  the two, and the user signs in either way. A Plex user with no rights here is admitted
-  read-only, library only.
-- **The read-only role becomes an instance ceiling**: on the staging instance every account is
-  capped to read-only whatever its role. `require_not_staging` is absorbed by the model as that
-  ceiling — one authorisation path, never two (NE-DOIT-PAS-7).
-- **A right is proved on both sides, separately** (§17): the action absent from the surface for
-  the account without it, AND the call refused for one that forces it. The backend owes the
+**Amended 2026-09-27** (organisation rulings 20–23; round 9 Q16; round 10 Q6, precised; L18's design amendment,
+PR #618) — this section replaces the three-role-plus-two-options model dictated 2026-08-30 with the mechanism the
+operator ruled on 2026-09-27; the roles it names are seed VALUES, not a fixed set.
+
+- **Every acquisition has AT LEAST ONE requester, and MAY HAVE SEVERAL** (round 9 Q16 = B). A follow's own table
+  of requesters: a new « Suivre »/« Ajouter » ADDS the connected user as a requester of the same follow, never
+  replaces one; existing requests, which have none, are attributed to the Plex server's owner account (Izno). An
+  account holding `acquisition.reassign` moves ONE requester off a follow/card onto another account; removing
+  one's own follow removes only that requester, and the follow ends when the last one leaves; a followed film
+  ends for every requester at its Plex confirmation.
+- **A rights model where every access — a view or an act — is an ACL right, held by a ROLE, never directly by an
+  account** (ruling 17, refined by ruling 20). An account holds exactly ONE role (ruling 20's own precision:
+  « 1 seul »). Two roles are the system's, indelible: **Default** (every new account's — a first Plex sign-in
+  with no other role — its rights are configurable, it cannot be deleted) and **Admin** (no rights list at all —
+  it bypasses the ACL entirely, including a right created after the account signed in; it cannot be modified or
+  removed). Every other role — Household member, Plex guest, and any variant the Operator creates for one
+  account's own distinct rights (ruling 20's own example) — is ORDINARY configuration, managed from Comptes: its
+  name, its rights, and which accounts hold it. What the first drawing called a per-account "option" (see
+  others' acquisitions; set the quality profile of one's own; a pause preference, added 2026-09-27, round 10 Q6)
+  is now a RIGHT some roles hold and others do not — never a boolean on the account row.
+- **`GET /api/auth/me` must carry the role's NAME (display only, never compared), the account's closed set of
+  rights, whether a Plex account is linked and which, the account's ENTRY PAGE, and the instance's forbidden-writes
+  list** (below) — one read, one authorisation path (NE-DOIT-PAS-7); every mutating operation is authorised
+  against the requester(s) where the clause says « ses propres acquisitions », now a MEMBERSHIP check against the
+  requesters list, never equality with a single field.
+- **A role that opens no page** (the Default role emptied of even `library.read`, or any other role reduced to
+  nothing) sends the account to a DEDICATED route saying so, with sign-out only — never a refusal at sign-in
+  (ruling 22, precised).
+- **Per-requester settings, with priority rules** (round 10 Q6, precised): only a requester whose ROLE holds the
+  quality right has a quality setting on an acquisition, and only those enter « the highest wins »; a pause
+  preference the same way — « paused » holds only when every requester who holds the pause right has asked for
+  it. Setting either is itself a role right, never a default anyone gets.
+- **Escalation** (round 9 Q14 = A, if the frontend's own measure holds it to one phase, else B — see L18's plan):
+  a manager who does not hold the Admin role creates, renames or assigns only a role whose rights are a SUBSET of
+  their own role's, never modifies their own role, and never touches an account whose role is Admin (the
+  auditor's coherence round, M7). The backend refuses a violation server-side; the frontend greys it, never
+  trusting the client alone.
+- **Plex SSO is added, not substituted.** A password sign-in is gated by an ACL right (`auth.password`), held by
+  the Admin role by default and grantable to any account, Plex-linked or not, from Comptes — reconciling the
+  operator's default gloss (« Opérateur seul ») with §17's letter (« l'utilisateur se connecte par l'un ou
+  l'autre »): a linked account without the right still signs in with Plex; the right adds a password as a second
+  way in for the account that holds it. A locally created account carries a mandatory e-mail; an e-mail matching
+  a Plex account LINKS the two. A Plex user admitted with only the Default role's own seed is read-only, library
+  only — not a distinct mechanism, the model's own default falling out of the Default role's rights.
+- **The staging read-only role becomes a PER-INSTANCE LIST of forbidden writes, not a single boolean ceiling**
+  (ruling 23, superseding the earlier reading): the current `:8711` instance's own list names every write; the
+  future PREPROD environment's list names deletion in the library ALONE — preprod reads and files into the PROD
+  library (replace a film, merge a series, rewrite NFOs) exactly as production does, and only an explicit
+  DELETION in the library is refused there. `require_not_staging` is absorbed by the model reading this served
+  list — one authorisation path, with a per-instance list, never two mechanisms (NE-DOIT-PAS-7).
+- **A right is proved on both sides, separately** (§17): the action absent from the surface for the account
+  without it, AND the call refused for one that forces it — on VIEWS too, not writes alone. The backend owes the
   second half.
 
 ## 3. A quality profile override per acquisition — §17, §9
@@ -64,28 +100,84 @@ brief can read the reason and not only the requirement.
 
 ## 4. The ratio is steered — §18 (L16's demands)
 
-- The per-tracker policy (`min_ratio`, `min_seed_time`) becomes **writable from the interface**:
-  one write operation, absent from both contracts today. The displayed ratio is the one the
-  TRACKER recognises (NE-DOIT-PAS-1), never a locally computed figure.
-- `obligations`, `stalled-grabs`, `downloads` exist and are called by nothing yet; their shapes
-  are the interface's to diverge from if the drawn surface needs more (D7).
-- **Dictated 2026-08-30 (§18 completed):** a verb to RELEASE an obligation early; reconciliation of
-  an EXTERNAL removal (a torrent taken out of qBittorrent by hand closes its obligation as
-  « released by removal », never a silent anomaly); a per-tracker ratio-alert threshold and a push
-  channel to carry it (**FCM, iOS and Android** — a platform demand); a ranking input that
-  subtracts points from releases on low-ratio trackers. Per-tracker Download / Upload volumes and
-  trend, and per-active-torrent deadline and ratio, must be readable.
+- **Corrected 2026-09-27 (L16's redraw, F11).** The per-tracker policy (`min_ratio`,
+  `min_seed_time`) is **already writable from the interface**: `updateConfigurationFile` (`PUT
+  /api/config/files/{name}`) already writes `tracker.providers.<name>.economy.*`, and Réglages
+  already offers these two fields as settings rows. **Only the ratio-alert threshold is missing** —
+  a new key in the SAME `economy` block (`alert_threshold` or equivalent), never a second write
+  path. The displayed ratio is the one the TRACKER recognises (NE-DOIT-PAS-1), never a locally
+  computed figure, and — for a torrent cross-seeded onto more than one tracker — it is computed on
+  the TORRENT'S OWN SIZE on each tracker, never on the tracker's download volume (organisation
+  ruling 18, never a division by zero).
+- `obligations`, `downloads` exist and are called by nothing yet; their shapes are the interface's
+  to diverge from if the drawn surface needs more (D7). `stalled-grabs` also exists and is called by
+  nothing, but is NOT this lot's operation (L16's redraw, F14) — its own rollup answers a different
+  question, distinct from a torrent's own deferral reason (item below).
+- **Dictated 2026-08-30 (§18 completed):** a per-tracker ratio-alert threshold and a push channel to
+  carry it (**FCM, iOS and Android** — a platform demand); a ranking input that subtracts points from
+  releases on low-ratio trackers. Per-tracker Download / Upload volumes and trend, and
+  per-active-torrent deadline and ratio, must be readable.
+- **Reshaped 2026-09-27 (organisation ruling 18, round 9 Q7 — replaces the prior « release verb »
+  reading above).** « **Retirer de qBittorrent** »: a write that removes one or more qBittorrent
+  entries (an original grab and every entry sharing its files — a grouped removal, round 9 Q7),
+  files deleted by default and decheckable, answering which trackers still held a running obligation
+  on what was removed so the interface can name them. An obligation ends when its torrent leaves
+  qBittorrent, by this gesture or by the operator's own hand outside the interface — the SAME
+  reconciliation demand as before (never a silent anomaly, NE-DOIT-PAS-5), now needing a STREAM EVENT
+  as well, so a removed torrent's row can disappear live, without a refetch.
+- **New, round 9 Q1 (2026-09-27).** A per-tracker HEALTH read: whether the tracker's identifier (API
+  key, passkey) is refused, and since when — folded into the tracker-level summary read § 18 already
+  asks for, never a separate operation.
+- **New, L16's redraw (F14).** The pipeline's own `classify_deferrals` (read today by the watcher,
+  exposed by no web route) must answer, on a route the interface can call: the KIND of a torrent's
+  deferral (ratio, insufficient space, or missing content) and, for a ratio cause, the tracker's name
+  and its obligation's own `min_ratio` — never the legacy top-level `ingest.min_ratio` key, which a
+  card must not name.
 
 ## 5. Cross-seed is seen and decided — §19 (L17's demands)
 
-- **Nothing exists to call.** The maquette will declare the routes its experience requires — the
-  feed of injections and refusals with their reasons, the per-tracker state, the verbs to prevent
-  and to provoke — and the engine's `CrossSeedInjected` / `CrossSeedRejected` events must reach
-  the stream. NE-DOIT-PAS-8 is the hard limit on any automation the surface offers.
-- **Dictated 2026-08-30 (§19 completed):** cross-seed runs AUTOMATICALLY, on by default, with a
-  per-tracker off switch — a config WRITE per tracker; and a per-torrent, per-tracker state route
-  carrying four states (« actif », « stoppé », « tracker sans cross-seed », « erreur de
-  cross-seed »). The media-sheet block is admin-only, so the route's answer is role-aware (§17).
+**AMENDED 2026-09-27** on the operator's rulings of round 8, 9 and 10 (`docs/reference/operator-method.md`) and the
+auditor's rulings-coherence round (M4, M5, M6) — `docs/features/maquette-l17/DESIGN.md` § 6.2 is the typed form of
+every row below; this section states the shapes only.
+
+- **Nothing exists to call.** The maquette declares the routes its experience requires — the per-torrent,
+  per-tracker state, the verb to prevent (a per-tracker switch, and a narrower per-torrent cut) and to provoke, the
+  exclusion memory — and the engine's `CrossSeedInjected` / `CrossSeedRejected` events must reach the stream, beside
+  a third, search-outcome event the maquette invents standing in for what the backend must emit once a search
+  operation exists. NE-DOIT-PAS-8 is the hard limit on any automation the surface offers.
+- **Dictated 2026-08-30, amended 2026-09-27 (§19 point 5):** cross-seed runs AUTOMATICALLY, active by default AT THE
+  SWITCHOVER (never before — the operator's own live switches, off today, are untouched example values, not his
+  choice, round 9 Q9), with a per-tracker off switch — a config WRITE per tracker, cutting NEW cross-seeds only,
+  with an option to also stop the ones already running (round 9 Q5) — and a per-torrent, per-tracker state carrying
+  SIX states (« actif », « stoppé », « tracker sans cross-seed », « erreur de cross-seed », « sans correspondance »,
+  « pas encore cherché », round 8 OPEN 5 and round 10 Q5), each pair's `stoppedAt` and closed `stopCause`
+  (`switch` | `removed`) kept by the backend (round 8 OPEN 6 = B — « stoppé » is read by history, never by cause).
+  **The engine must attempt every ELIGIBLE, switched-on tracker**, not stop at the first verified injection as it
+  does today — the state is per (torrent, tracker) pair, not per torrent alone.
+- **A narrower stop, per pair.** Cutting a torrent's cross-seed on ONE tracker removes its qBittorrent entry WITHOUT
+  its files, closes any running obligation there « libérée » (never left in breach, M4), and marks the pair
+  « stoppé » with its date (round 9 Q8). Every obligation-ending gesture the interface confirms — this cut, or
+  L16's own « Retirer de qBittorrent » — closes « libérée », never « en infraction », and the confirmation names
+  every tracker with a running obligation whenever one exists (M4, round 9 Q7).
+- **A memory of every cut.** Cutting a torrent's cross-seed on a tracker EXCLUDES that pair from the engine's future
+  passes; a title-wide « Ne plus partager ce titre » excludes it on every tracker; both undo, at any time, without a
+  confirmation on the undo itself (round 9 Q11). A backend exclusion list, keyed by (torrent, tracker) and by whole
+  title, with its write and its undo, is a new demand — nothing today keeps such a list; the engine's own
+  `exclude_recent_search_days` is a TIME window on the automatic sweep, never a permanent exclusion, and a
+  hand-provoked search is bounded by the quota and the delay ONLY, never by that window.
+- **The badge counts failures, not every refusal.** The Trackers badge's cross-seed term reads a count already
+  narrowed to two of the engine's reason families (« the attempt failed », « the engine could not finish », plus
+  `recheck_failed`, reserved and unreachable today) — an ordinary mismatch (the files are not the same) and « sans
+  correspondance » never move it. **A reserved slot in the same closed set** stands for a future upload-to-tracker
+  or tracker-side torrent-creation failure (round 8 Q18 = B: a separate lot, proposed L23, after L18) so that lot's
+  landing needs no amendment to this shape. A failure is a STATE and leaves the count the moment its pair's own
+  state changes, with no « seen » gesture (M5).
+- **The media-sheet block is admin-only, and is L18's** (round 8, L17 OPEN 1 = B): no account carries a role in
+  either contract today, only the instance's own deployment role — the block's route, gated by a named ACL right
+  (organisation ruling 17/20), is drawn once L18's rights model exists, not before.
+- **No feed** (round 8, OPEN 4 = A): the per-pair state already carries the date of an injection and the reason of
+  a refusal; organisation ruling 12 keeps Système's history as the only trace of the past, and a feed would be a
+  second one.
 
 ## 6. The failure SHAPE the binding lot must reconcile first — B-267
 
