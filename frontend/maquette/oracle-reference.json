@@ -1,6 +1,6 @@
 {
   "$comment": "The recorded oracle's reference — `frontend/maquette/oracle.py`. One entry per (named state x region): a bounding rectangle rounded to one decimal, and the computed properties of `regions.json`'s `probe.computedStyleSubset`. `null` means the region's selector matched nothing in that state, which is data rather than an omission. Regenerate with `--record`; ratify a REVIEWED change with `--accept`, never from a gate.",
-  "baseCommit": "a639bec2890550039c8564048ce19d97343684fe",
+  "baseCommit": "91811f599ca2c7cc4da4ff421bd19c8389c6e52a",
   "platform": "Darwin/arm64",
   "counts": {
     "states": 124,
@@ -2639,7 +2639,7 @@
           "x": 0,
           "y": 139,
           "width": 390,
-          "height": 946.4
+          "height": 975.8
         },
         "style": {
           "position": "static",
@@ -2868,7 +2868,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 1016.4
+          "height": 1045.8
         },
         "style": {
           "position": "static",
@@ -3057,7 +3057,7 @@
           "x": 0,
           "y": 139,
           "width": 390,
-          "height": 835.1
+          "height": 797.4
         },
         "style": {
           "position": "static",
@@ -3286,7 +3286,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 905.1
+          "height": 867.4
         },
         "style": {
           "position": "static",
@@ -3475,7 +3475,7 @@
           "x": 0,
           "y": 139,
           "width": 390,
-          "height": 1033.5
+          "height": 1066.7
         },
         "style": {
           "position": "static",
@@ -3704,7 +3704,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 1103.5
+          "height": 1136.7
         },
         "style": {
           "position": "static",
@@ -10366,7 +10366,7 @@
           "x": 0,
           "y": 139,
           "width": 390,
-          "height": 946.4
+          "height": 975.8
         },
         "style": {
           "position": "static",
@@ -10595,7 +10595,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 1016.4
+          "height": 1045.8
         },
         "style": {
           "position": "static",
@@ -11649,7 +11649,7 @@
           "x": 0,
           "y": 139,
           "width": 390,
-          "height": 988.7
+          "height": 950.9
         },
         "style": {
           "position": "static",
@@ -11878,7 +11878,7 @@
           "x": 0,
           "y": 69,
           "width": 390,
-          "height": 1058.7
+          "height": 1020.9
         },
         "style": {
           "position": "static",
