@@ -1,11 +1,10 @@
-// What the dying engine reads, asked for by the frame.
+// What no mounted component asks for, asked for by the frame.
 //
-// WHY THIS EXISTS, and it is the cost of an engine that draws. A React surface
-// asks for what it draws: mount the deck and its follows are fetched. The engine
-// draws too — its nav badges, its addressed-panel validation, its discover deck
-// — and it asks through SYNCHRONOUS accessors over the cache, which answer empty
-// until something has filled it. Nothing had: no component was mounted that
-// wanted those resources on that address.
+// WHY THIS EXISTS. A React surface asks for what it draws: mount the deck and
+// its follows are fetched. A few readers are not components — the addressed
+// panels' validation and the producers a click calls — and they ask through
+// SYNCHRONOUS accessors over the cache, which answer empty until something has
+// filled it.
 //
 // Measured: a cold load at `/acquisition?panel=follow:Silo` refused the panel
 // and cleaned the address, because the follows had never been asked for. The
@@ -20,11 +19,13 @@
 // measurement inherits a previous one's pages — and a query with an OBSERVER is
 // re-asked by that observer while one without is not. These have none.
 //
-// It goes with the engine at L13, and it goes in one file.
+// A PREFETCH IS NOT AN OBSERVER, which is why the navigation badges' reads are
+// not here: an answer nobody observes is not refetched on a live event, so a
+// badge fed by this list froze on the boot's answer. Each badge row declares its
+// reads and the frame observes them (`app/badge-reads.tsx`). This file dies when
+// its last family is declared beside the reader that needs it.
 import type { QueryClient } from "@tanstack/react-query";
 import { read } from "../lib/query-client";
-import { queueKey, stagingKey } from "../lib/queue";
-import { store } from "../lib/store-access";
 import { refillSuggestions } from "../features/acquisition/queries";
 import { refillProducers } from "./panel-host";
 
@@ -60,30 +61,6 @@ export function installEngineData(queryClient: QueryClient): void {
         queryFn: async () => read(address),
       });
     }
-    // THE QUEUE, in whichever world is in force. The engine's nav badges and
-    // its journey panel read it, and neither is a component.
-    const scenario =
-      String(store?.read().state.scen ?? "") === "loaded" ? "loaded" : "";
-    const parameters = new URLSearchParams(scenario ? { scenario } : {});
-    void queryClient.prefetchQuery({
-      queryKey: stagingKey(scenario),
-      queryFn: async () => {
-        const answer = await read<Record<string, unknown[]>>(
-          "/api/staging/media", parameters);
-        return {
-          stuck: answer.stuck,
-          moving: answer.moving,
-          settled: answer.settled,
-        };
-      },
-    });
-    // THE ANSWER WHOLE, as `useAcquisitionQueue` reads it: one key, one
-    // shape. A projection here listed the families it knew and dropped the
-    // ones born after it, and whichever of the two answered first won the key.
-    void queryClient.prefetchQuery({
-      queryKey: queueKey(scenario),
-      queryFn: async () => read("/api/acquisition/to-handle", parameters),
-    });
     refillSuggestions?.();
     // AND WHAT THE MOVED PRODUCERS READ. A producer is called from a click and
     // cannot await, so its reads are asked for here with the rest — beside the
