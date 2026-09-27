@@ -10,19 +10,19 @@ L22b appends from 13).
   [ac1af8]`. main has moved (#621, the references' gesture): merge `origin/main` at the next unit boundary — only the
   generated files conflict; regenerate them (oracle by an accept in one invocation + the script proof; ledgers re-read).
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
-- DONE: 15a–19-bis-b, merges of #619/#621/main(#617/#618/#622/#623), the triage's docs commit, 20, 21 (B-556), 22
-  (B-557), 23, 24, 25, 26. NEXT (integers): **27** the Plex match waits on a disagreement (F3; STOP D if Star Trek's
-  seed costs § 13) → 28 the menu button's badge (HELD: F1 + C2 and M3 at its opening) → [MIDPOINT full suite +
-  audit2.py ×10 with its whole output kept; the steward's ×10 on main read 0/10, logs ~/Library/Logs/tm-steward/o48-audit2/]
-  → 29 direct-add card (F5) → 30 follow sheet search + grab (F6 + F42; likely cut) → 31 « Abandonner » on a follow's
-  card (M1) → 32 one-off acquisitions (round 10 Q1 + Q2; likely cut) → 33 sentences (F7, F54, F53) → 34 readers (F41)
-  → 35 → 36 (the dead `acq-follows-pause-empty` still sits in the a11y ledgers) → 37 death of Arrivées (F8) → 38 → 39
-  close (F8, F52, F67, C9; product-intent-map.md:49 `acq-discover-posters` → `discover-posters`, the operator's
-  ruling). Each re-measured at its opening; > 15 → cut (integers, the rest shifts). **REBOOT Monday 2026-09-28 05:00:
-  open no phase that cannot finish before 04:50; be at a boundary (commit, push, resume) before 04:50.**
+- DONE: 15a–19-bis-b, merges of #619/#621/main(#617/#618/#622/#623), the triage's docs commit, 20–27. NEXT
+  (integers): **28** the menu button's badge (HELD: F1 + C2 and M3 at its opening, before its first commit; RULINGS 23:
+  name the states drawing the bar/drawer under a layer at the opening) → [MIDPOINT full suite + audit2.py ×10 with its
+  WHOLE output kept per draw; the steward's ×10 on main read 0/10, logs ~/Library/Logs/tm-steward/o48-audit2/] → 29
+  direct-add card (F5) → 30 follow sheet search + grab (F6 + F42; likely cut) → 31 « Abandonner » on a follow's card
+  (M1) → 32 one-off acquisitions (round 10 Q1 + Q2; likely cut) → 33 sentences (F7, F54, F53) → 34 readers (F41) → 35 →
+  36 (the dead `acq-follows-pause-empty` still sits in the a11y ledgers) → 37 death of Arrivées (F8) → 38 → 39 close
+  (F8, F52, F67, C9; product-intent-map.md:49 `acq-discover-posters` → `discover-posters`, the operator's ruling).
+  Each re-measured at its opening; > 15 → cut (integers, the rest shifts). **REBOOT Monday 2026-09-28 05:00: open no
+  phase that cannot finish before 04:50; be at a boundary (commit, push, resume) before 04:50.**
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
-  R234 discover_page · R235 pull_on_a_card · next free R236. RULINGS: L22b writes 13–29 (13–21 used); L22a's repair round wrote 30–32.
+  R234 discover_page · R235 pull_on_a_card · next free R236. RULINGS: L22b writes 13–29 (13–24 used); L22a's repair round wrote 30–32.
 - AUDITOR ORDER 48 (amended): a fall set aside as « load » needs the same rule ≥ 10× here and ≥ 10× on `main` at
   comparable load; any gap is a regression.
 - LOGS `~/Library/Logs/tm-l22b/`; mutex `sh scripts/heavy.sh --held`. GATE: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh
@@ -157,4 +157,11 @@ L22b appends from 13).
   ORDER 36 (steward): NO gate runs in the background — wait inside the call (≤ 600 s) or in a bounded loop on its log,
   editing nothing meanwhile. RULINGS 23: a state drawing a tab under a layer is named at the opening of a phase that
   touches the tab.
+- 2026-09-27 phase 27 (F3): STOP D → RULINGS 24 (only a disagreement waits; POSED on Star Trek as « Star Trek:
+  Discovery »; « Corriger » sends the identity held, no candidates screen; demand E = the correction verb, OPEN 9's
+  fifth demand). R221 re-aimed out loud; four readers of Star Trek's card re-aimed or repaired (R47 was a real defect:
+  the two-sided sentence cropped the poster to 43 % — the card's title is the held side, the sentence names Plex's);
+  a guard exemption keyed by line (markup_anchors.py, audit2.py:184) kept by a shorter comment. Commits 571989427,
+  2122c49f5, ddb9ce06b, f0566bda1 (pin 129). Mutations `27-mutation-{agree,correct,confirm}.log`, each FAIL by name.
+- 2026-09-27 stood down after phase 27 (the context hook's 60 % gate: 63 %); the next unit is phase 28.
 
