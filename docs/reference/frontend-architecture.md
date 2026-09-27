@@ -830,23 +830,46 @@ and the operator can prevent or provoke it. **Nothing exists to call**: this is 
 case — the maquette declares the routes its experience requires, the demands register carries
 them, the mocks are INVENTED because no fixture exists (L08's « seeded from the fixture it
 replaces » does not apply, and the oracle records the new surfaces as new rather than proving
-them unchanged). `CrossSeedInjected` and `CrossSeedRejected` are claimed by its `live.ts`.
+them unchanged). `CrossSeedInjected`, `CrossSeedRejected` and a search-outcome event are claimed by
+its `live.ts`.
 
-**Dictated (operator, 2026-08-30) — the blocking note is lifted.** AUTOMATIC: the engine
-cross-seeds alone, on by default, with a PER-TRACKER off switch (a config write, NE-DOIT-PAS-6
-made into a setting). Seen: for EACH torrent, the cross-seed state per tracker — « actif »,
-« stoppé », « tracker sans cross-seed », « erreur de cross-seed ». Lives: the per-tracker state in
-the trackers page, plus a per-tracker block in the media sheet **visible to the administrator
-profile only** — which reads §17's role model: if this lot runs before L18, the block lands behind
-the served role the backend already exposes, and L18 redraws it on the full model.
+**Dictated (operator, 2026-08-30; amended 2026-09-27, product-intent.md § 19 point 5) — the
+blocking note is lifted.** AUTOMATIC: the engine cross-seeds alone, active by default AT THE
+SWITCHOVER, with a PER-TRACKER off switch (a config write, NE-DOIT-PAS-6 made into a setting) that
+cuts NEW cross-seeds only. Seen: for EACH torrent, the cross-seed state per tracker, in SIX words —
+« actif », « stoppé », « tracker sans cross-seed », « erreur de cross-seed », « sans
+correspondance », « pas encore cherché ». Lives: the per-tracker state as a MARK on the Trackers
+page's « Torrents » tab (organisation ruling 19, 2026-09-27 — the page is two tabs, not a page plus
+a per-tracker detail screen); a per-tracker block in the media sheet **visible to the
+administrator profile only** is HELD FOR L18 (round 8, L17 OPEN 1 = B), whose rights model exists —
+no account carries a role in either contract today, only the instance's own deployment role, so
+« the served role the backend already exposes » was never this lot's to read. A separate
+upload-to-tracker lot (round 8 Q18 = B), publishing a torrent to a tracker to open a cross-seed, is
+proposed as **L23**, after L18, drawn ahead of time in a later slot; L17 keeps only a reserved slot
+in its closed failure list for it.
 
-**Where it lives (invariant 10).** `features/trackers/` extended (the per-tracker state), a block
-in the media sheet's descriptor (a title seeds elsewhere — the media feature's `panel-seasons`
-precedent: a feature ADDS a block kind), and a feed if the operator chooses one.
+**Where it lives (invariant 10).** `features/trackers/` extended — the roster's line and a MARK on
+each torrent's own row of the « Torrents » tab, never a section or a page of L17's own (ruling 19
+kills the `/trackers/$name` detail screen the first drawing of this entry assumed). **No feed**
+(round 8, OPEN 4 = A): the mark's own rows already carry the date of an injection and the reason of
+a refusal, and organisation ruling 12 keeps Système's history as the only trace of the past. The
+media sheet's block is L18's (above).
 
-**Done when.** The map's DOIT-14 row reads `served` with a rule; the declared routes are in the
-maquette's contract and in the demands; the two events are claimed; a refusal is readable from
-the surface with its reason (NE-DOIT-PAS-5 applied to a success).
+**Done when.** The map's DOIT-14 row reads `partly` at L17's close (the roster, the mark, the
+badge, proof R-L17-a … k) and `served` only once L18 draws the media sheet's block on its own
+rights model; the declared routes are in the maquette's contract and in the demands; the three
+events are claimed; a refusal is readable from the surface with its reason (NE-DOIT-PAS-5 applied
+to a success); the Trackers badge counts the cross-seed FAILURES only, with a reserved slot for the
+future upload lot.
+
+**Design and plan AMENDED 2026-09-27** on the operator's rulings of round 8 (L17 OPEN 1–8, Q18),
+round 9 (Q5, Q7 in part, Q8, Q9, Q10, Q11) and round 10 (Q3, Q5), and the auditor's
+rulings-coherence round (M4, M5, M6) —
+`docs/features/maquette-l17/DESIGN.md` and `plan/INDEX.md` (18 phases, mean ≈ 11.2). All eight OPEN
+questions the first drawing carried are ruled; the media sheet's block and its route move to L18
+entirely (above); the plan drops the feed's two phases and the media block's two phases, and adds
+three — cutting one tracker's cross-seed, the exclusion memory, and the virtual window the mark's
+own growth costs.
 
 **Design and plan written 2026-09-27, PR #617** — `docs/features/maquette-l17/DESIGN.md`, `plan/INDEX.md` (19 phases, mean ≈ 10.9); eight open questions.
 
