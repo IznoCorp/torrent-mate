@@ -47,7 +47,9 @@ BODY = """() => {
       const line = card.querySelector('[data-part="card/subtitle"]')?.textContent ?? '';
       return title + ' ' + ((line.match(/S\\d+E\\d+/) || [''])[0]);
     })),
-    count: tab ? Number(tab.textContent.trim()) : 0,
+    // ABSENT IS NULL, never 0: a drawn « 0 » and no count at all are two
+    // drawings, and « carries no count » is about the second.
+    count: tab ? Number(tab.textContent.trim()) : null,
     text: body ? body.innerText : '',
   };
 }"""
@@ -84,8 +86,10 @@ async def main():
                       EMPTY in read["text"].lower(), repr(read["text"][:160]))
         journal.check("acq-now-idle, nothing moving: no section is drawn",
                       read["titles"] == [], str(read["titles"]))
+        # RE-READ OUT LOUD (round one, A12): this passed a drawn « 0 », read as
+        # the absent count's 0; it reads the count's absence now.
         journal.check("acq-now-idle, nothing moving: the tab carries no count",
-                      read["count"] == 0, f"count {read['count']}")
+                      read["count"] is None, f"count {read['count']}")
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

@@ -67,6 +67,8 @@ SEEDS = pathlib.Path(__file__).resolve().parents[1] / "design/src/mocks/seeds"
 DROPPED = {row["title"] for name in ("stuck.json", "stuck-loaded.json")
            for row in json.loads((SEEDS / name).read_text(encoding="utf-8"))
            if row.get("droppedByHand")}
+# The queue's rows stopped on the scrape: blocked on « identifié ».
+BLOCKED_ROWS = {row["title"] for row in json.loads((SEEDS / "blocked.json").read_text(encoding="utf-8"))}
 # The time a sheet draws for a rung nobody recorded one for.
 NO_TIME = "—"
 # The state of a rung the row has not reached, or never lived.
@@ -247,13 +249,14 @@ async def main():
         await page.wait_for_timeout(SETTLED)
         # RE-AIMED OUT LOUD: « À traiter » also holds a card blocked on its LAST
         # rung (a Plex match to confirm); this hold reads the cards stopped on
-        # « identifié ».
-        blocked = [card for card in await page.evaluate(CARDS)
-                   if len(card["states"]) == len(RUNGS)
-                   and card["states"][RUNGS.index("identified")] == "blocked"]
+        # « identifié ». A POSITIVE SUBJECT (round one, A12): it filtered the
+        # cards blocked there and then asserted they were — true of any list.
+        # It reads the rows the queue's seed says are stopped on the scrape.
+        stopped = await page.evaluate(CARDS)
+        blocked = [card for card in stopped if card["title"] in BLOCKED_ROWS]
         journal.check(
             "a card stopped on « identifié » is blocked there, with its reason in full",
-            bool(blocked) and all(
+            len(blocked) == len(BLOCKED_ROWS) and bool(blocked) and all(
                 len(card["states"]) == len(RUNGS)
                 and card["states"][RUNGS.index("identified")] == "blocked"
                 and card["rung"] == rung_name("identified")

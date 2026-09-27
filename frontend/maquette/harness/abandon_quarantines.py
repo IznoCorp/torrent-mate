@@ -80,10 +80,15 @@ async def main():
         # THE OTHER BUTTON of the confirmation, whatever it wears: the way out is
         # read as « not the dangerous one », so a cancel that lost its dismiss
         # and gained an act is still the button tapped.
-        await page.evaluate("""()=>document.querySelector('[data-part="dialog"][data-open] [data-part="dialog/button"]:not([data-tone="danger"])')?.click()""")
+        # THE CANCEL IS FOUND, AND ITS EFFECT IS READ (round one, A12): a
+        # `?.click()` on nothing passed, and the dialog was never read closing.
+        cancelled = await page.evaluate("""()=>{const button = document.querySelector('[data-part="dialog"][data-open] [data-part="dialog/button"]:not([data-tone="danger"])');
+            if (!button) return false; button.click(); return true;}""")
         await page.wait_for_timeout(ACTED)
+        journal.check("cancelling closes the confirmation",
+                      cancelled and await page.evaluate(DIALOG) is None, f"cancel found: {cancelled}")
         journal.check("cancelling sends nothing, and the card stays",
-                      tapped and await page.evaluate(DISCARDS) == before
+                      tapped and cancelled and await page.evaluate(DISCARDS) == before
                       and await page.evaluate(ON_TAB, TUNNEL_ERROR), "")
 
         journal.check("no JS error", not errors, str(errors))

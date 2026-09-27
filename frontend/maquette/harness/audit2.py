@@ -251,7 +251,11 @@ async def main():
     # holds — the queue's in-flight cards and the arrivals on their way —
     # re-aimed out loud: it counted the media waiting to be taken, which left
     # « En cours ». It asserted `takeable + blocked` on both, which is the
-    # behaviour ruling 10 reverses.
+    # behaviour ruling 10 reverses. WHAT IT STOPPED READING, said: both states
+    # are the REAL world, where nothing is in flight, so « En cours »'s count is
+    # read here only as absent against zero — its positive subject, the loaded
+    # world's count equal to the media « En vol » draws, is R224's
+    # (`now_holds_in_flight.py`).
     bad=await pg.evaluate("""async ()=>{const out=[];
       const wait=()=>new Promise(r=>setTimeout(r,400));
       const number=(element)=>element?Number(element.textContent):null;
