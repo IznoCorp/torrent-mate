@@ -9,12 +9,15 @@ L22b appends from 13).
   (#619); on L22a's squash onto `main` (the steward names it) merge `origin/main` in at the next unit boundary — its
   repair round touches staging.ts, arrival-slots.ts, requester_line.py, the oracle. Steward: `Orch : TM frontend`.
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b` (not pushed since 0d86834fe).
-- DONE: 15a, 16, 17, 18, 19, 19-bis-a. NEXT (INDEX, 2026-09-27): 19-bis-b the Découvrir tab dies (R206 at three,
-  R202 fallback, eight acq-discover* ids renamed by the tool; page id `discover`, region `discover/body`) → 18-ter `--color-waiting-text` (operator 11:0x, light oklch(0.48 0.14 345), dark =
-  waiting; phase 18's state `acq-follows-film-at-plex-check` back) → 15b (real delete, confirmation naming copied /
-  moved — ingest COPIES a seeding torrent and MOVES any other, `ingest.py:549-561`; a new operation + demand; two
-  states; Q2 both, R227) → 18-bis paused follows fold at the end of « Suivis », the « En pause » pill dies (R233) →
-  20 → [MIDPOINT full suite] → 21 … 27. Each re-measured at its opening; > 15 → cut, one message.
+- DONE: 15a, 16, 17, 18, 19, 19-bis-a, 19-bis-b. NEXT: the ONE docs commit of the coherence triage (§ B of
+  `/Users/izno/dev/review-archive/coherence-2026-09-27-triage.md`: F4, F50 — minus frontend-architecture, docs/reference
+  is the steward's — F51 integer renumbering, F58 L22 part, porting Q16/Q17/Q19/Q20/round 8, C8; texts in
+  `coherence-2026-09-27.md`) → 18-ter `--color-waiting-text` (operator 11:0x, light oklch(0.48 0.14 345), dark =
+  waiting; phase 18's state `acq-follows-film-at-plex-check` back) → 15b (real delete naming copied / moved — ingest
+  COPIES a seeding torrent and MOVES any other, `ingest.py:549-561`; a new operation + demand; two states; Q2 both;
+  F40; R227) → 18-bis paused follows fold (R233) → F3 (a new phase) → 20 HELD (F1+C2 at its opening) → [MIDPOINT] →
+  F5 → F6+F42 → 21 (F7, F54) → 22 (F41) … 27. Each re-measured at its opening; > 15 → cut, one message.
+  Orchestrator now `Orch : TM frontend [ac1af8]`.
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (15b) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (18-bis)
   R233 · R234 discover_page · next free R235. RULINGS: L22b writes 13–29 (13–20 used); L22a's repair round from 30.
@@ -96,3 +99,14 @@ L22b appends from 13).
   Gate `19bisa-gate.log` 34 rules + 26 guards 0 failed, oracle 0; `19bisa-a11y.log` 0 + light 98/98. Mutation
   (`19bisa-mutation.log`): the discover row `inBar: false` → R234 FAIL « the table marks « Découvrir » a page of the
   bar » and « the bar carries its button, and a tap lands on its address ».
+- 2026-09-27 phase 19-bis-b: R206 (three tabs) and R202's « discover » fallback red (`19bisb-red.log`). Commits
+  fa0610743 (feat: the tab dies; six ids renamed by `rename-identifiers.py --values --whole` — discover-full, -posters,
+  -deck, -degraded, -exhausted, -loading — the oracle and three a11y ledgers re-keyed, light still 98; RULINGS 1's exact
+  substitution for five `__go('…')` strings and one backticked comment: 6; zero left under frontend/maquette; history
+  left in BUGS.md, the lot's docs, and `docs/reference/product-intent-map.md:49` — not mine to edit), 12dab6588 (fix:
+  the Découvrir page observes suggestionsQuery — R223 fell on discover-full, a pull re-read nothing on the page
+  19-bis-a created). The oracle read no divergence; an accept run rewrote 847 lines of noise — reverted. Gate
+  `19bisb-gate.log` 42 rules (21 named) + 26 guards 0 failed, oracle 0; `19bisb-a11y.log` 0 + light 98/98. Mutations:
+  a « discover » tab put back → R206 FAIL « the three tabs read … »; « discover » kept in TABS → R202 FAIL « « Découvrir »
+  remembered … opens « Suivis » »; `acq-discover-degraded` put back in panel.py → RULE CRASHED naming it (« état inconnu :
+  acq-discover-degraded ») — RULINGS 1's reading.
