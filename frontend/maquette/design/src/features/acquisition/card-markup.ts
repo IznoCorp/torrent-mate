@@ -202,7 +202,7 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
     body: { "data-panel": medium.panel || (hasSheet ? `media:${title}` : folderAddress) },
     subtitle: medium.secondaryLine,
     reason: medium.plexMatch
-      ? escapeMarkup(i18next.t("surfaces.card.plexMatch", { title: medium.plexMatch.title, held: title }))
+      ? escapeMarkup(i18next.t("surfaces.card.plexMatch", { title: medium.plexMatch.title }))
       : onLadder?.setAside
       ? escapeMarkup(onLadder.setAside)
       : medium.reason

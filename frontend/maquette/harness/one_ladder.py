@@ -58,8 +58,10 @@ RUNGS = ["requested", "searched", "grabbed", "downloading", "arrived",
 # Where the cards on the ladder are drawn: what is in flight, and what waits for
 # the operator's hand.
 LADDER_STATES = ("acq-card-rungs", "acq-todo-loaded")
-# The rungs the real rows stand on across those two lists.
-REACHED = {"downloading", "arrived", "identified", "shelved", "verified"}
+# The rungs the real rows stand on across those two lists. RE-AIMED OUT LOUD:
+# « vérifié dans Plex » left it — only a DISAGREEING Plex match waits there, and
+# no real row carries one; the eight are held whole on the journey sheet.
+REACHED = {"downloading", "arrived", "identified", "shelved"}
 # The three steps the sheet opens « rangé » into.
 STEPS = ["sorted", "enriched", "shelved"]
 # The rows the seeds say were dropped in the staging area by hand.

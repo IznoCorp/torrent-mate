@@ -103,8 +103,9 @@ async def main():
                    radius:s.borderRadius,icon:!!el.querySelector(':scope > svg')};};
       // RE-AIMED OUT LOUD: the solid card foot was « Récupérer maintenant » on
       // « En cours »; it left, and the solid foot a card still carries is
-      // « Confirmer », on the Plex match in « À traiter ».
-      window.__go('acq-todo-loaded'); await new Promise(r=>setTimeout(r,220));
+      // « Confirmer », on a Plex match in « À traiter » — which only a
+      // DISAGREEING match reaches, posed by its own state.
+      window.__go('acq-card-plex-disagrees'); await new Promise(r=>setTimeout(r,220));
       measure('[data-part="card/foot"][data-solid]','card footer (primary)');
       window.__go('followsheet-gaps'); await new Promise(r=>setTimeout(r,240));
       measure('[data-part="sheet/action"][data-tone="primary"]','sheet (primary)');

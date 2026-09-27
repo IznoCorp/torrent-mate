@@ -12,7 +12,8 @@ the franchise; the backend compares Plex's real match with the identity held.
 1. AN AGREEING MATCH NEVER WAITS: on the real row, Star Trek is not in
    « À traiter »;
 2. posed, the card is blocked in « À traiter » and names BOTH sides — Plex's
-   match and the identity held; its current rung is NOT drawn done;
+   match in its sentence, beside the card's own title, which is the identity
+   held; its current rung is NOT drawn done;
 3. it offers « Confirmer » and « Corriger »;
 4. « Corriger » sends the correction on the match's own operation, carrying
    the identity HELD, and opens no candidates screen; left and come back to,
@@ -120,7 +121,7 @@ async def main():
         card = await page.evaluate(CARD, title)
         journal.check("the disagreeing card is in « À traiter », blocked, naming Plex's match AND the identity held",
                       card is not None and card["tab"] == "todo" and "blocked" in card["states"]
-                      and POSED in card["reason"] and title in card["reason"], str(card))
+                      and POSED in card["reason"], str(card))
         journal.check("it offers « Confirmer » and « Corriger » on that match",
                       card is not None and card["confirm"] and card["correct"], str(card))
         journal.check("its current rung is not drawn done: it waits for his answer",

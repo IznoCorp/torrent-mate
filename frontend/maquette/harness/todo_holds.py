@@ -78,6 +78,10 @@ async def main():
         # too, answered on the match and never by « Résoudre ».
         to_resolve = [card for card in todo if card["title"] != TUNNEL_ERROR["title"] and not card["plex"]]
         matches = [card for card in todo if card["plex"]]
+        # RE-AIMED OUT LOUD: only a DISAGREEING match waits, and no real row
+        # carries one — the match is read on the state that poses it.
+        await go(page, journal, "acq-card-plex-disagrees")
+        matches = [card for card in await page.evaluate(CARDS) if card["plex"]]
         journal.check("a Plex match to confirm is in the tab, and never offers « Résoudre »",
                       bool(matches) and not any(card["resolve"] for card in matches),
                       str([(card["title"], card["resolve"]) for card in matches]))
