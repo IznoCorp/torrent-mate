@@ -25,6 +25,7 @@ import { renameAccount } from "./account";
 import { mockState } from "./state";
 import { poseDisagreement, setAside } from "./handlers/staging";
 import { poseTunnelError } from "./handlers/follow-errors";
+import { sameItem } from "./handlers/same-item";
 import { poseKeepsItsFiles } from "./handlers/staged-folders";
 import { confirmInPlex, placeAtPlexCheck } from "./handlers/ladder";
 import { emit } from "./stream";
@@ -56,6 +57,8 @@ export type MockSeeds = {
   poseDisagreement: (title: string, match: { title: string; ids: Record<string, string | number> }) => void;
   /** Poses a tunnel error on a follow's folder in flight — a DERIVATION, never read (RULINGS 26). */
   poseTunnelError: typeof poseTunnelError;
+  /** Whether two queue cards stand for one item — the layer's own rapprochement (R238). */
+  sameItem: typeof sameItem;
   /** Lays a medium's ladder one event away from « vérifié dans Plex » — a DERIVATION from its real row (RULINGS 14). */
   placeAtPlexCheck: (title: string) => void;
   /**
@@ -123,6 +126,7 @@ export const mockSeeds: MockSeeds = {
   poseKeepsItsFiles,
   poseDisagreement,
   poseTunnelError,
+  sameItem,
   placeAtPlexCheck,
   confirmInPlex: (title) => {
     confirmInPlex(title);

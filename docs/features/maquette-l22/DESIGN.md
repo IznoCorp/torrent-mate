@@ -1057,6 +1057,11 @@ card** and **a rung's change of state**, as stream events — the operator amend
 > is NOT built (one requester per card): « Abandonner » withdraws the request of whoever abandons, and the quarantine
 > happens only when the LAST requester abandons — L18 builds it.
 
+> **Amended 2026-09-28 (phase 35, round 10 Q1, RULINGS 27) — two demands filed:** (1) a hand-added arrival matched, by identity
+> after identification, to an item a follow waits for joins that follow's acquisition — NO rule holds it, because no real
+> row is one and none is posed (a posed follow would be invented); (2) `QueueCard` carries its episode as a field — today the
+> maquette reads it off `secondaryLine` to match one item to one card (R238), which a reworded line would break.
+
 ### 6.3 The clause-map rows PROPOSED (the operator amends the map; this lot does not)
 
 Six rows of `docs/reference/product-intent-map.md` name `features/arrivals`

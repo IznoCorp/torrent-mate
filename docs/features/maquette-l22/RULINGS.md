@@ -338,6 +338,22 @@ the follow's own failed step; (2) one mutation per hold — the abandoned releas
 « cherché », the follow stopped — each falls. Top Chef keeps the one-off behaviour (its card closes) and R222 stays held
 on it. (b), writing the error into Furious's seed, was refused.
 
+## 27 — one item, one card; the hand-added half is a demand, held by no rule (steward and auditor, 2026-09-28; L22b phase 35, STOP D)
+
+**The STOP.** Round 10 Q1 = A: a hand-added arrival that matches an item a follow waits for joins that follow's
+acquisition. No real row is one — the two « qBittorrent (manuel) » rows (The Alabama Solution, Conclave) are followed by
+nobody. But two real follows, « President Curtis » and « Furious », were drawn TWICE in the dense world: the queue's
+card in flight and the staging arrival — the same episode on both sides (S01E02 and S01E01, read on the seeds at the
+auditor's condition), the same position.
+
+**Ruled (a).** The real half is built: one item, one card — a follow's folder in the staging area joins the follow's
+card in flight, matched by ITEM (a shared provider identifier AND the same episode), never by title; R238 holds it, with
+a mutation per hold, and a pair built from President Curtis's real card (S01E02 → S01E03, a derivation) proves two
+episodes stay two cards. The episode is read off `secondaryLine` — fragile, said in the rule; a demand asks for the
+field on `QueueCard`. **The hand-added half gets NO posed subject** — posing a follow on Conclave would invent a follow
+nobody made: it stays a DEMAND (matching by identity after identification), with a dated line saying why no rule holds
+it.
+
 ## 30 — the ladder's figure keeps one meaning; a Plex match waits on its current rung (steward, 2026-09-27; round one, A6)
 
 **The question.** The round's brief asked Star Trek's card to read « 7 sur 8 »; the figure is the current rung's

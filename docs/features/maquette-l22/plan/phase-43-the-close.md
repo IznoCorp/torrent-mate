@@ -1,4 +1,4 @@
-# Phase 42 — The close
+# Phase 43 — The close
 
 **Numbered 35, then 37, then 39, on 2026-09-27** (was 27; the triage's F51). **Carried at its opening, from the coherence triage (`review-archive/coherence-2026-09-27-triage.md` § B; texts in `coherence-2026-09-27.md`)**: F8 (the bar count in the
 close's texts), F52 (the close edits only what the brief allows — `IMPLEMENTATION.md` and `docs/reference` are the

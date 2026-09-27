@@ -1,4 +1,4 @@
-# Phase 40 — The death of Arrivées
+# Phase 41 — The death of Arrivées
 
 **Numbered 33, then 35, then 37, on 2026-09-27** (was 25; the triage's F51). **Carried at its opening, from the coherence triage (`review-archive/coherence-2026-09-27-triage.md` § B; texts in `coherence-2026-09-27.md`)**: F8 — the bar reads at
 THREE after Arrivées dies (Acquisition · Médiathèque · Découvrir; 19-bis-a put Découvrir in the bar), not two, and this

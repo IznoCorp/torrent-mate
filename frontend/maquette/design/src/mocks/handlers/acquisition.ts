@@ -1,6 +1,7 @@
 // What is wanted, and what is being fetched.
 import GRAB_CADENCE from "../seeds/grab-cadence.json";
 import { releasesFor } from "./releases-of";
+import { sameItem } from "./same-item";
 import SEARCH_RESULTS from "../seeds/search-results.json";
 import SUGGESTIONS from "../seeds/suggestions.json";
 import { DELETE, GET, PATCH, POST, field, route, text } from "./shared";
@@ -311,19 +312,18 @@ export function acquisitionRoutes(): MockRoute[] {
       // counterpart, because those ARE a mutation's
       // record — « nothing has moved yet » is true of a run just read off the
       // disk, and filling them would claim movements that never happened.
-      if (request.query.get("scenario") === LOADED) {
-        return {
-          takeable: onTheLadder(state.takeable, TAKEABLE_AT),
-          blocked: onTheLadder(state.blocked),
-          inFlight: onTheLadder(state.inFlight),
-          arrivals: arrivalsOf(true),
-        };
-      }
+      // ONE ITEM, ONE CARD: a follow's folder in the staging area JOINS the
+      // follow's card in flight — the arrivals are composed FIRST, so the item's
+      // ladder is laid where the staging area has it, and the flight drops it.
+      const dense = request.query.get("scenario") === LOADED;
+      const arrivals = arrivalsOf(dense);
+      const inFlight = (dense ? state.inFlight : state.inFlightReel)
+        .filter((card) => !arrivals.some((arrival) => sameItem(arrival, card)));
       return {
         takeable: onTheLadder(state.takeable, TAKEABLE_AT),
         blocked: onTheLadder(state.blocked),
-        inFlight: onTheLadder(state.inFlightReel),
-        arrivals: arrivalsOf(false),
+        inFlight: onTheLadder(inFlight),
+        arrivals,
       };
     }),
     // THE STAGES THE VERBS MOVE, not the seed itself. This answered the
