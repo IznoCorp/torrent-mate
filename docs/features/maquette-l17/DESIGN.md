@@ -368,8 +368,8 @@ reversed, at any time, no confirmation needed for the undo itself (undoing is ne
 **Its place.** The obligation's mark in the Torrents tab row (L16's).
 
 **What changes.** An obligation that a cross-seed CREATED (the engine persists the obligation on injection — fact
-1's event docstring, « emit-after-persist ») gains a mark, « partage croisé de <torrent d'origine> », and a path to
-the origin's sheet by provider ID. § 19 point 2: without it the obligation of § 18 appears without its origin. An
+1's event docstring, « emit-after-persist ») gains a mark, « cross-seed de <torrent d'origine> » (round 9 Q10:
+« Cross-seed » everywhere, the origin mark included), and a path to the origin's sheet by provider ID. § 19 point 2: without it the obligation of § 18 appears without its origin. An
 obligation that is not a cross-seed's reads as it did — no mark, no empty slot.
 
 `data-part`: `torrents/obligation-origin`. **Named state:** `torrents-obligation-cross-seed`.

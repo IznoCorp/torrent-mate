@@ -26,7 +26,7 @@ drawn, and phase 1 could not carry it without crossing the ceiling.
 ## Red today
 
 **R-L17-d — an obligation says where it came from** (DESIGN § 5): a seeded obligation created by a cross-seed
-carries the mark « partage croisé de <torrent d'origine> » and a path to the origin's sheet by provider ID; one
+carries the mark « cross-seed de <torrent d'origine> » (round 9 Q10) and a path to the origin's sheet by provider ID; one
 that is not carries neither. Red against `main`: no field, no mark.
 
 ## Move
