@@ -150,3 +150,29 @@ Plex-match card's panel offers « Confirmer » and « Corriger » (the same verb
 offers « Relancer » and « Abandonner » — every inline foot of « À traiter » is also a panel action. Phases 10 and 11's
 repair in its own `fix` commit, R43 green, one mutation per card (the panel action removed → R43 falls by name).
 (b), dropping the state from R41's list and filing the gap, would leave a shipped broken promise — refused.
+
+## 30 — the ladder's figure keeps one meaning; a Plex match waits on its current rung (steward, 2026-09-27; round one, A6)
+
+**The question.** The round's brief asked Star Trek's card to read « 7 sur 8 »; the figure is the current rung's
+position on every card, so « 7 » would have given the figure a second meaning (rungs passed) or moved every card.
+
+**Ruled.** Neither. The figure KEEPS its one meaning, the current rung's position, for every card — the operator's
+ruling 4 reads the tunnel's state ON THE CURRENT RUNG — and no card moves. The brief's « 7 sur 8 » is withdrawn.
+Star Trek's current rung is « vérifié dans Plex », PENDING on his answer: the card reads « 8 sur 8 », the rung drawn in
+its waiting tone, its word saying it waits for him (« vérifié dans Plex — à confirmer », the shape a blocked rung
+already uses), never a done-looking « vérifié »; the panel's episode facts are aligned with the card. Hold in
+`plex_match.py`: the current rung of the Plex card is NOT done.
+
+## 31 — R107 races on every boot: its READ is repaired, not the product (auditor, 2026-09-27; round one, A3 STOP)
+
+**The STOP.** The reader measured R107 (`outbox.py`) 3/5 on the branch, 0/5 on main, and order 48 called it a
+regression. Measured again, same method, same session: head 3/5, 822a4c1f4 (before the « Suivis » landing) 2/8, and
+main 46806a88d **2/8**, the same hold, the same text (« 1 left in the store, 0 → 1 follows »). The hold read the store
+the instant the reloaded page reported itself ready; the boot starts the drain at module evaluation and
+`__loadingDone` is not its end, so the rule read an envelope that had departed and was not yet forgotten — on any boot.
+
+**Ruled.** Repair R107's READ: after the reload it waits, bounded at 3 s, for the boot's departure to answer (the
+follow applied, the store empty), and a new hold reads the envelope's key arriving ONCE. Two mutations make the
+proof — the outbox never departs (the wait ends in a named FAIL, never a pass); the departure doubled (the rule falls
+on « once »). Red first on main (2/8 with the old read); then green in series on the branch AND on main, at least ten
+runs each side. #619's body corrected with the figures. Order 48 amended accordingly.
