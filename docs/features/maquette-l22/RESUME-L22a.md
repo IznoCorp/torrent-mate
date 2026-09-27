@@ -18,9 +18,12 @@ Read after `docs/features/maquette-l22/BRIEF-L22a.md` (governs) and `RULINGS.md`
   R175 onto « Suivis » (3a5164f39), gate 39 rules + 26 guards 0 failed, oracle exit 0 (none accepted), --a11y light 98.
   14 (736ee5ca6+b75a13bbb+0f2e32f72, R205) · RULINGS 9 (cd834db40): order 14-ter → 14-bis-a → 14-bis-b ·
   14-ter (594debc68+2 busy.py commits, R225; take path re-aimed: busy, actions, page_host; a11y light 98).
-  NEXT: 14-bis-a (one_ladder/acq-card-rungs, requester_line, release_candidates, R47 Star Trek understood), then
-  14-bis-b: re-apply `~/Library/Logs/tm-l22a/14b-move.patch` + `14b-now_holds_in_flight.py` (R224, red 5 FAIL
-  seen), section readers; measure at opening, >15 = STOP. Then the close (full suite ONCE, after 14-bis-b).
+  14-bis-a (64ac60c9d, fix 4bf2dbb8a RULINGS 10, oracle 48d935ad1) · 14-bis-b1 (B-555 83576df14, aea951677,
+  fix RULINGS 12 738515d50+8fd49bd5a; R43 widened to every foot + Acquisition's folder cards).
+  NEXT: 14-bis-b2 = re-apply `~/Library/Logs/tm-l22a/14b-move.patch` + `14b-now_holds_in_flight.py` (R224, red 5
+  FAIL seen), content.py INVERTED with its subject, audit2 R16 (count = En vol) + R12 (solid foot → « Confirmer »
+  on acq-todo-loaded), todo_holds' `acq-card-waiting` hold (understand first: no home = STOP), paths_to_sheets
+  re-read with the move; 26 states accepted by name (acq-card-waiting by name). Then the close (full suite ONCE).
 - B-553/R223 are the repair train's (next row B-555, next rule R224); `--a11y` on every drawing gate, light at 98.
 - Oracle: `oracle.py --accept` takes NO state names and rewrites the whole reference; each acceptance is its own
   commit naming the states and the mechanism. The « En cours » body (now-tab.tsx) is drawn beneath pwa-*, relay-*,
@@ -72,3 +75,5 @@ Read after `docs/features/maquette-l22/BRIEF-L22a.md` (governs) and `RULINGS.md`
 - 2026-09-27 phase 14-bis-b1 — RULINGS 12: Arrivées' « Ça coince » still offers « Résoudre → » on Top Chef, a step no
   pick unblocks (ruling 5's guard), while its panel now offers « Relancer » / « Abandonner ». R43 reads Acquisition's
   folder cards only; Arrivées is not redrawn — it dies in L22b (phase 25).
+- 2026-09-27 phase 14-bis-b1 — persistence.py « acq-follows-list … same nodes after a store touch » fell once in a
+  16-rule gate (`14bb1-gate-3.log`) and passed ALONE (`14bb1-persistence-alone.log`, load 3.9): load.
