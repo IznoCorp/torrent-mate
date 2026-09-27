@@ -1,6 +1,6 @@
 {
   "$comment": "The recorded oracle's reference — `frontend/maquette/oracle.py`. One entry per (named state x region): a bounding rectangle rounded to one decimal, and the computed properties of `regions.json`'s `probe.computedStyleSubset`. `null` means the region's selector matched nothing in that state, which is data rather than an omission. Regenerate with `--record`; ratify a REVIEWED change with `--accept`, never from a gate.",
-  "baseCommit": "bfe7e254b6239a0d2896d83ea297fbe54df1a63b",
+  "baseCommit": "5de78a1e0cd88bf6c66b5db08beb09ba4f8a882a",
   "platform": "Darwin/arm64",
   "counts": {
     "states": 124,
@@ -11632,36 +11632,7 @@
       "screen-media/body": null,
       "screen-profile/body": null,
       "screen-releases/body": null,
-      "screen-resolution/body": {
-        "matches": 1,
-        "rect": {
-          "x": 0,
-          "y": 45.5,
-          "width": 390,
-          "height": 1567.5
-        },
-        "style": {
-          "position": "static",
-          "font-size": "14px",
-          "font-weight": "400",
-          "line-height": "18.9px",
-          "padding": "10px 14px 18px",
-          "margin": "0px",
-          "border": "0px none oklch(0.96 0.003 286)",
-          "border-radius": "0px",
-          "gap": "14px",
-          "opacity": "1",
-          "visibility": "visible",
-          "color": "oklch(0.96 0.003 286)",
-          "background-color": "rgba(0, 0, 0, 0)",
-          "box-shadow": "none",
-          "animation": "none",
-          "display": "flex",
-          "flex-direction": "column",
-          "align-items": "normal",
-          "justify-content": "normal"
-        }
-      },
+      "screen-resolution/body": null,
       "settings/body": null,
       "shell/action-button": {
         "matches": 1,
