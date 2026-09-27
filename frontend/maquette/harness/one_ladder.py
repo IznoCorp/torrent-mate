@@ -8,7 +8,8 @@ sheet are two READERS of it (§13: one derivation per question).
 
 What this holds, at the phone's real width:
 
-1. THE CARD. On `acq-card-rungs`, every card on the ladder draws eight cells,
+1. THE CARD. On `acq-card-rungs` (« En vol ») and `acq-todo-loaded` (« À
+   traiter »), every card on the ladder draws eight cells,
    its strip does not overflow, and line 2 names the current rung WHOLE (§12:
    nothing essential truncated) after its figure « n sur 8 », n being the
    current cell's position.
@@ -21,10 +22,13 @@ What this holds, at the phone's real width:
 4. THE REASON. On `acq-card-blocked`, the card stopped on « identifié » is
    `blocked` there and carries its reason in full.
 
-SIX RUNGS, NOT EIGHT, ON THE CARDS (RULINGS 2): the queue's real rows stand on
-cherché, attrapé, téléchargement, arrivé, identifié and vérifié dans Plex; no
-row stands on « demandé » or « rangé », and none is invented to fill the
-picture. The eight are read whole on the sheet, where they all exist.
+FIVE RUNGS, NOT EIGHT, ON THE CARDS (RULINGS 2, re-read): the cards live in
+« En vol » and « À traiter », and there the real rows stand on téléchargement,
+arrivé, identifié, rangé and vérifié dans Plex. RE-AIMED OUT LOUD: this hold
+read six rungs on « En cours » alone, reached through the rows waiting to be
+taken, found nothing and shelved today — which left « En cours ». No row is
+invented to fill the picture; the eight are read whole on the sheet, where they
+all exist.
 """
 import asyncio
 import json
@@ -36,6 +40,11 @@ from playwright.async_api import async_playwright
 # The ruled order of the ladder, by the keys its names are written under.
 RUNGS = ["requested", "searched", "grabbed", "downloading", "arrived",
          "identified", "shelved", "verified"]
+# Where the cards on the ladder are drawn: what is in flight, and what waits for
+# the operator's hand.
+LADDER_STATES = ("acq-card-rungs", "acq-todo-loaded")
+# The rungs the real rows stand on across those two lists.
+REACHED = {"downloading", "arrived", "identified", "shelved", "verified"}
 # The three steps the sheet opens « rangé » into.
 STEPS = ["sorted", "enriched", "shelved"]
 
@@ -95,9 +104,11 @@ async def main():
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
 
-        await go(page, journal, "acq-card-rungs")
-        await page.wait_for_timeout(SETTLED)
-        cards = await page.evaluate(CARDS)
+        cards = []
+        for state in LADDER_STATES:
+            await go(page, journal, state)
+            await page.wait_for_timeout(SETTLED)
+            cards += await page.evaluate(CARDS)
         journal.check("cards on the ladder are drawn", len(cards) >= 6, str(len(cards)))
         for card in cards:
             journal.check(
@@ -112,9 +123,9 @@ async def main():
                 card["rung"] == rung_name(RUNGS[position]) and card["rungWhole"]
                 and card["figure"] == expected_figure,
                 f"figure={card['figure']!r} rung={card['rung']!r} whole={card['rungWhole']}")
-        reached = sorted({card["current"] for card in cards})
-        journal.check("the real rows reach six rungs (RULINGS 2)", len(reached) >= 6,
-                      str([RUNGS[index] if index >= 0 else RUNGS[-1] for index in reached]))
+        reached = {RUNGS[card["current"]] if card["current"] >= 0 else RUNGS[-1] for card in cards}
+        journal.check("the real rows reach the rungs they stand on across « En vol » and « À traiter » (RULINGS 2)",
+                      REACHED <= reached, f"{sorted(reached, key=RUNGS.index)} — wanted at least {sorted(REACHED, key=RUNGS.index)}")
 
         # THE AGREEMENT: the sheet opened on each card's medium names its rung.
         for card in cards:

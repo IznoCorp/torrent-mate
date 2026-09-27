@@ -12,6 +12,11 @@ constant would read the old name after the rename, and this is where it falls.
 
 The gesture that REASSIGNS a request is not drawn here: it is an act of the
 rights model, and is born with it.
+
+RE-AIMED OUT LOUD: `acq-card-requester` stood on « En cours », where the
+arrival nobody followed was shelved today; that section left « En cours ». The
+state stands on « À traiter », where the real world's arrivals nobody followed
+wait for the operator's hand, and the holds read them there.
 """
 import asyncio
 import json

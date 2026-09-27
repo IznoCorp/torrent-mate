@@ -33,7 +33,7 @@ export function tunnelStates(): NamedState[] {
     ],
     [
       "acq-card-rungs",
-      "Carte — l'échelle de chaque famille (six crans atteints par des lignes réelles)",
+      "Carte — l'échelle de ce qui est en vol (crans atteints par des lignes réelles)",
       () =>
         applyState({ page: "acq", acqTab: "now", scen: "loaded", phase: "ready" }),
     ],
@@ -59,7 +59,7 @@ export function tunnelStates(): NamedState[] {
       "acq-card-requester",
       "Carte — ajouté par Izno, dans qBittorrent",
       () =>
-        applyState({ page: "acq", acqTab: "now", scen: "real", phase: "ready" }),
+        applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" }),
     ],
     [
       "acq-todo-empty",
