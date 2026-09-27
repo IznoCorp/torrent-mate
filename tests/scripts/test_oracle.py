@@ -348,7 +348,9 @@ def test_the_committed_reference_carries_a_platform():
     # « À traiter » and opened — added, no existing state moved. Verified by name.
     # 124 SINCE L22b's phase 16: acq-resolution-not-media, « Ce n'est pas un média »'s choice
     # of destinations — added; the states it moved are named in its acceptance commit.
-    assert reference["counts"] == {"states": 124, "regions": 38}
+    # 125 SINCE L22b's phase 18: acq-follows-film-at-plex-check, a followed film one event away
+    # from « vérifié dans Plex » (a derivation from Wicker's real row) — added, nothing moved.
+    assert reference["counts"] == {"states": 125, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:
