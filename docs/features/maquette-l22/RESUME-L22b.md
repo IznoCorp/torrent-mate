@@ -5,43 +5,35 @@ L22b appends from 13).
 
 ## STATE
 
-- Branch `feat/maquette-l22b`, worktree `/Users/izno/dev/worktrees/wave-l22b`, cut from L22a's pull-request head
-  `6f0c987a3` (#619, READY, under its reader round). L22a's squash onto `main` is the steward's, named when it lands;
-  then you merge `origin/main` in at your next unit boundary. Steward: `Orch : TM frontend`.
-- Head: see `git log -1`; pushed state: `git ls-remote origin refs/heads/feat/maquette-l22b`.
-- ORDER (steward, 2026-09-27): phase 15 CUT at its opening into 15a / 15b. 15a DONE. **15b WAITS** for the operator's
-  word on Q1 (« supprimer » = a real disk delete, new operation — recommended — or `discardStagedMedia`) and on the
-  « suivis stoppés » question; Q2 is ruled (both: the act removes the card; a folder deleted outside the app is absent
-  after the re-read, an assertion in R227). Keep for 15b: ingest COPIES a seeding/seed-obligated torrent and MOVES any
-  other (`ingest.py:549-561`, tracker `action: copied|moved`) — deleting a moved arrival deletes the only copy.
-- DONE: 15a, 16, 17, 18. NEXT: 19 → 19 → 20 → [MIDPOINT full suite] → 21 … 27; 15b slots back in when
-  ruled (at the next unit boundary after the word).
-- Rule numbers: L22's a..u = R202–R222; R223 #616's; R224 (v), R225 (w) L22a's. L22b: i = **R226**
-  (`set_aside_is_later.py`); 15b's rule = R227 (reserved); j = **R228** (`not_a_media.py`); l = **R229** (`follow_offered.py`); m = **R230** (`film_follow_ends.py`); next free R231.
-- RULINGS numbering: L22b writes 13–29 (13, 14 used); L22a's repair round writes from 30. Merge L22a's
-  repairs only once squashed on `main`, at a unit boundary (they touch staging.ts, arrival-slots.ts, the oracle).
-- AUDITOR ORDER 48 (binding): a fall set aside as « load » is proved by the SAME rule run 5× on this branch and
-  10× on `main` (amended) at comparable load; any gap is a regression. outbox.py R107's fall is a race in the
-  rule's own read, on `main` too — L22a's repair fixes it; until merged its fall is not mine (say so, with a count).
-- LOGS: `~/Library/Logs/tm-l22b/`. Mutex `sh scripts/heavy.sh --held`; own npm lock `/private/tmp/tm-heavy-l22b/holder`.
-- GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l22b frontend/maquette/harness/run.sh
-  --contracts --oracle <full rule paths>`; `--a11y` on every gate that draws (the light ledger may only fall, 98 now).
-- ORACLE ACCEPT: the 8899 host does not outlive an invocation — accept INSIDE one:
-  `heavy.sh … bash -c 'run.sh --oracle; python3 frontend/maquette/oracle.py --accept'`, then prove by script that
-  only the named states moved, and bump `tests/scripts/test_oracle.py`'s state-count pin in the same commit.
-- MUTATIONS: `sh scripts/mutate.sh <full path> "<expr>" frontend/maquette/harness/<rule>.py`; commit before; keep the
-  EXPRESSION; « RULE CRASHED » proves something only when its message names the subject (RULINGS 1's reading).
-- PUSH: `sh scripts/heavy.sh --class test l22b git push -u origin feat/maquette-l22b`, its own command from the
-  worktree root; a refusal = STOP with its exact text.
-- Traps inherited from L22a: `--accept` rewrites the WHOLE reference (name every changed state); a closed `#dlg`
-  keeps the last dialog's box (B-554); a rule green on the wrong subject (B-555); a gate's named rules include every
-  reader of a surface the phase moves; `outbox.py` falls under a full suite's load and passes alone (B-546's mode).
-- New trap (17): `go()` commits through a view transition, and its commit closes any panel opened before it
-  (`leavePanel`) — a named state that opens a screen AND a panel races; `acq-resolution-not-media` opens its choice
-  alone over « À traiter » (its BACKDROP differs from the product's, said in its comment; R228 walks the product's
-  path by finger).
-- New trap (15a): the staging list is not read on the « À traiter » tab — a rule counting `__queue().stuck` there
-  reads an empty list until a screen asks for it.
+- Branch `feat/maquette-l22b`, worktree `/Users/izno/dev/worktrees/wave-l22b`, cut from L22a's PR head `6f0c987a3`
+  (#619); on L22a's squash onto `main` (the steward names it) merge `origin/main` in at the next unit boundary — its
+  repair round touches staging.ts, arrival-slots.ts, requester_line.py, the oracle. Steward: `Orch : TM frontend`.
+- Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b` (not pushed since 0d86834fe).
+- DONE: 15a, 16, 17, 18, 19. NEXT (INDEX, 2026-09-27): 19-bis « Découvrir » leaves Acquisition (bar = Acquisition ·
+  Médiathèque · Découvrir) → 18-ter `--color-waiting-text` (operator 11:0x, light oklch(0.48 0.14 345), dark =
+  waiting; phase 18's state `acq-follows-film-at-plex-check` back) → 15b (real delete, confirmation naming copied /
+  moved — ingest COPIES a seeding torrent and MOVES any other, `ingest.py:549-561`; a new operation + demand; two
+  states; Q2 both, R227) → 18-bis paused follows fold at the end of « Suivis », the « En pause » pill dies (R233) →
+  20 → [MIDPOINT full suite] → 21 … 27. Each re-measured at its opening; > 15 → cut, one message.
+- Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (15b) R227 · j R228
+  not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (18-bis)
+  R233 · next free R234. RULINGS: L22b writes 13–29 (13–17 used); L22a's repair round from 30.
+- AUDITOR ORDER 48: a fall set aside as « load » needs the SAME rule 10× here and 10× on `main` at comparable load;
+  any gap is a regression. outbox.py R107 is a race in the rule's own read, on `main` too (L22a's repair) — say so.
+- LOGS `~/Library/Logs/tm-l22b/`; mutex `sh scripts/heavy.sh --held`. GATE: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh
+  --class browser l22b frontend/maquette/harness/run.sh --contracts --oracle <rule paths>`; `--a11y` on every gate
+  that draws (light ledger 98, may only fall).
+- ORACLE ACCEPT inside one invocation (`bash -c 'run.sh --oracle; python3 frontend/maquette/oracle.py --accept'`),
+  then a script proves only the named states moved; bump `tests/scripts/test_oracle.py`'s pin in the same commit.
+- MUTATIONS `sh scripts/mutate.sh <path> "<expr>" <rule>` on a CLEAN tree — never edit anything while a gate with
+  mutations runs (refused twice here). PUSH `sh scripts/heavy.sh --class test l22b git push -u origin
+  feat/maquette-l22b`, its own command; a refusal = STOP with its exact text.
+- Traps: `--accept` rewrites the whole reference; a closed `#dlg` / `#sheet` keeps the last box (B-554, RULINGS 7,
+  13); `go()` commits through a view transition that closes a panel opened with it (a state opening a screen and a
+  panel races — `acq-resolution-not-media` opens its choice alone, BACKDROP ≠ product); the staging list is not read
+  on « À traiter » until a screen asks; a rule reading an attribute by PRESENCE makes the markup guard treat it as a
+  boolean (read `data-follow` by value); the entry page's tab rewinds the stack; new data-*/identifier words need
+  `scripts/code-vocabulary.txt`; a live rule may only name an event the backend emits (check-live-relay).
 
 ## LEDGER (append-only)
 
@@ -83,3 +75,14 @@ L22b appends from 13).
   last → FAIL « while its last rung is pending, « Wicker » is in « Suivis » » (`18-mutation2-1.log`); the film-only
   filter dropped → FAIL « a followed series confirmed in Plex … is still there » (`18-mutation2-2.log`). The first
   mutation run was refused on a dirty tree (I had edited the resume during the gate) — never again.
+- 2026-09-27 phase 19: re-measured ≈ 11 (RULINGS 17: no copied states; journey.py a sixth reader). R231 red
+  (`19-red.log`, « Système is not in the bar »); R232 written green. Commit 7a7a697c8 (amended twice, unpushed: the
+  first gate fell on four readers my grep missed or I re-aimed wrong — persistence.py counted four buttons,
+  scroll_memory.py left by Système, and locks.py / queued_by_hand.py clicked the menu's SVG; the entry page's tab
+  rewinds the stack, so scroll_memory.py leaves by a tab read off the bar). Mutations (`19-mutation-{1..4}.log`, on
+  087794d96, the mutated files unchanged since): `sys` inBar back → R231 FAIL « Système is not in the bar »;
+  `basis-1/4` → R232 FAIL « each button is 1/3 of the bar »; `flex-1` dropped → same; every row inBar → FAIL « the
+  table gives the bar between 1 and 4 places ». The first mutation run was refused AGAIN on a dirty tree (I edited
+  readers while it ran). Gate `19-gate2.log` on 7a7a697c8: 32 rules + 26 guards 0 failed, oracle 0; `19-a11y.log`
+  light 98/98. The oracle warns its reference's base 5de78a1e is not an ancestor (my amended fix) — metadata only,
+  the steward re-records at the merge.
