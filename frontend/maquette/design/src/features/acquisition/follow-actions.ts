@@ -32,6 +32,18 @@ const say = (key: string) => i18next.t(`panels.follow.${key}`);
  */
 export function primaryAction(facts: FollowFacts): Action {
   const { follow } = facts;
+  // WHAT « À TRAITER » ASKS OF THIS CARD comes first, and never an identity
+  // pick: a match is confirmed, a step that cannot finish is relaunched.
+  if (facts.plexMatch)
+    return {
+      text: say("plexConfirm"), icone: icons.check, ton: "primary",
+      target: { "plex-confirm": follow.title },
+    };
+  if (facts.tunnelError)
+    return {
+      text: say("requeue"), icone: icons.refresh, ton: "primary",
+      target: { "journey-requeue": follow.title },
+    };
   if (facts.toResolve)
     return {
       text: say("resolve"), icone: icons.play, ton: "primary",
@@ -84,10 +96,17 @@ export function secondaryActions(facts: FollowFacts): (Action | null)[] {
   const { follow, isFilm } = facts;
   const beingAcquired = facts.isFollowed || facts.incomplete || facts.toTake;
   return [
+    // The second answer « À traiter » offers at the card's foot.
+    facts.plexMatch
+      ? { text: say("plexCorrect"), icone: icons.search, target: { "plex-correct": follow.title } }
+      : null,
+    facts.tunnelError
+      ? { text: say("abandon"), icone: icons.trash, ton: "danger", target: { "journey-abandon": follow.title } }
+      : null,
     // « Voir la fiche » is reachable whenever a sheet exists. It is omitted only
     // when it is ALREADY the primary action, which happens for a medium that is
     // owned and whole.
-    facts.hasSheet && (facts.toResolve || facts.toTake || facts.incomplete || facts.isFollowed)
+    facts.hasSheet && (facts.plexMatch || facts.tunnelError || facts.toResolve || facts.toTake || facts.incomplete || facts.isFollowed)
       ? { text: say("seeSheet"), icone: icons.eye, target: { mediasheet: follow.title } }
       : null,
     // « Voir le parcours » is guarded exactly as « Voir la fiche » is, and for

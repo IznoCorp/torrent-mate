@@ -91,6 +91,7 @@ export function queueNow() {
     inFlight: queue?.inFlight ?? [],
     notFound: queue?.notFound ?? [],
     doneToday: queue?.doneToday ?? [],
+    arrivals: queue?.arrivals ?? [],
   };
 }
 

@@ -4,7 +4,8 @@ R41 — a card body opens the bottom PANEL, never a screen of its own.
 R42 — a card poster ALWAYS leads somewhere: to the media sheet when that
       medium has one, to the panel when it does not. It used to lead nowhere,
       and the tooltip explaining the absence is invisible on a phone.
-R43 — an action offered inline on a card is ALSO in that medium's panel.
+R43 — an action offered inline on a card is ALSO in that medium's panel —
+      every foot of the card, a folder's card included when it has a panel.
 R44 — the same medium reached from a card and from a gallery opens the SAME
       panel, action for action.
 R45 — a tile addresses its panel by title, never by list index.
@@ -211,12 +212,19 @@ async def main():
             await pg.wait_for_timeout(360)
             if state_.startswith("lib-"):
                 await mode(pg, "list")
+            # EVERY FOOT, AND A FOLDER THAT HAS A PANEL. Said out loud: this
+            # read the FIRST foot of a medium's card only, so a card offering two
+            # answers kept its second out of the panel unseen, and a folder's
+            # card — a step that cannot finish — was never read at all.
             inlines = await pg.evaluate(
                 """()=>[...document.querySelectorAll('[data-part="card"]')].filter(visible)
-                    .filter(c=>c.querySelector('[data-part="card/foot"]') && !c.dataset.nonmedia)
-                    .map(c=>({title:c.querySelector('[data-part="card/title"]')?.textContent||'',
-                              action:c.querySelector('[data-part="card/foot"]').textContent.trim(),
-                              panel:c.querySelector('[data-part="card/body"]')?.dataset.panel||null}))"""
+                    .filter(c=>c.querySelector('[data-part="card/foot"]')
+                      && (!c.dataset.nonmedia || (c.dataset.nonmedia === 'dossier'
+                          && c.querySelector('[data-part="card/body"]')?.dataset.panel)))
+                    .flatMap(c=>[...c.querySelectorAll('[data-part="card/foot"]')].map(foot=>({
+                              title:c.querySelector('[data-part="card/title"]')?.textContent||'',
+                              action:foot.textContent.trim(),
+                              panel:c.querySelector('[data-part="card/body"]')?.dataset.panel||null})))"""
             )
             for item in inlines:
                 executed += 1

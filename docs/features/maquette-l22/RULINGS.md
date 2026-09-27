@@ -138,3 +138,15 @@ was green on the wrong subject — it read the « En cours » cards under the ad
 re-aim, said so in its commit, proved by a mutation emptying the add screen's result rows, and filed as B-555, owner
 this lot, fixed in the same commit. R12 « context measured by nothing » is understood before b2's move; not caused by
 the removal, it is a STOP with the reading.
+
+## 12 — every foot of « À traiter » is also a panel action (steward, 2026-09-27; phase 14-bis-b1, STOP)
+
+**The STOP.** R43 (`cards.py`), once it read « À traiter »'s cards, fell before any removal: the Plex-match card's
+inline « Confirmer » is offered by no action of its panel (« Voir la fiche », « Voir le parcours »). Phase 10's
+gap, and phase 11's beside it: R43 read only a card's first foot and never a folder's card.
+
+**Ruled (a), extended by R43's own principle** (« one card, one behaviour — and one panel per medium », README): the
+Plex-match card's panel offers « Confirmer » and « Corriger » (the same verbs), and the tunnel-error card's panel
+offers « Relancer » and « Abandonner » — every inline foot of « À traiter » is also a panel action. Phases 10 and 11's
+repair in its own `fix` commit, R43 green, one mutation per card (the panel action removed → R43 falls by name).
+(b), dropping the state from R41's list and filing the gap, would leave a shipped broken promise — refused.
