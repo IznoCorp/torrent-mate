@@ -63,6 +63,9 @@ settings are read as `settings` (and its title as `title`), a setting's file,
 key and raw value as `file`, `key` and `raw`, a secret's key, label and
 definition as `key`, `label` and `defined`, where they were the engine's short
 keys. The holds and what they compare are unchanged.
+
+RE-AIMED OUT LOUD: Système left the bottom bar (ruling 15); the walk to the
+settings opens the menu, then Système's drawer entry.
 """
 import asyncio
 import pathlib
@@ -308,7 +311,11 @@ async def main():
         # « RÉGLAGES » IS NOT IN THE TAB BAR — `app/navigation.ts` puts five
         # pages there and this is not one of them — so the walk goes the way a
         # thumb goes: Système, then its own row that leads to the settings.
-        await page.click('[data-page="sys"]')
+        # RE-AIMED OUT LOUD: Système left the tab bar (ruling 15) — the menu,
+        # then its drawer entry.
+        await page.click('[data-drawer]')
+        await page.wait_for_timeout(SETTLED)
+        await page.click('#drawer [data-navgo="sys"]')
         await page.wait_for_timeout(SETTLED)
         await page.click('[data-page="cfg"]')
         await page.wait_for_timeout(SETTLED)

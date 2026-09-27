@@ -202,3 +202,14 @@ follow in « Suivis »), `panel-journey.ts` (a waiting step), the not-found seed
 ladder through the layer's door over `acq-follows-list` — and the light ledger stays at 98. The token question —
 `--color-waiting-text`, light oklch(0.48 0.14 345) ≈ 6.1:1, dark `var(--color-waiting)`, as the four other tones —
 goes to the operator through the auditor; on his word the state comes back with the token, in a phase of its own.
+
+## 17 — the bar's rules read the states that already draw it (steward, 2026-09-27; L22b phase 19)
+
+**The question.** Phase 19's plan adds `drawer-system`, `bar-todo-badge` and `bar-clear`; they would copy
+`drawer-navigation`, `acq-todo-loaded` and `acq-todo-empty`, and the drawer's copy would copy a known light-contrast
+finding (ruling 4's ratchet).
+
+**Ruled.** R-L22-q and R-L22-s read the bar and the drawer on the three EXISTING states; no copy is added (a copy adds
+no subject). `journey.py`'s page-switch walks are re-aimed onto the bar's own pages, out loud. R-L22-s holds the bar at
+its count — two buttons at 1/2 once Arrivées dies — and reads a count of ONE as « no bar at all » (the operator,
+2026-09-27, L18 OPEN 7), never as a full-width button.

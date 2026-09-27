@@ -96,11 +96,14 @@ export type NavigationRow = {
 /**
  * Every page, in the order the bottom bar draws them.
  *
- * Réglages and Maintenance are PAGES and not tabs, and that is a decision the
- * engine's own table recorded: the bar holds the four places one goes to SEE
- * what is happening; a setting is what one goes to CHANGE and a maintenance
- * command is something one goes to DO. They are reached from Système and from
- * the drawer, and the back gesture walks out of them like any other page.
+ * THE BAR DRAWS THE BUTTONS PRESENT, each at 1/n of its width, n from 2 to 4 —
+ * never an empty slot, and one page draws no bar at all (a frame rule, R232).
+ * It holds the places one goes to every day; Système is reached from the drawer
+ * and the menu button carries its badge (ruling 15). Réglages and Maintenance
+ * are PAGES and not tabs either: a setting is what one goes to CHANGE and a
+ * maintenance command is something one goes to DO. They are reached from
+ * Système and from the drawer, and the back gesture walks out of them like any
+ * other page.
  */
 export const NAVIGATION: readonly NavigationRow[] = [
   {
@@ -145,7 +148,7 @@ export const NAVIGATION: readonly NavigationRow[] = [
     labelKey: "navigation.pages.sys",
     icon: icons.wrench,
     group: "system",
-    inBar: true,
+    inBar: false,
   },
   {
     id: "maint",

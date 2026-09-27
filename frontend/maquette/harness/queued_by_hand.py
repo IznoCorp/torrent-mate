@@ -47,6 +47,9 @@ permits refusing, and a pass waits only behind a MAINTENANCE run.
      sentence says so, and the bar draws the pass in file. The maintenance run
      LASTS while the hand walks: a run that ended on its second read would have
      turned this walk into a plain start.
+
+RE-AIMED OUT LOUD: Système left the bottom bar (ruling 15); it is reached by the
+menu, then its drawer entry.
 """
 import asyncio
 import json
@@ -94,7 +97,9 @@ PRESS = """(selector)=>{
   const hit = document.elementFromPoint(box.left + box.width / 2,
                                         box.top + box.height / 2);
   const mine = Boolean(hit) && (hit === control || control.contains(hit));
-  if (mine) hit.click();
+  // THE CONTROL IS CLICKED once the finger is proved to land on it: what the
+  // point hits may be a drawing inside it (the menu button's SVG has no click).
+  if (mine) control.click();
   return {found: true, pressed: mine,
           covered: mine ? '' : ((hit && (hit.dataset.part || hit.tagName)) || 'nothing')};}"""
 
@@ -300,8 +305,13 @@ async def queued_behind_maintenance(journal, page):
         journal: The rule's journal.
         page: A freshly opened page, its pipeline idle.
     """
-    if not await press(journal, page, '#nav button[data-page="sys"]',
-                       "Système is reached by a finger, from the tab bar"):
+    # RE-AIMED OUT LOUD: Système left the tab bar (ruling 15) — the menu, then
+    # its drawer entry.
+    if not await press(journal, page, '[data-drawer]', "the menu is opened by a finger"):
+        return
+    await page.wait_for_timeout(SETTLED)
+    if not await press(journal, page, '#drawer [data-navgo="sys"]',
+                       "Système is reached by a finger, from the drawer"):
         return
     await page.wait_for_timeout(SETTLED)
     if not await press(journal, page, '[data-part="levers/watch-now"]',

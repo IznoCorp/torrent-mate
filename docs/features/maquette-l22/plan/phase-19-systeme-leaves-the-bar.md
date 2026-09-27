@@ -26,6 +26,8 @@
   with its mutations (+3), and no code, because the code already keeps it. **What to cut if the opening measure exceeds 15**:
   R-L22-s becomes its own phase BEFORE this one — it is green over today's four-button bar too — and this phase returns to 12.
 
+- **Re-measured 2026-09-27 at its opening, on `c94b1c638` — RULINGS 17:** the same five readers plus a sixth, `journey.py` (its page-switch walks tapped `#nav button[data-page="sys"]`, re-aimed onto the bar's own pages, out loud); the three planned states are NOT added — they would copy `drawer-navigation`, `acq-todo-loaded` and `acq-todo-empty`, add no subject and copy a known light-contrast debt — so R-L22-q (R231, `bar_places.py`) and R-L22-s (R232, `bar_shares.py`, one page read as no bar at all, the operator's L18 OPEN 7) read the bar and the drawer on those three. ≈ 11.
+
 Ruling 15: Système LEAVES the bar and is reached from the drawer, at its right. **The bar's composition by rights is
 L18's** — this phase draws the bar the table says, with no field added for a right. **OPEN 2 (ruled A) adds the frame rule the
 bar owes every count it will ever have**: only the buttons present are drawn, in equal shares of 1/n, n from 2 to 4, never an

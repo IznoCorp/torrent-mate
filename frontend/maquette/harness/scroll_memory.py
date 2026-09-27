@@ -144,13 +144,20 @@ async def walk_a_page(page):
              await window.__mocks.quiet();
              await wait(600);
 
-             tab("sys").click();
+             // RE-AIMED OUT LOUD: Système left the bar (ruling 15). The walk
+             // leaves for another top-level tab READ OFF THE BAR — neither the
+             // library nor the entry page, whose tap rewinds the stack.
+             const away = [...document.querySelectorAll('#nav [data-page]')]
+               .map((button) => button.dataset.page).find((one) => one !== "lib" && one !== "acq");
+             if (!away) return { reached: null, why: "the bar offers no third tab to leave by" };
+             tab(away).click();
              await window.__mocks.quiet();
              await wait(700);
              const elsewhere = {
                offset: port().scrollTop,
                reachable: port().scrollHeight - port().clientHeight,
                page: current(),
+               away,
              };
 
              history.back();
@@ -183,7 +190,7 @@ async def hold(journal):
             journal.check(
                 "the walk really reached the library, and really left it",
                 walked["arrived"]["where"] == LIBRARY_PATH
-                and walked["elsewhere"]["page"] == "sys",
+                and walked["elsewhere"]["page"] == walked["elsewhere"]["away"],
                 f"it arrived at {walked['arrived']['where']!r} on tab "
                 f"{walked['arrived']['page']!r} and left for tab "
                 f"{walked['elsewhere']['page']!r}")

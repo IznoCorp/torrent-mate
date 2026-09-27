@@ -37,6 +37,9 @@ cuts and restores the automatic trigger by the levers, stops from Arrivées, and
 comes back again. At every return each row agrees with the layer's locks read,
 and the locks read agrees with the pipeline's own status — « Libre » over a
 running pipeline is the defect.
+
+RE-AIMED OUT LOUD: Système left the bottom bar (ruling 15); each walk to it opens
+the menu, then taps its drawer entry, by a finger.
 """
 import asyncio
 import pathlib
@@ -149,11 +152,15 @@ PRESS = """(selector)=>{
   const hit = document.elementFromPoint(box.left + box.width / 2,
                                         box.top + box.height / 2);
   const mine = Boolean(hit) && (hit === control || control.contains(hit));
-  if (mine) hit.click();
+  // THE CONTROL IS CLICKED once the finger is proved to land on it: what the
+  // point hits may be a drawing inside it (the menu button's SVG has no click).
+  if (mine) control.click();
   return {found: true, pressed: mine,
           covered: mine ? '' : ((hit && (hit.dataset.part || hit.tagName)) || 'nothing')};}"""
 
-SYSTEM_TAB = '#nav button[data-page="sys"]'
+# SYSTEM IS REACHED FROM THE DRAWER (ruling 15): the menu, then its entry.
+MENU = '[data-drawer]'
+SYSTEM_TAB = '#drawer [data-navgo="sys"]'
 ARRIVALS_TAB = '#nav button[data-page="arr"]'
 START = '[data-part="pipeline"] [data-pipe="start"]'
 STOP = '[data-part="pipeline"] [data-pipe="stop"]'
@@ -270,9 +277,11 @@ async def agreement_by_hand(journal, browser):
     await page.wait_for_timeout(SETTLED)
 
     steps = (
+        (MENU, "the menu is opened by a finger", None),
         (SYSTEM_TAB, "Système is reached by a finger", "at rest"),
         (ARRIVALS_TAB, "Arrivées is reached by a finger", None),
         (START, "« Lancer le pipeline » is pressed by a finger", None),
+        (MENU, "the menu is opened again by a finger", None),
         (SYSTEM_TAB, "Système is reached again by a finger", "after a hand start"),
         ('[data-part="levers/pause"]', "« Mettre tout en pause » is pressed", "after a pause"),
         ('[data-part="levers/resume"]', "« Reprendre » is pressed", "after a resume"),
@@ -282,6 +291,7 @@ async def agreement_by_hand(journal, browser):
          "after the trigger is back"),
         (ARRIVALS_TAB, "Arrivées is reached again by a finger", None),
         (STOP, "« Arrêter » is pressed by a finger", None),
+        (MENU, "the menu is opened a third time by a finger", None),
         (SYSTEM_TAB, "Système is reached a third time by a finger", "after a hand stop"),
     )
     for selector, claim, moment in steps:
