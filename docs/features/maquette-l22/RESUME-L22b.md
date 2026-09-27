@@ -21,7 +21,8 @@ L22b appends from 13).
 - RULINGS numbering: L22b writes 13–29 (13, 14 used); L22a's repair round writes from 30. Merge L22a's
   repairs only once squashed on `main`, at a unit boundary (they touch staging.ts, arrival-slots.ts, the oracle).
 - AUDITOR ORDER 48 (binding): a fall set aside as « load » is proved by the SAME rule run 5× on this branch and
-  5× on `main` at comparable load; any gap is a regression; one green re-run proves nothing. Ratios in the ledger.
+  10× on `main` (amended) at comparable load; any gap is a regression. outbox.py R107's fall is a race in the
+  rule's own read, on `main` too — L22a's repair fixes it; until merged its fall is not mine (say so, with a count).
 - LOGS: `~/Library/Logs/tm-l22b/`. Mutex `sh scripts/heavy.sh --held`; own npm lock `/private/tmp/tm-heavy-l22b/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l22b frontend/maquette/harness/run.sh
   --contracts --oracle <full rule paths>`; `--a11y` on every gate that draws (the light ledger may only fall, 98 now).
@@ -72,3 +73,13 @@ L22b appends from 13).
   measured mid-fade: fix 9f61747fd (the choice opened alone over « À traiter », BACKDROP ≠ product, steward
   accepted) + 658c9b96b (oracle accepts its screen-resolution/body by name; a second pass read no divergence).
   Final gate on 658c9b96b (`17-final.log`): 32 rules + 26 guards 0 failed, oracle 0; `17-final-a11y.log` 0 + light 98/98.
+- 2026-09-27 phase 18: STOP D → RULINGS 14 (a derivation from Wicker's real row; the event is the last rung done,
+  carried on `ItemProgressed` — the live-relay guard refuses an event the backend does not emit; the engine's timing a
+  demand owed, DESIGN § 6.2). R230 red (`18-red.log`), commits e70c41f20 (feat), 5dce183de (oracle). The drawing gate
+  raised the light ledger 98 → 103 (the state redrew « Suivis »'s `waiting` chip) → RULINGS 15 (repair the variant,
+  never re-tone) → 16 (no existing token passes, 2.98:1; the state leaves, `--color-waiting-text` goes to the operator
+  through the auditor). Fix ccf142e3b (state removed, reference and pin back to 124). Gate `18-gate2.log` 30 rules + 26
+  guards 0 failed, oracle 0; `18-a11y2.log` 0 + light 98/98. Mutations: `isVerifiedInPlex` reads the rung before the
+  last → FAIL « while its last rung is pending, « Wicker » is in « Suivis » » (`18-mutation2-1.log`); the film-only
+  filter dropped → FAIL « a followed series confirmed in Plex … is still there » (`18-mutation2-2.log`). The first
+  mutation run was refused on a dirty tree (I had edited the resume during the gate) — never again.
