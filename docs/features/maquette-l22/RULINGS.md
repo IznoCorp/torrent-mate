@@ -177,3 +177,28 @@ follow row at detection, earlier than the ruling — a demand owed, filed in DES
 layer draws the ruling, not the engine's timing. The event is the rung's move to done, and the live rule re-reads
 « Suivis » on it. R-L22-m holds: present while the rung is pending (not ended one rung early), absent after, and a
 followed series never removed.
+
+## 15 — the `waiting` chip is repaired at its variant, never re-toned (steward, 2026-09-27; L22b phase 18, STOP)
+
+**The STOP.** Phase 18's `--a11y` read the light ledger at 103 against its ceiling of 98: the new state redrew
+« Suivis », whose `waiting` chips (a pending follow) fail contrast on light — five targets already counted in
+`acq-follows-list` and `acq-follows-group`.
+
+**Ruled — neither A (the chip re-toned `neutral`) nor B (the ceiling raised).** « Suivis » and its `waiting` chip are
+VALIDATED drawing (the mission's point 2); ruling 4's `neutral` was a chip the lot itself had just invented. (D): repair
+the `waiting` chip's VARIANT so its text passes on light with EXISTING tokens — the tone stays, the debt falls on every
+state that draws it; if no existing token passes, STOP with the pair, the ratio and the consumers — a token change is
+the operator's.
+
+## 16 — no existing token passes: the state leaves, the token goes to the operator (steward, 2026-09-27; L22b phase 18)
+
+**The STOP.** The chip's foreground is `var(--color-waiting)` itself (`ui/variants/surfaces.ts:77`) where the four other
+tones read a `-text` token; on light, oklch(0.65 0.14 345) on its own 20 % tint over the white card reads ≈ 2.98:1
+against 4.5. No existing token of that hue passes; those that do change its meaning (`--color-muted-foreground` 4.73,
+`--color-foreground` 15.4, `--color-upcoming` 4.42 and another tone). Consumers: `follow-vocabulary.ts` (a pending
+follow in « Suivis »), `panel-journey.ts` (a waiting step), the not-found seeds' chips.
+
+**Ruled (i).** Phase 18's named state is removed — R230 keeps its holds without it (ruling 14's reading b), laying the
+ladder through the layer's door over `acq-follows-list` — and the light ledger stays at 98. The token question —
+`--color-waiting-text`, light oklch(0.48 0.14 345) ≈ 6.1:1, dark `var(--color-waiting)`, as the four other tones —
+goes to the operator through the auditor; on his word the state comes back with the token, in a phase of its own.

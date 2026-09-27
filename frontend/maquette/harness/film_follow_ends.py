@@ -16,8 +16,13 @@ engine's own timing (it deletes a film's follow at detection) is a demand owed
 2. the rung done, the film has left « Suivis »;
 3. a followed series whose last rung is done is still there.
 
-Red before the move: the state does not exist, and a followed film stays in
-« Suivis » for ever.
+Red before the move: a followed film stays in « Suivis » for ever.
+
+NO NAMED STATE (RULINGS 16): the one planned, a followed film one event away,
+redrew « Suivis » and added three more instances of the `waiting` chip's light
+contrast debt; it comes back with that tone's text token. The rule lays the
+ladder itself, through the layer's own door, over « Suivis » as its list state
+draws it.
 """
 import asyncio
 import json
@@ -44,9 +49,15 @@ async def main():
         page.on("pageerror", lambda error: errors.append(str(error)))
 
         answer = await page.evaluate(
-            "()=>{try{window.__go('acq-follows-film-at-plex-check');return null}catch(error){return String(error)}}")
-        journal.check("the named state acq-follows-film-at-plex-check exists", answer is None, answer or "")
+            "()=>{try{window.__go('acq-follows-list');return null}catch(error){return String(error)}}")
+        journal.check("the named state acq-follows-list exists", answer is None, answer or "")
         await page.wait_for_timeout(SETTLED)
+        placed = await page.evaluate(
+            "(title)=>{if(typeof window.__mocks?.placeAtPlexCheck!=='function') return false;"
+            "window.__mocks.placeAtPlexCheck(title);"
+            "window.__queries?.invalidateQueries({queryKey:['/api/acquisition/followed']}); return true;}", FILM)
+        await page.wait_for_timeout(SETTLED)
+        journal.check(f"« {FILM} »'s ladder is laid one event away from the last rung", placed, "")
         before = await page.evaluate(TITLES)
         journal.check(f"while its last rung is pending, « {FILM} » is in « Suivis »",
                       FILM in before and SERIES in before, str(before))
