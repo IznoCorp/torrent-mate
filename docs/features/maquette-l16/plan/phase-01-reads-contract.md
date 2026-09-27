@@ -1,74 +1,95 @@
 # Phase 1 — The reads' contract (D7)
 
-Three of the surfaces below read operations the maquette's own contract does not declare, and the tracker as a
-subject is read by no operation anywhere. This phase declares the three READS, seeded and mocked; the writes are
-declared in the phase that draws them (INDEX, « Why fifteen phases »). It is FIRST because `scripts/compare-contracts.py
---check` refuses the three artefacts apart and because the demands filed here are what make DESIGN § 2.3's
-divergences decisions rather than discoveries.
+Three surfaces below read operations the maquette's own contract does not declare, and the tracker
+as a subject is read by no operation anywhere. This phase declares the three READS, seeded and
+mocked; the writes (the removal, the ranking's save reusing an existing one) are declared in the
+phase that draws them (INDEX, « Why seventeen phases »). It is FIRST because
+`scripts/compare-contracts.py --check` refuses the three artefacts apart and because the demands
+filed here are what make DESIGN § 2.3's divergences decisions rather than discoveries.
 
-**Opening measure (2026-09-26, on `dafe29ec1`):**
+**Opening measure (2026-09-27, on `5e5ecd052`):**
 
-- **Commands.** `python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print(sorted(p for p in d['paths'] if 'obligation' in p or 'stalled' in p or 'download' in p or 'ranking' in p or 'tracker' in p))"`
-  → `[]` — none of the operations exists in the maquette's own contract (the same command on `frontend/openapi.json` reads
-  `/api/acquisition/downloads`, `/api/acquisition/obligations`, `/api/acquisition/ranking/preview`,
-  `/api/acquisition/stalled-grabs` — no path names `tracker`). The contract holds **63** operations
-  (`python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print(sum(len(v) for v in d['paths'].values()))"`).
-  `sed -n 20,29p docs/reference/frontend-backend-demands.md` → required and missing **16**, different shape 47, different
-  status 11, path spelled differently 15, pre-formatted fields 25, backend-only 18. `python3 scripts/compare-contracts.py
-  --check` → exit 0; `python3 scripts/check-mock-seeds.py` → exit 0 (« clean », 15 payload modules, 395 literals, 0
-  uncovered). `grep -cve '^[[:space:]]*$' frontend/maquette/design/src/mocks/handlers/acquisition.ts` → **359** non-blank
-  lines (338 on `08400a22a`), 41 under the 400 ceiling: three read handlers do not fit, so they open
-  `mocks/handlers/trackers.ts`, by SUBJECT (the `staging.ts` / `pipeline.ts` precedent, `frontend-architecture.md` § 4,
-  L20 phase 1). `ls frontend/maquette/design/src/mocks/handlers/` → 14 files, none named `trackers.ts`; `ls
-  frontend/maquette/design/src/mocks/seeds | wc -l` → 48, none for a tracker, an obligation or a download. `grep -n
-  '^| B-144' BUGS.md` → `open`.
-- **Found (2026-09-26).** **`scripts/build-mock-seeds.py` no longer exists** — the first drawing's « `python3
-  scripts/build-mock-seeds.py --write` then `check-mock-seeds.py` » is not a command: the seeds are edited by hand and
-  `scripts/check-mock-seeds.py` (its `schema` and `provenance` arms) is the guard, with `frontend/maquette/fixture-register.json`
-  and each operation's `x-seeded-from` / `x-unseeded` naming where a seed came from (L22's phase 1 found the same).
-- **Points ≈ 14.** Three operations declared new — the tracker summary read (DESIGN § 2.3 item 1), the obligations, the
-  downloads carrying the active torrent's tracker, ratio and deadline (§ 2.3 item 3) — 6; three mock routes new (`trackers.ts`) 6;
-  the `fixture-register.json` / `x-seeded-from` rows for the two new families (the roster, the obligations with the downloads) 2.
-  Regenerating the register and the types is mechanical.
-- **Re-measured (2026-09-26, on `dafe29ec1`).** First drawing 10 → **14**, moved by **the scale** (declared once in `INDEX.md`;
-  the first drawing scored an operation at 1 and a demand row at ≈ 0.6): no ruling touched this phase. The four operations
-  the first drawing declared here are now three — `stalled-grabs` moves to phase 11 and `ranking/preview` to phase 12, each
-  with the surface that calls it, because declaring them here would have put the phase at 22.
+- **Commands.** `python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print(sorted(p for p in d['paths'] if 'obligation' in p or 'download' in p or 'ranking' in p or 'tracker' in p))"`
+  → `[]` — none of the operations exists in the maquette's own contract. The same command on
+  `frontend/openapi.json` reads `/api/acquisition/downloads`, `/api/acquisition/obligations`,
+  `/api/acquisition/ranking/preview`, `/api/acquisition/stalled-grabs` (this lot declares none of the
+  last — DESIGN § 2.5, F14) — no path names `tracker`.
+  `python3 -c "import json;d=json.load(open('frontend/openapi.json'));print(sorted(d['components']['schemas']['ObligationItem']['properties']))"`
+  → 13 fields (`accumulated_seed_time_s`, `added_at`, `breached_at`, `dispatched_path`, `hnr_count`,
+  `info_hash`, `min_ratio`, `min_seed_time_s`, `observed_ratio`, `released_at`, `satisfied_at`,
+  `source_tracker`, `title`) — these three terminal fields are the MARKS ruling 18 wants read on a
+  torrent's own row, never a second list (DESIGN § 4.3).
+  `grep -cve '^[[:space:]]*$' frontend/maquette/design/src/mocks/handlers/acquisition.ts` → **395**
+  non-blank lines, 5 under the 400 ceiling — no read handler of this lot's fits there, so all three
+  open `mocks/handlers/trackers.ts`, by SUBJECT (`staging.ts` / `pipeline.ts` precedent,
+  `frontend-architecture.md` § 4, L20 phase 1). `ls frontend/maquette/design/src/mocks/handlers/` —
+  no file named `trackers.ts`. `ls frontend/maquette/design/src/mocks/seeds | wc -l` → 48, none for a
+  tracker, an obligation or a download.
+  `python3 -c "import json;d=json.load(open('frontend/openapi.json'));print(sorted(d['components']['schemas']['AcquisitionDownload']['properties']))"`
+  → no tracker, no ratio, no deadline field — the extension DESIGN § 2.3 item 3 asks for.
+  `sed -n '590,712p' frontend/maquette/design/src/mocks/seeds/settings.json` — the `economy` rows
+  already seeded, `file: "tracker"`, `key: "tracker.providers.<name>.economy.<field>"`, confirming the
+  alert threshold (item 2) is a NEW KEY in this SAME family, never a new file or write.
+- **Found (2026-09-27).** `python3 scripts/check-mock-seeds.py` → exit 0 (« clean »): the guard reads
+  `fixture-register.json` and each operation's `x-seeded-from` / `x-unseeded`, not a
+  `build-mock-seeds.py` script (which does not exist) — seeds are edited by hand, this guard is run
+  in the same commit.
+- **Points ≈ 14.** Three operations declared new — the tracker summary (name, ratio, volumes, trend,
+  the alert threshold, the refused-identifier health fact, a `broken_obligations` array — DESIGN § 2.3
+  item 1), the obligations, the downloads extended per active entry with tracker / ratio-on-size /
+  deadline / origin (item 3) — 6; three mock routes new (`trackers.ts`) 6; the
+  `fixture-register.json` / `x-seeded-from` rows for the two new seed families (the roster, the
+  obligations-and-downloads join) 2. The `broken_obligations` array is DECLARED here (its shape is
+  part of the summary's own schema) but drawn nowhere until phase 9; an empty array is every seed's
+  default, costing nothing extra here.
+- **Re-cut (2026-09-27, on `5e5ecd052`).** The prior re-read's phase 1 (14) is UNCHANGED in shape —
+  three reads, the same reasoning — but its CONTENTS moved: the tracker summary now carries the alert
+  threshold, the refused-identifier fact and the broken-obligations array (round 9 Q1, Q2; round 10
+  Q4), and `stalled-grabs` is confirmed absent from this lot's own contract entirely (F14, DESIGN
+  § 2.5) rather than moved to a later phase as the
+  prior reading did.
 
 A CONTRACT change: no behaviour is drawn yet.
 
 ## No rule in this phase, and that is stated rather than skipped
 
 A contract is not a behaviour: what holds it is `scripts/compare-contracts.py --check`, the generated
-`contract/types.d.ts`, and `scripts/check-mock-seeds.py`. The rules that read these operations are written in phases 2 to
-14, each beside the surface that calls it. **A phase with no rule says so; it does not invent one to look complete.**
+`contract/types.d.ts`, and `scripts/check-mock-seeds.py`. The rules that read these operations are
+written in phases 2 to 15, each beside the surface that calls it. **A phase with no rule says so; it
+does not invent one to look complete.**
 
 ## The move
 
 ### 1. Declare the three reads in `frontend/maquette/contract/openapi.json`
 
-`GET /api/acquisition/obligations` (`ObligationsResponse`) and `GET /api/acquisition/downloads`
-(`AcquisitionDownloadsResponse`) seeded from the backend's own answered shapes (D7 — no divergence needed for the
-obligations, DESIGN § 2.2), and the downloads' one deliberate divergence: each `AcquisitionDownload` carries its tracker,
-its ratio and its deadline (or the tracker-keyed join the summary read carries instead — the phase measures which the mock
-can answer without a second, disagreeing source, and the report says which reading it took). **The tracker summary read**
-is declared new — name, ratio, Download / Upload volumes, trend, the alert threshold (§ 2.3 item 1); its operationId is a
-proposal, and adjusts.
+`GET /api/acquisition/obligations` (`ObligationsResponse`) seeded from the backend's own answered
+shape (D7 — no divergence needed, DESIGN § 2.2). `GET /api/acquisition/downloads`
+(`AcquisitionDownloadsResponse`) with its one deliberate divergence: each active entry carries the
+tracker it runs on, its ratio ON THAT TRACKER computed on the torrent's OWN SIZE (never a division by
+zero for a cross-seeded entry, ruling 18), its deadline, and whether it is the torrent's ORIGIN grab
+or a cross-seed of it. **The tracker summary read** is declared new — name, ratio, Download / Upload
+volumes, trend, the alert threshold, and whether the identifier is refused (since when) — its
+operationId is a proposal, and adjusts.
 
-### 2. File the two demand rows these operations carry, by editing the CONTRACT, never the register
+### 2. File the demand rows these operations carry, by editing the CONTRACT, never the register
 
-`docs/reference/frontend-backend-demands.md` says so in its own first line — « COMPUTED, NEVER WRITTEN », built by
-`python3 scripts/compare-contracts.py --write` from the diff of `frontend/maquette/contract/openapi.json` against
-`frontend/openapi.json`. The summary read (§ 2.3 item 1) and the extended download (§ 2.3 item 3) are demand rows by that
-edit. The other three rows of § 2.3 — the policy write (item 2), the release verb (item 5), the ratio-derived scoring field
-(item 4) — are filed by phases 6, 7 and 12.
+`docs/reference/frontend-backend-demands.md` says so in its own first line — « COMPUTED, NEVER
+WRITTEN », built by `python3 scripts/compare-contracts.py --write` from the diff of
+`frontend/maquette/contract/openapi.json` against `frontend/openapi.json`. The tracker summary and
+the extended download are demand rows by that edit. The remaining rows of § 2.3 — the alert threshold
+as a config key (item 2, filed alongside the write in phase 4), the removal (item 5, phase 6), the
+grouped-removal read (phase 7), the « vu » write for a broken obligation (item 7, phase 9), the
+ratio-derived scoring field (item 4, phase 13) and the deferral demand (phase 12) — are filed by the
+phase that draws each.
 
 ### 3. The mocks, and each MOVES something (D7)
 
-Three routes in `mocks/handlers/trackers.ts`, registered in `mocks/handlers/index.ts`. What each must move (DESIGN § 2.4):
-the obligations list is the list a later release REMOVES an item from; the downloads and the summary read PROJECT one seed,
-never two that can disagree. Seeds are derived from the real payloads the running backend answers, never invented, and
-`python3 scripts/check-mock-seeds.py` is run in the SAME commit; a field no real payload carries is `x-unseeded`.
+Three routes in `mocks/handlers/trackers.ts`, registered in `mocks/handlers/index.ts`. What each must
+move (DESIGN § 2.4): the obligations list answers rows a later removal REMOVES (DESIGN § 4.4); the
+downloads and the summary read PROJECT one seed, never two that can disagree — a torrent
+cross-seeded onto two trackers seeds as TWO entries, one marked origin. Seeds are derived from the
+real payloads the running backend answers, never invented; `python3 scripts/check-mock-seeds.py` is
+run in the SAME commit; a field no real payload carries is `x-unseeded`.
 
 ### 4. Regenerate, and read what came out
 
@@ -76,21 +97,21 @@ never two that can disagree. Seeds are derived from the real payloads the runnin
     python3 scripts/compare-contracts.py --check
     npm --prefix frontend/maquette/design run generate-contract-types   # → src/contract/types.d.ts
 
-**Read the regenerated register's counters and put them in the report**, before and after. « 16 required and missing »
-must move; a register that did not move means the contract edit did not land, and a failed command is an edit that did not
+**Read the regenerated register's counters and put them in the report**, before and after. A register
+that did not move means the contract edit did not land, and a failed command is an edit that did not
 happen.
 
 ## Gate
 
-`sh scripts/heavy.sh --class rule l16 frontend/maquette/harness/run.sh --contracts` (announced to the steward before and
-after); `python3 scripts/check-mock-seeds.py`; `compare-contracts.py --check`. The oracle: **zero divergence everywhere** —
-no surface changed.
+`sh scripts/heavy.sh --class rule l16 frontend/maquette/harness/run.sh --contracts` (announced to the
+steward before and after); `python3 scripts/check-mock-seeds.py`; `compare-contracts.py --check`. The
+oracle: **zero divergence everywhere** — no surface changed.
 
 ## Register
 
-None closes here. B-144's reading half is answered by the declared operations; its remaining half (the write, the alert, the
-release verb, the ranking term) is what phases 6–12 close.
+None closes here. B-144's reading half is answered by the declared operations; its remaining half
+(the writes, the alert, the removal, the ranking term) is what phases 4–12 close.
 
 ## Commit
 
-`feat(maquette-l16): the contract of the trackers' reads and its two demands`
+`feat(maquette-l16): the contract of the trackers' reads and its demands`
