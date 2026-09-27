@@ -41,6 +41,7 @@ import { LibraryPage } from "../features/library/page";
 import { MaintenancePage } from "../features/maintenance/page";
 import { NotFoundPage } from "./not-found";
 import { SettingsPage } from "../features/settings/page";
+import { systemBadge, useSystemBadgeReads } from "../features/system/badge";
 import { SystemPage } from "../features/system/page";
 import { PAGE_PATHS } from "../lib/addresses";
 import { icons } from "./icons";
@@ -172,6 +173,8 @@ export const NAVIGATION: readonly NavigationRow[] = [
     icon: icons.wrench,
     group: "system",
     inBar: false,
+    badge: systemBadge,
+    useBadgeReads: useSystemBadgeReads,
   },
   {
     id: "maint",

@@ -22,6 +22,7 @@ import { installAppearance } from "./appearance";
 import { DialogLayer } from "./dialog-layer";
 import { installDialogHost } from "./dialog-host";
 import { installEntry } from "./entry";
+import { MenuBadge } from "./menu-badge";
 import { MessageLayer } from "./message-layer";
 import { installPopoverHost } from "./popover-host";
 import { PopoverLayer } from "./popover-layer";
@@ -47,6 +48,7 @@ export function Frame(): ReactElement {
   return (
     <>
       <BadgeReads />
+      <MenuBadge />
       <ActionButton />
       <BottomSlot />
       <TabBar />

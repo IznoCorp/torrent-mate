@@ -143,7 +143,9 @@ export function NavigationDrawer(): ReactElement {
                   <Icon paths={row.icon} className={drawerEntryDrawing()} />
                   <span>{t(row.labelKey)}</span>
                   {badge ? (
-                    <span className={drawerEntryCount()}>{badge}</span>
+                    <span className={drawerEntryCount()} data-part="shell/drawer-count">
+                      {badge}
+                    </span>
                   ) : null}
                 </a>
               );

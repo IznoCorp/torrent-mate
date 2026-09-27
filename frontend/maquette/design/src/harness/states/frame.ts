@@ -22,6 +22,29 @@ export function drawerStates(): NamedState[] {
   ];
 }
 
+export function menuStates(): NamedState[] {
+  return [
+    [
+      "menu-system-badge",
+      "Bouton du menu — Système a quelque chose à dire",
+      () => {
+        // A lock whose process is gone, over the seeded leftover entry: the
+        // button reads two, from a page that draws nothing of Système.
+        window.__mocks?.setLockStale(true);
+        applyState({ page: "lib", phase: "ready" });
+      },
+    ],
+    [
+      "menu-clear",
+      "Bouton du menu — rien à dire",
+      () => {
+        window.__mocks?.setTmpOrphans(false);
+        applyState({ page: "lib", phase: "ready" });
+      },
+    ],
+  ];
+}
+
 export function notFoundStates(): NamedState[] {
   return [
     [
