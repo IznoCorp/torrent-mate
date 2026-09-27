@@ -362,7 +362,9 @@ def test_the_committed_reference_carries_a_platform():
     # moved with it (Star Trek's agreeing row left the tab), named in the acceptance commit.
     # 131 SINCE L22b's phase 30: menu-system-badge and menu-clear, the menu button carrying
     # Système's badge and carrying none — added, nothing else moved.
-    assert reference["counts"] == {"states": 131, "regions": 39}
+    # 132 SINCE L22b's phase 34: acq-card-follow-error, a tunnel error POSED on « Furious », a
+    # follow in flight (RULINGS 26) — added, nothing else moved.
+    assert reference["counts"] == {"states": 132, "regions": 39}
 
 
 class TestItRefusesToWriteOverAForeignBuild:
