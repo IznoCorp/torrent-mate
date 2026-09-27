@@ -65,8 +65,11 @@ from playwright.async_api import async_playwright
 # medium that is not currently being acquired has no row there at all — which
 # is why both halves of this walk stand on the follows list. RE-AIMED OUT LOUD:
 # the take half stood on « En cours » while « À récupérer » was drawn there; it
-# left, and « Récupérer maintenant » lives on the follow's sheet.
+# left, and « Récupérer maintenant » lives on the follow's sheet. The take half
+# keeps the world it was measured in — the loaded one, where a take really moves
+# the medium in flight — and reaches the follows by their tab.
 FOLLOWS_STATE = "acq-follows-list"
+LOADED_STATE = "acq-now-loaded"
 
 # THE WORDS A REFUSAL WEARS. « occupé » is the clause's own; the others are what
 # the same refusal reads like when it is dressed differently.
@@ -246,7 +249,9 @@ async def main():
         # records every call it answered, keyed by the operationId the contract
         # names — which is the thing the clause is about.
 
-        await page.evaluate("(id)=>window.__go(id)", FOLLOWS_STATE)
+        await page.evaluate("(id)=>window.__go(id)", LOADED_STATE)
+        await page.wait_for_timeout(SETTLED)
+        await page.evaluate("""()=>document.querySelector('[data-acqtab="follows"]').click()""")
         await page.wait_for_timeout(SETTLED)
         await page.evaluate("""()=>window.__pipeline("running")""")
         await page.wait_for_timeout(SETTLED)
