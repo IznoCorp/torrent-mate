@@ -11,7 +11,7 @@ L22b appends from 13).
   generated files conflict; regenerate them (oracle by an accept in one invocation + the script proof; ledgers re-read).
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
 - DONE: 15a–19-bis-b, merges of #619/#621/main(#617/#618/#622/#623/#624), the triage's docs commit, 20–30, the MIDPOINT
-  (1 real fall, R207, repaired; audit2 ×10: 0/10), 31 (F5, condition 3 of RULINGS 25), 32 (F6), 33 (F42). NEXT: **34** « Abandonner » on a follow's card (M1) → 35 one-off
+  (1 real fall, R207, repaired; audit2 ×10: 0/10), 31 (F5, condition 3 of RULINGS 25), 32 (F6), 33 (F42), 34 (M1, RULINGS 26). NEXT: **35** one-off
   acquisitions (round 10 Q1 + Q2; likely cut) → 36 sentences (F7, F54, F53) → 37 readers (F41) → 38 → 39 (the dead
   `acq-follows-pause-empty` still in the a11y ledgers) → 40 death of Arrivées (F8) → 41 (+ engine-data.ts's removal,
   the steward's placement) → 42 close (F8, F52, F67, C9; product-intent-map.md:49).
@@ -21,7 +21,7 @@ L22b appends from 13).
   → cut. **REBOOT Monday 2026-09-28 05:00: open no phase that cannot finish before 04:50.**
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
-  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · next free R238. RULINGS: L22b writes 13–29 (13–25 used); L22a's repair round wrote 30–32.
+  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · next free R238. RULINGS: L22b writes 13–29 (13–26 used); L22a's repair round wrote 30–32.
 - AUDITOR ORDER 48 (amended): a fall set aside as « load » needs the same rule ≥ 10× here and ≥ 10× on `main` at
   comparable load; any gap is a regression.
 - LOGS `~/Library/Logs/tm-l22b/`; mutex `sh scripts/heavy.sh --held`. GATE: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh
@@ -224,3 +224,14 @@ L22b appends from 13).
   (declared_codes.py asks the grab's 202; lib/ ceiling 28 → 29, measured 28 without / 29 with). Gate 2 `33-gate2.log`
   47 rules (29 named) + 26 guards 0 failed, no divergence. Mutation `33-mutation.log`: the take path back → R225 FAIL
   « the tap sends that follow's grab — 0 → 0 » (and the sheet still waits for the next pass).
+- 2026-09-28 phase 34 (M1): STOP D (the one seeded tunnel error, Top Chef, has no follow) → RULINGS 26 (a): the error
+  POSED on « Furious » (`poseTunnelError`, state acq-card-follow-error). R222 gained four holds, red `34-red.log`.
+  Commit eff6c46a0: on a follow's card the quarantine records the release as tried (the release read no longer offers
+  it), the medium is back in « En vol » on « cherché », the follow goes on, the confirmation says « une autre release
+  sera cherchée »; door and branch in mocks/handlers/follow-errors.ts, the release read in the leaf releases-of.ts (no
+  cycle; staging.ts at 399); DESIGN § 6.2 files the demand and round 10 Q6 = C (unbuilt). Gate 1 fell: Furious is also
+  a card of the queue's flight and laid the ladder first, running (`34-diagnostic.log`, a temporary rule, removed) →
+  fix: the pose takes it out of flight. Gate 2 `34-gate2.log` 45 rules (25 named) + 26 guards 0 failed; 13 divergences
+  = the new state only; accepted (`34-accept.log`, script proof) 982c71877, pin 132. `34-a11y.log` 0 + light 88/88.
+  Mutations, each FAIL by name: tried release not recorded → « … no longer offered … »; not put back in flight → « …
+  back in « En vol », on « cherché » — None »; the follow removed → « and the follow goes on » (`34-mutation-*.log`).
