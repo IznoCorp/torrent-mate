@@ -76,6 +76,7 @@ const RUNG_TONE: Record<StripState, string> = {
   waiting: "neutral",
   blocked: "danger",
   aside: "neutral",
+  skipped: "neutral",
   pending: "neutral",
 };
 
@@ -91,7 +92,9 @@ const TO_CONFIRM = "confirmation";
  * @returns The current rung's index.
  */
 function currentRung(ladder: { state: StripState }[]): number {
-  const active = ladder.findIndex((rung) => rung.state !== "done" && rung.state !== "pending");
+  // A rung never lived is not where it stands either, like one not reached.
+  const active = ladder.findIndex(
+    (rung) => rung.state !== "done" && rung.state !== "pending" && rung.state !== "skipped");
   if (active !== -1) return active;
   const done = ladder.map((rung) => rung.state).lastIndexOf("done");
   return Math.min(done + 1, ladder.length - 1);

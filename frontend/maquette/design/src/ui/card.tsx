@@ -41,10 +41,11 @@ type Attributes = ButtonHTMLAttributes<HTMLElement> & {
 
 /**
  * Where the journey stands at one step of the strip: passed, current, stopped,
- * not reached — or held behind something else (`waiting`), or put aside by the
- * operator (`aside`).
+ * not reached — or held behind something else (`waiting`), put aside by the
+ * operator (`aside`), or never lived at all (`skipped`): a step the journey
+ * began after, neither passed nor still to come.
  */
-export type StripState = "done" | "now" | "blocked" | "pending" | "waiting" | "aside";
+export type StripState = "done" | "now" | "blocked" | "pending" | "waiting" | "aside" | "skipped";
 
 /** One cell of the strip. A cell with no label draws none. */
 export type StripCell = { state: StripState; label?: string };

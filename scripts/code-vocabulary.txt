@@ -1066,6 +1066,7 @@ skel
 skeleton
 skeletons
 skip
+skipped
 slice
 slot
 slow

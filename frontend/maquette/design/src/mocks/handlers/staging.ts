@@ -165,7 +165,7 @@ export function originOf(card: QueueCard, direct: boolean): { requester?: QueueC
   if (follow !== undefined) {
     return { requester: { name: accountName(), via: ASKED_BY_FOLLOW }, origin: { asked: follow.since } };
   }
-  return direct ? { requester: { name: accountName(), via: DIRECT_ADD }, origin: {} } : { origin: {} };
+  return direct ? { requester: { name: accountName(), via: DIRECT_ADD }, origin: { direct: true } } : { origin: {} };
 }
 
 /**

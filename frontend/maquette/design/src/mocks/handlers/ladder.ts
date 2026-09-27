@@ -29,6 +29,8 @@ export type Origin = {
   from?: Rung["rung"];
   /** When it was asked for, where the row carries it: a follow's own date. */
   asked?: string;
+  /** Added by hand in the download client: nothing before « arrivé » was lived. */
+  direct?: boolean;
 };
 
 // The seed is ONE journey, followed from the wish to Plex; every ladder is laid
@@ -39,6 +41,7 @@ const DONE = "done";
 const RUNNING_NOW = "now";
 const BLOCKED = "blocked";
 const PENDING = "pending";
+const SKIPPED = "skipped";
 
 // The words a rung not reached is drawn with — read off the seed's last rung,
 // which no journey of the seed has reached.
@@ -96,7 +99,13 @@ function laid(seeded: Rung, state: RungState): Rung {
 function positioned(position: Position, origin: Origin): Rung[] {
   const from = rungIndex(origin.from ?? "grabbed");
   const asked = rungIndex("requested");
+  // A DIRECT ADD BEGINS AT « ARRIVÉ » (ruling 4) once it has arrived: the wish,
+  // the search, the grab and the download were nobody's here, so they are drawn
+  // never lived and carry no time — a time would be the template's, borrowed.
+  const arrived = rungIndex("arrived");
+  const arrivedDirect = origin.direct === true && position.current >= arrived;
   return TEMPLATE.map((seeded, index) => {
+    if (arrivedDirect && index < arrived) return { rung: seeded.rung, state: SKIPPED, when: "" };
     if (index < position.current && index === asked && origin.asked !== undefined && from > asked)
       return { rung: seeded.rung, state: DONE, when: origin.asked };
     if (index < position.current && index < from) return { rung: seeded.rung, state: PENDING, when: "" };

@@ -5686,9 +5686,10 @@
               "waiting",
               "blocked",
               "aside",
+              "skipped",
               "pending"
             ],
-            "description": "passed, in motion, queued behind something else, waiting for the operator's hand, set aside by him, or not reached"
+            "description": "passed, in motion, queued behind something else, waiting for the operator's hand, set aside by him, never lived by this medium (a direct add begins at « arrivé »), or not reached"
           },
           "when": {
             "type": "string",

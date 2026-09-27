@@ -523,6 +523,10 @@ Ruling 9 dictates the gesture « depuis la carte » and it is an Operator's righ
 rights model — the gesture is born with L18 (§ 7.1). Offering a right-dependent act before that model exists is
 the small rights model the non-goals forbid.
 
+> **Amended 2026-09-28 (phase 31, F5, RULINGS 25):** a direct-add card that has ARRIVED keeps eight rungs and « n sur 8 »,
+> its four before « arrivé » drawn `skipped` (neither passed nor to come) with no time — ruling 4's « commence à « arrivé » ».
+> Noted, not repaired: every card still takes its rungs' times from the template journey — a § 13 fidelity point for the mock.
+
 ### 3.3 S3 — « À traiter »: what it holds (rulings 6, 7)
 
 **Ruling 7 in one sentence: « À traiter » holds what only his hand unblocks.** Three kinds, drawn as three

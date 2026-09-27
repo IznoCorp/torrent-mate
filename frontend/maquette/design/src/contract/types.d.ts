@@ -1557,10 +1557,10 @@ export interface components {
              */
             rung: "requested" | "searched" | "grabbed" | "downloading" | "arrived" | "identified" | "shelved" | "verified" | "sorted" | "enriched";
             /**
-             * @description passed, in motion, queued behind something else, waiting for the operator's hand, set aside by him, or not reached
+             * @description passed, in motion, queued behind something else, waiting for the operator's hand, set aside by him, never lived by this medium (a direct add begins at « arrivé »), or not reached
              * @enum {string}
              */
-            state: "done" | "now" | "waiting" | "blocked" | "aside" | "pending";
+            state: "done" | "now" | "waiting" | "blocked" | "aside" | "skipped" | "pending";
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             when: string;
             /** @description why the rung is blocked or waiting, as a token, when it is */

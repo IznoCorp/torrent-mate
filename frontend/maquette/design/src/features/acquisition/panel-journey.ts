@@ -33,6 +33,7 @@ const STAGE_PIP: Record<Stage["state"], string> = {
   waiting: "waiting",
   blocked: "danger",
   aside: "neutral",
+  skipped: "neutral",
   pending: "neutral",
 };
 
@@ -51,7 +52,7 @@ function stageLine(stage: Stage, name: string) {
     c: name,
     v: stage.when || NO_TIME,
     pip: STAGE_PIP[stage.state] ?? "neutral",
-    terne: stage.state === "pending",
+    terne: stage.state === "pending" || stage.state === "skipped",
   };
 }
 
