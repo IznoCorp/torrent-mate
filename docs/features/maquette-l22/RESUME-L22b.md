@@ -10,23 +10,19 @@ L22b appends from 13).
   [ac1af8]`. main has moved (#621, the references' gesture): merge `origin/main` at the next unit boundary — only the
   generated files conflict; regenerate them (oracle by an accept in one invocation + the script proof; ledgers re-read).
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
-- DONE: 15a–19-bis-b, merges of #619/#621/main(#617/#618/#622/#623/#624), the triage's docs commit, 20–29. NEXT
-  (integers; 28 was CUT at its opening ≈ 30 → 28/29/30, the rest +2): **30** the menu button's badge (`systemBadge`:
-  stale lock, leftovers, unfinished sweep + services/dependencies in alert, the `system-outage` replay included;
-  Système declares locks/services/dependencies; portal into `.burger`; R-L22-c's menu holds + the plan's three
-  mutations; M3's no-rights half said in black and white;
-  RULINGS 23 states named: drawer-navigation, acq-add-empty, acq-add-results; the seed's 1 tmp orphan lights it by
-  default) → [MIDPOINT full suite + audit2.py ×10 with its WHOLE output kept per draw; the steward's ×10 on main read
-  0/10, logs ~/Library/Logs/tm-steward/o48-audit2/] → 31 direct-add card (F5) → 32 follow sheet search + grab (F6 +
+- DONE: 15a–19-bis-b, merges of #619/#621/main(#617/#618/#622/#623/#624), the triage's docs commit, 20–30 (28 was CUT
+  at its opening ≈ 30 → 28/29/30, the rest +2). NEXT: **the MIDPOINT** — [full suite + audit2.py ×10 with its WHOLE
+  output kept per draw; the steward's ×10 on main read 0/10, logs ~/Library/Logs/tm-steward/o48-audit2/] → 31 direct-add card (F5) → 32 follow sheet search + grab (F6 +
   F42; likely cut) → 33 « Abandonner » on a follow's card (M1) → 34 one-off acquisitions (round 10 Q1 + Q2; likely
   cut) → 35 sentences (F7, F54, F53) → 36 readers (F41) → 37 → 38 (the dead `acq-follows-pause-empty` still sits in
   the a11y ledgers) → 39 death of Arrivées (F8) → 40 → 41 close (F8, F52, F67, C9; product-intent-map.md:49).
   Files renumbered 31–41 by `git mv`; 29 and 30 live in phase-28's file (cut). STEWARD: engine-data.ts's removal
-  (the follows' prefetch declared by its feature, drive.ts's `refillEngineData` door re-pointed) is L22b's, at 40. Each re-measured at its opening; > 15
+  (the follows' prefetch declared by its feature, drive.ts's `refillEngineData` door re-pointed) is L22b's, at 40.
+  Each re-measured at its opening; > 15
   → cut. **REBOOT Monday 2026-09-28 05:00: open no phase that cannot finish before 04:50.**
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
-  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c's first half) · next free R237. RULINGS: L22b writes 13–29 (13–24 used); L22a's repair round wrote 30–32.
+  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole: bar badge + menu button, 28–30) · next free R237. RULINGS: L22b writes 13–29 (13–24 used); L22a's repair round wrote 30–32.
 - AUDITOR ORDER 48 (amended): a fall set aside as « load » needs the same rule ≥ 10× here and ≥ 10× on `main` at
   comparable load; any gap is a regression.
 - LOGS `~/Library/Logs/tm-l22b/`; mutex `sh scripts/heavy.sh --held`. GATE: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh
@@ -181,3 +177,13 @@ L22b appends from 13).
   Mutation `29-mutation.log`: the same EXPRESSION now fells the COLD-LOAD hold too (« … carries the seeded count —
   None »): the declaration alone fills the badge. Steward placed engine-data.ts's removal at phase 40 (a new phase
   before the close if 40's budget does not hold it).
+- 2026-09-27 phase 30 (the menu button's badge, M3's no-rights half): `features/system/badge.ts` (`systemBadge` +
+  `useSystemBadgeReads`), `app/menu-badge.tsx` portalled into the static button, the drawer's count named
+  `shell/drawer-count`, states menu-system-badge / menu-clear. R236 grew the menu holds, red `30-red.log` (« server 1,
+  button None »). app/ ceiling 143 → 147; vocabulary + alert, faults, menu, service. Commit 567462c2e; gate 1
+  (`30-gate.log`) fell on two causes → fix 56623d4ac (the drawer re-derived on server state only: « button 3, entry
+  2 »; systemBadge threw on fanout/replay's pending-read marker). Gate 2 `30-gate2.log` 68 rules (55 named) + 26
+  guards 0 failed; 36 divergences = the two NEW states only; accepted in one invocation (`30-accept.log`), script
+  proof, f37b9c460 (pin 131). `30-a11y.log` 0 + light 88/88. Mutations `30-mutation-{wiring,constant,maintenance,
+  declaration}.log`, each FAIL by name (MenuBadge unmounted → « button None »; `return 1` → « server 2, button 1 »;
+  `return maintenance` → « expected 3, button 2 »; Système's declaration dropped → « server 1, button None »).
