@@ -52,6 +52,7 @@ from playwright.async_api import async_playwright
 # WHERE THE TILES ARE. The follows tab in grid mode, which is the surface the
 # operator was looking at.
 GRID_STATE = "acq-follows-grid"
+OPEN_THE_PAUSED_FOLD = """() => document.querySelector('#view [data-part="section/paused"] summary')?.click()"""
 
 # THE WORD THE INTERFACE SAYS. French because it is the application's own
 # rendered output — what a rule ASSERTS about the screen is the screen's
@@ -86,6 +87,10 @@ async def main():
         page.on("pageerror", lambda error: errors.append(str(error)))
 
         await page.evaluate("(id)=>window.__go(id)", GRID_STATE)
+        await page.wait_for_timeout(SETTLED)
+        # RE-AIMED OUT LOUD: paused follows fold at the end of « Suivis », drawn
+        # as tiles in the grid; the fold is opened the way a finger opens it.
+        await page.evaluate(OPEN_THE_PAUSED_FOLD)
         await page.wait_for_timeout(SETTLED)
 
         drawn = await page.evaluate(TILES_DRAWN)

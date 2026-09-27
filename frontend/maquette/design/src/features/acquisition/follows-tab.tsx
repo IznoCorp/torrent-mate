@@ -285,7 +285,11 @@ export function FollowsTab(): ReactElement {
         {paused.length === 0 || state.phase !== "ready" ? null : (
           <section className={sectionClass()} data-part="section/paused">
             <Disclosure summary={<Markup html={sectionInnerMarkup(STATUS_TONE.disabled, t("screens.acquisition.followsPaused"), String(paused.length), "")} />}>
-              <Markup html={paused.map((follow) => rowOf(follow, true)).join("")} />
+              {state.followMode === "grid" ? (
+                <Markup className={posterGrid()} data-part="grid" html={paused.map(tileOf).join("")} />
+              ) : (
+                <Markup html={paused.map((follow) => rowOf(follow, true)).join("")} />
+              )}
             </Disclosure>
           </section>
         )}

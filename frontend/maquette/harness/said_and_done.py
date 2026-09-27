@@ -74,8 +74,10 @@ SHEET_STATE = "mediasheet-series"
 # and of the fourteen follows it is the only one that does (B-383's own reading
 # named three, which was read on another scenario). A row that stops being
 # there fails this hold with `found False` rather than measuring another
-# medium in silence.
-FOLLOWS_STATE = "acq-follows-list"
+# medium in silence. RE-AIMED OUT LOUD: « Dark Matter » is a PAUSED follow, and
+# paused follows fold at the end of « Suivis »; the state is the list with that
+# fold opened.
+FOLLOWS_STATE = "acq-follows-paused"
 FOLLOWED_IN_LIBRARY = "Dark Matter"
 
 # A MAINTENANCE COMMAND'S PANEL. The first is destructive, so it is ALWAYS

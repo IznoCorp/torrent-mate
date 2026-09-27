@@ -55,8 +55,11 @@ from playwright.async_api import async_playwright
 
 # WHERE THE PANELS ARE RAISED FROM. `arr-queued` carries the subject — a medium
 # with no sheet that nothing is chasing, whose primary act falls through to the
-# journey. `acq-follows-list` is the breadth.
-SURFACES = ["arr-queued", "acq-follows-list"]
+# journey. The follows list is the breadth — RE-AIMED OUT LOUD onto
+# `acq-follows-paused`, the same list with its paused fold opened: the paused
+# follows' panels are addressed from inside the fold, which a closed fold hides
+# from the finger.
+SURFACES = ["arr-queued", "acq-follows-paused"]
 
 # THE DISTINCT PANELS A SURFACE ADDRESSES. A card offers the same panel from
 # its folder button and from its body; both are the same descriptor, so the
