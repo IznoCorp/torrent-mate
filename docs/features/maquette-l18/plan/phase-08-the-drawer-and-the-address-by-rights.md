@@ -1,6 +1,15 @@
-# Phase 6 — The drawer and the address, by rights
+# Phase 8 — The drawer and the address, by rights
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 6): OPEN 3 is RULED B (round 8 question 11) —
+**every drawer entry is drawn; an entry the account does not hold is MARKED, carries no count, and opens the
+reserved form** (F29, correcting the first drawing's own reading A, which had entries simply absent). `drawer.tsx`
+calling `row.badge()` on every row (F29's own citation) means the marked row's `badge()` must answer nothing, not
+a number it cannot explain — this phase's mutation gains that hold. **F32 extends the address guard to in-page
+LINKS** into a gated page (not only cold addresses): `SCREEN_PARENTS` keys (`/run/$runUid`, `/trackers/$name`,
+`/settings/ranking`, and for a Default-only account `/acquisition` and `/discover` too), and every `crossReference()`
+or link into a right-gated path. Re-estimated at **9** (was 8).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `wc -l frontend/maquette/design/src/app/drawer.tsx frontend/maquette/design/src/app/page-host.tsx frontend/maquette/design/src/app/not-found.tsx frontend/maquette/design/src/lib/addresses.ts` → **199, 117, 37, 415**; `git grep -n "data-navgo" -- frontend/maquette/design/src | wc -l` → 4; `ls frontend/maquette/design/src/routes | wc -l` → 14 (one thin file per address).
 - `sed -n 20,28p frontend/maquette/design/src/lib/addresses.ts` → `PAGE_PATHS` declares 7 pages (`acq`, `lib`, `arr`, `sys`, `maint`, `cfg`, `profile`); `/quality/$name` maps to `acq` (line 71).

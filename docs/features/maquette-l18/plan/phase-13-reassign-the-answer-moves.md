@@ -1,6 +1,11 @@
-# Phase 12 — The reassign gesture — the answer moves
+# Phase 13 — The reassign gesture — the answer moves
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 12): **F27** — `reassignRequester`'s answer
+moves ONE requester off a card/follow that may keep others (round 9 Q16, several requesters); the line updates to
+its new membership, staying PLURAL where more than one requester remains rather than collapsing to a single name.
+Re-estimated at **9** (was 8).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print([o['operationId'] for v in d['paths'].values() for o in v.values() if isinstance(o,dict) and 'reassign' in o.get('operationId','').lower()])"` → `[]` today; phase 1 declares it (keyed by the card's identity — one row or two).
 - `sed -n 1,30p frontend/maquette/design/src/mocks/state.ts` — every value of the mutable state comes from a seed; a reassignment must MOVE what the next read returns (D7).

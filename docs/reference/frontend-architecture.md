@@ -873,33 +873,47 @@ own growth costs.
 
 **Design and plan written 2026-09-27, PR #617** — `docs/features/maquette-l17/DESIGN.md`, `plan/INDEX.md` (19 phases, mean ≈ 10.9); eight open questions.
 
-#### L18 — §17, accounts, rights and Plex identity · *depends on L15, L19*
+#### L18 — §17, accounts, rights and Plex identity · *depends on L15, L19, L22, L16, L17*
 
 **Objective.** DOIT-12: the interface shows what THIS account can do, and what it cannot is
 visible and explained where hiding it would mislead. A rights MODEL first, then surfaces; the
 sign-in gate redrawn for Plex SSO; the read-only role ABSORBED by the model — one authorisation
-path (NE-DOIT-PAS-7). `GET /api/auth/me` diverges to carry rights (D7, a demand).
+path (NE-DOIT-PAS-7). `GET /api/auth/me` diverges to carry per-account ACL rights, with roles as
+default sets (D7, a demand).
 
-**Its four open points were dictated on 2026-08-30** — §17 « Ce que cela tranche »: three roles
-(Operator bypasses ACLs; Household member; Plex guest) and two per-account options; a requester
-on every acquisition; SSO added, not substituted, with e-mail linking; a rights-less Plex user
-admitted read-only on the library; the Acquisition section absent for an account that can neither
-request nor see others' requests, as the named exception to §17 rule 2. **No blocking note
-remains.** The lot is last of the three because it is the largest and because it is the one
-that edits the FRAME after L15 (the gate, the drawer's identity block), by design. The backend's
-share is `docs/reference/backend-demands-architecture.md` § 2–3.
+**Amended 2026-09-27** (organisation rulings 20–23; round 8/9/10; F49). **Rights belong to ROLES,
+never directly to an account**: an account holds one role, and a role's rights are configuration
+(Comptes) — not the three-role-plus-two-options table dictated 2026-08-30, which now names only
+the DEFAULT seed values (Household member, Plex guest), not the mechanism. Two roles are the
+system's, indelible: Default (every new account's; its rights are configurable) and Admin (no
+rights list — it bypasses the ACL entirely, including rights created later). A requester on every
+acquisition MAY BE SEVERAL, each with per-requester settings; SSO added, not substituted, with
+e-mail linking and a password right (`auth.password`) rather than a hardcoded Operator check; a
+rights-less Plex user is a Default-only account, admitted read-only on the library by
+construction, not a distinct mechanism; the Acquisition section absent for an account holding
+neither `acquisition.request` nor `.see.others`; the staging ceiling generalised to a per-instance
+list of forbidden writes (preprod). **No blocking note remains; all seven of the first drawing's
+open questions, plus L17's OPEN 1, are ruled** (`docs/features/maquette-l18/DESIGN.md` § 7.2). The
+backend's share is `docs/reference/backend-demands-architecture.md` § 2–3.
 
-**Where it lives (invariant 10).** `features/account/` for the model and the surfaces; the gate
-stays `app/sign-in.tsx` and is redrawn here — the only lot after L15 that edits frame CODE (L16
-and L20 add rows to the navigation table, which is the template working as designed), and the
-plan says so rather than discovering it.
+**Where it lives (invariant 10).** `features/account/` for the model and the surfaces. **The gate
+is `app/entry.ts` plus `index.html`'s `login:markup` region, extracted by `serve.py`** — there is
+no `app/sign-in.tsx` and there never was (F49); L18 edits the drawer's ENTRIES and the header
+avatar's identity, never a drawer "identity block" (that block is the host's served identity,
+`lib/served-identity.ts`, untouched by this lot). **L18 is NOT the only lot after L15 to edit frame
+code** (F49 corrects the claim this entry used to make): L22 and L16 both edit `app/` first (the
+tab bar, the drawer's badges, the navigation table's rows); L18 re-reads what they left rather than
+opening untouched frame code.
 
 **Done when.** A right is proved on BOTH sides and separately (§17 « Ce que cela impose à la
 preuve »): the action absent from the surface for the account without it, the call refused for
-one that forces it; the map's DOIT-12 row reads `served` with that rule; the read-only role has
-no path of its own left.
+one that forces it; the map's DOIT-12 and DOIT-14 rows read `served` with that rule; the read-only
+role has no path of its own left; the media sheet's cross-seed block (§19, taken over from L17's
+own held design) is gated on the same model.
 
-**Design and plan written 2026-09-27, PR #618** — `docs/features/maquette-l18/DESIGN.md`, `plan/INDEX.md` (29 phases, mean ≈ 12.3, cut in two at phase 17); seven open questions.
+**Design and plan written 2026-09-27, PR #618; amended 2026-09-27, same PR** —
+`docs/features/maquette-l18/DESIGN.md`, `plan/INDEX.md` (36 phases, mean ≈ 12.47, cut in two at
+phase 20); no open question remains.
 
 ### Phase 6 — The finish
 

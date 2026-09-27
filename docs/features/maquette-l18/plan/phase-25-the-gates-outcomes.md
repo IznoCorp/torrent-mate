@@ -1,6 +1,14 @@
-# Phase 21 — The gate's outcomes
+# Phase 25 — The gate's outcomes
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 21): the refusal is now GATED BY THE RIGHT
+`auth.password`, not by a role string (F2, F35, C3 reading C) — an account without the right is refused with «
+ce compte se connecte avec Plex », whether or not it is Plex-linked; a linked account without the right still
+signs in with Plex; Admin holds `auth.password` by default and it is grantable to any account in Comptes. A
+rights-less Plex user is one whose ONLY role is Default (§ 1.2.1) — the first drawing's « Operator-only » gloss is
+now read through the right, exactly as C3's reading C reconciles Q10's default with § 17's letter. Re-estimated at
+**15** (unchanged).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `sed -n 316,340p frontend/maquette/design/src/app/entry.ts` → the gate's submit: an empty field shows the refusal, anything filled in walks through (« this surface demonstrates the SCREEN and not the check »); `signIn` answers the account whatever is sent (`mocks/handlers/authentication.ts`).
 - `sed -n 238,242p docs/reference/frame-model.md` → « rights (§17) are a feature's to read from `/api/auth/me`, never the gate's »: **the outcome is drawn by the frame reading the account after the sign-in, not by the gate reading a role**.

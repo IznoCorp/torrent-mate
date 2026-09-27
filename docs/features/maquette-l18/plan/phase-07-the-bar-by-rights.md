@@ -1,6 +1,18 @@
-# Phase 5 — The bar, composed by rights
+# Phase 7 — The bar, composed by rights
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 5): OPEN 4 is RULED (B, widened by ruling 17 —
+every access is an ACL right; `trackers.view` is Admin-default, grantable, no longer a two-reading parameter this
+phase reads without choosing). This phase ALSO lands: **Découvrir's bar row** (round 8 Q20, gated by
+`acquisition.request`, fourth place — the count is now 2/3/4 or none, never the first drawing's 1–3); **a role
+with no page routes to `/no-access`** (ruling 22's precision — a dedicated route, sign-out only, no bar, no menu);
+**the entry-page rule** (round 10 Q7 — `addressSeam.homePage` reads the model: the first page of the account's own
+bar in bar order, or its only page, or the first menu page opened — F34, amending `frontend-architecture.md`'s §
+16 entry and `product-intent.md` § 16.2, both the operator's hand, not this phase's edit). **F49 corrects this
+file's own claim of being the sole post-L15 frame-code edit** — L22b and L16 both land `app/` edits first; this
+phase RE-READS their `inBar` rows rather than opening them cold. Re-estimated at **15** (was 12).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything, and again against L22b's open
+head:**
 
 - **Commands.** `wc -l frontend/maquette/design/src/app/navigation.ts frontend/maquette/design/src/app/tab-bar.tsx frontend/maquette/design/src/app/navigation-seam.ts` → **216, 98, 78**; `git grep -n inBar -- frontend/maquette/design/src | wc -l` → **12** site-lines. Today `NAVIGATION` has 8 rows, 4 in the bar (`acq`, `lib`, `arr`, `sys`), and **no row carries a right**.
 - `git grep -l -i -E "data-page=|data-navgo|tabbar|tab-bar|nav button" -- 'frontend/maquette/harness/*.py' | wc -l` → **27** harness files read the bar or the drawer's entries.

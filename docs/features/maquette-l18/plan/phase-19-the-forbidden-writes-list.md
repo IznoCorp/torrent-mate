@@ -1,6 +1,15 @@
-# Phase 17 — The ceiling absorbs the staging role
+# Phase 19 — The forbidden-writes list
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 17): **ruling 23 turns the boolean ceiling into
+a per-instance NAMED LIST** — this phase now keeps only the MECHANISM: the model reads a served list, subtracts
+it from every role's rights (Admin included, § 1.2), and `SETTINGS_STATE.readOnly` / the mock's `readOnly` die
+(source hold). **F66**: `readConfigurationStatus` drops `readOnly`, keeps `restartRequired` — a contract edit,
+register regenerated here. **The two instances' own lists (`:8711`-today's « every write »; preprod's
+`library.delete` alone) move to a NEW sibling phase (20)**, which also carries the banner's specific reason text —
+too much for one 15-point phase once the list itself must be named per instance. Re-estimated at **15** (was 15,
+same ceiling, narrower scope now that the seeds have their own phase).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `git grep -c "readOnly" -- frontend/maquette/design/src ':!*.d.ts' ':!*.json'` → **24 lines in 12 files** (`features/settings/banners.tsx` 4, `panel-secret.ts` 4, `panel-setting.ts` 5, `panel-field.tsx` 1, `queries.ts` 1, `state.ts` 1, `types.ts` 1, `variants.ts` 2, `harness/settings-reset.ts` 1, `harness/states/settings.ts` 1, `mocks/handlers/configuration.ts` 1, `mocks/state.ts` 2).
 - `git grep -n "readOnly = true" -- frontend/maquette/design/src` → `harness/states/settings.ts:113` alone: the flag is set true by ONE named state, `settings-read-only`, and by nothing served. `readConfigurationStatus` answers `{readOnly, restartRequired}` from the mock's own `readOnly` (false, `mocks/state.ts:319`) — **the two are not connected** (DESIGN § 0.2 fact 6).

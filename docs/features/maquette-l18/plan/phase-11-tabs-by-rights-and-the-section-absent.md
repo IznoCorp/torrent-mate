@@ -1,6 +1,15 @@
-# Phase 9 — Tabs by rights, the section absent, the viewer's memory
+# Phase 11 — Tabs by rights, the section absent, the viewer's memory
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 9): **OPEN 6 is RULED A firm** — no guest
+branch to build (round 8 question 14: « Suivre »/« Ajouter » is the SAME act for everyone; only which requesters
+hold `acquisition.request`/`.follow` differs). Acquisition keeps **THREE tabs** — « Suivis · En cours · À traiter »
+— Découvrir having left the section for the bar (round 8 Q20; drawn in phase 7, not here). **OPEN 7 is RULED A** —
+a Default-only account draws NO bar (phase 7's own work; this phase's own « no bar of one » hold is now read from
+phase 7, not built twice). **F33** extends here too: a `see.others`-only identity's tabs carry CONTENT (the
+others' cards, read-only), not an empty tab. Re-estimated at **13** (was 15) — the OPEN-6-B branch and the
+bar-of-one-place branch both leave the phase's own scope, more than offsetting F33's addition.
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `wc -l frontend/maquette/design/src/features/acquisition/acquisition-tabs.tsx frontend/maquette/design/src/features/acquisition/page.tsx` → **54, 49**. **L22 phase 8 creates the fourth tab and phase 13 the default-tab rule** (« Suivis » first, then the last tab opened, in local storage under try/catch): this phase's opening measure re-reads both.
 - `git grep -n -E "localStorage|sessionStorage" -- frontend/maquette/design/src | wc -l` → **8** lines in 3 files (`app/appearance.ts`, `app/outbox-store.ts`, `app/worker-registration.ts`): none is keyed to a viewer today (the appearance is the device's) — **L22's default-tab memory is the first viewer-keyed use**, and it does not exist on this head.

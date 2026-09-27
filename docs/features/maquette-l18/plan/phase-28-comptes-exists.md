@@ -1,6 +1,14 @@
-# Phase 23 — « Comptes » exists — where OPEN 1 says
+# Phase 28 — « Comptes » exists
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 23): **OPEN 1 is RULED B, firm — a first-level
+menu page** (round 8 question 9), address `/accounts`, grouped `configuration` beside Réglages. **No Réglages-rubric
+variant survives to draw**: the first drawing's dual estimate (« A: 11 / B: 15 ») collapses to the B figure alone,
+the more expensive of the two because it needs a route, a `PAGE_PATHS` entry and a navigation row (fact 10: the
+rubric list is server data, so a rubric would have needed a page composing its own entry — moot now). Present and
+MARKED for accounts without `accounts.manage` (F29), never absent. Re-estimated at **15** (was « B: 15 »,
+unchanged).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `python3 -c "import json;print(len(json.load(open('frontend/maquette/design/src/mocks/seeds/settings.json'))))"` → **6** rubrics, **served data** (`readSettings`); `wc -l frontend/maquette/design/src/features/settings/page.tsx frontend/maquette/design/src/features/settings/topic-verb.ts` → **319, 94**.
 - `sed -n 20,28p frontend/maquette/design/src/lib/addresses.ts` → 7 declared pages; `ls frontend/maquette/design/src/routes | wc -l` → 14 route files; the drawer has three groups.

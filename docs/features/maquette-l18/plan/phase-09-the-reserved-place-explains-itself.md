@@ -1,6 +1,15 @@
-# Phase 7 — The reserved place explains itself — ONLY if OPEN 3 is ruled B
+# Phase 9 — The reserved place explains itself
 
-> **Conditional.** Drawn only under reading B of DESIGN § 7.2 OPEN 3; under A the phase is deleted and the plan renumbers.
+**Amended 2026-09-27** (renumbered from the first drawing's phase 7): **OPEN 3 is RULED B — this phase is now
+UNCONDITIONAL** (round 8 question 11; F29), not the conditional draw the first drawing left pending. The
+explanation names the missing RIGHT and which role(s) grant it by default (ruling 17's own reading: « réservé à
+l'Opérateur » reads « not granted by default to any role but Admin »), never a role or account name directly. Its
+table of right-name sentences is built ONCE here and reused by Profil (phase 22) and by « Comptes »'s own reserved
+form (phase 28). Re-estimated at **15** (unchanged from the first drawing's own B-reading estimate — removing the
+conditional does not remove the work, it removes the branch).
+
+> **No longer conditional.** This phase always runs; the first drawing's A-reading deletion clause does not
+> apply.
 
 **Opening measure (2026-09-27, on `46806a88d`):**
 

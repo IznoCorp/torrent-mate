@@ -14,6 +14,11 @@ route, the bar and the dials on their own, before anything is drawn inside them.
 
 The phase reads DESIGN § 4.1's two readings to the steward, with this cost line, and does not choose.
 
+**STOP C resolved, 2026-09-27** (DESIGN § 4.1, § 5): ruled C — neither reading A nor B; `trackersTab`'s
+default value is `"trackers"` on first entry, then the last tab opened, kept in local storage under
+try/catch, falling back to `"trackers"` — the same mechanism as Acquisition's default-tab rule
+(`features/acquisition/tab-memory.ts`), reused rather than duplicated.
+
 **Opening measure (2026-09-27, on `5e5ecd052`):**
 
 - **Commands.** `ls frontend/maquette/design/src/features/` → `account`, `acquisition`, `arrivals`,

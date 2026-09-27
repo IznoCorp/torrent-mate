@@ -1,6 +1,10 @@
-# Phase 18 — Profil is the connected account
+# Phase 21 — Profil is the connected account
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 18): the ROLE line now names an actual ROLE
+(never a raw rights list, never compared) — ruling 20's own guarantee that it never lies. Re-estimated at **11**
+(unchanged).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `wc -l frontend/maquette/design/src/features/account/page.tsx` → **83**; `python3 -c "import json;d=json.load(open('frontend/maquette/design/src/i18n/fr.json'));print(len(d['screens']['accountPage']), [k for k in d['screens']['accountPage'] if k.startswith('others')])"` → **21** keys, three of them `others`, `othersEmptyTitle`, `othersEmptyBody`.
 - `grep -n -B1 -A3 '"account/body"' frontend/maquette/regions.json` → the region's note still reads « the one real account, and the place of the others » (line 208): a comment that outlives its decision is read as current (the species `CLAUDE.md` records).

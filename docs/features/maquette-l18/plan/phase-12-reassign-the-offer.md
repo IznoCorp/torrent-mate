@@ -1,6 +1,15 @@
-# Phase 11 — The reassign gesture — the offer
+# Phase 12 — The reassign gesture — the offer
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 11): **F46 folds in the first drawing's phase
+10** (« the accounts can be read »), now DELETED — the chooser's read is a NARROW read (names, roles, Plex link)
+implied by holding `acquisition.reassign` itself, never a separate door or a full `readAccounts` call. **M9** (the
+auditor's coherence round): the chooser lists ONLY accounts that SEE the card — holders of `acquisition.see.others`,
+already a requester of it, or Admin — never the whole roster. **F27**: `reassignRequester` is keyed for BOTH the
+card and the follow (`QueueCard.ids` and `followedId`), and moves ONE requester off a list that may keep others.
+Re-estimated at **15** (was 15, growth from the folded-in read and the M9 filter offset by OPEN 5 = A's firm
+reading needing no second-variant build).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `wc -l frontend/maquette/design/src/features/acquisition/panel-journey.ts frontend/maquette/design/src/features/acquisition/panel-follow.ts frontend/maquette/design/src/features/acquisition/journey-verbs.ts frontend/maquette/design/src/features/acquisition/card-gestures.ts frontend/maquette/design/src/features/acquisition/card-markup.ts frontend/maquette/design/src/lib/verbs.ts` → **112, 172, 116, 226, 109, 128**. `panel-journey.ts` offers **three acts** (`requeue`, `rescrape`, `seeSheet`); the descriptor form is `ui/panel/contract` (`registerProducer`, `blocs`, `actions`).
 - `git grep -ci requester -- frontend/maquette/design/src` → no match today. **L22 phase 7 draws the requester line** (« ajouté par Izno, dans qBittorrent ») on `card-markup.ts`; L22's OPEN 11 = B sent the gesture here.

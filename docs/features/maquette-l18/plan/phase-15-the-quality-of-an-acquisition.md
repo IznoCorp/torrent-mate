@@ -1,6 +1,13 @@
-# Phase 14 — The quality profile of an acquisition
+# Phase 15 — The quality profile of an acquisition
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 14): **round 10 Q6, precised** — quality is a
+ROLE right (`acquisition.quality.own`), several requesters may hold it on the same acquisition, and only THOSE
+requesters' settings enter « the highest wins »; a requester without the right follows the default profile. The
+first drawing's single-requester assumption is corrected. **A sibling phase (16) now carries PAUSE**, the same
+shape, kept separate to hold both at ≤ 15. Re-estimated at **14** (unchanged from the first drawing — the
+multi-requester comparison replaces, rather than adds to, the single-requester write).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `wc -l frontend/maquette/design/src/features/releases/quality-screen.tsx` → **306**; the screen writes `state.profile` with `writeUiState` (`sed -n 78,80p`) — **a client-store write, not a served one**. `python3 -c "import re;print(len(re.findall('quality',open('frontend/maquette/contract/openapi.json').read(),re.I)))"` → 0.
 - `sed -n 198,212p frontend/maquette/design/src/app/history-bridge.ts` → the screen is reached through the screens door (`profile: (title, replace)` → `/quality/$name`); `frontend/maquette/design/src/lib/addresses.ts:71` maps `/quality/$name` to `acq`. The entry points are re-taken at the opening (`git grep -n "profile(" -- frontend/maquette/design/src`).

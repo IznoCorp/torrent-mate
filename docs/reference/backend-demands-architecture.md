@@ -34,24 +34,60 @@ brief can read the reason and not only the requirement.
   identity (`frontend-backend-demands-stream.md` § 1 already asks for it), a tunnel's block and
   resume as events, and the global levers' state.
 
-## 2. The requester, and rights — §17
+## 2. The requester(s), and rights — §17
 
-- **Every acquisition has a requester.** A new request carries the connected user; existing
-  requests, which have none, are attributed to the Plex server's owner account (Izno). An Operator
-  may reassign a request to another user and manages every requester's requests.
-- **A rights model with three roles and two per-account options** (Operator — bypasses ACLs;
-  Household member; Plex guest; options: see others' acquisitions, set the quality profile of
-  one's own). `GET /api/auth/me` must carry the role and the options; every mutating operation is
-  authorised against the requester where the clause says « ses propres acquisitions ».
-- **Plex SSO is added, not substituted.** Only Operator accounts may hold a password without SSO.
-  A locally created account carries a mandatory e-mail; an e-mail matching a Plex account LINKS
-  the two, and the user signs in either way. A Plex user with no rights here is admitted
-  read-only, library only.
-- **The read-only role becomes an instance ceiling**: on the staging instance every account is
-  capped to read-only whatever its role. `require_not_staging` is absorbed by the model as that
-  ceiling — one authorisation path, never two (NE-DOIT-PAS-7).
-- **A right is proved on both sides, separately** (§17): the action absent from the surface for
-  the account without it, AND the call refused for one that forces it. The backend owes the
+**Amended 2026-09-27** (organisation rulings 20–23; round 9 Q16; round 10 Q6, precised; L18's design amendment,
+PR #618) — this section replaces the three-role-plus-two-options model dictated 2026-08-30 with the mechanism the
+operator ruled on 2026-09-27; the roles it names are seed VALUES, not a fixed set.
+
+- **Every acquisition has AT LEAST ONE requester, and MAY HAVE SEVERAL** (round 9 Q16 = B). A follow's own table
+  of requesters: a new « Suivre »/« Ajouter » ADDS the connected user as a requester of the same follow, never
+  replaces one; existing requests, which have none, are attributed to the Plex server's owner account (Izno). An
+  account holding `acquisition.reassign` moves ONE requester off a follow/card onto another account; removing
+  one's own follow removes only that requester, and the follow ends when the last one leaves; a followed film
+  ends for every requester at its Plex confirmation.
+- **A rights model where every access — a view or an act — is an ACL right, held by a ROLE, never directly by an
+  account** (ruling 17, refined by ruling 20). An account holds exactly ONE role (ruling 20's own precision:
+  « 1 seul »). Two roles are the system's, indelible: **Default** (every new account's — a first Plex sign-in
+  with no other role — its rights are configurable, it cannot be deleted) and **Admin** (no rights list at all —
+  it bypasses the ACL entirely, including a right created after the account signed in; it cannot be modified or
+  removed). Every other role — Household member, Plex guest, and any variant the Operator creates for one
+  account's own distinct rights (ruling 20's own example) — is ORDINARY configuration, managed from Comptes: its
+  name, its rights, and which accounts hold it. What the first drawing called a per-account "option" (see
+  others' acquisitions; set the quality profile of one's own; a pause preference, added 2026-09-27, round 10 Q6)
+  is now a RIGHT some roles hold and others do not — never a boolean on the account row.
+- **`GET /api/auth/me` must carry the role's NAME (display only, never compared), the account's closed set of
+  rights, whether a Plex account is linked and which, the account's ENTRY PAGE, and the instance's forbidden-writes
+  list** (below) — one read, one authorisation path (NE-DOIT-PAS-7); every mutating operation is authorised
+  against the requester(s) where the clause says « ses propres acquisitions », now a MEMBERSHIP check against the
+  requesters list, never equality with a single field.
+- **A role that opens no page** (the Default role emptied of even `library.read`, or any other role reduced to
+  nothing) sends the account to a DEDICATED route saying so, with sign-out only — never a refusal at sign-in
+  (ruling 22, precised).
+- **Per-requester settings, with priority rules** (round 10 Q6, precised): only a requester whose ROLE holds the
+  quality right has a quality setting on an acquisition, and only those enter « the highest wins »; a pause
+  preference the same way — « paused » holds only when every requester who holds the pause right has asked for
+  it. Setting either is itself a role right, never a default anyone gets.
+- **Escalation** (round 9 Q14 = A, if the frontend's own measure holds it to one phase, else B — see L18's plan):
+  a manager who does not hold the Admin role creates, renames or assigns only a role whose rights are a SUBSET of
+  their own role's, never modifies their own role, and never touches an account whose role is Admin (the
+  auditor's coherence round, M7). The backend refuses a violation server-side; the frontend greys it, never
+  trusting the client alone.
+- **Plex SSO is added, not substituted.** A password sign-in is gated by an ACL right (`auth.password`), held by
+  the Admin role by default and grantable to any account, Plex-linked or not, from Comptes — reconciling the
+  operator's default gloss (« Opérateur seul ») with §17's letter (« l'utilisateur se connecte par l'un ou
+  l'autre »): a linked account without the right still signs in with Plex; the right adds a password as a second
+  way in for the account that holds it. A locally created account carries a mandatory e-mail; an e-mail matching
+  a Plex account LINKS the two. A Plex user admitted with only the Default role's own seed is read-only, library
+  only — not a distinct mechanism, the model's own default falling out of the Default role's rights.
+- **The staging read-only role becomes a PER-INSTANCE LIST of forbidden writes, not a single boolean ceiling**
+  (ruling 23, superseding the earlier reading): the current `:8711` instance's own list names every write; the
+  future PREPROD environment's list names deletion in the library ALONE — preprod reads and files into the PROD
+  library (replace a film, merge a series, rewrite NFOs) exactly as production does, and only an explicit
+  DELETION in the library is refused there. `require_not_staging` is absorbed by the model reading this served
+  list — one authorisation path, with a per-instance list, never two mechanisms (NE-DOIT-PAS-7).
+- **A right is proved on both sides, separately** (§17): the action absent from the surface for the account
+  without it, AND the call refused for one that forces it — on VIEWS too, not writes alone. The backend owes the
   second half.
 
 ## 3. A quality profile override per acquisition — §17, §9

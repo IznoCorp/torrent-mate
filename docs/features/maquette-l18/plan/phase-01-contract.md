@@ -1,6 +1,15 @@
 # Phase 1 — The contract
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (DESIGN.md's own amendment): `Follow` and every `QueueCard` gain a `requesters: AccountId[]`
+field, plural from the start (F27 — round 9 Q16 lands several requesters per follow before this lot opens);
+`reassignRequester` moves ONE requester off a list, one on. A fourth operation is declared new alongside the three
+below: `setAcquisitionPause` (demand P, round 10 Q6 precision — the same shape as `setAcquisitionQuality`, one
+more schema, ≈ +2 points). `readAccount`'s re-shape now carries the account's RIGHTS (not a role string plus two
+options) and a forbidden-writes LIST (not a ceiling boolean) — ruling 20, ruling 23; the `Account`/role schemas
+change accordingly. Re-estimated at **14** (was 12); the opening measure below is re-taken at this phase's own
+start against the head it actually opens on.
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print(sum(m in ('get','post','put','patch','delete') for v in d['paths'].values() for m in v))"` → **63** operations (34 reads, 29 writes); `'403' in responses` on **62** of them, `takeQueued` (`POST /api/acquisition/to-handle/{mediaId}/take`) on none.
 - `python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print(json.dumps(d['components']['schemas']['Account']))"` → `name`, `email`, `avatar`, all required; the file is 5 874 lines. `docs/reference/frontend-backend-demands.md` is 221 lines, 134 of them table rows.

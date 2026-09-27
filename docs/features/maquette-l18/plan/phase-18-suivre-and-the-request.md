@@ -1,6 +1,12 @@
-# Phase 15 — « Suivre » and the request
+# Phase 18 — « Suivre » and the request
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 15): **OPEN 6 is RULED A, firm — no B branch
+survives** (round 8 question 14, verbatim: « Ça marche comme ça pour tous »). The first drawing's own dual
+estimate (« A: 6 / B: 17, cut into 10+7 ») collapses to the A figure alone: the offer follows
+`acquisition.request`/`.follow` by role, the same verb for every account. Re-estimated at **6** (was 6 under A;
+the B-branch's cut variants are deleted, not merely unused).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `wc -l frontend/maquette/design/src/features/acquisition/add-screen.tsx frontend/maquette/design/src/features/acquisition/add-verbs.ts frontend/maquette/design/src/features/acquisition/panel-add.ts frontend/maquette/design/src/features/acquisition/discover-tab.tsx` → **391, 120, 96, 216**; the maquette's only way to ask is `createFollow` (`POST /api/acquisition/followed`).
 - L22's ruling 1 keeps a PUNCTUAL acquisition distinct from a follow; L22 phase 17 proposes « Suivre » on an arrival's card, phase 18 ends a film's follow alone.

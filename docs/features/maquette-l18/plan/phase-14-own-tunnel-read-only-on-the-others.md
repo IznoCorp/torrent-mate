@@ -1,6 +1,11 @@
-# Phase 13 — Own tunnel, read-only on the others
+# Phase 14 — Own tunnel, read-only on the others
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 13): **F27** — the guard now checks MEMBERSHIP
+in the target's `requesters[]` list, never equality with a single requester field. `acquisition.pilot.own`'s acts
+are offered where the caller is AMONG the requesters; absent, and refused `403`, otherwise; `acquisition.pilot.any`
+(Admin) on every card regardless. Re-estimated at **14** (unchanged).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `grep -c "translate(" frontend/maquette/design/src/features/acquisition/panel-journey.ts` and `sed -n 84,100p frontend/maquette/design/src/features/acquisition/panel-journey.ts` → the journey sheet's acts (`requeue`, `rescrape`, `seeSheet`); `panel-follow.ts` (172 lines) draws the follow's acts.
 - The operations behind the acts (`git grep -n -E "requeueJourney|rescrapeJourney|takeQueued|grabForFollow|searchForFollow|grabSeasonForFollow" -- frontend/maquette/design/src/features`): six operations of `acquisition.pilot.own` (DESIGN § 1.2).

@@ -1,6 +1,10 @@
-# Phase 24 — « Comptes » — the roster
+# Phase 29 — « Comptes » — the roster
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 24): each row now shows a ROLE (from
+`readAccounts`, phase 26), never a raw rights list or a per-account option pair; « sans droits » marks a
+Default-only account, unchanged in spirit. Re-estimated at **15** (unchanged).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `readAccounts` exists from phase 10; the six accounts of § 2.2 are its seed (the five invented ones readable under their dial only).
 - `ls frontend/maquette/design/src/features/account` → 6 files today; `roster.tsx` is new. The row form reuses the follows' row idiom (`features/acquisition/follows-tab.tsx`, 293 lines) or `ui/fact-rows`; the opening measure names the one it takes.

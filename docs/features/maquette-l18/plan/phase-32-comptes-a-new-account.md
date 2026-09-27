@@ -1,6 +1,12 @@
-# Phase 26 — « Comptes » — a new account, and the Plex link
+# Phase 32 — « Comptes » — a new account, and the Plex link
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 26): the initial role a new account receives
+defaults to the Default role (§ 1.2.1) unless the creator (escalation-guarded, phase 31) assigns another; a
+non-Admin manager creating an account may not assign Admin (round 9 Q14 = A). `auth.password` governs whether the
+new account, once created, may sign in without SSO — grantable here or in phase 30, not automatic from « no Plex
+match ». Re-estimated at **15** (unchanged).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `createAccount` exists from phase 22; `signInWithPlex` from phase 20; the link's state is a field of `readAccount` (phase 1).
 - `grep -n "loginerr" frontend/maquette/design/src/app/entry.ts | head -3` → lines 137, 160, 330: the gate's refusal idiom (`#loginerr`); the surface reuses its wording form.

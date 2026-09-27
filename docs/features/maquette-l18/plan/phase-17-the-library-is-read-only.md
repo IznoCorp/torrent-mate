@@ -1,6 +1,12 @@
-# Phase 16 — The Médiathèque and the sheet are read-only, but for the Operator
+# Phase 17 — The Médiathèque and the sheet are read-only, but for Admin
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 16): `library.write` is now SPLIT into
+`library.delete` and `library.rescrape` (§ 1.2 — the granularity ruling 23's preprod list needs: it forbids
+deletion alone, and one combined right could not express that). The selection/delete flow reads `.delete`; the
+sheet's « Re-scraper » reads `.rescrape`. Both Admin-default, both absent for every other role. Re-estimated at
+**9** (unchanged — a split right, not new surface).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `wc -l frontend/maquette/design/src/features/library/delete-dialog.ts frontend/maquette/design/src/features/library/library-head.tsx frontend/maquette/design/src/features/media/media-verbs.ts` → **193, 163, 141**; the selection bar REPLACES the tab bar on `lib` (`slotReplacesTabBar`, `app/navigation.ts`).
 - `git grep -l -E "deleteLibraryItems|rescrapeMedia" -- frontend/maquette/design/src ':!*.d.ts' ':!mocks/*'` → `features/library/delete-dialog.ts`, `live.ts`, `queries.ts`, `features/media/media-verbs.ts`, `harness/publish.ts`: the two operations of `library.write` and where they are offered.

@@ -1,6 +1,15 @@
 # Phase 3 — The model
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27**: the rights table this phase encodes is DESIGN § 1.2's, now 18 rows (was 13) — `library.write`
+split into `.delete`/`.rescrape`; `trackers.view`/`system.view` split from one row into three (`trackers.view`,
+`system.view`, `configuration.view`, F31); `trackers.control`, `acquisition.pause.own`, `auth.password` are new
+(F28, round 10 Q6, C3 reading C). The model's SHAPE gains two system roles (ruling 22): Admin short-circuits to
+« every right, always »; Default seeds to exactly `{library.read}`. The unit table is role × the 18 rights, not
+role × option × ceiling. Re-estimated at **15** (was 13) — at the ceiling; if the opening measure below disagrees,
+split the two system roles' own unit rows into their own phase rather than improvise past 15.
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything, and again against L22b's open
+head (F68):**
 
 - **Commands.** `cat frontend/maquette/design/src/features/account/*.ts frontend/maquette/design/src/features/account/*.tsx | wc -l` → **269** lines in 6 files (`avatar.ts`, `live.ts`, `page.tsx`, `panel-account.ts`, `queries.ts`, `verbs.ts`); `git grep -l "features/account" -- frontend/maquette/design/src ':!*.d.ts'` → 3 importers (`app/navigation.ts`, `app/panel-contributions.ts`, `app/shell.tsx`).
 - `git grep -n -i -E "rights|permission|isOperator|isAdmin|administrator|canDo|\.role\b" -- frontend/maquette/design/src/app frontend/maquette/design/src/features frontend/maquette/design/src/lib frontend/maquette/design/src/ui frontend/maquette/design/src/routes` → 3 lines, all comments: **no reader of a right exists**.

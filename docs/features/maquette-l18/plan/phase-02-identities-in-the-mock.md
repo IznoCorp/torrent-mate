@@ -1,6 +1,16 @@
 # Phase 2 — The identities in the mock
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27**: `seeds/accounts.json`'s six rows are now genuinely different ROLES (DESIGN § 2.2), not one
+role with a per-account option pair — `household-member-sees-all` and `guest-with-quality` are their OWN roles,
+each with one extra right. `MockDials` gains `setForbiddenWrites(list: string[])` in place of `setCeiling(bool)`
+(ruling 23 — a named list, not a boolean); `mocks/state.ts` is already at 413 lines on `46806a88d` per the
+command below, so the four dials move into their OWN module (`mocks/dials.ts`, or L17's if it already exists on
+this branch) rather than growing `state.ts` past the 400-line ceiling (F38). Re-estimated at **14** (was 14, same
+figure, different shape). `mocks/state.ts` is 413 lines, **398 non-blank** (`grep -cve '^[[:space:]]*$'`, re-run
+2026-09-27) — 2 under the 400 ceiling; the fourth dial plus its list-typed replacement of `setCeiling` would cross
+it, so the split into its own module is taken now rather than found mid-phase (F38's own caution).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `wc -l frontend/maquette/design/src/mocks/seeds/account.json` → 5 lines (`name`, `email`, `avatar`); `frontend/maquette/design/src/mocks/handlers/authentication.ts` → 16 lines, 3 routes (`readAccount`, `signIn`, `signOut`).
 - `sed -n 336,372p frontend/maquette/design/src/mocks/state.ts` → `MockDials` holds **9** dials, each « what the machine IS »; `mocks/state.ts` is 413 lines. `frontend/maquette/design/src/harness/drive.ts` (273 lines) resets the layer at line 75 (`window.__mocks?.reset()` at line 86).

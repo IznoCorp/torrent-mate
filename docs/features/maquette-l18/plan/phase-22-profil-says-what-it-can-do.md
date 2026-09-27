@@ -1,6 +1,11 @@
-# Phase 19 — Profil says what the account can do
+# Phase 22 — Profil says what the account can do
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 19): the reason table for a lacking right now
+names WHICH ROLE(S) grant it by default (reused from phase 9's own table, § 3.3/§ 3.8), not a generic sentence;
+the forbidden-writes reason (phase 20) may be PARTIAL (preprod) and Profil's line reflects that specifically. Re-estimated
+at **15** (was 14, +1 for the partial-list branch).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `features/account/page.tsx` (83 lines, less phase 18's deletion) draws two `FactRows` sections; `ui/fact-rows` is the primitive.
 - The list is DERIVED from the model (phase 3) — **one derivation** (§ 13): no sentence is keyed to a role, each is keyed to a right; five families (library, acquisition, pipeline, configuration, accounts) and two reasons (the ceiling, the Operator's setting).

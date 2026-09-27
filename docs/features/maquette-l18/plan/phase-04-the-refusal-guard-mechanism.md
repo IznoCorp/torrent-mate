@@ -1,6 +1,15 @@
-# Phase 4 — The refusal side — one guard
+# Phase 4 — The refusal — the guard mechanism, and the original write families
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 4; this file's OWN cut clause anticipated the
+split it now takes — F28, F30): this phase keeps the guard's SIGNATURE, the ONE guard function, R-L18-c's rule
+and mutations, and the write sites this document's first drawing already counted (acquisition, pipeline,
+configuration, accounts — ≈ 29–32 by the time it runs). **Two new siblings carry what grew past this phase's own
+15-point ceiling**: phase 5 names the write families F28 adds (`library.delete`/`.rescrape`, `trackers.control`,
+the staging writes, `setAcquisitionPause`); phase 6 (F30) adds the READ side — no phase named it before, and
+`see.others` stays a subset filter on a 200, never a right this sweep 403s. Re-estimated at **14** (was 15,
+trimmed now that the newer write families have their own phase to grow in).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `git grep -c 'route(' -- frontend/maquette/design/src/mocks/handlers` sums **64** (63 operations and the definition in `shared.ts`, 61 lines) over 13 handler files: `acquisition.ts` 15, `pipeline.ts` 9, `configuration.ts` 7, `system.ts` 7, `library.ts` 5, `decisions.ts` 4, and seven others of 3 or fewer.
 - `git grep -c "refused(" -- frontend/maquette/design/src/mocks ':!*.test.ts'` → `acquisition.ts` 1, `pipeline.ts` 2, `router.ts` 1 (the definition): **the mock refuses with a `403` nowhere**, though 62 operations declare one.

@@ -1,6 +1,17 @@
-# Phase 20 — The gate offers Plex
+# Phase 23 — The gate offers Plex, primary
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 20): **OPEN 2 is RULED B — Plex first, firm**
+(round 8 question 10). This phase draws the PRIMARY structure only: the Plex block, its own marker pair
+(`login:plex:start … end`, outside `login:markup:start/end` — R-L18-q, F38's line-ceiling caution on
+`app/entry.ts`, 372 lines on `46806a88d`, re-taken here), and the password form COLLAPSED behind a
+« Utiliser un mot de passe » disclosure — closed by default, present in the DOM (F47 corrects the first drawing's
+own mutation, which had asked to HIDE the form entirely; hiding it would break the door-of-last-resort case). **The
+disclosure's OWN behaviour (opens by hand, auto-opens when Plex is unreachable, `auth.password`-gated) is a NEW
+sibling phase (24)**, as F47 itself asks for an integer-numbered phase of its own. Re-estimated at **15**
+(unchanged — the OPEN-2-A branch this phase used to read without choosing is gone, offset by the collapsed
+disclosure's own markup).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `sed -n 429,480p frontend/maquette/design/index.html` → the gate's markup: **52 lines** between `login:markup:start` and `login:markup:end`; `wc -l frontend/maquette/design/src/app/entry.ts` → **399**; the gate's style is the `login:entry` region of `styles/base.css`, lines **1067–1268**.
 - `sed -n 349,395p frontend/maquette/serve.py` → `login_page` clones the extracted markup and posts it to its own `/login` (scrypt hash, `serve.py` 778 lines): **the host has no Plex**, so a Plex block INSIDE the extraction would appear on the real password page and could do nothing.

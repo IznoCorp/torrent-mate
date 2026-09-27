@@ -1,6 +1,10 @@
-# Phase 28 — The records of the lot
+# Phase 35 — The records of the lot
 
-**Opening measure (2026-09-27, on `46806a88d`):**
+**Amended 2026-09-27** (renumbered from the first drawing's phase 28): the fixture register's `x-unseeded` rows
+now include `seeds/roles.json` (phase 27) alongside `seeds/accounts.json` (phase 2). Re-estimated at **10**
+(unchanged).
+
+**Opening measure (2026-09-27, on `46806a88d`) — re-take before moving anything:**
 
 - **Commands.** `grep -c '"account/body"' frontend/maquette/oracle-reference.json` → 114 records carry the region; `python3 -c` over the states directory → **114** states on this head (L22 and L16, L17 add theirs before this lot opens).
 - `frontend/maquette/a11y-debt.json` (`profile` at line 1841), `a11y-light-debt.json` (line 358), `a11y-contrast.json` (line 76): the accessibility records the new states extend; **a debt is never re-recorded lower**.

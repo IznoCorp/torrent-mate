@@ -5,31 +5,44 @@ Contract: `docs/reference/frontend-architecture.md` § 4, entry `#### L18 — §
 
 This document is written for a session that has none of the context it was produced in. Every figure carries the
 command that produces it, every decision carries its reason, every screen carries its named states. **Nothing under
-`frontend/maquette/design/` was touched to write it** — it is prose and numbers, written on `origin/main` at
-`46806a88d` (2026-09-27), and the lot opens after L17 (the plan's order is L13 · L22 · L16 · L17 · L18). It is drawn IN
-ADVANCE, by the auditor's order 47: a drawing ruled before the code costs zero rework. The plan (`docs/features/maquette-l18/plan/INDEX.md`) cuts the lot in two, at phase 17.
+`frontend/maquette/design/` was touched to write it** — it is prose and numbers.
 
-**Three consequences of that date, said before anything else.**
+**Amended 2026-09-27** (this pass), on `origin/main` after merging L16's re-drawing (#623, `a6fb6fc1d`) and L17's
+design and plan (#617, `709dbb3e9`) — both now LANDED, not pending. **L22b has NOT landed** (`Agent : l22b 2`
+still builds it on `feat/maquette-l22b`); every figure about a file L22b creates or moves is still taken from ITS
+plan, and the phase that reads it re-takes it at its own opening. This amendment ports: the operator's rulings of
+2026-09-27 (round 8, 17 L17+L18 questions; round 9, 17 organisation-and-coherence questions, rulings 20–23; the
+auditor's decision-coherence round M1–M9; round 10, 7 questions), and the steward's triage of the coherence audit
+`review-archive/coherence-2026-09-27.md` (§ C: F2, F9+C8, F25, F27–F38, F46, F47, F49, F65–F68, C2 (L18 half), and
+the L18 porting checklist). **No question a ruling answers stays OPEN** (§ 7 below is now empty of choices); every
+audit fix in this lot's scope is applied or named SUPERSEDED with the ruling that replaces it (§ 8).
 
-1. **Three lots change the tree this lot reads, and none has landed.** L22 kills Arrivées and gives the card a
-   requester line (`docs/features/maquette-l22/DESIGN.md`, merged #612); L16 adds the Trackers row to the bar
-   (`docs/features/maquette-l16/DESIGN.md`, merged #614); L17 extends Trackers and draws a media-sheet block for the
-   administrator (its design is on the open branch `origin/docs/maquette-l17-design`, read and not amended). Every
-   figure below about a file one of them creates or moves is taken from THEIR plans, and the phase that reads it says
-   so and re-takes it at its opening. **Figures about files none of them touches are measured on this head.**
-2. **The mock gains identities, and every one of them is INVENTED.** The mock has one account (`seeds/account.json`,
-   the Plex owner by construction). The proofs need more, and § 2.2 draws them: each is marked `x-unseeded`, exists
-   only when a named state turns a dial, and is never presented as lived data (`product-intent.md` § 13). **The resting
-   maquette is untouched by them** — that property is proved, not asserted (R-L18-a).
-3. **The constitution sentences this lot draws on are on `main`**: § 17 whole, including point 4 as amended
-   2026-09-26 (#611, #613). This branch has `origin/main`'s text.
+**Three consequences of the rulings, said before anything else.**
 
-**Its spine is not mine.** `product-intent.md` § 17 « Ce que cela tranche » (dictated 2026-08-30) dictates the lot:
-three roles, two per-account options, a requester on every acquisition, the Plex SSO ADDED with e-mail linking, a
-rights-less Plex user admitted read-only, the Acquisition section absent for an account that can neither request nor
-see, the staging role absorbed as an instance ceiling, and a right proved on BOTH sides. The organisation rulings of
-2026-09-26 place the surfaces. This document transcribes them, citing each as « organisation ruling N (2026-09-26,
-`docs/reference/operator-method.md`) »; where a ruling left a hole it says OPEN and draws no choice (§ 7.2).
+1. **The model inverts: rights belong to ROLES, never to an account** (organisation ruling 20, refining ruling 17).
+   The first drawing's table (role → rights, three fixed roles, two per-account "options") is WRONG in its
+   mechanism, though right in its DEFAULTS: an account holds exactly the rights of its ONE role; what the first
+   drawing called a per-account "option" is now a right some roles hold and others do not — to give ONE household
+   member a right the others lack, the Operator creates a NEW role for them (organisation ruling 20's own words:
+   « Si je veux donner des droits particuliers à un utilisateur je lui crée un rôle particulier »). § 1.2 redraws
+   the model on this basis; § 2.2's identities are now genuinely DIFFERENT ROLES, not one role with a toggle.
+2. **Two roles are the system's, indelible** (organisation ruling 22): a DEFAULT role every new account receives
+   (its rights are configurable, it is not deletable) and an ADMIN role that holds NO rights list — it bypasses
+   the ACL entirely, including rights created later, and cannot be modified or removed. Every other role — the
+   provided Household Member, Plex Guest, and any variant — is ORDINARY configuration, seeded as a starting value,
+   never hardcoded as a case the interface tests for.
+3. **The mock still gains identities, and they are still INVENTED** (§ 2.2, unchanged in spirit): marked
+   `x-unseeded`, turned on only by a named state, never presented as lived data (`product-intent.md` § 13). The
+   resting maquette stays the Operator's — that property is proved, not asserted (R-L18-a).
+
+**Its spine is not mine.** `product-intent.md` § 17, as amended 2026-09-27, dictates the lot: roles hold rights, one
+role per account, two system roles, a requester (now requesterS, plural) on every acquisition, the Plex SSO ADDED
+with e-mail linking, a rights-less Plex user admitted read-only through the DEFAULT role's own seed, the
+Acquisition section absent for an account that can neither request nor see, the staging ceiling generalised to a
+per-instance list of forbidden writes (preprod), and a right proved on BOTH sides. This document transcribes the
+operator's rulings, citing each as « ruling N » or « round R, question Q » (`docs/reference/operator-method.md`);
+where the drawing itself makes a call the rulings leave to configuration (organisation ruling 21's own principle),
+it says so and marks the value a PROPOSED seed, never a forced choice.
 
 ---
 
@@ -38,58 +51,66 @@ see, the staging role absorbed as an instance ceiling, and a right proved on BOT
 The application stopped being a single-occupant control post on 2026-08-26 (§ 17), and the interface still is one:
 `readAccount` answers a name, an e-mail and an avatar; no surface asks « may this account do this? »; the only
 read-only mechanism is a flag one page reads (§ 0.2, fact 6). L18 makes the interface show **what THIS account can
-do**, and lets the operator manage who those accounts are.
+do**, and lets the Operator manage roles, their rights, and who holds each role.
 
 ### 0.1 The clauses, one by one, each with its surface
 
 | # | What is dictated | Source | Surface (§ 3) | Phases |
 | --- | --- | --- | --- | --- |
-| 1 | An action the account may not exercise is **not offered, then refused** — the offer disappears; a `403` after a gesture is an interface defect | § 17 point 1; NE-DOIT-PAS-3 applied to rights | every S; the rule of § 5 (« absent side ») | 5–17 |
-| 2 | What the account cannot do stays **visible and explained** where hiding it would mislead (§ 8: nothing in silence) | § 17 point 2 | S3 (reserved places), S4 (a card read-only), S7 (the ceiling) — OPEN 3 says which places | 7, 13, 17 |
-| 3 | The read-only role is **absorbed**: one authorisation path, an instance CEILING that caps every account, never a second mechanism | § 17 point 3; « Ce que cela tranche »; NE-DOIT-PAS-7 (the map's row assigns the interface's share to this lot) | S7; the model (§ 1.2) | 3, 17 |
-| 4 | **The bottom bar is composed by rights**: Acquisition and Médiathèque for all who may open them; Trackers for the accounts that hold the right; Système is not in the bar; the bar draws only its buttons, in equal shares, two to four | § 17 point 4 (2026-09-26); organisation rulings 11, 15 | S2 | 5, 9 |
-| 5 | **Three roles** — the Operator bypasses the ACLs and may reassign; the Household member consults the library, follows, proposes, pilots the tunnel of what they requested, reads the others read-only, sets the quality profile of their own, has no configuration; the Plex guest reads the library, requests, pilots their own requests only, has no configuration | « Ce que cela tranche » | the model (§ 1.2, the rights table) | 3 |
-| 6 | **Two options per account**, set by the Operator: see the acquisitions one did not request (yes/no); set the quality profile of one's own (always yes for the Member; to enable for the guest) | same | the model; S4; S9 (where the Operator sets them) | 3, 8, 14, 25 |
-| 7 | **A requester on every acquisition**; a new request carries the connected user; existing ones belong to the Plex owner (Izno); the Operator manages every requester's requests and may **reassign** | same; organisation ruling 9 | S4 (the line is L22's, drawn from the answer); S5 (the gesture, **born here** — L22's OPEN 11 = B) | 8, 11, 12 |
-| 8 | **Own tunnel**: the Member and the guest pilot the tunnel of the acquisitions they requested, and read the others read-only | same | S4 | 13 |
-| 9 | « Set the quality profile of an acquisition » is a **per-acquisition override**, never the edit of the profile (configuration, the Operator's) | same; `backend-demands-architecture.md` § 3 | S4 | 14 |
-| 10 | **Plex SSO is ADDED, not substituted**; only Operator accounts may hold a password without SSO (the emergency door when Plex is unreachable); a local account carries a mandatory e-mail; an e-mail matching a Plex account **links** the two | same | S1 (the gate); S9 (creation, the link) | 20, 21, 26 |
-| 11 | **A Plex user with no right here is admitted read-only**, library only | same | S1 (the outcome); S2 (a bar with one place — OPEN 7) | 9, 21 |
-| 12 | **What an account sees by default**: not the acquisitions it did not request. An account that can neither request nor see the others' **does not see the Acquisition section** — the named exception to rule 2; the pipeline and the configuration stay visible and explained as reserved, never silently absent | same | S2, S3, S4 — the last sentence is OPEN 3 | 6–7, 8, 9 |
-| 13 | The staging role is **an instance ceiling**: on that instance every account is brought down to read-only, whatever its role | same | S7 | 17 |
-| 14 | **A right is proved on BOTH sides, separately**: the action absent from the surface for the account without it; the call refused for one that forces it | « Ce que cela impose à la preuve » | § 5 — every rule names its two halves | all |
-| 15 | **Accounts are managed by the Operator alone** — list, rights, Plex link — in a « Comptes » rubric of Réglages OR a first-level entry of the drawer; the choice « revient au dessin de L18 sauf mot contraire »; **never in Profil** | organisation ruling 14 | S9 — the place is OPEN 1 | 22–26 |
-| 16 | **Profil is the connected account and its preferences, for everyone**; « Les autres comptes » leaves Profil | organisation ruling 14 | S8 | 18, 19 |
-| 17 | Every thing speaks where it lives, and **the rights filter the badges with the bar, with no rule more** | organisation ruling 12 | S2, S3 (one derivation; proved once, R-L18-e) | 5, 6 |
-| 18 | Système is reached from the drawer, **at its right** | organisation ruling 15 | S3 | 6 |
-| 19 | The media sheet's cross-seed block is **for the administrator only** | § 19 (dictated 2026-08-30); L17's S5 | S6 — conditional on L17's OPEN 1 | 27 |
+| 1 | An action the account may not exercise is **not offered, then refused** — the offer disappears; a `403` after a gesture is an interface defect | § 17 point 1; NE-DOIT-PAS-3 applied to rights | every S; § 5's rule (« absent side ») | all |
+| 2 | What the account cannot do stays **visible and explained** where hiding it would mislead (§ 8: nothing in silence) | § 17 point 2 | S3 (a place not held), S4 (a card read-only), S7 (the ceiling) — resolved OPEN 3 = B, every such place | 6, 7, 13, 17 |
+| 3 | The read-only role is **absorbed**: one authorisation path, an instance-scoped list of forbidden writes, never a second mechanism | § 17 point 3; ruling 23 (preprod) | S7; the model (§ 1.2) | 3, 17 |
+| 4 | **The bottom bar is composed by rights**: Acquisition and Découvrir for the accounts that hold `acquisition.request`; Médiathèque for `library.read`; Trackers for `trackers.view` | § 17 point 4; ruling 17 (everything is ACL) | S2 | 5, 9 |
+| 5 | **Rights belong to roles**, one role per account; two system roles (Default, Admin); Admin bypasses the ACL entirely and cannot be modified; Default's rights are configurable and it cannot be deleted; every other role is ordinary configuration | ruling 20, ruling 22 | the model (§ 1.2) | 3, 22 |
+| 6 | **Every access — a view or an act — is an ACL right**, and its default holder is what the first drawing called a "role"; « réservé à l'Opérateur » in the constitution and this design reads « not granted by default to any role but Admin » | ruling 17 | § 1.2's rights table, throughout | 3–7 |
+| 7 | **Every acquisition has a requester, and MAY HAVE SEVERAL** — a follow's own table of requesters; each pilots it, each has per-requester settings (quality, pause), the highest quality wins, pause needs every requester who holds the pause right | round 9 Q16 (= B); round 10 Q6 (= C, precised) | S4 (the plural line, L22b's port); S9 | 8, 11, 12, 14 |
+| 8 | **Own tunnel**: a requester pilots the tunnel of an acquisition they requested, read-only on the others' | § 17 | S4 | 13 |
+| 9 | **A per-acquisition quality override**, and now a **per-acquisition pause**, are ROLE rights, never account options; only requesters whose role holds the right enter the "highest/all" computation | § 17; round 10 Q6 precision | S4 | 14 |
+| 10 | **Plex SSO is ADDED, not substituted**; the password right (`auth.password`) is held by Admin by default and grantable to any account in Comptes; a local account carries a mandatory e-mail; a matching e-mail LINKS the two, and either way in works for the account that holds the right | § 17; C3 reading C, proposed as the reconciling seed | S1; S9 | 20, 21, 26 |
+| 11 | **A Plex user with no granted right beyond the Default role is admitted read-only**, library only — the Default role's own seed IS this case, not a distinct mechanism | § 17 | S1; S2 (one place, no bar — OPEN 7 = A) | 9, 21 |
+| 12 | **What an account sees by default**: not the acquisitions it did not request. An account holding neither `acquisition.request` nor `acquisition.see.others` **does not see the Acquisition section** — the named exception to rule 2; pipeline and configuration stay visible, marked and explained as reserved (OPEN 3 = B), never silently absent | § 17 | S2, S3, S4 | 6–9 |
+| 13 | **A per-instance list of forbidden writes**, generalising the staging ceiling — the current `:8711` instance forbids every write; the future preprod forbids only `library.delete` | ruling 23 | S7 | 17 |
+| 14 | **A right is proved on BOTH sides, separately** | « Ce que cela impose à la preuve » | § 5 — every rule names its two halves | all |
+| 15 | **Accounts and roles are managed by the Operator alone**, on a first-level « Comptes » page of the menu, in the `configuration` group | ruling 14; round 8 Q9 (= B, RULED, closing OPEN 1) | S9 | 22–26 |
+| 16 | **Profil is the connected account and its preferences, for everyone**; « Les autres comptes » leaves Profil | ruling 14 | S8 | 18, 19 |
+| 17 | Every place speaks where it lives, and **the rights filter the badges with the bar, with no rule more** — and the badge sum, and every count, is by RIGHTS, never by the account's raw ownership (M3) | ruling 12; auditor's M3 | S2, S3 | 5, 6 |
+| 18 | Système is reached from the drawer, **at its right**; Maintenance opens under the SAME right as Système (ruling 13) | ruling 15; ruling 13 | S3 | 6 |
+| 19 | The media sheet's cross-seed block is gated by the SAME right as the Trackers page it summarises — **drawn here, not L17's** | § 19; L17 OPEN 1 = B; F25 | S6 | 27 |
+| 20 | **A role that opens no page** lands on a dedicated route saying so, with sign-out only — no bar, no menu | ruling 22, precision | S1-bis | 9 |
+| 21 | **An account's entry page** — where Back lands, where the exit guard arms — is the first page of its role's bar, in bar order, or its only page, or (no bar page) the first menu page it opens | round 10 Q7 (= A); `product-intent.md` § 16.2 | S2, addressing throughout | 9 |
+| 22 | **Découvrir is a bar row**, gated by `acquisition.request`, fourth place; Acquisition keeps three tabs | round 8 Q20 (= A) | S2, S4 | 9 |
+| 23 | **Escalation**: a manager who is not Admin creates, sets and assigns only roles whose rights are INCLUDED in their own role's, never touches their own role, and never touches an Admin account (M7) | round 9 Q14 (= A, measured ≤ 15 points — § 3.9); auditor's M7 | S9 | 25 |
 
 L16's OPEN 2 (ruled A: no right declared at L16; « hidden from other accounts » is proved by L18) is discharged by
 R-L18-d on the Trackers row. L22's OPEN 11 (ruled B: the reassign gesture is born with L18) is discharged by S5.
 
 ### 0.2 What the tree measures — found while drawing
 
-Each line carries its command; run from the worktree root, on `46806a88d`.
+Each line carries its command; run from the worktree root, on `825fdeaad` (this amendment's merge of L16 #623 and
+L17 #617 into the branch). Facts unaffected by the merge are re-cited from the first drawing (46806a88d) with no
+re-measurement claimed; a phase re-takes each at its own opening (INDEX.md).
 
 | # | Fact | Command / where |
 | ---: | --- | --- |
-| 1 | **There is no `app/sign-in.tsx`.** The contract's « the gate stays `app/sign-in.tsx` » names a file that was never made: the gate's LOGIC is `app/entry.ts` (399 lines) and its MARKUP stays in `frontend/maquette/design/index.html` between `login:markup:start` and `login:markup:end` (lines 429–480), **extracted by `frontend/maquette/serve.py`** and served as the design host's own password page. Its style is the `login:entry` region of `styles/base.css` (lines 1067–1268, ~200 lines) | `git grep -n "login:markup" -- frontend`; `sed -n 1,30p frontend/maquette/design/src/app/entry.ts` |
-| 2 | **The drawer's « identity block » is not the account.** It is the host's served identity — branch, commit, dirty mark (`lib/served-identity.ts`, drawn by `app/drawer.tsx`). The account's identity is drawn by the header avatar (`index.html:270–291`, `data-account`) and the menu it opens (`features/account/panel-account.ts`, state `sheet-user`). The frame edits this lot makes are therefore: the gate, the navigation table's rows, `app/tab-bar.tsx`, `app/drawer.tsx`'s entries, the menu button's badge — **not** a drawer identity block | `git grep -n "servedIdentityLines" -- frontend/maquette/design/src`; `sed -n 270,291p frontend/maquette/design/index.html` |
-| 3 | **`readAccount` answers three fields** — `name`, `email`, `avatar`, all required — and the backend's `GET /api/auth/me` answers one, `{username}`. **Four readers** in the maquette (`features/account/queries.ts`, `avatar.ts`, `page.tsx`, `panel-account.ts`) and **eleven** harness files read the account | `python3 -c "import json;d=json.load(open('frontend/maquette/contract/openapi.json'));print(json.dumps(d['components']['schemas']['Account']))"`; `git grep -l -i -E "readAccount|/api/auth/me|data-account|sheet-user" -- 'frontend/maquette/harness/*.py' \| wc -l` → 11; `personalscraper/web/auth/routes.py:182–194` |
-| 4 | **The contract declares a `403` on 62 of its 63 operations** (34 reads, 29 writes) — the one without is `takeQueued` — and **the mock answers a `403` nowhere**: `refused()` (`mocks/router.ts`) exists and is used three times in two handler files (`acquisition.ts` 1, `pipeline.ts` 2), none with 403. The refusal side of a right therefore has a shape already declared and no producer | `python3` over `openapi.json` counting `'403' in responses`; `git grep -c "refused(" -- frontend/maquette/design/src/mocks ':!*.test.ts'` |
-| 5 | **No surface asks « may this account? ».** `git grep -n -i -E "rights\|permission\|isOperator\|isAdmin\|administrator\|canDo\|\.role\b" -- frontend/maquette/design/src/app frontend/maquette/design/src/features frontend/maquette/design/src/lib frontend/maquette/design/src/ui frontend/maquette/design/src/routes` finds three lines, all comments, and no account-rights reader; the navigation table (`app/navigation.ts`, 216 lines) has no per-row right, the bar is `NAVIGATION.filter((row) => row.inBar)` (`tab-bar.tsx`) and the drawer groups the rows that have a `group` | the lines cited |
-| 6 | **Read-only exists in the maquette, in miniature, and it is the second mechanism § 17 point 3 forbids.** One flag, `SETTINGS_STATE.readOnly` (`features/settings/state.ts`), is set true by exactly one place — the named state `settings-read-only` (`harness/states/settings.ts:113`) — and read by the settings banner, the save button and the field/secret panels. **24 lines in 12 files read `readOnly`.** The served status `readConfigurationStatus` answers `{readOnly, restartRequired}` from the mock's own `readOnly` (false, `mocks/state.ts:319`), **and the two are not connected**. No other surface — the library's delete, the pipeline's levers, the maintenance runs — looks at a read-only anywhere | `git grep -c "readOnly" -- frontend/maquette/design/src ':!*.d.ts' ':!*.json'`; `git grep -n "readOnly = true" -- frontend/maquette/design/src` |
-| 7 | **The backend's staging role is not « read-only » today, and § 17 says it is.** `require_not_staging` guards the four families that MOVE FILES or hold SHARED state — `/api/pipeline`, `/api/maintenance`, `/api/config`, `/api/staging` — and A18 deliberately leaves acquisition and decision writes open on staging (« worst case: a wrong follow row », so the mobile journeys can be validated there). § 17: « tout compte est ramené à la lecture seule ». **Not asked: § 17 is not ambiguous, the constitution wins and the engine follows the interface** (§ 6.2, row N) | `tests/unit/web/routes/test_staging_write_policy.py:14–24`; `personalscraper/web/deps.py:106–` |
-| 8 | **The navigation table has eight rows and four are in the bar** (`acq`, `lib`, `arr`, `sys`). After L22 the bar holds `acq`, `lib`; after L16 also `trackers` (`inBar: true`, group `supervision`, no right — L16's OPEN 2 = A). The menu button is static markup (`index.html:231–234`) that L22 gives a badge; the badge sums `badge()` over the rows the bar does not hold | `git grep -n "inBar" -- frontend/maquette/design/src \| wc -l` → 12; L22 DESIGN § 3.6; L16 DESIGN § 4.1 |
-| 9 | **« Les autres comptes » is a reserved empty place in Profil**: three `fr.json` keys (`screens.accountPage.others`, `othersEmptyTitle`, `othersEmptyBody`) and the page section that draws them (`features/account/page.tsx`, 83 lines) — « reserved so the form is settled ». Ruling 14 sends it out of Profil | `python3 -c "import json;d=json.load(open('frontend/maquette/design/src/i18n/fr.json'));print(sorted(d['screens']['accountPage']))"` → 21 keys |
-| 10 | **Réglages' rubrics are DATA**: six topics served by `readSettings` (`seeds/settings.json`, a list of 6); the drawer has three groups (`supervision`, `system`, `configuration`). A « Comptes » rubric is not a setting of the schema | `python3 -c "import json;print(len(json.load(open('frontend/maquette/design/src/mocks/seeds/settings.json'))))"` → 6 |
-| 11 | **The « quality profile » screen is a client-store write.** `/quality/$name` (`features/releases/quality-screen.tsx`, 306 lines) writes `state.profile` with `writeUiState`; **the contract contains no occurrence of « quality »** (0 matches in `openapi.json`). The per-acquisition override of `backend-demands-architecture.md` § 3 has no operation — it is DRAWN as owed here | `python3 -c "import re;print(len(re.findall('quality',open('frontend/maquette/contract/openapi.json').read(),re.I)))"` → 0 |
-| 12 | **No `requester` exists** in the contract or the design (`git grep -ci requester -- frontend/maquette/contract frontend/maquette/design/src` → no match). L22 phases 1 and 7 add it and draw the line; the answers name a requester per card and per follow from then on | L22 DESIGN § 2.1 |
-| 13 | **The mock's dials are the fit for an identity.** `MockDials` (`mocks/state.ts:346–356`) holds nine dials, each « what the machine IS » — a lock stale, a sweep unfinished — never how an operation ANSWERS (that is the scenario). Who is signed in is what the machine IS | `sed -n 336,372p frontend/maquette/design/src/mocks/state.ts` |
-| 14 | **The design host serves the gate itself, and has no Plex.** `serve.py`'s `login_page` clones the extracted markup and posts it to its own `/login`, checked against a scrypt hash. A Plex button drawn inside the extracted markers would appear on the real password page and could do nothing — an offer the surface cannot honour (§ 17 point 1) | `sed -n 349,395p frontend/maquette/serve.py` |
+| 1 | **There is no `app/sign-in.tsx`.** The gate's LOGIC is `app/entry.ts` and its MARKUP is `frontend/maquette/design/index.html` between `login:markup:start` and `login:markup:end`, extracted by `frontend/maquette/serve.py` as the design host's own password page (**F49**) | `git grep -n "login:markup" -- frontend`; `sed -n 1,30p frontend/maquette/design/src/app/entry.ts` |
+| 2 | **The drawer's « identity block » is the host's served identity, not the account** (`lib/served-identity.ts`); the account's identity is the header avatar and its menu (`features/account/panel-account.ts`). L18 edits the drawer's ENTRIES, not an identity block (**F49**) | `git grep -n "servedIdentityLines" -- frontend/maquette/design/src` |
+| 3 | **`readAccount` answers three fields** — `name`, `email`, `avatar` — and the backend's `GET /api/auth/me` answers `{username}`. No account role is served anywhere on this head (fact confirmed again post-merge) | `personalscraper/web/auth/routes.py:182–194` |
+| 4 | **The contract declares a `403` on 62 of its 63 operations** (`takeQueued` is the exception, and F42 may retire it — § 2.1); the mock answers `403` nowhere yet | `git grep -c "refused(" -- frontend/maquette/design/src/mocks ':!*.test.ts'` |
+| 5 | **No surface asks « may this account? ».** No per-row right exists in `app/navigation.ts` on this head; the bar is `NAVIGATION.filter((row) => row.inBar)` | `git grep -n -i -E "rights\|permission\|isOperator\|isAdmin\|\.role\b" -- frontend/maquette/design/src/app frontend/maquette/design/src/features` |
+| 6 | **Read-only exists in the maquette, in miniature** — `SETTINGS_STATE.readOnly`, 24 lines in 12 files, connected to nothing served. Phase 17 kills it (**R-L18-o**) | `git grep -c "readOnly" -- frontend/maquette/design/src ':!*.d.ts' ':!*.json'` |
+| 7 | **The backend's staging role is not read-only for acquisition and decision writes today**, and § 17 (ruling 23) now asks for a PER-INSTANCE list rather than a blanket ceiling — the current `:8711` instance's own list is « every write »; preprod's is `library.delete` alone | `tests/unit/web/routes/test_staging_write_policy.py:14–24`; ruling 23 |
+| 8 | **After L16 and L17 (both landed), the navigation table holds a `trackers` row, `inBar: true`, no right field** (L16's OPEN 2 = A: no right until L18). **L22b (not landed) will add `discover` and remove `arr`** — this lot's phases that touch the bar re-take the row count at their own opening | `git grep -n "inBar" -- frontend/maquette/design/src`; L16 DESIGN § 4.1; round 8 Q20 |
+| 9 | **« Les autres comptes » is still a reserved empty place in Profil** on this head — ruling 14 sends it out (phase 18) | `python3 -c "import json;d=json.load(open('frontend/maquette/design/src/i18n/fr.json'));print(sorted(d['screens']['accountPage']))"` |
+| 10 | **Réglages' rubrics are DATA** (`readSettings`, six topics); « Comptes » is not one of them and does not become one — round 8 Q9 rules it a first-level menu page instead (OPEN 1 = B, closing the question the first drawing left to this document) | `python3 -c "import json;print(len(json.load(open('frontend/maquette/design/src/mocks/seeds/settings.json'))))"` |
+| 11 | **The « quality profile » screen is a client-store write**; the contract has no `quality` operation (0 matches). A `pause` operation does not exist either (round 10 Q6 is new since the first drawing) | `python3 -c "import re;print(len(re.findall('quality',open('frontend/maquette/contract/openapi.json').read(),re.I)))"` |
+| 12 | **`requester` exists in the contract as a singular, unaccompanied field.** L22b (its own plan, not landed) is expected to add it to arrival cards only; **F27**: it must also reach `Follow` and every `QueueCard`, as an account id, before L18's filters and reassign can read it — L18 phase 1 adds it if L22b has not by the time L18 opens | `git grep -ci requester -- frontend/maquette/contract frontend/maquette/design/src`; **F27** |
+| 13 | **The mock's dials are the fit for an identity**; `MockDials` holds them (`mocks/state.ts`, or L17's own dials module — **F38** moves L18's four dials there rather than growing `state.ts` past 400 non-blank lines) | `sed -n 336,372p frontend/maquette/design/src/mocks/state.ts` |
+| 14 | **The design host serves the gate itself, and has no Plex** — a Plex button must stay inside its own marker pair, never the extracted `login:markup` region (**R-L18-q**) | `sed -n 349,395p frontend/maquette/serve.py` |
+| 15 | **`app/entry.ts` is 372 lines and `lib/addresses.ts` is 394**, both non-blank — under the 400-line ceiling today, both crossed by this lot's own edits unless split first (**F38**) | `grep -cve '^[[:space:]]*$'` on each file, re-taken at phases 2, 20, 23 |
+| 16 | **The engine stops cross-seed at the first verified injection per torrent**, though the mock will show a per-tracker state (L17's own § 0.2 fact, F26 — not this lot's to fix, cited because § 1.2's `trackers.control` right reads L17's shapes) | `personalscraper/acquire/cross_seed.py:229,455` |
 
-Two of these are corrections the contract needs (facts 1, 2) and one a discrepancy between the constitution and the
-engine (fact 7). All three are recorded in § 8, not amended here.
+Corrections the contract needs (facts 1, 2) and the constitution/engine discrepancy (fact 7, now reframed by ruling 23)
+are recorded in § 8, not amended here.
 
 ---
 
@@ -97,124 +118,148 @@ engine (fact 7). All three are recorded in § 8, not amended here.
 
 ### 1.1 What exists and stays
 
-- **The header avatar and its menu** (`features/account/panel-account.ts`): the menu already carries the account's
-  name, e-mail and avatar and two acts (« Profil et préférences », « Se déconnecter »). L18 adds the ROLE to its
-  subtitle line and nothing else; its two acts are for every account.
-- **Sign-out and the session facts** on Profil (duration, transport, where) — unchanged.
-- **The requester line of L22** (« ajouté par Izno, dans qBittorrent », drawn from the answer): L18 makes the
-  answer differ by account and gives the Operator the gesture to change it (S5). The line's drawing is L22's.
-- **The equal-shares bar** (L22's R-L22-s, a frame rule: the bar draws only the buttons present, 1/n, n from 2 to 4):
-  L18 makes the count VARY by account and reads that rule at each count it produces.
-- **The Trackers row** (L16) and its badge; **the cross-seed block** (L17, if drawn there): L18 gates them.
-- **The confirmation dialogs** of B-300 and B-335 (« … pour tous les comptes du foyer »): the sentences stay
-  true, because only the Operator writes configuration (§ 3.7). They are not touched.
+- **The header avatar and its menu** (`features/account/panel-account.ts`): L18 adds the ROLE NAME to its subtitle
+  line — never a hardcoded role string, always what the model reads off the role the account holds — and nothing
+  else; its two acts are for every account.
+- **Sign-out and the session facts** on Profil — unchanged.
+- **The requester line** (L22b's drawing): L18 makes the line PLURAL where a follow has several requesters
+  (« demandé par Izno et Léa »), gives the Operator the reassign gesture, and gates the whole line's read on
+  `acquisition.see.others` for a card that is not the viewer's own (§ 3.4).
+- **The equal-shares bar** (a frame rule, R-L22-s): L18 makes the count VARY by role and reads the rule at each
+  count it produces — two, three or four; a role with one page draws no bar at all (OPEN 7 = A, R232's own
+  reading: one page IS no bar, not a bar of one).
+- **The Trackers row** (L16) and its badge; **the media sheet's cross-seed block** (L17, held for here): L18 gates
+  both on `trackers.view`.
+- **The confirmation dialogs** of B-300 and B-335 (« … pour tous les comptes du foyer »): unchanged — only
+  `configuration.write` holders write configuration, and that stays Admin by default.
 
 ### 1.2 The model — one derivation, the rest reads it
 
-The lot's first act is a MODEL (the architecture's « A rights MODEL first, then surfaces »): **one function from what
-the server answered to what this account may do**, in `features/account/`, read by every surface through one door.
-Its inputs are the account's role, its two options, and the instance's ceiling (S7); its output is a closed set of
-named RIGHTS. No surface compares a role string; the guard of § 5 (R-L18-b) reads the source for exactly that.
+The lot's first act is a MODEL: **one function from what the server answered to what THIS account may do**, in
+`features/account/`, read by every surface through one door. Its input is the account's role's rights, subtracted
+by the instance's forbidden-writes list (S7); its output is a closed set of named RIGHTS, plus the entry page and
+the forbidden-writes set for the ceiling banner. **No surface compares a role string** — the guard of § 5
+(R-L18-b) reads the source for exactly that. **Admin bypasses the model entirely**: its rights answer is « every
+right that exists, including one declared after this account signed in » — the function never enumerates them for
+Admin, it short-circuits (ruling 22: « il contourne les ACL »).
 
-**The rights, drawn from § 17 — the names adjust at the phase; the set is what matters.**
+#### 1.2.1 Two system roles, and the rest is configuration (ruling 20, 22)
 
-| Right | Operator | Household member | Plex guest | Rights-less Plex user | What hangs on it — OFFER side | The call — REFUSAL side (operations of the contract) |
-| --- | :---: | :---: | :---: | :---: | --- | --- |
-| `library.read` | yes | yes | yes | yes | the Médiathèque, the media sheet, the follows' read | the reads themselves |
-| `library.write` | yes | — | — | — | the selection and delete flow (`features/library/delete-dialog.ts`); « Re-scraper » on the sheet | `deleteLibraryItems`, `rescrapeMedia` |
-| `acquisition.request` | yes | yes | yes | — | the Acquisition section; « Découvrir »; the add flow | `createFollow` (and the punctual request — OPEN 6) |
-| `acquisition.follow` | yes | yes | OPEN 6 | — | « Suivis »; « Suivre » | `createFollow`, `updateFollow`, `deleteFollow`, `restoreFollow` — on one's own |
-| `acquisition.pilot.own` | yes | yes | yes | — | the tunnel's acts on a card one requested: « Relancer », « Re-scraper », « Récupérer », the grab and search acts | `requeueJourney`, `rescrapeJourney`, `takeQueued`, `grabForFollow`, `searchForFollow`, `grabSeasonForFollow` — where the target's requester is the caller |
-| `acquisition.pilot.any` | yes | — | — | — | the same acts on ANY card | the same operations, any target |
-| `acquisition.see.others` | yes | option | option | — | the cards and follows one did not request, read-only | `readAcquisitionQueue`, `readFollows` answer the caller's subset unless it holds the right |
-| `acquisition.quality.own` | yes | yes | option | — | « Profil de qualité » on one's own acquisition | the new override operation (§ 2.1, demand K), on one's own |
-| `acquisition.reassign` | yes | — | — | — | the reassign gesture (S5) | the new reassignment operation (demand I) |
-| `pipeline.control` | yes | — | — | — | Système's levers, « Lancer maintenant » on the Veille, the maintenance runs, the resolution of an arrival's identity | `runPipeline`, `pausePipeline`, `resumePipeline`, `killPipeline`, `setWatcher`, `runDetection`, `runMaintenanceAction`, `continueStagedMedia`, `discardStagedMedia`, and the decisions' `resolveDecision`, `dismissDecision`, `searchForDecision` |
-| `configuration.write` | yes | — | — | — | the config editor, the secrets, the restart | `updateConfigurationFile`, `updateSecrets`, `restartWeb` |
-| `accounts.manage` | yes | — | — | — | S9 | the account operations (§ 2.1) |
-| `trackers.view` / `system.view` | yes | **OPEN 4** | **OPEN 4** | — | the Trackers row; Système, Maintenance, Réglages in the drawer | the reads under `/api/system`, `/api/maintenance` — and the tracker reads L16 declares |
+| Role | Deletable? | Rights list | Rule |
+| --- | --- | --- | --- |
+| **Admin** | no, and unmodifiable | none held — bypasses the ACL, every right present and future | at least one account must hold Admin at all times (R-L18-u's guard) |
+| **Default** | no, rights ARE configurable | seeded to exactly `{library.read}` | every new account (a first Plex sign-in) receives it |
+| **Household member**, **Plex guest**, and any variant | ordinary configuration | seeded per § 2.2 below | created, renamed, and re-armed from « Comptes »; not hardcoded anywhere in the frame |
 
-Two rows of the table are the design's reading, not the constitution's, and it says so: **`pipeline.control` covers the
-decisions and the staging writes** because those move real files and the Member/guest rows of § 17 name no such
-power; and **`acquisition.pilot.own` covers every act on the tunnel** because § 17 says « piloter le tunnel des
-acquisitions dont il est le demandeur » without listing acts. A phase that finds an act the table misclassifies
-reports it (STOP D); it does not reclassify.
+An account with no OTHER role than Default is, by construction, § 17's « utilisateur Plex sans aucun droit ici » —
+read-only, library only. **This is not a special case the interface tests for; it falls out of the model.**
 
-**The ceiling** subtracts EVERY write right for every account on an instance that carries it (S7) — § 17: « quel que soit son
-rôle » — the session acts aside. **Signing in and out are session acts, never rights** — `signIn`, `signOut` and the new
-`signInWithPlex` are open to everyone by construction, as `test_session_routes_are_never_guarded_on_staging` says of
-their backend twins.
+#### 1.2.2 The rights, drawn from § 17 and the round 8/9/10 rulings
+
+Names adjust at the phase that files them; the set and its DEFAULT holders are what matters. « Default holder »
+names which of the seed roles below carries the right out of the box (§ 2.2); Admin is never listed because it
+bypasses every row.
+
+| Right | Default holder(s) | What hangs on it — OFFER side | The call — REFUSAL side |
+| --- | --- | --- | --- |
+| `library.read` | Default (and so every role that includes it) | Médiathèque, the media sheet, follows' read | the reads themselves |
+| `library.delete` | — (Admin only) | the selection and delete flow | `deleteLibraryItems` |
+| `library.rescrape` | — | « Re-scraper » on the sheet | `rescrapeMedia` |
+| `acquisition.request` | Household member, Plex guest | Acquisition section, Découvrir's bar row, the add/follow flow | `createFollow` and the one-off acquisition act |
+| `acquisition.follow` | Household member, Plex guest | « Suivis »; managing one's own follows | `updateFollow`, `deleteFollow`, `restoreFollow` — on one's own |
+| `acquisition.pilot.own` | Household member, Plex guest | the tunnel's acts on a card one is a requester of | `requeueJourney`, `rescrapeJourney`, `grabForFollow`, `searchForFollow`, `grabSeasonForFollow` — where the caller is among the target's requesters |
+| `acquisition.pilot.any` | — | the same acts on ANY card | the same operations, any target |
+| `acquisition.see.others` | — (a variant role adds it) | cards and follows one did not request, read-only | `readAcquisitionQueue`, `readFollows` answer the caller's subset unless held |
+| `acquisition.quality.own` | Household member | « Profil de qualité » on one's own requested acquisition | `setAcquisitionQuality`, on one's own |
+| `acquisition.pause.own` | Household member | a pause preference on one's own requested acquisition | `setAcquisitionPause`, on one's own |
+| `acquisition.reassign` | — | the reassign gesture (S5) | `reassignRequester` |
+| `pipeline.control` | — | Système's levers, maintenance runs, `resolveDecision` / `dismissDecision` / `searchForDecision`, the staging writes (`reclassifyStagedMedia`, `restoreReclassifiedMedia`, `resolvePlexMatch`, the staging delete of round 8 Q16) — **F28** | the same operations |
+| `trackers.view` | — | the Trackers row and page; **also gates the media sheet's cross-seed block (§ 19)** — same right, reused, because both show tracker cross-seed state from a different entry point (granularity justified: splitting it would let an account see the block without the page it summarises, which serves no reading of § 19) | the tracker reads, `readMediaCrossSeed` |
+| `trackers.control` | — | the tracker's cross-seed switch (with its confirmation option), « Retirer de qBittorrent », « couper le cross-seed » per torrent/tracker, « Chercher un cross-seed », « Ne plus partager ce titre » — **F28**, as these acts stand once L16/L17 land | the matching write operations |
+| `system.view` | — | Système AND Maintenance, same right (ruling 13) | reads under `/api/system`, `/api/maintenance` |
+| `configuration.view` | — (implied by `configuration.write`) | Réglages, `/settings/*`, including `/settings/ranking` — **F31** | the configuration reads |
+| `configuration.write` | — | the config editor, secrets, restart, ranking preview | `updateConfigurationFile`, `updateSecrets`, `restartWeb` |
+| `accounts.manage` | — | « Comptes »: roles, their rights, assigning a role to an account | the account/role operations (§ 2.1); escalation guard applies (§ 3.9) |
+| `auth.password` | — (Admin holds it by default; grantable) | signing in with a password | the password door — refused, with a reason, to an account that does not hold it |
+
+**`§ 1.2's split of the first drawing's single `trackers.view`/`system.view` row into three (`trackers.view`,
+`system.view`, `configuration.view`) is F31**: § 17 keeps Trackers, Système and the configuration apart (the
+Member holds « ni visualisation ni modification de la configuration » even where a variant role might one day open
+Trackers or Système), so one row conflated three doors that must open independently.
+
+**The ceiling** (S7) subtracts a NAMED LIST of forbidden writes — never a blanket « every write », except that on
+the current `:8711` instance the served list names every write right by construction (ruling 23); on preprod it
+names `library.delete` alone. The list is read from the server, never guessed from an environment variable name —
+**the source hold of R-L18-b covers this too**. **Signing in and out are session acts, never rights** — `signIn`,
+`signOut` and `signInWithPlex` answer for every identity including under any ceiling (F28).
 
 ---
 
 ## 2. The contract (D7) — and it comes FIRST
 
-D7: the maquette declares the contract its interface REQUIRES, and every divergence from the backend's is a demand. **A
-demand is filed by EDITING THE CONTRACT** (`frontend/maquette/contract/openapi.json`) and regenerating
-`docs/reference/frontend-backend-demands.md` (`python3 scripts/compare-contracts.py --write`, then `--check`); the
-register is « COMPUTED, NEVER WRITTEN ». **It invents no shape the constitution and the demands do not name**: what
-the design needs and the register lacks is PROPOSED in § 6.2 in the register's own form, and the lot files it by
-editing the contract in the phase that draws its surface (L22's precedent: a demand is filed where its surface is
-drawn).
+D7: the maquette declares the contract its interface REQUIRES; a divergence is filed by EDITING THE CONTRACT
+(`frontend/maquette/contract/openapi.json`) and regenerating `docs/reference/frontend-backend-demands.md`
+(`python3 scripts/compare-contracts.py --write`, then `--check`). It invents no shape the constitution and the
+demands do not name.
 
 ### 2.1 What the surfaces read, and what already exists
 
 | Surface | Reads / acts through | Declared today |
 | --- | --- | --- |
-| every surface — the rights | `GET /api/auth/me` (`readAccount`) | **re-shaped** — L22's demand D asked for the row; **the shape is drawn here** (§ 6.2 D): the role, the two options, whether a Plex account is linked, and the instance's ceiling |
-| the gate — Plex sign-in | — | **no operation** — demand J (`signInWithPlex`) |
-| S4 — the requester, the lists | `readAcquisitionQueue`, `readFollows`, `readJourney` | the requester is L22's demand A; the FILTER by account is the backend's, drawn here as the answers differing by identity |
-| S5 — the reassign gesture | — | **no operation** — demand I |
-| S4 — quality per acquisition | — | **no operation** (fact 11) — demand K; `backend-demands-architecture.md` § 3 |
-| S7 — the ceiling | `readConfigurationStatus` (`{readOnly, restartRequired}`) | yes — **its `readOnly` has a reader nobody connected** (fact 6); **the ceiling is carried by `readAccount`** (demand D): one read carries the rights and the ceiling, because a model composing two reads would be a second authorisation path (NE-DOIT-PAS-7) |
-| S9 — the roster, rights, creation | — | **no operation** — demands F, G, H |
-| the refusal side, everywhere | `Problem` responses | **62 of 63 declare 403**; `takeQueued` gains it in phase 1 (an edit of an operation, not a demand) |
+| every surface — the rights | `GET /api/auth/me` (`readAccount`) | **re-shaped** (demand D): the role's NAME (for display only — never compared), the closed set of rights it carries, whether a Plex account is linked, the entry page, and the instance's forbidden-writes list |
+| the gate — Plex sign-in | — | **no operation** — demand E (`signInWithPlex`) |
+| S4 — the requester(s), the lists | `readAcquisitionQueue`, `readFollows`, `readJourney` | `Follow` and every `QueueCard` gain a `requesters: AccountId[]` field (**F27**, plural from the start — round 9 Q16 lands before this lot opens); the answers differ by caller's membership in that list |
+| S5 — the reassign gesture | — | **no operation** — demand I, keyed for both card and follow (F27); its read of the chooser's account list is a NARROW read (names, roles, Plex link) implied by holding `acquisition.reassign` itself, not a separate operation (**F46**, the narrow-read branch) |
+| S4 — quality per acquisition | — | **no operation** — demand K; `backend-demands-architecture.md` § 3 |
+| S4 — pause per acquisition | — | **no operation** — demand P (`setAcquisitionPause`); round 10 Q6 precision |
+| S6 — the media sheet's cross-seed block | — | **no operation** — demand C (`readMediaCrossSeed`), taken over from L17's own first drawing per **F25**: L18 files it, gated by `trackers.view`, refused `403` when forced |
+| S7 — the ceiling | carried by `readAccount` (demand D) | its shape changes from `{readOnly, restartRequired}` to a forbidden-writes list; `readConfigurationStatus` DROPS `readOnly`, keeps `restartRequired` (**F66**) |
+| S9 — the roster, roles, rights, creation | — | **no operation** — demands F, G, H |
+| the reads' refusal side | — | every VIEW right also gains a `403` on the reads it gates — Système, Maintenance, Trackers, Réglages, the configuration reads (**F30**); no new operation, an edit of existing ones, like `takeQueued`'s |
+| the refusal side, writes | `Problem` responses | 62 of 63 already declare `403`; `takeQueued` gains it, or is retired in favour of the per-follow grab operation the backend already serves (**F42** — an L22b-side fix this lot only reads: row L re-aims at whichever operation survives) |
 
-### 2.2 The mock: identities, dials, one guard
+### 2.2 The mock: identities as ROLES, dials, one guard
 
-**The identities.** `seeds/accounts.json` (new; `seeds/account.json` stays and is the Operator's row) holds six
-accounts. The Operator is the real one; **the five others are INVENTED** and every row is marked `x-unseeded` in the
-fixture register (`frontend/maquette/fixture-register.json`), the contract's own word for « nothing was invented
-here » and « nobody looked » being different things:
+**The identities.** `seeds/accounts.json` (new; `seeds/account.json` stays, the Operator's row, role Admin) holds
+five invented accounts, each a genuinely DIFFERENT ROLE now (§ 0, consequence 1) — no per-account "option" field
+survives:
 
-| Id (a label, not a person) | Role | Option: see the others' | Option: quality of one's own | Plex | Proves |
-| --- | --- | :---: | :---: | --- | --- |
-| `izno` (real, `account.json`) | Operator | implicit | implicit | linked, the server's owner | the resting maquette; every right present |
-| `household-member` | Household member | no | yes (always) | linked | the Member's offer and refusal sides; the default of « see the others' » |
-| `household-member-sees-all` | Household member | **yes** | yes | linked | the option, ON |
-| `guest` | Plex guest | no | **no** | linked | the guest's offer and refusal sides; the option, OFF |
-| `guest-with-quality` | Plex guest | no | **yes** | linked | the second option, ON |
-| `plex-without-rights` | none (admitted read-only) | — | — | linked, no rights | the Acquisition section absent; a bar of one place (OPEN 7) |
+| Id (a label, not a person) | Role held | Role's own rights beyond `library.read` | Plex | Proves |
+| --- | --- | --- | --- | --- |
+| `izno` (real, `account.json`) | Admin | bypasses the ACL | linked, the server's owner | the resting maquette; every right present |
+| `household-member` | Household member | `acquisition.request`, `.follow`, `.pilot.own`, `.quality.own`, `.pause.own` | linked | the Member's offer and refusal sides; quality/pause held |
+| `household-member-sees-all` | Household member (voit tout) | the above **+ `acquisition.see.others`** | linked | a DIFFERENT role proving the right on, per ruling 20's own mechanism |
+| `guest` | Plex guest | `acquisition.request`, `.follow`, `.pilot.own` | linked | the guest's offer and refusal sides; quality/pause absent by default |
+| `guest-with-quality` | Plex guest (qualité) | the above **+ `.quality.own`, `.pause.own`** | linked | the two rights held by a variant role |
+| `plex-without-rights` | Default (nothing beyond it) | — | linked, no extra role | the Acquisition section absent; no bar (OPEN 7 = A) |
 
-Names are neutral labels, with a reserved e-mail domain (`example.invalid`, RFC 2606), so nobody reads an invented row
-as a person. **The two pairs of an option are the point**: an option proved on one value proves nothing.
+Names are neutral labels, `example.invalid` e-mails (RFC 2606). **The point is now the ROLE, not a toggle**: an
+account's rights ARE its role's, so proving an option is proving a SECOND role that adds exactly one right —
+exactly what the profile's role-name line will show truthfully (ruling 20: « il ne ment jamais »).
 
-**The dials** (`MockDials`, fact 13): `setIdentity(id)`, `setCeiling(on)`, `setPlexReachable(on)`,
-`setInventedRequests(on)`. The last is what keeps the resting maquette whole: **the invented cards and follows —
-requested by the invented accounts, so that « see the others' » has something to see — exist only while the dial is
-on**, and only the named states that need them turn it on. With the dial off and the identity at `izno`, no seed row
-this lot adds is readable, and the oracle diverges on no state that existed before (§ 4.1). The Operator's real rows keep the
-requester L22 gives them (Izno); **no real row is ever re-attributed to an invented account** (§ 13).
+**The dials** (`MockDials`, moved to its own module per F38 if `mocks/state.ts` is already past 400 non-blank
+lines at phase 2's opening): `setIdentity(id)`, `setForbiddenWrites(list)` (replacing `setCeiling(on)` — a named
+list, not a boolean, per ruling 23), `setPlexReachable(on)`, `setInventedRequests(on)`. The resting maquette
+proof (R-L18-a) is unchanged in shape: dial off, identity `izno`, no invented row readable, no existing state
+moved.
 
-**The mocks MOVE** (D7: « a mock that answers without moving certifies nothing »): a reassignment changes whose list
-the card is on and the requester line it draws; a rights change moves the affected account's next `readAccount`; an
-override changes the card's chosen profile; a created account appears in the roster; a Plex sign-in answers the
-identity the dial holds.
+**The mocks MOVE**: a role change moves the affected account's next `readAccount`; a reassignment changes whose
+list a card is on; an override changes the acquisition's chosen profile or pause; a created role or account
+appears in Comptes; a Plex sign-in answers the dialled identity.
 
-**The refusal — ONE guard, not thirty.** `route()` (`mocks/handlers/shared.ts`) gains a declared RIGHT; a single check in
-the mock layer compares it with the dialled identity's rights (the model of § 1.2, imported) and the ceiling, and
-answers `refused(403, …)` with the contract's `Problem` body, recorded by `answered()` like any answer. This is
-NE-DOIT-PAS-7 kept in the mock as in the engine: **one authorisation path**, and 29 handler sites that only NAME
-their right. The route table of the mock has 63 `route(` calls (`git grep -c 'route(' -- frontend/maquette/design/src/mocks/handlers`
-sums 64 with the definition); the 29 writes are the sites edited (phase 4).
+**The refusal — ONE guard.** `route()` gains a declared RIGHT; one check in the mock layer compares it with the
+dialled identity's role's rights (imported from § 1.2's model) and the forbidden-writes list, answering
+`refused(403, …)`. **Every write AND every gated read names its right** (F28, F30) — the sweep phase refuses a
+route that declares none.
 
 ### 2.3 The stream
 
-`docs/reference/frontend-backend-demands-stream.md` names no account event. **One is PROPOSED there by hand** (§ 6.2,
-demand M): an account's rights changed (a role, an option, a Plex link). Without it a demoted account keeps a bar
-and a drawer it no longer has until it re-reads, and NE-DOIT-PAS-8 allows no poll. The mock's relay carries it and
-`features/account/live.ts` — today an EMPTY table, `accountLiveRules: readonly LiveRule[] = []` — claims it. The stream
-carries no rights themselves: the account re-reads `readAccount`, and the model re-derives.
+**Demand M** (unchanged in kind, restated): an account's rights changed (a role's rights, a role assignment, a
+Plex link) — the affected account re-reads `readAccount` on the event, no poll (NE-DOIT-PAS-8). Carried by an
+existing emitted event with its `because`, or by `updateAccount`'s own answer invalidating the affected identity's
+cached read (**F37** — the live-relay guard refuses an event the backend never emits; the mock and the demand's
+prose both name a REAL carrier before phase 25 builds against it). The stream carries no rights themselves: the
+account re-reads, the model re-derives.
 
 ---
 
@@ -222,337 +267,309 @@ carries no rights themselves: the account re-reads `readAccount`, and the model 
 
 ### 3.0 The two sides, and where hiding would mislead
 
-Every right of § 1.2 is drawn on **two sides**, and each surface below names both.
+Every right of § 1.2 is drawn on **two sides** (§ 17 point 1, point 2).
 
-- **The OFFER side (§ 17 point 1).** For the account without the right the act is ABSENT from the surface — not
-  disabled, not greyed, not present-and-refused. Absent means absent from the DOM (the form the L17 design already
-  uses for its block).
-- **The REFUSAL side.** The call, forced by hand, answers `403` with the contract's body, and the answer is recorded.
+- **The OFFER side.** For the account without the right the act is ABSENT from the DOM — not disabled, not
+  greyed, not present-and-refused.
+- **The REFUSAL side.** The call, forced by hand, answers `403`, recorded by `answered()`.
 
-**Where hiding would mislead, and so where § 17 point 2 requires an explanation.** Measured against the surfaces:
+**Where hiding would mislead** — resolved, not open, per round 8 question 11 (OPEN 3 = B):
 
-| Where | Would hiding mislead? | Drawn as |
-| --- | --- | --- |
-| a card of another account (option « see the others' » ON) with its acts absent | yes — the acts exist for the requester | the requester line (« demandé par … ») and one line saying the card is read-only for this account (S4) |
-| the instance ceiling — every write absent | **yes, most of all**: an Operator who finds no lever would think the application broken | one statement, said where a write would have been, and on Profil (S7) |
-| Trackers, Système, Maintenance, Réglages for an account that lacks them | § 17 « Ce qu'un compte voit par défaut » says the pipeline and the configuration « restent visibles et expliqués comme réservés »; § 17 point 4 says a page absent from the BAR is point 1 | **OPEN 3** |
-| the Acquisition section for the rights-less account | **no** — the named exception: nothing concerns that account | absent (S4) |
-| the library's write acts for the Member and the guest | no — the library is complete; nothing is missing from it | absent (S6) |
-| the other accounts, from Profil | no — Profil is the connected account | absent (S8) |
+| Where | Drawn as |
+| --- | --- |
+| a card of another requester (`acquisition.see.others` held) | the requester line and a read-only sentence (S4) |
+| the instance's forbidden writes | one statement where each write would have been, and on Profil (S7) |
+| Trackers, Système, Maintenance, Réglages, Comptes for an account without the right | **stays in the MENU, marked** — opened (menu or a cold address), it says what it is, that this account lacks the right, and WHO holds it by default (ruling 17's own reading, § 3.3) |
+| the Acquisition section for an account with neither `acquisition.request` nor `.see.others` | absent — the named exception (S4) |
+| the library's write acts | absent, no explanation (the library is complete) |
+| the other accounts, from Profil | absent (S8) |
 
-### 3.1 S1 — The gate: Plex is added beside the password
+### 3.1 S1 — The gate: Plex first, the password behind a disclosure
 
-**What exists.** The gate is a layer, not a page (`app/entry.ts`), whose markup is static in `index.html` (fact 1). It
-carries a title, a subtitle, two fields and one button, and a refusal line. Its two named states are `signin` and
-`signin-error` (`harness/states/entry.ts`).
+**What exists.** `app/entry.ts` (logic) plus `index.html`'s static markup (fact 1). Named states `signin`,
+`signin-error`.
 
-**What is drawn.** A second way in, « Se connecter avec Plex », that ADDS to the password form and replaces
-nothing (§ 17). **How the two are arranged is OPEN 2.** Whatever the arrangement:
+**What is drawn — round 8 question 10 (OPEN 2 = B, Plex first).** « Se connecter avec Plex » is the PRIMARY act;
+the password form sits behind a « Utiliser un mot de passe » disclosure, closed by default (**F47**, correcting the
+first drawing's own mutation, which had asked to HIDE the form when Plex is offered — the ruled shape keeps it
+reachable, collapsed):
 
-1. **The Plex block has its own marker pair** (`login:plex:start … end`) in `index.html`, outside the extraction the
-   design host performs (fact 14): the host's password page is unchanged and carries no offer it cannot honour, and
-   R72's bridge (`serve.py` and the harness reading the same inputs) still holds. The gate's style gains its rules in
-   the `login:entry` region of `styles/base.css` — a frame edit, said as one.
-2. **A password is for the Operator.** A password sign-in by a non-Operator account is refused with a reason
-   (« ce compte se connecte avec Plex »), never a bare « Identifiants invalides » that would send the account to try
-   again (§ 8).
-3. **When Plex is unreachable**, the gate says so — one line, from the answer, not a constant — and the password form
-   stays whole: it is the door of last resort, and « Seuls les comptes Opérateur peuvent avoir un mot de passe sans
-   SSO » is why it exists.
-4. **A Plex user with no right here is admitted**, read-only, and lands on the Médiathèque (S2). The gate does not
-   know what is behind it (`docs/reference/frame-model.md` § « Part 9 »: « rights are a feature's to read from
-   `/api/auth/me`, never the gate's »): the OUTCOME is drawn by the frame reading the account after the sign-in, not
-   by the gate reading a role.
+1. **The Plex block and the disclosure both live in their OWN marker pair** (`login:plex:start … end`), outside
+   `login:markup:start/end` — the design host's password page stays byte-identical (**R-L18-q**).
+2. **`auth.password` gates who a password admits** (§ 1.2, C3 reading C): refused, with the reason « ce compte se
+   connecte avec Plex », to an account that does not hold it — by default only Admin, grantable to any account
+   in Comptes, linked or not. A linked account without the right still signs in with Plex; the right adds a
+   password as a SECOND way in for the account that holds it. This reconciles Q10's default gloss (« Opérateur
+   seul ») with § 17's letter (« l'utilisateur se connecte par l'un ou l'autre ») — both hold, at different
+   points of the same right.
+3. **When Plex is unreachable, the disclosure OPENS BY ITSELF** (F47): the gate says so from the answer, and the
+   password form is the door of last resort. When Plex is reachable, the disclosure stays closed until tapped.
+4. **A Plex user with no role beyond Default is admitted**, read-only, landing on the Médiathèque (S2) — the gate
+   reads nothing of rights; the OUTCOME is the frame reading the account after sign-in (`frame-model.md` § « Part
+   9 »).
 
-**Named states.** `signin-plex` (the gate with both ways in); `signin-plex-unreachable`; `signin-password-refused`
-(a non-Operator's password, with its reason); `signin-plex-bare` (a rights-less Plex user's outcome, the first frame after the
-gate). The two existing states keep their ids and gain the Plex block.
+**Named states.** `signin-plex-first` (both ways in, password collapsed); `signin-password-open` (the disclosure
+tapped open); `signin-plex-unreachable-open` (the disclosure auto-open, F47); `signin-password-refused` (a
+non-holder's password, with its reason); `signin-plex-bare` (a Default-only account's first frame). `signin` /
+`signin-error` gain the Plex block and the collapsed disclosure with their existing ids.
 
 ### 3.2 S2 — The bar, composed by rights
 
-**The bar is the table's** (L22 § 3.6): `app/navigation.ts` declares the pages, `tab-bar.tsx` draws the rows with
-`inBar`. L18 adds ONE thing to the table — **the right that opens a row** — and one filter to the bar: a row is drawn
-when it is `inBar` AND the model says the account may open it. The table's header comment, which L22 rewrites to say the
-frame rule, says this too. **This is a frame edit after L15's** (the gate, S1, is another), and the plan says so
-(`plan/INDEX.md`).
+`app/navigation.ts` declares the pages, `tab-bar.tsx` draws `inBar` rows. L18 adds the right that opens each row;
+the bar draws a row when it is `inBar` AND the model grants that right.
 
-| Row | Right that opens it | Operator | Household member | Plex guest | Rights-less |
+| Row | Right that opens it | Admin | Household member | Plex guest | Default only |
 | --- | --- | :---: | :---: | :---: | :---: |
-| `acq` Acquisition | `acquisition.request` or `acquisition.see.others` | yes | yes | yes | **no** |
+| `acq` Acquisition | `acquisition.request` or `acquisition.see.others` | yes | yes | yes | no |
 | `lib` Médiathèque | `library.read` | yes | yes | yes | yes |
-| `trackers` (L16) | `trackers.view` — OPEN 4 | yes | OPEN 4 | OPEN 4 | no |
+| `trackers` (L16) | `trackers.view` | yes | no (default) | no (default) | no |
+| `discover` Découvrir (round 8 Q20) | `acquisition.request` | yes | yes | yes | no |
 
-So the bar has **three places** for the Operator, **two** for a Member or guest under the reading of OPEN 4 that gives
-them no Trackers, and **one** for the rights-less account. **A bar of one place contradicts the operator's own rule** —
-« 4 boutons c'est le max, 2 boutons le min » (L22's OPEN 2, ruled A) — and the two dictations, § 17's « médiathèque
-uniquement » and that one, do not agree. **OPEN 7.**
+**Counts, resolved (round 8 Q20; OPEN 7 = A):** Admin — 4; Household member / Plex guest (default seeds) — 3
+(Acquisition, Médiathèque, Découvrir); **Default-only — 0, no bar at all** (§ 17 point 4's own text, amended
+2026-09-26: « Une place que la barre n'a pas n'est pas un défaut »; R232's reading: one page IS no bar, never a
+bar of one — closes the first drawing's OPEN 7 without amending the operator's « 2 à 4 boutons » rule, which
+never claimed to cover zero). **R-L18-d reads 3 and 4 buttons plus « no bar »** for a Default-only identity.
 
-**The menu button's badge** (L22's ruling 15 reading: the sum of `badge()` over the rows the bar does not hold) is
-filtered the same way: a row the account cannot open contributes nothing, so a seeded Système fault gives the Operator
-a badge and a Member none (R-L18-e). Ruling 12 says this needs « no rule more »; the rule of § 5 is what holds that
-sentence.
+**The menu button's badge** sums `badge()` over the rows the bar does not hold, filtered by the SAME rights (M3:
+« le badge du menu compte par droits »); a seeded Système fault gives Admin a badge and a Household member none.
 
-**Named states.** `bar-household`, `bar-guest`, `bar-rightless` — the bar for each identity; `bar-operator` is the
-existing bar (L16's `bar-trackers-alert`).
+**A role that opens no page** (ruling 22 precision, § 0.1 row 20) lands on a DEDICATED route (`/no-access`) that
+says so and offers only sign-out — no bar, no menu drawn around it. This is the Default role emptied of even
+`library.read`, a configuration act the Comptes editor allows and the interface must survive without failing at
+sign-in.
 
-### 3.3 S3 — The drawer, and the places an account does not hold
+**Named states.** `bar-household`, `bar-guest`, `bar-rightless` (no bar drawn, height 0); `bar-operator` is the
+existing bar at four.
 
-The drawer groups the rows that have a `group` (`app/drawer.tsx`, 199 lines): `supervision`, `system`,
-`configuration`. L18 filters its entries by the same model. **What an account that lacks a place sees in its
-stead is OPEN 3**, and it covers three surfaces at once, because they are one question: the drawer entry, a cold
-address (`/system`, `/maintenance`, `/settings`, `/trackers`, `/accounts`), and the place itself.
+### 3.3 S3 — The drawer: every entry drawn, marked where not held
 
-The drawer itself is the frame's, and this lot edits it as it edits the bar: its entries by right, and its `Comptes`
-entry if OPEN 1 goes that way (S9). Its « Apparence » group and the host's served identity are for everyone.
+**Resolved (round 8 question 11, OPEN 3 = B), correcting the first drawing's refused reading A (F29).** The
+drawer draws EVERY entry (`app/drawer.tsx`'s groups). An entry the account does not hold is MARKED (a lock glyph,
+« Réservé ») and carries **no count** — `drawer.tsx` calls `row.badge()` on every row today; the marked row's
+`badge()` returns nothing rather than a real count, so a reserved entry never shows a live number it cannot
+explain. Opened — from the drawer or a cold address (`/system`, `/maintenance`, `/settings`, `/trackers`,
+`/accounts`) — the place renders the RESERVED explanation, never the page: what it is, one sentence naming the
+missing RIGHT (never a role, never an account — ruling 17's own reading), and which role(s) hold it by default.
+« Comptes » is a drawer entry under this same rule, present and marked for an account without `accounts.manage`.
 
-### 3.4 S4 — Acquisition by rights and by requester
+**Named states.** `drawer-household` (marked entries visible); `place-reserved` (the explanation, now STANDING —
+no longer conditional on a ruling, F29). The table of right-name sentences is built once, in the phase that draws
+S3, and reused by Profil (S8, § 3.8) and by S9's own reserved form.
 
-Acquisition's four tabs are L22's (« Suivis · En cours · À traiter · Découvrir »). L18 composes what the account
-sees of them.
+### 3.4 S4 — Acquisition by rights and by requester(s)
 
-1. **The lists are the account's.** By default an account sees only the cards and follows it requested; with the
-   option « see the others' » it sees the rest too, **read-only**. The filter is the BACKEND's (the answers differ by
-   caller, § 2.1); the maquette's mock answers the dialled identity's subset. **Every count reads the same subset**: the
-   tab counts, the bar's badge (the « À traiter » count, L22) and the list — one derivation (§ 13; R-L18-g).
-2. **The tabs are composed by rights.** « Suivis » needs `acquisition.follow` (for the guest, OPEN 6); « En cours »,
-   « À traiter » and « Découvrir » need `acquisition.request`. **L22's default-tab rule** (« Suivis » first, then the
-   last tab opened, kept in local storage under try/catch) meets an account that has no « Suivis » — and, worse, a
-   remembered tab from ANOTHER account on the same device: **the default falls to the first tab the account has, and a
-   remembered tab it no longer holds is ignored** (R-L18-x). Per-viewer memory in the browser is not per-account
-   unless the design says so.
-3. **The requester line names the account** (L22 draws it from the answer): « ajouté par Izno, dans qBittorrent » for
-   the Plex owner's direct add, the requester's name otherwise. On another account's card it is followed by one line —
-   the card is read-only for this account — which is § 17 point 2 applied to a card: hiding the acts would mislead,
-   the acts exist for the requester.
-4. **Own tunnel** (§ 17): the acts of `acquisition.pilot.own` are offered on a card the account requested and ABSENT on
-   the others'; the Operator holds `acquisition.pilot.any`. The refusal side: the same operations, forced on another's
-   card, answer `403` (R-L18-k).
-5. **The quality profile of an acquisition** is offered where `acquisition.quality.own` holds, on one's own
-   acquisition only, and it says what it does: **a choice for THIS acquisition**, never the edit of the profile (fact
-   11; `backend-demands-architecture.md` § 3). The screen's write becomes a served one (demand K) — until now it
-   was the interface's own state, which is not a right that can be refused.
-6. **« Suivre » and the request** — what the guest's « demande d'acquisition » IS in the maquette's vocabulary is
-   **OPEN 6**.
-7. **The section absent** (§ 17: the named exception): an account that holds neither `acquisition.request` nor
-   `acquisition.see.others` has no Acquisition row, no tabs, no badge — and no explanation, because nothing concerns it
-   (§ 3.0). Its landing is the Médiathèque; a cold `/acquisition` for it is OPEN 3's address question.
+Acquisition's three tabs — « Suivis · En cours · À traiter » — are L22b's (Découvrir left the section, round 8 Q20;
+the section keeps three, not four — F33 and the porting checklist both note this explicitly).
 
-**Named states.** `acq-household` (the Member's Acquisition, own cards only); `acq-household-sees-all` (the same with the
-option: others' cards read-only, their line); `acq-guest` (no « Suivis », under the reading of OPEN 6 that gives the
-guest none); `acq-operator-all` (the Operator sees every requester's cards); `acq-card-read-only` (one card of another
-account, acts absent, the line saying why); `quality-own-offered` / `quality-own-absent`.
+1. **The lists are the account's** — its own requester membership, or, with `acquisition.see.others`, everyone's
+   read-only. **An account holding ONLY `see.others` (no `request`) still opens Acquisition with content** — the
+   first drawing's OPEN-3-A-shaped assumption that the section needs `request` is wrong and corrected (**F33**):
+   the row's own right is `acquisition.request` OR `acquisition.see.others`, matching § 3.2's bar row exactly.
+   **Every count reads the same filtered subset, and NEVER counts another account's read-only cards** (R-L18-g,
+   corrected for `household-member-sees-all`'s role, F33).
+2. **The tabs are composed by rights**, unchanged in mechanism from the first drawing; « Suivis » now needs
+   `acquisition.follow`, held by both seed roles by default (OPEN 6 = A closes the first drawing's guest
+   distinction — § 3.4 point 6 below).
+3. **The requester line is PLURAL where a follow has several requesters** (round 9 Q16): « demandé par Izno et
+   Léa ». **Whether a medium is followed AT ALL is read across every account, never from the caller's filtered
+   subset** (**F36**): `followOffered` and Découvrir's « déjà suivi » flag read the UNFILTERED answer; when
+   another account already follows it and the caller lacks `acquisition.see.others`, the offer shows a NEUTRAL
+   « déjà suivi », naming no one (§ 17 point 2's own explanation rule, applied without breaking the see-others
+   option's own privacy).
+4. **Own tunnel** — offered on a card the caller is AMONG the requesters of; the Operator (via `pilot.any`) on
+   every card. Refused the same way on another's.
+5. **Quality and pause are per-acquisition, role-gated, and now MULTI-REQUESTER** (round 10 Q6, precised): only a
+   requester whose role holds `acquisition.quality.own` has a quality setting on that acquisition, and only THOSE
+   settings enter « the highest wins »; the rest follow the default profile. `acquisition.pause.own` the same —
+   « paused » holds only when every requester who holds the right has asked for it. Setting either is offered on
+   one's own requested acquisition, under its own right; absent on another's.
+6. **« Suivre » and « Ajouter » — resolved (round 8 question 14, OPEN 6 = A).** No distinct guest act. The SAME
+   gesture for everyone: « Suivre » on a series (durable, until retrait), « Ajouter » on a film (until its Plex
+   confirmation, ruling 3). What differs is which requesters hold `acquisition.request`/`.follow`, never the verb.
+7. **The floating « ＋ » is gated by `acquisition.request` through the model** (**F65**) — absent for a
+   `see.others`-only identity and for an account under a forbidden-writes list that covers it.
+8. **The section absent** (the named exception, unchanged): an account holding neither `acquisition.request` nor
+   `acquisition.see.others` has no Acquisition row, no tabs, no badge, no address — its landing is elsewhere in
+   its own bar order (§ 3.2's entry-page rule).
 
-### 3.5 S5 — The reassign gesture (born here)
+**Named states.** `acq-household`; `acq-household-sees-all`; `acq-see-only` (**F33**, holding only `see.others`,
+tabs populated with everyone's read-only content, no `+`); `acq-guest`; `acq-operator-all`; `acq-card-read-only`;
+`acq-card-plural-requesters` (the line names two or more); `quality-own-offered` / `quality-own-absent`;
+`pause-own-offered` / `pause-own-absent`.
 
-**Ruled elsewhere:** organisation ruling 9 (a card born of a direct add in qBittorrent carries the Plex owner as
-requester, « réaffectable depuis la carte »); L22's OPEN 11 = B (L22 draws the line, the gesture is L18's). **It is the
-Operator's** (§ 17: « peut réaffecter une demande à un autre utilisateur »).
+### 3.5 S5 — The reassign gesture, resolved (round 8 question 13, OPEN 5 = A)
 
-**What it does.** From a card, the Operator picks another account; the card's requester becomes that account
-(demand I), the line reads it, and the card moves to that account's list. Nothing else changes: the tunnel is
-unaffected — a tunnel belongs to the medium (§ 20), the requester is a property of the medium's acquisition.
+**« Réaffecter… » is an act of the card's panel and the follow's panel**, offered to whoever holds
+`acquisition.reassign` (Admin by default). **Reading A only** — an act in `panel-journey.ts` (three acts today)
+and the follow's panel; nothing added to the card's own DOM, so every existing state is unmoved for Admin.
 
-**What it draws.** A chooser panel (a descriptor through `ui/panel`, the way the account menu and the journey sheet are
-drawn) listing the accounts by name, role and Plex link, the current requester marked, and a confirmation in the
-panel's own idiom: the sentence names the medium and the two accounts (« … passera de Izno à … »). **Where the gesture
-starts from is OPEN 5.** Absent for every account but the Operator, on its own cards too (§ 17: the Member pilots, does not
-reassign).
+**M9 (auditor's coherence round): the chooser lists only accounts that SEE the card** — those holding
+`acquisition.see.others`, or already a requester of it, or Admin — never the full roster, which would let a
+reassignment hand a card to an account with no way to find it again.
 
-**Named states.** `acq-reassign-chooser`; `acq-reassign-done` (the card on its new account's list, its line updated).
+**What it does.** Picks another eligible account; `reassignRequester` (demand I, keyed on card AND follow — F27)
+moves ONE requester off and the chosen account on; the line updates and, where the follow keeps other requesters,
+stays plural. The tunnel is unaffected (§ 20: it belongs to the medium).
 
-### 3.6 S6 — The Médiathèque and the sheet are read-only, but for the Operator
+**Named states.** `acq-reassign-chooser` (accounts filtered to those who see the card, M9); `acq-reassign-done`.
 
-`library.write` is the Operator's. For the Member, the guest and the rights-less account the library draws no selection
-and no delete (`features/library/delete-dialog.ts`, 193 lines; the selection bar replaces the tab bar today on `lib`,
-`slotReplacesTabBar`), and the sheet draws no « Re-scraper » (`features/media/media-verbs.ts`, 141 lines). Nothing is
-missing from a library the account can read whole, so nothing is explained (§ 3.0).
+### 3.6 S6 — The Médiathèque and the sheet, split by right
 
-**The sheet's administrator block (L17).** L17's S5 draws a per-tracker cross-seed block « for the administrator only »
-and asks (its OPEN 1, **unruled on this head**) whether it is gated at L17 behind a second mock identity (reading A) or
-held for L18 (reading B). L18 does not choose. **Phase 27's SIZE is conditional, not its existence**: under A, L17 has already drawn the block
-behind an `admin` fact and a second identity, and phase 27 re-aims that gate onto the model and deletes L17's stand-in
-(9 points); under B, phase 27 draws the block itself and its gate here, on the model (22 points, cut into 27 and 27-bis). Either way the rule is L17's R-L17-f
-proved on the six identities of § 2.2.
+`library.delete` and `library.rescrape` (split from the first drawing's single `library.write`, § 1.2 — the
+granularity ruling 23's preprod list needs: it forbids DELETION alone, and a single combined right could not
+express that). Neither held by default outside Admin. Nothing is missing from a library the account can read
+whole, so nothing is explained (§ 3.0).
 
-### 3.7 S7 — The ceiling absorbs the staging role
+**The sheet's cross-seed block, drawn HERE (F25), not L17's.** L17's OPEN 1 = B held it; this lot takes demand C
+(`readMediaCrossSeed`), gates the block on `trackers.view` (§ 1.2's granularity note), and refuses it `403` when
+forced. The block's own refresh key and its holds (L17's R-L17-b, R-L17-k, as they stood before L17 dropped
+them — F25) are carried here as **R-L18-w**, proved on the SAME six identities as every other right (§ 2.2), not
+a seventh invented for this purpose alone.
 
-`PERSONALSCRAPER_WEB_ROLE=staging` stops being a role (§ 17). What the maquette draws:
+### 3.7 S7 — The forbidden-writes list absorbs the staging ceiling (ruling 23)
 
-1. **The flag dies.** `SETTINGS_STATE.readOnly` and the mock's `readOnly` are replaced by the model's ceiling: the
-   24 lines in 12 files of fact 6 read the model, and `settings-read-only` becomes a state that turns the ceiling
-   dial (`setCeiling(true)`) — not a state that sets a page's own flag.
-2. **Every write is absent on a ceilinged instance, for every role** — the Operator included — because the ceiling
-   subtracts before the role adds (§ 1.2). It subtracts every write, and the mock's guard reads that (§ 2.2); the engine's policy is § 6.2's row N.
-3. **It says why**, once, where a write would have been — the settings banner exists (« Lecture seule. ») and stays —
-   and on Profil, in the list of what the account can do (S8). This is § 17 point 2 at its strongest: the Operator on
-   the staging instance must not conclude the application is broken.
-4. **The refusal side is the mock's guard** (§ 2.2): with the ceiling on, every write it names answers `403`.
+1. **The flag dies** (fact 6): the model reads a served LIST, never a boolean; `settings-read-only` turns
+   `setForbiddenWrites([...every write...])` rather than a page-local flag.
+2. **Every write the list names is absent, for every role — Admin included** — the list subtracts before the
+   role adds (§ 1.2). **The current `:8711` instance's list is every write**; **preprod's list is `library.delete`
+   alone** (ruling 23, precised: preprod writes into the PROD library — replace, merge, NFO rewrite — and only
+   explicit deletion is forbidden there). This lot draws the MECHANISM (a named list, read from the server); which
+   instance serves which list is the backend's, not drawn here.
+3. **It says why**, once, where a write would have been, and on Profil (S8) — naming the forbidden right(s), not
+   a generic « lecture seule » where the list is partial (preprod's own case).
+4. **The refusal side is the mock's guard** (§ 2.2).
 
-**Named states.** `ceiling-operator` (the Operator's Système, Réglages and library on a ceilinged instance);
-`settings-read-only` (existing id, re-driven).
+**Named states.** `ceiling-operator` (every write absent, Admin); `ceiling-preprod` (only `library.delete`
+absent — **new since the first drawing**, ruling 23); `settings-read-only` (re-driven).
 
-### 3.8 S8 — Profil is the connected account, and says what it can do
+### 3.8 S8 — Profil: the connected account, its role, what it can do
 
-Profil keeps its identity and session sections. **« Les autres comptes » leaves** (ruling 14): the section, its three
-keys and its empty note go. It gains, from the model and nowhere else (§ 13: one derivation, R-L18-p): the ROLE in a
-line; a section **« Ce que ce compte peut faire »** listing the rights the account holds, and — the explanation § 17
-point 2 wants — the reason behind each right it does NOT hold that would otherwise surprise (« l'instance est en lecture
-seule », « ce droit se règle par l'Opérateur ») ; the Plex link's state (linked to which Plex account, or not). It offers
-no act on other accounts.
+« Les autres comptes » leaves (ruling 14). Profil gains: the ROLE's NAME (never compared, only displayed — it
+never lies, ruling 20); a section « Ce que ce compte peut faire », listing the held rights and, for each one it
+lacks that would otherwise surprise, the reason and WHICH role(s) hold it by default (reusing S3's sentence table,
+§ 3.3); the Plex link's state; the forbidden-writes reason when the instance carries one.
 
-**Named states.** `profile-operator` (the existing `profile`, gaining its lines); `profile-household`; `profile-guest`;
-`profile-ceiling`.
+**Named states.** `profile-operator`; `profile-household`; `profile-guest`; `profile-ceiling`;
+`profile-preprod` (a partial list, **new**).
 
-### 3.9 S9 — « Comptes »: the Operator manages accounts
+### 3.9 S9 — « Comptes »: roles, their rights, and who holds each (ruling 20)
 
-**What is drawn, whatever its place.** A surface reserved to `accounts.manage`:
+**Resolved (round 8 question 9, OPEN 1 = B): a first-level menu page**, address `/accounts`, route, navigation
+row — grouped `configuration`, beside Réglages — reserved to `accounts.manage`. Not a Réglages rubric (fact 10;
+ruling 14's B refused A).
 
-1. **The roster.** One row per account: its name, its role, whether it is linked to a Plex account, and its two
-   options as they stand. A Plex user admitted with no right is a row too — « sans droits », so the Operator sees who
-   is in and has not been qualified (an account admitted read-only is not a hidden one, § 8).
-2. **An account's rights.** Its role (a choice of the three), and the two options, each with what it does in a sentence.
-   A change is answered on the network (demand H), moves the roster, and reaches the affected account through the
-   stream event (demand M). **The Operator cannot demote the last Operator** — the surface says why and the operation
-   refuses it (the door of last resort, § 3.1, must remain).
-3. **A new account.** A name, an e-mail — **mandatory** (« Un compte créé hors Plex porte un e-mail obligatoire ») —
-   and a role. If the e-mail is a Plex account's, the two are **linked** and the roster says so; if not, and the role is
-   not Operator, the account cannot sign in with a password and the surface says it will sign in with Plex when its
-   e-mail matches one (demand G).
-4. **The Plex link**, as a line on each row and in the detail: linked to which Plex identity, or not linked and why.
+**What is drawn:**
 
-**Where it lives is OPEN 1** — both placements are drawn in the plan (phase 23 carries one per reading) and this
-document says what each costs. Neither is in Profil (ruling 14, refused B).
+1. **The roster.** One row per account: name, ROLE (a role, never a raw rights list), Plex link, marked « sans
+   droits » for a Default-only account.
+2. **The roles editor.** Create, rename, and set the rights of an ORDINARY role (never Default's name, never
+   Admin at all — its row is not editable). A role's rights are toggled from § 1.2's own list, each with a
+   one-sentence explanation.
+3. **Assigning a role to an account.** One role per account (ruling 20's precision, verbatim « 1 seul »); changing
+   it moves the roster and reaches the affected account through demand M's event.
+4. **A new account.** Name, MANDATORY e-mail, an initial role (never Admin by a non-Admin manager — the
+   escalation guard below); a matching e-mail LINKS to Plex.
+5. **The Plex link**, per row and in the detail.
 
-**Named states.** `accounts-roster`; `accounts-detail`; `accounts-create`; `accounts-create-refused` (empty e-mail);
-`accounts-last-operator`; `accounts-forbidden` (the address, for an account without the right — its form is OPEN 3's).
+**Escalation (round 9 Q14 = A, measured).** A manager who is not Admin: creates, renames or assigns only a role
+whose rights are a SUBSET of their own role's — greyed on screen, refused by the guard if forced; never modifies
+their own role; **never touches an account whose role is Admin, to view or to change** (M7, the coherence round's
+own addition to Q14). **Measure**: the guard is a set-inclusion check plus its greying and one hold with its
+mutation — no new contract shape, no new screen, ≈ 8–10 points inside phase 25's existing budget (already ≤ 15
+without it per INDEX.md; the phase's own re-measure at opening confirms it stays under 15 with the guard added,
+or the guard is cut into its own phase). **Reading A stands**; B (« managing accounts = Admin only », no
+escalation logic) is not needed unless the re-measure at phase 25's opening says otherwise, in which case the
+phase records which and why, per Q14's own instruction.
+
+**Guards, restated on rights (F2, superseded from the first drawing's role-string version):** the operation
+refuses to remove `accounts.manage` from the last account holding it, and to remove `auth.password` from the last
+account holding it (the door of last resort must remain); it refuses to leave zero accounts on the Admin role.
+
+**Named states.** `accounts-roster`; `accounts-roles` (the roles editor, **new** — the first drawing had no
+surface for editing a role's own rights, since it assumed roles were fixed); `accounts-detail`;
+`accounts-last-admin`; `accounts-create`; `accounts-create-refused`; `accounts-escalation-greyed` (**new**, M7);
+`accounts-forbidden` (the address, for an account without `accounts.manage` — S3's reserved form).
 
 ---
 
 ## 4. The named states
 
-**Measured before naming them** (the counting command of L22's DESIGN § 4, unchanged, run on this head):
+**Measured before naming them** (L22's counting command, re-run on this head after the L16/L17 merge):
 
     python3 -c "import re,glob;print(sum(len(re.findall(r'^\s*\[\s*\"([^\"]+)\"\s*,\s*\"', open(f).read(), re.M)) for f in glob.glob('frontend/maquette/design/src/harness/states/*.ts')))"
 
-L22 (own count on `94a369879`: 114) adds 23 and removes 8; L16 and L17 add their own. **This lot adds up to 31 states** (29 without the two conditional ones, ids 5 and 31),
-in a NEW file `harness/states/rights.ts` (the way L22 opened `tunnel.ts`), composed by `harness/index.ts` beside the others, so no
-existing state file crosses invariant 6's 400 lines. Every new state is reachable by `window.__go("<id>")`, has an
-English id, and its French label is what the panel says. **Each state that needs an identity turns the dial itself**
-(`setIdentity`), so the driver's reset returns to the Operator between states.
-
-| # | id | Label (French) | Lands in phase |
-| --- | --- | --- | ---: |
-| 1 | `bar-household` | « Barre — membre du foyer » | 5 |
-| 2 | `bar-guest` | « Barre — invité Plex » | 5 |
-| 3 | `bar-rightless` | « Barre — Plex sans droits » | 9 |
-| 4 | `drawer-household` | « Tiroir — membre du foyer » | 6 |
-| 5 | `place-reserved` | « Une place réservée s'explique » — **only if OPEN 3 is ruled B** | 7 |
-| 6 | `acq-household` | « Acquisition — membre du foyer » | 8 |
-| 7 | `acq-household-sees-all` | « Acquisition — membre du foyer qui voit tout » | 8 |
-| 8 | `acq-guest` | « Acquisition — invité Plex » | 9 |
-| 9 | `acq-operator-all` | « Acquisition — l'Opérateur voit tout » | 8 |
-| 10 | `acq-card-read-only` | « Carte d'un autre — lecture seule, et pourquoi » | 13 |
-| 11 | `acq-reassign-chooser` | « Réaffecter — le choix du compte » | 11 |
-| 12 | `acq-reassign-done` | « Réaffecter — la carte a changé de main » | 12 |
-| 13 | `quality-own-offered` | « Profil de qualité — offert sur la sienne » | 14 |
-| 14 | `quality-own-absent` | « Profil de qualité — absent sur celle d'un autre » | 14 |
-| 15 | `lib-read-only` | « Médiathèque — lecture seule » | 16 |
-| 16 | `sheet-read-only` | « Fiche — lecture seule » | 16 |
-| 17 | `ceiling-operator` | « Instance en lecture seule — l'Opérateur » | 17 |
-| 18 | `profile-household` | « Profil — membre du foyer » | 18 |
-| 19 | `profile-guest` | « Profil — invité Plex » | 18 |
-| 20 | `profile-ceiling` | « Profil — instance en lecture seule » | 19 |
-| 21 | `signin-plex` | « Connexion — mot de passe et Plex » | 20 |
-| 22 | `signin-plex-unreachable` | « Connexion — Plex injoignable » | 21 |
-| 23 | `signin-password-refused` | « Connexion — mot de passe refusé à un non-opérateur » | 21 |
-| 24 | `signin-plex-bare` | « Après la connexion — Plex sans droits » | 21 |
-| 25 | `accounts-roster` | « Comptes — la liste » | 24 |
-| 26 | `accounts-detail` | « Comptes — les droits d'un compte » | 25 |
-| 27 | `accounts-last-operator` | « Comptes — le dernier Opérateur » | 25 |
-| 28 | `accounts-create` | « Comptes — un nouveau compte » | 26 |
-| 29 | `accounts-create-refused` | « Comptes — e-mail obligatoire » | 26 |
-| 30 | `accounts-forbidden` | « Comptes — adresse fermée à ce compte » | 23 |
-| 31 | `media-cross-seed-hidden` | L17's state, driven on the six identities — **only if L17 leaves it to L18** | 27 |
-
-Four ids of § 3 are not in the table on purpose: `bar-operator` is the existing bar, `profile-operator` is `profile`
-grown, `settings-read-only` is re-driven, and `signin` / `signin-error` gain the Plex block (phase 20) with the ids they
-have.
+The count is re-taken at phase 2's opening (L16 and L17 have both moved it since the first drawing; L22b has not
+landed and will move it again before L18 opens). **This lot adds up to 37 states**, up from the first drawing's 31,
+in a new `harness/states/rights.ts` file: 8 more than before — `signin-plex-first`/`signin-password-open`/
+`signin-plex-unreachable-open` replace the first drawing's two Plex states (net +1, F47); `acq-see-only`,
+`acq-card-plural-requesters`, `pause-own-offered`/`pause-own-absent` are new (F33, round 9 Q16, round 10 Q6);
+`ceiling-preprod`, `profile-preprod` are new (ruling 23); `accounts-roles`, `accounts-escalation-greyed` are new
+(ruling 20, round 9 Q14/M7); `place-reserved` moves from conditional to STANDING (net +0, it already existed in
+the count); `media-cross-seed`/`media-cross-seed-hidden` are drawn here now, not conditionally carried from L17
+(net +0, already counted). Every id is English, reachable by `window.__go`, French-labelled in the panel.
 
 ### 4.1 What the oracle will do (D8)
 
-The new states are NEW, so the reference RECORDS them and proves nothing about them. What the oracle is for here is
-the other direction — **no existing state may diverge unless a phase names it**. The resting maquette is the Operator's
-(§ 2.2), so **for every state that existed, the Operator's surface is what it was**, and the oracle's job is to prove it:
+Unchanged in method from the first drawing: **the oracle draws Admin's application and is blind to another
+role's absence.** For every state that existed before this lot, Admin's surface is unmoved; the phases below name
+exactly where it diverges (unchanged rows omitted from the first drawing's table are not repeated — only what
+this amendment adds or changes):
 
-| Phase | Existing states that WILL diverge | Reason (accepted by name, D8) |
+| Phase | Existing states that WILL diverge | Reason |
 | --- | --- | --- |
-| 1–4 | **none** — a contract, a seed that is unreadable at rest, a model no surface reads yet, a guard that lets the Operator through | the whole point of the dial (§ 2.2) |
-| 5 | none by the oracle — **the oracle is silent over the bar by construction** (D8 reads the `<nav>`'s rectangle, never a button; L22 § 4.1 said it first). The Operator's bar is unchanged | R-L18-d reads the buttons, or nobody does |
-| 6 | none for the Operator | the same, for the drawer |
-| 8 | `acq-*` states only if a tab or a count changes for the Operator — it must not | STOP A otherwise |
-| 11, 12 | the states that draw a card of L22's, **only if the reassign entry point (OPEN 5) adds a mark to the Operator's card** | « L18 § 3.5: the requester line as a control » — reading B of OPEN 5 only |
-| 17 | `settings-read-only` and the settings states that draw the banner (the flag was a module state; the ceiling is served) | « L18 § 3.7: the flag dies » |
-| 18, 19 | `profile` (loses the others' place, gains its lines) | « L18 § 3.8 » |
-| 20 | `signin`, `signin-error` on `login/form` | « L18 § 3.1: the Plex block » |
-| 21–26 | none for the existing states; the placement's own reading (OPEN 1) adds a drawer entry or a rubric to `drawer-navigation` / the settings states — named in phase 23 | « L18 § 3.9 » |
+| 5 | none by the oracle (it is silent over the bar's own buttons, D8) | R-L18-d reads the buttons, or nobody does |
+| 6 | none for Admin — every drawer entry Admin held before still renders, now unmarked | F29: marked entries are new states, not divergences |
+| 8, 9 | `acq-*` states only if a tab or count changes for Admin — it must not | STOP A otherwise |
+| 20 | `signin`, `signin-error` on `login/form` — the Plex block AND the disclosure | F47 |
+| 27 | `media-cross-seed*` for Admin, drawn fresh here | R-L18-w |
 | all others | none | STOP A |
 
-**The oracle's silence over what an account cannot see proves nothing, and this design says so before any phase
-does.** The oracle draws the Operator's application; a right absent for the Member is invisible to it by construction.
-**This lot is held by § 5's rules or by nobody** — L11 is the measured case: no divergence over 2 958 measurements
-while four adversarial rounds found ~40, 13, 7 and 0 defects (L20 § 7). The accessibility tier is re-read at phases 5,
-6, 20 and 23.
+**This lot is held by § 5's rules or by nobody** — the oracle proves nothing about a right absent for another role.
 
 ---
 
 ## 5. The rules that bite
 
-Numbers: the harness's highest rule number is re-taken by phase 2 against `origin/main` at the moment it runs —
-`grep -rhoE '^"""R[0-9]+ ' frontend/maquette/harness/*.py | sort -V | tail -1` (**R223** on this head) — and every label
-below is bound to a consecutive free number then, the mapping written into the report. **A number taken from this
-document without re-measuring is a collision.** Each is written RED FIRST; where the surface does not exist on `main`
-the rule is red for that reason and needs no mutation; where it changes behaviour that exists, the mutation comes
-after the move. **Every rule proving a right names its TWO halves** — the absent side (read on the DOM, for the
-identity that lacks the right) and the refused side (the call forced by hand, answered `403` on the network, read
-through `window.__mocks.answered()`) — and a rule that has only one is refused by the review.
+Numbers re-bound at phase 2's opening against `origin/main` at that moment (order 38, F68 — the highest number
+across the branch's own head AND every open branch running beside it, since L22b is still open). **Every rule
+proving a right names its TWO halves.**
 
 | Rule | Phase | What it READS | The mutation that fells it |
 | --- | ---: | --- | --- |
-| **R-L18-a** — the account, from the answer; the resting maquette whole | 2 | the avatar menu, Profil and the requester line name the DIALLED identity; **at rest (dial off, identity `izno`) no invented row is readable from any list and every existing state is unmoved** | print a constant name → falls; leave an invented card in the resting seed → the rest hold falls |
-| **R-L18-b** — one derivation, no second path | 3, 17 | a unit table: every combination of role × the two options × the ceiling gives the rights § 1.2 says; **and a source hold: no file outside the model compares a role string**; phase 17 adds the hold that none reads `readOnly` (`SETTINGS_STATE.readOnly` and the mock's are gone by then) | compare `role === "operator"` in a surface → the source hold falls; flip one cell of the table → the unit falls |
-| **R-L18-c** — the refusal side, everywhere | 4 | for each of the 29 writes and each identity lacking its right: forced by `fetch`, the mock answers `403` with the contract's `Problem` body and `answered()` records `403`; for the Operator, the same call answers as it did; **under the ceiling, every write the ceiling subtracts is refused for the Operator too** | drop the right from one route's declaration → the sweep names that operation; make the guard let an option through unread → falls |
-| **R-L18-d** — the bar by rights, both sides | 5, 9 | on each identity's bar state: the buttons drawn are exactly those the model opens, each of width 1/n (L22's R-L22-s read at 1, 2 and 3), each ≥ 44 px, **and the absent pages are ABSENT from the DOM, not hidden**; the refusal half: the pages' reads refused (R-L18-c). **Discharges L16's OPEN 2** — the Trackers row is proved hidden for the accounts without it | draw a row without its right → the absent hold falls; hard-code the Operator's bar → falls on each other identity |
-| **R-L18-e** — one derivation for the badges | 5, 6 | the menu button's badge equals the sum over the rows the account can open, and the drawer draws exactly the entries the model opens; a seeded Système fault moves the Operator's badge and leaves the Member's absent; **the Member's Acquisition badge counts their own « À traiter » cards only** | sum over every row → falls for the Member |
-| **R-L18-f** — a place not held explains itself (OPEN 3 = B only) | 7 | on `place-reserved`: the drawer entry and the cold address say the place exists, that this account does not hold it, and who can open it | render the page instead → falls |
-| **R-L18-g** — the lists are the account's, and every count agrees | 8 | for each of `household-member`, `household-member-sees-all`, `guest`, `izno`: the cards and follows drawn are exactly the identity's subset, the tab counts and the bar badge equal the list; **the option proved on both values** | read the unfiltered answer → falls; count the unfiltered set in the badge → the count hold falls |
-| **R-L18-h** — the section absent | 9 | `plex-without-rights`: no Acquisition row, tab, badge or address; the landing is the Médiathèque; a bar of the count OPEN 7 says | leave the row → falls |
-| **R-L18-i** — the reassign offer | 11 | on the Operator's card: the gesture is offered, the chooser lists the accounts with the current requester marked; on every other identity, **on its own card too**, no trace of it in the DOM | offer it on the Member's own card → falls |
-| **R-L18-j** — the reassignment moves | 12 | a reassignment is ANSWERED on the network (demand I), the card is on the new account's list and off the old one's, its line reads the new name; **forced by the Member, the call answers `403`** | toast without calling → the network hold falls; do not move the card → falls |
-| **R-L18-k** — own tunnel, both sides | 13 | on the Member's own card the acts of `acquisition.pilot.own` are offered and answer; on another's card (option ON) they are absent, the line says the card is read-only, and the same operations forced answer `403`; the Operator holds them on both | offer an act on another's card → falls |
-| **R-L18-l** — the quality choice of an acquisition | 14 | offered on one's own acquisition for the Member, and for the guest exactly when the option is ON (both pairs of § 2.2); absent on another's; the write is ANSWERED (demand K) and changes only THAT acquisition's choice; no act edits the profile itself | give the guest the offer without the option → falls; write the choice into the profile → falls |
-| **R-L18-m** — « Suivre » and the request (OPEN 6) | 15 | per the ruled reading: the offer per role; the guest's act as ruled | offer « Suivre » to the guest under reading B → falls |
-| **R-L18-n** — the library, read-only | 16 | for the Member, the guest, the rights-less: no selection, no delete on the library; no « Re-scraper » on the sheet; forced `deleteLibraryItems` / `rescrapeMedia` answer `403`; for the Operator both exist | leave the selection bar → falls |
-| **R-L18-o** — the ceiling absorbs the role | 17 | with the ceiling on, on Système, Réglages, Maintenance, the library and every Acquisition act: no write offered, **for the Operator**; the statement of why is drawn; **`SETTINGS_STATE.readOnly` and the mock's `readOnly` do not exist** (source hold); every write refused (R-L18-c) | re-add a settings-only flag → the source hold falls; leave one lever offered → falls naming it |
-| **R-L18-p** — Profil is the connected account | 18 | Profil draws no other account and no reserved place for them; it names the role of the connected account, for each identity | draw « Les autres comptes » → falls; print a constant role → falls under a changed identity |
-| **R-L18-q** — the gate offers Plex, and the host's page is unchanged | 20 | the gate draws both ways in (arranged per OPEN 2); **the design host's password page is byte-identical to the one before the phase and carries no Plex offer** (R72's bridge still passes) | move the Plex block inside the extraction markers → the host hold falls |
-| **R-L18-r** — the gate's outcomes | 21 | a non-Operator's password is refused with its reason; Plex unreachable is said from the answer; a rights-less Plex user's first frame is the Médiathèque; the Operator's password still signs in when Plex is unreachable | let a non-Operator's password through → falls; drop the door of last resort → falls |
-| **R-L18-s** — Comptes, both sides | 23 | for the Operator: the entry and the surface exist; for every other identity: **the entry is absent from the DOM** and the address is refused as OPEN 3 says; forced `readAccounts` / `createAccount` / `updateAccount` answer `403` | leave the entry for the Member → falls |
-| **R-L18-t** — the roster, from the answer | 24 | one row per account of the answer; role, link and options read from it; change the seed, the row follows | print a constant → falls |
-| **R-L18-u** — a rights change moves | 25 | a change is ANSWERED on the network; the roster moves; the affected identity's bar recomposes on the stream event with no refetch; the last Operator cannot be demoted, said and refused | apply on a timer instead of the event → falls; allow the last demotion → falls |
-| **R-L18-v** — a new account | 26 | the e-mail is required (refused with its reason on the surface AND by the operation); an e-mail matching a Plex account links; a non-Operator without a Plex match cannot sign in by password and the surface says so | accept an empty e-mail → falls |
-| **R-L18-w** — the administrator block on the model | 27 | L17's R-L17-f on the six identities: shown to the Operator, absent from the DOM for the others; forced route `403` | show it to the Member → falls |
-| **R-L18-x** — the viewer's memory is the viewer's | 9 | after a switch of identity, a remembered tab the new account does not hold is ignored, the default falls to its first tab | read the stored tab without asking the model → falls |
-| **R-L18-y** — a closed address | 6, 7 | a cold `/system`, `/maintenance`, `/settings`, `/trackers`, `/accounts` for an account that does not hold the place draws what OPEN 3 says (A: the not-found page, the address unchanged; B: the reserved place) and never the page; the page's reads answer `403`; the same addresses for the Operator draw the pages | remove the address guard → falls; answer a closed address with the page itself → falls |
-| **R-L18-z** — Profil's list is the model's | 19 | the rights Profil lists equal the model's for each identity (`household-member`, `guest`, `izno` differ); the ceiling appears as a reason when on; no sentence is keyed to a role | retype one right's sentence keyed to a role → the agreement falls; drop the ceiling's reason → falls |
+| **R-L18-a** — the account, from the answer; the resting maquette whole | 2 | unchanged in shape from the first drawing (§ 2.2) | leave an invented row readable at rest → falls |
+| **R-L18-b** — one derivation, source holds | 3, 17 | role × rights → the set § 1.2 says; **no file compares a role string**; **no file reads `readOnly`** (phase 17); **the forbidden-writes list is read from the server, never an env-style guess** (new hold, ruling 23) | flip one cell → falls; guess the list → the new source hold falls |
+| **R-L18-c** — the refusal side, everywhere, READS AND WRITES | 4, and a new phase before 5 (F30) | every write (§ 1.2's full enumeration, F28) AND every gated READ (Système, Maintenance, Trackers, Réglages — F30) answers `403` for an identity lacking the right; `see.others` stays a subset filter on a 200, never a 403 | drop a right from a route → the sweep names it |
+| **R-L18-d** — the bar by rights, both sides | 5, 9 | buttons drawn = exactly the rights open; 2, 3 or 4 buttons, or NONE for Default-only (OPEN 7 = A); absent pages ABSENT from the DOM | hard-code Admin's bar → falls elsewhere |
+| **R-L18-e** — one derivation for badges, BY RIGHTS (M3) | 5, 6 | menu badge = sum over rows the account can open; drawer draws every entry, **marked ones carry no count** (F29) | sum unfiltered → falls; show a count on a marked row → falls |
+| **R-L18-f** — a place not held explains itself, STANDING (F29, no longer conditional) | 7 | the drawer entry, marked; opened, names the missing right and who holds it | render the page instead → falls |
+| **R-L18-g** — the lists are the account's, every count agrees, INCLUDING a see-only role (F33) | 8 | for `household-member`, `household-member-sees-all`, `guest`, `izno`, and a see-only identity: the subset, the tab counts, the badge agree; **never counts another's read-only cards** | count the unfiltered set → falls |
+| **R-L18-h** — the section absent | 9 | no `acquisition.request` and no `.see.others` → no row, tab, badge, address; lands per the entry-page rule (round 10 Q7) | leave the row → falls |
+| **R-L18-i** — the reassign offer, filtered by who sees the card (M9) | 11 | offered to `acquisition.reassign` holders only; the chooser excludes accounts that cannot see the card | list every account → falls |
+| **R-L18-j** — the reassignment moves, on card AND follow | 12 | `reassignRequester` answered; one requester off, one on; forced by a non-holder → `403` | toast without calling → falls |
+| **R-L18-k** — own tunnel, membership not single ownership | 13 | offered where the caller is AMONG the requesters | offer on a non-member's card → falls |
+| **R-L18-l** — quality, role-gated, multi-requester (round 10 Q6) | 14 | only requesters whose role holds the right enter « highest wins »; absent for the rest | count an unrighted requester's setting → falls |
+| **R-L18-l-bis** — pause, role-gated, multi-requester | 14 | « all » = all requesters holding `acquisition.pause.own`; absent for the rest | count an unrighted requester → falls |
+| **R-L18-n** — the library, split rights | 16 | `library.delete`/`.rescrape` absent for non-holders; `403` when forced | leave the selection bar → falls |
+| **R-L18-o** — the forbidden-writes list absorbs the role, every case | 17 | with a list on, every write it names is absent, for EVERY role; `SETTINGS_STATE.readOnly` does not exist (source hold) | leave one lever offered → falls naming it |
+| **R-L18-p** — Profil is the connected account, role NEVER hardcoded | 18 | no other account, no reserved place; role read from the model, per identity | print a constant role → falls |
+| **R-L18-q** — the gate offers Plex first, host page unchanged | 20 | both ways in, per OPEN 2 = B; the password page byte-identical (R72's bridge) | move a block inside the extraction → falls |
+| **R-L18-r** — the gate's outcomes, `auth.password`-gated | 21 | a non-holder's password refused with reason; Plex unreachable auto-opens the disclosure (F47); the door of last resort for holders | let a non-holder's password through → falls |
+| **R-L18-s** — Comptes, both sides, marked not absent | 23 | present and marked for non-holders (F29); `403` on forced calls | leave the entry absent for a non-holder → falls (matches F29, not the first drawing's own mutation) |
+| **R-L18-t** — the roster and the roles editor, from the answer | 24, 25 | one row per account; a role's rights editable, Admin's row not | print a constant → falls |
+| **R-L18-u** — a rights change moves, on the real event (F37) | 25 | answered on a REAL emitted carrier; the roster moves; the affected identity recomposes with no refetch; last-Admin and last-`auth.password`-holder guards refuse (F2); **escalation refuses a subset violation and touching an Admin account** (M7) | apply on a timer → falls; allow the last demotion → falls |
+| **R-L18-v** — a new account, mandatory e-mail, Plex link | 26 | as the first drawing, unchanged | accept an empty e-mail → falls |
+| **R-L18-w** — the media-sheet block, on the model, carrying L17's own holds (F25) | 27 | shown to `trackers.view` holders, absent for others; `403` forced; the block's refresh key and L17's R-L17-b/-k holds proved here | show it to a non-holder → falls |
+| **R-L18-x** — the viewer's memory is the viewer's | 9 | a remembered tab the new role does not hold is ignored | read the stored tab unchecked → falls |
+| **R-L18-y** — a closed address, marked not absent (F29, F32) | 6, 7 | every `SCREEN_PARENTS` key whose parent the account cannot open, and every in-page link into a gated page, answers the reserved form; the page's reads `403` | remove the guard → falls; render the page on a cold address → falls |
+| **R-L18-z** — Profil's list is the model's, names the granting role(s) | 19 | rights held/lacking match the model per identity; a lacking right names who grants it | retype a sentence keyed to a role → falls |
 
 ### 5.1 Rules the earlier lots wrote that this lot re-aims
 
-- **L22's R-L22-s** (the bar's shares) is read at one, two and three places (phases 5, 9); it stays green over each,
-  and OPEN 7 says whether it must be amended.
-- **L22's default-tab rule** (R-L22-a as amended 2026-09-26) gains the fall-back of R-L18-x.
-- **L16's « hidden from other accounts »** is discharged by R-L18-d; L16's rules said it was not provable until now.
-- **`harness/settings.py`'s read-only hold** (lines ~398–401: the « lecture seule » text on the banner) is re-aimed onto the
-  ceiling dial in phase 17 — the assertion stays, its trigger changes.
+- **L22b's default-tab rule** gains R-L18-x's fall-back — read at L18's own opening, since L22b has not landed.
+- **L16's « hidden from other accounts »** is discharged by R-L18-d.
+- **`harness/settings.py`'s read-only hold** re-aims onto the forbidden-writes dial in phase 17.
+- **L17's R-L17-b, R-L17-k** (the media-sheet block's holds) are CARRIED, not re-derived, into R-L18-w (F25).
 
 ---
 
@@ -560,158 +577,106 @@ through `window.__mocks.answered()`) — and a rule that has only one is refused
 
 ### 6.1 The register rows
 
-- **B-143** — « §17 (accounts, rights, Plex SSO) has no surface, no contract operation and no lot »: **closed by this
-  lot's close** (phase 29) — `open` today, `by audit`. Its own sentence names the one requirement on EXISTING code: the read-only
-  role absorbed. Phase 17 is that.
-- **B-300 / B-335** name « tous les comptes du foyer » in two confirmations. The sentences stay true (only the Operator
-  writes configuration) — **not touched**, not a row of this lot.
-- The rows this lot finds are written as they are found, by the phase that finds them. **None is pre-written here.**
+- **B-143** — « §17 has no surface, no contract operation and no lot »: closed by this lot's close (phase 29).
+- **B-300 / B-335** — unchanged, not this lot's row.
+- Rows this lot finds are written as found, by the phase that finds them.
 
-### 6.2 The demands PROPOSED (D7) — in the register's own form, not asserted
-
-Eight rows the register lacks. **The lot files each by editing `frontend/maquette/contract/openapi.json` and
-regenerating the register**, in the phase that draws its surface. OperationIds and paths are proposals and adjust.
+### 6.2 The demands PROPOSED (D7) — in the register's own form
 
 | # | operation | operationId | what it is for | Filed in phase |
 | --- | --- | --- | --- | ---: |
-| D | `GET /api/auth/me` | `readAccount` (re-shaped) | The account: its **role** (operator, household member, guest, none), its **two options**, whether a **Plex account is linked** and which, and the instance's **ceiling**. L22's row D asked for the row; this is its shape. § 17; `backend-demands-architecture.md` § 2 | 1 |
-| E | `POST /api/auth/plex` | `signInWithPlex` (new) | The Plex SSO: begin and complete a sign-in with a Plex identity; answers the account (with its role) or the reason it is not admitted. Only Operators may hold a password without SSO. § 17 | 1 |
-| I | `PUT /api/acquisition/…/requester` | `reassignRequester` (new) | Change the requester of an acquisition — the Operator's right. **Keyed by the card's own identity** (the contract's card carries `ids` and the routes `mediaId` / `followedId`): one row if the phase finds one identity, two if it finds two. Organisation ruling 9; § 17 | 1 |
-| K | `PUT /api/acquisition/…/quality` | `setAcquisitionQuality` (new) | The per-acquisition override of the quality profile (fact 11) — never an edit of the profile. `backend-demands-architecture.md` § 3; § 17 | 1 |
-| F | `GET /api/accounts` | `readAccounts` (new) | The roster — `accounts.manage` only; each account with its role, options and Plex link. Organisation ruling 14 | 10 |
-| G | `POST /api/accounts` | `createAccount` (new) | A new account: a name, a **mandatory e-mail**, a role; links to a Plex account whose e-mail matches; refuses an empty e-mail | 22 |
-| H | `PATCH /api/accounts/{accountId}` | `updateAccount` (new) | Change an account's role and its two options; **refuses to demote the last Operator** | 22 |
-| L | `POST /api/acquisition/to-handle/{mediaId}/take` | `takeQueued` (edited) | Declares the `403` the 62 other operations already declare — an edit of an operation, not a row | 1 |
+| C | `GET /api/media/{provider}/{providerId}/cross-seed` | `readMediaCrossSeed` (taken over from L17, F25) | the media sheet's cross-seed block, gated by `trackers.view` | 27 |
+| D | `GET /api/auth/me` | `readAccount` (re-shaped) | the role's name, its closed rights set, the Plex link, the entry page, the forbidden-writes list | 1 |
+| E | `POST /api/auth/plex` | `signInWithPlex` (new) | the Plex SSO | 1 |
+| F | `GET /api/accounts` | `readAccounts` (new) | the roster and the roles editor's data, `accounts.manage` only | 10, 24 |
+| G | `POST /api/accounts` | `createAccount` (new) | a new account, mandatory e-mail, an initial role | 22 |
+| H | `PATCH /api/accounts/{accountId}` / role operations | `updateAccount`, plus role create/rename/set-rights (new) | roles, their rights, role assignment; refuses the last-Admin and last-`auth.password`-holder demotions, and an escalation violation (F2) | 22, 25 |
+| I | `PUT /api/acquisition/…/requester` | `reassignRequester` (new) | moves ONE requester off, one on; keyed for card and follow (F27) | 1 |
+| K | `PUT /api/acquisition/…/quality` | `setAcquisitionQuality` (new) | the per-acquisition, per-requester quality override | 1 |
+| L | `POST /api/acquisition/to-handle/{mediaId}/take` | `takeQueued` (edited, or retired per F42 — re-aimed at whichever operation survives L22b's own fix) | declares `403` | 1 |
+| P | — (new) | `setAcquisitionPause` (new) | the per-acquisition, per-requester pause preference (round 10 Q6 precision) | 1 |
+| — | every read under `/api/system`, `/api/maintenance`, `/api/trackers`, `/api/config` | (edited, not new) | gains `403` for a non-holder (F30) | new phase before 5 |
 
-And **one by-hand row in `docs/reference/frontend-backend-demands-stream.md`** (§ 2.3), the operator amends that file, not this
-lot: **M — an account's rights changed** (a role, an option, a Plex link), so the affected account's bar and drawer
-recompose without a poll (NE-DOIT-PAS-8).
+**M** — an account's rights changed, a stream row (§ 2.3), carried on a REAL emitted event or `updateAccount`'s own
+invalidation (F37) — the operator amends `frontend-backend-demands-stream.md`.
 
-**And one architecture row, N, PROPOSED for `docs/reference/backend-demands-architecture.md` § 2 (the operator amends that
-file, not this lot): the instance ceiling covers EVERY write** — § 17: « tout compte est ramené à la lecture seule quel
-que soit son rôle » — which **reverses A18** (`tests/unit/web/routes/test_staging_write_policy.py`: acquisition and decision
-writes stay open on staging so the mobile journeys can be validated there). The interface is drawn on § 17; the engine
-follows. **The consequence is stated, not hidden**: once the engine follows, a mutating journey can no longer be walked on
-the staging instance, and the operator weighs that when he reads this row.
+**N** — the forbidden-writes list is per-instance, not a single boolean ceiling (ruling 23, superseding the first
+drawing's blanket reading) — the operator amends `backend-demands-architecture.md` § 2.
 
-### 6.3 The clause-map rows PROPOSED (the operator amends the map; this lot does not)
+### 6.3 The clause-map rows PROPOSED (the operator amends the map)
 
 | Clause | Today | After the lot | Proof |
 | --- | --- | --- | --- |
-| **DOIT-12** — « montrer l'application de CE compte (§17) » | `to draw` | `served` | R-L18-b, c, d, g, k, n, o — each right on both sides |
-| **NE-DOIT-PAS-7** — the rights model absorbing the read-only role | `outside the interface` (the interface's share assigned to this lot) | the interface's share `served` | R-L18-b's source hold (no second read-only path), R-L18-o |
-| **NE-DOIT-PAS-3** applied to rights (§ 17 point 1) | `served` for busy/409 only | extended to rights: no `403` after a gesture on a right the model says is absent | R-L18-d, i, k, n |
-
-**The README's cut table and `docs/reference/frame-model.md` rows** (Part 9, « the gate is the frame's »; the bar's
-composition) are rewritten by the close (phase 29); the sentences are directives, so they change in the same move as
-the decision.
+| **DOIT-12** — « montrer l'application de CE compte » | `to draw` | `served` | R-L18-b, c, d, g, k, n, o |
+| **NE-DOIT-PAS-7** — absorbed read-only | `outside the interface` | `served` | R-L18-b's source hold, R-L18-o |
+| **NE-DOIT-PAS-3** on rights | `served` for busy/409 only | extended | R-L18-d, i, k, n |
+| **DOIT-14** — the media block | `partly` at L17 | `served` at L18 | R-L18-w |
 
 ---
 
-## 7. What this design does NOT draw, and what is OPEN
+## 7. What this design does NOT draw
 
 ### 7.1 Not drawn — and whose it is
 
-- **The backend** — the rights model's enforcement, the requester's persistence, the SSO flow, the account store, the
-  staging ceiling — **after the freeze of the interface** (`product-intent.md` § 15; D7). This lot draws what the
-  backend owes and mocks it, on invented identities marked as such.
-- **Deleting or disabling an account.** § 17 and ruling 14 dictate « list, rights, Plex link » and creation; nothing dictates
-  removal. **Not drawn, not proposed** — the operator's word first.
-- **An approval flow for proposals.** § 17 says the Member « propose » acquisitions and the guest « demande » one;
-  nothing dictates a validation step. None is drawn; OPEN 6 asks only what the guest's act is.
-- **Sessions of other accounts** (who is signed in, a forced sign-out): not dictated.
-- **A per-account audit trail** of who changed what: not dictated; L20's history is the machine's.
-- **Push notifications** to an account: a platform demand (L16's), not this lot's.
-- **The Trackers page, the ratio, the cross-seed** — L16, L17. This lot gates them; it draws none of them.
-- **The media sheet's « acquis le …, requester » trace** — a debt L22's design named (its § 3.5); L18 makes it possible
-  (the requester is now the account's) and does not draw it: it is the steward's to assign.
-- **The engine of L13 and the frame's code beyond the five edits of § 3.2–3.3, § 3.1** — untouched.
-- **Multiple Plex servers, a second household, invitations by link**: not dictated.
+- **The backend** — enforcement, persistence, the SSO flow, the account/role store — after the freeze (`product-intent.md`
+  § 15; D7). This lot mocks it on invented identities.
+- **Deleting or disabling an account.** Not dictated. Not drawn.
+- **An approval flow for a proposal.** Not dictated.
+- **Sessions of other accounts, a forced sign-out, a per-account audit trail.** Not dictated.
+- **Push notifications** — a platform demand, not this lot's.
+- **The Trackers page, the ratio, the cross-seed mechanics** — L16, L17's; this lot gates the media-sheet block
+  only (§ 19, F25).
+- **The tunnel-history half of ruling 3's trace** — assigned by the audit to an L22b phase beside its media-sheet
+  trace (C8); this lot's own media sheet edit (§ 3.6) is a DIFFERENT block (cross-seed), and does not draw C8's
+  path — named here so it is not silently conflated with S6.
+- **The engine of L13, the frame's code beyond §§ 3.1–3.3, 3.9** — untouched (F49 corrects the first drawing's
+  own claim that this is the only lot to touch frame code after L15 — L22b and L16 both edit `app/` first; this
+  lot re-reads what they left).
+- **Multiple Plex servers, a second household, invitations by link.** Not dictated.
 
-### 7.2 Seven OPEN design questions — each with TWO readings and NO choice
+### 7.2 OPEN design questions
 
-The rule of this section: **a reading is a complete drawing with its cost, and this document chose none.** Where a
-question is a placement the operator may want to SEE, the plan draws both (phase 23) and the operator rules on what he saw.
+**None.** The first drawing's seven questions, and L17's OPEN 1, are all ruled (§ 0, § 3, table below). Kept as a
+record, chosen nowhere else:
 
-**OPEN 1 — where accounts are managed.** Organisation ruling 14 accepts two forms and leaves the choice to this
-drawing « sauf mot contraire ». *Reading A — a rubric « Comptes » of Réglages.* The account roster sits beside the
-configuration's six rubrics; one settings page holds every reserved thing. It costs a rubric that is NOT a schema
-topic (fact 10: the rubric list is the server's data, so the page composes one rubric of its own) and inherits the
-settings page's ceiling banner and its « Lecture seule » pattern; it hides behind the configuration right, so the
-drawer holds no new entry. *Reading B — a first-level entry of the drawer.* « Comptes » becomes a page of its own
-(`accounts`, a row in the table, an address, a route), grouped in `configuration` beside Réglages. It costs a row, a
-path in `lib/addresses.ts`, a thin route and a region — and it puts accounts one tap from the menu, apart from the
-settings' six rubrics, which the operator's own words (« une page Comptes complètement séparée de premier niveau »)
-name. The surface of § 3.9 is the same in both; phase 23 draws the placement, once per reading.
+| # | Ruled | Where drawn |
+| --- | --- | --- |
+| OPEN 1 — where accounts are managed | B — a first-level menu page | § 3.9 |
+| OPEN 2 — how the gate offers Plex | B — Plex first, password behind a disclosure | § 3.1 |
+| OPEN 3 — a place not held | B — stays in the menu, marked and explained | § 3.0, § 3.3 |
+| OPEN 4 — who holds Trackers/Système | B, widened by ruling 17 into « everything is ACL » | § 1.2 |
+| OPEN 5 — where reassign starts | A — an act of the card's and follow's panel | § 3.5 |
+| OPEN 6 — the guest's request | A — the same act as everyone's | § 3.4 point 6 |
+| OPEN 7 — a bar of one place | A — no bar for a single-page role | § 3.2 |
+| L17 OPEN 1 — the media-sheet block | B — drawn by L18 | § 3.6 |
 
-**OPEN 2 — how the gate offers Plex beside the password.** *Reading A — side by side.* The password form stays where it is;
-under it, a separator and « Se connecter avec Plex », equal in weight. It costs the least and shows the two ways
-equally, which is « s'ajoute, ne remplace pas » to the letter. *Reading B — Plex first.* « Se connecter avec Plex » is
-the primary act and the password form sits behind a « Utiliser un mot de passe » disclosure. It costs a disclosure state,
-and it reads the fact that only Operator accounts may hold a password at all: most accounts sign in with Plex, and the
-form is the emergency door of § 3.1 point 3.
-
-**OPEN 3 — what an account sees of a place it does not hold** (Trackers, Système, Maintenance, Réglages, Comptes), in the
-drawer AND at a cold address. *Reading A — absent.* The drawer draws no entry; a cold `/system` draws the not-found page
-(the address is treated as unknown, ruling of L22's OPEN 5 form). § 17 point 1 to the letter, and § 17 point 4's « une
-page absente de la barre relève du point 1 » extended to the drawer; it costs an account that cannot tell « does not
-exist » from « not for me ». *Reading B — reserved and explained.* The drawer draws the entry marked as reserved; the
-place, opened, says what it is, that this account does not hold it and who can (« Réservé à l'Opérateur »). § 17 « Ce
-qu'un compte voit par défaut » — the pipeline and the configuration « restent visibles et expliqués comme réservés » —
-and point 2. It costs a reserved-place component and five sentences (phase 7 is drawn ONLY under this reading) and a
-drawer that shows an account entries it cannot use. **The bar is outside this question** (§ 17 point 4 dictates it
-absent).
-
-**OPEN 4 — who holds the right that opens Trackers and Système.** Ruling 11 says these appear « que pour ceux qui y ont
-droits » and § 17 lists no such right among the three roles' powers or the two options. *Reading A — the Operator
-alone; no option is added.* The Member and the guest see Acquisition and Médiathèque only, which is the operator's
-own example (« certains n'auront accès qu'à acquisitions et mediatheque »). It costs nothing in the model and a
-Member who wants to see the ratio cannot. *Reading B — a third per-account option, set by the Operator.* « voir les
-trackers » (and one for Système), independent of the role. It costs an amendment of § 17's « deux options », which is
-the operator's to make, a third and fourth toggle in S9, and two more identities' worth of proof.
-
-**OPEN 5 — where the reassign gesture starts.** *Reading A — an act in the card's sheet.* « Réaffecter… » is one more act
-in the journey sheet (`panel-journey.ts`, three acts today) and the follow's, offered to the Operator. It adds nothing to
-the card itself, so every existing state is unmoved for the Operator. *Reading B — the requester line is the control.* On
-the card, the line L22 draws (« ajouté par Izno ») is tappable for the Operator, and opens the chooser directly. It puts
-the gesture where ruling 9 says it lives (« depuis la carte ») and costs a mark on the Operator's card — the states that
-draw a card diverge (§ 4.1, phases 11–12) — and a line that is a control for one account and text for the others.
-
-**OPEN 6 — what the guest's « demande d'acquisition » is.** The maquette's only way to ask is « Suivre » (`createFollow`,
-which L22's ruling 1 keeps distinct from a PUNCTUAL acquisition). *Reading A — the same act.* The guest follows like the Member:
-the tab « Suivis », the add flow, unchanged; the roles differ by the quality option and the rest of § 17. It costs the
-distinction between « suivre » (the Member's, § 17) and « demande » (the guest's). *Reading B — a distinct act.* The guest
-asks for a PUNCTUAL acquisition (a film, a season) with no follow: a « Demander » on Découvrir, an operation of its own
-(one more demand row), no « Suivis » tab for the guest. It keeps § 17's two verbs apart and costs an act, a row and a
-phase (phase 15 costs 6 points under A, 17 under B, cut into 10 + 7).
-
-**OPEN 7 — a bar of one place.** The rights-less Plex user holds the Médiathèque alone (§ 17: « médiathèque uniquement »),
-and the operator dictated « 2 boutons le min » (L22's OPEN 2). *Reading A — the bar is not drawn for one place.* The frame
-rule stays (2 to 4); a single destination needs no bar, and the account reaches everything else through the menu. It costs
-the bar's height contribution (`app/bar-height.ts`, the content's padding) and a state where the bottom slot is empty.
-*Reading B — the bar draws its one place at full width.* The rule is amended to « 1 to 4 »; it costs an amendment of the
-operator's own words and a bar that carries no choice.
+No genuinely new OPEN question arose while drawing this amendment; the escalation measure (§ 3.9) is recorded as
+a MEASURE and its resulting choice (A), per round 9 Q14's own instruction, not as a fresh open question.
 
 ---
 
-## 8. What this design believes the contract gets wrong
+## 8. What this design believes the contract or the rulings' letter get wrong
 
-Recorded, not amended — the steward amends the plan, the operator the constitution and the map. **No file outside
-`docs/features/maquette-l18/` is edited for them, except the one dated line under the L18 heading of
-`docs/reference/frontend-architecture.md`.**
+Recorded, not amended — the steward amends the plan, the operator the constitution and the map.
 
-1. **« The gate stays `app/sign-in.tsx` »** — there is no such file (fact 1). The gate is `app/entry.ts` and markup in
-   `index.html` extracted by `serve.py`. The plan edits the three, and the L18 entry's « Where it lives » reads short.
-2. **« The drawer's identity block »** — the drawer's block is the host's served identity, not the account (fact 2); the
-   account's identity is the header avatar and its menu. The lot edits the drawer's ENTRIES, not an identity block.
-3. **« Behind the served role the backend already exposes »** (L17's « Dictated »): the backend serves no account role
-   (its `/auth/me` answers `{username}`), only the instance's deployment role (L17's own finding).
-4. **§ 17 says the staging role is a ceiling that makes every write read-only; the engine's policy (A18) leaves
-   acquisition and decision writes open** (fact 7). **The constitution wins and the engine follows the interface** (steward, 2026-09-27): § 6.2's row N proposes it, and states the consequence — the mobile journeys A18 wanted to validate on staging can no longer mutate there.
-5. **§ 17 « ce que cela impose à la preuve » cannot be met by the oracle.** The oracle draws the Operator's application
-   (§ 4.1); a right absent for another account is invisible to it. The lot's proof is § 5's rules, each on both sides.
-6. **« Les autres comptes » is a Profil section reserved « so the shape is settled »** (`features/account/page.tsx`);
-   ruling 14 sends it out. Its three keys and its section are deleted by phase 18, not kept « just in case ».
-7. **The organisation rulings of 2026-09-26 (10–15) are cited « organisation ruling N (2026-09-26,
-   `docs/reference/operator-method.md`) »** but the committed text of that file has no entry of that date yet: they are
-   in the auditor's copy and land in a later docs PR. The words quoted here are the operator's, as relayed.
+1. **« The gate stays `app/sign-in.tsx` »** — no such file (fact 1; F49). The gate is `app/entry.ts` plus
+   `index.html` markup extracted by `serve.py`.
+2. **« The drawer's identity block »** — the drawer's block is the host's served identity (fact 2; F49); the
+   account's identity is the header avatar. The lot edits the drawer's ENTRIES.
+3. **« Behind the served role the backend already exposes »** — the backend serves no account role at all
+   (`/auth/me` answers `{username}`).
+4. **§ 17 said the staging role makes every write read-only; ruling 23 SUPERSEDES the blanket reading with a
+   per-instance list** — recorded as resolved, not as an open discrepancy any more (the first drawing's row 4 here
+   is CLOSED by ruling 23, not merely stated).
+5. **§ 17 « ce que cela impose à la preuve » cannot be met by the oracle** — unchanged: the oracle draws Admin's
+   application; § 5's rules are the proof.
+6. **« Les autres comptes » reserved « so the shape is settled »** — ruling 14 sends it out; deleted, not kept.
+7. **The first drawing's own claim that this is « the only lot after L15 that edits frame CODE »** is WRONG once
+   L22b and L16 are read: both edit `app/` first (L22b the tab bar and drawer badges, L16 the navigation row);
+   this lot re-reads what they left rather than editing untouched frame code (F49, corrected in § 7.1).
+8. **The first drawing's rights table conflated `trackers.view`/`system.view` into one row** — § 17 keeps
+   Trackers, Système and configuration apart even under a role that might one day hold more than the defaults
+   (F31); § 1.2 now splits them.
+9. **The organisation rulings are cited by number and date** (`docs/reference/operator-method.md`); the branch
+   `docs/operator-method-0927` carries the byte-identical file into its own PR (steward's C1, done separately —
+   not this document's edit).
