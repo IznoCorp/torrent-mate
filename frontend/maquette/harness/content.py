@@ -147,17 +147,19 @@ async def main():
         cron = await pg.evaluate(
             "()=>window.__queries.getQueryData(['/api/acquisition/status'])?.cadence ?? null")
 
-        # ── the two tabs say the same thing the same way ────────────────────
-        # « En cours » already had the sentence; the follow tab had none, and
-        # two tabs about the same media must not phrase the same fact twice.
+        # ── a fruitless search is said on the follow, and only there ────────
+        # INVERTED, SAID OUT LOUD: « En cours » had the sentence and « Suivis »
+        # had to phrase it the same way. « Cherché, rien trouvé » left « En
+        # cours », which holds « En vol » alone: what was not found reads on the
+        # follow. The hold whose subject died now reads its absence.
         await pg.evaluate("()=>window.__go('acq-now-loaded')")
         await pg.wait_for_timeout(420)
         running = await pg.evaluate("""()=>[...document.querySelectorAll('#view [data-part="card/reason"]')]
           .map(e => e.textContent)""")
         phrase = "Aucune release conforme"
-        check("« En cours » explains a fruitless search",
-              any(phrase in r for r in running), str(running[:1]))
-        check("and « Suivis » explains it the SAME way",
+        check("« En cours » no longer explains a fruitless search",
+              not any(phrase in r for r in running), str(running[:1]))
+        check("« Suivis » explains it",
               any(phrase in s["reason"] for s in follows),
               str([s["reason"] for s in follows][:1]))
 

@@ -64,17 +64,39 @@ brief can read the reason and not only the requirement.
 
 ## 4. The ratio is steered — §18 (L16's demands)
 
-- The per-tracker policy (`min_ratio`, `min_seed_time`) becomes **writable from the interface**:
-  one write operation, absent from both contracts today. The displayed ratio is the one the
-  TRACKER recognises (NE-DOIT-PAS-1), never a locally computed figure.
-- `obligations`, `stalled-grabs`, `downloads` exist and are called by nothing yet; their shapes
-  are the interface's to diverge from if the drawn surface needs more (D7).
-- **Dictated 2026-08-30 (§18 completed):** a verb to RELEASE an obligation early; reconciliation of
-  an EXTERNAL removal (a torrent taken out of qBittorrent by hand closes its obligation as
-  « released by removal », never a silent anomaly); a per-tracker ratio-alert threshold and a push
-  channel to carry it (**FCM, iOS and Android** — a platform demand); a ranking input that
-  subtracts points from releases on low-ratio trackers. Per-tracker Download / Upload volumes and
-  trend, and per-active-torrent deadline and ratio, must be readable.
+- **Corrected 2026-09-27 (L16's redraw, F11).** The per-tracker policy (`min_ratio`,
+  `min_seed_time`) is **already writable from the interface**: `updateConfigurationFile` (`PUT
+  /api/config/files/{name}`) already writes `tracker.providers.<name>.economy.*`, and Réglages
+  already offers these two fields as settings rows. **Only the ratio-alert threshold is missing** —
+  a new key in the SAME `economy` block (`alert_threshold` or equivalent), never a second write
+  path. The displayed ratio is the one the TRACKER recognises (NE-DOIT-PAS-1), never a locally
+  computed figure, and — for a torrent cross-seeded onto more than one tracker — it is computed on
+  the TORRENT'S OWN SIZE on each tracker, never on the tracker's download volume (organisation
+  ruling 18, never a division by zero).
+- `obligations`, `downloads` exist and are called by nothing yet; their shapes are the interface's
+  to diverge from if the drawn surface needs more (D7). `stalled-grabs` also exists and is called by
+  nothing, but is NOT this lot's operation (L16's redraw, F14) — its own rollup answers a different
+  question, distinct from a torrent's own deferral reason (item below).
+- **Dictated 2026-08-30 (§18 completed):** a per-tracker ratio-alert threshold and a push channel to
+  carry it (**FCM, iOS and Android** — a platform demand); a ranking input that subtracts points from
+  releases on low-ratio trackers. Per-tracker Download / Upload volumes and trend, and
+  per-active-torrent deadline and ratio, must be readable.
+- **Reshaped 2026-09-27 (organisation ruling 18, round 9 Q7 — replaces the prior « release verb »
+  reading above).** « **Retirer de qBittorrent** »: a write that removes one or more qBittorrent
+  entries (an original grab and every entry sharing its files — a grouped removal, round 9 Q7),
+  files deleted by default and decheckable, answering which trackers still held a running obligation
+  on what was removed so the interface can name them. An obligation ends when its torrent leaves
+  qBittorrent, by this gesture or by the operator's own hand outside the interface — the SAME
+  reconciliation demand as before (never a silent anomaly, NE-DOIT-PAS-5), now needing a STREAM EVENT
+  as well, so a removed torrent's row can disappear live, without a refetch.
+- **New, round 9 Q1 (2026-09-27).** A per-tracker HEALTH read: whether the tracker's identifier (API
+  key, passkey) is refused, and since when — folded into the tracker-level summary read § 18 already
+  asks for, never a separate operation.
+- **New, L16's redraw (F14).** The pipeline's own `classify_deferrals` (read today by the watcher,
+  exposed by no web route) must answer, on a route the interface can call: the KIND of a torrent's
+  deferral (ratio, insufficient space, or missing content) and, for a ratio cause, the tracker's name
+  and its obligation's own `min_ratio` — never the legacy top-level `ingest.min_ratio` key, which a
+  card must not name.
 
 ## 5. Cross-seed is seen and decided — §19 (L17's demands)
 

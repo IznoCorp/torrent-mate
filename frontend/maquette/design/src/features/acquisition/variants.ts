@@ -203,3 +203,51 @@ export const deckHint = cva(
     },
   },
 );
+
+/**
+ * A resolution candidate's card, which IS the button that picks it.
+ *
+ * THE BUTTON'S OWN DEFAULTS ARE UNDONE HERE, because this prototype carries no
+ * preflight: a `<button>` arrives with the browser's small control font, its
+ * control text colour, a padding and centred text, while the card's box comes
+ * from `card()`, worn beside this factory. Only what makes a button read as the
+ * card it was is written here, and so it claims no anchor of its own.
+ */
+export const candidateCard = cva("text-left p-0 [font:inherit] text-inherit");
+
+/** The « Choisir » pill at a candidate card's right edge: a finger's height, in
+ *  the primary ground, and never a check mark — a mark on every card read as
+ *  « already selected » (B-500). It is decorative: the card is the button. */
+export const candidatePick = cva(
+  "inline-flex items-center justify-center self-center flex-none min-h-[44px] px-6 mr-5 "
+    + "rounded-full bg-primary text-primary-foreground text-3 font-semibold whitespace-nowrap",
+);
+
+/**
+ * Acquisition's tabs at a finger's size: worn BESIDE `segmentTab()`, it lifts
+ * each of the four to 44 px — a floor, so the segment's own padding still sets
+ * the label's place. The library's segment keeps its own size.
+ */
+export const fingerTab = cva("min-h-[44px]");
+
+/** The « ⋮ » beside those tabs, at the same floor, worn beside `moreButton()`. */
+export const fingerMore = cva("min-w-[44px] min-h-[44px]");
+
+/**
+ * Two feet on one line. A card of « À traiter » that offers two answers —
+ * confirm or correct a match, relaunch or abandon a step — lays them side by
+ * side: stacked, they made the card taller than its poster can follow. Each
+ * foot keeps the touch floor.
+ */
+export const footRow = cva("flex gap-4 [&>*]:flex-1 [&>*]:min-h-[44px]");
+
+/**
+ * An origin beside its one foot. A card of « À traiter » that offers one answer
+ * lays the line saying who asked beside it rather than under its reason: one
+ * line more made the card taller than its poster can follow. The foot keeps its
+ * label whole and the touch floor; the line truncates before it does.
+ */
+export const originRow = cva(
+  "flex items-center gap-4 mt-4 [&>button]:mt-0 [&>button]:flex-none [&>button]:min-h-[44px] " +
+  "[&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate",
+);

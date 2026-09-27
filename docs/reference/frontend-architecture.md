@@ -640,6 +640,12 @@ it makes void: « L20 opens after the `maquette-settings` micro-wave merges » �
 stay on `main` (#587) and the lot opens after L13. The measure and its six siblings are recorded in
 `docs/reference/frontend-steward.md` § « The operator's measures of 2026-09-12 »; reversal is his.
 
+**Re-cut again on 2026-09-15, by the auditor's lot-order delegation (C10).** L22 (Arrivées dans
+Acquisition) is inserted before L16, after L13: **the order is now L14 · L19 · L21 · L13 · L20 · L22 ·
+L16 · L17 · L18**, and no dependency already written moved. L16 opens after L22b, its own two sub-lots'
+head. **Extended on 2026-09-27 (round 8 Q18): an upload-to-tracker lot (L23 proposed) is drawn ahead of
+time in the second slot after L18**, per the operator's own separation of that function from L17.
+
 #### L14 — The surfaces that outgrew their file · *depends on L07, L09*
 
 **Landed** — PR #547, squash `9ce9b0508`. The four feature files over the 400-line ceiling are decomposed back under it, by domain. Body: `docs/reference/frontend-architecture.md@6a47304a4` § L14.
@@ -751,13 +757,17 @@ plus 14-bis and 14-ter (176 points; the two added on the operator's rulings of 2
 holding « En vol » alone — DESIGN § 7.3), **L22b** = phases 15–27 (151 points), stacked on L22a's head at its
 pull request's READY; one reader round each; the folder dies at L22b's gesture.
 
-#### L16 — §18, the ratio · *depends on L15, L19, L10*
+#### L16 — §18, the ratio · *depends on L15, L19, L10, L22*
 
-**Objective.** DOIT-13: the ratio is read PER TRACKER, obligations are a « rien » with their
-reason, and a tracker's policy is set from the surface that shows it. Three operations answer and
-nothing calls them (`GET /api/acquisition/obligations`, `/stalled-grabs`, `/downloads`); one
-write — the policy — exists in neither contract and will be recorded as a demand (D7). The stream's
-`RatioMeasured` and `SeedObligation*` events reach the browser and no surface claims them
+**Objective.** DOIT-13: the ratio is read PER TRACKER, an obligation is a « rien » with its reason
+carried as a MARK on its own torrent's row (never a second, doubling list — organisation ruling 18),
+and a tracker's policy is set from the surface that shows it. `GET /api/acquisition/obligations` and
+`/downloads` answer and nothing calls them; a tracker-level summary read exists nowhere and is this
+lot's own demand. **The policy write is NOT a new operation** (corrected 2026-09-27, C10, F11):
+`updateConfigurationFile` already writes the tracker's `economy` block, and Réglages already offers
+`min_ratio` / `min_seed_time` as settings rows — only the alert threshold is a missing KEY in that
+same family, a config-shape demand, never a second write path. The stream's `RatioMeasured` and
+`SeedObligation*` events reach the browser and no surface claims them
 (`frontend-backend-demands-stream.md` § 3); this lot's `live.ts` does.
 
 **Dictated (operator, 2026-08-30) — the blocking note is lifted.** One action: RELEASE an
@@ -770,29 +780,47 @@ volumes, the trend, and per ACTIVE torrent its deadline and its ratio. **No prop
 the interface exposes, the operator judges. The backend's share is recorded in
 `backend-demands-architecture.md` § 4.
 
-**And the ranking editor (operator, 2026-09-02, on the steward's inventory).** « Le ranking suit le
-ratio »: the weights that rank a release gain a ratio term, and the surface where that term is set
-is the ranking editor production has — `RankingPanel`, with a live preview through `POST
-/api/acquisition/ranking/preview`, uncalled — and the maquette only NAMES: the settings rubric «
-Classement des releases » promises « un écran à part », and the quality screen's button is a toast
-saying the editor will exist (B-298). It is drawn here, as that screen, with its own address under
-the settings page (D1) and the live preview the backend already computes; the toast goes with it.
+**Reshaped 2026-09-27 (organisation ruling 18, round 9 Q7).** The « release » action IS the gesture
+the operator described, not a verb of its own: **« Retirer de qBittorrent »**, on the torrent's
+qBittorrent entry, files deleted by default and decheckable, a confirmation naming every shared
+consequence and every tracker with a running obligation when files ARE deleted. An obligation ends
+when its torrent leaves qBittorrent, by this gesture or by the operator's own hand outside the
+interface; its trace lives in Système's history (ruling 12), never a second « released » list.
+
+**And the ranking editor (operator, 2026-09-02, on the steward's inventory; corrected 2026-09-27,
+F16).** « Le ranking suit le ratio »: the weights that rank a release gain a ratio term, and the
+surface where that term is set is the ranking editor production has — `RankingPanel`, reading and
+saving `ranking.json5` through the SAME `GET` / `PUT /api/config/files/{name}` operation the settings
+feature already declares and mocks, with a live preview through `POST
+/api/acquisition/ranking/preview`. The maquette's own twin had drawn neither the read nor the save
+(F16 — the settings rubric « Classement des releases » promised « un écran à part » and the quality
+screen's button was a toast, B-298); it is drawn here, reading and writing the real file, with its own
+address under the settings page (D1) and the live preview the backend already computes; the toast
+goes with it.
 
 **Where it lives (invariant 10).** `features/trackers/` — a tracker is a domain of its own, read
 by the acquisition and the media sheet, and invariant 7 forbids either from importing the other.
-A page with its row in `app/navigation.ts` (bar or drawer — the wave's design says which, drawn
-first), a per-tracker panel through `ui/panel`.
+**One page, two tabs** (organisation ruling 19, 2026-09-27) — « Torrents » (every torrent active in
+qBittorrent, once, filterable by tracker) and « Trackers » (one entry per tracker, an accordion —
+the wave's own choice, § 3 of its design, a dedicated page only if too long) — a bar row **inserted
+between Médiathèque and Découvrir** (organisation ruling 20), never a fifth place appended after a
+free slot.
 
-**Done when.** The map's DOIT-13 row and DOIT-2's ratio half read `served` with a rule; the three
-operations are called and mocked (seeded from the running backend's shapes, D7); the policy write
-is in the demands register; the events are claimed by a rule (R91's fan-out); the ratio shown is
-the tracker's (NE-DOIT-PAS-1, held by the mock's own value, never a local computation); the
-ranking editor draws with its live preview and the quality screen's toast is gone (B-298).
+**Done when.** The map's DOIT-13 row and DOIT-2's row (all three deferral kinds — ratio, space,
+missing content, F14) read `served` with a rule; the reads are called and mocked (seeded from the
+running backend's shapes, D7); the alert-threshold key and the removal operation are in the demands
+register; the events are claimed by a rule (R91's fan-out); the ratio shown is the tracker's
+(NE-DOIT-PAS-1, held by the mock's own value, never a local computation, and computed on the
+torrent's own size for a cross-seeded entry); the ranking editor reads, saves and previews live, and
+the quality screen's toast is gone (B-298).
 
-**Design and plan written 2026-09-15, re-read against the organisation rulings 2026-09-26, PR #614.**
-`docs/features/maquette-l16/DESIGN.md` and `plan/INDEX.md` (15 phases, mean ≈ 12.1); its three open
-questions ruled by the operator on 2026-09-26 (Trackers in the bar at L16 with the ratio alone; no right
-declared before L18; the badge counts the trackers under threshold and the obligations in breach). The lot
+**Design and plan written 2026-09-15, re-read against the organisation rulings 2026-09-26 (PR #614);
+RE-DRAWN 2026-09-27 against organisation rulings 18–20 and rounds 7–9 of the coherence audit, this
+docs pull request.** `docs/features/maquette-l16/DESIGN.md` and `plan/INDEX.md` (16 phases, mean
+≈ 11.4). Its prior OPEN 1–3 are ruled (Trackers in the bar at L16 with the ratio alone; no right
+declared before L18; the badge's three components — threshold, breach, and, since round 9 Q1, a
+refused identifier); one new OPEN question is born of ruling 19 itself (which tab opens by default,
+DESIGN § 5, OPEN 4) and is not chosen here. The lot
 opens after L22b.
 
 #### L17 — §19, cross-seed · *depends on L16*

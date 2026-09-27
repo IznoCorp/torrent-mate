@@ -509,7 +509,10 @@ when the defect comes back.
 | B-549 | The mock seed gives the FILM « Star Wars : The Clone Wars » the SERIES' provider identifiers (`imdb:tt0458290`, `tmdb:4194`, `tvdb:83268`) — a fixture-identity defect, same class as B-088: two rows of different KINDS sharing one identifier set. `add_footer.py` fell on a second add until c·2 keyed a visit's identity by `kind` + sorted `provider:id` pairs (`f67401890`), which separates the pair; the seed row itself is untouched. Owner: none | L13c c·2 | `open` |
 | B-550 | The library's selection bar actions sit under the touch floor at 390 px: « Annuler » 71×34, « Supprimer » 86×34, against the 44 px a thumb needs — on BOTH builds, so the defect is old, not L13c's. Found by reader C13's affordance lens (round one, C8). Owner: a later lot — the bar's action variant in `ui/variants/` | reader C13 round one | `open` |
 | B-551 | Citations of a SQUASHED branch's commit are dead on a fresh clone: order 43 (2026-09-15) had the engine's mentions cited `@13a66a35b`, the L13r head where `legacy.js` died — a commit no longer reachable from `main` once #605 squashed and its branch was deleted, so CI's checkout of a branch cut from `main` (#608, run 35076327531) refused the citation in `IMPLEMENTATION.md` while #607's, whose branch descended from it, had passed. The two directive-file citations now read `@c0a5062ac` (the last `main` commit holding the file); 26 comment sites under `frontend/maquette/design/src` and `frontend/maquette/harness` still cite `@13a66a35b` and no guard reads them (`check-docs-cited-paths.py` resolves only repository paths, and `CLAUDE.md`'s short-path form escaped it). Rule from now on: a dead file is cited at the last `main` commit that holds it, never at a feature-branch head. Owner: the next repair train (measure 5) for the 26 comment sites | CI 35076327531 | `fixed #609` |
+| B-552 | The library's lens segment sits under the touch floor at 390 px: its tabs measure 34 px tall (`segmentTab` in `ui/variants/controls.ts`, `py-4 text-4`), against the 44 px the harness holds locally (`add_footer.py` `TOUCH_TARGET = 44`; no written directive names the floor). Found by R206's red reading on Acquisition's bar, which phase 8 of L22a lifted to 44 px (RULINGS 3) without touching the shared primitive. Owner: none — the operator's walk decides | R206 red reading, L22a phase 8 | `open` |
 | B-553 | The pull-to-refresh indicator's wheel is never seen turning — the operator, 2026-09-26, on tm-design, his Android phone: « Le loader quand on glisse vers le bas pour recharger ne tourne pas. » The rotation is declared (`animation: spin` while the indicator is `loading`) and, since B-331, the indicator closes when the re-read settles; R223 `pull_wheel_turns.py` measures, by a real touch at 390 px, how long `loading` lasts and how far the wheel turns | the operator | `open` |
+| B-554 | The `shell/dialog` region measures a CLOSED dialog's stale box: `#dlg` keeps the last descriptor drawn after it closes, so a state's reading of the region depends on the last dialog ANY earlier state opened in the run order — 63 states moved together when L22a's `acq-abandon-confirm` (phase 11) became the last dialog before them, nothing they draw having changed (RULINGS 7 of L22). A driver reset that cleared the descriptor would end it. Owner: none | L22a phase 11 gate | `open` |
+| B-555 | R122 (`paths_to_sheets.py`) read « a search result » in `#view` — the « En cours » cards drawn UNDER the add screen — never the add screen's own result rows: green over the wrong subject for as long as « En cours » in the real world drew three rows, and it fell only when L22a removed them (RULINGS 11 of L22). The surface is now read in its own body (`[data-region="screen-add/body"]`); a mutation emptying the result list fells it by name. Owner: L22a | L22a phase 14-bis exploration | `fixed #619` |
 
 **B-420 — the wrapped index row is refused for the wrong reason, and the corpus falls in silence.**
 
@@ -1043,6 +1046,13 @@ The logs are under `~/Library/Logs/tm-repair-0916/` (the oracle's own divergence
 are the train's declared movements, not this entry). The fall reproduces nowhere but the CI runner, so the
 entry stays `open` with that runner as the only place it falls; naming it needs the `note()` line there,
 which is the instrument gap above (measure 1, the apparatus frozen).
+
+**2026-09-27 — the `outbox.py` half is NAMED and repaired in #619 (L22a round one, ruling 31).** R107 read
+the store the instant the reloaded page reported itself ready; the boot starts the drain at module
+evaluation and `__loadingDone` is not its end, so it raced on ANY boot — measured alone, old read: main
+`46806a88d` 2/8, the branch 3/5 and 2/8 (`~/Library/Logs/tm-l22a/r1-a3-*.log`). The read now waits,
+bounded 3 s, for the departure to answer; 0/10 on the branch and 0/10 on main after it. The `audit2.py`
+half stays open as above.
 
 **B-551 — citations of a squashed branch's commit are dead on a fresh clone.**
 
@@ -1782,7 +1792,7 @@ candidate the system believes, `confiance 90 %`, was in the control's name and i
 
 **RULED by the operator, 2026-09-12**: the accessible name **announces the confidence and the
 provider** — « Titre Année · 90 % · TMDB ». It is built by the next wave that opens
-`frontend/maquette/design/src/features/arrivals/resolution-cards.tsx`, with a hold that reads the
+`frontend/maquette/design/src/features/arrivals/resolution-cards.tsx@1c0dbea64`, with a hold that reads the
 **accessibility tree** rather than the markup. **Closes when** that name is emitted and that hold
 holds it. Owner: the next wave that opens the file.
 

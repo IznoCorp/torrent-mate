@@ -13,6 +13,7 @@
 // is known, and `data-maintenance-run` in `features/maintenance/`.
 import type { QueryClient } from "@tanstack/react-query";
 import { installJourneyVerbs } from "../features/acquisition/journey-verbs";
+import { installPlexVerbs } from "../features/acquisition/plex-verbs";
 import { installMaintenanceVerbs } from "../features/maintenance/action-verbs";
 import { installMediaVerbs } from "../features/media/media-verbs";
 
@@ -29,6 +30,7 @@ import { installMediaVerbs } from "../features/media/media-verbs";
  */
 export function installFeatureVerbs(client: QueryClient): void {
   installJourneyVerbs(client);
+  installPlexVerbs(client);
   installMaintenanceVerbs(client);
   installMediaVerbs(client);
 }

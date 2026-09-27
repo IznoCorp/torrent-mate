@@ -3,11 +3,6 @@
 // with what the ranking is allowed to claim about them. Each keeps the reason
 // it is the shape it is; the screen keeps only the arbitration.
 import { useTranslation } from "react-i18next";
-// The number words below are a LOOKUP TABLE, not prose: the same
-// dictionary-by-direct-import rule `panel.tsx` follows for the settings
-// dictionaries, and for the same reason — an index into a table is not a
-// sentence, and `t()` would only wrap the lookup in a second one.
-import fr from "../../i18n/fr.json";
 import { type PendingDecision, type SettledDecision } from "./types";
 import { ruleNote, type ChipTone } from "../../ui/variants";
 import {
@@ -203,8 +198,11 @@ export function DecisionCard({ decision }: { decision: SettledDecision }) {
 export function Candidates({ decision }: { decision: PendingDecision }) {
   const best = Math.max(...decision.candidates.map((candidate) => candidate.score));
   const tied = decision.candidates.filter((candidate) => candidate.score === best).length;
-  const words: string[] = fr.screens.resolution.numbers;
   const { t } = useTranslation();
+  // The number words are a LOOKUP TABLE, read as one through `t()` the way
+  // `card-markup.ts` reads the card's stages: a feature importing the
+  // dictionary itself counts against its fan-in ceiling.
+  const words = t("screens.resolution.numbers", { returnObjects: true }) as string[];
   return (
     <>
       {tied > 1 ? (

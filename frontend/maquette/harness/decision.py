@@ -27,6 +27,9 @@ candidate » reads `data-resolve` on each card instead of counting the sentence
 « C'est celui-ci » on a pill that no longer exists. The queue hold's `.click()`
 on the first `[data-resolve]` stays true of the card; a finger's proof of the
 tap is R161's (`resolution_card.py`).
+
+RE-AIMED OUT LOUD: « Suivant » is gone, so the hold that read it opening the
+next folder in place now reads its ABSENCE on a folder among several.
 """
 import asyncio
 
@@ -43,6 +46,22 @@ _journal = None
 def check(name, condition, detail=""):
     """Records one executed check and its verdict, in the shared journal."""
     return _journal.check(name, condition, detail)
+
+
+async def go(page, state):
+    """Asks for a named state, and holds that it exists rather than crashing.
+
+    A STATE ID THAT MOVED FALLS HERE BY NAME. Called bare, `__go` threw on an
+    unknown id and the rule died as « RULE CRASHED » — proved neither way — which
+    is what ruling 1's mutation met.
+
+    Args:
+        page: The page.
+        state: The state's id.
+    """
+    answer = await page.evaluate(
+        "(id)=>{try{window.__go(id);return null}catch(error){return String(error)}}", state)
+    check(f"the named state {state} exists", answer is None, answer or "")
 
 
 SCREEN = """() => {
@@ -97,7 +116,7 @@ async def main():
         await pg.evaluate("()=>window.__measure(true)")
 
         # ── with candidates: the tie, and what it forbids ──────────────────
-        await pg.evaluate("()=>window.__go('arr-decision')")
+        await go(pg, "acq-resolution-tie")
         await pg.wait_for_timeout(420)
         with_ = await pg.evaluate(SCREEN)
 
@@ -164,7 +183,7 @@ async def main():
         check("no engine token on screen", not leaks, ", ".join(leaks))
 
         # ── without candidates: nothing is borrowed ───────────────────────
-        await pg.evaluate("()=>window.__go('arr-resolution')")
+        await go(pg, "acq-resolution-none")
         await pg.wait_for_timeout(420)
         without = await pg.evaluate(SCREEN)
         check("a folder with no decision borrows no candidate",
@@ -175,35 +194,28 @@ async def main():
               any("manuellement" in x for x in without["exits"])
               and any("Laisser tel quel" in x for x in without["exits"]))
 
-        # ── « Suivant » opens the NEXT folder's arbitration, in place ──────
-        # The address is the screen's identity, so the next folder REPLACES the
-        # entry: one entry in, one out, and a single Back still leaves the
-        # arbitration rather than walking the folders already answered. Read
-        # after the screen has had time to change, never by timing the change.
-        await pg.evaluate("()=>window.__go('arr-decision')")
+        # ── a folder among several offers NO « Suivant » ──────────────────
+        # INVERTED, SAID OUT LOUD: this hold read that « Suivant » opened the
+        # next folder in place. « Suivant » is gone — every exit returns to
+        # « À traiter », whose count carries the number (R205 holds the return)
+        # — so the hold whose subject died reads its absence, never deleted.
+        await go(pg, "acq-resolution-tie")
         await pg.wait_for_timeout(420)
         await pg.evaluate("()=>window.__screens.resolution()")
         await pg.wait_for_timeout(420)
         standing = """()=>{const screen = document.querySelector('[data-part="screen"][data-open][data-key^="resolution:"]');
           return {key: screen ? screen.dataset.key : null,
-                  path: decodeURIComponent(location.pathname + location.search),
-                  depth: history.length, next: !!document.querySelector('[data-next]')};}"""
+                  next: !!document.querySelector('[data-next]')};}"""
         first = await pg.evaluate(standing)
-        if check("a folder among several offers « Suivant »", first["next"], str(first)):
-            await pg.click("[data-next]")
-            await pg.wait_for_timeout(660)
-            moved = await pg.evaluate(standing)
-            check("and « Suivant » opens the NEXT folder's arbitration, replacing its entry",
-                  moved["key"] is not None and moved["key"] != first["key"]
-                  and moved["path"] != first["path"] and moved["depth"] == first["depth"],
-                  f"{first} → {moved}")
+        check("a folder among several offers no « Suivant »",
+              first["key"] is not None and not first["next"], str(first))
 
         # ── answering empties the queue, on BOTH lists ────────────────────
         for state_, list_, exit_ in (
-            ("arr-decision", "blocked", "[data-resolve]"),
+            ("acq-resolution-tie", "blocked", "[data-resolve]"),
             ("arr-idle", "stuck", "[data-leave]"),
         ):
-            await pg.evaluate("(s)=>window.__go(s)", state_)
+            await go(pg, state_)
             await pg.wait_for_timeout(420)
             if state_ == "arr-idle":
                 await pg.evaluate(

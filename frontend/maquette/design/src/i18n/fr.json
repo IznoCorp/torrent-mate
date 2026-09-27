@@ -443,14 +443,12 @@
       "noteUnder": "sous",
       "noteRest": "la liste qu'on lisait : au téléphone, on ne la voyait jamais.",
       "noMediaIdentified": "Aucun média identifié. Voici ce que les providers proposent pour ce nom.",
-      "outOf": "sur",
-      "waiting": "en attente",
+      "plexHeld": "Plex l'a reconnu comme « {{title}} ». Si c'est bien lui, choisissez-le ; sinon, cherchez la bonne identité.",
       "noCandidates": "Les providers n'ont renvoyé aucun candidat pour ce nom. Il n'y a rien à choisir : la recherche manuelle est la seule voie.",
       "emptyTitle": "Aucun de ceux-là ?",
       "emptyBody": "La recherche manuelle s'ouvre pré-remplie avec le nom du dossier. Jamais un cul-de-sac (DOIT-7).",
       "searchManually": "Chercher manuellement →",
       "leaveAsIs": "Laisser tel quel",
-      "next": "Passer à la suivante",
       "note2Title": "Laisser tel quel n'est pas ignorer.",
       "note2Body": "Le résultat automatique était peut-être le bon : cette voie l'entérine et ne re-scrape rien. Elle existait dans le moteur et nulle part dans l'interface, donc on ne pouvait qu'être en désaccord avec la machine, jamais d'accord.",
       "settledHeading": "Réglées récemment",
@@ -760,8 +758,8 @@
       }
     },
     "acquisition": {
-      "nowNoteLead": "Vue « En cours » — livrée, inchangée.",
-      "nowNoteRest": " Elle sert de référence de langage aux trois autres pages : cinq sections d'urgence, une pastille de couleur par section, un compteur qui EST son propre lien.",
+      "nowNoteLead": "Vue « En cours » — ce qui bouge, seul.",
+      "nowNoteRest": " Une section, « En vol ». Ce qui attend d'être pris se prend sur la fiche du suivi ; ce qui est arrivé se lit dans les « Récents » de la Médiathèque ; ce qui n'a rien trouvé se lit sur le suivi ; ce qui attend votre main est « À traiter ».",
       "followsNoteLead": "Vue livrée, reprise à la lettre.",
       "followsNoteRest": " Trois modes (liste · groupé · grille), pastille à point sur fond teinté à 20 %, ligne méta = fraction puis statut puis légende chiffrée, aucun sous-titre : l'année vit dans la fiche. Les 12 suivis affichés sont les vôtres, avec leur état réel.",
       "cadenceNoteLead": "Un défaut que cette reprise fait apparaître.",
@@ -787,24 +785,16 @@
       "crossrefLink": "Arrivées →",
       "tabNow": "En cours",
       "tabFollows": "Suivis",
+      "tabTodo": "À traiter",
       "tabDiscover": "Découvrir",
       "moreLabel": "Plus — veille et obligations",
       "errorNow": "ce qui vous attend",
       "errorFollows": "vos suivis",
       "errorSuggestions": "les suggestions",
-      "nowEmptyTitle": "Rien ne vous attend.",
-      "nowEmptyBodyBefore": "Aucun média à récupérer, aucun blocage, rien en vol. Vos ",
-      "nowEmptyBodyCount": "12",
-      "nowEmptyBodyAfter": " suivis sont surveillés — la prochaine recherche automatique est à 15 h 20.",
-      "takeable": "À récupérer",
-      "takeableFoot": "Récupérer maintenant",
+      "nowEmpty": "Rien en cours.",
       "blocked": "À traiter",
       "blockedFoot": "Résoudre →",
       "inflight": "En vol",
-      "notfound": "Cherché, rien trouvé",
-      "doneToday": "Rangé aujourd'hui",
-      "notfoundNoteLead": "§14.1 — un état de repos légitime.",
-      "notfoundNoteRest": " « Cherché sans succès » n'est pas « pas encore regardé ». La carte donne la date de la prochaine recherche, jamais un silence. C'est l'état réel de vos quatre films suivis.",
       "pillAll": "Tout",
       "pillSeries": "Séries",
       "pillMovies": "Films",
@@ -886,7 +876,16 @@
         "atOne": "à {{hour}}",
         "atMany": "à {{hours}} et {{last}}",
         "hour": "{{hour}} h {{minute}}"
-      }
+      },
+      "todoEmptyTitle": "Rien n'attend votre main.",
+      "todoEmptyBody": "Ce qui avance sans vous est dans « En cours ».",
+      "todoResolve": "À résoudre",
+      "todoTunnelError": "Une étape ne passe pas",
+      "todoRequeueFoot": "Relancer",
+      "todoPlexMatch": "Match Plex à confirmer",
+      "plexConfirmFoot": "Confirmer",
+      "plexCorrectFoot": "Corriger",
+      "abandonFoot": "Abandonner"
     },
     "accountPage": {
       "noteLead": "Un seul compte existe sur ce serveur.",
@@ -1012,12 +1011,42 @@
         "ingéré",
         "scrapé",
         "rangé"
-      ]
+      ],
+      "requester": {
+        "qbittorrent": "ajouté par {{name}}, dans qBittorrent",
+        "follow": "demandé par {{name}}",
+        "unknown": "origine inconnue"
+      },
+      "plexMatch": "Plex l'a reconnu comme « {{title}} » — est-ce bien lui ?"
     },
     "error": {
       "lead": "Impossible de charger {{subject}}.",
       "body": "\n      Le serveur n'a pas répondu dans le temps imparti. Rien n'est perdu — ce qui\n      est affiché ailleurs reste valide.\n      ",
       "retry": "Réessayer"
+    },
+    "ladder": {
+      "figure": "{{position}} sur {{count}}",
+      "rungs": {
+        "requested": "demandé",
+        "searched": "cherché",
+        "grabbed": "attrapé",
+        "downloading": "téléchargement",
+        "arrived": "arrivé",
+        "identified": "identifié",
+        "shelved": "rangé",
+        "verified": "vérifié dans Plex"
+      },
+      "steps": {
+        "sorted": "trié",
+        "enriched": "enrichi",
+        "shelved": "rangé"
+      },
+      "step": "· {{name}}",
+      "toConfirm": "{{rung}} — à confirmer",
+      "reasons": {
+        "queued": "En file — ce passage attend que la maintenance en cours se termine.",
+        "confirmation": "Le match Plex attend votre confirmation."
+      }
     }
   },
   "settingValue": {
@@ -1227,6 +1256,12 @@
       "removeFilm": "Retirer de la liste",
       "removeSeries": "Retirer le suivi",
       "deleteFromLibrary": "Supprimer de la médiathèque",
+      "plexConfirm": "Confirmer le match Plex",
+      "plexCorrect": "Corriger le match Plex",
+      "requeue": "Relancer l'étape",
+      "abandon": "Abandonner",
+      "foundNextPassAt": "Trouvé, récupéré à la prochaine passe, à {{at}}.",
+      "foundNextPass": "Trouvé, récupéré à la prochaine passe.",
       "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
       "grabSeason": "Récupérer la saison {{season}}"
     }
@@ -1282,7 +1317,17 @@
       "replace": "Remplacer",
       "replaceCancel": "Annuler",
       "replacementQueued": "Ajouté — la version en place sera remplacée une fois la nouvelle récupérée.",
-      "searchAgain": "{{label}} — {{title}}"
+      "searchAgain": "{{label}} — {{title}}",
+      "plexConfirmed": "Match Plex confirmé : {{title}}",
+      "plexCorrected": "Match Plex corrigé : {{title}} est « {{choice}} »",
+      "abandon": {
+        "heading": "Abandonner « {{title}} » ?",
+        "bodyBefore": "Le dossier ",
+        "bodyAfter": " sera mis en quarantaine dans le staging et le déplacement journalisé. Rien n'est supprimé.",
+        "confirm": "Mettre en quarantaine",
+        "cancel": "Annuler",
+        "done": "« {{title}} » mis en quarantaine : {{path}}"
+      }
     },
     "arrivals": {
       "taken": "« {{title}} » récupéré — suivez-le dans « En vol ».",

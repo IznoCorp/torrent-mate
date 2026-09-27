@@ -1,5 +1,8 @@
 """R128 — what the seeds offer to a HAND, with no named state (B-345).
 
+RE-AIMED: a blocked arrival is read in « À traiter », the tab it lives in, and no
+longer on « En cours »'s.
+
 RE-AIMED: the season rows are `window.__mocks.seasons()` — the served seasons read's
 rows, the ones every season block now draws — since the engine's season table died.
 
@@ -206,7 +209,6 @@ async def main():
         queue = await page.evaluate(QUEUE)
         follows = await page.evaluate(FOLLOWS)
         followed = {one["t"] for one in follows}
-        drawn_now = await page.evaluate(TITLES_ON_SCREEN)
 
         journal.check(
             "the boot alone fills the arrivals — no named state was asked for",
@@ -224,20 +226,22 @@ async def main():
             "(B-345: the state B-309's verb needs to be tried by hand)",
             bool(takeable_followed),
             f"takeable={queue['takeable']} followed∩={takeable_followed}")
-        journal.check(
-            "and that arrival is DRAWN, so a thumb finds it without a seam",
-            any(one in drawn_now for one in takeable_followed),
-            f"{takeable_followed} against {drawn_now}")
 
         # ── 2. A BLOCKED ARRIVAL ───────────────────────────────────────────
         journal.check(
             "a BLOCKED arrival is offered at rest — the decision surfaces have "
             "a subject without one being seeded for them",
             bool(queue["blocked"]), str(queue["blocked"]))
+        # RE-AIMED OUT LOUD: a blocked arrival is « À traiter »'s, a tab of its
+        # own (ruling 10), no longer « En cours »'s — so it is read there, a tap
+        # away, and still with no named state asked for.
+        await page.click('[data-acqtab="todo"]')
+        await page.wait_for_timeout(SETTLED)
+        drawn_todo = await page.evaluate(TITLES_ON_SCREEN)
         journal.check(
-            "and it is drawn on the same tab",
-            any(one in drawn_now for one in queue["blocked"]),
-            f"{queue['blocked']} against {drawn_now}")
+            "and it is drawn in « À traiter », a tap away",
+            any(one in drawn_todo for one in queue["blocked"]),
+            f"{queue['blocked']} against {drawn_todo}")
 
         # ── 3. A PAUSED FOLLOW, OF EACH KIND ───────────────────────────────
         #
@@ -263,6 +267,18 @@ async def main():
             "them",
             all(one in drawn_follows for one in paused_shows + paused_movies),
             f"{paused_shows + paused_movies} against {drawn_follows}")
+        # RE-AIMED OUT LOUD: the takeable arrival of section 1 was read drawn
+        # on « En cours », where « À récupérer » stood; the act lives on its
+        # follow's sheet, so its follow's card in « Suivis » is what a thumb
+        # finds. WHAT IT STOPPED READING, said: the takeable followed medium is
+        # a follow by construction, so this reads its ROW drawn in « Suivis »
+        # and nothing more — not the sheet, not « Récupérer maintenant » on
+        # it, which R225 (`take_from_follow.py`) reads.
+        journal.check(
+            "and the takeable arrival of a followed medium is DRAWN in « Suivis », "
+            "its follow's sheet a tap away",
+            any(one in drawn_follows for one in takeable_followed),
+            f"{takeable_followed} against {drawn_follows}")
 
         # ── 4. A SEASON WITH A HOLE ────────────────────────────────────────
         #

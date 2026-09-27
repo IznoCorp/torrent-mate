@@ -55,11 +55,12 @@ export const SIGN_IN_PATH = "/login";
 //
 // AND THE PAGE UNDERNEATH IS THE REAL PARENT, never the home page by default.
 // A link opened from outside has no stack to unwind, so what sits under the
-// screen is the page it belongs to — the library under a media sheet, the
-// arrivals under a resolution. Each parent below is read off the surface the
+// screen is the page it belongs to — the library under a media sheet,
+// acquisition under a resolution. Each parent below is read off the surface the
 // screen's opener is EMITTED FROM, not chosen: the sheet is the library's
-// object, a resolution is an arrival's, and the release picker, the quality
-// profile and the add screen are all opened from the acquisition page.
+// object, and a resolution, the release picker, the quality profile and the add
+// screen are all opened from the acquisition page — a resolution from an
+// arrival's card, which is an acquisition card.
 //
 // This table is the SINGLE declaration the routes, the addressing rule and the
 // offline guard are all held against: a screen route with no entry here, or an
@@ -71,7 +72,7 @@ export const SCREEN_PARENTS: Readonly<Record<string, string>> = {
   "/quality/$name": "acq",
   "/media/$provider/$id": "lib",
   "/releases/$title": "acq",
-  "/resolution/$folder": "arr",
+  "/resolution/$folder": "acq",
   "/run/$runUid": "sys",
 };
 
@@ -131,7 +132,7 @@ export function isScreenPath(pathname: string): boolean {
 // from existing: a library address carrying an acquisition dial describes a
 // state no screen is in.
 const DIALS = [
-  { parameter: "tab", field: "acqTab", default: "now", of: "acq" },
+  { parameter: "tab", field: "acqTab", default: "follows", of: "acq" },
   { parameter: "lens", field: "libLens", default: "cat", of: "lib" },
   { parameter: "mode", field: "libMode", default: "grid", of: "lib" },
   { parameter: "cat", field: "libCat", default: "all", of: "lib" },
@@ -332,7 +333,7 @@ export function addressOf(
  * Returns:
  *     The page the path names and the dials the query sets. A screen address
  *     resolves to the page it BELONGS TO — the library under a media sheet,
- *     the arrivals under a resolution — and says that it is a screen, so a
+ *     acquisition under a resolution — and says that it is a screen, so a
  *     caller can tell the page it drew from the page it stands on. The sign-in
  *     screen keeps the home page underneath: it covers everything, so it
  *     belongs to no page in particular. A path

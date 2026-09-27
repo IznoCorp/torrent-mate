@@ -43,24 +43,30 @@ from playwright.async_api import async_playwright
 # `gallery.py` holds the five poster galleries; these are the LIST rows and the
 # two galleries outside them, which is exactly what the clause map calls
 # unproved.
+#
+# AND EACH IS READ WHERE IT IS DRAWN. A page's rows are in `#view`; a SCREEN's
+# are in its own body, drawn over the page. B-555: the search results were read
+# in `#view` — the « En cours » cards UNDER the add screen — so « a search
+# result » held green over the wrong subject until « En cours » had none left.
+PAGE = "#view"
 SURFACES = (
-    ("acq-follows-list", "a follow row"),
-    ("acq-follows-group", "a follow row, grouped"),
-    ("acq-now-loaded", "an acquisition in flight"),
-    ("arr-loaded", "an arrival"),
-    ("lib-list", "a library row"),
-    ("acq-add-results", "a search result"),
+    ("acq-follows-list", "a follow row", PAGE),
+    ("acq-follows-group", "a follow row, grouped", PAGE),
+    ("acq-now-loaded", "an acquisition in flight", PAGE),
+    ("arr-loaded", "an arrival", PAGE),
+    ("lib-list", "a library row", PAGE),
+    ("acq-add-results", "a search result", '[data-region="screen-add/body"]'),
 )
 
 # A ROW THAT NAMES A MEDIUM. Read from the markup's own vocabulary rather than
 # from a class: `data-panel` and `data-mediasheet` carry a TITLE, `data-tile`
 # and `data-add` name a medium by position in a list the page draws.
-NAMING = """()=>{
+NAMING = """(scope)=>{
   // `card` AND `tile`, and no third: `[data-part="row"]` is emitted nowhere in
   // this tree, and `check-markup-contracts` refused it — a value selected and
   // emitted nowhere is a rule selecting nothing.
   const rows = [...document.querySelectorAll(
-    '#view [data-part="card"], #view [data-part="tile"]')];
+    `${scope} [data-part="card"], ${scope} [data-part="tile"]`)];
   // WHICH BRANCH CARRIED THE ROW, not merely whether one did. A disjunction
   // reports the same green whether all four of its arms answer or only one
   // does, and « only one does » is a rule that has quietly narrowed to a single
@@ -110,11 +116,11 @@ async def main():
         errors: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))
 
-        for state, what in SURFACES:
+        for state, what, scope in SURFACES:
             await page.evaluate("(id)=>window.__go(id)", state)
             await page.evaluate("()=>window.__mocks?.quiet()")
             await page.wait_for_timeout(SETTLED)
-            read = await page.evaluate(NAMING)
+            read = await page.evaluate(NAMING, scope)
             # THE FLOOR IS NOT DECORATION. A surface that draws nothing has no
             # dead end either, and « 0 of 0 reachable » is the vacuous pass this
             # rule would otherwise report on the day a state stops rendering.

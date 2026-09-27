@@ -56,3 +56,5 @@ divergence is STOP A.
 
 The shared-lock `run.sh --contracts --oracle` with R-L22-v and every re-aimed rule NAMED, `--a11y` (the light ledger
 may only fall), then the phase's commit.
+
+**Amended 2026-09-27 (l22a, RULINGS 9):** cut into 14-bis-a (re-anchors) and 14-bis-b (the move, R224 = `now_holds_in_flight.py`, section readers), after 14-ter; on real rows `acq-now-idle` has nothing in flight, so it reads « rien en cours » (R224 reads « En vol » on `acq-now-loaded` only); `acq-card-waiting` is accepted by name with the same « En cours » body.

@@ -377,7 +377,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** What the acquisition side is holding, by bucket */
+        /**
+         * What the acquisition side is holding, by bucket
+         * @description A stuck arrival whose reason is a step that cannot finish carries `failedStep` — seeded on Top Chef Le Concours Parallèle's real row, a DERIVATION of its reason (no episode data: the files cannot be named), and dropped whenever a pending decision names the folder. A settled arrival whose Plex match waits for his confirmation carries `plexMatch` — seeded on Star Trek: Strange New Worlds (2022)'s real settled row, a DERIVATION naming the identity the pipeline holds (a confirmation to give, not an invented wrong match).
+         */
         get: operations["readAcquisitionQueue"];
         put?: never;
         post?: never;
@@ -394,7 +397,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** One torrent's journey, stage by stage */
+        /** One medium's ladder, rung by rung */
         get: operations["readJourney"];
         put?: never;
         post?: never;
@@ -498,7 +501,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Leave a staged item where it is */
+        /**
+         * Quarantine a staged folder
+         * @description « Abandonner » on a tunnel error (OPEN 10, ruled B): the folder is moved into the staging area's quarantine and the move journaled — after a confirmation that names the medium (NE-DOIT-PAS-6).
+         */
         post: operations["discardStagedMedia"];
         delete?: never;
         options?: never;
@@ -1023,6 +1029,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staging/media/{mediaId}/reclassify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * File a folder that is not a medium where the sort files its kind
+         * @description « Ce n'est pas un média » (ruling 5): the folder leaves the staging area for the non-media directory named, and its card leaves the acquisitions. Undone by the DELETE on the same address.
+         */
+        post: operations["reclassifyStagedMedia"];
+        /**
+         * Put a reclassified folder back in the staging area
+         * @description Undoes a reclassification: the folder returns to where it stood, and its card with it. Every resolve has its inverse (`backend-demands-architecture.md` § 9).
+         */
+        delete: operations["restoreReclassifiedMedia"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staging/destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Where the sort files what is not a medium */
+        get: operations["readStagingDestinations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/acquisition/journeys/{infoHash}/plex-match": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm or correct the match Plex made for a medium
+         * @description Demand E (OPEN 9, ruled B): « Confirmer » says the match is the medium, « Corriger » says it is not. « Corriger » opens the candidates screen on the identity held and sends nothing; the correction is sent by the pick, carrying the identity picked. Either answer takes the card off « À traiter »; leaving the screen without a pick leaves the match to confirm.
+         */
+        post: operations["resolvePlexMatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1049,6 +1116,19 @@ export interface components {
             ids: components["schemas"]["ProviderIds"] | null;
             /** @description the poster's address, or null when none is known */
             poster: string | null;
+            /** @description who asked for it and where — carried by a card born of an arrival */
+            requester?: components["schemas"]["Requester"];
+            /** @description the card's ladder — the SAME list `readJourney` answers for its medium, so the card and the journey sheet cannot disagree */
+            ladder?: components["schemas"]["JourneyStage"][];
+            /**
+             * @description the pipeline step a stopped card cannot get past — a TUNNEL ERROR, which only a relaunch or an abandon unblocks, never an identity pick. Carried only by a card no pending decision names
+             * @enum {string}
+             */
+            failedStep?: "ingest" | "sort" | "clean" | "scrape" | "cleanup" | "enforce" | "verify" | "trailers" | "dispatch";
+            /** @description the match Plex made, when it waits for the operator's confirmation — the card sits in « À traiter » until he gives it */
+            plexMatch?: components["schemas"]["PlexMatch"];
+            /** @description the folder was put in the staging area by hand: no acquisition asked for it, so it carries no requester, and its ladder starts where its own row does — at « arrivé » */
+            droppedByHand?: boolean;
         };
         Fact: {
             /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
@@ -1429,12 +1509,24 @@ export interface components {
             /** @description how many episodes the provider catalogue lists, or null when it does not say. The interface then shows a question mark rather than an invented total */
             aired: number | null;
         };
+        /** @description ONE RUNG OF A MEDIUM'S LADDER, from the wish to Plex (ruling 4; eight rungs, OPEN 4 ruled B). The card's strip and the journey sheet read the same list; « rangé » carries the three pipeline steps it merges as `steps`. */
         JourneyStage: {
-            label: string;
+            /**
+             * @description which rung, as a token — its name is the interface's
+             * @enum {string}
+             */
+            rung: "requested" | "searched" | "grabbed" | "downloading" | "arrived" | "identified" | "shelved" | "verified" | "sorted" | "enriched";
+            /**
+             * @description passed, in motion, queued behind something else, waiting for the operator's hand, set aside by him, or not reached
+             * @enum {string}
+             */
+            state: "done" | "now" | "waiting" | "blocked" | "aside" | "pending";
             /** @description CARRIED VERBATIM FROM THE FIXTURE (D-L08-5). A server should not send this pre-formatted; the demand register says so. */
             when: string;
-            /** @description done, now, or todo */
-            state: string;
+            /** @description why the rung is blocked or waiting, as a token, when it is */
+            reason?: string;
+            /** @description the pipeline steps this rung merges, in order — carried by « rangé » alone */
+            steps?: components["schemas"]["JourneyStage"][];
         };
         Problem: {
             status: number;
@@ -1610,6 +1702,40 @@ export interface components {
             pipelineLock: components["schemas"]["LockState"];
             sentinels: components["schemas"]["Sentinels"];
             sweep: components["schemas"]["TmpOrphanSweep"];
+        };
+        /** @description WHO ASKED for a medium and WHERE the asking happened. An arrival nobody requested through the application is attributed to the account that owns the Plex server, and says it was added directly in the download client (§17). A fact, never a sentence: the interface composes « ajouté par … » itself. */
+        Requester: {
+            /** @description the account's name */
+            name: string;
+            /**
+             * @description `follow` when a follow of that account asked for it, `qbittorrent` when it was added directly in the download client
+             * @enum {string}
+             */
+            via: "follow" | "qbittorrent";
+        };
+        /** @description a staging directory the sort files a NON-MEDIA folder into, as the configuration declares it */
+        StagingDestination: {
+            /** @description the directory's numeric prefix */
+            id: number;
+            /** @description the directory's label */
+            name: string;
+            /** @description the kind of file the sort files there */
+            fileType: string;
+        };
+        /** @description What the acquisition side is holding, by bucket — and every arrival, as a card. */
+        AcquisitionQueue: {
+            takeable: components["schemas"]["QueueCard"][];
+            blocked: components["schemas"]["QueueCard"][];
+            inFlight: components["schemas"]["QueueCard"][];
+            notFound: components["schemas"]["QueueCard"][];
+            doneToday: components["schemas"]["QueueCard"][];
+            /** @description WHAT ARRIVED THROUGH THE PIPELINE, each an acquisition card: a finished torrent the sort took in, requested by a follow or added directly in the download client. An arrival is a card (ruling 2), at its rung, with its requester. */
+            arrivals: components["schemas"]["QueueCard"][];
+        };
+        /** @description the medium Plex matched a shelved folder to — what « Confirmer » and « Corriger » act on */
+        PlexMatch: {
+            title: string;
+            ids?: components["schemas"]["ProviderIds"] | null;
         };
     };
     responses: {
@@ -2426,19 +2552,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description the five buckets */
+            /** @description the six buckets */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        takeable: components["schemas"]["QueueCard"][];
-                        blocked: components["schemas"]["QueueCard"][];
-                        inFlight: components["schemas"]["QueueCard"][];
-                        notFound: components["schemas"]["QueueCard"][];
-                        doneToday: components["schemas"]["QueueCard"][];
-                    };
+                    "application/json": components["schemas"]["AcquisitionQueue"];
                 };
             };
             400: components["responses"]["Problem"];
@@ -2461,7 +2581,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description the stages */
+            /** @description the eight rungs */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2667,7 +2787,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description it is left alone */
+            /** @description it is in quarantine */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2675,6 +2795,10 @@ export interface operations {
                 content: {
                     "application/json": {
                         ok: boolean;
+                        /** @description whether the move was written to the deletion journal */
+                        journaled: boolean;
+                        /** @description where the folder was put */
+                        quarantine_path: string;
                     };
                 };
             };
@@ -3585,6 +3709,148 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Locks"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    reclassifyStagedMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the staged item */
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description the name of a destination `readStagingDestinations` lists */
+                    destination: string;
+                };
+            };
+        };
+        responses: {
+            /** @description it is filed there */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                        /** @description where it was filed */
+                        destination: string;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    restoreReclassifiedMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the staged item */
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description it is back */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    readStagingDestinations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the non-media destinations */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StagingDestination"][];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    resolvePlexMatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the medium */
+                infoHash: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description whether the match is the medium
+                     * @enum {string}
+                     */
+                    outcome: "confirm" | "correct";
+                    /** @description the identity picked on the candidates screen — carried by a correction, and required by it */
+                    identity?: components["schemas"]["PlexMatch"];
+                };
+            };
+        };
+        responses: {
+            /** @description the match is answered */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                        /** @enum {string} */
+                        outcome: "confirm" | "correct";
+                    };
                 };
             };
             400: components["responses"]["Problem"];

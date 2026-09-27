@@ -341,7 +341,10 @@ def test_the_committed_reference_carries_a_platform():
     # « Films », a documentary ticked and no longer drawn. It is the only entry added and no
     # existing state moved — once the driver's reset stopped letting the category it pins
     # leak into the states after it. Verified by name.
-    assert reference["counts"] == {"states": 114, "regions": 38}
+    # 122 SINCE L22a, and the eight are Acquisition's tunnel (`harness/states/tunnel.ts`):
+    # acq-card-rungs, -blocked, -no-identity, -waiting, -requester, acq-todo-empty, -loaded
+    # and acq-abandon-confirm — added states, recorded new, none of the existing ones removed.
+    assert reference["counts"] == {"states": 122, "regions": 38}
 
 
 class TestItRefusesToWriteOverAForeignBuild:

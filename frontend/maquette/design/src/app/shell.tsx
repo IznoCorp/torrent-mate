@@ -70,7 +70,7 @@ import { installArrival } from "./arrival";
 import { installNavigation } from "../lib/navigate";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createQueryClient, installSharedQueryClient } from "../lib/query-client";
-import { installDecisionLookup } from "../features/arrivals/queries";
+import { installDecisionLookup } from "../features/acquisition/decision-queries";
 import { installLibraryDelete, installLibraryPaging } from "../features/library/queries";
 import { installEngineRedraw } from "./engine-redraw";
 import { installEngineData } from "./engine-data";
