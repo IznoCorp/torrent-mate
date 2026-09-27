@@ -448,6 +448,7 @@
       "emptyBody": "La recherche manuelle s'ouvre pré-remplie avec le nom du dossier. Jamais un cul-de-sac (DOIT-7).",
       "searchManually": "Chercher manuellement →",
       "leaveAsIs": "Laisser tel quel",
+      "notMedia": "Ce n'est pas un média",
       "note2Title": "Laisser tel quel n'est pas ignorer.",
       "note2Body": "C'est « plus tard » : le dossier reste sur la machine, mis de côté, replié en fin d'« À traiter » — hors de son compte, jamais oublié. Vous le reprenez de là quand vous voulez.",
       "settledHeading": "Réglées récemment",
@@ -1210,6 +1211,10 @@
       "requeue": "Remettre en file",
       "rescrape": "Re-scraper ce passage"
     },
+    "notMedia": {
+      "title": "Ce n'est pas un média",
+      "meta": "Où ranger « {{folder}} » ? Il quitte les acquisitions."
+    },
     "standby": {
       "title": "Veille et obligations",
       "meta": "Second rang — consulté, pas surveillé.",
@@ -1317,6 +1322,7 @@
       "replacementQueued": "Ajouté — la version en place sera remplacée une fois la nouvelle récupérée.",
       "searchAgain": "{{label}} — {{title}}",
       "plexConfirmed": "Match Plex confirmé : {{title}}",
+      "reclassified": "« {{title}} » rangé dans « {{destination}} » — il quitte les acquisitions.",
       "abandon": {
         "heading": "Abandonner « {{title}} » ?",
         "bodyBefore": "Le dossier ",

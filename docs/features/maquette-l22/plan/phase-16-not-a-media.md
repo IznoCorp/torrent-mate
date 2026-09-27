@@ -14,6 +14,8 @@
   written) 2; the choice's words as `fr.json` keys (≈ 6) 1; the reclassify held action with its undo window 2; R-L22-j with
   its mutation 3; one state (`acq-resolution-not-media`, composed on the seed's game folder — no new seed row) 1.
 
+- **Re-measured 2026-09-27 at its opening, on `79c4309a7`:** ≈ 14. `reclassifyStagedMedia` AND its inverse `restoreReclassifiedMedia` are declared and mocked, and no client read the destinations; the « Annuler » calls the inverse, as DESIGN § 3.4 says (« demand C carries its inverse »), rather than the held send this file's Move describes; the choice is a panel kind `not-media`, the return one settlement (`panel.close(true)` + `bridge.rewind`, the identification's own); rule label j = R228 (R227 is 15b's).
+
 Ruling 5: the candidates screen offers « Ce n'est pas un média ». The folder is reclassified « other » and filed where the
 sort files that category; **its card leaves the acquisitions and he does not see it again**. The choice among the
 destinations is configuration, never hard-coded (DESIGN § 3.4).

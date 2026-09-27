@@ -35,6 +35,8 @@ import "../features/arrivals/verbs";
 import "../features/acquisition/resolution-verbs";
 // And « Abandonner », which opens its confirmation before anything is sent.
 import "../features/acquisition/abandon-verb";
+// And « Ce n'est pas un média », its choice of destinations and its verb.
+import "../features/acquisition/not-media-verb";
 // And the release picker contributes its own — `data-pick-release`, declared
 // to the tap registry. It is named beside the take verb because the two
 // used to be ONE attribute read by two branches, and telling them apart by

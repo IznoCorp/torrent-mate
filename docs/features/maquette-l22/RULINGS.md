@@ -150,3 +150,16 @@ Plex-match card's panel offers « Confirmer » and « Corriger » (the same verb
 offers « Relancer » and « Abandonner » — every inline foot of « À traiter » is also a panel action. Phases 10 and 11's
 repair in its own `fix` commit, R43 green, one mutation per card (the panel action removed → R43 falls by name).
 (b), dropping the state from R41's list and filing the gap, would leave a shipped broken promise — refused.
+
+## 13 — a closed panel's box is inherited by later states (steward, 2026-09-27; L22b phase 16, STOP A)
+
+**The STOP.** Phase 16's gate diverged on 42 states it did not name, all on `shell/sheet-content` alone and all to
+one box (207 → 358 px high): the region measures the CLOSED `#sheet`, which keeps the last panel's box, and the new
+`acq-resolution-not-media` — « Ce n'est pas un média »'s choice of destinations — became the last panel opened
+before them in the run order. B-554's mechanism, on the panel instead of the dialog.
+
+**Ruled (proposal A), the form of ruling 7.** The 42 are accepted by name on `shell/sheet-content` only, the
+acceptance commit carrying the script's proof that each differs on that region and on no other; the three states
+the phase declared (`acq-resolution-none`, `acq-resolution-tie` on `screen-resolution/body`, the new state) are
+accepted as declared. B-554 is EXTENDED by one line — one row, one mechanism, one future repair of the driver's
+reset. B (reordering the states) hides it; C (repairing the reset) is new apparatus.

@@ -98,6 +98,18 @@ export function tunnelStates(): NamedState[] {
       },
     ],
     [
+      "acq-resolution-not-media",
+      "Résolution — « Ce n'est pas un média », le choix des destinations",
+      () => {
+        // THE OPERATOR'S OWN CASE: the game folder of the real stuck list.
+        applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" });
+        window.__screens.resolution("Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto");
+        window.setTimeout(() => {
+          document.querySelector<HTMLElement>("[data-not-media]")?.click();
+        }, OPEN_AFTER);
+      },
+    ],
+    [
       "acq-abandon-confirm",
       "À traiter — confirmation avant d'abandonner",
       () => {
