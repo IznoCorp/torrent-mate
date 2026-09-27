@@ -81,13 +81,15 @@ export function installPullIndicator(
 ): void {
   const gesture = installPullGesture({
     port,
-    /* THE SURFACES THAT OWN THEIR OWN HORIZONTAL GESTURE are excluded, or the
+    /* THE SURFACES THAT OWN A DRAG IN EVERY DIRECTION are excluded, or the
        pull fires beside them and the page navigates away mid-drag. They are
        named by the classes their own drawing paints, which is what the engine
-       read too: these move with that drawing, not with this gesture. */
+       read too: these move with that drawing, not with this gesture.
+       A SWIPE ROW IS NOT ONE OF THEM: it claims a drag only when it goes to the
+       side, and the pull only when it goes down from the top, so the two never
+       answer the same drag — and a list made of swipe rows must still pull. */
     isExcluded: (target) =>
       !!(
-        target.closest?.(".swipe") ||
         target.closest?.(".sugwrap") ||
         target.closest?.(".deck") ||
         target.closest?.(".pillscroll")
