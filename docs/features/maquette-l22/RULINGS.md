@@ -28,6 +28,11 @@ real rows, said in the state's label and in R207's docstring. The eight rungs ar
 opened into its three steps), where R207's order, agreement and one-source holds read them. No derived row: a row nobody
 lived is not seeded to fill a picture (§ 13).
 
+*2026-09-27 (round one, A10).* Five rungs are reached on the cards, not six: « En cours » holds « En vol » alone since
+14-bis-b2, so notFound « cherché » and takeable « attrapé » left the cards — téléchargement, arrivé, identifié, rangé
+and vérifié dans Plex remain. « vérifié dans Plex » is reached ONLY by Star Trek's row, ruling 6's derivation; R207's
+docstring says so.
+
 ## 3 — Acquisition's tabs at a finger's size (steward, 2026-09-26; phase 8, STOP D)
 
 **The STOP.** R206's « every target meets the touch minimum » hold fell on `main` for a reason the design did not
@@ -247,3 +252,42 @@ driver's reset leaves `acqTab`, so they drew the tab the state before left (« D
 **Ruled (B).** The three FIX their tab — `acqTab: "follows"`, Acquisition's opening tab — and stop depending on run
 order, which is the real defect; they are accepted by name on those three regions with the script's proof, and B-554's
 row gains one line naming this third inheritance. (A) keeps the defect; (C), repairing the reset, is new apparatus.
+
+## 30 — the ladder's figure keeps one meaning; a Plex match waits on its current rung (steward, 2026-09-27; round one, A6)
+
+**The question.** The round's brief asked Star Trek's card to read « 7 sur 8 »; the figure is the current rung's
+position on every card, so « 7 » would have given the figure a second meaning (rungs passed) or moved every card.
+
+**Ruled.** Neither. The figure KEEPS its one meaning, the current rung's position, for every card — the operator's
+ruling 4 reads the tunnel's state ON THE CURRENT RUNG — and no card moves. The brief's « 7 sur 8 » is withdrawn.
+Star Trek's current rung is « vérifié dans Plex », PENDING on his answer: the card reads « 8 sur 8 », the rung drawn in
+its waiting tone, its word saying it waits for him (« vérifié dans Plex — à confirmer », the shape a blocked rung
+already uses), never a done-looking « vérifié »; the panel's episode facts are aligned with the card. Hold in
+`plex_match.py`: the current rung of the Plex card is NOT done.
+
+## 31 — R107 races on every boot: its READ is repaired, not the product (auditor, 2026-09-27; round one, A3 STOP)
+
+**The STOP.** The reader measured R107 (`outbox.py`) 3/5 on the branch, 0/5 on main, and order 48 called it a
+regression. Measured again, same method, same session: head 3/5, 822a4c1f4 (before the « Suivis » landing) 2/8, and
+main 46806a88d **2/8**, the same hold, the same text (« 1 left in the store, 0 → 1 follows »). The hold read the store
+the instant the reloaded page reported itself ready; the boot starts the drain at module evaluation and
+`__loadingDone` is not its end, so the rule read an envelope that had departed and was not yet forgotten — on any boot.
+
+**Ruled.** Repair R107's READ: after the reload it waits, bounded at 3 s, for the boot's departure to answer (the
+follow applied, the store empty), and a new hold reads the envelope's key arriving ONCE. Two mutations make the
+proof — the outbox never departs (the wait ends in a named FAIL, never a pass); the departure doubled (the rule falls
+on « once »). Red first on main (2/8 with the old read); then green in series on the branch AND on main, at least ten
+runs each side. #619's body corrected with the figures. Order 48 amended accordingly.
+
+## 32 — a one-foot card of « À traiter » lays its origin line beside its foot (steward, 2026-09-27; round one, A9, STOP A)
+
+**The STOP.** With every acquisition card saying its origin (A9), Lucky's card — a queue-blocked row no follow names,
+« origine inconnue » — gains one text line; its poster, stretched to the card's height, loses 43 % of its artwork and
+R47 falls.
+
+**Ruled (a), for every one-foot card of « À traiter »**, not Lucky alone: the origin line and the single foot share ONE
+row — the line at the left, the foot at the right — in the foot row ruling 10 introduced; the foot keeps its 44 px
+floor, the line truncates before the foot does (an ellipsis; the full text in the panel). R47 green, R212 kept (the
+line is still the body's last text). A mutation: the line back on its own row → R47 falls on Lucky. Oracle by name.
+(b), the poster no longer stretched past a bound, re-opens R47's own defect; (c), no line on a row no follow names,
+contradicts « the missing origin is said ».

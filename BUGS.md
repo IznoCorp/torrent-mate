@@ -1047,6 +1047,13 @@ are the train's declared movements, not this entry). The fall reproduces nowhere
 entry stays `open` with that runner as the only place it falls; naming it needs the `note()` line there,
 which is the instrument gap above (measure 1, the apparatus frozen).
 
+**2026-09-27 — the `outbox.py` half is NAMED and repaired in #619 (L22a round one, ruling 31).** R107 read
+the store the instant the reloaded page reported itself ready; the boot starts the drain at module
+evaluation and `__loadingDone` is not its end, so it raced on ANY boot — measured alone, old read: main
+`46806a88d` 2/8, the branch 3/5 and 2/8 (`~/Library/Logs/tm-l22a/r1-a3-*.log`). The read now waits,
+bounded 3 s, for the departure to answer; 0/10 on the branch and 0/10 on main after it. The `audit2.py`
+half stays open as above.
+
 **B-551 — citations of a squashed branch's commit are dead on a fresh clone.**
 
 **FIXED #609.** Every comment under `frontend/maquette` citing `@13a66a35b` now cites `@c0a5062ac`,

@@ -165,19 +165,50 @@ async def main():
         # A RELOAD IS THE PROCESS ENDING, as far as this queue is concerned: the
         # module is evaluated again, every variable it held is gone, and the
         # only thing that can bring the envelope back is the store.
+        key = await page.evaluate(
+            "async()=>(await window.__outbox.waiting())[0]?.key ?? null")
         await page.reload(wait_until="load")
         await page.evaluate("()=>window.__loadingDone?.()")
         # The boot sends what survived, and the network is up again in this new
         # document — `setOffline` lives in the page and did not survive either.
-        # So this reload measures BOTH halves at once, which is why the count is
-        # read from the store before anything is allowed to depart.
-        survived = await page.evaluate(
-            "async()=>(await window.__outbox.waiting()).length")
-        after_boot = await follows(page)
+        # So this reload measures BOTH halves at once: the envelope can only
+        # depart from the store, so a departure proves it survived.
+        # THE READ WAITS FOR THE BOOT'S DEPARTURE TO ANSWER, bounded. Said out
+        # loud: this read the store the instant the page reported itself ready,
+        # and nothing in the boot orders the drain before that — the drain starts
+        # at module evaluation and `__loadingDone` is not its end. It raced on
+        # every boot, main's included (2 falls in 8 there, measured), reading an
+        # envelope that had departed and was not yet forgotten. What is held is
+        # unchanged: departed, applied once, forgotten. An outbox that never
+        # departs ends the wait and falls here by name.
+        boot = await page.evaluate(
+            """async([title, before])=>{
+                 const count = async()=>{const r = await fetch("/api/acquisition/followed");
+                   const body = await r.json();
+                   const rows = Array.isArray(body) ? body : (body.items ?? body.follows ?? []);
+                   return rows.filter((row)=>(row.title ?? row.t) === title).length;};
+                 const end = Date.now() + 3000;
+                 let left = -1, followed = -1;
+                 do {
+                   left = (await window.__outbox.waiting()).length;
+                   followed = await count();
+                   if (left === 0 && followed === before + 1) break;
+                   await new Promise((resolve)=>setTimeout(resolve, 50));
+                 } while (Date.now() < end);
+                 return {left, followed};}""",
+            [TITLE, before])
+        survived, after_boot = boot["left"], boot["followed"]
         journal.check(
             "what was waiting survived the process and departed on the next boot",
             survived == 0 and after_boot == before + 1,
-            f"{survived} left in the store, {before} → {after_boot} follows")
+            f"{survived} left in the store, {before} → {after_boot} follows, within 3 s")
+        # EXACTLY ONCE ON THE CLIENT'S SIDE, read where the layer can count it:
+        # the envelope's own key arrived once. A departure run twice would be
+        # absorbed by the layer's deduplicator and change no count above.
+        arrivals = await page.evaluate(
+            "(key)=>window.__mocks.arrivalsByKey()[key] ?? 0", key)
+        journal.check("and it departed once — its key arrived once",
+                      key is not None and arrivals == 1, f"key {key!r}: {arrivals} arrival(s)")
 
         depth = await page.evaluate("()=>window.__outbox.depth()")
         journal.check("and the queue is empty again", depth == 0, f"depth {depth}")

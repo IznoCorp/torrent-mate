@@ -240,3 +240,14 @@ export const fingerMore = cva("min-w-[44px] min-h-[44px]");
  * foot keeps the touch floor.
  */
 export const footRow = cva("flex gap-4 [&>*]:flex-1 [&>*]:min-h-[44px]");
+
+/**
+ * An origin beside its one foot. A card of « À traiter » that offers one answer
+ * lays the line saying who asked beside it rather than under its reason: one
+ * line more made the card taller than its poster can follow. The foot keeps its
+ * label whole and the touch floor; the line truncates before it does.
+ */
+export const originRow = cva(
+  "flex items-center gap-4 mt-4 [&>button]:mt-0 [&>button]:flex-none [&>button]:min-h-[44px] " +
+  "[&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate",
+);

@@ -29,7 +29,8 @@ import { followsQuery, incompleteShowsQuery } from "./queries";
 // undefined, which is what the engine's object literal did in practice.
 import type { Follow, FollowSubject } from "./types";
 import { followFraction } from "./follow-vocabulary";
-import { todoCards } from "./arrival-slots";
+import { inFlightCards, todoCards } from "./arrival-slots";
+import { originLine } from "./card-markup";
 import { followOffered } from "./follow-offer";
 export type { Follow };
 
@@ -60,6 +61,8 @@ export type FollowFacts = {
   followOffer: Record<string, unknown> | null;
   /** Episodes held over episodes aired, or null for a film. */
   fraction: string | null;
+  /** Where its acquisition came from, whole — the line its card may truncate. */
+  origin: string | null;
 };
 
 /**
@@ -117,6 +120,7 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   const answer = cache.held<AcquisitionQueue>(queueKey(scenario));
   const todo = answer ? todoCards(answer).find((one) => one.title === title) : undefined;
   const arrival = answer?.arrivals.find((one) => one.title === title);
+  const acquisition = todo ?? (answer ? inFlightCards(answer).find((one) => one.title === title) : undefined);
   const toResolve = queue.blocked
     .concat(queue.stuck ?? [])
     .some((one) => one.title === title);
@@ -139,6 +143,7 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
     hasSheet: (follow.ids ?? heldIdentity(title)?.ids) != null,
     // THE SAME OFFER THE CARD'S FOOT MAKES, from the same derivation (R43).
     followOffer: arrival !== undefined && followOffered(arrival, followed) ? arrival.ids ?? null : null,
+    origin: acquisition ? originLine(acquisition) ?? null : null,
     // ONE DERIVATION: the card's fraction, the header's, and the sum of the
     // season headers all read this computation.
     fraction: isFilm

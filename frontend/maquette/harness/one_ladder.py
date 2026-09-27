@@ -28,7 +28,22 @@ arrivé, identifié, rangé and vérifié dans Plex. RE-AIMED OUT LOUD: this hol
 read six rungs on « En cours » alone, reached through the rows waiting to be
 taken, found nothing and shelved today — which left « En cours ». No row is
 invented to fill the picture; the eight are read whole on the sheet, where they
-all exist.
+all exist. « vérifié dans Plex » is reached on the cards by ONE row, Star Trek's,
+and that row is ruling 6's DERIVATION of its real settled row — a settled row
+carrying no match to confirm joins neither list.
+
+5. NO WISH OR SEARCH DONE WITHOUT ITS DATE (round one, A5). « demandé » and
+   « cherché » are passed only on the date the row carries: on every such
+   card's sheet, either one passed has a time. The later rungs' times come from
+   the journey's shared template, an older defect this does not read.
+6. A FOLDER DROPPED BY HAND STARTS AT « ARRIVÉ ». Nobody asked for it, searched
+   it, took it or downloaded it: on its card the four rungs before « arrivé »
+   are not passed.
+
+THE CURRENT RUNG, RE-READ OUT LOUD: it was the first cell not passed. A rung
+the row never lived now precedes the passed ones, so the current rung is the one
+in motion, waiting or stopped, else the one after the last passed — on the card
+and on the sheet alike.
 """
 import asyncio
 import json
@@ -47,6 +62,52 @@ LADDER_STATES = ("acq-card-rungs", "acq-todo-loaded")
 REACHED = {"downloading", "arrived", "identified", "shelved", "verified"}
 # The three steps the sheet opens « rangé » into.
 STEPS = ["sorted", "enriched", "shelved"]
+# The rows the seeds say were dropped in the staging area by hand.
+SEEDS = pathlib.Path(__file__).resolve().parents[1] / "design/src/mocks/seeds"
+DROPPED = {row["title"] for name in ("stuck.json", "stuck-loaded.json")
+           for row in json.loads((SEEDS / name).read_text(encoding="utf-8"))
+           if row.get("droppedByHand")}
+# The queue's rows stopped on the scrape: blocked on « identifié ».
+BLOCKED_ROWS = {row["title"] for row in json.loads((SEEDS / "blocked.json").read_text(encoding="utf-8"))}
+# The time a sheet draws for a rung nobody recorded one for.
+NO_TIME = "—"
+# The state of a rung the row has not reached, or never lived.
+PENDING = "pending"
+
+
+def named(rung):
+    """The rung's name as a card draws it, bare or waiting on his answer.
+
+    Args:
+        rung: The name the card drew.
+
+    Returns:
+        The rung's own name: ruling 30 draws a rung waiting on the operator's
+        answer as « <rung> — à confirmer », and that is still that rung.
+    """
+    template = LADDER.get("toConfirm", "")
+    head, _, tail = template.partition("{{rung}}")
+    if rung and template and rung.startswith(head) and rung.endswith(tail):
+        return rung[len(head):len(rung) - len(tail)]
+    return rung
+
+
+def current_of(states):
+    """The index of the rung a ladder stands on.
+
+    Args:
+        states: The rungs' states, in order.
+
+    Returns:
+        The rung in motion, waiting or stopped; else the one after the last
+        passed; the last when every one is passed.
+    """
+    active = next((index for index, state in enumerate(states)
+                   if state not in ("done", PENDING)), None)
+    if active is not None:
+        return active
+    passed = max((index for index, state in enumerate(states) if state == "done"), default=-1)
+    return min(passed + 1, len(states) - 1)
 
 WORDS = json.loads((pathlib.Path(__file__).resolve().parents[1]
                     / "design/src/i18n/fr.json").read_text(encoding="utf-8"))
@@ -62,7 +123,6 @@ CARDS = """() => [...document.querySelectorAll('#view [data-part="card"]')]
     return {
       title: card.querySelector('[data-part="card/title"]').textContent,
       cells: cells.length,
-      current: cells.findIndex(cell => cell.dataset.state !== 'done'),
       states: cells.map(cell => cell.dataset.state),
       overflow: strip.scrollWidth > strip.clientWidth + 1,
       rung: rung ? rung.textContent : null,
@@ -75,6 +135,8 @@ CARDS = """() => [...document.querySelectorAll('#view [data-part="card"]')]
 SHEET = """() => [...document.querySelectorAll('#sheet[data-open] [data-part="key-value"]')]
   .map(row => ({
     name: row.firstElementChild.textContent,
+    value: row.lastElementChild.textContent.trim(),
+    tone: row.querySelector('[data-part="status-dot"]')?.dataset.tone ?? null,
     done: !!row.querySelector('[data-part="status-dot"][data-tone="success"]'),
   }))"""
 
@@ -115,15 +177,16 @@ async def main():
                 f"« {card['title']} » draws eight cells, no overflow",
                 card["cells"] == len(RUNGS) and not card["overflow"],
                 f"{card['cells']} cells, overflow={card['overflow']}")
-            position = card["current"] if card["current"] >= 0 else len(RUNGS) - 1
+            card["current"] = current_of(card["states"])
+            position = card["current"]
             expected_figure = LADDER["figure"].replace(
                 "{{position}}", str(position + 1)).replace("{{count}}", str(len(RUNGS)))
             journal.check(
                 f"« {card['title']} » names its current rung whole, after its figure",
-                card["rung"] == rung_name(RUNGS[position]) and card["rungWhole"]
+                named(card["rung"]) == rung_name(RUNGS[position]) and card["rungWhole"]
                 and card["figure"] == expected_figure,
                 f"figure={card['figure']!r} rung={card['rung']!r} whole={card['rungWhole']}")
-        reached = {RUNGS[card["current"]] if card["current"] >= 0 else RUNGS[-1] for card in cards}
+        reached = {RUNGS[card["current"]] for card in cards}
         journal.check("the real rows reach the rungs they stand on across « En vol » and « À traiter » (RULINGS 2)",
                       REACHED <= reached, f"{sorted(reached, key=RUNGS.index)} — wanted at least {sorted(REACHED, key=RUNGS.index)}")
 
@@ -134,21 +197,39 @@ async def main():
             rows = await page.evaluate(SHEET)
             ladder_rows = [row for row in rows if row["name"] in
                            {rung_name(key) for key in RUNGS}]
-            current = next((row["name"] for row in ladder_rows if not row["done"]),
-                           ladder_rows[-1]["name"] if ladder_rows else None)
+            # The sheet's pips: passed, not reached (neutral), or where it stands.
+            sheet_states = ["done" if row["done"] else PENDING if row["tone"] == "neutral" else "now"
+                            for row in ladder_rows]
+            current = ladder_rows[current_of(sheet_states)]["name"] if ladder_rows else None
             journal.check(
                 f"« {card['title']} »: the sheet's current rung is the card's",
-                current is not None and current == card["rung"],
+                current is not None and current == named(card["rung"]),
                 f"sheet={current!r} card={card['rung']!r}")
             # ONE SOURCE FOR THE STEPS TOO: past « rangé », its three steps are
             # passed — read from the answer, never from a list of the sheet's own.
-            if card["current"] == -1 or card["current"] > RUNGS.index("shelved"):
+            asked = [row for row in ladder_rows if row["name"] in (rung_name("requested"), rung_name("searched"))]
+            journal.check(
+                f"« {card['title']} »: « demandé » and « cherché », passed, carry their time",
+                len(asked) == 2 and all(row["value"] != NO_TIME for row in asked if row["done"]),
+                str([row["name"] for row in asked if row["done"] and row["value"] == NO_TIME]))
+            if card["current"] > RUNGS.index("shelved") or all(state == "done" for state in card["states"]):
                 steps = [row for row in rows if row["name"] in {step_name(key) for key in STEPS}]
                 journal.check(
                     f"« {card['title']} »: past « rangé », the sheet's three steps are passed",
                     len(steps) == len(STEPS) and all(row["done"] for row in steps), str(steps))
             await page.evaluate("()=>window.__panel.close()")
             await page.wait_for_timeout(ACTED)
+
+        # A FOLDER DROPPED BY HAND starts at « arrivé », in both worlds.
+        await go(page, journal, "acq-card-requester")
+        await page.wait_for_timeout(SETTLED)
+        dropped = [card for card in cards + await page.evaluate(CARDS) if card["title"] in DROPPED]
+        journal.check(
+            "a folder dropped by hand passed no rung before « arrivé »",
+            bool(DROPPED) and len({card["title"] for card in dropped}) >= 2
+            and all(not any(state == "done" for state in card["states"][:RUNGS.index("arrived")])
+                    for card in dropped),
+            str([(card["title"], card["states"][:RUNGS.index("arrived")]) for card in dropped]))
 
         # THE ORDER, and « rangé » opened from the same answer.
         await page.evaluate("()=>window.__go('sheet-journey')")
@@ -168,13 +249,14 @@ async def main():
         await page.wait_for_timeout(SETTLED)
         # RE-AIMED OUT LOUD: « À traiter » also holds a card blocked on its LAST
         # rung (a Plex match to confirm); this hold reads the cards stopped on
-        # « identifié ».
-        blocked = [card for card in await page.evaluate(CARDS)
-                   if len(card["states"]) == len(RUNGS)
-                   and card["states"][RUNGS.index("identified")] == "blocked"]
+        # « identifié ». A POSITIVE SUBJECT (round one, A12): it filtered the
+        # cards blocked there and then asserted they were — true of any list.
+        # It reads the rows the queue's seed says are stopped on the scrape.
+        stopped = await page.evaluate(CARDS)
+        blocked = [card for card in stopped if card["title"] in BLOCKED_ROWS]
         journal.check(
             "a card stopped on « identifié » is blocked there, with its reason in full",
-            bool(blocked) and all(
+            len(blocked) == len(BLOCKED_ROWS) and bool(blocked) and all(
                 len(card["states"]) == len(RUNGS)
                 and card["states"][RUNGS.index("identified")] == "blocked"
                 and card["rung"] == rung_name("identified")

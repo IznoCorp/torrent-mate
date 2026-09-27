@@ -19,6 +19,18 @@ type RungState = Rung["state"];
  */
 export type Position = { current: number; state: RungState; reason?: string };
 
+/**
+ * What of the ladder a medium's OWN row lived. A rung before it is not drawn
+ * as passed: a folder dropped by hand was never asked for, searched, taken or
+ * downloaded, and a rung is « done » only with the date its row carries.
+ */
+export type Origin = {
+  /** The first rung the row lived — « attrapé » unless said otherwise. */
+  from?: Rung["rung"];
+  /** When it was asked for, where the row carries it: a follow's own date. */
+  asked?: string;
+};
+
 // The seed is ONE journey, followed from the wish to Plex; every ladder is laid
 // on its rungs and takes its times from it.
 const TEMPLATE = JOURNEY_STAGES as Rung[];
@@ -73,11 +85,21 @@ function laid(seeded: Rung, state: RungState): Rung {
 /**
  * The ladder of a medium standing at one position.
  *
+ * A RUNG ITS ROW NEVER LIVED IS NOT PASSED: before the row's first rung it is
+ * not reached, and drawn with no time — « demandé » is passed only on the date
+ * a follow carries, and « cherché » on none the seeds hold.
+ *
  * @param position Its current rung and that rung's state.
+ * @param origin What its own row lived.
  * @returns The eight rungs.
  */
-function positioned(position: Position): Rung[] {
+function positioned(position: Position, origin: Origin): Rung[] {
+  const from = rungIndex(origin.from ?? "grabbed");
+  const asked = rungIndex("requested");
   return TEMPLATE.map((seeded, index) => {
+    if (index < position.current && index === asked && origin.asked !== undefined && from > asked)
+      return { rung: seeded.rung, state: DONE, when: origin.asked };
+    if (index < position.current && index < from) return { rung: seeded.rung, state: PENDING, when: "" };
     const rung = laid(seeded, index < position.current ? DONE : index === position.current ? position.state : PENDING);
     if (index === position.current && position.reason !== undefined) rung.reason = position.reason;
     return rung;
@@ -118,15 +140,16 @@ export function rungIndex(token: Rung["rung"]): number {
  *
  * @param subject The medium.
  * @param position Where its card puts it, when a card does.
+ * @param origin What its own row lived.
  * @returns Its rungs.
  */
-export function ladderOf(subject: string, position?: Position): Rung[] {
+export function ladderOf(subject: string, position?: Position, origin: Origin = {}): Rung[] {
   const state = mockState();
   const held = state.journeyStages[subject];
   if (held !== undefined) return held;
   const fresh = position === undefined
     ? TEMPLATE.map((seeded) => laid(seeded, seeded.state))
-    : positioned(position);
+    : positioned(position, origin);
   state.journeyStages[subject] = fresh;
   return fresh;
 }

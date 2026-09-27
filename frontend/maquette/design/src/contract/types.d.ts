@@ -1081,7 +1081,7 @@ export interface paths {
         put?: never;
         /**
          * Confirm or correct the match Plex made for a medium
-         * @description Demand E (OPEN 9, ruled B): « Confirmer » says the match is the medium, « Corriger » says it is not. Either answer takes the card off « À traiter »; a correction then goes through the candidates screen.
+         * @description Demand E (OPEN 9, ruled B): « Confirmer » says the match is the medium, « Corriger » says it is not. « Corriger » opens the candidates screen on the identity held and sends nothing; the correction is sent by the pick, carrying the identity picked. Either answer takes the card off « À traiter »; leaving the screen without a pick leaves the match to confirm.
          */
         post: operations["resolvePlexMatch"];
         delete?: never;
@@ -1127,6 +1127,8 @@ export interface components {
             failedStep?: "ingest" | "sort" | "clean" | "scrape" | "cleanup" | "enforce" | "verify" | "trailers" | "dispatch";
             /** @description the match Plex made, when it waits for the operator's confirmation — the card sits in « À traiter » until he gives it */
             plexMatch?: components["schemas"]["PlexMatch"];
+            /** @description the folder was put in the staging area by hand: no acquisition asked for it, so it carries no requester, and its ladder starts where its own row does — at « arrivé » */
+            droppedByHand?: boolean;
         };
         Fact: {
             /** @description INTERFACE COPY the fixture carries. A server must not send the interface its own words; the demand register asks for the token and leaves the wording to i18n. */
@@ -3832,6 +3834,8 @@ export interface operations {
                      * @enum {string}
                      */
                     outcome: "confirm" | "correct";
+                    /** @description the identity picked on the candidates screen — carried by a correction, and required by it */
+                    identity?: components["schemas"]["PlexMatch"];
                 };
             };
         };

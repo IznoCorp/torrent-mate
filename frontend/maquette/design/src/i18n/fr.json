@@ -443,6 +443,7 @@
       "noteUnder": "sous",
       "noteRest": "la liste qu'on lisait : au téléphone, on ne la voyait jamais.",
       "noMediaIdentified": "Aucun média identifié. Voici ce que les providers proposent pour ce nom.",
+      "plexHeld": "Plex l'a reconnu comme « {{title}} ». Si c'est bien lui, choisissez-le ; sinon, cherchez la bonne identité.",
       "noCandidates": "Les providers n'ont renvoyé aucun candidat pour ce nom. Il n'y a rien à choisir : la recherche manuelle est la seule voie.",
       "emptyTitle": "Aucun de ceux-là ?",
       "emptyBody": "La recherche manuelle s'ouvre pré-remplie avec le nom du dossier. Jamais un cul-de-sac (DOIT-7).",
@@ -1015,7 +1016,8 @@
       ],
       "requester": {
         "qbittorrent": "ajouté par {{name}}, dans qBittorrent",
-        "follow": "demandé par {{name}}"
+        "follow": "demandé par {{name}}",
+        "unknown": "origine inconnue"
       },
       "plexMatch": "Plex l'a reconnu comme « {{title}} » — est-ce bien lui ?"
     },
@@ -1043,8 +1045,10 @@
         "shelved": "rangé"
       },
       "step": "· {{name}}",
+      "toConfirm": "{{rung}} — à confirmer",
       "reasons": {
-        "queued": "En file — ce passage attend que la maintenance en cours se termine."
+        "queued": "En file — ce passage attend que la maintenance en cours se termine.",
+        "confirmation": "Le match Plex attend votre confirmation."
       }
     }
   },
@@ -1325,6 +1329,7 @@
       "searchAgain": "{{label}} — {{title}}",
       "plexConfirmed": "Match Plex confirmé : {{title}}",
       "reclassified": "« {{title}} » rangé dans « {{destination}} » — il quitte les acquisitions.",
+      "plexCorrected": "Match Plex corrigé : {{title}} est « {{choice}} »",
       "abandon": {
         "heading": "Abandonner « {{title}} » ?",
         "bodyBefore": "Le dossier ",

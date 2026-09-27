@@ -19,7 +19,7 @@ import { posterArtworkMarkup } from "../../ui/poster";
 import { posterFallback } from "../../ui/variants";
 import { posterArtwork } from "../../lib/engine-drawing";
 import { richTextMarkup } from "./rich-text";
-import { footRow } from "./variants";
+import { originRow, footRow } from "./variants";
 
 /** A medium as an acquisition list holds one, in the engine's field names. */
 export type MediumCard = {
@@ -37,6 +37,8 @@ export type MediumCard = {
   plexMatch?: { title: string };
   /** Who asked for it, and where: a follow of theirs, or a direct add. */
   requester?: { name: string; via: string };
+  /** Put in the staging area by hand: nobody asked, and its subtitle says so. */
+  droppedByHand?: boolean;
   /** The medium's ladder — the same list its journey sheet reads. */
   ladder?: { rung: string; state: StripState; reason?: string; when?: string }[];
   withoutPoster?: boolean;
@@ -77,6 +79,24 @@ const RUNG_TONE: Record<StripState, string> = {
   pending: "neutral",
 };
 
+// The reason a rung waits for the operator's answer rather than for his hand.
+const TO_CONFIRM = "confirmation";
+
+/**
+ * The rung a card stands on: the one in motion, waiting or stopped; else the one
+ * after the last passed — a rung the row never lived, before it, is not where it
+ * stands — or the last when every one is passed.
+ *
+ * @param ladder The medium's rungs.
+ * @returns The current rung's index.
+ */
+function currentRung(ladder: { state: StripState }[]): number {
+  const active = ladder.findIndex((rung) => rung.state !== "done" && rung.state !== "pending");
+  if (active !== -1) return active;
+  const done = ladder.map((rung) => rung.state).lastIndexOf("done");
+  return Math.min(done + 1, ladder.length - 1);
+}
+
 /**
  * A date, as a sentence says it: the day and the month.
  *
@@ -92,18 +112,21 @@ function dayOf(date: string): string {
 
 /**
  * Where a card stands on its ladder: the strip's cells, unlabelled, and the
- * current rung — the first not passed, or the last when every one is — named in
- * words after its figure, on the line where it has the full width (§12).
+ * current rung named in words after its figure, on the line where it has the
+ * full width (§12).
+ *
+ * A RUNG WAITING ON HIS ANSWER is not drawn done: its word says it waits for
+ * him, in the waiting tone.
  *
  * @param ladder The medium's rungs.
  * @returns The strip, the figure and the current rung's chip.
  */
 function ladderMarkup(ladder: { rung: string; state: StripState; reason?: string; when?: string }[]) {
-  const standing = ladder.findIndex((rung) => rung.state !== "done");
-  const current = standing === -1 ? ladder.length - 1 : standing;
+  const current = currentRung(ladder);
   const strip: StripCell[] = ladder.map((rung) => ({ state: rung.state }));
   const reason = ladder[current].reason;
   const setAside = ladder[current].state === "aside";
+  const name = i18next.t(`surfaces.ladder.rungs.${ladder[current].rung}`);
   return {
     strip,
     // WHO SET IT ASIDE, AND WHEN, composed from the date the rung carries —
@@ -114,10 +137,27 @@ function ladderMarkup(ladder: { rung: string; state: StripState; reason?: string
     reason: reason === undefined ? undefined : i18next.t(`surfaces.ladder.reasons.${reason}`),
     fraction: i18next.t("surfaces.ladder.figure", { position: current + 1, count: ladder.length }),
     chip: {
-      tone: RUNG_TONE[ladder[current].state],
-      label: i18next.t(`surfaces.ladder.rungs.${ladder[current].rung}`),
+      tone: reason === TO_CONFIRM ? RUNG_TONE.waiting : RUNG_TONE[ladder[current].state],
+      label: reason === TO_CONFIRM ? i18next.t("surfaces.ladder.toConfirm", { rung: name }) : name,
     },
   };
+}
+
+/**
+ * The line saying where an acquisition came from — ONE composition, read by its
+ * card and by its panel, which carries it whole where the card truncates it.
+ *
+ * FROM THE ANSWER: its requester's name and where the asking happened. An
+ * acquisition whose origin is not known says so, never nothing; a folder
+ * dropped by hand asked nobody, and its subtitle already says it was.
+ *
+ * @param medium The card's row.
+ * @returns The line, or undefined where the card draws none.
+ */
+export function originLine(medium: Pick<MediumCard, "requester" | "ladder" | "droppedByHand">): string | undefined {
+  if (medium.requester)
+    return i18next.t(`surfaces.card.requester.${medium.requester.via}`, { name: medium.requester.name });
+  return medium.ladder && !medium.droppedByHand ? i18next.t("surfaces.card.requester.unknown") : undefined;
 }
 
 /**
@@ -176,13 +216,12 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
     fresh: medium.fresh ? i18next.t("surfaces.card.freshTag") : undefined,
     // THE LINE IS COMPOSED FROM THE ANSWER — its name and where the asking
     // happened — never from a constant (§13).
-    requester: medium.requester
-      ? i18next.t(`surfaces.card.requester.${medium.requester.via}`, { name: medium.requester.name })
-      : undefined,
+    requester: originLine(medium),
     strip: onLadder ? onLadder.strip : medium.strip?.map((value, index) => ({ state: stageState(value), label: stages[index] })),
     foot: foot === undefined
       ? undefined
       : (Array.isArray(foot) ? foot : [foot]).map((one) => ({ label: one.label, solid: one.solid, attributes: one.attributes ?? {} })),
      footRow: footRow(),
+     originRow: originRow(),
   });
 }

@@ -46,7 +46,7 @@ import { useTranslation } from "react-i18next";
 import { useDecisions } from "./decision-queries";
 import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { useUiState } from "../../lib/store-access";
-import { Candidates, DecisionCard } from "./resolution-cards";
+import { Candidates, DecisionCard, ReleaseCard } from "./resolution-cards";
 import { REASON_TONE, reasonDetail, reasonLabel } from "./decision-vocabulary";
 import { actionButton, backAction, body, emptyNote, qualityHint, ruleNote, screen, screenBar, scrollport, sectionHeading, sheetActions, type ChipTone } from "../../ui/variants";
 import { Chip } from "../../ui/chip";
@@ -72,8 +72,13 @@ export function ResolutionScreen() {
   // its own, from a cold link, is the one reader that would otherwise leave the
   // cache empty: the exit would then take nothing out.
   const scenario = String(useUiState().scen) === "loaded" ? "loaded" : "";
-  useStaging(scenario);
+  const { data: staging } = useStaging(scenario);
   useAcquisitionQueue(scenario);
+  // A PLEX MATCH TO CORRECT opens this screen on the identity held — the one the
+  // pipeline and Plex agreed on — never on « no medium identified »: the pick is
+  // the correction, and « Chercher manuellement » names another.
+  const held = staging?.settled.find((card) => card.title === folder)?.plexMatch ?? null;
+  const heldCard = held ? staging?.settled.find((card) => card.title === folder) : undefined;
   const settledDecisions = decisions?.settled ?? [];
   const decisionPending = (subject: string | null) =>
     decisions?.pending.find((entry) => entry.folder === subject) ?? null;
@@ -115,6 +120,8 @@ export function ResolutionScreen() {
           <p className={qualityHint()}>
             {decision
               ? reasonDetail(decision.reason)
+              : held
+              ? t("screens.resolution.plexHeld", { title: held.title })
               : t("screens.resolution.noMediaIdentified")}
           </p>
           <CardMeta as="div" style={{ marginBottom: "12px" }}>
@@ -129,6 +136,15 @@ export function ResolutionScreen() {
           </CardMeta>
           {decision ? (
             <Candidates decision={decision} />
+          ) : held ? (
+            <ReleaseCard
+              title={held.title}
+              year={null}
+              meta={Object.entries(held.ids ?? {}).slice(0, 1)
+                .map(([provider, identifier]) => `${provider.toUpperCase()} ${identifier}`).join("")}
+              confidence={null}
+              opts={{ genre: "candidat", poster: heldCard?.poster ?? null }}
+            />
           ) : (
             <p className={ruleNote()}>{t("screens.resolution.noCandidates")}</p>
           )}

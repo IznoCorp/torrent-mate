@@ -273,7 +273,10 @@ async def main():
         # RE-AIMED OUT LOUD: the takeable arrival of section 1 was read drawn
         # on « En cours », where « À récupérer » stood; the act lives on its
         # follow's sheet, so its follow's card in « Suivis » is what a thumb
-        # finds.
+        # finds. WHAT IT STOPPED READING, said: the takeable followed medium is
+        # a follow by construction, so this reads its ROW drawn in « Suivis »
+        # and nothing more — not the sheet, not « Récupérer maintenant » on
+        # it, which R225 (`take_from_follow.py`) reads.
         journal.check(
             "and the takeable arrival of a followed medium is DRAWN in « Suivis », "
             "its follow's sheet a tap away",

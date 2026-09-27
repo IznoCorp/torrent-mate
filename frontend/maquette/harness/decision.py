@@ -54,6 +54,22 @@ def check(name, condition, detail=""):
     return _journal.check(name, condition, detail)
 
 
+async def go(page, state):
+    """Asks for a named state, and holds that it exists rather than crashing.
+
+    A STATE ID THAT MOVED FALLS HERE BY NAME. Called bare, `__go` threw on an
+    unknown id and the rule died as « RULE CRASHED » — proved neither way — which
+    is what ruling 1's mutation met.
+
+    Args:
+        page: The page.
+        state: The state's id.
+    """
+    answer = await page.evaluate(
+        "(id)=>{try{window.__go(id);return null}catch(error){return String(error)}}", state)
+    check(f"the named state {state} exists", answer is None, answer or "")
+
+
 SCREEN = """() => {
   // The arbitration screen left `#screen` for a real route
   // (`/resolution/$folder`, rendered inside `#coquille`), so it answers to
@@ -106,7 +122,7 @@ async def main():
         await pg.evaluate("()=>window.__measure(true)")
 
         # ── with candidates: the tie, and what it forbids ──────────────────
-        await pg.evaluate("()=>window.__go('acq-resolution-tie')")
+        await go(pg, "acq-resolution-tie")
         await pg.wait_for_timeout(420)
         with_ = await pg.evaluate(SCREEN)
 
@@ -173,7 +189,7 @@ async def main():
         check("no engine token on screen", not leaks, ", ".join(leaks))
 
         # ── without candidates: nothing is borrowed ───────────────────────
-        await pg.evaluate("()=>window.__go('acq-resolution-none')")
+        await go(pg, "acq-resolution-none")
         await pg.wait_for_timeout(420)
         without = await pg.evaluate(SCREEN)
         check("a folder with no decision borrows no candidate",
@@ -189,7 +205,7 @@ async def main():
         # next folder in place. « Suivant » is gone — every exit returns to
         # « À traiter », whose count carries the number (R205 holds the return)
         # — so the hold whose subject died reads its absence, never deleted.
-        await pg.evaluate("()=>window.__go('acq-resolution-tie')")
+        await go(pg, "acq-resolution-tie")
         await pg.wait_for_timeout(420)
         await pg.evaluate("()=>window.__screens.resolution()")
         await pg.wait_for_timeout(420)
@@ -204,7 +220,7 @@ async def main():
         for state_, list_, exit_ in (
             ("acq-resolution-tie", "blocked", "[data-resolve]"),
         ):
-            await pg.evaluate("(s)=>window.__go(s)", state_)
+            await go(pg, state_)
             await pg.wait_for_timeout(420)
             before = await pg.evaluate(f"()=>(window.__queue?.().{list_}||[]).length")
             # Without the way out there is nothing to click, and clicking

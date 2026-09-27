@@ -16,7 +16,11 @@ prepared before the document loads, so what is read is what the boot reads:
 5. « À traiter » remembered, `?tab=now` in the address → « En cours »;
 5b. « Découvrir » remembered — a tab no more, it is a page of the bar → « Suivis »;
 6. a tab tapped is remembered: « En cours » tapped, the page opened again cold in
-   the same context → « En cours ».
+   the same context → « En cours »;
+7. the address says the tab the landing opened (round one, A11): « À traiter »
+   remembered, a cold `/acquisition` settles onto `/acquisition?tab=todo` — in
+   a REPLACE, the history as long as a landing on « Suivis », whose address
+   stays bare.
 """
 import asyncio
 import json
@@ -74,6 +78,21 @@ async def main():
             journal.check(label, selected == wanted, f"{selected!r} — wanted {wanted!r}")
             journal.check(f"no JS error ({label})", not errors, str(errors))
             await context.close()
+
+        # THE ADDRESS SAYS THE TAB THE LANDING OPENED, in a replace.
+        where = "()=>({address: location.pathname + location.search, length: history.length})"
+        context, page, errors = await cold(browser, prepared())
+        plain = await page.evaluate(where)
+        await context.close()
+        context, page, errors = await cold(browser, prepared("todo"))
+        remembered = await page.evaluate(where)
+        await context.close()
+        path = PAGE_PATHS["acq"]
+        journal.check("a cold landing on « Suivis » keeps the bare address",
+                      plain["address"] == path, str(plain))
+        journal.check("a cold landing on the remembered « À traiter » says it in the address, replaced",
+                      remembered["address"] == f"{path}?tab=todo" and remembered["length"] == plain["length"],
+                      f"{remembered} against {plain}")
 
         # A TAB TAPPED IS REMEMBERED, and read back by the next cold entry. No
         # init script here: one would run again on the second page and undo

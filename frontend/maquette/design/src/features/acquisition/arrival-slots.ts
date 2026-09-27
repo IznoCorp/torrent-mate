@@ -55,14 +55,46 @@ export function setAsideCards(queue: { blocked: QueueCard[]; arrivals: QueueCard
   return [...queue.blocked.filter(isSetAside), ...slotArrivals(queue.arrivals).setAside];
 }
 
+// The episode a card's subtitle opens with, when it names one.
+const EPISODE = /S\d+E\d+/;
+
+/**
+ * Whether two cards name the same medium: one provider identifier shared, and
+ * the same episode when either names one.
+ *
+ * BY PROVIDER IDENTITY, NEVER BY TITLE ALONE, and a seed spells one identifier
+ * as a number and another as a string. The episode keeps two episodes of one
+ * series apart: two torrents, two cards.
+ *
+ * @param one A card.
+ * @param other Another card.
+ * @returns True when both are the same medium.
+ */
+function sameMedium(one: QueueCard, other: QueueCard): boolean {
+  const own = one.ids as Record<string, unknown> | null;
+  const identifiers = other.ids as Record<string, unknown> | null;
+  if (own == null || identifiers == null) return false;
+  const shared = Object.entries(own).some(([provider, value]) => value != null
+    && identifiers[provider] != null && String(identifiers[provider]) === String(value));
+  const episode = (card: QueueCard) => card.secondaryLine.match(EPISODE)?.[0] ?? "";
+  return shared && episode(one) === episode(other);
+}
+
 /**
  * Every card « En cours » holds — « En vol » alone: what the queue has in
  * flight, and the arrivals on their way. ONE derivation, read by the tab and
  * its count (§13).
  *
+ * ONE CARD PER MEDIUM. The queue's in-flight row and the arrival of the same
+ * torrent are two answers about one medium; drawn both, the tab counts one
+ * torrent twice. The arrival stands for both — it carries the ladder and who
+ * asked — at the place the queue's row held.
+ *
  * @param queue The queue's answer.
  * @returns The cards, in the order the tab draws them.
  */
 export function inFlightCards(queue: { inFlight: QueueCard[]; arrivals: QueueCard[] }): QueueCard[] {
-  return [...queue.inFlight, ...slotArrivals(queue.arrivals).inFlight];
+  const arrivals = slotArrivals(queue.arrivals).inFlight;
+  const drawn = queue.inFlight.map((row) => arrivals.find((arrival) => sameMedium(row, arrival)) ?? row);
+  return [...drawn, ...arrivals.filter((arrival) => !drawn.includes(arrival))];
 }

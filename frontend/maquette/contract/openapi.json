@@ -4050,7 +4050,7 @@
         "tags": [
           "acquisition"
         ],
-        "description": "Demand E (OPEN 9, ruled B): « Confirmer » says the match is the medium, « Corriger » says it is not. Either answer takes the card off « À traiter »; a correction then goes through the candidates screen.",
+        "description": "Demand E (OPEN 9, ruled B): « Confirmer » says the match is the medium, « Corriger » says it is not. « Corriger » opens the candidates screen on the identity held and sends nothing; the correction is sent by the pick, carrying the identity picked. Either answer takes the card off « À traiter »; leaving the screen without a pick leaves the match to confirm.",
         "parameters": [
           {
             "name": "infoHash",
@@ -4076,6 +4076,10 @@
                       "correct"
                     ],
                     "description": "whether the match is the medium"
+                  },
+                  "identity": {
+                    "$ref": "#/components/schemas/PlexMatch",
+                    "description": "the identity picked on the candidates screen — carried by a correction, and required by it"
                   }
                 },
                 "required": [
@@ -4241,6 +4245,10 @@
           "plexMatch": {
             "$ref": "#/components/schemas/PlexMatch",
             "description": "the match Plex made, when it waits for the operator's confirmation — the card sits in « À traiter » until he gives it"
+          },
+          "droppedByHand": {
+            "type": "boolean",
+            "description": "the folder was put in the staging area by hand: no acquisition asked for it, so it carries no requester, and its ladder starts where its own row does — at « arrivé »"
           }
         },
         "required": [

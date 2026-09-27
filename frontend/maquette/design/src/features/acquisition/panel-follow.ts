@@ -151,6 +151,7 @@ function followPanel(title: string, cache: PanelCache): PanelDescriptor | null {
     blocs: [
       { type: "actions", actions: [primaryAction(facts)] },
       taken ? { type: "note", text: taken } : null,
+      facts.origin ? { type: "note", text: facts.origin } : null,
       seasons.length
         ? { type: "saisons", follow, seasons }
         : {

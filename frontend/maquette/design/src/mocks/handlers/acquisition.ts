@@ -5,7 +5,7 @@ import SEARCH_RESULTS from "../seeds/search-results.json";
 import SUGGESTIONS from "../seeds/suggestions.json";
 import { DELETE, GET, PATCH, POST, field, route, text } from "./shared";
 import { launchDetection } from "./pipeline";
-import { arrivalsOf } from "./staging";
+import { arrivalsOf, originOf } from "./staging";
 import { isVerifiedInPlex, forgetLadder, ladderOf, rungIndex, stripPosition, type Position } from "./ladder";
 import type { components } from "../../contract/types";
 import { stagesOf } from "./acquisition-verbs";
@@ -49,15 +49,18 @@ const DONE_TODAY_AT: Position = { current: rungIndex("verified"), state: PENDING
 function onTheLadder(cards: components["schemas"]["QueueCard"][], at?: Position) {
   return cards.map(({ strip, ...card }) => {
     const position = stripPosition(strip) ?? at;
-    return position === undefined ? card : { ...card, ladder: ladderOf(card.title, position) };
+    // WHO ASKED, derived from the follow when one did: a row of the queue no
+    // follow names carries none, and the card says its origin is unknown.
+    const { requester, origin } = originOf(card, false);
+    const asked = requester === undefined ? card : { ...card, requester };
+    return position === undefined ? asked : { ...asked, ladder: ladderOf(card.title, position, origin) };
   });
 }
 
 // The dense body of data, asked for by name.
 const LOADED = "loaded";
 
-// The kind of a follow whose follow ends alone once it is confirmed in Plex.
-const FILM_KIND = "movie";
+const FILM_KIND = "movie"; // A follow of this kind ends alone once confirmed in Plex.
 
 // What a follow the request does not fully describe starts as. Every one of
 // these is a token or a blank, never a value copied off another record.
@@ -131,11 +134,8 @@ const NO_IDENTITY = "a follow with no provider identity has no sheet";
 /** Every route this subject answers. */
 export function acquisitionRoutes(): MockRoute[] {
   return [
-    // A FILM'S FOLLOW ENDS ALONE when the film is confirmed in the library —
-    // its last rung, « vérifié dans Plex », done (ruling 3) — and leaves no
-    // trace here; a series' follow never ends by itself. The engine deletes a
-    // film's follow at DETECTION today, earlier than the ruling: a demand owed
-    // (DESIGN § 6.2), and the layer answers the ruling.
+    // A FILM'S FOLLOW ENDS ALONE once its last rung, « vérifié dans Plex », is done (ruling 3); a series' never
+    // does. The engine deletes it at DETECTION today, earlier: a demand owed (DESIGN § 6.2).
     route("readFollows", GET, "/api/acquisition/followed", () =>
       mockState().follows.filter((follow) => follow.kind !== FILM_KIND || !isVerifiedInPlex(follow.title))),
     route("createFollow", POST, "/api/acquisition/followed", (request) => {

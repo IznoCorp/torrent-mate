@@ -26,6 +26,7 @@ import { queueNow, queueActions } from "../../lib/queue";
 import { bridge, panel, screens, toast, redraw } from "../../lib/shell-doors";
 import { store } from "../../lib/store-access";
 import { baseTitle } from "../../lib/titles";
+import { answerMatch, heldMatch } from "./plex-verbs";
 
 /**
  * Takes the medium a `data-take` value names.
@@ -62,9 +63,16 @@ registerVerb("take", (value) => {
 registerVerb("resolution", (folder) => screens.resolution(folder || undefined));
 
 // A candidate picked: the folder becomes it, and the pick waits out its undo.
+// ON A PLEX MATCH, the pick IS the correction: it is sent now, carrying the
+// identity picked — the one held when it is the one picked.
 registerVerb("resolve", (choice) => {
   const target = store.read().state.resolveTarget as string;
   bridge.back();
+  const held = heldMatch(target);
+  if (held !== null) {
+    void answerMatch("correct", target, held.title === choice ? held : { title: choice });
+    return;
+  }
   const undo = queueActions?.pick(target, choice);
   store.touch();
   const message = i18next.t("verbs.arrivals.resolved", { choice: choice || target });
@@ -73,9 +81,14 @@ registerVerb("resolve", (choice) => {
 
 // Agreeing with the machine: the automatic result stands and the folder leaves
 // the queue, because the operator has answered.
+// On a Plex match, agreeing with the machine is confirming the match.
 registerVerb("leave", () => {
   const target = store.read().state.resolveTarget as string;
   bridge.back();
+  if (heldMatch(target) !== null) {
+    void answerMatch("confirm", target);
+    return;
+  }
   if (!queueActions?.leave(target)) return;
   store.touch();
   toast?.show({ message: i18next.t("verbs.arrivals.left", { title: target }) });

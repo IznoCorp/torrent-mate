@@ -11,7 +11,11 @@ WHAT IT HOLDS:
 
   something moves  on `acq-now-loaded`, the body draws exactly one section,
                    titled « En vol », none of the three that left, and the
-                   « En cours » tab counts what « En vol » draws.
+                   « En cours » tab counts what « En vol » draws;
+  one card each    on the same world, no two « En vol » cards name one
+                   medium — one title and one episode: the queue's in-flight
+                   row and the arrival of the same torrent are ONE card, and
+                   the count is of media, not of rows (§13).
   nothing moves    on `acq-now-idle` — the real world, where nothing is in
                    flight while three releases wait to be taken — the tab reads
                    « rien en cours », draws no section, and carries no count:
@@ -37,7 +41,15 @@ BODY = """() => {
     body: !!body,
     titles: sections.map((one) => one.querySelector('[data-part="section/title"]')?.textContent.trim() ?? ''),
     cards: sections.map((one) => one.querySelectorAll('[data-part="card"]').length),
-    count: tab ? Number(tab.textContent.trim()) : 0,
+    // A card's medium: its title and the episode its subtitle opens with.
+    media: sections.flatMap((one) => [...one.querySelectorAll('[data-part="card"]')].map((card) => {
+      const title = card.querySelector('[data-part="card/title"]')?.textContent.trim() ?? '';
+      const line = card.querySelector('[data-part="card/subtitle"]')?.textContent ?? '';
+      return title + ' ' + ((line.match(/S\\d+E\\d+/) || [''])[0]);
+    })),
+    // ABSENT IS NULL, never 0: a drawn « 0 » and no count at all are two
+    // drawings, and « carries no count » is about the second.
+    count: tab ? Number(tab.textContent.trim()) : null,
     text: body ? body.innerText : '',
   };
 }"""
@@ -62,6 +74,10 @@ async def main():
         journal.check("acq-now-loaded: the tab counts what « En vol » draws",
                       bool(read["cards"]) and read["count"] == read["cards"][0],
                       f"count {read['count']}, cards {read['cards']}")
+        twice = sorted({medium for medium in read["media"] if read["media"].count(medium) > 1})
+        journal.check("acq-now-loaded: no medium is drawn twice in « En vol »",
+                      len(read["media"]) > 1 and not twice,
+                      f"{len(read['media'])} cards, twice: {twice}")
 
         await page.evaluate("()=>window.__go('acq-now-idle')")
         await page.wait_for_timeout(SETTLED)
@@ -70,8 +86,10 @@ async def main():
                       EMPTY in read["text"].lower(), repr(read["text"][:160]))
         journal.check("acq-now-idle, nothing moving: no section is drawn",
                       read["titles"] == [], str(read["titles"]))
+        # RE-READ OUT LOUD (round one, A12): this passed a drawn « 0 », read as
+        # the absent count's 0; it reads the count's absence now.
         journal.check("acq-now-idle, nothing moving: the tab carries no count",
-                      read["count"] == 0, f"count {read['count']}")
+                      read["count"] is None, f"count {read['count']}")
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

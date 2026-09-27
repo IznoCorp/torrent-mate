@@ -102,6 +102,29 @@ async def panel_actions(pg):
     )
 
 
+# The attributes that dress a button and name no act: what remains is its verb.
+DRESSING = ("data-part", "data-tone", "data-solid")
+
+
+async def panel_verbs(page):
+    """Returns the verbs the open panel's actions carry, or None.
+
+    A verb is the ``data-*`` attribute an action's tap is delegated by — its
+    NAME, never its label: two buttons worded alike can do two different things,
+    and the label is the one thing a re-pointed action keeps.
+
+    Returns:
+        One list of verb names per action, or None when no panel is open.
+    """
+    return await page.evaluate(
+        """(DRESSING)=>{const s=document.querySelector('#sheet');
+        if(!s||!s.hasAttribute('data-open')) return null;
+        return [...s.querySelectorAll('[data-part="sheet/action"]')].map(x=>[...x.attributes]
+          .map(a=>a.name).filter(n=>n.startsWith('data-') && !DRESSING.includes(n)));}""",
+        list(DRESSING),
+    )
+
+
 async def close_panel(pg):
     """Closes any open panel and waits for the animation to finish."""
     await pg.keyboard.press("Escape")
@@ -219,7 +242,7 @@ async def main():
             # folders read are Acquisition's: Arrivées still offers « Résoudre »
             # on a step no pick unblocks, and that page is not redrawn, it dies.
             inlines = await pg.evaluate(
-                """()=>[...document.querySelectorAll('[data-part="card"]')].filter(visible)
+                """(DRESSING)=>[...document.querySelectorAll('[data-part="card"]')].filter(visible)
                     .filter(c=>c.querySelector('[data-part="card/foot"]')
                       && (!c.dataset.nonmedia || (c.dataset.nonmedia === 'dossier'
                           && c.closest('[data-region="acquisition/body"]')
@@ -227,7 +250,10 @@ async def main():
                     .flatMap(c=>[...c.querySelectorAll('[data-part="card/foot"]')].map(foot=>({
                               title:c.querySelector('[data-part="card/title"]')?.textContent||'',
                               action:foot.textContent.trim(),
-                              panel:c.querySelector('[data-part="card/body"]')?.dataset.panel||null})))"""
+                              verbs:[...foot.attributes].map(a=>a.name)
+                                .filter(n=>n.startsWith('data-') && !DRESSING.includes(n)),
+                              panel:c.querySelector('[data-part="card/body"]')?.dataset.panel||null})))""",
+                list(DRESSING),
             )
             for item in inlines:
                 executed += 1
@@ -241,18 +267,20 @@ async def main():
                     item["panel"],
                 )
                 await pg.wait_for_timeout(420)
-                actions = await panel_actions(pg)
+                actions = await panel_verbs(pg)
                 await close_panel(pg)
                 if actions is None:
                     failures.append(f"R43 {state_} « {item['title']} »: the body opened no panel")
                     continue
-                # Compared on the first word: the inline button is terser than
-                # the panel entry by design (« Résoudre → » against « Résoudre
-                # le dossier »), and comparing whole labels would forbid that.
-                verb = item["action"].split()[0].rstrip("→").strip()
-                if not any(a.startswith(verb) for a in actions):
+                # COMPARED ON THE VERB THE TWO BUTTONS CARRY, never on their
+                # label. Said out loud: this compared the label's first word
+                # (« Résoudre → » against « Résoudre le dossier »), so a panel
+                # action worded like the foot and doing something else — an
+                # identification on the spot where the foot opens the
+                # candidates screen — was certified as the same behaviour.
+                if not item["verbs"] or not any(set(item["verbs"]) <= set(verbs) for verbs in actions):
                     failures.append(
-                        f"R43 {state_} « {item['title']} »: inline « {item['action']} » "
+                        f"R43 {state_} « {item['title']} »: inline « {item['action']} » {item['verbs']} "
                         f"is offered by no panel action ({actions})"
                     )
 
