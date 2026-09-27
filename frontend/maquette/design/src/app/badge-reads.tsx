@@ -16,6 +16,7 @@
 import type { ReactElement } from "react";
 
 import { NAVIGATION, type NavigationRow } from "./navigation";
+import { useServerStateVersion } from "../lib/query-client";
 
 /**
  * Observes one row's declared reads, and draws nothing.
@@ -35,6 +36,11 @@ function RowReads({ row }: { row: NavigationRow }): null {
  * must what its badges read.
  */
 export function BadgeReads(): ReactElement {
+  // REDRAWN WHEN THE CACHE MOVES, and a cleared cache is the case that needs
+  // it: an observer keeps the query it was given, so after the cache is emptied
+  // it observes an entry the cache no longer holds, and nothing asks again.
+  // Redrawing hands each hook the cache's new entry, which it then fetches.
+  useServerStateVersion();
   const drawn = NAVIGATION.filter(
     (row) => row.useBadgeReads && (row.inBar || row.group !== undefined),
   );

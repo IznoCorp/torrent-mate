@@ -15,7 +15,11 @@ What this holds, at the phone's real width:
    current cell's position.
 2. THE AGREEMENT. For every such card, the journey sheet opened on the same
    medium names the same current rung — the card and the sheet cannot disagree
-   because they read one list.
+   because they read one list. RE-AIMED OUT LOUD: the sheet is opened in the
+   state that drew its card. It was opened in the LAST state for every card, so
+   a card of the first state was read against the other world's journey, and
+   agreed only while the reset re-read the queue under the previous state's
+   scenario — an accident the frame's boot list carried, gone with it.
 3. THE ORDER. The sheet draws the eight rungs in the ruled order, read from the
    i18n resources by their keys, and opens « rangé » into its three steps —
    trié, enrichi, rangé — from the same answer, right under it.
@@ -172,7 +176,7 @@ async def main():
         for state in LADDER_STATES:
             await go(page, journal, state)
             await page.wait_for_timeout(SETTLED)
-            cards += await page.evaluate(CARDS)
+            cards += [{**card, "state": state} for card in await page.evaluate(CARDS)]
         journal.check("cards on the ladder are drawn", len(cards) >= 6, str(len(cards)))
         for card in cards:
             journal.check(
@@ -192,8 +196,14 @@ async def main():
         journal.check("the real rows reach the rungs they stand on across « En vol » and « À traiter » (RULINGS 2)",
                       REACHED <= reached, f"{sorted(reached, key=RUNGS.index)} — wanted at least {sorted(REACHED, key=RUNGS.index)}")
 
-        # THE AGREEMENT: the sheet opened on each card's medium names its rung.
+        # THE AGREEMENT: the sheet opened on each card's medium names its rung,
+        # in the state that drew the card.
+        drawn_in = LADDER_STATES[-1]
         for card in cards:
+            if card["state"] != drawn_in:
+                drawn_in = card["state"]
+                await go(page, journal, drawn_in)
+                await page.wait_for_timeout(SETTLED)
             await page.evaluate(f"()=>window.__panel.produce('journey', {json.dumps(card['title'])})")
             await page.wait_for_timeout(PANEL_IN)
             rows = await page.evaluate(SHEET)
