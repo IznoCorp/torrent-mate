@@ -14,15 +14,17 @@ engine's own timing (it deletes a film's follow at detection) is a demand owed
 1. while its last rung is pending, the film is in « Suivis » — not ended one
    rung early;
 2. the rung done, the film has left « Suivis »;
-3. a followed series whose last rung is done is still there.
+3. a followed series whose last rung is done is still there;
+4. on that state, in the light theme, the `waiting` chip's text reads the tone's
+   own text token, `--color-waiting-text`, and not the tone itself.
 
 Red before the move: a followed film stays in « Suivis » for ever.
 
-NO NAMED STATE (RULINGS 16): the one planned, a followed film one event away,
-redrew « Suivis » and added three more instances of the `waiting` chip's light
-contrast debt; it comes back with that tone's text token. The rule lays the
-ladder itself, through the layer's own door, over « Suivis » as its list state
-draws it.
+RE-AIMED OUT LOUD: the named state
+acq-follows-film-at-plex-check is back — RULINGS 16 had removed it because the
+`waiting` chip it draws failed light contrast (2.98:1) and no token passed. The
+tone now has its text token, and hold 4 reads that the chip uses it; the rule
+walks the state again instead of laying the ladder over acq-follows-list.
 """
 import asyncio
 import json
@@ -39,6 +41,23 @@ SERIES = next(one["title"] for one in FOLLOWS if one["kind"] == "show" and one.g
 
 TITLES = """() => [...document.querySelectorAll('#view [data-part="card/title"]')].map(one => one.textContent)"""
 
+# The first `waiting` chip's text colour in the light theme, beside the two
+# colours it could be: the tone's text token and the tone itself, each resolved
+# by a probe so the comparison is between computed values.
+WAITING_COLOURS = """() => {
+  document.documentElement.dataset.theme = "light";
+  const chip = [...document.querySelectorAll('#view [data-part="chip"]')].find((one) => one.dataset.tone === "waiting");
+  if (!chip) return null;
+  const probe = document.createElement("span");
+  document.body.append(probe);
+  probe.style.color = "var(--color-waiting-text)";
+  const token = getComputedStyle(probe).color;
+  probe.style.color = "var(--color-waiting)";
+  const tone = getComputedStyle(probe).color;
+  probe.remove();
+  return { chip: getComputedStyle(chip).color, token, tone };
+}"""
+
 
 async def main():
     journal = Journal("R230 — a film's follow ends when Plex confirms it")
@@ -49,18 +68,18 @@ async def main():
         page.on("pageerror", lambda error: errors.append(str(error)))
 
         answer = await page.evaluate(
-            "()=>{try{window.__go('acq-follows-list');return null}catch(error){return String(error)}}")
-        journal.check("the named state acq-follows-list exists", answer is None, answer or "")
+            "()=>{try{window.__go('acq-follows-film-at-plex-check');return null}catch(error){return String(error)}}")
+        journal.check("the named state acq-follows-film-at-plex-check exists", answer is None, answer or "")
         await page.wait_for_timeout(SETTLED)
-        placed = await page.evaluate(
-            "(title)=>{if(typeof window.__mocks?.placeAtPlexCheck!=='function') return false;"
-            "window.__mocks.placeAtPlexCheck(title);"
-            "window.__queries?.invalidateQueries({queryKey:['/api/acquisition/followed']}); return true;}", FILM)
-        await page.wait_for_timeout(SETTLED)
-        journal.check(f"« {FILM} »'s ladder is laid one event away from the last rung", placed, "")
         before = await page.evaluate(TITLES)
         journal.check(f"while its last rung is pending, « {FILM} » is in « Suivis »",
                       FILM in before and SERIES in before, str(before))
+
+        colours = await page.evaluate(WAITING_COLOURS)
+        journal.check("in the light theme, the `waiting` chip's text reads --color-waiting-text, not the tone",
+                      colours is not None and colours["chip"] == colours["token"] != colours["tone"],
+                      str(colours))
+        await page.evaluate("()=>{delete document.documentElement.dataset.theme}")
 
         confirmed = await page.evaluate(
             "(title)=>typeof window.__mocks?.confirmInPlex === 'function' && window.__mocks.confirmInPlex(title)", FILM)

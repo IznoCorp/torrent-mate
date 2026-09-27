@@ -74,7 +74,7 @@ export const chip = cva(
         info:
           "info [--chip-background:color-mix(in_oklab,var(--color-info)_20%,transparent)] [--chip-foreground:var(--color-info-text)]",
         waiting:
-          "waiting [--chip-background:color-mix(in_oklab,var(--color-waiting)_20%,transparent)] [--chip-foreground:var(--color-waiting)]",
+          "waiting [--chip-background:color-mix(in_oklab,var(--color-waiting)_20%,transparent)] [--chip-foreground:var(--color-waiting-text)]",
         neutral: "neutral",
       },
     },
