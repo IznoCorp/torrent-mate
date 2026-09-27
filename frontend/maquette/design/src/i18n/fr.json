@@ -1314,7 +1314,9 @@
     },
     "acquisition": {
       "taken": "« {{title}} » récupéré — suivez-le dans « En vol ».",
-      "searchStarted": "Recherche lancée pour « {{title}} » — le résultat s'affichera sur la carte.",
+      "searchFoundNone": "Aucun torrent trouvé pour « {{title}} ».",
+      "searchFound_one": "« {{title}} » : {{count}} torrent trouvé.",
+      "searchFound_other": "« {{title}} » : {{count}} torrents trouvés.",
       "completionStarted": "« {{title}} » : recherche des épisodes manquants lancée.",
       "tmdbConnected": "Compte TMDB connecté — la réserve se remplit, vos notes sont lues.",
       "identified": "« {{target}} » identifié comme « {{title}} » — le scrape reprend, aucun suivi créé.",
