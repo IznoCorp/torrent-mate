@@ -108,8 +108,10 @@ def current_of(states):
         The rung in motion, waiting or stopped; else the one after the last
         passed; the last when every one is passed.
     """
+    # RE-AIMED OUT LOUD: a rung never lived (`skipped`, a direct add's start) is
+    # not where a ladder stands, like one not reached — the card's own rule.
     active = next((index for index, state in enumerate(states)
-                   if state not in ("done", PENDING)), None)
+                   if state not in ("done", PENDING, "skipped")), None)
     if active is not None:
         return active
     passed = max((index for index, state in enumerate(states) if state == "done"), default=-1)
