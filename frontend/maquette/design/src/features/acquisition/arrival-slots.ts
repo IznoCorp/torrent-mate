@@ -58,10 +58,10 @@ const EPISODE = /S\d+E\d+/;
  */
 function sameMedium(one: QueueCard, other: QueueCard): boolean {
   const own = one.ids as Record<string, unknown> | null;
-  const theirs = other.ids as Record<string, unknown> | null;
-  if (own == null || theirs == null) return false;
+  const identifiers = other.ids as Record<string, unknown> | null;
+  if (own == null || identifiers == null) return false;
   const shared = Object.entries(own).some(([provider, value]) => value != null
-    && theirs[provider] != null && String(theirs[provider]) === String(value));
+    && identifiers[provider] != null && String(identifiers[provider]) === String(value));
   const episode = (card: QueueCard) => card.secondaryLine.match(EPISODE)?.[0] ?? "";
   return shared && episode(one) === episode(other);
 }
@@ -81,6 +81,6 @@ function sameMedium(one: QueueCard, other: QueueCard): boolean {
  */
 export function inFlightCards(queue: { inFlight: QueueCard[]; arrivals: QueueCard[] }): QueueCard[] {
   const arrivals = slotArrivals(queue.arrivals).inFlight;
-  const merged = queue.inFlight.map((row) => arrivals.find((arrival) => sameMedium(row, arrival)) ?? row);
-  return [...merged, ...arrivals.filter((arrival) => !merged.includes(arrival))];
+  const drawn = queue.inFlight.map((row) => arrivals.find((arrival) => sameMedium(row, arrival)) ?? row);
+  return [...drawn, ...arrivals.filter((arrival) => !drawn.includes(arrival))];
 }
