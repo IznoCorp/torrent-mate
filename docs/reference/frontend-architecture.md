@@ -641,10 +641,12 @@ stay on `main` (#587) and the lot opens after L13. The measure and its six sibli
 `docs/reference/frontend-steward.md` § « The operator's measures of 2026-09-12 »; reversal is his.
 
 **Re-cut again on 2026-09-15, by the auditor's lot-order delegation (C10).** L22 (Arrivées dans
-Acquisition) is inserted before L16, after L13: **the order is now L14 · L19 · L21 · L13 · L20 · L22 ·
-L16 · L17 · L18**, and no dependency already written moved. L16 opens after L22b, its own two sub-lots'
-head. **Extended on 2026-09-27 (round 8 Q18): an upload-to-tracker lot (L23 proposed) is drawn ahead of
-time in the second slot after L18**, per the operator's own separation of that function from L17.
+Acquisition) is inserted before L16, after L13: the order was L14 · L19 · L21 · L13 · L20 · L22 ·
+L16 · L17 · L18, and no dependency already written moved. L16 opens after L22b, its own two sub-lots'
+head. **Extended on 2026-09-27 (round 8 Q18): an upload-to-tracker lot, drawn ahead of time in the
+second slot after L18**, per the operator's own separation of that function from L17. **Its design
+and plan, written 2026-09-27, name it L23: the order is now L14 · L19 · L21 · L13 · L20 · L22 · L16 ·
+L17 · L18 · L23**, and no dependency already written moved.
 
 #### L14 — The surfaces that outgrew their file · *depends on L07, L09*
 
@@ -914,6 +916,39 @@ own held design) is gated on the same model.
 **Design and plan written 2026-09-27, PR #618; amended 2026-09-27, same PR** —
 `docs/features/maquette-l18/DESIGN.md`, `plan/INDEX.md` (36 phases, mean ≈ 12.47, cut in two at
 phase 20); no open question remains.
+
+#### L23 — §19 point 5, upload to a tracker · *depends on L17, L18*
+
+**Objective.** § 19 point 5, dictated 2026-09-27: the application MAY create a torrent from a
+medium's own files and publish it on a tracker, to open a cross-seed where the engine's own search
+found none; a failure of the creation or the publication is a cross-seed failure, counted as such.
+Drawn AHEAD of its own turn (round 8 Q18 = B), so the operator answers its own five open questions —
+what may be uploaded, to which trackers, what a tracker's own rules require, what a failed or
+refused publication leaves behind, how the ratio counts an uploaded torrent — before an implementer
+has to guess. **A sixth question the brief itself posed, who holds the upload right by default, is
+NOT among them**: organisation ruling 21 makes a right's default holder configuration (Comptes),
+never a design choice, so the design draws the right's own name (`trackers.upload`, distinct from
+`trackers.control`) and a proposed starting value instead of asking. **No blocking note is lifted
+here**: unlike L16, L17 and L18, this lot's own design is published WHILE its note is still on, and
+no phase of its plan opens until the five questions are ruled.
+
+**Where it lives (invariant 10).** `features/trackers/` extended, once more — the SAME per-pair
+mark L17 draws on the Torrents tab's origin row (`features/trackers/torrents-tab.tsx`) gains a
+second act beside « Chercher un cross-seed », on the SAME three eligible states; L17's own closed
+reason set gains the two codes its reserved slot was named for (`creation_failed`,
+`publish_failed`), joining the SAME counted family as `inject_failed` and `obligation_write_failed`.
+No new page, no new tab, no new address.
+
+**Done when.** The two new codes are declared in the contract and sentenced in `fr.json`, never
+drawn as a bare code; the gesture is offered only where nothing already cross-seeds and absent for
+an account without `trackers.upload`; the Trackers badge's cross-seed term already counts both
+codes with no new summed component (L17's own `R-L17-g`, re-aimed, not re-derived); the two engine
+events already claimed by `features/trackers/live.ts` also move on an upload's own outcome, never a
+third event; the five open questions are ruled, each amended into the design in one line.
+
+**Design and plan written 2026-09-27** — `docs/features/maquette-l23/DESIGN.md`, `plan/INDEX.md` (9
+phases, mean ≈ 7.8); five open questions, none chosen — the design states each one's two readings and
+their cost, and no phase depending on one opens before the operator rules it.
 
 ### Phase 6 — The finish
 
