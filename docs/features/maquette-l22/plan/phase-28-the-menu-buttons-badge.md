@@ -1,5 +1,7 @@
 # Phase 28 — The menu button's badge
 
+**Cut 2026-09-27 at its opening (≈ 30 on `8a9500c43`):** this file is now 28 (F1 + C2, R236), 29 (the boot list's move) and 30 (the badge below, with M3) — INDEX's last amendment.
+
 **Numbered 24, then 26, then 28, on 2026-09-27** (was 20; the triage's F51). **HELD until its opening carries, BEFORE its first commit,
 the coherence triage (`review-archive/coherence-2026-09-27-triage.md` § B; texts in `coherence-2026-09-27.md`): F1 + C2 (blocking)** — each navigation row that carries a badge DECLARES the queries its badge reads, and the frame
 keeps them OBSERVED for the document's lifetime (a frame-level observer); the declaration is born keyed on the row, so a

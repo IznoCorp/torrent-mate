@@ -15,6 +15,7 @@
 import type { ReactElement } from "react";
 
 import { ActionButton } from "./action-button";
+import { BadgeReads } from "./badge-reads";
 import { BottomSlot } from "./bottom-slot";
 import { NavigationDrawer } from "./drawer";
 import { installAppearance } from "./appearance";
@@ -45,6 +46,7 @@ installAppearance();
 export function Frame(): ReactElement {
   return (
     <>
+      <BadgeReads />
       <ActionButton />
       <BottomSlot />
       <TabBar />

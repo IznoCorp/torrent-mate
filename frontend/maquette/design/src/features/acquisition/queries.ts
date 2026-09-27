@@ -7,8 +7,8 @@ import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { HELD, read, send, sharedQueryClient } from "../../lib/query-client";
 import type { Schemas } from "../../lib/contract-schemas";
 import type { Follow, FollowOutcome } from "./types";
-import { queueKey, type AcquisitionQueue } from "../../lib/queue";
-import { store } from "../../lib/store-access";
+import { queueKey, useAcquisitionQueue, type AcquisitionQueue } from "../../lib/queue";
+import { store, useUiState } from "../../lib/store-access";
 import { todoCards } from "./arrival-slots";
 import { fillFollowedTitlesDoor } from "../../lib/shell-doors";
 
@@ -351,4 +351,17 @@ export function acquisitionBadge(): number {
   const scenario = String(store.read().state.scen ?? "") === "loaded" ? "loaded" : "";
   const queue = sharedQueryClient?.getQueryData<AcquisitionQueue>(queueKey(scenario));
   return queue ? todoCards(queue).length : 0;
+}
+
+/**
+ * Observes the answer `acquisitionBadge` derives from, for as long as the frame
+ * draws the row.
+ *
+ * A SYNCHRONOUS READ IS NOT AN OBSERVER. An answer nobody observes is not
+ * refetched when a live event invalidates it, so the badge froze on every page
+ * that does not draw « À traiter » itself.
+ */
+export function useAcquisitionBadgeReads(): void {
+  const scenario = useUiState().scen === "loaded" ? "loaded" : "";
+  useAcquisitionQueue(scenario);
 }

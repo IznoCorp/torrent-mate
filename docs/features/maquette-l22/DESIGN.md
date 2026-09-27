@@ -295,6 +295,10 @@ it by editing the contract in phase 1 once the operator has read the design.
 > **Amended 2026-09-27, F4 (coherence triage, `review-archive/coherence-2026-09-27-triage.md` § B):** « Laisser tel quel » sends `continueStagedMedia` with outcome `left` (built
 > at 15a), not `dismissDecision`. « Supprimer » in « Mis de côté » is a SEPARATE operation (demand F, phase 23). The
 > `notFound` and `doneToday` families lost their consumer in round 7 and leave the contract at phase 25 (F40).
+>
+> **Amended 2026-09-27 (phase 28, F1 + C2):** « `live.ts` refreshes all three keys » does not move a badge — a live
+> rule refetches only an OBSERVED answer, and a badge reads the cache without observing it; each badge row declares its
+> reads (`useBadgeReads`), observed by the frame once per drawn row (`app/badge-reads.tsx`, R236).
 
 The candidates screen's data is the maquette's own and stays: three pending decisions and ten settled ones
 are seeded (`python3 -c "import json;print(len(json.load(open('frontend/maquette/design/src/mocks/seeds/pending-decisions.json'))), len(json.load(open('frontend/maquette/design/src/mocks/seeds/settled-decisions.json'))))"` → `3 10`).
@@ -741,6 +745,9 @@ L20's locks section already names (`readLocks`: a stale lock, leftover temporary
 finish), the second a service that stopped answering or a dependency that is down (`readServices`,
 `readDependencies`); the reading that kept the badge to maintenance alone was refused. All three reads are declared
 and refreshed by `features/system/live.ts` (§ 2.1), so the badge moves without a refetch.
+
+> **Amended 2026-09-27 (phase 28, F1):** « without a refetch » was wrong — an invalidated answer moves only when something
+> observes it; Système's row declares its three reads and the frame observes them (§ 2.1's amendment).
 
 **The menu button is not React today.** It is static markup in the document:
 

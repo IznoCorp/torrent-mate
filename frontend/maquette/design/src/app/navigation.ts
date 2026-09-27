@@ -33,10 +33,10 @@ import type { ReactElement } from "react";
 
 import { AccountPage } from "../features/account/page";
 import { AcquisitionPage } from "../features/acquisition/page";
-import { acquisitionBadge } from "../features/acquisition/queries";
+import { acquisitionBadge, useAcquisitionBadgeReads } from "../features/acquisition/queries";
 import { ArrivalsPage } from "../features/arrivals/page";
 import { DiscoverPage } from "../features/acquisition/discover-page";
-import { arrivalsBadge } from "../features/arrivals/queries";
+import { arrivalsBadge, useArrivalsBadgeReads } from "../features/arrivals/queries";
 import { LibraryPage } from "../features/library/page";
 import { MaintenancePage } from "../features/maintenance/page";
 import { NotFoundPage } from "./not-found";
@@ -92,6 +92,15 @@ export type NavigationRow = {
    * so in a comment.
    */
   badge?: () => number;
+  /**
+   * The reads `badge` derives from, DECLARED — a hook the feature exports,
+   * which the frame calls once for every row it draws (`app/badge-reads.tsx`).
+   *
+   * `badge` reads the cache and observes nothing, and an answer nobody observes
+   * is neither refetched on a live event nor kept: the badge froze on every page
+   * that did not draw its subject. A row that carries a badge carries this.
+   */
+  useBadgeReads?: () => void;
 };
 
 /**
@@ -117,6 +126,7 @@ export const NAVIGATION: readonly NavigationRow[] = [
     inBar: true,
     actionButton: true,
     badge: acquisitionBadge,
+    useBadgeReads: useAcquisitionBadgeReads,
   },
   {
     id: "lib",
@@ -139,6 +149,7 @@ export const NAVIGATION: readonly NavigationRow[] = [
     group: "supervision",
     inBar: true,
     badge: arrivalsBadge,
+    useBadgeReads: useArrivalsBadgeReads,
   },
   {
     // « DÉCOUVRIR », A PAGE OF THE BAR: it left

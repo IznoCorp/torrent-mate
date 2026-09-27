@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
 import type { QueueCard } from "../../lib/engine-queue";
 import { queueNow } from "../../lib/queue";
+import { useUiState } from "../../lib/store-access";
 import type { Pipeline } from "./types";
 
 /** What the staging read answers with, once it wears the engine's names. */
@@ -81,4 +82,14 @@ export function useStaging(scenario: string) {
  */
 export function arrivalsBadge(): number {
   return queueNow().stuck.length;
+}
+
+/**
+ * Observes the answer `arrivalsBadge` derives from, for as long as the frame
+ * draws the row — the same reason as Acquisition's: a cache read observes
+ * nothing, and an answer nobody observes is never refetched.
+ */
+export function useArrivalsBadgeReads(): void {
+  const scenario = useUiState().scen === "loaded" ? "loaded" : "";
+  useStaging(scenario);
 }
