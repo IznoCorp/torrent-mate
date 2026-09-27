@@ -1,4 +1,4 @@
-# Phase 31 — « Abandonner » on a follow's card sets the release aside and searches another
+# Phase 33 — « Abandonner » on a follow's card sets the release aside and searches another
 
 **Born 2026-09-27 from M1** (the auditor's decision-coherence round, `review-archive/rulings-coherence-2026-09-27.md`),
 a new integer phase — it touches no phase still to come.

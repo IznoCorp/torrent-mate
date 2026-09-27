@@ -133,18 +133,20 @@ opening, into phases 9, 10 and 11, and every number after it shifted by two. Thr
 | 25 | [`notFound` and `doneToday` leave the contract](phase-25-not-found-and-done-today-leave-the-contract.md) | F40, a move | — | ≈ 7 |
 | 26 | [Paused follows fold at the end of « Suivis »](phase-26-paused-follows-fold.md) | was « 18-bis » (round 8 Q17): the fold, the pill dies | R233 | ≈ 12 |
 | 27 | [The Plex match waits on a disagreement](phase-27-the-plex-match-waits-on-a-disagreement.md) | triage F3: only a disagreement waits, « Corriger » through demand E, « Confirmer » lays the rung done | t, R230 | ≈ 14 |
-| 28 | [The menu button's badge](phase-28-the-menu-buttons-badge.md) | the badge on the static header's button, one derivation counting the maintenance facts AND the machine's faults (OPEN 8; was 12) | c | 13 |
-| 29 | [A direct-add card lived no rung before « arrivé »](phase-29-a-direct-add-card-lived-no-rung-before-arrival.md) | triage F5, after the MIDPOINT: a domain-free cell state, no borrowed time | f, k | ≈ 10 |
-| 30 | [The follow sheet searches live and grabs](phase-30-the-follow-sheet-searches-and-grabs.md) | triage F6 + F42: `searchForFollow`, the per-follow grab, `takeQueued` retires | new, R225 | ≈ 16, likely cut |
-| 31 | [« Abandonner » on a follow's card](phase-31-abandonner-on-a-follows-card.md) | M1: the release set aside, another searched; round 10 Q6's dated line | u | ≈ 9 |
-| 32 | [One-off acquisitions](phase-32-one-off-acquisitions.md) | round 10 Q1 + Q2: a hand-added arrival joins the follow it matches; a season of an unfollowed series is one-off | new | ≈ 16, likely cut |
-| 33 | [The sentences that sent the reader to Arrivées](phase-33-the-five-sentences.md) | five sentences rewritten; Acquisition's cross-reference dies | p | 13 |
-| 34 | [Readers re-aimed: the page's states](phase-34-readers-the-pages-states.md) | thirteen rule files and one state file leave `arr-*` | — | 14 |
-| 35 | [Readers re-aimed: identity and launch bar](phase-35-readers-identity-and-launch-bar.md) | ten files leave the page's id, its path and its `data-pipe`; the four rules that started a pass by finger re-aim, out loud (OPEN 6); `journey.py`, a reader the first drawing missed (was 14) | — | 15 |
-| 36 | [The live rule Système was borrowing](phase-36-the-live-rule-systeme-was-borrowing.md) | the pipeline-status rule moves to Système | r | 5 |
-| 37 | [The death of Arrivées](phase-37-the-death-of-arrivees.md) | page, route, row, keys, states, launch bar removed; `/arrivals` is the not-found page (OPEN 5); the bar reads at two; the residual grep at zero | o | 12 |
-| 38 | [The records of a dead page](phase-38-the-records-of-a-dead-page.md) | regions, oracle, accessibility, ratchets, fixture register | — | 10 |
-| 39 | [The close](phase-39-the-close.md) | the register, the README, the debts, the report | — | 9 |
+| 28 | [Every badge row declares its reads](phase-28-the-menu-buttons-badge.md) | BUILT 2026-09-27 (F1 + C2, cut at the opening): the frame observes each drawn row's reads; the original row was | the badge on the static header's button, one derivation counting the maintenance facts AND the machine's faults (OPEN 8; was 12) | c | 13 |
+| 29 | [The boot list becomes the rows' declarations](phase-28-the-menu-buttons-badge.md) | a MOVE, cut out of 28 at its opening: `engine-data.ts`'s staging and queue prefetch pass into `useBadgeReads` | R236 | ≈ 8 |
+| 30 | [The menu button's badge](phase-28-the-menu-buttons-badge.md) | cut out of 28 at its opening: `systemBadge`, Système's declared reads, the button; M3's no-rights half | c | ≈ 14 |
+| 31 | [A direct-add card lived no rung before « arrivé »](phase-31-a-direct-add-card-lived-no-rung-before-arrival.md) | triage F5, after the MIDPOINT: a domain-free cell state, no borrowed time | f, k | ≈ 10 |
+| 32 | [The follow sheet searches live and grabs](phase-32-the-follow-sheet-searches-and-grabs.md) | triage F6 + F42: `searchForFollow`, the per-follow grab, `takeQueued` retires | new, R225 | ≈ 16, likely cut |
+| 33 | [« Abandonner » on a follow's card](phase-33-abandonner-on-a-follows-card.md) | M1: the release set aside, another searched; round 10 Q6's dated line | u | ≈ 9 |
+| 34 | [One-off acquisitions](phase-34-one-off-acquisitions.md) | round 10 Q1 + Q2: a hand-added arrival joins the follow it matches; a season of an unfollowed series is one-off | new | ≈ 16, likely cut |
+| 35 | [The sentences that sent the reader to Arrivées](phase-35-the-five-sentences.md) | five sentences rewritten; Acquisition's cross-reference dies | p | 13 |
+| 36 | [Readers re-aimed: the page's states](phase-36-readers-the-pages-states.md) | thirteen rule files and one state file leave `arr-*` | — | 14 |
+| 37 | [Readers re-aimed: identity and launch bar](phase-37-readers-identity-and-launch-bar.md) | ten files leave the page's id, its path and its `data-pipe`; the four rules that started a pass by finger re-aim, out loud (OPEN 6); `journey.py`, a reader the first drawing missed (was 14) | — | 15 |
+| 38 | [The live rule Système was borrowing](phase-38-the-live-rule-systeme-was-borrowing.md) | the pipeline-status rule moves to Système | r | 5 |
+| 39 | [The death of Arrivées](phase-39-the-death-of-arrivees.md) | page, route, row, keys, states, launch bar removed; `/arrivals` is the not-found page (OPEN 5); the bar reads at two; the residual grep at zero | o | 12 |
+| 40 | [The records of a dead page](phase-40-the-records-of-a-dead-page.md) | regions, oracle, accessibility, ratchets, fixture register | — | 10 |
+| 41 | [The close](phase-41-the-close.md) | the register, the README, the debts, the report | — | 9 |
 
 **Opening measures (2026-09-26, on `ba6a36cc9`, after the eleven rulings; auditor's order 42), each phase file's own head**:
 12, 13, 8, 6, 15, 14, 7, 8, 13, 13, 12, 6, 13, 13, 14, 13, 8, 10, 15, 13, 13, 14, 15, 5, 12, 10, 9 — **sum 304 over 27
