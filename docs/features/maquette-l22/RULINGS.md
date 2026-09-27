@@ -28,6 +28,11 @@ real rows, said in the state's label and in R207's docstring. The eight rungs ar
 opened into its three steps), where R207's order, agreement and one-source holds read them. No derived row: a row nobody
 lived is not seeded to fill a picture (§ 13).
 
+*2026-09-27 (round one, A10).* Five rungs are reached on the cards, not six: « En cours » holds « En vol » alone since
+14-bis-b2, so notFound « cherché » and takeable « attrapé » left the cards — téléchargement, arrivé, identifié, rangé
+and vérifié dans Plex remain. « vérifié dans Plex » is reached ONLY by Star Trek's row, ruling 6's derivation; R207's
+docstring says so.
+
 ## 3 — Acquisition's tabs at a finger's size (steward, 2026-09-26; phase 8, STOP D)
 
 **The STOP.** R206's « every target meets the touch minimum » hold fell on `main` for a reason the design did not
