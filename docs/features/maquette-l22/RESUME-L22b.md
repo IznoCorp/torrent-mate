@@ -10,19 +10,23 @@ L22b appends from 13).
   [ac1af8]`. main has moved (#621, the references' gesture): merge `origin/main` at the next unit boundary — only the
   generated files conflict; regenerate them (oracle by an accept in one invocation + the script proof; ledgers re-read).
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
-- DONE: 15a–19-bis-b, merges of #619/#621/main(#617/#618/#622/#623/#624), the triage's docs commit, 20–30 (28 was CUT
-  at its opening ≈ 30 → 28/29/30, the rest +2), the MIDPOINT (suite: 1 real fall, R207, repaired; audit2 ×10: 0/10).
-  NEXT: **31** direct-add card (F5; states: Les Zinzins' family, acq-card-requester — name them at the opening) → 32 follow sheet search + grab (F6 +
-  F42; likely cut) → 33 « Abandonner » on a follow's card (M1) → 34 one-off acquisitions (round 10 Q1 + Q2; likely
-  cut) → 35 sentences (F7, F54, F53) → 36 readers (F41) → 37 → 38 (the dead `acq-follows-pause-empty` still sits in
-  the a11y ledgers) → 39 death of Arrivées (F8) → 40 → 41 close (F8, F52, F67, C9; product-intent-map.md:49).
-  Files renumbered 31–41 by `git mv`; 29 and 30 live in phase-28's file (cut). STEWARD: engine-data.ts's removal
-  (the follows' prefetch declared by its feature, drive.ts's `refillEngineData` door re-pointed) is L22b's, at 40.
+- DONE: 15a–19-bis-b, merges of #619/#621/main(#617/#618/#622/#623/#624), the triage's docs commit, 20–30, the MIDPOINT
+  (1 real fall, R207, repaired; audit2 ×10: 0/10), 32 (F6). NEXT: **31** — HELD then scoped by RULINGS 25: condition 3
+  ONLY (every ARRIVED direct-add card: its 4 rungs before « arrivé » `skipped`, no borrowed time; hold + mutation); the
+  R212 extension is written and parked on the LOCAL branch `wip/l22b-31-r212` (7221c0571, never pushed) — cherry-pick
+  it, then re-aim its hold to ARRIVED direct adds (Zinzins, downloading, keeps its card until L16 phase 5, the named
+  gap). Re-measure at the opening. → **33** F42 (per-follow grab; `grabForFollow` on the backend's meaning, picker's
+  operation a demand, `takeQueued` retires, R225 re-aimed) → 34 « Abandonner » on a follow's card (M1) → 35 one-off
+  acquisitions (round 10 Q1 + Q2; likely cut) → 36 sentences (F7, F54, F53) → 37 readers (F41) → 38 → 39 (the dead
+  `acq-follows-pause-empty` still in the a11y ledgers) → 40 death of Arrivées (F8) → 41 (+ engine-data.ts's removal,
+  the steward's placement) → 42 close (F8, F52, F67, C9; product-intent-map.md:49).
+  Files renumbered twice by `git mv`; 29/30 live in phase-28's file, 33 in phase-32's. engine-data.ts's removal (the
+  follows' prefetch declared by its feature, drive.ts's `refillEngineData` door re-pointed) is L22b's, at 41.
   Each re-measured at its opening; > 15
   → cut. **REBOOT Monday 2026-09-28 05:00: open no phase that cannot finish before 04:50.**
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
-  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole: bar badge + menu button, 28–30) · next free R237. RULINGS: L22b writes 13–29 (13–24 used); L22a's repair round wrote 30–32.
+  R234 discover_page · R235 pull_on_a_card · (28) R236 badges_observed (R-L22-c whole) · (32) R237 follow_search · next free R238. RULINGS: L22b writes 13–29 (13–25 used); L22a's repair round wrote 30–32.
 - AUDITOR ORDER 48 (amended): a fall set aside as « load » needs the same rule ≥ 10× here and ≥ 10× on `main` at
   comparable load; any gap is a regression.
 - LOGS `~/Library/Logs/tm-l22b/`; mutex `sh scripts/heavy.sh --held`. GATE: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh
@@ -199,3 +203,13 @@ L22b appends from 13).
   did not build (`midpoint-bisect-27.log`, nothing measured). audit2.py ×10 in the steward's load shape (3 contract
   partners, host from run.sh, never by hand): 0/10 fell, each draw « 0 violations · 13/13 », WHOLE output kept in
   `midpoint-audit2/audit2-{1..10}.out` (main read 0/10) — the R11 fall of `20-green.log` is not reproduced.
+- 2026-09-27 phase 31 opened (F5): R212 extended, red `31-red.log` — and STOP D: « Les Zinzins de l'Espace », a direct
+  add, is DOWNLOADING. RULINGS 25: (b) on the operator's texts (a direct add is a card only once finished); no new
+  surface in L22b (« Système › téléchargements » does not exist), so Zinzins's card stays in « En vol » until L16
+  phase 5 (named gap; its removal and R229's re-aim go to L16's plan, by the steward); 31 keeps condition 3 alone. The
+  R212 extension parked on local `wip/l22b-31-r212`.
+- 2026-09-27 phase 32 (F6): re-measured ≈ 16 → CUT 32 (search) / 33 (F42 grab), the rest +1 (34–42). R237 red
+  (`32-red.log`: no search sent). Commit e71618e71: the tap sends `searchForFollow`, says « aucun torrent trouvé » or
+  the count; `searchStarted` retired; panel.py RE-AIMED OUT LOUD. Gate `32-gate.log` 35 rules (15 named) + 26 guards 0
+  failed, no divergence. Mutations: toast without sending → FAIL « … sends its own search, once » (`32-mutation-toast.log`);
+  zero sentence dropped → FAIL « … says « aucun torrent trouvé » … — said « … : 0 torrent trouvé. » » (`32-mutation-zero.log`).

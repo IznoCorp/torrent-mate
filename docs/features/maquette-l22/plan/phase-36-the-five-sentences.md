@@ -1,4 +1,4 @@
-# Phase 35 — The sentences that sent the reader to Arrivées
+# Phase 36 — The sentences that sent the reader to Arrivées
 
 **Numbered 29, then 31, then 33, on 2026-09-27** (was 21; the triage's F51). **Carried at its opening, from the coherence triage (`review-archive/coherence-2026-09-27-triage.md` § B; texts in `coherence-2026-09-27.md`)**: F7 (the cross-references
 land on the default-tab rule round 7 wrote, not on « the default tab »; `toArrivals` names `?tab=todo`); F54 (the quality

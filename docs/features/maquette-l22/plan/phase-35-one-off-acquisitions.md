@@ -1,4 +1,4 @@
-# Phase 34 — One-off acquisitions: a hand-added arrival joins the follow it matches; a season of an unfollowed series
+# Phase 35 — One-off acquisitions: a hand-added arrival joins the follow it matches; a season of an unfollowed series
 
 **Born 2026-09-27 from the operator's round 10, questions 1 and 2 (A and A)**, placed by the steward beside the one-off
 arrival card. **One phase if the total holds under 15, else cut in two at its opening.**

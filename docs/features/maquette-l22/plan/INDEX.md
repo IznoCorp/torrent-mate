@@ -137,16 +137,17 @@ opening, into phases 9, 10 and 11, and every number after it shifted by two. Thr
 | 29 | [The boot list becomes the rows' declarations](phase-28-the-menu-buttons-badge.md) | a MOVE, cut out of 28 at its opening: `engine-data.ts`'s staging and queue prefetch pass into `useBadgeReads` | R236 | ≈ 8 |
 | 30 | [The menu button's badge](phase-28-the-menu-buttons-badge.md) | cut out of 28 at its opening: `systemBadge`, Système's declared reads, the button; M3's no-rights half | c | ≈ 14 |
 | 31 | [A direct-add card lived no rung before « arrivé »](phase-31-a-direct-add-card-lived-no-rung-before-arrival.md) | triage F5, after the MIDPOINT: a domain-free cell state, no borrowed time | f, k | ≈ 10 |
-| 32 | [The follow sheet searches live and grabs](phase-32-the-follow-sheet-searches-and-grabs.md) | triage F6 + F42: `searchForFollow`, the per-follow grab, `takeQueued` retires | new, R225 | ≈ 16, likely cut |
-| 33 | [« Abandonner » on a follow's card](phase-33-abandonner-on-a-follows-card.md) | M1: the release set aside, another searched; round 10 Q6's dated line | u | ≈ 9 |
-| 34 | [One-off acquisitions](phase-34-one-off-acquisitions.md) | round 10 Q1 + Q2: a hand-added arrival joins the follow it matches; a season of an unfollowed series is one-off | new | ≈ 16, likely cut |
-| 35 | [The sentences that sent the reader to Arrivées](phase-35-the-five-sentences.md) | five sentences rewritten; Acquisition's cross-reference dies | p | 13 |
-| 36 | [Readers re-aimed: the page's states](phase-36-readers-the-pages-states.md) | thirteen rule files and one state file leave `arr-*` | — | 14 |
-| 37 | [Readers re-aimed: identity and launch bar](phase-37-readers-identity-and-launch-bar.md) | ten files leave the page's id, its path and its `data-pipe`; the four rules that started a pass by finger re-aim, out loud (OPEN 6); `journey.py`, a reader the first drawing missed (was 14) | — | 15 |
-| 38 | [The live rule Système was borrowing](phase-38-the-live-rule-systeme-was-borrowing.md) | the pipeline-status rule moves to Système | r | 5 |
-| 39 | [The death of Arrivées](phase-39-the-death-of-arrivees.md) | page, route, row, keys, states, launch bar removed; `/arrivals` is the not-found page (OPEN 5); the bar reads at two; the residual grep at zero | o | 12 |
-| 40 | [The records of a dead page](phase-40-the-records-of-a-dead-page.md) | regions, oracle, accessibility, ratchets, fixture register | — | 10 |
-| 41 | [The close](phase-41-the-close.md) | the register, the README, the debts, the report | — | 9 |
+| 32 | [The follow sheet searches live](phase-32-the-follow-sheet-searches-and-grabs.md) | BUILT 2026-09-27 (F6, R237; cut at the opening); the original row was | triage F6 + F42: `searchForFollow`, the per-follow grab, `takeQueued` retires | new, R225 | ≈ 16, likely cut |
+| 33 | [« Récupérer maintenant » through the per-follow grab](phase-32-the-follow-sheet-searches-and-grabs.md) | F42, cut out of 32 at its opening: `grabForFollow` re-declared on the backend's meaning, the picker's operation filed as a demand, `takeQueued` retires | R225 | ≈ 8 |
+| 34 | [« Abandonner » on a follow's card](phase-34-abandonner-on-a-follows-card.md) | M1: the release set aside, another searched; round 10 Q6's dated line | u | ≈ 9 |
+| 35 | [One-off acquisitions](phase-35-one-off-acquisitions.md) | round 10 Q1 + Q2: a hand-added arrival joins the follow it matches; a season of an unfollowed series is one-off | new | ≈ 16, likely cut |
+| 36 | [The sentences that sent the reader to Arrivées](phase-36-the-five-sentences.md) | five sentences rewritten; Acquisition's cross-reference dies | p | 13 |
+| 37 | [Readers re-aimed: the page's states](phase-37-readers-the-pages-states.md) | thirteen rule files and one state file leave `arr-*` | — | 14 |
+| 38 | [Readers re-aimed: identity and launch bar](phase-38-readers-identity-and-launch-bar.md) | ten files leave the page's id, its path and its `data-pipe`; the four rules that started a pass by finger re-aim, out loud (OPEN 6); `journey.py`, a reader the first drawing missed (was 14) | — | 15 |
+| 39 | [The live rule Système was borrowing](phase-39-the-live-rule-systeme-was-borrowing.md) | the pipeline-status rule moves to Système | r | 5 |
+| 40 | [The death of Arrivées](phase-40-the-death-of-arrivees.md) | page, route, row, keys, states, launch bar removed; `/arrivals` is the not-found page (OPEN 5); the bar reads at two; the residual grep at zero | o | 12 |
+| 41 | [The records of a dead page](phase-41-the-records-of-a-dead-page.md) | regions, oracle, accessibility, ratchets, fixture register | — | 10 |
+| 42 | [The close](phase-42-the-close.md) | the register, the README, the debts, the report | — | 9 |
 
 **Opening measures (2026-09-26, on `ba6a36cc9`, after the eleven rulings; auditor's order 42), each phase file's own head**:
 12, 13, 8, 6, 15, 14, 7, 8, 13, 13, 12, 6, 13, 13, 14, 13, 8, 10, 15, 13, 13, 14, 15, 5, 12, 10, 9 — **sum 304 over 27
@@ -284,3 +285,4 @@ amends the plan and the operator amends the constitution and the map.
 - **Amended 2026-09-27 (L22b, the steward, on the operator's two reports of ~15:05 on tm-design):** **B-556** « Onglet suivi : impossible de tirer pour rafraîchir » → phase **21**, **B-557** « Menu d'onglets: cassé voir capture » → phase **22**; every phase from the former 21 shifts by two (**23–37**). The phases to come are 21–37.
 - **Amended 2026-09-27 (L22b, at phase 23's opening):** phase 23 re-measured ≈ 31 on `3551e8125` → CUT into **23** (the deletion), **24** (the case read at the gesture, M2) and **25** (F40); every phase from the former 24 shifts by two (**26–39**).
 - **Amended 2026-09-27 (L22b, at phase 28's opening, steward accepted):** phase 28 re-measured ≈ 30 on `8a9500c43` → CUT into **28** (F1 + C2: each badge row declares its reads, the frame observes them per drawn row, R236), **29** (a MOVE: `engine-data.ts`'s boot list passes into those declarations) and **30** (the menu button's badge, M3's no-rights half); every phase from the former 29 shifts by two (**31–41**); the MIDPOINT full suite runs after 30.
+- **Amended 2026-09-27 (L22b, at phase 32's opening):** phase 32 re-measured ≈ 16 → CUT into **32** (F6, the live search) and **33** (F42, the per-follow grab); every phase from the former 33 shifts by one (**34–42**). Phase 31 is held on RULINGS 25 (condition 3 only), and runs next.

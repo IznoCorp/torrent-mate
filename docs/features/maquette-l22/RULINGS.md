@@ -306,6 +306,23 @@ the backend demands register as the Plex match's CORRECTION VERB, OPEN 9's fifth
 the disagreement into the seed, and (c), keeping an agreeing card waiting, were refused. RULINGS 6's derivation is
 revised by this one.
 
+## 25 — a direct add is a card only once finished; its rungs before « arrivé » were not lived (auditor and steward, 2026-09-27; L22b phase 31, STOP D)
+
+**The STOP.** F5 draws a direct-add card's four rungs before « arrivé » as not lived. The measure contradicted it: « Les
+Zinzins de l'Espace », a direct add in qBittorrent, is DOWNLOADING (`moving.json`), so « téléchargement » is lived now.
+
+**Ruled (b), on the operator's texts** (rulings 1, 2 and 4; « les arrivées, c'est des acquisitions faites en direct dans
+qBittorrent », « les torrents qui sont TÉLÉCHARGÉS »): a direct add becomes a card only once FINISHED and sorted, and
+every direct-add card that exists stands at « arrivé » or beyond, its four earlier rungs not lived, with no borrowed
+time. Proposal (a) — skip only the rungs never lived by origin — was refused.
+
+**Scoped (a) of the steward's second proposal, accepted by the auditor.** The surface the auditor's condition named,
+« Système › téléchargements », does not exist, and L22b draws no new surface. So: **until L16 phase 5, Zinzins's card,
+downloading, stays in « En vol », against the letter of ruling 2 — a temporary gap, named here.** Its removal, the hold
+« readable in Torrents » (ruling 19's tab) and the re-aim of R229 (Zinzins is its only real subject) are written into
+L16's plan by the steward at the closing docs pull request. Phase 31 keeps condition 3 alone: every direct-add card that
+has ARRIVED shows its four rungs before « arrivé » not lived, with no borrowed time, held and mutated (R212).
+
 ## 30 — the ladder's figure keeps one meaning; a Plex match waits on its current rung (steward, 2026-09-27; round one, A6)
 
 **The question.** The round's brief asked Star Trek's card to read « 7 sur 8 »; the figure is the current rung's
