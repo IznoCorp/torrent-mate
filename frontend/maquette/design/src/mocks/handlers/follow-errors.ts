@@ -28,6 +28,9 @@ export function poseTunnelError(title: string, step: NonNullable<QueueCard["fail
     void chip;
     return { ...stopped, strip, failedStep: step };
   });
+  // STOPPED, NOT IN FLIGHT: the medium's card in the queue's flight leaves
+  // while its folder waits on the error, or the two would lay one ladder twice.
+  state.inFlight = state.inFlight.filter((card) => card.title !== title);
   forgetLadder(title);
 }
 
