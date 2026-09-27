@@ -4050,7 +4050,7 @@
         "tags": [
           "acquisition"
         ],
-        "description": "Demand E (OPEN 9, ruled B): « Confirmer » says the match is the medium, « Corriger » says it is not. Either answer takes the card off « À traiter »; a correction then goes through the candidates screen.",
+        "description": "Demand E (OPEN 9, ruled B): « Confirmer » says the match is the medium, « Corriger » says it is not. « Corriger » opens the candidates screen on the identity held and sends nothing; the correction is sent by the pick, carrying the identity picked. Either answer takes the card off « À traiter »; leaving the screen without a pick leaves the match to confirm.",
         "parameters": [
           {
             "name": "infoHash",
@@ -4076,6 +4076,10 @@
                       "correct"
                     ],
                     "description": "whether the match is the medium"
+                  },
+                  "identity": {
+                    "$ref": "#/components/schemas/PlexMatch",
+                    "description": "the identity picked on the candidates screen — carried by a correction, and required by it"
                   }
                 },
                 "required": [

@@ -443,6 +443,7 @@
       "noteUnder": "sous",
       "noteRest": "la liste qu'on lisait : au téléphone, on ne la voyait jamais.",
       "noMediaIdentified": "Aucun média identifié. Voici ce que les providers proposent pour ce nom.",
+      "plexHeld": "Plex l'a reconnu comme « {{title}} ». Si c'est bien lui, choisissez-le ; sinon, cherchez la bonne identité.",
       "noCandidates": "Les providers n'ont renvoyé aucun candidat pour ce nom. Il n'y a rien à choisir : la recherche manuelle est la seule voie.",
       "emptyTitle": "Aucun de ceux-là ?",
       "emptyBody": "La recherche manuelle s'ouvre pré-remplie avec le nom du dossier. Jamais un cul-de-sac (DOIT-7).",
@@ -1318,6 +1319,7 @@
       "replacementQueued": "Ajouté — la version en place sera remplacée une fois la nouvelle récupérée.",
       "searchAgain": "{{label}} — {{title}}",
       "plexConfirmed": "Match Plex confirmé : {{title}}",
+      "plexCorrected": "Match Plex corrigé : {{title}} est « {{choice}} »",
       "abandon": {
         "heading": "Abandonner « {{title}} » ?",
         "bodyBefore": "Le dossier ",

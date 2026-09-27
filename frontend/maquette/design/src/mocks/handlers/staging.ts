@@ -73,6 +73,10 @@ const MAINTENANCE_HOLDS = "queued";
 const QUARANTINE_FOLDER = "_quarantine";
 const PATH_SEPARATOR = "/";
 
+// A correction of a Plex match, and why one naming no identity is refused.
+const CORRECT = "correct";
+const WITHOUT_IDENTITY = "a correction carries the identity picked";
+
 // Why a reclassification is refused, in the problem body's own words.
 const UNKNOWN_DESTINATION = "not a destination the sort files a non-media folder into";
 
@@ -295,6 +299,11 @@ export function stagingRoutes(): MockRoute[] {
         const state = mockState();
         const asked = request.parameters.infoHash;
         const outcome = text(request.body, "outcome");
+        // A CORRECTION NAMES THE RIGHT IDENTITY, or it corrects nothing.
+        const identity = (request.body as { identity?: { title?: unknown } } | undefined)?.identity;
+        if (outcome === CORRECT && (typeof identity?.title !== "string" || identity.title === "")) {
+          return refused(400, WITHOUT_IDENTITY);
+        }
         for (const list of SETTLED_LISTS) {
           const found = state[list].find((card) => card.title === asked && card.plexMatch !== undefined);
           if (found === undefined) continue;

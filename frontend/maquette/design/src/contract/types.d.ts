@@ -1081,7 +1081,7 @@ export interface paths {
         put?: never;
         /**
          * Confirm or correct the match Plex made for a medium
-         * @description Demand E (OPEN 9, ruled B): « Confirmer » says the match is the medium, « Corriger » says it is not. Either answer takes the card off « À traiter »; a correction then goes through the candidates screen.
+         * @description Demand E (OPEN 9, ruled B): « Confirmer » says the match is the medium, « Corriger » says it is not. « Corriger » opens the candidates screen on the identity held and sends nothing; the correction is sent by the pick, carrying the identity picked. Either answer takes the card off « À traiter »; leaving the screen without a pick leaves the match to confirm.
          */
         post: operations["resolvePlexMatch"];
         delete?: never;
@@ -3834,6 +3834,8 @@ export interface operations {
                      * @enum {string}
                      */
                     outcome: "confirm" | "correct";
+                    /** @description the identity picked on the candidates screen — carried by a correction, and required by it */
+                    identity?: components["schemas"]["PlexMatch"];
                 };
             };
         };
