@@ -3,6 +3,8 @@ import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { mediumCardMarkup } from "./card-markup";
 import { inFlightCards, slotArrivals } from "./arrival-slots";
+import { followOffered } from "./follow-offer";
+import { useFollows } from "./queries";
 import { useAcquisitionQueue, useStaging } from "../../lib/queue";
 import { useUiState } from "../../lib/store-access";
 import { body, crossReference, crossReferenceLink, crossReferenceStrong, emptyNote, section as sectionClass } from "../../ui/variants";
@@ -38,6 +40,7 @@ export function NowTab(): ReactElement {
   // « À traiter »'s, a tab of its own, and read here only for the note below.
   const blocked = [...(queue?.blocked ?? []), ...slotArrivals(queue?.arrivals ?? []).blocked];
   const inflight = queue ? inFlightCards(queue) : [];
+  const { data: follows } = useFollows();
   const stuck = staging?.stuck ?? [];
 
   return (
@@ -75,7 +78,11 @@ export function NowTab(): ReactElement {
             "info",
             t("screens.acquisition.inflight"),
             String(inflight.length),
-            inflight.map((card) => mediumCardMarkup(card)).join(""),
+            // « Suivre », PROPOSED on an arrived series nobody follows (ruling 1).
+            inflight.map((card) => mediumCardMarkup(card, followOffered(card, follows ?? []) ? {
+              label: t("screens.acquisition.followFoot"),
+              attributes: { "data-follow": card.title, "data-follow-ids": JSON.stringify(card.ids) },
+            } : undefined)).join(""),
           )}
         />
       ) : null}

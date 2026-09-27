@@ -96,6 +96,13 @@ export function secondaryActions(facts: FollowFacts): (Action | null)[] {
   const { follow, isFilm } = facts;
   const beingAcquired = facts.isFollowed || facts.incomplete || facts.toTake;
   return [
+    // « Suivre », PROPOSED on an arrived series nobody follows (ruling 1).
+    facts.followOffer
+      ? {
+          text: say("offerFollow"), icone: icons.plus, ton: "primary",
+          target: { follow: follow.title, "follow-ids": JSON.stringify(facts.followOffer) },
+        }
+      : null,
     // The second answer « À traiter » offers at the card's foot.
     facts.plexMatch
       ? { text: say("plexCorrect"), icone: icons.search, target: { "plex-correct": follow.title } }

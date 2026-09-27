@@ -30,6 +30,7 @@ import { followsQuery, incompleteShowsQuery } from "./queries";
 import type { Follow, FollowSubject } from "./types";
 import { followFraction } from "./follow-vocabulary";
 import { todoCards } from "./arrival-slots";
+import { followOffered } from "./follow-offer";
 export type { Follow };
 
 /** What is true about the medium a follow panel is about. */
@@ -55,6 +56,8 @@ export type FollowFacts = {
   tunnelError: boolean;
   /** It has a media sheet — an unidentified release has none. */
   hasSheet: boolean;
+  /** An arrived series nobody follows: « Suivre » is proposed (ruling 1), with its identity. */
+  followOffer: Record<string, unknown> | null;
   /** Episodes held over episodes aired, or null for a film. */
   fraction: string | null;
 };
@@ -113,6 +116,7 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   const scenario = String(store.read().state.scen) === "loaded" ? "loaded" : "";
   const answer = cache.held<AcquisitionQueue>(queueKey(scenario));
   const todo = answer ? todoCards(answer).find((one) => one.title === title) : undefined;
+  const arrival = answer?.arrivals.find((one) => one.title === title);
   const toResolve = queue.blocked
     .concat(queue.stuck ?? [])
     .some((one) => one.title === title);
@@ -133,6 +137,8 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
     plexMatch: todo?.plexMatch !== undefined,
     tunnelError: todo?.failedStep !== undefined,
     hasSheet: (follow.ids ?? heldIdentity(title)?.ids) != null,
+    // THE SAME OFFER THE CARD'S FOOT MAKES, from the same derivation (R43).
+    followOffer: arrival !== undefined && followOffered(arrival, followed) ? arrival.ids ?? null : null,
     // ONE DERIVATION: the card's fraction, the header's, and the sum of the
     // season headers all read this computation.
     fraction: isFilm
