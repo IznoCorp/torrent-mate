@@ -11,7 +11,11 @@ WHAT IT HOLDS:
 
   something moves  on `acq-now-loaded`, the body draws exactly one section,
                    titled « En vol », none of the three that left, and the
-                   « En cours » tab counts what « En vol » draws.
+                   « En cours » tab counts what « En vol » draws;
+  one card each    on the same world, no two « En vol » cards name one
+                   medium — one title and one episode: the queue's in-flight
+                   row and the arrival of the same torrent are ONE card, and
+                   the count is of media, not of rows (§13).
   nothing moves    on `acq-now-idle` — the real world, where nothing is in
                    flight while three releases wait to be taken — the tab reads
                    « rien en cours », draws no section, and carries no count:
@@ -37,6 +41,12 @@ BODY = """() => {
     body: !!body,
     titles: sections.map((one) => one.querySelector('[data-part="section/title"]')?.textContent.trim() ?? ''),
     cards: sections.map((one) => one.querySelectorAll('[data-part="card"]').length),
+    // A card's medium: its title and the episode its subtitle opens with.
+    media: sections.flatMap((one) => [...one.querySelectorAll('[data-part="card"]')].map((card) => {
+      const title = card.querySelector('[data-part="card/title"]')?.textContent.trim() ?? '';
+      const line = card.querySelector('[data-part="card/subtitle"]')?.textContent ?? '';
+      return title + ' ' + ((line.match(/S\\d+E\\d+/) || [''])[0]);
+    })),
     count: tab ? Number(tab.textContent.trim()) : 0,
     text: body ? body.innerText : '',
   };
@@ -62,6 +72,10 @@ async def main():
         journal.check("acq-now-loaded: the tab counts what « En vol » draws",
                       bool(read["cards"]) and read["count"] == read["cards"][0],
                       f"count {read['count']}, cards {read['cards']}")
+        twice = sorted({medium for medium in read["media"] if read["media"].count(medium) > 1})
+        journal.check("acq-now-loaded: no medium is drawn twice in « En vol »",
+                      len(read["media"]) > 1 and not twice,
+                      f"{len(read['media'])} cards, twice: {twice}")
 
         await page.evaluate("()=>window.__go('acq-now-idle')")
         await page.wait_for_timeout(SETTLED)
