@@ -1,8 +1,8 @@
 // What Arrivées asks the server for, and nothing else.
 //
-// THE FIRST SURFACE OF L09, and the shape every other one follows. Three reads:
-// the pipeline's own status, what is sitting in staging, and the decisions the
-// scrape could not make alone. Each goes through the query cache — invariant 4 —
+// THE FIRST SURFACE OF L09, and the shape every other one follows. Two reads:
+// the pipeline's own status and what is sitting in staging (the decisions the
+// scrape could not make alone are Acquisition's, with the candidates screen). Each goes through the query cache — invariant 4 —
 // and none of them is issued from a `useEffect` — invariant 5.
 //
 // THE ANSWER IS READ IN THE CONTRACT'S OWN NAMES. The three reads are typed
@@ -12,23 +12,17 @@
 // THE KEYS ARE THE ADDRESS, deliberately. A cache key that repeated the
 // surface's name would make two surfaces reading one resource miss each other's
 // invalidations; the address is what the resource IS.
-import { useQuery, type QueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { read } from "../../lib/query-client";
 import type { QueueCard } from "../../lib/engine-queue";
 import { queueNow } from "../../lib/queue";
-import type { PendingDecision, Pipeline, SettledDecision } from "./types";
+import type { Pipeline } from "./types";
 
 /** What the staging read answers with, once it wears the engine's names. */
 export type Staging = {
   stuck: QueueCard[];
   moving: QueueCard[];
   settled: QueueCard[];
-};
-
-/** What the decisions read answers with, once it wears the engine's names. */
-export type Decisions = {
-  pending: PendingDecision[];
-  settled: SettledDecision[];
 };
 
 /**
@@ -73,47 +67,6 @@ export function useStaging(scenario: string) {
     },
   });
 }
-
-/**
- * The decisions the scrape could not make alone, on both sides of resolution.
- *
- * @returns The query, its decisions already in the engine's names.
- */
-export function useDecisions() {
-  return useQuery({
-    queryKey: ["/api/decisions/"],
-    queryFn: async () => {
-      const answer = await read<{ pending: PendingDecision[]; settled: SettledDecision[] }>("/api/decisions/");
-      return {
-        pending: answer.pending,
-        settled: answer.settled,
-      } satisfies Decisions;
-    },
-  });
-}
-
-/**
- * Publishes the pending decisions for a synchronous reader.
- *
- * WHY A SEAM AND NOT AN IMPORT. The engine (`engine/legacy.js@c0a5062ac`) answered « does this folder
- * have a pending decision » from inside a click handler, which cannot await — and
- * it was the same question the resolution screen asks. §13 of the constitution:
- * two surfaces answering one question read the SAME code, or they will
- * diverge and the operator will see two truths.
- *
- * It reports an empty list before the query has answered, which is the answer
- * this lookup already gave for a folder with no decision. It dies with the
- * engine's own branch at L13.
- *
- * @param queryClient The cache the surfaces read.
- */
-export function installDecisionLookup(queryClient: QueryClient): void {
-  pendingDecisions = () =>
-    (queryClient.getQueryData(["/api/decisions/"]) as Decisions | undefined)?.pending ?? [];
-}
-
-/** The pending decisions, read synchronously by the dying engine — filled at install. */
-export let pendingDecisions: (() => PendingDecision[]) | undefined;
 
 /**
  * What awaits the operator on this page — the navigation table's badge.

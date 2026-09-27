@@ -90,7 +90,7 @@ CAPTURE = """() => {
 PAGE_STATES = (
     ("acq-now-loaded", 10), ("acq-follows-list", 10), ("acq-follows-grid", 10),
     ("acq-follows-group", 10), ("lib-list", 10), ("lib-grid", 10),
-    ("lib-incomplete", 10), ("mediasheet-series", 10), ("arr-resolution", 10),
+    ("lib-incomplete", 10), ("mediasheet-series", 10), ("acq-resolution-none", 10),
     # THE RELEASE SCREEN, added when its picker got a verb of its own. It is
     # the one entry here whose floor is NOT set by the union: the state
     # captures 158 nodes and only 7 of them are the SCREEN's own, so the
@@ -118,7 +118,7 @@ PAGE_SELECTOR = (
 )
 # The states whose subject is a SCREEN over a page: their floor is read on the
 # screen's own nodes as well as on the union.
-SCREEN_STATES = ("mediasheet-series", "arr-resolution", "screen-releases")
+SCREEN_STATES = ("mediasheet-series", "acq-resolution-none", "screen-releases")
 
 # (h) THE PANEL'S OWN NODES — B-247's PRODUCER half, the one an earlier lot left
 # open and said so in this docstring. A producer that has moved into its feature

@@ -437,6 +437,8 @@ Les pages principales sont des destinations de premier niveau, pas des étapes d
 Passer d'Acquisition à la Médiathèque **n'empile rien**. Retour depuis n'importe quelle page
 ramène à **Acquisition**, la page d'entrée ; Retour depuis Acquisition arme la garde de sortie.
 
+Dicté le 2026-09-27 : pour un compte qui n'a pas Acquisition, la page d'entrée est la première page de sa barre, dans l'ordre de la barre (Acquisition, Médiathèque, Trackers, Découvrir), ou sa seule page ; sans page de barre, la première page du menu qu'il ouvre.
+
 **Aucune plateforme n'empile l'historique des onglets visités**, et c'est le geste qui trahit
 le plus vite une application web : le lecteur tape Retour pour sortir et se retrouve à
 rembobiner ses pages une à une. iOS donne à chaque onglet sa pile et ne permet aucun retour
@@ -534,6 +536,8 @@ Les quatre points laissés ouverts le 2026-08-26 sont tranchés ; ils restent é
 réponse, pour que personne ne les redécide en chemin.
 
 **Trois rôles, et deux options par compte.**
+
+Dicté le 2026-09-27 : les droits d'accès — voir une page, faire un acte — appartiennent aux rôles, jamais directement à un compte ; un compte a un seul rôle. Deux rôles système ne se suppriment pas : le rôle par défaut, attribué à tout nouveau compte, dont les droits se règlent ; et le rôle Admin, qui n'a pas de liste de droits — il contourne les ACL, y compris pour les droits créés plus tard — et ne se modifie pas ; il reste toujours au moins un compte Admin. Les autres rôles se créent, se renomment et se règlent depuis la page Comptes. La barre du bas montre les pages quotidiennes que le rôle ouvre, de deux à quatre ; une seule page, pas de barre ; aucune page, une page dédiée qui le dit. Un suivi peut avoir plusieurs demandeurs ; chacun a ses réglages, la qualité la plus haute l'emporte et la pause ne vaut que si tous la demandent. Sur la preprod, tout fonctionne sauf la suppression dans la médiathèque.
 
 | Rôle | Ce qu'il peut |
 | --- | --- |
@@ -663,6 +667,7 @@ est **NE-DOIT-PAS-5**, échec silencieux, appliqué à un succès autant qu'à u
 4. **NE-DOIT-PAS-8 est la limite dure.** Un cross-seed cherche des correspondances chez des
    trackers : c'est précisément le geste qui fait bannir s'il part en rafale. Le §18 le rappelait
    pour le ratio ; il est ici opposable à toute idée d'automatisation plus agressive.
+5. Dicté le 2026-09-27 : l'upload sur tracker — l'application peut créer un torrent et le publier sur un tracker pour ouvrir un cross-seed ; un échec de publication ou de création est un échec du cross-seed, compté comme tel ; il a son lot, après L18. Les mots d'état d'un torrent sur un tracker sont six : actif, stoppé, tracker sans cross-seed, erreur de cross-seed, sans correspondance, pas encore cherché.
 
 ### Ce que l'opérateur a tranché (dicté le 2026-08-30)
 

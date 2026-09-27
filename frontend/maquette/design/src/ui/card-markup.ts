@@ -12,7 +12,7 @@
 //
 // THE PARTS' OWN FACTORIES, class for class, so the two spellings of one card
 // cannot drift apart: what `ui/card.tsx` draws as an element this draws as text.
-import type { StripState } from "./card";
+import { stripColumns, type StripCell } from "./card";
 import { escapeMarkup } from "./markup";
 import { attributesMarkup, type MarkupAttributes } from "./tile";
 import {
@@ -47,6 +47,9 @@ export type CardSide =
   | { poster: string; attributes: MarkupAttributes }
   | { folderIcon: string; folderLabel: string; attributes: MarkupAttributes };
 
+/** One option at a card's foot. */
+export type CardFoot = { label: string; solid?: boolean; attributes: MarkupAttributes };
+
 /** Everything one card shows, each line already in the caller's words. */
 export type CardMarkupContent = {
   title: string;
@@ -63,8 +66,16 @@ export type CardMarkupContent = {
   caption?: string;
   /** The word a card that has just arrived wears, or nothing. */
   fresh?: string;
-  strip?: { state: StripState; label: string }[];
-  foot?: { label: string; solid?: boolean; attributes: MarkupAttributes };
+  /** Who asked for it — the card's last text line (§12). */
+  requester?: string;
+  strip?: StripCell[];
+  /** The option a section offers at the card's foot — or several, in order. */
+  foot?: CardFoot | CardFoot[];
+  /** The class several feet are laid on ONE line with, the caller's own; without
+   * it they stack. */
+  footRow?: string;
+  /** The row a card with ONE foot lays its requester line in, beside it. */
+  originRow?: string;
 };
 
 /**
@@ -113,16 +124,25 @@ export function cardMarkup(content: CardMarkupContent): string {
     (content.caption ? `<span class="${cardCaption()}" data-part="card/caption">${escapeMarkup(content.caption)}</span>` : "") +
     (content.fresh ? `<span class="${cardFreshTag()}" data-part="card/fresh-tag">${escapeMarkup(content.fresh)}</span>` : "");
   const strip = content.strip
-    ? `<div class="${cardStrip()}">${content.strip
+    ? `<div class="${cardStrip({ cells: stripColumns(content.strip) })}" data-part="card/strip">${content.strip
         .map(
           (step) =>
-            `<div class="${stripStep({ state: step.state })}"><span class="d ${stripDot({ state: step.state })}"></span><span class="l ${stripLabel()}">${escapeMarkup(step.label)}</span></div>`,
+            `<div class="${stripStep({ state: step.state })}" data-part="card/step" data-state="${step.state}"><span class="d ${stripDot({ state: step.state })}"></span>${step.label === undefined ? "" : `<span class="l ${stripLabel()}">${escapeMarkup(step.label)}</span>`}</div>`,
         )
         .join("")}</div>`
     : "";
-  const foot = content.foot
-    ? `<button class="${actionButton({ kind: "cardFoot", tone: content.foot.solid ? "solid" : "plain" })}" data-part="card/foot"${content.foot.solid ? ' data-solid=""' : ""}${attributesMarkup(content.foot.attributes)}>${escapeMarkup(content.foot.label)}</button>`
+  const options = content.foot === undefined ? [] : Array.isArray(content.foot) ? content.foot : [content.foot];
+  const foot = options
+    .map((one) => `<button class="${actionButton({ kind: "cardFoot", tone: one.solid ? "solid" : "plain" })}" data-part="card/foot"${one.solid ? ' data-solid=""' : ""}${attributesMarkup(one.attributes)}>${escapeMarkup(one.label)}</button>`)
+    .join("");
+  // ONE FOOT AND A REQUESTER: the line goes beside the foot, not under the reason.
+  const shared = Boolean(content.originRow && options.length === 1 && content.requester);
+  const requester = content.requester
+    ? `<span class="${cardCaption()}" data-part="card/requester" title="${escapeMarkup(content.requester)}">${escapeMarkup(content.requester)}</span>`
     : "";
+  const footLine = shared
+    ? `<div class="${content.originRow}">${requester}${foot}</div>`
+    : content.footRow && options.length > 1 ? `<div class="${content.footRow}">${foot}</div>` : foot;
   return `<div class="${card()}${content.fresh ? " fresh" : ""}" data-part="card"${attributesMarkup(content.attributes ?? {})}>
     ${sideMarkup(content.side)}
     <div class="${cardContent()}">
@@ -134,10 +154,11 @@ export function cardMarkup(content: CardMarkupContent): string {
         ${content.overview ? `<span class="${cardOverview()}" data-part="card/overview">${escapeMarkup(content.overview)}</span>` : ""}
         ${state ? `<span class="${cardMeta()}" data-part="card/meta">${state}</span>` : ""}
         ${annotations ? `<span class="${cardAnnotations()}">${annotations}</span>` : ""}
+        ${shared ? "" : requester}
       </button>
     </div>
     ${strip}
-    ${foot}
+    ${footLine}
     </div>
   </div>`;
 }

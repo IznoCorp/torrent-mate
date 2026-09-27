@@ -21,6 +21,8 @@ import { seasonsAnswerFor } from "./handlers/media";
 import FOLLOWS from "./seeds/follows.json";
 import INCOMPLETE_SHOWS from "./seeds/incomplete-shows.json";
 import { seasonsHeld } from "../lib/season-rows";
+import { renameAccount } from "./account";
+import { mockState } from "./state";
 
 /** What the layer exposes of its seeds. */
 export type MockSeeds = {
@@ -37,6 +39,10 @@ export type MockSeeds = {
   seasons: () => Record<string, [number, number | null, number][]>;
   /** The season family seed, as its rows were written: `[season, aired, owned]` per title. */
   seasonFamily: () => Record<string, [number, number, number][]>;
+  /** Renames the seeded account until the layer is next reset — the seed changed, every reader must follow. */
+  renameAccount: (name: string) => void;
+  /** Empties what is blocked — the queue's, the staging area's, a match to confirm — until the layer is next reset. */
+  clearBlocked: () => void;
 };
 
 /** The seeds the harness reads, composed on each call so no caller holds a copy it could mutate. */
@@ -79,4 +85,18 @@ export const mockSeeds: MockSeeds = {
         ([title, rows]) => [title, rows.map((row) => [row.season, row.aired, row.owned])],
       ),
     ) as Record<string, [number, number, number][]>,
+  renameAccount,
+  // « À TRAITER » WITH NOTHING WAITING: no blocked card, no stuck folder — the
+  // other lists are left as they are, so the rest of the page still draws.
+  clearBlocked: () => {
+    const state = mockState();
+    // A settled folder whose Plex match waits is blocked too: the match is dropped.
+    const answered = (cards: typeof state.settled) => cards.map(({ plexMatch, ...card }) => card);
+    Object.assign(state, {
+      blocked: [], stuck: [], stuckLoaded: [],
+      settled: answered(state.settled), settledLoaded: answered(state.settledLoaded),
+      // and every ladder already laid is laid again, from where the cards now stand.
+      journeyStages: {},
+    });
+  },
 };

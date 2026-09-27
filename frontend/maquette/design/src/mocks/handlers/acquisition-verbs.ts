@@ -18,8 +18,8 @@
 // demand register carries that (§ 2b), and no identifier is invented here.
 import SEASONS from "../seeds/seasons.json";
 import INCOMPLETE_SHOWS from "../seeds/incomplete-shows.json";
-import JOURNEY_STAGES from "../seeds/journey-stages.json";
 import { POST, route } from "./shared";
+import { ladderOf } from "./ladder";
 import { mockState } from "../state";
 import type { MockRoute } from "../router";
 import type { components } from "../../contract/types";
@@ -38,7 +38,7 @@ const IDLE = "idle";
 // VALUES are the layer's data, the NAMES are code and are English.
 const DONE = "done";
 const RUNNING_NOW = "now";
-const UPCOMING = "todo";
+const UPCOMING = "pending";
 
 // What a follow being acquired reads as — the contract's own `Follow.status`
 // token, carried like every other token in this layer.
@@ -59,11 +59,6 @@ const SEASON_COUNT = SEASONS as Record<
   string,
   { season: number; aired: number; owned: number }[]
 >;
-const SEEDED_STAGES = JOURNEY_STAGES as {
-  label: string;
-  when: string;
-  state: string;
-}[];
 
 /**
  * Whether the machine is working, and an ask therefore waits.
@@ -81,20 +76,15 @@ function queued(): boolean {
 }
 
 /**
- * The stages of one journey, filled from the seed the first time it is asked
- * for.
+ * One medium's ladder — laid and held by `./ladder`, which the queue's cards
+ * read too.
  *
  * @param subject The medium the journey followed.
  * @returns Its stages — the same array on every call, so a verb that moves them
  *   moves what the next read answers.
  */
 export function stagesOf(subject: string) {
-  const state = mockState();
-  const held = state.journeyStages[subject];
-  if (held !== undefined) return held;
-  const fresh = SEEDED_STAGES.map((stage) => ({ ...stage }));
-  state.journeyStages[subject] = fresh;
-  return fresh;
+  return ladderOf(subject);
 }
 
 /**

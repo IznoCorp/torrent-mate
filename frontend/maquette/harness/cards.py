@@ -4,7 +4,8 @@ R41 — a card body opens the bottom PANEL, never a screen of its own.
 R42 — a card poster ALWAYS leads somewhere: to the media sheet when that
       medium has one, to the panel when it does not. It used to lead nowhere,
       and the tooltip explaining the absence is invisible on a phone.
-R43 — an action offered inline on a card is ALSO in that medium's panel.
+R43 — an action offered inline on a card is ALSO in that medium's panel —
+      every foot of the card, a folder's card included when it has a panel.
 R44 — the same medium reached from a card and from a gallery opens the SAME
       panel, action for action.
 R45 — a tile addresses its panel by title, never by list index.
@@ -39,8 +40,11 @@ URL = "http://127.0.0.1:8899/"
 # and the two screens missing from it — resolution and release choice — were
 # exactly the two drawing a card that is not a medium.
 LIST_POSTER = 84  # two thirds of the card's floor, so a card at that floor is 2:3  # the notch of the card that explains; see refonte.html@60530dbd8
+# RE-AIMED OUT LOUD: `acq-now-idle` left this list — the real world has
+# nothing in flight, so « En cours » draws no card there; « À traiter »'s cards
+# are read instead.
 CARD_STATES = [
-    "acq-now-idle",
+    "acq-todo-loaded",
     "acq-now-loaded",
     "acq-follows-list",
     "acq-follows-group",
@@ -49,7 +53,7 @@ CARD_STATES = [
     "lib-recent",
     "arr-idle",
     "arr-loaded",
-    "arr-resolution",
+    "acq-resolution-none",
     "screen-releases",
     "acq-identify",
     "acq-discover",
@@ -95,6 +99,29 @@ async def panel_actions(pg):
         """()=>{const s=document.querySelector('#sheet');
         if(!s||!s.hasAttribute('data-open')) return null;
         return [...s.querySelectorAll('[data-part="sheet/action"]')].map(x=>x.textContent.trim());}"""
+    )
+
+
+# The attributes that dress a button and name no act: what remains is its verb.
+DRESSING = ("data-part", "data-tone", "data-solid")
+
+
+async def panel_verbs(page):
+    """Returns the verbs the open panel's actions carry, or None.
+
+    A verb is the ``data-*`` attribute an action's tap is delegated by — its
+    NAME, never its label: two buttons worded alike can do two different things,
+    and the label is the one thing a re-pointed action keeps.
+
+    Returns:
+        One list of verb names per action, or None when no panel is open.
+    """
+    return await page.evaluate(
+        """(DRESSING)=>{const s=document.querySelector('#sheet');
+        if(!s||!s.hasAttribute('data-open')) return null;
+        return [...s.querySelectorAll('[data-part="sheet/action"]')].map(x=>[...x.attributes]
+          .map(a=>a.name).filter(n=>n.startsWith('data-') && !DRESSING.includes(n)));}""",
+        list(DRESSING),
     )
 
 
@@ -208,12 +235,25 @@ async def main():
             await pg.wait_for_timeout(360)
             if state_.startswith("lib-"):
                 await mode(pg, "list")
+            # EVERY FOOT, AND A FOLDER THAT HAS A PANEL. Said out loud: this
+            # read the FIRST foot of a medium's card only, so a card offering two
+            # answers kept its second out of the panel unseen, and a folder's
+            # card — a step that cannot finish — was never read at all. The
+            # folders read are Acquisition's: Arrivées still offers « Résoudre »
+            # on a step no pick unblocks, and that page is not redrawn, it dies.
             inlines = await pg.evaluate(
-                """()=>[...document.querySelectorAll('[data-part="card"]')].filter(visible)
-                    .filter(c=>c.querySelector('[data-part="card/foot"]') && !c.dataset.nonmedia)
-                    .map(c=>({title:c.querySelector('[data-part="card/title"]')?.textContent||'',
-                              action:c.querySelector('[data-part="card/foot"]').textContent.trim(),
-                              panel:c.querySelector('[data-part="card/body"]')?.dataset.panel||null}))"""
+                """(DRESSING)=>[...document.querySelectorAll('[data-part="card"]')].filter(visible)
+                    .filter(c=>c.querySelector('[data-part="card/foot"]')
+                      && (!c.dataset.nonmedia || (c.dataset.nonmedia === 'dossier'
+                          && c.closest('[data-region="acquisition/body"]')
+                          && c.querySelector('[data-part="card/body"]')?.dataset.panel)))
+                    .flatMap(c=>[...c.querySelectorAll('[data-part="card/foot"]')].map(foot=>({
+                              title:c.querySelector('[data-part="card/title"]')?.textContent||'',
+                              action:foot.textContent.trim(),
+                              verbs:[...foot.attributes].map(a=>a.name)
+                                .filter(n=>n.startsWith('data-') && !DRESSING.includes(n)),
+                              panel:c.querySelector('[data-part="card/body"]')?.dataset.panel||null})))""",
+                list(DRESSING),
             )
             for item in inlines:
                 executed += 1
@@ -227,18 +267,20 @@ async def main():
                     item["panel"],
                 )
                 await pg.wait_for_timeout(420)
-                actions = await panel_actions(pg)
+                actions = await panel_verbs(pg)
                 await close_panel(pg)
                 if actions is None:
                     failures.append(f"R43 {state_} « {item['title']} »: the body opened no panel")
                     continue
-                # Compared on the first word: the inline button is terser than
-                # the panel entry by design (« Résoudre → » against « Résoudre
-                # le dossier »), and comparing whole labels would forbid that.
-                verb = item["action"].split()[0].rstrip("→").strip()
-                if not any(a.startswith(verb) for a in actions):
+                # COMPARED ON THE VERB THE TWO BUTTONS CARRY, never on their
+                # label. Said out loud: this compared the label's first word
+                # (« Résoudre → » against « Résoudre le dossier »), so a panel
+                # action worded like the foot and doing something else — an
+                # identification on the spot where the foot opens the
+                # candidates screen — was certified as the same behaviour.
+                if not item["verbs"] or not any(set(item["verbs"]) <= set(verbs) for verbs in actions):
                     failures.append(
-                        f"R43 {state_} « {item['title']} »: inline « {item['action']} » "
+                        f"R43 {state_} « {item['title']} »: inline « {item['action']} » {item['verbs']} "
                         f"is offered by no panel action ({actions})"
                     )
 

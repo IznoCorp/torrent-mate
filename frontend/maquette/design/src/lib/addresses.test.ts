@@ -48,8 +48,8 @@ describe("screenParentOf", () => {
     expect(screenParentOf("/media/tmdb/1396")).toBe("lib");
   });
 
-  it("names the arrivals under a resolution", () => {
-    expect(screenParentOf("/resolution/Some.Folder.2026")).toBe("arr");
+  it("names acquisition under a resolution", () => {
+    expect(screenParentOf("/resolution/Some.Folder.2026")).toBe("acq");
   });
 
   it("answers undefined for a page's own path", () => {

@@ -196,6 +196,10 @@
     "TMP_ORPHANS": {
       "answers": "TmpOrphan[]",
       "file": "tmp-orphans"
+    },
+    "NON_MEDIA_DESTINATIONS": {
+      "answers": "StagingDestination[]",
+      "file": "staging-destinations"
     }
   }
 }

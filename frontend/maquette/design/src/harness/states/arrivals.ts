@@ -1,4 +1,4 @@
-// The named states of the arrivals page, « Arrivées », and its resolution screen.
+// The named states of the arrivals page, « Arrivées ».
 //
 // Each entry is `[id, label, run]`: the id is what `window.__go(id)` takes and
 // what the oracle's reference names, the label says the state in words, and
@@ -56,27 +56,6 @@ export function arrivalsStates(): NamedState[] {
       "arr-error",
       "Arrivées — erreur",
       () => applyState({ page: "arr", phase: "error", pipe: "idle" }),
-    ],
-    [
-      "arr-resolution",
-      "Arrivées — résolution, aucun candidat",
-      () => {
-        applyState({ page: "arr", phase: "ready", pipe: "idle" });
-        window.__screens.resolution();
-      },
-    ],
-    [
-      "arr-decision",
-      "Arrivées — résolution, candidats à égalité",
-      () => {
-        applyState({
-          page: "arr",
-          scen: "loaded",
-          phase: "ready",
-          pipe: "idle",
-        });
-        window.__screens.resolution("Lucky");
-      },
     ],
   ];
 }

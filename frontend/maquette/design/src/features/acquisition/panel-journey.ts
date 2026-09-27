@@ -20,17 +20,40 @@ import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { registerProducer, type PanelCache, type PanelDescriptor, type PanelNeed } from "../../ui/panel/contract";
 import { read } from "../../lib/query-client";
+import type { Schemas } from "../../lib/contract-schemas";
 
 
-/** One stage of a journey, as the contract answers it. */
-type Stage = { label: string; when: string; state: string };
+/** One rung of a medium's ladder, as the contract answers it. */
+type Stage = Schemas["JourneyStage"];
 
-/** Which pip says a stage's state. The three are the interface's drawing. */
-const STAGE_PIP: Record<string, string> = {
+/** Which pip says a rung's state. The six are the interface's drawing. */
+const STAGE_PIP: Record<Stage["state"], string> = {
   done: "success",
   now: "info",
-  todo: "neutral",
+  waiting: "waiting",
+  blocked: "danger",
+  aside: "neutral",
+  pending: "neutral",
 };
+
+// The mark of a time nobody recorded — never a reconstructed one.
+const NO_TIME = "—";
+
+/**
+ * One rung as a line of the sheet — or, for a step of « rangé », a line under it.
+ *
+ * @param stage The rung or the step.
+ * @param name Its name, as the line spells it.
+ * @returns The line.
+ */
+function stageLine(stage: Stage, name: string) {
+  return {
+    c: name,
+    v: stage.when || NO_TIME,
+    pip: STAGE_PIP[stage.state] ?? "neutral",
+    terne: stage.state === "pending",
+  };
+}
 
 // THE RELEASE THE JOURNEY IS ABOUT, and it is a fixture rather than an answer:
 // the contract's `readJourney` returns the STAGES and nothing else, so there is
@@ -69,12 +92,14 @@ function journeyPanel(title: string, cache: PanelCache): PanelDescriptor | null 
     blocs: [
       {
         type: "faits",
-        lignes: stages.map((stage) => ({
-          c: stage.label,
-          v: stage.when,
-          pip: STAGE_PIP[stage.state] ?? "neutral",
-          terne: stage.state === "todo",
-        })),
+        // THE LADDER WHOLE: its eight rungs, and under « rangé » the three
+        // pipeline steps it merges, from the same answer the card reads.
+        lignes: stages.flatMap((stage) => [
+          stageLine(stage, translate(`surfaces.ladder.rungs.${stage.rung}`)),
+          ...(stage.steps ?? []).map((step) => stageLine(step, translate("surfaces.ladder.step", {
+            name: translate(`surfaces.ladder.steps.${step.rung}`),
+          }))),
+        ]),
       },
       { type: "note", text: translate("panels.journey.provenanceNote") },
       {

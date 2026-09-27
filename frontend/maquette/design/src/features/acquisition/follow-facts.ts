@@ -17,7 +17,8 @@
 import { heldIdentity, providerAddress } from "../../lib/held-identity";
 import { membershipQuery, type Membership } from "../../lib/membership";
 import { seasonsQuery, seasonsHeld, type SeasonsAnswer } from "../../lib/season-rows";
-import { queueNow } from "../../lib/queue";
+import { queueKey, queueNow, type AcquisitionQueue } from "../../lib/queue";
+import { store } from "../../lib/store-access";
 import type { PanelCache } from "../../ui/panel/contract";
 import { followsQuery, incompleteShowsQuery } from "./queries";
 
@@ -28,6 +29,8 @@ import { followsQuery, incompleteShowsQuery } from "./queries";
 // undefined, which is what the engine's object literal did in practice.
 import type { Follow, FollowSubject } from "./types";
 import { followFraction } from "./follow-vocabulary";
+import { inFlightCards, todoCards } from "./arrival-slots";
+import { originLine } from "./card-markup";
 export type { Follow };
 
 /** What is true about the medium a follow panel is about. */
@@ -47,10 +50,16 @@ export type FollowFacts = {
   toTake: boolean;
   /** Waiting for the operator to resolve it. */
   toResolve: boolean;
+  /** In « À traiter », a Plex match to confirm or correct. */
+  plexMatch: boolean;
+  /** In « À traiter », a step that cannot finish: relaunched or abandoned, never resolved. */
+  tunnelError: boolean;
   /** It has a media sheet — an unidentified release has none. */
   hasSheet: boolean;
   /** Episodes held over episodes aired, or null for a film. */
   fraction: string | null;
+  /** Where its acquisition came from, whole — the line its card may truncate. */
+  origin: string | null;
 };
 
 /**
@@ -104,6 +113,10 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   const inLibrary = incomplete || membership.inLibrary;
   const queue = queueNow();
   const toTake = queue.takeable.some((one) => one.title === title);
+  const scenario = String(store.read().state.scen) === "loaded" ? "loaded" : "";
+  const answer = cache.held<AcquisitionQueue>(queueKey(scenario));
+  const todo = answer ? todoCards(answer).find((one) => one.title === title) : undefined;
+  const acquisition = todo ?? (answer ? inFlightCards(answer).find((one) => one.title === title) : undefined);
   const toResolve = queue.blocked
     .concat(queue.stuck ?? [])
     .some((one) => one.title === title);
@@ -119,7 +132,12 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
     inLibrary,
     toTake,
     toResolve,
+    // THE SAME CARD, THE SAME ANSWERS: what « À traiter » offers at a card's
+    // foot, its panel offers too (R43, one card, one behaviour).
+    plexMatch: todo?.plexMatch !== undefined,
+    tunnelError: todo?.failedStep !== undefined,
     hasSheet: (follow.ids ?? heldIdentity(title)?.ids) != null,
+    origin: acquisition ? originLine(acquisition) ?? null : null,
     // ONE DERIVATION: the card's fraction, the header's, and the sum of the
     // season headers all read this computation.
     fraction: isFilm

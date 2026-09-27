@@ -143,7 +143,7 @@ async def main():
         guidance = await page.evaluate("""async ()=>{
           const seen = [];
           for (const state of ['maintenance-topic', 'system', 'settings-secrets',
-                               'arr-resolution']) {
+                               'acq-resolution-none']) {
             window.__go(state);
             await new Promise(done => setTimeout(done, 250));
             for (const block of document.querySelectorAll('[data-part="guidance"]'))

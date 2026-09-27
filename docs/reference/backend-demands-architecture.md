@@ -64,28 +64,84 @@ brief can read the reason and not only the requirement.
 
 ## 4. The ratio is steered — §18 (L16's demands)
 
-- The per-tracker policy (`min_ratio`, `min_seed_time`) becomes **writable from the interface**:
-  one write operation, absent from both contracts today. The displayed ratio is the one the
-  TRACKER recognises (NE-DOIT-PAS-1), never a locally computed figure.
-- `obligations`, `stalled-grabs`, `downloads` exist and are called by nothing yet; their shapes
-  are the interface's to diverge from if the drawn surface needs more (D7).
-- **Dictated 2026-08-30 (§18 completed):** a verb to RELEASE an obligation early; reconciliation of
-  an EXTERNAL removal (a torrent taken out of qBittorrent by hand closes its obligation as
-  « released by removal », never a silent anomaly); a per-tracker ratio-alert threshold and a push
-  channel to carry it (**FCM, iOS and Android** — a platform demand); a ranking input that
-  subtracts points from releases on low-ratio trackers. Per-tracker Download / Upload volumes and
-  trend, and per-active-torrent deadline and ratio, must be readable.
+- **Corrected 2026-09-27 (L16's redraw, F11).** The per-tracker policy (`min_ratio`,
+  `min_seed_time`) is **already writable from the interface**: `updateConfigurationFile` (`PUT
+  /api/config/files/{name}`) already writes `tracker.providers.<name>.economy.*`, and Réglages
+  already offers these two fields as settings rows. **Only the ratio-alert threshold is missing** —
+  a new key in the SAME `economy` block (`alert_threshold` or equivalent), never a second write
+  path. The displayed ratio is the one the TRACKER recognises (NE-DOIT-PAS-1), never a locally
+  computed figure, and — for a torrent cross-seeded onto more than one tracker — it is computed on
+  the TORRENT'S OWN SIZE on each tracker, never on the tracker's download volume (organisation
+  ruling 18, never a division by zero).
+- `obligations`, `downloads` exist and are called by nothing yet; their shapes are the interface's
+  to diverge from if the drawn surface needs more (D7). `stalled-grabs` also exists and is called by
+  nothing, but is NOT this lot's operation (L16's redraw, F14) — its own rollup answers a different
+  question, distinct from a torrent's own deferral reason (item below).
+- **Dictated 2026-08-30 (§18 completed):** a per-tracker ratio-alert threshold and a push channel to
+  carry it (**FCM, iOS and Android** — a platform demand); a ranking input that subtracts points from
+  releases on low-ratio trackers. Per-tracker Download / Upload volumes and trend, and
+  per-active-torrent deadline and ratio, must be readable.
+- **Reshaped 2026-09-27 (organisation ruling 18, round 9 Q7 — replaces the prior « release verb »
+  reading above).** « **Retirer de qBittorrent** »: a write that removes one or more qBittorrent
+  entries (an original grab and every entry sharing its files — a grouped removal, round 9 Q7),
+  files deleted by default and decheckable, answering which trackers still held a running obligation
+  on what was removed so the interface can name them. An obligation ends when its torrent leaves
+  qBittorrent, by this gesture or by the operator's own hand outside the interface — the SAME
+  reconciliation demand as before (never a silent anomaly, NE-DOIT-PAS-5), now needing a STREAM EVENT
+  as well, so a removed torrent's row can disappear live, without a refetch.
+- **New, round 9 Q1 (2026-09-27).** A per-tracker HEALTH read: whether the tracker's identifier (API
+  key, passkey) is refused, and since when — folded into the tracker-level summary read § 18 already
+  asks for, never a separate operation.
+- **New, L16's redraw (F14).** The pipeline's own `classify_deferrals` (read today by the watcher,
+  exposed by no web route) must answer, on a route the interface can call: the KIND of a torrent's
+  deferral (ratio, insufficient space, or missing content) and, for a ratio cause, the tracker's name
+  and its obligation's own `min_ratio` — never the legacy top-level `ingest.min_ratio` key, which a
+  card must not name.
 
 ## 5. Cross-seed is seen and decided — §19 (L17's demands)
 
-- **Nothing exists to call.** The maquette will declare the routes its experience requires — the
-  feed of injections and refusals with their reasons, the per-tracker state, the verbs to prevent
-  and to provoke — and the engine's `CrossSeedInjected` / `CrossSeedRejected` events must reach
-  the stream. NE-DOIT-PAS-8 is the hard limit on any automation the surface offers.
-- **Dictated 2026-08-30 (§19 completed):** cross-seed runs AUTOMATICALLY, on by default, with a
-  per-tracker off switch — a config WRITE per tracker; and a per-torrent, per-tracker state route
-  carrying four states (« actif », « stoppé », « tracker sans cross-seed », « erreur de
-  cross-seed »). The media-sheet block is admin-only, so the route's answer is role-aware (§17).
+**AMENDED 2026-09-27** on the operator's rulings of round 8, 9 and 10 (`docs/reference/operator-method.md`) and the
+auditor's rulings-coherence round (M4, M5, M6) — `docs/features/maquette-l17/DESIGN.md` § 6.2 is the typed form of
+every row below; this section states the shapes only.
+
+- **Nothing exists to call.** The maquette declares the routes its experience requires — the per-torrent,
+  per-tracker state, the verb to prevent (a per-tracker switch, and a narrower per-torrent cut) and to provoke, the
+  exclusion memory — and the engine's `CrossSeedInjected` / `CrossSeedRejected` events must reach the stream, beside
+  a third, search-outcome event the maquette invents standing in for what the backend must emit once a search
+  operation exists. NE-DOIT-PAS-8 is the hard limit on any automation the surface offers.
+- **Dictated 2026-08-30, amended 2026-09-27 (§19 point 5):** cross-seed runs AUTOMATICALLY, active by default AT THE
+  SWITCHOVER (never before — the operator's own live switches, off today, are untouched example values, not his
+  choice, round 9 Q9), with a per-tracker off switch — a config WRITE per tracker, cutting NEW cross-seeds only,
+  with an option to also stop the ones already running (round 9 Q5) — and a per-torrent, per-tracker state carrying
+  SIX states (« actif », « stoppé », « tracker sans cross-seed », « erreur de cross-seed », « sans correspondance »,
+  « pas encore cherché », round 8 OPEN 5 and round 10 Q5), each pair's `stoppedAt` and closed `stopCause`
+  (`switch` | `removed`) kept by the backend (round 8 OPEN 6 = B — « stoppé » is read by history, never by cause).
+  **The engine must attempt every ELIGIBLE, switched-on tracker**, not stop at the first verified injection as it
+  does today — the state is per (torrent, tracker) pair, not per torrent alone.
+- **A narrower stop, per pair.** Cutting a torrent's cross-seed on ONE tracker removes its qBittorrent entry WITHOUT
+  its files, closes any running obligation there « libérée » (never left in breach, M4), and marks the pair
+  « stoppé » with its date (round 9 Q8). Every obligation-ending gesture the interface confirms — this cut, or
+  L16's own « Retirer de qBittorrent » — closes « libérée », never « en infraction », and the confirmation names
+  every tracker with a running obligation whenever one exists (M4, round 9 Q7).
+- **A memory of every cut.** Cutting a torrent's cross-seed on a tracker EXCLUDES that pair from the engine's future
+  passes; a title-wide « Ne plus partager ce titre » excludes it on every tracker; both undo, at any time, without a
+  confirmation on the undo itself (round 9 Q11). A backend exclusion list, keyed by (torrent, tracker) and by whole
+  title, with its write and its undo, is a new demand — nothing today keeps such a list; the engine's own
+  `exclude_recent_search_days` is a TIME window on the automatic sweep, never a permanent exclusion, and a
+  hand-provoked search is bounded by the quota and the delay ONLY, never by that window.
+- **The badge counts failures, not every refusal.** The Trackers badge's cross-seed term reads a count already
+  narrowed to two of the engine's reason families (« the attempt failed », « the engine could not finish », plus
+  `recheck_failed`, reserved and unreachable today) — an ordinary mismatch (the files are not the same) and « sans
+  correspondance » never move it. **A reserved slot in the same closed set** stands for a future upload-to-tracker
+  or tracker-side torrent-creation failure (round 8 Q18 = B: a separate lot, proposed L23, after L18) so that lot's
+  landing needs no amendment to this shape. A failure is a STATE and leaves the count the moment its pair's own
+  state changes, with no « seen » gesture (M5).
+- **The media-sheet block is admin-only, and is L18's** (round 8, L17 OPEN 1 = B): no account carries a role in
+  either contract today, only the instance's own deployment role — the block's route, gated by a named ACL right
+  (organisation ruling 17/20), is drawn once L18's rights model exists, not before.
+- **No feed** (round 8, OPEN 4 = A): the per-pair state already carries the date of an injection and the reason of
+  a refusal; organisation ruling 12 keeps Système's history as the only trace of the past, and a feed would be a
+  second one.
 
 ## 6. The failure SHAPE the binding lot must reconcile first — B-267
 

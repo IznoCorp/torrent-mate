@@ -769,7 +769,7 @@ def arm_stale_figure():
             continue
         # THE BOUNDARY IS ALPHANUMERIC, not numeric. `(?<![\d])` only refuses a
         # neighbouring DIGIT, so a corpus of 10 was found inside `L10` and one
-        # of 13 inside `L13` — wave names, of which this file holds several.
+        # of thirteen inside `L13` — wave names, of which this file holds several.
         # Every count this arm can measure is small enough to collide with one.
         if re.search(rf"(?<![\w]){count}(?![\w])", source):
             violations += 1

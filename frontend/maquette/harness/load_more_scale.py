@@ -57,7 +57,7 @@ DISCOVER_STATE = "acq-discover"
 
 # AND WHERE THE ACTION-BUTTON SYSTEM IS DRAWN, so its box can be measured
 # rather than assumed. Any screen with a sheet action or a card foot does.
-SYSTEM_STATE = "arr-resolution"
+SYSTEM_STATE = "acq-resolution-none"
 
 # LEAVING THE DECK, so that coming back REBUILDS the pile, and SPENDING it.
 # Two evaluations and not one: the deck branch refuses to rewrite a pile that

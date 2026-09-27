@@ -692,8 +692,15 @@ async def main():
 # is the same answer read where the surfaces read it.
             "()=>{const first = (window.__queue?.().takeable ?? [])[0];"
             " if (!first) return null;"
-            " document.querySelector('[data-take=\"' + CSS.escape(first.title) + '\"]')?.click();"
+            " window.__panel.produce('follow', first.title);"
             " return first.title;}")
+        # RE-AIMED OUT LOUD: « Récupérer maintenant » lives on the follow's
+        # sheet, not on a card of this page; the tap is the sheet's, and the
+        # counters read are still this page's.
+        await page.wait_for_timeout(600)
+        await page.evaluate(
+            """()=>[...document.querySelectorAll('#sheetin [data-part="sheet/action"]')]"""
+            ".find((one) => 'take' in one.dataset)?.click()")
         await page.wait_for_timeout(700)
         after_action = await page.evaluate(
             '''()=>[...document.querySelectorAll('#view [data-part="section/head"] [data-part="section/count"]')]'''

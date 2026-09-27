@@ -233,7 +233,7 @@ SCREEN_STATES = {
     "releases": "screen-releases",
     "quality": "screen-profile",
     "add": "acq-add-empty",
-    "resolution": "arr-resolution",
+    "resolution": "acq-resolution-none",
 }
 
 # THE OPEN SCREEN'S WAY OUT, AND WHAT A FINGER ON IT LANDS ON — nothing lifted.

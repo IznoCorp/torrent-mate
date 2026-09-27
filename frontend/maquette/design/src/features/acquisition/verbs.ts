@@ -12,7 +12,8 @@
 //
 // THE PAGE IS REDRAWN THROUGH `redraw()`, the way every
 // verb that still shares its page with the engine's drawing redraws it
-// (`features/arrivals/verbs.ts` is the precedent).
+// (`features/acquisition/resolution-verbs.ts` is the precedent).
+import { landingTab, rememberTab } from "./tab-memory";
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { queueActions } from "../../lib/queue";
@@ -25,6 +26,7 @@ import { settleSwipeRow } from "./follow-verbs";
    REPLACES the entry it is on and the list starts again from the top; a pill or
    a layout changes what the list shows and writes no address at all. */
 registerVerb("acqtab", (tab) => {
+  rememberTab(tab);
   store.write({ acqTab: tab });
   const port = document.getElementById("port");
   if (port !== null) port.scrollTop = 0;
@@ -100,12 +102,14 @@ registerVerb("search-again", (title, element) => {
   });
 });
 
-/* ARRIVING AT THIS PAGE OPENS ITS FIRST TAB, whoever asked for it — the tab is a
-   setting of the page, and a landing from somewhere else is not the same as
-   looking at the page one is already on. The engine's own landing branch wrote
+/* ARRIVING AT THIS PAGE OPENS THE TAB OPENED LAST on this device, « Suivis » the
+   first time — whoever asked for it: the tab is a setting of the page, and a
+   landing from somewhere else is not the same as looking at the page one is
+   already on. Beneath the candidates screen it is « À traiter », the list that
+   screen answers (`landingTab`). The engine's own landing branch wrote
    this dial itself; the frame that answers the tap now cannot, since the dial is
    this page's name and not the frame's (invariant 10), so it asks through the
    landing door and the write is made here. */
 fillLandingDoor((page) => {
-  if (page === "acq") store.write({ acqTab: "now" });
+  if (page === "acq") store.write({ acqTab: landingTab() });
 });

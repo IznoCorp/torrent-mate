@@ -774,6 +774,8 @@ declared there in phase 3 and the file dies nowhere. `harness/states/arrivals.ts
 | 22 | `menu-system-badge` | « Bouton du menu — Système a quelque chose à dire » | 20 |
 | 23 | `menu-clear` | « Bouton du menu — rien à dire » | 20 |
 
+**Amended 2026-09-26 (RULINGS 2):** `acq-card-rungs` holds the SIX rungs the queue's real rows reach; the eight are held whole on `sheet-journey`.
+
 **A named state that already exists and is not new**: `drawer-navigation` (« Tiroir de navigation
 (hamburger) », `harness/states/frame.ts`). It draws the drawer with nothing to say; `drawer-system` and the
 two `menu-*` states are what add Système's badge to it.

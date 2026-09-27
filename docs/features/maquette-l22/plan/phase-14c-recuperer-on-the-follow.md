@@ -42,3 +42,5 @@ sheet), on the sheet's body. Any other divergence is STOP A.
 ## Gate
 
 The shared-lock `run.sh --contracts --oracle` with R-L22-w and the re-aimed rules NAMED, `--a11y`.
+
+**Amended 2026-09-27 (l22a, RULINGS 9):** runs BEFORE 14-bis, « À récupérer » still drawn; R-L22-w = R225; the take path re-aimed onto the sheet is busy.py, actions.py and page_host.py (added: it clicks `[data-take]` on « En cours »).

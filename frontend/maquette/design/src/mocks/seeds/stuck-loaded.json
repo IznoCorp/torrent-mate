@@ -35,6 +35,7 @@
   {
     "title": "doc_fr_2026_final",
     "secondaryLine": "arrivé hier à 19 h 03 · dépôt manuel",
+    "droppedByHand": true,
     "reason": "Aucun fichier vidéo dans le dossier : seulement 3 fichiers .nfo et une archive .rar non extraite. Aucun arbitrage n'y changera rien.",
     "strip": [
       1,

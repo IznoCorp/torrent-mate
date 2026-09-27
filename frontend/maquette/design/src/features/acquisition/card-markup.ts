@@ -13,12 +13,13 @@ import { icons } from "../../lib/shell-doors";
 import i18next from "i18next";
 import { initials } from "../../lib/titles";
 import { cardMarkup } from "../../ui/card-markup";
-import type { StripState } from "../../ui/card";
+import type { StripCell, StripState } from "../../ui/card";
 import { escapeMarkup } from "../../ui/markup";
 import { posterArtworkMarkup } from "../../ui/poster";
 import { posterFallback } from "../../ui/variants";
 import { posterArtwork } from "../../lib/engine-drawing";
 import { richTextMarkup } from "./rich-text";
+import { originRow, footRow } from "./variants";
 
 /** A medium as an acquisition list holds one, in the engine's field names. */
 export type MediumCard = {
@@ -32,6 +33,14 @@ export type MediumCard = {
   caption?: string;
   fresh?: boolean;
   strip?: (number | string)[];
+  /** The match Plex made, when it waits for the operator's confirmation. */
+  plexMatch?: { title: string };
+  /** Who asked for it, and where: a follow of theirs, or a direct add. */
+  requester?: { name: string; via: string };
+  /** Put in the staging area by hand: nobody asked, and its subtitle says so. */
+  droppedByHand?: boolean;
+  /** The medium's ladder — the same list its journey sheet reads. */
+  ladder?: { rung: string; state: StripState; reason?: string }[];
   withoutPoster?: boolean;
   overview?: string;
   panel?: string;
@@ -57,6 +66,83 @@ function stageState(value: number | string): StripState {
 }
 
 /**
+ * The tone a rung's name is drawn in, by the rung's state. A rung that WAITS
+ * reads neutral: the waiting tone as a chip's words does not hold its contrast
+ * on the light theme, and the rung's name says the wait itself.
+ */
+const RUNG_TONE: Record<StripState, string> = {
+  done: "success",
+  now: "info",
+  waiting: "neutral",
+  blocked: "danger",
+  aside: "neutral",
+  pending: "neutral",
+};
+
+// The reason a rung waits for the operator's answer rather than for his hand.
+const TO_CONFIRM = "confirmation";
+
+/**
+ * The rung a card stands on: the one in motion, waiting or stopped; else the one
+ * after the last passed — a rung the row never lived, before it, is not where it
+ * stands — or the last when every one is passed.
+ *
+ * @param ladder The medium's rungs.
+ * @returns The current rung's index.
+ */
+function currentRung(ladder: { state: StripState }[]): number {
+  const active = ladder.findIndex((rung) => rung.state !== "done" && rung.state !== "pending");
+  if (active !== -1) return active;
+  const done = ladder.map((rung) => rung.state).lastIndexOf("done");
+  return Math.min(done + 1, ladder.length - 1);
+}
+
+/**
+ * Where a card stands on its ladder: the strip's cells, unlabelled, and the
+ * current rung named in words after its figure, on the line where it has the
+ * full width (§12).
+ *
+ * A RUNG WAITING ON HIS ANSWER is not drawn done: its word says it waits for
+ * him, in the waiting tone.
+ *
+ * @param ladder The medium's rungs.
+ * @returns The strip, the figure and the current rung's chip.
+ */
+function ladderMarkup(ladder: { rung: string; state: StripState; reason?: string }[]) {
+  const current = currentRung(ladder);
+  const strip: StripCell[] = ladder.map((rung) => ({ state: rung.state }));
+  const reason = ladder[current].reason;
+  const name = i18next.t(`surfaces.ladder.rungs.${ladder[current].rung}`);
+  return {
+    strip,
+    // THE REASON THE LADDER KNOWS, said in words, for a card whose row carries none.
+    reason: reason === undefined ? undefined : i18next.t(`surfaces.ladder.reasons.${reason}`),
+    fraction: i18next.t("surfaces.ladder.figure", { position: current + 1, count: ladder.length }),
+    chip: {
+      tone: reason === TO_CONFIRM ? RUNG_TONE.waiting : RUNG_TONE[ladder[current].state],
+      label: reason === TO_CONFIRM ? i18next.t("surfaces.ladder.toConfirm", { rung: name }) : name,
+    },
+  };
+}
+
+/**
+ * The line saying where an acquisition came from — ONE composition, read by its
+ * card and by its panel, which carries it whole where the card truncates it.
+ *
+ * FROM THE ANSWER: its requester's name and where the asking happened. An
+ * acquisition whose origin is not known says so, never nothing; a folder
+ * dropped by hand asked nobody, and its subtitle already says it was.
+ *
+ * @param medium The card's row.
+ * @returns The line, or undefined where the card draws none.
+ */
+export function originLine(medium: Pick<MediumCard, "requester" | "ladder" | "droppedByHand">): string | undefined {
+  if (medium.requester)
+    return i18next.t(`surfaces.card.requester.${medium.requester.via}`, { name: medium.requester.name });
+  return medium.ladder && !medium.droppedByHand ? i18next.t("surfaces.card.requester.unknown") : undefined;
+}
+
+/**
  * One medium's card.
  *
  * TWO DIFFERENT ABSENCES, never merged: `withoutPoster` says there is no artwork, a
@@ -68,7 +154,7 @@ function stageState(value: number | string): StripState {
  * @param foot The section's action, if it offers one.
  * @returns The card's markup.
  */
-export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot): string {
+export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | MediumCardFoot[]): string {
   const title = medium.title;
   const hasSheet = medium.ids != null;
   // french-ok: a panel ADDRESS and the non-medium marker, contract values the delegation and R46 read
@@ -77,6 +163,7 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot): str
     ? `<span class="${posterFallback()}" data-part="card/poster-fallback"><b>${escapeMarkup(initials(title))}</b></span>`
     : posterArtworkMarkup(posterArtwork(icons, medium.poster, title, medium.k));
   const stages = i18next.t("surfaces.card.stages", { returnObjects: true }) as string[];
+  const onLadder = medium.ladder ? ladderMarkup(medium.ladder) : null;
   return cardMarkup({
     title,
     // french-ok: the non-medium marker R46 reads, a contract value
@@ -96,14 +183,25 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot): str
         },
     body: { "data-panel": medium.panel || (hasSheet ? `media:${title}` : folderAddress) },
     subtitle: medium.secondaryLine,
-    reason: medium.reason ? richTextMarkup(medium.reason) : undefined,
+    reason: medium.plexMatch
+      ? escapeMarkup(i18next.t("surfaces.card.plexMatch", { title: medium.plexMatch.title }))
+      : medium.reason
+      ? richTextMarkup(medium.reason)
+      : onLadder?.reason ? escapeMarkup(onLadder.reason) : undefined,
     overview: medium.overview,
-    fraction: medium.f,
-    chip: medium.chip ? { tone: medium.chip.tone, label: medium.chip.text } : null,
+    fraction: onLadder ? onLadder.fraction : medium.f,
+    chip: onLadder ? onLadder.chip : medium.chip ? { tone: medium.chip.tone, label: medium.chip.text } : null,
     rating: medium.note != null ? String(medium.note) : undefined,
     caption: medium.caption,
     fresh: medium.fresh ? i18next.t("surfaces.card.freshTag") : undefined,
-    strip: medium.strip?.map((value, index) => ({ state: stageState(value), label: stages[index] })),
-    foot: foot ? { label: foot.label, solid: foot.solid, attributes: foot.attributes ?? {} } : undefined,
+    // THE LINE IS COMPOSED FROM THE ANSWER — its name and where the asking
+    // happened — never from a constant (§13).
+    requester: originLine(medium),
+    strip: onLadder ? onLadder.strip : medium.strip?.map((value, index) => ({ state: stageState(value), label: stages[index] })),
+    foot: foot === undefined
+      ? undefined
+      : (Array.isArray(foot) ? foot : [foot]).map((one) => ({ label: one.label, solid: one.solid, attributes: one.attributes ?? {} })),
+     footRow: footRow(),
+     originRow: originRow(),
   });
 }
