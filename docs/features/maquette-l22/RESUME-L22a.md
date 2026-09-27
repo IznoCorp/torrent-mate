@@ -16,8 +16,11 @@ Read after `docs/features/maquette-l22/BRIEF-L22a.md` (governs) and `RULINGS.md`
   défaut, puis le dernier onglet ouvert (mémoire locale) » — R202 red 4 FAIL, green, three mutations fell by name,
   `13-mutation-exprs.txt`; journey.py re-aimed green) · 13 CLOSED by « l22a 2 »: origin/main merged (9bfc83f2c),
   R175 onto « Suivis » (3a5164f39), gate 39 rules + 26 guards 0 failed, oracle exit 0 (none accepted), --a11y light 98.
-  14 IN PROGRESS: R205 `return_to_todo.py` red 3 FAIL (`14-red.log`), the move committed; then gate, mutations,
-  oracle acceptance of `acq-resolution-tie`. NEXT: 14-bis, 14-ter, the close (full suite ONCE after 14-ter).
+  14 (736ee5ca6+b75a13bbb+0f2e32f72, R205) · RULINGS 9 (cd834db40): order 14-ter → 14-bis-a → 14-bis-b ·
+  14-ter (594debc68+2 busy.py commits, R225; take path re-aimed: busy, actions, page_host; a11y light 98).
+  NEXT: 14-bis-a (one_ladder/acq-card-rungs, requester_line, release_candidates, R47 Star Trek understood), then
+  14-bis-b: re-apply `~/Library/Logs/tm-l22a/14b-move.patch` + `14b-now_holds_in_flight.py` (R224, red 5 FAIL
+  seen), section readers; measure at opening, >15 = STOP. Then the close (full suite ONCE, after 14-bis-b).
 - B-553/R223 are the repair train's (next row B-555, next rule R224); `--a11y` on every drawing gate, light at 98.
 - Oracle: `oracle.py --accept` takes NO state names and rewrites the whole reference; each acceptance is its own
   commit naming the states and the mechanism. The « En cours » body (now-tab.tsx) is drawn beneath pwa-*, relay-*,
@@ -61,3 +64,5 @@ Read after `docs/features/maquette-l22/BRIEF-L22a.md` (governs) and `RULINGS.md`
   holds pass and its « return from the resolution » holds fall: « À traiter » is too short to leave posters loading.
 - 2026-09-27 phase 13 — successor « l22a 2 »: the warm exits from « À traiter » already popped to `?tab=todo`; only the
   cold link fell (the floor opened the remembered tab), repaired in phase 14 by `landingTab()`.
+- 2026-09-27 phase 14-bis exploration — paths_to_sheets.py « acq-add-results really draws rows — 0 » fell inside a
+  35-rule run and passed ALONE on the clean tree (`14b-paths-alone.log`): load, not the phase.
