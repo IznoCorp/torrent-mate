@@ -17,7 +17,8 @@
 import { heldIdentity, providerAddress } from "../../lib/held-identity";
 import { membershipQuery, type Membership } from "../../lib/membership";
 import { seasonsQuery, seasonsHeld, type SeasonsAnswer } from "../../lib/season-rows";
-import { queueNow } from "../../lib/queue";
+import { queueKey, queueNow, type AcquisitionQueue } from "../../lib/queue";
+import { store } from "../../lib/store-access";
 import type { PanelCache } from "../../ui/panel/contract";
 import { followsQuery, incompleteShowsQuery } from "./queries";
 
@@ -109,7 +110,9 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
   const inLibrary = incomplete || membership.inLibrary;
   const queue = queueNow();
   const toTake = queue.takeable.some((one) => one.title === title);
-  const todo = todoCards(queue).find((one) => one.title === title);
+  const scenario = String(store.read().state.scen) === "loaded" ? "loaded" : "";
+  const answer = cache.held<AcquisitionQueue>(queueKey(scenario));
+  const todo = answer ? todoCards(answer).find((one) => one.title === title) : undefined;
   const toResolve = queue.blocked
     .concat(queue.stuck ?? [])
     .some((one) => one.title === title);

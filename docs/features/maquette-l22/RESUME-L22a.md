@@ -69,3 +69,6 @@ Read after `docs/features/maquette-l22/BRIEF-L22a.md` (governs) and `RULINGS.md`
 - 2026-09-27 phase 14-bis-a — R47 (cards.py) fell on the clean tree: phase 10's Plex-match card, two stacked feet,
   poster cropped 51 % (bound 40 %); unshipped defect, repaired by RULINGS 10 (feet side by side). From now on
   `cards.py` runs in every gate that touches a card.
+- 2026-09-27 phase 14-bis-b1 — RULINGS 12: Arrivées' « Ça coince » still offers « Résoudre → » on Top Chef, a step no
+  pick unblocks (ruling 5's guard), while its panel now offers « Relancer » / « Abandonner ». R43 reads Acquisition's
+  folder cards only; Arrivées is not redrawn — it dies in L22b (phase 25).

@@ -215,11 +215,14 @@ async def main():
             # EVERY FOOT, AND A FOLDER THAT HAS A PANEL. Said out loud: this
             # read the FIRST foot of a medium's card only, so a card offering two
             # answers kept its second out of the panel unseen, and a folder's
-            # card — a step that cannot finish — was never read at all.
+            # card — a step that cannot finish — was never read at all. The
+            # folders read are Acquisition's: Arrivées still offers « Résoudre »
+            # on a step no pick unblocks, and that page is not redrawn, it dies.
             inlines = await pg.evaluate(
                 """()=>[...document.querySelectorAll('[data-part="card"]')].filter(visible)
                     .filter(c=>c.querySelector('[data-part="card/foot"]')
                       && (!c.dataset.nonmedia || (c.dataset.nonmedia === 'dossier'
+                          && c.closest('[data-region="acquisition/body"]')
                           && c.querySelector('[data-part="card/body"]')?.dataset.panel)))
                     .flatMap(c=>[...c.querySelectorAll('[data-part="card/foot"]')].map(foot=>({
                               title:c.querySelector('[data-part="card/title"]')?.textContent||'',
