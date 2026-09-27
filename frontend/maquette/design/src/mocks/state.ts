@@ -199,6 +199,8 @@ export type MockState = {
    * nothing knows in advance which media will be asked for.
    */
   journeyStages: Record<string, Schemas["JourneyStage"][]>;
+  /** A staged folder's case, POSED by the harness (RULINGS 22) — no fixture records one. */
+  stagedCopies: Record<string, string>;
   /**
    * When each medium's metadata was last re-read, keyed by TITLE.
    *
@@ -294,6 +296,7 @@ const seeded = (): MockState => ({
   historyDegraded: false,
   tmpOrphans: copyOf<Schemas["TmpOrphan"][]>(TMP_ORPHANS),
   journeyStages: {},
+  stagedCopies: {},
   metadataRefreshedAt: {},
   restartRequired: false,
   changedFiles: [],

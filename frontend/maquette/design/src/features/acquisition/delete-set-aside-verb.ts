@@ -6,12 +6,18 @@
 // care that NAMES the folder — it has no provider identity — and says whether
 // this copy is the only one; only the confirmation calls the operation.
 //
-// THE CASE IS SAID, NEVER GUESSED: until the confirmation reads it from the
-// download client, the folder is treated as the only copy.
+// THE CASE IS READ WHEN THE CONFIRMATION OPENS, never from the day it arrived:
+// the torrent may have left the download client since. A read that fails says
+// « unknown », and unknown is treated as the only copy — never as a copy the
+// torrent still keeps.
 import i18next from "i18next";
 import { registerVerb } from "../../lib/verbs";
 import { dialog, toast } from "../../lib/shell-doors";
-import { send, sharedQueryClient } from "../../lib/query-client";
+import { read, send, sharedQueryClient } from "../../lib/query-client";
+
+/** The words each case the read answers is said in; any other answer is unknown. */
+const CASE_WORDS: Record<string, string> = { keeps_files: "caseKeepsFiles", only_copy: "caseOnlyCopy" };
+const UNKNOWN_WORDS = "caseUnknown";
 
 /** The two reads a deleted folder leaves: the queue, and the staging area. */
 const LEFT = [["/api/acquisition/to-handle"], ["/api/staging/media"]];
@@ -28,18 +34,32 @@ async function deleteFolder(title: string): Promise<void> {
 }
 
 /**
- * Opens the confirmation that names the folder and its case; nothing is sent before it is confirmed.
+ * Reads the folder's case, then opens the confirmation that names the folder and says it.
+ *
+ * Nothing is sent before it is confirmed.
  *
  * @param title The folder.
  */
 export function openDeleteConfirm(title: string): void {
+  void read<{ case: string }>(`/api/staging/media/${encodeURIComponent(title)}/copies`)
+    .then((answer) => CASE_WORDS[answer.case] ?? UNKNOWN_WORDS, () => UNKNOWN_WORDS)
+    .then((words) => openConfirm(title, words));
+}
+
+/**
+ * Opens the confirmation, the case already read.
+ *
+ * @param title The folder.
+ * @param words The key of the sentence saying its case.
+ */
+function openConfirm(title: string, words: string): void {
   const say = (key: string) => i18next.t(`verbs.acquisition.deleteStaged.${key}`, { title });
   dialog?.open({
     heading: say("heading"),
     body: [
       {
         type: "paragraph",
-        runs: [{ text: say("bodyBefore") }, { text: title, strong: true }, { text: say("bodyAfter") }, { text: say("caseUnknown") }],
+        runs: [{ text: say("bodyBefore") }, { text: title, strong: true }, { text: say("bodyAfter") }, { text: say(words) }],
       },
     ],
     actions: [

@@ -16,7 +16,12 @@ Walked by finger on « Lucky », a real pending decision set aside:
 4. confirmed, the deletion is ANSWERED on the network, and the card leaves
    « Mis de côté »;
 5. both reads asked again, it does not come back — the mock's state, not the
-   screen's.
+   screen's;
+6. the confirmation says the case its read answered, on three folders: the
+   torrent keeps its files (« Lucky », the case POSED on it — RULINGS 22: a
+   derivation the backend replaces by qBittorrent's answer at the gesture), the
+   only copy (« Top Chef Le Concours Parallèle », dropped by hand, no torrent),
+   and unknown, treated as the only copy (« Lucky » with nothing posed).
 
 Red before the move: the card offers no « Supprimer ».
 """
@@ -31,6 +36,12 @@ ROOT = pathlib.Path(__file__).resolve().parents[1] / "design/src"
 WORDS = json.loads((ROOT / "i18n/fr.json").read_text(encoding="utf-8"))
 FOOT = WORDS["screens"]["acquisition"].get("deleteFoot")
 CASE = WORDS["verbs"]["acquisition"].get("deleteStaged", {}).get("caseUnknown")
+# Each case's named state, its folder and the words its confirmation must say.
+CASES = {
+    "acq-delete-keeps-files": ("Lucky", "caseKeepsFiles"),
+    "acq-delete-only-copy": ("Top Chef Le Concours Parallèle (2026)", "caseOnlyCopy"),
+    "acq-delete-unknown": ("Lucky", "caseUnknown"),
+}
 FOLDER = "Lucky"
 SECTION = '[data-part="section/set-aside"]'
 OPERATION = "deleteStagedMedia"
@@ -121,6 +132,18 @@ async def main():
         await page.wait_for_timeout(ACTED)
         titles = await page.evaluate(TITLES)
         journal.check("both reads asked again, it does not come back", FOLDER not in titles, str(titles))
+
+        # ── each case, as its named state opens the confirmation ─────────────
+        for state, (folder, key) in CASES.items():
+            words = WORDS["verbs"]["acquisition"].get("deleteStaged", {}).get(key)
+            answer = await page.evaluate(
+                "(id)=>{try{window.__go(id);return null}catch(error){return String(error)}}", state)
+            journal.check(f"the named state {state} exists", answer is None, answer or "")
+            await page.wait_for_timeout(SETTLED)
+            text = await page.evaluate(DIALOG)
+            journal.check(f"{state}: the confirmation names « {folder} » and says its case",
+                          text is not None and folder in text and words is not None and words in text,
+                          f"{text!r}")
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

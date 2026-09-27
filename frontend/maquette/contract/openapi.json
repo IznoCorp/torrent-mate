@@ -2085,6 +2085,68 @@
         "x-unseeded": "an acknowledgement that the folder asked for was removed."
       }
     },
+    "/api/staging/media/{mediaId}/copies": {
+      "get": {
+        "operationId": "readStagedMediaCopies",
+        "summary": "Whether a staged folder is the only copy of its files — POSED in the maquette (RULINGS 22); the backend reads the torrent's presence in qBittorrent at the gesture",
+        "description": "Read when « Supprimer »'s confirmation opens (M2): the torrent still in qBittorrent with its files (`keeps_files`), no torrent or a moved arrival (`only_copy`), or no answer from qBittorrent (`unknown`, treated as the only copy). The ingest row's `copied`/`moved` gives the provenance only; the backend answers from qBittorrent at the gesture. IN THE MAQUETTE THE CASE IS POSED, NOT READ (RULINGS 22): `keeps_files` on one folder by the harness, `only_copy` from a folder dropped by hand, `unknown` for any other.",
+        "tags": [
+          "staging"
+        ],
+        "parameters": [
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the staged item"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the folder's case",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "case": {
+                      "type": "string",
+                      "enum": [
+                        "keeps_files",
+                        "only_copy",
+                        "unknown"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "case"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "the case is POSED on one folder by the harness (RULINGS 22): no fixture records a staged folder's ingest action or its torrent; the backend reads the torrent's presence in qBittorrent at the gesture."
+      }
+    },
     "/api/staging/media/{mediaId}/continue": {
       "post": {
         "operationId": "continueStagedMedia",

@@ -3,6 +3,7 @@
 import DESTINATIONS from "../seeds/staging-destinations.json";
 import { DELETE, GET, POST, route, text } from "./shared";
 import { mockState } from "../state";
+import { FROM_BLOCKED, FROM_DENSE, FROM_REAL, SOURCE_LISTS, copiesOf, takeOutOfStaging } from "./staged-folders";
 import { scenario } from "../scenario";
 import { refused, type MockRequest, type MockRoute } from "../router";
 import { forgetLadder, ladderOf, rungIndex, stripPosition, type Origin, type Position } from "./ladder";
@@ -29,13 +30,10 @@ const RUNNING_NOW = "now";
 // The tone a card wears once it went back through the pipeline.
 const INFORMATIVE = "info";
 
-// Which of the two staging worlds a card came from and goes to. Named because
-// the pairing is the decision, not the spelling.
-const FROM_REAL = "stuck";
+// The list a continued card goes to, per staging world; the lists it comes
+// from are `staged-folders.ts`'s. Named because the pairing is the decision.
 const TO_REAL = "movingReel";
-const FROM_DENSE = "stuckLoaded";
 const TO_DENSE = "moving";
-const FROM_BLOCKED = "blocked";
 const SCRAPING_LABEL = "Scraping";          // french-ok: a carried fixture value
 
 // Where an arrival's asking happened: a follow of the account, or a direct add
@@ -74,9 +72,6 @@ const WITHOUT_IDENTITY = "a correction carries the identity picked";
 // Why a reclassification is refused, in the problem body's own words.
 const UNKNOWN_DESTINATION = "not a destination the sort files a non-media folder into";
 
-// The lists a folder can be reclassified out of, which are the lists its two
-// siblings walk.
-const SOURCE_LISTS = [FROM_REAL, FROM_DENSE, FROM_BLOCKED] as const;
 
 // The two lists a settled folder can be in, one per world.
 const SETTLED_REAL = "settled";
@@ -159,27 +154,6 @@ function moving(card: QueueCard): Position | undefined {
   if (position === undefined || position.state !== RUNNING) return position;
   if (mockState().pipelineState !== MAINTENANCE_HOLDS) return position;
   return { ...position, state: WAITING, reason: MAINTENANCE_HOLDS };
-}
-
-/**
- * Takes one folder out of the staging area, whichever list serves it.
- *
- * THE SAME THREE LISTS ITS SIBLINGS WALK. Filtering `stuck` alone once let a
- * card served from the DENSE world — or from « ça bloque » — be asked to go,
- * remove nothing and stay on screen: the list a card is IN is a fact about the
- * scenario in force, never about the operation asking.
- *
- * @param asked The folder.
- * @returns Whether a folder was taken out.
- */
-function takeOutOfStaging(asked: string): boolean {
-  const state = mockState();
-  for (const list of [FROM_REAL, FROM_DENSE, FROM_BLOCKED] as const) {
-    const before = state[list].length;
-    state[list] = state[list].filter((card) => card.title !== asked);
-    if (state[list].length !== before) return true;
-  }
-  return false;
 }
 
 /**
@@ -323,6 +297,9 @@ export function stagingRoutes(): MockRoute[] {
     ),
     // DELETED, NOT QUARANTINED: « Supprimer » on a folder set aside removes it
     // from the disk and journals it; the answer carries no place it went.
+    route("readStagedMediaCopies", GET, "/api/staging/media/{mediaId}/copies", (request) => ({
+      case: copiesOf(request.parameters.mediaId),
+    })),
     route("deleteStagedMedia", DELETE, "/api/staging/media/{mediaId}", (request) => {
       const removed = takeOutOfStaging(request.parameters.mediaId);
       return { ok: removed, journaled: removed };

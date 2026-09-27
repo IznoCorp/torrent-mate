@@ -1344,6 +1344,8 @@
         "heading": "Supprimer « {{title}} » du disque ?",
         "bodyBefore": "Le dossier ",
         "bodyAfter": " sera supprimé du disque et la suppression journalisée. ",
+        "caseKeepsFiles": "Le torrent garde ses fichiers dans qBittorrent : ce dossier n'en est qu'une copie.",
+        "caseOnlyCopy": "C'est le seul exemplaire : aucun torrent ne garde ces fichiers.",
         "caseUnknown": "qBittorrent n'a pas répondu : ce dossier est traité comme le seul exemplaire.",
         "confirm": "Supprimer",
         "cancel": "Annuler",

@@ -263,6 +263,20 @@ pull on a deck the operator had paged through returns it to its start.
 answers; the deck returning to it is the pull doing what it says, not a lost position. No hold asserts the contrary, and
 none is added.
 
+## 22 — the « keeps its files » case is POSED on Lucky, a derivation shown as one (auditor, 2026-09-27 16:4x; L22b phase 24, STOP D)
+
+**The STOP.** M2 has « Supprimer »'s confirmation read its case from qBittorrent at the gesture — the torrent keeps its
+files / the only copy / unknown, treated as the only copy. No seed carries a staged folder's ingest action (`copied` /
+`moved`) or its torrent's presence: « only copy » derives from a real `droppedByHand`, « unknown » from a download client
+that says nothing, and « keeps its files » from no seeded fact at all.
+
+**Ruled (a)**, on the precedent of rulings 5, 6 and 14: the case is POSED on « Lucky » — a real blocked row that
+arrived by torrent — by a mock door, and the named state and its demand row SAY it is posed, not read, and name the
+backend read that replaces it: the torrent's presence in qBittorrent at the gesture (M2). A folder nothing is posed
+on answers « unknown ». **Two conditions**: (1) that wording in the state's description and in the demand; (2) each
+of the three cases has its own mutation, and « unknown » falls toward « only copy », never toward « keeps its files ».
+(b), reading the operator's real ingest record, is refused; (c), holding the phase, was not needed.
+
 ## 30 — the ladder's figure keeps one meaning; a Plex match waits on its current rung (steward, 2026-09-27; round one, A6)
 
 **The question.** The round's brief asked Star Trek's card to read « 7 sur 8 »; the figure is the current rung's

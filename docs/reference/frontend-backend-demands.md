@@ -19,9 +19,9 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 68 |
+| operations the interface requires | 69 |
 | operations the backend has | 65 |
-| required and missing | 21 |
+| required and missing | 22 |
 | declared by both, different response shape | 47 |
 | declared by both, path parameter spelled differently | 15 |
 | declared by both, answered with a different status | 11 |
@@ -47,6 +47,7 @@ than a blank page.
 | `GET /api/library/recent` | `readLibraryRecent` | The most recently added titles |
 | `GET /api/media/{provider}/{providerId}/seasons` | `readMediaSeasons` | The seasons of a show, and what the library holds of each |
 | `GET /api/staging/destinations` | `readStagingDestinations` | Where the sort files what is not a medium |
+| `GET /api/staging/media/{mediaId}/copies` | `readStagedMediaCopies` | Whether a staged folder is the only copy of its files — POSED in the maquette (RULINGS 22); the backend reads the torrent's presence in qBittorrent at the gesture |
 | `GET /api/system/dependencies` | `readDependencies` | The external dependencies, and whether each answers |
 | `GET /api/system/errors` | `readErrors` | How many errors, out of how many runs, and the latest |
 | `GET /api/system/services` | `readServices` | The services, and whether each answers |

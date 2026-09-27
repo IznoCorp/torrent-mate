@@ -24,6 +24,7 @@ import { seasonsHeld } from "../lib/season-rows";
 import { renameAccount } from "./account";
 import { mockState } from "./state";
 import { setAside } from "./handlers/staging";
+import { poseKeepsItsFiles } from "./handlers/staged-folders";
 import { confirmInPlex, placeAtPlexCheck } from "./handlers/ladder";
 import { emit } from "./stream";
 
@@ -48,6 +49,8 @@ export type MockSeeds = {
   clearBlocked: () => void;
   /** Sets one queued folder aside, as « Laisser tel quel » does, until the layer is next reset. */
   setAside: (title: string) => boolean;
+  /** Poses « the torrent keeps its files » on a staged folder — a DERIVATION, never read (RULINGS 22). */
+  poseKeepsItsFiles: (title: string) => void;
   /** Lays a medium's ladder one event away from « vérifié dans Plex » — a DERIVATION from its real row (RULINGS 14). */
   placeAtPlexCheck: (title: string) => void;
   /**
@@ -112,6 +115,7 @@ export const mockSeeds: MockSeeds = {
     });
   },
   setAside,
+  poseKeepsItsFiles,
   placeAtPlexCheck,
   confirmInPlex: (title) => {
     confirmInPlex(title);

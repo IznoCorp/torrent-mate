@@ -8,6 +8,7 @@
 import { applyState, type NamedState } from "../drive";
 import { openAbandonConfirm } from "../../features/acquisition/abandon-verb";
 import { openNotMediaChoice } from "../../features/acquisition/not-media-verb";
+import { openDeleteConfirm } from "../../features/acquisition/delete-set-aside-verb";
 
 // How long after « À traiter » is asked for its fold is opened: the read has to
 // answer and the tab draw before there is a fold to open.
@@ -132,6 +133,40 @@ export function tunnelStates(): NamedState[] {
       () => {
         applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" });
         openAbandonConfirm("Top Chef Le Concours Parallèle (2026)");
+      },
+    ],
+    [
+      "acq-delete-keeps-files",
+      "Mis de côté — « Supprimer » : le torrent garde ses fichiers (cas POSÉ sur Lucky, que le back-end lira dans qBittorrent au geste — RULINGS 22)",
+      () => {
+        // A DERIVATION, SHOWN AS ONE (RULINGS 22): no fixture records a staged
+        // folder's torrent, so « keeps its files » is posed on a real row that
+        // arrived by torrent.
+        window.__mocks?.setAside("Lucky");
+        window.__mocks?.poseKeepsItsFiles("Lucky");
+        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
+        applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" });
+        openDeleteConfirm("Lucky");
+      },
+    ],
+    [
+      "acq-delete-only-copy",
+      "Mis de côté — « Supprimer » : le seul exemplaire (un dossier déposé à la main, aucun torrent)",
+      () => {
+        window.__mocks?.setAside("Top Chef Le Concours Parallèle (2026)");
+        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
+        applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" });
+        openDeleteConfirm("Top Chef Le Concours Parallèle (2026)");
+      },
+    ],
+    [
+      "acq-delete-unknown",
+      "Mis de côté — « Supprimer » : qBittorrent muet, traité comme le seul exemplaire",
+      () => {
+        window.__mocks?.setAside("Lucky");
+        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
+        applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" });
+        openDeleteConfirm("Lucky");
       },
     ],
   ];

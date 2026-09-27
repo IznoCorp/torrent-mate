@@ -158,6 +158,7 @@ cards
 carried
 carries
 carrying
+case
 cases
 cast
 cat
@@ -228,6 +229,7 @@ control
 controller
 convert
 converted
+copies
 copy
 corps
 correct
@@ -329,6 +331,7 @@ draws
 driven
 driver
 drop
+dropped
 dry
 duration
 dx
@@ -549,6 +552,7 @@ journey
 json
 jsx
 keep
+keeps
 kept
 key
 keys
@@ -800,6 +804,7 @@ port
 portrait
 portraits
 pos
+pose
 posed
 position
 positioned
