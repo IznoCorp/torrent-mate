@@ -33,6 +33,10 @@ screen's); its panel offers « Résoudre → » (One card, one behaviour: the pa
 
 ## Move
 
+> **Amended 2026-09-27 (triage F4, F51):** « Laisser tel quel » sends `continueStagedMedia` with outcome `left`
+> (`lib/queue.ts`, mock `handlers/staging.ts`) — built so at 15a; `dismissDecision` below is the first drawing's
+> reading, kept for the record. 15b's delete is a SEPARATE operation, and 15b is now **phase 21**.
+
 `leave` keeps the card and marks it `aside` with its date; `now-tab.tsx` draws the section « Mis de côté » (a pip of the
 « waiting » tone; its name and place adjust to the drawing); the reason is composed from the date, never a constant (§13).
 Named state `acq-card-set-aside`.

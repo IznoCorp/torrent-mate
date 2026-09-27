@@ -1,4 +1,14 @@
-# Phase 20 — The menu button's badge
+# Phase 24 — The menu button's badge
+
+**Numbered 24 on 2026-09-27** (was 20; the triage's F51). **HELD until its opening carries, BEFORE its first commit,
+the coherence triage (`review-archive/coherence-2026-09-27-triage.md` § B; texts in `coherence-2026-09-27.md`): F1 + C2 (blocking)** — each navigation row that carries a badge DECLARES the queries its badge reads, and the frame
+keeps them OBSERVED for the document's lifetime (a frame-level observer); the declaration is born keyed on the row, so a
+row not drawn registers no observer (C2); Système declares locks, services and dependencies; `engine-data.ts`'s boot list
+moves into those declarations (its removal scheduled, its header corrected); R-L22-c reads the badge on a cold load of
+ANOTHER page, then after a live event, on a seeded fact, with the mutation « drop the declaration → falls »; DESIGN
+§ 2.1 and § 3.6 corrected. **And M3** (the auditor's decision-coherence round): the badge counts BY RIGHTS — this phase
+builds the no-rights half only, declaring its reads per row, and SAYS so in black and white; L18 writes the rights half
+and mutates it. Re-measured at the opening; > 15 → cut. The MIDPOINT full suite runs after this phase.
 
 **Opening measure (2026-09-26, on `94a369879`):**
 

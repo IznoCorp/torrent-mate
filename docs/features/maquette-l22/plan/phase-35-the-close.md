@@ -1,10 +1,14 @@
-# Phase 27 — The close
+# Phase 35 — The close
+
+**Numbered 35 on 2026-09-27** (was 27; the triage's F51). **Carried at its opening, from the coherence triage (`review-archive/coherence-2026-09-27-triage.md` § B; texts in `coherence-2026-09-27.md`)**: F8 (the bar count in the
+close's texts), F52 (the close edits only what the brief allows — `IMPLEMENTATION.md` and `docs/reference` are the
+steward's — and counts the folder's deletion), F67 and C9 (their L22 parts).
 
 **Opening measure (2026-09-26, on `94a369879`):**
 
 - **Commands.** The count of named states by the design's own command
   (`python3 -c "import re,glob;print(sum(len(re.findall(r'^\s*\[\s*\"([^\"]+)\"\s*,\s*\"', open(f).read(), re.M)) for f in glob.glob('frontend/maquette/design/src/harness/states/*.ts')))"`)
-  → **114** today; the design's figure at the close is **129** (114 − 8 + 23). `grep -n 'Every state has a name' frontend/maquette/README.md`
+  → **114** today; the design's figure at the close is the states the phases declared, counted at the close by the design's command (amended 2026-09-27, triage F50: « 129 » was the first drawing's). `grep -n 'Every state has a name' frontend/maquette/README.md`
   reads « count them there, never here ». Documents naming the page today:
   `git grep -c -i 'arrivals\|Arrivées' -- docs/reference frontend/maquette/README.md IMPLEMENTATION.md CLAUDE.md BUGS.md` →
   `BUGS.md` 37, `IMPLEMENTATION.md` 23, `frontend-architecture.md` 10, `product-intent-map.md` 9, `operator-method.md` 8,
@@ -40,7 +44,7 @@ the report; a sentence that cannot be re-run is removed, not softened.
 - **The eleven rulings** (DESIGN § 7.2, all ruled 2026-09-26): each is proved landed where the design says, by a command
   whose output goes in the report — OPEN 1 the tabs' DOM order (R-L22-e); OPEN 2 the bar's shares at three and at two
   (R-L22-s); OPEN 3 no arrival card in « Suivis » (R-L22-l); OPEN 4 « sur 8 » and eight cells (R-L22-f); OPEN 5 `/arrivals` drawn
-  as not-found, not redirected (R-L22-o); OPEN 6 `data-pipe` gone from the source and the four rules re-aimed (the phase-23
+  as not-found, not redirected (R-L22-o); OPEN 6 `data-pipe` gone from the source and the four rules re-aimed (the phase-31
   table); OPEN 7 no progression on the candidates screen (R-L22-d); OPEN 8 both families in the menu badge (R-L22-c); OPEN 9
   « Confirmer » and « Corriger » answered on the network (R-L22-t); OPEN 10 « Abandonner » sending nothing before its
   confirmation (R-L22-u); OPEN 11 no reassign gesture on the card.
@@ -58,7 +62,7 @@ The six rows above, amended.
 
 ## Oracle: states that diverge, declared by name
 
-**None.** The full oracle at zero divergence over every surviving state; the 23 new states recorded.
+**None.** The full oracle at zero divergence over every surviving state; the new states recorded — the states the phases declared, counted at the close by the design's command (amended 2026-09-27, F50).
 
 ## Commit
 

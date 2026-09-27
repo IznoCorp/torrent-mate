@@ -9,7 +9,7 @@
   → the 8 `arr-*` ids). The three accessibility files hold the debts by id:
   `git grep -n 'arr-decision\|arr-resolution' -- frontend/maquette/a11y-contrast.json frontend/maquette/a11y-debt.json frontend/maquette/a11y-light-debt.json`
   → 2 entries in each of the three. `actions.py`, `cards.py` and `decision.py` ALSO read `arr-idle` / `arr-loaded`: **they
-  are touched again in phase 22** and that is stated rather than hidden.
+  are touched again in phase 30** and that is stated rather than hidden.
 - **Points ≈ 8.** Two states renamed 2; the recorded debts by id in three files 1; ten rule files whose change is one
   id swapped ½ each = 5.
 

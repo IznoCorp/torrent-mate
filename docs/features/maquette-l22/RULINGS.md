@@ -253,6 +253,16 @@ driver's reset leaves `acqTab`, so they drew the tab the state before left (« D
 order, which is the real defect; they are accepted by name on those three regions with the script's proof, and B-554's
 row gains one line naming this third inheritance. (A) keeps the defect; (C), repairing the reset, is new apparatus.
 
+## 21 — a pull on « Découvrir » returns the deck to its first batch (steward, 2026-09-27; L22b phase 19-bis-b)
+
+**The question.** 19-bis-b's repair (`12dab6588`) made the « Découvrir » page observe `suggestionsQuery`, so a pull
+to refresh re-reads it (R223 held the wheel on `discover-full`). A re-read of that query answers the FIRST batch: a
+pull on a deck the operator had paged through returns it to its start.
+
+**Ruled — accepted.** A pull re-reads what the page shows, and the first batch is what a fresh read of the suggestions
+answers; the deck returning to it is the pull doing what it says, not a lost position. No hold asserts the contrary, and
+none is added.
+
 ## 30 — the ladder's figure keeps one meaning; a Plex match waits on its current rung (steward, 2026-09-27; round one, A6)
 
 **The question.** The round's brief asked Star Trek's card to read « 7 sur 8 »; the figure is the current rung's

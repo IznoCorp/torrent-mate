@@ -1,4 +1,9 @@
-# Phase 21 — The sentences that sent the reader to Arrivées
+# Phase 29 — The sentences that sent the reader to Arrivées
+
+**Numbered 29 on 2026-09-27** (was 21; the triage's F51). **Carried at its opening, from the coherence triage (`review-archive/coherence-2026-09-27-triage.md` § B; texts in `coherence-2026-09-27.md`)**: F7 (the cross-references
+land on the default-tab rule round 7 wrote, not on « the default tab »; `toArrivals` names `?tab=todo`); F54 (the quality
+screen's sentence no longer promises a card reading « cherché, rien trouvé » — it edits i18n); F53 if this phase re-aims
+R-L22-g / R-L22-j first (the Backrooms row; the Spider-Man game out of the seeds and the count; check `doc_fr_2026_final`).
 
 **Opening measure (2026-09-26, on `94a369879`):**
 
@@ -9,7 +14,7 @@
   `crossrefLink`), `verbs.maintenance.started` (« Commande lancée — suivez-la dans « Arrivées ». », read by
   `features/maintenance/action-verbs.ts:85`, whose comment also names Arrivées). Harness readers of the sentences:
   `git grep -n -E 'toArrivals|introRest|leftBehindLink|maintenance.started|suivez-la|crossref' -- 'frontend/maquette/harness/*.py'`
-  → 3 lines, all in `page_host.py` (a « crossref » hold on the Arrivées page itself, which phase 23 re-homes).
+  → 3 lines, all in `page_host.py` (a « crossref » hold on the Arrivées page itself, which phase 31 re-homes).
 - **Points ≈ 13.** Four sentences rewritten 4; `now-tab.tsx`'s cross-reference deleted (lines 104–121) 4 and its 8 keys 1; two
   emitters re-targeted 1; R-L22-p with its mutation 3.
 

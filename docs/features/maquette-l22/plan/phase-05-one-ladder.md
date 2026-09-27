@@ -26,7 +26,7 @@
 Ruling 4, and OPEN 4 (ruled B): ONE ladder of EIGHT rungs, from the wish to Plex — « trié · enrichi · rangé » are one rung,
 « rangé », and the card reads « n sur 8 ». The card's strip and the journey sheet's rows are two READERS of one
 seed (§13 — one derivation per question); the strip retires from the acquisition queue's cards (it stays on
-`readStaging`'s cards until the page dies — Arrivées keeps working through phase 24).
+`readStaging`'s cards until the page dies — Arrivées keeps working through phase 32).
 
 ## Red today
 

@@ -16,7 +16,7 @@
 - **Points ≈ 15.** `navigation.ts` (`sys.inBar` false; the header comment rewritten, ≈ 12 lines) and the seam 2; five
   readers re-aimed onto the drawer path ½ each 3; R-L22-q with its mutation 3; three states (`drawer-system`,
   `bar-todo-badge`, `bar-clear`) 3 (reusing seeds) — 11 → **12** with the second touch of `queued_by_hand.py`, which
-  phase 23 revisits; **R-L22-s with its mutations 3 → 15** (OPEN 2).
+  phase 31 revisits; **R-L22-s with its mutations 3 → 15** (OPEN 2).
 - **Re-measured (2026-09-26, on `ba6a36cc9`, after the eleven rulings).** The commands above re-run: `git grep -n inBar` → 12
   site-lines (9 in `app/navigation.ts`, 2 in `navigation-seam.ts`, 1 in `tab-bar.tsx`), 7 lines in 5 files reach Système by the
   bar, `navigation.ts` 210 lines, `tab-bar.tsx` 94, the header comment still « the bar holds the four places one goes to SEE ». New
@@ -31,7 +31,7 @@
 Ruling 15: Système LEAVES the bar and is reached from the drawer, at its right. **The bar's composition by rights is
 L18's** — this phase draws the bar the table says, with no field added for a right. **OPEN 2 (ruled A) adds the frame rule the
 bar owes every count it will ever have**: only the buttons present are drawn, in equal shares of 1/n, n from 2 to 4, never an
-empty slot — three here, two when Arrivées dies (phase 25), three again when Trackers lands (L16).
+empty slot — three here, two when Arrivées dies (phase 33), three again when Trackers lands (L16).
 
 ## Red today
 
@@ -52,6 +52,10 @@ points: a rule the code already keeps still needs a guard, or the next edit to `
 of `navigation.ts` is rewritten in the same commit (a comment that outlives its decision is read as current — the species
 `CLAUDE.md` records twice) and says the frame rule (« the bar draws the buttons present, 1/n, 2 to 4 »). Named states
 `drawer-system`, `bar-todo-badge`, `bar-clear`; R-L22-s reads the bar on each of them.
+
+> **Amended 2026-09-27 (triage F58; RULINGS 17):** none of the three states was created — the bar's rules read the
+> states that already draw it. A later lot anchors its bar states beside `drawer-navigation` in
+> `harness/states/frame.ts`, never beside `bar-todo-badge`, which does not exist.
 
 ## Mutation
 

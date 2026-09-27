@@ -70,6 +70,10 @@ is L18's, L22 draws the requester line (OPEN 11); ruling 10 — the four tabs re
 traiter · Découvrir » (OPEN 1); ruling 15 — the bar draws only the buttons present, in equal shares
 (OPEN 2). The four others of the eleven (OPEN 3, 5, 7, 8) bear on rulings 1, 2, 8 and 12 in the same way.
 
+> **Amended 2026-09-27 (round 8, question 20 = A — § 7.4):** Découvrir left Acquisition and is a page of the bottom bar, at its
+> fourth place; Acquisition keeps THREE tabs, « Suivis · En cours · À traiter » (built at 19-bis-a/b). Where this design
+> reads « the four tabs » or « Découvrir » as a tab, read three tabs and a bar page.
+
 ### What this design reads
 
 `docs/reference/product-intent.md` § 20 whole, § 17 whole, § 16 point 3, and §§ 2, 3, 4, 6, 12, 13 for what
@@ -114,7 +118,7 @@ and the rule that refreshes that key on a server event lives ONLY in `features/a
 Delete the page and its live table with it, and the levers keep drawing the state they had at their last
 read while a pass starts and ends under them — the § 8 defect (« rien en silence »), introduced by a
 deletion that no rule about Arrivées would ever read. The rule therefore MOVES to `features/system/live.ts`
-in the phase BEFORE the one that deletes the page's table (phase 24, then phase 25); **R-L22-r reads it** (an event emitted through
+in the phase BEFORE the one that deletes the page's table (phase 32, then phase 33); **R-L22-r reads it** (an event emitted through
 the mock relay moves the lever). It is the species the L13c report recorded for the opening measure of a
 behaviour change: read the readers of what the phase removes, not only its writers.
 
@@ -216,8 +220,8 @@ the bar's `data-pipe` buttons** —
 
 — and none survives the bar as written; `queued_by_hand.py` is the one whose whole premise is that
 finger (B-371: « no path a hand can take »). **Ruled (OPEN 6, A): they re-aim, and each phase that does it says
-so out loud.** `arrivals.py` (R66) dies with the page (phase 25) and its report says, hold by hold, where each of
-its holds went; `locks.py` (R-L20-g), `page_host.py` and `queued_by_hand.py` (R185) re-aim in phase 23 — R185 onto
+so out loud.** `arrivals.py` (R66) dies with the page (phase 33) and its report says, hold by hold, where each of
+its holds went; `locks.py` (R-L20-g), `page_host.py` and `queued_by_hand.py` (R185) re-aim in phase 31 — R185 onto
 the path a hand still has (a maintenance command holding the lock, then a season asked: the `season/queued`
 pastille, § 6.1). **Two more files name the page only by its accented word** and are
 missed by the brief's command as well as by mine: `queued_ask_mark.py` (R138 — its docstring describes the
@@ -225,14 +229,14 @@ walk from Arrivées, the very claim B-514 says it can no longer keep) and `selec
 `machine.py` (R67) carries the sentence « a medium in trouble is Arrivées » as its premise (§ 6.3).
 
 **A count made by the word alone would have said 33 and been wrong in both directions**: it misses four
-readers of the page's identity and counts nine that read nothing. The plan's phases 22 and 23 are cut by
+readers of the page's identity and counts nine that read nothing. The plan's phases 30 and 31 are cut by
 the table above, not by the 33.
 
 **One reader more than the table counts**, found when the plan was re-measured on 2026-09-26:
 `harness/journey.py:90,419` reads the page's path through the `ARRIVALS` constant (`harness/common.py:518`) — an
 uppercase spelling that neither the brief's command nor the supplement above matches
 (`git grep -n -E 'data-page="arr"|PAGE_PATHS\["arr"\]|ARRIVALS' -- 'frontend/maquette/harness/*.py'` finds it). It
-re-aims with that constant, in phase 23; the totals above are left as written.
+re-aims with that constant, in phase 31; the totals above are left as written.
 
 ### 1.6 The cross-references to a page that stops existing
 
@@ -248,7 +252,7 @@ The brief names Système's two sentences (ruling 13). The tree has more emitters
 **Five sentences send a reader to a page that will not exist, not two**: the two ruling 13 names
 (`introRest`, `toArrivals`+`toArrivalsLink`), Acquisition's own cross-reference (which dies with its
 reason to exist — the arrivals it counted ARE now cards in « À traiter »), a run's detail link, and the
-Maintenance toast. The plan's phase 21 rewrites all of them; ruling 13 authorised two.
+Maintenance toast. The plan's phase 29 rewrites all of them; ruling 13 authorised two.
 
 ### 1.7 What does NOT die
 
@@ -288,6 +292,10 @@ it by editing the contract in phase 1 once the operator has read the design.
 | the Plex confirmation (the ladder's last rung) | — | **nothing in the contract or the mocks names Plex** (`git grep -ci plex -- frontend/maquette/contract/openapi.json frontend/maquette/design/src/mocks/handlers` → no match) — the last rung is demand B's |
 | « Confirmer » / « Corriger » on a Plex match | — | **no operation** — proposed, § 6 demand E (OPEN 9, ruled B) |
 
+> **Amended 2026-09-27, F4 (coherence triage, `review-archive/coherence-2026-09-27-triage.md` § B):** « Laisser tel quel » sends `continueStagedMedia` with outcome `left` (built
+> at 15a), not `dismissDecision`. « Supprimer » in « Mis de côté » is a SEPARATE operation (demand F, phase 21). The
+> `notFound` and `doneToday` families lost their consumer in round 7 and leave the contract at phase 21 (F40).
+
 The candidates screen's data is the maquette's own and stays: three pending decisions and ten settled ones
 are seeded (`python3 -c "import json;print(len(json.load(open('frontend/maquette/design/src/mocks/seeds/pending-decisions.json'))), len(json.load(open('frontend/maquette/design/src/mocks/seeds/settled-decisions.json'))))"` → `3 10`).
 
@@ -319,6 +327,11 @@ card from « À traiter » and adds it to the ladder at its next rung; a reclass
 acquisitions; « Laisser tel quel » moves it to « En cours » with its reason; « Confirmer » on a Plex match moves the
 card off « À traiter » (§ 3.3); « Abandonner » removes it from « À traiter » and answers its `quarantine_path`; a followed film reaching the last rung leaves the follows read (§ 3.5). One source each: the list and the count of the tab read the same
 answer (§ 3.1).
+
+> **Amended 2026-09-27, F4 and F3:** « Laisser tel quel » moves the card into the FOLDED « Mis de côté » at the end of
+> « À traiter », outside its count and the bar's badge (ruling 16), never into « En cours ». Only a Plex match that
+> DISAGREES with the identity held waits in « À traiter »; « Corriger » keeps the card there until the correction is
+> answered; « Confirmer » lays « vérifié dans Plex » done (phase 23).
 
 ### 2.3 The stream
 
@@ -479,6 +492,12 @@ enregistrant son état »). One rung is current; its state is one of:
 | `aside` | set aside by him (ruling 6) | « En cours » | « mis de côté par vous, le … » |
 | `done` / `pending` | passed / not reached | — | — |
 
+> **Amended 2026-09-27, F4 and F5:** `aside` reads in the folded « Mis de côté » at the end of « À traiter », outside its
+> count and the badge; « En cours » holds « En vol » alone; « Arrivé dans les 24 h » reads in the Médiathèque's
+> « Récents ». A card born of a direct add keeps eight rungs and « n sur 8 », its four rungs before « arrivé » drawn in a
+> new domain-free cell state — neither done nor pending, no time (phase 25). Noted, not repaired: every mock card borrows
+> the template journey's times (a § 13 fidelity point).
+
 **`waiting` and `aside` are two states the strip does not have** (`StripState` = done · now · blocked ·
 pending). They are added as domain-free cell states. **Where a card sits is a function of its state, not of
 its origin**, which is ruling 7 said as one rule (R-L22-h reads it).
@@ -529,6 +548,12 @@ link, a section with no card not drawn at all):
   NAMED STATE (§ 4, `acq-abandon-confirm`); nothing is sent before the operator confirms. « Relancer » keeps
   its meaning. The other reading (abandon the TUNNEL, leave the files where they are) was refused.
 
+> **Amended 2026-09-27 (M1; round 10, question 6 = C):** on a FOLLOW's card, « Abandonner » also puts the release among
+> those already tried for the item, which goes back to « cherché » — the follow goes on; on a one-off arrival's card the
+> card closes; the confirmation says « une autre release sera cherchée » (phase 27). With several requesters (L18),
+> « Abandonner » withdraws the request of whoever abandons, and the quarantine happens only when the LAST requester
+> abandons; L22b builds no multi-requester logic — the mock keeps one requester per card.
+
 **Seeds: two of the three kinds have no real row today** (§13 forbids inventing data). The ten real runs the
 seeds hold carry no errored step and no unmatched item
 (`python3 -c "import json;d=json.load(open('frontend/maquette/design/src/mocks/seeds/pipeline-runs.json'));print(sum(s.get('errorCount',0) for r in d for s in r['steps']))"` → 0),
@@ -541,6 +566,9 @@ invented here » and « nobody looked » being different things.
 **Not in « À traiter »** (ruling 7): what he set aside (ruling 6 — `aside`), a card queued behind a
 maintenance run (`waiting`), a release nobody has (« Cherché, rien trouvé »), a stalled download. Each reads
 on its own card in « En cours » with its reason, and at Système for the levers.
+
+> **Amended 2026-09-27, F4:** what he set aside is NOT in « En cours »: it is the folded « Mis de côté » at the end of
+> « À traiter », outside the count and the badge (ruling 16).
 
 > **Amended 2026-09-26 (operator, round 7 — § 7.3):** « En cours » keeps « En vol » ALONE, queue included, and
 > says « rien en cours » when nothing moves; « À récupérer », « Rangé aujourd'hui » and « Cherché, rien trouvé »
@@ -555,6 +583,12 @@ aujourd'hui » (`fr.json` `screens.acquisition.takeable/blocked/inflight/notfoun
 new section, **« Mis de côté »** (a pip of the « waiting » tone), holds what he set aside. **The section's
 name and place adjust to the drawing**; that it EXISTS follows from ruling 6 (« hors de « À traiter » mais
 visible dans « En cours » »).
+
+> **Amended 2026-09-27 (round 8, question 16 = B; M2):** « Supprimer » in « Mis de côté » is a REAL deletion of the staging
+> folder, behind a confirmation with the library's care that names the folder and reads qBittorrent AT THE GESTURE:
+> copied and the torrent present with its files → « le torrent garde ses fichiers dans qBittorrent »; the torrent absent,
+> or the arrival moved → « c'est le seul exemplaire »; qBittorrent silent → « inconnu », treated as the only copy. The
+> ingest row gives the provenance only. Demand F (§ 6.2); phase 21.
 
 **Where the three Arrivées lists go**, so nothing is left without a home: « Ça coince » → « À traiter »
 (to resolve); « Ça avance » → « En vol »; « Arrivé dans les 24 h » → « Rangé aujourd'hui ». The « Dernier
@@ -589,6 +623,9 @@ removed from BOTH lists (staging and the acquisition queue) — and the send is 
 operation stays; what the interface does with the answer changes: the card is KEPT and lands `aside`, so
 the optimistic write the layer makes is a different one. R-L22-i reads that the card is absent from
 « À traiter », present in « En cours » with its reason, and — the mock's job — still there after a re-read.
+
+> **Amended 2026-09-27, F4:** the operation is `continueStagedMedia` with outcome `left`, and the card lands in the
+> folded « Mis de côté » (built at 15a, R226); the paragraph above is the first drawing's reading.
 
 **« Ce n'est pas un média » on real data.** `stuck.json` carries « Marvels.Spider-Man.2.v1.526.0.FRENCH-Mephisto » —
 « c'est un jeu, pas un média » — the operator's own case. The rule (R-L22-j) is walked on it and reads the
@@ -645,8 +682,16 @@ leaves at that moment with no trace in « Suivis »; a followed series never lea
 here**, and the reason is measured: the media sheet is `features/media/`, outside the « Where it lives »
 of L22's contract line (« the Acquisition page — the card, its one ladder, and the candidates screen »);
 the sheet draws no « acquis le » or requester today (`git grep -ci 'acquis le' -- frontend/maquette/design/src/i18n/fr.json`
-→ no match); and its content needs the requester the rights model owns. It is a debt the plan names in phase 27,
+→ no match); and its content needs the requester the rights model owns. It is a debt the plan names in phase 35,
 for the steward to assign — not silently dropped.
+
+> **Amended 2026-09-27 (round 8, question 17 = A; C8; round 10, questions 1 and 2 = A):** paused follows form a FOLDED
+> section at the end of « Suivis », outside its count; the « En pause » pill dies (phase 22). Ruling 3's trace has TWO
+> halves: the media sheet (« acquis le …, release, demandeur ») and **the history of its tunnel** — a path from the media
+> sheet to the finished acquisition's journey, read-only; both are **L18's** (§ 7.1), recorded here by name so the
+> history half is not dropped. A hand-added arrival matching a followed item by identity JOINS the follow's acquisition
+> (one card, « ajouté dans qBittorrent », no « Suivre »); a season taken on an unfollowed series is a ONE-OFF acquisition
+> whose card offers « Suivre » — L21's « Série suivie et saison N demandée » is reopened (phase 28).
 
 ### 3.6 S6 — The bar and the drawer after Arrivées (rulings 11, 12, 15)
 
@@ -703,13 +748,18 @@ and refreshed by `features/system/live.ts` (§ 2.1), so the badge moves without 
 
 with `data-drawer` answered by the frame's verb (`app/frame-verbs.ts`). A badge on it needs a mount:
 either a small component portalled into the static header (the way `app/page-host.tsx` portals into
-`#view`) or the header's conversion. **Phase 20 measures both and takes the one that leaves the button's id,
+`#view`) or the header's conversion. **Phase 24 measures both and takes the one that leaves the button's id,
 its `data-drawer` and its accessible name where they are** — the first is the smaller change and is the
 one this design assumes. The badge's look is the tab bar's (`tabBarBadge`): one visual language for « this
 has something to say ».
 
 **No notifications box (ruling 12).** Nothing collects the badges into one place; each speaks on its own
 tab. Système's history (L20) stays the only trace of the past.
+
+> **Amended 2026-09-27 (round 8, question 20; F8; F1 + C2; M3):** after Arrivées dies the bar reads « Acquisition ·
+> Médiathèque · Découvrir » (three, not two — phase 33); L16 adds Trackers before Découvrir (four, ruling 20). Each row
+> carrying a badge DECLARES the queries its badge reads and the frame keeps them observed, keyed on the row (phase 24,
+> before its first commit). The menu button's badge counts BY RIGHTS: L22b builds the no-rights half, L18 the rights half.
 
 ### 3.7 S7 — The sentences that send the reader to Arrivées (ruling 13)
 
@@ -743,10 +793,13 @@ ids** (`arr-resolution` → `acq-resolution-none`, `arr-decision` → `acq-resol
 moves: **114 − 8 + 23 = 129**. Every new state is reachable by `window.__go("<id>")`, has an English id, and
 its French label is what the panel says.
 
+> **Amended 2026-09-27, F50:** the count at the close is not « 129 »: it is the states the phases declared, counted at the close by the design's command (the
+> command above). The phases added since the first drawing declared, cut or moved states — the list below says each fate.
+
 **Where they live.** `harness/states/acquisition.ts` would leave invariant 6's 400 lines with 23 more
 entries (258 + about 210). The new states go in a NEW file, `harness/states/tunnel.ts`, composed by
 `harness/index.ts` beside the others (the way L13a's move made every surface a file); the two survivors are
-declared there in phase 3 and the file dies nowhere. `harness/states/arrivals.ts` dies in phase 25.
+declared there in phase 3 and the file dies nowhere. `harness/states/arrivals.ts` dies in phase 33.
 
 | # | id | Label (French, as the panel lists it) | Lands in phase |
 | --- | --- | --- | ---: |
@@ -767,14 +820,25 @@ declared there in phase 3 and the file dies nowhere. `harness/states/arrivals.ts
 | 15 | `acq-card-set-aside` | « Carte — mis de côté par vous » | 15 |
 | 16 | `acq-resolution-not-media` | « Résolution — « Ce n'est pas un média » : le choix de la catégorie » | 16 |
 | 17 | `acq-card-follow-offer` | « Carte — « Suivre » proposé sur une série arrivée » | 17 |
-| 18 | `acq-follows-film-confirming` | « Suivis — un film suivi dont le dernier cran vient » | 18 |
+| 18 | `acq-follows-film-at-plex-check` | « Suivis — un film suivi dont le dernier cran vient » | 18 |
 | 19 | `drawer-system` | « Tiroir — Système à sa place, hors de la barre » | 19 |
 | 20 | `bar-todo-badge` | « Barre — Acquisition porte le compte de « À traiter » » | 19 |
 | 21 | `bar-clear` | « Barre — rien à dire » | 19 |
-| 22 | `menu-system-badge` | « Bouton du menu — Système a quelque chose à dire » | 20 |
-| 23 | `menu-clear` | « Bouton du menu — rien à dire » | 20 |
+| 22 | `menu-system-badge` | « Bouton du menu — Système a quelque chose à dire » | 24 |
+| 23 | `menu-clear` | « Bouton du menu — rien à dire » | 24 |
 
 **Amended 2026-09-26 (RULINGS 2):** `acq-card-rungs` holds the SIX rungs the queue's real rows reach; the eight are held whole on `sheet-journey`.
+
+> **Amended 2026-09-27 (F50, F58; round 8, question 19):** each state's fate and source —
+> - `acq-entry-*` (#12–#14): replaced by the default-tab rule of round 7 (phase 13's amendment).
+> - `acq-card-follow-offer` (#17): not created — phase 17's re-measure drew the offer on the existing `acq-now-loaded`,
+>   `acq-card-rungs` and `acq-card-waiting`.
+> - `acq-follows-film-at-plex-check` (#18, was `acq-follows-film-confirming`): removed by RULINGS 16 (no token passed),
+>   returns at phase 20 with `--color-waiting-text`.
+> - `drawer-system`, `bar-todo-badge`, `bar-clear` (#19–#21): never created (RULINGS 17 — the bar's rules read the states
+>   that already draw it). A later lot anchors its bar states beside `drawer-navigation` in `harness/states/frame.ts`.
+> - `acq-card-set-aside`, `acq-resolution-not-media` (15a, 16) and `discover/body`'s states (19-bis-a) were added;
+>   `acq-discover*` became `discover-*` (19-bis-b). Phases 21–28 declare theirs at their openings.
 
 **A named state that already exists and is not new**: `drawer-navigation` (« Tiroir de navigation
 (hamburger) », `harness/states/frame.ts`). It draws the drawer with nothing to say; `drawer-system` and the
@@ -787,7 +851,7 @@ existing `acq-follows-*` and `acq-discover*` states, which the fourth tab's widt
 **`acq-todo-loading` and `acq-todo-error` ARE named** although the `phase` dial can drive them, for the
 reason `acq-now-loading` and `acq-now-error` already are: `harness/state_surfaces.py` (R90) walks a
 per-surface list of loading and error states with the sentence each says
-(`"arr-error": "ce qui arrive"`), and it loses its Arrivées entries in phase 22; « À traiter » takes
+(`"arr-error": "ce qui arrive"`), and it loses its Arrivées entries in phase 30; « À traiter » takes
 their place there, not the dial alone.
 
 **What has no named state and why.** The return to the list after each exit, the card's leaving after
@@ -818,23 +882,23 @@ may diverge unless a phase names it**. Named, with their reasons:
 | 16 | `acq-resolution-none`, `acq-resolution-tie` on `screen-resolution/body` (a new exit under the manual search) | « L22 § 3.4: a new exit » |
 | 17 | `acq-now-idle`, `acq-now-loaded` (an arrival series card gains a foot) | « L22 § 3.5: the proposal » |
 | 19 | none by the oracle (see below) | — |
-| 20 | none (the button's own rect is not a region root) | — |
-| 21 | `system`, `system-outage`, `system-loading`, `system-error` and the run-detail states, on `system/body` if a sentence wraps differently | « L22 § 3.7: five sentences rewritten » |
-| 24, 25 | none (a live rule moves; a dead page's code goes) | — |
-| 26 | the six remaining `arr-*` records leave the reference; nothing else may move | the page's records go |
+| 24 | none (the button's own rect is not a region root) | — |
+| 29 | `system`, `system-outage`, `system-loading`, `system-error` and the run-detail states, on `system/body` if a sentence wraps differently | « L22 § 3.7: five sentences rewritten » |
+| 32, 33 | none (a live rule moves; a dead page's code goes) | — |
+| 34 | the six remaining `arr-*` records leave the reference; nothing else may move | the page's records go |
 
 **The oracle's silence over the bar proves nothing, and this design says so before the phase does.** D8
 reads the rectangle and the computed style of the element ITSELF, never a descendant. The bar's `<nav>`
 has the same rectangle with two places or four; only a named rule reads the buttons. Phase 19's oracle
 will be green over a bar that lost a place (**R-L22-q reads them, R-L22-s reads their shares**; the bar loses its
-next place in phase 25, with the row that held it), and the same holds for the
-menu button's badge in phase 20 — L20 § 7 wrote the same warning about behaviour lots, and L11 is the
+next place in phase 33, with the row that held it), and the same holds for the
+menu button's badge in phase 24 — L20 § 7 wrote the same warning about behaviour lots, and L11 is the
 measured case: no divergence over 2 958 measurements while four adversarial rounds found ~40, 13, 7 and 0
 defects. **This lot is held by § 5's rules or by nobody.**
 
 The accessibility tier (`--a11y`) is re-read at phases 3, 8, 11, 19 and 26: the two survivors carry recorded
 debts under their old ids (`a11y-debt.json`, `a11y-light-debt.json`) that move WITH their ids in phase 3
-and are never re-recorded lower; the six dead ids leave the three a11y files in phase 26.
+and are never re-recorded lower; the six dead ids leave the three a11y files in phase 34.
 
 ---
 
@@ -852,7 +916,7 @@ mutation comes after the move.
 | --- | ---: | --- | --- |
 | **R-L22-a** — the default tab (**amended 2026-09-26, § 7.3**: « Suivis » first, then the last tab opened from local storage, « Suivis » on an empty or throwing storage — the cells below are the first drawing) | 13 | a cold entry on `/acquisition` with no `tab`: « À traiter » is open when its count is not zero and « En cours » when it is zero (both states `acq-entry-todo` / `acq-entry-clear`); an explicit `?tab=follows` wins over a non-zero count; **while the count is unread no tab is selected and none is printed** (§13) | derive the default from a constant → falls; invert the comparison → falls; choose before the count lands → the « nothing selected while unread » hold falls |
 | **R-L22-b** — the count in the badge (**R16's successor**: `audit2.py` asserts `takeable + blocked` on the bar's badge AND on « En cours »'s tab today, and is re-aimed, not left green over a reversed behaviour) | 12 | the bar's Acquisition badge equals the number drawn on the « À traiter » tab equals the number of cards in it, on `acq-todo-loaded` and `acq-todo-empty` (badge absent, not `0`) | make the badge count `takeable` too (the old derivation) → falls |
-| **R-L22-c** — the menu button's badge | 20 | the button carries a badge exactly when the rows out of the bar have something to say, its number equal to the drawer entry's own count; absent, not `0`, otherwise; **Système's number moves under a seeded maintenance fact AND under a seeded service or dependency fault** (OPEN 8, ruled B) | drop the wiring → falls; print a constant → falls under a seeded change; count the maintenance facts alone (the refused reading) → the fault hold falls |
+| **R-L22-c** — the menu button's badge | 24 | the button carries a badge exactly when the rows out of the bar have something to say, its number equal to the drawer entry's own count; absent, not `0`, otherwise; **Système's number moves under a seeded maintenance fact AND under a seeded service or dependency fault** (OPEN 8, ruled B) | drop the wiring → falls; print a constant → falls under a seeded change; count the maintenance facts alone (the refused reading) → the fault hold falls |
 | **R-L22-d** — the return to the list | 14 | after each exit (pick, « Laisser tel quel », and later « Ce n'est pas un média »): the address is `/acquisition` with « À traiter » open; `history.length` did not grow (a pop, not a push); **no « Suivant » and no progression (« n sur m en attente »)** anywhere on the screen (OPEN 7, ruled); and the same on a COLD `/resolution/<folder>` | restore the `next` verb → the absence hold falls; restore the progression → it falls; make an exit push → the length hold falls |
 | **R-L22-e** — four labels at 390 px, in their order | 8 | at the real phone width: the four tabs' labels and counts are not truncated (`scrollWidth ≤ clientWidth` per label), the control does not overflow horizontally, the « ⋮ » control stays reachable, each target ≥ the touch minimum; **and the four read, in the DOM, « Suivis » · « En cours » · « À traiter » · « Découvrir »** (OPEN 1, ruled) | lengthen a label past the budget → falls; drop a tab's `min-width: 0` → falls; swap two tabs in the row → the order hold falls |
 | **R-L22-f** — one ladder | 5 | the card's ladder draws the journey's rungs in the journey's order and its current rung equals the journey sheet's; the current rung's NAME is drawn whole (not truncated) at 390 px on `acq-card-rungs`; eight cells, no horizontal overflow; the journey sheet opens « rangé » into its three steps, from the same source | read the old five-position strip for the card → falls; swap two rungs in the seed → falls; give the sheet a list of its own for the three steps → the agreement hold falls |
@@ -864,13 +928,19 @@ mutation comes after the move.
 | **R-L22-l** — « Suivre » proposed, never done | 17 | an arrival of an identified series changes the follows list by NOTHING; the offer is on the card and in its panel; a tap changes the list by exactly one follow and the offer goes; no offer on a film, on a card without identity, on a series already followed; **no card born of an arrival is drawn in « Suivis », even the episode of a followed series** (OPEN 3, ruled A: « President Curtis », « Star Trek: Strange New Worlds (2022) ») | follow on arrival → falls; offer it on a film → falls; draw an arrival card in « Suivis » → the new hold falls |
 | **R-L22-m** — a film's follow ends alone | 18 | on the seed's five followed films: present in « Suivis » until the ladder reaches « vérifié dans Plex », absent after (no trace in « Suivis »); a followed series is there after; NOT ended at the rung before | end it one rung early → falls; end series too → falls |
 | **R-L22-n** — the addresses | 2 | `/resolution/$folder` declared with `acq` as its parent; opening the screen PUSHES (asserted on `history.length`); a cold `/resolution/<folder>` renders Acquisition beneath | leave the parent at `arr` → falls |
-| **R-L22-o** — Arrivées is gone | 25 | no `arr` row in the bar or the drawer; no `data-go="arr"` in the source; `screens.arrivals` absent from the resources; the shipped source names no `features/arrivals`; **the address `/arrivals` draws the not-found page and is not redirected** (the address stays as typed; OPEN 5, ruled A) | re-add the row → falls; add a redirect from `/arrivals` → the address hold falls |
-| **R-L22-p** — the sentences | 21 | no rendered sentence on Système, its run detail, Acquisition or the Maintenance toast names Arrivées; each cross-reference LANDS (address read) on Acquisition with « À traiter » open when something waits | restore one `data-go="arr"` → falls |
+| **R-L22-o** — Arrivées is gone | 33 | no `arr` row in the bar or the drawer; no `data-go="arr"` in the source; `screens.arrivals` absent from the resources; the shipped source names no `features/arrivals`; **the address `/arrivals` draws the not-found page and is not redirected** (the address stays as typed; OPEN 5, ruled A) | re-add the row → falls; add a redirect from `/arrivals` → the address hold falls |
+| **R-L22-p** — the sentences | 29 | no rendered sentence on Système, its run detail, Acquisition or the Maintenance toast names Arrivées; each cross-reference LANDS (address read) on Acquisition with « À traiter » open when something waits | restore one `data-go="arr"` → falls |
 | **R-L22-q** — the bar's places | 19 | the bar draws exactly the rows the table marks `inBar`, each tappable at 44 px; Système is NOT among them and IS in the drawer's system group; a tap on its drawer entry lands on `/system` | put `inBar: true` on `sys` back → falls |
-| **R-L22-r** — the levers stay live | 24 | Système's levers draw the pipeline's state, and it MOVES when `PipelineStarted`, `PipelinePaused` and `PipelineEnded` arrive through the mock relay — read while Arrivées' live table still exists AND after the rule left it (§ 1.1's finding: the page was holding the only rule that refreshes `/api/pipeline/status`) | leave the status rule out of `features/system/live.ts` → the lever stops moving and the hold falls |
+| **R-L22-r** — the levers stay live | 32 | Système's levers draw the pipeline's state, and it MOVES when `PipelineStarted`, `PipelinePaused` and `PipelineEnded` arrive through the mock relay — read while Arrivées' live table still exists AND after the rule left it (§ 1.1's finding: the page was holding the only rule that refreshes `/api/pipeline/status`) | leave the status rule out of `features/system/live.ts` → the lever stops moving and the hold falls |
 | **R-L22-s** — the bar's shares (a FRAME rule, OPEN 2 ruled A) | 19 | on every state that draws the bar, at the count it has (four before Système leaves, three after, two when Arrivées dies): the bar draws exactly the buttons the table marks `inBar`, each of width 1/n of the bar (within a pixel of rounding), n between 2 and 4, and the buttons tile the bar's width whole — **no empty slot**. **Green at once** (§ 3.6: `flex-1 basis-0` already shares equally), proved by its mutations | give the buttons a fixed share (`basis-1/4`) → the tiling hold falls at three and at two; drop `flex-1` → falls; put a fifth row `inBar: true` → the « n ≤ 4 » hold falls |
 | **R-L22-t** — « Confirmer » / « Corriger » on the Plex match (OPEN 9, ruled B) | 10 | on `acq-todo-loaded`: the Plex-match card offers « Confirmer » and « Corriger » on the match itself; a tap on « Confirmer » is ANSWERED on the network (`window.__mocks.answered()`, the operation of demand E) and the card leaves « À traiter »; the same for « Corriger » through its own answer | make the verb toast without calling → the network hold falls; leave the card in the tab after the answer → falls |
 | **R-L22-u** — « Abandonner » quarantines, after a confirmation that names the medium (OPEN 10, ruled B) | 11 | walked by finger on the tunnel-error card: a tap opens `acq-abandon-confirm`, whose text contains the card's title, and NOTHING is sent yet; confirming sends `discardStagedMedia` (answered on the network, with its `quarantine_path`) and the card leaves « À traiter »; cancelling sends nothing and the card stays | skip the confirmation → the « nothing sent yet » hold falls; confirm without naming the medium → the name hold falls; send on cancel → falls |
+
+> **Amended 2026-09-27 (F4, F3, round 8 question 20):** R-L22-h is R209 and R-L22-i is R226 (written at 15a:
+> « Mis de côté » is folded at the end of « À traiter »); R-L22-b counts the tab WITHOUT its fold; R-L22-e reads THREE tabs
+> (R206, 19-bis-b) and « Découvrir » is R234's bar page; R-L22-t gains the disagreement and « Corriger then Back » holds at
+> phase 23. Labels still to bind take the next free number at their phase's opening (R235 onward; R227 is phase 21's,
+> R233 phase 22's).
 
 **Phase 4 lands with a unit test, not a rule**: the strip's grid follows its cell count and a five-cell
 labelled strip is unchanged (`frontend/maquette/design/src/ui/variants.test.ts` is the home of that family of
@@ -899,7 +969,7 @@ the rule that asserts each today, found by reading the assertions and not by gre
 | a cold boot and an at-rest read see « En cours » first | **R128** again (« the boot alone fills the arrivals », the takeable arrival « is DRAWN ») — and the sixteen walks that arrive at Acquisition without naming a tab (`git grep -l -E 'data-page=.?"?acq|nav button\[data-page=.acq|\[data-go=.acq|PAGE_PATHS\["acq"\]|HOME\b|/acquisition"|"acquisition"' -- 'frontend/maquette/harness/*.py' | wc -l` → 16) | 13 |
 | « a folder among several offers « Suivant » » and opens the next, replacing its entry | **R57**, `harness/decision.py:171-190` | 14 |
 | « answering empties the queue, on BOTH lists », `[data-leave]` included | **R57**, `harness/decision.py:197-215` (its `arr-idle` / `stuck` / `[data-leave]` half) | 15 |
-| the bar holds Système, and the pipeline is started from Arrivées by a finger | **R-L20-g** (`locks.py`), **R185** (`queued_by_hand.py`), **R66** (`arrivals.py`), and `page_host.py`'s delegation block | 19, 23, 25 — each re-aim said out loud where it is made (OPEN 6, ruled A) |
+| the bar holds Système, and the pipeline is started from Arrivées by a finger | **R-L20-g** (`locks.py`), **R185** (`queued_by_hand.py`), **R66** (`arrivals.py`), and `page_host.py`'s delegation block | 19, 31, 33 — each re-aim said out loud where it is made (OPEN 6, ruled A) |
 
 A phase whose row is in this table says so in its own « Found », and its « Red today » is written against the
 assertion as it stands.
@@ -914,9 +984,9 @@ assertion as it stands.
 | --- | --- | --- |
 | **B-515** — « Réessayer » on the Arrivées error asks again with no pending or busy sign | `open` | **dies with the page** (its surface is `arr-error`). It is a trait of the retry, not of the page: `acq-todo-error` carries the same shape, so phase 13 says whether the new tab reproduces it; the close records the reading |
 | **B-531** — « Lancer ensuite » enabled during a run | `fixed #603` | **loses its subject with the bar, and the guarded behaviour with it** (OPEN 6, ruled A: the two acts die, so no lever exists on which an inactive action could look active); the close annotates the row, never reopens it |
-| **B-371** — the « En file » pastille reachable by no hand | `fixed #603` | closed history; its rule (R185, `queued_by_hand.py`) starts from Arrivées' launch button and is re-aimed in phase 23, out loud — see below |
-| **B-514** — R138 lost its screen half and still claims it (« the arrivals bar draws « Au repos » while the layer runs ») | `open` | the arrivals bar dies, so the claim has no page to be about; the queued reading lives at Système's levers since L20 (`levers-queued`). Phase 23 re-points R138's screen half at the levers or drops the claim, and closes the row |
-| **B-037**, **B-038** — `arrivals.py`'s own debts | `open` | **die with the rule** (phase 25 removes `harness/arrivals.py`, R66) |
+| **B-371** — the « En file » pastille reachable by no hand | `fixed #603` | closed history; its rule (R185, `queued_by_hand.py`) starts from Arrivées' launch button and is re-aimed in phase 31, out loud — see below |
+| **B-514** — R138 lost its screen half and still claims it (« the arrivals bar draws « Au repos » while the layer runs ») | `open` | the arrivals bar dies, so the claim has no page to be about; the queued reading lives at Système's levers since L20 (`levers-queued`). Phase 31 re-points R138's screen half at the levers or drops the claim, and closes the row |
+| **B-037**, **B-038** — `arrivals.py`'s own debts | `open` | **die with the rule** (phase 33 removes `harness/arrivals.py`, R66) |
 | **B-538** — a running history row's second line | `open` | **NOT this lot's** (Système's history, a behaviour wave on Système) |
 | **B-549** — the seed gives a film a series' identifiers | `open` | **NOT this lot's** (a fixture-identity defect; L22's seeds are derived from rows that do not carry it) |
 
@@ -925,7 +995,7 @@ assertion as it stands.
 hand paths: Système's levers (`levers-queued`, drawn in L20) and, where a season is asked while a
 maintenance command holds the lock, the `season/queued` pastille (R138). **Neither needs the launch bar**:
 the second is reached by starting a maintenance command from Maintenance, then asking a season. R185 is
-re-aimed on that path in phase 23 (OPEN 6, ruled A: the launch buttons are not on Système either).
+re-aimed on that path in phase 31 (OPEN 6, ruled A: the launch buttons are not on Système either).
 
 ### 6.2 The demands PROPOSED (D7) — in the register's own form, not asserted
 
@@ -942,6 +1012,18 @@ demand D in L18's own first phase (L22 draws no rights, however small). The oper
 | C | `POST /api/staging/media/{mediaId}/reclassify` | `reclassifyStagedMedia` (new) | Put a folder that is not a medium where the sort files its category, and take its card out of the acquisitions; **the destinations it may be filed into are the sort's non-media ones (configuration), so the read that lists them belongs to this demand**; with its inverse, as every resolve needs one (`backend-demands-architecture.md` § 9). Ruling 5 |
 | E | `POST /api/acquisition/journeys/{infoHash}/plex-match` | `resolvePlexMatch` (new) | The confirm/correct verb on the Plex match itself: a card in « À traiter » that says « match Plex à confirmer » offers « Confirmer » (the match is the medium) and « Corriger » (it is not) on THAT match, and the answer moves the card. Nothing in the contract or the mocks names a Plex match today (§ 2.1); the match the card names is read by demand B's last rung. OPEN 9 (ruled B); § 20 point 3 |
 | D | `GET /api/auth/me` | `readAccount` (re-shaped) | Which places of the application THIS account may open — the input the bottom bar and the drawer compose from. **The shape is L18's**; L22 files the row's existence and nothing else. Rulings 11, 15; § 17 point 4 as dictated on 2026-09-26 |
+
+> **Amended 2026-09-27 (round 8 question 16 + M2; M1; round 10 questions 1, 2, 6; F42):**
+> - **F** — a journaled deletion of a staging folder on `/api/staging/media/{mediaId}` (new; phase 21): the confirmation
+>   reads qBittorrent at the gesture (keeps its files / only copy / unknown); the ingest row's `action: copied|moved` is
+>   provenance only. Its operationId joins L18's `pipeline.control` row.
+> - The quarantine's demand (the `discardStagedMedia` row) gains M1: on a follow's card the release joins the releases
+>   already tried and the item goes back to « cherché »; on a one-off card the card closes.
+> - Matching a hand-added arrival to a followed item by identity after identification (round 10 Q1, phase 28); the
+>   demand « starts a follow » is amended by the auditor for round 10 Q2 (a season of an unfollowed series is one-off).
+> - The release picker's operation carrying the chosen release (F42, phase 26); `grabForFollow` is the backend's
+>   `POST /followed/{id}/grab`, and `takeQueued` retires.
+> - Per-requester settings and the effective value (round 10 Q6 = C): **L18's**, not filed here.
 
 > **Amended 2026-09-27 (L22b phase 18, RULINGS 14):** a demand OWED, beside the rows above — the engine ends a film's follow when the film is CONFIRMED in the library (the last rung « vérifié dans Plex » done, ruling 3), not at detection as `FilmAcquired` does today (`personalscraper/acquire/detect.py:446`), and it signals that rung's move to done; the maquette's layer carries it on `ItemProgressed` meanwhile.
 
@@ -971,7 +1053,7 @@ its SURFACE; the proposal per row, for the operator:
 
 **The README's cut table also needs the operator's word.** `frontend/maquette/README.md` § « The cut is by
 the nature of the trouble » reads « A medium in trouble → **Arrivées** ». After this lot a medium in trouble
-is Acquisition › « À traiter ». The lot's close rewrites the table (phase 27); the sentence is a directive,
+is Acquisition › « À traiter ». The lot's close rewrites the table (phase 35); the sentence is a directive,
 so it changes in the same move as the decision (`frontend-architecture.md` § 2, the paragraph that opens it).
 
 ---
@@ -997,6 +1079,10 @@ so it changes in the same move as the decision (`frontend-architecture.md` § 2,
   born with the rights model (OPEN 11, ruled B); L22 draws the « ajouté par … » line only.
 - **« Lancer » and « Arrêter » a pass** — drawn nowhere: they die with the Arrivées bar (OPEN 6, ruled A), and no
   lever takes them over.
+
+> **Amended 2026-09-27 (round 8, question 9 = B; C8):** « Comptes » is a first-level page of the menu (configuration
+> group), not a rubric of Réglages — L18's. Ruling 3's trace in « l'historique de son tunnel » (a read-only path from the
+> media sheet to the finished acquisition's journey) is **L18's**, beside the media-sheet half (§ 3.5).
 
 ### 7.2 The eleven OPEN design questions — RULED
 
@@ -1055,7 +1141,7 @@ the levers' pause and resume. The cost of A is in the harness: the four rules th
 (§ 1.5) lose their finger and re-aim onto the maintenance path or the mock's own door, so B-371's shape —
 no `__go` between the hand and the pastille — holds for the season path only. *Reading B*: they move to Système's « Le pipeline » section as two more levers
 — DOIT-3 says « agir là où l'on observe » and the levers section is where global acts live since L20.
-The plan costs either the same: phase 25 deletes the bar; reading B adds two buttons and their rule to an
+The plan costs either the same: phase 33 deletes the bar; reading B adds two buttons and their rule to an
 existing section, as ONE added phase, and reading A adds nothing.
 
 **Ruled 2026-09-26 (operator): reading A — « Lancer » and « Arrêter » a pass die with the Arrivées bar, no phase added; the cost accepted is that the four rules that started a pass by finger re-aim onto another path, and the phase that does it says the re-aim out loud; reading B refused (§ 1.2, § 1.5).**
@@ -1129,3 +1215,38 @@ dated line, and the plan by phase 13's amendment, the new phase 14-bis and phase
    one row out of « Rangé aujourd'hui »; phase 12's « En cours » count reads `takeable`. Phase 14-bis REMOVES; a
    phase that removes is cheaper than one that adds.
 
+### 7.4 The operator's rulings of 2026-09-27 (rounds 8, 9 and 10) — they SUPERSEDE the sentences they name
+
+Relayed by the auditor, written in `docs/reference/operator-method.md` (round 8: 2026-09-27 09:0x–11:0x) and in the
+coherence triage (`review-archive/coherence-2026-09-27-triage.md`, `rulings-coherence-2026-09-27.md`); each is carried at
+the site it changes by a dated line, and the plan by the phases the triage renumbered with integers (order 38: the phases
+built keep their names — 15a, 19-bis-a, 19-bis-b — as history; those to come are 20–35).
+
+1. **Question 16 = B — « Supprimer » a set-aside is a REAL deletion** of the staging folder, behind a confirmation of the
+   library's care that names the folder and its case; « Abandonner » keeps the quarantine. **M2**: the case is read from
+   qBittorrent AT THE GESTURE (keeps its files / only copy / unknown, treated as the only copy), never from the ingest
+   row. Supersedes: § 7.3 item 4's « les supprimer via cette section » read as a quarantine. → phase 21, demand F, R227.
+2. **Question 17 = A — paused follows FOLD at the end of « Suivis »**, of the same form as « Mis de côté », outside the
+   count; the « En pause » pill dies. Supersedes: the follows filter's « En pause ». → phase 22, R233.
+3. **Question 19 = A — `--color-waiting-text`**: light `oklch(0.48 0.14 345)`, dark the current colour; the chip reads
+   it; the light debt re-taken at the value read; phase 18's state comes back as `acq-follows-film-at-plex-check`.
+   Supersedes: RULINGS 16's « the state leaves » (its first half stands: no existing token passed). → phase 20.
+4. **Question 20 = A — Découvrir is a bar page**, fourth place (Acquisition · Médiathèque · Trackers · Découvrir,
+   composed by rights); Acquisition keeps three tabs, « Suivis · En cours · À traiter ». Supersedes: § 0's « the four
+   tabs », § 3.0 and § 3.1's fourth tab, R-L22-e's four labels, § 4's Découvrir rows, § 3.6's counts and the fourth
+   place. → built at 19-bis-a (R234) and 19-bis-b (R206 at three); the bar's count after Arrivées → phase 33 (F8).
+5. **Question 9 = B** — « Comptes » is a first-level menu page (§ 7.1). **Ruling 17 and question 13** change nothing
+   here: « an Operator's right » reads as a right granted by default to the Operator; the reassign gesture is L18's.
+6. **M1** — « Abandonner » on a follow's card sets the release aside and searches another; on a one-off card the card
+   closes. → phase 27. **Round 10 question 6 = C** — several requesters, each their own settings: « Abandonner »
+   withdraws the abandoning requester's request and the quarantine is the LAST requester's; no multi-requester logic in
+   L22b (§ 3.3's dated line) — L18 builds it.
+7. **M3** — the menu button's badge counts by rights: L22b the no-rights half, declared per row; L18 the rights half.
+   With **F1 + C2** (the badges read queries the frame keeps observed, declared per row) → phase 24, before its first
+   commit.
+8. **Round 10 question 1 = A** — a hand-added arrival matching a followed item by identity JOINS the follow's
+   acquisition (one card, the hand-added origin, no « Suivre »), an exception to ruling 1 for this case alone; **question
+   2 = A** — a season taken on an owned, unfollowed series is a ONE-OFF acquisition whose card offers « Suivre »; L21's
+   « Série suivie et saison N demandée » is reopened. → phase 28.
+9. **The steward's placements of the triage's other findings**: F3 → phase 23; F5 → phase 25; F6 + F42 → phase 26;
+   F7, F54 (and F53) → phase 29; F41 → phase 30; F8 → phases 33 and 35; F52, F67, C9 → phase 35; F40 → phase 21.

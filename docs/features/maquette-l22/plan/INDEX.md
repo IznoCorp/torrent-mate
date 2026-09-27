@@ -33,10 +33,10 @@ answer is yes, the next phase exists, and none of the STOPs below is the reason,
 **The eleven OPEN questions are ruled (DESIGN § 7.2, the operator's round of 2026-09-26); none is a STOP and none waits.**
 Each phase the rulings touch says which one moved it: OPEN 1 (the tabs read « Suivis · En cours · À traiter · Découvrir »)
 in phase 8; OPEN 2 (the bar draws only its present buttons, in equal shares of 1/n — a frame rule) in phase 19, and read
-again in phase 25; OPEN 3 (an arrival is never in « Suivis ») in phases 6 and 17; OPEN 4 (eight rungs) in phases 4 and 5;
-OPEN 5 (`/arrivals` is the not-found page) in phase 25; OPEN 6 (« Lancer » and « Arrêter » die, the four harness rules
-re-aim out loud) in phases 23 and 25; OPEN 7 (the progression dies with « Suivant ») in phase 14; OPEN 8 (Système's badge
-counts maintenance facts AND the machine's faults) in phase 20; OPEN 9 (« Confirmer » and « Corriger » on the Plex match)
+again in phase 33; OPEN 3 (an arrival is never in « Suivis ») in phases 6 and 17; OPEN 4 (eight rungs) in phases 4 and 5;
+OPEN 5 (`/arrivals` is the not-found page) in phase 33; OPEN 6 (« Lancer » and « Arrêter » die, the four harness rules
+re-aim out loud) in phases 31 and 33; OPEN 7 (the progression dies with « Suivant ») in phase 14; OPEN 8 (Système's badge
+counts maintenance facts AND the machine's faults) in phase 24; OPEN 9 (« Confirmer » and « Corriger » on the Plex match)
 in phase 10; OPEN 10 (« Abandonner » quarantines, after a confirmation naming the medium) in phase 11; OPEN 11 (the
 reassign gesture is L18's) in phase 7. **Ruling 9 and 10 are why phase 9 of the first drawing is now three phases** (9, 10,
 11): see « Points, and the mean ».
@@ -97,7 +97,7 @@ declared once, here, so every figure in a phase file is reproducible:
 numbers after it shift by one and the steward is told. **The clause was applied once while the rulings were transcribed**: the
 first drawing's phase 9 stood at 14, and the rulings on OPEN 9 and 10 added a verb on the Plex match (with its contract
 operation and its mock) and a quarantine with its confirmation — well over 15 — so it was CUT, in this plan and not at its
-opening, into phases 9, 10 and 11, and every number after it shifted by two. Three phases are drawn AT the ceiling (5, 19 and 23,
+opening, into phases 9, 10 and 11, and every number after it shifted by two. Three phases are drawn AT the ceiling (5, 19 and 31,
 15 each) and say what to cut.
 
 | # | Phase | What it lands | Rules | Points |
@@ -123,14 +123,24 @@ opening, into phases 9, 10 and 11, and every number after it shifted by two. Thr
 | 17 | [« Suivre », proposed](phase-17-suivre-proposed.md) | the offer on an arrived series, never done unasked; no arrival card in « Suivis » (OPEN 3) | l | 8 |
 | 18 | [A film's follow ends alone](phase-18-film-follow-ends.md) | the follow leaves « Suivis » at the last rung | m | 10 |
 | 19 | [Système leaves the bar](phase-19-systeme-leaves-the-bar.md) | `sys` out of the bar, into the drawer; five readers re-aimed; **the bar's frame rule: only the present buttons, in equal shares of 1/n** (OPEN 2; was 12) | q, s | 15 |
-| 20 | [The menu button's badge](phase-20-the-menu-buttons-badge.md) | the badge on the static header's button, one derivation counting the maintenance facts AND the machine's faults (OPEN 8; was 12) | c | 13 |
-| 21 | [The sentences that sent the reader to Arrivées](phase-21-the-five-sentences.md) | five sentences rewritten; Acquisition's cross-reference dies | p | 13 |
-| 22 | [Readers re-aimed: the page's states](phase-22-readers-the-pages-states.md) | thirteen rule files and one state file leave `arr-*` | — | 14 |
-| 23 | [Readers re-aimed: identity and launch bar](phase-23-readers-identity-and-launch-bar.md) | ten files leave the page's id, its path and its `data-pipe`; the four rules that started a pass by finger re-aim, out loud (OPEN 6); `journey.py`, a reader the first drawing missed (was 14) | — | 15 |
-| 24 | [The live rule Système was borrowing](phase-24-the-live-rule-systeme-was-borrowing.md) | the pipeline-status rule moves to Système | r | 5 |
-| 25 | [The death of Arrivées](phase-25-the-death-of-arrivees.md) | page, route, row, keys, states, launch bar removed; `/arrivals` is the not-found page (OPEN 5); the bar reads at two; the residual grep at zero | o | 12 |
-| 26 | [The records of a dead page](phase-26-the-records-of-a-dead-page.md) | regions, oracle, accessibility, ratchets, fixture register | — | 10 |
-| 27 | [The close](phase-27-the-close.md) | the register, the README, the debts, the report | — | 9 |
+| 19-bis-a | [« Découvrir » becomes a bar page](phase-19-systeme-leaves-the-bar.md) | BUILT 2026-09-27 (RULINGS 18, 19, 20; round 8 Q20): the page is born, the bar at four until phase 33 | R234 | ≈ 10 |
+| 19-bis-b | [« Découvrir » leaves Acquisition's tabs](phase-19-systeme-leaves-the-bar.md) | BUILT 2026-09-27: the tab dies, three tabs, the `acq-discover*` ids renamed by the tool | R206, R202 | ≈ 10 |
+| 20 | [The `waiting` tone reads its own text token](phase-20-the-waiting-tone-reads-its-text.md) | was « 18-ter » (round 8 Q19): `--color-waiting-text`, phase 18's state back | R230 | ≈ 8 |
+| 21 | [« Supprimer » deletes a set-aside folder for real](phase-21-supprimer-deletes-for-real.md) | was « 15b » (round 8 Q16, M2, F40): demand F, three wordings read at the gesture | R227 | ≈ 15–17, likely cut |
+| 22 | [Paused follows fold at the end of « Suivis »](phase-22-paused-follows-fold.md) | was « 18-bis » (round 8 Q17): the fold, the pill dies | R233 | ≈ 12 |
+| 23 | [The Plex match waits on a disagreement](phase-23-the-plex-match-waits-on-a-disagreement.md) | triage F3: only a disagreement waits, « Corriger » through demand E, « Confirmer » lays the rung done | t, R230 | ≈ 14 |
+| 24 | [The menu button's badge](phase-24-the-menu-buttons-badge.md) | the badge on the static header's button, one derivation counting the maintenance facts AND the machine's faults (OPEN 8; was 12) | c | 13 |
+| 25 | [A direct-add card lived no rung before « arrivé »](phase-25-a-direct-add-card-lived-no-rung-before-arrival.md) | triage F5, after the MIDPOINT: a domain-free cell state, no borrowed time | f, k | ≈ 10 |
+| 26 | [The follow sheet searches live and grabs](phase-26-the-follow-sheet-searches-and-grabs.md) | triage F6 + F42: `searchForFollow`, the per-follow grab, `takeQueued` retires | new, R225 | ≈ 16, likely cut |
+| 27 | [« Abandonner » on a follow's card](phase-27-abandonner-on-a-follows-card.md) | M1: the release set aside, another searched; round 10 Q6's dated line | u | ≈ 9 |
+| 28 | [One-off acquisitions](phase-28-one-off-acquisitions.md) | round 10 Q1 + Q2: a hand-added arrival joins the follow it matches; a season of an unfollowed series is one-off | new | ≈ 16, likely cut |
+| 29 | [The sentences that sent the reader to Arrivées](phase-29-the-five-sentences.md) | five sentences rewritten; Acquisition's cross-reference dies | p | 13 |
+| 30 | [Readers re-aimed: the page's states](phase-30-readers-the-pages-states.md) | thirteen rule files and one state file leave `arr-*` | — | 14 |
+| 31 | [Readers re-aimed: identity and launch bar](phase-31-readers-identity-and-launch-bar.md) | ten files leave the page's id, its path and its `data-pipe`; the four rules that started a pass by finger re-aim, out loud (OPEN 6); `journey.py`, a reader the first drawing missed (was 14) | — | 15 |
+| 32 | [The live rule Système was borrowing](phase-32-the-live-rule-systeme-was-borrowing.md) | the pipeline-status rule moves to Système | r | 5 |
+| 33 | [The death of Arrivées](phase-33-the-death-of-arrivees.md) | page, route, row, keys, states, launch bar removed; `/arrivals` is the not-found page (OPEN 5); the bar reads at two; the residual grep at zero | o | 12 |
+| 34 | [The records of a dead page](phase-34-the-records-of-a-dead-page.md) | regions, oracle, accessibility, ratchets, fixture register | — | 10 |
+| 35 | [The close](phase-35-the-close.md) | the register, the README, the debts, the report | — | 9 |
 
 **Opening measures (2026-09-26, on `ba6a36cc9`, after the eleven rulings; auditor's order 42), each phase file's own head**:
 12, 13, 8, 6, 15, 14, 7, 8, 13, 13, 12, 6, 13, 13, 14, 13, 8, 10, 15, 13, 13, 14, 15, 5, 12, 10, 9 — **sum 304 over 27
@@ -139,7 +149,7 @@ drawing's phase 9 became 9, 10 and 11; every number after it shifted by two). Th
 8, 6, 14, 14, 7, 8, 14, 6, 13, 11, 14, 13, 8, 10, 12, 12, 13, 14, 14, 5, 12, 10, 9 — sum 272 over 25 phases, mean ≈ 10.9,
 max 14. **Six of the first drawing's 25 rows changed their figure** — phase 5: 14 → 15 (OPEN 4); phase 9: 14 → 13 (cut by OPEN 9
 and 10); the former phase 12, now 14: 11 → 13 (OPEN 7, and two readers the first drawing charged that read nothing); the former 17,
-now 19: 12 → 15 (OPEN 2); the former 18, now 20: 12 → 13 (OPEN 8); the former 21, now 23: 14 → 15 (OPEN 6 moved its drawing, and the
+now 19: 12 → 15 (OPEN 2); the former 18, then 20, now 24: 12 → 13 (OPEN 8); the former 21, then 23, now 31: 14 → 15 (OPEN 6 moved its drawing, and the
 re-measure found a ninth reader) — and **two rows were born**, phases 10 (13) and 11 (12). The other nineteen kept their figure
 and, from phase 12 on, changed number; the phase files the rulings touched say so in a « Re-measured » line, the others only
 changed number.
@@ -183,7 +193,7 @@ films; the two are different kinds of change on one list.
 frame rule (R-L22-s) rides with the first phase that draws a bar of other than four buttons; **the sentences next** (21), so
 nothing points at the page when it goes.
 
-**The readers are re-aimed BEFORE the page dies** (22, 23), in two phases cut by what they read (the page's states / its
+**The readers are re-aimed BEFORE the page dies** (30, 31), in two phases cut by what they read (the page's states / its
 identity and the launch bar) — never by the count of the word (DESIGN § 1.5) — **so the death phase has zero readers to
 break** and the residual grep is its gate. **The live rule moves BEFORE the death** (24): the page was holding it for
 Système (DESIGN § 1.1).
@@ -204,7 +214,7 @@ for that phase, each accepted with its written reason (D8). Every other state at
 
 **Before the pull request** (the maquette wave's own gate — a maquette wave does not run `make check`; CI's `test` job is
 the authority, `frontend-steward.md` measure 19): `make lint`; the full suite (`frontend/maquette/harness/run.sh`, not the
-`--contracts` tier), expected no failure; the `--a11y` tier at 0 over the 23 new states;
+`--contracts` tier), expected no failure; the `--a11y` tier at 0 over the new states (amended 2026-09-27, F50: the states the phases declared, counted at the close by the design's command, not « 23 »);
 `python3 scripts/harness-hold-counts.py --compare` with **`failed` read FIRST** (B-291 — the baseline is NOT re-recorded
 while a rule is failing) and every movement written down; the pre-push pytest; `python3 scripts/check-intent-map.py`,
 `python3 scripts/check-bug-register.py` and `python3 scripts/check-docs-cited-paths.py` read by OUTPUT, not by exit code
@@ -261,3 +271,6 @@ amends the plan and the operator amends the constitution and the map.
 - **Amended 2026-09-27 (L22b, steward):** phase 15 is cut at its opening into **15a** (the card set aside in the folded « Mis de côté », R226) and **15b** (« Supprimer » with its confirmation, R227); 15b waits for the operator's word on the delete's operation and runs after the phases that do not depend on it (16 onward), at the first unit boundary after the word.
 - **Amended 2026-09-27 (L22b, steward, on the operator's rulings of the morning):** the order after phase 19 is **19-bis** « Découvrir » leaves Acquisition (a bar page, the bar at Acquisition · Médiathèque · Découvrir), **18-ter** the `waiting` tone's text token and the return of phase 18's state (RULINGS 16), **15b** « Supprimer » as a real deletion naming its case (copied / moved), **18-bis** paused follows fold at the end of « Suivis » (the « En pause » pill dies, R233), then 20 onward; each re-measured at its opening.
 - **Amended 2026-09-27 (L22b, RULINGS 18):** 19-bis is cut at its opening into **19-bis-a** (the « Découvrir » page is born, the bar at four until 25, R234, the tab still drawn) and **19-bis-b** (the tab dies, R206 at three, R202's fallback, the eight `acq-discover*` ids renamed by the tool).
+
+
+- **Amended 2026-09-27 (L22b, the coherence triage § B — F50, F51):** the phases still to build are numbered with **integers** (the operator's order 38): 18-ter → **20**, 15b → **21**, 18-bis → **22**, F3 → **23** (new), the menu button's badge 20 → **24** (HELD: F1 + C2 and M3 at its opening; the MIDPOINT full suite after it), F5 → **25** (new), F6 + F42 → **26** (new), M1 → **27** (new), round 10 Q1 + Q2 → **28** (new), and the former 21–27 → **29–35**. The phases built keep their names as history (15a, 19-bis-a, 19-bis-b); the measures of 2026-09-26 above keep the numbering of their date. The line « 15b waits for the operator's word » is superseded by the next (the word came: round 8 Q16 = B). **The phases to come, 20–35: ≈ 192 points over 16 phases** (estimates; each RE-MEASURED at its opening; 21, 26 and 28 likely cut), the ceiling 15 unchanged. The rows above carry them; DESIGN § 7.4 carries the rulings.

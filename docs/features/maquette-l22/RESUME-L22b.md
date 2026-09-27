@@ -5,41 +5,38 @@ L22b appends from 13).
 
 ## STATE
 
-- Branch `feat/maquette-l22b`, worktree `/Users/izno/dev/worktrees/wave-l22b`, cut from L22a's PR head `6f0c987a3`
-  (#619); on L22a's squash onto `main` (the steward names it) merge `origin/main` in at the next unit boundary — its
-  repair round touches staging.ts, arrival-slots.ts, requester_line.py, the oracle. Steward: `Orch : TM frontend`.
-- Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b` (not pushed since 0d86834fe).
-- DONE: 15a, 16, 17, 18, 19, 19-bis-a, 19-bis-b. NEXT: the ONE docs commit of the coherence triage (§ B of
-  `/Users/izno/dev/review-archive/coherence-2026-09-27-triage.md`: F4, F50 — minus frontend-architecture, docs/reference
-  is the steward's — F51 integer renumbering, F58 L22 part, porting Q16/Q17/Q19/Q20/round 8, C8; texts in
-  `coherence-2026-09-27.md`) → 18-ter `--color-waiting-text` (operator 11:0x, light oklch(0.48 0.14 345), dark =
-  waiting; phase 18's state `acq-follows-film-at-plex-check` back) → 15b (real delete naming copied / moved — ingest
-  COPIES a seeding torrent and MOVES any other, `ingest.py:549-561`; a new operation + demand; two states; Q2 both;
-  F40; R227) → 18-bis paused follows fold (R233) → F3 (a new phase) → 20 HELD (F1+C2 at its opening) → [MIDPOINT] →
-  F5 → F6+F42 → 21 (F7, F54) → 22 (F41) … 27. Each re-measured at its opening; > 15 → cut, one message.
-  Orchestrator now `Orch : TM frontend [ac1af8]`. FIRST ACT of the successor: #619 is merged at 5e5ecd052 —
-  `git merge --no-edit origin/main`. Steward's decisions (2026-09-27): product-intent-map.md:49 and F50's
-  frontend-architecture line are the steward's docs PR; a pull on Découvrir returning to the first batch is ACCEPTED —
-  write it as a dated ruling (RULINGS 21).
-- Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (15b) R227 · j R228
-  not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (18-bis)
-  R233 · R234 discover_page · next free R235. RULINGS: L22b writes 13–29 (13–20 used); L22a's repair round from 30.
-- AUDITOR ORDER 48: a fall set aside as « load » needs the SAME rule 10× here and 10× on `main` at comparable load;
-  any gap is a regression. outbox.py R107 is a race in the rule's own read, on `main` too (L22a's repair) — say so.
+- Branch `feat/maquette-l22b`, worktree `/Users/izno/dev/worktrees/wave-l22b`. #619 (L22a) merged in at 7ca978d5e
+  (re-merged three ways on the real fork point 6f0c987a3: 47 conflicts → 6 unions). Steward `Orch : TM frontend
+  [ac1af8]`. main has moved (#621, the references' gesture): merge `origin/main` at the next unit boundary — only the
+  generated files conflict; regenerate them (oracle by an accept in one invocation + the script proof; ledgers re-read).
+- Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
+- DONE: 15a, 16, 17, 18, 19, 19-bis-a, 19-bis-b, the merge of #619, the triage's docs commit (F4, F50, F51, F58, C8,
+  round 8 Q16/Q17/Q19/Q20, rounds 9–10 placements, RULINGS 21). NEXT, **renumbered with integers (F51)**: 20 the
+  `waiting` tone's text token (was 18-ter) → 21 « Supprimer » for real (was 15b; M2, F40; likely cut) → 22 paused
+  follows fold (was 18-bis, R233) → 23 the Plex match waits on a disagreement (F3; STOP D if Star Trek's seed costs § 13)
+  → 24 the menu button's badge (HELD: F1 + C2 and M3 at its opening, before its first commit) → [MIDPOINT full suite] →
+  25 direct-add card (F5) → 26 follow sheet search + grab (F6 + F42; likely cut) → 27 « Abandonner » on a follow's card
+  (M1) → 28 one-off acquisitions (round 10 Q1 + Q2; likely cut) → 29 sentences (F7, F54, F53) → 30 readers (F41) → 31
+  → 32 → 33 death of Arrivées (F8) → 34 → 35 close (F8, F52, F67, C9). Each re-measured at its opening; > 15 → cut, one
+  message. The plan: `plan/INDEX.md` (its last amendment); the rulings: DESIGN § 7.4.
+- Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (21) R227 · j R228
+  not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (22) R233 ·
+  R234 discover_page · next free R235. RULINGS: L22b writes 13–29 (13–21 used); L22a's repair round wrote 30–32.
+- AUDITOR ORDER 48 (amended): a fall set aside as « load » needs the same rule ≥ 10× here and ≥ 10× on `main` at
+  comparable load; any gap is a regression.
 - LOGS `~/Library/Logs/tm-l22b/`; mutex `sh scripts/heavy.sh --held`. GATE: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh
-  --class browser l22b frontend/maquette/harness/run.sh --contracts --oracle <rule paths>`; `--a11y` on every gate
-  that draws (light ledger 98, may only fall).
-- ORACLE ACCEPT inside one invocation (`bash -c 'run.sh --oracle; python3 frontend/maquette/oracle.py --accept'`),
-  then a script proves only the named states moved; bump `tests/scripts/test_oracle.py`'s pin in the same commit.
-- MUTATIONS `sh scripts/mutate.sh <path> "<expr>" <rule>` on a CLEAN tree — never edit anything while a gate with
-  mutations runs (refused twice here). PUSH `sh scripts/heavy.sh --class test l22b git push -u origin
-  feat/maquette-l22b`, its own command; a refusal = STOP with its exact text.
-- Traps: `--accept` rewrites the whole reference; a closed `#dlg` / `#sheet` keeps the last box (B-554, RULINGS 7,
-  13); `go()` commits through a view transition that closes a panel opened with it (a state opening a screen and a
-  panel races — `acq-resolution-not-media` opens its choice alone, BACKDROP ≠ product); the staging list is not read
-  on « À traiter » until a screen asks; a rule reading an attribute by PRESENCE makes the markup guard treat it as a
-  boolean (read `data-follow` by value); the entry page's tab rewinds the stack; new data-*/identifier words need
-  `scripts/code-vocabulary.txt`; a live rule may only name an event the backend emits (check-live-relay).
+  --class browser l22b frontend/maquette/harness/run.sh --contracts --oracle <rule paths>` — NAME every rule a phase's
+  change can reach, not only the ones it edits (url_state.py was missed at 19-bis-a); `--a11y` on every gate that draws
+  (light ledger 98, may only fall).
+- ORACLE ACCEPT inside one invocation (`bash -c 'run.sh …; python3 frontend/maquette/oracle.py --accept'`), then a
+  script proves only the named keys moved and the committed file is HEAD's with those keys (never the accept's
+  reformatting); bump `tests/scripts/test_oracle.py`'s pin when the state count moves.
+- MUTATIONS `sh scripts/mutate.sh <path> "<expr>" <rule>` on a CLEAN tree — never edit while one runs. PUSH at EVERY
+  phase end: `sh scripts/heavy.sh --class test l22b git push -u origin feat/maquette-l22b`, its own command.
+- Traps: `--accept` rewrites the whole reference; a closed `#dlg` / `#sheet` keeps the last box (B-554, RULINGS 7, 13,
+  20); the entry page's tab rewinds the stack; read `data-follow` by value; new data-*/identifier words need
+  `scripts/code-vocabulary.txt`; a live rule may only name an event the backend emits; zsh does not word-split `$var`
+  in loops; a transient `index.lock` (the status line) — retry the git write, never delete the lock.
 
 ## LEDGER (append-only)
 
@@ -114,3 +111,19 @@ L22b appends from 13).
   remembered … opens « Suivis » »; `acq-discover-degraded` put back in panel.py → RULE CRASHED naming it (« état inconnu :
   acq-discover-degraded ») — RULINGS 1's reading.
 - 2026-09-27 stood down at 69 % after 19-bis-b (the triage's docs commit is the next unit, for a fresh session).
+- 2026-09-27 (successor « Agent : l22b 2 ») merge of #619 (5e5ecd052): git's base was the old main, so 47 files
+  conflicted; re-merged three ways on L22a's head 6f0c987a3 → 40 clean, 6 unions (follow-facts, card-markup, fr.json,
+  handlers/staging, handlers/acquisition, RULINGS). handlers/acquisition.ts merged at 403 non-blank lines (> 400): my
+  phase-18 comment tightened, said in the body. Oracle merged key by key. Commit 7ca978d5e. Gate 1 (`merge-gate.log`)
+  RED: url_state.py « every page the model declares is one this rule knows how to reach » — MY miss at 19-bis-a (the
+  rule is in no --contracts tier and I never named it); RE-AIMED OUT LOUD, fix 91811f599. Gate 2 (`merge-gate2.log`):
+  64 rules (48 named) + 26 guards, 0 failed; 10 oracle divergences, five states × (acquisition/body, shell/page), each
+  cause named (phase 17's foot and 15a/16's cards under L22a's ruling 32), accepted in the same invocation; the script
+  proved exactly those 10 keys moved; aae52da02. `merge-oracle3.log` no divergence; `merge-a11y.log` 0 + light 98/98.
+  Pushed aae52da02.
+- 2026-09-27 the triage's docs commit (§ B): F51 renumbering (20–27 → 24, 29–35; new 20–23, 25–28), F4 / F50 / F58 /
+  C8 / round 8 Q16, Q17, Q19, Q20 / M1, M2, M3, round 10 Q1, Q2, Q6 as dated lines and DESIGN § 7.4; RULINGS 21. Not
+  mine and not done: `frontend-architecture.md`'s L22 entry and `product-intent-map.md:49` (the steward's docs PR); the
+  regions.json note of F58 (« the four tabs » → « the bottom bar: two to four buttons ») is left to the lot that edits
+  regions.json.
+
