@@ -6,6 +6,10 @@ the engine's `t`, `k` and `st`. The holds and what they compare are unchanged.
 
 RE-AIMED OUT LOUD: the grab is taken from the follow's sheet, where « Récupérer
 maintenant » lives; « En cours » no longer carries it.
+
+RE-AIMED OUT LOUD: « Laisser tel quel » means LATER (ruling 6, placed by ruling
+16) — the folder stays queued, set aside, where this read it leaving the stuck
+list. R226 holds the section it goes to.
 """
 import asyncio
 
@@ -44,7 +48,7 @@ async def main():
 
     # A folder the providers answered nothing for has NO candidate to pick, and
     # that is the real state of both stuck folders in the calm scenario. The
-    # way out is the one that used to be missing: agreeing with the machine.
+    # way out is « Laisser tel quel », which keeps it for later.
     await pg.evaluate("()=>window.__go('arr-idle')"); await pg.wait_for_timeout(300)
     a=await pg.evaluate(cnt); print("\nbefore resolution    :", {k:a[k] for k in ('stuck','moving')})
     await pg.evaluate("""()=>[...document.querySelectorAll('[data-part="card/foot"]')].find(x=>x.textContent.includes('Résoudre')).click()""")
@@ -53,8 +57,8 @@ async def main():
         "a folder with no provider answer must offer no candidate"
     await pg.evaluate("()=>document.querySelector('[data-leave]').click()"); await pg.wait_for_timeout(700)
     b2=await pg.evaluate(cnt); print("after « laisser »    :", {k:b2[k] for k in ('stuck','moving')})
-    assert b2["stuck"]==a["stuck"]-1, "the item stayed stuck"
-    print("  → out of « Ça coince » with nothing re-scraped")
+    assert b2["stuck"]==a["stuck"], "« Laisser tel quel » took the folder out of the queue"
+    print("  → set aside, still queued, nothing re-scraped")
 
     # And a folder that DOES have candidates is settled by picking one.
     await pg.evaluate("()=>window.__go('acq-resolution-tie')"); await pg.wait_for_timeout(450)

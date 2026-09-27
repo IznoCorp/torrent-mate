@@ -8,6 +8,10 @@
 import { applyState, type NamedState } from "../drive";
 import { openAbandonConfirm } from "../../features/acquisition/abandon-verb";
 
+// How long after « À traiter » is asked for its fold is opened: the read has to
+// answer and the tab draw before there is a fold to open.
+const OPEN_AFTER = 300;
+
 export function tunnelStates(): NamedState[] {
   return [
     [
@@ -77,6 +81,21 @@ export function tunnelStates(): NamedState[] {
       "À traiter — chargé",
       () =>
         applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" }),
+    ],
+    [
+      "acq-card-set-aside",
+      "À traiter — une carte mise de côté, « Mis de côté » déplié",
+      () => {
+        // A REAL BLOCKED ROW, set aside the way « Laisser tel quel » sets it:
+        // the tie on « Lucky » is a real pending decision.
+        window.__mocks?.setAside("Lucky");
+        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
+        applyState({ page: "acq", acqTab: "todo", scen: "real", phase: "ready" });
+        // THE FOLD OPENED THE WAY A FINGER OPENS IT, once the tab is drawn.
+        window.setTimeout(() => {
+          document.querySelector<HTMLElement>('[data-part="section/set-aside"] summary')?.click();
+        }, OPEN_AFTER);
+      },
     ],
     [
       "acq-abandon-confirm",

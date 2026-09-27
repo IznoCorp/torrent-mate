@@ -23,6 +23,7 @@ import INCOMPLETE_SHOWS from "./seeds/incomplete-shows.json";
 import { seasonsHeld } from "../lib/season-rows";
 import { renameAccount } from "./account";
 import { mockState } from "./state";
+import { setAside } from "./handlers/staging";
 
 /** What the layer exposes of its seeds. */
 export type MockSeeds = {
@@ -43,6 +44,8 @@ export type MockSeeds = {
   renameAccount: (name: string) => void;
   /** Empties what is blocked — the queue's, the staging area's, a match to confirm — until the layer is next reset. */
   clearBlocked: () => void;
+  /** Sets one queued folder aside, as « Laisser tel quel » does, until the layer is next reset. */
+  setAside: (title: string) => boolean;
 };
 
 /** The seeds the harness reads, composed on each call so no caller holds a copy it could mutate. */
@@ -99,4 +102,5 @@ export const mockSeeds: MockSeeds = {
       journeyStages: {},
     });
   },
+  setAside,
 };

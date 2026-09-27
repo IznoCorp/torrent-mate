@@ -2,8 +2,9 @@
 
 Ruling 7: the tab holds what only his hand unblocks — a medium to resolve, a
 tunnel error awaiting relaunch or abandon, a Plex match to confirm —
-and nothing else. What waits behind a maintenance run, or was set aside by him,
-reads on its own card in « En cours », with its reason. The section a card sits
+and nothing else. What waits behind a maintenance run reads on its own card in
+« En cours », with its reason; what he set aside is folded at the end of the
+tab, outside its count (R226). The section a card sits
 in is a function of its state, never of its origin.
 
 What this holds:

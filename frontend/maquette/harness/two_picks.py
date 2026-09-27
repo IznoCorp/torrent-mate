@@ -34,9 +34,8 @@ THE WALK, and every act in it is a real touch:
   t5. AND A'S SEND STILL LEAVES. The undo of B cancels B's send and nothing
       else: after the window, exactly one `continueStagedMedia` is answered, and
       it names A.
-  t6. THE PUT-BACK ON A LIST THAT HAS REALLY MOVED. A third folder is settled —
-      « Laisser tel quel », by a finger, through the layer's own operation —
-      between the pick and the undo, so the list the card is restored into is
+  t6. THE PUT-BACK ON A LIST THAT HAS REALLY MOVED. A third folder is resolved
+      — through the queue's own verb — between the pick and the undo, so the list the card is restored into is
       SHORTER than the one it left. This is the case B-396 records as reasoned
       and not read: `putOneBack` splices at the index the card held in the
       BEFORE snapshot and `slice` absorbs an overflow. What the card must never
@@ -58,6 +57,15 @@ unreachable.
 RE-AIMED when the queue's cards took the contract's names: a card's title is
 read as `title` (it was the engine's `t`). The holds and what they compare are
 unchanged.
+
+RE-AIMED OUT LOUD, t6: « Laisser tel quel » means LATER (ruling 6, placed by
+ruling 16) and no longer moves the list — the folder stays queued, set aside.
+The act that moves the list is now the queue's own `resolve` on a third folder,
+through `window.__queueActions`: no other act a finger can reach today takes a
+folder of the dense staging list out (its one other pending decision offers no
+candidate), and a resolve takes it out at once, which is what the put-back
+needs under it. B-396 asked for a list that has MOVED, not for a finger on this
+act; t4 keeps the finger on the undo. What t6 holds is unchanged.
 """
 import asyncio
 import pathlib
@@ -80,11 +88,8 @@ WINDOW_CLOSED = UNDO_WINDOW + ACTED
 # subject.
 SECOND_FOLDER = "S.W.A.T."
 
-# THE THIRD FOLDER, left as it is so the list moves under the put-back. It is
-# the one the seed describes as beyond arbitration — « Aucun arbitrage n'y
-# changera rien » — so « Laisser tel quel » is the act its own card asks for,
-# and it settles AT ONCE with no window of its own (`lib/queue.ts`'s `leave`
-# calls `settle` directly), which is what makes it usable here.
+# THE THIRD FOLDER, resolved so the list moves under the put-back: a resolve
+# takes its folder out of the list AT ONCE, with no window of its own.
 THIRD_FOLDER = "doc_fr_2026_final"
 
 # THE QUEUE'S TWO LISTS, by title, as the surfaces are drawn from.
@@ -207,11 +212,6 @@ async def open_second_screen(page, journal):
     return await open_resolution_of(page, journal, SECOND_FOLDER)
 
 
-async def open_third_screen(page, journal):
-    """Opens the third folder's resolution screen."""
-    return await open_resolution_of(page, journal, THIRD_FOLDER)
-
-
 async def two_picks(page, journal):
     """t1–t5 — two picks in one window, the undo, and the surviving send."""
     await page.evaluate("() => window.__mocks.reset()")
@@ -313,15 +313,20 @@ async def put_back_onto_a_moved_list(page, journal):
     await page.wait_for_timeout(SETTLED)
     journal.check("the queue's pick answers an undo the rule can keep", picked)
 
-    # ── the list moves, by a finger, through the layer's own operation ──────
-    await open_third_screen(page, journal)
-    left = await tap_attribute(page, "data-leave", THIRD_FOLDER)
+    # ── the list moves, through the queue's own verb ────────────────────────
+    resolved = await page.evaluate("""(title) => {
+      const actions = window.__queueActions;
+      if (typeof actions?.resolve !== 'function') return false;
+      actions.resolve(title);
+      return true;
+    }""", THIRD_FOLDER)
+    await page.wait_for_timeout(ACTED)
     moved = await page.evaluate(LISTS)
     journal.check(
-        "a third folder is left as it is, so the list really moves",
-        left["tapped"] and THIRD_FOLDER not in moved["stuck"]
+        "a third folder is resolved, so the list really moves",
+        resolved and THIRD_FOLDER not in moved["stuck"]
         and len(moved["stuck"]) < len(before["stuck"]) - 1,
-        f"tapped {left['tapped']}, {before['stuck']} → {moved['stuck']}",
+        f"resolved {resolved}, {before['stuck']} → {moved['stuck']}",
     )
 
     restored_at = await page.evaluate("""() => {

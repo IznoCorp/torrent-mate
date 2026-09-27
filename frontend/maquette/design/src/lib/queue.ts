@@ -31,6 +31,7 @@ import { HELD, read, send } from "./query-client";
 import type { QueueCard } from "./engine-queue";
 import type { Schemas } from "./contract-schemas";
 import { store } from "./store-access";
+import { setAsideInQueue } from "./set-aside";
 
 /** The staging queue, as Arrivées and the deck both read it. */
 export type Staging = {
@@ -342,7 +343,8 @@ export function installQueueActions(queryClient: QueryClient): void {
     // IT ANSWERS WHETHER THE FOLDER WAS THERE, synchronously, because the
     // engine's own `actionLeave` did and its caller reads the answer. The
     // optimistic write is what makes that answerable without waiting: the
-    // folder is either in a queue the cache holds, or it is not.
+    // folder is either in a queue the cache holds, or it is not. LEAVING IT
+    // MEANS LATER (ruling 6): the card is set aside, never taken out.
     leave: (title) => {
       const scenario = scenarioNow();
       const staging = queryClient.getQueryData<Staging>(stagingKey(scenario));
@@ -352,7 +354,8 @@ export function installQueueActions(queryClient: QueryClient): void {
         ...(queue?.blocked ?? []),
       ].some((card) => card.title === title);
       if (!queued) return false;
-      void settle(title, "left");
+      const held: Parameters<typeof putBack>[2] = { queue: setAsideInQueue(queryClient, queueKey(scenario), title) };
+      void deliver(scenario, title, "left", () => putBack(queryClient, scenario, held));
       return true;
     },
     take: (title) => {

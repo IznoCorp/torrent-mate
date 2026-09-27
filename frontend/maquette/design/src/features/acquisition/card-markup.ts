@@ -38,7 +38,7 @@ export type MediumCard = {
   /** Who asked for it, and where: a follow of theirs, or a direct add. */
   requester?: { name: string; via: string };
   /** The medium's ladder — the same list its journey sheet reads. */
-  ladder?: { rung: string; state: StripState; reason?: string }[];
+  ladder?: { rung: string; state: StripState; reason?: string; when?: string }[];
   withoutPoster?: boolean;
   overview?: string;
   panel?: string;
@@ -78,6 +78,19 @@ const RUNG_TONE: Record<StripState, string> = {
 };
 
 /**
+ * A date, as a sentence says it: the day and the month.
+ *
+ * @param date The date, `YYYY-MM-DD`.
+ * @returns The day in the interface's language, or the date as given when it is not one.
+ */
+function dayOf(date: string): string {
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return date;
+  // In UTC, the zone a bare date is read in, so the day never slips by one.
+  return new Intl.DateTimeFormat(i18next.language, { day: "numeric", month: "long", timeZone: "UTC" }).format(parsed);
+}
+
+/**
  * Where a card stands on its ladder: the strip's cells, unlabelled, and the
  * current rung — the first not passed, or the last when every one is — named in
  * words after its figure, on the line where it has the full width (§12).
@@ -85,13 +98,18 @@ const RUNG_TONE: Record<StripState, string> = {
  * @param ladder The medium's rungs.
  * @returns The strip, the figure and the current rung's chip.
  */
-function ladderMarkup(ladder: { rung: string; state: StripState; reason?: string }[]) {
+function ladderMarkup(ladder: { rung: string; state: StripState; reason?: string; when?: string }[]) {
   const standing = ladder.findIndex((rung) => rung.state !== "done");
   const current = standing === -1 ? ladder.length - 1 : standing;
   const strip: StripCell[] = ladder.map((rung) => ({ state: rung.state }));
   const reason = ladder[current].reason;
+  const setAside = ladder[current].state === "aside";
   return {
     strip,
+    // WHO SET IT ASIDE, AND WHEN, composed from the date the rung carries —
+    // never a constant (§13). It outranks the row's own reason: the folder is
+    // waiting for him now, not for the step that stopped it.
+    setAside: setAside ? i18next.t("surfaces.ladder.setAside", { day: dayOf(ladder[current].when ?? "") }) : undefined,
     // THE REASON THE LADDER KNOWS, said in words, for a card whose row carries none.
     reason: reason === undefined ? undefined : i18next.t(`surfaces.ladder.reasons.${reason}`),
     fraction: i18next.t("surfaces.ladder.figure", { position: current + 1, count: ladder.length }),
@@ -145,6 +163,8 @@ export function mediumCardMarkup(medium: MediumCard, foot?: MediumCardFoot | Med
     subtitle: medium.secondaryLine,
     reason: medium.plexMatch
       ? escapeMarkup(i18next.t("surfaces.card.plexMatch", { title: medium.plexMatch.title }))
+      : onLadder?.setAside
+      ? escapeMarkup(onLadder.setAside)
       : medium.reason
       ? richTextMarkup(medium.reason)
       : onLadder?.reason ? escapeMarkup(onLadder.reason) : undefined,

@@ -5,11 +5,17 @@
 // at all. Where a card sits is a function of its state: every card here is
 // blocked, and its section says what unblocks it. Never an empty screen
 // (DOIT-7): with nothing waiting, it says so and says where the rest is.
+//
+// WHAT HE SET ASIDE IS LAST, AND FOLDED (ruling 16): « Mis de côté » is not
+// forgotten — its files are still on the machine — but it waits for nobody's
+// hand but his, when he chooses; so it closes the tab, shut, and counts neither
+// in the tab's number nor in the bar's badge.
 import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { mediumCardMarkup } from "./card-markup";
-import { todoCards } from "./arrival-slots";
+import { setAsideCards, todoCards } from "./arrival-slots";
+import { Disclosure } from "../../ui/disclosure";
 import { useAcquisitionQueue } from "../../lib/queue";
 import { type QueueCard } from "../../lib/engine-queue";
 import { useUiState } from "../../lib/store-access";
@@ -38,6 +44,7 @@ export function TodoTab(): ReactElement {
   const scenario = state.scen === "loaded" ? "loaded" : "";
   const { data: queue } = useAcquisitionQueue(scenario);
   const blocked = queue ? todoCards(queue) : [];
+  const setAside = queue ? setAsideCards(queue) : [];
   // A STEP THAT CANNOT FINISH is unblocked by a relaunch, never by an identity
   // pick: such a card offers « Relancer » and no « Résoudre ».
   const tunnelErrors = blocked.filter((card) => card.failedStep !== undefined);
@@ -91,6 +98,20 @@ export function TodoTab(): ReactElement {
             { label: t("screens.acquisition.abandonFoot"), attributes: { "data-journey-abandon": card.title } },
           ]))
           .join(""),
+      )}
+      {setAside.length === 0 ? null : (
+        <section className={sectionClass()} data-part="section/set-aside">
+          <Disclosure summary={<Markup html={sectionInnerMarkup("waiting", t("screens.acquisition.todoSetAside"), String(setAside.length), "")} />}>
+            <Markup
+              html={setAside
+                .map((card) => mediumCardMarkup(card, {
+                  label: t("screens.acquisition.blockedFoot"),
+                  attributes: { "data-resolution": card.title },
+                }))
+                .join("")}
+            />
+          </Disclosure>
+        </section>
       )}
     </div>
   );

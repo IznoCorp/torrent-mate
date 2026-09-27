@@ -3,6 +3,7 @@
 import DESTINATIONS from "../seeds/staging-destinations.json";
 import { DELETE, GET, POST, route, text } from "./shared";
 import { mockState } from "../state";
+import { scenario } from "../scenario";
 import { refused, type MockRequest, type MockRoute } from "../router";
 import { forgetLadder, ladderOf, rungIndex, stripPosition, type Position } from "./ladder";
 import { accountName } from "../account";
@@ -15,26 +16,17 @@ type HeldState = ReturnType<typeof mockState>;
 // and the prototype's own harness switches between them.
 const LOADED = "loaded";
 
-// What « continue » was asked to mean. Agreeing with the MACHINE keeps the
-// automatic result and re-scrapes nothing; agreeing with a CANDIDATE puts the
-// folder back through the pipeline under the name that was picked.
-const ACCEPTED_AS_FOUND = "left";
-
-// What the card says once it has moved. These are the engine's own words,
-// carried verbatim (D-L08-5) — a layer that invented them would be inventing
-// interface copy, and one that decomposed them would forfeit the proof that the
-// card renders what it rendered. The demand register asks the backend for the
-// FACT behind them.
-const LEFT_LABEL = "Laissé tel quel";       // french-ok: a carried fixture value
+// What « continue » was asked to mean. Agreeing with a CANDIDATE puts the
+// folder back through the pipeline under the name that was picked; LEAVING it as
+// it is means LATER (ruling 6): the folder stays where it is queued, set aside.
+const LEFT_AS_IT_IS = "left";
 
 // THE STRIP'S FOURTH STEP, which is where a folder stands once it has been
 // answered: the first three are done and this one is running. « now » is the
 // engine's own token for it, carried like every other value on a card.
 const RUNNING_NOW = "now";
 
-// The two tones a settled card wears. Neutral for a result that was accepted as
-// it stood, informative for one that went back through the pipeline.
-const NEUTRAL = "neutral";
+// The tone a card wears once it went back through the pipeline.
 const INFORMATIVE = "info";
 
 // Which of the two staging worlds a card came from and goes to. Named because
@@ -61,6 +53,8 @@ const WAITING = "waiting";
 const STUCK_AT: Position = { current: rungIndex("identified"), state: BLOCKED };
 const SETTLED_AT: Position = { current: rungIndex("verified"), state: PENDING };
 // A settled folder whose Plex match waits for the operator: blocked there.
+// The rung state of a folder the operator set aside: the contract's own token.
+const ASIDE = "aside";
 const MATCH_TO_CONFIRM: Position = { current: rungIndex("verified"), state: BLOCKED };
 const settled = (card: QueueCard) => (card.plexMatch === undefined ? SETTLED_AT : MATCH_TO_CONFIRM);
 // The pipeline's state while a maintenance run holds the lock, and the reason
@@ -174,6 +168,36 @@ export function arrivalsOf(dense: boolean): QueueCard[] {
   }));
 }
 
+/**
+ * Sets one queued folder aside, where it stands (ruling 6, placed by ruling 16).
+ *
+ * THE FOLDER STAYS WHERE IT IS QUEUED: its files are still on the machine and
+ * still have to be dealt with, so it leaves no list. What changes is its
+ * ladder — the rung it was stopped on is now set aside, dated with the layer's
+ * frozen clock, never the wall clock (the layer is deterministic by contract).
+ *
+ * THE ENGINE'S `dismissed` ACCEPTS the automatic result; the interface's
+ * « Laisser tel quel » means later, and the backend follows the interface.
+ *
+ * @param title The folder.
+ * @returns Whether a queued folder carried that title.
+ */
+export function setAside(title: string): boolean {
+  const state = mockState();
+  for (const list of SOURCE_LISTS) {
+    const found = state[list].find((card) => card.title === title);
+    if (found === undefined) continue;
+    // Laid where the list that draws it lays it: a staging folder on
+    // « identifié », a blocked card on its strip.
+    const ladder = ladderOf(title, list === FROM_BLOCKED ? stripPosition(found.strip) : STUCK_AT);
+    const standing = ladder.findIndex((rung) => rung.state !== "done");
+    if (standing === -1) return false;
+    ladder[standing] = { rung: ladder[standing].rung, state: ASIDE, when: scenario().now };
+    return true;
+  }
+  return false;
+}
+
 /** Every route this subject answers. */
 export function stagingRoutes(): MockRoute[] {
   return [
@@ -207,6 +231,7 @@ export function stagingRoutes(): MockRoute[] {
         // dense world moves within it. Mixing them put a card in a queue no
         // scenario would ever show it in.
         const asked = request.parameters.mediaId;
+        if (text(request.body, "outcome") === LEFT_AS_IT_IS) return { ok: setAside(asked) };
         const lists = [
           { from: FROM_REAL, to: TO_REAL },
           { from: FROM_DENSE, to: TO_DENSE },
@@ -216,21 +241,19 @@ export function stagingRoutes(): MockRoute[] {
           const found = state[from].find((card) => card.title === asked);
           if (found === undefined) continue;
           state[from] = state[from].filter((card) => card !== found);
+          // A folder set aside and then resolved does not carry its aside rung
+          // into the pipeline: its ladder is laid again from where it now stands.
+          if (state.journeyStages[found.title]?.some((rung) => rung.state === ASIDE)) forgetLadder(found.title);
           // WHAT THE CARD SAYS AFTERWARDS is the engine's own: agreeing with a
-          // candidate puts it back in the pipeline and says « Scraping »;
-          // agreeing with the machine keeps the automatic result and says it
-          // was left as it stood. The strip is the same in both — the folder
-          // has passed the first three steps and is at the fourth.
-          const settled = text(request.body, "outcome") === ACCEPTED_AS_FOUND;
+          // candidate puts it back in the pipeline and says « Scraping », the
+          // folder past the first three steps and at the fourth.
           const named = text(request.body, "choice");
           state[to] = [
             {
               ...found,
               title: named === "" ? found.title : named,
               strip: [1, 1, 1, RUNNING_NOW, 0],
-              chip: settled
-                ? { tone: NEUTRAL, text: LEFT_LABEL }
-                : { tone: INFORMATIVE, text: SCRAPING_LABEL },
+              chip: { tone: INFORMATIVE, text: SCRAPING_LABEL },
             },
             ...state[to],
           ];

@@ -736,9 +736,11 @@ Where a title is a proposition rather than an identity, only its own picture wil
 **Three ways out, and the third was missing.** Pick a candidate, search by hand, or LEAVE IT AS
 IT IS. The last exists in the engine (`dismissed`) and existed nowhere in the interface, so a
 folder whose automatic result was right had no way of being agreed with — one could only ever
-contradict the machine. Answering, whichever way, takes the folder out of the queue, on BOTH
-lists it appears on: « À traiter » on the acquisition side used to keep it forever, because the
-answer only ever looked in the Arrivées list.
+contradict the machine. A pick takes the folder out of the queue, on BOTH lists it appears on:
+« À traiter » on the acquisition side used to keep it forever, because the answer only ever
+looked in the Arrivées list. « Laisser tel quel » means LATER: the folder stays queued, set
+aside, in « Mis de côté », a folded section at the end of « À traiter » that counts neither in
+the tab's number nor in the bar's badge (`harness/set_aside_is_later.py`).
 
 Every exit returns to « À traiter », the tab open, whichever way the screen was reached — a pop
 from the list, the page laid beneath on « À traiter » from a cold link. There is no « Suivant »

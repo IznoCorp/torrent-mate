@@ -449,7 +449,7 @@
       "searchManually": "Chercher manuellement →",
       "leaveAsIs": "Laisser tel quel",
       "note2Title": "Laisser tel quel n'est pas ignorer.",
-      "note2Body": "Le résultat automatique était peut-être le bon : cette voie l'entérine et ne re-scrape rien. Elle existait dans le moteur et nulle part dans l'interface, donc on ne pouvait qu'être en désaccord avec la machine, jamais d'accord.",
+      "note2Body": "C'est « plus tard » : le dossier reste sur la machine, mis de côté, replié en fin d'« À traiter » — hors de son compte, jamais oublié. Vous le reprenez de là quand vous voulez.",
       "settledHeading": "Réglées récemment",
       "settledHint": "Ce qui a déjà été tranché, pour ne pas répondre deux fois — et pour retrouver ce qu'on avait choisi.",
       "reason": {
@@ -880,6 +880,7 @@
       "todoEmptyBody": "Ce qui avance sans vous est dans « En cours ».",
       "todoResolve": "À résoudre",
       "todoTunnelError": "Une étape ne passe pas",
+      "todoSetAside": "Mis de côté",
       "todoRequeueFoot": "Relancer",
       "todoPlexMatch": "Match Plex à confirmer",
       "plexConfirmFoot": "Confirmer",
@@ -1024,6 +1025,7 @@
     },
     "ladder": {
       "figure": "{{position}} sur {{count}}",
+      "setAside": "Mis de côté par vous, le {{day}}.",
       "rungs": {
         "requested": "demandé",
         "searched": "cherché",
@@ -1326,7 +1328,7 @@
     },
     "arrivals": {
       "taken": "« {{title}} » récupéré — suivez-le dans « En vol ».",
-      "left": "« {{title}} » laissé tel quel — le résultat automatique est conservé, rien n'a été re-scrapé.",
+      "left": "« {{title}} » mis de côté — il vous attend, replié en fin d'« À traiter ».",
       "pipelineStarted": "Pipeline lancé — il se raconte ici, étape par étape.",
       "pipelineQueued": "En file — votre passage partira dès que la maintenance en cours sera finie.",
       "pipelineAlreadyRunning": "Un passage est déjà en cours — celui-ci n'a pas été relancé.",
