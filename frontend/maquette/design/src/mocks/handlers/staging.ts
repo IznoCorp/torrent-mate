@@ -8,6 +8,7 @@ import { scenario } from "../scenario";
 import { refused, type MockRequest, type MockRoute } from "../router";
 import { confirmInPlex, forgetLadder, ladderOf, rungIndex, stripPosition, type Origin, type Position } from "./ladder";
 import { accountName } from "../account";
+import { backToSearch } from "./follow-errors";
 import type { components } from "../../contract/types";
 
 type QueueCard = components["schemas"]["QueueCard"];
@@ -330,10 +331,10 @@ export function stagingRoutes(): MockRoute[] {
       "/api/staging/media/{mediaId}/discard",
       (request) => {
         const asked = request.parameters.mediaId;
-        // QUARANTINED, NOT DELETED: the answer says where the folder went, the
-        // way the backend composes it — the staging area's quarantine, then the
-        // folder's own name — and that the move was journaled.
+        // QUARANTINED, NOT DELETED, journaled, at the backend's own path; a follow's folder is searched again.
         const quarantinePath = [QUARANTINE_FOLDER, asked].join(PATH_SEPARATOR);
+        const followed = (card: QueueCard) => mockState().follows.some((follow) => sameMedium(card, follow.ids));
+        if (backToSearch(asked, followed)) return { ok: true, journaled: true, quarantine_path: quarantinePath };
         const removed = takeOutOfStaging(asked);
         return { ok: removed, journaled: removed, quarantine_path: quarantinePath };
       },

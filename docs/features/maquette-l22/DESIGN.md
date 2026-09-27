@@ -1051,6 +1051,12 @@ card** and **a rung's change of state**, as stream events — the operator amend
 > chose (`releaseName`, an optional body); the backend's `POST /followed/{id}/grab` takes no body and claims what the last
 > search marked takeable. The backend is asked for that optional field. `takeQueued` retired; L18's row L re-aims (L18's).
 
+> **Amended 2026-09-28 (phase 34, M1, RULINGS 26) — the quarantine's demand grows:** on a FOLLOW's card, `discardStagedMedia`
+> also records the release as tried for that item (never offered again) and the item goes back to « cherché », the follow
+> going on; the maquette POSES the error on « Furious » — the backend reads the follow's own failed step. Round 10 Q6 = C
+> is NOT built (one requester per card): « Abandonner » withdraws the request of whoever abandons, and the quarantine
+> happens only when the LAST requester abandons — L18 builds it.
+
 ### 6.3 The clause-map rows PROPOSED (the operator amends the map; this lot does not)
 
 Six rows of `docs/reference/product-intent-map.md` name `features/arrivals`

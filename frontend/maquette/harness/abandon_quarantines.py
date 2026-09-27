@@ -13,6 +13,19 @@ Walked by finger on the tunnel-error card of « À traiter »:
    place the folder was put, which the confirmation's message says; the card
    leaves « À traiter »;
 3. cancelling sends nothing, and the card stays.
+
+ON A FOLLOW'S CARD the follow goes on (a series' follow never ends alone; §14.1
+« récupéré ? non → changement de release »), on `acq-card-follow-error`: a
+tunnel error POSED on « Furious », a real follow in flight — a derivation shown
+as one (RULINGS 26); the backend reads the follow's own failed step instead.
+
+4. the confirmation says another release will be searched;
+5. confirming quarantines the folder, and the abandoned release is no longer
+   offered for that title;
+6. the card is back in « En vol » on « cherché », and the follow is still there.
+
+« Top Chef », an arrival nobody followed, keeps the one-off behaviour: its card
+closes (holds 1–3).
 """
 import asyncio
 import json
@@ -22,6 +35,17 @@ from common import ACTED, SETTLED, Journal, open_page
 from playwright.async_api import async_playwright
 
 SEEDS = pathlib.Path(__file__).resolve().parents[1] / "design/src/mocks/seeds"
+FOLLOWED = "Furious"
+WORDS = json.loads((SEEDS.parents[1] / "i18n/fr.json").read_text(encoding="utf-8"))
+SEARCHED = WORDS["surfaces"]["ladder"]["figure"].replace("{{position}}", "2").replace(
+    "{{count}}", str(len(WORDS["surfaces"]["ladder"]["rungs"])))
+ANOTHER = WORDS["verbs"]["acquisition"]["abandon"].get("bodyFollow", "(no such sentence)")
+RELEASES = """async (title) => (await (await fetch('/api/acquisition/releases?title='
+  + encodeURIComponent(title))).json()).map((release) => release.name)"""
+FOLLOWS = """async () => (await (await fetch('/api/acquisition/followed')).json()).map((one) => one.title)"""
+FIGURE = """(title) => { const card = [...document.querySelectorAll('#view [data-part="card"]')]
+  .find(one => one.querySelector('[data-part="card/title"]')?.textContent === title);
+  return card ? (card.querySelector('[data-part="card/meta"] > span:first-child') || {}).textContent ?? null : null; }"""
 TUNNEL_ERROR = next(row for row in json.loads((SEEDS / "stuck.json").read_text(encoding="utf-8"))
                     if row.get("failedStep"))["title"]
 OPERATION = "discardStagedMedia"
@@ -90,6 +114,32 @@ async def main():
         journal.check("cancelling sends nothing, and the card stays",
                       tapped and cancelled and await page.evaluate(DISCARDS) == before
                       and await page.evaluate(ON_TAB, TUNNEL_ERROR), "")
+
+        # ON A FOLLOW'S CARD: another release is searched, the follow goes on.
+        answer = await page.evaluate(
+            "()=>{try{window.__go('acq-card-follow-error');return null}catch(error){return String(error)}}")
+        journal.check("the named state acq-card-follow-error exists", answer is None, answer or "")
+        await page.wait_for_timeout(SETTLED)
+        offered = await page.evaluate(RELEASES, FOLLOWED)
+        tapped = await page.evaluate("""(title)=>{
+            const foot = [...document.querySelectorAll('#view [data-part="card/foot"]')]
+              .find(one => one.getAttribute('data-journey-abandon') === title);
+            if (!foot) return false; foot.click(); return true; }""", FOLLOWED)
+        await page.wait_for_timeout(ACTED)
+        text = await page.evaluate(DIALOG)
+        journal.check("on a follow's card, the confirmation says another release will be searched",
+                      tapped and text is not None and ANOTHER.strip() in text, repr(text))
+        await page.evaluate("""()=>document.querySelector('[data-part="dialog"][data-open] [data-part="dialog/button"][data-tone="danger"]')?.click()""")
+        await page.wait_for_timeout(ACTED)
+        await page.evaluate("()=>window.__mocks.quiet()")
+        after = await page.evaluate(RELEASES, FOLLOWED)
+        journal.check("the abandoned release is no longer offered for that title",
+                      bool(offered) and offered[0] not in after, f"{offered} → {after}")
+        await page.evaluate("()=>window.__store.write({ acqTab: 'now' })")
+        await page.wait_for_timeout(SETTLED)
+        figure = await page.evaluate(FIGURE, FOLLOWED)
+        journal.check("the card is back in « En vol », on « cherché »", figure == SEARCHED, repr(figure))
+        journal.check("and the follow goes on", FOLLOWED in await page.evaluate(FOLLOWS), "")
 
         journal.check("no JS error", not errors, str(errors))
         await context.close()

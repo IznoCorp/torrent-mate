@@ -323,6 +323,21 @@ downloading, stays in « En vol », against the letter of ruling 2 — a tempora
 L16's plan by the steward at the closing docs pull request. Phase 31 keeps condition 3 alone: every direct-add card that
 has ARRIVED shows its four rungs before « arrivé » not lived, with no borrowed time, held and mutated (R212).
 
+## 26 — « Abandonner » on a follow's card is POSED on Furious; the follow goes on (steward, 2026-09-28; L22b phase 34, STOP D)
+
+**The STOP.** M1 has « Abandonner » on a FOLLOW's card set the release aside and search another. The one seeded tunnel
+error, « Top Chef Le Concours Parallèle (2026) », was dropped by hand and no follow asked for it: no real row carries a
+follow's tunnel error.
+
+**Ruled (a)**, on RULINGS 22 and 24's precedent: a tunnel error is POSED by a mock door (`poseTunnelError`) on
+« Furious », a real follow in flight, in the named state `acq-card-follow-error`. « Abandonner » there quarantines the
+folder, adds its release to the ones tried for that title — the release read no longer offers it — and puts the medium
+back in « En vol » on « cherché »; the follow goes on; the confirmation says « une autre release sera cherchée ».
+Conditions: (1) the state and the demand say the error is POSED, not read, and name the backend read that replaces it —
+the follow's own failed step; (2) one mutation per hold — the abandoned release still offered, the card not back on
+« cherché », the follow stopped — each falls. Top Chef keeps the one-off behaviour (its card closes) and R222 stays held
+on it. (b), writing the error into Furious's seed, was refused.
+
 ## 30 — the ladder's figure keeps one meaning; a Plex match waits on its current rung (steward, 2026-09-27; round one, A6)
 
 **The question.** The round's brief asked Star Trek's card to read « 7 sur 8 »; the figure is the current rung's

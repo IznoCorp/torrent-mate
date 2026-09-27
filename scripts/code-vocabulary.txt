@@ -35,6 +35,7 @@
 # written down here so the next reader knows it was a decision.
 
 abandon
+abandoned
 above
 accent
 accepted

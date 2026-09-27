@@ -24,6 +24,7 @@ import { seasonsHeld } from "../lib/season-rows";
 import { renameAccount } from "./account";
 import { mockState } from "./state";
 import { poseDisagreement, setAside } from "./handlers/staging";
+import { poseTunnelError } from "./handlers/follow-errors";
 import { poseKeepsItsFiles } from "./handlers/staged-folders";
 import { confirmInPlex, placeAtPlexCheck } from "./handlers/ladder";
 import { emit } from "./stream";
@@ -53,6 +54,8 @@ export type MockSeeds = {
   poseKeepsItsFiles: (title: string) => void;
   /** Poses a Plex match that DISAGREES with the identity held — a DERIVATION, never read (RULINGS 24). */
   poseDisagreement: (title: string, match: { title: string; ids: Record<string, string | number> }) => void;
+  /** Poses a tunnel error on a follow's folder in flight — a DERIVATION, never read (RULINGS 26). */
+  poseTunnelError: typeof poseTunnelError;
   /** Lays a medium's ladder one event away from « vérifié dans Plex » — a DERIVATION from its real row (RULINGS 14). */
   placeAtPlexCheck: (title: string) => void;
   /**
@@ -119,6 +122,7 @@ export const mockSeeds: MockSeeds = {
   setAside,
   poseKeepsItsFiles,
   poseDisagreement,
+  poseTunnelError,
   placeAtPlexCheck,
   confirmInPlex: (title) => {
     confirmInPlex(title);

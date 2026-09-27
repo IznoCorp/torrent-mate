@@ -1,6 +1,6 @@
 // What is wanted, and what is being fetched.
 import GRAB_CADENCE from "../seeds/grab-cadence.json";
-import RELEASES from "../seeds/releases.json";
+import { releasesFor } from "./releases-of";
 import SEARCH_RESULTS from "../seeds/search-results.json";
 import SUGGESTIONS from "../seeds/suggestions.json";
 import { DELETE, GET, PATCH, POST, field, route, text } from "./shared";
@@ -79,36 +79,6 @@ function followFor(identifier: string) {
   return mockState().follows.find((follow) => follow.title === identifier);
 }
 
-const DECOMPOSED_FORM = "NFD";
-const ACCENT_MARK = /[\u0300-\u036f]/g;
-const SEPARATOR = /[^\p{Ll}\p{Nd}]/gu;
-
-/**
- * A title or a release name reduced to what the two have in common.
- *
- * A RELEASE NAME SPELLS A TITLE WITH DOTS, and without its accents or its
- * punctuation: « L'Odyssée » is `L.Odyssee.2026…`. Compared as written, every
- * title of more than one word matched no release at all — the same list that
- * does not depend on what it is a list of, reached through the spelling.
- *
- * @param spelled A title or a release name.
- * @returns The letters and digits, lower-cased, accents removed.
- */
-function matchingKey(spelled: string): string {
-  return spelled.normalize(DECOMPOSED_FORM).replace(ACCENT_MARK, "")
-    .toLowerCase().replace(SEPARATOR, "");
-}
-
-/**
- * The releases a search for one title turns up.
- *
- * @param title The medium's title, as the interface spells it.
- * @returns Every seeded release whose name carries that title.
- */
-function releasesFor(title: string) {
-  const wanted = matchingKey(title);
-  return RELEASES.filter((release) => matchingKey(String(release.name ?? "")).includes(wanted));
-}
 
 /**
  * The entry a follow is created from, by title: a search result or a suggestion.

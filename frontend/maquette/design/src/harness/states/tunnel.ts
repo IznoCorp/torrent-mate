@@ -152,6 +152,18 @@ export function tunnelStates(): NamedState[] {
       },
     ],
     [
+      "acq-card-follow-error",
+      "À traiter — une erreur de tunnel sur la carte d'un SUIVI, POSÉE sur Furious (le back-end lira l'étape en échec du suivi — RULINGS 26)",
+      () => {
+        // A DERIVATION, SHOWN AS ONE (RULINGS 26): no seeded row of a follow
+        // stops on an error, so one is posed on a real follow in flight.
+        window.__mocks?.poseTunnelError("Furious", "scrape");
+        window.__queries?.removeQueries({ queryKey: ["/api/acquisition/to-handle"] });
+        window.__queries?.removeQueries({ queryKey: ["/api/staging/media"] });
+        applyState({ page: "acq", acqTab: "todo", scen: "loaded", phase: "ready" });
+      },
+    ],
+    [
       "acq-delete-keeps-files",
       "Mis de côté — « Supprimer » : le torrent garde ses fichiers (cas POSÉ sur Lucky, que le back-end lira dans qBittorrent au geste — RULINGS 22)",
       () => {

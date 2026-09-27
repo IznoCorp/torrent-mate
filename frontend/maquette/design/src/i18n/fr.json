@@ -1336,6 +1336,7 @@
         "heading": "Abandonner « {{title}} » ?",
         "bodyBefore": "Le dossier ",
         "bodyAfter": " sera mis en quarantaine dans le staging et le déplacement journalisé. Rien n'est supprimé.",
+        "bodyFollow": " Le suivi continue : une autre release sera cherchée.",
         "confirm": "Mettre en quarantaine",
         "cancel": "Annuler",
         "done": "« {{title}} » mis en quarantaine : {{path}}"
