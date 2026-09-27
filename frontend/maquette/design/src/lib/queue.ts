@@ -242,10 +242,11 @@ const UNDO_WINDOW_MILLISECONDS = 7000;
 // without knowing what is in it.
 //
 // A PAIR IS SYMMETRIC. Its reader matches on EITHER end — reading only the
-// first left a replayed `/api/acquisition/to-handle/…/take` never reaching
-// staging, which is this constant's own defect in the other direction.
+// first left a replayed take never reaching staging, which is this constant's
+// own defect in the other direction. A take is a FOLLOW's grab, so a replayed
+// `/api/acquisition/followed/…/grab` moves the two lists the take wrote to.
 export const ADDRESSES_THAT_MOVE_TOGETHER: readonly (readonly string[])[] = [
-  ["/api/staging/media", "/api/acquisition/to-handle"],
+  ["/api/staging/media", "/api/acquisition/to-handle", "/api/acquisition/followed"],
 ];
 
 /**
@@ -356,10 +357,15 @@ export function installQueueActions(queryClient: QueryClient): void {
       void deliver(scenario, title, "left", () => putBack(queryClient, scenario, held));
       return true;
     },
-    take: (title) => {
+    // THE FOLLOW'S OWN GRAB, the backend's « claim now » for one follow: what
+    // waits to be taken is a follow's found release. The picker names the
+    // release it chose; the sheet's act names none and the grab takes what the
+    // last search marked takeable.
+    take: (title, releaseName) => {
       const scenario = scenarioNow();
       const held = takeOutOfQueue(queryClient, scenario, title);
-      void send("POST", `/api/acquisition/to-handle/${encodeURIComponent(title)}/take`)
+      void send("POST", `/api/acquisition/followed/${encodeURIComponent(title)}/grab`,
+        releaseName === undefined ? undefined : { releaseName })
         .catch((refusal) => {
           putBack(queryClient, scenario, held);
           throw refusal;
@@ -396,7 +402,7 @@ declare global {
       /** Picks a candidate at once and sends it when the undo window closes. */
       pick: (title: string, choice?: string) => () => void;
       leave: (title: string) => boolean;
-      take: (title: string) => void;
+      take: (title: string, releaseName?: string) => void;
     };
   }
 }

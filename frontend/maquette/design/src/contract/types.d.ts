@@ -294,7 +294,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Take a release for one follow */
+        /** Claim now what the last search found for one follow */
         post: operations["grabForFollow"];
         delete?: never;
         options?: never;
@@ -989,26 +989,6 @@ export interface paths {
         get: operations["readVersion"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/acquisition/to-handle/{mediaId}/take": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Restart one item that was waiting to be acquired
-         * @description The interface offers « récupérer » on every takeable card and the contract had no operation for it — the engine moved the card inside its own fixture. Recorded here as the interface's requirement (D7): the backend must restart the acquisition and the card must leave « à récupérer » for « en vol » at its first step.
-         */
-        post: operations["takeQueued"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2431,23 +2411,24 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": {
+                    /** @description the release the picker chose; absent, the grab takes what the last search marked takeable. The backend's grab takes no body: the chosen release is a demand */
                     releaseName?: string;
                 };
             };
         };
         responses: {
-            /** @description the torrent that was taken */
-            200: {
+            /** @description the grab was launched */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        /** @description the release that was taken, by name. The fixture carries no info hash at all — the demand register asks for one */
-                        releaseName: string;
+                        /** @description the run that claims it */
+                        runUid: string | null;
                     };
                 };
             };
@@ -3704,31 +3685,6 @@ export interface operations {
             409: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
-        };
-    };
-    takeQueued: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description the card's own title, which is how the queue keys one */
-                mediaId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description whether a card of that name was waiting */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        ok: boolean;
-                    };
-                };
-            };
         };
     };
     readRun: {

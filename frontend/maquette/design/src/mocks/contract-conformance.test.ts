@@ -3,7 +3,7 @@
 // THE HOLE THIS FILLS, and `check-mock-seeds.py` names it in its own words:
 // « handlers, so a handler ignoring its seed passes here ». That guard reads
 // SEEDS. A payload a handler composes — a listing's `matching` and `loaded`, a
-// card built by `takeQueued`, a sheet assembled from five families — touches no
+// card built by `grabForFollow`, a sheet assembled from five families — touches no
 // seed, so the two required fields this lot added to the listing were checked by
 // nothing but the surface that happened to read them.
 //

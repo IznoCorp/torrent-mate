@@ -19,12 +19,12 @@ than a blank page.
 
 | | |
 | --- | ---: |
-| operations the interface requires | 69 |
+| operations the interface requires | 68 |
 | operations the backend has | 65 |
-| required and missing | 22 |
+| required and missing | 21 |
 | declared by both, different response shape | 47 |
 | declared by both, path parameter spelled differently | 15 |
-| declared by both, answered with a different status | 11 |
+| declared by both, answered with a different status | 10 |
 | fields carried pre-formatted | 25 |
 | the backend has and the interface does not use | 18 |
 
@@ -53,7 +53,6 @@ than a blank page.
 | `GET /api/system/services` | `readServices` | The services, and whether each answers |
 | `POST /api/acquisition/followed/{followedId}/restore` | `restoreFollow` | Put a removed follow back, as it was |
 | `POST /api/acquisition/journeys/{infoHash}/plex-match` | `resolvePlexMatch` | Confirm or correct the match Plex made for a medium — the Plex match's CORRECTION VERB, OPEN 9's fifth demand; the disagreement is POSED in the maquette (RULINGS 24), the backend compares Plex's real match with the identity held |
-| `POST /api/acquisition/to-handle/{mediaId}/take` | `takeQueued` | Restart one item that was waiting to be acquired |
 | `POST /api/media/{provider}/{providerId}/rescrape` | `rescrapeMedia` | Ask the providers for one medium's metadata again |
 | `POST /api/staging/media/{mediaId}/reclassify` | `reclassifyStagedMedia` | File a folder that is not a medium where the sort files its kind |
 
@@ -90,7 +89,7 @@ reports a difference for every optional field and drowns the real findings.
 | `PATCH /api/acquisition/followed/{followedId}` (`updateFollow`) | `aired`, `fresh`, `ids`, `poster`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `id`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
 | `POST /api/acquisition/detect` (`runDetection`) | `runUid` | `run_uid` |
 | `POST /api/acquisition/followed` (`createFollow`) | `aired`, `fresh`, `ids`, `poster`, `searches`, `showStatus`, `since` | `acquiring_count`, `active`, `added_at`, `aired_count`, `announced_count`, `cadence`, `cadence_tier`, `id`, `imdb_id`, `last_search_at`, `last_search_found`, `last_search_outcome`, `media_ref`, `movie_facts`, `next_search_at`, `original_title`, `overview`, `owned_count`, `pending_count`, `poster_url`, `priming_running`, `quality_profile`, `season_count`, `series_status`, `tmdb_id`, `to_grab_count`, `tvdb_id`, `tvdb_unresolved`, `unverified_count`, `wanted_grabbed`, `wanted_pending`, `wanted_status` |
-| `POST /api/acquisition/followed/{followedId}/grab` (`grabForFollow`) | `releaseName` | `run_uid` |
+| `POST /api/acquisition/followed/{followedId}/grab` (`grabForFollow`) | `runUid` | `run_uid` |
 | `POST /api/acquisition/followed/{followedId}/search` (`searchForFollow`) | `found` | `run_uid` |
 | `POST /api/acquisition/follows/{followedId}/seasons/{season}/grab` (`grabSeasonForFollow`) | `absorbedCount`, `newlyFollowed`, `queued`, `runUid` | `absorbed_count`, `reused`, `run_started`, `run_uid`, `season_wanted_id` |
 | `POST /api/acquisition/journeys/{infoHash}/requeue` (`requeueJourney`) | `queued`, `runUid` | `run_uid` |
@@ -154,7 +153,6 @@ a 200 is not a defect in either document, it is a decision nobody had written do
 | --- | --- | --- | --- |
 | `DELETE /api/acquisition/followed/{followedId}` | `deleteFollow` | `200` | `204` |
 | `POST /api/acquisition/followed` | `createFollow` | `200` | `201` |
-| `POST /api/acquisition/followed/{followedId}/grab` | `grabForFollow` | `200` | `202` |
 | `POST /api/acquisition/followed/{followedId}/search` | `searchForFollow` | `200` | `202` |
 | `POST /api/auth/login` | `signIn` | `200` | `204` |
 | `POST /api/auth/logout` | `signOut` | `200` | `204` |

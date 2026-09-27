@@ -11,8 +11,11 @@ to be taken of a medium the operator follows:
                 à <heure> », the hour computed here from the cadence the
                 scheduler answers — its next slot after the page's own clock.
   the act       the same sheet offers « Récupérer maintenant » for that title.
-  the take      a tap sends the take operation, and the sheet opened again on
-                that title no longer carries the sentence.
+  the take      a tap sends THAT FOLLOW's grab — `grabForFollow`, at the
+                follow's own address, the backend's « claim now » — and the
+                sheet opened again on that title no longer carries the sentence.
+                RE-AIMED OUT LOUD: it counted `takeQueued`, an operation the
+                backend never served; the per-follow grab is the one it does.
 
 WHAT IT DOES NOT READ: the queue's optimistic move on the tap (R123's), or the
 panel's other actions.
@@ -50,7 +53,8 @@ SHEET = """() => {
 }"""
 
 SENT = """(title) => (window.__mocks?.answered?.() || [])
-  .filter((call) => call.operationId === "takeQueued").length"""
+  .filter((call) => call.operationId === "grabForFollow" && call.method === "POST"
+    && decodeURIComponent(call.path) === `/api/acquisition/followed/${title}/grab`).length"""
 
 
 async def open_follow(page, title):
@@ -95,7 +99,7 @@ async def main():
           .find((one) => 'take' in one.dataset)?.click()""")
         await page.wait_for_timeout(ACTED + SETTLED)
         after = await page.evaluate(SENT, title)
-        journal.check("the tap sends the take operation", after == before + 1, f"{before} → {after}")
+        journal.check("the tap sends that follow's grab", after == before + 1, f"{before} → {after}")
         again = await open_follow(page, title)
         journal.check("the sheet opened again no longer says it waits for the next pass",
                       SENTENCE not in again["text"], again["text"][:240])

@@ -259,14 +259,25 @@ export function acquisitionRoutes(): MockRoute[] {
       POST,
       "/api/acquisition/followed/{followedId}/grab",
       (request) => {
-        // THE RELEASE'S NAME, under a field that says so. It answered
-        // `infoHash` with this value, and a release name is not a torrent
-        // digest — the same class of wrong name as calling a run status a
-        // series. The fixture carries no info hash at all, which is what the
-        // demand register asks the backend for.
-        const asked = text(request.body, "releaseName");
-        const taken = RELEASES.find((release) => release.name === asked) ?? RELEASES[0];
-        return { releaseName: taken.name };
+        // THE FOLLOW'S CLAIM, launched: what its last search found and marked
+        // takeable leaves the queue and is in flight. The backend answers the
+        // run it spawned; the layer holds no runner, and answers none.
+        const state = mockState();
+        const asked = request.parameters.followedId;
+        const found = state.takeable.find((card) => card.title === asked);
+        if (found !== undefined) {
+          state.takeable = state.takeable.filter((card) => card !== found);
+          forgetLadder(asked);
+          state.inFlight = [
+            {
+              ...found,
+              strip: [RUNNING_NOW, 0, 0, 0, 0],
+              chip: { tone: INFORMATIVE, text: STARTED_LABEL },
+            },
+            ...state.inFlight,
+          ];
+        }
+        return { runUid: null };
       },
     ),
     route("searchProviders", GET, "/api/acquisition/search", (request: MockRequest) => {
@@ -345,32 +356,6 @@ export function acquisitionRoutes(): MockRoute[] {
         arrivals: arrivalsOf(false),
       };
     }),
-    route(
-      "takeQueued",
-      POST,
-      "/api/acquisition/to-handle/{mediaId}/take",
-      (request) => {
-        // RESTARTING WHAT WAS WAITING. It leaves « à récupérer » and joins
-        // « en vol » at the first step — which is what the strip says, and it
-        // is the engine's own.
-        const state = mockState();
-        const asked = request.parameters.mediaId;
-        const found = state.takeable.find((card) => card.title === asked);
-        if (found === undefined) return { ok: false };
-        state.takeable = state.takeable.filter((card) => card !== found);
-        // Its ladder is laid again from where it now stands.
-        forgetLadder(asked);
-        state.inFlight = [
-          {
-            ...found,
-            strip: [RUNNING_NOW, 0, 0, 0, 0],
-            chip: { tone: INFORMATIVE, text: STARTED_LABEL },
-          },
-          ...state.inFlight,
-        ];
-        return { ok: true };
-      },
-    ),
     // THE STAGES THE VERBS MOVE, not the seed itself. This answered the
     // imported list to every journey ever asked for, which was enough while the
     // sheet only displayed them; « Remettre en file » and « Re-scraper » are

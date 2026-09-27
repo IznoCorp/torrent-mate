@@ -1047,6 +1047,10 @@ read — and the register's row shrinks instead of a row appearing.
 And two by-hand rows in `docs/reference/frontend-backend-demands-stream.md` (§ 2.3): the **birth of a
 card** and **a rung's change of state**, as stream events — the operator amends that file, not this lot.
 
+> **Amended 2026-09-28 (phase 33, F42) — a demand filed:** the release picker sends `grabForFollow` with the release it
+> chose (`releaseName`, an optional body); the backend's `POST /followed/{id}/grab` takes no body and claims what the last
+> search marked takeable. The backend is asked for that optional field. `takeQueued` retired; L18's row L re-aims (L18's).
+
 ### 6.3 The clause-map rows PROPOSED (the operator amends the map; this lot does not)
 
 Six rows of `docs/reference/product-intent-map.md` name `features/arrivals`

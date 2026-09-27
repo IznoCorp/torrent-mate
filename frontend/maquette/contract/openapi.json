@@ -1303,25 +1303,28 @@
     "/api/acquisition/followed/{followedId}/grab": {
       "post": {
         "operationId": "grabForFollow",
-        "summary": "Take a release for one follow",
+        "summary": "Claim now what the last search found for one follow",
         "tags": [
           "acquisition"
         ],
         "responses": {
-          "200": {
-            "description": "the torrent that was taken",
+          "202": {
+            "description": "the grab was launched",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "releaseName": {
-                      "type": "string",
-                      "description": "the release that was taken, by name. The fixture carries no info hash at all — the demand register asks for one"
+                    "runUid": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "the run that claims it"
                     }
                   },
                   "required": [
-                    "releaseName"
+                    "runUid"
                   ]
                 }
               }
@@ -1358,14 +1361,15 @@
           }
         ],
         "requestBody": {
-          "required": true,
+          "required": false,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
                 "properties": {
                   "releaseName": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "the release the picker chose; absent, the grab takes what the last search marked takeable. The backend's grab takes no body: the chosen release is a demand"
                   }
                 },
                 "required": []
@@ -1373,7 +1377,7 @@
             }
           }
         },
-        "x-unseeded": "the release that was taken, identified by the release the request named. The fixture carries no torrent digest, so the answer names what it can."
+        "x-unseeded": "the run that claims the release; the fixture holds no runner, so it answers none"
       }
     },
     "/api/acquisition/search": {
@@ -3774,45 +3778,6 @@
           }
         },
         "x-unseeded": "the running version. It is the server's own identity and no maquette fixture carries one."
-      }
-    },
-    "/api/acquisition/to-handle/{mediaId}/take": {
-      "post": {
-        "operationId": "takeQueued",
-        "summary": "Restart one item that was waiting to be acquired",
-        "description": "The interface offers « récupérer » on every takeable card and the contract had no operation for it — the engine moved the card inside its own fixture. Recorded here as the interface's requirement (D7): the backend must restart the acquisition and the card must leave « à récupérer » for « en vol » at its first step.",
-        "parameters": [
-          {
-            "name": "mediaId",
-            "in": "path",
-            "required": true,
-            "description": "the card's own title, which is how the queue keys one",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "whether a card of that name was waiting",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "x-unseeded": "whether a card of that name was waiting is decided by the layer's own state at the moment of the call, not by a fixture — there is nothing to seed it from"
       }
     },
     "/api/pipeline/history/{runUid}": {
