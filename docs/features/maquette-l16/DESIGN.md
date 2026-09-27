@@ -393,7 +393,14 @@ wants (is anything running, on any tracker). *Reading B*: « Trackers » opens f
 subject (the domain § 18 names, « le ratio, tracker par tracker ») is the tracker, and a torrent-level
 list without first knowing which trackers exist reads as a detail before an orientation; this also
 matches the Acquisition precedent, whose own default tab (« Suivis ») is the page's SLOWEST-MOVING
-list, not its busiest. **Neither is chosen here** — a STOP C at the phase that draws the shell.
+list, not its busiest.
+
+**Ruled C, 2026-09-27** (after #623 merged): the same rule as Acquisition's — « Trackers » opens on
+first entry, then the last tab opened, kept in this device's local storage under try/catch, falling
+back to « Trackers » when storage is empty, refused or holds a tab the page no longer draws. **ONE
+rule for every tabbed page**: it reuses the mechanism Acquisition's `features/acquisition/tab-memory.ts`
+already carries (a `STORAGE_KEY` per feature, `rememberedTab()` / `rememberTab()`), never a second one.
+Neither reading A nor reading B, as first written above, is chosen as such.
 
 ### 4.2 S2 — The « Trackers » tab: one entry per tracker
 
@@ -715,7 +722,10 @@ is declared before L18; `OPEN 3 = B` — superseded in substance by round 9 Q1, 
 components). **One question is genuinely new**, born of ruling 19 itself, which names no default tab:
 
 **OPEN 4 — which tab opens by default when `/trackers` is reached cold.** § 4.1 states its two
-readings. Neither is chosen: a STOP C at the phase that draws the page's shell.
+readings, and neither is chosen there as such. **Ruled C, 2026-09-27** (§ 4.1): « Trackers » on first
+entry, then the last tab opened, kept in local storage (try/catch, falling back to « Trackers »),
+by the same mechanism Acquisition's default-tab rule already carries — one rule for every tabbed
+page, never a second one. This closes phase 2's STOP C (`plan/phase-02-the-page-and-tabs.md`).
 
 ---
 
