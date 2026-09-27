@@ -29,6 +29,7 @@ import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { createHeldActions } from "./held-actions";
 import { HELD, read, send } from "./query-client";
 import type { QueueCard } from "./engine-queue";
+import type { Schemas } from "./contract-schemas";
 import { store } from "./store-access";
 
 /** The staging queue, as Arrivées and the deck both read it. */
@@ -38,14 +39,8 @@ export type Staging = {
   settled: QueueCard[];
 };
 
-/** What is waiting to be acquired, and what already went. */
-export type AcquisitionQueue = {
-  takeable: QueueCard[];
-  blocked: QueueCard[];
-  inFlight: QueueCard[];
-  notFound: QueueCard[];
-  doneToday: QueueCard[];
-};
+/** What is waiting to be acquired, and what already went — as the contract shapes it. */
+export type AcquisitionQueue = Schemas["AcquisitionQueue"];
 
 // The cache, kept once the boot has made it, so the two answers below can be
 // given OUTSIDE React. Both are asked from places React does not reach: the
@@ -82,7 +77,7 @@ export function firstStuckFolder(): string | null {
  *
  * @returns Every list, empty before the queries have answered.
  */
-export function queueNow(): Staging & AcquisitionQueue {
+export function queueNow() {
   const scenario =
     String(store?.read().state.scen ?? "") === "loaded" ? "loaded" : "";
   const staging = heldClient?.getQueryData<Staging>(stagingKey(scenario));
@@ -138,15 +133,7 @@ export function useAcquisitionQueue(scenario: string) {
     queryKey: queueKey(scenario),
     queryFn: async () => {
       const parameters = new URLSearchParams(scenario ? { scenario } : {});
-      const answer = await read<Record<string, QueueCard[]>>(
-        "/api/acquisition/to-handle", parameters);
-      return {
-        takeable: answer.takeable,
-        blocked: answer.blocked,
-        inFlight: answer.inFlight,
-        notFound: answer.notFound,
-        doneToday: answer.doneToday,
-      } satisfies AcquisitionQueue;
+      return read<AcquisitionQueue>("/api/acquisition/to-handle", parameters);
     },
   });
 }

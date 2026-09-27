@@ -7,11 +7,11 @@
     "unserved": "not served, with the reason written out"
   },
   "$counts": {
-    "served": 43,
+    "served": 44,
     "asset": 5,
     "interface": 29,
     "unserved": 3,
-    "total": 80
+    "total": 81
   },
   "$anonymous": {
     "count": 0,
@@ -215,6 +215,12 @@
       "why": "staging — what is moving through the pipeline",
       "seed": null,
       "converted": "L09 phase 7 — the queue reads /api/staging/media and /api/acquisition/to-handle, per scenario"
+    },
+    "NON_MEDIA_DESTINATIONS": {
+      "class": "served",
+      "why": "the sort's non-media staging directories, as the configuration declares them (`config.example/patterns.json5`, every `file_type` that is not a medium)",
+      "seed": null,
+      "converted": "L22a phase 1 — born with `readStagingDestinations`, the read « Ce n'est pas un média » files from (demand C)"
     },
     "NOTFOUND": {
       "class": "served",

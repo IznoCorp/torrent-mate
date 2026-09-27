@@ -77,19 +77,12 @@ export function installEngineData(queryClient: QueryClient): void {
         };
       },
     });
+    // THE ANSWER WHOLE, as `useAcquisitionQueue` reads it: one key, one
+    // shape. A projection here listed the families it knew and dropped the
+    // ones born after it, and whichever of the two answered first won the key.
     void queryClient.prefetchQuery({
       queryKey: queueKey(scenario),
-      queryFn: async () => {
-        const answer = await read<Record<string, unknown[]>>(
-          "/api/acquisition/to-handle", parameters);
-        return {
-          takeable: answer.takeable,
-          blocked: answer.blocked,
-          inFlight: answer.inFlight,
-          notFound: answer.notFound,
-          doneToday: answer.doneToday,
-        };
-      },
+      queryFn: async () => read("/api/acquisition/to-handle", parameters),
     });
     refillSuggestions?.();
     // AND WHAT THE MOVED PRODUCERS READ. A producer is called from a click and

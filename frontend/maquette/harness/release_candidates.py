@@ -14,7 +14,8 @@ rule picked says nothing about the titles a reader picks.
 WHAT IT READS, and it reads it where the reader walks:
 
   1. THE TITLES ARE ENUMERATED FROM THE SURFACES, never from a seed. Every card
-     of Acquisition › Suivis and of Acquisition › En cours is tapped, and the
+     of Acquisition › Suivis and of Acquisition › En cours (« En vol ») is
+     tapped, and the
      titles whose panel offers the verb — `[data-part="sheet/action"]`
      carrying `data-releases` — are the ones judged. A hold first says the
      enumeration found titles on both surfaces, because « none is empty » is
@@ -37,7 +38,11 @@ from common import ACTED, SETTLED, Journal, open_page
 from playwright.async_api import async_playwright
 
 # The two pages the operator reported from, each a named state.
-SURFACES = (("the follow panel", "acq-follows-list"), ("the queue card", "acq-now-idle"))
+# RE-AIMED OUT LOUD: the queue card was read on `acq-now-idle`, whose cards were
+# the rows waiting to be taken, found nothing and shelved today; they left
+# « En cours », which holds « En vol » alone, read in the loaded world where
+# something is in flight.
+SURFACES = (("the follow panel", "acq-follows-list"), ("the queue card", "acq-now-loaded"))
 
 CARD_COUNT = """()=>document.querySelectorAll('#view [data-part="card"]').length"""
 

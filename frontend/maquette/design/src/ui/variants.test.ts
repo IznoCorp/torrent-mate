@@ -5,7 +5,8 @@
 // relationship between two entries of the catalogue, which is true or false in
 // the source and nowhere else.
 import { describe, expect, it } from "vitest";
-import { actionButton, iconButton, loadErrorAction, loadFooterAction } from "./variants";
+import { actionButton, cardStrip, iconButton, loadErrorAction, loadFooterAction, stripDot, stripStep } from "./variants";
+import { cardMarkup } from "./card-markup";
 
 /** The utilities that set a control's SIZE, as opposed to its mood. */
 const SIZE = /^(min-h-|py-|px-|p-|text-\d|w-full$)/;
@@ -117,5 +118,42 @@ describe("the load footer's two actions", () => {
   it("and the footer size carries its icon's size", () => {
     expect(actionButton({ size: "footer" })).toContain("[&>svg]:w-[16px]");
     expect(actionButton({ size: "footer" })).toContain("[&>svg]:h-[16px]");
+  });
+});
+
+describe("the card strip counts its cells", () => {
+  // THE STRIP KNOWS NO DOMAIN: it is told how many cells it carries, and a
+  // ladder of eight is its first consumer of more than five. Written for five,
+  // its grid drew an eighth cell on a second row.
+  it("lays an eight-cell strip on eight columns, and a five-cell one unchanged", () => {
+    expect(cardStrip({ cells: 8 })).toContain("grid-cols-[repeat(8,minmax(0,1fr))]");
+    expect(cardStrip({ cells: 5 })).toBe(cardStrip());
+    expect(cardStrip()).toContain("grid-cols-[repeat(5,minmax(0,1fr))]");
+  });
+
+  it("draws no label for a cell that has none", () => {
+    const markup = cardMarkup({
+      title: "x",
+      side: { folderIcon: "", folderLabel: "", attributes: {} },
+      body: {},
+      strip: [{ state: "done", label: "a" }, { state: "now" }],
+    });
+    expect(markup.match(/class="l /g)?.length).toBe(1);
+    expect(markup).toContain("grid-cols-[repeat(2,minmax(0,1fr))]");
+  });
+
+  // Two states beyond where the journey stands: held behind something else,
+  // and put aside by the operator. Each wears a tone of the scale — a token,
+  // never a raw colour (invariant 3) — and neither reads as the other.
+  it("knows a waiting cell and an aside cell, each in a tone of the scale", () => {
+    const waiting = stripDot({ state: "waiting" });
+    const aside = stripDot({ state: "aside" });
+    expect(waiting).toContain("bg-waiting");
+    expect(aside).toContain("bg-neutral-signal");
+    for (const drawn of [waiting, aside, stripStep({ state: "waiting" }), stripStep({ state: "aside" })]) {
+      expect(drawn).not.toMatch(/#[0-9a-f]{3,8}\b|rgb\(|oklch\(/i);
+    }
+    expect(waiting).not.toBe(stripDot({ state: "pending" }));
+    expect(aside).not.toBe(stripDot({ state: "pending" }));
   });
 });

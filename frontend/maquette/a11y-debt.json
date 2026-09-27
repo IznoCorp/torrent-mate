@@ -696,7 +696,7 @@
         ]
       }
     ],
-    "arr-decision": [
+    "acq-resolution-tie": [
       {
         "rule": "meta-viewport",
         "impact": "moderate",
@@ -928,7 +928,7 @@
         ]
       }
     ],
-    "arr-resolution": [
+    "acq-resolution-none": [
       {
         "rule": "meta-viewport",
         "impact": "moderate",

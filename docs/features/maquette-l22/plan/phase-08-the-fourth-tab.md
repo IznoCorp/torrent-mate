@@ -61,3 +61,5 @@ Per INDEX « Gates »; `--a11y` over `acq-todo-empty`.
 ## Commit
 
 `feat(maquette-l22): « À traiter » is a fourth tab of Acquisition and its four labels fit at 390 px`
+
+**Amended 2026-09-26 (RULINGS 3):** the touch hold lifts Acquisition's four tabs and « ⋮ » to 44 px (`fingerTab`, `fingerMore`); 8 → 9 points.

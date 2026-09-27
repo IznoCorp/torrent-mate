@@ -65,3 +65,5 @@ Per INDEX « Gates »; the 16 files are run by name at the opening and again at 
 ## Commit
 
 `feat(maquette-l22): Acquisition opens on « À traiter » when something waits`
+
+**Amended 2026-09-26 (the operator, 21:4x, relayed by the steward):** « Suivis par défaut, puis le dernier onglet ouvert (mémoire locale) » replaces ruling 10's default rule — R202 holds the memory (empty, refused or foreign storage → « Suivis »; an address naming its tab wins); the count-driven states `acq-entry-*` and « nothing selected while unread » have no subject.

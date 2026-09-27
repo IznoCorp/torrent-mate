@@ -13,6 +13,7 @@ import { baseTitle } from "../../lib/titles";
 import { followVerbs } from "./follow-verbs";
 import { searchResults } from "./search-queries";
 import { identifying, markAdded, forgetAdded } from "./add-visit";
+import { answerMatch, heldMatch } from "./plex-verbs";
 import type { SearchResult } from "./types";
 
 
@@ -39,6 +40,11 @@ function identify(result: SearchResult): void {
   const entries = (panel.isOpen() ? 1 : 0) + 1;
   panel.close(true);
   bridge.rewind(entries);
+  // A PLEX MATCH IS CORRECTED by the identity found here, sent with it.
+  if (heldMatch(target) !== null) {
+    void answerMatch("correct", target, { title, ids: result.ids ?? null });
+    return;
+  }
   queueActions?.resolve(target, title);
   redraw();
   toast?.show({ message: i18next.t("verbs.arrivals.resolved", { choice: title }) });

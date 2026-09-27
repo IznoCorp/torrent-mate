@@ -740,8 +740,9 @@ contradict the machine. Answering, whichever way, takes the folder out of the qu
 lists it appears on: « À traiter » on the acquisition side used to keep it forever, because the
 answer only ever looked in the Arrivées list.
 
-The desktop deck's keyboard shortcuts (← → ⏎) have no phone. What they were for — going through
-several in a row — survives as a plain progression: « 1 sur 2 », and « Passer à la suivante ».
+Every exit returns to « À traiter », the tab open, whichever way the screen was reached — a pop
+from the list, the page laid beneath on « À traiter » from a cold link. There is no « Suivant »
+and no « n sur m en attente »: the tab's count carries the number (`harness/return_to_todo.py`).
 
 `harness/decision.py` states all of it; the data is the ten real rows of `scrape_decision`, with
 one ambiguity replayed as pending so the screen can be judged.

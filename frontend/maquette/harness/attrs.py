@@ -196,7 +196,7 @@ async def main():
         #    card in the same document proves the conditional is live — that
         #    its true branch still renders — so the absence measured on the
         #    others is the undefined branch, not a title nobody draws.
-        await pg.evaluate("()=>window.__go('arr-decision')")
+        await pg.evaluate("()=>window.__go('acq-resolution-tie')")
         await pg.wait_for_timeout(420)
         res = await pg.evaluate(RESOLUTION_SCREEN)
         untitled = res["untitled"]

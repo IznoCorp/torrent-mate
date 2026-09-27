@@ -11,7 +11,7 @@
 
 import { createRoute } from "@tanstack/react-router";
 import { rootRoute } from "../app/root-route";
-import { ResolutionScreen } from "../features/arrivals/resolution-screen";
+import { ResolutionScreen } from "../features/acquisition/resolution-screen";
 
 // The arbitration screen: what is stuck, and which medium it is. `$folder` is
 // the FOLDER as it is on disk — not a media title, which is precisely what is

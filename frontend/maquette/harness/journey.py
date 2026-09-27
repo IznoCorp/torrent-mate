@@ -114,8 +114,12 @@ SETTING_WALKS = (
           .map((node) => node.dataset.lens).find((value) => value && value !== 'cat');
         return found ? ['[data-lens="' + found + '"]', 'lens=' + found] : null;}"""),
     ("the acquisition tab", "acquisition", "acq",
+     # RE-AIMED OUT LOUD: the tab a plain arrival opens is « Suivis » now, then
+     # the last one opened; the walk takes the first tab that is not the one
+     # SELECTED, rather than the first that is not « En cours ».
      """()=>{const found = [...document.querySelectorAll('[data-acqtab]')]
-          .map((node) => node.dataset.acqtab).find((value) => value && value !== 'now');
+          .filter((node) => node.getAttribute('aria-selected') !== 'true')
+          .map((node) => node.dataset.acqtab).find((value) => value);
         return found ? ['[data-acqtab="' + found + '"]', 'tab=' + found] : null;}"""),
 )
 

@@ -1,0 +1,27 @@
+[
+  {
+    "id": 3,
+    "name": "ebooks",
+    "fileType": "ebook"
+  },
+  {
+    "id": 4,
+    "name": "audio",
+    "fileType": "audio"
+  },
+  {
+    "id": 5,
+    "name": "apps",
+    "fileType": "app"
+  },
+  {
+    "id": 6,
+    "name": "android",
+    "fileType": "app"
+  },
+  {
+    "id": 98,
+    "name": "autres",
+    "fileType": "other"
+  }
+]

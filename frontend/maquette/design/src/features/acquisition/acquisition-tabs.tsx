@@ -5,9 +5,11 @@ import { Icon } from "../../ui/icon";
 import { useAcquisitionQueue } from "../../lib/queue";
 import { useUiState } from "../../lib/store-access";
 import { moreButton, segment, segmentCount, segmentTab, viewTabs } from "../../ui/variants";
+import { fingerMore, fingerTab } from "./variants";
+import { inFlightCards, todoCards } from "./arrival-slots";
 
 // The tab bar, and the « more » control that opens the watch-and-obligations
-// sheet. Shared by the three surfaces below.
+// sheet. Shared by the four surfaces below.
 export function AcquisitionTabs(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
@@ -17,13 +19,14 @@ export function AcquisitionTabs(): ReactElement {
   // truths (§13).
   const scenario = state.scen === "loaded" ? "loaded" : "";
   const { data: queue } = useAcquisitionQueue(scenario);
+  // THE ORDER IS THE OPERATOR'S: « Suivis · En cours · À traiter · Découvrir ».
+  // The tab opened by default is derived, wherever it stands in the row.
   const tabs = [
-    {
-      id: "now",
-      label: t("screens.acquisition.tabNow"),
-      count: (queue?.takeable ?? []).length + (queue?.blocked ?? []).length,
-    },
     { id: "follows", label: t("screens.acquisition.tabFollows") },
+    // « EN COURS » COUNTS WHAT MOVES — « En vol », the one list it draws.
+    { id: "now", label: t("screens.acquisition.tabNow"), count: queue ? inFlightCards(queue).length : 0 },
+    // « À TRAITER » COUNTS ITS CARDS, the number the bar's badge says too.
+    { id: "todo", label: t("screens.acquisition.tabTodo"), count: queue ? todoCards(queue).length : 0 },
     { id: "discover", label: t("screens.acquisition.tabDiscover") },
   ];
   return (
@@ -32,7 +35,7 @@ export function AcquisitionTabs(): ReactElement {
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            className={segmentTab()}
+            className={`${segmentTab()} ${fingerTab()}`}
             role="tab"
             aria-selected={state.acqTab === tab.id}
             data-acqtab={tab.id}
@@ -43,7 +46,7 @@ export function AcquisitionTabs(): ReactElement {
         ))}
       </div>
       <button
-        className={moreButton()}
+        className={`${moreButton()} ${fingerMore()}`}
         aria-label={t("screens.acquisition.moreLabel")}
         data-more
       >

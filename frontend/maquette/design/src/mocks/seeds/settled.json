@@ -7,12 +7,20 @@
   },
   {
     "title": "Star Trek: Strange New Worlds (2022)",
-    "secondaryLine": "S04E04 fusionné sur Disk3 · hier à 15 h 25",
+    "secondaryLine": "S04E03 fusionné sur Disk3 · hier à 15 h 25",
     "ids": {
       "tmdb": 103516,
       "imdb": "tt12327578",
       "tvdb": 382389
     },
-    "poster": "assets/posters/25415753.webp"
+    "poster": "assets/posters/25415753.webp",
+    "plexMatch": {
+      "title": "Star Trek: Strange New Worlds",
+      "ids": {
+        "tmdb": 103516,
+        "imdb": "tt12327578",
+        "tvdb": 382389
+      }
+    }
   }
 ]

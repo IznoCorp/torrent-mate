@@ -4,10 +4,12 @@
 // forbids one feature importing another. What is here is this surface's alone:
 // the reserve of suggestions its deck draws, and the follows it lists.
 import { useQuery, type QueryClient } from "@tanstack/react-query";
-import { HELD, read, send } from "../../lib/query-client";
+import { HELD, read, send, sharedQueryClient } from "../../lib/query-client";
 import type { Schemas } from "../../lib/contract-schemas";
 import type { Follow, FollowOutcome } from "./types";
-import { queueNow } from "../../lib/queue";
+import { queueKey, type AcquisitionQueue } from "../../lib/queue";
+import { store } from "../../lib/store-access";
+import { todoCards } from "./arrival-slots";
 import { fillFollowedTitlesDoor } from "../../lib/shell-doors";
 
 /**
@@ -155,6 +157,15 @@ export const incompleteShowsQuery = {
     read<Schemas["IncompleteShow"][]>("/api/library/incomplete"),
 };
 
+/** What the scheduler answers about the acquisition engine: its cadence. */
+export type AcquisitionStatus = { cadence: string; nextSearch: string | null };
+
+/** The scheduler's answer, one key for the cadence line and the follow's sheet. */
+export const acquisitionStatusQuery = {
+  queryKey: ["/api/acquisition/status"],
+  queryFn: () => read<AcquisitionStatus>("/api/acquisition/status"),
+};
+
 /**
  * The schedule the acquisition engine searches on, as the scheduler returns it.
  *
@@ -163,9 +174,8 @@ export const incompleteShowsQuery = {
  */
 export function useGrabCadence() {
   return useQuery({
-    queryKey: ["/api/acquisition/status"],
-    queryFn: () => read<{ cadence: string; nextSearch: string | null }>("/api/acquisition/status"),
-    select: (status: { cadence: string }) => status.cadence,
+    ...acquisitionStatusQuery,
+    select: (status: AcquisitionStatus) => status.cadence,
   });
 }
 
@@ -323,20 +333,22 @@ export let followActions: Window["__followActions"];
 /**
  * What awaits the operator on this page — the navigation table's badge.
  *
- * TO GRAB PLUS TO RESOLVE, and never a neighbouring counter. The engine's own
- * table said so in a comment beside the same sum; it is one derivation now,
+ * WHAT « À TRAITER » HOLDS, and only that (ruling 10): what waits to be taken
+ * no longer reaches the bar. It is one derivation, `todoCards`,
  * read by the tab bar, by the drawer and — while it still draws them — by the
  * engine, through the seam. §13: one derivation per question.
  *
  * SYNCHRONOUS, over the query cache, because the engine asks in the middle of
- * its own task and cannot await a hook. `queueNow()` answers what the cache
- * holds and an empty queue where it holds nothing, which is the honest answer
- * before anything has been fetched.
+ * its own task and cannot await a hook. It answers what the cache holds, and
+ * zero where it holds nothing, which is the honest answer before anything has
+ * been fetched.
  *
  * Returns:
- *     How many items are waiting to be taken or to be resolved.
+ *     How many cards « À traiter » holds.
  */
 export function acquisitionBadge(): number {
-  const now = queueNow();
-  return now.takeable.length + now.blocked.length;
+  // THE ANSWER AS IT WAS READ, arrivals included: « À traiter » holds them too.
+  const scenario = String(store.read().state.scen ?? "") === "loaded" ? "loaded" : "";
+  const queue = sharedQueryClient?.getQueryData<AcquisitionQueue>(queueKey(scenario));
+  return queue ? todoCards(queue).length : 0;
 }

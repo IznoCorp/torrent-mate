@@ -2,15 +2,17 @@ import { useTranslation } from "react-i18next";
 import type { ReactElement } from "react";
 import { Skeletons, SurfaceError } from "../../ui/state-surfaces";
 import { mediumCardMarkup } from "./card-markup";
+import { inFlightCards, slotArrivals } from "./arrival-slots";
 import { useAcquisitionQueue, useStaging } from "../../lib/queue";
-import { type QueueCard } from "../../lib/engine-queue";
 import { useUiState } from "../../lib/store-access";
 import { body, crossReference, crossReferenceLink, crossReferenceStrong, emptyNote, section as sectionClass } from "../../ui/variants";
 import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
 
-// « En cours » — five sections of urgency, one coloured pip each, and a counter
-// that IS its own link. The page's own note calls this the language reference
-// for the three other pages.
+// « En cours » — what moves, and nothing else: ONE section, « En vol », and
+// « rien en cours » when nothing does. What waits to be taken is taken from the
+// follow's sheet; what reached the library reads in the Médiathèque's
+// « Récents »; what was not found reads on the follow; what waits for the
+// operator's hand is « À traiter ».
 export function NowTab(): ReactElement {
   const state = useUiState();
   const { t } = useTranslation();
@@ -32,33 +34,11 @@ export function NowTab(): ReactElement {
   const scenario = state.scen === "loaded" ? "loaded" : "";
   const { data: queue } = useAcquisitionQueue(scenario);
   const { data: staging } = useStaging(scenario);
-  const takeable = queue?.takeable ?? [];
-  const blocked = queue?.blocked ?? [];
-  const inflight = queue?.inFlight ?? [];
-  const notfound = queue?.notFound ?? [];
-  const doneToday = queue?.doneToday ?? [];
+  // THE ARRIVALS ARE CARDS HERE (ruling 2), on their way; what is blocked is
+  // « À traiter »'s, a tab of its own, and read here only for the note below.
+  const blocked = [...(queue?.blocked ?? []), ...slotArrivals(queue?.arrivals ?? []).blocked];
+  const inflight = queue ? inFlightCards(queue) : [];
   const stuck = staging?.stuck ?? [];
-  const nothing =
-    takeable.length +
-      blocked.length +
-      inflight.length +
-      notfound.length +
-      doneToday.length ===
-    0;
-
-  const section = (
-    pip: string,
-    title: string,
-    cards: QueueCard[],
-    inner: string,
-    note?: string,
-  ) =>
-    cards.length === 0 || inner === "" ? null : (
-      <Markup tag="section"
-        className={sectionClass()} data-part="section"
-        html={sectionInnerMarkup(pip, title, String(cards.length), inner, note)}
-      />
-    );
 
   return (
     <div className={body()} data-part="surface/body" data-region="acquisition/body">
@@ -66,42 +46,12 @@ export function NowTab(): ReactElement {
         <b>{t("screens.acquisition.nowNoteLead")}</b>
         {t("screens.acquisition.nowNoteRest")}
       </div>
-      {nothing ? (
+      {inflight.length === 0 ? (
         <Markup
           className={emptyNote()} data-part="empty-state"
-          html={emptyNoteMarkup(
-              t("screens.acquisition.nowEmptyTitle"),
-              `${t("screens.acquisition.nowEmptyBodyBefore")}<b>${t("screens.acquisition.nowEmptyBodyCount")}</b>${t("screens.acquisition.nowEmptyBodyAfter")}`,
-            )}
+          html={emptyNoteMarkup(t("screens.acquisition.nowEmpty"), "")}
         />
       ) : null}
-      {section(
-        "warning",
-        t("screens.acquisition.takeable"),
-        takeable,
-        takeable
-          .map((card) =>
-            mediumCardMarkup(card, {
-              label: t("screens.acquisition.takeableFoot"),
-              solid: true,
-              attributes: { "data-take": card.title },
-            }),
-          )
-          .join(""),
-      )}
-      {section(
-        "danger",
-        t("screens.acquisition.blocked"),
-        blocked,
-        blocked
-          .map((card) =>
-            mediumCardMarkup(card, {
-              label: t("screens.acquisition.blockedFoot"),
-              attributes: { "data-resolution": card.title },
-            }),
-          )
-          .join(""),
-      )}
       {stuck.length > 0 ? (
         <button className={crossReference()} data-part="cross-reference" data-go="arr">
           {blocked.length > 0
@@ -118,25 +68,17 @@ export function NowTab(): ReactElement {
           <span className={crossReferenceLink()}>{t("screens.acquisition.crossrefLink")}</span>
         </button>
       ) : null}
-      {section(
-        "info",
-        t("screens.acquisition.inflight"),
-        inflight,
-        inflight.map((card) => mediumCardMarkup(card)).join(""),
-      )}
-      {section(
-        "waiting",
-        t("screens.acquisition.notfound"),
-        notfound,
-        notfound.map((card) => mediumCardMarkup(card)).join(""),
-        `<b>${t("screens.acquisition.notfoundNoteLead")}</b>${t("screens.acquisition.notfoundNoteRest")}`,
-      )}
-      {section(
-        "success",
-        t("screens.acquisition.doneToday"),
-        doneToday,
-        doneToday.map((card) => mediumCardMarkup(card)).join(""),
-      )}
+      {inflight.length > 0 ? (
+        <Markup tag="section"
+          className={sectionClass()} data-part="section"
+          html={sectionInnerMarkup(
+            "info",
+            t("screens.acquisition.inflight"),
+            String(inflight.length),
+            inflight.map((card) => mediumCardMarkup(card)).join(""),
+          )}
+        />
+      ) : null}
     </div>
   );
 }

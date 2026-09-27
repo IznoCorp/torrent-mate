@@ -137,7 +137,7 @@ function FactsBlock({
           data-part="key-value"
         >
           <span>
-            {line.pip ? <span className={statusDot({ tone: line.pip as StatusTone })} data-part="status-dot" /> : null}
+            {line.pip ? <span className={statusDot({ tone: line.pip as StatusTone })} data-part="status-dot" data-tone={line.pip} /> : null}
             {line.c}
           </span>
           <span>
