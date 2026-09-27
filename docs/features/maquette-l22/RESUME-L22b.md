@@ -11,8 +11,7 @@ L22b appends from 13).
   generated files conflict; regenerate them (oracle by an accept in one invocation + the script proof; ledgers re-read).
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b`.
 - DONE: 15a–19-bis-b, merges of #619/#621/main(#617/#618/#622/#623/#624), the triage's docs commit, 20–30, the MIDPOINT
-  (1 real fall, R207, repaired; audit2 ×10: 0/10), 31 (F5, condition 3 of RULINGS 25), 32 (F6). NEXT: **33** F42 (per-follow grab; `grabForFollow` on the backend's meaning, picker's
-  operation a demand, `takeQueued` retires, R225 re-aimed) → 34 « Abandonner » on a follow's card (M1) → 35 one-off
+  (1 real fall, R207, repaired; audit2 ×10: 0/10), 31 (F5, condition 3 of RULINGS 25), 32 (F6), 33 (F42). NEXT: **34** « Abandonner » on a follow's card (M1) → 35 one-off
   acquisitions (round 10 Q1 + Q2; likely cut) → 36 sentences (F7, F54, F53) → 37 readers (F41) → 38 → 39 (the dead
   `acq-follows-pause-empty` still in the a11y ledgers) → 40 death of Arrivées (F8) → 41 (+ engine-data.ts's removal,
   the steward's placement) → 42 close (F8, F52, F67, C9; product-intent-map.md:49).
@@ -217,3 +216,11 @@ L22b appends from 13).
   LOUD. Gate 2 `31-gate2.log` 66 rules (50 named) + 26 guards 0 failed, no divergence; `31-a11y.log` 0 + light 88/88.
   Mutation `31-mutation.log`: the four laid done again → R212 FAIL « … lived no rung before « arrivé » » ×2 and
   « its sheet gives those rungs no time, none passed » ×2. wip/l22b-31-r212 is spent (local, never pushed).
+- 2026-09-28 phase 33 (F42): R225 RE-AIMED OUT LOUD onto `grabForFollow` at the follow's address, red `33-red.log` (it
+  counted `takeQueued`). Commit 8c727d8e5: the sheet's act, the release picker and the takeable card send the
+  per-follow grab (202, `runUid`, optional `releaseName` — the picker's chosen release, a demand filed in DESIGN § 6.2:
+  the register compares no request body); `takeQueued` retired from contract and mock; register regenerated; the
+  replay pair gains `/api/acquisition/followed`. Gate 1 (`33-gate.log`) fell on my two misses → 4c0778ce2
+  (declared_codes.py asks the grab's 202; lib/ ceiling 28 → 29, measured 28 without / 29 with). Gate 2 `33-gate2.log`
+  47 rules (29 named) + 26 guards 0 failed, no divergence. Mutation `33-mutation.log`: the take path back → R225 FAIL
+  « the tap sends that follow's grab — 0 → 0 » (and the sheet still waits for the next pass).
