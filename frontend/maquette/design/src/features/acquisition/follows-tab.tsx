@@ -6,7 +6,8 @@ import { useFollows, useGrabCadence } from "./queries";
 import { useUiState } from "../../lib/store-access";
 import { FollowsFilters } from "./follows-filters";
 import { body, emptyNote, posterGrid, section as sectionClass, sectionCount, sectionHead, sectionTitle, statusDot, swipeAction, type StatusTone } from "../../ui/variants";
-import { Markup, emptyNoteMarkup } from "../../ui/markup";
+import { Markup, emptyNoteMarkup, sectionInnerMarkup } from "../../ui/markup";
+import { Disclosure } from "../../ui/disclosure";
 import { posterArtwork, useEngineDrawing } from "../../lib/engine-drawing";
 import { mediumCardMarkup } from "./card-markup";
 import { swipeRowMarkup } from "../../ui/rows";
@@ -48,30 +49,28 @@ export function FollowsTab(): ReactElement {
   // mutations the engine's delegation still calls; their conversion is the
   // follows panel's own, and this is the read.
   const { data: follows = [] } = useFollows();
+  // A PAUSED FOLLOW WAITS FOR HIM, folded at the end of the list and outside
+  // its counts — the list and its pills are the follows being looked for.
+  const paused = follows.filter((follow) => follow.status === "disabled");
+  const active = follows.filter((follow) => follow.status !== "disabled");
   const pills = [
-    { id: "tout", label: t("screens.acquisition.pillAll"), count: follows.length },
+    { id: "tout", label: t("screens.acquisition.pillAll"), count: active.length },
     {
       id: "series",
       label: t("screens.acquisition.pillSeries"),
-      count: follows.filter((follow) => follow.kind !== "movie").length,
+      count: active.filter((follow) => follow.kind !== "movie").length,
     },
     {
       id: "movies",
       label: t("screens.acquisition.pillMovies"),
-      count: follows.filter((follow) => follow.kind === "movie").length,
-    },
-    {
-      id: "pause",
-      label: t("screens.acquisition.pillPaused"),
-      count: follows.filter((follow) => follow.status === "disabled").length,
+      count: active.filter((follow) => follow.kind === "movie").length,
     },
   ];
 
   const matches = (follow: Follow) =>
     state.pill === "tout" ||
     (state.pill === "series" && follow.kind !== "movie") ||
-    (state.pill === "movies" && follow.kind === "movie") ||
-    (state.pill === "pause" && follow.status === "disabled");
+    (state.pill === "movies" && follow.kind === "movie");
   const term = (state.filter as string).trim().toLocaleLowerCase();
   const normalise = (text: string) =>
     text
@@ -80,7 +79,7 @@ export function FollowsTab(): ReactElement {
       .toLocaleLowerCase();
   const matchesName = (follow: Follow) =>
     term === "" || normalise(follow.title).includes(normalise(term));
-  const visible = follows
+  const visible = active
     .filter((follow) => matches(follow) && matchesName(follow))
     .sort(
       (left, right) =>
@@ -220,14 +219,10 @@ export function FollowsTab(): ReactElement {
             // wrong here — and the legacy escaped it at exactly this spot.
             term: escapeHtml(state.filter as string),
           })
-        : state.pill === "pause"
-          ? t("screens.acquisition.emptyPaused")
-          : t("screens.acquisition.emptyNoFollows"),
+        : t("screens.acquisition.emptyNoFollows"),
       term !== ""
         ? `${t("screens.acquisition.emptyFilterBodyBefore")}<b>${follows.length}</b>${t("screens.acquisition.emptyFilterBodyAfter")}`
-        : state.pill === "pause"
-          ? t("screens.acquisition.emptyPausedBody")
-          : `${t("screens.acquisition.emptyNoFollowsBodyBefore")}<b>${t("screens.acquisition.emptyNoFollowsBodyPlus")}</b>${t("screens.acquisition.emptyNoFollowsBodyAfter")}`,
+        : `${t("screens.acquisition.emptyNoFollowsBodyBefore")}<b>${t("screens.acquisition.emptyNoFollowsBodyPlus")}</b>${t("screens.acquisition.emptyNoFollowsBodyAfter")}`,
         )}
       />
     );
@@ -287,6 +282,13 @@ export function FollowsTab(): ReactElement {
           {t("screens.acquisition.cadenceNoteAfter")}
         </div>
         {content}
+        {paused.length === 0 || state.phase !== "ready" ? null : (
+          <section className={sectionClass()} data-part="section/paused">
+            <Disclosure summary={<Markup html={sectionInnerMarkup(STATUS_TONE.disabled, t("screens.acquisition.followsPaused"), String(paused.length), "")} />}>
+              <Markup html={paused.map((follow) => rowOf(follow, true)).join("")} />
+            </Disclosure>
+          </section>
+        )}
       </div>
     </>
   );

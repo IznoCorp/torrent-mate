@@ -7,6 +7,9 @@
 import { applyState, type NamedState } from "../drive";
 import { redraw } from "../../lib/shell-doors";
 
+// How long after the list is drawn the paused fold is opened, as a finger would.
+const OPEN_AFTER = 300;
+
 export function acquisitionStates(): NamedState[] {
   // The store the shell creates and publishes, read when the table is built.
   const store = window.__store;
@@ -96,17 +99,22 @@ export function acquisitionStates(): NamedState[] {
         }),
     ],
     [
-      "acq-follows-pause-empty",
-      "Acquisition · Suivis — « En pause » vide",
-      () =>
+      "acq-follows-paused",
+      "Acquisition · Suivis — « En pause » déplié en fin de liste",
+      () => {
         applyState({
           page: "acq",
           acqTab: "follows",
           followMode: "list",
-          pill: "pause",
+          pill: "tout",
           filter: "",
           phase: "ready",
-        }),
+        });
+        // THE FOLD OPENED THE WAY A FINGER OPENS IT, once the list is drawn.
+        window.setTimeout(() => {
+          document.querySelector<HTMLElement>('[data-part="section/paused"] summary')?.click();
+        }, OPEN_AFTER);
+      },
     ],
     [
       "acq-follows-error",
