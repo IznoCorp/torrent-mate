@@ -14,10 +14,10 @@ L22b appends from 13).
   « suivis stoppés » question; Q2 is ruled (both: the act removes the card; a folder deleted outside the app is absent
   after the re-read, an assertion in R227). Keep for 15b: ingest COPIES a seeding/seed-obligated torrent and MOVES any
   other (`ingest.py:549-561`, tracker `action: copied|moved`) — deleting a moved arrival deletes the only copy.
-- NEXT: 16 « Ce n'est pas un média » → 17 → 18 → 19 → 20 → [MIDPOINT full suite] → 21 … 27; 15b slots back in when
+- DONE: 15a, 16. NEXT: 17 « Suivre » proposed → 18 → 19 → 20 → [MIDPOINT full suite] → 21 … 27; 15b slots back in when
   ruled (at the next unit boundary after the word).
 - Rule numbers: L22's a..u = R202–R222; R223 #616's; R224 (v), R225 (w) L22a's. L22b: i = **R226**
-  (`set_aside_is_later.py`); 15b's rule = R227 (reserved); the next free after that is R228.
+  (`set_aside_is_later.py`); 15b's rule = R227 (reserved); j = **R228** (`not_a_media.py`); next free R229.
 - LOGS: `~/Library/Logs/tm-l22b/`. Mutex `sh scripts/heavy.sh --held`; own npm lock `/private/tmp/tm-heavy-l22b/holder`.
 - GATE FORM: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh --class browser l22b frontend/maquette/harness/run.sh
   --contracts --oracle <full rule paths>`; `--a11y` on every gate that draws (the light ledger may only fall, 98 now).
@@ -45,3 +45,11 @@ L22b appends from 13).
   98/98; mutation `15a-mutation.log`: EXPRESSION removes staging.ts's `if (… === LEFT_AS_IT_IS) return { ok:
   setAside(asked) };` → R226 FAIL « and it is still set aside after both reads are asked again » (and four more).
   Vocabulary gained « aside » (the contract's own token).
+- 2026-09-27 phase 16: re-measured ≈ 14; the « Annuler » calls the declared inverse (DESIGN § 3.4), dated line in
+  the phase file. R228 red (`16-red.log`), move, STOP A → RULINGS 13 (42 states on shell/sheet-content only, the
+  closed #sheet — B-554 extended), audit2's CancelledError repaired (a cancelled read opens nothing), producers.py
+  grown by `not-media` out loud. Commits e14a2f15c (feat), 61b09ac99 (oracle, script proof in the body, pin 124).
+  Gate `16-gate.log` 31 rules + 26 guards 0 failed, oracle 0; `16-a11y.log` 0 + light 98/98; mutation
+  `16-mutation.log`: EXPRESSION replaces the verb's `await send("POST", path, { destination })` by `undefined` → R228
+  FAIL « the reclassification is answered, and the message says the destination » (and « the card is in neither »).
+  Vocabulary gained « reclassify ».
