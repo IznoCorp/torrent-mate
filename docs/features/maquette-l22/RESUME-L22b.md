@@ -9,15 +9,15 @@ L22b appends from 13).
   (#619); on L22a's squash onto `main` (the steward names it) merge `origin/main` in at the next unit boundary — its
   repair round touches staging.ts, arrival-slots.ts, requester_line.py, the oracle. Steward: `Orch : TM frontend`.
 - Head: `git log -1`; pushed: `git ls-remote origin refs/heads/feat/maquette-l22b` (not pushed since 0d86834fe).
-- DONE: 15a, 16, 17, 18, 19. NEXT (INDEX, 2026-09-27): 19-bis « Découvrir » leaves Acquisition (bar = Acquisition ·
-  Médiathèque · Découvrir) → 18-ter `--color-waiting-text` (operator 11:0x, light oklch(0.48 0.14 345), dark =
+- DONE: 15a, 16, 17, 18, 19, 19-bis-a. NEXT (INDEX, 2026-09-27): 19-bis-b the Découvrir tab dies (R206 at three,
+  R202 fallback, eight acq-discover* ids renamed by the tool; page id `discover`, region `discover/body`) → 18-ter `--color-waiting-text` (operator 11:0x, light oklch(0.48 0.14 345), dark =
   waiting; phase 18's state `acq-follows-film-at-plex-check` back) → 15b (real delete, confirmation naming copied /
   moved — ingest COPIES a seeding torrent and MOVES any other, `ingest.py:549-561`; a new operation + demand; two
   states; Q2 both, R227) → 18-bis paused follows fold at the end of « Suivis », the « En pause » pill dies (R233) →
   20 → [MIDPOINT full suite] → 21 … 27. Each re-measured at its opening; > 15 → cut, one message.
 - Rules: L22 a..u = R202–R222, R223 #616, R224–R225 L22a. L22b: i R226 set_aside_is_later · (15b) R227 · j R228
   not_a_media · l R229 follow_offered · m R230 film_follow_ends · q R231 bar_places · s R232 bar_shares · (18-bis)
-  R233 · next free R234. RULINGS: L22b writes 13–29 (13–17 used); L22a's repair round from 30.
+  R233 · R234 discover_page · next free R235. RULINGS: L22b writes 13–29 (13–20 used); L22a's repair round from 30.
 - AUDITOR ORDER 48: a fall set aside as « load » needs the SAME rule 10× here and 10× on `main` at comparable load;
   any gap is a regression. outbox.py R107 is a race in the rule's own read, on `main` too (L22a's repair) — say so.
 - LOGS `~/Library/Logs/tm-l22b/`; mutex `sh scripts/heavy.sh --held`. GATE: `TM_HARNESS_JOBS=3 sh scripts/heavy.sh
@@ -86,3 +86,13 @@ L22b appends from 13).
   readers while it ran). Gate `19-gate2.log` on 7a7a697c8: 32 rules + 26 guards 0 failed, oracle 0; `19-a11y.log`
   light 98/98. The oracle warns its reference's base 5de78a1e is not an ancestor (my amended fix) — metadata only,
   the steward re-records at the merge.
+- 2026-09-27 phase 19-bis: ≈ 20 → cut (RULINGS 18). 19-bis-a: R234 red (`19bisa-red.log`) — CONTAMINATED in part: I
+  edited sources after the build, and the two assertions reading source (« the table marks « Découvrir » a page of the
+  bar », « the address model declares its address ») were not red on that build; the three carrying the claim (no
+  button, no page, `/discover` cold → not found) were. Commits a639bec28 (feat; frame ceiling 132 → 141, RULINGS 19),
+  24906af99 (oracle: 39th region discover/body; 8 declared states; 3 pinned by RULINGS 20; script proof in the body).
+  STOP A → RULINGS 20 (acq-add-empty, acq-add-results, drawer-navigation inherited `acqTab` — pinned; B-554 gains a
+  line). My earlier `--record` had blessed 2 lot/date references in bar_shares.py — removed, baseline back to 0.
+  Gate `19bisa-gate.log` 34 rules + 26 guards 0 failed, oracle 0; `19bisa-a11y.log` 0 + light 98/98. Mutation
+  (`19bisa-mutation.log`): the discover row `inBar: false` → R234 FAIL « the table marks « Découvrir » a page of the
+  bar » and « the bar carries its button, and a tap lands on its address ».
