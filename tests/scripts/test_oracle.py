@@ -354,7 +354,10 @@ def test_the_committed_reference_carries_a_platform():
     # 125 SINCE L22b's phase 20: acq-follows-film-at-plex-check, a followed film one event away
     # from « vérifié dans Plex » (a derivation from Wicker's real row), back with the waiting
     # tone's text token — added, nothing else moved.
-    assert reference["counts"] == {"states": 125, "regions": 39}
+    # 128 SINCE L22b's phase 24: acq-delete-keeps-files, acq-delete-only-copy and
+    # acq-delete-unknown, « Supprimer »'s confirmation in its three cases — added; 63 states
+    # moved on shell/dialog alone (B-554, RULINGS 7), named in the acceptance commit.
+    assert reference["counts"] == {"states": 128, "regions": 39}
 
 
 class TestItRefusesToWriteOverAForeignBuild:
