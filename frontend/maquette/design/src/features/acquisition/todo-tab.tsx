@@ -104,10 +104,10 @@ export function TodoTab(): ReactElement {
           <Disclosure summary={<Markup html={sectionInnerMarkup("waiting", t("screens.acquisition.todoSetAside"), String(setAside.length), "")} />}>
             <Markup
               html={setAside
-                .map((card) => mediumCardMarkup(card, {
-                  label: t("screens.acquisition.blockedFoot"),
-                  attributes: { "data-resolution": card.title },
-                }))
+                .map((card) => mediumCardMarkup(card, [
+                  { label: t("screens.acquisition.blockedFoot"), attributes: { "data-resolution": card.title } },
+                  { label: t("screens.acquisition.deleteFoot"), attributes: { "data-staging-delete": card.title } },
+                ]))
                 .join("")}
             />
           </Disclosure>

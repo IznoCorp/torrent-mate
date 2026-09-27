@@ -110,6 +110,10 @@ export function secondaryActions(facts: FollowFacts): (Action | null)[] {
     facts.tunnelError
       ? { text: say("abandon"), icone: icons.trash, ton: "danger", target: { "journey-abandon": follow.title } }
       : null,
+    // The second foot « Mis de côté » offers.
+    facts.setAside
+      ? { text: say("deleteStaged"), icone: icons.trash, ton: "danger", target: { "staging-delete": follow.title } }
+      : null,
     // « Voir la fiche » is reachable whenever a sheet exists. It is omitted only
     // when it is ALREADY the primary action, which happens for a medium that is
     // owned and whole.

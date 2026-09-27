@@ -2023,6 +2023,71 @@
         ]
       }
     },
+    "/api/staging/media/{mediaId}": {
+      "delete": {
+        "operationId": "deleteStagedMedia",
+        "summary": "Delete a staged folder from the disk",
+        "description": "« Supprimer » on a folder set aside (ruling 16; round 8, question 16 = B): a REAL deletion of the staging folder, journaled — not the quarantine « Abandonner » makes — after a confirmation that names the folder and says whether this copy is the only one.",
+        "tags": [
+          "staging"
+        ],
+        "parameters": [
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "the staged item"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "it is gone from the disk",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "journaled": {
+                      "type": "boolean",
+                      "description": "whether the deletion was written to the deletion journal"
+                    }
+                  },
+                  "required": [
+                    "journaled",
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "x-unseeded": "an acknowledgement that the folder asked for was removed."
+      }
+    },
     "/api/staging/media/{mediaId}/continue": {
       "post": {
         "operationId": "continueStagedMedia",

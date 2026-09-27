@@ -475,6 +475,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staging/media/{mediaId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a staged folder from the disk
+         * @description « Supprimer » on a folder set aside (ruling 16; round 8, question 16 = B): a REAL deletion of the staging folder, journaled — not the quarantine « Abandonner » makes — after a confirmation that names the folder and says whether this copy is the only one.
+         */
+        delete: operations["deleteStagedMedia"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staging/media/{mediaId}/continue": {
         parameters: {
             query?: never;
@@ -2721,6 +2741,39 @@ export interface operations {
                         stuck: components["schemas"]["QueueCard"][];
                         moving: components["schemas"]["QueueCard"][];
                         settled: components["schemas"]["QueueCard"][];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    deleteStagedMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description the staged item */
+                mediaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description it is gone from the disk */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                        /** @description whether the deletion was written to the deletion journal */
+                        journaled: boolean;
                     };
                 };
             };

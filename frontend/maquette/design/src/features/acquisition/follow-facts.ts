@@ -29,7 +29,7 @@ import { followsQuery, incompleteShowsQuery } from "./queries";
 // undefined, which is what the engine's object literal did in practice.
 import type { Follow, FollowSubject } from "./types";
 import { followFraction } from "./follow-vocabulary";
-import { inFlightCards, todoCards } from "./arrival-slots";
+import { inFlightCards, setAsideCards, todoCards } from "./arrival-slots";
 import { originLine } from "./card-markup";
 import { followOffered } from "./follow-offer";
 export type { Follow };
@@ -55,6 +55,8 @@ export type FollowFacts = {
   plexMatch: boolean;
   /** In « À traiter », a step that cannot finish: relaunched or abandoned, never resolved. */
   tunnelError: boolean;
+  /** In the folded « Mis de côté »: kept on the disk until he deletes it or handles it. */
+  setAside: boolean;
   /** It has a media sheet — an unidentified release has none. */
   hasSheet: boolean;
   /** An arrived series nobody follows: « Suivre » is proposed (ruling 1), with its identity. */
@@ -140,6 +142,7 @@ export function followFacts(title: string, cache: PanelCache): FollowFacts | nul
     // foot, its panel offers too (R43, one card, one behaviour).
     plexMatch: todo?.plexMatch !== undefined,
     tunnelError: todo?.failedStep !== undefined,
+    setAside: answer ? setAsideCards(answer).some((one) => one.title === title) : false,
     hasSheet: (follow.ids ?? heldIdentity(title)?.ids) != null,
     // THE SAME OFFER THE CARD'S FOOT MAKES, from the same derivation (R43).
     followOffer: arrival !== undefined && followOffered(arrival, followed) ? arrival.ids ?? null : null,

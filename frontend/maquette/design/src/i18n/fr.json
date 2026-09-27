@@ -887,7 +887,8 @@
       "todoPlexMatch": "Match Plex à confirmer",
       "plexConfirmFoot": "Confirmer",
       "plexCorrectFoot": "Corriger",
-      "abandonFoot": "Abandonner"
+      "abandonFoot": "Abandonner",
+      "deleteFoot": "Supprimer"
     },
     "accountPage": {
       "noteLead": "Un seul compte existe sur ce serveur.",
@@ -1269,6 +1270,7 @@
       "plexCorrect": "Corriger le match Plex",
       "requeue": "Relancer l'étape",
       "abandon": "Abandonner",
+      "deleteStaged": "Supprimer du disque",
       "foundNextPassAt": "Trouvé, récupéré à la prochaine passe, à {{at}}.",
       "foundNextPass": "Trouvé, récupéré à la prochaine passe.",
       "filmLeavesNote": "Une fois acquis, ce film quittera automatiquement votre liste (§5).",
@@ -1337,6 +1339,15 @@
         "confirm": "Mettre en quarantaine",
         "cancel": "Annuler",
         "done": "« {{title}} » mis en quarantaine : {{path}}"
+      },
+      "deleteStaged": {
+        "heading": "Supprimer « {{title}} » du disque ?",
+        "bodyBefore": "Le dossier ",
+        "bodyAfter": " sera supprimé du disque et la suppression journalisée. ",
+        "caseUnknown": "qBittorrent n'a pas répondu : ce dossier est traité comme le seul exemplaire.",
+        "confirm": "Supprimer",
+        "cancel": "Annuler",
+        "done": "« {{title}} » supprimé du disque."
       }
     },
     "arrivals": {

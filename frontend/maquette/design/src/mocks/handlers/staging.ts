@@ -162,6 +162,27 @@ function moving(card: QueueCard): Position | undefined {
 }
 
 /**
+ * Takes one folder out of the staging area, whichever list serves it.
+ *
+ * THE SAME THREE LISTS ITS SIBLINGS WALK. Filtering `stuck` alone once let a
+ * card served from the DENSE world — or from « ça bloque » — be asked to go,
+ * remove nothing and stay on screen: the list a card is IN is a fact about the
+ * scenario in force, never about the operation asking.
+ *
+ * @param asked The folder.
+ * @returns Whether a folder was taken out.
+ */
+function takeOutOfStaging(asked: string): boolean {
+  const state = mockState();
+  for (const list of [FROM_REAL, FROM_DENSE, FROM_BLOCKED] as const) {
+    const before = state[list].length;
+    state[list] = state[list].filter((card) => card.title !== asked);
+    if (state[list].length !== before) return true;
+  }
+  return false;
+}
+
+/**
  * EVERY ARRIVAL, AS AN ACQUISITION CARD (ruling 2): what the staging area holds
  * in the scenario's world, each carrying who asked for it. The account is the
  * mock's single one, which owns the Plex server by construction (§17); an
@@ -291,25 +312,21 @@ export function stagingRoutes(): MockRoute[] {
       POST,
       "/api/staging/media/{mediaId}/discard",
       (request) => {
-        // THE SAME THREE LISTS ITS SIBLING WALKS. This filtered `stuck` alone,
-        // so a card served from the DENSE world — or from « ça bloque » — was
-        // asked to be discarded, nothing was removed, `{ok: false}` came back
-        // and the card stayed on screen. The list a card is IN is a fact about
-        // the scenario in force, never about the operation being asked for.
-        const state = mockState();
         const asked = request.parameters.mediaId;
         // QUARANTINED, NOT DELETED: the answer says where the folder went, the
         // way the backend composes it — the staging area's quarantine, then the
         // folder's own name — and that the move was journaled.
         const quarantinePath = [QUARANTINE_FOLDER, asked].join(PATH_SEPARATOR);
-        for (const list of [FROM_REAL, FROM_DENSE, FROM_BLOCKED] as const) {
-          const before = state[list].length;
-          state[list] = state[list].filter((card) => card.title !== asked);
-          if (state[list].length !== before) return { ok: true, journaled: true, quarantine_path: quarantinePath };
-        }
-        return { ok: false, journaled: false, quarantine_path: quarantinePath };
+        const removed = takeOutOfStaging(asked);
+        return { ok: removed, journaled: removed, quarantine_path: quarantinePath };
       },
     ),
+    // DELETED, NOT QUARANTINED: « Supprimer » on a folder set aside removes it
+    // from the disk and journals it; the answer carries no place it went.
+    route("deleteStagedMedia", DELETE, "/api/staging/media/{mediaId}", (request) => {
+      const removed = takeOutOfStaging(request.parameters.mediaId);
+      return { ok: removed, journaled: removed };
+    }),
     route("readStagingDestinations", GET, "/api/staging/destinations", () => DESTINATIONS),
     route(
       "resolvePlexMatch",
